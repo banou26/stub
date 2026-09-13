@@ -125,6 +125,32 @@ test('the season-scoped id for the same series still answers with its own 14', a
   expect([...new Set((media?.episodes ?? []).map(episode => episode.seasonNumber))]).toEqual([3])
 })
 
+/**
+ * A season row carries ITS OWN premiere, which is the first air date in it.
+ *
+ * `normalizeMedia` publishes `series_launch_year` on the SHOW and deliberately nothing on a season,
+ * because one season must not carry another's premiere. Nothing put the season's own date there
+ * either, so every Crunchyroll season row reached the store with a NULL year, and `plugin:title`'s
+ * gate 0 buckets candidates BY YEAR: a row with no year is never placed beside the run it belongs to.
+ * The corpus triage names exactly this, beside the JustWatch title since fixed: "the nf and cr rows
+ * that split publish no start date at all, so their profiles hold year NULL and gate 0's year bucket
+ * never puts them beside the run".
+ *
+ * Mutation: drop the `media.startDate` fill and the season answers `undefined` here, while the show
+ * below still answers its launch year, which is what makes this about the SEASON.
+ */
+test('a season row publishes its own premiere, and the show still publishes its launch year', async () => {
+  const season = await getMedia('G24H1N3MP-GS00374452', context(MUSHOKU))
+  // season 3's fixture premieres 2026-07-04 and runs weekly; the row takes the earliest, not the last
+  expect(season?.startDate).toBe('2026-07-04T00:00:00.000Z')
+
+  // the control: a show-level id has no season of its own to date and must NOT borrow one, since
+  // that is the mistake the original comment is guarding against
+  const show = await getMedia('G24H1N3MP', context(MUSHOKU))
+  expect(show?.episodes ?? [], 'the show has no episodes to take a date from').toHaveLength(0)
+  expect(show?.startDate, 'so it keeps whatever the series metadata said, here nothing').toBeUndefined()
+})
+
 // A one-season series has no seasons to be confused between, so its bare id is already exact and
 // `targetSeason` falls back to that single season. The guard must not cost it its episodes.
 test('a single-season series keeps its episodes when asked by the bare series id', async () => {

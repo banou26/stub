@@ -272,6 +272,26 @@ export const getMedia = async (id: string, ctx: ExtractorServerContext): Promise
   if (targetSeason) {
     media.episodes = await fetchNormalizedEpisodes(resolveSeasonId(targetSeason), media.uri, ctx)
     media.episodeCount = media.episodes.length
+    // THE SEASON'S PREMIERE IS ITS FIRST EPISODE'S AIR DATE, which is this file's own rule for the
+    // similarity path (`walkSeasonCandidates`: "the premiere is the first episode's air date") and was
+    // never applied to the row itself. `normalizeMedia` publishes `series_launch_year` on the SHOW and
+    // nothing on a season, correctly, since one season must not carry another's premiere. But nothing
+    // put the season's own date there either, so every Crunchyroll season row reached the store with a
+    // NULL year, and `plugin:title`'s gate 0 buckets by year: a row with none is never placed beside
+    // the run it belongs to. The corpus triage names exactly this, beside the JustWatch title that has
+    // since been fixed ("the nf and cr rows that split publish no start date at all, so their profiles
+    // hold year NULL and gate 0's year bucket never puts them beside the run").
+    //
+    // The EARLIEST released date, not `episodes[0]`: the list is ordered by episode number and a
+    // special or a late-added row can sit first, which would publish a date from the wrong end of the
+    // run. A season whose episodes carry no date at all keeps its NULL, which is the honest answer.
+    if (!media.startDate) {
+      const aired = media.episodes
+        .map(episode => episode.releaseDate)
+        .filter((date): date is string => typeof date === 'string' && !Number.isNaN(Date.parse(date)))
+        .sort()
+      if (aired.length) media.startDate = aired[0]
+    }
   }
   return media
 }
