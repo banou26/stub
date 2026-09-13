@@ -45,6 +45,36 @@ const handlesFor = async (external: { name: string, url: string }[]) => {
 
 const ANIDB = (url: string) => [{ name: 'AniDB', url }]
 
+/**
+ * A REAL PAGE ASKS WITH THE CLUSTER'S ADDRESS, never with a bare `mal:` uri.
+ *
+ * This resolver took `isUri` alone until 2026-09-14, so every ask from a media page was refused on its
+ * first line: `api.jikan.moe` was called ZERO times while a page loaded, `mal:61316` stayed a row other
+ * sources had named and nobody had described, and the modal drew the MyAnimeList badge as a dead icon
+ * while every other origin was a link. Nothing else can supply a `mal:` url, because AniList names the
+ * id through `buildHandlesFromUri`, which stamps an address and no url.
+ *
+ * Mutation: put back `if (!uri || !isUri(uri))` with `fromUri`, and the aggregated case answers null.
+ */
+test('it answers when asked with an AGGREGATED uri, which is what a media page sends', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const asked = 'ag:(anilist:189046,kitsu:49746,mal:1,offline:mal-1)'
+  const { value } = await subscribe(undefined, { input: { uri: asked } }, context(ANIDB('https://anidb.net/anime/23'))).next()
+
+  expect(value?.media, `asked with ${asked}`).toBeTruthy()
+  expect(value?.media?.uri).toBe('mal:1')
+  // the url is the whole point: it is what makes the badge a link rather than a grey icon
+  expect(value?.media?.url).toBeTruthy()
+})
+
+test('the control: an aggregated uri naming no mal handle is still refused', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const asked = 'ag:(anilist:189046,kitsu:49746)'
+  const { value } = await subscribe(undefined, { input: { uri: asked } }, context([])).next()
+
+  expect(value?.media, 'this source is not in that address and must not answer for it').toBeNull()
+})
+
 test('a link on either real shape yields the anidb id, and both handles carry it', async () => {
   for (const url of [
     'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23',

@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Media, MediaTrailer, Resolvers } from '../../generated/schema/types.generated'
 import { MediaStatus, MediaType } from '../../generated/graphql'
-import { fromUri, isUri } from '../../utils/uri'
+import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, normalizePage, sameAs } from '../utils'
 import { MAL_TYPE, isContinuing, parseMalSeason, type MalSeasonEntry } from './season-scrape'
 import { malLargeImage } from '../mal-image'
@@ -370,12 +370,27 @@ export const resolvers: Resolvers = {
   Mutation: {},
   Subscription: {
     media: {
-      subscribe: async function*(_, { input: { uri } }, ctx: ExtractorServerContext) {
-        if (!uri || !isUri(uri)) return yield { media: null }
-        const uriValues = fromUri(uri)
-        if (uriValues.origin !== origin) return yield { media: null }
+      /**
+       * AN AGGREGATED URI IS THE NORMAL SHAPE HERE, and refusing it cost MyAnimeList its whole row.
+       *
+       * A media page asks its sources with the CLUSTER's address, `ag:(anilist:189046,...,mal:61316,
+       * ...)`, and a source finds itself in it with `extractAggregatedUriOrigin`. This resolver took
+       * `isUri` alone, so every ask from a real page was refused on its first line and jikan never
+       * fetched anything: `api.jikan.moe` was called ZERO times while the page loaded (measured
+       * 2026-09-14). `mal:61316` stayed a placeholder that other sources had named and nobody had
+       * described, `raw` empty, no `url`, so the modal drew the MyAnimeList badge as a dead icon while
+       * every other origin was a link. Nothing else supplies a `mal:` url: AniList names the id
+       * through `buildHandlesFromUri`, which stamps an address and no url.
+       *
+       * Same three lines as `anilist`, `kitsu`, `tmdb` and the rest; this file was one of eight that
+       * never got them, and the only one of the eight that owns an origin no other source describes.
+       */
+      subscribe: async function*(_, { input: { uri: asked } }, ctx: ExtractorServerContext) {
+        if (!asked || !(isUri(asked) || isAggregatedUri(asked))) return yield { media: null }
+        const uri = extractAggregatedUriOrigin(asked, origin)
+        if (!uri) return yield { media: null }
         yield {
-          media: await fetchMedia({ id: Number(uriValues.id) }, ctx)
+          media: await fetchMedia({ id: Number(uri.id) }, ctx)
         }
       }
     },
