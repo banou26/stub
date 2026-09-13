@@ -624,6 +624,58 @@ test('a handle node answers an empty list, because its _id is its own uri', asyn
 // ---------------------------------------------------------------------------------------------
 // 6.6, the wake.
 
+// ---------------------------------------------------------------------------------------------
+// 6.2, the row a pass has not clustered yet.
+
+/**
+ * Opening a RELATION draws immediately, from what the parent said about it.
+ *
+ * `anilist:127720` is the `SEQUEL` node of `anilist:108465`'s answer, and nothing in this file
+ * describes it: it has a `Media` row because a claim named it, `raw` is `{}`, no source owns it, and
+ * `plugin:aggregate` skips it because its effective scope is neither RUN nor CONTAINER. So
+ * `resolveMedia` answers nothing for it, which is correct and was also, until 2026-09-14, a blank
+ * modal for as long as it took a pass to run.
+ *
+ * Measured in the browser on a cold media page that day, clicking the first relation: 940 to 1,835 ms
+ * to draw on the graph store against 90 ms on `?store=legacy`, whose union-find made every uri a
+ * claim named resolvable the moment it was mentioned. With the provisional view it is 88 ms.
+ *
+ * Mutation, three of them, one per thing the view needs: drop the `provisionalView` fallback in
+ * `createMediaReader.read` and this is undefined; read `raw` with `parse` rather than `record` and
+ * the row comes back with no titles, because `Media.raw` reads as an object and `parse` refuses a
+ * non string; leave `owned` as the column says and it comes back with no titles again, because
+ * `aggregateFields` reads fields off owned members only and nothing owns a placeholder.
+ */
+test('a relation nothing has described yet draws from what its claimer said', async () => {
+  const reader = createMediaReader('anilist:127720')
+  const media = await reader.read()
+
+  expect(media, 'the row exists because a claim named it, so there is something to draw').toBeDefined()
+  // `AggregatedMedia.titles` is `unknown[]`, the shape the JSON column round trips
+  expect((media!.titles as { title: string }[]).map(entry => entry.title)).toContain('Part 2')
+  // the id is the member uri and matches no cluster, which is what keeps `episodesOf` empty for it
+  expect(media!._id).toBe('anilist:127720')
+  expect(await episodesOf(media!._id)).toEqual([])
+})
+
+/**
+ * And it is PROVISIONAL: the reader must still wake when the real cluster arrives.
+ *
+ * This is the half a fallback gets wrong. `read` sets `clusterId` and narrows `wakeUris` from a
+ * resolved cluster; doing that from a provisional view would leave the reader waking on an id that
+ * is not a cluster and on members it does not have, so the blank modal becomes a STALE modal, which
+ * is worse. The provisional path therefore touches neither.
+ */
+test('and the provisional view does not become the state the reader settles in', async () => {
+  const reader = createMediaReader('anilist:127720')
+  expect(await reader.read()).toBeDefined()
+
+  expect(reader.clusterId(), 'a provisional view is not a cluster').toBeUndefined()
+  expect(reader.wakes({ clusters: ['cl:anything'], uris: ['anilist:127720'] })).toBe(true)
+  // the control: it still refuses another page's event, so this is not "wakes on everything"
+  expect(reader.wakes({ clusters: ['cl:anything'], uris: ['mal:60059'] })).toBe(false)
+})
+
 // Mutation: make `wakes` return true unconditionally and the control assertion below goes green
 // while every page in the app re-reads on every other page's event.
 test('a detail view wakes on its own cluster and not on another', async () => {

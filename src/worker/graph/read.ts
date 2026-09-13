@@ -24,13 +24,14 @@
  * - Nothing it returns has been merged, filtered or sorted: `applyMediaFilters`, `searchRelevance`
  *   and `applyMediaSorts` are the caller's, unchanged, and run over the cards this hands back.
  */
-import type { AggregatedEpisode, AggregatedMedia, ClusterCard } from './plugins/fields'
+import type { AggregatedEpisode, AggregatedMedia, ClusterCard, MemberRow } from './plugins/fields'
 
 import {
   isAggregatedUri, isRoutableUri, isUri, fromAggregatedUri, toAggregatedUri,
   type AggregatedUri, type Uri,
 } from '../../utils/uri'
 import { listen } from '../store/events'
+import { aggregateFields } from './plugins/fields'
 import { graphReady } from './schema'
 
 /**
@@ -417,6 +418,141 @@ const viewOfCluster = async (id: string): Promise<AggregatedMedia | undefined> =
 }
 
 /**
+ * The view of a row that EXISTS but that no pass has clustered yet: one member, drawn immediately.
+ *
+ * WHY THE MODAL NEEDS IT. Opening a relation from another modal navigates to a uri whose `Media` row
+ * the ingest already wrote, from the parent's own answer, so its title and cover are in the store
+ * before the click. But `resolveMedia` answers off `Cluster.media`, a column `plugin:aggregate`
+ * writes, and `plugin:aggregate` skips a row whose effective scope is neither RUN nor CONTAINER
+ * (`aggregate.ts`, `readSubjects`), which a freshly named relation's row usually is. So the modal had
+ * nothing to draw until a pass ran.
+ *
+ * Measured on a cold media page, 2026-09-14, clicking the first relation: the `Media` row was present
+ * 58 ms after the click and the modal drew at 940 to 1,835 ms, against 90 ms on `?store=legacy`. The
+ * old store had no such gap for a structural reason rather than a clever one: its union-find made
+ * every uri a claim named resolvable at once, so a relation was a cluster of one from the moment it
+ * was mentioned.
+ *
+ * IT IS PROVISIONAL AND IT IS NOT CACHED. `viewOfCluster` memoizes on a cluster id because a
+ * materialized column cannot move between writes; this has no cluster and its whole point is to be
+ * replaced by the real one, so it is recomputed per read and never enters `materialized`.
+ *
+ * `_id` IS THE MEMBER URI, which is deliberate and is the same spelling a handle node already uses
+ * (see `episodesOf`, which answers `[]` for one). It matches no `Cluster.id`, so nothing downstream
+ * can mistake it for a cluster: the episode list is empty until the real cluster lands, which is what
+ * it would have drawn anyway.
+ *
+ * ONLY `createMediaReader` USES IT, never `resolveMedia`. The seven `waitForMedia` callers block on
+ * `resolveMedia` through `findAggregatedMediaForContext`, and a source waiting for a cluster must not
+ * be released by a row that is not one yet.
+ */
+/**
+ * A JSON column as a record, tolerating a value the store already handed back DECODED.
+ *
+ * `parse` above refuses a non string, which is right for `Cluster.media` (always TEXT) and wrong
+ * here: `Media.raw` reads back as an object, so `parse` answered null and the provisional view came
+ * out with no titles at all. Same shape as `plugins/aggregate.ts` `parseRecord`, which is the reader
+ * this one has to agree with.
+ */
+const record = (value: unknown): Record<string, unknown> => {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
+  if (typeof value !== 'string' || !value) return {}
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
+const provisionalView = async (uri: string): Promise<AggregatedMedia | undefined> => {
+  const uris = addressUris(uri)
+  if (!uris.length) return undefined
+  const { query } = await graphReady()
+  // an empty `UNWIND` list dies at runtime on this engine, which the guard above is what prevents
+  const rows = await query(
+    `UNWIND $uris AS u
+     MATCH (m:Media {uri: u})
+     RETURN m.uri AS uri, m.origin AS origin, m.id AS id, m.owned AS owned, m.score AS score,
+       m.raw AS raw, m.fieldSeq AS fieldSeq
+     ORDER BY uri`,
+    { uris }
+  )
+
+  if (!rows.length) return undefined
+
+  // THE ROW IS USUALLY EMPTY, which is the whole case this path exists for: a relation's `Media` row
+  // is created because a claim named it, and `raw` stays `{}` until a source describes it. What the
+  // parent DID say about it is on the edge, as `CLAIMS.node` and `RELATED.node`, "the claimer's
+  // DESCRIPTION of the target" (2.2). Falling back to it is 6.3's own placeholder rule, which already
+  // takes a placeholder's `url` from "the best claimer's `node.url`"; this takes the rest of the row
+  // the same way, and the best claimer is the latest answer to have said anything.
+  const described = new Map<string, Record<string, unknown>>()
+  for (const table of ['CLAIMS', 'RELATED']) {
+    const edges = await query(
+      `UNWIND $uris AS u
+       MATCH (a:Media)-[c:${table}]->(b:Media {uri: u})
+       RETURN u AS uri, c.node AS node, c.answerSeq AS answerSeq
+       ORDER BY uri, answerSeq`,
+      { uris }
+    )
+    for (const edge of edges) {
+      const node = record(edge.node)
+      if (!Object.keys(node).length) continue
+      // ORDER BY answerSeq ascending, so the last write per uri is the latest description
+      described.set(String(edge.uri), node)
+    }
+  }
+
+  const members: MemberRow[] = rows.map(row => ({
+    uri: String(row.uri),
+    origin: String(row.origin ?? ''),
+    id: String(row.id ?? ''),
+    // OWNED IS FORCED TRUE when the row itself is empty and a claimer described it, and nothing else
+    // in this function matters more. `aggregateFields` reads fields off OWNED members only, so a
+    // placeholder (`owned` false, which is what a row nobody has answered about is) produces a view
+    // with no title, no cover and no description: exactly the blank modal this path exists to avoid.
+    // It is safe here and only here, because this view is never written to the store and never
+    // reaches a plugin: it is one read, replaced by the real cluster on the next pass.
+    owned: row.owned === true || described.has(String(row.uri)),
+    score: typeof row.score === 'number' ? row.score : null,
+    raw: Object.keys(record(row.raw)).length ? record(row.raw) : described.get(String(row.uri)) ?? {},
+    fieldSeq: Object.fromEntries(
+      Object.entries(record(row.fieldSeq))
+        .map(([key, value]) => [key, typeof value === 'number' ? value : Number(value)])
+        .filter(([, value]) => Number.isFinite(value as number))
+    ) as Record<string, number>,
+  }))
+  const found = members.map(member => member.uri)
+  // the profile carries the effective scope, and a row this path draws often has none yet: RUN is the
+  // reading that costs least when it is wrong, since a CONTAINER drawn as a run shows its own page
+  // rather than following a `preferredRun` that does not exist yet either
+  const [profile] = await query(
+    `UNWIND $uris AS u MATCH (p:MediaProfile)-[:PROFILE_OF]->(m:Media {uri: u})
+     RETURN p.scope AS scope ORDER BY u`,
+    { uris: found }
+  )
+  const scope = profile?.scope === 'CONTAINER' ? 'CONTAINER' : 'RUN'
+
+  return aggregateFields({
+    cluster: {
+      id: found[0]!,
+      aggUri: toAggregatedUri(found as Uri[]),
+      scope,
+      runLength: null,
+      runLengthTier: null,
+      runLengthWitnesses: 0,
+      runLengthFrom: [],
+      anomalies: [],
+    },
+    members,
+    related: [],
+    relations: [],
+    locationOrigin: typeof location === 'undefined' ? '' : location.origin,
+  })
+}
+
+/**
  * A live detail view: the read, and the test for whether one `view:changed` concerns it (6.6).
  *
  * Two states, and the first is the one a wake on cluster ids alone would miss. Before a cluster
@@ -437,8 +573,13 @@ export const createMediaReader = (uri: string, member?: string) => {
       if (media) {
         clusterId = media._id
         wakeUris = new Set([...requested, ...await memberUrisOf([media._id])])
+        return media
       }
-      return media
+      // NO CLUSTER YET, so draw the row itself rather than nothing (`provisionalView`). `clusterId`
+      // and `wakeUris` are deliberately NOT touched: the reader stays waking on its requested uris,
+      // which is what the real cluster's `view:changed` names, so the provisional view is replaced on
+      // the very next pass rather than becoming the state this reader settles in.
+      return provisionalView(uri)
     },
     // The middle clause is the one an id-shaped address needs: 6.2 lets the route uri BE a cluster
     // id, `clusterId` is only set by a successful read, and a read only runs on a wake, so a reader
