@@ -28,7 +28,11 @@ export type Backend = {
 }
 
 /**
- * Read the backend from the environment, defaulting to the engine that ships today.
+ * Read the backend from the environment, defaulting to the engine that ships.
+ *
+ * THE DEFAULT IS `native` since 2026-09-13. `ladybug` is still reachable and is what `diff` compares
+ * against, and both exist only until the reference is removed: a differential mode against an engine
+ * that is no longer installed is dead code.
  *
  * `globalThis.process?.env` rather than a bare `process.env`, because vite polyfills `process` into
  * the browser bundle: a bare read would be a ReferenceError under node's ESM loader in some configs
@@ -37,7 +41,7 @@ export type Backend = {
 export const backendFromEnv = (): BackendName => {
   const raw = (globalThis as { process?: { env?: Record<string, string | undefined> } })
     .process?.env?.GRAPH_ENGINE
-  return raw === 'native' || raw === 'diff' ? raw : 'ladybug'
+  return raw === 'ladybug' || raw === 'diff' ? raw : 'native'
 }
 
 /**
