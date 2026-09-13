@@ -9,3 +9,6 @@
 /examples/source-plugin/node_modules
 
 .playwright-mcp/
+
+# the graph-engine benchmark rig output (vite.bench.config.ts)
+/bench-out
