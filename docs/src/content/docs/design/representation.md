@@ -936,12 +936,41 @@ is written as `LINK {status: 'refused', reason}` so it can be queried.
 | 1 | `unknown-scope` | either endpoint's effective scope is NULL: the proposal waits for the next pass; nothing is written | `db.ts:113-123`, the claim that took the RUN default before its row landed |
 | 2 | `cross-scope` | effective scopes differ: downgraded (below). **Re-evaluated for every ACTIVE link every pass**: a link whose endpoints' scopes now differ is retracted and downgraded, which is the justwatch-before-crunchyroll race of `db.ts:113-123` as a fixture rather than a comment | `db.ts:166-169`, the derivation table |
 | 3 | `address-only` | any support is an `address` claim: a pointer, whoever the claimer. Refused and NOT downgraded, because the address asserts nothing about how its uris relate; the target still routes a re-ask (7.1), its owner's own claims and the plugins decide its cluster, and an unrelated address row still renders as a badge (6.2). Decided by the owner, 2026-09-12 | **NEW**; `src/sources/utils.ts:465-471` stamps no scope in either direction |
-| 4 | `disagreeing-ids` | the union would put two ids of one origin in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, never within one pass: an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade | `anomalies.ts:18-25`, one-way at `:38` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
-| 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
+| 4 | `disagreeing-ids` | the union would put two ids of one IDENTITY SPACE in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, never within one pass: an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade. **The relation it measures has every row THIS PROPOSAL would contest cut out of it** (`15cdb5d`, 2026-09-14, `contestedBy`): a component that holds together only through a row the proposal would put two disagreeing claimants onto is one guard 5 is about to take apart, so a disagreement measured across it is not one the proposal adds, and refusing on it makes the verdict depend on which claimant arrived first | `anomalies.ts:18-25`, one-way at `:38` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
+| 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass. **The claimants' components are read with the TARGET EXCLUDED** (`ca48d3a`, 2026-09-14, `Components.without`): read plainly, two claimants whose claims have both been accepted share a component THROUGH the target, the guard skips them as agreeing, and the merge erases the evidence that it should never have happened | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
 | 6 | `contained` | an active `PART_OF` or `INCLUDES` already joins the pair (3.5): refused; the downgrade is a no-op because the containment edge already exists | the owner's rule |
 | 7 | `count-mismatch` | one side is a season row of a folding origin (`folding`) and its `countDistinct` (else `countStated`) disagrees with the other side's `runLength`. The LONGER direction downgrades always, zero tolerance (`foldVetoed`, `similar.ts:147-150`). The SHORTER direction downgrades only when the run is FINISHED: a short fetched list on a RELEASING run is not evidence (twelve sources set `episodeCount = episodes.length`, `consensus.ts:164-168`), so the Elusive Samurai row with 8 of 12 aired stays a member as shipped (`consensus.test.ts:284-288`), while BAKI's 13 against a finished 26 no longer welds through the year rule (2026-09-10) | zero tolerance on longer; rule 5's "only exactness counts" on shorter (`similar.ts`). The FINISHED gate is **NEW**; its arm is the rewired exchange-rate rig of 9.3 before it moves |
 | 8 | `no-length` | one side is a season row of a folding origin and the other side has no `runLength` at all: downgraded, never welded on a guess | "no count" is not zero (2026-09-09) |
 | 9 | `kind-mismatch` | both sides name a `format` and one is MOVIE where the other is SERIES: downgraded. `tmdb:550` is Fight Club as a film and Till Death Us Do Part as a series (2026-09-04), and one uri whose answers disagree about its kind is an anomaly (5.5); the refusal stays on the claimant for the id itself (simkl, watchmode and, since `0530be7` on 2026-09-12, trakt all refuse to mint tmdb) | **NEW** as a guard on id claims; the corpus replay counts what it refuses before it ships on |
+
+:::note[Two rules these guards had wrong, and what a review cost to find (2026-09-14)]
+**An identity space is not always an origin.** Both guards ask whether two ids of one origin can both
+be this show, which reads the origin as the issuer of its ids. True of `mal`, `anilist` and `kitsu`;
+NOT true of `offline`, whose rows have no id of their own and are named by whichever foreign id
+reached them first (`src/sources/offline/index-lookup.ts`, `rowId`). So `offline:anilist-103303` and
+`offline:mal-62856` are routinely one row under two addresses. Measured on the recorded page: taking
+the origin split **57 corpus lines the labels say are one show**, every one an `offline:` pair
+borrowing from two different catalogues. `identitySpaceOf` splits on the borrowed source instead, so
+`offline:mal-100` against `offline:mal-200` is still reported. `plugins/anomalies.ts` reads the same
+function, because 5.5 reads what 5.2 decided and the origin is exactly where the two drifted apart.
+
+**Guard 4's cut is a COUNTERFACTUAL, and the two obvious definitions both fail.** "A disagreement is
+visible at this target" is empty when guard 4 asks, because the disagreement is contingent on the very
+link being weighed. "The target is the only thing holding its claimants together" is structural with
+no disagreement in it, so it marks every ordinary cross-catalogue hub and switches guard 4 off through
+all of them: measured on the 249 case corpus, 490 of 6,261 guard batches carried a non-empty set,
+**only 10 held a pair that actually straddles**, and the result is a WELD of two different `mal` runs
+as soon as one agreeing third row exists. The question that works is neither of those: **would
+accepting THIS link make this hub's claimants disagree.** The view is the relation with the target cut
+out and the proposal's own two ends joined, which is the graph the write would leave behind.
+
+**Still open, and recorded rather than asserted.** Guard 5 cuts ONE target at a time, so where two
+claimants each claim TWO targets, both targets hold them together under either cut and neither is ever
+contested: six orderings of that fixture still build three graphs. And answering a whole contradiction
+in a SINGLE batch weighs every proposal against the same pre-batch snapshot, so nothing disagrees yet,
+everything is accepted, and guard 4 cannot retract a standing weld by design. Both predate this work
+and both are in `tests/unit/worker/graph/plugins/arrival-order.test.ts`'s header.
+:::
 
 **The downgrade: the RUN versus CONTAINER exchange in one place.** A proposal refused for anything but
 `unknown-scope`, `address-only` or `contained` is written instead as `PART_OF` with `reason` set to the
@@ -1772,6 +1801,29 @@ indistinguishable from one that did not change.
 
 Resolve, then one lookup. `$uris` is the decoded route uri, or every member uri of an aggregated uri;
 `$id` is a cluster id, current or retired.
+
+:::note[A row no pass has clustered yet draws anyway (`cbac074`, 2026-09-14)]
+Everything below answers off `Cluster.media`, which `plugin:aggregate` writes, and that plugin SKIPS a
+row whose effective scope is neither RUN nor CONTAINER. **Opening a RELATION is exactly that row.** Its
+`Media` row is already there, written from the parent's own answer, but it has no cluster, so the
+resolve returned nothing and the modal drew nothing until a pass ran. Measured on a cold media page,
+clicking the first relation: **940 to 1,835 ms against 90 ms on `?store=legacy`**, whose union-find
+made every uri a claim named resolvable the moment it was mentioned. With the provisional view, 88 ms.
+
+`createMediaReader` therefore falls back to a one-member view of the row itself. Three things it needs,
+each of which was a blank modal on its own: the row's `raw` is `{}`, so the fields come off the EDGE
+(`CLAIMS.node` and `RELATED.node`, "the claimer's DESCRIPTION of the target"), which is 6.3's own
+placeholder rule applied to the whole row rather than only to `url`; `Media.raw` reads back DECODED, so
+a reader that only accepts TEXT answers null; and `aggregateFields` reads fields off OWNED members
+only, which a placeholder is not.
+
+**It is `createMediaReader` and never `resolveMedia`**: the seven `waitForMedia` callers block on
+`resolveMedia` through `findAggregatedMediaForContext`, and a source waiting for a cluster must not be
+released by a row that is not one. And it must not become the state the reader settles in, so the
+provisional path sets neither `clusterId` nor `wakeUris`: the reader keeps waking on its requested
+uris, which is what the real cluster's `view:changed` names, and a blank modal never becomes a stale
+one.
+:::
 
 ```cypher
 // 1. resolve by member uri: a key lookup per uri, membership first. The rank is a projected column,
