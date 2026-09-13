@@ -3,7 +3,7 @@
 // at boot, run through the same `query` helper.
 import { afterAll, describe, expect, test } from 'vitest'
 
-import { closeGraph, openGraph } from '../../../../src/worker/graph/engine'
+import { closeGraph, openGraph, graphEngine } from '../../../../src/worker/graph/engine'
 import { createGraphSchema, GRAPH_SCHEMA, GRAPH_TABLES, PLUGIN_REL_TABLES, SOURCE_REL_TABLES, tableNameOf } from '../../../../src/worker/graph/schema'
 
 afterAll(async () => {
@@ -65,7 +65,11 @@ describe('createGraphSchema', () => {
   // ...and the reason the statement above spells the map out. An object param binds as a STRUCT,
   // which the MAP column refuses, so the obvious spelling is the one that fails: pinned here, since
   // the failure names a type nobody wrote and reads as a bad column rather than a bad param.
-  test('an object param into a MAP column is refused, naming the STRUCT it bound as', async () => {
+  // REFERENCE ONLY. The replacement ACCEPTS a plain object into a MAP column, deliberately: the
+  // refusal here is the engine binding an object literal as a STRUCT and then refusing to cast it,
+  // which is a quirk the ingest works around rather than a rule anything wants. Kept because it
+  // documents what the old engine did, skipped under the new one because it is not a requirement.
+  test.skipIf(graphEngine() === 'native')('an object param into a MAP column is refused, naming the STRUCT it bound as', async () => {
     const { query } = await openGraph()
     await createGraphSchema({ query })
 

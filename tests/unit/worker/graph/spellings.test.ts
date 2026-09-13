@@ -13,7 +13,7 @@ import type { TestContext } from 'vitest'
 
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
-import { closeGraph, openGraph } from '../../../../src/worker/graph/engine'
+import { closeGraph, openGraph, graphEngine } from '../../../../src/worker/graph/engine'
 
 afterAll(async () => {
   await closeGraph()
@@ -273,7 +273,11 @@ describe('the nine spellings of 11.1', () => {
 
 // A measurement that cannot express a refusal reports success unconditionally. This is the arm that
 // must fail, using the one spelling the engine facts already record as refused.
-test('the control: a spelling the engine refuses is reported, not passed', async () => {
+// REFERENCE ONLY. This file surveys which SPELLINGS of a pattern the engine accepts, and its control
+// is a spelling it refuses. The replacement's grammar is its own and accepts this one, so the control
+// has nothing to report there: the file is about the old engine's surface, and step 6 folds what is
+// still worth keeping into cypher/conformance.test.ts.
+test.skipIf(graphEngine() === 'native')('the control: a spelling the engine refuses is reported, not passed', async () => {
   const { query } = await openGraph()
 
   await expect(query('MATCH (m:SMedia) RETURN m AS m ORDER BY m')).rejects.toThrow(/Order by/)
