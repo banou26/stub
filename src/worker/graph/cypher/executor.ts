@@ -167,11 +167,113 @@ const variablesOf = (patterns: readonly Pattern[]): string[] => {
   return names
 }
 
+/**
+ * Walk the chain from whichever END is cheaper, reversing it if that is the far one.
+ *
+ * `MATCH (pa:MediaProfile)-[:PROFILE_OF]->(m)` with `m` already bound is the shape this exists for,
+ * and the app writes it constantly: the plugins join a profile onto a media they already have. Walked
+ * as written it scans every MediaProfile row and keeps the handful whose edge happens to reach `m`.
+ * Walked backward it is one adjacency lookup. Measured on the home page: two statements of this shape
+ * cost 890 ms across 32 calls before, and the rows they returned were never the issue.
+ *
+ * CHEAPER means, in order: an endpoint already BOUND, then one addressed by its PRIMARY KEY, then
+ * nothing. Only the two ends are considered, not the middle of a longer chain, because every shape
+ * the app issues is anchored at one end or the other and a general planner is not what this needs.
+ */
+const anchored = (context: Context, binding: Binding, pattern: Pattern): Pattern => {
+  if (!pattern.steps.length) return pattern
+  const last = pattern.steps[pattern.steps.length - 1]!.node
+  if (rank(context, binding, pattern.start) >= rank(context, binding, last)) return pattern
+  return reverse(pattern)
+}
+
+const rank = (context: Context, binding: Binding, node: NodePattern): number => {
+  if (node.variable && binding.has(node.variable)) return 2
+  const table = node.label ? context.store.node(node.label) : undefined
+  if (table && node.properties.some(entry => entry.name === table.primaryKey.name)) return 1
+  return 0
+}
+
+/** The same chain read from the other end: steps reversed, every relationship direction flipped. */
+const reverse = (pattern: Pattern): Pattern => {
+  const nodes = [pattern.start, ...pattern.steps.map(step => step.node)]
+  const rels = pattern.steps.map(step => step.rel)
+  const flipped = rels.map(rel => ({
+    ...rel,
+    direction: rel.direction === 'right' ? 'left' as const
+      : rel.direction === 'left' ? 'right' as const
+        : 'undirected' as const,
+  }))
+  return {
+    start: nodes[nodes.length - 1]!,
+    steps: flipped.reverse().map((rel, index) => ({ rel, node: nodes[nodes.length - 2 - index]! })),
+  }
+}
+
+/**
+ * THE EDGE KEY INDEX, which is the difference between a lookup and a scan of the whole graph.
+ *
+ * `MATCH (a:Media)-[c:CLAIMS {key: k}]->(b:Media)` addresses ONE edge by its sha-256, and the app
+ * issues that shape constantly: CLAIMS, LINK, HAS_EPISODE and EPISODE_CLAIMS all carry a `key` and
+ * all are read this way. Expanded node first it scans every Media row and walks each one's adjacency
+ * looking for a key that is usually on none of them. Measured on the home page before this existed:
+ * 14 calls, 856 ms, ZERO rows returned. Sixty one milliseconds each to find nothing.
+ *
+ * `storage.ts` has built the index the whole time and nothing consulted it, which is the more useful
+ * half of the lesson: an index is not a decision, it is a decision plus the call site that uses it.
+ *
+ * Only for a single hop with no endpoint already bound. Anything else falls through to the ordinary
+ * expansion, because the point is to catch the one shape that matters rather than to plan.
+ */
+const edgeAnchored = (context: Context, binding: Binding, pattern: Pattern): EdgeRecord[] | undefined => {
+  if (pattern.steps.length !== 1) return undefined
+  const step = pattern.steps[0]!
+  if (step.rel.range || !step.rel.type) return undefined
+  if (pattern.start.variable && binding.has(pattern.start.variable)) return undefined
+  if (step.node.variable && binding.has(step.node.variable)) return undefined
+
+  const table = context.store.rel(step.rel.type)
+  if (!table?.byKey) return undefined
+  const keyed = step.rel.properties.find(entry => entry.name === 'key')
+  if (!keyed) return undefined
+
+  const key = evaluate(context, binding, keyed.value)
+  return [...(table.byKey.get(key ?? null) ?? [])]
+}
+
 /** One pattern against one binding: zero or more bindings extended with what the pattern named. */
-const expand = (context: Context, binding: Binding, pattern: Pattern): Binding[] => {
-  let current = startingNodes(context, binding, pattern.start)
-    .map(node => withNode(context, binding, pattern.start, node))
+const expand = (context: Context, binding: Binding, original: Pattern): Binding[] => {
+  let pattern = original
+  const byKey = edgeAnchored(context, binding, pattern)
+  if (byKey) {
+    const step = pattern.steps[0]!
+    const out: Binding[] = []
+    for (const edge of byKey) {
+      // an undirected pattern matches the edge from either end, so both readings are offered
+      const readings = step.rel.direction === 'undirected'
+        ? [{ start: edge.from, end: edge.to }, { start: edge.to, end: edge.from }]
+        : step.rel.direction === 'left'
+          ? [{ start: edge.to, end: edge.from }]
+          : [{ start: edge.from, end: edge.to }]
+      for (const reading of readings) {
+        const first = withNode(context, binding, pattern.start, reading.start)
+        if (!first) continue
+        const second = withNode(context, first, step.node, reading.end)
+        if (!second) continue
+        if (!matches(context, second, step.rel.properties, edge.props)) continue
+        if (step.rel.variable) second.set(step.rel.variable, { kind: 'edge', edge })
+        out.push(second)
+      }
+    }
+    return out
+  }
+
+  const chain = anchored(context, binding, pattern)
+  let current = startingNodes(context, binding, chain.start)
+    .map(node => withNode(context, binding, chain.start, node))
     .filter((one): one is Binding => one !== undefined)
+
+  pattern = chain
 
   for (const step of pattern.steps) {
     const next: Binding[] = []
