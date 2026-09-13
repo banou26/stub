@@ -62,7 +62,6 @@
     "osra": "^0.6.4",
     "preact": "^11.0.0-beta.0",
     "react-hook-form": "^7.62.0",
-    "react-player": "^3.3.2",
     "react-window": "^2.0.1",
     "sacha": "^0.2.4",
     "urql": "^4.2.2",
