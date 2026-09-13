@@ -10,7 +10,7 @@ import { remotePicker, remotePlayer } from '../../worker'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
-import { getPlayer } from '../../sources/players'
+import { canPlay } from '../../sources/playable'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
@@ -238,7 +238,7 @@ const Watch = () => {
     if (!handle) return undefined
     if (handle.embedUrl) return handle.embedUrl
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
-    if (!getPlayer(origin) || !handle.url) return undefined
+    if (!canPlay(origin) || !handle.url) return undefined
     const embedParams = new URLSearchParams({
       mediaUri: params.mediaUri,
       episodeUri: params.episodeUri,
@@ -307,7 +307,7 @@ const Watch = () => {
         // that url is a magnet, which leaves the browser entirely)
         const selfPlaying = Boolean(players[origin.id])
         const playableHandle = (handle: typeof handles[number]) =>
-          Boolean(handle?.embedUrl || selfPlaying || (getPlayer(origin.id) && handle?.url))
+          Boolean(handle?.embedUrl || selfPlaying || (canPlay(origin.id) && handle?.url))
         const pathFor = (sourceUri: string) =>
           getRoutePath(Route.WATCH, { mediaUri: params.mediaUri, episodeUri: params.episodeUri, sourceUri })
 

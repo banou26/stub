@@ -27,7 +27,7 @@ import { listedMediaFor } from './modal-media'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
-import { getPlayer } from '../../sources/players'
+import { canPlay } from '../../sources/playable'
 import SourceSelector from '../../components/source-selector'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { episodeOriginIds } from './episode-origins'
@@ -499,7 +499,7 @@ const Episode = (
           .map(handle => handle.node)
       const handle = handles.at(0)
       const sourceUri = handle?.uri
-      const playable = Boolean(getPlayer(origin.id) && handle?.url)
+      const playable = Boolean(canPlay(origin.id) && handle?.url)
       // several releases always route inward with no sourceUri, so the user picks on the watch page
       const watchPath =
         episode.uri
