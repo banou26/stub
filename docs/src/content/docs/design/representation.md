@@ -3,9 +3,25 @@ title: The representation
 description: "The graph, the edge model, the plugins and the read path that replace the union-find store, with every threshold cited."
 ---
 
-Stub's store becomes a graph: LadybugDB inside the worker, every source answer kept byte for byte,
-every merge decision a plugin that writes only rows stamped with its own id, and a read path that is a
-lookup of what the plugins materialized. This page is the design record for that store. It replaces
+Stub's store becomes a graph: a Cypher store inside the worker, every source answer kept byte for
+byte, every merge decision a plugin that writes only rows stamped with its own id, and a read path
+that is a lookup of what the plugins materialized.
+
+:::note[The engine changed on 2026-09-14, the design did not]
+This page was written against **LadybugDB** (`@ladybugdb/wasm-core` 0.20.4), a wasm database running
+in a nested Web Worker, and every measurement dated 2026-09-11 or 2026-09-12 below was taken on it.
+It was replaced by `src/worker/graph/cypher`, an in-process Cypher store over the same schema, the
+same statements and the same plugin output. **Nothing in sections 2 through 8 changed**: the tables,
+the edge model, the ingest, the plugins and the read path are as described.
+
+What changed is the cost of asking. LadybugDB charged about 2.2 ms and six round trips for any
+statement whatever it did, and the app crossed that boundary enough times per page load to read
+175,479 rows out of an 8,346 row graph. The measured effect of the swap, 2026-09-14: the corpus 408 s
+to 8.6 s, the unit suite 450 to 620 s down to 7.6 s, the time inside `query()` on one media modal
+67.0 s to 1.22 s, engine boot 1,031 ms to 8 ms. Anything below that prices a round trip, a wasm
+boundary or a 22 MB engine file is describing the old engine and is kept as the record of why the
+replacement exists.
+::: This page is the design record for that store. It replaces
 the union-find of `src/worker/store/graph.ts`, the three pair linkers of `db.ts`, the fuzzy pass that
 runs inside a listing read, and the consensus functions that rebuild an episode list on every event.
 
@@ -2281,10 +2297,10 @@ the store and the two policies that ran inside reads.
 | `HandleRelation` (`SAME_AS`, `PART_OF`) | `CLAIMS.kind`; the GraphQL enum gains `INCLUDES` as an output value and as a fenced source claim (the owner's call) |
 | `Relation`, `FranchiseNode`, `FranchiseEdge`, `Franchise` | `RELATED` edges and `raw.franchise` |
 | `Media`, `Episode`, `Origin` store row types | `Media.raw`, `Episode.raw`, `Origin.raw` plus the typed projections; the TS types become the row shape of the projection query |
-| `createUnionFind`, `createGraph` and every method (`set`, `registerLabel`, `setLabel`, `labeled`, `get`, `has`, `alias`, `resolve`, `link`, `connect`, `neighbours`, `root`, `componentId`, `edge`, `targets`, `sources`, `cluster`, `clusters`, `clear`) | LadybugDB. `link` and `componentId` are `plugin:aggregate`; `connect` and `edge` are `CLAIMS` and `LINK`; `alias` and `resolve` are `Alias` and `Cluster.aliases`; `clear` is a fresh worker |
+| `createUnionFind`, `createGraph` and every method (`set`, `registerLabel`, `setLabel`, `labeled`, `get`, `has`, `alias`, `resolve`, `link`, `connect`, `neighbours`, `root`, `componentId`, `edge`, `targets`, `sources`, `cluster`, `clusters`, `clear`) | the graph store. `link` and `componentId` are `plugin:aggregate`; `connect` and `edge` are `CLAIMS` and `LINK`; `alias` and `resolve` are `Alias` and `Cluster.aliases`; `clear` is a fresh worker |
 | `lastWriteLongestArray` | the ingest field merge (4.3), same rule, loser archived in `Answer` |
 | `HAS_EPISODE_LABEL`, `IDENTITY_LABELS`, `ASSERTED_LABELS` | the `HAS_EPISODE` table; `Cluster.scope`; the `CLAIMS` table plus the `LINK` rows `plugin:direct` derived from it, which is the asserted record with claimer and answer |
-| `graph` (the singleton) | the worker's LadybugDB connection, held by the ingest and the plugin runner |
+| `graph` (the singleton) | the worker's graph store, held by the ingest and the plugin runner |
 | `upsertMedia` | `ingest.media(rows, claims)` (4.2); the scope ratchet, placeholder rule, pending claims and relation derivation move to `plugin:profile` and `plugin:direct` |
 | `linkSameMediaPairs`, `linkSameContainerPairs`, `linkPartOfPairs` | the writer's guards and downgrade (5.2) |
 | `findAggregatedMedia` | the resolve query (6.2) plus `Cluster.media`; `ctx.findAggregatedMedia` for sources reads the same |
@@ -2394,6 +2410,10 @@ Each step leaves the app running; a flag gates every new read until its step lan
 (a 22.1 MB `lbug_wasm_worker.js` served by a Vite plugin straight from `node_modules`, never committed; 188 ms init in the rig, 556 to 706 ms in the app, 2026-09-11 and 2026-09-12)
 loads behind the flag until step 3 rather than on every cold load.
 
+That parenthesis is the ENGINE AS IT WAS PLANNED FOR, and its weight is most of why the plan gated it
+behind a flag at all. There is no engine file since 2026-09-14 and the store costs 8 ms to open, so
+steps 6b and 6c below carry what actually happened.
+
 | step | work | ships |
 | --- | --- | --- |
 | 1a, a day | **the engine half is DONE** (`23c1278`, 2026-09-12): `@ladybugdb/wasm-core` 0.20.4 opens in the worker behind `?graph=1`, `setWorkerPath` before any call, `openGraph()` flattening INT64 and rethrowing a binder error with its statement, a headless check with a control arm; **the rest of 1a is DONE too** (`163c1fe`, 2026-09-12: the 24 tables at boot, the `Answer` log with the position whitelist, content hashes ignoring `_id`, `?export=answers`, the nine spellings measured). What 1a covered: the schema of section 2 created at start, the `Answer` log with the position-keyed hook (4.1), the content hashes and the audit (5.3), `?export=answers`; a measurement of every spelling this document uses outside the exercised set, each with its verbose fallback written beside it (11.1): a struct literal inside `collect`, the named filtered variable-length path, `MERGE` bound to an `UNWIND` variable, a correlated `NOT EXISTS` naming an `UNWIND` variable, `CASE` as a projected column beside `DISTINCT`, `SET` on a relationship matched by property, `IN` over a `STRING[]` column, `coalesce`, and `count(DISTINCT ...)` under a `WHERE` on the edge | the DDL loads on the real engine in the suite; the hash no-op test; the nested-node tests with their top-level control; the spelling measurements, each recorded as exercised or replaced. Cost while the flag is off: nothing |
@@ -2407,7 +2427,8 @@ loads behind the flag until step 3 rather than on every cold load.
 | 4 | the similar consumer reads `ATTACHED_TO`, builds its evidence from the run's own slots, writes `ask` claims and the `Ask` log (**the log is DONE**, `47e6ca5`: every question sent and its outcome is a row); `similarMedia.containing` ships to Crunchyroll first; the lend stays accepted as `plugin:range` evidence (4.4) | every ask a row; the fold visible as a `containing` edge where an answerer states it |
 | 5 | `lendContainingSeason` deleted, only once Crunchyroll answers `containing` and both Mushoku part-twos are verified live at 12 Crunchyroll sources on their own episodes 1 to 12 (the 2026-09-09 measurement); `alignRunEpisodes`, `runEpisodes` deleted; the other four answerers gain `containing` one at a time, unogs and justwatch after the 33-show arm | nothing lends; every Crunchyroll button is a proven pair |
 | 6a, flagged | **pulled forward to 2g-b on 2026-09-12**: the corpus at step 2d showed 184 of its 454 remaining lines were echoed handles entering the closure as claims (152 `UNRELATED HOLDS`, 15 `WELD`, 15 `UNRELATED MERGED`, 2 `ATTACHED`; Netflix's recorded `media` answers are pure echoes in 89 of 156 rows, Crunchyroll's in 31 of 52). As planned here: `buildHandlesFromUri` stamps `provenance: 'address'` and guard 3 activates as decided (11.3, decision 1) | the re-injection path closed to the extent decided |
-| 6b | flip the flag default; bake for a session on the live site with the store export diffed against a pre-flip export | one store serving every read, the old store still on disk |
+| 6b | **DONE** (2026-09-13): the flag default flipped, so the graph is the store and `?store=legacy` is the only way back (`src/utils/export-flag.ts`, `readsLegacyStore`) | one store serving every read, the old store still on disk |
+| 6-engine | **DONE** (2026-09-14), not in the original plan: LadybugDB deleted and the store replaced by `src/worker/graph/cypher`, an in-process interpreter over a closed grammar taken from the 142 statements the app issues. `GRAPH_ENGINE`, the differential harness, the backend indirection, the bench rigs and the 22 MB asset plugin all go with it. The conformance suite (`tests/unit/worker/graph/cypher/conformance.test.ts`) is what survives the reference: every case in it ran green against LadybugDB before it was written down | the numbers in the note at the top of this page |
 | 6c, a separate commit | the old store (`graph.ts`, `db.ts`, `fuzzy-merge.ts`, `consensus.ts` except the moved pure functions, `anomalies.ts`, `normalize.ts`) deleted; `exportStore` walks `LINK`; the flag removed | one store |
 | 7 | the source-side changes of 4.6: the seven `?? episodes.length` sites read `episodeCount` only (done, `c47faab` and `b84a403`); tvmaze, trakt, simkl, tvdb emit the episode dates they already fetch (done, `b84a403`); `startDatePrecision` on kitsu and jikan first, then extractors that know it; `episodeCountKind` and `episodeNumberSpace`; unogs's fenced `INCLUDES` handles; `PluginSourceMeta`'s declared fields; anizip's row `score` becomes moot for the count because the vote reads classes, and stays open for scalars | more pairs proven by date; more January premieres kept; a remote source that declares rather than inherits |
 

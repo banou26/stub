@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { createReadStream, readFileSync } from 'fs'
+import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig, lazyPlugins } from 'vite-plus'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
@@ -20,9 +20,6 @@ const commit = (() => {
     return 'dev'
   }
 })()
-
-const LADYBUG_ENGINE_FILE = 'lbug_wasm_worker.js'
-const ladybugEnginePath = resolve(__dirname, 'node_modules/@ladybugdb/wasm-core', LADYBUG_ENGINE_FILE)
 
 export default defineConfig((_) => ({
   define: {
@@ -103,26 +100,6 @@ export default defineConfig((_) => ({
             'node_modules/vite-plugin-node-polyfills/shims/buffer/dist/index.js',
           )
         }
-      },
-    },
-    // LadybugDB's engine is one 22 MB file inside the package that its exports map does not expose,
-    // so it cannot be imported and has to be SERVED, at the path `setWorkerPath` names in
-    // src/worker/graph/engine.ts. Serving it from node_modules in dev and emitting it at build time
-    // keeps 22 MB of vendor bytes out of git, which committing it to public/ would not.
-    {
-      name: 'stub-ladybug-engine-asset',
-      configureServer(server) {
-        server.middlewares.use(`/${LADYBUG_ENGINE_FILE}`, (_request, response) => {
-          response.setHeader('content-type', 'text/javascript')
-          createReadStream(ladybugEnginePath).pipe(response)
-        })
-      },
-      generateBundle() {
-        this.emitFile({
-          type: 'asset',
-          fileName: LADYBUG_ENGINE_FILE,
-          source: new Uint8Array(readFileSync(ladybugEnginePath)),
-        })
       },
     },
     nodePolyfills(),

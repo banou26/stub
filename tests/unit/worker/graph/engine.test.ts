@@ -42,8 +42,11 @@ describe('openGraph', () => {
     const first = await openGraph()
     const second = await openGraph()
 
-    expect(second.backend).toBe(first.backend)
+    // `db`/`conn` were asserted here while the store was LadybugDB, and `backend` while the two ran
+    // side by side. Both are gone; the property is unchanged and rests on the one thing every caller
+    // shares.
     expect(second.query).toBe(first.query)
+    expect(second.version).toBe(first.version)
   })
 
   // `read.test.ts` counts the statements a read runs by REASSIGNING `graph.query`, so it has to be a

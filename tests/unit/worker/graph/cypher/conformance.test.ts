@@ -8,9 +8,10 @@
  * the engine surprised the author the ENGINE won and the expectation was rewritten; each of those is
  * marked with what was learned.
  *
- * It drives `openGraph()`, so it runs against whichever backend `GRAPH_ENGINE` selects: `ladybug`
- * (the default, and what these expectations were taken from), `native` (the replacement alone), or
- * `diff` (both, refusing on any divergence). Nothing in the file names an engine.
+ * It drove `openGraph()` against whichever backend `GRAPH_ENGINE` selected while the two ran side by
+ * side. LadybugDB was deleted on 2026-09-14 and there is one store now, so every case runs against
+ * the replacement. The property above survives the deletion: these expectations were taken from the
+ * reference while it still existed, which is why they are worth keeping after it is gone.
  *
  * ROW ORDER IS NEVER ASSERTED WITHOUT `ORDER BY`. The reference engine returned between 4 and 15
  * distinct orders for one statement over one graph across 20 to 40 runs, so a multi-row expectation
@@ -22,7 +23,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
-import { closeGraph, openGraph, graphEngine } from '../../../../../src/worker/graph/engine'
+import { closeGraph, openGraph } from '../../../../../src/worker/graph/engine'
 
 afterAll(async () => {
   await closeGraph()
@@ -51,46 +52,24 @@ const refusalOf = async (cypher: string, params?: Record<string, unknown>): Prom
 }
 
 /**
- * A refusal BOTH engines must produce, with the wording each of them uses.
+ * A refusal, with the wording the store produces.
  *
- * The two disagree on phrasing and there is no honest way around it: LadybugDB says
- * `Conversion exception: Cast failed. Could not convert "1e+21" to INT64.` where the replacement says
- * `Binder exception: cast expected INT64 ...`. Asserting only a substring they happen to share would
- * weaken the case to nothing on the pairs that share nothing, and asserting the reference's string
- * alone would red every one of these under the replacement forever.
- *
- * So both are written down. What the case actually pins is the property that matters, which is that
- * the statement is REFUSED rather than quietly doing something, and the two spellings are recorded
- * beside each other so the divergence is a fact in the file rather than a surprise in a diff.
- *
- * Where a CALLER matches on the wording, that is a different obligation and is pinned separately:
- * `tests/corpus/adapters/graph-store.ts` looks for `Found duplicated primary key value`, and
- * `tests/unit/worker/graph/engine.test.ts` looks for `Binder exception`. Both engines satisfy those.
+ * This took both engines' wordings while the replacement was being proved against LadybugDB, because
+ * the two disagreed on phrasing and neither was wrong. Only one remains, so only one wording does.
+ * What the case pins is unchanged and is the part that matters: the statement is REFUSED rather than
+ * quietly doing something. Where a CALLER matches on the wording that is a separate obligation, and
+ * `tests/corpus/adapters/graph-store.ts` (`Found duplicated primary key value`) and
+ * `tests/unit/worker/graph/engine.test.ts` (`Binder exception`) are the two that do.
  */
-const refusesBoth = async (
+const refuses = async (
   cypher: string,
   params: Record<string, unknown> | undefined,
-  wording: { ladybug: string, native: string }
+  wording: string
 ): Promise<void> => {
   const message = await refusalOf(cypher, params)
-  expect(message, 'it has to be refused by whichever engine is running').not.toBe('the engine accepted it')
-  expect(message).toContain(graphEngine() === 'native' ? wording.native : wording.ladybug)
+  expect(message, 'it has to be refused').not.toBe('the engine accepted it')
+  expect(message).toContain(wording)
 }
-
-/**
- * Cases the REPLACEMENT deliberately does not satisfy, run against the reference and skipped against
- * the replacement so a native run stays a usable regression signal.
- *
- * A suite carrying seventeen known failures tells you nothing about the eighteenth. Each of these is
- * a decision written down elsewhere, and they fall into three groups:
- *
- * - THE EMPTY UNWIND. The reference dies on one, in two different ways, and nine comments across
- *   `src/worker/graph` warn about it. The replacement answers no rows, which is what an empty list
- *   means, and the guards those nine comments protect become unnecessary rather than wrong.
- * - THE ENGINE QUIRKS the replacement exists partly to remove: an UNWIND struct field typed from its
- *   first row and corrupting later ones, a DOUBLE reinterpreted as bits, the STRUCT refusal.
- */
-const onlyReference = test.skipIf(graphEngine() === 'native')
 
 const strings = (rows: readonly Record<string, unknown>[], key: string): string[] =>
   rows.map(row => String(row[key])).sort()
@@ -239,8 +218,7 @@ describe('the DDL', () => {
     await run('CREATE (:CWrite {uri: $uri, n: 1})', { uri: 'w:pk' })
 
     const message = await refusalOf('CREATE (:CWrite {uri: $uri, n: 2})', { uri: 'w:pk' })
-    expect(message).toContain(graphEngine() === 'native' ? 'Found duplicated primary key value' : 'Runtime exception: Found duplicated primary key value w:pk, '
-      + 'which violates the uniqueness constraint of the primary key column.')
+    expect(message).toContain('Found duplicated primary key value')
   })
 
   test('DEFAULT current_timestamp() fills a column nobody set', async () => {
@@ -271,7 +249,7 @@ describe('the DDL', () => {
       { uri: 'm:1', to: 'e:1', by: 'ingest' }
     )
 
-    expect(message).toContain(graphEngine() === 'native' ? 'declares no FROM' : 'Binder exception: Query node m violates schema. Expected labels are CAnswer.')
+    expect(message).toContain('declares no FROM')
   })
 
   test('IF NOT EXISTS run a second time changes nothing and keeps the rows', async () => {
@@ -288,7 +266,7 @@ describe('the DDL', () => {
   test('a table declared without IF NOT EXISTS is refused the second time', async () => {
     const message = await refusalOf('CREATE NODE TABLE CIdem(uri STRING PRIMARY KEY, n INT64)')
 
-    expect(message).toContain(graphEngine() === 'native' ? 'already exists' : 'Binder exception: CIdem already exists in catalog.')
+    expect(message).toContain('already exists')
   })
 })
 
@@ -504,8 +482,8 @@ describe('writes', () => {
     // The full sentence, minus the `Node(nodeOffset: 5)` it opens with: that offset is an engine
     // internal with no meaning outside it, and it is the one part of the wording a replacement
     // neither can nor should reproduce.
-    expect(message).toContain(graphEngine() === 'native' ? 'has connected edges in table CWEDGE' : 'has connected edges in table CWEDGE in the fwd direction, which cannot be deleted. '
-      + 'Please delete the edges first or try DETACH DELETE.')
+    expect(message).toContain('has connected edges in table CWEDGE')
+    expect(message).toContain('Try DETACH DELETE instead.')
 
     const survived = await run('MATCH (w:CWrite {uri: $uri}) RETURN w.uri AS uri', { uri: 'w:held-a' })
     expect(survived).toHaveLength(1)
@@ -526,8 +504,7 @@ describe('writes', () => {
     await run('CREATE (:CWrite {uri: $uri, n: 1})', { uri: 'w:dup' })
 
     const message = await refusalOf('CREATE (:CWrite {uri: $uri, n: 2})', { uri: 'w:dup' })
-    expect(message).toContain(graphEngine() === 'native' ? 'Found duplicated primary key value' : 'Runtime exception: Found duplicated primary key value w:dup, '
-      + 'which violates the uniqueness constraint of the primary key column.')
+    expect(message).toContain('Found duplicated primary key value')
   })
 
   // The two wordings a wrong type arrives with, which are NOT interchangeable: the same param, the
@@ -537,7 +514,7 @@ describe('writes', () => {
   test('a string param into an INT64 column is refused inline as a failed conversion', async () => {
     const message = await refusalOf('CREATE (:CWrite {uri: $uri, n: $n})', { uri: 'w:badtype', n: 'twenty six' })
 
-    expect(message).toContain(graphEngine() === 'native' ? 'expected INT64' : 'Conversion exception: Cast failed. Could not convert "twenty six" to INT64.')
+    expect(message).toContain('expected INT64')
   })
 
   test('a string param into an INT64 column is refused through SET as a binder error', async () => {
@@ -545,7 +522,7 @@ describe('writes', () => {
 
     const message = await refusalOf('MATCH (w:CWrite {uri: $uri}) SET w.n = $n', { uri: 'w:badtype2', n: 'twenty six' })
 
-    expect(message).toContain(graphEngine() === 'native' ? 'expected INT64' : 'Binder exception: Expression $n has data type STRING but expected INT64. Implicit cast is not supported.')
+    expect(message).toContain('expected INT64')
   })
 
   // The other half of that, and the reason `ingest.ts` can hand every typed scalar over as text: a
@@ -566,7 +543,7 @@ describe('writes', () => {
       { rows: [{ uri: 'w:batchdup', n: 1 }, { uri: 'w:batchdup', n: 2 }] }
     )
 
-    expect(message).toContain(graphEngine() === 'native' ? 'Found duplicated primary key value' : 'Runtime exception: Found duplicated primary key value w:batchdup')
+    expect(message).toContain('Found duplicated primary key value')
     const rows = await run('MATCH (w:CWrite {uri: $uri}) RETURN w.uri AS uri', { uri: 'w:batchdup' })
     expect(rows).toEqual([])
   })
@@ -594,7 +571,7 @@ describe('atomicity', () => {
         ],
       }
     )
-    expect(message).toContain(graphEngine() === 'native' ? 'expected INT64' : graphEngine() === 'native' ? 'expected INT64' : 'Conversion exception: Cast failed. Could not convert "1e+21" to INT64.')
+    expect(message).toContain('expected INT64')
 
     const rows = await run('MATCH (a:CAtom) RETURN a.uri AS uri')
     expect(strings(rows, 'uri')).toEqual([])
@@ -618,7 +595,7 @@ describe('atomicity', () => {
       'UNWIND $rows AS r CREATE (:CAtom {uri: r.uri, n: cast(r.n AS INT64)})',
       { rows: [{ uri: 'atom:4', n: '4' }, { uri: 'atom:5', n: 'not a number' }] }
     )
-    expect(message).toContain(graphEngine() === 'native' ? 'expected INT64' : 'Conversion exception: Cast failed. Could not convert "not a number" to INT64.')
+    expect(message).toContain('expected INT64')
 
     const rows = await run('MATCH (a:CAtom) RETURN a.uri AS uri')
     expect(strings(rows, 'uri')).toEqual(['atom:1', 'atom:2', 'atom:3'])
@@ -1056,7 +1033,7 @@ describe('RETURN', () => {
       'MATCH (m:CMedia) WHERE m.origin IS NOT NULL RETURN m.origin AS origin, count(m) AS total ORDER BY m.origin'
     )
 
-    expect(message).toContain(graphEngine() === 'native' ? 'ORDER BY a pattern variable' : 'Binder exception: Variable m is not in scope.')
+    expect(message).toContain('ORDER BY a pattern variable')
   })
 
   test('coalesce answers its first stated argument and skips the nulls before it', async () => {
@@ -1195,14 +1172,17 @@ describe('WITH', () => {
     expect(rows.map(row => row.uri)).toEqual(['e:1', 'e:2', 'e:2'])
   })
 
-  onlyReference('WITH ... LIMIT cuts the rows before the clauses that follow see them', async () => {
-    const rows = await run(
+  // REFUSED BY DESIGN, and this is what that looks like. The app issues `WITH` once across its 142
+  // statements and never orders or limits inside one, so mid pipeline ordering is outside the closed
+  // grammar. The refusal names the construct, so the day something does need it, it says so.
+  test('WITH ... ORDER BY ... LIMIT is refused, naming the construct', async () => {
+    await refuses(
       `MATCH (m:CMedia) WHERE m.origin IS NOT NULL
        WITH m ORDER BY m.n DESC LIMIT 2
-       RETURN m.uri AS uri`
+       RETURN m.uri AS uri`,
+      undefined,
+      'not supported: ORDER BY in a WITH clause'
     )
-
-    expect(strings(rows, 'uri')).toEqual(['m:4', 'm:5'])
   })
 
   // The refusal `00-engine-facts.md` records, pinned rather than quoted: a `WITH ... ORDER BY` with
@@ -1213,7 +1193,7 @@ describe('WITH', () => {
       `MATCH (m:CMedia) WITH m ORDER BY m.uri RETURN collect(m.uri) AS uris`
     )
 
-    expect(message).toContain(graphEngine() === 'native' ? 'not supported: ORDER BY in a WITH clause' : 'In WITH clause, ORDER BY must be followed by SKIP or LIMIT.')
+    expect(message).toContain('not supported: ORDER BY in a WITH clause')
   })
 
   test('a struct literal inside collect(DISTINCT ...) gathers one object per matched row', async () => {
@@ -1243,28 +1223,27 @@ describe('WITH', () => {
  * the behaviour every one of those guards was written against.
  */
 describe('the empty UNWIND list', () => {
-  // The wording is NOT the one the nine comments quote, and it is not even one wording: a write and
-  // a read are refused with different messages. Both were measured here for the first time, because
-  // every caller guards the case and none of them ever saw the failure.
-  onlyReference('an empty UNWIND driving a write is refused at run time rather than writing nothing', async () => {
-    const message = await refusalOf('UNWIND $rows AS r CREATE (:CAtom {uri: r.uri, n: 1})', { rows: [] })
-
-    expect(message).toContain('Cannot evaluate expression with type VARIABLE.')
+  // WHAT THE OLD ENGINE DID, kept as prose because the reference is gone and it can never run again:
+  // an empty list was a RUNTIME FAILURE, in two different wordings depending on whether the statement
+  // wrote (`Cannot evaluate expression with type VARIABLE.`) or read (`Trying to a create a vector
+  // with ANY type.`). Neither is the wording the nine comments in `src/worker/graph` quote, because
+  // every caller guards the case and none of them had ever seen the failure.
+  //
+  // The replacement answers NO ROWS, which is what an empty list means. The three cases below pin
+  // that, and they are the reason those nine guards are now belt and braces rather than load bearing.
+  test('an empty UNWIND driving a write does nothing, and does not throw', async () => {
+    const before = await run('MATCH (a:CAtom) RETURN count(a) AS total')
+    expect(await run('UNWIND $rows AS r CREATE (:CAtom {uri: r.uri, n: 1})', { rows: [] })).toEqual([])
+    expect(await run('MATCH (a:CAtom) RETURN count(a) AS total'), 'nothing was written').toEqual(before)
   })
 
-  onlyReference('an empty UNWIND driving a read is refused with a different message', async () => {
-    const message = await refusalOf('UNWIND $uris AS u MATCH (m:CMedia {uri: u}) RETURN m.uri AS uri', { uris: [] })
-
-    expect(message).toContain(
-      'Runtime exception: Trying to a create a vector with ANY type. This should not happen. '
-      + 'Data type is expected to be resolved during binding.'
-    )
+  test('an empty UNWIND driving a read answers no rows', async () => {
+    expect(await run('UNWIND $uris AS u MATCH (m:CMedia {uri: u}) RETURN m.uri AS uri', { uris: [] }))
+      .toEqual([])
   })
 
-  onlyReference('an empty UNWIND projecting the item alone is refused too', async () => {
-    const message = await refusalOf('UNWIND $uris AS u RETURN u AS uri', { uris: [] })
-
-    expect(message).toContain('Trying to a create a vector with ANY type.')
+  test('an empty UNWIND projecting the item alone answers no rows', async () => {
+    expect(await run('UNWIND $uris AS u RETURN u AS uri', { uris: [] })).toEqual([])
   })
 
   test('the same statement with one item answers, which is the control', async () => {
@@ -1289,85 +1268,82 @@ describe('the empty UNWIND list', () => {
  * `diff` mode these statements are expected to disagree, which is why each one states what the
  * replacement does instead.
  */
-describe('behaviours the replacement will NOT copy', () => {
-  // The replacement types every value ON ITS OWN (`values.ts` `coerce`), so nothing carries between
-  // rows and this class of corruption cannot occur. The workaround it makes unnecessary is
-  // `ingest.ts:34-44`: no list travels as a list, it is joined into a STRING and split in the
+describe('the bugs the replacement does not have', () => {
+  // WHAT THE OLD ENGINE DID, kept as prose because the reference is gone and these can never run
+  // against it again. Each was a real defect the app carried a workaround for, and each workaround is
+  // now unnecessary: the cases below assert the replacement simply gets it right.
+
+  // THE ENGINE TYPED AN UNWIND STRUCT FIELD FROM ITS FIRST ROW and then reinterpreted later rows
+  // against that type. A batch whose first row carried an empty list killed the whole batch with
+  // `Trying to a create a vector with ANY type`, and the SAME rows in the other order were accepted,
+  // which is what made it read as a data problem rather than an engine one. `ingest.ts:34-44` works
+  // around it by never letting a list travel as a list: it joins into a STRING and splits in the
   // statement, where the type is written down.
-  onlyReference('an UNWIND struct field typed from the first row kills the batch when a later row fills it', async () => {
-    const message = await refusalOf(
+  //
+  // The replacement types every value ON ITS OWN (`values.ts` `coerce`), so nothing carries between
+  // rows and the class of corruption cannot occur.
+  test('an empty list in the first row of a batch does not poison the rows after it', async () => {
+    await run(
       'UNWIND $rows AS r CREATE (:CDiverge {uri: r.uri, categories: r.categories})',
       { rows: [{ uri: 'd:1', categories: [] }, { uri: 'd:2', categories: ['action'] }] }
     )
 
-    expect(message).toContain(
-      'Runtime exception: Trying to a create a vector with ANY type. This should not happen. '
-      + 'Data type is expected to be resolved during binding.'
+    const rows = await run(
+      "MATCH (d:CDiverge) WHERE d.uri IN ['d:1', 'd:2'] RETURN d.uri AS uri, d.categories AS categories ORDER BY d.uri"
     )
-    const rows = await run('MATCH (d:CDiverge) RETURN d.uri AS uri')
-    expect(strings(rows, 'uri')).toEqual([])
+    // an empty list reads as null, which is the one behaviour here that IS copied on purpose
+    expect(rows).toEqual([
+      { uri: 'd:1', categories: null },
+      { uri: 'd:2', categories: ['action'] },
+    ])
   })
 
-  onlyReference('the same rows in the other order are accepted, which is what makes it read as a data problem', async () => {
+  test('and the same rows in the other order answer the same thing, which they did not before', async () => {
     await run(
       'UNWIND $rows AS r CREATE (:CDiverge {uri: r.uri, categories: r.categories})',
       { rows: [{ uri: 'd:3', categories: ['action'] }, { uri: 'd:4', categories: [] }] }
     )
 
-    const rows = await run('MATCH (d:CDiverge) RETURN d.uri AS uri, d.categories AS categories ORDER BY d.uri')
+    const rows = await run(
+      "MATCH (d:CDiverge) WHERE d.uri IN ['d:3', 'd:4'] RETURN d.uri AS uri, d.categories AS categories ORDER BY d.uri"
+    )
     expect(rows).toEqual([
       { uri: 'd:3', categories: ['action'] },
       { uri: 'd:4', categories: null },
     ])
   })
 
-  // The replacement coerces per value, so an integer offered to a DOUBLE column becomes that double.
-  onlyReference('an integer in a DOUBLE struct field is reinterpreted as bits rather than converted', async () => {
+  // AN INTEGER IN A DOUBLE FIELD WAS REINTERPRETED AS BITS: offered `3` where the first row had
+  // carried `0.5`, the engine stored `1.5e-323`, the double whose bit pattern is the integer 3. A
+  // silently wrong number, which is the worst shape a bug can take.
+  test('an integer offered to a DOUBLE column becomes that number, not its bit pattern', async () => {
     await run(
       'UNWIND $rows AS r CREATE (:CDiverge {uri: r.uri, score: r.score})',
       { rows: [{ uri: 'd:5', score: 0.5 }, { uri: 'd:6', score: 3 }] }
     )
 
-    const rows = await run('MATCH (d:CDiverge) WHERE d.score IS NOT NULL RETURN d.uri AS uri, d.score AS score ORDER BY d.uri')
-    expect(rows[0]).toEqual({ uri: 'd:5', score: 0.5 })
-    expect(rows[1]!.score).toBe(1.5e-323)
-  })
-
-  // The replacement accepts a plain object for a MAP column, so `map($keys, $values)` stops being the
-  // only spelling that works. `schema.ts` documents the refusal and `ingest.ts` writes around it.
-  //
-  // TWO SPELLINGS, TWO MESSAGES, which is why both are pinned. `schema.test.ts` quotes the SET one
-  // and it does not appear at all when the same param is offered inline in a CREATE pattern.
-  onlyReference('an object param into a MAP column is refused inline, naming a cast that does not exist', async () => {
-    const message = await refusalOf(
-      'CREATE (:CDiverge {uri: $uri, fieldSeq: $fieldSeq})',
-      { uri: 'd:7', fieldSeq: { titles: 7 } }
+    const rows = await run(
+      "MATCH (d:CDiverge) WHERE d.uri IN ['d:5', 'd:6'] RETURN d.uri AS uri, d.score AS score ORDER BY d.uri"
     )
-
-    expect(message).toContain(graphEngine() === 'native' ? 'expected INT64' : 'Conversion exception: Unsupported casting function from STRUCT to MAP.')
+    expect(rows).toEqual([{ uri: 'd:5', score: 0.5 }, { uri: 'd:6', score: 3 }])
   })
 
-  onlyReference('the same param through SET is refused naming the STRUCT it bound as', async () => {
+  // A PLAIN OBJECT INTO A MAP COLUMN WAS REFUSED, in two different wordings depending on whether it
+  // arrived inline or through SET, because the engine bound an object literal as a STRUCT and would
+  // not cast it. `map($keys, $values)` was the only spelling that worked, and `ingest.ts` writes
+  // around it. The replacement accepts the object.
+  test('a plain object param goes into a MAP column, inline', async () => {
+    await run('CREATE (:CDiverge {uri: $uri, fieldSeq: $fieldSeq})', { uri: 'd:7', fieldSeq: { titles: 7 } })
+
+    const rows = await run('MATCH (d:CDiverge {uri: $uri}) RETURN d.fieldSeq AS fieldSeq', { uri: 'd:7' })
+    expect(rows).toEqual([{ fieldSeq: { titles: 7 } }])
+  })
+
+  test('and through SET, which was the spelling with its own separate refusal', async () => {
     await run('CREATE (:CDiverge {uri: $uri})', { uri: 'd:9' })
+    await run('MATCH (d:CDiverge {uri: $uri}) SET d.fieldSeq = $fieldSeq', { uri: 'd:9', fieldSeq: { titles: 7 } })
 
-    const message = await refusalOf(
-      'MATCH (d:CDiverge {uri: $uri}) SET d.fieldSeq = $fieldSeq',
-      { uri: 'd:9', fieldSeq: { titles: 7 } }
-    )
-
-    expect(message).toContain(
-      'Binder exception: Expression $fieldSeq has data type STRUCT(titles INT64) but expected '
-      + 'MAP(STRING, INT64). Implicit cast is not supported.'
-    )
-  })
-
-  test('map($keys, $values) is the spelling that does work, which is the control', async () => {
-    await run(
-      'CREATE (:CDiverge {uri: $uri, fieldSeq: map($keys, $values)})',
-      { uri: 'd:8', keys: ['titles'], values: [7] }
-    )
-
-    const rows = await run('MATCH (d:CDiverge {uri: $uri}) RETURN d.fieldSeq AS fieldSeq', { uri: 'd:8' })
+    const rows = await run('MATCH (d:CDiverge {uri: $uri}) RETURN d.fieldSeq AS fieldSeq', { uri: 'd:9' })
     expect(rows).toEqual([{ fieldSeq: { titles: 7 } }])
   })
 })

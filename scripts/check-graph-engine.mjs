@@ -1,12 +1,17 @@
 /**
- * Does the built app reach the graph engine behind `?graph`, leave it alone without it, and fill the
- * answer log from real sources?
+ * Does the built app open the graph store by default, leave it alone under `?store=legacy`, and fill
+ * the answer log from real sources?
  *
- * Three arms. The second is the control for the first: with the flag the worker must open LadybugDB
- * and fetch the 22 MB engine the vite plugin emits, and without it neither may happen, so a check
- * that only ran the first could not tell "the flag works" from "the engine loads unconditionally".
+ * Three arms. The second is the control for the first: the default load must open the store, and the
+ * opt out must not touch it at all, so a check that only ran the first could not tell "the default
+ * works" from "the store opens whatever the url says".
  *
- * The third opens a media page with `?graph=1&export=answers` and reads the log back through
+ * BOTH ARMS WERE INVERTED UNTIL 2026-09-14, when `?graph=1` was the switch and its absence was the
+ * control, and the flagged arm also had to see a 22 MB engine file fetched over the network. The
+ * store is `src/worker/graph/cypher` in the same worker now, so there is no engine file to watch and
+ * no request to count: what separates the two arms is the console, and nothing else.
+ *
+ * The third opens a media page with `?export=answers` and reads the log back through
  * `window.__stubExportAnswers`, and the graph the ingest made of it through `window.__stubGraphCounts`.
  * It is the only arm that talks to the real sources over the network, which is deliberate: the unit
  * suite drives the hook against a fixture server, and what it cannot tell you is whether 24 sources
@@ -26,7 +31,6 @@ import { extname, join, normalize } from 'node:path'
 import { chromium } from 'playwright'
 
 const ROOT = new URL('../build/', import.meta.url).pathname
-const ENGINE = '/lbug_wasm_worker.js'
 // Mushoku Tensei season 1, as `getRoutePath(Route.MEDIA, { uri })` spells it (`src/router/path.ts`):
 // one real uri that most of the 24 sources can answer about, so the fan-out is a real one.
 const ANSWER_URI = 'ag:(anilist:108465)'
@@ -71,11 +75,7 @@ const arm = async (query, settleMs) => {
   const context = await browser.newContext()
   const page = await context.newPage()
   const logs = []
-  const engineRequests = []
   page.on('console', message => logs.push(message.text()))
-  page.on('response', response => {
-    if (new URL(response.url()).pathname === ENGINE) engineRequests.push({ url: response.url(), status: response.status() })
-  })
 
   const started = Date.now()
   await page.goto(`${origin}/${query}`, { waitUntil: 'domcontentloaded' })
@@ -87,25 +87,21 @@ const arm = async (query, settleMs) => {
   }
   if (!ready) await page.waitForTimeout(Math.max(0, settleMs - (Date.now() - started)))
   await context.close()
-  return { ready, engineRequests, graphLogs: logs.filter(text => text.startsWith('graph:')) }
+  return { ready, graphLogs: logs.filter(text => text.startsWith('graph:')) }
 }
 
 const failures = []
 
-const on = await arm('?graph=1', 60000)
-console.log(`with ?graph=1: ${on.ready ? `"${on.ready.line}" after ${on.ready.at} ms` : 'NO graph line in 60s'}`)
-console.log(`  ${ENGINE} requests: ${on.engineRequests.map(entry => `${entry.status} ${entry.url}`).join(', ') || 'none'}`)
-if (!on.ready) failures.push('the flagged load never logged "graph: engine ready"')
-if (!on.engineRequests.some(entry => entry.status === 200)) failures.push(`the flagged load never fetched ${ENGINE} with a 200`)
+const on = await arm('', 60000)
+console.log(`by default: ${on.ready ? `"${on.ready.line}" after ${on.ready.at} ms` : 'NO graph line in 60s'}`)
+if (!on.ready) failures.push('the default load never logged "graph: engine ready"')
 
-// The control waits at least as long as the flagged arm took, so "nothing happened" is a result and
+// The control waits at least as long as the default arm took, so "nothing happened" is a result and
 // not just a shorter wait.
 const settle = Math.max(15000, (on.ready?.at ?? 0) * 2)
-const off = await arm('', settle)
-console.log(`without the flag, after ${settle} ms: graph lines ${off.graphLogs.length ? JSON.stringify(off.graphLogs) : 'none'}`)
-console.log(`  ${ENGINE} requests: ${off.engineRequests.map(entry => `${entry.status} ${entry.url}`).join(', ') || 'none'}`)
-if (off.graphLogs.length) failures.push('the unflagged load touched the graph')
-if (off.engineRequests.length) failures.push(`the unflagged load fetched ${ENGINE}`)
+const off = await arm('?store=legacy', settle)
+console.log(`under ?store=legacy, after ${settle} ms: graph lines ${off.graphLogs.length ? JSON.stringify(off.graphLogs) : 'none'}`)
+if (off.graphLogs.length) failures.push('the opted out load touched the graph')
 
 /**
  * The third arm: a real media page, the real sources, and the log read back off `window`.
@@ -121,7 +117,7 @@ const answersArm = async (route, waitMs) => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
 
   const started = Date.now()
-  await page.goto(`${origin}${route}?graph=1&export=answers`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${origin}${route}?export=answers`, { waitUntil: 'domcontentloaded' })
   const installed = await page
     .waitForFunction(() => typeof window.__stubExportAnswers === 'function', null, { timeout: 15000 })
     .then(() => true)
@@ -162,7 +158,7 @@ const answersArm = async (route, waitMs) => {
 }
 
 const answers = await answersArm(`/media/${ANSWER_URI}`, 30000)
-console.log(`with ?graph=1&export=answers on /media/${ANSWER_URI}:`)
+console.log(`with ?export=answers on /media/${ANSWER_URI}:`)
 console.log(`  window.__stubExportAnswers: ${answers.installed ? 'installed' : 'NEVER INSTALLED'}`)
 console.log(`  rows ${answers.rows}, ${answers.bytes} bytes of raw, first row after ${answers.first ?? '-'} ms, read back in ${answers.ms ?? '-'} ms`)
 if (answers.failed) console.log(`  the page could not read the log: ${answers.failed}`)
@@ -191,4 +187,4 @@ if (failures.length) {
   for (const failure of failures) console.log(`FAIL: ${failure}`)
   process.exit(1)
 }
-console.log('PASS: the engine loads behind ?graph=1 and is untouched without it')
+console.log('PASS: the store opens by default and is untouched under ?store=legacy')

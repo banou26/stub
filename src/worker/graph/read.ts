@@ -42,8 +42,12 @@ import { graphReady } from './schema'
  * on a Mushoku Tensei modal, 2026-09-13: `episodesOf` 63 calls returning 6 rows for 1.7 s, and
  * `viewOfCluster` 52 calls for 0.7 s, which is 2.4 s of the ~9.5 s the engine burned for that page.
  *
- * The cost is not the rows, it is the CALL: about 6 round trips into the ladybug worker at ~0.7 ms
- * each, plus the wasm to JS marshalling, whatever the statement returns (`scripts/bench-graph-engine.mjs`).
+ * The cost was not the rows, it was the CALL: about 6 round trips into the LadybugDB worker at ~0.7
+ * ms each, plus the wasm to JS marshalling, whatever the statement returned. THAT ENGINE IS GONE
+ * since 2026-09-14 and the store is in this worker, so a call costs microseconds and the cache no
+ * longer saves seconds. It is kept because the second reason it existed is unchanged: 63 identical
+ * calls are 63 identical answers, and re-deriving them re-renders subscribers that had nothing new to
+ * show.
  *
  * CLEARED WHOLESALE ON ANY CHANGE, never per cluster, and that is what makes it safe to reason about:
  * there is no rule here about which clusters a commit touched, so there is no rule to get wrong.

@@ -12,7 +12,8 @@
  * a live page does. Nothing here writes a source table directly, which is what keeps the adapter from
  * proving a shape the app can never produce.
  *
- * RESET IS A TRUNCATION, NOT A REOPEN, and that is measured rather than assumed: on
+ * RESET IS A TRUNCATION, NOT A REOPEN. That was forced by the engine this store replaced, and it is
+ * kept because it is also the cheaper of the two: on
  * `@ladybugdb/wasm-core` 0.20.4 under node, `closeGraph()` resolves and the `openGraph()` after it
  * NEVER settles (2026-09-12, a 20 s test timeout with the close logged and the open still pending),
  * so an engine is one per process and a case that wanted a fresh database would hang the run. `DETACH
