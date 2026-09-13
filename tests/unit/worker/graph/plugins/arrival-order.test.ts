@@ -7,6 +7,13 @@
  * arrival order" at :2273). The old store had `tests/unit/worker/store/arrival-order.test.ts` and
  * section 9's rewrite table lists it as a file the graph store owes; this is that file.
  *
+ * WHAT IS COVERED, stated because the header above claims G3 in general and one file cannot hold it.
+ * These cases pin the shape where ONE target has two claimants, which is the shape guards 4 and 5
+ * were built for. A variant where the two claimants each claim TWO targets still builds three graphs
+ * out of six orderings, at every commit measured: guard 5 cuts one target at a time, so two targets
+ * hold the claimants together under either cut and neither is ever contested. That is a known open
+ * half of G3 rather than a regression, and it is written here rather than asserted.
+ *
  * THE CASES ARE SPLITS OF ONE ANSWER SET, not different answers. Every ordering below ingests the
  * same four rows and the same four claims; only the batch boundaries move, and a batch boundary is a
  * pass boundary because the scheduler wakes on a commit. So any difference in the graph they build is
@@ -124,8 +131,22 @@ test('four claims that cannot all be true build one graph, in every arrival orde
     built.push({ name: order.name, shape: await build(await batchesFor(order.plan)) })
   }
 
+  // THE LITERAL SHAPE, not a length. Every assertion below compares one ordering against another, so
+  // a `shapeOf` that silently stopped reporting `status` and `reason` would make all six agree and
+  // leave this whole file green while saying nothing. Pinning the first arm is what gives the
+  // comparisons their content.
   const first = built[0]!
-  expect(first.shape.length, 'the control: the orderings built something').toBeGreaterThan(4)
+  expect(first.shape, 'the control: what the orderings must all agree ON').toEqual([
+    'cluster anilist:1 anizip:7 mal:100',
+    'cluster kitsu:9',
+    'cluster mal:200',
+    'link anilist:1 -> kitsu:9 PART_OF active contested',
+    'link anilist:1 -> kitsu:9 SAME_AS refused contested',
+    'link anizip:7 -> mal:100 SAME_AS active asserted',
+    'link mal:100 -> anilist:1 SAME_AS active asserted',
+    'link mal:200 -> kitsu:9 PART_OF active contested',
+    'link mal:200 -> kitsu:9 SAME_AS refused contested',
+  ])
   for (const entry of built.slice(1)) {
     expect(entry.shape, `"${entry.name}" against "${first.name}"`).toEqual(first.shape)
   }
@@ -148,6 +169,64 @@ test('and the graph is the contested one, not whichever one the first pass reach
   // the downgrade, which is what keeps a refused pair reachable as a container rather than gone
   expect(shape).toContain('link anilist:1 -> kitsu:9 PART_OF active contested')
   expect(shape).toContain('link mal:200 -> kitsu:9 PART_OF active contested')
+})
+
+/**
+ * A row that AGREES with everything must not switch a guard off.
+ *
+ * The shape an adversarial review found on 2026-09-14, against the first version of this fix. Guard 4
+ * refuses a proposal that would put two disagreeing ids in one component, and it is allowed to ignore
+ * a row two DISAGREEING claimants both claim, because guard 5 is about to take that row apart. The
+ * question is what counts as such a row, and "two claimants that are not already joined without it"
+ * is the answer that looks right and is not: it marks every ordinary cross catalogue hub. Measured on
+ * the 249 case corpus that day, 269 targets were marked and exactly one ever carried a real
+ * disagreement, so guard 4 was switched off at 268 rows for nothing.
+ *
+ * Here `anidb:7` is that harmless row. It claims the hub, agrees with everyone, and disagrees with
+ * nothing, and its only effect must be to join. `mal:100` and `mal:200` are two different runs
+ * (`mal` ids are per run, 5.4) and cannot both be this show, so the claim that would put them
+ * together is the one that has to be refused, with or without `anidb:7` in the graph.
+ *
+ * Mutation: define the cut as "the target is the only thing holding its claimants together" rather
+ * than asking what THIS proposal would make true, and both orderings below weld the two runs into one
+ * cluster with nothing refused at all.
+ *
+ * ONE ORDERING IS DELIBERATELY NOT HERE, and it is an older hole rather than this one. Answering all
+ * four in a SINGLE batch welds `mal:100` and `mal:200` at every commit measured, `79328e1` included,
+ * which is before any of this file existed: one batch weighs every proposal against the same pre
+ * batch snapshot, so nothing disagrees yet and everything is accepted, and guard 4 then cannot
+ * retract a standing weld by design ("a pair already in ONE component is NOT refused here", 5.2).
+ * Guard 5 cannot reach it either, because `mal:200` has only one claimant. Asserting it here would
+ * pin a bug rather than a rule, so it is written down instead.
+ */
+const HUB = 'kitsu:9'
+
+const AGREEING: Record<string, () => Promise<AnswerRow>> = {
+  claimant: () => answer('media', named('anilist:1', [sameAs(media(HUB))])),
+  agreeing: () => answer('media', named('anidb:7', [sameAs(media(HUB))])),
+  chain: () => answer('media', named('mal:100', [sameAs(media('anilist:1'))])),
+  weld: () => answer('media', named(HUB, [sameAs(media('mal:200'))])),
+}
+
+const agreeingBatches = (plan: string[][]): Promise<AnswerRow[][]> =>
+  Promise.all(plan.map(keys => Promise.all(keys.map(key => AGREEING[key]!()))))
+
+test('a claimant that agrees with everything does not license a weld', async () => {
+  const orders = [
+    [['claimant'], ['agreeing'], ['chain'], ['weld']],
+    [['chain'], ['claimant'], ['agreeing'], ['weld']],
+  ]
+  for (const plan of orders) {
+    const shape = await build(await agreeingBatches(plan))
+    expect(
+      shape.filter(line => line.includes('mal:200')),
+      `two different mal runs must not weld, in ${JSON.stringify(plan)}`
+    ).not.toContain('link kitsu:9 -> mal:200 SAME_AS active asserted')
+    expect(
+      shape.some(line => line.startsWith('cluster') && line.includes('mal:100') && line.includes('mal:200')),
+      `mal:100 and mal:200 in one cluster, in ${JSON.stringify(plan)}`
+    ).toBe(false)
+  }
 })
 
 /**

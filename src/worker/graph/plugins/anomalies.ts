@@ -17,7 +17,7 @@
 import type { GuardQuery } from './guards'
 
 import { formatOf } from './profile'
-import { prefixRelated, readComponents } from './guards'
+import { identitySpaceOf, prefixRelated, readComponents } from './guards'
 
 /** One finding: the rule that fired, a line a human reads, and the rows it names. */
 export type Anomaly = { rule: string, detail: string, uris: string[] }
@@ -32,7 +32,6 @@ const parseJson = (value: unknown): Record<string, unknown> => {
   }
 }
 
-const originOf = (uri: string): string => uri.slice(0, uri.indexOf(':'))
 
 /**
  * `disagreeing-ids`: two ids of one origin inside one component that are not one id at two
@@ -62,11 +61,17 @@ export const disagreeingIds = async (query: GuardQuery): Promise<Anomaly[]> => {
       for (let j = i + 1; j < members.length; j += 1) {
         const a = members[i]!
         const b = members[j]!
-        if (originOf(a) !== originOf(b)) continue
+        // THE IDENTITY SPACE, which is the guards' own test and not the origin. This file's header
+        // says 5.5 reads what 5.2 already decided "so the two cannot drift apart", and the origin is
+        // exactly where they drifted: `offline` borrows its ids, so two offline rows disagree only
+        // when they borrow from the same catalogue. Measured on the recorded page 2026-09-14, this
+        // reported 21 `disagreeing-ids` of which 18 were offline pairs the guards accept as one row
+        // under two addresses, so the store called a defect the thing it had just been taught to allow.
+        if (identitySpaceOf(a) !== identitySpaceOf(b)) continue
         if (prefixRelated(a, b, parentOf)) continue
         found.push({
           rule: 'disagreeing-ids',
-          detail: `${a} and ${b} are two ids of ${originOf(a)} in one component, and neither extends the other`,
+          detail: `${a} and ${b} are two ids of ${identitySpaceOf(a)} in one component, and neither extends the other`,
           uris: [...members],
         })
       }

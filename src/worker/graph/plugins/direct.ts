@@ -271,7 +271,13 @@ export const decide = (candidate: Candidate): LinkProposal[] => {
  */
 export const directPlugin: Plugin = {
   id: 'plugin:direct',
-  consumes: { nodes: ['MediaProfile'], edges: ['CLAIMS'] },
+  // `LINK` IS CONSUMED THOUGH NOTHING HERE READS ONE, and it is the guards that need it: guard 4
+  // measures a proposal against the active `SAME_AS` COMPONENTS and guard 5 against the claimants'
+  // components with the target cut out, so a link this plugin itself writes can change the verdict for
+  // a different pair. Left out, an iteration whose only writes are links hands direct nothing,
+  // `deltaFor` skips it, and the pass reports a fixed point it has not reached
+  // (`delta.test.ts`, 'a settled scheduler pass leaves nothing for a fresh full pass to write').
+  consumes: { nodes: ['MediaProfile'], edges: ['CLAIMS', 'LINK'] },
   produces: { nodes: [], edges: ['LINK'], kinds: ['SAME_AS', 'PART_OF'] },
   after: ['plugin:profile'],
   version: DIRECT_VERSION,

@@ -341,6 +341,58 @@ const walkthroughBatches = async (): Promise<AnswerRow[][]> => [
 ]
 
 /**
+ * A pass that settles must actually be settled: a fresh full pass after it writes nothing.
+ *
+ * `plugin:direct` consumes `MediaProfile` and `CLAIMS`, and until 2026-09-14 not `LINK`. `deltaFor`
+ * drops every table a plugin does not declare, so an iteration whose only writes are `LINK`, `Cluster`
+ * and `MEMBER_OF` handed direct nothing and the runner SKIPPED it, while the guards it goes through
+ * read the active `SAME_AS` link graph for both guard 4 and guard 5. The pass then reported a fixed
+ * point it had not reached, and three refusal reasons were still moving.
+ *
+ * WHY NO EXISTING TEST SAW IT, which is the part worth keeping. Every idempotence case in the plugin
+ * suites ("the same page twice is the same links" and its four siblings) drives `runPlugins` with
+ * `{ reason: 'manual' }`. A manual trigger makes iteration 1 FULL, so `wholeGraph` holds
+ * `plugin:direct` and the skip can never engage in any of them. The recorded page converges in one
+ * manual pass with or without the fix, so the measurement could not express the failure either. This
+ * case goes through the SCHEDULER, which is the only path that produces a scoped iteration 1.
+ *
+ * The fixture is five rows whose claims cross: the point is an iteration late in the pass whose only
+ * writes are links.
+ *
+ * Mutation: drop `'LINK'` from `plugin:direct`'s `consumes` and the assertion below reports six
+ * changes, three `LINK` updates and three `Cluster` updates.
+ */
+test('a settled scheduler pass leaves nothing for a fresh full pass to write', async () => {
+  const rows = [
+    await answer('media', media('anilist:100', {
+      titles: [title('en', 'Crossed')],
+      handles: [sameAs(media('kitsu:104')), sameAs(media('anidb:103'))],
+    })),
+    await answer('media', media('kitsu:101', { titles: [title('en', 'Crossed')], handles: [sameAs(media('kitsu:104'))] })),
+    await answer('media', media('kitsu:102', { titles: [title('en', 'Crossed')], handles: [sameAs(media('anilist:100'))] })),
+    await answer('media', media('anidb:103', {
+      titles: [title('en', 'Crossed')],
+      handles: [sameAs(media('kitsu:102')), sameAs(media('kitsu:104'))],
+    })),
+    await answer('media', media('kitsu:104', { titles: [title('en', 'Crossed')], handles: [sameAs(media('anidb:103'))] })),
+  ]
+
+  await truncate()
+  resetPassState()
+  startScheduler({ plugins: DEFAULT_PLUGINS, audit: false })
+  await ingestAnswers(rows)
+  await passSettled()
+  stopScheduler()
+
+  resetPassState()
+  const after = await runPlugins(DEFAULT_PLUGINS, { reason: 'manual' })
+  expect(
+    after.changes.map(change => `${change.table} ${change.operation}`),
+    'the scheduler said it was settled, so a full pass over the same graph has nothing to write'
+  ).toEqual([])
+})
+
+/**
  * THE ONE THAT MATTERS: a stream of scoped passes builds the graph one full pass builds.
  *
  * The scoped arm goes through the SCHEDULER, one wake per ingest batch, because the wake is where a

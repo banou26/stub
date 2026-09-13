@@ -75,6 +75,12 @@ beforeAll(async () => {
     await answer('media', media('kitsu:20', { titles: [title('en', 'Twenty')] })),
     await answer('media', media('cr:GSER', { titles: [title('en', 'Series')] })),
     await answer('media', media('cr:GSER-S1', { titles: [title('en', 'Series Season 1')] })),
+    // the `offline` origin, whose ids are BORROWED from another catalogue: two of its rows are the
+    // same row under two addresses unless they borrow from the SAME catalogue
+    await answer('media', media('offline:anilist-30', { titles: [title('en', 'Thirty')] })),
+    await answer('media', media('offline:mal-30', { titles: [title('en', 'Thirty')] })),
+    await answer('media', media('offline:mal-31', { titles: [title('en', 'Thirty one')] })),
+    await answer('media', media('kitsu:30', { titles: [title('en', 'Thirty')] })),
   ])
   resetPassState()
   const pass = await runPlugins([profilePlugin, directPlugin], { reason: 'manual' })
@@ -152,6 +158,47 @@ test('disagreeing-ids reports a component holding two ids of one origin, and not
     'anilist:20 and anilist:21 are two ids of anilist in one component, and neither extends the other',
   ])
   expect(components.some(anomaly => anomaly.uris.includes('cr:GSER')), 'the control: a prefix pair is precision').toBe(false)
+
+  await retractPlugin(FAKE)
+})
+
+// 5.5 reads what 5.2 already decided, and the ORIGIN is where the two drifted apart. `offline` does
+// not issue its own ids, so two of its rows disagree only when they borrow from the same catalogue
+// (`identitySpaceOf`). Measured on the recorded page 2026-09-14: reading the plain origin here made
+// 18 of 21 `disagreeing-ids` offline pairs the guards accept as one row under two addresses, so the
+// trace panel reported as a defect the thing the guards had just been taught to allow.
+// Mutation: compare the plain origin and the first assertion reports the cross-catalogue pair.
+test('disagreeing-ids reads the BORROWED source of an offline id, not the offline origin', async () => {
+  await apply({
+    ...empty(),
+    links: [
+      { kind: 'SAME_AS', fromUri: 'offline:anilist-30', toUri: 'kitsu:30', reason: 'test', confidence: 1, supports: [] },
+      { kind: 'SAME_AS', fromUri: 'offline:mal-30', toUri: 'kitsu:30', reason: 'test', confidence: 1, supports: [] },
+    ],
+  })
+
+  const { query } = await graphReady()
+  const found = (await disagreeingIds(query)).filter(anomaly => anomaly.detail.includes('in one component'))
+  expect(
+    found.map(anomaly => anomaly.detail),
+    'two addresses of one offline row are not two rows'
+  ).toEqual([])
+
+  await retractPlugin(FAKE)
+
+  // THE CONTROL, and without it the case above passes for a rule that reports nothing at all: two
+  // offline ids borrowed from the SAME catalogue are still two rows and still disagree.
+  await apply({
+    ...empty(),
+    links: [
+      { kind: 'SAME_AS', fromUri: 'offline:mal-30', toUri: 'kitsu:30', reason: 'test', confidence: 1, supports: [] },
+      { kind: 'SAME_AS', fromUri: 'offline:mal-31', toUri: 'kitsu:30', reason: 'test', confidence: 1, supports: [] },
+    ],
+  })
+  const sameCatalogue = (await disagreeingIds(query)).filter(anomaly => anomaly.detail.includes('in one component'))
+  expect(sameCatalogue.map(anomaly => anomaly.detail)).toEqual([
+    'offline:mal-30 and offline:mal-31 are two ids of offline/mal in one component, and neither extends the other',
+  ])
 
   await retractPlugin(FAKE)
 })

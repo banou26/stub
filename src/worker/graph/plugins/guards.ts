@@ -128,7 +128,7 @@ const BORROWED = /^([a-z]+)-\d+$/
  * the labels say all of them are one show. Splitting on the borrowed source instead leaves a real
  * offline disagreement (`offline:mal-100` against `offline:mal-200`) reported exactly as before.
  */
-const identitySpaceOf = (uri: string): string => {
+export const identitySpaceOf = (uri: string): string => {
   const origin = originOf(uri)
   if (origin !== 'offline') return origin
   const borrowed = BORROWED.exec(idOf(uri))
@@ -283,8 +283,14 @@ export const readComponents = async (query: GuardQuery): Promise<Components> => 
     onGraphWrite(invalidateComponents)
   }
   if (componentsCache && componentsCache.epoch === componentsEpoch) return componentsCache.value
+  // THE EPOCH IS TAKEN BEFORE THE AWAIT, and a read the graph moved under is answered but not cached.
+  // Stamping the post-write epoch onto a pre-write snapshot serves a graph that no longer exists to
+  // every later reader in the batch, and nothing re-queries because the epochs then agree. The store's
+  // query is a real async boundary and `ingestAnswers` runs on its own queue, so a MERGE can land
+  // inside this window while a pass is reading.
+  const epoch = componentsEpoch
   const built = await buildComponents(query)
-  componentsCache = { epoch: componentsEpoch, value: built }
+  if (componentsEpoch === epoch) componentsCache = { epoch, value: built }
   return built
 }
 
@@ -316,10 +322,21 @@ const buildComponents = async (query: GuardQuery): Promise<Components> => {
      WHERE l.kind = 'SAME_AS' AND l.status = 'active'
      RETURN a.uri AS fromUri, b.uri AS toUri`
   )
-  const edges: [string, string][] = []
+  // INDEXED BY ENDPOINT, because `without` walks only the edges inside the cut. Iterating the whole
+  // active SAME_AS list and filtering made one memo miss O(|E|) however small the cut: measured on the
+  // recorded page 2026-09-14, 7,781 `without` calls, 802 of them misses, 380,757 edge visits against
+  // 628 active rows. Free at that size and not at page scale, and `contested` below calls it per
+  // multi-claimant target per proposal.
+  const incident = new Map<string, [string, string][]>()
+  const index = (uri: string, pair: [string, string]) => {
+    const list = incident.get(uri)
+    if (list) list.push(pair)
+    else incident.set(uri, [pair])
+  }
   for (const row of rows) {
     const pair: [string, string] = [String(row.fromUri), String(row.toUri)]
-    edges.push(pair)
+    index(pair[0], pair)
+    index(pair[1], pair)
     union(pair[0], pair[1])
   }
 
@@ -348,14 +365,20 @@ const buildComponents = async (query: GuardQuery): Promise<Components> => {
       return root
     }
     for (const uri of local) if (!cut.has(uri)) localParent.set(uri, uri)
-    for (const [from, to] of edges) {
-      if (cut.has(from) || cut.has(to)) continue
-      if (!local.has(from) || !local.has(to)) continue
-      const rootA = localFind(from)
-      const rootB = localFind(to)
-      if (rootA === rootB) continue
-      if (rootA < rootB) localParent.set(rootB, rootA)
-      else localParent.set(rootA, rootB)
+    const seen = new Set<[string, string]>()
+    for (const uri of local) {
+      if (cut.has(uri)) continue
+      for (const pair of incident.get(uri) ?? []) {
+        if (seen.has(pair)) continue
+        seen.add(pair)
+        const [from, to] = pair
+        if (cut.has(from) || cut.has(to)) continue
+        const rootA = localFind(from)
+        const rootB = localFind(to)
+        if (rootA === rootB) continue
+        if (rootA < rootB) localParent.set(rootB, rootA)
+        else localParent.set(rootA, rootB)
+      }
     }
     const localMembers = new Map<string, string[]>()
     for (const uri of localParent.keys()) {
@@ -539,36 +562,12 @@ export const prepareGuards = async (
 
   const profileOf = (uri: string): ProfileFacts => profiles.get(uri) ?? unknownProfile(uri)
   const parentOf = (uri: string): string | null => profiles.get(uri)?.idParent ?? null
-
-  /**
-   * The rows that are the ONLY thing holding two or more of their own claimants in one component.
-   *
-   * GUARD 4 HAS TO KNOW THESE, or it decides by arrival order. Guard 4 refuses a proposal that would
-   * ADD a disagreement to a component, and a contested target puts every one of its claimants into
-   * one component, so a row that arrives afterwards is measured against a membership that guard 5 is
-   * going to retract. Whichever of the two arrives first then wins: the whole point of guard 5 is
-   * that neither should (5.2, and `plugins/arrival-order.test.ts`).
-   *
-   * Its own set rather than a flag on the verdict, because guard 4 asks about a row that is not one
-   * of the pair it is weighing and may not be an endpoint of any pair in this batch.
-   */
-  const contested = new Set<string>()
-  for (const [target, claims] of claimsInto) {
-    const claimants = [...new Set(claims.map(claim => claim.claimant))].filter(uri => uri !== target).sort()
-    if (claimants.length < 2) continue
-    // NOT "a disagreement is already visible", which is the version that does not work: at the moment
-    // guard 4 asks, the disagreement is usually contingent on the very link it is about to refuse.
-    // The test is whether the target is the ONLY thing holding its claimants together, since that is
-    // exactly when a membership read through it is evidence about the target rather than about them.
-    const view = components.without(target)
-    const keys = new Set(claimants.map(uri => view.keyOf(uri)))
-    if (keys.size > 1) contested.add(target)
-  }
+  const sites = contestSites(claimsInto, components, parentOf)
 
   return {
     profileOf,
     components,
-    sameAs: subject => sameAsVerdict(subject, { profileOf, parentOf, components, claimsInto, addressKeys, contained, contested }),
+    sameAs: subject => sameAsVerdict(subject, { profileOf, parentOf, components, claimsInto, addressKeys, contained, sites }),
     partOf: (part, whole) => partOfVerdict(part, whole, profileOf),
   }
 }
@@ -603,8 +602,117 @@ type Facts = {
   claimsInto: Map<string, ClaimIn[]>
   addressKeys: Set<string>
   contained: Set<string>
-  /** The rows two disagreeing claimants both claim to BE. Guard 4 does not weigh through one. */
-  contested: Set<string>
+  /** Every target two or more rows claim, prepared once for `contestedBy` (which runs per proposal). */
+  sites: ContestSite[]
+}
+
+/**
+ * The rows THIS PROPOSAL would put two disagreeing claimants onto.
+ *
+ * GUARD 4 MUST NOT WEIGH THROUGH ONE, or it decides by arrival order. Guard 4 refuses a proposal that
+ * would ADD a disagreement to a component; a row two disagreeing claimants both claim to BE puts all
+ * of them in one component, so a row arriving afterwards is measured against a membership guard 5 is
+ * going to retract, and whichever of the two arrived first wins. The whole point of guard 5 is that
+ * neither should (5.2).
+ *
+ * IT IS PER PROPOSAL AND IT ASKS A COUNTERFACTUAL, and both halves are load bearing. Two simpler
+ * definitions were built and measured first, and each fails in its own direction:
+ *
+ * - "a disagreement is visible at this target" is EMPTY when guard 4 asks, because the disagreement is
+ *   usually contingent on the very link being weighed. It leaves `arrival-order.test.ts` red.
+ * - "the target is the only thing holding its claimants together" is structural with no disagreement
+ *   in it, so it marks every ordinary agreeing join hub and switches guard 4 off through it for good.
+ *   Measured on the 249 case corpus, 2026-09-14: 490 of 6,261 guard batches carried a non-empty set,
+ *   only 10 held a pair that actually straddles, and 268 of 269 marked targets were rows guard 5 would
+ *   never act on. It welds two different `mal` runs as soon as one agreeing third row exists, and it
+ *   tore a correct cluster on the recorded page.
+ *
+ * So the question is neither "do they disagree now" nor "are they joined only here", it is **would
+ * accepting THIS link make this hub's claimants disagree**. The view is the relation with the target
+ * cut out and the proposal's own two components joined, which is exactly the graph the write would
+ * leave behind.
+ */
+/**
+ * One row two or more rows claim to BE, with everything about it that does not depend on a proposal.
+ *
+ * PREPARED ONCE PER BATCH because `contestedBy` runs PER PROPOSAL, and the whole of this is invariant
+ * across the proposals of one batch: the claimants, the relation with the target cut out, and the
+ * verdict when no proposal is merged into it. Recomputing it per proposal cost 52% of a pass on the
+ * recorded page (1,715 ms against 1,125 ms, 2026-09-14), and almost all of that was re-deriving the
+ * same answer for targets the proposal cannot reach.
+ */
+type ContestSite = {
+  target: string
+  claimants: string[]
+  view: Pick<Components, 'keyOf' | 'membersOf'>
+  /** The claimants' component keys under `view`, which is what says whether a proposal can matter. */
+  keys: Set<string>
+  /** Contested with no proposal merged in: true here means true for every proposal. */
+  standing: boolean
+}
+
+const contestSites = (
+  claimsInto: Map<string, ClaimIn[]>,
+  components: Components,
+  parentOf: (uri: string) => string | null
+): ContestSite[] => {
+  const sites: ContestSite[] = []
+  for (const [target, claims] of claimsInto) {
+    const claimants = [...new Set(claims.map(claim => claim.claimant))].filter(uri => uri !== target).sort()
+    if (claimants.length < 2) continue
+    const view = components.without(target)
+    let standing = false
+    for (let i = 0; i < claimants.length && !standing; i += 1) {
+      for (let j = i + 1; j < claimants.length; j += 1) {
+        if (view.keyOf(claimants[i]!) === view.keyOf(claimants[j]!)) continue
+        if (!straddlingDisagreement(view.membersOf(claimants[i]!), view.membersOf(claimants[j]!), parentOf)) continue
+        standing = true
+        break
+      }
+    }
+    sites.push({ target, claimants, view, keys: new Set(claimants.map(uri => view.keyOf(uri))), standing })
+  }
+  return sites
+}
+
+const contestedBy = (a: string, b: string, facts: Facts): Set<string> => {
+  const contested = new Set<string>()
+  for (const site of facts.sites) {
+    const { view, claimants } = site
+    const left = view.keyOf(a)
+    const right = view.keyOf(b)
+    // A SITE THE PROPOSAL CANNOT REACH answers exactly what it answered with nothing merged, which is
+    // what `standing` holds. `standing` is NOT a shortcut for the sites it can reach: a merge only
+    // ever JOINS, and joining the two claimants that straddle makes them one component and removes
+    // that disagreement, so contested-without-the-proposal does not imply contested-with-it. NOTHING
+    // IN THE SUITE COVERS THAT CASE: hoisting `standing` above this branch leaves all 1,523 tests
+    // green, so the shape is reasoned about rather than pinned, and it is written the sound way
+    // because the unsound way is free to be wrong.
+    if (left === right || (!site.keys.has(left) && !site.keys.has(right))) {
+      if (site.standing) contested.add(site.target)
+      continue
+    }
+    // the relation the proposal WOULD make: its two ends joined, on top of the cut
+    const joined = left < right ? left : right
+    const merged = [...new Set([...view.membersOf(a), ...view.membersOf(b)])].sort()
+    const keyOf = (uri: string): string => {
+      const key = view.keyOf(uri)
+      return key === left || key === right ? joined : key
+    }
+    const membersOf = (uri: string): string[] => {
+      const key = view.keyOf(uri)
+      return key === left || key === right ? merged : view.membersOf(uri)
+    }
+    for (let i = 0; i < claimants.length && !contested.has(site.target); i += 1) {
+      for (let j = i + 1; j < claimants.length; j += 1) {
+        if (keyOf(claimants[i]!) === keyOf(claimants[j]!)) continue
+        if (!straddlingDisagreement(membersOf(claimants[i]!), membersOf(claimants[j]!), facts.parentOf)) continue
+        contested.add(site.target)
+        break
+      }
+    }
+  }
+  return contested
 }
 
 /** The episode figure a count guard reads: what the graph holds, else what the source stated (5.2). */
@@ -690,10 +798,11 @@ const sameAsVerdict = (subject: SameAsSubject, facts: Facts): SameAsVerdict => {
   // empties the component, which passes the same guard on the next iteration and welds it back. The
   // shape that must retract is two claimants into one row, and guard 5 catches that over CLAIMS,
   // where no link status can move it. The standing disagreement is reported by 5.5 instead.
-  // THE CONTESTED ROWS ARE CUT OUT of both sides first. A component that only holds together through
-  // a row two disagreeing claimants both claim is a component guard 5 is about to take apart, so a
-  // disagreement measured across it is one this proposal does not add.
-  const settled = facts.contested.size ? facts.components.without(facts.contested) : facts.components
+  // THE CONTESTED ROWS ARE CUT OUT of both sides first (`contestedBy`): a component that holds
+  // together only through a row this proposal would put two disagreeing claimants onto is one guard 5
+  // is about to take apart, so a disagreement measured across it is not one this proposal adds.
+  const contested = contestedBy(a.uri, b.uri, facts)
+  const settled = contested.size ? facts.components.without(contested) : facts.components
   const membersA = settled.membersOf(a.uri)
   const membersB = settled.membersOf(b.uri)
   if (settled.keyOf(a.uri) !== settled.keyOf(b.uri)) {
