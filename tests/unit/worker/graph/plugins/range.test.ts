@@ -31,8 +31,7 @@ import {
   alignByTitle, closeDatesWithTitles, closeWithSpecials, decideCandidate, forcedByBracket, hullOf, MIN_ALIGNED,
   numbersOutsideRun, MIN_CONSENSUS_ANCHORS, MIN_CONSENSUS_GAP, MIN_SCORED_ANCHORS, offsetConsensus, pairsByDay,
   pairsBySequence, pairsByTitle, placesClaim, rangePlugin, referenceEpisodes, ruleOfPair, scheduleSkew,
-  SCORED_ANCHOR_FLOOR, SCORED_ANCHOR_MARGIN, synopsisAnchors, titleDice,
-} from '../../../../../src/worker/graph/plugins/range'
+  SCORED_ANCHOR_FLOOR, SCORED_ANCHOR_MARGIN, synopsisAnchors, titleDice, SYNOPSIS_ANCHOR_FLOOR } from '../../../../../src/worker/graph/plugins/range'
 import { stripTitle } from '../../../../../src/sources/utils'
 import { checkInvariants } from '../../../../../src/worker/graph/plugins/invariants'
 import { alignmentOffset } from '../../../../../src/worker/store/consensus'
@@ -3002,3 +3001,59 @@ test('the 800 recorded rows pair, refuse and hold the invariants', async () => {
   expect(again.changes, 'the same page twice is the same view').toEqual([])
   report(`the second pass over the same graph: ${again.ms} ms, ${again.iterations} iteration(s), nothing written`)
 }, 600_000)
+
+// THE TWO SYNOPSIS GUARDS, ON INVENTED SHOWS.
+//
+// Both guards were calibrated on Mushoku Tensei's three Netflix seasons and, until 2026-09-13, every
+// case that reddened when either was deleted was a Mushoku fixture. The 63-show harness that would
+// have caught it lives outside `vitest.config.ts`'s include list AND fetches its corpus from Netflix
+// live, so it cannot be a CI gate without making the gate depend on a third party and on which
+// country the runner egresses from. This is the part that CAN run on every push: what the floor and
+// the margin REFUSE, stated with no real show anywhere in it.
+//
+// The scores are measured here rather than written down, so the fixture cannot drift away from what
+// `titleDice` actually returns and quietly stop exercising the branch it is named for.
+test('the synopsis floor refuses a best match too weak to mean anything', () => {
+  // TEN content words a side sharing exactly ONE, which is 2*1/(10+10) = 0.1. The keys have to be
+  // this long: the comparison is over WORDS, so with five words a side a single shared word scores
+  // exactly the floor and there is no room between zero and it to put a fixture in.
+  const theirs = side('nf:1', null, null, [],
+    ['lighthouse keeper repaints crimson lantern winter storms harbour beacon gantry'])
+  // a WEAK overlap rather than none: at zero the branch never reaches the floor, it returns on
+  // "no row matched at all", so a fixture scoring 0 would pass this test while testing nothing.
+  // Both sides need five words of four characters or more, or `synopsisKeysOf` drops the row and the
+  // whole read returns early without consulting either guard.
+  const slot = side('anizip:1', 1, null, [], ['zebra quilt vault fjord copper anvil ledger marble thicket gantry'])
+  const score = titleDice(theirs.synopsis[0]!, slot.synopsis[0]!)
+  expect(score, 'the fixture has to sit BELOW the floor or it tests nothing').toBeLessThan(SYNOPSIS_ANCHOR_FLOOR)
+  expect(score, 'and ABOVE zero, or the floor is not what refuses it').toBeGreaterThan(0)
+
+  const ask = (floor?: number) => synopsisAnchors({
+    ordered: [theirs], canonical: [{ number: 1, rows: [slot] }], taken: [], anchors: [], floor,
+  }).proposed.length
+
+  expect(ask(), 'at the shipped floor it proposes nothing').toBe(0)
+  expect(ask(0), 'and with the floor lifted the same pair is proposed, so the floor is what stopped it').toBe(1)
+})
+
+// MUTATED: delete `if (best.score - second < margin) return` and the first expectation reads 1: the
+// candidate anchors onto whichever of two equally good slots happened to be scanned first, which is a
+// coin flip that puts a play button on the wrong episode.
+test('the synopsis margin refuses a best match its runner up ties', () => {
+  // one candidate against two slots carrying the SAME text: whatever it scores, it scores twice
+  const shared = 'the courier crosses the frozen river at dawn'
+  const theirs = side('nf:2', null, null, [], ['the courier crosses the frozen river at dusk'])
+  const first = side('anizip:1', 1, null, [], [shared])
+  const second = side('anizip:2', 2, null, [], [shared])
+  const score = titleDice(theirs.synopsis[0]!, shared)
+  expect(score, 'well clear of the floor, so ONLY the margin can refuse it').toBeGreaterThan(SYNOPSIS_ANCHOR_FLOOR)
+
+  const ask = (margin?: number) => synopsisAnchors({
+    ordered: [theirs],
+    canonical: [{ number: 1, rows: [first] }, { number: 2, rows: [second] }],
+    taken: [], anchors: [], margin,
+  }).proposed.length
+
+  expect(ask(), 'a tie is refused rather than guessed').toBe(0)
+  expect(ask(0), 'and with the margin lifted it picks one, which is the guess the margin exists to prevent').toBe(1)
+})
