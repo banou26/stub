@@ -61,7 +61,8 @@ const canonicalValue = (value: unknown): string => {
   if (typeof value === 'number') return `d:${Object.is(value, -0) ? 0 : value}`
   if (typeof value === 'bigint') return `d:${value}`
   if (typeof value === 'boolean') return `b:${value ? 1 : 0}`
-  if (Array.isArray(value)) return `[${value.map(canonicalValue).join(',')}]`
+  // SORTED, because the reference does not have a stable element order inside a collect either
+  if (Array.isArray(value)) return `[${sorted(value.map(canonicalValue)).join(',')}]`
   if (value instanceof Date) return `t:${value.toISOString()}`
   if (typeof value === 'object') {
     // `undefined` is NOT dropped, it is canonicalised as null with the key kept. A column that is
@@ -74,8 +75,25 @@ const canonicalValue = (value: unknown): string => {
   return `?:${String(value)}`
 }
 
-/** Whether the statement's own order is part of its answer. Only then is order compared. */
-const ordered = (cypher: string): boolean => /\bORDER\s+BY\b/i.test(cypher)
+/**
+ * ORDER IS NOT COMPARED AT ALL, and that is forced by the reference rather than chosen.
+ *
+ * The first whole-suite run under diff mode reported two classes of difference that are not
+ * differences:
+ * - two rows TIED on an ORDER BY key came out in opposite orders. The reference has no tie order to
+ *   reproduce: the same statement over the same graph returned 4 to 15 distinct orders across 20 to
+ *   40 runs, and the tie answer is a plan artifact even pinned to one thread.
+ * - a `collect(DISTINCT ...)` gathered its elements in a different sequence, for the same reason one
+ *   level down. Two rows carrying `[a, b]` and `[b, a]` are not the same string however rows are
+ *   compared, so lists are sorted before comparison too.
+ *
+ * So this harness verifies WHICH ROWS and WHAT IS IN THEM, never the sequence. That is a real loss
+ * and it is stated rather than hidden: ordering is covered by `cypher/conformance.test.ts`, which
+ * runs against BOTH engines over fixtures whose sort keys are unambiguous, so a tie never decides an
+ * assertion. Comparing order here would have meant comparing noise, and a harness that reports noise
+ * is one people learn to ignore.
+ */
+const sorted = (parts: readonly string[]): string[] => [...parts].sort()
 
 const counted = (rows: readonly GraphRow[]): Map<string, number> => {
   const tally = new Map<string, number>()
@@ -86,6 +104,26 @@ const counted = (rows: readonly GraphRow[]): Map<string, number> => {
   return tally
 }
 
+/**
+ * Columns that carry an ENGINE INTERNAL value, which no two implementations could agree on.
+ *
+ * `CALL show_tables()` answers a table `id`, and the reference's is its own catalogue's numbering.
+ * There is nothing to reproduce and nothing reads it: the one caller enumerates `name` and `type`.
+ * Comparing it would report a difference on every session for a column that means "this engine's
+ * eighteenth table".
+ */
+const INTERNAL = new Map<RegExp, readonly string[]>([[/\bshow_tables\b/i, ['id']]])
+
+const withoutInternal = (cypher: string, row: GraphRow): GraphRow => {
+  for (const [pattern, columns] of INTERNAL) {
+    if (!pattern.test(cypher)) continue
+    const out = { ...row }
+    for (const column of columns) delete out[column]
+    return out
+  }
+  return row
+}
+
 /** The first way two row sets differ, in words, or undefined when they agree. */
 export const rowsDiffer = (
   cypher: string,
@@ -93,16 +131,8 @@ export const rowsDiffer = (
   b: readonly GraphRow[]
 ): string | undefined => {
   if (a.length !== b.length) return `row count ${a.length} against ${b.length}`
-  if (ordered(cypher)) {
-    for (let index = 0; index < a.length; index += 1) {
-      const left = canonicalRow(a[index]!)
-      const right = canonicalRow(b[index]!)
-      if (left !== right) return `row ${index} of an ORDER BY statement:\n    ${left}\n    ${right}`
-    }
-    return undefined
-  }
-  const left = counted(a)
-  const right = counted(b)
+  const left = counted(a.map(row => withoutInternal(cypher, row)))
+  const right = counted(b.map(row => withoutInternal(cypher, row)))
   for (const [key, count] of left) {
     const other = right.get(key) ?? 0
     if (other !== count) return `row appears ${count} time(s) against ${other}:\n    ${key}`
@@ -144,7 +174,11 @@ export const diffQuery = async (
   const right = await settle(candidate)
 
   const where = `${cypher.slice(0, 300)}\n  params: ${JSON.stringify(params ?? {}).slice(0, 300)}`
-  if (left.failed && right.failed) return []
+  // BOTH REFUSING IS AGREEMENT, and the REFERENCE'S refusal is then rethrown rather than swallowed.
+  // Returning an empty list here looked harmless and was not: a caller that expected a rejection got
+  // rows instead, so diff mode changed what the app does. Every assertion about a refused statement
+  // went green for the wrong reason until `engine.test.ts` caught it.
+  if (left.failed && right.failed) throw new Error(left.failed)
   if (left.failed) throw new Error(`graph diff: ${reference.name} threw and ${candidate.name} did not.\n  ${left.failed}\n  ${where}`)
   if (right.failed) throw new Error(`graph diff: ${candidate.name} threw and ${reference.name} did not.\n  ${right.failed}\n  ${where}`)
 

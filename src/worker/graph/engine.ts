@@ -10,6 +10,7 @@ import type { Connection, QueryResult } from '@ladybugdb/wasm-core'
 import type { Backend, BackendName } from './backend'
 
 import { backendFromEnv, diffQuery } from './backend'
+import { createCypherStore } from './cypher'
 
 export type GraphRow = Record<string, unknown>
 
@@ -197,13 +198,16 @@ export const setNativeBackend = (factory: (() => Promise<Backend>) | undefined):
 }
 
 const openNative = async (): Promise<Backend> => {
-  if (!nativeFactory) {
-    throw new Error(
-      'graph engine "native" was asked for but no backend is registered: '
-      + 'src/worker/graph/cypher/ lands in step 2, or call setNativeBackend() in a test'
-    )
+  // a registered factory wins, which is how `diff-mode.test.ts` plugs in a deliberately wrong backend
+  // to prove the harness can fail. Otherwise this is the real store.
+  if (nativeFactory) return nativeFactory()
+  const store = createCypherStore()
+  return {
+    name: 'native',
+    version: 'cypher-store',
+    query: (cypher, params) => store.query(cypher, params),
+    close: async () => { store.close() },
   }
-  return nativeFactory()
 }
 
 const openBackend = async (): Promise<Backend> => {

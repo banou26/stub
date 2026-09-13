@@ -68,9 +68,24 @@ describe('rowsDiffer', () => {
       .toBeUndefined()
   })
 
-  test('and IS one with ORDER BY, because there the order is the answer', () => {
+  // NOR WITH ONE, which is the uncomfortable half. The reference has no tie order to reproduce: the
+  // same statement over the same graph returned 4 to 15 distinct orders across 20 to 40 runs, so a
+  // comparison in order reports noise on every tie. Ordering is covered instead by
+  // cypher/conformance.test.ts, which runs against BOTH engines over unambiguous sort keys.
+  test('nor with one, because the reference has no order worth comparing against', () => {
     expect(rowsDiffer(SORTED, rows({ uri: 'a' }, { uri: 'b' }), rows({ uri: 'b' }, { uri: 'a' })))
-      .toContain('row 0')
+      .toBeUndefined()
+  })
+
+  // and the same reasoning one level down: a collect gathers in match order, which is equally unstable
+  test('a list inside a row is compared by content, not by the order it was gathered in', () => {
+    expect(rowsDiffer(READ, rows({ uris: ['a', 'b'] }), rows({ uris: ['b', 'a'] })))
+      .toBeUndefined()
+  })
+
+  test('but a list with different CONTENT is still caught, which is the control', () => {
+    expect(rowsDiffer(READ, rows({ uris: ['a', 'b'] }), rows({ uris: ['a', 'c'] })))
+      .toContain('row appears')
   })
 
   test('a missing row is caught', () => {
@@ -125,13 +140,12 @@ describe('diff mode', () => {
     )).rejects.toThrow(/graph diff/)
   })
 
-  test('CONTROL: a candidate that reorders an ORDER BY statement is caught', async () => {
-    const SORTED = `${READ} ORDER BY uri`
+  test('CONTROL: a candidate that drops one of two rows with the same shape is caught', async () => {
     await expect(diffQuery(
-      fake('ref', () => rows({ uri: 'a' }, { uri: 'b' })),
-      fake('cand', () => rows({ uri: 'b' }, { uri: 'a' })),
-      SORTED
-    )).rejects.toThrow(/graph diff: row 0 of an ORDER BY statement/)
+      fake('ref', () => rows({ uri: 'a' }, { uri: 'a' })),
+      fake('cand', () => rows({ uri: 'a' })),
+      READ
+    )).rejects.toThrow(/graph diff: row count 2 against 1/)
   })
 
   test('CONTROL: a candidate that accepts what the reference refuses is caught', async () => {
@@ -150,13 +164,16 @@ describe('diff mode', () => {
     )).rejects.toThrow(/cand threw and ref did not/)
   })
 
-  test('both refusing is agreement, not a divergence', async () => {
-    const out = await diffQuery(
-      fake('ref', () => new Error('nope')),
+  // BOTH REFUSING IS AGREEMENT, and the reference's refusal is rethrown rather than swallowed. This
+  // asserted `toEqual([])` until 2026-09-13, which meant diff mode turned every refused statement
+  // into an empty success: the app behaved differently under the harness than under either engine,
+  // and every assertion about a refusal passed for the wrong reason.
+  test('both refusing is agreement, and the reference refusal is what the caller sees', async () => {
+    await expect(diffQuery(
+      fake('ref', () => new Error('the reference wording')),
       fake('cand', () => new Error('nope, differently worded')),
       READ
-    )
-    expect(out).toEqual([])
+    )).rejects.toThrow('the reference wording')
   })
 
   test('the message names the statement and its params, or a divergence is unactionable', async () => {

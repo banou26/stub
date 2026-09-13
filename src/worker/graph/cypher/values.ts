@@ -72,10 +72,23 @@ export const coerce = (value: Value, type: ColumnType, where: string, statement:
     case 'STRING':
       return typeof value === 'string' ? value : refuse(typeof value)
     case 'INT64': {
-      if (typeof value === 'number') return isInteger(value) ? value : refuse('a non integer')
-      // a STRING that parses is accepted, because the ingest and the writer both hand integers over
-      // as text and cast them: that convention predates this store and keeps working
-      if (typeof value === 'string' && value.trim() !== '' && isInteger(Number(value))) return Number(value)
+      if (typeof value === 'number') {
+        return isInteger(value) && Number.isSafeInteger(value) ? value : refuse('a non integer')
+      }
+      // A STRING THAT IS SPELLED AS AN INTEGER is accepted, because the ingest and the writer both
+      // hand integers over as text and cast them, and that convention predates this store.
+      //
+      // SPELLED, not "parses": `Number('1e+21')` is 1e21, which passes an integer test and is exactly
+      // what the reference engine refuses with `Could not convert "1e+21" to INT64`. Accepting it
+      // would take a value the old engine rejected loudly and write it silently, which is the wrong
+      // direction for a replacement to be lenient in.
+      // NO EXPONENT, and an integral decimal is fine. `'12.0'` is twelve and the app does hand those
+      // over; `'1e+21'` is what the reference refuses with `Could not convert "1e+21" to INT64`, and
+      // it slips through any test based on `Number()` because 1e21 passes an integer check.
+      if (typeof value === 'string' && /^[+-]?\d+(\.0+)?$/.test(value.trim())) {
+        const parsed = Number(value.trim())
+        if (Number.isSafeInteger(parsed)) return parsed
+      }
       return refuse(typeof value === 'string' ? `the string ${JSON.stringify(value)}` : typeof value)
     }
     case 'DOUBLE': {
@@ -200,3 +213,42 @@ export const compareValues = (a: Value, b: Value): number => {
   // mixed or structured: compare their text, so the order is at least total and deterministic
   return compareStrings(String(a), String(b))
 }
+
+/**
+ * An EXPLICIT `cast(x AS T)`, which is deliberately more permissive than writing into a column.
+ *
+ * The two are different operations and conflating them was the first real divergence the differential
+ * harness caught: the ingest writes `m.owned = cast(r.owned AS BOOLEAN)` with `r.owned` the STRING
+ * `"true"`, because a batch parameter carries every field as text and the statement converts it. A
+ * column assignment refusing a string is right (`values.ts` header); a cast refusing one makes the
+ * convention the whole ingest is built on impossible.
+ *
+ * So `cast` parses, and `coerce` still refuses. A value that has been cast is then written by
+ * `coerce` as the type it now is, which means the type check still happens, one step later.
+ */
+export const castValue = (value: Value, type: ColumnType, statement: string): Value => {
+  if (value === null) return null
+  if (typeof value === 'string') {
+    switch (type.kind) {
+      case 'BOOLEAN': {
+        const text = value.trim().toLowerCase()
+        if (text === 'true') return true
+        if (text === 'false') return false
+        throw new CypherError('run', `Conversion exception: Cast failed. Could not convert "${value}" to BOOLEAN.`, statement)
+      }
+      case 'INT64': case 'DOUBLE': case 'TIMESTAMP':
+        // these already accept a well spelled string, and refuse the same way the reference does
+        return coerce(value, type, 'cast', statement)
+      default:
+        return coerce(value, type, 'cast', statement)
+    }
+  }
+  if (typeof value === 'number' && type.kind === 'STRING') return String(value)
+  if (typeof value === 'boolean' && type.kind === 'STRING') return String(value)
+  if (typeof value === 'number' && type.kind === 'INT64' && !Number.isInteger(value)) {
+    // a cast TRUNCATES where an assignment refuses, which is what `cast(x AS INT64)` is usually for
+    return Math.trunc(value)
+  }
+  return coerce(value, type, 'cast', statement)
+}
+
