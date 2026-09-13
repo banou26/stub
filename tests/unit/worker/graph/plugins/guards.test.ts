@@ -517,6 +517,46 @@ test('the batch component read equals the recursive LINK*0..8 walk of 3.5', asyn
   expect(joined, 'the control: a walk that found no member but the row itself would prove nothing').toBeGreaterThan(0)
 }, 60_000)
 
+// THE SNAPSHOT IS CACHED BETWEEN WRITES, and this is the case that decides whether that is safe.
+//
+// `graphGuards()` is asked about ONE pair at a time, so before the cache every proposal paid for a
+// whole-graph read of the active SAME_AS edges: 165 calls carrying 44,283 rows on a real modal,
+// 2026-09-13, the single hottest statement of the page. Caching it is only correct if NOTHING can
+// change the graph without dropping it.
+//
+// The invalidation therefore hangs off the ENGINE, not off the writer. Hooking `runChunked` was the
+// first attempt and it was wrong: `aggregate.test.ts` retracts a SAME_AS row with a raw DELETE
+// through the query handle, and the cache answered from before it. This case reproduces that shape
+// directly, since it is the one a reasonable-looking fix gets wrong.
+// MUTATED: unsubscribe `invalidateComponents` entirely and this reddens on the FIRST assertion, not
+// the second, because the snapshot then predates even this case's own setup. That is the honest
+// shape of the failure: an uninvalidated cache is stale in both directions, not just after a delete.
+test('a component snapshot is dropped by a direct write, not only by the writer', async () => {
+  // its own pair, and the LINK is written DIRECTLY rather than proposed: what is under test is the
+  // cache's invalidation, so the setup must not also depend on nine guards agreeing to write it
+  await ingestAnswers([
+    await answer('media', media('mal:920', { titles: [title('ja', 'Snapshot Probe')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+    await answer('media', media('kitsu:920', { titles: [title('ja', 'Snapshot Probe')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+  ])
+  const { query } = await graphReady()
+  await query(
+    `MATCH (a:Media {uri: 'mal:920'}), (b:Media {uri: 'kitsu:920'})
+     CREATE (a)-[:LINK {key: 'probe-920', kind: 'SAME_AS', status: 'active', by: 'plugin:test', version: 1}]->(b)`
+  )
+
+  const before = await readComponents(query)
+  expect(before.membersOf('mal:920'), 'the two are one component to start with').toEqual(['kitsu:920', 'mal:920'])
+
+  // exactly what aggregate.test.ts does to drive a split: no writer, no event, just a statement
+  await query(
+    `MATCH (a:Media {uri: 'mal:920'})-[l:LINK]->(b:Media)
+     WHERE l.kind = 'SAME_AS' AND l.status = 'active' DELETE l`
+  )
+
+  const after = await readComponents(query)
+  expect(after.membersOf('mal:920'), 'and the very next read has to see the retraction').toEqual(['mal:920'])
+}, 60_000)
+
 // THE GUARD BATCH is one snapshot: every verdict in one apply is computed against the graph as it
 // stood when the batch was prepared, which is what guard 4's "never within one pass" means.
 // Mutation: prepare per proposal and the second of two proposals in one output sees the first one's

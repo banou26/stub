@@ -82,14 +82,45 @@ const rowsOf = async (result: QueryResult): Promise<GraphRow[]> => {
   }
 }
 
+/**
+ * Fires after any statement that can CHANGE the graph, so a cache over graph state cannot go stale.
+ *
+ * AT THE ENGINE, deliberately, rather than at the writer. `plugins/writer.ts` has exactly one write
+ * statement and hooking that looked sufficient, but it is not: anything holding a `query` handle can
+ * write, and `aggregate.test.ts` does precisely that ("the SAME_AS row is retracted directly") to
+ * drive a split. A cache keyed on the writer alone answered that test from before the delete. Here
+ * there is no path around it, because every statement in the app goes through this function.
+ *
+ * The test is CONSERVATIVE: anything naming a write keyword counts, so an over-broad match costs a
+ * re-read and a missed one would cost correctness. Read statements are the overwhelming majority and
+ * pay one regex.
+ */
+const WRITES = /\b(CREATE|MERGE|SET|DELETE|DETACH|DROP|ALTER|COPY|INSTALL|LOAD)\b/i
+
+const writeListeners: (() => void)[] = []
+
+/** Subscribe to "the graph may have changed". Called for every write statement, after it succeeds. */
+export const onGraphWrite = (listener: () => void): void => { writeListeners.push(listener) }
+
+const announceWrite = (cypher: string): void => {
+  if (!WRITES.test(cypher)) return
+  for (const listener of writeListeners) listener()
+}
+
 const queryWith = (conn: Connection) =>
   async (cypher: string, params?: Record<string, unknown>): Promise<GraphRow[]> => {
     try {
-      if (!params) return await rowsOf(await conn.query(cypher))
+      if (!params) {
+        const rows = await rowsOf(await conn.query(cypher))
+        announceWrite(cypher)
+        return rows
+      }
       const prepared = await conn.prepare(cypher)
       try {
         if (!prepared.isSuccess()) throw new Error(await prepared.getErrorMessage())
-        return await rowsOf(await conn.execute(prepared, params))
+        const rows = await rowsOf(await conn.execute(prepared, params))
+        announceWrite(cypher)
+        return rows
       } finally {
         await prepared.close()
       }

@@ -49,7 +49,7 @@ import { sha256Hex } from '../hash'
 import {
   graphReady, PLUGIN_NODE_TABLES, PLUGIN_REL_TABLES, SOURCE_NODE_TABLES, SOURCE_REL_TABLES, tableNameOf,
 } from '../schema'
-import { prepareGuards } from './guards'
+import { prepareGuards, invalidateComponents } from './guards'
 import {
   isRefusedProposal, mergeDesired, orderLinkProposals, readStickyLinks, rowsForVerdict, verdictFor,
 } from './sameness'
@@ -382,6 +382,10 @@ const runChunked = async (
   for (const chunk of chunked(rows, CHUNK)) {
     if (!chunk.length) continue
     await query(cypher, { ...params, separator: LIST_SEPARATOR, rows: chunk })
+    // THE WRITER'S ONLY WRITE STATEMENT, so this is the one place the guards' component snapshot can
+    // go stale. Bumping here is what lets `readComponents` answer every proposal of one batch from a
+    // single read instead of re-scanning the graph per proposal (see guards.ts).
+    invalidateComponents()
   }
 }
 

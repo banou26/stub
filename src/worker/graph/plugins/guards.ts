@@ -35,6 +35,8 @@
  * cluster holds the run side, and falls back to that row's own profile count where none does yet,
  * which is every row on the first iteration of a pass.
  */
+import { onGraphWrite } from '../engine'
+
 import type { Refusal } from './contract'
 
 /** The read handle the guards are given: Cypher in, rows out, exactly the writer's own handle. */
@@ -202,7 +204,48 @@ export type Components = {
  * of the delta touches, which is the scoping 5.2's last paragraph describes, and `runPlugin` then
  * asserts the two forms retract the same links.
  */
+/**
+ * The component snapshot, taken once per WRITE rather than once per proposal.
+ *
+ * WHY IT HAS TO BE CACHED. `graphGuards()` is the plugin-facing surface, and a plugin asks about ONE
+ * pair at a time (`writer.ts` `sameAs`, `partOf`), so every proposal was paying for a whole-graph read
+ * of the active `SAME_AS` edges. Measured on a Mushoku Tensei modal, 2026-09-13: 165 calls carrying
+ * 44,283 rows for 2.0 s, which was the single hottest statement of the page. The file's own header
+ * already says this read is a batch ("one read of the active SAME_AS edges plus a union-find in JS is
+ * the same relation for the whole batch"); the batch just never reached it.
+ *
+ * WHY IT IS STILL CORRECT. The rule this file states is that the snapshot is "the graph as it
+ * stands", taken BEFORE the diff an apply is about to write. Between two writes the active `SAME_AS`
+ * edges cannot move, so every reader in that window is entitled to the same answer. The cache is
+ * therefore keyed on WRITES, and the hook is at the ENGINE (`onGraphWrite`), which no write can get
+ * around. Hooking the writer instead was tried first and was wrong: anything holding a query handle
+ * can write, and a test that retracts a `SAME_AS` row directly was answered from before its delete.
+ *
+ * The returned object is two closures whose `membersOf` hands back a fresh sorted array, so sharing
+ * one instance cannot let a caller mutate another's view.
+ */
+let componentsEpoch = 0
+let componentsCache: { epoch: number, value: Components } | undefined
+let componentsLive = false
+
+/** Called by the writer after it writes, and by the ingest's events. The next read is fresh. */
+export const invalidateComponents = (): void => {
+  componentsEpoch += 1
+  componentsCache = undefined
+}
+
 export const readComponents = async (query: GuardQuery): Promise<Components> => {
+  if (!componentsLive) {
+    componentsLive = true
+    onGraphWrite(invalidateComponents)
+  }
+  if (componentsCache && componentsCache.epoch === componentsEpoch) return componentsCache.value
+  const built = await buildComponents(query)
+  componentsCache = { epoch: componentsEpoch, value: built }
+  return built
+}
+
+const buildComponents = async (query: GuardQuery): Promise<Components> => {
   const parent = new Map<string, string>()
   const find = (uri: string): string => {
     let root = uri
