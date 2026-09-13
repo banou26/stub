@@ -34,13 +34,31 @@ describe('openGraph', () => {
     await expect(query(statement, { uri: 'mal:2', n: 'twenty six' })).rejects.toThrow(/Binder exception/)
   })
 
+  // `db` and `conn` were asserted here until 2026-09-13 and are gone from `Graph`: they were
+  // LadybugDB's own handles, and the engine is being replaced by an in-process interpreter behind the
+  // same `query`. The property this case is actually about is unchanged and is now stated on the two
+  // things every caller shares: one backend, one `query`.
   test('called twice, it hands back the one open database', async () => {
     const first = await openGraph()
     const second = await openGraph()
 
-    expect(second.db).toBe(first.db)
-    expect(second.conn).toBe(first.conn)
+    expect(second.backend).toBe(first.backend)
     expect(second.query).toBe(first.query)
+  })
+
+  // `read.test.ts` counts the statements a read runs by REASSIGNING `graph.query`, so it has to be a
+  // writable own property rather than a getter or a frozen field. That is easy to break while moving
+  // the engine around and the failure reads as a broken test rather than as a changed shape.
+  test('query is a writable own property, which is how a test counts statements', async () => {
+    const graph = await openGraph()
+    const descriptor = Object.getOwnPropertyDescriptor(graph, 'query')
+    expect(descriptor?.writable, 'reassignable').toBe(true)
+    const real = graph.query
+    let seen = 0
+    graph.query = (cypher, params) => { seen += 1; return real(cypher, params) }
+    await graph.query('MATCH (t:T) RETURN count(t) AS total')
+    graph.query = real
+    expect(seen).toBe(1)
   })
 })
 

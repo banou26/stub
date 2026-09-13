@@ -5,13 +5,17 @@
  * returns a `query` helper over them. Nothing here decides a schema; this only makes the engine
  * reachable. `graphEnabled()` reports the page's `?graph` flag, which `setGraphEnabled` carries in.
  */
-import type { Connection, Database, QueryResult } from '@ladybugdb/wasm-core'
+import type { Connection, QueryResult } from '@ladybugdb/wasm-core'
+
+import type { Backend, BackendName } from './backend'
+
+import { backendFromEnv, diffQuery } from './backend'
 
 export type GraphRow = Record<string, unknown>
 
 export type Graph = {
-  db: Database
-  conn: Connection
+  /** The engine actually answering, so a test can name it. Nothing in the app reads it. */
+  backend: Backend
   /**
    * Runs one statement and returns its rows. Params are bound through `prepare` + `execute`, and
    * every engine failure arrives as a thrown Error naming the statement.
@@ -59,7 +63,16 @@ const importEngine = async (): Promise<Engine> => {
  * `_id.offset` is a real BigInt). Both are unusable downstream, and a BigInt also refuses
  * `JSON.stringify` and structured clone, so rows are flattened to plain numbers on the way out.
  */
-const toPlain = (value: unknown): unknown => {
+/**
+ * Exported because it defines the VALUE SHAPE AT THE SEAM, which is a contract rather than a detail.
+ *
+ * Every caller in the app is written against what comes out of here: plain numbers, not BigInt and
+ * not boxed Number; JSON columns as strings. A replacement engine has to produce the same shapes, and
+ * `tests/unit/worker/graph/diff-mode.test.ts` needs it to build a second reference that differs from
+ * the first in nothing at all. A simpler flattening there reported a real divergence within minutes
+ * (a boxed `Number` from the nodejs variant against a plain one), which is the harness working.
+ */
+export const toPlain = (value: unknown): unknown => {
   if (typeof value === 'bigint') return Number(value)
   if (Array.isArray(value)) return value.map(toPlain)
   if (value instanceof Date) return value
@@ -134,27 +147,99 @@ const queryWith = (conn: Connection) =>
 
 let opening: Promise<Graph> | undefined
 
-const open = async (): Promise<Graph> => {
+/**
+ * WHICH ENGINE ANSWERS, while LadybugDB is being replaced by the in-process interpreter.
+ *
+ * Defaults to `ladybug`, which is what ships, so nothing changes until something asks. `native` is
+ * the replacement alone and `diff` runs both and refuses on any divergence (see ./backend.ts).
+ * Settable from code as well as from the environment because the browser has no env: a page that
+ * wants the replacement calls `setGraphEngine` before the first `openGraph`.
+ */
+let engineChoice: BackendName = backendFromEnv()
+
+export const setGraphEngine = (next: BackendName): void => {
+  if (opening) throw new Error(`setGraphEngine(${next}) after the graph is already open: close it first`)
+  engineChoice = next
+}
+
+export const graphEngine = (): BackendName => engineChoice
+
+const openLadybug = async (): Promise<Backend> => {
   const engine = await loadEngine()
   const db = new engine.Database(':memory:')
   const conn = new engine.Connection(db)
   await conn.init()
-  return { db, conn, query: queryWith(conn), version: await engine.getVersion() }
+  // ONE THREAD, so the reference engine is as repeatable as it can be made while it is the thing
+  // every comparison is against. It does not make the row order deterministic (that was measured:
+  // the tie order is a plan artifact even at one thread) but it removes the run to run variation
+  // that comes from the parallel scan, at about one percent of the engine's cost.
+  await conn.setMaxNumThreadForExec(1)
+  const version = await engine.getVersion()
+  return {
+    name: 'ladybug',
+    version,
+    query: queryWith(conn),
+    close: async () => { await conn.close(); await db.close(); await (await loading)?.close() },
+  }
 }
 
-/** Opens the engine, or returns the open one. Every caller shares one Database and one Connection. */
+/**
+ * The candidate engine, injected rather than imported.
+ *
+ * `src/worker/graph/cypher/` does not exist yet (it lands in step 2), and this file must not import
+ * it before it does. Registering it here also lets a test plug in a DELIBERATELY WRONG backend to
+ * prove diff mode can actually fail, which is the only way to know the harness works at all.
+ */
+let nativeFactory: (() => Promise<Backend>) | undefined
+
+export const setNativeBackend = (factory: (() => Promise<Backend>) | undefined): void => {
+  nativeFactory = factory
+}
+
+const openNative = async (): Promise<Backend> => {
+  if (!nativeFactory) {
+    throw new Error(
+      'graph engine "native" was asked for but no backend is registered: '
+      + 'src/worker/graph/cypher/ lands in step 2, or call setNativeBackend() in a test'
+    )
+  }
+  return nativeFactory()
+}
+
+const openBackend = async (): Promise<Backend> => {
+  if (engineChoice === 'ladybug') return openLadybug()
+  if (engineChoice === 'native') return openNative()
+
+  const reference = await openLadybug()
+  const candidate = await openNative()
+  return {
+    name: `diff(${reference.name} against ${candidate.name})`,
+    version: reference.version,
+    query: (cypher, params) => diffQuery(reference, candidate, cypher, params),
+    // BOTH are closed, and the reference last, so a candidate that throws on close still leaves the
+    // engine that owns the wasm worker shut down
+    close: async () => {
+      try { await candidate.close() } finally { await reference.close() }
+    },
+  }
+}
+
+const open = async (): Promise<Graph> => {
+  const backend = await openBackend()
+  // a plain object with `query` as a WRITABLE own property: `tests/unit/worker/graph/read.test.ts`
+  // reassigns it to count the statements one read runs, and a getter or a frozen object breaks that
+  return { backend, query: backend.query, version: backend.version }
+}
+
+/** Opens the engine, or returns the open one. Every caller shares one store. */
 export const openGraph = (): Promise<Graph> => (opening ??= open())
 
 export const closeGraph = async (): Promise<void> => {
   const graph = opening
-  const engine = loading
   opening = undefined
   loading = undefined
   if (!graph) return
-  const { db, conn } = await graph
-  await conn.close()
-  await db.close()
-  await (await engine)?.close()
+  await (await graph).backend.close()
 }
 
 let enabled = false
