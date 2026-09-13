@@ -205,7 +205,16 @@ const openNative = async (): Promise<Backend> => {
   return {
     name: 'native',
     version: 'cypher-store',
-    query: (cypher, params) => store.query(cypher, params),
+    query: async (cypher, params) => {
+      const rows = await store.query(cypher, params)
+      // THE SAME ANNOUNCEMENT THE OTHER BACKEND MAKES. `announceWrite` used to live only in the
+      // LadybugDB path, so under the native engine `onGraphWrite` never fired and the guards' cached
+      // component snapshot was never invalidated: two rows a statement had just joined still read as
+      // separate components. Anything hanging off a write notification has to hear from BOTH engines,
+      // or the replacement is silently missing a side effect the app is built on.
+      announceWrite(cypher)
+      return rows
+    },
     close: async () => { store.close() },
   }
 }

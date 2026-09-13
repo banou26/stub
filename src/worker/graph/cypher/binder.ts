@@ -51,7 +51,12 @@ export const bind = (store: Store, query: Query, cypher: string): void => {
   }
 
   const rel = (pattern: RelPattern): void => {
-    if (pattern.range) throw notSupported('a variable length relationship', cypher)
+    if (pattern.range) {
+      // the filter's own two variables are scoped to the filter and do not escape it
+      if (pattern.range.relVariable) scope.add(pattern.range.relVariable)
+      if (pattern.range.nodeVariable) scope.add(pattern.range.nodeVariable)
+      if (pattern.range.filter) expr(pattern.range.filter)
+    }
     if (pattern.type) {
       const table = store.table(pattern.type)
       if (!table) fail(`no rel table named ${pattern.type}`)

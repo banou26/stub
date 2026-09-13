@@ -178,6 +178,7 @@ const expand = (context: Context, binding: Binding, pattern: Pattern): Binding[]
     for (const one of current) {
       const from = nodeOf(one, pattern, step)
       if (!from) continue
+      if (step.rel.range) { next.push(...walkRange(context, one, step, from)); continue }
       for (const { edge, other } of walk(context, from, step.rel)) {
         const bound = withNode(context, one, step.node, other)
         if (!bound) continue
@@ -189,6 +190,69 @@ const expand = (context: Context, binding: Binding, pattern: Pattern): Binding[]
     current = next
   }
   return current
+}
+
+/**
+ * A variable length hop, `*1..4` and friends: ONE BINDING PER PATH, not per endpoint.
+ *
+ * A node reachable two ways appears twice, which is the reference's behaviour and is the whole reason
+ * the callers of this construct write `RETURN DISTINCT`. Measured in `conformance.test.ts`.
+ *
+ * THE WALK IS HOMOMORPHIC, so it may come back over the edge it arrived on: at exactly two undirected
+ * hops from a node, returning to the start is the ONLY way the start can be in the answer, and the
+ * reference puts it there. That also means a cycle can be walked round and round, which is why the
+ * depth is bounded by `max` and why an open range is refused at parse time rather than given an
+ * invented ceiling.
+ *
+ * The filter `(r, _ | WHERE ...)` is evaluated per HOP with `r` bound to that hop's relationship, so a
+ * path is kept only while every edge on it passes. Its variable names come from the pattern rather
+ * than from a convention (see `RelPattern.range`).
+ */
+const walkRange = function* (
+  context: Context,
+  binding: Binding,
+  step: Pattern['steps'][number],
+  from: NodeRecord
+): Generator<Binding> {
+  const range = step.rel.range!
+  const seen = new Set<string>()
+
+  const emit = function* (node: NodeRecord, edges: readonly EdgeRecord[]): Generator<Binding> {
+    if (edges.length < range.min) return
+    const bound = withNode(context, binding, step.node, node)
+    if (!bound) return
+    if (step.rel.variable) {
+      // the whole PATH, as the relationship identities it walked: nothing in this repo reads it, and
+      // binding only the last edge would be quietly wrong for anything that did
+      bound.set(step.rel.variable, { kind: 'value', value: edges.map(edge => `edge#${edge.seq}`) })
+    }
+    yield bound
+  }
+
+  const descend = function* (node: NodeRecord, edges: EdgeRecord[]): Generator<Binding> {
+    yield* emit(node, edges)
+    if (edges.length >= range.max) return
+    for (const { edge, other } of walk(context, node, step.rel)) {
+      if (!matches(context, binding, step.rel.properties, edge.props)) continue
+      if (range.filter) {
+        const hop = new Map(binding)
+        if (range.relVariable) hop.set(range.relVariable, { kind: 'edge', edge })
+        if (range.nodeVariable) hop.set(range.nodeVariable, { kind: 'node', node: other })
+        if (evaluate(context, hop, range.filter) !== true) continue
+      }
+      edges.push(edge)
+      // a PATH is the unit, so the same endpoint reached twice is two answers, but the same path
+      // reached twice is not: the key is the edge sequence, which is what stops a cycle repeating
+      const key = `${edges.map(one => one.seq).join(',')}#${other.seq}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        yield* descend(other, edges)
+      }
+      edges.pop()
+    }
+  }
+
+  yield* descend(from, [])
 }
 
 /**

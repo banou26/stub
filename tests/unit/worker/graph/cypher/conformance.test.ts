@@ -84,9 +84,6 @@ const refusesBoth = async (
  * A suite carrying seventeen known failures tells you nothing about the eighteenth. Each of these is
  * a decision written down elsewhere, and they fall into three groups:
  *
- * - VARIABLE LENGTH PATHS. No statement the app issues uses one; the only `*0..8` in the repo is a
- *   test that serves as the oracle for the JS union-find that replaced it. The replacement refuses
- *   them by name, so the day something needs one it says so rather than answering wrongly.
  * - THE EMPTY UNWIND. The reference dies on one, in two different ways, and nine comments across
  *   `src/worker/graph` warn about it. The replacement answers no rows, which is what an empty list
  *   means, and the guards those nine comments protect become unnecessary rather than wrong.
@@ -690,7 +687,7 @@ describe('reads', () => {
     expect(rows).toEqual([{ b: 'm:2', c: 'm:3', d: 'm:4', e: 'm:5' }])
   })
 
-  onlyReference('a variable length path of one to four hops reaches every node downstream', async () => {
+  test('a variable length path of one to four hops reaches every node downstream', async () => {
     const rows = await run(
       `MATCH (a:CMedia {uri: $uri})-[e:CLINK*1..4 (r, _ | WHERE r.kind = 'SAME_AS')]->(b:CMedia)
        RETURN DISTINCT b.uri AS uri`,
@@ -704,19 +701,19 @@ describe('reads', () => {
   // answered `m:5` TWICE. A variable length pattern answers one row per PATH rather than one per
   // endpoint, and m:5 is reachable both by the four hop SAME_AS chain and by the one hop refused
   // PART_OF edge. That is why every such read in `plugins/guards.ts` carries DISTINCT.
-  onlyReference('a variable length path answers one row per path, so a node reachable two ways appears twice', async () => {
+  test('a variable length path answers one row per path, so a node reachable two ways appears twice', async () => {
     const rows = await run('MATCH (a:CMedia {uri: $uri})-[:CLINK*1..4]->(b:CMedia) RETURN b.uri AS uri', { uri: 'm:1' })
 
     expect(strings(rows, 'uri')).toEqual(['m:2', 'm:3', 'm:4', 'm:5', 'm:5'])
   })
 
-  onlyReference('a variable length path starting at zero hops includes the node it started from', async () => {
+  test('a variable length path starting at zero hops includes the node it started from', async () => {
     const rows = await run('MATCH (a:CMedia {uri: $uri})-[:CLINK*0..4]->(b:CMedia) RETURN b.uri AS uri', { uri: 'm:3' })
 
     expect(strings(rows, 'uri')).toEqual(['m:3', 'm:4', 'm:5'])
   })
 
-  onlyReference('a filtered variable length path walks only the edges its filter keeps', async () => {
+  test('a filtered variable length path walks only the edges its filter keeps', async () => {
     const rows = await run(
       `MATCH (a:CMedia {uri: $uri})-[e:CLINK*1..8 (r, _ | WHERE r.kind = 'SAME_AS' AND r.status = 'active')]->(b:CMedia)
        RETURN DISTINCT b.uri AS uri`,
@@ -730,7 +727,7 @@ describe('reads', () => {
   // reimplementation: an UNDIRECTED walk of one or more hops answers the node it started from.
   // `plugins/guards.ts` reads a whole SAME_AS component this way and unions it in JS, so a
   // replacement that excluded the start would silently drop each component's own member.
-  onlyReference('an undirected variable length walk answers the node it started from', async () => {
+  test('an undirected variable length walk answers the node it started from', async () => {
     const rows = await run(
       `MATCH (a:CMedia {uri: $uri})-[e:CLINK*1..8 (r, _ | WHERE r.kind = 'SAME_AS' AND r.status = 'active')]-(b:CMedia)
        RETURN DISTINCT b.uri AS uri`,
@@ -743,7 +740,7 @@ describe('reads', () => {
   // ...and the mechanism, because it decides what a replacement's walk has to allow: the second hop
   // comes back over the edge the first arrived on, so a walk reuses a relationship rather than
   // being a trail. At exactly two hops from m:1 that is the only way m:1 can be in the answer.
-  onlyReference('an undirected walk reuses the edge it arrived on, so two hops returns to the start', async () => {
+  test('an undirected walk reuses the edge it arrived on, so two hops returns to the start', async () => {
     const rows = await run(
       `MATCH (a:CMedia {uri: $uri})-[e:CLINK*2..2 (r, _ | WHERE r.kind = 'SAME_AS' AND r.status = 'active')]-(b:CMedia)
        RETURN DISTINCT b.uri AS uri`,

@@ -92,9 +92,14 @@ export const createCypherStore = (): CypherStore => {
       try {
         return run(cypher, params)
       } catch (error) {
-        if (error instanceof CypherError) throw error
+        // THE STATEMENT IS ADDED HERE, at the boundary, and nowhere inside. A refusal names a column
+        // or a construct, not the statement it came from, and every caller reads `error.message`
+        // rather than a field: `engine.ts` wrapped LadybugDB exactly this way and
+        // `engine.test.ts` asserts the statement is in the text. Keeping the decoration out of
+        // `CypherError` leaves the library's own messages comparable in its own tests.
         const reason = error instanceof Error ? error.message : String(error)
-        throw new CypherError('run', reason, cypher)
+        const phase = error instanceof CypherError ? error.phase : 'run'
+        throw new CypherError(phase, `${reason} (statement: ${cypher.slice(0, 120)})`, cypher)
       }
     },
     tables: () => store.all().map(table => ({ name: table.name, kind: table.kind })),
