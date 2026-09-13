@@ -21,7 +21,7 @@ import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { graphReady } from '../../../../../src/worker/graph/schema'
 import { resetPassState, runPlugins } from '../../../../../src/worker/graph/plugins/runner'
 import { profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
-import { prepareGuards, readComponents } from '../../../../../src/worker/graph/plugins/guards'
+import { contestSites, contestedBy, prepareGuards, readComponents } from '../../../../../src/worker/graph/plugins/guards'
 import { orderLinkProposals, precedenceClassOf } from '../../../../../src/worker/graph/plugins/sameness'
 import { applyPluginOutput } from '../../../../../src/worker/graph/plugins/writer'
 import { answer, media, rowsOf, title } from './fixtures'
@@ -289,6 +289,49 @@ test('the control: two offline ids borrowed from the SAME catalogue still disagr
   const rows = await linksOf()
   expect(rows.find(row => row.pair === 'offline:mal-412 kitsu:411' && row.kind === 'SAME_AS'))
     .toMatchObject({ status: 'refused', reason: 'disagreeing-ids' })
+})
+
+/**
+ * `contestedBy` is a COUNTERFACTUAL, and "already contested" is not a shortcut for it.
+ *
+ * Driven directly, because reaching this branch through the writer needs a proposal that merges the
+ * two straddling claimants of a THIRD row, which is a five row stage for one boolean.
+ *
+ * A site is contested when accepting the proposal would leave two of the target's claimants in
+ * DIFFERENT components that disagree. A merge only ever JOINS, so a proposal that puts the two
+ * straddling claimants into ONE component removes the very disagreement that made the site contested
+ * with nothing merged. Reading `standing` first and returning early gets that backwards, and guard 4
+ * then cuts a row it should have measured through.
+ *
+ * Mutation: hoist `if (site.standing) { contested.add(site.target); continue }` above the
+ * reachability branch in `contestedBy`, which is what the fast-looking version does, and the first
+ * assertion below reports the target as contested.
+ */
+test('a proposal that joins the two disagreeing claimants un-contests their target', async () => {
+  const { query } = await graphReady()
+  const components = await readComponents(query)
+  // two claimants of one target, in their own components, disagreeing by their `mal` ids
+  const claimsInto = new Map([
+    ['kitsu:9000', [
+      { claimant: 'mal:9001', claimer: 'mal' },
+      { claimant: 'mal:9002', claimer: 'mal' },
+    ]],
+  ])
+  const parentOf = () => null
+  // the reverse index guard 5 cuts with: neither claimant shares a second target here
+  const claims = new Map([['mal:9001', new Set(['kitsu:9000'])], ['mal:9002', new Set(['kitsu:9000'])]])
+  const sites = contestSites(claimsInto, claims, components, parentOf)
+
+  expect(sites.length, 'the control: one site, and it is contested with nothing merged').toBe(1)
+  expect(sites[0]!.standing).toBe(true)
+
+  // the proposal IS the join between them, so under the graph it would leave behind the two claimants
+  // are one component and there is no longer a disagreement across the target
+  expect(contestedBy('mal:9001', 'mal:9002', { sites, parentOf, components, claims })).toEqual(new Set())
+
+  // and the control in the other direction: a proposal that reaches neither claimant leaves the
+  // standing verdict exactly as it was, which is the branch the line above must not swallow
+  expect(contestedBy('anilist:9500', 'kitsu:9500', { sites, parentOf, components, claims })).toEqual(new Set(['kitsu:9000']))
 })
 
 // (5) CONTESTED, evaluated over every CLAIM rather than over active links, so two claimants landing
