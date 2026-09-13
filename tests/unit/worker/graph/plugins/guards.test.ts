@@ -94,6 +94,15 @@ beforeAll(async () => {
     await answer('media', media('anilist:401', { titles: [title('en', 'Four part two')] })),
     await answer('media', media('mal:400', { titles: [title('en', 'Four')] })),
     await answer('media', media('kitsu:400', { titles: [title('en', 'Four')] })),
+    // 4b. the `offline` origin, whose ids are BORROWED: two rows of it disagree only when they borrow
+    // from the SAME catalogue. `offline:anilist-410` and `offline:mal-410` are one row under two
+    // addresses; `offline:mal-411` is a different mal row and so a real disagreement.
+    await answer('media', media('offline:anilist-410', { titles: [title('en', 'Four ten')] })),
+    await answer('media', media('offline:mal-410', { titles: [title('en', 'Four ten')] })),
+    await answer('media', media('offline:mal-411', { titles: [title('en', 'Four eleven')] })),
+    await answer('media', media('offline:mal-412', { titles: [title('en', 'Four twelve')] })),
+    await answer('media', media('kitsu:410', { titles: [title('en', 'Four ten')] })),
+    await answer('media', media('kitsu:411', { titles: [title('en', 'Four eleven')] })),
     // 5. contested: two anilist runs both claiming one mal row, the AoT Final Chapters shape (8.6)
     await answer('media', media('anilist:500', { titles: [title('en', 'Five')], handles: [{ relation: 'SAME_AS', node: media('mal:500') }] })),
     await answer('media', media('anilist:501', { titles: [title('en', 'Five part two')], handles: [{ relation: 'SAME_AS', node: media('mal:500') }] })),
@@ -228,6 +237,58 @@ test('guard 4 refuses a union that puts two ids of one origin in one component',
     .toMatchObject({ status: 'active', reason: 'disagreeing-ids' })
   expect(rows.find(row => row.pair === 'anilist:400 mal:400')!.status, 'the standing weld is not what this guard retracts').toBe('active')
   expect(rows.find(row => row.pair === 'kitsu:400 mal:400')!.status, 'the control: another origin disagrees with nobody').toBe('active')
+})
+
+// (4b) THE SAME GUARD, on the one origin that does not issue its own ids.
+//
+// An anime offline database row has no id of its own: it is named by whichever foreign id reached it
+// first, mal before anilist before kitsu before anidb (`sources/offline/index-lookup.ts` `rowId`), so
+// `offline:anilist-410` and `offline:mal-410` are routinely ONE row under two addresses and disagree
+// about nothing. Read as a plain origin they look like two rows that cannot both be this show, and
+// guard 4 refuses a correct merge.
+//
+// Measured on the recorded page 2026-09-14: reading the plain origin split 57 corpus lines that the
+// labels say are one show, and every one of them was an `offline:` pair borrowing from two different
+// catalogues.
+//
+// Mutation: make `identitySpaceOf` return the plain origin and the first case below refuses; drop the
+// borrowed-source split entirely and the second stops refusing, which is the half that must not be
+// lost. The corpus catches the first, but `corpus/` is not in git, so a session without one would see
+// neither: these two are the version that travels.
+test('guard 4 reads the BORROWED source of an offline id, not the offline origin', async () => {
+  // the first address welds, which is the component the second one meets: one batch would weigh both
+  // against the same pre-batch snapshot and neither would ever see the other
+  await propose([sameAs('offline:anilist-410', 'kitsu:410')])
+  await propose([
+    sameAs('offline:anilist-410', 'kitsu:410'),
+    sameAs('offline:mal-410', 'kitsu:410'),
+  ])
+
+  // BY KIND AS WELL AS BY PAIR. A refused `SAME_AS` is written beside an active `PART_OF` downgrade,
+  // and `PART_OF` sorts first, so a find on the pair alone reads the downgrade and calls it active in
+  // both states.
+  const rows = await linksOf()
+  const link = (pair: string, kind: string) => rows.find(row => row.pair === pair && row.kind === kind)
+  expect(link('offline:anilist-410 kitsu:410', 'SAME_AS')!.status).toBe('active')
+  expect(
+    link('offline:mal-410 kitsu:410', 'SAME_AS')!.status,
+    'two addresses of one offline row are not two rows'
+  ).toBe('active')
+  expect(link('offline:mal-410 kitsu:410', 'PART_OF'), 'and no downgrade was written').toBeUndefined()
+})
+
+test('the control: two offline ids borrowed from the SAME catalogue still disagree', async () => {
+  await propose([sameAs('offline:mal-411', 'kitsu:411')])
+  expect((await linksOf()).find(row => row.pair === 'offline:mal-411 kitsu:411')!.status).toBe('active')
+
+  await propose([
+    sameAs('offline:mal-411', 'kitsu:411'),
+    sameAs('offline:mal-412', 'kitsu:411'),
+  ])
+
+  const rows = await linksOf()
+  expect(rows.find(row => row.pair === 'offline:mal-412 kitsu:411' && row.kind === 'SAME_AS'))
+    .toMatchObject({ status: 'refused', reason: 'disagreeing-ids' })
 })
 
 // (5) CONTESTED, evaluated over every CLAIM rather than over active links, so two claimants landing

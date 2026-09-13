@@ -225,18 +225,18 @@ Mebius Dust
 
 PENDING on "new store": the case says this cannot be asked of any store yet.
 
-- the group [anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440, jw:224953-235214] would be held by: claim (other origins)
+- the group [anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440, jw:224953-235214] would be held by: claim (other origins), and a guard of 5.2 refused: anilist:108992 mal:63802: disagreeing-ids
 
 
 VERDICTS: the-echo-was-the-only-evidence-and-the-row-has-no-title-or-no-date
 
 ```
-SPLIT: anilist:108992 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: kitsu:42337 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: mal:63802 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: offline:anilist-108992 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: offline:mal-63802 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: cr:GT00379439-GS00379440 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
+SPLIT: anilist:108992 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: kitsu:42337 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: mal:63802 should share a cluster with anilist:108992, kitsu:42337, offline:anilist-108992, cr:GT00379439-GS00379440, jw:224953-235214 but its cluster is [mal:63802, offline:mal-63802]
+SPLIT: offline:anilist-108992 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: offline:mal-63802 should share a cluster with anilist:108992, kitsu:42337, offline:anilist-108992, cr:GT00379439-GS00379440, jw:224953-235214 but its cluster is [mal:63802, offline:mal-63802]
+SPLIT: cr:GT00379439-GS00379440 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
 SPLIT: jw:224953-235214 should share a cluster with anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440 but its cluster is [jw:224953-235214]
 EPISODE_PAIR: cr:GT00379439-GS00379440-GE00380106JAJP and jw:4327125 are one broadcast episode. episodePairsOf(cr:GT00379439-GS00379440-GE00380106JAJP) is [kitsu:274262]
 EPISODE_PAIR: jw:4327125 and cr:GT00379439-GS00379440-GE00380106JAJP are one broadcast episode. episodePairsOf(jw:4327125) is [nothing]
