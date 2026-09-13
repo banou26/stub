@@ -36,7 +36,11 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The two retry windows below are ten minutes each, so twenty of this is spent waiting on npm
+    # before the build is counted at all. A timeout that expires PAST the publish spends a version
+    # whose published bytes are then never read: a workflow_dispatch re-run reads changed=false from
+    # the gate and runs none of the release steps, so the one step that reads the CDN never happens.
+    timeout-minutes: 45
     permissions:
       # the OIDC token npm exchanges for short lived publish credentials
       id-token: write
@@ -130,6 +134,60 @@ jobs:
         if: steps.decide.outputs.changed == 'true'
         run: npm run build
 
+      # The release manifest, and the only one that carries a contents list.
+      #
+      # IT IS NEVER COMMITTED. The committed copy is what anime.fkn.app serves, and that source's
+      # bytes are the site Cloudflare Pages builds rather than the npm packlist this list is made of,
+      # so a list on that copy would name files the website does not have. The commit step above runs
+      # before this one for exactly that reason, and the re-signed document it pushed is identity
+      # only; this step then overwrites the working copy and nothing reads it again after the publish.
+      #
+      # AFTER the build, because the list is that build output read off the disk.
+      - name: Sign the release manifest over the packlist
+        if: steps.decide.outputs.changed == 'true'
+        env:
+          FKN_SIGNING_KEY: ${{ secrets.FKN_SIGNING_KEY }}
+        run: npx fkn-sign sign --contents --keys keys.json --sources npm:@banou/stub,https:anime.fkn.app --name Stub --out fkn.json
+
+      # npm: is the source this release is fetched from: without it every consumer gets
+      # SOURCE_NOT_LISTED, and the version is spent by the time anyone sees that. Asked of the signed
+      # document rather than of the command that wrote it.
+      - name: The release manifest lists the npm source
+        if: steps.decide.outputs.changed == 'true'
+        run: |
+          node -e "
+            const manifest = require('./fkn.json')
+            const sources = Array.isArray(manifest.sources) ? manifest.sources : []
+            if (!sources.includes('npm:@banou/stub')) {
+              console.error('fkn.json sources are ' + JSON.stringify(sources) + ', which does not include npm:@banou/stub')
+              process.exit(1)
+            }
+            console.log('sources ' + sources.join(' '))
+          "
+
+      # `place` runs again after `sign` so all three copies carry the list rather than the
+      # identity-only document the build placed. `check` compares the packlist against the list and
+      # every copy against the root; `verify --contents` re-hashes the tree the list was built from.
+      - name: Place, check and verify the release manifest
+        if: steps.decide.outputs.changed == 'true'
+        run: |
+          npx fkn-sign place --out build
+          npx fkn-sign check
+          npx fkn-sign verify fkn.json --contents . --source npm:@banou/stub
+
+      # The readers deployed today cap a manifest at 16384 bytes and ignore `contents` entirely,
+      # which is what lets 0.0.20 verify under them exactly as 0.0.19 did. Past the cap they refuse
+      # it outright rather than degrading, so the size is a gate rather than a note.
+      - name: The release manifest stays under the deployed readers' cap
+        if: steps.decide.outputs.changed == 'true'
+        run: |
+          SIZE=$(wc -c < fkn.json)
+          if [ "$SIZE" -gt 16384 ]; then
+            echo "::error::fkn.json is $SIZE bytes, over the 16384 byte cap the deployed readers read it under"
+            exit 1
+          fi
+          echo "::notice::fkn.json is $SIZE bytes"
+
       # No credential is passed. npm exchanges the job's OIDC identity for a short lived token against
       # the trusted publisher configured on npmjs.org for banou26/stub + publish-lib.yml. BOTH HALVES
       # ARE THE TRUST RELATIONSHIP: renaming this file breaks publishing, and so does renaming the
@@ -163,4 +221,38 @@ jobs:
             sleep 15
           done
           echo "::error::the registry still does not serve @banou/stub $VERSION"
+          exit 1
+
+      # The only step that reads the PUBLISHED bytes: it walks the npm CDN's file tree for this
+      # version and compares every file against the list the manifest it serves carries. Everything
+      # above measures the runner's own directory.
+      #
+      # The CDN mirrors the registry rather than sharing it, so it lags the step above by minutes of
+      # its own. Same loop shape: it retries while the CDN is behind and still fails the job when the
+      # answer never comes.
+      #
+      # WHICH answer decides that, because the two are not the same fact. `answered 404`, `answered
+      # 429`, a 5xx and `is unreachable` are all the CDN not answering yet, and another attempt is
+      # the only way to tell them from a real absence. Every other refusal is about bytes that are
+      # already published and cannot change: `mismatch`, `unlisted`, a name or version the list does
+      # not carry. Retrying one of those spends ten minutes reaching the same red the first attempt
+      # already had, and buries it under forty lines saying the CDN is behind.
+      - name: Verify the published files against the list
+        if: steps.decide.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          for attempt in $(seq 1 40); do
+            if npx fkn-sign verify --published "@banou/stub@$VERSION" 2> "$RUNNER_TEMP/published.err"; then
+              exit 0
+            fi
+            cat "$RUNNER_TEMP/published.err"
+            if ! grep -qE 'answered (404|429|5[0-9][0-9])|is unreachable' "$RUNNER_TEMP/published.err"; then
+              echo "::error::the published @banou/stub $VERSION does not match its own list"
+              exit 1
+            fi
+            echo "attempt $attempt: the CDN does not serve @banou/stub $VERSION yet"
+            sleep 15
+          done
+          echo "::error::the published @banou/stub $VERSION was never served to read"
           exit 1
