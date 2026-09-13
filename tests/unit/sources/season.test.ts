@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { ANIME_SEASONS, MEDIA_SEASONS, animeSeasonOf, lowerSeason, mediaSeasonNow, parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId, upperSeason } from '../../../src/sources/season'
+import { ANIME_SEASONS, MEDIA_SEASONS, animeSeasonOf, isOnlySeasonLabel, lowerSeason, mediaSeasonNow, parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId, upperSeason } from '../../../src/sources/season'
 
 describe('parseSeasonNumber', () => {
   test('reads the forms a title actually uses', () => {
@@ -195,5 +195,37 @@ describe('mediaSeasonNow', () => {
 
   test('the year comes from the date it was handed', () => {
     expect(mediaSeasonNow(on(2025, 12, 31))).toEqual({ season: 'FALL', year: 2025 })
+  })
+})
+
+/**
+ * A title that names a POSITION and never a show has to be recognised in the spellings sources
+ * actually use, abbreviations included.
+ *
+ * `Pt.` cost a whole source before it was known here. Measured 2026-09-14 on Re:Zero's 2026 run: a
+ * member carried `Season 2, Pt. 2`, which survived this filter because the residue `, Pt. 2` still has
+ * letters in it. The run's evidence then carried season ordinals 2 AND 4, and `pickContainingSeason`
+ * refuses outright when the titles disagree about which season the run is, so Netflix answered nothing
+ * for the page: 0 Netflix episode links in the rendered modal against 52 once the abbreviation was
+ * known.
+ */
+describe('isOnlySeasonLabel', () => {
+  test('the abbreviated spellings count, which is what a real catalogue writes', () => {
+    expect(isOnlySeasonLabel('Season 2, Pt. 2'), 'the measured one').toBe(true)
+    expect(isOnlySeasonLabel('Season 2, Pt 2'), 'and without the point').toBe(true)
+    expect(isOnlySeasonLabel('Pt. 2')).toBe(true)
+    // the spellings that already worked, so a rewrite of the pattern cannot quietly lose them
+    expect(isOnlySeasonLabel('Season 2 Part 2')).toBe(true)
+    expect(isOnlySeasonLabel('Season 3')).toBe(true)
+    expect(isOnlySeasonLabel('Cour 2')).toBe(true)
+    expect(isOnlySeasonLabel('2nd Season')).toBe(true)
+  })
+
+  test('THE CONTROL: a real title is never one, however much season it carries', () => {
+    expect(isOnlySeasonLabel('Re:Zero kara Hajimeru Isekai Seikatsu 4th Season')).toBe(false)
+    expect(isOnlySeasonLabel('Grand Blue Dreaming Season 3')).toBe(false)
+    // the trap the abbreviation opens: a show whose NAME ends in something Pt-shaped
+    expect(isOnlySeasonLabel('Ptolemy 2')).toBe(false)
+    expect(isOnlySeasonLabel('Cowboy Bebop')).toBe(false)
   })
 })

@@ -104,9 +104,16 @@ const SEASON_PATTERNS = [
  * read off them that the catalogue query needs.
  *
  * Global, so a title carrying both `Season 2` and `Part 2` loses both.
+ *
+ * `pt.` IS `part`, and leaving the abbreviation out cost a whole source. Measured 2026-09-14 on
+ * Re:Zero's 2026 run: one member carried the title `Season 2, Pt. 2`, which `isOnlySeasonLabel` let
+ * through because the residue `, Pt. 2` still has letters in it. That title then put a second season
+ * ORDINAL on the run's evidence, `seasonOrdinals` read 2 and 4, and `pickContainingSeason` refuses
+ * outright when the titles disagree about which season the run is (`similar.ts`). So Netflix answered
+ * nothing for that page: 0 episode links against 52 with the abbreviation known.
  */
 export const SEASON_MARKER: readonly RegExp[] = [
-  /\s*\b(?:(?:season|part|cour)\s*\d{1,3}|\d{1,3}(?:st|nd|rd|th)\s+(?:season|part|cour)|(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(?:season|part|cour))\b/gi,
+  /\s*\b(?:(?:season|part|pt\.?|cour)\s*\d{1,3}|\d{1,3}(?:st|nd|rd|th)\s+(?:season|part|pt\.?|cour)|(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(?:season|part|pt\.?|cour))\b/gi,
   /\s*(?:シーズン\s*\d{1,3}|第\s*[\d〇零一二三四五六七八九十]{1,4}\s*[期季])/g,
 ]
 
