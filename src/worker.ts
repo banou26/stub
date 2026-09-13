@@ -6,7 +6,7 @@ import { expose }  from 'osra'
 // @ts-expect-error
 import Worker from './worker/index?worker'
 import { fetch } from './utils/fetch'
-import { refusesSeedAsset } from './utils/export-flag'
+import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
 
 const worker = new Worker()
 
@@ -37,12 +37,19 @@ const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource
   }
 )
 
-// The graph engine is opt in while the store migration runs. The worker has no view of the page's
-// query string, so the flags are read here and handed over as soon as the osra channel is up.
+// THE GRAPH IS THE DEFAULT STORE since 2026-09-13, and `?store=legacy` is the way back to the old
+// one. It was the other way round for the whole migration, so anything written before that date
+// describing `?store=graph` as the switch is describing the old default, not a second flag.
 //
-// TWO FLAGS. `?graph` warms the engine, runs the ingest tee and the pass, and changes nothing a user
-// sees; `?store=graph` switches the reads onto it and implies the first, which the worker side
-// enforces so a page cannot ask for the reads without the engine under them.
+// The worker has no view of the page's query string, so the flags are read here and handed over as
+// soon as the osra channel is up.
+//
+// TWO FLAGS STILL, and they are not the same question. `?graph` warms the engine, runs the ingest
+// tee and the pass; the store flag decides what the app READS. They only come apart on the way back:
+// `?store=legacy` alone reads the old store with no engine at all, and `?store=legacy&graph=1` reads
+// the old store with the engine warm beside it, which is the shadow arrangement every measurement in
+// this project used as its control. Reading the graph still implies the engine, and the worker side
+// enforces that, so a page cannot ask for the reads without the engine under them.
 //
 // The read flag is AWAITED, and that is load bearing. `setReadStore` does not return until the engine
 // has opened and the boot pass has run, measured at 1,031 ms (527 ms engine, 497 ms pass, 2026-09-12).
@@ -52,7 +59,7 @@ const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource
 // half-work, which is worse than not working. The engine flag keeps its `void`: nothing reads it at
 // subscribe time.
 const flags = new URLSearchParams(location.search)
-const readsGraph = flags.get('store') === 'graph'
+const readsGraph = !readsLegacyStore(location.href)
 if (readsGraph) await setReadStore('graph')
 else void setGraphEnabled(flags.has('graph'))
 

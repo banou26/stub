@@ -195,7 +195,8 @@ const arm = async (label, uri, query) => {
 const rows = []
 for (const [name, uri] of ROUTES) {
   const graph = await arm(`${name} graph`, uri, 'graph=1&store=graph&export=query')
-  const legacy = await arm(`${name} legacy`, uri, 'graph=1&export=query')
+  // `store=legacy` is REQUIRED since the 2026-09-13 flip, or this control reads the graph as well
+  const legacy = await arm(`${name} legacy`, uri, 'graph=1&store=legacy&export=query')
   rows.push({ name, uri, graph, legacy })
 }
 

@@ -291,7 +291,8 @@ export const reasonMessage = (reason: TraceReason | undefined): string => {
   if (reason === 'not-enabled') {
     return 'The graph engine is switched off for this page, so there is nothing to read.'
       + ' Reloading with ?graph=1 turns it on, and this page then asks the sources about the uri'
-      + ' itself. Use ?store=graph instead to have the whole app read through the graph.'
+      + ' itself. The only way a page gets here now is ?store=legacy, which pins it to the old store;'
+      + ' dropping that flag puts the whole app back on the graph, which is the default.'
   }
   if (reason === 'graph-empty') {
     return 'The engine is on and the graph is empty. A graph is built inside one tab and never'

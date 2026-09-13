@@ -523,7 +523,15 @@ describe('a cold graph, which is what a pasted link always finds', () => {
     expect(href, 'it turns the engine on').toContain('graph=1')
     expect(traceUriFromSearch(new URL(href, 'http://d/').search), 'and keeps the uri, so the reload lands back on this trace')
       .toBe('ag:(mal:39535,anilist:101280)')
-    expect(host.querySelector('[data-reload-store]')?.getAttribute('href')).toContain('store=graph')
+    // SINCE THE 2026-09-13 FLIP the graph is the default, so the way back onto it is to DROP a flag
+    // rather than add one. This asserted `store=graph` the day before, which now sets a value nothing
+    // reads: only the exact `store=legacy` takes a page off the graph (`readsLegacyStore`).
+    // MUTATED: have `graphStoreHref` set `store` to 'graph' instead of deleting it, the shape it had
+    // before, and this goes red on a link that would silently change nothing.
+    const back = host.querySelector('[data-reload-store]')?.getAttribute('href') ?? ''
+    expect(back, 'the link back onto the graph carries no store flag at all').not.toContain('store=')
+    expect(traceUriFromSearch(new URL(back, 'http://d/').search), 'and it keeps the uri too')
+      .toBe('ag:(mal:39535,anilist:101280)')
   })
 })
 

@@ -184,7 +184,10 @@ const arm = async (label, query) => {
 }
 
 const graph = await arm('store=graph', 'graph=1&store=graph&export=query')
-const legacy = await arm('legacy', 'graph=1&export=query')
+// `store=legacy` is REQUIRED here since the 2026-09-13 flip. Without it this control arm reads
+// the graph too, and the comparison silently becomes graph against graph: a control that agrees
+// with its treatment because it IS its treatment.
+const legacy = await arm('legacy', 'graph=1&store=legacy&export=query')
 
 await browser.close()
 server.close()

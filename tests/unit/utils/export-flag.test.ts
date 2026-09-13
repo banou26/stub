@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import {
   EXPORT_ANSWERS_VALUE, EXPORT_PARAM, EXPORT_VALUE, NO_SEED_PARAM, NO_SEED_VALUE, readAnswersExportFlag,
   readExportFlag, readNoSeedFlag, refusesSeedAsset,
-} from '../../../src/utils/export-flag'
+ readsLegacyStore } from '../../../src/utils/export-flag'
 import { SEED_EPISODES_ASSET, SEED_INDEX_ASSET, seedAssetUrl } from '../../../src/sources/offline/seed'
 
 test('the flag is exactly ?export=store', () => {
@@ -68,4 +68,20 @@ test('an ordinary page refuses nothing, so a reader still gets the seed', () => 
   const reading = 'https://anime.fkn.app/media/mal:1'
   expect(refusesSeedAsset(reading, seedAssetUrl(SEED_INDEX_ASSET))).toBe(false)
   expect(refusesSeedAsset('https://anime.fkn.app/?export=store', seedAssetUrl(SEED_INDEX_ASSET))).toBe(false)
+})
+
+// THE STORE FLIP of 2026-09-13: the graph became the default and `?store=legacy` the only way back.
+// Before that the switch was `?store=graph` and its ABSENCE meant the old store, so these two cases
+// are exact opposites of what this file asserted the day before.
+// MUTATED: make `readsLegacyStore` test `params.has(STORE_PARAM)` rather than its value, and the
+// third case flips: `?store=graph` starts reading the store it names the opposite of.
+test('the graph is the default store, and only the exact opt out leaves it', () => {
+  expect(readsLegacyStore('https://x/y'), 'no flag at all').toBe(false)
+  expect(readsLegacyStore('https://x/y?store=legacy'), 'the opt out').toBe(true)
+  expect(readsLegacyStore('https://x/y?store=graph'), 'the OLD switch, now a no-op').toBe(false)
+  expect(readsLegacyStore('https://x/y?store=legcy'), 'a typo lands on the default').toBe(false)
+  expect(readsLegacyStore('https://x/y?store=1'), 'and so does a stray value').toBe(false)
+  expect(readsLegacyStore('https://x/y?graph=1'), 'the engine flag is a different question').toBe(false)
+  expect(readsLegacyStore('not a url'), 'never throws').toBe(false)
+  expect(readsLegacyStore('/y?store=legacy', 'https://x'), 'relative, with a base').toBe(true)
 })

@@ -6,7 +6,7 @@ import { css } from '@emotion/react'
 import { useEffect, useRef, useState, useMemo } from 'preact/hooks'
 import { useLocation, useSearch } from 'wouter'
 
-import { debugTracePath, graphOnHref, loadAnswer, loadTrace, traceUriFromSearch } from './trace'
+import { debugTracePath, graphOnHref, graphStoreHref, loadAnswer, loadTrace, traceUriFromSearch } from './trace'
 import { isActive, reasonMessage, traceIndex } from './model'
 import { warmTrace } from './warm'
 import { Value } from './value'
@@ -407,7 +407,7 @@ const Debug = ({ load = loadTrace, loadAnswerBytes = loadAnswer, warm = warmTrac
                         <div className="advice">
                           <a data-reload-graph href={graphOnHref(search)}>Reload with ?graph=1</a>
                           {' or '}
-                          <a data-reload-store href={graphOnHref(search, 'store')}>?store=graph</a>
+                          <a data-reload-store href={graphStoreHref(search)}>drop ?store=legacy</a>
                           {', keeping this uri.'}
                         </div>
                       )

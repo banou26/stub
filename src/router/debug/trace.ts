@@ -314,8 +314,24 @@ export const carriedSearch = (routeSearch?: string): string => {
  */
 export const graphOnHref = (search: string, param = 'graph'): string => {
   const params = searchParams(search)
-  params.set(param, param === 'store' ? 'graph' : '1')
+  params.set(param, '1')
   return `${getRoutePath(Route.DEBUG_TRACE)}?${params.toString()}`
+}
+
+/**
+ * This page's own url back on the GRAPH store, which since 2026-09-13 means DROPPING a flag rather
+ * than adding one.
+ *
+ * It used to set `?store=graph`. The graph is the default now, so the only thing that can put a page
+ * on the old store is an explicit `?store=legacy`, and the way back is to remove it. Setting
+ * `store=graph` here would read as working while changing nothing, because only the exact opt out is
+ * read (`readsLegacyStore`).
+ */
+export const graphStoreHref = (search: string): string => {
+  const params = searchParams(search)
+  params.delete('store')
+  const query = params.toString()
+  return `${getRoutePath(Route.DEBUG_TRACE)}${query ? `?${query}` : ''}`
 }
 
 const searchParams = (search: string): URLSearchParams =>

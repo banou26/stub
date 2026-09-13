@@ -40,6 +40,32 @@ export const EXPORT_QUERY_VALUE = 'query'
  */
 export const readQueryProbeFlag = (url: string, base?: string): boolean => asks(url, EXPORT_QUERY_VALUE, base)
 
+export const STORE_PARAM = 'store'
+export const STORE_LEGACY_VALUE = 'legacy'
+
+/**
+ * Which store this url reads. THE GRAPH IS THE DEFAULT, and `?store=legacy` is the only way back.
+ *
+ * It was inverted until 2026-09-13, when the graph became the store the app ships on: `?store=graph`
+ * was the switch and its absence meant the old store. Anything written before that date describing
+ * `?store=graph` as "turning the graph on" is describing the old default rather than a flag that
+ * still does something, and `?store=graph` remains harmless because only the explicit opt out is read.
+ *
+ * ONLY THE EXACT OPT OUT COUNTS, never mere presence of the param, so a typo (`?store=legcy`,
+ * `?store=1`) lands on the default rather than silently on the store being retired. That asymmetry is
+ * deliberate: a page that quietly reads the old store looks like a page whose data is stale, which is
+ * the hardest kind of wrong to notice.
+ *
+ * Never throws: an unparseable url reads as the default, the same as every other reader here.
+ */
+export const readsLegacyStore = (url: string, base?: string): boolean => {
+  try {
+    return new URL(url, base).searchParams.get(STORE_PARAM) === STORE_LEGACY_VALUE
+  } catch {
+    return false
+  }
+}
+
 export const TRACE_PARAM = 'trace'
 export const TRACE_VALUE = '1'
 
