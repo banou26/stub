@@ -8,7 +8,7 @@
 // sixteen share is a year nothing in this source read, while the search payload carried it the whole
 // time. The rule the rest of the tree runs on is title picks the show and date picks the run
 // (src/sources/catalogue-gate.ts); this file is the date half arriving at unogs.
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -333,6 +333,10 @@ type LabelledPair = { slug: string, nfUri: string, runUris: string[] }
  * so the assertions below carry the counts as well.
  */
 test('the measurement: what the year gate keeps and what it refuses over the recorded season', () => {
+  if (!existsSync(DUMP)) {
+    console.warn(`no corpus at ${DUMP}: run \`npm run corpus:walk\` to record one. This case did not run.`)
+    return
+  }
   const recorded = recordedMedia()
   const correct: LabelledPair[] = []
   const welds: LabelledPair[] = []
