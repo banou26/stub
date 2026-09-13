@@ -11,7 +11,7 @@
  *
  * Every case names the mutation that reddens it.
  */
-import { afterAll, beforeAll, expect, test, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
@@ -37,16 +37,21 @@ import { typeDefs } from '../../../../src/generated/schema/typeDefs.generated'
 import { enableGraph } from '../../../../src/worker/graph'
 import { closeGraph } from '../../../../src/worker/graph/engine'
 import { ingestAnswers, replayAnswers } from '../../../../src/worker/graph/ingest'
+import { emit } from '../../../../src/worker/store/events'
 import { graphReady } from '../../../../src/worker/graph/schema'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import {
   addressUris, askAddressOf, createMediaReader, createPageReader, episodesOf, memberUrisOf,
-  pageClusters, placeholdersOf, readStore, resolveMedia, setReadStore,
-} from '../../../../src/worker/graph/read'
+  pageClusters, placeholdersOf, readStore, resolveMedia, setReadStore, clearReadCache } from '../../../../src/worker/graph/read'
 import { answersForOrigins } from '../../../../src/sources/supported'
 import { originsOfUri } from '../../../../src/utils/uri'
 import { answer, episode, media, rowsOf, title } from './plugins/fixtures'
+
+// The read cache is cleared between cases because this file writes to the graph DIRECTLY and emits
+// none of the three events that clear it in the app. Without this, a case reads the view a previous
+// case materialized: two cases asserting a null modal resolved a media instead (2026-09-13).
+beforeEach(() => { clearReadCache() })
 
 const CORPUS = new URL('../../../../corpus/season/summer-2026/answers.jsonl', import.meta.url).pathname
 
@@ -883,8 +888,34 @@ test('and an episode with no shortDescriptions does too, through [Episode!]!', a
 // and the file had them wrong until 2026-09-12 ("a detail view at most four", where the worst
 // reachable resolve is five and a live reader costs six).
 
-/** Counts the statements one read runs, by swapping the shared connection's `query` for the call. */
+/**
+ * Counts the statements one read runs, by swapping the shared connection's `query` for the call.
+ *
+ * COLD, always: the read cache is dropped first, so every number below is what the read costs with
+ * nothing memoized. Without that the budget became order dependent the moment the cache landed, and
+ * the retired-id case read 4 instead of 5 purely because an earlier line had already materialized the
+ * same cluster's view. A budget that moves when you reorder the lines above it is not a budget.
+ * What the cache is worth is asserted on its own, below.
+ */
 const statements = async (work: () => Promise<unknown>): Promise<number> => {
+  const graph = await graphReady()
+  clearReadCache()
+  const real = graph.query
+  let count = 0
+  graph.query = (cypher, params) => {
+    count += 1
+    return real(cypher, params)
+  }
+  try {
+    await work()
+  } finally {
+    graph.query = real
+  }
+  return count
+}
+
+/** The same counter WITHOUT the clear, so two consecutive reads can be compared against each other. */
+const statementsWarm = async (work: () => Promise<unknown>): Promise<number> => {
   const graph = await graphReady()
   const real = graph.query
   let count = 0
@@ -910,6 +941,32 @@ test('the statement budget: a page two, an episode list one, a detail view five,
   // the worst reachable resolve: no member, nothing published, no current cluster, an alias, the view
   expect(await statements(() => resolveMedia(STRAY_ID)), 'a retired cluster id').toBe(5)
   expect(await statements(() => createMediaReader(STRAY_ID).read()), 'and its member uris').toBe(6)
+
+  // AND WHAT THE CACHE BUYS, which is the other half of the same budget: `Cluster.media` and
+  // `Cluster.episodes` are columns a pass writes, so between two commits a second read of either is
+  // the same bytes and should cost no statement at all. Measured on a real modal, these two were 52
+  // and 63 calls for one page load.
+  // MUTATED: drop the `materialized.has` early return from `episodesOf` and the warm read costs 1.
+  clearReadCache()
+  expect(await statementsWarm(() => episodesOf(RUN_ID)), 'a cold list costs its lookup').toBe(1)
+  expect(await statementsWarm(() => episodesOf(RUN_ID)), 'a warm one costs nothing').toBe(0)
+  // a resolve is TWO statements cold, the address lookup then the view; warm it keeps the lookup and
+  // drops the view, which is the one this cache removes
+  expect(await statementsWarm(() => resolveMedia('mal:39535')), 'cold: the lookup and the view').toBe(2)
+  expect(await statementsWarm(() => resolveMedia('mal:39535')), 'warm: the lookup alone').toBe(1)
+
+  // AND EVERY EVENT THAT MOVES THE GRAPH HAS TO DROP IT. `view:changed` is the one a plugin PASS
+  // emits, and a pass is what rewrites these two columns: the ingest's `graph:changed` never fires
+  // for it. Listening to the ingest alone leaves the modal showing the view from before the pass for
+  // the rest of the session, which is the failure this whole cache would otherwise cause.
+  // MUTATED, each separately: delete any one of the three `listen` calls in read.ts and its case here
+  // reads 0 instead of 1, because the stale entry answered.
+  for (const event of ['view:changed', 'graph:changed', 'row:changed'] as const) {
+    await statementsWarm(() => episodesOf(RUN_ID))
+    expect(await statementsWarm(() => episodesOf(RUN_ID)), `warm before ${event}`).toBe(0)
+    emit(event, { seq: 1, uris: [], episodes: [], claims: [], clusters: [] } as never)
+    expect(await statementsWarm(() => episodesOf(RUN_ID)), `${event} drops the cache`).toBe(1)
+  }
 
   const page = createPageReader()
   await page.read(['mal:39535'])

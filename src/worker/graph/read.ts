@@ -30,7 +30,50 @@ import {
   isAggregatedUri, isRoutableUri, isUri, fromAggregatedUri, toAggregatedUri,
   type AggregatedUri, type Uri,
 } from '../../utils/uri'
+import { listen } from '../store/events'
 import { graphReady } from './schema'
+
+/**
+ * The two MATERIALIZED reads, memoized until the graph next moves.
+ *
+ * `Cluster.media` and `Cluster.episodes` are columns a pass WRITES, so between two commits every read
+ * of one is the same bytes. Nothing here was re-reading them because the data changed: a page's
+ * subscriptions re-render many times while the sources answer, and each render asked again. Measured
+ * on a Mushoku Tensei modal, 2026-09-13: `episodesOf` 63 calls returning 6 rows for 1.7 s, and
+ * `viewOfCluster` 52 calls for 0.7 s, which is 2.4 s of the ~9.5 s the engine burned for that page.
+ *
+ * The cost is not the rows, it is the CALL: about 6 round trips into the ladybug worker at ~0.7 ms
+ * each, plus the wasm to JS marshalling, whatever the statement returns (`scripts/bench-graph-engine.mjs`).
+ *
+ * CLEARED WHOLESALE ON ANY CHANGE, never per cluster, and that is what makes it safe to reason about:
+ * there is no rule here about which clusters a commit touched, so there is no rule to get wrong.
+ *
+ * ALL THREE EVENTS, and `view:changed` is the one that matters most. The INGEST emits `graph:changed`
+ * and `row:changed`; a plugin PASS emits neither, it emits `view:changed` (`scheduler.ts`), and a
+ * pass is precisely what rewrites `Cluster.media` and `Cluster.episodes`. Listening to the first two
+ * alone leaves the cache holding the view from before the pass forever, so the modal stops updating
+ * while the sources are still answering, which is the exact failure this cache exists to speed up.
+ * The unit suite caught that before it shipped; `clearReadCache` is how a test that seeds the graph
+ * directly, emitting nothing, starts from a known state.
+ */
+const materialized = new Map<string, unknown>()
+let materializedLive = false
+
+/** Drop everything memoized. For a test that writes to the graph directly and emits nothing. */
+export const clearReadCache = (): void => { materialized.clear() }
+
+const rememberMaterialized = <T>(key: string, value: T): T => {
+  // subscribed LAZILY, on the first read rather than at module scope: importing this file must not
+  // attach a listener in a test that never touches the store (the header's own rule about imports)
+  if (!materializedLive) {
+    materializedLive = true
+    listen('graph:changed', () => materialized.clear())
+    listen('row:changed', () => materialized.clear())
+    listen('view:changed', () => materialized.clear())
+  }
+  materialized.set(key, value)
+  return value
+}
 
 /**
  * Which store answers `mediaPage`, `media`, `Media.episodes` and `ctx.findAggregatedMedia`.
@@ -353,15 +396,20 @@ export const resolveMedia = async (uri: string, member?: string): Promise<Aggreg
 
 /** Statement 2: the materialized view of one cluster, with the page `kind` of 6.5 beside it. */
 const viewOfCluster = async (id: string): Promise<AggregatedMedia | undefined> => {
+  const cacheKey = `view#${id}`
+  if (materialized.has(cacheKey)) return materialized.get(cacheKey) as AggregatedMedia | undefined
   const { query } = await graphReady()
   const [row] = await query('MATCH (c:Cluster {id: $id}) RETURN c.media AS media, c.kind AS kind', { id })
-  if (!row) return undefined
+  if (!row) return rememberMaterialized(cacheKey, undefined)
   const media = parse<AggregatedMedia>(row.media)
-  if (!media) return undefined
+  if (!media) return rememberMaterialized(cacheKey, undefined)
   // `kind` is the CLUSTER's column, not the view's: `plugin:containment` computes `FOLD` and
   // `aggregateFields` is not handed it, so the JSON carries the scope standing in for it. Reading it
   // from the same row costs no second statement and is what makes a folded season draw its own page.
-  return typeof row.kind === 'string' && row.kind ? { ...media, kind: row.kind } : media
+  return rememberMaterialized(
+    cacheKey,
+    typeof row.kind === 'string' && row.kind ? { ...media, kind: row.kind } : media
+  )
 }
 
 /**
@@ -416,12 +464,17 @@ export const createMediaReader = (uri: string, member?: string) => {
  */
 export const episodesOf = async (clusterId: string): Promise<AggregatedEpisode[]> => {
   if (!clusterId) return []
+  const cacheKey = `episodes#${clusterId}`
+  if (materialized.has(cacheKey)) return materialized.get(cacheKey) as AggregatedEpisode[]
   const { query } = await graphReady()
   const [row] = await query('MATCH (c:Cluster {id: $id}) RETURN c.episodes AS episodes', { id: clusterId })
-  if (!row) return []
+  if (!row) return rememberMaterialized(cacheKey, [])
   const episodes = parse<AggregatedEpisode[]>(row.episodes)
-  if (!Array.isArray(episodes)) return []
-  return episodes.filter(episode => episode.episodeNumber !== null && episode.episodeNumber !== undefined)
+  if (!Array.isArray(episodes)) return rememberMaterialized(cacheKey, [])
+  return rememberMaterialized(
+    cacheKey,
+    episodes.filter(episode => episode.episodeNumber !== null && episode.episodeNumber !== undefined)
+  )
 }
 
 /**
