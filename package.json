@@ -73,7 +73,7 @@
   },
   "devDependencies": {
     "@eddeee888/gcg-typescript-resolver-files": "^0.12.1",
-    "@fkn/sign": "^0.0.4",
+    "@fkn/sign": "^0.0.5",
     "@graphql-codegen/cli": "^5.0.7",
     "@graphql-codegen/typescript": "^4.1.6",
     "@graphql-codegen/typescript-document-nodes": "^4.0.16",
