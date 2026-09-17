@@ -165,6 +165,43 @@ jobs:
             console.log('sources ' + sources.join(' '))
           "
 
+      # 0.0.21 went out with no `types` on its list, signed by an @fkn/sign that wrote none, and every
+      # step here green: `check` and `verify --published` both accept a list that declares no types.
+      # The version is spent once npm publish runs, so the map is asserted on the document first.
+      - name: The release manifest declares a type for every file
+        if: steps.decide.outputs.changed == 'true'
+        run: |
+          node -e "
+            const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+            const contents = require('./fkn.json').contents
+            if (!plain(contents) || !plain(contents.files)) {
+              console.error('fkn.json carries no contents list, so there are no files to type')
+              process.exit(1)
+            }
+            const files = Object.keys(contents.files)
+            if (!plain(contents.types)) {
+              console.error('fkn.json lists ' + files.length + ' files and declares no contents.types map')
+              process.exit(1)
+            }
+            const types = Object.keys(contents.types)
+            const missing = files.find((path) => !Object.hasOwn(contents.types, path))
+            if (missing !== undefined) {
+              console.error('contents.types declares ' + types.length + ' types for ' + files.length + ' files and none for ' + missing)
+              process.exit(1)
+            }
+            const extra = types.find((path) => !Object.hasOwn(contents.files, path))
+            if (extra !== undefined) {
+              console.error('contents.types names ' + extra + ', which contents.files does not list')
+              process.exit(1)
+            }
+            const blank = types.find((path) => typeof contents.types[path] !== 'string' || contents.types[path] === '')
+            if (blank !== undefined) {
+              console.error('contents.types declares no usable type for ' + blank)
+              process.exit(1)
+            }
+            console.log('types ' + types.length + ' for ' + files.length + ' files')
+          "
+
       # `place` runs again after `sign` so all three copies carry the list rather than the
       # identity-only document the build placed. `check` compares the packlist against the list and
       # every copy against the root; `verify --contents` re-hashes the tree the list was built from.

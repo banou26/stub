@@ -96,6 +96,19 @@ const attemptsOf = (script: string, answers: Answer[], env: Record<string, strin
   return { code: run.status ?? -1, attempts: Number(readFileSync(calls, 'utf8').trim()) }
 }
 
+/**
+ * Runs a step's shell from a directory whose fkn.json is `manifest`, the way the job runs it from the
+ * checkout root. For the steps that read the document's structure, so a fixture needs no signature.
+ */
+const runAgainst = (script: string, manifest: unknown): { code: number, stdout: string, stderr: string } => {
+  const root = mkdtempSync(join(tmpdir(), 'stub-publish-'))
+  writeFileSync(join(root, 'fkn.json'), JSON.stringify(manifest))
+  const file = join(root, 'step.sh')
+  writeFileSync(file, script)
+  const run = spawnSync('bash', [file], { cwd: root, encoding: 'utf8' })
+  return { code: run.status ?? -1, stdout: run.stdout, stderr: run.stderr }
+}
+
 /** Every `fkn-sign sign` invocation in the job, in the order the steps run. */
 const signCommands = [...steps.matchAll(/fkn-sign sign [^\n]*/g)].map((match) => match[0])
 
@@ -230,6 +243,80 @@ describe('how the published verify answers', () => {
     const run = attemptsOf(step(), [{ code: 1, stderr: 'https://unpkg.com/@banou/stub@0.0.20/fkn.json answered 404' }], env)
     expect(run.attempts, 'the whole retry budget').toBe(40)
     expect(run.code).not.toBe(0)
+  })
+})
+
+/**
+ * 0.0.21 published a list with no `types` while every step reported success, because `fkn-sign check`
+ * and `verify --published` both accept a list that declares none. Driven rather than read: the step's
+ * shell runs against fixture documents, and every refusal has to name what it refused, so a script
+ * that crashes on the input cannot pass for one that checked it.
+ */
+describe('the release manifest types every file it lists', () => {
+  const step = () => scriptOf('The release manifest declares a type for every file')
+  const digest = `${'A'.repeat(43)}=`
+  const files = { 'build/index.js': digest, 'build/index.html': digest, 'package.json': digest }
+  const types = { 'build/index.js': 'text/javascript', 'build/index.html': 'text/html', 'package.json': 'application/json' }
+  const released = (list: Record<string, unknown>) => ({
+    sources: ['npm:@banou/stub', 'https:anime.fkn.app'],
+    contents: { name: '@banou/stub', version: '0.0.22', alg: 'sha256', ...list },
+  })
+
+  test('read the step at all, so a false pass here is not an empty script', () => {
+    expect(step(), 'nothing was extracted, so every run below would exit 0 having done nothing').toContain('contents.types')
+  })
+
+  // Actions reads a misspelled output as '', so a typo in this gate skips the check on every release
+  // with every test above still green.
+  test('is gated exactly like the publish it protects', () => {
+    const head = workflow.indexOf('- name: The release manifest declares a type for every file\n')
+    expect(head, 'the step is gone, so its gate cannot be read').toBeGreaterThan(-1)
+    const header = workflow.slice(head, workflow.indexOf('run: |', head))
+    expect(header).toContain("if: steps.decide.outputs.changed == 'true'")
+  })
+
+  test('runs after the list is signed and before the version is spent', () => {
+    const check = positionOf('The release manifest declares a type for every file')
+    expect(check, 'a check before the list is signed reads the committed identity-only document').toBeGreaterThan(positionOf('fkn-sign sign --contents'))
+    expect(check, 'a check after the publish reads a version that is already spent').toBeLessThan(positionOf('run: npm publish --access public'))
+  })
+
+  test('passes a list whose types name exactly the files it lists', () => {
+    const run = runAgainst(step(), released({ files, types }))
+    expect(run.code, run.stderr).toBe(0)
+    expect(run.stdout).toContain('types 3 for 3 files')
+  })
+
+  test('refuses the shape 0.0.21 shipped, a list with files and no types', () => {
+    const run = runAgainst(step(), released({ files }))
+    expect(run.code, 'an untyped list is what went out with every step green').not.toBe(0)
+    expect(run.stderr).toContain('3 files')
+  })
+
+  test('refuses a partial map, naming the file it leaves out', () => {
+    const { 'build/index.html': _left, ...partial } = types
+    const run = runAgainst(step(), released({ files, types: partial }))
+    expect(run.code).not.toBe(0)
+    expect(run.stderr).toContain('build/index.html')
+  })
+
+  test('refuses a type for a path the list does not name', () => {
+    const run = runAgainst(step(), released({ files, types: { ...types, 'build/stray.js': 'text/javascript' } }))
+    expect(run.code).not.toBe(0)
+    expect(run.stderr).toContain('build/stray.js')
+  })
+
+  test('refuses an empty type, which declares nothing for its file', () => {
+    const run = runAgainst(step(), released({ files, types: { ...types, 'package.json': '' } }))
+    expect(run.code).not.toBe(0)
+    expect(run.stderr).toContain('package.json')
+  })
+
+  test('refuses a document with no list at all, which is the identity-only shape', () => {
+    const { contents: _none, ...identity } = released({ files, types })
+    const run = runAgainst(step(), identity)
+    expect(run.code).not.toBe(0)
+    expect(run.stderr).toContain('no contents list')
   })
 })
 
