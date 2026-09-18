@@ -12,8 +12,8 @@ import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 
 const CRUNCHYROLL_DOMAINS = [
-  'crunchyroll.com',
   'www.crunchyroll.com',
+  'crunchyroll.com',
   'sso.crunchyroll.com',
   'static.crunchyroll.com'
 ]
@@ -293,7 +293,14 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   useEffect(() => {
     if (!iframe || mode === 'detecting') return
     let cancelled = false
-    attachFrame({ iframe, domains: CRUNCHYROLL_DOMAINS })
+    attachFrame({
+      iframe,
+      domains: CRUNCHYROLL_DOMAINS,
+      permissions: [
+        { category: 'interaction', reason: 'Control the Crunchyroll player from this app' },
+        { category: 'storage', reason: 'Read the audio and subtitle track names' }
+      ]
+    })
       .then(f => {
         if (cancelled) return
         const actual: Backend = isExtensionExposed() ? 'extension' : 'cloud'
