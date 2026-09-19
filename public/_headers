@@ -1,5 +1,0 @@
-# The broker on fkn.app fetches this file with credentials omitted, and platform-policy refuses to
-# relay a *.fkn.app host, so a reply without this origin header lands as an absent manifest.
-/.well-known/fkn.json
-  Access-Control-Allow-Origin: https://fkn.app
-  Cache-Control: max-age=300

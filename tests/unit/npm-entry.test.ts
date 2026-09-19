@@ -27,7 +27,7 @@ const treeOf = (files: Record<string, string>): Tree => ({
     .filter(name => !name.includes('/')),
 })
 
-const MANIFEST = { main: 'build/index.js', files: ['build', 'fkn.json'] }
+const MANIFEST = { main: 'build/index.js', files: ['build', 'README.md'] }
 const FILES = {
   'build/index.js': 'import { a } from "./assets/lib-chunk-Dx0.js";\na()\n',
   'build/assets/lib-chunk-Dx0.js': 'export const a = () => {}\n',
@@ -62,7 +62,7 @@ describe('the npm entry check', () => {
   })
 
   test('refuses a files list that would leave the entry out of the tarball', () => {
-    expect(npmEntryProblems({ ...MANIFEST, files: ['fkn.json'] }, treeOf(FILES)).join('\n')).toContain('does not publish')
+    expect(npmEntryProblems({ ...MANIFEST, files: ['README.md'] }, treeOf(FILES)).join('\n')).toContain('does not publish')
   })
 
   // a lib build emits its css as an asset nothing loads, because there is no html to link it from

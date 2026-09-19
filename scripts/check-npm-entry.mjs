@@ -23,9 +23,8 @@ const ORIGIN_ROOT_ASSET = /["'`]\/assets\//
 /**
  * Whether `files` would publish `path`. Conservative and NOT a reimplementation of npm's matching:
  * an absent `files` publishes everything, and an entry publishes a path when it names it exactly or
- * names a directory above it. @fkn/sign's `filesPublishes` cannot answer this one, by its own
- * documentation: it is for a file at the package ROOT and a directory entry never covers anything
- * under it there. `npm pack --dry-run`, which `fkn-sign check` reads, is the complete answer.
+ * names a directory above it. `npm pack --dry-run` is the complete answer and this is not it; this
+ * only has to be right about the entry, which is the one path a consumer cannot do without.
  */
 const publishes = (files, path) => {
   if (!Array.isArray(files)) return true

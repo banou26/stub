@@ -15,8 +15,8 @@ import { youtubeVideoId } from './youtube-url'
 // talk to it over postMessage. So the API buys a wrapper around a protocol the embed already speaks.
 //
 // It is worth removing for one specific reason. A package on the FKN platform runs on a sandbox
-// origin whose content security policy is `script-src 'self'`, which means only bytes the publisher
-// signed may execute. A third-party script injected into that origin is exactly what the policy
+// origin whose content security policy is `script-src 'self'`, which means only the package's own
+// bytes may execute. A third-party script injected into that origin is exactly what the policy
 // refuses, and it would have the app's OPFS, IndexedDB and Cache Storage if it ran. Vendoring
 // YouTube's file instead would pin a build behind a hash they rotate, and it would break silently.
 //
