@@ -10,6 +10,9 @@
     "type": "git",
     "url": "git+https://github.com/banou26/stub.git"
   },
+  "fkn": {
+    "app": "fkn:app:1opu7jofekzvrc4cuyx4hgbhhn6ifzzqsgi5asopkshqvmznbxfda"
+  },
   "files": [
     "build"
   ],
