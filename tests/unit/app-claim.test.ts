@@ -7,10 +7,11 @@ import { expect, test } from 'vitest'
 // compares with EXACT equality. A wrong id reads as another app's claim, and a missing one leaves the
 // source pending with every gate green, so both are pinned here rather than noticed at Check now.
 
-// the id the console minted for Stub; its website, anime.fkn.app, claims the same one by TXT record
-const APP = 'fkn:app:1opu7jofekzvrc4cuyx4hgbhhn6ifzzqsgi5asopkshqvmznbxfda'
-// the signed app the claim replaced, revoked 2026-09-19 and still quoted in older notes
-const RETIRED = 'fkn:app:1mv4iei5nrldfysclsmkxnadt4a2y3k6y7rsln6hkawsuep7bo3vq'
+// the id fkn.dev minted for Stub on 2026-09-24, founder-derived so it can sign; its website, anime.fkn.app,
+// claims the same one by TXT record
+const APP = 'fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq'
+// the founderless managed app it replaced, stopped 2026-09-24 because nothing could ever sign for it
+const RETIRED = 'fkn:app:1opu7jofekzvrc4cuyx4hgbhhn6ifzzqsgi5asopkshqvmznbxfda'
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf-8')) as {
   name: string
