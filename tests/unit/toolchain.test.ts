@@ -48,11 +48,15 @@ describe('the vite-plus toolchain is pinned as one release', () => {
 // binding that fails its engine check without a word, so a floor raised past the pin breaks the deploy
 // and nothing local. The ranges these packages publish are ^x.y.z and >=x.y.z joined by ||; anything
 // else throws rather than being guessed at.
-const parse = (version: string) => version.split('.').map(Number)
-const atLeast = ([a, b, c]: number[], [x, y, z]: number[]) => a !== x ? a > x : b !== y ? b > y : c >= z
+type Version = [number, number, number]
+const parse = (version: string): Version => {
+  const [major = NaN, minor = NaN, patch = NaN] = version.split('.').map(Number)
+  return [major, minor, patch]
+}
+const atLeast = ([a, b, c]: Version, [x, y, z]: Version) => a !== x ? a > x : b !== y ? b > y : c >= z
 const satisfies = (version: string, range: string) => range.split('||').some(clause => {
   const match = /^(\^|>=)(\d+\.\d+\.\d+)$/.exec(clause.trim())
-  if (!match) throw new Error(`unsupported engines clause: ${clause}`)
+  if (!match?.[2]) throw new Error(`unsupported engines clause: ${clause}`)
   const [have, floor] = [parse(version), parse(match[2])]
   return atLeast(have, floor) && (match[1] === '>=' || have[0] === floor[0])
 })
