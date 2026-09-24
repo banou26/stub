@@ -11,10 +11,12 @@
     "url": "git+https://github.com/banou26/stub.git"
   },
   "fkn": {
-    "app": "fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq"
+    "app": "fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq",
+    "signed": true
   },
   "files": [
-    "build"
+    "build",
+    "fkn.json"
   ],
   "type": "module",
   "main": "build/index.js",

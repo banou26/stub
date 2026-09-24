@@ -2,6 +2,8 @@
 /.env
 /test-results
 /build
+# the release fkn-sign writes in CI for the version being published, never a file of the tree
+/fkn.json
 /dist-seed
 /corpus
 /src/generated
