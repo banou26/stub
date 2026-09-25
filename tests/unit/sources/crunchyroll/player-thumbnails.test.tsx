@@ -30,6 +30,9 @@ vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', () => ({
   selectCrunchyrollTrack: async () => ({}),
 }))
 
+// the skip events are a separate concern, and stay unanswered here
+vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
+
 const skin = vi.hoisted(() => ({ thumbnails: undefined as ExternalThumbnails | undefined }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
   default: ({ thumbnails, children }: { thumbnails?: ExternalThumbnails, children?: ComponentChildren }) => {
@@ -43,13 +46,14 @@ const { default: CrunchyrollPlayer } = await import('../../../../src/sources/cru
 const EPISODE = 'https://www.crunchyroll.com/watch/GAAAAAAAA/one'
 const NEXT_EPISODE = 'https://www.crunchyroll.com/watch/GBBBBBBBB/two'
 
-// signed in, and every load mounts a fresh video, as each goto does on the real page
+// signed in, and every load mounts a fresh video, as each goto does on the real page. The handle is
+// an event target, as the real one is
 const makeFrame = (evaluate: (...args: unknown[]) => Promise<unknown>) => ({
   goto: vi.fn(async () => {}),
   addStyleTag: vi.fn(async () => {}),
   locator: (selector: string) => ({
     exists: async () => selector === '#user-menu-authenticated' || selector === 'video',
-    videoElement: async () => ({ loaded: selector }),
+    videoElement: async () => Object.assign(new EventTarget(), { loaded: selector }),
   }),
   evaluate: vi.fn(evaluate),
 })
