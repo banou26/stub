@@ -272,7 +272,8 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       domains: CRUNCHYROLL_DOMAINS,
       permissions: [
         { category: 'interaction', reason: 'Control the Crunchyroll player from this app' },
-        { category: 'storage', reason: 'Read the audio and subtitle track names' }
+        { category: 'storage', reason: 'Read the audio and subtitle track names' },
+        { category: 'evaluation', reason: 'Read the seek preview thumbnails from the Crunchyroll player' }
       ]
     })
       .then(f => {
