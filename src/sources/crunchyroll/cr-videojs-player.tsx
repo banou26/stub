@@ -14,14 +14,12 @@ type Props = {
   frame: Frame | null
   subtitles?: DelegatedTracks
   audioTracks?: DelegatedTracks
-  /** False while Crunchyroll's own sign-in form is the thing in the frame that has to be reachable. */
-  controls?: boolean
   children?: ComponentChildren
 }
 
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
-const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, controls, children }: Props) => {
+const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, children }: Props) => {
   // memoized on both inputs: the player re-attaches whenever the media identity changes, so a fresh
   // Proxy every render would tear the store's attach down and rebuild it on every paint
   const media = useMemo(
@@ -40,7 +38,6 @@ const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, contr
       media={media}
       subtitles={subtitles}
       audioTracks={audioTracks}
-      controls={controls}
     >
       {children}
     </MediaPlayer>

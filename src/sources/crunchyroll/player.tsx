@@ -8,6 +8,7 @@ import { css } from '@emotion/react'
 import { attachFrame, isExtensionExposed } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 
@@ -65,21 +66,16 @@ const CRUNCHYROLL_OUTER_CSS = `
 
 const BASE_URL = 'https://www.crunchyroll.com'
 
-// returnToEpisode: the login-return poll keys on the watch page's auth markers, while returning the popup to the episode would start a second player there
+// state '/': returning the sign-in popup or window to the episode would start a second player there
 const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
-const buildLoginUrl = (watchUrl: string, returnToEpisode: boolean) => {
-  const { pathname, search } = new URL(watchUrl)
-  const authorizeParams = new URLSearchParams({
-    client_id: CRUNCHYROLL_SSO_CLIENT_ID,
-    redirect_uri: `${BASE_URL}/callback`,
-    response_type: 'cookie',
-    state: returnToEpisode ? `${pathname}${search}` : '/',
-  })
-  return `https://sso.crunchyroll.com/authorize?${authorizeParams}`
-}
+const LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
+  client_id: CRUNCHYROLL_SSO_CLIENT_ID,
+  redirect_uri: `${BASE_URL}/callback`,
+  response_type: 'cookie',
+  state: '/',
+})}`
 
 const LOGIN_TIMEOUT = 30_000
-const LOGIN_RETURN_TIMEOUT = 600_000
 
 type Backend = 'detecting' | 'extension' | 'cloud'
 
@@ -122,40 +118,6 @@ const checkIsLoggedIn = async (frame: Frame, isCancelled: () => boolean) => {
   throw new Error('Login state check timed out')
 }
 
-// the frame's URL is not observable across the authorize redirect, so poll for the authenticated header the callback drops onto the returned watch page
-const waitForLoginReturn = async (frame: Frame, isCancelled: () => boolean) => {
-  const deadline = Date.now() + LOGIN_RETURN_TIMEOUT
-  let failures = 0
-  // the callback watch page transiently renders the anonymous marker while its header hydrates, so require it across consecutive ticks
-  let anonymousStreak = 0
-  while (!isCancelled() && Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 1000))
-    if (isCancelled()) return 'cancelled'
-    const [settling, authed, anonymous] = await Promise.all([
-      frame.locator('.shell-header').exists().catch(() => null),
-      frame.locator('#user-menu-authenticated').exists().catch(() => null),
-      frame.locator('#user-menu-anonymous').exists().catch(() => null),
-    ])
-    if (settling === null && authed === null && anonymous === null) {
-      // each rejected call already blocks on the library's own ~30s retry, so three consecutive ones mean the frame is gone rather than mid-redirect; reset the streak, samples across a document replacement are not one continuously-anonymous page
-      failures += 1
-      anonymousStreak = 0
-      if (failures >= 3) return 'lost'
-      continue
-    }
-    failures = 0
-    if (settling) {
-      anonymousStreak = 0
-      continue
-    }
-    if (authed) return 'authed'
-    // only count an anonymous sample when the auth read is a definitive false: authed === null means the page is mid-redirect, so the anonymous marker is not yet trustworthy
-    anonymousStreak = anonymous && authed === false ? anonymousStreak + 1 : 0
-    if (anonymousStreak >= 3) return 'backout'
-  }
-  return 'timeout'
-}
-
 const VIDEO_TIMEOUT = 30_000
 const waitForVideoElement = async (frame: Frame, isCancelled: () => boolean) => {
   const deadline = Date.now() + VIDEO_TIMEOUT
@@ -196,14 +158,6 @@ const styles = css`
     pointer-events: none;
   }
 
-  /* The cloud in-frame sign-in renders CR's own login form inside the frame,
-     so while that flow is active the frame must take the taps. Once the
-     session lands and the skin's video takes over, the frame goes back to
-     pointer-events: none. */
-  .cr-frame.interactive {
-    pointer-events: auto;
-  }
-
   .overlay {
     position: absolute;
     inset: 0;
@@ -239,6 +193,13 @@ const styles = css`
       cursor: default;
     }
   }
+
+  .login-note {
+    max-width: 36rem;
+    font-size: 1.2rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+  }
 `
 
 const CrunchyrollPlayer = ({ url }: PlayerProps) => {
@@ -247,7 +208,6 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   const [frame, setFrame] = useState<Frame | null>(null)
   const [loading, setLoading] = useState(true)
   const [loggedOut, setLoggedOut] = useState(false)
-  const [loggingIn, setLoggingIn] = useState(false)
   const [error, setError] = useState<string>()
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -256,6 +216,8 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   const [popupBlocked, setPopupBlocked] = useState(false)
   const popupInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const popupRef = useRef<Window | null>(null)
+  const [windowOpen, setWindowOpen] = useState(false)
+  const windowPending = useRef(false)
   const [tracks, setTracks] = useState<CrunchyrollTracks>()
   const trackGeneration = useRef(0)
   const trackQueue = useRef({ generation: 0, tail: Promise.resolve() })
@@ -326,7 +288,6 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     setLoading(true)
     setError(undefined)
     setLoggedOut(false)
-    setLoggingIn(false)
     setRemoteVideo(null)
     invalidateTracks()
     ;(async () => {
@@ -334,41 +295,10 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
         // 'load', not 'documentstart': the render proxy applies locator calls to the committed document
         await frame.goto(url, { waitUntil: 'load' })
         if (cancelled) return
+        // auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
         const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
         if (cancelled) return
-        if (isLoggedIn) {
-          await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
-          if (cancelled) return
-          const video = await waitForVideoElement(frame, isCancelled)
-          if (cancelled) return
-          setLoading(false)
-          if (!video) throw new Error('The episode did not load a player. It may be unavailable or require a different plan.')
-          setRemoteVideo(video)
-          return
-        }
-        // the proxied frame reads the render proxy's own cookie jar, which an out-of-frame popup never writes, so the sign-in must run inside the frame
-        setLoading(false)
-        setLoggedOut(true)
-        setLoggingIn(true)
-        await frame.goto(buildLoginUrl(url, true), { waitUntil: 'load' })
-        const outcome = await waitForLoginReturn(frame, isCancelled)
-        if (cancelled) return
-        setLoggingIn(false)
-        if (outcome === 'backout') {
-          setLoggedOut(true)
-          setLoading(false)
-          return
-        }
-        if (outcome === 'lost') throw new Error('Lost the connection to the player frame')
-        if (outcome !== 'authed') throw new Error('Sign-in was not completed in time')
-        // re-check auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
-        setLoading(true)
-        setLoggedOut(false)
-        await frame.goto(url, { waitUntil: 'load' })
-        if (cancelled) return
-        const { isLoggedIn: stillAuthed } = await checkIsLoggedIn(frame, isCancelled)
-        if (cancelled) return
-        if (!stillAuthed) {
+        if (!isLoggedIn) {
           setLoading(false)
           setLoggedOut(true)
           return
@@ -403,7 +333,6 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       console.error('Failed to load Crunchyroll player', err)
       setError(err?.message || 'Failed to load player')
       setLoading(false)
-      setLoggingIn(false)
     })
     return () => { cancelled = true }
   }, [frame, url, reloadKey, mode, invalidateTracks])
@@ -486,7 +415,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   // the extension frame shares the user's real browser session, so a popup on the real site sets the cookie the frame uses
   const openLogin = useCallback(() => {
     if (popupInterval.current !== null) return
-    const popup = globalThis.open(buildLoginUrl(url, false), '_blank', 'width=500,height=700')
+    const popup = globalThis.open(LOGIN_URL, '_blank', 'width=500,height=700')
     if (!popup) {
       setPopupBlocked(true)
       setLoading(false)
@@ -504,7 +433,46 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       setReloadKey(k => k + 1)
     }, 500)
     popupInterval.current = interval
-  }, [url])
+  }, [])
+
+  // the cloud frame reads this app's cloud cookie jar, which a plain popup never writes: an FKN window
+  // signs in on that jar, and the reload's frame.goto pulls what the window committed
+  const openLoginWindow = useCallback(() => {
+    if (windowPending.current) return
+    windowPending.current = true
+    const signingIn = signInThroughWindow({
+      url: LOGIN_URL,
+      domains: CRUNCHYROLL_DOMAINS,
+      isSignedIn: login => login.locator('#user-menu-authenticated').exists(),
+    })
+    setPopupBlocked(false)
+    setWindowOpen(true)
+    signingIn
+      .then(outcome => {
+        if (!mounted.current) return
+        if (outcome === 'blocked') {
+          setPopupBlocked(true)
+          return
+        }
+        // Retry re-attaches, which moves the player to the extension if that is what refused
+        if (outcome === 'unsupported') {
+          setError('The Crunchyroll sign-in window could not be opened here.')
+          return
+        }
+        // 'closed' reloads too: a read can still be pending when the viewer closes a window that already signed in
+        setLoggedOut(false)
+        setLoading(true)
+        setReloadKey(k => k + 1)
+      }, err => {
+        if (!mounted.current) return
+        console.error('Crunchyroll sign-in window failed', err)
+        setError(err?.message || 'The sign-in window failed')
+      })
+      .finally(() => {
+        windowPending.current = false
+        if (mounted.current) setWindowOpen(false)
+      })
+  }, [])
 
   // leave the popup itself open: closing it mid sign-in would abort the SSO before the shared session cookie is set
   useEffect(() => () => {
@@ -544,12 +512,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     setAttachKey(k => k + 1)
   }, [invalidateTracks])
 
-  const retryLogin = useCallback(() => {
-    setLoggedOut(false)
-    setLoading(true)
-    setReloadKey(k => k + 1)
-  }, [])
-  const overlay = (loading || error || popupBlocked || (loggedOut && !loggingIn)) && (
+  const overlay = (loading || error || popupBlocked || loggedOut) && (
     <div className="overlay">
       {loggedOut && !error && !popupBlocked && (
         <>
@@ -560,14 +523,23 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
                 {popupOpen ? 'Finish signing in the popup...' : 'Open Crunchyroll Login Page'}
               </button>
             )
-            : <button className="login-button" onClick={retryLogin}>Try signing in again</button>
+            : (
+              <>
+                <button className="login-button" onClick={openLoginWindow} disabled={windowOpen}>
+                  {windowOpen ? 'Finish signing in the window...' : 'Sign in to Crunchyroll'}
+                </button>
+                <span className="login-note">
+                  Sign-in happens in a window served through FKN, so your browser will not autofill saved passwords or offer passkeys there.
+                </span>
+              </>
+            )
           }
         </>
       )}
       {popupBlocked && !error && (
         <>
           The login popup was blocked. Allow popups for this page and try again.
-          <button className="login-button" onClick={openLogin}>Open Crunchyroll Login Page</button>
+          <button className="login-button" onClick={mode === 'extension' ? openLogin : openLoginWindow}>Open Crunchyroll Login Page</button>
         </>
       )}
       {error && (
@@ -588,15 +560,11 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
           frame={frame}
           subtitles={subtitles}
           audioTracks={audioTracks}
-          // While the cloud sign-in runs, Crunchyroll's own form is what the viewer has to reach and
-          // the frame is deliberately interactive. A control bar for a media that has not loaded yet
-          // would sit over the bottom of that form and take the clicks.
-          controls={!loggingIn}
         >
           <iframe
             key={`${mode}-${attachKey}`}
             ref={setIframe}
-            className={`cr-frame${loggingIn ? ' interactive' : ''}`}
+            className="cr-frame"
             referrerPolicy="no-referrer"
             allow="encrypted-media; autoplay; fullscreen;"
           />
