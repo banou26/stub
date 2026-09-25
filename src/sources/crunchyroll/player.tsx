@@ -75,6 +75,18 @@ const LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
   state: '/',
 })}`
 
+// every sso.crunchyroll.com page sits in its root layout's `.cx-app`, beside `#recaptcha-container`,
+// and neither is on www.crunchyroll.com: read from the served markup of /login, /register,
+// /reset-password and /login/verify-otp and the www bundles on 2026-09-26. Both are read so a rename
+// of one still leaves the other
+const onSsoPage = async (login: Frame) => {
+  const [app, recaptcha] = await Promise.all([
+    login.locator('.cx-app').exists(),
+    login.locator('#recaptcha-container').exists(),
+  ])
+  return app || recaptcha
+}
+
 const LOGIN_TIMEOUT = 30_000
 
 type Backend = 'detecting' | 'extension' | 'cloud'
@@ -435,8 +447,19 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     popupInterval.current = interval
   }, [])
 
+  // bumping attachKey remounts the iframe so attachFrame runs against a fresh element: the cloud backend refuses to re-attach an iframe it already attached
+  const remount = useCallback(() => {
+    setFrame(null)
+    setError(undefined)
+    setRemoteVideo(null)
+    invalidateTracks()
+    setLoggedOut(false)
+    setLoading(true)
+    setAttachKey(k => k + 1)
+  }, [invalidateTracks])
+
   // the cloud frame reads this app's cloud cookie jar, which a plain popup never writes: an FKN window
-  // signs in on that jar, and the reload's frame.goto pulls what the window committed
+  // signs in on that jar, and the player loaded after it reads what the window committed
   const openLoginWindow = useCallback(() => {
     if (windowPending.current) return
     windowPending.current = true
@@ -444,6 +467,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       url: LOGIN_URL,
       domains: CRUNCHYROLL_DOMAINS,
       isSignedIn: login => login.locator('#user-menu-authenticated').exists(),
+      onSignInPage: onSsoPage,
     })
     setPopupBlocked(false)
     setWindowOpen(true)
@@ -459,6 +483,11 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
           setError('The Crunchyroll sign-in window could not be opened here.')
           return
         }
+        // the window is closed and its cookies committed by now, so the whole player iframe reloads
+        if (outcome === 'authed') {
+          remount()
+          return
+        }
         // 'closed' reloads too: a read can still be pending when the viewer closes a window that already signed in
         setLoggedOut(false)
         setLoading(true)
@@ -472,7 +501,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
         windowPending.current = false
         if (mounted.current) setWindowOpen(false)
       })
-  }, [])
+  }, [remount])
 
   // leave the popup itself open: closing it mid sign-in would abort the SSO before the shared session cookie is set
   useEffect(() => () => {
@@ -491,7 +520,6 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     setPopupBlocked(false)
   }, [url])
 
-  // bumping attachKey remounts the iframe so attachFrame runs against a fresh element: the cloud backend refuses to re-attach an iframe it already attached
   const retry = useCallback(() => {
     if (popupRef.current !== null) {
       popupRef.current.close()
@@ -501,16 +529,10 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       clearInterval(popupInterval.current)
       popupInterval.current = null
     }
-    setFrame(null)
-    setError(undefined)
-    setRemoteVideo(null)
-    invalidateTracks()
-    setLoggedOut(false)
     setPopupBlocked(false)
     setPopupOpen(false)
-    setLoading(true)
-    setAttachKey(k => k + 1)
-  }, [invalidateTracks])
+    remount()
+  }, [remount])
 
   const overlay = (loading || error || popupBlocked || loggedOut) && (
     <div className="overlay">

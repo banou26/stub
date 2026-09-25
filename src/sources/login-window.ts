@@ -5,9 +5,9 @@ import { attachFrame, isTerminalError } from '@fkn/lib'
 /**
  * How a sign-in through an FKN window ended.
  *
- * - `'authed'`: `isSignedIn` saw the signed-in page, and the window has been closed with `close()`,
- *   which commits its cookies to the app's cloud jar first. A `goto` on an inline cloud frame after
- *   this loads signed in.
+ * - `'authed'`: `isSignedIn` saw the signed-in page, or the window left the sign-in page that
+ *   `onSignInPage` names, and the window has been closed with `close()`, which commits its cookies to
+ *   the app's cloud jar first. An inline cloud frame loaded after this loads signed in.
  * - `'closed'`: the window ended first, closed by the viewer or lost. The viewer may still have
  *   finished signing in, since a read can be pending when they close it.
  * - `'blocked'`: the browser opened no window (popup blocker, or no user activation).
@@ -23,14 +23,36 @@ export type WindowSignInOptions = {
   domains: string[]
   /**
    * Whether the window's page shows the signed-in state. Use a severity-0 read (`exists`, `count`,
-   * `isVisible`) so the poll never prompts. A rejection counts as not signed in yet.
+   * `isVisible`) so the poll never prompts. A rejection or a read past `readTimeoutMs` counts as not
+   * signed in yet.
    */
   isSignedIn: (login: Frame) => Promise<boolean>
+  /**
+   * Whether the window's page is still the site's sign-in page, as a severity-0 read. Once a read has
+   * seen it, two answers in a row saying it is gone count as signed in, since the site only moves the
+   * window off it once the credentials were accepted. A form that stays after a failed sign-in keeps
+   * the window open. A rejection or a read past `readTimeoutMs` answers neither way.
+   */
+  onSignInPage?: (login: Frame) => Promise<boolean>
   /** Time between two reads, in milliseconds. 1000 by default. */
   pollMs?: number
+  /** How long one read may take before it counts as unanswered, in milliseconds. 5000 by default. */
+  readTimeoutMs?: number
 }
 
 const REFUSALS = new Set(['ExtensionOperationUnsupportedError', 'FrameWindowRefusedError'])
+
+// one answer can come from a re-render mid submit, where the form is briefly out of the document
+const LEFT_READS = 2
+
+// undefined when the read rejected or outlasted `ms`, which proves nothing either way
+const answer = (read: () => Promise<boolean>, ms: number) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    Promise.resolve().then(read).catch(() => undefined),
+    new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) }),
+  ]).finally(() => clearTimeout(timer))
+}
 
 /**
  * Opens `url` in an FKN window and waits for the viewer to sign in there.
@@ -38,7 +60,14 @@ const REFUSALS = new Set(['ExtensionOperationUnsupportedError', 'FrameWindowRefu
  * Call it directly in the click or key handler: the window opens with that event's activation, so it
  * must be opened before anything is awaited. Rejects only on a failure the outcomes do not name.
  */
-export const signInThroughWindow = async ({ url, domains, isSignedIn, pollMs = 1000 }: WindowSignInOptions): Promise<WindowSignIn> => {
+export const signInThroughWindow = async ({
+  url,
+  domains,
+  isSignedIn,
+  onSignInPage,
+  pollMs = 1000,
+  readTimeoutMs = 5000,
+}: WindowSignInOptions): Promise<WindowSignIn> => {
   // first statement on purpose: an await above it would open the window without the click's activation
   const opening = attachFrame({ window: { url }, domains })
   let login: WindowFrame
@@ -56,18 +85,28 @@ export const signInThroughWindow = async ({ url, domains, isSignedIn, pollMs = 1
     throw err
   }
 
-  // a read issued across a redirect can block on the lib's own retry, so the window closing has to
-  // be able to end the wait without it
+  // a read issued across a redirect can block on the lib's own retry for tens of seconds, so every
+  // read is bounded and the window closing ends the wait without waiting on one
   const closed = login.closed.then(() => 'closed' as const)
+  let seen = false
+  let away = 0
   for (;;) {
     const tick = await Promise.race([
       closed,
-      new Promise(resolve => setTimeout(resolve, pollMs))
-        .then(() => isSignedIn(login))
-        .catch(() => false),
+      new Promise(resolve => setTimeout(resolve, pollMs)).then(() => Promise.all([
+        answer(() => isSignedIn(login), readTimeoutMs),
+        onSignInPage && answer(() => onSignInPage(login), readTimeoutMs),
+      ])),
     ])
     if (tick === 'closed') return 'closed'
-    if (tick) {
+    const [signedIn, onPage] = tick
+    if (onPage === true) {
+      seen = true
+      away = 0
+    } else if (onPage === false && seen) {
+      away += 1
+    }
+    if (signedIn === true || away >= LEFT_READS) {
       await login.close()
       return 'authed'
     }

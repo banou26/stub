@@ -158,3 +158,127 @@ describe('waiting for the sign-in', () => {
     expect(await Promise.race([pending, sleep(500).then(() => 'still waiting')])).toBe('closed')
   })
 })
+
+describe('leaving the sign-in page', () => {
+  const watch = ({ onSignInPage, isSignedIn = async () => false, readTimeoutMs }: {
+    onSignInPage: () => Promise<boolean>
+    isSignedIn?: () => Promise<boolean>
+    readTimeoutMs?: number
+  }) => signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn, onSignInPage, pollMs: 1, readTimeoutMs })
+
+  const answers = (...values: boolean[]) => {
+    const read = vi.fn<() => Promise<boolean>>()
+    for (const value of values) read.mockResolvedValueOnce(value)
+    return read.mockResolvedValue(values.at(-1)!)
+  }
+
+  const hang = () => new Promise<boolean>(() => {})
+
+  const settled = <T,>(pending: Promise<T>, ms = 500) => Promise.race([pending, sleep(ms).then(() => 'still waiting' as const)])
+
+  // 'still open' once `read` has run `times` times, unless the sign-in resolved first
+  const openAfter = <T,>(pending: Promise<T>, read: { mock: { calls: unknown[] } }, times: number) => Promise.race([
+    pending,
+    vi.waitFor(() => expect(read.mock.calls.length).toBeGreaterThanOrEqual(times)).then(() => 'still open' as const),
+  ])
+
+  // the page a sign-in lands on may never answer the signed-in marker, and this still closes it
+  test('the page going away after it was seen closes the window, committed, and resolves authed', async () => {
+    const { login, close, events } = fakeWindow({ commitMs: 20 })
+    attach.mockResolvedValue(login)
+    const onSignInPage = answers(true, true, false, false)
+
+    const outcome = await settled(watch({ onSignInPage }).then(result => {
+      events.push(`resolved ${result}`)
+      return result
+    }))
+
+    expect(outcome).toBe('authed')
+    expect(onSignInPage).toHaveBeenCalledTimes(4)
+    expect(onSignInPage).toHaveBeenCalledWith(login)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(events).toEqual(['committed and closed', 'resolved authed'])
+  })
+
+  test('a form that stays, as after a failed sign-in, keeps the window open', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const onSignInPage = vi.fn(async () => true)
+
+    const pending = watch({ onSignInPage })
+    expect(await openAfter(pending, onSignInPage, 20)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  // a re-render mid submit can drop the form for one read
+  test('one read without the form, between reads with it, does not count', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    let reads = 0
+    const onSignInPage = vi.fn(async () => reads++ % 2 === 0)
+
+    const pending = watch({ onSignInPage })
+    expect(await openAfter(pending, onSignInPage, 20)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  // the window loads the site after it connects, so the first reads can find no sign-in page yet
+  test('a sign-in page never seen is never left', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const onSignInPage = vi.fn(async () => false)
+
+    const pending = watch({ onSignInPage })
+    expect(await openAfter(pending, onSignInPage, 20)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  test('a stalled read does not hold the poll', async () => {
+    const { login, close } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const isSignedIn = vi.fn(hang)
+    const onSignInPage = answers(true, false, false)
+
+    expect(await settled(watch({ onSignInPage, isSignedIn, readTimeoutMs: 10 }))).toBe('authed')
+    expect(onSignInPage).toHaveBeenCalledTimes(3)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  // a read across the redirect proves nothing about where the window is
+  test('reads that stall or reject after the page was seen do not count as leaving it', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    let reads = 0
+    const onSignInPage = vi.fn(() => {
+      reads += 1
+      if (reads === 1) return Promise.resolve(true)
+      return reads % 2 === 0 ? hang() : Promise.reject(new Error('the document went away'))
+    })
+
+    const pending = watch({ onSignInPage, readTimeoutMs: 5 })
+    expect(await openAfter(pending, onSignInPage, 10)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  test('the signed-in marker still resolves authed while the sign-in page stays', async () => {
+    const { login, close } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const isSignedIn = answers(false, false, true)
+
+    expect(await settled(watch({ onSignInPage: async () => true, isSignedIn }))).toBe('authed')
+    expect(isSignedIn).toHaveBeenCalledTimes(3)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+})

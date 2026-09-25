@@ -88,7 +88,7 @@ describe('cloud backend', () => {
     // counted before anything is awaited: the window only opens with the click's own activation
     expect(signIn).toHaveBeenCalledTimes(1)
 
-    const [{ url, domains, isSignedIn }] = signIn.mock.calls[0]!
+    const [{ url, domains, isSignedIn, onSignInPage }] = signIn.mock.calls[0]!
     expect(new URL(url).origin + new URL(url).pathname).toBe('https://sso.crunchyroll.com/authorize')
     expect(new URL(url).searchParams.get('state')).toBe('/')
     expect(domains).toContain('sso.crunchyroll.com')
@@ -99,16 +99,29 @@ describe('cloud backend', () => {
     await isSignedIn({ locator: (selector: string) => ({ exists: () => read(selector) }) } as unknown as Frame)
     expect(read).toHaveBeenCalledWith('#user-menu-authenticated')
 
+    // the SSO app's own layout, on every one of its pages and on none of www's: either one answers
+    const page = (present: string[]) => ({ locator: (selector: string) => ({ exists: async () => present.includes(selector) }) }) as unknown as Frame
+    expect(await onSignInPage(page(['.cx-app', '#recaptcha-container']))).toBe(true)
+    expect(await onSignInPage(page(['.cx-app']))).toBe(true)
+    expect(await onSignInPage(page(['#recaptcha-container']))).toBe(true)
+    expect(await onSignInPage(page(['#user-menu-authenticated']))).toBe(false)
+
     // and the in-frame sign-in is gone: the player frame is only ever sent to the episode
     expect(frame.goto.mock.calls.map(([target]) => target)).toEqual([EPISODE])
     await vi.waitFor(() => expect(button(host, 'Finish signing in the window...')?.disabled).toBe(true))
   })
 
-  test('a signed-in window reloads the player frame', async () => {
+  // the window is already closed by then, so the whole iframe reloads on a fresh attach
+  test('a signed-in window remounts the player iframe, which loads the episode again', async () => {
     signIn.mockResolvedValue('authed' satisfies WindowSignIn)
     const host = await render()
     ;(await signedOut(host, 'Sign in to Crunchyroll')).click()
 
+    await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalledTimes(2))
+    const [first, second] = lib.attachFrame.mock.calls.map(([options]) => (options as { iframe: HTMLIFrameElement }).iframe)
+    expect(second).not.toBe(first)
+    expect(first!.isConnected).toBe(false)
+    expect(host.querySelector('iframe')).toBe(second)
     await vi.waitFor(() => expect(frame.goto).toHaveBeenCalledTimes(2))
     expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'load' })
   })
@@ -121,6 +134,7 @@ describe('cloud backend', () => {
     await vi.waitFor(() => expect(frame.goto).toHaveBeenCalledTimes(2))
     const again = await signedOut(host, 'Sign in to Crunchyroll')
     expect(again.disabled).toBe(false)
+    expect(lib.attachFrame).toHaveBeenCalledTimes(1)
   })
 
   test('a blocked window shows the blocked notice, whose button opens the window again', async () => {
