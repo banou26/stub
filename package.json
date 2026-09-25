@@ -43,7 +43,7 @@
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },
   "dependencies": {
-    "@banou/media-player": "^0.8.21",
+    "@banou/media-player": "^0.10.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@envelop/on-resolve": "^6.0.0",
