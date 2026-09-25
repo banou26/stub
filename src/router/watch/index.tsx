@@ -245,7 +245,8 @@ const Watch = () => {
       sourceUri: selectedSourceUri,
       url: handle.url
     })
-    return `/embed.html?${embedParams}`
+    // the page sits beside the running build's html, which under fkn.app/app is /build/ and not the origin root
+    return `${__STUB_EMBED_PAGE__}?${embedParams}`
   }, [selectedSourceUri, episode?.handles, params.mediaUri, params.episodeUri])
 
   // a plugin source renders its own picker; which origins do is only known to the worker holding the

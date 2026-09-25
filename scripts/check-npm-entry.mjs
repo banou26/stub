@@ -8,11 +8,14 @@
 // stayed green, and the only symptom was a blank page at https://fkn.app/app/npm:@banou/stub.
 //
 // Each rule below pins one thing that was measured broken while fixing that, so a config edit that
-// undoes any of them reds the build rather than the next release.
+// undoes any of them reds the build rather than the next release. The embed page rules are the same
+// story for 0.0.27, whose player answered 502 under /app while anime.fkn.app played fine.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { EMBED_PAGE } from './embed-page.ts'
 
 /** a static or dynamic ES import, which is what makes the file a module rather than a script */
 const ES_MODULE = /(?:^|[\s;}])(?:import|export)\s*[{*"'(]|(?:^|[\s;}])(?:import|export)\s+\w/
@@ -90,14 +93,72 @@ export const npmEntryProblems = (pkg, tree) => {
   return problems
 }
 
+/** a url naming another origin, or none, rather than a file of this package */
+const ELSEWHERE = /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i
+
+/** an attribute of a built html page that the browser fetches */
+const FETCHED_URL = /\s(?:src|href)="([^"]*)"/g
+
+/** the watch route's url for the page up to 0.0.27, which only anime.fkn.app answers */
+const ORIGIN_ROOT_EMBED = /["'`]\/embed\.html/
+
+/**
+ * Every reason stub's player page would not load wherever the package is served, worst first.
+ *
+ * fkn.app/app serves the PACKAGE root, so the page is `<dir of main>/embed.html` there and nothing at
+ * the origin root is the package's: see scripts/embed-page.ts. Takes the same arguments as
+ * `npmEntryProblems`, and an empty array is a pass.
+ *
+ * @returns {string[]} one line per problem, each naming the file it is about
+ */
+export const embedPageProblems = (pkg, tree) => {
+  if (typeof pkg.main !== 'string' || !pkg.main.trim()) return []
+
+  const problems = []
+  const dir = dirname(pkg.main)
+  const page = posix.join(dir, 'embed.html')
+  const html = tree.read(page)
+
+  if (html === undefined) {
+    problems.push(`${page} does not exist. The watch route frames it from beside the running build's html, so the app build has to emit it there.`)
+  } else {
+    if (!publishes(pkg.files, page)) {
+      problems.push(`package.json "files" does not publish ${page}, so the tarball would not carry the player`)
+    }
+    for (const [, url] of html.matchAll(FETCHED_URL)) {
+      if (!url || ELSEWHERE.test(url)) continue
+      if (url.startsWith('/')) {
+        problems.push(`${page} names the origin-root '${url}'. fkn.app/app serves the package root, where that path is not the package's, so the page has to name its files relative to itself.`)
+        continue
+      }
+      const file = posix.join(dir, url.split(/[?#]/)[0])
+      if (tree.read(file) === undefined) problems.push(`${page} names '${url}', and ${file} is not in the build`)
+    }
+  }
+
+  for (const chunk of [...tree.list(dir).map(name => posix.join(dir, name)), ...tree.list(posix.join(dir, 'assets')).map(name => posix.join(dir, 'assets', name))]) {
+    if (!chunk.endsWith('.js')) continue
+    const code = tree.read(chunk) ?? ''
+    if (code.includes(EMBED_PAGE)) {
+      problems.push(`${chunk} still names ${EMBED_PAGE}, so the build that emitted it ran without the stub-embed-page plugin and the watch route would throw`)
+    }
+    if (ORIGIN_ROOT_EMBED.test(code)) {
+      problems.push(`${chunk} names an origin-root '/embed.html', which fkn.app/app answers with 502 not-listed. The page's url has to come from ${EMBED_PAGE}.`)
+    }
+  }
+
+  return problems
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  const problems = npmEntryProblems(pkg, readTree(root))
+  const tree = readTree(root)
+  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree)]
   if (problems.length) {
     console.error(`the built package cannot be loaded as an app:\n${problems.map(line => `  - ${line}`).join('\n')}`)
     process.exit(1)
   }
-  console.log(`${pkg.main} is an ES module the platform can load`)
+  console.log(`${pkg.main} is an ES module the platform can load, and ${posix.join(dirname(pkg.main), 'embed.html')} loads from wherever ${dirname(pkg.main)}/ is served`)
 }
