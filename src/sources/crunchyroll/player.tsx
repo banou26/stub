@@ -3,6 +3,7 @@ import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
 import type { PlayerProps } from '../players'
 import type { CrunchyrollTrackKind, CrunchyrollTracks } from './cr-native-controls'
+import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
 import { css } from '@emotion/react'
 import { attachFrame, isExtensionExposed } from '@fkn/lib'
@@ -11,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
+import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 
 const CRUNCHYROLL_DOMAINS = [
   'www.crunchyroll.com',
@@ -231,6 +233,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   const [windowOpen, setWindowOpen] = useState(false)
   const windowPending = useRef(false)
   const [tracks, setTracks] = useState<CrunchyrollTracks>()
+  const [thumbnails, setThumbnails] = useState<CrunchyrollThumbnails>()
   const trackGeneration = useRef(0)
   const trackQueue = useRef({ generation: 0, tail: Promise.resolve() })
   const mounted = useRef(true)
@@ -382,6 +385,27 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
 
     return () => { cancelled = true }
   }, [frame, remoteVideo, invalidateTracks, runTrackOperation])
+
+  // once per loaded episode, since every load replaces remoteVideo and a BIF url is per episode. A
+  // refusal of any kind leaves the seek preview showing the time only
+  useEffect(() => {
+    if (!frame || !remoteVideo) return
+    let cancelled = false
+    let loaded: CrunchyrollThumbnails | undefined
+    loadCrunchyrollThumbnails(frame).then(
+      next => {
+        if (cancelled) return next.dispose()
+        loaded = next
+        setThumbnails(next)
+      },
+      err => { if (!cancelled) console.warn('[cr] seek thumbnails unavailable:', err) },
+    )
+    return () => {
+      cancelled = true
+      loaded?.dispose()
+      setThumbnails(undefined)
+    }
+  }, [frame, remoteVideo])
 
   const trackSession = trackGeneration.current
   const selectTrack = useCallback((kind: CrunchyrollTrackKind, id: string | null) => {
@@ -583,6 +607,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
           frame={frame}
           subtitles={subtitles}
           audioTracks={audioTracks}
+          thumbnails={thumbnails}
         >
           <iframe
             key={`${mode}-${attachKey}`}

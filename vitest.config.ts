@@ -67,6 +67,10 @@ export default defineConfig({
     // every field errors with "Cannot use GraphQLNonNull \"String!\" from another module or realm",
     // which reads as a duplicate install and is not one (there is exactly one graphql in the tree).
     // Inlining these makes vite resolve them, so the whole run shares one graphql.
-    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/] } },
+    //
+    // @banou/media-player and @videojs are inlined so their `react` imports reach the alias, which
+    // is what lets tests/unit/sources/crunchyroll/seek-preview.test.tsx render the real seek bar. Its
+    // CommonJS icon and tooltip libraries still cannot be, so that test mocks those two.
+    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//] } },
   },
 })
