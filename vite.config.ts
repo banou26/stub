@@ -5,6 +5,8 @@ import { defineConfig, lazyPlugins } from 'vite-plus'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import preact from '@preact/preset-vite'
 
+import { embedPage, renderBuiltUrl } from './scripts/embed-page'
+
 // read rather than imported so the manifest does not end up in the bundle
 const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
 
@@ -47,6 +49,8 @@ export default defineConfig((_) => ({
     ],
   },
   experimental: {
+    // embed.html and every chunk name their files relative to themselves, index.html stays origin-root
+    renderBuiltUrl,
   },
   build: {
     target: 'esnext',
@@ -103,6 +107,7 @@ export default defineConfig((_) => ({
       },
     },
     nodePolyfills(),
+    embedPage(),
     preact({
       jsxImportSource: '@emotion/react',
     }),
