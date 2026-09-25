@@ -3,10 +3,8 @@ import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import { seekCrunchyrollTimeline } from './cr-native-controls'
 
 // a bare `video.currentTime` setter only lands inside Bitmovin's already-buffered range, so writes are replayed onto `.timeline-slider`, a native `<input type="range">` whose `max` is the duration in seconds
-const SEEK_REASON = 'Seeks the video to the point you pick on the timeline.'
-
 const seekViaTimeline = (frame: Frame, value: number) => {
-  seekCrunchyrollTimeline(frame, value, SEEK_REASON)
+  seekCrunchyrollTimeline(frame, value)
     .catch(err => console.warn('[cr] timeline seek failed:', err))
 }
 

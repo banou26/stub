@@ -274,9 +274,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
       iframe,
       domains: CRUNCHYROLL_DOMAINS,
       permissions: [
-        { category: 'interaction', reason: 'Control the Crunchyroll player from this app' },
-        { category: 'storage', reason: 'Read the audio and subtitle track names' },
-        { category: 'evaluation', reason: 'Read the seek preview thumbnails from the Crunchyroll player' }
+        { category: 'evaluation', reason: 'Switch Crunchyroll audio and subtitles, seek the video, and show the seek preview thumbnails' }
       ]
     })
       .then(f => {
