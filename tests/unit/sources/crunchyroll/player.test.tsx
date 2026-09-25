@@ -79,6 +79,14 @@ afterEach(() => {
 })
 
 describe('cloud backend', () => {
+  test('the attach asks upfront for Interaction, Site data and Evaluation, so one card covers the player', async () => {
+    await render()
+    await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalled())
+    const [options] = lib.attachFrame.mock.calls[0]!
+    const categories = (options as { permissions: { category: string }[] }).permissions.map(({ category }) => category)
+    expect(categories).toEqual(['interaction', 'storage', 'evaluation'])
+  })
+
   test('the sign-in button opens the window inside the click, on the SSO page and its hosts', async () => {
     const host = await render()
     const signInButton = await signedOut(host, 'Sign in to Crunchyroll')
