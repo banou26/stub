@@ -47,7 +47,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@envelop/on-resolve": "^6.0.0",
-    "@fkn/lib": "^0.9.34",
+    "@fkn/lib": "^0.9.35",
     "@floating-ui/react": "^0.27.16",
     "@graphql-yoga/plugin-defer-stream": "^3.15.1",
     "@graphql-yoga/plugin-response-cache": "^3.17.2",
