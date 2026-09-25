@@ -66,7 +66,7 @@ describe('the seek preview', () => {
     const src = host.querySelector('.thumbnail img')?.getAttribute('src')
     expect(src).toMatch(/^blob:/)
     expect([...new Uint8Array(await resolveObjectURL(src!)!.arrayBuffer())]).toEqual(fixtureImage(1))
-    expect(host.querySelector('.cursor-time')?.textContent).toBe('00:25')
+    expect(host.querySelector('.cursor-time-value')?.textContent).toBe('0:25')
 
     hover(host, 900)
     const later = host.querySelector('.thumbnail img')?.getAttribute('src')
@@ -81,6 +81,6 @@ describe('the seek preview', () => {
 
     hover(host, 25)
     expect(host.querySelector('.thumbnail img')).toBeNull()
-    expect(host.querySelector('.cursor-time')?.textContent).toBe('00:25')
+    expect(host.querySelector('.cursor-time-value')?.textContent).toBe('0:25')
   })
 })
