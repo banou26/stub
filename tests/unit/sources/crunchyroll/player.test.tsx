@@ -79,12 +79,14 @@ afterEach(() => {
 })
 
 describe('cloud backend', () => {
-  test('the attach asks upfront for Interaction, Site data and Evaluation, so one card covers the player', async () => {
+  // every control runs as page code (see cr-page.ts), so Interaction and Site data are never asked
+  test('the attach asks upfront for Evaluation alone, for tracks, seeking and thumbnails', async () => {
     await render()
     await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalled())
     const [options] = lib.attachFrame.mock.calls[0]!
-    const categories = (options as { permissions: { category: string }[] }).permissions.map(({ category }) => category)
-    expect(categories).toEqual(['interaction', 'storage', 'evaluation'])
+    const { permissions } = options as { permissions: { category: string, reason: string }[] }
+    expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
+    expect(permissions[0]!.reason).toMatch(/audio and subtitles.*seek.*thumbnails/)
   })
 
   test('the sign-in button opens the window inside the click, on the SSO page and its hosts', async () => {

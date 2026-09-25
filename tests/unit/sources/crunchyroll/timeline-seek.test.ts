@@ -1,8 +1,10 @@
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
-import { describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { seekTimeline } from '../../../../src/sources/crunchyroll/cr-page'
 import { withTimelineSeek } from '../../../../src/sources/crunchyroll/timeline-seek'
+import { pageRealm } from './page-realm'
 
 /**
  * The one genuinely new mechanism in the Crunchyroll player, and the only part of it a unit test can
@@ -11,18 +13,16 @@ import { withTimelineSeek } from '../../../../src/sources/crunchyroll/timeline-s
  * A bare `video.currentTime = t` only lands inside the range Bitmovin has already buffered, so a seek
  * past it silently hangs. Every write is mirrored onto Crunchyroll's own `.timeline-slider` instead,
  * and the mirror has to survive whatever wraps the media on the way through the player's store.
+ *
+ * The mirror is page code run with `frame.evaluate`, the one grant the player asks for. The frame here
+ * runs it against a page holding the scrubber, and has no locator at all: a `fill` would need
+ * Interaction, which the player no longer asks for.
  */
 const makeFrame = () => {
-  const fills: { value: string, reason?: string }[] = []
-  const frame = {
-    locator: () => ({
-      fill: (value: string, options?: { reason?: string }) => {
-        fills.push({ value, reason: options?.reason })
-        return Promise.resolve()
-      },
-    }),
-  } as unknown as Frame
-  return { frame, fills }
+  const realm = pageRealm('<!doctype html><html><body><input class="timeline-slider" type="range" min="0" max="1200" value="0"></body></html>')
+  const slider = realm.document.querySelector<HTMLInputElement>('.timeline-slider')!
+  const evaluate = vi.fn(realm.evaluate)
+  return { frame: { evaluate } as unknown as Frame, evaluate, slider }
 }
 
 /**
@@ -48,18 +48,15 @@ const makeRemote = () => {
 }
 
 describe('withTimelineSeek', () => {
-  test('mirrors a currentTime write onto Crunchyroll\'s own scrubber', () => {
-    const { frame, fills } = makeFrame()
+  test('mirrors a currentTime write onto Crunchyroll\'s own scrubber, as page code', async () => {
+    const { frame, evaluate, slider } = makeFrame()
     const media = withTimelineSeek(makeRemote(), frame)
 
     media.currentTime = 900
 
     // the slider's max is the duration in seconds, so the value goes across as plain seconds
-    expect(fills).toEqual([{
-      value: '900',
-      // user-visible permission copy, fed to the extension's permission catalog: it has to survive verbatim
-      reason: 'Seeks the video to the point you pick on the timeline.',
-    }])
+    await vi.waitFor(() => expect(slider.value).toBe('900'))
+    expect(evaluate).toHaveBeenCalledWith(seekTimeline, expect.objectContaining({ timeline: '.timeline-slider', time: 900 }))
   })
 
   test('still performs the underlying write, rather than replacing it', () => {
@@ -76,26 +73,26 @@ describe('withTimelineSeek', () => {
   })
 
   test('leaves every other property write alone', () => {
-    const { frame, fills } = makeFrame()
+    const { frame, evaluate } = makeFrame()
     const remote = makeRemote()
     const media = withTimelineSeek(remote, frame)
 
     media.volume = 0.5
 
-    expect(fills).toEqual([])
+    expect(evaluate).not.toHaveBeenCalled()
     expect(remote.volume).toBe(0.5)
   })
 
   test('ignores a currentTime that is not a finite number', () => {
-    const { frame, fills } = makeFrame()
+    const { frame, evaluate } = makeFrame()
     const media = withTimelineSeek(makeRemote(), frame)
 
-    // `fill` would stringify these into a value the slider cannot parse, and the seek would land
-    // somewhere arbitrary rather than failing
+    // the seek would stringify these into a value the slider cannot parse, and land somewhere
+    // arbitrary rather than failing
     media.currentTime = NaN
     media.currentTime = Infinity
 
-    expect(fills).toEqual([])
+    expect(evaluate).not.toHaveBeenCalled()
   })
 
   test('does not break the media\'s own event plumbing', () => {
@@ -111,10 +108,8 @@ describe('withTimelineSeek', () => {
     expect(seen).toEqual(['timeupdate'])
   })
 
-  test('a rejected fill does not escape as an unhandled rejection', async () => {
-    const frame = {
-      locator: () => ({ fill: () => Promise.reject(new Error('the frame is gone')) }),
-    } as unknown as Frame
+  test('a rejected seek does not escape as an unhandled rejection', async () => {
+    const frame = { evaluate: () => Promise.reject(new Error('the frame is gone')) } as unknown as Frame
     const media = withTimelineSeek(makeRemote(), frame)
 
     // the write is synchronous and the mirror is not, so a failure has nowhere to be awaited
