@@ -253,16 +253,11 @@ describe('leaving the sign-in page', () => {
     expect(close).toHaveBeenCalledTimes(1)
   })
 
-  // a read across the redirect proves nothing about where the window is
-  test('reads that stall or reject after the page was seen do not count as leaving it', async () => {
+  // a read on the lib's own retry proves nothing about where the window is
+  test('reads that stall after the page was seen do not count as leaving it', async () => {
     const { login, close, end } = fakeWindow()
     attach.mockResolvedValue(login)
-    let reads = 0
-    const onSignInPage = vi.fn(() => {
-      reads += 1
-      if (reads === 1) return Promise.resolve(true)
-      return reads % 2 === 0 ? hang() : Promise.reject(new Error('the document went away'))
-    })
+    const onSignInPage = vi.fn<() => Promise<boolean>>().mockResolvedValueOnce(true).mockImplementation(hang)
 
     const pending = watch({ onSignInPage, readTimeoutMs: 5 })
     expect(await openAfter(pending, onSignInPage, 10)).toBe('still open')
@@ -270,6 +265,77 @@ describe('leaving the sign-in page', () => {
 
     end()
     expect(await settled(pending)).toBe('closed')
+  })
+
+  // what fkn.app answered on 2026-09-26 once a page had left for another host through a redirect, a
+  // link or a form, every second for 30 s, inline and in a window alike
+  const unreachable = () => Object.assign(
+    new Error('Locator operation not supported on the render proxy backend: the proxied document is not available yet'),
+    { name: LOCATOR_UNSUPPORTED },
+  )
+
+  test('a page that can no longer be read after it was seen closes the window, committed, and resolves authed', async () => {
+    expect(isTerminalError(unreachable()), 'control: the lib stops on this error rather than retrying it').toBe(true)
+    const { login, close, events } = fakeWindow({ commitMs: 20 })
+    attach.mockResolvedValue(login)
+    const onSignInPage = vi.fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockImplementation(() => Promise.reject(unreachable()))
+
+    const outcome = await settled(watch({ onSignInPage }).then(result => {
+      events.push(`resolved ${result}`)
+      return result
+    }))
+
+    expect(outcome).toBe('authed')
+    expect(onSignInPage).toHaveBeenCalledTimes(4)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(events).toEqual(['committed and closed', 'resolved authed'])
+  })
+
+  test('one read that rejects, between reads that find the page, does not count', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    let reads = 0
+    const onSignInPage = vi.fn(() => reads++ % 2 === 0 ? Promise.resolve(true) : Promise.reject(unreachable()))
+
+    const pending = watch({ onSignInPage })
+    expect(await openAfter(pending, onSignInPage, 20)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  // the window loads the site after it connects, and a page that redirects away at once is never readable
+  test('reads that reject before the page was seen prove nothing', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const onSignInPage = vi.fn(() => Promise.reject(unreachable()))
+
+    const pending = watch({ onSignInPage })
+    expect(await openAfter(pending, onSignInPage, 20)).toBe('still open')
+    expect(close).not.toHaveBeenCalled()
+
+    end()
+    expect(await settled(pending)).toBe('closed')
+  })
+
+  // the lib ends the window and rejects the reads in flight from one abort
+  test('the viewer closing the window after the page went away resolves closed, and closes nothing', async () => {
+    const { login, close, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const onSignInPage = vi.fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(true)
+      .mockImplementationOnce(() => Promise.reject(unreachable()))
+      .mockImplementation(() => {
+        end()
+        return Promise.reject(unreachable())
+      })
+
+    expect(await settled(watch({ onSignInPage }))).toBe('closed')
+    expect(close).not.toHaveBeenCalled()
   })
 
   test('the signed-in marker still resolves authed while the sign-in page stays', async () => {
