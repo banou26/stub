@@ -78,6 +78,38 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// the declarations emotion inserted for one of the player's classes
+const ruleOf = (className: string) => [...document.head.querySelectorAll('style')]
+  .map(style => style.textContent)
+  .join('')
+  .match(new RegExp(`\\.${className}\\{([^}]*)\\}`))?.[1] ?? ''
+
+describe('while the episode loads', () => {
+  test('the player\'s spinner sits on the black cover over the frame, with no text', async () => {
+    const held = Promise.withResolvers<void>()
+    frame.goto.mockImplementation(() => held.promise)
+    const host = await render()
+    await vi.waitFor(() => expect(frame.goto).toHaveBeenCalled(), { timeout: 5_000 })
+
+    const overlay = host.querySelector('.overlay')!
+    expect(overlay.querySelector('.loading-spinner[role="status"]')).toBeTruthy()
+    expect(overlay.textContent).toBe('')
+    expect(host.textContent).not.toContain('Loading Crunchyroll player')
+    // Crunchyroll keeps loading in the frame, under a cover that is opaque and above it
+    expect(host.querySelector('.skin iframe.cr-frame')).toBeTruthy()
+    expect(ruleOf('overlay')).toMatch(/inset:0;/)
+    expect(ruleOf('overlay')).toMatch(/background:#000;/)
+    expect(ruleOf('overlay')).toMatch(/z-index:30;/)
+    held.resolve()
+  })
+
+  test('a page that settles signed out swaps the spinner for the sign-in', async () => {
+    const host = await render()
+    await signedOut(host, 'Sign in to Crunchyroll')
+    expect(host.querySelector('.loading-spinner')).toBeNull()
+  })
+})
+
 describe('cloud backend', () => {
   // every control runs as page code (see cr-page.ts), so Interaction and Site data are never asked
   test('the attach asks upfront for Evaluation alone, for tracks, seeking and thumbnails', async () => {

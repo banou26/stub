@@ -5,7 +5,7 @@ import type { PlayerProps } from '../players'
 import type { CrunchyrollTrackKind, CrunchyrollTracks } from './cr-native-controls'
 import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
-import { css } from '@emotion/react'
+import { css, keyframes } from '@emotion/react'
 import { attachFrame, isExtensionExposed } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
@@ -149,6 +149,10 @@ const waitForVideoElement = async (frame: Frame, isCancelled: () => boolean) => 
   return null
 }
 
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`
+
 const styles = css`
   position: relative;
   width: 100%;
@@ -213,6 +217,18 @@ const styles = css`
     font-size: 1.2rem;
     text-align: center;
     color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* @banou/media-player's own buffering spinner (overlay.tsx), same box and centre, so when the video
+     arrives still buffering the player's spinner takes over from this one without a jump */
+  .loading-spinner {
+    box-sizing: border-box;
+    width: calc(4 * var(--mp-unit, 10px));
+    height: calc(4 * var(--mp-unit, 10px));
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    border-top-color: #fff;
+    animation: ${spin} 0.8s linear infinite;
   }
 `
 
@@ -593,7 +609,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
           <button className="login-button" onClick={retry}>Retry</button>
         </>
       )}
-      {loading && !error && !loggedOut && 'Loading Crunchyroll player...'}
+      {loading && !error && !loggedOut && <div className="loading-spinner" role="status" aria-label="Loading" />}
     </div>
   )
 
