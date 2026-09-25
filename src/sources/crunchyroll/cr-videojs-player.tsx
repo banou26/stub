@@ -1,4 +1,4 @@
-import type { DelegatedTracks, ExternalThumbnails } from '@banou/media-player'
+import type { DelegatedTracks, ExternalThumbnails, MediaChapter } from '@banou/media-player'
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren, FunctionComponent } from 'preact'
 
@@ -15,12 +15,13 @@ type Props = {
   subtitles?: DelegatedTracks
   audioTracks?: DelegatedTracks
   thumbnails?: ExternalThumbnails
+  chapters?: MediaChapter[]
   children?: ComponentChildren
 }
 
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
-const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, thumbnails, children }: Props) => {
+const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, thumbnails, chapters, children }: Props) => {
   // memoized on both inputs: the player re-attaches whenever the media identity changes, so a fresh
   // Proxy every render would tear the store's attach down and rebuild it on every paint
   const media = useMemo(
@@ -40,6 +41,7 @@ const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, thumb
       subtitles={subtitles}
       audioTracks={audioTracks}
       thumbnails={thumbnails}
+      chapters={chapters}
     >
       {children}
     </MediaPlayer>

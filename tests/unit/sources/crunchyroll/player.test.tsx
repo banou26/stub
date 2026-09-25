@@ -22,6 +22,9 @@ vi.mock('@fkn/lib', async importOriginal => ({
 const signIn = vi.hoisted(() => vi.fn())
 vi.mock('../../../../src/sources/login-window', () => ({ signInThroughWindow: signIn }))
 
+// the skip events are a separate concern, and stay unanswered here
+vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
+
 // the media player skin needs a real media to draw anything, and none of it is under test here
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
   default: ({ children }: { children?: ComponentChildren }) => <div className="skin">{children}</div>,

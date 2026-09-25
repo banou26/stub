@@ -13,6 +13,7 @@ import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
+import { useCrunchyrollChapters } from './skip-events'
 
 const CRUNCHYROLL_DOMAINS = [
   'www.crunchyroll.com',
@@ -250,6 +251,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
   const windowPending = useRef(false)
   const [tracks, setTracks] = useState<CrunchyrollTracks>()
   const [thumbnails, setThumbnails] = useState<CrunchyrollThumbnails>()
+  const chapters = useCrunchyrollChapters(url, remoteVideo)
   const trackGeneration = useRef(0)
   const trackQueue = useRef({ generation: 0, tail: Promise.resolve() })
   const mounted = useRef(true)
@@ -622,6 +624,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
           subtitles={subtitles}
           audioTracks={audioTracks}
           thumbnails={thumbnails}
+          chapters={chapters}
         >
           <iframe
             key={`${mode}-${attachKey}`}
