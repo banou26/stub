@@ -16,6 +16,7 @@ const URI = 'ag:(anilist:1)'
 const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100' }
 
 const otherWrites: unknown[] = []
+const otherDeletes: unknown[] = []
 const other = providerServer('other', {
   Subscription: {
     tracking: {
@@ -44,6 +45,19 @@ const other = providerServer('other', {
       otherWrites.push(input)
       return [{ tracker: 'other', outcome: 'SAVED', entry: null, error: null }]
     },
+    deleteListEntry: (_parent: unknown, { input }: { input: unknown }) => {
+      otherDeletes.push(input)
+      return [{ tracker: 'other', outcome: 'SAVED', entry: null, error: null }]
+    },
+  },
+})
+
+// a provider whose every answer fails, as one does when its service is down
+const broken = providerServer('broken', {
+  Subscription: {
+    tracking: {
+      subscribe: () => { throw new Error('The list service answered 503') },
+    },
   },
 })
 
@@ -67,13 +81,19 @@ const TRACKING = `
       _id
       summary { _id status progress score }
       disagreements
-      answers { state tracker { id } entry { _id progress score } }
+      answers { state error tracker { id } entry { _id progress score } }
     }
   }
 `
 const SAVE = `
   mutation ($input: SaveListEntryInput!) {
     saveListEntry(input: $input) { tracker outcome error }
+  }
+`
+
+const DELETE = `
+  mutation ($input: DeleteListEntryInput!) {
+    deleteListEntry(input: $input) { tracker outcome error }
   }
 `
 
@@ -122,4 +142,28 @@ test('the page may ask only some trackers', async () => {
 
   const answers = (await tracking.next()).data.tracking.answers
   expect(answers.map((answer: { tracker: { id: string } }) => answer.tracker.id)).toEqual(['other'])
+})
+
+test('a delete goes to the providers it names and to no other', async () => {
+  otherDeletes.length = 0
+  await yogaClient(app).mutation(SAVE, { input: { uri: URI, trackers: ['stub'], entry: { status: 'WATCHING', progress: 4 } } }).toPromise()
+
+  const deleted = await yogaClient(app).mutation(DELETE, { input: { uri: URI, trackers: ['stub'] } }).toPromise()
+
+  expect(deleted.data.deleteListEntry).toEqual([{ tracker: 'stub', outcome: 'SAVED', error: null }])
+  expect(otherDeletes, 'the second provider is connected and was not named, so nothing is removed from it').toEqual([])
+
+  const named = await yogaClient(app).mutation(DELETE, { input: { uri: URI, trackers: ['other'] } }).toPromise()
+  expect(named.data.deleteListEntry, 'the control: once named, it is asked').toEqual([{ tracker: 'other', outcome: 'SAVED', error: null }])
+  expect(otherDeletes).toHaveLength(1)
+})
+
+test('a provider that fails is shown as failed rather than left out', async () => {
+  const withBroken = providerServer('app', trackingResolvers([entry('stub', stub), entry('broken', broken)], trackerOf))
+  const tracking = subscribe(withBroken, TRACKING, { input: { uri: URI } })
+  live.push(tracking)
+
+  const both = await tracking.until(result => result.data?.tracking?.answers.length === 2)
+    .catch(() => { throw new Error('the page never got an answer for the failing provider') })
+  expect(both.data.tracking.answers[1]).toMatchObject({ state: 'ERROR', error: 'The list service answered 503', tracker: { id: 'broken' } })
 })
