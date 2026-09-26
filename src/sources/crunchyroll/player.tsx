@@ -13,6 +13,7 @@ import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 import { checkIsLoggedIn } from './login-state'
+import { useCrunchyrollPictureInPicture } from './picture-in-picture'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
 
@@ -153,7 +154,9 @@ const styles = css`
     border: none;
     background: #000;
     /* CR's own chrome is hidden, so the iframe must not swallow clicks -
-       taps belong to the videojs gesture layer stacked above it. */
+       taps belong to the videojs gesture layer stacked above it. The one
+       exception is picture-in-picture.ts, which lifts this while the
+       player's picture in picture control is under the pointer. */
     pointer-events: none;
   }
 
@@ -232,6 +235,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
   const [tracks, setTracks] = useState<CrunchyrollTracks>()
   const [thumbnails, setThumbnails] = useState<CrunchyrollThumbnails>()
   const chapters = useCrunchyrollChapters(url, remoteVideo)
+  const pictureInPicture = useCrunchyrollPictureInPicture(frame, remoteVideo, iframe)
   const trackGeneration = useRef(0)
   const trackQueue = useRef({ generation: 0, tail: Promise.resolve() })
   const mounted = useRef(true)
@@ -272,7 +276,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       iframe,
       domains: CRUNCHYROLL_DOMAINS,
       permissions: [
-        { category: 'evaluation', reason: 'Switch Crunchyroll audio and subtitles, seek the video, and show the seek preview thumbnails' }
+        { category: 'evaluation', reason: 'Switch Crunchyroll audio and subtitles, seek the video, show the seek preview thumbnails, and open picture in picture' }
       ]
     })
       .then(f => {
@@ -608,6 +612,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
           audioTracks={audioTracks}
           thumbnails={thumbnails}
           chapters={chapters}
+          pictureInPicture={pictureInPicture}
         >
           <iframe
             key={`${mode}-${attachKey}`}
