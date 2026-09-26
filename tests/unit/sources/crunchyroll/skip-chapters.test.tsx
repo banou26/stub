@@ -8,7 +8,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { seekTimeline } from '../../../../src/sources/crunchyroll/cr-page'
 import { skipEventsToChapters } from '../../../../src/sources/crunchyroll/skip-events'
-import { CREDITS_ONLY, OPENING_ONLY } from './skip-events-fixture'
+import { CREDITS_ONLY, EVERY_EVENT, OPENING_ONLY } from './skip-events-fixture'
 
 // The real player of @banou/media-player, handed the chapters Crunchyroll's skip events map to. Its
 // two CommonJS dependencies cannot reach the react alias under node (see vitest.config.ts), and
@@ -94,6 +94,41 @@ describe('the skip events in the player', () => {
   test('an opening after a short cold open, with nothing else marked, still offers Skip Opening', async () => {
     const { host } = show(1_440, 59.5, OPENING_ONLY)
     await vi.waitFor(() => expect(skipButton(host)?.textContent).toBe('Skip Opening'))
+  })
+
+  // each name has to follow its own event's times, never a place in the list: the second episode
+  // puts the preview first and the recap last, so a name picked by position would swap them
+  test.each([
+    ['in their usual places', EVERY_EVENT, 20, 1_425],
+    ['in each other\'s places', {
+      preview: { start: 0, end: 45 },
+      intro: { start: 60, end: 150 },
+      credits: { start: 1_290, end: 1_380 },
+      recap: { start: 1_380, end: 1_440 },
+    }, 1_425, 20],
+  ])('a recap and a preview %s are named by their own times, and neither is offered a skip', async (_, events, recap, preview) => {
+    const shown = async (at: number) => {
+      const { host } = show(1_440, at, events)
+      // the playhead is on the clock, so a missing offer is an answer rather than a race
+      const clock = `${Math.floor(at / 60)}:${String(at % 60).padStart(2, '0')} / 24:00`
+      await vi.waitFor(() => expect(host.querySelector('.time')?.textContent).toBe(clock))
+      return host
+    }
+    const named = (host: HTMLElement, seconds: number) => {
+      hover(host, 1_440, seconds)
+      return host.querySelector('.chapter-title')?.textContent
+    }
+
+    const host = await shown(recap)
+    expect(named(host, recap)).toBe('Recap')
+    expect(named(host, preview)).toBe('Preview')
+    expect(named(host, 100)).toBe('Opening')
+    expect(named(host, 1_350)).toBe('Ending')
+    expect(skipButton(host)).toBeNull()
+    expect(skipButton(await shown(preview))).toBeNull()
+    // the control: the same events do offer a skip, inside the credits
+    const inCredits = await shown(1_330)
+    await vi.waitFor(() => expect(skipButton(inCredits)?.textContent).toBe('Skip Ending'))
   })
 
   test('an episode with no events offers nothing and draws an unbroken bar', async () => {
