@@ -8,12 +8,10 @@ import { origin as sourceOrigin, SCORE, seasonKey, seasonPage, type ManamiRecord
 import {
   INDEXED_ORIGINS,
   catalogRefs,
-  readIndex,
   rowId,
-  type CatalogIndex,
   type CatalogRow,
-  type IndexBundle,
 } from './index-lookup'
+import { loadCatalog } from './catalog'
 import { loadSeedEpisodes, loadSeedIndex, seedMedia, seedRunFor, seedSeasonPage } from './seed-source'
 
 // No icon, deliberately, and anizip is the precedent: it is the other source that exists to link
@@ -78,10 +76,10 @@ type SeasonBundle = { tag: string, updated: string, seasons: Record<string, Mana
  * this way a visitor who only browses the season row never fetches the 114 KB id table.
  */
 let seasons: Promise<SeasonBundle> | undefined
-let index: Promise<CatalogIndex> | undefined
 
 /**
- * Each loaded through a dynamic import, and memoized.
+ * Loaded through a dynamic import, and memoized. The id table is ./catalog.ts, loaded the same way and
+ * shared with the stub tracker.
  *
  * The import has to sit somewhere genuinely reachable. Exporting a loader that nothing calls gets
  * the chunk tree-shaken away by rolldown, silently, leaving a source that always answers empty.
@@ -96,14 +94,6 @@ const loadSeasons = (): Promise<SeasonBundle> =>
     .catch(error => {
       console.error('offline: the bundled season data could not be loaded', error)
       return { tag: 'unavailable', updated: '', seasons: {} }
-    }))
-
-const loadIndex = (): Promise<CatalogIndex> =>
-  (index ??= import('../../generated/anime-index')
-    .then(module => readIndex(module.default as IndexBundle))
-    .catch(error => {
-      console.error('offline: the bundled id index could not be loaded', error)
-      return readIndex({ mal: [], anilist: [], kitsu: [], anidb: [] })
     }))
 
 /**
@@ -211,7 +201,7 @@ const getMedia = async (uri: string): Promise<GQLMedia | null> => {
   const refs = catalogRefs(uris, origin)
   if (!refs.length) return null
 
-  const table = await loadIndex()
+  const table = await loadCatalog()
   for (const ref of refs) {
     const row = table.lookup(ref.origin, ref.id)
     if (!row) continue
