@@ -36,7 +36,8 @@ const fakeWindow = ({ commitMs = 0 } = {}) => {
     events.push('committed and closed')
     end()
   })
-  return { login: { closed, close } as unknown as WindowFrame, close, end, events }
+  const goto = vi.fn(async (_url: string, _options?: unknown) => {})
+  return { login: { closed, close, goto } as unknown as WindowFrame, close, end, events, goto }
 }
 
 const signIn = (isSignedIn: () => Promise<boolean>) =>
@@ -61,7 +62,26 @@ describe('opening the window', () => {
     attach.mockReturnValue(new Promise(() => {}))
     void signIn(async () => false)
     expect(attach).toHaveBeenCalledTimes(1)
-    expect(attach).toHaveBeenCalledWith({ window: { url: LOGIN_URL }, domains: DOMAINS })
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS })
+  })
+
+  // a live sign-in session sends the window straight on to www's home page, whose load a consent script
+  // holds past the attach's 30 s deadline, so the window opens blank and is sent without waiting on load
+  test('sends the blank window to the sign-in page at documentstart', async () => {
+    const { login, goto, end } = fakeWindow()
+    attach.mockResolvedValue(login)
+    const outcome = signIn(async () => false)
+    await vi.waitFor(() => expect(goto).toHaveBeenCalledWith(LOGIN_URL, { waitUntil: 'documentstart' }))
+    end()
+    expect(await outcome).toBe('closed')
+  })
+
+  test('a failed first navigation closes the window and rejects', async () => {
+    const { login, goto, close } = fakeWindow()
+    goto.mockRejectedValue(new Error('frame load timed out after 30000ms'))
+    attach.mockResolvedValue(login)
+    await expect(signIn(async () => false)).rejects.toThrow('frame load timed out')
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   test('a blocked window resolves blocked', async () => {
