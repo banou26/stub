@@ -1,4 +1,6 @@
 import { render } from 'preact'
+import { useEffect, useState } from 'preact/hooks'
+import { receiveEmbedTitle } from './embed-title'
 import { getPlayer } from './sources/players'
 import { fromUri } from './utils/uri'
 
@@ -12,10 +14,12 @@ const origin = sourceUri ? fromUri(sourceUri as `${string}:${string}`).origin : 
 const Player = origin ? getPlayer(origin) : undefined
 
 const App = () => {
+  const [title, setTitle] = useState<string>()
+  useEffect(() => receiveEmbedTitle(setTitle), [])
   if (!mediaUri || !episodeUri || !sourceUri || !url || !Player) {
     return <div>Unsupported or missing parameters</div>
   }
-  return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} />
+  return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} title={title} />
 }
 
 render(<App />, document.getElementById('app')!)
