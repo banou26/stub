@@ -14,6 +14,8 @@ export type PlayerProps = {
   mediaUri: string
   episodeUri: string
   sourceUri: string
+  /** the episode as `episodeLabel` names it, drawn over the picture; it can arrive after the player mounts */
+  title?: string
 }
 
 const players: Record<string, (props: PlayerProps) => any> = {

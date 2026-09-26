@@ -7,9 +7,8 @@ import { useMemo } from 'preact/hooks'
 
 import { withTimelineSeek } from './timeline-seek'
 
-// No `title`: the player would draw one over the picture, but the episode name is not in PlayerProps
-// (it carries uris only), so supplying it means a query this component does not otherwise need.
 type Props = {
+  title?: string
   remote: RemoteVideoElement | null
   frame: Frame | null
   subtitles?: DelegatedTracks
@@ -21,7 +20,7 @@ type Props = {
 
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
-const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, thumbnails, chapters, children }: Props) => {
+const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks, thumbnails, chapters, children }: Props) => {
   // memoized on both inputs: the player re-attaches whenever the media identity changes, so a fresh
   // Proxy every render would tear the store's attach down and rebuild it on every paint
   const media = useMemo(
@@ -38,6 +37,7 @@ const CrunchyrollVideoJSPlayer = ({ remote, frame, subtitles, audioTracks, thumb
       // it does not own; spreading it conditionally would fall through to the local arm, which draws
       // an idle <video> over the Crunchyroll frame below.
       media={media}
+      title={title}
       subtitles={subtitles}
       audioTracks={audioTracks}
       thumbnails={thumbnails}

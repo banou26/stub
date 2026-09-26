@@ -15,6 +15,8 @@ import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
+import { serveEmbedTitle } from '../../embed-title'
+import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { getRoutePath, Route } from '../path'
 
@@ -231,6 +233,7 @@ const Watch = () => {
   const mediaTitle = media?.titles?.at(0)?.title
   const episodeTitle = episode?.titles?.at(0)?.title
   const episodeNumber = episode?.episodeNumber
+  const episodeName = episodeLabel(episodeNumber, episodeTitle)
 
   const embedUrl = useMemo(() => {
     if (!selectedSourceUri) return undefined
@@ -298,6 +301,12 @@ const Watch = () => {
     setPlaybackLink(link)
     return () => { link.dispose(); setPlaybackLink(undefined) }
   }, [viaPlugin, embedUrl])
+
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe || !episodeName) return
+    return serveEmbedTitle(iframe, episodeName)
+  }, [viaPlugin, embedUrl, episodeName])
 
   const sources: WatchSource[] = useMemo(
     () =>
@@ -372,15 +381,7 @@ const Watch = () => {
 
         <div className="watch-info">
           <div className="episode-info">
-            <div className="episode-title">
-              {
-                episodeTitle
-                  ? `${episodeNumber != null ? `E${episodeNumber} - ` : ''}${episodeTitle}`
-                  : episodeNumber != null
-                    ? `Episode ${episodeNumber}`
-                    : params.episodeUri
-              }
-            </div>
+            <div className="episode-title">{episodeName ?? params.episodeUri}</div>
             {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
           </div>
 

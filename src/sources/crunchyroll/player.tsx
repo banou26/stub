@@ -213,7 +213,7 @@ const styles = css`
   }
 `
 
-const CrunchyrollPlayer = ({ url }: PlayerProps) => {
+const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
   const [mode, setMode] = useState<Backend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -601,6 +601,7 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     <div css={styles}>
       {mode !== 'detecting' && (
         <CrunchyrollVideoJSPlayer
+          title={title}
           remote={remoteVideo}
           frame={frame}
           subtitles={subtitles}
