@@ -8,6 +8,9 @@ import { flush, promises as fs, remount } from '@fkn/lib/opfs'
 const ROOT = 'tracking/v1'
 const DEVICE = `${ROOT}/device.json`
 const LOCK = 'stub:tracker-own'
+// a lock of its own, since `read` asks for the device id while the journal holds LOCK, and a Web Lock
+// is not reentrant
+const DEVICE_LOCK = 'stub:tracker-device'
 
 const readText = async (path: string): Promise<string | undefined> => {
   try {
@@ -27,29 +30,36 @@ const writeText = async (path: string, text: string) => {
   await flush()
 }
 
+const locked = <T>(name: string, work: () => Promise<T>): Promise<T> =>
+  typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request(name, work)
+    : work()
+
 let device: Promise<string> | undefined
 
 export const opfsJournalStore = (): JournalStore => {
-  const deviceId = () => (device ??= (async () => {
-    const saved = await readText(DEVICE).catch(() => undefined)
+  // Minted holding a lock, from a fresh read of the disk. Two tabs a session restore opens together
+  // would otherwise each mint an id, and the one whose device.json lost would save to a file nothing
+  // reads again. A device file that exists and cannot be read fails the open rather than being
+  // replaced, for the same reason.
+  const deviceId = () => (device ??= locked(DEVICE_LOCK, async () => {
+    // the mirror is loaded once per worker, so another tab's device.json is only seen after a remount
+    await remount()
+    const saved = await readText(DEVICE)
     const id = saved ? (JSON.parse(saved) as { id?: unknown }).id : undefined
     if (typeof id === 'string' && id) return id
     const minted = crypto.randomUUID()
     await writeText(DEVICE, JSON.stringify({ id: minted }))
     return minted
-  })())
+  }).catch(error => { device = undefined; throw error }))
 
   return {
     device: deviceId,
     read: async () => {
-      // the mirror is loaded once per worker, so another tab's write is only seen after a remount
       await remount()
       return await readText(`${ROOT}/devices/${await deviceId()}.json`)
     },
     write: async (text) => { await writeText(`${ROOT}/devices/${await deviceId()}.json`, text) },
-    exclusive: (work) =>
-      typeof navigator !== 'undefined' && navigator.locks
-        ? navigator.locks.request(LOCK, work)
-        : work(),
+    exclusive: (work) => locked(LOCK, work),
   }
 }
