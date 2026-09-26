@@ -10,7 +10,11 @@ import { SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT, DELETE_LIST_ENTRY_DOCUMENT
 import { memoryStore } from '../../tracking/memory-store'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 
-const catalog: CatalogLookup = { lookup: (origin, id) => [{ mal: 10, anilist: 1, kitsu: 5, anidb: 7 }].find(row => row[origin] === id) }
+const ROWS = [
+  { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
+  { mal: 20, anilist: 2, kitsu: 6, anidb: 8 },
+]
+const catalog: CatalogLookup = { lookup: (origin, id) => ROWS.find(row => row[origin] === id) }
 
 let now = 1_000
 let minted = 0
@@ -78,6 +82,22 @@ describe('the stub tracker', () => {
     expect(saved.data.saveListEntry).toMatchObject([{ tracker: 'stub', outcome: 'REFUSED' }])
     expect(saved.data.saveListEntry[0].error).toContain('anilist:1 and anilist:2')
     expect((await open()).entries(), 'nothing was written').toEqual([])
+  })
+
+  test('refuses a cluster that welded two runs, so the other run never reads or writes its entry', async () => {
+    const { target, open } = stubServer()
+    const welded = 'ag:(anilist:1,mal:20)'
+
+    expect(answerOf(await watch(target, welded).next())).toMatchObject({ state: 'AMBIGUOUS', candidates: ['anilist:1', 'mal:20'] })
+    const saved = await save(target, welded, { progress: 12 })
+    expect(saved.data.saveListEntry).toMatchObject([{ tracker: 'stub', outcome: 'REFUSED' }])
+    expect((await open()).entries(), 'nothing was written').toEqual([])
+    expect(answerOf(await watch(target, 'ag:(anilist:2)').next()).state, 'season 2, which widens to mal:20').toBe('NOT_LISTED')
+
+    const control = await save(target, 'ag:(anilist:1,mal:10)', { progress: 12 })
+    expect(control.data.saveListEntry, 'the control: two ids of one run').toMatchObject([{ tracker: 'stub', outcome: 'SAVED' }])
+    expect(answerOf(await watch(target, 'ag:(anilist:1)').next())).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
+    expect(answerOf(await watch(target, 'ag:(anilist:2)').next()).state).toBe('NOT_LISTED')
   })
 
   test('answers NO_ID for a media it cannot key', async () => {
