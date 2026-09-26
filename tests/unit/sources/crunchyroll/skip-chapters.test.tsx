@@ -71,7 +71,7 @@ describe('the skip events in the player', () => {
   test('the credits offer Skip Ending, which seeks Crunchyroll to where they end', async () => {
     const { host, remote, frame } = show(1_770, 1_690, CREDITS_ONLY)
     await vi.waitFor(() => expect(skipButton(host)?.textContent).toBe('Skip Ending'))
-    expect(skipButton(host)!.parentElement!.classList.contains('show')).toBe(true)
+    await vi.waitFor(() => expect(skipButton(host)!.parentElement!.classList.contains('show')).toBe(true))
 
     act(() => { skipButton(host)!.click() })
     await vi.waitFor(() => expect(frame.evaluate).toHaveBeenCalledWith(seekTimeline, expect.objectContaining({ time: 1_767 })))
