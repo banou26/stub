@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest'
 
 import introspection from '../../src/generated/graphql.schema.json'
 import { keyResolvers } from '../../src/urql-keys'
+import { aggregateTracking } from '../../src/tracking/aggregate'
 
 type IntrospectionType = {
   kind: string
@@ -51,4 +52,22 @@ describe('keyResolvers', () => {
     expect(Object.keys(keyResolvers)).toContain('MediaCover')
     expect(objects.map(type => type.name)).toContain('MediaAiringEpisode')
   })
+})
+
+// The tracking summary is display only, and a cache that keyed it like a tracker's own entry would
+// write the summary's numbers onto that tracker's row.
+test('the tracking summary and a tracker\'s entry never share a cache key', () => {
+  const entry = { _id: 'stub:e1', tracker: 'stub', progress: 3 }
+  const answer = {
+    _id: 'answer:stub:ag:(anilist:1)',
+    tracker: { id: 'stub', name: 'Stub', signedIn: true, canWrite: true, scoreScale: 'POINT_100' },
+    state: 'LISTED' as const,
+    entry,
+    candidates: [],
+    pending: 0,
+  }
+  const { summary } = aggregateTracking('ag:(anilist:1)', [answer])
+
+  expect(keyResolvers.ListEntry(entry as never)).toBe('stub:e1')
+  expect(keyResolvers.ListEntry(summary as never)).not.toBe(keyResolvers.ListEntry(entry as never))
 })

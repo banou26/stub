@@ -20,6 +20,7 @@ import TextEllipsis from '../../components/text-ellipsis'
 import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
 import MediaFranchise from '../../components/media-franchise'
+import MediaTracking from '../../components/media-tracking'
 import TraceLink from '../debug/link'
 import { gql } from '../../generated'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, isUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
@@ -821,6 +822,14 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                   }
                 </span>
               </div>
+              {/* on the address the store has grown to, so the trackers are asked again as the media
+                  gains ids; nothing until the worker has answered for this media at all */}
+              <MediaTracking
+                uri={data?.media?.uri}
+                title={title}
+                cover={coverUrl}
+                episodeCount={data?.media?.episodeCount}
+              />
               {
                 description
                   ? (
