@@ -3,7 +3,7 @@ import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
-import { enterPictureInPictureOnClick } from './cr-page'
+import { PICTURE_IN_PICTURE_REFUSED, enterPictureInPictureOnClick } from './cr-page'
 
 // the element `frame.locator('video')` hands over as the player's media
 const VIDEO_SELECTOR = 'video'
@@ -38,8 +38,11 @@ export const useCrunchyrollPictureInPicture = (
       installed => { if (!cancelled && installed) setInstalledFor(video) },
       err => { if (!cancelled) console.warn('[cr] picture in picture unavailable:', err) },
     )
+    const onRefused = (event: Event) => console.warn('[cr] picture in picture refused:', (event as CustomEvent).detail)
+    video.addEventListener(PICTURE_IN_PICTURE_REFUSED, onRefused)
     return () => {
       cancelled = true
+      video.removeEventListener(PICTURE_IN_PICTURE_REFUSED, onRefused)
       setInstalledFor(null)
     }
   }, [frame, video])

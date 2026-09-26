@@ -133,26 +133,30 @@ export const seekTimeline = async ({ timeline, time, timeout }: { timeline: stri
  * The request is the viewer's own click on stub's control, so it lifts `disablePictureInPicture`
  * first: Crunchyroll sets it on its video, and Chrome refused the request with an InvalidStateError
  * while it was there and entered once it was lifted (crunchyroll.com, Chrome 153, 2026-09-26). A
- * request still refused is reported as an Error named `CrunchyrollPictureInPictureError`.
+ * request still refused is dispatched on the video as `PICTURE_IN_PICTURE_REFUSED`, its detail the
+ * error's name and message, where stub's handle hears it and Crunchyroll's own error reporting does not.
  *
  * On the window in the capture phase, so it runs before anything of the page's. Resolves false,
  * installing nothing, where the document or its video cannot enter picture in picture at all, so the
  * player offers no control there.
  */
+/** What `enterPictureInPictureOnClick` dispatches on the video when the request is refused. */
+export const PICTURE_IN_PICTURE_REFUSED = 'stub:pictureinpicturerefused'
+
 export const enterPictureInPictureOnClick = ({ video }: { video: string }) => {
   const element = document.querySelector(video) as HTMLVideoElement | null
   if (!document.pictureInPictureEnabled || typeof element?.requestPictureInPicture !== 'function') return false
-  const refused = (message: string) =>
-    reportError(Object.assign(new Error(message), { name: 'CrunchyrollPictureInPictureError' }))
+  const refused = (target: HTMLVideoElement, error: Error) =>
+    target.dispatchEvent(new CustomEvent('stub:pictureinpicturerefused', { detail: `${error.name}: ${error.message}` }))
   const swallow = (event: Event) => {
     if (!event.isTrusted) return
     event.stopImmediatePropagation()
     if (event.type !== 'click') return
     event.preventDefault()
     const target = document.querySelector(video) as HTMLVideoElement | null
-    if (!target) return refused('Crunchyroll video is not on the page')
+    if (!target) return
     target.disablePictureInPicture = false
-    target.requestPictureInPicture().catch((error: Error) => refused(`Crunchyroll video refused picture in picture: ${error.name}: ${error.message}`))
+    target.requestPictureInPicture().catch((error: Error) => refused(target, error))
   }
   for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick']) {
     window.addEventListener(type, swallow, true)

@@ -8,7 +8,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { enterPictureInPictureOnClick, pressTrackButton } from '../../../../src/sources/crunchyroll/cr-page'
+import { PICTURE_IN_PICTURE_REFUSED, enterPictureInPictureOnClick, pressTrackButton } from '../../../../src/sources/crunchyroll/cr-page'
 import { pageRealm, recordEvents } from './page-realm'
 
 // Picture in picture on the Crunchyroll player: the page code that enters it from inside Crunchyroll's
@@ -47,12 +47,14 @@ const EPISODE = 'https://www.crunchyroll.com/watch/GAAAAAAAA/one'
 const NEXT_EPISODE = 'https://www.crunchyroll.com/watch/GBBBBBBBB/two'
 
 // every load mounts a fresh video, as each goto does on the real page
+const videos: EventTarget[] = []
 const makeFrame = (install: () => Promise<unknown>) => ({
   goto: vi.fn(async () => {}),
   addStyleTag: vi.fn(async () => {}),
   locator: (selector: string) => ({
     exists: async () => selector === '#user-menu-authenticated' || selector === 'video',
-    videoElement: async () => new EventTarget(),
+    // the DOM shim's element, since its CustomEvent is the one a Node EventTarget refuses
+    videoElement: async () => { const video = document.createElement('video'); videos.push(video); return video },
   }),
   evaluate: vi.fn(async (pageFunction: unknown, _arg?: unknown) => pageFunction === enterPictureInPictureOnClick ? install() : new Promise(() => {})),
 })
@@ -70,6 +72,7 @@ beforeEach(() => {
   Object.defineProperty(document, 'readyState', { configurable: true, get: () => 'complete' })
   player.pictureInPicture = undefined
   player.renders = 0
+  videos.length = 0
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -130,6 +133,13 @@ describe('the Crunchyroll player', () => {
     expect(player.renders).toBeGreaterThan(0)
     expect(player.pictureInPicture).toBeUndefined()
     expect(warn.mock.calls.flat()).toContain(refusal)
+  })
+
+  test('logs a request the page reports refused', async () => {
+    await load(async () => true)
+    await vi.waitFor(() => expect(player.pictureInPicture).toBeDefined())
+    videos.at(-1)!.dispatchEvent(new CustomEvent(PICTURE_IN_PICTURE_REFUSED, { detail: 'NotAllowedError: Must be handling a user gesture' }))
+    expect(warn).toHaveBeenCalledWith('[cr] picture in picture refused:', 'NotAllowedError: Must be handling a user gesture')
   })
 
   test('offers no control where the page\'s video has no picture in picture', async () => {
@@ -209,15 +219,18 @@ describe('enterPictureInPictureOnClick', () => {
     expect(reported).toEqual([])
   })
 
-  test('reports a request that is still refused, rather than dropping it', async () => {
+  // on the video, where stub's handle hears it, and never through Crunchyroll's own error reporting
+  test('tells stub about a request that is still refused, rather than dropping it', async () => {
     const { element, evaluate, pointerClick, reported } = withPictureInPicture()
     const refusal = Object.assign(new Error('Must be handling a user gesture'), { name: 'NotAllowedError' })
     Object.assign(element, { requestPictureInPicture: async () => { throw refusal } })
+    const heard: unknown[] = []
+    element.addEventListener(PICTURE_IN_PICTURE_REFUSED, event => heard.push((event as CustomEvent).detail))
     await evaluate(enterPictureInPictureOnClick, { video: 'video' })
 
     pointerClick()
-    await vi.waitFor(() => expect(reported).toHaveLength(1))
-    expect(reported[0]).toMatchObject({ name: 'CrunchyrollPictureInPictureError', message: expect.stringContaining('NotAllowedError') })
+    await vi.waitFor(() => expect(heard).toEqual(['NotAllowedError: Must be handling a user gesture']))
+    expect(reported).toEqual([])
   })
 
   // the track menu is driven by clicks this module dispatches in the page
