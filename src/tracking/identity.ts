@@ -20,8 +20,10 @@ export type CatalogLookup = { lookup: (origin: IndexedOrigin, id: number) => Cat
  * - `keys`: no catalogue id. `keys` holds the most specific id of each origin, and an entry is matched
  *   when its key EQUALS one of them. Never by overlap: a season shares its show-level id with every
  *   other season of the show.
- * - `ambiguous`: the media names two ids of one origin and neither extends the other, so there is no
- *   telling which entry is meant. The tracker refuses writes and lists both.
+ * - `ambiguous`: the media names two things and there is no telling which entry is meant, so the
+ *   tracker refuses writes and lists them. Either two ids of one origin where neither extends the
+ *   other, or catalogue ids the offline catalogue places in two different runs: a cluster that welded
+ *   season 1's AniList id to season 2's MyAnimeList id.
  * - `none`: nothing to key on.
  */
 export type MediaIdentity =
@@ -79,19 +81,19 @@ export const identify = (uri: string, catalog?: CatalogLookup): MediaIdentity =>
   }
 
   if (own.size) {
-    // WIDENED, and only where the media is silent: a catalogue the media names keeps its own id, and
-    // a catalogue two rows disagree on is left out rather than guessed at.
-    const widened = new Map<IndexedOrigin, Set<number>>()
-    for (const ref of refs) {
-      const row = catalog?.lookup(ref.origin, ref.id)
-      if (!row) continue
-      for (const origin of INDEXED_ORIGINS) {
-        if (row[origin] && !own.has(origin)) widened.set(origin, (widened.get(origin) ?? new Set()).add(row[origin]))
-      }
-    }
+    const named = [...own].map(([origin, set]) => ({ origin, id: [...set][0]! }))
+    const rows = refs.flatMap(ref => catalog?.lookup(ref.origin, ref.id) ?? [])
+    const row = rows[0]
+    // The catalogue holds every id in one row only (24,077 rows, no id in two, measured 2026-09-27), so
+    // two rows, or a row naming another id for a catalogue the media names, are two runs in one
+    // cluster. Keeping both would link them in the entry for good, and every later save widens it.
+    const welded = rows.some(other => INDEXED_ORIGINS.some(origin => other[origin] !== row![origin]))
+      || Boolean(row && named.some(({ origin, id }) => row[origin] && row[origin] !== id))
+    if (welded) return { kind: 'ambiguous', candidates: named.map(({ origin, id }) => `${origin}:${id}`).sort() }
+    // WIDENED, and only where the media is silent: the row fills in the catalogues it does not name
     const ids = [
-      ...[...own].map(([origin, set]) => `${origin}:${[...set][0]}`),
-      ...[...widened].filter(([, set]) => set.size === 1).map(([origin, set]) => `${origin}:${[...set][0]}`),
+      ...named.map(({ origin, id }) => `${origin}:${id}`),
+      ...row ? INDEXED_ORIGINS.filter(origin => row[origin] && !own.has(origin)).map(origin => `${origin}:${row[origin]}`) : [],
     ].sort()
     return { kind: 'catalogue', ids, keys }
   }

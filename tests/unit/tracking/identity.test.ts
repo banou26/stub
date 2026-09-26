@@ -8,6 +8,9 @@ import { entryMatches, identify, newEntryIdentity, type CatalogLookup, type Medi
 const ROWS = [
   { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
   { mal: 20, anilist: 2, kitsu: 6, anidb: 8 },
+  // rows the catalogue holds only part of, where a zero is a catalogue the run is not in
+  { mal: 30, anilist: 3, kitsu: 0, anidb: 0 },
+  { mal: 0, anilist: 0, kitsu: 40, anidb: 0 },
 ]
 const catalog: CatalogLookup = { lookup: (origin, id) => ROWS.find(row => row[origin] === id) }
 
@@ -55,12 +58,28 @@ describe('catalogue ids', () => {
     expect(entryMatches(entry, identify('ag:(mal:20)', catalog)), 'the control: another run').toBe(false)
   })
 
-  test('a catalogue the media names itself keeps its own id, and one two rows disagree on is left out', () => {
-    const identity = identify('ag:(anilist:1,kitsu:6)', catalog)
+  test('the catalogue fills in only the catalogues the media does not name', () => {
+    expect(identify('ag:(anilist:1,mal:10)', catalog), 'two ids of one run').toEqual({ kind: 'catalogue', ids: ['anidb:7', 'anilist:1', 'kitsu:5', 'mal:10'], keys: [] })
+    expect(identify('ag:(anilist:4,mal:99)', catalog), 'ids the catalogue does not hold are kept as named').toEqual({ kind: 'catalogue', ids: ['anilist:4', 'mal:99'], keys: [] })
+  })
+})
 
-    // anilist:1 widens to kitsu 5 and the media says kitsu 6, so kitsu stays 6. The two rows disagree
-    // on mal (10 against 20) and on anidb (7 against 8), so neither is claimed.
-    expect(identity).toEqual({ kind: 'catalogue', ids: ['anilist:1', 'kitsu:6'], keys: [] })
+// A cluster can weld season 1's AniList id to season 2's MyAnimeList id. Kept as one catalogue
+// identity, the entry would store both, and season 2 (which widens to the same MyAnimeList id) would
+// read and write season 1's entry from then on.
+describe('catalogue ids of two runs', () => {
+  test('are ambiguous when the catalogue places them in two rows', () => {
+    expect(identify('ag:(anilist:1,mal:20)', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'mal:20'] })
+    expect(identify('ag:(anilist:1,kitsu:6)', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'kitsu:6'] })
+  })
+
+  test('are ambiguous when the row of one names another id than the media for a catalogue', () => {
+    // mal:99 is in no row, but anilist:1's row says its MyAnimeList id is 10
+    expect(identify('ag:(anilist:1,mal:99)', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'mal:99'] })
+  })
+
+  test('are ambiguous in two rows even when neither row names the other\'s catalogue', () => {
+    expect(identify('ag:(anilist:3,kitsu:40)', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:3', 'kitsu:40'] })
   })
 })
 
