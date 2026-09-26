@@ -14,7 +14,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # the repo's own version, as Pages builds with: Node 22 has no navigator.locks, which the tracker's store takes
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
 

@@ -1,7 +1,7 @@
 // The stub tracker's OPFS store over a fake @fkn/lib/opfs, one fresh module instance per worker. Two
 // tabs a session restore opens together used to mint two device ids, and the tab whose device.json
 // lost saved to a file nothing read again.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { identify } from '../../../../src/tracking/identity'
 import { openJournal } from '../../../../src/tracking/journal'
@@ -57,6 +57,11 @@ let now = 1_700_000_000_000
 const deps = { now: () => (now += 1_000), uuid: () => crypto.randomUUID() }
 const media = identify('ag:(anilist:1)')
 if (media.kind !== 'catalogue') throw new Error('expected a catalogue identity')
+
+// without Web Locks the store runs unlocked, so a lost lock would read as a race rather than as the missing API
+beforeAll(() => {
+  expect(globalThis.navigator?.locks, 'navigator.locks is missing: run the tests on the Node in .node-version (24+)').toBeDefined()
+})
 
 beforeEach(() => {
   disk.files.clear()
