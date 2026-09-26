@@ -58,7 +58,7 @@ export const signInThroughWindow = async ({
   readTimeoutMs = 5000,
 }: WindowSignInOptions): Promise<WindowSignIn> => {
   // first statement on purpose: an await above it would open the window without the click's activation
-  const opening = attachFrame({ window: { url }, domains })
+  const opening = attachFrame({ window: {}, domains })
   let login: WindowFrame
   try {
     login = await opening
@@ -72,6 +72,18 @@ export const signInThroughWindow = async ({
     // the lib's terminal detach error: the window closed or went away before it connected
     if (isTerminalError(err)) return 'closed'
     throw err
+  }
+
+  // opened blank and sent at 'documentstart', never on the attach's own load wait: a viewer whose sign-in
+  // session is still alive goes straight on to www's home page, whose 1.9 MB consent script held the load
+  // past the 30 s deadline (measured 2026-09-27); a window gone meanwhile ends the loop below on `closed`
+  try {
+    await login.goto(url, { waitUntil: 'documentstart' })
+  } catch (err) {
+    if (!isTerminalError(err)) {
+      await login.close().catch(() => {})
+      throw err
+    }
   }
 
   // a read issued across a redirect can block on the lib's own retry for tens of seconds, so every
