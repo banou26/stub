@@ -33,6 +33,9 @@ vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', () => ({
 // the skip events are a separate concern, and stay unanswered here
 vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
 
+// picture in picture evaluates in the page too, and is a separate concern that would add to the count
+vi.mock('../../../../src/sources/crunchyroll/picture-in-picture', () => ({ useCrunchyrollPictureInPicture: () => undefined }))
+
 const skin = vi.hoisted(() => ({ thumbnails: undefined as ExternalThumbnails | undefined }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
   default: ({ thumbnails, children }: { thumbnails?: ExternalThumbnails, children?: ComponentChildren }) => {

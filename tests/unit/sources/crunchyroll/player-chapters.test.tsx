@@ -35,6 +35,8 @@ vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', () => ({
 vi.mock('../../../../src/sources/crunchyroll/seek-thumbnails', () => ({
   loadCrunchyrollThumbnails: () => new Promise(() => {}),
 }))
+// picture in picture warns when the page code cannot be installed, and would add to the count
+vi.mock('../../../../src/sources/crunchyroll/picture-in-picture', () => ({ useCrunchyrollPictureInPicture: () => undefined }))
 
 const skin = vi.hoisted(() => ({ chapters: undefined as MediaChapter[] | undefined }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
