@@ -84,18 +84,6 @@ const LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
   state: '/',
 })}`
 
-// every sso.crunchyroll.com page sits in its root layout's `.cx-app`, beside `#recaptcha-container`,
-// and neither is on www.crunchyroll.com: read from the served markup of /login, /register,
-// /reset-password and /login/verify-otp and the www bundles on 2026-09-26. Both are read so a rename
-// of one still leaves the other
-const onSsoPage = async (login: Frame) => {
-  const [app, recaptcha] = await Promise.all([
-    login.locator('.cx-app').exists(),
-    login.locator('#recaptcha-container').exists(),
-  ])
-  return app || recaptcha
-}
-
 type Backend = 'detecting' | 'extension' | 'cloud'
 
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
@@ -498,7 +486,6 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       url: LOGIN_URL,
       domains: CRUNCHYROLL_DOMAINS,
       isSignedIn: login => login.locator('#user-menu-authenticated').exists(),
-      onSignInPage: onSsoPage,
     })
     setPopupBlocked(false)
     setWindowOpen(true)
