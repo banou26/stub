@@ -67,6 +67,10 @@ const CRUNCHYROLL_OUTER_CSS = `
     opacity: 0 !important;
     pointer-events: none !important;
   }
+  /* shows only where the frame takes pointer events: the player's picture in picture control, armed */
+  html, html * {
+    cursor: pointer !important;
+  }
 `
 
 const BASE_URL = 'https://www.crunchyroll.com'
