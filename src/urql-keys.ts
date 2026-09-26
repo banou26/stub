@@ -3,7 +3,7 @@
 // its own file.
 import type { KeyingConfig } from '@urql/exchange-graphcache'
 
-import type { Episode, Media, MediaTrailer, PlaybackSource } from './generated/schema/types.generated'
+import type { Episode, ListEntry, Media, MediaTrailer, PlaybackSource, Tracker, TrackerAnswer, Tracking } from './generated/schema/types.generated'
 
 /**
  * How graphcache identifies each type in the schema.
@@ -45,4 +45,13 @@ export const keyResolvers = {
   EpisodeShortDescription: () => null,
   EpisodeThumbnail: () => null,
   PlaybackSource: (playbackSource) => (playbackSource as PlaybackSource).uri,
+  // Tracking. A tracker's entry is keyed by its own id and the summary by one no tracker uses
+  // (tracking/aggregate.ts), so the summary never lands on one tracker's row. An outcome and a date
+  // describe their parent and are embedded in it.
+  Tracking: (tracking) => String((tracking as Tracking)._id),
+  TrackerAnswer: (answer) => String((answer as TrackerAnswer)._id),
+  Tracker: (tracker) => (tracker as Tracker).id,
+  ListEntry: (entry) => String((entry as ListEntry)._id),
+  FuzzyDate: () => null,
+  WriteOutcome: () => null,
 } satisfies KeyingConfig

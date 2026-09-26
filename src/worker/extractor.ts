@@ -1,4 +1,4 @@
-import type { YogaInitialContext } from 'graphql-yoga'
+import type { Plugin, YogaInitialContext } from 'graphql-yoga'
 import type { Exchange } from 'urql'
 
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
@@ -19,6 +19,8 @@ import { attach } from '@fkn/lib/packages'
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
+import { defaultResolvers } from './extractor-defaults'
+import { collectUris, joinFanout, leaveFanout, openFanout, type Fanout } from './fanout'
 import { answersForOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
@@ -490,104 +492,69 @@ export const similarMediaFrom = (caller: string) => {
   }
 }
 
-const makeExtractor = (extractor: ExtractorDefinition) => {
+/**
+ * How a provider server differs from a media source's. A media source takes every default; a tracker
+ * takes none of these, because its answer is the viewer's own and moves on every write.
+ */
+export type ExtractorOptions = {
+  /** Serve a repeated query from a 15 minute cache. */
+  responseCache?: boolean
+  /** Insert every Media, Episode and Origin the server resolves into the metadata store. */
+  ingest?: boolean
+  /** Extra fields for each request's context, beside the ones every provider gets. */
+  context?: () => Record<string, unknown>
+}
+
+export const makeExtractor = (
+  extractor: ExtractorDefinition,
+  { responseCache = true, ingest = true, context }: ExtractorOptions = {}
+) => {
   const originData = normalizeOrigin({ ...extractor, id: extractor.origin, url: extractor.originUrl, icon: extractor.icon ?? null, color: extractor.color ?? null })
+
+  // the rows every answer names go into the metadata store, which is what a media source is for
+  const ingestPlugin: Plugin = {
+    onPluginInit: ({ addPlugin }) => {
+      addPlugin(useOnResolve(({ info }) =>
+        async ({ result }) => {
+          const named = getNamedType(info.returnType).name
+          // The answer log is started BESIDE the inserters, never after them: both coalesce on a
+          // 50 ms window, so awaiting them in series would add the two windows together on every
+          // resolve. It returns undefined with the `?graph` flag down, which is the whole of its
+          // cost there.
+          const logged = recordAnswers(info, named, result)
+          if (named === 'Media') {
+            if (Array.isArray(result)) {
+              await mediaInserter.loadMany(result as Media[])
+            } else if (result) {
+              await mediaInserter.load(result as Media)
+            }
+          } else if (named === 'Episode') {
+            if (Array.isArray(result)) {
+              await episodeInserter.loadMany(result as Episode[])
+            } else if (result) {
+              await episodeInserter.load(result as Episode)
+            }
+          } else if (named === 'Origin') {
+            if (Array.isArray(result)) {
+              await originInserter.loadMany(result as Origin[])
+            } else if (result) {
+              await originInserter.load(result as Origin)
+            }
+          }
+          await logged
+        }
+      ))
+    }
+  }
 
   const server = createYoga<Omit<ExtractorServerContext, keyof YogaInitialContext>, ExtractorUserContext>({
     schema: createSchema<Omit<ExtractorServerContext, keyof YogaInitialContext>>({
       typeDefs,
-      resolvers:
-        merge(
-          {
-            Media: {
-              _id: (parent) => parent.uri,
-              handles: (parent) => parent.handles ?? [],
-              relations: (parent) => parent.relations ?? [],
-              categories: (parent) => parent.categories ?? [],
-              // every non-null list on Media needs one of these, because a source may omit any field
-              // and a null in a non-null position nulls its whole parent, taking the rest of the
-              // payload with it
-              genres: (parent) => parent.genres ?? [],
-              tags: (parent) => parent.tags ?? [],
-              titles: (parent) => parent.titles ?? [],
-              descriptions: (parent) => parent.descriptions ?? [],
-              shortDescriptions: (parent) => parent.shortDescriptions ?? [],
-              covers: (parent) => parent.covers ?? [],
-              banners: (parent) => parent.banners ?? [],
-              trailers: (parent) => parent.trailers ?? [],
-              episodes: (parent) => parent.episodes ?? [],
-            },
-            Episode: {
-              _id: (parent) => parent.uri,
-              handles: (parent) => parent.handles ?? [],
-              descriptions: (parent) => parent.descriptions ?? [],
-              shortDescriptions: (parent) => parent.shortDescriptions ?? []
-            },
-            Query: {
-            },
-            Mutation: {
-            },
-            Subscription: {
-              origin: {
-                resolve: () => originData,
-                subscribe: async function*() { return yield originData }
-              },
-              originPage: {
-                resolve: () => ({ nodes: [originData] }),
-                subscribe: async function* () { yield [originData] }
-              },
-              media: { subscribe: async function* (_parent) { yield { media: null } } },
-              mediaPage: { subscribe: async function* (_parent) { yield { mediaPage: { nodes: [] } } } },
-              // most sources cannot answer show-plus-evidence, and the default has to YIELD that rather
-              // than end: a subscription generator that completes without yielding makes yoga respond
-              // 204 No Content, which the caller would sit on until its timeout instead of reading a
-              // refusal off the first payload
-              similarMedia: { subscribe: async function* (_parent) { yield { similarMedia: null } } },
-              // and the same default for the second question, for the same reason: `implementsContainingMedia`
-              // keeps the funnel off a source that ships no resolver, and any other caller of the field
-              // reads a refusal rather than waiting out a 204
-              containingMedia: { subscribe: async function* (_parent) { yield { containingMedia: null } } }
-            }
-          } satisfies Resolvers,
-          extractor.resolvers
-        ) as Resolvers
+      resolvers: merge(defaultResolvers(originData), extractor.resolvers) as Resolvers
     }),
     plugins: [
-      useResponseCache({ session: () => null, ttl: 15 * 60 * 1000 }),
-      {
-        onPluginInit: ({ addPlugin }) => {
-          addPlugin(useOnResolve(({ info }) =>
-            async ({ result }) => {
-              const named = getNamedType(info.returnType).name
-              // The answer log is started BESIDE the inserters, never after them: both coalesce on a
-              // 50 ms window, so awaiting them in series would add the two windows together on every
-              // resolve. It returns undefined with the `?graph` flag down, which is the whole of its
-              // cost there.
-              const logged = recordAnswers(info, named, result)
-              if (named === 'Media') {
-                if (Array.isArray(result)) {
-                  await mediaInserter.loadMany(result as Media[])
-                } else if (result) {
-                  await mediaInserter.load(result as Media)
-                }
-              } else if (named === 'Episode') {
-                if (Array.isArray(result)) {
-                  await episodeInserter.loadMany(result as Episode[])
-                } else if (result) {
-                  await episodeInserter.load(result as Episode)
-                }
-              } else if (named === 'Origin') {
-                if (Array.isArray(result)) {
-                  await originInserter.loadMany(result as Origin[])
-                } else if (result) {
-                  await originInserter.load(result as Origin)
-                }
-              }
-              await logged
-            }
-          ))
-        }
-      }
+      ...(responseCache ? [useResponseCache({ session: () => null, ttl: 15 * 60 * 1000 })] : []),
+      ...(ingest ? [ingestPlugin] : [])
     ],
     maskedErrors: {
       maskError(error, message, isDev) {
@@ -623,6 +590,7 @@ const makeExtractor = (extractor: ExtractorDefinition) => {
       server.handleRequest(
         new Request(input, init),
         {
+          ...context?.(),
           fetch: fetchWithBackoff,
           key: (origin: string) => userKeys[origin],
           findAggregatedMedia: (uri: string) => findAggregatedMediaForContext(uri),
@@ -641,7 +609,8 @@ const makeExtractor = (extractor: ExtractorDefinition) => {
   }
 }
 
-export const extractors = Object.values(extractorDefinitions).map(makeExtractor)
+// a lambda and never `.map(makeExtractor)`, which would hand the index over as the options
+export const extractors = Object.values(extractorDefinitions).map(definition => makeExtractor(definition))
 
 // data fields materialize locally, resolver functions stay remote and execute inside the plugin's own sandbox frame
 
@@ -819,57 +788,11 @@ export const unregisterRemoteExtractor = (pluginUri: string) => {
 }
 
 type ExtractorEntry = (typeof extractors)[number]
-type FanoutSubscription = ReturnType<ReturnType<ExtractorEntry['client']['subscription']>['subscribe']>
 
 type SubscriptionArgs = Parameters<ExtractorEntry['client']['subscription']>
 
-type Fanout = {
-  query: SubscriptionArgs[0]
-  variables: SubscriptionArgs[1]
-  insertedUris: Set<string>
-  extractUris?: (result: any) => string[]
-  // the same array the caller holds and unsubscribes, so late joiners are torn down with the rest
-  /** the same array the caller holds and unsubscribes, so late joiners are torn down with the rest */
-  subscriptions: FanoutSubscription[]
-  joined: Map<ExtractorEntry, FanoutSubscription>
-  /** stamped onto every joiner, including one that registers mid-flight, so no source is left unstamped */
-  root: RequestContext
-}
-
-// every in-flight fan-out, so a source that registers mid-subscription can still join it
-const fanouts = new Set<Fanout>()
-
-// one source must never be able to take down the fan-out: a source that cannot start is skipped
-const joinFanout = (fanout: Fanout, extractor: ExtractorEntry) => {
-  if (fanout.joined.has(extractor)) return
-  let subscription: FanoutSubscription
-  try {
-    subscription = extractor.client.subscription(fanout.query, stamp(fanout.variables ?? {}, fanout.root)).subscribe((result) => {
-      if (!fanout.extractUris) return
-      try {
-        for (const uri of fanout.extractUris(result) ?? []) {
-          fanout.insertedUris.add(uri)
-        }
-      } catch (error) {
-        console.error(new Error(`Extractor ${extractor.name} produced an unreadable fan-out result`, { cause: error }))
-      }
-    })
-  } catch (error) {
-    console.error(new Error(`Extractor ${extractor.name} failed to join the fan-out`, { cause: error }))
-    return
-  }
-  fanout.joined.set(extractor, subscription)
-  fanout.subscriptions.push(subscription)
-}
-
-const leaveFanout = (fanout: Fanout, extractor: ExtractorEntry) => {
-  const subscription = fanout.joined.get(extractor)
-  if (!subscription) return
-  fanout.joined.delete(extractor)
-  const index = fanout.subscriptions.indexOf(subscription)
-  if (index !== -1) fanout.subscriptions.splice(index, 1)
-  Promise.resolve(subscription.unsubscribe()).catch(() => {})
-}
+// every in-flight media fan-out, so a source that registers mid-subscription can still join it
+const fanouts = new Set<Fanout<ExtractorEntry>>()
 
 export const proxyRequestToExtractors = (
   ctx: ExtractorServerContext,
@@ -877,16 +800,14 @@ export const proxyRequestToExtractors = (
   extractUris?: (result: any) => string[]
 ) => {
   const root = openRoot(operation)
-  const fanout: Fanout = {
+  const insertedUris = new Set<string>()
+  const fanout = openFanout({
+    entries: extractors,
     query: ctx.params.query!,
     variables: ctx.params.variables,
-    insertedUris: new Set<string>(),
-    extractUris,
-    subscriptions: [],
-    joined: new Map(),
     root,
-  }
-  for (const extractor of extractors) joinFanout(fanout, extractor)
+    onResult: extractUris ? collectUris(extractUris, insertedUris) : undefined,
+  })
   fanouts.add(fanout)
 
   /**
@@ -927,7 +848,7 @@ export const proxyRequestToExtractors = (
       if (!answersForOrigins(definition, originIds)) continue
       try {
         fanout.subscriptions.push(
-          extractor.client.subscription(fanout.query, stamp(variables ?? {}, fanout.root)).subscribe(() => {})
+          extractor.client.subscription(ctx.params.query!, stamp(variables ?? {}, root)).subscribe(() => {})
         )
       } catch (error) {
         console.error(new Error(`Extractor ${extractor.name} failed to re-join the fan-out`, { cause: error }))
@@ -937,7 +858,7 @@ export const proxyRequestToExtractors = (
 
   return {
     subscriptions: fanout.subscriptions,
-    insertedUris: fanout.insertedUris,
+    insertedUris,
     askOrigins,
     /** the root context of this fan-out, for a consumer that asks other origins on the page's behalf */
     root,
