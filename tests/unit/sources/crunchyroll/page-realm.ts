@@ -20,7 +20,7 @@ type Rect = { left: number, top: number, width: number, height: number }
  * `reportError` lands in `reported`.
  */
 export const pageRealm = (html: string) => {
-  const { document, window, Event: LinkedomEvent, HTMLElement, HTMLInputElement } = parseHTML(html)
+  const { document, window, Event: LinkedomEvent, CustomEvent, HTMLElement, HTMLInputElement } = parseHTML(html)
   for (const input of document.querySelectorAll('input')) {
     for (const name of ['min', 'max']) {
       Object.defineProperty(input, name, { configurable: true, get: () => input.getAttribute(name) ?? '' })
@@ -38,7 +38,7 @@ export const pageRealm = (html: string) => {
 
   const reported: unknown[] = []
   const context = createContext({
-    document, window, Event, MouseEvent, PointerEvent, HTMLElement, HTMLInputElement, setTimeout, clearTimeout,
+    document, window, Event, CustomEvent, MouseEvent, PointerEvent, HTMLElement, HTMLInputElement, setTimeout, clearTimeout,
     reportError: (error: unknown) => { reported.push(error) },
   })
 
