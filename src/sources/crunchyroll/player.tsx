@@ -324,8 +324,10 @@ const CrunchyrollPlayer = ({ url }: PlayerProps) => {
     invalidateTracks()
     ;(async () => {
       if (mode === 'cloud') {
-        // 'load', not 'documentstart': the render proxy applies locator calls to the committed document
-        await frame.goto(url, { waitUntil: 'load' })
+        // 'documentstart', never 'load': a signed-out page loads a consent script (cdn.ketchjs.com, 1.9 MB) that
+        // took 19 s through the relay and kept the page's load past the 30 s deadline (measured 2026-09-26), so
+        // the page's own markers decide; the render proxy refuses reads retryably until the new document commits
+        await frame.goto(url, { waitUntil: 'documentstart' })
         if (cancelled) return
         // auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
         const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
