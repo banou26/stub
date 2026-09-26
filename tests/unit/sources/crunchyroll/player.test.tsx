@@ -142,7 +142,7 @@ describe('cloud backend', () => {
     // counted before anything is awaited: the window only opens with the click's own activation
     expect(signIn).toHaveBeenCalledTimes(1)
 
-    const [{ url, domains, isSignedIn, onSignInPage }] = signIn.mock.calls[0]!
+    const [{ url, domains, isSignedIn }] = signIn.mock.calls[0]!
     expect(new URL(url).origin + new URL(url).pathname).toBe('https://sso.crunchyroll.com/authorize')
     expect(new URL(url).searchParams.get('state')).toBe('/')
     expect(domains).toContain('sso.crunchyroll.com')
@@ -152,13 +152,6 @@ describe('cloud backend', () => {
     const read = vi.fn(async (_selector: string) => true)
     await isSignedIn({ locator: (selector: string) => ({ exists: () => read(selector) }) } as unknown as Frame)
     expect(read).toHaveBeenCalledWith('#user-menu-authenticated')
-
-    // the SSO app's own layout, on every one of its pages and on none of www's: either one answers
-    const page = (present: string[]) => ({ locator: (selector: string) => ({ exists: async () => present.includes(selector) }) }) as unknown as Frame
-    expect(await onSignInPage(page(['.cx-app', '#recaptcha-container']))).toBe(true)
-    expect(await onSignInPage(page(['.cx-app']))).toBe(true)
-    expect(await onSignInPage(page(['#recaptcha-container']))).toBe(true)
-    expect(await onSignInPage(page(['#user-menu-authenticated']))).toBe(false)
 
     // and the in-frame sign-in is gone: the player frame is only ever sent to the episode
     expect(frame.goto.mock.calls.map(([target]) => target)).toEqual([EPISODE])

@@ -5,10 +5,9 @@ import { attachFrame, isTerminalError } from '@fkn/lib'
 /**
  * How a sign-in through an FKN window ended.
  *
- * - `'authed'`: `isSignedIn` saw the signed-in page, or the window left the sign-in page that
- *   `onSignInPage` names (it answered that the page is gone, or could no longer be read at all), and
- *   the window has been closed with `close()`, which commits its cookies to the app's cloud jar
- *   first. An inline cloud frame loaded after this loads signed in.
+ * - `'authed'`: `isSignedIn` answered `true`, and the window has been closed with `close()`, which
+ *   commits its cookies to the app's cloud jar first. An inline cloud frame loaded after this loads
+ *   signed in. Nothing else closes the window, so a sign-in is never cut mid way.
  * - `'closed'`: the window ended first, closed by the viewer or lost. The viewer may still have
  *   finished signing in, since a read can be pending when they close it.
  * - `'blocked'`: the browser opened no window (popup blocker, or no user activation).
@@ -25,22 +24,10 @@ export type WindowSignInOptions = {
   /**
    * Whether the window's page shows the signed-in state. Use a severity-0 read (`exists`, `count`,
    * `isVisible`) so the poll never prompts. A rejection or a read past `readTimeoutMs` counts as not
-   * signed in yet.
+   * signed in yet: a read also rejects while the site replaces its own document, and on a host
+   * outside `domains`, so neither says the sign-in is done.
    */
   isSignedIn: (login: Frame) => Promise<boolean>
-  /**
-   * Whether the window's page is still the site's sign-in page, as a severity-0 read. Once a read has
-   * seen it, two answers in a row saying it is gone count as signed in, since the site only moves the
-   * window off it once the credentials were accepted. A form that stays after a failed sign-in keeps
-   * the window open. A read past `readTimeoutMs` answers neither way.
-   *
-   * A read that REJECTS counts as the page being gone, once it has been seen. On the cloud backend a
-   * page that leaves for another host through a redirect, a link or a form lands on another origin of
-   * the render proxy, where every read rejects at once and for good (measured on fkn.app with
-   * `@fkn/lib` 0.9.36, 2026-09-26), so a sign-in that ends on the site's own host never answers
-   * `false`. A read that only retries runs into `readTimeoutMs` instead.
-   */
-  onSignInPage?: (login: Frame) => Promise<boolean>
   /** Time between two reads, in milliseconds. 1000 by default. */
   pollMs?: number
   /** How long one read may take before it counts as unanswered, in milliseconds. 5000 by default. */
@@ -49,16 +36,10 @@ export type WindowSignInOptions = {
 
 const REFUSALS = new Set(['ExtensionOperationUnsupportedError', 'FrameWindowRefusedError'])
 
-// one answer can come from a re-render mid submit, where the form is briefly out of the document
-const LEFT_READS = 2
-
-// the lib retries a read it may still answer until its own deadline, so one that rejects inside `ms`
-// was refused for good; undefined when it outlasted `ms`, which proves nothing either way
-const UNREADABLE = 'unreadable'
 const answer = (read: () => Promise<boolean>, ms: number) => {
   let timer: ReturnType<typeof setTimeout> | undefined
   return Promise.race([
-    Promise.resolve().then(read).catch(() => UNREADABLE),
+    Promise.resolve().then(read).catch(() => undefined),
     new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) }),
   ]).finally(() => clearTimeout(timer))
 }
@@ -73,7 +54,6 @@ export const signInThroughWindow = async ({
   url,
   domains,
   isSignedIn,
-  onSignInPage,
   pollMs = 1000,
   readTimeoutMs = 5000,
 }: WindowSignInOptions): Promise<WindowSignIn> => {
@@ -95,28 +75,15 @@ export const signInThroughWindow = async ({
   }
 
   // a read issued across a redirect can block on the lib's own retry for tens of seconds, so every
-  // read is bounded and the window closing ends the wait without waiting on one. A window that ends
-  // rejects the reads in flight too, and `closed` settles first, so that never counts as leaving
+  // read is bounded and the window closing ends the wait without waiting on one
   const closed = login.closed.then(() => 'closed' as const)
-  let seen = false
-  let away = 0
   for (;;) {
     const tick = await Promise.race([
       closed,
-      new Promise(resolve => setTimeout(resolve, pollMs)).then(() => Promise.all([
-        answer(() => isSignedIn(login), readTimeoutMs),
-        onSignInPage && answer(() => onSignInPage(login), readTimeoutMs),
-      ])),
+      new Promise(resolve => setTimeout(resolve, pollMs)).then(() => answer(() => isSignedIn(login), readTimeoutMs)),
     ])
     if (tick === 'closed') return 'closed'
-    const [signedIn, onPage] = tick
-    if (onPage === true) {
-      seen = true
-      away = 0
-    } else if ((onPage === false || onPage === UNREADABLE) && seen) {
-      away += 1
-    }
-    if (signedIn === true || away >= LEFT_READS) {
+    if (tick === true) {
       await login.close()
       return 'authed'
     }
