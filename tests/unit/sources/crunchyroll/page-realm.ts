@@ -16,7 +16,8 @@ type Rect = { left: number, top: number, width: number, height: number }
  * linkedom has no MouseEvent or PointerEvent and lays nothing out: both events are Event subclasses
  * that carry their init fields, and `place` gives an element a box. Its own Event is named
  * GlobalEvent, so it is subclassed once to read as `Event` in a recording. Its inputs do not reflect
- * `min` and `max` as properties, so the ones in `html` are given that here.
+ * `min` and `max` as properties, so the ones in `html` are given that here. What the page hands to
+ * `reportError` lands in `reported`.
  */
 export const pageRealm = (html: string) => {
   const { document, window, Event: LinkedomEvent, HTMLElement, HTMLInputElement } = parseHTML(html)
@@ -35,8 +36,10 @@ export const pageRealm = (html: string) => {
   }
   class PointerEvent extends MouseEvent {}
 
+  const reported: unknown[] = []
   const context = createContext({
     document, window, Event, MouseEvent, PointerEvent, HTMLElement, HTMLInputElement, setTimeout, clearTimeout,
+    reportError: (error: unknown) => { reported.push(error) },
   })
 
   const evaluate = async <R, A>(pageFunction: ((arg: A) => R | Promise<R>) | string, arg?: A): Promise<Awaited<R>> => {
@@ -56,7 +59,7 @@ export const pageRealm = (html: string) => {
     element.getBoundingClientRect = () => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height, x: rect.left, y: rect.top }) as DOMRect
   }
 
-  return { document: document as unknown as Document, evaluate, place }
+  return { document: document as unknown as Document, evaluate, place, reported }
 }
 
 /** Every event an element receives, as `Constructor:type`, with the pointer position it carried. */

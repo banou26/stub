@@ -121,28 +121,41 @@ export const seekTimeline = async ({ timeline, time, timeout }: { timeline: stri
 }
 
 /**
- * Makes a click in Crunchyroll's page open its video in picture in picture, and keeps that click from
- * every other handler, so Crunchyroll's own never pauses the video on it.
+ * Makes a click in Crunchyroll's page open its video in picture in picture, and keeps that click, and
+ * the presses around it, from every other handler, so Crunchyroll's own never pause the video on it.
  *
  * The request has to be made here, inside the click: a browser opens picture in picture only for a
  * gesture in the document that owns the video. Stub's player lets the click on its control through to
  * this frame (see picture-in-picture.ts), and the frame takes no pointer events at any other time, so
- * a real click reaching this page is one meant for this. Clicks this module dispatches itself (the
+ * a real press reaching this page is one meant for this. Events this module dispatches itself (the
  * track menu's, above) are not `isTrusted`, and pass untouched.
  *
+ * The request is the viewer's own click on stub's control, so it lifts `disablePictureInPicture`
+ * first: Crunchyroll sets it on its video, and Chrome refused the request with an InvalidStateError
+ * while it was there and entered once it was lifted (crunchyroll.com, Chrome 153, 2026-09-26). A
+ * request still refused is reported as an Error named `CrunchyrollPictureInPictureError`.
+ *
  * On the window in the capture phase, so it runs before anything of the page's. Resolves false,
- * installing nothing, where the video cannot enter picture in picture, so the player offers no
- * control there.
+ * installing nothing, where the document or its video cannot enter picture in picture at all, so the
+ * player offers no control there.
  */
 export const enterPictureInPictureOnClick = ({ video }: { video: string }) => {
   const element = document.querySelector(video) as HTMLVideoElement | null
-  if (typeof element?.requestPictureInPicture !== 'function') return false
-  window.addEventListener('click', event => {
+  if (!document.pictureInPictureEnabled || typeof element?.requestPictureInPicture !== 'function') return false
+  const refused = (message: string) =>
+    reportError(Object.assign(new Error(message), { name: 'CrunchyrollPictureInPictureError' }))
+  const swallow = (event: Event) => {
     if (!event.isTrusted) return
     event.stopImmediatePropagation()
+    if (event.type !== 'click') return
     event.preventDefault()
     const target = document.querySelector(video) as HTMLVideoElement | null
-    target?.requestPictureInPicture().catch(() => {})
-  }, true)
+    if (!target) return refused('Crunchyroll video is not on the page')
+    target.disablePictureInPicture = false
+    target.requestPictureInPicture().catch((error: Error) => refused(`Crunchyroll video refused picture in picture: ${error.name}: ${error.message}`))
+  }
+  for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick']) {
+    window.addEventListener(type, swallow, true)
+  }
   return true
 }

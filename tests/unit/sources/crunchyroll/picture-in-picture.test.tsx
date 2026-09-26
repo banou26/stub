@@ -140,32 +140,41 @@ describe('the Crunchyroll player', () => {
   })
 })
 
-// Real clicks are `isTrusted`, which nothing a page dispatches can be, so a click from the pointer is
-// built here and marked as one. linkedom runs no capture phase: that this listener runs before the
-// page's own is shown in a real Chrome, where the parent's pointer does the clicking.
-const page = () => {
+// Real presses are `isTrusted`, which nothing a page dispatches can be, so the pointer's are built
+// here and marked as such. linkedom runs no capture phase: that this listener runs before the page's
+// own is shown in a real Chrome, where the parent's pointer does the clicking.
+const PRESSES = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'dblclick']
+
+// linkedom has no `pictureInPictureEnabled`, which a page where it is allowed answers true
+const page = ({ enabled = true } = {}) => {
   const realm = pageRealm('<!doctype html><html><body><div class="video-player-wrapper"><video></video><button data-testid="track-selection-button"></button></div></body></html>')
+  Object.defineProperty(realm.document, 'pictureInPictureEnabled', { configurable: true, value: enabled })
   const window = realm.document.defaultView!
   const element = realm.document.querySelector('video')!
-  const pointerClick = () => {
-    const click = new window.Event('click', { bubbles: true, cancelable: true })
-    Object.defineProperty(click, 'isTrusted', { value: true })
-    element.dispatchEvent(click)
-    return click
+  const pointer = (type: string) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'isTrusted', { value: true })
+    element.dispatchEvent(event)
+    return event
   }
-  return { ...realm, window, element, pointerClick }
+  return { ...realm, window, element, pointer, pointerClick: () => pointer('click') }
 }
 
+// refused while `disablePictureInPicture` is on the video, as Chrome 153 refused crunchyroll.com's
 const withPictureInPicture = () => {
   const realm = page()
-  const requestPictureInPicture = vi.fn(async () => {})
+  const requestPictureInPicture = vi.fn(async () => {
+    if (realm.element.disablePictureInPicture) {
+      throw Object.assign(new Error('"disablePictureInPicture" attribute is present.'), { name: 'InvalidStateError' })
+    }
+  })
   Object.assign(realm.element, { requestPictureInPicture })
   return { ...realm, requestPictureInPicture }
 }
 
 describe('enterPictureInPictureOnClick', () => {
   test('a real click enters picture in picture, and goes no further', async () => {
-    const { evaluate, window, requestPictureInPicture, pointerClick } = withPictureInPicture()
+    const { evaluate, window, requestPictureInPicture, pointerClick, reported } = withPictureInPicture()
     expect(await evaluate(enterPictureInPictureOnClick, { video: 'video' })).toBe(true)
     const later = vi.fn()
     window.addEventListener('click', later)
@@ -174,6 +183,41 @@ describe('enterPictureInPictureOnClick', () => {
     expect(requestPictureInPicture).toHaveBeenCalledTimes(1)
     expect(click.defaultPrevented).toBe(true)
     expect(later).not.toHaveBeenCalled()
+    await Promise.resolve()
+    expect(reported).toEqual([])
+  })
+
+  // Crunchyroll's own handlers act on a press as well as on a click
+  test('the presses around the click go no further either, and ask for nothing', async () => {
+    const { evaluate, window, requestPictureInPicture, pointer } = withPictureInPicture()
+    await evaluate(enterPictureInPictureOnClick, { video: 'video' })
+    const later = vi.fn()
+    for (const type of PRESSES) window.addEventListener(type, later)
+
+    for (const type of PRESSES) pointer(type)
+    expect(later).not.toHaveBeenCalled()
+    expect(requestPictureInPicture).not.toHaveBeenCalled()
+  })
+
+  test('enters where the page disabled picture in picture on its video, as Crunchyroll does', async () => {
+    const { element, evaluate, requestPictureInPicture, pointerClick, reported } = withPictureInPicture()
+    element.disablePictureInPicture = true
+    expect(await evaluate(enterPictureInPictureOnClick, { video: 'video' })).toBe(true)
+
+    pointerClick()
+    await expect(requestPictureInPicture.mock.results[0]!.value).resolves.toBeUndefined()
+    expect(reported).toEqual([])
+  })
+
+  test('reports a request that is still refused, rather than dropping it', async () => {
+    const { element, evaluate, pointerClick, reported } = withPictureInPicture()
+    const refusal = Object.assign(new Error('Must be handling a user gesture'), { name: 'NotAllowedError' })
+    Object.assign(element, { requestPictureInPicture: async () => { throw refusal } })
+    await evaluate(enterPictureInPictureOnClick, { video: 'video' })
+
+    pointerClick()
+    await vi.waitFor(() => expect(reported).toHaveLength(1))
+    expect(reported[0]).toMatchObject({ name: 'CrunchyrollPictureInPictureError', message: expect.stringContaining('NotAllowedError') })
   })
 
   // the track menu is driven by clicks this module dispatches in the page
@@ -183,7 +227,7 @@ describe('enterPictureInPictureOnClick', () => {
     const seen = recordEvents(document.querySelector('[data-testid="track-selection-button"]')!)
 
     await evaluate(pressTrackButton, { button: '[data-testid="track-selection-button"]', timeout: 0 })
-    expect(seen.map(({ event }) => event)).toContain('MouseEvent:click')
+    expect(seen.map(({ event }) => event)).toEqual(expect.arrayContaining(['PointerEvent:pointerdown', 'MouseEvent:mousedown', 'MouseEvent:click']))
     expect(requestPictureInPicture).not.toHaveBeenCalled()
   })
 
@@ -191,5 +235,14 @@ describe('enterPictureInPictureOnClick', () => {
     const { evaluate, pointerClick } = page()
     expect(await evaluate(enterPictureInPictureOnClick, { video: 'video' })).toBe(false)
     expect(pointerClick().defaultPrevented).toBe(false)
+  })
+
+  test('answers false, installing nothing, where the document has picture in picture disabled', async () => {
+    const { element, evaluate, pointerClick } = page({ enabled: false })
+    const requestPictureInPicture = vi.fn(async () => {})
+    Object.assign(element, { requestPictureInPicture })
+    expect(await evaluate(enterPictureInPictureOnClick, { video: 'video' })).toBe(false)
+    expect(pointerClick().defaultPrevented).toBe(false)
+    expect(requestPictureInPicture).not.toHaveBeenCalled()
   })
 })

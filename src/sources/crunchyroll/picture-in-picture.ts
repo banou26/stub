@@ -17,8 +17,8 @@ const VIDEO_SELECTOR = 'video'
  * back after the click and leaves picture in picture through the video handle itself.
  *
  * Undefined, which offers no control, until that code is installed in the current episode's document,
- * and for good where it cannot be: evaluate refused (an extension older than ABI 3), or a browser
- * whose video has no picture in picture.
+ * and for good where it cannot be: evaluate refused (an extension older than ABI 3), or a document
+ * where picture in picture is not enabled at all.
  */
 export const useCrunchyrollPictureInPicture = (
   frame: Frame | null,
