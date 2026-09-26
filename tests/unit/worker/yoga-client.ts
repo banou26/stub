@@ -34,6 +34,10 @@ const request = (query: string, variables: unknown, signal?: AbortSignal) =>
     signal,
   })
 
+// the shape urql hands its callers: GraphQL errors under `error`, never a raw `errors`
+const asResult = (payload: { data?: any, errors?: unknown[] }): { data?: any, error?: { graphQLErrors: unknown[] } } =>
+  payload.errors?.length ? { data: payload.data, error: { graphQLErrors: payload.errors } } : { data: payload.data }
+
 /**
  * The half of an urql client the fan-out and the app's mutations use, over a yoga server: each
  * subscription streams its payloads to the sink as they arrive, and unsubscribing aborts it.
@@ -57,7 +61,7 @@ export const yogaClient = ({ server, context }: { server: YogaServerInstance<any
               const event = buffer.slice(0, end)
               buffer = buffer.slice(end + 2)
               const data = /^data: (.+)$/m.exec(event)?.[1]
-              if (data) sink(JSON.parse(data))
+              if (data) sink(asResult(JSON.parse(data)))
             }
           }
         } catch {
@@ -77,7 +81,7 @@ export const yogaClient = ({ server, context }: { server: YogaServerInstance<any
         }),
         { ...context },
       )
-      return await response.json()
+      return asResult(await response.json())
     },
   }),
 })
@@ -109,4 +113,38 @@ export const payloads = async (
   controller.abort()
   await reader.cancel().catch(() => {})
   return { status: response.status, results }
+}
+
+/**
+ * One live subscription read payload by payload, for a test that acts between two of them. `until`
+ * reads on to the first payload a predicate accepts, and fails rather than hanging when none comes.
+ */
+export const subscribe = (
+  target: { server: YogaServerInstance<any, any>, context: Record<string, unknown> },
+  query: string,
+  variables: unknown,
+) => {
+  const queue: any[] = []
+  let waiting: ((result: any) => void) | undefined
+  const subscription = yogaClient(target).subscription(query, variables).subscribe(result => {
+    if (waiting) { waiting(result); waiting = undefined }
+    else queue.push(result)
+  })
+  const next = (timeoutMs = 5_000): Promise<any> =>
+    queue.length
+      ? Promise.resolve(queue.shift())
+      : new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { waiting = undefined; reject(new Error(`no payload within ${timeoutMs} ms`)) }, timeoutMs)
+        waiting = result => { clearTimeout(timer); resolve(result) }
+      })
+  return {
+    next,
+    until: async (accept: (result: any) => boolean, timeoutMs = 5_000) => {
+      for (;;) {
+        const result = await next(timeoutMs)
+        if (accept(result)) return result
+      }
+    },
+    close: () => subscription.unsubscribe(),
+  }
 }
