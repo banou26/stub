@@ -35,12 +35,21 @@ const { default: CrunchyrollPlayer } = await import('../../../../src/sources/cru
 const EPISODE = 'https://www.crunchyroll.com/watch/GXXXXXXXX/an-episode'
 const SIGNED_OUT_NOTE = 'You need to be logged in to Crunchyroll to watch this content.'
 
-// a watch page that settles as signed out: no hydrating header, the anonymous user menu present
+// a watch page that settles as signed out: each load shows the client's `.shell-header` on the first
+// read, then the anonymous user menu alone (see login-state.test.ts for the traced timelines)
 const makeFrame = () => {
+  let shells = 0
   const frame = {
     goto: vi.fn(async (_url: string, _options?: GotoOptions) => {}),
     addStyleTag: vi.fn(async () => {}),
-    locator: (selector: string) => ({ exists: async () => selector === '#user-menu-anonymous' }),
+    locator: (selector: string) => ({
+      exists: async () => {
+        if (selector !== '.shell-header') return selector === '#user-menu-anonymous'
+        if (shells === frame.goto.mock.calls.length) return false
+        shells = frame.goto.mock.calls.length
+        return true
+      },
+    }),
   }
   return frame
 }
