@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
+import { checkIsLoggedIn } from './login-state'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
 
@@ -90,8 +91,6 @@ const onSsoPage = async (login: Frame) => {
   return app || recaptcha
 }
 
-const LOGIN_TIMEOUT = 30_000
-
 type Backend = 'detecting' | 'extension' | 'cloud'
 
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
@@ -112,25 +111,6 @@ const detectBackend = async (): Promise<Backend> => {
   }
   await new Promise(r => setTimeout(r, 300))
   return isExtensionExposed() ? 'extension' : 'cloud'
-}
-
-// while `.shell-header` is still mounting neither auth marker has settled, so keep waiting
-const checkIsLoggedIn = async (frame: Frame, isCancelled: () => boolean) => {
-  const deadline = Date.now() + LOGIN_TIMEOUT
-  while (!isCancelled() && Date.now() < deadline) {
-    if (await frame.locator('.shell-header').exists()) {
-      await new Promise(r => setTimeout(r, 100))
-      continue
-    }
-    if (isCancelled()) throw new Error('Login state check timed out')
-    const [isLoggedOut, isLoggedIn] = await Promise.all([
-      frame.locator('#user-menu-anonymous').exists(),
-      frame.locator('#user-menu-authenticated').exists()
-    ])
-    if (isLoggedIn || isLoggedOut) return { isLoggedIn, isLoggedOut }
-    await new Promise(r => setTimeout(r, 100))
-  }
-  throw new Error('Login state check timed out')
 }
 
 const VIDEO_TIMEOUT = 30_000
