@@ -157,6 +157,16 @@ describe('cloud backend', () => {
   })
 
   // the window is already closed by then, so the whole iframe reloads on a fresh attach
+  test('a page whose load never finishes still reaches the sign-in prompt', async () => {
+    // a signed-out page's consent script can hold its load past any deadline; only the page's markers may decide
+    frame.goto.mockImplementation(async (_url: string, options?: GotoOptions) => {
+      if (options?.waitUntil === 'load') await new Promise(() => {})
+    })
+    const host = await render()
+    await signedOut(host, 'Sign in to Crunchyroll')
+    expect(host.textContent).not.toContain('timed out')
+  })
+
   test('a signed-in window remounts the player iframe, which loads the episode again', async () => {
     signIn.mockResolvedValue('authed' satisfies WindowSignIn)
     const host = await render()
@@ -168,7 +178,7 @@ describe('cloud backend', () => {
     expect(first!.isConnected).toBe(false)
     expect(host.querySelector('iframe')).toBe(second)
     await vi.waitFor(() => expect(frame.goto).toHaveBeenCalledTimes(2))
-    expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'load' })
+    expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'documentstart' })
   })
 
   test('a window closed without signing in comes back to the sign-in button', async () => {
