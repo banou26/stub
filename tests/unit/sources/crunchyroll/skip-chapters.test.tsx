@@ -65,6 +65,14 @@ const show = (duration: number, currentTime: number, events: unknown) => {
   return { host, remote, frame }
 }
 
+// a 24 minute episode with the playhead on the clock, so a missing offer is an answer rather than a race
+const shownAt = async (at: number, events: unknown) => {
+  const { host } = show(1_440, at, events)
+  const clock = `${Math.floor(at / 60)}:${String(at % 60).padStart(2, '0')} / 24:00`
+  await vi.waitFor(() => expect(host.querySelector('.time')?.textContent).toBe(clock))
+  return host
+}
+
 const skipButton = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button.skip-chapter')
 
 describe('the skip events in the player', () => {
@@ -107,28 +115,31 @@ describe('the skip events in the player', () => {
       recap: { start: 1_380, end: 1_440 },
     }, 1_425, 20],
   ])('a recap and a preview %s are named by their own times, and neither is offered a skip', async (_, events, recap, preview) => {
-    const shown = async (at: number) => {
-      const { host } = show(1_440, at, events)
-      // the playhead is on the clock, so a missing offer is an answer rather than a race
-      const clock = `${Math.floor(at / 60)}:${String(at % 60).padStart(2, '0')} / 24:00`
-      await vi.waitFor(() => expect(host.querySelector('.time')?.textContent).toBe(clock))
-      return host
-    }
     const named = (host: HTMLElement, seconds: number) => {
       hover(host, 1_440, seconds)
       return host.querySelector('.chapter-title')?.textContent
     }
 
-    const host = await shown(recap)
+    const host = await shownAt(recap, events)
     expect(named(host, recap)).toBe('Recap')
     expect(named(host, preview)).toBe('Preview')
     expect(named(host, 100)).toBe('Opening')
     expect(named(host, 1_350)).toBe('Ending')
     expect(skipButton(host)).toBeNull()
-    expect(skipButton(await shown(preview))).toBeNull()
+    expect(skipButton(await shownAt(preview, events))).toBeNull()
     // the control: the same events do offer a skip, inside the credits
-    const inCredits = await shown(1_330)
+    const inCredits = await shownAt(1_330, events)
     await vi.waitFor(() => expect(skipButton(inCredits)?.textContent).toBe('Skip Ending'))
+  })
+
+  // Pins @banou/media-player past 0.10.7, which took any 90 s chapter for a theme when no title named
+  // one: on 0.10.7 the recap is offered Skip Opening and the preview Skip Ending, so this stays red
+  // until stub moves to the release carrying the fix.
+  test.each([
+    ['a recap alone', { recap: { start: 0, end: 90 } }, 30],
+    ['a preview alone', { preview: { start: 1_350, end: 1_440 } }, 1_380],
+  ])('%s, as long as a theme, is not offered a skip', async (_, events, at) => {
+    expect(skipButton(await shownAt(at, events))).toBeNull()
   })
 
   test('an episode with no events offers nothing and draws an unbroken bar', async () => {
