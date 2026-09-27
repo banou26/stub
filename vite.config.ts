@@ -6,6 +6,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import preact from '@preact/preset-vite'
 
 import { embedPage, renderBuiltUrl } from './scripts/embed-page'
+import { pageScript } from './scripts/page-script'
 
 // read rather than imported so the manifest does not end up in the bundle
 const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
@@ -106,6 +107,7 @@ export default defineConfig((_) => ({
         }
       },
     },
+    pageScript(),
     nodePolyfills(),
     embedPage(),
     preact({
