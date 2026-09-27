@@ -3,7 +3,7 @@ import { useState } from 'preact/hooks'
 
 import type { PanelAnswer } from './tracking-panel'
 
-import { FIELD_LABELS, applySync, differences, planSync, sourceRefusal, type SyncOutcome, type SyncWrite } from '../tracking/sync'
+import { FIELD_LABELS, applySync, differences, planSync, sourceRefusal, type SyncOutcome, type SyncPage, type SyncWrite } from '../tracking/sync'
 
 // a write that landed, now or later
 const LANDED = new Set(['SAVED', 'QUEUED'])
@@ -49,9 +49,9 @@ const style = css`
  * and a sync the viewer runs by hand: they pick the tracker to copy from and the ones to copy onto,
  * see what will change on each before anything is written, and apply. Nothing is ticked for them, and
  * each target is written on its own through `onWrite`, so one that fails keeps its error and a retry
- * while the others land.
+ * while the others land. `page` is what those writes send beside the entry.
  */
-const TrackingSync = ({ answers, onWrite }: { answers: PanelAnswer[], onWrite: SyncWrite }) => {
+const TrackingSync = ({ answers, page, onWrite }: { answers: PanelAnswer[], page: SyncPage, onWrite: SyncWrite }) => {
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<string>()
   const [targets, setTargets] = useState<ReadonlySet<string>>(new Set())
@@ -64,7 +64,7 @@ const TrackingSync = ({ answers, onWrite }: { answers: PanelAnswer[], onWrite: S
   const answered = answers.filter(answer => answer.state === 'LISTED' || answer.state === 'NOT_LISTED')
   const answerOf = (id: string) => answers.find(answer => answer.tracker.id === id)
   // every other tracker, ticked or not, so each one's changes are on screen before it is ticked
-  const plan = source ? planSync(answers, source, answers.map(answer => answer.tracker.id)) : undefined
+  const plan = source ? planSync(answers, source, answers.map(answer => answer.tracker.id), page) : undefined
   const applicable = (plan?.targets ?? []).filter(target => !target.refusal && target.entry)
   const ticked = applicable.filter(target => targets.has(target.tracker))
 
@@ -88,7 +88,7 @@ const TrackingSync = ({ answers, onWrite }: { answers: PanelAnswer[], onWrite: S
     try {
       // planned again from the answers as they stand at the click, so a source that took a write
       // since is refused rather than copied
-      const written = await applySync(planSync(answers, source, ids), onWrite)
+      const written = await applySync(planSync(answers, source, ids, page), onWrite)
       setOutcomes(previous => ({ ...previous, ...Object.fromEntries(written.map(outcome => [outcome.tracker, outcome])) }))
       setTargets(previous => new Set([...previous].filter(id => !written.some(outcome => outcome.tracker === id && LANDED.has(outcome.outcome)))))
     } finally {

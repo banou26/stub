@@ -36,6 +36,7 @@ const TRACKER = `
   canWrite
   scoreScale
   writeNotice
+  keepsPageEpisodeCount
 `
 
 export const TRACKING_DOCUMENT = `

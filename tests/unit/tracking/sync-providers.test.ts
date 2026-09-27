@@ -51,7 +51,7 @@ const setup = ({ listed = true } = {}) => {
   // a provider whose list is empty and whose first write fails, as one does while its service is down
   const brokenWrites: unknown[] = []
   let down = true
-  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null }
+  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false }
   const broken = providerServer('broken', {
     Subscription: {
       tracking: {
@@ -158,5 +158,23 @@ describe('a sync through the providers', () => {
     await writeThrough(app, 28)('stub', { progress: 19 })
     const whole = answersOf(await tracking.until(result => find(answersOf(result), 'stub').entry?.progress === 19))
     expect(planSync(whole, 'stub', ['anilist']).targets[0]!.entry, 'the control: counted alike').toEqual({ status: 'WATCHING', progress: 19 })
+  })
+
+  test("holds AniList's progress back from stub's tracker, which takes the count of the page it is written from", async () => {
+    const { app } = setup()
+    const tracking = subscribe(app, TRACKING, { input: { uri: URI } })
+    live.push(tracking)
+    const answers = answersOf(await tracking.until(result => result.data?.tracking?.answers.length === 3))
+    expect(find(answers, 'stub').state).toBe('NOT_LISTED')
+
+    // a page that splits the run at 24 episodes, where AniList counts Frieren's 28
+    const plan = planSync(answers, 'anilist', ['stub'], { episodeCount: 24 })
+    expect(plan.targets[0]!.held).toEqual([{ field: 'PROGRESS', reason: 'AniList counts 28 episodes and Stub counts 24, so progress is not copied' }])
+    expect(await applySync(plan, writeThrough(app, 24))).toEqual([{ tracker: 'stub', outcome: 'SAVED', error: null }])
+    const after = answersOf(await tracking.until(result => find(answersOf(result), 'stub').state === 'LISTED'))
+    expect(find(after, 'stub').entry).toMatchObject({ status: 'WATCHING', progress: null, episodeCount: 24 })
+
+    expect(planSync(answers, 'anilist', ['stub'], { episodeCount: 28 }).targets[0]!.entry, 'the control: a page counting 28')
+      .toMatchObject({ progress: 12 })
   })
 })

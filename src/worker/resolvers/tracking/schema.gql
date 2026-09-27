@@ -75,6 +75,11 @@ type Tracker {
   scoreScale: String!
   """What a write to this tracker does beyond the list itself, said where the viewer picks it."""
   writeNotice: String
+  """
+  Whether a write keeps the page's `episodeCount` as this tracker's count for the entry, as stub's own
+  tracker does. False for a tracker that counts the episodes itself and says how many on its answers.
+  """
+  keepsPageEpisodeCount: Boolean!
 }
 
 """

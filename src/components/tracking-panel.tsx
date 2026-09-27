@@ -28,6 +28,7 @@ export type PanelAnswer = {
     account?: string | null
     scoreScale?: string | null
     writeNotice?: string | null
+    keepsPageEpisodeCount?: boolean | null
   }
   entry?: PanelEntry | null
 }
@@ -318,7 +319,8 @@ const SIGN_IN_NOTES: Partial<Record<SignInOutcome, (name: string) => string>> = 
  * own answer, where they differ with a sync the viewer runs by hand, and an editor that writes to the
  * trackers the viewer ticks. The summary is never written anywhere; each row is what that tracker
  * said. A tracker that answers signed out offers its sign in when `signIns` has one, and its answer is
- * read again once that ends. `onSyncWrite` writes one sync target, and that target alone.
+ * read again once that ends. `onSyncWrite` writes one sync target, and that target alone; the sync
+ * plans on it sending `episodeCount` beside the entry.
  */
 const TrackingPanel = (
   { tracking, episodeCount, onSave, onDelete, onSyncWrite, signIns = {} }:
@@ -400,7 +402,7 @@ const TrackingPanel = (
         })}
       </div>
       {/* mounted only while the trackers differ, so a sync that settled them starts afresh next time */}
-      {differences(tracking.answers).length ? <TrackingSync answers={tracking.answers} onWrite={onSyncWrite}/> : undefined}
+      {differences(tracking.answers).length ? <TrackingSync answers={tracking.answers} page={{ episodeCount }} onWrite={onSyncWrite}/> : undefined}
       {edited && writable(edited)
         ? (
           <Editor
