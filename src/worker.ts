@@ -7,6 +7,7 @@ import { expose }  from 'osra'
 import Worker from './worker/index?worker'
 import { fetch } from './utils/fetch'
 import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
+import { sessionResolvers } from './tracking/site-sessions'
 
 const worker = new Worker()
 
@@ -26,6 +27,15 @@ expose<typeof resolvers>(
   {
     transport: worker,
     key: 'fetch'
+  }
+)
+
+// the trackers' way to a site's page holding the viewer's own session (src/worker/site-sessions.ts)
+expose<typeof sessionResolvers>(
+  sessionResolvers,
+  {
+    transport: worker,
+    key: 'sessions'
   }
 )
 
