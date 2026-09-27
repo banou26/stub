@@ -8,7 +8,10 @@ import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
 import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
+import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { trackerSignIns } from '../tracking/site-sessions'
+import { trackerAccountChanged } from '../worker'
+import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
 import TrackingPanel, { type EntryValues, type PanelOutcome } from './tracking-panel'
 
@@ -93,6 +96,32 @@ const DELETE_LIST_ENTRY = gql(`
   }
 `)
 
+const STUB_TRACKER_STORAGE = gql(`
+  subscription StubTrackerStorage {
+    stubTrackerStorage {
+      location
+      signedIn
+      locked
+      waiting
+      held
+      error
+    }
+  }
+`)
+
+const ADD_HELD_STUB_ENTRIES = gql(`
+  mutation AddHeldStubEntries {
+    addHeldStubEntries {
+      location
+      signedIn
+      locked
+      waiting
+      held
+      error
+    }
+  }
+`)
+
 const devicePrefs = createCompactPrefs()
 
 const failed = (message?: string): PanelOutcome[] => [{ tracker: '', outcome: 'FAILED', error: message ?? 'The write did not reach the trackers' }]
@@ -109,6 +138,8 @@ const MediaTracking = (
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: uri! } }, pause: !uri })
   const [, save] = useMutation(SAVE_LIST_ENTRY)
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
+  const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
+  const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
   const [prefs, setPrefs] = useState(prefsStore.read)
 
   // another tab changed the choices
@@ -172,6 +203,9 @@ const MediaTracking = (
     return result.data?.saveListEntry ?? failed(result.error?.message)
   }
 
+  // the key card opens from this click, and only from it; the worker then checks the account again
+  const onUnlock = async () => { if (await unlockTracker()) await trackerAccountChanged() }
+
   return (
     <>
       <TrackingCompact
@@ -196,6 +230,7 @@ const MediaTracking = (
           </div>
         )
         : undefined}
+      <StubListNotice storage={storage?.stubTrackerStorage} onUnlock={onUnlock} onAdd={() => addHeld({})}/>
     </>
   )
 }
