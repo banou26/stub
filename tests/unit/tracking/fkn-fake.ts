@@ -103,9 +103,9 @@ export const fknWorld = () => {
     return { state, lib, account: account_ }
   }
 
-  /** Every entry an account's tracker files hold, by the progress each one carries. */
+  /** Every entry an account's tracker files hold, by the progress each one carries. A marker holds none. */
   const entriesIn = (account: string) =>
-    [...storageOf(account).values()].flatMap(({ text }) => (JSON.parse(text) as { entries: { fields: Record<string, { value: unknown }> }[] }).entries)
+    [...storageOf(account).values()].flatMap(({ text }) => (JSON.parse(text) as { entries?: { fields: Record<string, { value: unknown }> }[] }).entries ?? [])
 
   return { accounts, retired, storageOf, browser, entriesIn }
 }
