@@ -3,18 +3,29 @@ import LegalDoc from '../../components/legal-doc'
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 1 June 2026</div>
+    <div className="updated">Last updated 27 September 2026</div>
 
     <p>
-      stub is an independent, non-commercial personal project. In short: it has no
-      accounts, runs no analytics, and keeps nothing about you on a server.
+      stub is an independent, non-commercial personal project. In short: it has no accounts of
+      its own, runs no analytics, and keeps your watch list on your device, or in your own FKN
+      account when you sign in to one.
     </p>
 
     <h2>What stub stores</h2>
     <p>
-      stub has no user accounts and no server-side database. Everything it shows is held in
-      memory in your browser and is cleared when you refresh or close the tab. It sets no
-      advertising or tracking cookies and runs no analytics or telemetry.
+      stub has no user accounts of its own and no server-side database. The titles, artwork and
+      streams it shows are held in memory in your browser and are cleared when you refresh or
+      close the tab. It sets no advertising or tracking cookies and runs no analytics or
+      telemetry.
+    </p>
+    <p>
+      stub does keep the watch list of its own tracker: what you mark as watching, your
+      progress and your scores. Signed out, it is saved in your browser's storage for stub, on
+      this device only. Signed in to an FKN account, stub uses that account's list instead: your
+      changes are saved on the device and in the account's storage, encrypted in your browser
+      before they leave the device, so every device signed in to the same account shows them. A
+      list you kept before signing in is added to the account only if you choose to. When you
+      sign out, the account's list is removed from the device.
     </p>
 
     <h2>Network requests &amp; third parties</h2>
@@ -40,9 +51,10 @@ const Privacy = () => (
 
     <h2>Your control</h2>
     <p>
-      Because stub stores nothing persistently, closing or refreshing the tab clears all of
-      its state. If you use the browser extension, you can review and revoke its access at
-      any time from the extension itself.
+      Your watch list stays until you remove its entries, and signing out of FKN takes your
+      account's list off the device. Everything else stub holds is cleared when you close or
+      refresh the tab. If you use the browser extension, you can review and revoke its access
+      at any time from the extension itself.
     </p>
 
     <h2>Contact</h2>
