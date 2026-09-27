@@ -3,7 +3,7 @@
 // rule that matches on SHARED MEMBERS files season 2 under season 1's entry.
 import { describe, expect, test } from 'vitest'
 
-import { entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
+import { catalogueIdsOf, entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
 
 const ROWS = [
   { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
@@ -105,4 +105,23 @@ describe('ambiguous', () => {
 test('a media naming nothing to key on', () => {
   expect(identify('ag:(offline:unknown)')).toEqual({ kind: 'none' })
   expect(identify('not a uri')).toEqual({ kind: 'none' })
+})
+
+// what a catalogue's own list (AniList's) keys a media on
+describe('the ids of one catalogue a media names', () => {
+  test('are the ones it names itself, the offline source\'s borrowed id included', () => {
+    expect(catalogueIdsOf('ag:(anilist:1,cr:G24H1N3MP-GS1)', 'anilist', catalog)).toEqual([1])
+    expect(catalogueIdsOf('ag:(offline:anilist-2)', 'anilist', catalog)).toEqual([2])
+  })
+
+  test('are widened through the catalogue only when it names none', () => {
+    expect(catalogueIdsOf('ag:(mal:10)', 'anilist', catalog)).toEqual([1])
+    expect(catalogueIdsOf('ag:(anilist:1,mal:20)', 'anilist', catalog), 'its own id, not the welded run\'s').toEqual([1])
+    expect(catalogueIdsOf('ag:(kitsu:40)', 'anilist', catalog), 'a row with no AniList id').toEqual([])
+  })
+
+  test('are every id when it names two, which the tracker answers AMBIGUOUS', () => {
+    expect(catalogueIdsOf('ag:(anilist:2,anilist:1)', 'anilist', catalog)).toEqual([1, 2])
+    expect(catalogueIdsOf('ag:(mal:10,mal:20)', 'anilist', catalog)).toEqual([1, 2])
+  })
 })

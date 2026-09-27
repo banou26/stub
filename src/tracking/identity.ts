@@ -103,6 +103,22 @@ export const identify = (uri: string, catalog?: CatalogLookup): MediaIdentity =>
   return { kind: 'none' }
 }
 
+/**
+ * The ids a catalogue's own list could hold this media under, for a tracker that IS that catalogue
+ * (AniList's list keys on AniList ids).
+ *
+ * The ids of `origin` the media names itself; only when it names none, the ones the offline catalogue
+ * places in the rows of the catalogue ids it does name, so a media known by its MyAnimeList id still
+ * finds its AniList entry. More than one is two entries the media could mean, which the tracker
+ * answers AMBIGUOUS rather than pick from.
+ */
+export const catalogueIdsOf = (uri: string, origin: IndexedOrigin, catalog?: CatalogLookup): number[] => {
+  const refs = catalogRefs(handlesOf(uri), offlineOrigin)
+  const named = refs.filter(ref => ref.origin === origin).map(ref => ref.id)
+  const ids = named.length ? named : refs.flatMap(ref => catalog?.lookup(ref.origin, ref.id)?.[origin] || [])
+  return [...new Set(ids)].sort((a, b) => a - b)
+}
+
 /** What an entry stores about the media it tracks. */
 export type EntryIdentity = { ids: string[], key?: string }
 
