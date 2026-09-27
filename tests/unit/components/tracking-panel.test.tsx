@@ -41,7 +41,8 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 const render = (props: Partial<Parameters<typeof TrackingPanel>[0]> = {}) => {
   const onSave = vi.fn(async (targets: string[]) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
   const onDelete = vi.fn(async (targets: string[]) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
-  const host = mount(<TrackingPanel tracking={tracking} episodeCount={12} onSave={onSave} onDelete={onDelete} {...props}/>)
+  const onSyncWrite = vi.fn(async (tracker: string) => [{ tracker, outcome: 'SAVED' }])
+  const host = mount(<TrackingPanel tracking={tracking} episodeCount={12} onSave={onSave} onDelete={onDelete} onSyncWrite={onSyncWrite} {...props}/>)
   hosts.push(host)
   return { host, onSave, onDelete }
 }
