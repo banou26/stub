@@ -3,6 +3,8 @@
 
 import type { FuzzyDate, ListEntry, Tracking, TrackerAnswer, TrackingField } from '../generated/schema/types.generated'
 
+import { coarser, nativeScore } from './score-scale'
+
 export const trackingId = (uri: string) => `tracking:${uri}`
 
 /**
@@ -11,18 +13,11 @@ export const trackingId = (uri: string) => `tracking:${uri}`
  */
 export const summaryId = (uri: string) => `summary:${uri}`
 
-/**
- * How coarse a tracker's scores are on the 0 to 100 wire scale. Two scores are compared at the
- * coarsest step among the trackers holding them, so AniList's 85 and a ten point 90 are not a
- * disagreement merely because one tracker cannot say 85.
- */
-const SCORE_STEP: Record<string, number> = { POINT_100: 1, POINT_10_DECIMAL: 1, POINT_10: 10, POINT_5: 20, POINT_3: 33 }
-
 const time = (entry: ListEntry) => entry.updatedAt ? Date.parse(entry.updatedAt) || 0 : 0
 const byNewest = (a: ListEntry, b: ListEntry) => time(b) - time(a)
 
 const pad = (value: number | null | undefined, length: number) => String(value ?? 0).padStart(length, '0')
-const dateKey = (date: FuzzyDate | null | undefined) =>
+export const dateKey = (date: FuzzyDate | null | undefined) =>
   date?.year ? `${pad(date.year, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}` : undefined
 
 type Listed = { entry: ListEntry, scale: string }
@@ -75,14 +70,18 @@ const summarize = (uri: string, listed: Listed[], episodeCount: number | null): 
   }
 }
 
-/** The fields on which two comparable answers hold different values. An unset field agrees with anything. */
+/**
+ * The fields on which two comparable answers hold different values. An unset field agrees with anything.
+ * Scores are compared at the coarsest scale among the trackers holding them (tracking/score-scale.ts),
+ * so AniList's 85 and a ten point 8 are not a disagreement merely because one tracker cannot say 85.
+ */
 const disagreementsOf = (listed: Listed[]): TrackingField[] => {
   const differ = (values: (string | number | null | undefined)[]) => new Set(values.filter(value => value != null)).size > 1
-  const step = Math.max(1, ...listed.filter(({ entry }) => entry.score != null).map(({ scale }) => SCORE_STEP[scale] ?? 1))
+  const scale = listed.filter(({ entry }) => entry.score != null).map(({ scale }) => scale).reduce<string | null | undefined>(coarser, 'POINT_100')
   const fields: [TrackingField, (entry: ListEntry) => string | number | null | undefined][] = [
     ['STATUS', entry => entry.status],
     ['PROGRESS', entry => entry.progress],
-    ['SCORE', entry => entry.score == null ? null : Math.round(entry.score / step)],
+    ['SCORE', entry => entry.score == null ? null : nativeScore(entry.score, scale)],
     ['STARTED_AT', entry => dateKey(entry.startedAt)],
     ['COMPLETED_AT', entry => dateKey(entry.completedAt)],
     ['REWATCH_COUNT', entry => entry.rewatchCount],

@@ -64,13 +64,19 @@ describe('the summary', () => {
     expect(summary).toMatchObject({ progress: 6, episodeCount: 12 })
   })
 
-  test('scores are compared at the coarsest scale among them', () => {
-    const { disagreements } = aggregateTracking(URI, [
+  test('scores are compared at the coarsest scale among them, as that scale reads them', () => {
+    // AniList floors onto its ten point scale (tracking/score-scale.ts): 95 is a 9 there and 88 an 8
+    const same = aggregateTracking(URI, [
+      listed('stub', { score: 95, updatedAt: at(2) }),
+      listed('ten', { score: 90, updatedAt: at(1) }, 'POINT_10'),
+    ])
+    const different = aggregateTracking(URI, [
       listed('stub', { score: 88, updatedAt: at(2) }),
       listed('ten', { score: 90, updatedAt: at(1) }, 'POINT_10'),
     ])
 
-    expect(disagreements).toEqual([])
+    expect(same.disagreements).toEqual([])
+    expect(different.disagreements).toEqual(['SCORE'])
   })
 })
 
