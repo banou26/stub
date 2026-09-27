@@ -110,6 +110,60 @@ describe('merging copies', () => {
   })
 })
 
+describe('the other devices\' files', () => {
+  const theirs = (device: string, entries: JournalEntry[]): JournalFile => ({ version: 1, device, clock: 900, entries })
+  const made: JournalEntry = { id: 'made-there', ids: ['anilist:1'], fields: { progress: { value: 6, stamp: { at: 900, by: 'phone' } } } }
+
+  test('are read beside this device\'s own, and a write here lands after them and in this file only', async () => {
+    const store = memoryStore()
+    const journal = await openJournal(store, { now: clock(100), uuid })
+    expect(journal.absorb('device-a', [theirs('phone', [made])])).toBe(true)
+    expect(journal.find(MEDIA)).toMatchObject({ state: 'LISTED', values: { progress: 6 } })
+
+    await journal.save(MEDIA, { score: 70 })
+    const own = JSON.parse(store.text()!) as JournalFile
+    expect(own.entries, 'the other device\'s entry, with only this write in it').toEqual([
+      { id: 'made-there', ids: ['anilist:1'], fields: { score: { value: 70, stamp: { at: 901, by: 'device-a' } } } },
+    ])
+    expect(journal.find(MEDIA)).toMatchObject({ values: { progress: 6, score: 70 } })
+  })
+
+  test('a device another tab started takes nothing of the previous one into its file', async () => {
+    const store = memoryStore()
+    const stale = await openJournal(store, { now: clock(1_000, 2_000), uuid })
+    await stale.save(MEDIA, { progress: 3 })
+    stale.absorb('device-a', [theirs('phone', [{ ...made, ids: ['anilist:2'] }])])
+
+    // another tab signed out: this worker still holds the old list in memory
+    store.move('device-b')
+    await stale.save(writable('ag:(anilist:5)'), { progress: 1 })
+
+    expect((JSON.parse(store.text()!) as JournalFile).entries.map(entry => entry.ids)).toEqual([['anilist:5']])
+    expect(stale.find(MEDIA).state).toBe('NOT_LISTED')
+    expect(stale.find(writable('ag:(anilist:2)')).state).toBe('NOT_LISTED')
+    expect(stale.absorb('device-a', [theirs('phone', [made])]), 'files read for the device that ended').toBe(false)
+    expect(stale.device).toBe('device-b')
+  })
+})
+
+describe('reading this device\'s file again', () => {
+  test('tells the listeners what another tab wrote, and nothing when nothing changed', async () => {
+    const store = memoryStore()
+    const seen = await openJournal(store, { now: clock(1_000), uuid })
+    const other = await openJournal(store, { now: clock(2_000), uuid })
+    let told = 0
+    seen.onChange(() => { told += 1 })
+
+    await seen.reload()
+    expect(told, 'nothing changed').toBe(0)
+
+    await other.save(MEDIA, { progress: 2 })
+    await seen.reload()
+    expect(told).toBe(1)
+    expect(seen.find(MEDIA)).toMatchObject({ state: 'LISTED', values: { progress: 2 } })
+  })
+})
+
 describe('reading a file back', () => {
   test('an unreadable file refuses to open rather than being overwritten', async () => {
     const store = memoryStore()
