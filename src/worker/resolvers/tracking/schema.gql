@@ -116,6 +116,11 @@ type TrackerAnswer {
   error: String
   """Writes accepted and not yet sent."""
   pending: Int!
+  """
+  How many episodes this tracker counts for the media, whether it lists it or not, so a sync onto a
+  tracker that lists nothing yet can tell whether progress means the same there. Null when it does not say.
+  """
+  episodeCount: Int
 }
 
 """

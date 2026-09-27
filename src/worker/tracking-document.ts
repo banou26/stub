@@ -48,6 +48,7 @@ export const TRACKING_DOCUMENT = `
         candidates
         error
         pending
+        episodeCount
         tracker { ${TRACKER} }
         entry { ${ENTRY} }
       }

@@ -1,13 +1,16 @@
 // A per-media sync end to end through the app's tracking resolvers, over the real stub tracker, the
 // real AniList tracker on a fake session answering with AniList's own answers, and a fake third
-// provider that fails. The plan is read off the answers the page gets, and applied as the panel
-// applies it: one `saveListEntry` per target, naming that target alone.
+// provider that fails. The plan is read off the answers the page gets, through the page's own
+// subscription document, and applied as the panel applies it: one `saveListEntry` per target, naming
+// that target alone.
+import { print } from 'graphql'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { ListEntryInput, Tracker } from '../../../src/generated/schema/types.generated'
 import type { SessionRateLimit, SessionRequest, SessionResponse } from '../../../src/sources/anilist/session-page'
 import type { CatalogLookup } from '../../../src/tracking/identity'
 
+import { MediaTrackingDocument } from '../../../src/generated/graphql'
 import { anilistTrackerResolvers } from '../../../src/sources/anilist/tracker-resolvers'
 import { stubTrackerResolvers } from '../../../src/sources/stub/tracker-resolvers'
 import { trackingResolvers, type TrackerProvider } from '../../../src/tracking/app-resolvers'
@@ -27,7 +30,7 @@ const response = (body: unknown): SessionResponse => ({ status: 200, body: body 
 const TEN_POINT = { ...VIEWER, mediaListOptions: { scoreFormat: 'POINT_10' } }
 const HELD = { ...FRIEREN_ENTRY, scoreRaw: 90, score: 9 }
 
-const setup = () => {
+const setup = ({ listed = true } = {}) => {
   const asked: { operation: string, variables: Record<string, unknown> }[] = []
   const call = vi.fn(async (method: string, { query, variables = {} }: SessionRequest) => {
     if (method !== 'graphql') throw new Error(`anilist.co's page serves no ${method}`)
@@ -36,7 +39,7 @@ const setup = () => {
     if (operation === 'StubSaveListEntry') {
       return { kind: 'response' as const, response: response({ data: { SaveMediaListEntry: { ...HELD, ...variables, media: FRIEREN } } }) }
     }
-    return { kind: 'response' as const, response: response({ data: { Viewer: TEN_POINT, Media: { ...FRIEREN, mediaListEntry: HELD } } }) }
+    return { kind: 'response' as const, response: response({ data: { Viewer: TEN_POINT, Media: { ...FRIEREN, mediaListEntry: listed ? HELD : null } } }) }
   })
   const session = { call, onChange: () => () => {} }
   const anilist = providerServer('anilist', anilistTrackerResolvers({ wait: async () => {} }), { catalog: async () => catalog, session: () => session })
@@ -72,27 +75,16 @@ const setup = () => {
   return { app, asked, brokenWrites, recover: () => { down = false } }
 }
 
-const TRACKING = `
-  subscription ($input: TrackingInput!) {
-    tracking(input: $input) {
-      answers {
-        state
-        pending
-        tracker { id name canWrite scoreScale }
-        entry { status progress score scoreLabel startedAt { year month day } completedAt { year month day } rewatchCount episodeCount }
-      }
-    }
-  }
-`
+const TRACKING = print(MediaTrackingDocument)
 const SAVE = `
   mutation ($input: SaveListEntryInput!) {
     saveListEntry(input: $input) { tracker outcome error }
   }
 `
 
-/** The panel's write: one target, named alone. */
-const writeThrough = (app: ReturnType<typeof setup>['app']) => async (tracker: string, entry: ListEntryInput) =>
-  (await yogaClient(app).mutation(SAVE, { input: { uri: URI, trackers: [tracker], entry } }).toPromise()).data.saveListEntry
+/** The panel's write: one target, named alone, with the page's episode count beside it. */
+const writeThrough = (app: ReturnType<typeof setup>['app'], episodeCount?: number) => async (tracker: string, entry: ListEntryInput) =>
+  (await yogaClient(app).mutation(SAVE, { input: { uri: URI, trackers: [tracker], entry, episodeCount } }).toPromise()).data.saveListEntry
 
 const live: { close: () => void }[] = []
 afterEach(() => { while (live.length) live.pop()!.close() })
@@ -147,5 +139,25 @@ describe('a sync through the providers', () => {
     ])
     expect(await applySync(plan, writeThrough(app))).toEqual([{ tracker: 'anilist', outcome: 'SAVED', error: null }])
     expect(asked.find(({ operation }) => operation === 'StubSaveListEntry')!.variables).toEqual({ mediaId: 154587, progress: 14, scoreRaw: 80 })
+  })
+
+  test("holds progress back from an AniList that lists nothing yet, where AniList counts the run differently", async () => {
+    const { app } = setup({ listed: false })
+    const tracking = subscribe(app, TRACKING, { input: { uri: URI } })
+    live.push(tracking)
+    await tracking.until(result => result.data?.tracking?.answers.length === 3)
+
+    // watched from a page that splits the run at 24 episodes, where AniList counts Frieren's 28
+    await writeThrough(app, 24)('stub', { status: 'WATCHING', progress: 18 })
+    const answers = answersOf(await tracking.until(result => find(answersOf(result), 'stub').entry?.progress === 18))
+    expect(find(answers, 'anilist')).toMatchObject({ state: 'NOT_LISTED', episodeCount: 28 })
+
+    const plan = planSync(answers, 'stub', ['anilist'])
+    expect(plan.targets[0]!.held).toEqual([{ field: 'PROGRESS', reason: 'Stub counts 24 episodes and AniList counts 28, so progress is not copied' }])
+    expect(plan.targets[0]!.entry).toEqual({ status: 'WATCHING' })
+
+    await writeThrough(app, 28)('stub', { progress: 19 })
+    const whole = answersOf(await tracking.until(result => find(answersOf(result), 'stub').entry?.progress === 19))
+    expect(planSync(whole, 'stub', ['anilist']).targets[0]!.entry, 'the control: counted alike').toEqual({ status: 'WATCHING', progress: 19 })
   })
 })
