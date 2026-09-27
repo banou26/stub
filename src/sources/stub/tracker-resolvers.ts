@@ -2,6 +2,7 @@
 // kept in memory. ./tracker.ts hands them this device's.
 
 import type { ListEntry, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
+import type { SessionScope } from '../../tracking/account-link'
 import type { Found, Journal, JournalEntry } from '../../tracking/journal'
 
 import { answerId, changes, errorAnswer } from '../../tracking/collect'
@@ -23,7 +24,7 @@ export const stubTracker: Tracker = {
   name: 'Stub',
   icon: null,
   color: null,
-  // nothing to sign in to: the list is kept on this device
+  // nothing to sign in to: the list is this device's, or the FKN account's while one is signed in
   signedIn: true,
   account: 'This device',
   canWrite: true,
@@ -34,6 +35,10 @@ export const stubTracker: Tracker = {
   keeps: [...SYNC_FIELDS],
   rewatchThroughCompleted: false,
 }
+
+/** The tracker as it answers, naming whose list it holds. */
+export const stubTrackerAt = (where: SessionScope): Tracker =>
+  ({ ...stubTracker, account: where === 'account' ? 'FKN account' : 'This device' })
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null
 
@@ -59,8 +64,8 @@ const listEntryOf = (entry: JournalEntry, values: Found & { state: 'LISTED' | 'N
 const primaryOf = (found: Found & { state: 'LISTED' | 'NOT_LISTED' }) =>
   [...found.entries].sort((a, b) => (liveValues(b).updatedAt ?? 0) - (liveValues(a).updatedAt ?? 0))[0]
 
-export const answerFor = (uri: string, found: Found): TrackerAnswer => {
-  const base = { _id: answerId(STUB_TRACKER_ID, uri), tracker: stubTracker, entry: null, candidates: [], error: null, pending: 0 }
+export const answerFor = (uri: string, found: Found, tracker: Tracker = stubTracker): TrackerAnswer => {
+  const base = { _id: answerId(STUB_TRACKER_ID, uri), tracker, entry: null, candidates: [], error: null, pending: 0 }
   if (found.state === 'NO_ID') return { ...base, state: 'NO_ID' }
   if (found.state === 'AMBIGUOUS') return { ...base, state: 'AMBIGUOUS', candidates: found.candidates }
   const primary = primaryOf(found)
@@ -83,7 +88,7 @@ const refusal = (identity: MediaIdentity): string | undefined =>
   : identity.kind === 'ambiguous' ? `This media names ${identity.candidates.join(' and ')}, and the stub tracker cannot tell which one is meant`
   : undefined
 
-export const stubTrackerResolvers = (open: () => Promise<Journal>) => ({
+export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => Promise<SessionScope> = async () => 'device') => ({
   Subscription: {
     tracking: {
       subscribe: async function* (_parent: unknown, { input }: { input: { uri: string } }, ctx: StubTrackerContext) {
@@ -97,9 +102,13 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>) => ({
           yield { tracking: trackingOf(uri, errorAnswer(uri, stubTracker, error instanceof Error ? error.message : String(error))) }
           return
         }
-        yield { tracking: trackingOf(uri, answerFor(uri, journal.find(identity))) }
+        const answer = async () => {
+          const tracker = stubTrackerAt(await where().catch(() => 'device' as const))
+          return answerFor(uri, journal.find(identity), tracker)
+        }
+        yield { tracking: trackingOf(uri, await answer()) }
         for await (const _ of changes(journal.onChange, { signal: ctx.request.signal })) {
-          yield { tracking: trackingOf(uri, answerFor(uri, journal.find(identity))) }
+          yield { tracking: trackingOf(uri, await answer()) }
         }
       }
     }

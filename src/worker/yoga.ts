@@ -10,6 +10,7 @@ import { resolvers } from './resolvers'
 import { extractors, setUserKeys, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
+import { stubTrackerLink } from '../sources/stub/tracker'
 
 export type ServerContext = YogaInitialContext & {
 
@@ -95,7 +96,12 @@ export const osraResolvers = {
   traceAnswer: (seq: number) => traceAnswer(seq),
   remotePicker: (origin: string) => remotePicker(origin),
   remotePlayer: (origin: string) => remotePlayer(origin),
-  selectRemoteRelease: (origin: string, uris: string[]) => selectRemoteRelease(origin, uris)
+  selectRemoteRelease: (origin: string, uris: string[]) => selectRemoteRelease(origin, uris),
+  // The page's account and visibility, which a worker cannot see: the stub tracker's list checks which
+  // FKN account is signed in on each change, and reads the other devices' files when the page is back
+  // in view (tracking/account-link.ts).
+  trackerAccountChanged: () => stubTrackerLink().then(link => link.accountChanged()),
+  trackerFocused: () => stubTrackerLink().then(link => link.focused())
 }
 
 export type Resolvers = typeof osraResolvers
