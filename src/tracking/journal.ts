@@ -165,13 +165,16 @@ export const patchFrom = (
 }
 
 /**
- * Where the journal lives. The S1 store is this device's OPFS; the signed-in store replicates the same
- * file, which is why the journal carries a device id at all.
+ * Where the journal lives: this device's own file. On an FKN account the other devices' files are
+ * read beside it (tracking/account-link.ts), and only this one is ever written.
  */
 export type JournalStore = {
-  /** This device's id, minted once and kept. */
+  /**
+   * The device this journal writes as, read from the disk NOW. Another tab can move it (a sign out or
+   * an account switch starts a new device), and a journal that finds it moved drops what it held.
+   */
   device: () => Promise<string>
-  /** The file as it is on disk NOW, so a write merges what another tab wrote since. */
+  /** That device's file as it is on disk NOW, so a write merges what another tab wrote since. */
   read: () => Promise<string | undefined>
   write: (text: string) => Promise<void>
   /** Runs `work` holding the file, so two tabs never interleave a read, merge and write. */
@@ -190,6 +193,10 @@ export const parseJournal = (text: string | undefined, device: string): JournalF
   return { version: 1, device, clock: Number(parsed.clock) || 0, entries }
 }
 
+/** How many entries of a file are on the list, which is what a viewer is told a file holds. */
+export const listedCount = (file: JournalFile) =>
+  file.entries.filter(entry => isListed(liveValues(entry).values)).length
+
 export type Found =
   | { state: 'NO_ID' }
   | { state: 'AMBIGUOUS', candidates: string[] }
@@ -197,30 +204,61 @@ export type Found =
 
 export type Journal = ReturnType<typeof journalOver>
 
+const newestFirst = (entries: JournalEntry[]) =>
+  [...entries].sort((a, b) => (liveValues(b).updatedAt ?? 0) - (liveValues(a).updatedAt ?? 0))
+
+/** This device's copy of an entry the list holds, or a fresh one that names the same entry. */
+const ownCopy = (own: JournalFile, entry: JournalEntry): JournalEntry =>
+  own.entries.find(mine => mine.id === entry.id)
+    ?? { id: entry.id, ids: entry.ids, ...(entry.key ? { key: entry.key } : {}), fields: {} }
+
 /**
- * The journal over its store. Reads answer from memory; every write reads the file back, merges,
- * stamps and writes, holding the store's lock, so nothing another tab wrote is lost.
+ * The journal over its store. Reads answer from memory: this device's file merged with the other
+ * devices' files it was handed. Every write reads this device's file back, merges, stamps and writes
+ * it, holding the store's lock, so nothing another tab wrote is lost, and nothing is ever written to
+ * another device's file.
  */
 export const journalOver = (
   store: JournalStore,
-  device: string,
+  initialDevice: string,
   initial: JournalFile,
   { now, uuid }: { now: () => number, uuid: () => string }
 ) => {
+  let device = initialDevice
   let file = initial
+  // the other devices' files, as last read; the list is this file merged with them
+  let others: JournalFile[] = []
+  let view: JournalFile | undefined
   const listeners = new Set<() => void>()
   // one write at a time inside this worker too, whatever the store's lock does
   let queue: Promise<unknown> = Promise.resolve()
 
-  const commit = <T>(change: (file: JournalFile, stamp: Stamp) => { file: JournalFile, result: T }): Promise<T> => {
+  const viewOf = () => (view ??= others.reduce(mergeFiles, file))
+  const notify = () => { for (const listener of listeners) listener() }
+
+  // A device that moved is a session that ended: its file and every other device's file belonged to it
+  // (to an account, possibly one that is no longer signed in), so none of it may reach the next write.
+  const follow = (current: string) => {
+    if (current === device) return false
+    device = current
+    file = emptyFile(current)
+    others = []
+    view = undefined
+    return true
+  }
+
+  const commit = <T>(change: (own: JournalFile, stamp: Stamp, list: JournalFile) => { file: JournalFile, result: T }): Promise<T> => {
     const run = () => store.exclusive(async () => {
-      const onDisk = parseJournal(await store.read(), device)
-      const merged = mergeFiles(file, onDisk)
-      const at = tick(merged.clock, now())
-      const { file: next, result } = change({ ...merged, clock: at }, { at, by: device })
+      follow(await store.device())
+      const merged = mergeFiles(file, parseJournal(await store.read(), device))
+      const list = others.reduce(mergeFiles, merged)
+      // ticked from every stamp the list holds, so a write lands after what another device wrote
+      const at = tick(list.clock, now())
+      const { file: next, result } = change({ ...merged, clock: at }, { at, by: device }, list)
       await store.write(JSON.stringify(next))
       file = next
-      for (const listener of listeners) listener()
+      view = undefined
+      notify()
       return result
     })
     const done = queue.then(run, run)
@@ -231,40 +269,75 @@ export const journalOver = (
   const find = (identity: MediaIdentity): Found => {
     if (identity.kind === 'none') return { state: 'NO_ID' }
     if (identity.kind === 'ambiguous') return { state: 'AMBIGUOUS', candidates: identity.candidates }
-    const entries = file.entries.filter(entry => entryMatches(entry, identity))
+    const entries = viewOf().entries.filter(entry => entryMatches(entry, identity))
     const { values, updatedAt } = combine(entries)
     return { state: isListed(values) ? 'LISTED' : 'NOT_LISTED', entries, values, updatedAt }
   }
 
   return {
-    device,
+    get device() { return device },
+    /** This device's own entries, as its file holds them. */
     entries: () => file.entries,
     find,
     /** Write `patch` to the entry this media is tracked under, creating it when there is none. */
     save: (identity: Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>, patch: Patch) =>
-      commit((current, stamp) => {
-        const matched = current.entries.filter(entry => entryMatches(entry, identity))
-        // the entry written most recently takes the write; the others still read through `combine`,
-        // and every field this write sets is newer than anything they hold
-        const target = matched.sort((a, b) => (liveValues(b).updatedAt ?? 0) - (liveValues(a).updatedAt ?? 0))[0]
-          ?? { id: uuid(), ...newEntryIdentity(identity), fields: {} }
-        const fields = { ...target.fields }
+      commit((own, stamp, list) => {
+        // the entry written most recently takes the write, whichever device made it; the others still
+        // read through `combine`, and every field this write sets is newer than anything they hold
+        const target = newestFirst(list.entries.filter(entry => entryMatches(entry, identity)))[0]
+        const base = target ? ownCopy(own, target) : { id: uuid(), ...newEntryIdentity(identity), fields: {} }
+        const fields = { ...base.fields }
         for (const [field, value] of Object.entries(patch)) {
           if (value !== undefined) (fields as Record<string, Stamped<unknown>>)[field] = { value, stamp }
         }
         // an entry saved before its media named a catalogue id learns them here, and is matched on
         // them from then on
-        const ids = identity.kind === 'catalogue' ? [...new Set([...target.ids, ...identity.ids])].sort() : target.ids
-        const written: JournalEntry = { ...target, ids, fields }
-        const entries = [...current.entries.filter(entry => entry.id !== written.id), written]
-        return { file: { ...current, entries }, result: written }
+        const known = [...base.ids, ...target?.ids ?? []]
+        const ids = [...new Set(identity.kind === 'catalogue' ? [...known, ...identity.ids] : known)].sort()
+        const written: JournalEntry = { ...base, ids, fields }
+        const entries = [...own.entries.filter(entry => entry.id !== written.id), written]
+        return { file: { ...own, entries }, result: written }
       }),
-    /** Tombstone every entry this media is tracked under. */
+    /** Tombstone every entry this media is tracked under, on whichever device it was made. */
     remove: (identity: Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>) =>
-      commit((current, stamp) => {
-        const entries = current.entries.map(entry => entryMatches(entry, identity) ? { ...entry, deleted: stamp } : entry)
-        return { file: { ...current, entries }, result: undefined }
+      commit((own, stamp, list) => {
+        const byId = new Map(own.entries.map(entry => [entry.id, entry]))
+        for (const entry of list.entries.filter(entry => entryMatches(entry, identity))) {
+          byId.set(entry.id, { ...ownCopy(own, entry), deleted: stamp })
+        }
+        return { file: { ...own, entries: [...byId.values()] }, result: undefined }
       }),
+    /**
+     * Merge another file's entries into this device's own, keeping every stamp they carry: a list
+     * the viewer chose to add. The merge never overrides a newer write, since each field keeps
+     * whichever stamp is later.
+     */
+    mergeIn: (extra: JournalFile) =>
+      commit(own => ({ file: mergeFiles(own, extra), result: undefined })),
+    /**
+     * The other devices' files, read for `forDevice`. Refused when this journal no longer writes as
+     * that device: files read for a session that has since ended belong to it, not to this one.
+     */
+    absorb: (forDevice: string, files: JournalFile[]) => {
+      if (forDevice !== device) return false
+      others = files
+      view = undefined
+      notify()
+      return true
+    },
+    /**
+     * Read this device's file again: another tab may have written it, or started a new device. Tells
+     * the listeners only when something did change, since a page asks for this every time it is seen.
+     */
+    reload: () => store.exclusive(async () => {
+      const before = JSON.stringify(file)
+      const moved = follow(await store.device())
+      const onDisk = parseJournal(await store.read(), device)
+      file = moved ? onDisk : mergeFiles(file, onDisk)
+      if (!moved && JSON.stringify(file) === before) return
+      view = undefined
+      notify()
+    }),
     onChange: (listener: () => void) => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }
