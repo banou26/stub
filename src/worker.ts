@@ -7,6 +7,7 @@ import { expose }  from 'osra'
 import Worker from './worker/index?worker'
 import { fetch } from './utils/fetch'
 import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
+import { trackerCloud } from './tracking/fkn-cloud-live'
 
 const worker = new Worker()
 
@@ -16,7 +17,13 @@ const resolvers = {
   fetch: (input: RequestInfo | URL, init?: FetchInit) =>
     refusesSeedAsset(location.href, input)
       ? new Response(null, { status: 404, statusText: 'the season seed is switched off for this page' })
-      : fetch(input, init)
+      : fetch(input, init),
+  // FKN storage for the stub tracker's list, which only the page can reach (tracking/account-link.ts)
+  trackerAvailability: trackerCloud.availability,
+  trackerUnlocked: trackerCloud.unlocked,
+  trackerList: trackerCloud.list,
+  trackerRead: trackerCloud.read,
+  trackerWrite: trackerCloud.write,
 }
 
 export type Resolvers = typeof resolvers
@@ -29,7 +36,7 @@ expose<typeof resolvers>(
   }
 )
 
-const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore } = await expose<WorkerResolvers>(
+const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, trackerAccountChanged, trackerFocused } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -81,5 +88,8 @@ export {
   // where implying the engine flag from `?trace` would warm one mid-session and show a graph built
   // from whatever arrived after the switch rather than from the page under investigation.
   traceGraph,
-  traceAnswer
+  traceAnswer,
+  // the page's account and visibility, which the worker cannot see, for the stub tracker's list
+  trackerAccountChanged,
+  trackerFocused
 }

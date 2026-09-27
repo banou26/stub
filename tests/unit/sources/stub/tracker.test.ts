@@ -20,10 +20,10 @@ let now = 1_000
 let minted = 0
 const deps = { now: () => (now += 1_000), uuid: () => `entry-${++minted}` }
 
-const stubServer = (store = memoryStore()) => {
+const stubServer = (store = memoryStore(), where?: () => Promise<'device' | 'account'>) => {
   let journal: Promise<Journal> | undefined
   const open = () => (journal ??= openJournal(store, deps))
-  return { store, open, target: providerServer('stub', stubTrackerResolvers(open), { catalog: async () => catalog }) }
+  return { store, open, target: providerServer('stub', stubTrackerResolvers(open, where), { catalog: async () => catalog }) }
 }
 
 const live: { close: () => void }[] = []
@@ -98,6 +98,17 @@ describe('the stub tracker', () => {
     expect(control.data.saveListEntry, 'the control: two ids of one run').toMatchObject([{ tracker: 'stub', outcome: 'SAVED' }])
     expect(answerOf(await watch(target, 'ag:(anilist:1)').next())).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
     expect(answerOf(await watch(target, 'ag:(anilist:2)').next()).state).toBe('NOT_LISTED')
+  })
+
+  test('names whose list it answers from: this device\'s, or the FKN account\'s', async () => {
+    let where: 'device' | 'account' = 'device'
+    const { target } = stubServer(memoryStore(), async () => where)
+    const tracking = watch(target, 'ag:(anilist:1)')
+    expect(answerOf(await tracking.next()).tracker.account).toBe('This device')
+
+    where = 'account'
+    await save(target, 'ag:(anilist:1)', { progress: 1 })
+    expect(answerOf(await tracking.until(result => answerOf(result).state === 'LISTED')).tracker.account).toBe('FKN account')
   })
 
   test('answers NO_ID for a media it cannot key', async () => {
