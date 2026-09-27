@@ -170,10 +170,14 @@ const errorMessage = (status: number, errors: AnilistError[]) => {
   return `AniList answered ${status}${said.length ? `: ${said.join('; ')}` : ' with nothing to read'}`
 }
 
+/** Whether AniList refused a call for its rate limit, in the status or only in the body. */
+export const isRateLimited = (status: number, body: AnilistBody | null) =>
+  status === 429 || Boolean(body?.errors?.some(error => error.status === 429))
+
 /** AniList reports most failures inside the body, beside whatever status it sent. */
 export const readResponse = <T>(status: number, body: AnilistBody<T> | null): Read<T> => {
   const errors = (body?.errors ?? []) as AnilistError[]
-  if (status === 429 || errors.some(error => error.status === 429)) return { kind: 'rate-limited' }
+  if (isRateLimited(status, body)) return { kind: 'rate-limited' }
   if (status === 401 || errors.some(error => error.status === 401)) return { kind: 'signed-out' }
   if (errors.length || body?.data == null) return { kind: 'error', message: errorMessage(status, errors) }
   return { kind: 'data', data: body.data }

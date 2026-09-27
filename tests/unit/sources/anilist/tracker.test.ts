@@ -7,6 +7,7 @@ import type { CatalogLookup } from '../../../../src/tracking/identity'
 import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
 import { ANILIST_WRITE_NOTICE } from '../../../../src/sources/anilist/list-api'
+import { TIMEOUT_AFTER_429_MS } from '../../../../src/sources/anilist/pacing'
 import { anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
@@ -44,13 +45,25 @@ const fakeSession = (script: Record<string, Answer>) => {
   }
 }
 
-const setup = (script: Record<string, Answer>) => {
+/**
+ * `holdWaits` keeps every pacer wait pending until `release`, as real time would; `drift` moves the
+ * clock on by that much each time the tracker reads it.
+ */
+const setup = (script: Record<string, Answer>, { holdWaits = false, drift = 0 } = {}) => {
   let at = 1_790_000_000_000
   const waits: number[] = []
+  const held: (() => void)[] = []
   const fake = fakeSession(script)
-  const resolvers = anilistTrackerResolvers({ now: () => at, wait: async ms => { waits.push(ms); at += ms } })
+  const resolvers = anilistTrackerResolvers({
+    now: () => (at += drift) - drift,
+    wait: async ms => {
+      waits.push(ms)
+      if (holdWaits) await new Promise<void>(resolve => held.push(resolve))
+      at += ms
+    },
+  })
   const target = providerServer('anilist', resolvers, { catalog: async () => catalog, session: () => fake.session })
-  return { ...fake, target, waits, now: () => at }
+  return { ...fake, target, waits, now: () => at, release: () => held.shift()?.() }
 }
 
 const live: { close: () => void }[] = []
@@ -222,6 +235,40 @@ describe("AniList's rate limit", () => {
     expect(answerOf(await tracking.next()).state).toBe('LISTED')
     expect(waits).toEqual([40_000])
     expect(calls).toBe(2)
+  })
+
+  // AniList's usual way to report a failure: an HTTP 200 whose body carries the status
+  const BODY_429 = { data: null, errors: [{ message: 'Too Many Requests.', status: 429 }] }
+  // a loop that does spin stops at the cap, so the test fails rather than never yielding
+  const rateLimitedUpTo = (cap: number, counted: { calls: number }) => () =>
+    ++counted.calls <= cap ? response(BODY_429) : response(LISTED_BODY)
+
+  test('a 429 only in the body pauses the same way: each read after it waits the pause out first', async () => {
+    const counted = { calls: 0 }
+    const { target, waits, release } = setup({ StubTracking: rateLimitedUpTo(20, counted) }, { holdWaits: true })
+    const tracking = watch(target, 'ag:(anilist:154587)')
+
+    expect(answerOf(await tracking.next())).toMatchObject({ state: 'PAUSED', error: expect.stringContaining('asked stub to wait until') })
+    await expect(tracking.next(100), 'nothing is asked while the pause holds').rejects.toThrow('no payload')
+    expect(counted.calls).toBe(1)
+    expect(waits).toEqual([TIMEOUT_AFTER_429_MS])
+
+    release()
+    expect(answerOf(await tracking.next()).state).toBe('PAUSED')
+    await expect(tracking.next(100)).rejects.toThrow('no payload')
+    expect(counted.calls).toBe(2)
+    expect(waits).toEqual([TIMEOUT_AFTER_429_MS, TIMEOUT_AFTER_429_MS])
+  })
+
+  test('a PAUSED read with no pause left to wait out is not asked again on its own', async () => {
+    const counted = { calls: 0 }
+    // a clock past every pause by the time the tracker looks at it again
+    const { target } = setup({ StubTracking: rateLimitedUpTo(20, counted) }, { drift: TIMEOUT_AFTER_429_MS + 1_000 })
+    const tracking = watch(target, 'ag:(anilist:154587)')
+
+    expect(answerOf(await tracking.next()).state).toBe('PAUSED')
+    await expect(tracking.next(100)).rejects.toThrow('no payload')
+    expect(counted.calls).toBe(1)
   })
 
   test('a save refused with a 429 fails, saying why, and is not sent again', async () => {

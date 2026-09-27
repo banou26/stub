@@ -16,8 +16,8 @@ const clock = () => {
   }
 }
 
-const paced = (status: number, rateLimit: Partial<Paced['rateLimit']> = {}): Paced =>
-  ({ status, rateLimit: { limit: 30, remaining: 20, reset: null, retryAfter: null, ...rateLimit } })
+const paced = (status: number, rateLimit: Partial<Paced['rateLimit']> = {}, body: Paced['body'] = null): Paced =>
+  ({ status, body, rateLimit: { limit: 30, remaining: 20, reset: null, retryAfter: null, ...rateLimit } })
 
 const identity = (result: Paced) => result
 
@@ -66,6 +66,16 @@ describe('the AniList pacer', () => {
     time.advance(30_000)
     await pacer.run(async () => paced(429), identity)
     expect(pacer.pausedUntil()).toBe(time.now() + TIMEOUT_AFTER_429_MS)
+  })
+
+  test('pauses the same after a 429 reported only in the body, beside an HTTP 200', async () => {
+    const time = clock()
+    const pacer = createPacer(time)
+    await pacer.run(async () => paced(200, {}, { data: null, errors: [{ message: 'Too Many Requests.', status: 429 }] }), identity)
+    expect(pacer.pausedUntil()).toBe(time.now() + TIMEOUT_AFTER_429_MS)
+
+    await pacer.run(async () => paced(200), identity)
+    expect(time.waits).toEqual([TIMEOUT_AFTER_429_MS])
   })
 
   test('sends one call at a time, in the order they were made', async () => {

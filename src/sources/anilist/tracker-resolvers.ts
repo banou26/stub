@@ -136,9 +136,11 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
                 yield trackingOf(uri, last)
               }
               last = await read(ctx, uri, target.id)
+              // asked again once the pause is over, which the pacer waits out. With no pause set nothing
+              // would hold the next read back, so the answer waits for a change like any other.
+              const retry = last.state === 'PAUSED' && pacer.pausedUntil() !== undefined
               yield trackingOf(uri, last)
-              // asked again once the pause is over, which the pacer waits out
-              if (last.state === 'PAUSED') continue
+              if (retry) continue
               if ((await wakes.next()).done) return
             }
           } finally {
