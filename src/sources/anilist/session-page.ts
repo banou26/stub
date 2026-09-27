@@ -11,7 +11,7 @@
 
 import { expose } from 'osra'
 
-import { SESSION_PORT_MESSAGE, type ServeArg } from '../../tracking/session-frames'
+import { SESSION_INSTALL, SESSION_PORT_MESSAGE, type ServeArg } from '../../tracking/session-frames'
 import { extractAlToken, isGateRejection, type AnilistBody } from './frontend'
 
 /**
@@ -113,11 +113,12 @@ export const hasViewer = async (api: SessionPageApi): Promise<boolean> => {
 
 type Installed = { appOrigin: string, key: string, api: SessionPageApi }
 
-const STATE = Symbol.for('stub.anilist-session')
+const STATE = Symbol.for(SESSION_INSTALL)
 
 /**
  * Listens on `target` for the app's port and serves `api` over each one that arrives with this
- * install's key, from the app's origin.
+ * install's key, from the app's origin. The install is kept at `SESSION_INSTALL`, where the session
+ * frame reads which key the document serves.
  *
  * Installing again in the same document (the frame reports a document twice when the page returns
  * from the back/forward cache) swaps the key and adds no second listener, so a port sent for an

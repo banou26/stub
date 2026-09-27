@@ -1,12 +1,15 @@
 // The session frame manager over a fake Frame: the page script it evaluates and the port it posts,
-// served here over a real MessageChannel by a fake page, one page per document the frame holds.
+// served here over a real MessageChannel by a fake page, one page per document the frame holds, each
+// its own realm, where READ_SESSION_INSTALL runs as FKN runs a source string.
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { Frame } from '@fkn/lib'
 
+import { createContext, runInContext, type Context } from 'node:vm'
+
 import { expose } from 'osra'
 
-import { SESSION_PORT_MESSAGE, createSessionFrames, type ServeArg, type SessionSite } from '../../../src/tracking/session-frames'
+import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE, createSessionFrames, type ServeArg, type SessionSite } from '../../../src/tracking/session-frames'
 
 type PageApi = { ask: (question: string) => Promise<string> }
 
@@ -28,18 +31,27 @@ afterEach(() => { while (ports.length) ports.pop()!.close() })
  * meanwhile waits for it, and the commit is reported before that call answers. `load`, the extension:
  * the goto answers once the document started, calls run on it at once, and it is reported on the
  * iframe's load, which the test fires with `load()`. `early`, the extension on a fast page: that load
- * comes before the goto answers. `never`: nothing is reported for it.
+ * comes before the goto answers. `never`: nothing is reported for it. On the extension a page that
+ * moves before its load is `load` with no `load()`: its document is never reported.
  */
 type GotoReport = 'held' | 'load' | 'early' | 'never'
 
+const REPORTS: GotoReport[] = ['held', 'load', 'early', 'never']
+
+const newRealm = () => createContext() as Context & Record<symbol, unknown>
+
+const runInPage = (source: string, realm: Context, arg: unknown) =>
+  (runInContext(`(${source}\n)`, realm) as (arg: unknown) => unknown)(arg)
+
 /**
- * A Frame whose page serves `ask` over every port an install in its document was sent, answering with
- * the number of the document it runs in. `hang` makes that document's answers wait for the next one.
- * `order` records each document report and each evaluate as it answers.
+ * A Frame whose page serves `ask` over the port its document's install was sent, answering with the
+ * number of the document it runs in; a document that left answers nothing, as its port died with it.
+ * The page script lands a task after it is evaluated, so a read can find a document before it does.
+ * `hang` makes that document's answers wait. `order` records each report and each install as it lands.
  */
 const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
   let document = -1
-  let installed = new Set<string>()
+  let realm = newRealm()
   let committed = Promise.resolve()
   const listeners = new Set<(event: { type: 'document', origin: string }) => void>()
   const hanging = new Set<number>()
@@ -47,28 +59,32 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
 
   const arrive = () => {
     document++
-    installed = new Set()
+    realm = newRealm()
   }
   const reportDocument = () => {
     order.push(`document ${document}`)
     for (const listener of [...listeners]) listener({ type: 'document', origin: SITE.origin })
   }
+  const serving = () => runInPage(READ_SESSION_INSTALL, realm, SESSION_INSTALL)
 
-  const evaluate = vi.fn(async (_source: string, arg: ServeArg) => {
+  const evaluate = vi.fn(async (source: string, arg: unknown) => {
     await committed
-    installed.add(arg.key)
-    order.push(`evaluate ${document}`)
+    if (source !== SITE.pageScript) return runInPage(source, realm, arg)
+    await new Promise(resolve => setTimeout(resolve))
+    realm[Symbol.for(SESSION_INSTALL)] = { key: (arg as ServeArg).key }
+    order.push(`install ${document}`)
     return 'installed'
   })
+  const installs = () => evaluate.mock.calls.filter(([source]) => source === SITE.pageScript)
   const postMessage = vi.fn(async (message: { type: string, key: string }, _origin: string, transfer: MessagePort[]) => {
     const port = transfer[0]!
     ports.push(port)
     await committed
     const own = document
-    if (!serve || message.type !== SESSION_PORT_MESSAGE || !installed.has(message.key)) return
+    if (!serve || message.type !== SESSION_PORT_MESSAGE || message.key !== serving()) return
     void expose<PageApi>({
       ask: async question => {
-        if (hanging.has(own)) await new Promise(() => {})
+        if (hanging.has(own) || own !== document) await new Promise(() => {})
         return `${question} from document ${own}`
       },
     }, { transport: port })
@@ -93,6 +109,8 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
   return {
     frame: { evaluate, postMessage, goto, addEventListener } as unknown as Frame,
     evaluate,
+    /** The page script's evaluates, apart from the reads of which install a document serves. */
+    installs,
     postMessage,
     goto,
     listeners,
@@ -144,13 +162,13 @@ describe('the session frame', () => {
   })
 
   test("attaches a hidden frame on the site's page with the evaluation ask, and installs the page script once", async () => {
-    const { attach, goto, evaluate, postMessage, ask } = setup()
+    const { attach, goto, evaluate, installs, postMessage, ask } = setup()
 
     expect(await ask('hello')).toBe('hello from document 0')
 
     expect(attach).toHaveBeenCalledWith({ iframe: { index: 1 }, domains: ['anilist.co'], permissions: [{ category: 'evaluation', reason: 'Read your list' }] })
     expect(goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'documentstart' })
-    expect(evaluate).toHaveBeenCalledTimes(1)
+    expect(installs()).toHaveLength(1)
     expect(evaluate).toHaveBeenCalledWith(SITE.pageScript, { kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'key-1' })
     expect(postMessage).toHaveBeenCalledTimes(1)
     const [message, origin, transfer] = postMessage.mock.calls[0]!
@@ -160,33 +178,33 @@ describe('the session frame', () => {
     expect(transfer[0]).toBeInstanceOf(MessagePort)
 
     expect(await ask('again')).toBe('again from document 0')
-    expect(evaluate, 'the port is reused').toHaveBeenCalledTimes(1)
+    expect(installs(), 'the port is reused').toHaveLength(1)
   })
 
   test('uses that start together share one attach and one install', async () => {
-    const { attach, evaluate, ask } = setup()
+    const { attach, installs, ask } = setup()
     expect(await Promise.all([ask('a'), ask('b'), ask('c')])).toEqual(['a from document 0', 'b from document 0', 'c from document 0'])
     expect(attach).toHaveBeenCalledTimes(1)
-    expect(evaluate).toHaveBeenCalledTimes(1)
+    expect(installs()).toHaveLength(1)
   })
 
-  test('every document the frame reports gets exactly one install, and later calls reach the page in it', async () => {
-    const { evaluate, postMessage, newDocument, ask } = setup()
+  test.each(REPORTS)('every document the frame reports gets exactly one install, and later calls reach the page in it (goto %s)', async report => {
+    const { installs, postMessage, newDocument, ask } = setup({ report })
     await ask('first')
 
     newDocument()
-    expect(evaluate).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(installs(), 'installed on the report, before any call').toHaveLength(2))
     expect(await ask('second')).toBe('second from document 1')
     expect(postMessage).toHaveBeenCalledTimes(2)
-    expect(evaluate.mock.calls[1]![1]).toMatchObject({ key: 'key-2' })
+    expect(installs()[1]![1]).toMatchObject({ key: 'key-2' })
 
     newDocument()
     expect(await ask('third')).toBe('third from document 2')
-    expect(evaluate).toHaveBeenCalledTimes(3)
+    expect(installs()).toHaveLength(3)
   })
 
-  test('a call the next document cut short runs once more on the page installed there', async () => {
-    const { hang, newDocument, ask } = setup()
+  test.each(REPORTS)('a call the next document cut short runs once more on the page installed there (goto %s)', async report => {
+    const { hang, newDocument, ask } = setup({ report })
     await ask('warm')
     hang()
 
@@ -224,60 +242,60 @@ describe('the session frame', () => {
   })
 
   test('a page that never answers on its port fails by name, and the next use installs again', async () => {
-    const { evaluate, ask } = setup({ serve: false, connectTimeoutMs: 50 })
+    const { installs, ask } = setup({ serve: false, connectTimeoutMs: 50 })
 
     await expect(ask('first')).rejects.toThrow('https://anilist.co did not answer')
     await expect(ask('second')).rejects.toThrow('did not answer')
-    expect(evaluate).toHaveBeenCalledTimes(2)
+    expect(installs()).toHaveLength(2)
   })
 })
 
 describe("the goto's own document is installed once, whenever its report lands", () => {
   test('on the cloud, reported while the first install is held for it', async () => {
-    const { evaluate, postMessage, order, newDocument, ask } = setup({ report: 'held' })
+    const { installs, postMessage, order, newDocument, ask } = setup({ report: 'held' })
 
     expect(await ask('first')).toBe('first from document 0')
     // the order FKN's reviewers measured on production, so the fake can express the double install
-    expect(order).toEqual(['document 0', 'evaluate 0'])
-    expect(evaluate).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['document 0', 'install 0'])
+    expect(installs()).toHaveLength(1)
     expect(postMessage).toHaveBeenCalledTimes(1)
 
     newDocument()
     expect(await ask('second')).toBe('second from document 1')
-    expect(order).toEqual(['document 0', 'evaluate 0', 'document 1', 'evaluate 1'])
+    expect(order).toEqual(['document 0', 'install 0', 'document 1', 'install 1'])
   })
 
   test('on the extension, reported on its load after the first install answered', async () => {
-    const { evaluate, postMessage, order, load, newDocument, ask } = setup({ report: 'load' })
+    const { installs, postMessage, order, load, newDocument, ask } = setup({ report: 'load' })
 
     expect(await ask('first')).toBe('first from document 0')
     load()
     expect(await ask('again')).toBe('again from document 0')
-    expect(order).toEqual(['evaluate 0', 'document 0'])
-    expect(evaluate).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['install 0', 'document 0'])
+    expect(installs()).toHaveLength(1)
     expect(postMessage).toHaveBeenCalledTimes(1)
 
     newDocument()
     expect(await ask('second')).toBe('second from document 1')
-    expect(evaluate).toHaveBeenCalledTimes(2)
+    expect(installs()).toHaveLength(2)
   })
 
   test('on the extension, reported before the goto answered, and the next document is still installed', async () => {
-    const { evaluate, order, newDocument, ask } = setup({ report: 'early' })
+    const { installs, order, newDocument, ask } = setup({ report: 'early' })
 
     expect(await ask('first')).toBe('first from document 0')
-    expect(order).toEqual(['document 0', 'evaluate 0'])
+    expect(order).toEqual(['document 0', 'install 0'])
 
     newDocument()
     expect(await ask('second')).toBe('second from document 1')
-    expect(evaluate).toHaveBeenCalledTimes(2)
+    expect(installs()).toHaveLength(2)
   })
 
   test('a page that never reports it is installed on first use, without waiting for a report', async () => {
-    const { evaluate, order, ask } = setup({ report: 'never' })
+    const { installs, order, ask } = setup({ report: 'never' })
 
     expect(await ask('first')).toBe('first from document 0')
-    expect(order).toEqual(['evaluate 0'])
-    expect(evaluate).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['install 0'])
+    expect(installs()).toHaveLength(1)
   })
 })

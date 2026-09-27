@@ -8,6 +8,20 @@ import type { CategoryRequest, Frame } from '@fkn/lib'
 /** The `type` of the message that hands an installed page script its port. */
 export const SESSION_PORT_MESSAGE = 'stub:session-port'
 
+/**
+ * Where a page script keeps its install on its document's global, `globalThis[Symbol.for(SESSION_INSTALL)]`:
+ * an object whose `key` is the key of the port it serves. The frame reads it on every document report,
+ * so a document that already serves the current install is not installed again.
+ */
+export const SESSION_INSTALL = 'stub:session-install'
+
+/**
+ * What `evaluate` runs, with `SESSION_INSTALL`, to read the key the frame's document serves: a string,
+ * or null in a document with no install. A source string, so nothing a build adds to a function's body
+ * travels into the page.
+ */
+export const READ_SESSION_INSTALL = 'function (name) { const install = globalThis[Symbol.for(name)]; return install && typeof install.key === "string" ? install.key : null }'
+
 /** The arg the page script is evaluated with: serve the session over the port a message with `key` brings. */
 export type ServeArg = { kind: 'serve', appOrigin: string, key: string }
 
@@ -23,7 +37,7 @@ export type SessionSite = {
   domains: string[]
   /** Why stub asks to run code on the site, for the consent card. */
   reason: string
-  /** The page script, a function expression `evaluate` calls with a `ServeArg`. */
+  /** The page script, a function expression `evaluate` calls with a `ServeArg`, keeping its install at `SESSION_INSTALL`. */
   pageScript: string
 }
 
@@ -69,6 +83,9 @@ const deadline = <T>(promise: PromiseLike<T>, ms: number, message: string) =>
   })
 
 type Install<Api> = {
+  key: string
+  /** Settles once the page script ran, or failed to, in whichever document it reached. */
+  landed: Promise<void>
   api: Promise<Api>
   /** Rejects with PageGone once this install is replaced or dropped. */
   gone: Promise<never>
@@ -94,8 +111,7 @@ export const createSessionFrames = <Api>(
     return site
   }
 
-  // ONE page script per document: once for the page the frame was sent to, and once for every document
-  // the frame reports after that, since what evaluate installed ends with its document
+  // ONE page script per document, since what evaluate installed ends with its document
   const install = (entry: Entry<Api>, site: SessionSite, frame: Frame): Install<Api> => {
     entry.current?.retire()
     const serve: ServeArg = { kind: 'serve', appOrigin, key: key() }
@@ -108,15 +124,33 @@ export const createSessionFrames = <Api>(
       }
     })
     gone.catch(() => {})
+    const evaluated = (async () => { await frame.evaluate(site.pageScript, serve) })()
     const api = (async () => {
-      await frame.evaluate(site.pageScript, serve)
+      await evaluated
       await frame.postMessage({ type: SESSION_PORT_MESSAGE, key: serve.key }, site.origin, [port2])
       return await deadline(connect(port1), connectTimeoutMs, `${site.origin} did not answer stub's page script`)
     })()
     api.catch(() => {})
-    const next = { api, gone, retire }
+    const next = { key: serve.key, landed: evaluated.catch(() => {}), api, gone, retire }
     entry.current = next
     return next
+  }
+
+  // A report does not say which document it is for, and the goto's own document can be reported before,
+  // during or after the first install, or never (on the extension, a page that moves before its load).
+  // So the document is asked which install it serves, once the one in flight has landed.
+  const settle = async (entry: Entry<Api>, site: SessionSite, frame: Frame) => {
+    for (;;) {
+      if (entries.get(site.id) !== entry) return
+      const current = entry.current
+      await current?.landed
+      const serving = await frame.evaluate(READ_SESSION_INSTALL, SESSION_INSTALL).catch(() => null)
+      if (entries.get(site.id) !== entry) return
+      // an install started during the read may have landed after it, so the read says nothing of it
+      if (entry.current !== current) continue
+      if (serving !== current?.key) install(entry, site, frame)
+      return
+    }
   }
 
   const start = (site: SessionSite): Entry<Api> => {
@@ -126,18 +160,7 @@ export const createSessionFrames = <Api>(
       const { iframe, remove } = mount()
       controller.signal.addEventListener('abort', remove, { once: true })
       const frame = await attach({ iframe, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
-      // Listened to BEFORE the goto, the only way its own document is reported exactly once on both
-      // backends: the cloud reports it as it commits, before a call held for it answers, and the
-      // extension on the iframe's load, which can come before the goto answers or after the first
-      // install. use() installs on that document, since a call made after the goto runs there.
-      let gotoDocument = true
-      frame.addEventListener('document', () => {
-        if (gotoDocument) {
-          gotoDocument = false
-          return
-        }
-        if (entries.get(site.id) === entry) install(entry, site, frame)
-      }, { signal: controller.signal })
+      frame.addEventListener('document', () => { void settle(entry, site, frame) }, { signal: controller.signal })
       await frame.goto(site.url, { waitUntil: 'documentstart' })
       return frame
     })()

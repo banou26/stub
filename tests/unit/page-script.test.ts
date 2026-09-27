@@ -10,9 +10,11 @@ import { expose } from 'osra'
 import type { SessionPageApi } from '../../src/sources/anilist/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
-import { SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
+import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
 
-const STATE = Symbol.for('stub.anilist-session')
+const STATE = Symbol.for(SESSION_INSTALL)
+
+const inPage = (source: string): unknown => (0, eval)(`(${source}\n)`)
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -31,10 +33,13 @@ test('ships one function expression that installs the session server in the page
     return new Response(JSON.stringify({ data: { Viewer: { id: 7 } } }), { status: 200 })
   })
 
-  const compiled: unknown = (0, eval)(`(${source}\n)`)
+  const compiled = inPage(source)
+  const serving = () => (inPage(READ_SESSION_INSTALL) as (name: string) => unknown)(SESSION_INSTALL)
   expect(typeof compiled).toBe('function')
+  expect(serving(), 'a document with no install').toBeNull()
   expect((compiled as (arg: unknown) => unknown)({ kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'k1' })).toBe('installed')
   expect(globalThis, 'nothing but its own state lands on the page').not.toHaveProperty('__stubPageScript')
+  expect(serving(), "the key the session frame's read finds").toBe('k1')
 
   const { port1, port2 } = new MessageChannel()
   window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://anime.fkn.app', ports: [port2] }))
