@@ -65,6 +65,14 @@ describe('opening the window', () => {
     expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS })
   })
 
+  // a sign-in check that runs code in the page asks for it as the window connects, not mid poll
+  test('asks for the categories it is given on the window, and for none otherwise', () => {
+    attach.mockReturnValue(new Promise(() => {}))
+    const permissions = [{ category: 'evaluation' as const, reason: 'Read your list' }]
+    void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, permissions })
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, permissions })
+  })
+
   // a live sign-in session sends the window straight on to www's home page, whose load a consent script
   // holds past the attach's 30 s deadline, so the window opens blank and is sent without waiting on load
   test('sends the blank window to the sign-in page at documentstart', async () => {

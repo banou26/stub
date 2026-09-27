@@ -1,4 +1,4 @@
-import type { Frame, WindowFrame } from '@fkn/lib'
+import type { CategoryRequest, Frame, WindowFrame } from '@fkn/lib'
 
 import { attachFrame, isTerminalError } from '@fkn/lib'
 
@@ -28,6 +28,12 @@ export type WindowSignInOptions = {
    * outside `domains`, so neither says the sign-in is done.
    */
   isSignedIn: (login: Frame) => Promise<boolean>
+  /**
+   * Categories to ask for as soon as the window connects, on a card drawn in the window. For an
+   * `isSignedIn` that has to run code in the page: asked for up front, the card never lands in the
+   * middle of a read the poll then gives up on.
+   */
+  permissions?: CategoryRequest[]
   /** Time between two reads, in milliseconds. 1000 by default. */
   pollMs?: number
   /** How long one read may take before it counts as unanswered, in milliseconds. 5000 by default. */
@@ -54,11 +60,12 @@ export const signInThroughWindow = async ({
   url,
   domains,
   isSignedIn,
+  permissions,
   pollMs = 1000,
   readTimeoutMs = 5000,
 }: WindowSignInOptions): Promise<WindowSignIn> => {
   // first statement on purpose: an await above it would open the window without the click's activation
-  const opening = attachFrame({ window: {}, domains })
+  const opening = attachFrame({ window: {}, domains, ...permissions ? { permissions } : {} })
   let login: WindowFrame
   try {
     login = await opening
