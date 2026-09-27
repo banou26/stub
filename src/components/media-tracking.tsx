@@ -25,6 +25,7 @@ const MEDIA_TRACKING = gql(`
         candidates
         error
         pending
+        episodeCount
         tracker {
           id
           name

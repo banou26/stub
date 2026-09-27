@@ -97,9 +97,10 @@ describe('what the AniList tracker answers', () => {
     })
   })
 
-  test('NOT_LISTED when the viewer has no entry for it', async () => {
+  test("NOT_LISTED when the viewer has no entry for it, with AniList's own episode count", async () => {
     const { target } = setup({ StubTracking: () => response(NOT_LISTED_BODY) })
-    expect(answerOf(await watch(target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'NOT_LISTED', entry: null, tracker: { signedIn: true } })
+    expect(answerOf(await watch(target, 'ag:(anilist:154587)').next()))
+      .toMatchObject({ state: 'NOT_LISTED', entry: null, episodeCount: 28, tracker: { signedIn: true } })
   })
 
   test('SIGNED_OUT, and takes no writes, when anilist.co answers the session 401', async () => {

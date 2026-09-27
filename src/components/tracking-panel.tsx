@@ -17,6 +17,8 @@ export type PanelAnswer = {
   error?: string | null
   /** Writes the tracker accepted and has not sent yet. */
   pending?: number | null
+  /** How many episodes the tracker counts for the media, listed or not. */
+  episodeCount?: number | null
   tracker: {
     id: string
     name: string

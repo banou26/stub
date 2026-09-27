@@ -88,8 +88,10 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     if (!viewer) return answer(uri, 'SIGNED_OUT')
     const media = result.data.Media
     if (!media) return errorAnswer(uri, anilistTracker(viewer), `AniList has no anime ${mediaId}`)
-    if (!media.mediaListEntry) return answer(uri, 'NOT_LISTED')
-    return answer(uri, 'LISTED', { entry: listEntryOf(scoreFormatOf(viewer), media, media.mediaListEntry) })
+    // AniList's count even with nothing listed, so a sync onto it holds progress counted differently
+    const episodeCount = media.episodes ?? null
+    if (!media.mediaListEntry) return answer(uri, 'NOT_LISTED', { episodeCount })
+    return answer(uri, 'LISTED', { episodeCount, entry: listEntryOf(scoreFormatOf(viewer), media, media.mediaListEntry) })
   }
 
   const notWritten = (result: Exclude<Read<unknown>, { kind: 'data' }>): WriteOutcome[] =>

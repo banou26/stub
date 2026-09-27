@@ -75,7 +75,7 @@ describe('what a sync changes on a target', () => {
   })
 
   test('a target that lists nothing gets every field the source holds', () => {
-    const plan = planTarget(stub, answer('anilist', null, { scale: 'POINT_10_DECIMAL' }))
+    const plan = planTarget(stub, answer('anilist', null, { scale: 'POINT_10_DECIMAL', episodeCount: 12 }))
 
     expect(plan.changes.map(({ field, from, to }) => [field, from, to])).toEqual([
       ['STATUS', null, 'Watching'],
@@ -133,6 +133,18 @@ describe('what a sync refuses', () => {
 
     const unknown = answer('mal', { status: 'PAUSED', progress: 12 })
     expect(planTarget(whole, unknown).entry, 'the control: a count one side does not know is no refusal').toEqual({ status: 'WATCHING', progress: 18 })
+  })
+
+  test('progress, onto a tracker that lists nothing yet and counts the episodes differently', () => {
+    const whole = answer('stub', { status: 'WATCHING', progress: 18, episodeCount: 24 })
+    const plan = planTarget(whole, answer('anilist', null, { episodeCount: 12 }))
+
+    expect(plan.held).toEqual([{ field: 'PROGRESS', reason: 'Stub counts 24 episodes and AniList counts 12, so progress is not copied' }])
+    expect(plan.entry).toEqual({ status: 'WATCHING' })
+
+    const same = planTarget(whole, answer('anilist', null, { episodeCount: 24 }))
+    expect(same.entry, 'the control: the same count').toEqual({ status: 'WATCHING', progress: 18 })
+    expect(same.changes[1], "shown against the target's own count").toMatchObject({ field: 'PROGRESS', to: '18 / 24' })
   })
 
   test('a source with writes still waiting to be sent', () => {

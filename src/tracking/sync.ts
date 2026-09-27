@@ -30,6 +30,8 @@ export type SyncAnswer = {
   state: string
   /** Writes the tracker accepted and has not sent yet. */
   pending?: number | null
+  /** How many episodes the tracker counts for the media, listed or not. */
+  episodeCount?: number | null
   tracker: { id: string, name: string, canWrite: boolean, scoreScale?: string | null }
   entry?: SyncEntry | null
 }
@@ -118,6 +120,9 @@ export const fieldText = (field: TrackingField, entry: SyncEntry | null | undefi
   }
 }
 
+// the entry's own count, else the one the tracker gave for the media while listing nothing
+const countOf = (answer: SyncAnswer) => answer.entry?.episodeCount ?? answer.episodeCount ?? null
+
 // a date as an input: only its three parts, so a cache's __typename never reaches the schema
 const dateInput = (date: SyncDate) => ({ year: date.year ?? null, month: date.month ?? null, day: date.day ?? null })
 
@@ -144,12 +149,12 @@ const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnsw
     case 'PROGRESS': {
       if (from.progress == null || from.progress === to?.progress) return undefined
       // two trackers can split one run differently, and 18 of AniList's 24 is not 18 of a 12 episode part
-      const counts = [from.episodeCount, to?.episodeCount]
+      const counts = [countOf(source), countOf(target)]
       if (counts[0] != null && counts[1] != null && counts[0] !== counts[1]) {
         return { held: { field, reason: `${source.tracker.name} counts ${counts[0]} episodes and ${target.tracker.name} counts ${counts[1]}, so progress is not copied` } }
       }
       const backwards = to?.progress != null && from.progress < to.progress
-      return change(progressText(from.progress, to?.episodeCount ?? from.episodeCount)!, backwards, { progress: from.progress })
+      return change(progressText(from.progress, counts[1])!, backwards, { progress: from.progress })
     }
     case 'SCORE': {
       const held = to?.score
