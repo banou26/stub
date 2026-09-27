@@ -27,6 +27,7 @@ export const stubTracker: Tracker = {
   account: 'This device',
   canWrite: true,
   scoreScale: 'POINT_100',
+  writeNotice: null,
 }
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null

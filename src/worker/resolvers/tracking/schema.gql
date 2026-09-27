@@ -73,6 +73,8 @@ type Tracker {
   canWrite: Boolean!
   """The scale the viewer scores in on this tracker. Scores on the wire are always 0 to 100."""
   scoreScale: String!
+  """What a write to this tracker does beyond the list itself, said where the viewer picks it."""
+  writeNotice: String
 }
 
 """
