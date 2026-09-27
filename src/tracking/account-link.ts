@@ -19,8 +19,8 @@ export type SessionScope = 'device' | 'account'
  *
  * - `device`: a list kept on this device only. Written while signed out, or while signed in before the
  *   account's list could be opened here. Never uploaded unless the viewer chooses to add it.
- * - `account`: the list of the FKN account that was signed in when this device id was started. The
- *   device's file was uploaded to that account in the same step, and its presence in the account's
+ * - `account`: the list of the FKN account that was signed in when this device id was started. That
+ *   step wrote the device's marker (`joinedPath`) to the account, and its presence in the account's
  *   listing is how every later check tells that the account signed in now is still that one: the app
  *   is never told an account id.
  *
@@ -60,7 +60,16 @@ export const HELD_FILE = 'on-this-device.json'
 /** The account keeps each device's file under the same names, below this root. */
 export const CLOUD_ROOT = 'tracking/v1/'
 export const cloudPath = (id: string) => `${CLOUD_ROOT}${deviceFile(id)}`
+/**
+ * The marker that a device id belongs to the account holding it, written by a join and by nothing else.
+ * The device's own file cannot be the proof: an upload lands in whichever account is signed in when the
+ * write arrives, so a switch after the check would put the file, and with it the proof, in the other
+ * account.
+ */
+export const joinedPath = (id: string) => `${CLOUD_ROOT}joined/${id}`
 const DEVICES = `${CLOUD_ROOT}devices/`
+const deviceOf = (path: string) =>
+  path.startsWith(DEVICES) && path.endsWith('.json') ? path.slice(DEVICES.length, -'.json'.length) : undefined
 
 /** The journal's store: whichever device the session names, read afresh each time. */
 export const journalStoreOver = (disk: TrackerDisk): JournalStore => ({
@@ -128,10 +137,10 @@ export type AccountLink = ReturnType<typeof accountLink>
  *
  * On a sign out the account's list leaves the device: its file is deleted and a new device list
  * starts, so nothing of it can be uploaded anywhere later. When the account signed in is not the one
- * this device's file was uploaded to, the same happens before anything is uploaded. A list kept while
- * signed out is set aside at sign in and only reaches the account through `addHeld`, the viewer's own
- * choice. The other devices' files are read only while the key is held, and at most once every
- * `refreshMs` per session.
+ * this device joined, the same happens before anything is uploaded. A list kept while signed out is
+ * set aside at sign in and only reaches the account through `addHeld`, the viewer's own choice. The
+ * other devices' files are read only while the key is held, only for a device the account lists a
+ * marker for, and at most once every `refreshMs` per session.
  */
 export const accountLink = ({
   disk,
@@ -203,7 +212,7 @@ export const accountLink = ({
     await journal.reload()
   }
 
-  // The account signed in is not the one this device's file belongs to (or the viewer deleted the file
+  // The account signed in is not the one this device's file belongs to (or the viewer deleted its marker
   // from the account). Nothing of the old list may be uploaded, so it is deleted before any upload can
   // run, and the device starts over.
   const forgetAccount = async (from: Session) => {
@@ -214,12 +223,12 @@ export const accountLink = ({
     await journal.reload()
   }
 
-  // Signed in, key held: a new device id whose (empty) file is uploaded FIRST, since that file in the
+  // Signed in, key held: a new device id whose marker is written FIRST, since that marker in the
   // account's listing is the proof every later upload checks. The list this device kept is set aside,
   // never uploaded.
   const joinAccount = async (from: Session): Promise<Refusal | undefined> => {
     const id = uuid()
-    const wrote = await cloud.write(cloudPath(id), JSON.stringify(emptyFile(id)))
+    const wrote = await cloud.write(joinedPath(id), '{}')
     if (!('ok' in wrote)) return wrote
     await moveFrom(from, async () => {
       const own = parseJournal(await disk.read(deviceFile(from.id)), from.id)
@@ -230,7 +239,9 @@ export const accountLink = ({
     await journal.reload()
   }
 
-  const isOwn = (session: Session, listing: CloudEntry[]) => listing.some(entry => entry.path === cloudPath(session.id))
+  // A file that landed in an account switched to mid-check carries no marker there, so the next check
+  // forgets that account and none of its devices reads the file. Only FKN can refuse the write itself.
+  const isOwn = (session: Session, listing: CloudEntry[]) => listing.some(entry => entry.path === joinedPath(session.id))
 
   /** This device's file to its account, when the account lacks some of it. The caller checked the proof. */
   const upload = async (session: Session): Promise<Refusal | undefined> => {
@@ -256,8 +267,11 @@ export const accountLink = ({
     }
     if (lastRead !== undefined && now() - lastRead < refreshMs) return
     lastRead = now()
-    const theirs = listing.filter(entry =>
-      entry.path.startsWith(DEVICES) && entry.path.endsWith('.json') && entry.path !== cloudPath(session.id))
+    const listed = new Set(listing.map(entry => entry.path))
+    const theirs = listing.filter(entry => {
+      const id = deviceOf(entry.path)
+      return id !== undefined && id !== session.id && listed.has(joinedPath(id))
+    })
     for (const path of [...others.keys()]) if (!theirs.some(entry => entry.path === path)) others.delete(path)
     let refusal: Refusal | undefined
     for (const entry of theirs) {
