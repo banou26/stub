@@ -126,9 +126,19 @@ export const createSessionFrames = <Api>(
       const { iframe, remove } = mount()
       controller.signal.addEventListener('abort', remove, { once: true })
       const frame = await attach({ iframe, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
+      // Listened to BEFORE the goto, the only way its own document is reported exactly once on both
+      // backends: the cloud reports it as it commits, before a call held for it answers, and the
+      // extension on the iframe's load, which can come before the goto answers or after the first
+      // install. use() installs on that document, since a call made after the goto runs there.
+      let gotoDocument = true
+      frame.addEventListener('document', () => {
+        if (gotoDocument) {
+          gotoDocument = false
+          return
+        }
+        if (entries.get(site.id) === entry) install(entry, site, frame)
+      }, { signal: controller.signal })
       await frame.goto(site.url, { waitUntil: 'documentstart' })
-      // after the goto, so the page it loaded is not reported: that one is installed on first use
-      frame.addEventListener('document', () => { if (entries.get(site.id) === entry) install(entry, site, frame) }, { signal: controller.signal })
       return frame
     })()
     // a frame that could not attach is forgotten, so the next use tries again
