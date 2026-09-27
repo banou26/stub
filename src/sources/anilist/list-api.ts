@@ -1,10 +1,15 @@
 // The viewer's AniList list as the AniList tracker reads and writes it: the documents it sends through
 // the viewer's own anilist.co session and how their answers map onto stub's list entries. Import free
-// apart from types, so every mapping is pinned under vitest.
+// apart from types and the score scales, so every mapping is pinned under vitest.
 
 import type { FuzzyDate, FuzzyDateInput, ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
 import type { AnilistBody } from './frontend'
 import type { SessionRequest } from './session-page'
+
+import { scoreLabel } from '../../tracking/score-scale'
+
+/** A score in the viewer's own format, as AniList shows it to them (tracking/score-scale.ts). */
+export { scoreLabel }
 
 export const ANILIST_TRACKER_ID = 'anilist'
 export const ANILIST_ICON = 'https://anilist.co/img/icons/favicon-32x32.png'
@@ -181,18 +186,6 @@ export const readResponse = <T>(status: number, body: AnilistBody<T> | null): Re
   if (status === 401 || errors.some(error => error.status === 401)) return { kind: 'signed-out' }
   if (errors.length || body?.data == null) return { kind: 'error', message: errorMessage(status, errors) }
   return { kind: 'data', data: body.data }
-}
-
-/** A score in the viewer's own format, as AniList shows it to them. Null for no score. */
-export const scoreLabel = (score: number | null | undefined, format: string): string | null => {
-  if (!score) return null
-  switch (format) {
-    case 'POINT_10_DECIMAL': return `${score.toFixed(1)} / 10`
-    case 'POINT_10': return `${Math.round(score)} / 10`
-    case 'POINT_5': return `${Math.round(score)} / 5`
-    case 'POINT_3': return [':(', ':|', ':)'][Math.round(score) - 1] ?? `${score} / 3`
-    default: return `${Math.round(score)} / 100`
-  }
 }
 
 export const scoreFormatOf = (viewer: AnilistViewer | undefined) => viewer?.mediaListOptions?.scoreFormat ?? 'POINT_100'
