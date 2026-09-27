@@ -28,6 +28,8 @@ export const stubTracker: Tracker = {
   canWrite: true,
   scoreScale: 'POINT_100',
   writeNotice: null,
+  // patchFrom stores the episodeCount the page sends with each write
+  keepsPageEpisodeCount: true,
 }
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null

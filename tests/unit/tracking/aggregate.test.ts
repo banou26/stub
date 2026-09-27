@@ -9,7 +9,7 @@ import { aggregateTracking, summaryId } from '../../../src/tracking/aggregate'
 const URI = 'ag:(anilist:1,mal:10)'
 
 const tracker = (id: string, scoreScale = 'POINT_100'): Tracker =>
-  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale })
+  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale, keepsPageEpisodeCount: false })
 
 const listed = (id: string, entry: Partial<ListEntry>, scale?: string): TrackerAnswer => ({
   _id: `answer:${id}:${URI}`,

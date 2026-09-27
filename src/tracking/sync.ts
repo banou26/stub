@@ -32,9 +32,19 @@ export type SyncAnswer = {
   pending?: number | null
   /** How many episodes the tracker counts for the media, listed or not. */
   episodeCount?: number | null
-  tracker: { id: string, name: string, canWrite: boolean, scoreScale?: string | null }
+  tracker: {
+    id: string
+    name: string
+    canWrite: boolean
+    scoreScale?: string | null
+    /** A write stores the page's episode count as this tracker's own. */
+    keepsPageEpisodeCount?: boolean | null
+  }
   entry?: SyncEntry | null
 }
+
+/** What the page a sync runs from sends beside every entry it writes. */
+export type SyncPage = { episodeCount?: number | null }
 
 /** One field as it stands on a target now, and as it will once the sync is applied. */
 export type FieldChange = {
@@ -122,6 +132,9 @@ export const fieldText = (field: TrackingField, entry: SyncEntry | null | undefi
 
 // the entry's own count, else the one the tracker gave for the media while listing nothing
 const countOf = (answer: SyncAnswer) => answer.entry?.episodeCount ?? answer.episodeCount ?? null
+// what a target counts once written to; a page with no count leaves the entry's as it is
+const countAfterWrite = (answer: SyncAnswer, page: SyncPage) =>
+  answer.tracker.keepsPageEpisodeCount ? page.episodeCount ?? countOf(answer) : countOf(answer)
 
 // a date as an input: only its three parts, so a cache's __typename never reaches the schema
 const dateInput = (date: SyncDate) => ({ year: date.year ?? null, month: date.month ?? null, day: date.day ?? null })
@@ -132,7 +145,7 @@ type Compared = { change: FieldChange, input: ListEntryInput } | { held: HeldFie
  * What copying one field of `source` onto `target` does. Undefined when nothing: the two agree, or
  * the source holds nothing for the field, since a sync never clears what a target holds.
  */
-const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnswer): Compared => {
+const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnswer, page: SyncPage): Compared => {
   const from = source.entry
   const to = target.entry ?? null
   if (!from) return undefined
@@ -149,7 +162,7 @@ const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnsw
     case 'PROGRESS': {
       if (from.progress == null || from.progress === to?.progress) return undefined
       // two trackers can split one run differently, and 18 of AniList's 24 is not 18 of a 12 episode part
-      const counts = [countOf(source), countOf(target)]
+      const counts = [countOf(source), countAfterWrite(target, page)]
       if (counts[0] != null && counts[1] != null && counts[0] !== counts[1]) {
         return { held: { field, reason: `${source.tracker.name} counts ${counts[0]} episodes and ${target.tracker.name} counts ${counts[1]}, so progress is not copied` } }
       }
@@ -212,15 +225,18 @@ export const targetRefusal = (answer: SyncAnswer): string | undefined =>
   : !answer.tracker.canWrite ? `${answer.tracker.name} takes no writes`
   : undefined
 
-/** What copying `source` onto `target` would change there, field by field, and the write that does it. */
-export const planTarget = (source: SyncAnswer, target: SyncAnswer): TargetPlan => {
+/**
+ * What copying `source` onto `target` would change there, field by field, and the write that does it.
+ * `page` is what the write sends beside the entry, which a tracker that keeps the page's count takes.
+ */
+export const planTarget = (source: SyncAnswer, target: SyncAnswer, page: SyncPage = {}): TargetPlan => {
   const refusal = targetRefusal(target)
   if (refusal) return { tracker: target.tracker.id, refusal, changes: [], held: [], entry: null }
   const changes: FieldChange[] = []
   const held: HeldField[] = []
   let entry: ListEntryInput = {}
   for (const field of SYNC_FIELDS) {
-    const compared = compareField(field, source, target)
+    const compared = compareField(field, source, target, page)
     if (!compared) continue
     if ('held' in compared) held.push(compared.held)
     else {
@@ -232,10 +248,10 @@ export const planTarget = (source: SyncAnswer, target: SyncAnswer): TargetPlan =
 }
 
 /**
- * The sync the viewer asked for: `source` copied onto each of `targets` and onto no other tracker.
- * The source itself is never a target.
+ * The sync the viewer asked for: `source` copied onto each of `targets` and onto no other tracker,
+ * with `page` sent beside each write. The source itself is never a target.
  */
-export const planSync = (answers: readonly SyncAnswer[], source: string, targets: readonly string[]): SyncPlan => {
+export const planSync = (answers: readonly SyncAnswer[], source: string, targets: readonly string[], page: SyncPage = {}): SyncPlan => {
   const from = answers.find(answer => answer.tracker.id === source)
   if (!from) return { source, refusal: `There is no tracker called ${source}`, targets: [] }
   const refusal = sourceRefusal(from)
@@ -244,7 +260,7 @@ export const planSync = (answers: readonly SyncAnswer[], source: string, targets
     source,
     targets: [...new Set(targets)].filter(id => id !== source).map(id => {
       const target = answers.find(answer => answer.tracker.id === id)
-      return target ? planTarget(from, target) : { tracker: id, refusal: `There is no tracker called ${id}`, changes: [], held: [], entry: null }
+      return target ? planTarget(from, target, page) : { tracker: id, refusal: `There is no tracker called ${id}`, changes: [], held: [], entry: null }
     }),
   }
 }
@@ -261,8 +277,9 @@ export const differences = (answers: readonly SyncAnswer[]): ComparedField[] => 
   const answered = answers.filter(answer => answer.state === 'LISTED' || answer.state === 'NOT_LISTED')
   if (answered.length < 2) return []
   const sources = answered.filter(answer => answer.state === 'LISTED' && answer.entry)
+  // no page: its count only decides whether progress is held or copied, and it differs either way
   return SYNC_FIELDS
-    .filter(field => sources.some(source => answered.some(target => target !== source && compareField(field, source, target))))
+    .filter(field => sources.some(source => answered.some(target => target !== source && compareField(field, source, target, {}))))
     .map(field => ({
       field,
       cells: answered.map(answer => ({ tracker: answer.tracker.id, text: fieldText(field, answer.entry, answer.tracker.scoreScale) })),

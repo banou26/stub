@@ -247,6 +247,19 @@ describe('the sync the viewer runs', () => {
     expect(onSyncWrite.mock.calls[0]![1]).not.toHaveProperty('progress')
   })
 
+  test("progress onto stub's tracker is held against the page's count, which its write stores", async () => {
+    const empty: PanelAnswer = { ...stub, state: 'NOT_LISTED', entry: null, tracker: { ...stub.tracker, keepsPageEpisodeCount: true } }
+    const longer: PanelAnswer = { ...anilist, entry: { ...anilist.entry!, progress: 18, episodeCount: 24 } }
+    const { host, onSyncWrite } = render([empty, longer])
+    await openSync(host)
+    await choose(sourceInput(host, 'anilist'))
+
+    expect(target(host, 'stub').querySelector('.held')!.textContent).toBe('AniList counts 24 episodes and Stub counts 12, so progress is not copied')
+    await choose(targetInput(host, 'stub'))
+    await apply(host)
+    expect(onSyncWrite.mock.calls[0]![1]).not.toHaveProperty('progress')
+  })
+
   test("says what a write to AniList does beyond the list, once AniList is ticked", async () => {
     const { host } = render([stub, anilist])
     await openSync(host)

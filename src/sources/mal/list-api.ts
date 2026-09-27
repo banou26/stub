@@ -344,4 +344,5 @@ export const malTracker = (user?: string): Tracker => ({
   canWrite: Boolean(user),
   scoreScale: 'POINT_10',
   writeNotice: MAL_WRITE_NOTICE,
+  keepsPageEpisodeCount: false,
 })

@@ -147,6 +147,27 @@ describe('what a sync refuses', () => {
     expect(same.changes[1], "shown against the target's own count").toMatchObject({ field: 'PROGRESS', to: '18 / 24' })
   })
 
+  test("progress, onto a tracker that keeps the page's count, counted as the page the write goes from", () => {
+    const whole = answer('anilist', { status: 'WATCHING', progress: 18, episodeCount: 24 })
+    const keeps = (entry: SyncEntry | null) => {
+      const base = answer('stub', entry)
+      return { ...base, tracker: { ...base.tracker, keepsPageEpisodeCount: true } }
+    }
+
+    const part = planTarget(whole, keeps(null), { episodeCount: 12 })
+    expect(part.held).toEqual([{ field: 'PROGRESS', reason: 'AniList counts 24 episodes and Stub counts 12, so progress is not copied' }])
+    expect(part.entry).toEqual({ status: 'WATCHING' })
+    expect(planSync([whole, keeps(null)], 'anilist', ['stub'], { episodeCount: 12 }).targets[0]!.entry).toEqual({ status: 'WATCHING' })
+
+    const same = planTarget(whole, keeps(null), { episodeCount: 24 })
+    expect(same.entry, 'the control: a page counting 24').toEqual({ status: 'WATCHING', progress: 18 })
+    expect(same.changes[1]).toMatchObject({ field: 'PROGRESS', to: '18 / 24' })
+
+    const stale = keeps({ status: 'WATCHING', progress: 3, episodeCount: 12 })
+    expect(planTarget(whole, stale, { episodeCount: 24 }).entry, 'the write stores the page\'s 24 over the 12 it held').toEqual({ progress: 18 })
+    expect(planTarget(whole, stale).held, 'a page with no count leaves the 12 it holds').toHaveLength(1)
+  })
+
   test('a source with writes still waiting to be sent', () => {
     const waiting = { ...anilist, pending: 2 }
 

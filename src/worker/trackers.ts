@@ -28,5 +28,6 @@ export const trackerOf = (entry: TrackerEntry): Tracker => {
     canWrite: false,
     scoreScale: definition.scoreScale ?? 'POINT_100',
     writeNotice: definition.writeNotice ?? null,
+    keepsPageEpisodeCount: false,
   }
 }
