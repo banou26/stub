@@ -1,4 +1,5 @@
-import type { ListStatus } from '../generated/graphql'
+import type { ListEntryInput, ListStatus } from '../generated/graphql'
+import type { SyncWrite } from '../tracking/sync'
 
 import { useMutation, useSubscription } from 'urql'
 
@@ -23,6 +24,7 @@ const MEDIA_TRACKING = gql(`
         state
         candidates
         error
+        pending
         tracker {
           id
           name
@@ -39,6 +41,9 @@ const MEDIA_TRACKING = gql(`
           progress
           score
           scoreLabel
+          startedAt { year month day }
+          completedAt { year month day }
+          rewatchCount
           episodeCount
           updatedAt
         }
@@ -59,6 +64,9 @@ const SAVE_LIST_ENTRY = gql(`
         progress
         score
         scoreLabel
+        startedAt { year month day }
+        completedAt { year month day }
+        rewatchCount
         episodeCount
         updatedAt
       }
@@ -109,7 +117,31 @@ const MediaTracking = (
     return result.data?.deleteListEntry ?? failed(result.error?.message)
   }
 
-  return <TrackingPanel tracking={data?.tracking} episodeCount={episodeCount} onSave={onSave} onDelete={onDelete} signIns={trackerSignIns}/>
+  // one sync target per write, named alone: a sync reaches no tracker the viewer did not tick
+  const onSyncWrite: SyncWrite = async (tracker, entry) => {
+    const result = await save({
+      input: {
+        uri: uri!,
+        trackers: [tracker],
+        entry: entry as ListEntryInput,
+        title: title ?? null,
+        cover: cover ?? null,
+        episodeCount: episodeCount ?? null,
+      },
+    })
+    return result.data?.saveListEntry ?? failed(result.error?.message)
+  }
+
+  return (
+    <TrackingPanel
+      tracking={data?.tracking}
+      episodeCount={episodeCount}
+      onSave={onSave}
+      onDelete={onDelete}
+      onSyncWrite={onSyncWrite}
+      signIns={trackerSignIns}
+    />
+  )
 }
 
 export default MediaTracking

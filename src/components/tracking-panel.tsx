@@ -2,22 +2,21 @@ import { css } from '@emotion/react'
 import { Minus, Plus } from 'lucide-react'
 import { useState } from 'preact/hooks'
 
-import MediaScore from './media-score'
+import type { SyncEntry, SyncWrite } from '../tracking/sync'
 
-export type PanelEntry = {
-  _id: string
-  status?: string | null
-  progress?: number | null
-  score?: number | null
-  scoreLabel?: string | null
-  episodeCount?: number | null
-}
+import { STATUS_LABELS, differences } from '../tracking/sync'
+import MediaScore from './media-score'
+import TrackingSync from './tracking-sync'
+
+export type PanelEntry = SyncEntry & { _id: string }
 
 export type PanelAnswer = {
   _id: string
   state: string
   candidates: string[]
   error?: string | null
+  /** Writes the tracker accepted and has not sent yet. */
+  pending?: number | null
   tracker: {
     id: string
     name: string
@@ -44,15 +43,6 @@ export type PanelOutcome = { tracker: string, outcome: string, error?: string | 
 export type SignInOutcome = 'authed' | 'closed' | 'blocked' | 'unsupported'
 /** The sign in a tracker offers, by tracker id. Called directly in the click, so a window can open. */
 export type SignIns = Record<string, () => Promise<SignInOutcome>>
-
-export const STATUS_LABELS: Record<string, string> = {
-  WATCHING: 'Watching',
-  REWATCHING: 'Rewatching',
-  PLANNING: 'Plan to watch',
-  COMPLETED: 'Completed',
-  PAUSED: 'Paused',
-  DROPPED: 'Dropped',
-}
 
 const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
 const writable = (answer: PanelAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)
@@ -323,17 +313,19 @@ const SIGN_IN_NOTES: Partial<Record<SignInOutcome, (name: string) => string>> = 
 
 /**
  * Where the viewer stands with a media on every tracker: a summary for display, one row per tracker's
- * own answer, and an editor that writes to the trackers the viewer ticks. The summary is never
- * written anywhere; each row is what that tracker said. A tracker that answers signed out offers its
- * sign in when `signIns` has one, and its answer is read again once that ends.
+ * own answer, where they differ with a sync the viewer runs by hand, and an editor that writes to the
+ * trackers the viewer ticks. The summary is never written anywhere; each row is what that tracker
+ * said. A tracker that answers signed out offers its sign in when `signIns` has one, and its answer is
+ * read again once that ends. `onSyncWrite` writes one sync target, and that target alone.
  */
 const TrackingPanel = (
-  { tracking, episodeCount, onSave, onDelete, signIns = {} }:
+  { tracking, episodeCount, onSave, onDelete, onSyncWrite, signIns = {} }:
   {
     tracking: PanelTracking | null | undefined
     episodeCount?: number | null
     onSave: (targets: string[], values: EntryValues) => Promise<PanelOutcome[]>
     onDelete: (targets: string[]) => Promise<PanelOutcome[]>
+    onSyncWrite: SyncWrite
     signIns?: SignIns
   }
 ) => {
@@ -405,6 +397,8 @@ const TrackingPanel = (
           return note ? [row, <div key={`${id}-note`} className="row-note" data-note={id}>{note}</div>] : [row]
         })}
       </div>
+      {/* mounted only while the trackers differ, so a sync that settled them starts afresh next time */}
+      {differences(tracking.answers).length ? <TrackingSync answers={tracking.answers} onWrite={onSyncWrite}/> : undefined}
       {edited && writable(edited)
         ? (
           <Editor
