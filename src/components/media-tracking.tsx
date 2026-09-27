@@ -3,6 +3,7 @@ import type { ListStatus } from '../generated/graphql'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { trackerSignIns } from '../tracking/site-sessions'
 import TrackingPanel, { type EntryValues, type PanelOutcome } from './tracking-panel'
 
 const MEDIA_TRACKING = gql(`
@@ -30,12 +31,14 @@ const MEDIA_TRACKING = gql(`
           canWrite
           account
           scoreScale
+          writeNotice
         }
         entry {
           _id
           status
           progress
           score
+          scoreLabel
           episodeCount
           updatedAt
         }
@@ -55,6 +58,7 @@ const SAVE_LIST_ENTRY = gql(`
         status
         progress
         score
+        scoreLabel
         episodeCount
         updatedAt
       }
@@ -105,7 +109,7 @@ const MediaTracking = (
     return result.data?.deleteListEntry ?? failed(result.error?.message)
   }
 
-  return <TrackingPanel tracking={data?.tracking} episodeCount={episodeCount} onSave={onSave} onDelete={onDelete}/>
+  return <TrackingPanel tracking={data?.tracking} episodeCount={episodeCount} onSave={onSave} onDelete={onDelete} signIns={trackerSignIns}/>
 }
 
 export default MediaTracking

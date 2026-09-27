@@ -9,6 +9,7 @@ export type PanelEntry = {
   status?: string | null
   progress?: number | null
   score?: number | null
+  scoreLabel?: string | null
   episodeCount?: number | null
 }
 
@@ -17,7 +18,16 @@ export type PanelAnswer = {
   state: string
   candidates: string[]
   error?: string | null
-  tracker: { id: string, name: string, icon?: string | null, color?: string | null, canWrite: boolean, account?: string | null }
+  tracker: {
+    id: string
+    name: string
+    icon?: string | null
+    color?: string | null
+    canWrite: boolean
+    account?: string | null
+    scoreScale?: string | null
+    writeNotice?: string | null
+  }
   entry?: PanelEntry | null
 }
 
@@ -29,6 +39,11 @@ export type PanelTracking = {
 
 export type EntryValues = { status: string, progress: number, score: number | null }
 export type PanelOutcome = { tracker: string, outcome: string, error?: string | null }
+
+/** How a sign in ended, as tracking/site-sessions.ts reports it (the sign-in window's outcomes). */
+export type SignInOutcome = 'authed' | 'closed' | 'blocked' | 'unsupported'
+/** The sign in a tracker offers, by tracker id. Called directly in the click, so a window can open. */
+export type SignIns = Record<string, () => Promise<SignInOutcome>>
 
 export const STATUS_LABELS: Record<string, string> = {
   WATCHING: 'Watching',
@@ -100,6 +115,13 @@ const style = css`
     .state.problem { color: #fb923c; }
   }
 
+  .row-note {
+    padding: 0.6rem 0 0.8rem 3.6rem;
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.7);
+    border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+  }
+
   button {
     padding: 0.5rem 1.2rem;
     border-radius: 0.6rem;
@@ -138,6 +160,7 @@ const style = css`
     .stepper button { padding: 0.4rem; display: flex; }
     .targets { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; }
     .targets label { flex-direction: row; align-items: center; color: #fff; font-size: 1.4rem; }
+    .notice { font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); }
     .actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .outcome { font-size: 1.2rem; color: rgba(255, 255, 255, 0.7); }
     .outcome.problem { color: #f87171; }
@@ -149,6 +172,12 @@ const progressText = (entry: PanelEntry, episodeCount?: number | null) => {
   return entry.progress == null ? undefined : count ? `${entry.progress} / ${count}` : `${entry.progress} episodes`
 }
 
+// in the scale the viewer scores in on that tracker, where it has one of its own
+const scoreText = (entry: PanelEntry, scale?: string | null) =>
+  entry.score == null ? undefined
+  : entry.scoreLabel && scale && scale !== 'POINT_100' ? entry.scoreLabel
+  : `${entry.score}%`
+
 const describeAnswer = (answer: PanelAnswer, episodeCount?: number | null): { text: string, problem?: boolean } => {
   switch (answer.state) {
     case 'LISTED': {
@@ -156,7 +185,7 @@ const describeAnswer = (answer: PanelAnswer, episodeCount?: number | null): { te
       const parts = [
         entry.status ? STATUS_LABELS[entry.status] ?? entry.status : undefined,
         progressText(entry, episodeCount),
-        entry.score != null ? `${entry.score}%` : undefined,
+        scoreText(entry, answer.tracker.scoreScale),
       ].filter(Boolean)
       return { text: parts.join(' · ') || 'Listed' }
     }
@@ -164,7 +193,7 @@ const describeAnswer = (answer: PanelAnswer, episodeCount?: number | null): { te
     case 'NO_ID': return { text: 'Has no id for this media', problem: true }
     case 'AMBIGUOUS': return { text: `Names ${answer.candidates.join(' and ')}, cannot tell which`, problem: true }
     case 'SIGNED_OUT': return { text: 'Signed out', problem: true }
-    case 'PAUSED': return { text: 'Paused for a while', problem: true }
+    case 'PAUSED': return { text: answer.error || 'Paused for a while', problem: true }
     default: return { text: answer.error || 'Could not answer', problem: true }
   }
 }
@@ -212,6 +241,8 @@ const Editor = (
     })
 
   const nameOf = (id: string) => answers.find(answer => answer.tracker.id === id)?.tracker.name ?? id
+  // what a write does beyond the list, for each tracker it is about to go to
+  const notices = answers.filter(answer => targets.has(answer.tracker.id) && answer.tracker.writeNotice)
 
   return (
     <div className="editor" role="group" aria-label={`Edit on ${edited.tracker.name}`}>
@@ -268,6 +299,7 @@ const Editor = (
           </label>
         ))}
       </div>
+      {notices.map(answer => <div key={answer.tracker.id} className="notice">{answer.tracker.writeNotice}</div>)}
       <div className="actions">
         <button type="button" className="primary" disabled={busy || !targets.size} onClick={() => void run(() => onSave([...targets], { status, progress, score }))}>Save</button>
         {edited.state === 'LISTED'
@@ -284,22 +316,54 @@ const Editor = (
   )
 }
 
+const SIGN_IN_NOTES: Partial<Record<SignInOutcome, (name: string) => string>> = {
+  blocked: () => 'The browser blocked the sign-in window. Allow pop-ups for this page and press Sign in again.',
+  unsupported: name => `Sign in to ${name} in this browser, then press Sign in again.`,
+}
+
 /**
  * Where the viewer stands with a media on every tracker: a summary for display, one row per tracker's
  * own answer, and an editor that writes to the trackers the viewer ticks. The summary is never
- * written anywhere; each row is what that tracker said.
+ * written anywhere; each row is what that tracker said. A tracker that answers signed out offers its
+ * sign in when `signIns` has one, and its answer is read again once that ends.
  */
 const TrackingPanel = (
-  { tracking, episodeCount, onSave, onDelete }:
+  { tracking, episodeCount, onSave, onDelete, signIns = {} }:
   {
     tracking: PanelTracking | null | undefined
     episodeCount?: number | null
     onSave: (targets: string[], values: EntryValues) => Promise<PanelOutcome[]>
     onDelete: (targets: string[]) => Promise<PanelOutcome[]>
+    signIns?: SignIns
   }
 ) => {
   const [editing, setEditing] = useState<string>()
+  const [signingIn, setSigningIn] = useState<ReadonlySet<string>>(new Set())
+  const [signInNotes, setSignInNotes] = useState<Record<string, string>>({})
   if (!tracking?.answers.length) return null
+
+  const signIn = (answer: PanelAnswer) => {
+    const start = signIns[answer.tracker.id]
+    if (!start || signingIn.has(answer.tracker.id)) return
+    // first, before any state: the window opens with this click's activation
+    const signingInNow = start()
+    const id = answer.tracker.id
+    setSigningIn(previous => new Set(previous).add(id))
+    setSignInNotes(({ [id]: _dropped, ...rest }) => rest)
+    signingInNow
+      .then(
+        outcome => SIGN_IN_NOTES[outcome]?.(answer.tracker.name),
+        error => error instanceof Error ? error.message : String(error),
+      )
+      .then(note => {
+        if (note) setSignInNotes(previous => ({ ...previous, [id]: note }))
+        setSigningIn(previous => {
+          const next = new Set(previous)
+          next.delete(id)
+          return next
+        })
+      })
+  }
   const { summary } = tracking
   const edited = tracking.answers.find(answer => answer.tracker.id === editing)
 
@@ -319,19 +383,26 @@ const TrackingPanel = (
           : <span className="muted">Not on any list</span>}
       </div>
       <div className="rows">
-        {tracking.answers.map(answer => {
+        {tracking.answers.flatMap(answer => {
           const { text, problem } = describeAnswer(answer, episodeCount)
-          return (
-            <div key={answer.tracker.id} className="row" data-tracker={answer.tracker.id}>
+          const id = answer.tracker.id
+          const signedOut = answer.state === 'SIGNED_OUT'
+          const note = signedOut ? signInNotes[id] : undefined
+          const row = (
+            <div key={id} className="row" data-tracker={id}>
               <span className="icon" style={answer.tracker.color ? { color: answer.tracker.color } : undefined}>
                 {answer.tracker.icon ? <img src={answer.tracker.icon} alt=""/> : answer.tracker.name.slice(0, 1)}
               </span>
               <span className="name">{answer.tracker.name}</span>
               {answer.tracker.account ? <span className="account">{answer.tracker.account}</span> : undefined}
               <span className={`state${problem ? ' problem' : ''}`}>{text}</span>
-              {writable(answer) ? <button type="button" onClick={() => setEditing(answer.tracker.id)}>Edit</button> : undefined}
+              {writable(answer) ? <button type="button" onClick={() => setEditing(id)}>Edit</button> : undefined}
+              {signedOut && signIns[id]
+                ? <button type="button" disabled={signingIn.has(id)} onClick={() => signIn(answer)}>{signingIn.has(id) ? 'Signing in' : 'Sign in'}</button>
+                : undefined}
             </div>
           )
+          return note ? [row, <div key={`${id}-note`} className="row-note" data-note={id}>{note}</div>] : [row]
         })}
       </div>
       {edited && writable(edited)
