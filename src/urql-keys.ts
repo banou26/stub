@@ -54,4 +54,6 @@ export const keyResolvers = {
   ListEntry: (entry) => String((entry as ListEntry)._id),
   FuzzyDate: () => null,
   WriteOutcome: () => null,
+  // one per device, answered on the operation root, so it has nothing to be told apart from
+  StubTrackerStorage: () => null,
 } satisfies KeyingConfig

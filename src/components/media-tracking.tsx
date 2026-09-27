@@ -3,6 +3,9 @@ import type { ListStatus } from '../generated/graphql'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { unlockTracker } from '../tracking/fkn-cloud-live'
+import { trackerAccountChanged } from '../worker'
+import StubListNotice from './stub-list-notice'
 import TrackingPanel, { type EntryValues, type PanelOutcome } from './tracking-panel'
 
 const MEDIA_TRACKING = gql(`
@@ -72,6 +75,32 @@ const DELETE_LIST_ENTRY = gql(`
   }
 `)
 
+const STUB_TRACKER_STORAGE = gql(`
+  subscription StubTrackerStorage {
+    stubTrackerStorage {
+      location
+      signedIn
+      locked
+      waiting
+      held
+      error
+    }
+  }
+`)
+
+const ADD_HELD_STUB_ENTRIES = gql(`
+  mutation AddHeldStubEntries {
+    addHeldStubEntries {
+      location
+      signedIn
+      locked
+      waiting
+      held
+      error
+    }
+  }
+`)
+
 const failed = (message?: string): PanelOutcome[] => [{ tracker: '', outcome: 'FAILED', error: message ?? 'The write did not reach the trackers' }]
 
 /**
@@ -85,6 +114,8 @@ const MediaTracking = (
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: uri! } }, pause: !uri })
   const [, save] = useMutation(SAVE_LIST_ENTRY)
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
+  const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
+  const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
 
   const onSave = async (targets: string[], values: EntryValues): Promise<PanelOutcome[]> => {
     const result = await save({
@@ -105,7 +136,15 @@ const MediaTracking = (
     return result.data?.deleteListEntry ?? failed(result.error?.message)
   }
 
-  return <TrackingPanel tracking={data?.tracking} episodeCount={episodeCount} onSave={onSave} onDelete={onDelete}/>
+  // the key card opens from this click, and only from it; the worker then checks the account again
+  const onUnlock = async () => { if (await unlockTracker()) await trackerAccountChanged() }
+
+  return (
+    <>
+      <TrackingPanel tracking={data?.tracking} episodeCount={episodeCount} onSave={onSave} onDelete={onDelete}/>
+      <StubListNotice storage={storage?.stubTrackerStorage} onUnlock={onUnlock} onAdd={() => addHeld({})}/>
+    </>
+  )
 }
 
 export default MediaTracking

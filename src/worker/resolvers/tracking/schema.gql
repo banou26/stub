@@ -173,11 +173,42 @@ input DeleteListEntryInput {
   trackers: [String!]!
 }
 
+"""Whose list stub's own tracker shows and writes on this device."""
+enum StubListLocation {
+  """Kept on this device only. It never reaches an FKN account unless the viewer adds it."""
+  DEVICE
+  """The signed in FKN account's list, which every device signed in to that account shares."""
+  ACCOUNT
+}
+
+"""Where stub's own list stands on this device, and what waits on the viewer."""
+type StubTrackerStorage {
+  location: StubListLocation!
+  """Whether an FKN account is signed in. Null while that could not be told."""
+  signedIn: Boolean
+  """Signed in, and this device does not hold the key the account's list is sealed with."""
+  locked: Boolean!
+  """Changes on this device the account has not received yet."""
+  waiting: Boolean!
+  """
+  Entries of the list this device kept before an account's list was opened here, set aside until the
+  viewer adds them to the account. They come back as this device's list on a sign out.
+  """
+  held: Int!
+  error: String
+}
+
 extend type Subscription {
   tracking(input: TrackingInput!): Tracking
+  stubTrackerStorage: StubTrackerStorage!
 }
 
 extend type Mutation {
   saveListEntry(input: SaveListEntryInput!): [WriteOutcome!]!
   deleteListEntry(input: DeleteListEntryInput!): [WriteOutcome!]!
+  """
+  Adds the entries this device set aside to the FKN account's list. The only way a list kept on a
+  device reaches an account, so only ever sent from the viewer's click.
+  """
+  addHeldStubEntries: StubTrackerStorage!
 }
