@@ -72,8 +72,11 @@ export const createPageApi = (
   const csrf = (fresh: boolean) => {
     if (fresh || !token) {
       const inPage = fresh ? undefined : pageToken()
-      token = inPage ? Promise.resolve(inPage) : tokenFromHome()
-      token.catch(() => { token = undefined })
+      const asked = inPage ? Promise.resolve(inPage) : tokenFromHome()
+      token = asked
+      // a lookup that failed or found no token is not kept, or the page would never ask again
+      const forget = () => { if (token === asked) token = undefined }
+      asked.then(found => { if (!found) forget() }, forget)
     }
     return token
   }

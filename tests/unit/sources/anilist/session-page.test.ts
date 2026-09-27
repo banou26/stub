@@ -85,6 +85,17 @@ describe("the page's graphql", () => {
     expect(calls.slice(1).map(call => (call.init?.headers as Record<string, string>)['x-csrf-token'])).toEqual([TOKEN, TOKEN])
   })
 
+  test('a home page that rendered no token is asked again by the next call, not kept', async () => {
+    const unavailable = () => new Response('<html><body>503 Service Temporarily Unavailable</body></html>', { status: 503 })
+    const { fetch, calls } = fakeFetch([unavailable, homePage(TOKEN), json({ data: { a: 1 } }), json({ data: { b: 1 } })])
+    const api = createPageApi({ fetch, pageToken: () => undefined, nonce: counter() })
+
+    await expect(api.graphql({ query: 'query { a }' })).rejects.toThrow('served no CSRF token')
+    expect((await api.graphql({ query: 'query { a }' })).body).toEqual({ data: { a: 1 } })
+    expect((await api.graphql({ query: 'query { b }' })).body).toEqual({ data: { b: 1 } })
+    expect(calls.map(call => call.input)).toEqual(['/?_=n1', '/?_=n2', '/graphql', '/graphql'])
+  })
+
   test("answers a 403 from the CSRF gate once, with the token read afresh, as the site's client does", async () => {
     const { fetch, calls } = fakeFetch([json(GATE_403, 403), homePage(FRESH), json({ data: { Viewer: { id: 7 } } })])
     const api = createPageApi({ fetch, pageToken: () => TOKEN, nonce: counter() })
