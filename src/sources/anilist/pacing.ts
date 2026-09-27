@@ -31,8 +31,9 @@ export type Pacer = {
  * After a 429, in the status or only in the body as `isRateLimited` reads it, nothing goes out until
  * AniList's X-RateLimit-Reset (a unix time in seconds), else its Retry-After, else a minute. With
  * X-RateLimit-Remaining at LOW_BUDGET or less, the next call waits a minute: AniList meters a minute's
- * window per address (30 a minute, measured 2026-09-26). No withBackoff here, whose retry of a 429 is
- * exactly the call AniList just refused.
+ * window per address (30 a minute, measured 2026-09-26), which through FKN's render proxy is FKN's,
+ * shared by every viewer. No withBackoff here, whose retry of a 429 is exactly the call AniList just
+ * refused.
  *
  * The site's own endpoint sent none of the X-RateLimit headers on 2026-09-27 (curl, signed out), where
  * graphql.anilist.co does, so there it is the 429 rule that applies.

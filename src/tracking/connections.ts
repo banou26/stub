@@ -18,7 +18,8 @@ export type Connections = {
 /**
  * A site is CONNECTED on this device once the viewer signed in to it through stub. Until then no frame
  * is attached and nothing is sent, so a viewer who never uses the site gets no consent card for it and
- * spends none of the budget the site meters per address.
+ * spends none of the budget the site meters per address. Through FKN's render proxy that address is
+ * FKN's, so the budget is shared by every viewer rather than their own.
  *
  * Kept in `storage` when it can be, and for this page at least when it cannot.
  */
