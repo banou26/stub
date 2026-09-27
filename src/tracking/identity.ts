@@ -103,20 +103,22 @@ export const identify = (uri: string, catalog?: CatalogLookup): MediaIdentity =>
   return { kind: 'none' }
 }
 
+/** What a tracker that IS one catalogue keys a media on, or why it keys it on nothing. */
+export type CatalogueTarget = { kind: 'id', id: number } | { kind: 'ambiguous', candidates: string[] } | { kind: 'none' }
+
 /**
- * The ids a catalogue's own list could hold this media under, for a tracker that IS that catalogue
- * (AniList's list keys on AniList ids).
+ * The id a catalogue's own list (AniList's list keys on AniList ids) holds this media under.
  *
- * The ids of `origin` the media names itself; only when it names none, the ones the offline catalogue
- * places in the rows of the catalogue ids it does name, so a media known by its MyAnimeList id still
- * finds its AniList entry. More than one is two entries the media could mean, which the tracker
- * answers AMBIGUOUS rather than pick from.
+ * Read off `identify`, so that list is read and written exactly where stub's own tracker keeps its
+ * entry: the id of `origin` the media names, else the one the offline catalogue pairs with the ids it
+ * does name. Ambiguous whenever `identify` is, a cluster that welded two runs included, where the id
+ * the media names itself may be the other run's (season 2 reading and writing season 1's entry).
  */
-export const catalogueIdsOf = (uri: string, origin: IndexedOrigin, catalog?: CatalogLookup): number[] => {
-  const refs = catalogRefs(handlesOf(uri), offlineOrigin)
-  const named = refs.filter(ref => ref.origin === origin).map(ref => ref.id)
-  const ids = named.length ? named : refs.flatMap(ref => catalog?.lookup(ref.origin, ref.id)?.[origin] || [])
-  return [...new Set(ids)].sort((a, b) => a - b)
+export const catalogueTargetOf = (uri: string, origin: IndexedOrigin, catalog?: CatalogLookup): CatalogueTarget => {
+  const identity = identify(uri, catalog)
+  if (identity.kind === 'ambiguous') return identity
+  const id = identity.kind === 'catalogue' ? identity.ids.find(candidate => candidate.startsWith(`${origin}:`)) : undefined
+  return id ? { kind: 'id', id: Number(id.slice(origin.length + 1)) } : { kind: 'none' }
 }
 
 /** What an entry stores about the media it tracks. */

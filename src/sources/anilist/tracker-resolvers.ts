@@ -2,13 +2,13 @@
 // them over recorded answers; ./tracker.ts hands them the worker's.
 
 import type { Resolvers, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
-import type { CatalogLookup } from '../../tracking/identity'
+import type { CatalogLookup, CatalogueTarget } from '../../tracking/identity'
 import type { SiteSession, SiteSessionResult } from '../../tracking/site-session'
 import type { SessionRequest } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer } from '../../tracking/collect'
-import { catalogueIdsOf } from '../../tracking/identity'
+import { catalogueTargetOf } from '../../tracking/identity'
 import {
   ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
   anilistTracker, listEntryOf, readResponse, saveRequest, scoreFormatOf,
@@ -23,8 +23,6 @@ export type AnilistTrackerContext = {
   session: (site: string) => SiteSession
   request: { signal: AbortSignal }
 }
-
-type Target = { kind: 'id', id: number } | { kind: 'ambiguous', candidates: string[] } | { kind: 'none' }
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
@@ -45,8 +43,8 @@ const waitMessage = (until: number | undefined) =>
  * The viewer's own AniList list, through the anilist.co page the main thread keeps open with their
  * session. Every call goes through one pacer, and every answer names the viewer the last read found.
  *
- * The media is keyed on the AniList id it names, or the one the offline catalogue pairs with the ids it
- * does name. Two AniList ids is AMBIGUOUS, and nothing is asked or written.
+ * The media is keyed on the AniList id stub's own tracker keys it on (`catalogueTargetOf`). Wherever
+ * that tracker answers AMBIGUOUS so does this one, and nothing is asked or written.
  */
 export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: () => number, wait?: (ms: number) => Promise<void> } = {}) => {
   const pacer = createPacer({ now, wait })
@@ -57,13 +55,9 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
     ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, pending: 0, ...extra })
 
-  const targetOf = async (uri: string, ctx: AnilistTrackerContext): Promise<Target> => {
-    const ids = catalogueIdsOf(uri, 'anilist', await ctx.catalog())
-    if (ids.length > 1) return { kind: 'ambiguous', candidates: ids.map(id => `anilist:${id}`) }
-    return ids.length ? { kind: 'id', id: ids[0]! } : { kind: 'none' }
-  }
+  const targetOf = async (uri: string, ctx: AnilistTrackerContext) => catalogueTargetOf(uri, 'anilist', await ctx.catalog())
 
-  const refusalOf = (target: Target) =>
+  const refusalOf = (target: CatalogueTarget) =>
     target.kind === 'none' ? 'This media names no AniList id'
     : target.kind === 'ambiguous' ? `This media names ${target.candidates.join(' and ')}, and AniList cannot tell which one is meant`
     : undefined
@@ -110,7 +104,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
       tracking: {
         subscribe: async function* (_parent: unknown, { input }: { input: { uri: string } }, ctx: AnilistTrackerContext) {
           const { uri } = input
-          let target: Target
+          let target: CatalogueTarget
           try {
             target = await targetOf(uri, ctx)
           } catch (error) {

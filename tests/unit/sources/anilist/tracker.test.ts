@@ -117,6 +117,34 @@ describe('what the AniList tracker answers', () => {
     expect(asked).toEqual([])
   })
 
+  // a cluster that welded season 1's AniList id to season 2's MyAnimeList id, which stub's own tracker
+  // answers AMBIGUOUS: keyed on its own AniList id, a save would land on the other season's entry
+  test('AMBIGUOUS where stub\'s own tracker is, even with an AniList id of its own, and asks and writes nothing', async () => {
+    const { target, asked } = setup({ StubTracking: () => response(LISTED_BODY) })
+    const uri = 'ag:(anilist:154587,mal:59978,cr:GG5H5XQX4)'
+
+    expect(answerOf(await watch(target, uri).next())).toMatchObject({ state: 'AMBIGUOUS', candidates: ['anilist:154587', 'mal:59978'] })
+    expect((await save(target, uri, { progress: 5 })).data.saveListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'REFUSED' }])
+    expect((await remove(target, uri)).data.deleteListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'REFUSED' }])
+    expect(asked).toEqual([])
+  })
+
+  test('the control: an AniList id beside a MyAnimeList id of the same run reads and writes', async () => {
+    const saved = { ...FRIEREN_ENTRY, progress: 5, media: FRIEREN }
+    const { target, asked } = setup({
+      StubTracking: () => response(LISTED_BODY),
+      StubSaveListEntry: () => response({ data: { SaveMediaListEntry: saved } }),
+    })
+    const uri = 'ag:(anilist:154587,mal:52991,cr:GG5H5XQX4)'
+
+    expect(answerOf(await watch(target, uri).next()).state).toBe('LISTED')
+    expect((await save(target, uri, { progress: 5 })).data.saveListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'SAVED' }])
+    expect(asked.slice(0, 2).map(({ operation, variables }) => [operation, variables])).toEqual([
+      ['StubTracking', { mediaId: 154587 }],
+      ['StubSaveListEntry', { mediaId: 154587, progress: 5 }],
+    ])
+  })
+
   test('NO_ID for a media no AniList id reaches', async () => {
     const { target, asked } = setup({})
     expect(answerOf(await watch(target, 'ag:(cr:GG5H5XQX4)').next()).state).toBe('NO_ID')

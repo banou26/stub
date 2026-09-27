@@ -3,7 +3,7 @@
 // rule that matches on SHARED MEMBERS files season 2 under season 1's entry.
 import { describe, expect, test } from 'vitest'
 
-import { catalogueIdsOf, entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
+import { catalogueTargetOf, entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
 
 const ROWS = [
   { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
@@ -108,20 +108,22 @@ test('a media naming nothing to key on', () => {
 })
 
 // what a catalogue's own list (AniList's) keys a media on
-describe('the ids of one catalogue a media names', () => {
-  test('are the ones it names itself, the offline source\'s borrowed id included', () => {
-    expect(catalogueIdsOf('ag:(anilist:1,cr:G24H1N3MP-GS1)', 'anilist', catalog)).toEqual([1])
-    expect(catalogueIdsOf('ag:(offline:anilist-2)', 'anilist', catalog)).toEqual([2])
+describe('the id of one catalogue a media is kept under', () => {
+  test('is the one it names itself, the offline source\'s borrowed id included', () => {
+    expect(catalogueTargetOf('ag:(anilist:1,cr:G24H1N3MP-GS1)', 'anilist', catalog)).toEqual({ kind: 'id', id: 1 })
+    expect(catalogueTargetOf('ag:(offline:anilist-2)', 'anilist', catalog)).toEqual({ kind: 'id', id: 2 })
   })
 
-  test('are widened through the catalogue only when it names none', () => {
-    expect(catalogueIdsOf('ag:(mal:10)', 'anilist', catalog)).toEqual([1])
-    expect(catalogueIdsOf('ag:(anilist:1,mal:20)', 'anilist', catalog), 'its own id, not the welded run\'s').toEqual([1])
-    expect(catalogueIdsOf('ag:(kitsu:40)', 'anilist', catalog), 'a row with no AniList id').toEqual([])
+  test('is widened through the catalogue when it names none', () => {
+    expect(catalogueTargetOf('ag:(mal:10)', 'anilist', catalog)).toEqual({ kind: 'id', id: 1 })
+    expect(catalogueTargetOf('ag:(anilist:1,mal:10)', 'anilist', catalog), 'the control: two ids of one run').toEqual({ kind: 'id', id: 1 })
+    expect(catalogueTargetOf('ag:(kitsu:40)', 'anilist', catalog), 'a row with no AniList id').toEqual({ kind: 'none' })
   })
 
-  test('are every id when it names two, which the tracker answers AMBIGUOUS', () => {
-    expect(catalogueIdsOf('ag:(anilist:2,anilist:1)', 'anilist', catalog)).toEqual([1, 2])
-    expect(catalogueIdsOf('ag:(mal:10,mal:20)', 'anilist', catalog)).toEqual([1, 2])
+  test('is ambiguous wherever the stub tracker is, the id it names itself included', () => {
+    expect(catalogueTargetOf('ag:(anilist:1,mal:20)', 'anilist', catalog), 'a weld of two runs, where its own id does not win')
+      .toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'mal:20'] })
+    expect(catalogueTargetOf('ag:(anilist:2,anilist:1)', 'anilist', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'anilist:2'] })
+    expect(catalogueTargetOf('ag:(mal:10,mal:20)', 'anilist', catalog)).toEqual({ kind: 'ambiguous', candidates: ['mal:10', 'mal:20'] })
   })
 })
