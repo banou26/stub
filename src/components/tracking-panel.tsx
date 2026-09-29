@@ -316,7 +316,7 @@ const Editor = (
   )
 }
 
-const SIGN_IN_NOTES: Partial<Record<SignInOutcome, (name: string) => string>> = {
+export const SIGN_IN_NOTES: Partial<Record<SignInOutcome, (name: string) => string>> = {
   blocked: () => 'The browser blocked the sign-in window. Allow pop-ups for this page and press Sign in again.',
   unsupported: name => `Sign in to ${name} in this browser, then press Sign in again.`,
 }
