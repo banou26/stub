@@ -8,8 +8,9 @@ import type { PanelAnswer, PanelOutcome, PanelTracking, SignIns } from './tracki
 
 import { countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, targetOf, writable } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
+import { STATUS_LABELS } from '../tracking/sync'
 import ScorePicker from './score-picker'
-import { SIGN_IN_NOTES, STATUS_LABELS } from './tracking-panel'
+import { SIGN_IN_NOTES } from './tracking-panel'
 
 const style = css`
   margin-top: 2rem;
