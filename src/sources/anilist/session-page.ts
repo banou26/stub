@@ -1,17 +1,17 @@
 // Stub's code inside anilist.co's own page, where the viewer's session cookie rides along with every
 // request the page makes. It is built into one self-contained function (scripts/page-script.ts) and
 // installed with `frame.evaluate`, once per document, by the session frame (tracking/session-frames.ts).
-// It imports nothing that needs the app: osra, the port protocol of tracking/session-frames.ts and the
-// token reader of ./frontend.ts, neither of which imports anything at runtime.
+// It imports nothing that needs the app: the shared install of tracking/page-install.ts (osra and the
+// port protocol) and the token reader of ./frontend.ts, which imports nothing at runtime.
 //
 // It asks the way the site's own client does, measured in anilist.co's bundle (main.1dc97617.js,
 // 2026-09-27): `new GraphQLClient("/graphql", { credentials: "include" })` with the headers
 // `{ schema: "default", "x-csrf-token": window.al_token }`, and on a lost token the site fetches "/"
 // and reads `window.al_token = "..."` out of it again.
 
-import { expose } from 'osra'
+import type { ServeArg } from '../../tracking/session-frames'
 
-import { SESSION_INSTALL, SESSION_PORT_MESSAGE, type ServeArg } from '../../tracking/session-frames'
+import { installSessionServer, randomNonce } from '../../tracking/page-install'
 import { extractAlToken, isGateRejection, type AnilistBody } from './frontend'
 
 /**
@@ -111,44 +111,8 @@ export const hasViewer = async (api: SessionPageApi): Promise<boolean> => {
   return Boolean((body?.data as { Viewer?: { id?: number } | null } | null | undefined)?.Viewer?.id)
 }
 
-type Installed = { appOrigin: string, key: string, api: SessionPageApi }
-
-const STATE = Symbol.for(SESSION_INSTALL)
-
-/**
- * Listens on `target` for the app's port and serves `api` over each one that arrives with this
- * install's key, from the app's origin. The install is kept at `SESSION_INSTALL`, where the session
- * frame reads which key the document serves.
- *
- * Installing again in the same document (the frame reports a document twice when the page returns
- * from the back/forward cache) swaps the key and adds no second listener, so a port sent for an
- * earlier install is never served.
- */
-export const install = (
-  { appOrigin, key }: { appOrigin: string, key: string },
-  target: EventTarget & Record<symbol, unknown>,
-  api: SessionPageApi,
-): 'installed' | 'reinstalled' => {
-  const installed = target[STATE] as Installed | undefined
-  if (installed) {
-    Object.assign(installed, { appOrigin, key })
-    return 'reinstalled'
-  }
-  const state: Installed = { appOrigin, key, api }
-  target[STATE] = state
-  target.addEventListener('message', event => {
-    const { data, origin, ports } = event as MessageEvent
-    if (origin !== state.appOrigin || data?.type !== SESSION_PORT_MESSAGE || data.key !== state.key || !ports?.[0]) return
-    void expose(state.api, { transport: ports[0] })
-  })
-  return 'installed'
-}
-
 const plausibleToken = (value: unknown) =>
   typeof value === 'string' && /^[A-Za-z0-9]{20,}$/.test(value) ? value : undefined
-
-const randomNonce = () =>
-  globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
 
 /**
  * The page script's entry: what `frame.evaluate` calls, in the site's own realm, with its arg.
@@ -160,5 +124,5 @@ export const run = (arg: SessionPageArg): Promise<boolean> | 'installed' | 'rein
     pageToken: () => plausibleToken(page.al_token),
     nonce: randomNonce,
   })
-  return arg.kind === 'viewer' ? hasViewer(api) : install(arg, page, api)
+  return arg.kind === 'viewer' ? hasViewer(api) : installSessionServer(arg, page, api)
 }
