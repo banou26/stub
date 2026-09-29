@@ -20,6 +20,9 @@ export const MAL_DOMAINS = ['myanimelist.net']
  */
 export const MAL_LOGIN_URL = 'https://myanimelist.net/login.php?from=%2Fabout.php'
 
+/** The sign-in window's width: myanimelist.net lays its desktop pages out fixed at about 1060 pixels, which FKN's default 500 cuts off. */
+export const MAL_WINDOW_WIDTH = 1080
+
 /**
  * The page the hidden session frame holds: the anime hover fragment, 978 bytes of text/html with no
  * script (measured 2026-09-29). Every full page loads about 1.5 MB of scripts, ads and reCAPTCHA.

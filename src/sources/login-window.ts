@@ -34,6 +34,9 @@ export type WindowSignInOptions = {
    * middle of a read the poll then gives up on.
    */
   permissions?: CategoryRequest[]
+  /** The window's inner width and height in CSS pixels, FKN's 500 by 700 when left out. The browser may clamp them. */
+  width?: number
+  height?: number
   /** Time between two reads, in milliseconds. 1000 by default. */
   pollMs?: number
   /** How long one read may take before it counts as unanswered, in milliseconds. 5000 by default. */
@@ -61,11 +64,17 @@ export const signInThroughWindow = async ({
   domains,
   isSignedIn,
   permissions,
+  width,
+  height,
   pollMs = 1000,
   readTimeoutMs = 5000,
 }: WindowSignInOptions): Promise<WindowSignIn> => {
   // first statement on purpose: an await above it would open the window without the click's activation
-  const opening = attachFrame({ window: {}, domains, ...permissions ? { permissions } : {} })
+  const opening = attachFrame({
+    window: { ...width === undefined ? {} : { width }, ...height === undefined ? {} : { height } },
+    domains,
+    ...permissions ? { permissions } : {},
+  })
   let login: WindowFrame
   try {
     login = await opening

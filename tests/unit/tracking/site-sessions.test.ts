@@ -63,8 +63,9 @@ describe("MyAnimeList's session on this device", () => {
 
     expect(await trackerSignIns.mal!()).toBe('closed')
 
+    // 1080 wide: myanimelist.net's desktop pages are laid out fixed at about 1060 pixels
     expect(attach).toHaveBeenCalledWith({
-      window: {},
+      window: { width: 1080 },
       domains: ['myanimelist.net'],
       permissions: [{ category: 'evaluation', reason: 'Read and update your MyAnimeList list with your own myanimelist.net session' }],
     })

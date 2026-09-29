@@ -12,7 +12,7 @@ import anilistPageScript from '../sources/anilist/session-page.ts?page-script'
 import { ANILIST_DOMAINS, ANILIST_LOGIN_URL, ANILIST_ORIGIN, ANILIST_SESSION_URL, anilistSignedIn } from '../sources/anilist/session'
 import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
-import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, malSignedIn } from '../sources/mal/session'
+import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
 import { createConnections, signInAndConnect, siteSessionResolvers } from './connections'
 import { createSessionFrames } from './session-frames'
 
@@ -83,6 +83,7 @@ export const signInToMyAnimeList = (): Promise<WindowSignIn> =>
       url: MAL_LOGIN_URL,
       domains: MAL_DOMAINS,
       permissions: [{ category: 'evaluation', reason: MAL_REASON }],
+      width: MAL_WINDOW_WIDTH,
       isSignedIn: login => malSignedIn(login, malPageScript),
     }),
     { frames, connections },

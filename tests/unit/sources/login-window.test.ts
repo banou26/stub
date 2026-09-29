@@ -73,6 +73,17 @@ describe('opening the window', () => {
     expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, permissions })
   })
 
+  // a site laid out wider than FKN's default window names its own size, and one that does not keeps FKN's
+  test('opens the window at the size it is given, and at FKN\'s default otherwise', () => {
+    attach.mockReturnValue(new Promise(() => {}))
+    void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, width: 1080, height: 800 })
+    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080, height: 800 }, domains: DOMAINS })
+    void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, width: 1080 })
+    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080 }, domains: DOMAINS })
+    void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false })
+    expect(attach).toHaveBeenLastCalledWith({ window: {}, domains: DOMAINS })
+  })
+
   // a live sign-in session sends the window straight on to www's home page, whose load a consent script
   // holds past the attach's 30 s deadline, so the window opens blank and is sent without waiting on load
   test('sends the blank window to the sign-in page at documentstart', async () => {
