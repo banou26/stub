@@ -222,3 +222,45 @@ describe("a tracker's own side of a write", () => {
     expect(row(host, 'stub').textContent, 'the control: a 100 point scale').toContain('80%')
   })
 })
+
+// MyAnimeList's answers as its tracker draws them (sources/mal/list-api.ts), with the notice imported
+// rather than copied so the panel is checked against the words the tracker sends
+const { MAL_WRITE_NOTICE } = await import('../../../src/sources/mal/list-api')
+
+const mal = (answer: Partial<PanelAnswer> = {}): PanelAnswer => ({
+  _id: 'answer:mal',
+  state: 'SIGNED_OUT',
+  candidates: [],
+  tracker: { id: 'mal', name: 'MyAnimeList', canWrite: false, account: null, scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE },
+  entry: null,
+  ...answer,
+})
+
+describe('MyAnimeList beside AniList', () => {
+  test("each signed-out tracker's Sign in starts its own sign in and no other", async () => {
+    const anilistSignIn = pendingSignIn()
+    const malSignIn = pendingSignIn()
+    const { host } = render({ tracking: { ...tracking, answers: [stub, anilist(), mal()] }, signIns: { anilist: anilistSignIn.signIn, mal: malSignIn.signIn } })
+
+    await act(async () => { button(row(host, 'mal'), 'Sign in')!.click() })
+    expect(malSignIn.signIn).toHaveBeenCalledTimes(1)
+    expect(anilistSignIn.signIn).not.toHaveBeenCalled()
+    expect(button(row(host, 'anilist'), 'Sign in')!.disabled, "AniList's own button is untouched").toBe(false)
+  })
+
+  test("the editor says what a save to MyAnimeList does, while it is ticked, and a listed entry reads on ten points", async () => {
+    const listed = mal({
+      state: 'LISTED',
+      tracker: { ...mal().tracker, canWrite: true, account: 'viewer' },
+      entry: { _id: 'mal:viewer:48', status: 'COMPLETED', progress: 26, score: 70, scoreLabel: '7 / 10', episodeCount: 26 },
+    })
+    const { host } = render({ tracking: { ...tracking, answers: [stub, listed] } })
+    expect(row(host, 'mal').textContent).toContain('7 / 10')
+    expect(row(host, 'mal').textContent).toContain('viewer')
+
+    await act(async () => { button(row(host, 'stub'), 'Edit')!.click() })
+    expect(host.querySelector('.editor .notice'), 'not ticked').toBeNull()
+    await tick(target(host, 'mal'), true)
+    expect(host.querySelector('.editor .notice')!.textContent).toBe(MAL_WRITE_NOTICE)
+  })
+})
