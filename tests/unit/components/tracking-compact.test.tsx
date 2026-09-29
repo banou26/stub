@@ -218,16 +218,12 @@ describe('the compact tracking row', () => {
     expect(q(host, '[data-chip="anilist"]').hasAttribute('aria-busy')).toBe(false)
   })
 
-  test('a checked tracker with a write notice shows it until OK, which is remembered; an unchecked one shows none', async () => {
-    const { host, store } = render()
-    expect(q(host, '[data-notice="anilist"]').textContent).toContain('can post list activity')
-    await click(button(q(host, '[data-notice="anilist"]'), 'OK')!)
-    expect(host.querySelector('[data-notice="anilist"]')).toBeNull()
-    expect(store.read().noticed).toEqual(['anilist'])
-
-    const other = render({}, createCompactPrefs(memory()))
-    await tick(q(other.host, 'input[name="compact-target-anilist"]'), false)
-    expect(other.host.querySelector('[data-notice="anilist"]')).toBeNull()
+  // the owner's call: the row shows no activity or public list warning, whatever a tracker's write notice says
+  test('a checked tracker with a write notice shows no warning in the row', () => {
+    const { host } = render()
+    expect(host.querySelector('[data-notice]')).toBeNull()
+    expect(host.textContent).not.toContain('can post list activity')
+    expect(q(host, '[data-chip="anilist"]').getAttribute('title')).not.toContain('can post list activity')
   })
 
   test('suggests Mark completed at the total and Set 14 / 14 when completed below it, and Completed alone sends no progress', async () => {

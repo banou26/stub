@@ -311,9 +311,6 @@ const TrackingCompact = (
   const differs = (field: string, read: (answer: PanelAnswer) => string | undefined) =>
     row.differs.includes(field) ? <span className="differs" data-differs={field} title={valuesOf(read)}/> : undefined
 
-  const notices = targets.filter(({ answer, target }) =>
-    target.kind === 'check' && target.checked && answer.tracker.writeNotice && !prefs.noticed.includes(answer.tracker.id))
-
   return (
     <section css={style} className="tracking-compact" aria-label="Quick tracking">
       <div className="row">
@@ -417,7 +414,6 @@ const TrackingCompact = (
             const title = [
               `${name}${answer.tracker.account ? `, ${answer.tracker.account}` : ''}: ${own(answer, total)}`,
               countDiffers(answer, total) ? `${name} counts ${answer.entry!.episodeCount} episodes, so progress is saved there from Advanced` : undefined,
-              answer.tracker.writeNotice && prefs.noticed.includes(id) ? answer.tracker.writeNotice : undefined,
             ].filter(Boolean).join('. ')
             return (
               <label key={id} className={`chip${target.checked ? '' : ' off'}`} data-chip={id} title={title} aria-busy={busy ? 'true' : undefined}>
@@ -479,12 +475,6 @@ const TrackingCompact = (
               : undefined,
           ].filter(Boolean)
         })}
-        {notices.map(({ answer }) => (
-          <div key={`${answer.tracker.id}-notice`} className="note" data-notice={answer.tracker.id}>
-            {answer.tracker.writeNotice}
-            <button type="button" onClick={() => onPrefs({ ...prefs, noticed: [...prefs.noticed, answer.tracker.id] })}>OK</button>
-          </div>
-        ))}
       </div>
       <div className="hidden" role="status">{announced}</div>
     </section>

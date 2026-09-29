@@ -1,17 +1,16 @@
-// What the compact tracking row remembers, per device: whether the advanced panel is open, the trackers
-// the viewer chose not to write to, and the write notices they acknowledged. Not per media and not per
-// account: it is how this viewer likes to write, on this device.
+// What the compact tracking row remembers, per device: whether the advanced panel is open, and the trackers
+// the viewer chose not to write to. Not per media and not per account: it is how this viewer likes to write,
+// on this device.
 
 export type CompactPrefs = {
   advanced: boolean
   /** Only the choices the viewer made. A tracker missing here is written to when it can be. */
   targets: Record<string, boolean>
-  noticed: string[]
 }
 
 export const COMPACT_PREFS_KEY = 'stub.tracking.compact'
 
-export const DEFAULT_COMPACT_PREFS: CompactPrefs = { advanced: false, targets: {}, noticed: [] }
+export const DEFAULT_COMPACT_PREFS: CompactPrefs = { advanced: false, targets: {} }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
 
@@ -26,7 +25,6 @@ export const parseCompactPrefs = (raw: string | null | undefined): CompactPrefs 
     return {
       advanced: value?.advanced === true,
       targets: Object.fromEntries(Object.entries(value?.targets ?? {}).filter(([, on]) => typeof on === 'boolean')),
-      noticed: Array.isArray(value?.noticed) ? value.noticed.filter(id => typeof id === 'string') : [],
     }
   } catch {
     return DEFAULT_COMPACT_PREFS
