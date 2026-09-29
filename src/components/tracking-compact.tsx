@@ -22,7 +22,7 @@ const style = css`
   .group { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
   .platforms { margin-left: auto; justify-content: flex-end; }
 
-  button, select, .episodes, .chip {
+  button, select, .progress-field, .chip {
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -40,7 +40,7 @@ const style = css`
   .star .value { font-weight: 600; }
   select option { background: #17171a; }
 
-  .episodes {
+  .progress-field {
     input {
       width: 4.4ch;
       padding: 0;
@@ -121,7 +121,10 @@ const style = css`
   }
 
   @media (max-width: 600px) {
-    .episodes .word, .advanced .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .progress-field .word, .advanced .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .platforms { gap: 0.8rem; }
+    .chip { gap: 0.4rem; padding: 0 0.4rem; }
+    .chip .login-button { padding: 0 0.6rem; }
   }
 `
 
@@ -335,7 +338,7 @@ const TrackingCompact = (
             {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
           {differs('STATUS', answer => answer.entry?.status ? STATUS_LABELS[answer.entry.status] : undefined)}
-          <span className="episodes">
+          <span className="progress-field">
             <label for="compact-progress" className="word">Episodes</label>
             <input
               id="compact-progress"
