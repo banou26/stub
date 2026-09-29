@@ -28,17 +28,33 @@ const UNLISTED = 'ag:(mal:9999)'
 const setup = (options: FakeMalOptions = {}) => {
   let at = 1_790_000_000_000
   const waits: number[] = []
+  let gate: Promise<void> | undefined
   const mal = fakeMal(options)
   const sites: string[] = []
   const resolvers = malTrackerResolvers({
     now: () => at,
     wait: async ms => {
       waits.push(ms)
+      const held = gate
+      gate = undefined
+      await held
       at += ms
     },
   })
   const target = providerServer('mal', resolvers, { catalog: async () => catalog, session: (site: string) => { sites.push(site); return mal.session } })
-  return { ...mal, target, waits, sites, advance: (ms: number) => { at += ms } }
+  return {
+    ...mal,
+    target,
+    waits,
+    sites,
+    advance: (ms: number) => { at += ms },
+    /** The next wait ends only once the function handed back is called. */
+    holdNextWait: () => {
+      let release!: () => void
+      gate = new Promise<void>(resolve => { release = resolve })
+      return () => release()
+    },
+  }
 }
 
 type Target = ReturnType<typeof setup>['target']
@@ -364,6 +380,38 @@ describe('what the MyAnimeList tracker writes', () => {
     expect(waits).toEqual([WRITE_GAP_MS])
   })
 
+  // a list read that a sign in started in the save's write gap reads its first page before the write
+  // and is stored after the save's own check: the save's epoch is what keeps it out of the index
+  test('a list read begun before a save wrote is never kept after it, and the open answer shows the save', async () => {
+    const { target, log, waits, changed, holdNext, holdNextWait } = setup({ rows: LONG_LIST })
+    const tracking = watch(target, HACK)
+    expect(answerOfResult(await tracking.next())).toMatchObject({ entry: { score: 70 } })
+    expect(await save(target, BEBOP, { score: 90 })).toMatchObject({ outcome: 'SAVED' })
+    await tracking.next()
+
+    const gapEnds = holdNextWait()
+    const saving = save(target, HACK, { score: 90 })
+    await vi.waitFor(() => expect(waits).toEqual([WRITE_GAP_MS]))
+
+    const firstPage = holdNext('list')
+    const secondPage = holdNext('list')
+    const from = log.length
+    changed()
+    await vi.waitFor(() => expect(log.slice(from)).toEqual(['whoami', 'list 7/1@0']))
+    gapEnds()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    firstPage()
+    await vi.waitFor(() => expect(log.slice(from)).toEqual(['whoami', 'list 7/1@0', 'write edit', 'list 7/1@300']))
+    // the save's check is queued behind the second page, so the read in flight ends after it
+    await new Promise(resolve => setTimeout(resolve, 0))
+    secondPage()
+
+    expect(await saving).toMatchObject({ outcome: 'SAVED', entry: { score: 90 } })
+    expect(log.slice(from, from + 5)).toEqual(['whoami', 'list 7/1@0', 'write edit', 'list 7/1@300', 'list 7/5@0'])
+    expect(answerOfResult(await tracking.next())).toMatchObject({ entry: { score: 90 } })
+    expect(await first(target, HACK)).toMatchObject({ entry: { score: 90 } })
+  })
+
   test("a delete posts MyAnimeList's delete and reads the entry's list whole to see it gone", async () => {
     const { target, log, row } = setup()
     expect(await remove(target, HACK)).toMatchObject({ tracker: 'mal', outcome: 'SAVED' })
@@ -423,6 +471,19 @@ describe('when MyAnimeList refuses stub', () => {
 
     expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'SAVED', entry: null })
     expect(answerOfResult(await tracking.next()).state).toBe('PAUSED')
+  })
+
+  // the pause a later step of the save drew is reported, never waited out: the save and every save
+  // queued behind it would otherwise be held for the whole of it
+  test('a save whose later step MyAnimeList refused fails at once, and nothing waits out the pause', async () => {
+    const { target, script, waits, log } = setup({ rows: [COWBOY_BEBOP_REWATCHING as RawRow, ...ROWS.slice(1)] })
+    await first(target, BEBOP)
+    script.write = () => ({ kind: 'sent', answers: [answerOf('{}'), answerOf('', { status: 429 })] })
+
+    const saved = await save(target, BEBOP, { status: 'COMPLETED', progress: 26 })
+    expect(waits, 'the pause is not waited out').toEqual([])
+    expect(log.slice(3)).toEqual(['write finish-rewatch+edit'])
+    expect(saved).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save; it is read again after the pause' })
   })
 
   test('a lost write whose check was refused fails, as nothing says it arrived', async () => {
