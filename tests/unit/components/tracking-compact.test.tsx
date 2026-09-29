@@ -90,9 +90,9 @@ const settle = async (ms = 0) => { await act(async () => { await vi.advanceTimer
 describe('the compact tracking row', () => {
   test('lays out star, status, episodes, then the chips and the advanced toggle', () => {
     const { host } = render()
-    const order = [...host.querySelectorAll('.star, select, .episodes, [data-chip], .advanced')]
+    const order = [...host.querySelectorAll('.star, select, .progress-field, [data-chip], .advanced')]
       .map(element => element.getAttribute('data-chip') ?? (element.className.split(' ')[0] || element.tagName))
-    expect(order).toEqual(['star', 'SELECT', 'episodes', 'anilist', 'mal', 'stub', 'advanced'])
+    expect(order).toEqual(['star', 'SELECT', 'progress-field', 'anilist', 'mal', 'stub', 'advanced'])
   })
 
   test('three + clicks save once, after a second of quiet, to every checked tracker', async () => {
@@ -265,7 +265,7 @@ describe('the compact tracking row', () => {
 
   test('marks a field the trackers hold differently, naming each value', () => {
     const { host } = render({ tracking: { ...tracking, disagreements: ['PROGRESS'] } })
-    const marker = q(host, '.episodes [data-differs="PROGRESS"]')
+    const marker = q(host, '.progress-field [data-differs="PROGRESS"]')
     expect(marker.title).toBe('AniList 13 (Advanced can sync them)')
     expect(host.querySelector('[data-differs="STATUS"]')).toBeNull()
   })
