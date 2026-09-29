@@ -80,6 +80,11 @@ type Tracker {
   tracker does. False for a tracker that counts the episodes itself and says how many on its answers.
   """
   keepsPageEpisodeCount: Boolean!
+  """
+  The fields this tracker reads and writes through stub. A sync never plans a field onto a tracker that
+  does not keep it, and never counts it as a difference there.
+  """
+  keeps: [TrackingField!]!
 }
 
 """

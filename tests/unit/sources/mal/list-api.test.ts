@@ -65,6 +65,7 @@ describe('a list row', () => {
   test('the tracker names the viewer, keeps ten points and says what a save does', () => {
     expect(malTracker('viewer')).toMatchObject({ id: 'mal', name: 'MyAnimeList', signedIn: true, canWrite: true, account: 'viewer', scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE })
     expect(malTracker()).toMatchObject({ signedIn: false, canWrite: false, account: null })
+    expect(malTracker('viewer').keeps, 'no date and no rewatch count, which planWrite refuses').toEqual(['STATUS', 'PROGRESS', 'SCORE'])
     expect(MAL_WRITE_NOTICE).toContain('public by default')
     expect(MAL_WRITE_NOTICE).toContain('counts one finished rewatch')
   })

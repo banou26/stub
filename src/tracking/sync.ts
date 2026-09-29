@@ -39,6 +39,8 @@ export type SyncAnswer = {
     scoreScale?: string | null
     /** A write stores the page's episode count as this tracker's own. */
     keepsPageEpisodeCount?: boolean | null
+    /** The fields the tracker reads and writes through stub. Every field when absent. */
+    keeps?: readonly string[] | null
   }
   entry?: SyncEntry | null
 }
@@ -98,6 +100,18 @@ export const STATUS_LABELS: Record<string, string> = {
 
 const statusText = (status: string | null | undefined) => status ? STATUS_LABELS[status] ?? status : null
 
+// a field named in a sentence
+const FIELD_WORDS: Record<TrackingField, string> = {
+  STATUS: 'the status',
+  PROGRESS: 'progress',
+  SCORE: 'the score',
+  STARTED_AT: 'the start date',
+  COMPLETED_AT: 'the completion date',
+  REWATCH_COUNT: 'the rewatch count',
+}
+
+const keeps = (answer: SyncAnswer, field: TrackingField) => !answer.tracker.keeps || answer.tracker.keeps.includes(field)
+
 const progressText = (progress: number | null | undefined, count: number | null | undefined) =>
   progress == null ? null : count ? `${progress} / ${count}` : String(progress)
 
@@ -142,13 +156,14 @@ const dateInput = (date: SyncDate) => ({ year: date.year ?? null, month: date.mo
 type Compared = { change: FieldChange, input: ListEntryInput } | { held: HeldField } | undefined
 
 /**
- * What copying one field of `source` onto `target` does. Undefined when nothing: the two agree, or
- * the source holds nothing for the field, since a sync never clears what a target holds.
+ * What copying one field of `source` onto `target` does. Undefined when nothing: the two agree, the
+ * source holds nothing for the field (a sync never clears what a target holds), or the target does not
+ * keep the field.
  */
 const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnswer, page: SyncPage): Compared => {
   const from = source.entry
   const to = target.entry ?? null
-  if (!from) return undefined
+  if (!from || !keeps(target, field)) return undefined
   const scale = target.tracker.scoreScale
   const change = (value: string, backwards: boolean, input: ListEntryInput): Compared =>
     ({ change: { field, from: fieldText(field, to, scale), to: value, backwards }, input })
@@ -236,6 +251,12 @@ export const planTarget = (source: SyncAnswer, target: SyncAnswer, page: SyncPag
   const held: HeldField[] = []
   let entry: ListEntryInput = {}
   for (const field of SYNC_FIELDS) {
+    if (!keeps(target, field)) {
+      if (fieldText(field, source.entry, source.tracker.scoreScale) != null) {
+        held.push({ field, reason: `${target.tracker.name} does not take ${FIELD_WORDS[field]} from stub, so it is not copied` })
+      }
+      continue
+    }
     const compared = compareField(field, source, target, page)
     if (!compared) continue
     if ('held' in compared) held.push(compared.held)

@@ -2,7 +2,7 @@
 // page script hands back means, how a list row maps onto stub's list entries, and which writes a save
 // takes. Import free apart from types and ./page-text.ts, so every mapping is pinned under vitest.
 
-import type { ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
+import type { ListEntry, ListEntryInput, ListStatus, Tracker, TrackingField } from '../../generated/schema/types.generated'
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
 import { isScored, nativeScore, scoreLabel } from '../../tracking/score-scale'
@@ -19,6 +19,9 @@ export const MAL_SCORE_SCALE = 'POINT_10'
  * that fits in one page is read whole rather than by its recent changes. Paging never relies on it.
  */
 export const LIST_PAGE_SIZE = 300
+
+/** What stub reads and writes on MyAnimeList: its dates and rewatch count are left alone in this slice. */
+export const MAL_KEEPS: TrackingField[] = ['STATUS', 'PROGRESS', 'SCORE']
 
 /** Said in the editor wherever MyAnimeList is ticked. */
 export const MAL_WRITE_NOTICE = 'Saving to MyAnimeList changes your list on myanimelist.net, which is public by default and shows your updates on your profile. MyAnimeList keeps scores as whole numbers from 1 to 10, and marking a rewatch Completed counts one finished rewatch.'
@@ -348,4 +351,5 @@ export const malTracker = (user?: string): Tracker => ({
   scoreScale: MAL_SCORE_SCALE,
   writeNotice: MAL_WRITE_NOTICE,
   keepsPageEpisodeCount: false,
+  keeps: MAL_KEEPS,
 })

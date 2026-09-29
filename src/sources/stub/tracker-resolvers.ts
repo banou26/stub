@@ -8,6 +8,7 @@ import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { trackingId } from '../../tracking/aggregate'
 import { entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
 import { liveValues, patchFrom } from '../../tracking/journal'
+import { SYNC_FIELDS } from '../../tracking/sync'
 
 export const STUB_TRACKER_ID = 'stub'
 
@@ -30,6 +31,7 @@ export const stubTracker: Tracker = {
   writeNotice: null,
   // patchFrom stores the episodeCount the page sends with each write
   keepsPageEpisodeCount: true,
+  keeps: [...SYNC_FIELDS],
 }
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null

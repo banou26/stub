@@ -212,6 +212,39 @@ describe('what a sync refuses', () => {
   })
 })
 
+// MyAnimeList's tracker takes status, progress and score from stub, and no date or rewatch count
+const tenPoints = (entry: SyncEntry | null) => {
+  const base = answer('mal', entry, { scale: 'POINT_10' })
+  return { ...base, tracker: { ...base.tracker, name: 'MyAnimeList', keeps: ['STATUS', 'PROGRESS', 'SCORE'] } }
+}
+
+describe('a field the target does not keep', () => {
+  test('is never planned onto it, and the preview says it is not copied', () => {
+    const plan = planTarget(anilist, tenPoints(null))
+
+    expect(plan.changes.map(({ field }) => field)).toEqual(['STATUS', 'PROGRESS', 'SCORE'])
+    expect(plan.entry).toEqual({ status: 'COMPLETED', progress: 12, score: 90 })
+    expect(plan.held).toEqual([
+      { field: 'STARTED_AT', reason: 'MyAnimeList does not take the start date from stub, so it is not copied' },
+      { field: 'COMPLETED_AT', reason: 'MyAnimeList does not take the completion date from stub, so it is not copied' },
+      { field: 'REWATCH_COUNT', reason: 'MyAnimeList does not take the rewatch count from stub, so it is not copied' },
+    ])
+    expect(planTarget(stub, tenPoints(null)).held, 'only what the source holds is named').toEqual([
+      { field: 'STARTED_AT', reason: 'MyAnimeList does not take the start date from stub, so it is not copied' },
+    ])
+  })
+
+  test('is no difference, so dates alone never keep a sync on offer', () => {
+    const same = tenPoints({ status: 'COMPLETED', progress: 12, score: 90, episodeCount: 12 })
+    expect(differences([anilist, same])).toEqual([])
+    expect(planTarget(anilist, same).entry).toBeNull()
+
+    const keepsAll = answer('mal', { ...same.entry }, { scale: 'POINT_10' })
+    expect(differences([anilist, keepsAll]).map(({ field }) => field), 'the control: a tracker keeping every field')
+      .toEqual(['STARTED_AT', 'COMPLETED_AT', 'REWATCH_COUNT'])
+  })
+})
+
 describe('where the trackers differ', () => {
   test('every field a sync would change, with each tracker\'s value in its own terms', () => {
     expect(differences([stub, anilist])).toEqual([

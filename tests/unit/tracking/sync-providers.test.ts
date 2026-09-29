@@ -15,7 +15,7 @@ import { anilistTrackerResolvers } from '../../../src/sources/anilist/tracker-re
 import { stubTrackerResolvers } from '../../../src/sources/stub/tracker-resolvers'
 import { trackingResolvers, type TrackerProvider } from '../../../src/tracking/app-resolvers'
 import { openJournal } from '../../../src/tracking/journal'
-import { applySync, planSync, type SyncAnswer } from '../../../src/tracking/sync'
+import { SYNC_FIELDS, applySync, planSync, type SyncAnswer } from '../../../src/tracking/sync'
 import { FRIEREN, FRIEREN_ENTRY, VIEWER } from '../sources/anilist/list-fixtures'
 import { providerServer, subscribe, yogaClient } from '../worker/yoga-client'
 import { memoryStore } from './memory-store'
@@ -52,7 +52,7 @@ const setup = ({ listed = true } = {}) => {
   // a provider whose list is empty and whose first write fails, as one does while its service is down
   const brokenWrites: unknown[] = []
   let down = true
-  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false }
+  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS] }
   const broken = providerServer('broken', {
     Subscription: {
       tracking: {

@@ -5,11 +5,12 @@ import { describe, expect, test } from 'vitest'
 import type { ListEntry, Tracker, TrackerAnswer } from '../../../src/generated/schema/types.generated'
 
 import { aggregateTracking, summaryId } from '../../../src/tracking/aggregate'
+import { SYNC_FIELDS } from '../../../src/tracking/sync'
 
 const URI = 'ag:(anilist:1,mal:10)'
 
 const tracker = (id: string, scoreScale = 'POINT_100'): Tracker =>
-  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale, keepsPageEpisodeCount: false })
+  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS] })
 
 const listed = (id: string, entry: Partial<ListEntry>, scale?: string): TrackerAnswer => ({
   _id: `answer:${id}:${URI}`,

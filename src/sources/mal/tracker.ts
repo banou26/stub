@@ -7,7 +7,7 @@
 // own, never ingested, and the media fan-out reads only ./index.ts's extractors (AniList's tracker and
 // media source already share `anilist` the same way).
 
-import { MAL_ICON, MAL_SCORE_SCALE, MAL_TRACKER_ID, MAL_URL, MAL_WRITE_NOTICE } from './list-api'
+import { MAL_ICON, MAL_KEEPS, MAL_SCORE_SCALE, MAL_TRACKER_ID, MAL_URL, MAL_WRITE_NOTICE } from './list-api'
 import { malTrackerResolvers } from './tracker-resolvers'
 
 export const origin = MAL_TRACKER_ID
@@ -18,5 +18,6 @@ export const color = null
 export const isApiOnly = true
 export const scoreScale = MAL_SCORE_SCALE
 export const writeNotice = MAL_WRITE_NOTICE
+export const keeps = MAL_KEEPS
 
 export const resolvers = malTrackerResolvers()

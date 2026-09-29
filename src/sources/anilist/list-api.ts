@@ -7,6 +7,7 @@ import type { AnilistBody } from './frontend'
 import type { SessionRequest } from './session-page'
 
 import { scoreLabel } from '../../tracking/score-scale'
+import { SYNC_FIELDS } from '../../tracking/sync'
 
 /** A score in the viewer's own format, as AniList shows it to them (tracking/score-scale.ts). */
 export { scoreLabel }
@@ -224,4 +225,5 @@ export const anilistTracker = (viewer: AnilistViewer | undefined): Tracker => ({
   scoreScale: scoreFormatOf(viewer),
   writeNotice: ANILIST_WRITE_NOTICE,
   keepsPageEpisodeCount: false,
+  keeps: [...SYNC_FIELDS],
 })

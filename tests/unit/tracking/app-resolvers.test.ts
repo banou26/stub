@@ -8,12 +8,13 @@ import type { Tracker } from '../../../src/generated/schema/types.generated'
 import { trackingResolvers, type TrackerProvider } from '../../../src/tracking/app-resolvers'
 import { stubTrackerResolvers } from '../../../src/sources/stub/tracker-resolvers'
 import { openJournal, type Journal } from '../../../src/tracking/journal'
+import { SYNC_FIELDS } from '../../../src/tracking/sync'
 import { memoryStore } from './memory-store'
 import { providerServer, subscribe, yogaClient } from '../worker/yoga-client'
 
 const URI = 'ag:(anilist:1)'
 
-const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: false }
+const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS] }
 
 const otherWrites: unknown[] = []
 const otherDeletes: unknown[] = []

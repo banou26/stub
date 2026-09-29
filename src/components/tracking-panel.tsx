@@ -29,6 +29,7 @@ export type PanelAnswer = {
     scoreScale?: string | null
     writeNotice?: string | null
     keepsPageEpisodeCount?: boolean | null
+    keeps?: readonly string[] | null
   }
   entry?: PanelEntry | null
 }

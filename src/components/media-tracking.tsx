@@ -36,6 +36,7 @@ const MEDIA_TRACKING = gql(`
           scoreScale
           writeNotice
           keepsPageEpisodeCount
+          keeps
         }
         entry {
           _id
