@@ -40,14 +40,14 @@ export type FakeMalOptions = {
 export const answerOf = (text: string, { status = 200, url = 'https://myanimelist.net/', retryAfter = null }: Partial<MalPageAnswer> = {}): MalPageAnswer =>
   ({ kind: 'answer', status, url, text, retryAfter })
 
-const added = (id: number): RawRow => ({
+const added = (id: number, episodes: number): RawRow => ({
   anime_id: id,
   status: 6,
   score: 0,
   is_rewatching: 0,
   num_watched_episodes: 0,
   anime_title: `Anime ${id}`,
-  anime_num_episodes: 12,
+  anime_num_episodes: episodes,
   anime_url: `/anime/${id}/Anime_${id}`,
   anime_image_path: `https://cdn.myanimelist.net/images/anime/${id}.jpg`,
   updated_at: 0,
@@ -88,7 +88,8 @@ export const fakeMal = ({ user = 'viewer', rows = ROWS, pageSize = 300, episodes
       return
     }
     const { anime_id: id, is_rewatching, score, ...fields } = step.fields
-    const row = step.kind === 'add' ? added(id) : state.rows.get(id)
+    // an added row counts what the anime's card shows
+    const row = step.kind === 'add' ? added(id, Number(episodes[id]) || 12) : state.rows.get(id)
     if (!row) return
     Object.assign(row, fields)
     if (score !== undefined && !behaves.ignoresScore) row.score = score

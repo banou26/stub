@@ -1,22 +1,26 @@
 // A per-media sync end to end through the app's tracking resolvers, over the real stub tracker, the
-// real AniList tracker on a fake session answering with AniList's own answers, and a fake third
-// provider that fails. The plan is read off the answers the page gets, through the page's own
+// real AniList tracker on a fake session answering with AniList's own answers, the real MyAnimeList
+// tracker on the hand-made MyAnimeList of its own tests, and a fake provider that fails. The plan is read off the answers the page gets, through the page's own
 // subscription document, and applied as the panel applies it: one `saveListEntry` per target, naming
 // that target alone.
 import { print } from 'graphql'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { ListEntryInput, Tracker } from '../../../src/generated/schema/types.generated'
+import type { AnilistEntry, AnilistViewer } from '../../../src/sources/anilist/list-api'
 import type { SessionRateLimit, SessionRequest, SessionResponse } from '../../../src/sources/anilist/session-page'
 import type { CatalogLookup } from '../../../src/tracking/identity'
 
 import { MediaTrackingDocument } from '../../../src/generated/graphql'
 import { anilistTrackerResolvers } from '../../../src/sources/anilist/tracker-resolvers'
+import { malTrackerResolvers } from '../../../src/sources/mal/tracker-resolvers'
 import { stubTrackerResolvers } from '../../../src/sources/stub/tracker-resolvers'
 import { trackingResolvers, type TrackerProvider } from '../../../src/tracking/app-resolvers'
 import { openJournal } from '../../../src/tracking/journal'
-import { SYNC_FIELDS, applySync, planSync, type SyncAnswer } from '../../../src/tracking/sync'
+import { SYNC_FIELDS, applySync, planSync, sourceRefusal, type SyncAnswer } from '../../../src/tracking/sync'
 import { FRIEREN, FRIEREN_ENTRY, VIEWER } from '../sources/anilist/list-fixtures'
+import { answerOf, fakeMal, type FakeMalOptions, type RawRow } from '../sources/mal/fake-mal'
+import { HACK_SIGN } from '../sources/mal/list-fixtures'
 import { providerServer, subscribe, yogaClient } from '../worker/yoga-client'
 import { memoryStore } from './memory-store'
 
@@ -177,5 +181,194 @@ describe('a sync through the providers', () => {
 
     expect(planSync(answers, 'anilist', ['stub'], { episodeCount: 28 }).targets[0]!.entry, 'the control: a page counting 28')
       .toMatchObject({ progress: 12 })
+  })
+})
+
+// HAND-MADE on a recorded row's shape: Frieren (52991) on the viewer's MyAnimeList, 28 episodes
+const MAL_FRIEREN: RawRow = {
+  ...HACK_SIGN,
+  anime_id: 52991,
+  anime_title: 'Sousou no Frieren',
+  anime_title_eng: "Frieren: Beyond Journey's End",
+  anime_num_episodes: 28,
+  anime_url: '/anime/52991/Sousou_no_Frieren',
+  status: 2,
+  score: 9,
+  num_watched_episodes: 28,
+  updated_at: 1_789_900_000,
+}
+
+// Frieren, and a media no MyAnimeList id reaches: the catalogue's 0 is no id
+const CATALOGUE = [{ mal: 52991, anilist: 154587, kitsu: 46474, anidb: 17617 }, { mal: 0, anilist: 999_001, kitsu: 0, anidb: 0 }]
+const withMal: CatalogLookup = { lookup: (origin, id) => CATALOGUE.find(row => row[origin] === id) }
+
+type MalSetup = { viewer?: AnilistViewer, held?: AnilistEntry | null, mal?: FakeMalOptions, holdWaits?: boolean }
+
+/** stub, AniList holding `held` for `viewer`, and MyAnimeList, through the app as the page reaches them. */
+const setupWithMal = ({ viewer = VIEWER, held = FRIEREN_ENTRY, mal: options = {}, holdWaits = false }: MalSetup = {}) => {
+  const asked: { operation: string, variables: Record<string, unknown> }[] = []
+  const call = vi.fn(async (method: string, { query, variables = {} }: SessionRequest) => {
+    if (method !== 'graphql') throw new Error(`anilist.co's page serves no ${method}`)
+    const operation = /(?:query|mutation) (\w+)/.exec(query)?.[1] ?? 'anonymous'
+    asked.push({ operation, variables })
+    if (operation === 'StubSaveListEntry') {
+      return { kind: 'response' as const, response: response({ data: { SaveMediaListEntry: { ...FRIEREN_ENTRY, ...held, ...variables, media: FRIEREN } } }) }
+    }
+    return { kind: 'response' as const, response: response({ data: { Viewer: viewer, Media: { ...FRIEREN, mediaListEntry: held } } }) }
+  })
+  const anilist = providerServer('anilist', anilistTrackerResolvers({ wait: async () => {} }), { catalog: async () => withMal, session: () => ({ call, onChange: () => () => {} }) })
+
+  let now = 1_790_000_000_000
+  const journal = openJournal(memoryStore(), { now: () => (now += 1_000), uuid: () => crypto.randomUUID() })
+  const stub = providerServer('stub', stubTrackerResolvers(() => journal), { catalog: async () => withMal })
+
+  const mal = fakeMal({ rows: [], ...options })
+  let at = 1_790_000_000_000
+  const malResolvers = malTrackerResolvers({
+    now: () => at,
+    // a pause held for good, so an answer that says PAUSED stays that way while the test reads it
+    wait: async ms => { if (holdWaits) await new Promise(() => {}); at += ms },
+  })
+  const malServer = providerServer('mal', malResolvers, { catalog: async () => withMal, session: () => mal.session })
+
+  const entry = (origin: string, target: ReturnType<typeof providerServer>): TrackerProvider => ({ name: origin, extractor: { origin }, client: yogaClient(target) })
+  const fallback: Tracker = { id: '', name: '', icon: null, color: null, signedIn: false, account: null, canWrite: false, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false }
+  const app = providerServer('app', trackingResolvers([entry('stub', stub), entry('anilist', anilist), entry('mal', malServer)], provider => ({ ...fallback, id: provider.extractor.origin, name: provider.extractor.origin })))
+  const watch = (uri = URI) => {
+    const tracking = subscribe(app, TRACKING, { input: { uri } })
+    live.push(tracking)
+    return tracking
+  }
+  const write = (uri = URI, episodeCount?: number) => async (tracker: string, input: ListEntryInput) =>
+    (await yogaClient(app).mutation(SAVE, { input: { uri, trackers: [tracker], entry: input, episodeCount } }).toPromise()).data.saveListEntry
+  return { app, asked, mal, watch, write }
+}
+
+const malIs = (predicate: (answer: SyncAnswer) => boolean) => (result: any) => {
+  const answer = result.data?.tracking?.answers.find((one: SyncAnswer) => one.tracker.id === 'mal')
+  return Boolean(answer && predicate(answer))
+}
+
+const changesOf = (plan: ReturnType<typeof planSync>, tracker: string) =>
+  plan.targets.find(target => target.tracker === tracker)!.changes.map(({ field, from, to, note }) => [field, from, to, note])
+
+describe('a sync with MyAnimeList, through its own provider', () => {
+  test("copies AniList onto MyAnimeList on its ten points, against MyAnimeList's own count, and no date", async () => {
+    const { watch, write, mal, asked } = setupWithMal({ mal: { episodes: { 52991: 28 } } })
+    const tracking = watch()
+    const answers = answersOf(await tracking.until(malIs(answer => answer.state === 'NOT_LISTED' && answer.episodeCount === 28)))
+    expect(find(answers, 'mal').tracker).toMatchObject({ scoreScale: 'POINT_10', keeps: ['STATUS', 'PROGRESS', 'SCORE'], rewatchThroughCompleted: true, keepsPageEpisodeCount: false })
+
+    const plan = planSync(answers, 'anilist', ['mal'])
+    expect(changesOf(plan, 'mal')).toEqual([
+      ['STATUS', null, 'Watching', undefined],
+      ['PROGRESS', null, '12 / 28', undefined],
+      ['SCORE', null, '8 / 10', "rounded from AniList's 8.5 / 10"],
+    ])
+    expect(plan.targets[0]!.held).toEqual([{ field: 'STARTED_AT', reason: 'MyAnimeList does not take the start date from stub, so it is not copied' }])
+    expect(plan.targets[0]!.entry).toEqual({ status: 'WATCHING', progress: 12, score: 80 })
+
+    expect(await applySync(plan, write())).toEqual([{ tracker: 'mal', outcome: 'SAVED', error: null }])
+    expect(mal.writes().map(({ steps }) => steps), 'the 8 the preview showed').toEqual([[{ kind: 'add', fields: { anime_id: 52991, status: 1, score: 8, num_watched_episodes: 12 } }]])
+    expect(asked.map(({ operation }) => operation), 'the source is read and never written').not.toContain('StubSaveListEntry')
+
+    const after = await tracking.until(malIs(answer => answer.state === 'LISTED'))
+    expect(find(answersOf(after), 'mal').entry).toMatchObject({ status: 'WATCHING', progress: 12, score: 80, scoreLabel: '8 / 10', episodeCount: 28 })
+    expect(planSync(answersOf(after), 'anilist', ['mal']).targets[0]!.entry, "AniList's 85 is MyAnimeList's 8: nothing left to copy").toBeNull()
+    expect(after.data.tracking.disagreements).not.toContain('SCORE')
+  })
+
+  test("copies MyAnimeList onto AniList and stub, its 9 compared with AniList's 8.5 on ten points", async () => {
+    const { watch, write, asked } = setupWithMal({ mal: { rows: [MAL_FRIEREN] } })
+    const answers = answersOf(await watch().until(malIs(answer => answer.state === 'LISTED')))
+
+    const plan = planSync(answers, 'mal', ['anilist', 'stub'], { episodeCount: 28 })
+    expect(changesOf(plan, 'anilist')).toEqual([
+      ['STATUS', 'Watching', 'Completed', undefined],
+      ['PROGRESS', '12 / 28', '28 / 28', undefined],
+      ['SCORE', '8.5 / 10', '9.0 / 10', undefined],
+    ])
+    expect(plan.targets.find(target => target.tracker === 'stub')!.entry).toEqual({ status: 'COMPLETED', progress: 28, score: 90 })
+    expect(await applySync(plan, write(URI, 28))).toEqual([
+      { tracker: 'anilist', outcome: 'SAVED', error: null },
+      { tracker: 'stub', outcome: 'SAVED', error: null },
+    ])
+    expect(asked.find(({ operation }) => operation === 'StubSaveListEntry')!.variables).toEqual({ mediaId: 154587, status: 'COMPLETED', progress: 28, scoreRaw: 90 })
+
+    const eight = setupWithMal({ mal: { rows: [{ ...MAL_FRIEREN, score: 8 }] } })
+    const same = await eight.watch().until(malIs(answer => answer.state === 'LISTED'))
+    expect(planSync(answersOf(same), 'mal', ['anilist']).targets[0]!.changes.map(({ field }) => field), 'the control: 8 and 8.5 agree on ten points')
+      .toEqual(['STATUS', 'PROGRESS'])
+    expect(same.data.tracking.disagreements).not.toContain('SCORE')
+  })
+
+  test('holds progress back from a MyAnimeList that counts the run differently, whatever the page counts', async () => {
+    const { watch } = setupWithMal({ mal: { episodes: { 52991: 24 } } })
+    const answers = answersOf(await watch().until(malIs(answer => answer.episodeCount === 24)))
+
+    const plan = planSync(answers, 'anilist', ['mal'], { episodeCount: 28 })
+    expect(plan.targets[0]!.held).toContainEqual({ field: 'PROGRESS', reason: 'AniList counts 28 episodes and MyAnimeList counts 24, so progress is not copied' })
+    expect(plan.targets[0]!.entry).toEqual({ status: 'WATCHING', score: 80 })
+
+    const listed = setupWithMal({ mal: { rows: [{ ...MAL_FRIEREN, anime_num_episodes: 24, status: 1, num_watched_episodes: 3 }] } })
+    const held = answersOf(await listed.watch().until(malIs(answer => answer.state === 'LISTED')))
+    expect(planSync(held, 'anilist', ['mal'], { episodeCount: 28 }).targets[0]!.entry, 'listed, by its own count too').toEqual({ score: 80 })
+  })
+
+  test('starts a rewatch on MyAnimeList only from Completed, with the flag first, and never from anything else', async () => {
+    const repeating = { ...FRIEREN_ENTRY, status: 'REPEATING', progress: 3 }
+    const watching = setupWithMal({ held: repeating, mal: { rows: [{ ...MAL_FRIEREN, status: 1, num_watched_episodes: 20 }] } })
+    const refused = planSync(answersOf(await watching.watch().until(malIs(answer => answer.state === 'LISTED'))), 'anilist', ['mal'])
+    expect(refused.targets[0]).toEqual({ tracker: 'mal', refusal: 'MyAnimeList starts a rewatch only on an entry it lists as Completed', changes: [], held: [], entry: null })
+    expect(await applySync(refused, watching.write())).toEqual([])
+    expect(watching.mal.writes()).toEqual([])
+
+    const completed = setupWithMal({ held: repeating, mal: { rows: [MAL_FRIEREN] } })
+    const plan = planSync(answersOf(await completed.watch().until(malIs(answer => answer.state === 'LISTED'))), 'anilist', ['mal'])
+    expect(plan.targets[0]!.entry).toEqual({ status: 'REWATCHING', progress: 3, score: 80 })
+    expect(await applySync(plan, completed.write())).toEqual([{ tracker: 'mal', outcome: 'SAVED', error: null }])
+    expect(completed.mal.writes().map(({ steps }) => steps)).toEqual([
+      [{ kind: 'edit', fields: { anime_id: 52991, status: 2, is_rewatching: 1 } }],
+      [{ kind: 'edit', fields: { anime_id: 52991, status: 2, score: 8, num_watched_episodes: 3 } }],
+    ])
+    expect(completed.mal.row(52991)).toMatchObject({ status: 2, is_rewatching: 1, num_watched_episodes: 3, score: 8 })
+  })
+
+  test("ends a MyAnimeList rewatch as Completed through MyAnimeList's own finish, which the preview says counts", async () => {
+    const { watch, write, mal } = setupWithMal({ held: { ...FRIEREN_ENTRY, status: 'COMPLETED', progress: 28 }, mal: { rows: [{ ...MAL_FRIEREN, is_rewatching: 1, num_watched_episodes: 3, score: 8 }] } })
+    const plan = planSync(answersOf(await watch().until(malIs(answer => answer.entry?.status === 'REWATCHING'))), 'anilist', ['mal'])
+    expect(changesOf(plan, 'mal')).toEqual([
+      ['STATUS', 'Rewatching', 'Completed', 'counts one finished rewatch on MyAnimeList'],
+      ['PROGRESS', '3 / 28', '28 / 28', undefined],
+    ])
+    expect(await applySync(plan, write())).toEqual([{ tracker: 'mal', outcome: 'SAVED', error: null }])
+    expect(mal.writes().map(({ steps }) => steps.map(step => step.kind))).toEqual([['finish-rewatch', 'edit']])
+    expect(mal.state.finishedRewatches).toBe(1)
+  })
+
+  // a LISTED answer anyone may copy from, for the targets a real source could not be copied onto here
+  const copyable: SyncAnswer = { state: 'LISTED', pending: 0, tracker: { id: 'anilist', name: 'AniList', canWrite: true, scoreScale: 'POINT_100' }, entry: { status: 'WATCHING', progress: 1 } }
+
+  test.each([
+    ['SIGNED_OUT', 'Sign in to MyAnimeList first', { mal: { user: null } }, URI],
+    ['PAUSED', 'MyAnimeList asked stub to wait', { holdWaits: true, mal: { rows: [MAL_FRIEREN] } }, URI],
+    ['ERROR', 'MyAnimeList could not answer', { mal: { rows: [MAL_FRIEREN] } }, URI],
+    ['NO_ID', 'MyAnimeList has no id for this media', {}, 'ag:(anilist:999001)'],
+    ['AMBIGUOUS', 'MyAnimeList names two entries for this media and cannot tell which one is meant', {}, 'ag:(mal:52991,mal:99999)'],
+    ['NOT_LISTED', 'MyAnimeList lists nothing for this media', {}, URI],
+  ] as const)('never syncs out of a MyAnimeList that answers %s, nor into one that cannot answer', async (state, why, options, uri) => {
+    const { watch, write, mal } = setupWithMal(options as MalSetup)
+    if (state === 'PAUSED') mal.script.list = () => answerOf('', { status: 429, retryAfter: 60 })
+    if (state === 'ERROR') mal.script.whoami = () => ({ kind: 'whoami', status: 200, url: 'https://myanimelist.net/about.php', page: false, user: null, token: false, blocked: false, retryAfter: null })
+    const answer = find(answersOf(await watch(uri).until(malIs(one => one.state === state))), 'mal')
+
+    expect(sourceRefusal(answer)).toBe(why)
+    const onto = planSync([copyable, answer], 'anilist', ['mal'])
+    if (state === 'NOT_LISTED') expect(onto.targets[0]!.entry, 'the control: a target that lists nothing yet').toEqual({ status: 'WATCHING', progress: 1 })
+    else {
+      expect(onto.targets[0]!.refusal).toBe(why)
+      expect(await applySync(onto, write(uri))).toEqual([])
+      expect(mal.writes()).toEqual([])
+    }
   })
 })
