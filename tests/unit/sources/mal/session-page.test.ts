@@ -2,8 +2,9 @@
 // fake fetch answering with the site's recorded pages (./list-fixtures.ts says which are hand-made).
 import { describe, expect, test } from 'vitest'
 
+import { MAL_SESSION_URL } from '../../../../src/sources/mal/session'
 import { createMalPage, hasViewer, type MalWrite } from '../../../../src/sources/mal/session-page'
-import { ABOUT_SIGNED_IN, ABOUT_SIGNED_OUT, ERRORS_400, ROWS } from './list-fixtures'
+import { ABOUT_SIGNED_IN, ABOUT_SIGNED_OUT, COWBOY_BEBOP_CARD, ERRORS_400, ROWS } from './list-fixtures'
 
 const TOKEN = '0f9d61e1cb561a5d581cd53c0db5f26d0cf4f559'
 
@@ -63,6 +64,18 @@ describe('who the session is', () => {
     expect(await page.whoami({})).toMatchObject({ blocked: true, retryAfter: 120 })
     expect(await page.whoami({})).toMatchObject({ page: false, blocked: false })
   })
+})
+
+test("an anime's card is the page the session frame holds, for that id, asked with the cookies and a fresh nonce", async () => {
+  const { fetch, calls, posts } = fakeFetch([respond(COWBOY_BEBOP_CARD), respond(COWBOY_BEBOP_CARD)])
+  const page = createMalPage({ fetch, nonce: counter() })
+
+  expect(await page.anime({ id: 1 })).toMatchObject({ kind: 'answer', status: 200, text: COWBOY_BEBOP_CARD })
+  await page.anime({ id: 52991 })
+  const held = new URL(MAL_SESSION_URL)
+  expect(calls.map(call => call.input)).toEqual([`${held.pathname}${held.search}&_=n1`, '/includes/ajax.inc.php?t=64&id=52991&_=n2'])
+  expect(calls[0]!.init).toMatchObject({ credentials: 'include' })
+  expect(posts()).toEqual([])
 })
 
 describe("the viewer's list", () => {

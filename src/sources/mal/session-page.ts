@@ -69,6 +69,8 @@ export type MalPageApi = {
   whoami: (arg: Record<string, never>) => Promise<MalWhoAmI>
   list: (arg: MalListRequest) => Promise<MalPageAnswer>
   write: (arg: MalWriteRequest) => Promise<MalWriteAnswer>
+  /** MyAnimeList's hover card for one anime: the page the session frame holds, for that id. */
+  anime: (arg: { id: number }) => Promise<MalPageAnswer>
 }
 
 /** What `run` takes: serve the session over the port the app posts next, or answer whether anyone is signed in. */
@@ -151,6 +153,11 @@ export const createMalPage = ({ fetch, nonce }: { fetch: PageFetch, nonce: () =>
       }
       return { kind: 'sent', answers }
     },
+    anime: async ({ id }) =>
+      answerOf(await fetch(
+        `/includes/ajax.inc.php?t=64&id=${id}&_=${nonce()}`,
+        { credentials: 'include', headers: { ...XHR, accept: 'text/html, */*; q=0.01' } },
+      )),
   }
 }
 

@@ -1,8 +1,8 @@
 // What stub reads out of myanimelist.net's own pages, on the lines the site rendered.
 import { describe, expect, test } from 'vitest'
 
-import { csrfTokenOf, isBlockPage, userNameOf, writeAccepted } from '../../../../src/sources/mal/page-text'
-import { ABOUT_CSRF_LINE, ABOUT_SIGNED_IN, ABOUT_SIGNED_OUT, ABOUT_USER_LINES, ERRORS_400 } from './list-fixtures'
+import { csrfTokenOf, episodesOf, isBlockPage, userNameOf, writeAccepted } from '../../../../src/sources/mal/page-text'
+import { ABOUT_CSRF_LINE, ABOUT_SIGNED_IN, ABOUT_SIGNED_OUT, ABOUT_USER_LINES, COWBOY_BEBOP_CARD, ERRORS_400, cardOf } from './list-fixtures'
 
 describe("the page's token and viewer", () => {
   test('reads the CSRF token MyAnimeList renders in single quotes, and in double quotes too', () => {
@@ -19,6 +19,14 @@ describe("the page's token and viewer", () => {
     expect(userNameOf('window.MAL.USER_NAME = "a\\"b";')).toBe('a"b')
     expect(userNameOf('<html><body>Cowboy Bebop</body></html>')).toBeUndefined()
   })
+})
+
+test("an anime's hover card names its episode count, one it does not know is none, and a page with none is no card", () => {
+  expect(episodesOf(COWBOY_BEBOP_CARD), 'the recorded card').toBe(26)
+  expect(episodesOf(cardOf(1_100))).toBe(1_100)
+  expect(episodesOf(cardOf('Unknown'))).toBeNull()
+  expect(episodesOf(cardOf(0))).toBeNull()
+  expect(episodesOf(ABOUT_SIGNED_OUT)).toBeUndefined()
 })
 
 describe('a refused client', () => {

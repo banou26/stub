@@ -6,6 +6,9 @@
 // - The about.php lines are copied verbatim from `https://myanimelist.net/about.php`, signed out, that day:
 //   its line 18, its header line 109 and its lines 625 to 635.
 //
+// - The hover card is `https://myanimelist.net/includes/ajax.inc.php?t=64&id=1` as it answered that day,
+//   signed out, whole (978 bytes).
+//
 // HAND-MADE, because no MyAnimeList account was used: a rewatching row, a signed-in USER_NAME line, and
 // every answer to a write. The tests never read a write answer's body.
 
@@ -438,3 +441,9 @@ export const ABOUT_SIGNED_OUT = [ABOUT_CSRF_LINE, ABOUT_HEADER_LINE, ABOUT_USER_
 export const ABOUT_SIGNED_IN = ABOUT_SIGNED_OUT
   .replace('window.MAL.USER_NAME = ""', 'window.MAL.USER_NAME = "viewer"')
   .replace(/<a class="btn-login"[^>]*>Login<\/a>/, '')
+
+/** Cowboy Bebop's hover card, the page the session frame holds: `Episodes:</span> 26`. */
+export const COWBOY_BEBOP_CARD = "\n\t\t<a href=\"https://myanimelist.net/anime/1/Cowboy_Bebop\" class=\"hovertitle\">Cowboy Bebop (1998)</a></div>\n\t\t<div style=\"margin-top: 8px; margin-bottom: 10px;\">Crime is timeless. By the year 2071, humanity has expanded across the galaxy, filling the surface of other planets with settlements like those on Earth. These new societies are plagued by murder, drug... <a href=\"https://myanimelist.net/anime/1/Cowboy_Bebop\">read more</a></div>\n\t\t<span class=\"dark_text\">Genres:</span> Action, Adult Cast, Award Winning, Sci-Fi, Space<br />\n\t\t<span class=\"dark_text\">Status:</span> Finished Airing<br />\n\t\t<span class=\"dark_text\">Type:</span> TV<br />\n\t\t<span class=\"dark_text\">Episodes:</span> 26<br />\n            <span class=\"dark_text\">Score:</span> 8.75 <small>(scored by 1,076,891 users)</small><br />\n            <span class=\"dark_text\">Ranked:</span> #50<br />\n\t\t<span class=\"dark_text\">Popularity:</span> #41<br />\n\t\t<span class=\"dark_text\">Members:</span> 2,088,837<br />\n\t\t"
+
+/** HAND-MADE: the same card for an anime counting `episodes`, which may be MyAnimeList's `Unknown`. */
+export const cardOf = (episodes: number | string) => COWBOY_BEBOP_CARD.replace('Episodes:</span> 26', `Episodes:</span> ${episodes}`)

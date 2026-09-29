@@ -6,7 +6,7 @@ import type { ListEntry, ListEntryInput, ListStatus, Tracker, TrackingField } fr
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
 import { isScored, nativeScore, scoreLabel } from '../../tracking/score-scale'
-import { isBlockPage } from './page-text'
+import { episodesOf, isBlockPage } from './page-text'
 
 export const MAL_TRACKER_ID = 'mal'
 export const MAL_URL = 'https://myanimelist.net'
@@ -123,6 +123,18 @@ export const readListPage = (answer: MalPageAnswer): MalRead<MalListRow[]> => {
   }
   if (answer.status === 403 || isOk(answer.status) || isBlockPage(answer.text)) return { kind: 'blocked', retryAfter: answer.retryAfter }
   return { kind: 'error', message: `MyAnimeList answered ${answer.status}` }
+}
+
+/**
+ * A hover card's episode count, null when MyAnimeList names none. A card that says no count is still
+ * a card; an answer that is not one is an error, and never a pause unless it is MyAnimeList refusing.
+ */
+export const readCard = (answer: MalPageAnswer): MalRead<number | null> => {
+  if (answer.status === 429) return { kind: 'blocked', retryAfter: answer.retryAfter }
+  const episodes = isOk(answer.status) ? episodesOf(answer.text) : undefined
+  if (episodes !== undefined) return { kind: 'data', data: episodes }
+  if (answer.status === 403 || isBlockPage(answer.text)) return { kind: 'blocked', retryAfter: answer.retryAfter }
+  return { kind: 'error', message: `MyAnimeList answered ${answer.status} with no card stub could read` }
 }
 
 /**

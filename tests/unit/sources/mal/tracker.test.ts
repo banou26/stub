@@ -153,12 +153,13 @@ describe('what the MyAnimeList tracker answers', () => {
 })
 
 describe('what reading the list costs', () => {
-  test('two media opened in a row cost one read of the list, whole', async () => {
+  test('two media opened in a row cost one read of the list, whole, and one it does not list its card', async () => {
     const { target, log } = setup()
     await first(target, BEBOP)
     await first(target, HACK)
     await first(target, UNLISTED)
-    expect(log).toEqual(READ_ALL)
+    await vi.waitFor(() => expect(log).toContain('anime 9999'))
+    expect(log).toEqual([...READ_ALL, 'anime 9999'])
   })
 
   test('the list is read again once INDEX_TTL_MS has passed, and after a sign in', async () => {
@@ -196,8 +197,9 @@ describe('what reading the list costs', () => {
 
   test('stops on a page that adds nothing new, where MyAnimeList ignored the offset', async () => {
     const { target, log } = setup({ pageSize: 3, ignoresOffset: true })
-    await first(target, BEBOP)
-    expect(log).toEqual(['whoami', 'list 7/1@0', 'list 7/1@3'])
+    expect((await first(target, BEBOP)).state, 'past the first page').toBe('NOT_LISTED')
+    await vi.waitFor(() => expect(log).toContain('anime 1'))
+    expect(log).toEqual(['whoami', 'list 7/1@0', 'list 7/1@3', 'anime 1'])
   })
 
   test('a list over one page is brought up to date by its recent page, and read whole after FULL_TTL_MS', async () => {
@@ -240,6 +242,43 @@ describe('what reading the list costs', () => {
     expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'LISTED', entry: { score: 90 } })
     // the first read runs to its end, and is dropped
     expect(log).toEqual([...READ_ALL, ...READ_ALL])
+  })
+})
+
+describe("MyAnimeList's episode count", () => {
+  test('a listed entry answers with its own', async () => {
+    const { target } = setup()
+    expect(await first(target, BEBOP)).toMatchObject({ state: 'LISTED', episodeCount: 26, entry: { episodeCount: 26 } })
+  })
+
+  test('an anime the list does not hold is answered at once, then with the count its card shows, asked once', async () => {
+    const { target, log } = setup({ episodes: { 9999: 24 } })
+    const tracking = watch(target, UNLISTED)
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'NOT_LISTED', episodeCount: null })
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'NOT_LISTED', episodeCount: 24 })
+
+    expect(await first(target, UNLISTED), 'known from the first answer on').toMatchObject({ episodeCount: 24 })
+    expect(log.filter(line => line.startsWith('anime'))).toEqual(['anime 9999'])
+  })
+
+  test('a card that could not be read leaves the count unknown, and is asked again the next time', async () => {
+    const { target, log, script } = setup({ episodes: { 9999: 24 } })
+    let failed = false
+    script.anime = () => failed ? undefined : (failed = true, answerOf('', { status: 500 }))
+    expect(await first(target, UNLISTED)).toMatchObject({ episodeCount: null })
+    await vi.waitFor(() => expect(log).toContain('anime 9999'))
+
+    const tracking = watch(target, UNLISTED)
+    expect(answerOfResult(await tracking.next())).toMatchObject({ episodeCount: null })
+    expect(answerOfResult(await tracking.next())).toMatchObject({ episodeCount: 24 })
+    expect(log.filter(line => line.startsWith('anime'))).toEqual(['anime 9999', 'anime 9999'])
+  })
+
+  test('a card MyAnimeList refused pauses the tracker, as any refusal does', async () => {
+    const { target, script } = setup()
+    script.anime = () => answerOf('', { status: 429, retryAfter: 60 })
+    await first(target, UNLISTED)
+    await vi.waitFor(async () => expect((await first(target, HACK)).state).toBe('PAUSED'))
   })
 })
 

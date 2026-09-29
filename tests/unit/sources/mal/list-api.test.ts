@@ -5,13 +5,14 @@ import { describe, expect, test } from 'vitest'
 import type { MalPageAnswer } from '../../../../src/sources/mal/session-page'
 
 import {
-  MAL_WRITE_NOTICE, listEntryOf, malScore, malTracker, mismatchOf, planWrite, readListPage, readWhoAmI, readWriteAnswer,
+  MAL_WRITE_NOTICE, listEntryOf, malScore, malTracker, mismatchOf, planWrite, readCard, readListPage, readWhoAmI, readWriteAnswer,
   replaceLists, rowOf, showsNoChange, statusOf, upsertRows, type MalListRow,
 } from '../../../../src/sources/mal/list-api'
 import { onScale } from '../../../../src/tracking/score-scale'
 import { scoreText } from '../../../../src/tracking/sync'
 import {
-  AIR_GEAR, A_CHANNEL, BLEACH, CLANNAD, COWBOY_BEBOP, COWBOY_BEBOP_REWATCHING, ERRORS_400, HACK_SIGN, ONE_PIECE, ROWS,
+  AIR_GEAR, A_CHANNEL, BLEACH, CLANNAD, COWBOY_BEBOP, COWBOY_BEBOP_CARD, COWBOY_BEBOP_REWATCHING, ERRORS_400, HACK_SIGN, ONE_PIECE,
+  ROWS, cardOf,
 } from './list-fixtures'
 
 const row = (raw: unknown) => rowOf(raw)!
@@ -115,6 +116,16 @@ describe('what an answer says', () => {
     expect(readWriteAnswer(answer('', { url: 'https://myanimelist.net/login.php' }))).toEqual({ kind: 'signed-out' })
     expect(readWriteAnswer(answer('<html>Not Found</html>', { status: 404 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 404' })
   })
+})
+
+test('a hover card is its count, a refusal is a pause, and an answer that is no card is an error and never a pause', () => {
+  expect(readCard(answer(COWBOY_BEBOP_CARD))).toEqual({ kind: 'data', data: 26 })
+  expect(readCard(answer(cardOf('Unknown')))).toEqual({ kind: 'data', data: null })
+  expect(readCard(answer('', { status: 429, retryAfter: 30 }))).toEqual({ kind: 'blocked', retryAfter: 30 })
+  expect(readCard(answer('<html>Request blocked</html>', { status: 403 }))).toEqual({ kind: 'blocked', retryAfter: null })
+  expect(readCard(answer('<html>Request blocked</html>'))).toEqual({ kind: 'blocked', retryAfter: null })
+  expect(readCard(answer('<html>no such anime</html>'))).toEqual({ kind: 'error', message: 'MyAnimeList answered 200 with no card stub could read' })
+  expect(readCard(answer(COWBOY_BEBOP_CARD, { status: 500 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 500 with no card stub could read' })
 })
 
 describe('a score on ten points', () => {

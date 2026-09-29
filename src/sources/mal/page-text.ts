@@ -36,6 +36,18 @@ export const isBlockPage = (text: string): boolean =>
   /Request blocked|your IP has been banned|you are not a bot/i.test(text)
 
 /**
+ * The episode count on MyAnimeList's hover card for one anime (`ajax.inc.php?t=64`), from its
+ * `Episodes:</span> 26` line (measured on Cowboy Bebop's card, 2026-09-29). Null when the card names
+ * no count, as for a run MyAnimeList does not know the length of yet. Undefined when there is no such
+ * line, so the answer is not a card.
+ */
+export const episodesOf = (card: string): number | null | undefined => {
+  const shown = /Episodes:<\/span>\s*([^<\s]+)/.exec(card)?.[1]
+  if (shown === undefined) return undefined
+  return /^\d+$/.test(shown) && Number(shown) > 0 ? Number(shown) : null
+}
+
+/**
  * Whether a write MyAnimeList answered was accepted: a 2xx that did not end on the sign-in page. The
  * body is never read, since what a write answers was not measured; the tracker reads the list back.
  */

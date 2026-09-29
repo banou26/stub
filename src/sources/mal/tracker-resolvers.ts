@@ -12,7 +12,7 @@ import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { catalogueTargetOf } from '../../tracking/identity'
 import {
   LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
-  readListPage, readWhoAmI, readWriteAnswer, replaceLists, showsNoChange, upsertRows,
+  readCard, readListPage, readWhoAmI, readWriteAnswer, replaceLists, showsNoChange, upsertRows,
   type MalExpect, type MalListRow, type MalRead, type MalRows,
 } from './list-api'
 import { createMalPacer, createSaveQueue } from './pacing'
@@ -97,6 +97,8 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   let watching = false
   // every open answer reads again after a write through this tracker
   const written = new Set<() => void>()
+  // MyAnimeList's count for each anime its list does not hold, off its hover card, once per worker
+  const cards = new Map<number, number | null>()
 
   const session = (ctx: MalTrackerContext) => ctx.session<MalPageApi>(MAL_TRACKER_ID)
 
@@ -144,6 +146,21 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
       const result = await session(ctx).call('list', request)
       return result.kind === 'not-connected' ? { kind: 'signed-out' } : readListPage(result.response)
     }, read => read)
+
+  /** MyAnimeList's episode count for an anime, or undefined when its card could not be read. */
+  const cardCount = async (ctx: MalTrackerContext, animeId: number): Promise<number | null | undefined> => {
+    try {
+      const card = await paced(async (): Promise<MalRead<number | null>> => {
+        const result = await session(ctx).call('anime', { id: animeId })
+        return result.kind === 'not-connected' ? { kind: 'signed-out' } : readCard(result.response)
+      }, read => read, ctx.request.signal)
+      if (card.kind !== 'data') return undefined
+      cards.set(animeId, card.data)
+      return card.data
+    } catch {
+      return undefined
+    }
+  }
 
   /** The entries changed most recently, whatever their status: the newest `updated_at` first. */
   const readRecent = (ctx: MalTrackerContext, user: string) => listPage(ctx, { user, status: 7, order: 5, offset: 0 })
@@ -238,7 +255,9 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
     if (result.kind === 'error') return errorAnswer(uri, malTracker(userOf()), result.message)
     const { user, rows } = result.data
     const row = rows.get(animeId)
-    return row ? answer(uri, 'LISTED', { entry: listEntryOf(user, row) }, user) : answer(uri, 'NOT_LISTED', {}, user)
+    return row
+      ? answer(uri, 'LISTED', { entry: listEntryOf(user, row), episodeCount: row.episodes }, user)
+      : answer(uri, 'NOT_LISTED', { episodeCount: cards.get(animeId) ?? null }, user)
   }
 
   /** Posts one phase of a save, once: a write the page lost is never sent again. */
@@ -442,6 +461,15 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
               const retry = last.state === 'PAUSED' && pacer.pausedUntil() !== undefined
               yield trackingOf(uri, last)
               if (retry) continue
+              // asked once the answer is on screen, so a sync onto an anime the list does not hold can
+              // tell whether progress means the same on MyAnimeList
+              if (last.state === 'NOT_LISTED' && !cards.has(target.id)) {
+                const episodeCount = await cardCount(ctx, target.id)
+                if (episodeCount != null) {
+                  last = { ...last, episodeCount }
+                  yield trackingOf(uri, last)
+                }
+              }
               if ((await wakes.next()).done) return
             }
           } finally {

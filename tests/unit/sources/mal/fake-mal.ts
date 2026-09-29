@@ -8,7 +8,7 @@ import { vi } from 'vitest'
 import type { MalListRequest, MalPageAnswer, MalWhoAmI, MalWrite, MalWriteAnswer, MalWriteRequest } from '../../../../src/sources/mal/session-page'
 import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
-import { ROWS } from './list-fixtures'
+import { ROWS, cardOf } from './list-fixtures'
 
 export type RawRow = Record<string, unknown> & { anime_id: number, status: number }
 
@@ -16,6 +16,7 @@ type Handlers = {
   whoami: () => MalWhoAmI
   list: (arg: MalListRequest) => MalPageAnswer
   write: (arg: MalWriteRequest) => MalWriteAnswer
+  anime: (arg: { id: number }) => MalPageAnswer
 }
 
 export type FakeMalOptions = {
@@ -32,6 +33,8 @@ export type FakeMalOptions = {
   ignoresScore?: boolean
   /** A MyAnimeList that writes without moving the entry's updated_at, so the recent page does not lead with it. */
   keepsUpdatedAt?: boolean
+  /** The count each anime's hover card shows; else a listed row's, else `Unknown`. */
+  episodes?: Record<number, number | string>
 }
 
 export const answerOf = (text: string, { status = 200, url = 'https://myanimelist.net/', retryAfter = null }: Partial<MalPageAnswer> = {}): MalPageAnswer =>
@@ -50,7 +53,7 @@ const added = (id: number): RawRow => ({
   updated_at: 0,
 })
 
-export const fakeMal = ({ user = 'viewer', rows = ROWS, pageSize = 300, ...behaves }: FakeMalOptions = {}) => {
+export const fakeMal = ({ user = 'viewer', rows = ROWS, pageSize = 300, episodes = {}, ...behaves }: FakeMalOptions = {}) => {
   const state = {
     user,
     connected: true,
@@ -113,6 +116,7 @@ export const fakeMal = ({ user = 'viewer', rows = ROWS, pageSize = 300, ...behav
       if (interrupt === 'after') throw new Error('https://myanimelist.net changed while stub\'s call was running, so whether it arrived is not known')
       return { kind: 'sent', answers: steps.map(() => answerOf('{}')) }
     },
+    anime: ({ id }) => answerOf(cardOf(episodes[id] ?? (Number(state.rows.get(id)?.anime_num_episodes) || 'Unknown')), { url: `https://myanimelist.net/includes/ajax.inc.php?t=64&id=${id}` }),
   }
 
   const describe = (method: string, arg: unknown) => {
@@ -121,6 +125,7 @@ export const fakeMal = ({ user = 'viewer', rows = ROWS, pageSize = 300, ...behav
       return `list ${status}/${order}@${offset}`
     }
     if (method === 'write') return `write ${(arg as MalWriteRequest).steps.map(step => step.kind).join('+')}`
+    if (method === 'anime') return `anime ${(arg as { id: number }).id}`
     return method
   }
 
