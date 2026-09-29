@@ -8,6 +8,8 @@ import {
   MAL_WRITE_NOTICE, listEntryOf, malScore, malTracker, mismatchOf, planWrite, readListPage, readWhoAmI, readWriteAnswer,
   replaceLists, rowOf, showsNoChange, statusOf, upsertRows, type MalListRow,
 } from '../../../../src/sources/mal/list-api'
+import { onScale } from '../../../../src/tracking/score-scale'
+import { scoreText } from '../../../../src/tracking/sync'
 import {
   AIR_GEAR, A_CHANNEL, BLEACH, CLANNAD, COWBOY_BEBOP, COWBOY_BEBOP_REWATCHING, ERRORS_400, HACK_SIGN, ONE_PIECE, ROWS,
 } from './list-fixtures'
@@ -123,6 +125,19 @@ describe('a score on ten points', () => {
     expect(malScore(0)).toBe(0)
     expect(malScore(null)).toBe(0)
     expect(malScore(undefined)).toBe(0)
+  })
+
+  // a sync writes onScale(score, the tracker's scale) and shows scoreText of it: MyAnimeList has to
+  // read that back as the same score and the same words, for every score a source can hold
+  test("every score a sync shows for MyAnimeList is the one it reads back, in the preview's words", () => {
+    const { scoreScale } = malTracker('viewer')
+    for (let score = 1; score <= 100; score++) {
+      const sent = onScale(score, scoreScale)
+      const plan = planWrite(1, undefined, { status: 'COMPLETED', score: sent })
+      const step = 'phases' in plan ? plan.phases[0]!.steps[0] : undefined
+      const back = listEntryOf('viewer', row({ ...COWBOY_BEBOP, score: step?.kind === 'add' ? step.fields.score : undefined }))
+      expect([score, back.score, back.scoreLabel]).toEqual([score, sent, scoreText(sent, scoreScale)])
+    }
   })
 })
 

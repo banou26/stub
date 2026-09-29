@@ -5,11 +5,14 @@
 import type { ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
+import { isScored, nativeScore, scoreLabel } from '../../tracking/score-scale'
 import { isBlockPage } from './page-text'
 
 export const MAL_TRACKER_ID = 'mal'
 export const MAL_URL = 'https://myanimelist.net'
 export const MAL_ICON = 'https://cdn.myanimelist.net/images/favicon.ico'
+/** MyAnimeList's one scale: whole points from 1 to 10, 0 being no score. */
+export const MAL_SCORE_SCALE = 'POINT_10'
 
 /**
  * How many rows one load.json page held (300, measured 2026-09-29). Only a cost rule reads it: a list
@@ -165,12 +168,12 @@ const STATUS_WORDS: Record<ListStatus, string> = {
 }
 
 /**
- * A 0 to 100 score as MyAnimeList keeps it, a whole number from 0 (no score) to 10: rounded DOWN and
- * never below 1, which is how AniList keeps a POINT_10 score (tracking slice 3, measured on
- * graphql.anilist.co), so a score moved from AniList reads the same on both. MAL-Sync rounds instead
- * (api single.ts:126-137); stub does not follow it there.
+ * A 0 to 100 score as MyAnimeList keeps it, a whole number from 0 (no score) to 10: score-scale.ts's
+ * POINT_10, rounded DOWN and never below 1 as AniList keeps it (measured on graphql.anilist.co), so a
+ * sync's preview shows exactly what MyAnimeList stores. MAL-Sync rounds instead (api
+ * single.ts:126-137); stub does not follow it there.
  */
-export const malScore = (score?: number | null): number => score ? Math.max(1, Math.floor(score / 10)) : 0
+export const malScore = (score?: number | null): number => isScored(score) ? nativeScore(score, MAL_SCORE_SCALE) : 0
 
 /** One row as a stub list entry. MyAnimeList's dates and rewatch count are not read in this slice. */
 export const listEntryOf = (user: string, row: MalListRow): ListEntry => ({
@@ -180,7 +183,7 @@ export const listEntryOf = (user: string, row: MalListRow): ListEntry => ({
   status: statusOf(row),
   progress: row.progress,
   score: row.score ? row.score * 10 : null,
-  scoreLabel: row.score ? `${row.score} / 10` : null,
+  scoreLabel: scoreLabel(row.score, MAL_SCORE_SCALE),
   startedAt: null,
   completedAt: null,
   rewatchCount: null,
@@ -342,7 +345,7 @@ export const malTracker = (user?: string): Tracker => ({
   signedIn: Boolean(user),
   account: user ?? null,
   canWrite: Boolean(user),
-  scoreScale: 'POINT_10',
+  scoreScale: MAL_SCORE_SCALE,
   writeNotice: MAL_WRITE_NOTICE,
   keepsPageEpisodeCount: false,
 })
