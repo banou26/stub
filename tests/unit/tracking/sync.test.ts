@@ -26,6 +26,18 @@ const anilist = answer('anilist', {
   episodeCount: 12,
 }, { scale: 'POINT_10_DECIMAL' })
 
+// MyAnimeList's tracker takes status, progress and score from stub, and no date or rewatch count
+const tenPoints = (entry: SyncEntry | null) => {
+  const base = answer('mal', entry, { scale: 'POINT_10' })
+  return { ...base, tracker: { ...base.tracker, name: 'MyAnimeList', keeps: ['STATUS', 'PROGRESS', 'SCORE'] } }
+}
+
+// MyAnimeList's tracker: a rewatch starts on a Completed entry and ends only as Completed
+const throughCompleted = (entry: SyncEntry | null) => {
+  const base = tenPoints(entry)
+  return { ...base, tracker: { ...base.tracker, rewatchThroughCompleted: true } }
+}
+
 describe('what a sync changes on a target', () => {
   test('every field the source holds and the target does not, in the target\'s own terms', () => {
     const plan = planTarget(anilist, stub)
@@ -113,8 +125,17 @@ describe('scores between scales', () => {
     expect(planTarget(fine, coarse).changes, '95 is a 9 on ten points').toEqual([])
     expect(planTarget(coarse, fine).changes, 'and a ten point 9 does not make 95 a 90').toEqual([])
     expect(planTarget(answer('stub', { score: 88 }), coarse).changes, 'the control: 88 is an 8').toEqual([
-      { field: 'SCORE', from: '9 / 10', to: '8 / 10', backwards: false },
+      { field: 'SCORE', from: '9 / 10', to: '8 / 10', backwards: false, note: "rounded from Stub's 88%" },
     ])
+  })
+
+  test("say what the source held whenever the target's scale moves the score", () => {
+    expect(planTarget(answer('stub', { score: 87 }), tenPoints(null)).changes[0]).toEqual({ field: 'SCORE', from: null, to: '8 / 10', backwards: false, note: "rounded from Stub's 87%" })
+    expect(planTarget(anilist, answer('stars', null, { scale: 'POINT_5' })).changes.find(({ field }) => field === 'SCORE'))
+      .toMatchObject({ to: '5 / 5', note: "rounded from AniList's 9.0 / 10" })
+    const decimal = answer('anilist', { score: 87, scoreLabel: '8.7 / 10' }, { scale: 'POINT_10_DECIMAL' })
+    expect(planTarget(decimal, tenPoints({ score: 70 })).changes[0]).toMatchObject({ from: '7 / 10', to: '8 / 10', note: "rounded from AniList's 8.7 / 10" })
+    expect(planTarget(answer('stub', { score: 90 }), tenPoints(null)).changes[0], 'the control: 90 is 9 / 10 as it is').not.toHaveProperty('note')
   })
 
   test('no score on the source is never a score of 0 on the target', () => {
@@ -212,12 +233,6 @@ describe('what a sync refuses', () => {
   })
 })
 
-// MyAnimeList's tracker takes status, progress and score from stub, and no date or rewatch count
-const tenPoints = (entry: SyncEntry | null) => {
-  const base = answer('mal', entry, { scale: 'POINT_10' })
-  return { ...base, tracker: { ...base.tracker, name: 'MyAnimeList', keeps: ['STATUS', 'PROGRESS', 'SCORE'] } }
-}
-
 describe('a field the target does not keep', () => {
   test('is never planned onto it, and the preview says it is not copied', () => {
     const plan = planTarget(anilist, tenPoints(null))
@@ -244,12 +259,6 @@ describe('a field the target does not keep', () => {
       .toEqual(['STARTED_AT', 'COMPLETED_AT', 'REWATCH_COUNT'])
   })
 })
-
-// MyAnimeList's tracker: a rewatch starts on a Completed entry and ends only as Completed
-const throughCompleted = (entry: SyncEntry | null) => {
-  const base = tenPoints(entry)
-  return { ...base, tracker: { ...base.tracker, rewatchThroughCompleted: true } }
-}
 
 describe('a rewatch onto a tracker that keeps it through Completed', () => {
   const rewatching = answer('anilist', { status: 'REWATCHING', progress: 3, episodeCount: 12 })

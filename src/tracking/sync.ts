@@ -197,7 +197,9 @@ const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnsw
       // what it holds afterwards
       const score = onScale(from.score, scale)
       if (score === to?.score) return undefined
-      return change(scoreText(score, scale)!, false, { score })
+      // the source's own score beside it whenever the target's scale moves it
+      const rounded = score === from.score ? undefined : `rounded from ${source.tracker.name}'s ${scoreText(from.score, source.tracker.scoreScale, from.scoreLabel)}`
+      return change(scoreText(score, scale)!, false, { score }, rounded)
     }
     case 'STARTED_AT':
     case 'COMPLETED_AT': {

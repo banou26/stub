@@ -56,6 +56,16 @@ const other: PanelAnswer = {
 const ambiguous: PanelAnswer = { ...other, _id: 'answer:kitsu', state: 'AMBIGUOUS', candidates: ['kitsu:1', 'kitsu:2'], tracker: { ...other.tracker, id: 'kitsu', name: 'Kitsu' } }
 const signedOut: PanelAnswer = { ...other, _id: 'answer:mal', state: 'SIGNED_OUT', tracker: { id: 'mal', name: 'MyAnimeList', canWrite: false } }
 
+// MyAnimeList as its tracker declares itself: ten points, three fields, a rewatch only through Completed
+const malRewatching: PanelAnswer = {
+  _id: 'answer:mal',
+  state: 'LISTED',
+  candidates: [],
+  pending: 0,
+  tracker: { id: 'mal', name: 'MyAnimeList', canWrite: true, scoreScale: 'POINT_10', keeps: ['STATUS', 'PROGRESS', 'SCORE'], rewatchThroughCompleted: true },
+  entry: { _id: 'mal:viewer:1', status: 'REWATCHING', progress: 3, episodeCount: 12 },
+}
+
 const tracking = (answers: PanelAnswer[]): PanelTracking => ({ summary: null, disagreements: [], answers })
 
 const hosts: HTMLElement[] = []
@@ -261,27 +271,27 @@ describe('the sync the viewer runs', () => {
   })
 
   test('says a rewatch finished on MyAnimeList counts there, and refuses a rewatch it cannot start', async () => {
-    const mal: PanelAnswer = {
-      _id: 'answer:mal',
-      state: 'LISTED',
-      candidates: [],
-      pending: 0,
-      tracker: { id: 'mal', name: 'MyAnimeList', canWrite: true, scoreScale: 'POINT_10', keeps: ['STATUS', 'PROGRESS', 'SCORE'], rewatchThroughCompleted: true },
-      entry: { _id: 'mal:viewer:1', status: 'REWATCHING', progress: 3, episodeCount: 12 },
-    }
-    const { host } = render([anilist, mal])
+    const { host } = render([anilist, malRewatching])
     await openSync(host)
     await choose(sourceInput(host, 'anilist'))
     expect(changes(host, 'mal')).toEqual(['Status: Rewatching → Completed (counts one finished rewatch on MyAnimeList)', 'Progress: 3 / 12 → 12 / 12', 'Score: None → 9 / 10'])
     expect([...target(host, 'mal').querySelectorAll('.held')].map(held => held.textContent)).toContain('MyAnimeList does not take the start date from stub, so it is not copied')
 
-    const watching: PanelAnswer = { ...mal, entry: { ...mal.entry!, status: 'WATCHING' } }
+    const watching: PanelAnswer = { ...malRewatching, entry: { ...malRewatching.entry!, status: 'WATCHING' } }
     const rewatched: PanelAnswer = { ...anilist, entry: { ...anilist.entry!, status: 'REWATCHING', progress: 4 } }
     const next = render([rewatched, watching])
     await openSync(next.host)
     await choose(sourceInput(next.host, 'anilist'))
     expect(target(next.host, 'mal').querySelector('.why')!.textContent).toBe('MyAnimeList starts a rewatch only on an entry it lists as Completed')
     expect(flag(targetInput(next.host, 'mal'), 'disabled')).toBe(true)
+  })
+
+  test("says what a score was rounded from, onto MyAnimeList's ten points", async () => {
+    const decimal: PanelAnswer = { ...anilist, entry: { ...anilist.entry!, score: 87, scoreLabel: '8.7 / 10' } }
+    const { host } = render([decimal, malRewatching])
+    await openSync(host)
+    await choose(sourceInput(host, 'anilist'))
+    expect(changes(host, 'mal')).toContain("Score: None → 8 / 10 (rounded from AniList's 8.7 / 10)")
   })
 
   test("says what a write to AniList does beyond the list, once AniList is ticked", async () => {
