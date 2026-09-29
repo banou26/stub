@@ -30,6 +30,7 @@ export type PanelAnswer = {
     writeNotice?: string | null
     keepsPageEpisodeCount?: boolean | null
     keeps?: readonly string[] | null
+    rewatchThroughCompleted?: boolean | null
   }
   entry?: PanelEntry | null
 }

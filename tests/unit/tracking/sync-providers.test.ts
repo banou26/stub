@@ -52,7 +52,7 @@ const setup = ({ listed = true } = {}) => {
   // a provider whose list is empty and whose first write fails, as one does while its service is down
   const brokenWrites: unknown[] = []
   let down = true
-  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS] }
+  const brokenTracker: Tracker = { id: 'broken', name: 'Broken', icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale: 'POINT_100', writeNotice: null, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false }
   const broken = providerServer('broken', {
     Subscription: {
       tracking: {

@@ -14,7 +14,7 @@ import { providerServer, subscribe, yogaClient } from '../worker/yoga-client'
 
 const URI = 'ag:(anilist:1)'
 
-const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS] }
+const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false }
 
 const otherWrites: unknown[] = []
 const otherDeletes: unknown[] = []

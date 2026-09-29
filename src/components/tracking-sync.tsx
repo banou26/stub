@@ -167,7 +167,7 @@ const TrackingSync = ({ answers, page, onWrite }: { answers: PanelAnswer[], page
                               <ul className="changes">
                                 {target.changes.map(change => (
                                   <li key={change.field} data-field={change.field} className={change.backwards ? 'backwards' : undefined}>
-                                    {FIELD_LABELS[change.field]}: {change.from ?? 'None'} → {change.to}{change.backwards ? ' (goes back)' : ''}
+                                    {FIELD_LABELS[change.field]}: {change.from ?? 'None'} → {change.to}{change.note ? ` (${change.note})` : ''}{change.backwards ? ' (goes back)' : ''}
                                   </li>
                                 ))}
                               </ul>

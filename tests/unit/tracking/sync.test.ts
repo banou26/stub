@@ -245,6 +245,45 @@ describe('a field the target does not keep', () => {
   })
 })
 
+// MyAnimeList's tracker: a rewatch starts on a Completed entry and ends only as Completed
+const throughCompleted = (entry: SyncEntry | null) => {
+  const base = tenPoints(entry)
+  return { ...base, tracker: { ...base.tracker, rewatchThroughCompleted: true } }
+}
+
+describe('a rewatch onto a tracker that keeps it through Completed', () => {
+  const rewatching = answer('anilist', { status: 'REWATCHING', progress: 3, episodeCount: 12 })
+
+  test('starts only on an entry it lists as Completed, and the whole target is refused otherwise', () => {
+    for (const status of ['WATCHING', 'PAUSED', 'DROPPED', 'PLANNING']) {
+      expect(planTarget(rewatching, throughCompleted({ status, progress: 5, episodeCount: 12 })), status).toEqual({
+        tracker: 'mal', refusal: 'MyAnimeList starts a rewatch only on an entry it lists as Completed', changes: [], held: [], entry: null,
+      })
+    }
+    expect(planTarget(rewatching, throughCompleted(null)).refusal, 'nor on nothing listed')
+      .toBe('MyAnimeList starts a rewatch only on an entry it lists as Completed')
+    expect(planTarget(rewatching, throughCompleted({ status: 'COMPLETED', progress: 12, episodeCount: 12 })).entry)
+      .toEqual({ status: 'REWATCHING', progress: 3 })
+    expect(planTarget(rewatching, tenPoints({ status: 'WATCHING', progress: 5, episodeCount: 12 })).entry, 'the control: a tracker that rewatches from anywhere')
+      .toEqual({ status: 'REWATCHING', progress: 3 })
+  })
+
+  test('ends only as Completed, which the preview says counts one finished rewatch there', () => {
+    const onRewatch = throughCompleted({ status: 'REWATCHING', progress: 3, episodeCount: 12 })
+    expect(planTarget(answer('anilist', { status: 'WATCHING', progress: 5, episodeCount: 12 }), onRewatch).refusal)
+      .toBe('MyAnimeList ends a rewatch only as Completed')
+
+    const finish = planTarget(answer('anilist', { status: 'COMPLETED', progress: 12, episodeCount: 12 }), onRewatch)
+    expect(finish.changes[0]).toEqual({ field: 'STATUS', from: 'Rewatching', to: 'Completed', backwards: false, note: 'counts one finished rewatch on MyAnimeList' })
+    expect(finish.entry).toEqual({ status: 'COMPLETED', progress: 12 })
+    expect(planTarget(rewatching, onRewatch).refusal, 'a rewatch onto a rewatch').toBeUndefined()
+
+    const anywhere = tenPoints({ status: 'REWATCHING', progress: 3, episodeCount: 12 })
+    expect(planTarget(answer('anilist', { status: 'WATCHING', progress: 5, episodeCount: 12 }), anywhere).refusal, 'the control').toBeUndefined()
+    expect(planTarget(answer('anilist', { status: 'COMPLETED', progress: 12, episodeCount: 12 }), anywhere).changes[0]).not.toHaveProperty('note')
+  })
+})
+
 describe('where the trackers differ', () => {
   test('every field a sync would change, with each tracker\'s value in its own terms', () => {
     expect(differences([stub, anilist])).toEqual([

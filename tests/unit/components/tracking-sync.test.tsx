@@ -260,6 +260,30 @@ describe('the sync the viewer runs', () => {
     expect(onSyncWrite.mock.calls[0]![1]).not.toHaveProperty('progress')
   })
 
+  test('says a rewatch finished on MyAnimeList counts there, and refuses a rewatch it cannot start', async () => {
+    const mal: PanelAnswer = {
+      _id: 'answer:mal',
+      state: 'LISTED',
+      candidates: [],
+      pending: 0,
+      tracker: { id: 'mal', name: 'MyAnimeList', canWrite: true, scoreScale: 'POINT_10', keeps: ['STATUS', 'PROGRESS', 'SCORE'], rewatchThroughCompleted: true },
+      entry: { _id: 'mal:viewer:1', status: 'REWATCHING', progress: 3, episodeCount: 12 },
+    }
+    const { host } = render([anilist, mal])
+    await openSync(host)
+    await choose(sourceInput(host, 'anilist'))
+    expect(changes(host, 'mal')).toEqual(['Status: Rewatching → Completed (counts one finished rewatch on MyAnimeList)', 'Progress: 3 / 12 → 12 / 12', 'Score: None → 9 / 10'])
+    expect([...target(host, 'mal').querySelectorAll('.held')].map(held => held.textContent)).toContain('MyAnimeList does not take the start date from stub, so it is not copied')
+
+    const watching: PanelAnswer = { ...mal, entry: { ...mal.entry!, status: 'WATCHING' } }
+    const rewatched: PanelAnswer = { ...anilist, entry: { ...anilist.entry!, status: 'REWATCHING', progress: 4 } }
+    const next = render([rewatched, watching])
+    await openSync(next.host)
+    await choose(sourceInput(next.host, 'anilist'))
+    expect(target(next.host, 'mal').querySelector('.why')!.textContent).toBe('MyAnimeList starts a rewatch only on an entry it lists as Completed')
+    expect(flag(targetInput(next.host, 'mal'), 'disabled')).toBe(true)
+  })
+
   test("says what a write to AniList does beyond the list, once AniList is ticked", async () => {
     const { host } = render([stub, anilist])
     await openSync(host)

@@ -364,4 +364,6 @@ export const malTracker = (user?: string): Tracker => ({
   writeNotice: MAL_WRITE_NOTICE,
   keepsPageEpisodeCount: false,
   keeps: MAL_KEEPS,
+  // planWrite's rule: a rewatch starts on a Completed entry and ends through MyAnimeList's own finish
+  rewatchThroughCompleted: true,
 })

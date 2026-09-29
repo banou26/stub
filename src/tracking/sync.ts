@@ -41,6 +41,8 @@ export type SyncAnswer = {
     keepsPageEpisodeCount?: boolean | null
     /** The fields the tracker reads and writes through stub. Every field when absent. */
     keeps?: readonly string[] | null
+    /** A rewatch starts only on an entry listed as COMPLETED, and ends only as COMPLETED. */
+    rewatchThroughCompleted?: boolean | null
   }
   entry?: SyncEntry | null
 }
@@ -56,6 +58,8 @@ export type FieldChange = {
   to: string
   /** Less progress, fewer rewatches, or out of COMPLETED: a change the viewer should see coming. */
   backwards: boolean
+  /** What else the write does on the target, said beside the change. */
+  note?: string
 }
 
 /** A field that differs and is not copied, and why. */
@@ -165,14 +169,15 @@ const compareField = (field: TrackingField, source: SyncAnswer, target: SyncAnsw
   const to = target.entry ?? null
   if (!from || !keeps(target, field)) return undefined
   const scale = target.tracker.scoreScale
-  const change = (value: string, backwards: boolean, input: ListEntryInput): Compared =>
-    ({ change: { field, from: fieldText(field, to, scale), to: value, backwards }, input })
+  const change = (value: string, backwards: boolean, input: ListEntryInput, note?: string): Compared =>
+    ({ change: { field, from: fieldText(field, to, scale), to: value, backwards, ...note ? { note } : {} }, input })
 
   switch (field) {
     case 'STATUS': {
       if (!from.status || from.status === to?.status) return undefined
       const backwards = to?.status === 'COMPLETED' && from.status !== 'COMPLETED' && from.status !== 'REWATCHING'
-      return change(statusText(from.status)!, backwards, { status: from.status as ListStatus })
+      const finishes = target.tracker.rewatchThroughCompleted && to?.status === 'REWATCHING' && from.status === 'COMPLETED'
+      return change(statusText(from.status)!, backwards, { status: from.status as ListStatus }, finishes ? `counts one finished rewatch on ${target.tracker.name}` : undefined)
     }
     case 'PROGRESS': {
       if (from.progress == null || from.progress === to?.progress) return undefined
@@ -241,11 +246,26 @@ export const targetRefusal = (answer: SyncAnswer): string | undefined =>
   : undefined
 
 /**
+ * Why `source`'s status cannot go onto a target that moves into and out of REWATCHING only through
+ * COMPLETED. Its own write would refuse the whole save, so the whole target is refused here, before
+ * anything is shown as a change.
+ */
+const rewatchRefusal = (source: SyncAnswer, target: SyncAnswer): string | undefined => {
+  if (!target.tracker.rewatchThroughCompleted || !keeps(target, 'STATUS')) return undefined
+  const from = source.entry?.status
+  const to = target.entry?.status
+  if (!from || from === to) return undefined
+  if (from === 'REWATCHING' && to !== 'COMPLETED') return `${target.tracker.name} starts a rewatch only on an entry it lists as Completed`
+  if (to === 'REWATCHING' && from !== 'COMPLETED') return `${target.tracker.name} ends a rewatch only as Completed`
+  return undefined
+}
+
+/**
  * What copying `source` onto `target` would change there, field by field, and the write that does it.
  * `page` is what the write sends beside the entry, which a tracker that keeps the page's count takes.
  */
 export const planTarget = (source: SyncAnswer, target: SyncAnswer, page: SyncPage = {}): TargetPlan => {
-  const refusal = targetRefusal(target)
+  const refusal = targetRefusal(target) ?? rewatchRefusal(source, target)
   if (refusal) return { tracker: target.tracker.id, refusal, changes: [], held: [], entry: null }
   const changes: FieldChange[] = []
   const held: HeldField[] = []

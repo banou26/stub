@@ -38,6 +38,7 @@ const TRACKER = `
   writeNotice
   keepsPageEpisodeCount
   keeps
+  rewatchThroughCompleted
 `
 
 export const TRACKING_DOCUMENT = `

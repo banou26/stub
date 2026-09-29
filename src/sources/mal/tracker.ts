@@ -19,5 +19,6 @@ export const isApiOnly = true
 export const scoreScale = MAL_SCORE_SCALE
 export const writeNotice = MAL_WRITE_NOTICE
 export const keeps = MAL_KEEPS
+export const rewatchThroughCompleted = true
 
 export const resolvers = malTrackerResolvers()

@@ -226,4 +226,5 @@ export const anilistTracker = (viewer: AnilistViewer | undefined): Tracker => ({
   writeNotice: ANILIST_WRITE_NOTICE,
   keepsPageEpisodeCount: false,
   keeps: [...SYNC_FIELDS],
+  rewatchThroughCompleted: false,
 })

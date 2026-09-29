@@ -61,7 +61,7 @@ test('the tracking summary and a tracker\'s entry never share a cache key', () =
   const entry = { _id: 'stub:e1', tracker: 'stub', progress: 3 }
   const answer = {
     _id: 'answer:stub:ag:(anilist:1)',
-    tracker: { id: 'stub', name: 'Stub', signedIn: true, canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: true, keeps: [...SYNC_FIELDS] },
+    tracker: { id: 'stub', name: 'Stub', signedIn: true, canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: true, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false },
     state: 'LISTED' as const,
     entry,
     candidates: [],

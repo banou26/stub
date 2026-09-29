@@ -32,6 +32,7 @@ export const stubTracker: Tracker = {
   // patchFrom stores the episodeCount the page sends with each write
   keepsPageEpisodeCount: true,
   keeps: [...SYNC_FIELDS],
+  rewatchThroughCompleted: false,
 }
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null

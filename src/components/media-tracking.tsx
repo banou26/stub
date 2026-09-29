@@ -37,6 +37,7 @@ const MEDIA_TRACKING = gql(`
           writeNotice
           keepsPageEpisodeCount
           keeps
+          rewatchThroughCompleted
         }
         entry {
           _id

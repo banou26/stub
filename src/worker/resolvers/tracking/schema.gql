@@ -85,6 +85,12 @@ type Tracker {
   does not keep it, and never counts it as a difference there.
   """
   keeps: [TrackingField!]!
+  """
+  Whether this tracker starts a rewatch only on an entry it lists as COMPLETED, and ends one only as
+  COMPLETED, which counts one finished rewatch there, as MyAnimeList does. A sync onto it refuses any
+  other move into or out of REWATCHING.
+  """
+  rewatchThroughCompleted: Boolean!
 }
 
 """
