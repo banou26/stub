@@ -86,6 +86,10 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
     values: [1],
     why: "the kind filter over the graph canvas, inside the dialog's own sheet",
   },
+  'src/components/score-picker.tsx': {
+    values: [1],
+    why: "the star's score menu, inline in the tracking row and not portalled, painted over the description under the row",
+  },
   'src/sources/crunchyroll/player.tsx': {
     values: [30, 9999999],
     why: 'the 30 orders the loading screen over the skin inside the player box; the 9999999 is a string injected into crunchyroll.com with addStyleTag, so it orders that document and never reaches ours',
