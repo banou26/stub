@@ -1,4 +1,4 @@
-// The AniList page script as the build ships it, run the way `frame.evaluate` runs a source string on
+// The page scripts as the build ships them, run the way `frame.evaluate` runs a source string on
 // the cloud backend: `(<source>\n)` evaluated in the page's realm and, being a function, called with the
 // arg (proxy-sandbox locator-modules.ts). Here the page's realm is this one, with its globals stubbed.
 import { afterEach, expect, test, vi } from 'vitest'
@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { expose } from 'osra'
 
 import type { SessionPageApi } from '../../src/sources/anilist/session-page'
+import type { MalPageApi } from '../../src/sources/mal/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
 import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
@@ -50,4 +51,36 @@ test('ships one function expression that installs the session server in the page
   expect(answer.body).toEqual({ data: { Viewer: { id: 7 } } })
   expect(asked).toEqual(['/graphql T0kenRenderedForThisSession0000000000000'])
   expect(await (compiled as (arg: unknown) => Promise<boolean>)({ kind: 'viewer' }), 'the sign-in check the same script answers').toBe(true)
+})
+
+test('ships the MyAnimeList page script the same way, serving whoami and reading USER_NAME', async () => {
+  const source = await buildPageScript(resolve(__dirname, '../../src/sources/mal/session-page.ts'))
+
+  const window = new EventTarget()
+  const asked: string[] = []
+  vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+  vi.stubGlobal('MAL', { USER_NAME: 'viewer' })
+  vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
+    asked.push(`${input.split('?')[0]} ${init.credentials}`)
+    return new Response('<meta name=\'csrf_token\' content=\'0f9d61e1cb561a5d581cd53c0db5f26d0cf4f559\'>\nwindow.MAL.USER_NAME = "viewer"', { status: 200 })
+  })
+
+  const compiled = inPage(source) as (arg: unknown) => unknown
+  expect(typeof compiled).toBe('function')
+  expect(compiled({ kind: 'viewer' }), 'the sign-in check reads the page, and fetches nothing').toBe(true)
+  expect(asked).toEqual([])
+  expect(compiled({ kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'k1' })).toBe('installed')
+  expect(globalThis, 'nothing but its own state lands on the page').not.toHaveProperty('__stubPageScript')
+
+  const { port1, port2 } = new MessageChannel()
+  window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://anime.fkn.app', ports: [port2] }))
+  const page = await expose<MalPageApi>({}, { transport: port1 })
+  const whoami = await page.whoami({})
+  port1.close()
+
+  expect(whoami).toMatchObject({ kind: 'whoami', page: true, user: 'viewer', token: true })
+  expect(asked).toEqual(['/about.php include'])
+
+  vi.stubGlobal('MAL', { USER_NAME: '' })
+  expect(compiled({ kind: 'viewer' }), 'signed out').toBe(false)
 })
