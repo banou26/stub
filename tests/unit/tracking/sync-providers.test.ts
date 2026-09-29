@@ -372,3 +372,98 @@ describe('a sync with MyAnimeList, through its own provider', () => {
     }
   })
 })
+
+const answerIs = (id: string, predicate: (answer: SyncAnswer) => boolean) => (result: any) => {
+  const answer = result.data?.tracking?.answers.find((one: SyncAnswer) => one.tracker.id === id)
+  return Boolean(answer && predicate(answer))
+}
+
+// read off the real providers' answers, never an ERROR answer, which carries the app's fallback tracker
+const bothAnswered = (result: any) =>
+  answerIs('anilist', answer => answer.state === 'LISTED')(result) && answerIs('stub', answer => answer.state === 'NOT_LISTED' || answer.state === 'LISTED')(result)
+
+describe("AniList's and stub's own trackers, as a sync reads them", () => {
+  test('both keep every field a sync copies, and take a rewatch from any status', async () => {
+    const answers = answersOf(await setupWithMal().watch().until(bothAnswered))
+    for (const id of ['anilist', 'stub']) {
+      expect(find(answers, id).tracker, id).toMatchObject({ keeps: ['STATUS', 'PROGRESS', 'SCORE', 'STARTED_AT', 'COMPLETED_AT', 'REWATCH_COUNT'], rewatchThroughCompleted: false })
+    }
+  })
+
+  test("copies stub's dates and rewatch count onto AniList", async () => {
+    const { watch, write, asked } = setupWithMal()
+    const tracking = watch()
+    await tracking.until(bothAnswered)
+    await write(URI, 28)('stub', { status: 'COMPLETED', progress: 28, startedAt: { year: 2026, month: 1, day: 12 }, completedAt: { year: 2026, month: 3, day: 20 }, rewatchCount: 1 })
+    const answers = answersOf(await tracking.until(answerIs('stub', answer => answer.entry?.rewatchCount === 1)))
+
+    const plan = planSync(answers, 'stub', ['anilist'])
+    expect(changesOf(plan, 'anilist')).toEqual([
+      ['STATUS', 'Watching', 'Completed', undefined],
+      ['PROGRESS', '12 / 28', '28 / 28', undefined],
+      ['STARTED_AT', '2026-01-10', '2026-01-12', undefined],
+      ['COMPLETED_AT', null, '2026-03-20', undefined],
+      ['REWATCH_COUNT', null, '1', undefined],
+    ])
+    expect(plan.targets[0]!.held).toEqual([])
+    expect(await applySync(plan, write(URI, 28))).toEqual([{ tracker: 'anilist', outcome: 'SAVED', error: null }])
+    expect(asked.find(({ operation }) => operation === 'StubSaveListEntry')!.variables).toEqual({
+      mediaId: 154587,
+      status: 'COMPLETED',
+      progress: 28,
+      repeat: 1,
+      startedAt: { year: 2026, month: 1, day: 12 },
+      completedAt: { year: 2026, month: 3, day: 20 },
+    })
+  })
+
+  const repeating = { ...FRIEREN_ENTRY, status: 'REPEATING', progress: 3 }
+
+  test('moves an AniList rewatch back to Watching', async () => {
+    const { watch, write, asked } = setupWithMal({ held: repeating })
+    const tracking = watch()
+    await tracking.until(bothAnswered)
+    await write(URI, 28)('stub', { status: 'WATCHING', progress: 5 })
+    const plan = planSync(answersOf(await tracking.until(answerIs('stub', answer => answer.entry?.progress === 5))), 'stub', ['anilist'])
+    expect(plan.targets[0]!.refusal).toBeUndefined()
+    expect(changesOf(plan, 'anilist')).toEqual([
+      ['STATUS', 'Rewatching', 'Watching', undefined],
+      ['PROGRESS', '3 / 28', '5 / 28', undefined],
+    ])
+    expect(await applySync(plan, write(URI, 28))).toEqual([{ tracker: 'anilist', outcome: 'SAVED', error: null }])
+    expect(asked.find(({ operation }) => operation === 'StubSaveListEntry')!.variables).toEqual({ mediaId: 154587, status: 'CURRENT', progress: 5 })
+  })
+
+  test('ends an AniList rewatch as Completed with no rewatch counted', async () => {
+    const { watch, write } = setupWithMal({ held: repeating })
+    const tracking = watch()
+    await tracking.until(bothAnswered)
+    await write(URI, 28)('stub', { status: 'COMPLETED', progress: 28 })
+    const plan = planSync(answersOf(await tracking.until(answerIs('stub', answer => answer.entry?.progress === 28))), 'stub', ['anilist'])
+    expect(changesOf(plan, 'anilist'), 'AniList counts no rewatch on its own, so the preview says nothing of one').toEqual([
+      ['STATUS', 'Rewatching', 'Completed', undefined],
+      ['PROGRESS', '3 / 28', '28 / 28', undefined],
+    ])
+  })
+
+  test("starts a rewatch on stub's tracker from an entry that is not Completed", async () => {
+    const { watch, write } = setupWithMal({ held: repeating })
+    const tracking = watch()
+    const plan = planSync(answersOf(await tracking.until(bothAnswered)), 'anilist', ['stub'], { episodeCount: 28 })
+    expect(plan.targets[0]!.refusal, 'stub lists nothing, which is not Completed').toBeUndefined()
+    expect(plan.targets[0]!.entry).toEqual({ status: 'REWATCHING', progress: 3, score: 85, startedAt: { year: 2026, month: 1, day: 10 } })
+    expect(await applySync(plan, write(URI, 28))).toEqual([{ tracker: 'stub', outcome: 'SAVED', error: null }])
+    const after = answersOf(await tracking.until(answerIs('stub', answer => answer.state === 'LISTED')))
+    expect(find(after, 'stub').entry).toMatchObject({ status: 'REWATCHING', progress: 3 })
+  })
+
+  test("ends a rewatch on stub's tracker in a status that is not Completed", async () => {
+    const { watch, write } = setupWithMal()
+    const tracking = watch()
+    await tracking.until(bothAnswered)
+    await write(URI, 28)('stub', { status: 'REWATCHING', progress: 2 })
+    const plan = planSync(answersOf(await tracking.until(answerIs('stub', answer => answer.entry?.status === 'REWATCHING'))), 'anilist', ['stub'], { episodeCount: 28 })
+    expect(plan.targets[0]!.refusal).toBeUndefined()
+    expect(changesOf(plan, 'stub')[0]).toEqual(['STATUS', 'Rewatching', 'Watching', undefined])
+  })
+})
