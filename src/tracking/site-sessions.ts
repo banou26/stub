@@ -2,8 +2,8 @@
 // the sign in that connects a site on this device. src/worker.ts exposes `sessionResolvers` to the
 // worker on the `sessions` osra key.
 
-import type { SessionPageApi } from '../sources/anilist/session-page'
 import type { WindowSignIn } from '../sources/login-window'
+import type { PageApi } from './site-session'
 
 import { attachFrame } from '@fkn/lib'
 import { expose } from 'osra'
@@ -29,7 +29,7 @@ const mountHidden = () => {
   return { iframe, remove: () => iframe.remove() }
 }
 
-const frames = createSessionFrames<SessionPageApi>(
+const frames = createSessionFrames<PageApi>(
   [{
     id: 'anilist',
     url: ANILIST_SESSION_URL,
@@ -41,7 +41,7 @@ const frames = createSessionFrames<SessionPageApi>(
   {
     attach: options => attachFrame(options),
     mount: mountHidden,
-    connect: port => expose<SessionPageApi>({}, { transport: port }),
+    connect: port => expose<PageApi>({}, { transport: port }),
     appOrigin: location.origin,
     key: () => crypto.randomUUID(),
   },

@@ -29,14 +29,15 @@ type Answer = (variables: Record<string, unknown>) => SessionResponse | 'not-con
 const fakeSession = (script: Record<string, Answer>) => {
   const asked: { operation: string, variables: Record<string, unknown>, query: string }[] = []
   const listeners = new Set<() => void>()
-  const graphql = vi.fn(async ({ query, variables = {} }: SessionRequest): Promise<SiteSessionResult> => {
+  const call = vi.fn(async (method: string, { query, variables = {} }: SessionRequest): Promise<SiteSessionResult<SessionResponse>> => {
+    if (method !== 'graphql') throw new Error(`anilist.co's page serves no ${method}`)
     const operation = /(?:query|mutation) (\w+)/.exec(query)?.[1] ?? 'anonymous'
     asked.push({ operation, variables, query })
     const answer = script[operation]?.(variables) ?? response({ errors: [{ message: `no answer scripted for ${operation}`, status: 500 }] }, 500)
     return answer === 'not-connected' ? { kind: 'not-connected' } : { kind: 'response', response: answer }
   })
   return {
-    session: { graphql, onChange: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } } },
+    session: { call, onChange: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } } },
     script,
     asked,
     operations: () => asked.map(({ operation }) => operation),

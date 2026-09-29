@@ -2,10 +2,9 @@
 // Import free apart from types, so a test drives it over fake frames and storage; ./site-sessions.ts
 // wires it to the real ones.
 
-import type { SessionPageApi } from '../sources/anilist/session-page'
 import type { WindowSignIn } from '../sources/login-window'
 import type { SessionFrames } from './session-frames'
-import type { SiteSessionResolvers } from './site-session'
+import type { PageApi, SiteSessionResolvers } from './site-session'
 
 /** The localStorage key holding the connected sites, a JSON array of site ids. */
 export const CONNECTED_KEY = 'stub.sessions'
@@ -46,11 +45,21 @@ export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setI
   }
 }
 
-/** The main thread's half of the worker's `sessions` channel. */
-export const siteSessionResolvers = (frames: SessionFrames<SessionPageApi>, connections: Connections): SiteSessionResolvers => ({
-  graphql: async (site, request) =>
+/**
+ * The main thread's half of the worker's `sessions` channel: a call runs the named method of the page
+ * script on the named site's page, and on no other site's.
+ */
+export const siteSessionResolvers = (frames: SessionFrames<PageApi>, connections: Connections): SiteSessionResolvers => ({
+  call: async (site, method, arg, options) =>
     connections.isConnected(site)
-      ? { kind: 'response', response: await frames.use(site, api => api.graphql(request)) }
+      ? {
+        kind: 'response',
+        response: await frames.use(site, api => {
+          const run = api[method]
+          if (typeof run !== 'function') throw new Error(`The ${site} page serves no ${method}`)
+          return run(arg as never)
+        }, options),
+      }
       : { kind: 'not-connected' },
   watch: (site, listener) => { frames.watch(site, () => { void listener() }) },
 })

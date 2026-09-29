@@ -2,8 +2,8 @@
 // is what connects it.
 import { describe, expect, test, vi } from 'vitest'
 
-import type { SessionPageApi } from '../../../src/sources/anilist/session-page'
 import type { SessionFrames } from '../../../src/tracking/session-frames'
+import type { PageApi } from '../../../src/tracking/site-session'
 
 import { CONNECTED_KEY, createConnections, signInAndConnect, siteSessionResolvers } from '../../../src/tracking/connections'
 
@@ -18,11 +18,12 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
 
 const RESPONSE = { status: 200, body: { data: { Viewer: { id: 7 } } }, rateLimit: { limit: null, remaining: null, reset: null, retryAfter: null } }
 
-const fakeFrames = () => {
-  const use = vi.fn(async <T>(_site: string, call: (api: SessionPageApi) => Promise<T>) => call({ graphql: async () => RESPONSE }))
+/** Frames holding one page per site, each serving the api `pages` gives it. */
+const fakeFrames = (pages: Record<string, PageApi> = { anilist: { graphql: async () => RESPONSE } }) => {
+  const use = vi.fn(async <T>(site: string, call: (api: PageApi) => Promise<T>, _options?: unknown) => call(pages[site]!))
   const reload = vi.fn()
   const watch = vi.fn(() => () => {})
-  return { frames: { use, reload, watch } as unknown as SessionFrames<SessionPageApi>, use, reload }
+  return { frames: { use, reload, watch } as unknown as SessionFrames<PageApi>, use, reload }
 }
 
 describe('the sessions the worker reaches', () => {
@@ -31,12 +32,29 @@ describe('the sessions the worker reaches', () => {
     const connections = createConnections(() => memoryStorage())
     const resolvers = siteSessionResolvers(frames, connections)
 
-    expect(await resolvers.graphql('anilist', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'not-connected' })
+    expect(await resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'not-connected' })
     expect(use).not.toHaveBeenCalled()
 
     connections.connect('anilist')
-    expect(await resolvers.graphql('anilist', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'response', response: RESPONSE })
+    expect(await resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'response', response: RESPONSE })
     expect(use).toHaveBeenCalledTimes(1)
+  })
+
+  test("a call runs the named method on the named site's page, and on no other site's", async () => {
+    const whoami = vi.fn(async (arg: object) => ({ answered: 'mal', arg }))
+    const graphql = vi.fn(async () => RESPONSE)
+    const { frames, use } = fakeFrames({ anilist: { graphql }, mal: { whoami } })
+    const connections = createConnections(() => memoryStorage())
+    connections.connect('mal')
+    connections.connect('anilist')
+    const resolvers = siteSessionResolvers(frames, connections)
+
+    expect(await resolvers.call('mal', 'whoami', { a: 1 }, { once: true })).toEqual({ kind: 'response', response: { answered: 'mal', arg: { a: 1 } } })
+    expect(use).toHaveBeenCalledWith('mal', expect.any(Function), { once: true })
+    expect(graphql).not.toHaveBeenCalled()
+
+    await expect(resolvers.call('anilist', 'whoami', {}), "a method the site's page does not serve").rejects.toThrow('The anilist page serves no whoami')
+    expect(whoami).toHaveBeenCalledTimes(1)
   })
 
   test('a connection is kept for the next page, and a site stays apart from another', () => {

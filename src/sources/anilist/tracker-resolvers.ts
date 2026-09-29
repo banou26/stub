@@ -3,8 +3,8 @@
 
 import type { Resolvers, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
 import type { CatalogLookup, CatalogueTarget } from '../../tracking/identity'
-import type { SiteSession, SiteSessionResult } from '../../tracking/site-session'
-import type { SessionRequest } from './session-page'
+import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/site-session'
+import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer } from '../../tracking/collect'
@@ -19,8 +19,8 @@ import { createPacer } from './pacing'
 /** What the tracker reads off its request context, beside what every provider gets. */
 export type AnilistTrackerContext = {
   catalog: () => Promise<CatalogLookup>
-  /** The viewer's session on a site, by stub's name for it (`anilist`). */
-  session: (site: string) => SiteSession
+  /** The viewer's session on a site, by stub's name for it (`anilist`), typed by its page's api. */
+  session: <Api extends PageApi>(site: string) => SiteSession<Api>
   request: { signal: AbortSignal }
 }
 
@@ -63,8 +63,8 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     : undefined
 
   const ask = async <T>(ctx: AnilistTrackerContext, request: SessionRequest, signal?: AbortSignal): Promise<Read<T>> => {
-    const result = await pacer.run<SiteSessionResult>(
-      () => ctx.session(ANILIST_TRACKER_ID).graphql(request),
+    const result = await pacer.run<SiteSessionResult<SessionResponse>>(
+      () => ctx.session<SessionPageApi>(ANILIST_TRACKER_ID).call('graphql', request),
       result => result.kind === 'response' ? result.response : undefined,
       signal,
     )
