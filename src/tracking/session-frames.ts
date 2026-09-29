@@ -56,12 +56,24 @@ export type SessionFramesOptions<Api> = {
   callTimeoutMs?: number
 }
 
+/** How `use` may run its call. */
+export type UseOptions = {
+  /**
+   * Never run the call a second time: a call the page's next document cut short rejects with
+   * `CallInterrupted` rather than running again. For a write, which may already have reached the site.
+   * A page that went away before the call was made (while attaching, installing or connecting) is
+   * still tried once more, since nothing was sent to it.
+   */
+  once?: boolean
+}
+
 export type SessionFrames<Api> = {
   /**
    * Runs `call` against the site's page, attaching the frame on the first use. A call the page's next
-   * document cut short runs once more on the page installed there; anything else rejects.
+   * document cut short runs once more on the page installed there, unless `once` says it may not;
+   * anything else rejects.
    */
-  use: <T>(site: string, call: (api: Api) => Promise<T>) => Promise<T>
+  use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
   /** Drops the site's frame, so the next use loads the page afresh (after a sign in), and tells the watchers. */
   reload: (site: string) => void
   /** Called after every `reload` of the site. */
@@ -70,6 +82,13 @@ export type SessionFrames<Api> = {
 
 /** The page a call or an install was talking to went away: another page (or none) holds the frame now. */
 class PageGone extends Error {}
+/**
+ * A `once` call's page went away while the call was running, so whether it reached the site is not
+ * known. It is not run again.
+ */
+export class CallInterrupted extends Error {
+  override name = 'CallInterrupted'
+}
 /** The page did not answer in time, so the port it was given is not trusted again. */
 class PageSilent extends Error {}
 
@@ -179,7 +198,7 @@ export const createSessionFrames = <Api>(
     entry.current = undefined
   }
 
-  const use = async <T>(id: string, call: (api: Api) => Promise<T>): Promise<T> => {
+  const use = async <T>(id: string, call: (api: Api) => Promise<T>, { once = false }: UseOptions = {}): Promise<T> => {
     const site = siteOf(id)
     for (let attempt = 0; ; attempt++) {
       const again = attempt === 0
@@ -203,6 +222,9 @@ export const createSessionFrames = <Api>(
       try {
         return await Promise.race([deadline(call(api), callTimeoutMs, `${site.origin} did not answer within ${callTimeoutMs / 1000} s`), current.gone])
       } catch (error) {
+        if (error instanceof PageGone && once) {
+          throw new CallInterrupted(`${site.origin} changed while stub's call was running, so whether it arrived is not known`)
+        }
         if (error instanceof PageGone && again) continue
         if (error instanceof PageSilent) drop(entry, current)
         throw error

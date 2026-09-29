@@ -9,7 +9,7 @@ import { createContext, runInContext, type Context } from 'node:vm'
 
 import { expose } from 'osra'
 
-import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE, createSessionFrames, type ServeArg, type SessionSite } from '../../../src/tracking/session-frames'
+import { CallInterrupted, READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE, createSessionFrames, type ServeArg, type SessionSite } from '../../../src/tracking/session-frames'
 
 type PageApi = { ask: (question: string) => Promise<string> }
 
@@ -47,7 +47,8 @@ const runInPage = (source: string, realm: Context, arg: unknown) =>
  * A Frame whose page serves `ask` over the port its document's install was sent, answering with the
  * number of the document it runs in; a document that left answers nothing, as its port died with it.
  * The page script lands a task after it is evaluated, so a read can find a document before it does.
- * `hang` makes that document's answers wait. `order` records each report and each install as it lands.
+ * `hang` makes that document's answers wait. `order` records each report and each install as it lands,
+ * and `reached` every question that reached a page, answered or not.
  */
 const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
   let document = -1
@@ -56,6 +57,7 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
   const listeners = new Set<(event: { type: 'document', origin: string }) => void>()
   const hanging = new Set<number>()
   const order: string[] = []
+  const reached: string[] = []
 
   const arrive = () => {
     document++
@@ -84,6 +86,7 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
     if (!serve || message.type !== SESSION_PORT_MESSAGE || message.key !== serving()) return
     void expose<PageApi>({
       ask: async question => {
+        reached.push(question)
         if (hanging.has(own) || own !== document) await new Promise(() => {})
         return `${question} from document ${own}`
       },
@@ -115,6 +118,7 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
     goto,
     listeners,
     order,
+    reached,
     /** The page moved: a new document, and nothing the last install left behind. */
     newDocument: () => {
       arrive()
@@ -297,5 +301,45 @@ describe("the goto's own document is installed once, whenever its report lands",
     expect(await ask('first')).toBe('first from document 0')
     expect(order).toEqual(['install 0'])
     expect(installs()).toHaveLength(1)
+  })
+})
+
+describe('a call that must not run twice', () => {
+  const write = (frames: ReturnType<typeof setup>['frames']) => frames.use('anilist', api => api.ask('write'), { once: true })
+
+  test('a reload while a once call runs rejects with CallInterrupted, and the call reached a page once', async () => {
+    const { frames, hang, reached, ask } = setup()
+    await ask('warm')
+    hang()
+
+    const running = write(frames)
+    await vi.waitFor(() => expect(reached).toContain('write'))
+    frames.reload('anilist')
+
+    await expect(running).rejects.toBeInstanceOf(CallInterrupted)
+    expect(reached.filter(question => question === 'write')).toHaveLength(1)
+  })
+
+  test('the control: without once, the same call runs again on the page the reload brings', async () => {
+    const { frames, hang, reached, ask } = setup()
+    await ask('warm')
+    hang()
+
+    const running = frames.use('anilist', api => api.ask('write'))
+    await vi.waitFor(() => expect(reached).toContain('write'))
+    frames.reload('anilist')
+
+    expect(await running).toBe('write from document 1')
+    expect(reached.filter(question => question === 'write')).toHaveLength(2)
+  })
+
+  test('a once call whose frame was reloaded before the call was made runs, once, on the new one', async () => {
+    const { frames, reached } = setup()
+
+    const running = write(frames)
+    frames.reload('anilist')
+
+    expect(await running).toMatch(/^write from document \d$/)
+    expect(reached.filter(question => question === 'write')).toHaveLength(1)
   })
 })
