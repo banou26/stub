@@ -102,8 +102,9 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
 
   const userOf = () => index?.kind === 'list' ? index.user : undefined
 
-  const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}, user = userOf()): TrackerAnswer =>
-    ({ _id: answerId(MAL_TRACKER_ID, uri), tracker: malTracker(user), state, entry: null, candidates: [], error: null, pending: 0, ...extra })
+  // `user` null: the answer names nobody, whoever the last read found
+  const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}, user: string | null = userOf() ?? null): TrackerAnswer =>
+    ({ _id: answerId(MAL_TRACKER_ID, uri), tracker: malTracker(user ?? undefined), state, entry: null, candidates: [], error: null, pending: 0, ...extra })
 
   const targetOf = async (uri: string, ctx: MalTrackerContext) => catalogueTargetOf(uri, 'mal', await ctx.catalog())
 
@@ -232,7 +233,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
     } catch (error) {
       return errorAnswer(uri, malTracker(userOf()), messageOf(error))
     }
-    if (result.kind === 'signed-out') return answer(uri, 'SIGNED_OUT', {}, undefined)
+    if (result.kind === 'signed-out') return answer(uri, 'SIGNED_OUT', {}, null)
     if (result.kind === 'blocked') return answer(uri, 'PAUSED', { error: waitMessage(pacer.pausedUntil()) })
     if (result.kind === 'error') return errorAnswer(uri, malTracker(userOf()), result.message)
     const { user, rows } = result.data
