@@ -62,9 +62,9 @@ export const CLOUD_ROOT = 'tracking/v1/'
 export const cloudPath = (id: string) => `${CLOUD_ROOT}${deviceFile(id)}`
 /**
  * The marker that a device id belongs to the account holding it, written by a join and by nothing else.
- * The device's own file cannot be the proof: an upload lands in whichever account is signed in when the
- * write arrives, so a switch after the check would put the file, and with it the proof, in the other
- * account.
+ * FKN keeps each check's calls in the account that check listed, but a check is all one pin covers: what
+ * tells the next check, or the next page, that the account signed in then is this device's is this
+ * marker in that account's own listing.
  */
 export const joinedPath = (id: string) => `${CLOUD_ROOT}joined/${id}`
 const DEVICES = `${CLOUD_ROOT}devices/`
@@ -81,11 +81,16 @@ export const journalStoreOver = (disk: TrackerDisk): JournalStore => ({
 
 export type CloudAvailability = 'connected' | 'disconnected' | 'unknown'
 export type CloudEntry = { path: string, updatedAt: string }
-export type CloudResult<T> = { ok: T } | { locked: true } | { missing: true } | { error: string }
+/** `changed`: the account is not the one the check began with, so the call was not made. */
+export type CloudResult<T> = { ok: T } | { locked: true } | { missing: true } | { changed: true } | { error: string }
 
 /**
- * FKN storage as the tracker reaches it. Every answer is a value rather than a throw, so it crosses the
- * worker boundary whole.
+ * FKN storage as the tracker reaches it, in the realm the tracker runs in. Every answer is a value
+ * rather than a throw.
+ *
+ * `list`, `read` and `write` reach @fkn/lib in the same synchronous step they are called in, before any
+ * await. @fkn/lib captures the account a call is for in that step, which is what lets a check compare
+ * its own account counter right before the call and have the two agree.
  *
  * Nothing here may raise a card. A sealed read or write with no key held raises the connect card,
  * which needs a click, so `read` and `write` are only called once `unlocked` answered true.
@@ -95,8 +100,8 @@ export type TrackerCloud = {
   availability: () => Promise<CloudAvailability>
   /** Whether this device holds the key the account's files are sealed with. A status that raises nothing. */
   unlocked: () => Promise<boolean>
-  /** The account's tracker files, or undefined when the listing could not be had. Needs no key. */
-  list: () => Promise<CloudEntry[] | undefined>
+  /** The account's tracker files. Needs no key. */
+  list: () => Promise<CloudResult<CloudEntry[]>>
   read: (path: string) => Promise<CloudResult<string>>
   write: (path: string, text: string) => Promise<CloudResult<true>>
 }
@@ -125,10 +130,15 @@ export const REFRESH_MS = 3 * 60_000
 const UPLOAD_DELAY_MS = 1_500
 
 type Refusal = Exclude<CloudResult<unknown>, { ok: unknown }>
+const CHANGED = { changed: true } as const
 const refusalText = (refusal: Refusal) =>
   'locked' in refusal ? 'The FKN account\'s storage is locked on this device'
   : 'missing' in refusal ? 'The file was not in the FKN account'
+  : 'changed' in refusal ? 'The FKN account changed'
   : refusal.error
+
+/** Makes one storage call of a check, or answers `changed` without making it. */
+type Call = <T>(call: () => Promise<CloudResult<T>>) => Promise<CloudResult<T>>
 
 export type AccountLink = ReturnType<typeof accountLink>
 
@@ -141,11 +151,18 @@ export type AccountLink = ReturnType<typeof accountLink>
  * set aside at sign in and only reaches the account through `addHeld`, the viewer's own choice. The
  * other devices' files are read only while the key is held, only for a device the account lists a
  * marker for, and at most once every `refreshMs` per session.
+ *
+ * Every storage call of a check acts for the account that check began with. The link listens to
+ * `onAccountChange` itself, in the realm whose @fkn/lib makes the calls; a check that hears of a change
+ * makes no further call and the next check, which the change queued, starts over for the new account.
+ * A call FKN refused as another account's ends the check the same way, and the change notification
+ * that follows it queues the next one.
  */
 export const accountLink = ({
   disk,
   journal,
   cloud,
+  onAccountChange,
   lock,
   now,
   uuid,
@@ -155,6 +172,8 @@ export const accountLink = ({
   disk: TrackerDisk
   journal: Journal
   cloud: TrackerCloud
+  /** `account.onChange` of the @fkn/lib realm that `cloud` calls, which moves its account before any listener runs. */
+  onAccountChange: (listener: () => void) => unknown
   /** One link step at a time, across every tab of the origin. */
   lock: <T>(work: () => Promise<T>) => Promise<T>
   now: () => number
@@ -169,7 +188,10 @@ export const accountLink = ({
   let lastRead: number | undefined
   const others = new Map<string, { updatedAt: string, file: JournalFile }>()
   let uploadTimer: ReturnType<typeof setTimeout> | undefined
-  let scheduled: Promise<unknown> = Promise.resolve()
+  // the steps the link starts by itself, for `idle`
+  let running: Promise<unknown> = Promise.resolve()
+  // how many account changes this realm has heard of
+  let generation = 0
 
   const readHeld = async () => parseJournal(await disk.read(HELD_FILE), 'held')
   const clearHeld = () => disk.write(HELD_FILE, JSON.stringify(emptyFile('held')))
@@ -226,9 +248,9 @@ export const accountLink = ({
   // Signed in, key held: a new device id whose marker is written FIRST, since that marker in the
   // account's listing is the proof every later upload checks. The list this device kept is set aside,
   // never uploaded.
-  const joinAccount = async (from: Session): Promise<Refusal | undefined> => {
+  const joinAccount = async (from: Session, call: Call): Promise<Refusal | undefined> => {
     const id = uuid()
-    const wrote = await cloud.write(joinedPath(id), '{}')
+    const wrote = await call(() => cloud.write(joinedPath(id), '{}'))
     if (!('ok' in wrote)) return wrote
     await moveFrom(from, async () => {
       const own = parseJournal(await disk.read(deviceFile(from.id)), from.id)
@@ -239,18 +261,16 @@ export const accountLink = ({
     await journal.reload()
   }
 
-  // A file that landed in an account switched to mid-check carries no marker there, so the next check
-  // forgets that account and none of its devices reads the file. Only FKN can refuse the write itself.
   const isOwn = (session: Session, listing: CloudEntry[]) => listing.some(entry => entry.path === joinedPath(session.id))
 
   /** This device's file to its account, when the account lacks some of it. The caller checked the proof. */
-  const upload = async (session: Session): Promise<Refusal | undefined> => {
+  const upload = async (session: Session, call: Call): Promise<Refusal | undefined> => {
     const text = await disk.exclusive(async () =>
       (await disk.session()).id === session.id ? await disk.read(deviceFile(session.id)) : undefined)
     if (text === undefined) return
     const { clock } = parseJournal(text, session.id)
     if (clock <= session.uploaded) return
-    const wrote = await cloud.write(cloudPath(session.id), text)
+    const wrote = await call(() => cloud.write(cloudPath(session.id), text))
     if (!('ok' in wrote)) return wrote
     await disk.exclusive(async () => {
       const current = await disk.session()
@@ -259,7 +279,7 @@ export const accountLink = ({
   }
 
   /** The other devices' files, the changed ones only, and no sooner than `refreshMs` after the last read. */
-  const readOthers = async (session: Session, listing: CloudEntry[]): Promise<Refusal | undefined> => {
+  const readOthers = async (session: Session, listing: CloudEntry[], call: Call): Promise<Refusal | undefined> => {
     if (readFor !== session.id) {
       readFor = session.id
       lastRead = undefined
@@ -276,7 +296,7 @@ export const accountLink = ({
     let refusal: Refusal | undefined
     for (const entry of theirs) {
       if (others.get(entry.path)?.updatedAt === entry.updatedAt) continue
-      const got = await cloud.read(entry.path)
+      const got = await call(() => cloud.read(entry.path))
       if ('ok' in got) {
         try {
           others.set(entry.path, { updatedAt: entry.updatedAt, file: parseJournal(got.ok, entry.path) })
@@ -296,8 +316,8 @@ export const accountLink = ({
         continue
       }
       refusal = got
-      if ('locked' in got) {
-        // every other read would ask for the same key, and the next check may read again at once
+      if ('locked' in got || 'changed' in got) {
+        // every other read would be refused the same way, and the next check may read again at once
         lastRead = undefined
         break
       }
@@ -307,6 +327,9 @@ export const accountLink = ({
   }
 
   const check = async (): Promise<void> => {
+    const began = generation
+    // compared in the same synchronous step that makes the call, in which @fkn/lib captures the account
+    const call: Call = work => generation === began ? work() : Promise.resolve(CHANGED)
     let session = await disk.session()
     // another tab may have moved the session: nothing this worker holds of the old one may stay on screen
     if (journal.device !== session.id) await journal.reload()
@@ -321,11 +344,13 @@ export const accountLink = ({
     }
 
     if (session.scope === 'account') {
-      const listing = await cloud.list()
-      if (!listing) return report(session, { signedIn: true })
-      if (isOwn(session, listing)) {
+      const listing = await call(() => cloud.list())
+      if ('changed' in listing) return
+      if (!('ok' in listing)) return report(session, { signedIn: true, error: refusalText(listing) })
+      if (isOwn(session, listing.ok)) {
         if (!await cloud.unlocked()) return report(session, { signedIn: true, locked: true })
-        const refusal = await upload(session) ?? await readOthers(session, listing)
+        const refusal = await upload(session, call) ?? await readOthers(session, listing.ok, call)
+        if (refusal && 'changed' in refusal) return
         return report(await disk.session(), { signedIn: true, locked: refusal !== undefined && 'locked' in refusal, error: refusal && !('locked' in refusal) ? refusalText(refusal) : null })
       }
       await forgetAccount(session)
@@ -333,11 +358,13 @@ export const accountLink = ({
     }
 
     if (!await cloud.unlocked()) return report(session, { signedIn: true, locked: true })
-    const refused = await joinAccount(session)
+    const refused = await joinAccount(session, call)
+    if (refused && 'changed' in refused) return
     session = await disk.session()
     if (refused) return report(session, { signedIn: true, locked: 'locked' in refused, error: 'locked' in refused ? null : refusalText(refused) })
-    const listing = await cloud.list()
-    const refusal = listing ? await readOthers(session, listing) : undefined
+    const listing = await call(() => cloud.list())
+    const refusal = 'ok' in listing ? await readOthers(session, listing.ok, call) : undefined
+    if ('changed' in listing || (refusal && 'changed' in refusal)) return
     return report(session, { signedIn: true, locked: refusal !== undefined && 'locked' in refusal, error: null })
   }
 
@@ -350,12 +377,24 @@ export const accountLink = ({
     return check()
   }
 
+  const start = (step: () => Promise<void>) => {
+    const run = lock(step).catch(error => console.warn('tracking: account link', error))
+    running = Promise.all([running, run])
+  }
+
   journal.onChange(() => {
     clearTimeout(uploadTimer)
     uploadTimer = setTimeout(() => {
       uploadTimer = undefined
-      scheduled = lock(flushUpload).catch(error => console.warn('tracking: upload', error))
+      start(flushUpload)
     }, uploadDelayMs)
+  })
+
+  // @fkn/lib moves its own account before it calls this, so a call made while `generation` still reads
+  // what a check began with carries the account that check saw
+  void onAccountChange(() => {
+    generation += 1
+    start(check)
   })
 
   return {
@@ -364,8 +403,8 @@ export const accountLink = ({
       listeners.add(listener)
       return () => { listeners.delete(listener) }
     },
-    /** Signed in, out, or as someone else, or opened: check which account this device's list is. */
-    accountChanged: () => lock(check),
+    /** Check which account this device's list is: at start, back online, or once the viewer unlocked it. */
+    check: () => lock(check),
     /**
      * The page came back into view: this device's file is read again for what other tabs wrote, and
      * the account is checked and read once the other devices' files are due again.
@@ -395,9 +434,10 @@ export const accountLink = ({
       if (uploadTimer !== undefined) {
         clearTimeout(uploadTimer)
         uploadTimer = undefined
-        scheduled = lock(flushUpload)
+        await lock(flushUpload)
       }
-      await scheduled
+      let seen: Promise<unknown> | undefined
+      while (seen !== running) await (seen = running)
     },
   }
 }

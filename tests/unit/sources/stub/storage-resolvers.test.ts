@@ -26,13 +26,13 @@ test('streams where the list stands, and adds the list kept before signing in on
   const browser = world.browser()
   const disk = memoryDisk(deps.uuid)
   const journal = await openJournal(journalStoreOver(disk), deps)
-  const link = accountLink({ disk, journal, cloud: fknTrackerCloud(browser.lib, { timeoutMs: 20 }), lock: mutex(), ...deps, uploadDelayMs: 60_000 })
+  const link = accountLink({ disk, journal, cloud: fknTrackerCloud(browser.lib, { timeoutMs: 20 }), onAccountChange: browser.onChange, lock: mutex(), ...deps, uploadDelayMs: 60_000 })
   const target = providerServer('stub', stubStorageResolvers(async () => link))
 
-  await link.accountChanged()
+  await link.check()
   await journal.save(FRIEREN, { progress: 2 })
   browser.account.signIn('alice')
-  await link.accountChanged()
+  await link.check()
 
   const storage = subscribe(target, STORAGE, {})
   live.push(storage)

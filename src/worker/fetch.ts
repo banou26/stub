@@ -13,9 +13,6 @@ const exposePromise = expose<Resolvers>(
   }
 )
 
-/** The main thread's half of the `fetch` channel: the page's fetch, and FKN storage for the stub tracker. */
-export const mainThread = exposePromise
-
 /** Through the FKN relay, which asks the upstream server-side from an FKN node. The default. */
 const relayFetch = (input: RequestInfo | URL, init?: FetchInit) =>
   exposePromise.then(({ fetch }) => fetch(input, init))

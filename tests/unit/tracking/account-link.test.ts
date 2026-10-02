@@ -7,9 +7,8 @@ import { join } from 'node:path'
 
 import { describe, expect, test } from 'vitest'
 
-import { accountLink, cloudPath, deviceFile, HELD_FILE, journalStoreOver, REFRESH_MS } from '../../../src/tracking/account-link'
-import { watchTrackerAccount } from '../../../src/tracking/account-watch'
-import { fknTrackerCloud, type FknStorage } from '../../../src/tracking/fkn-cloud'
+import { accountLink, cloudPath, deviceFile, HELD_FILE, joinedPath, journalStoreOver, REFRESH_MS } from '../../../src/tracking/account-link'
+import { fknTrackerCloud, PIN_UNSUPPORTED_TEXT, type FknStorage } from '../../../src/tracking/fkn-cloud'
 import { identify, type MediaIdentity } from '../../../src/tracking/identity'
 import { openJournal } from '../../../src/tracking/journal'
 import { fknWorld, memoryDisk, mutex } from './fkn-fake'
@@ -27,21 +26,22 @@ type World = ReturnType<typeof fknWorld>
 
 /**
  * A device: one browser, its own disk, and a tab on it. `tab()` opens another tab of the same device
- * (a new worker, so a new journal and link, over the same disk and the same lock). `wrap` changes the
- * @fkn/lib calls the tabs make.
+ * (a new worker, so a new @fkn/lib realm, journal and link, over the same disk and the same lock).
+ * `wrap` changes the @fkn/lib calls the tabs make.
  */
 const device = async (world: World, options: Parameters<World['browser']>[0] = {}, wrap = (lib: FknStorage) => lib) => {
   const browser = world.browser(options)
   const disk = memoryDisk(uuid)
   const lock = mutex()
   const tab = async () => {
+    const realm = browser.realm()
     const journal = await openJournal(journalStoreOver(disk), { now, uuid })
     // an upload waits for `idle()`, so a test decides what runs before it
-    const link = accountLink({ disk, journal, cloud: fknTrackerCloud(wrap(browser.lib), { timeoutMs: 20 }), lock, now, uuid, uploadDelayMs: 60_000 })
+    const link = accountLink({ disk, journal, cloud: fknTrackerCloud(wrap(realm.lib), { timeoutMs: 20 }), onAccountChange: realm.onChange, lock, now, uuid, uploadDelayMs: 60_000 })
     return { journal, link }
   }
   const first = await tab()
-  return { browser, disk, tab, ...first }
+  return { browser, disk, lock, tab, ...first }
 }
 
 const valuesOf = (found: ReturnType<Awaited<ReturnType<typeof device>>['journal']['find']>) =>
@@ -52,8 +52,8 @@ describe('two devices on one account', () => {
     const world = fknWorld()
     const phone = await device(world, { account: 'alice' })
     const laptop = await device(world, { account: 'alice' })
-    await phone.link.accountChanged()
-    await laptop.link.accountChanged()
+    await phone.link.check()
+    await laptop.link.check()
 
     await phone.journal.save(FRIEREN, { status: 'WATCHING', progress: 3 })
     await phone.link.idle()
@@ -88,8 +88,8 @@ describe('two devices on one account', () => {
     const world = fknWorld()
     const phone = await device(world, { account: 'alice' })
     const laptop = await device(world, { account: 'alice' })
-    await phone.link.accountChanged()
-    await laptop.link.accountChanged()
+    await phone.link.check()
+    await laptop.link.check()
 
     await phone.journal.save(FRIEREN, { status: 'WATCHING', progress: 3, score: 80 })
     await phone.link.idle()
@@ -123,11 +123,11 @@ describe('reads of the other devices\' files', () => {
     const world = fknWorld()
     const phone = await device(world, { account: 'alice' })
     const laptop = await device(world, { account: 'alice' })
-    await laptop.link.accountChanged()
+    await laptop.link.check()
     await laptop.journal.save(FRIEREN, { progress: 1 })
     await laptop.link.idle()
 
-    await phone.link.accountChanged()
+    await phone.link.check()
     expect(phone.browser.state.reads, 'the first read of a new device list is at once').toEqual([cloudPath(laptop.journal.device)])
     expect(valuesOf(phone.journal.find(FRIEREN))).toEqual({ progress: 1 })
 
@@ -135,7 +135,7 @@ describe('reads of the other devices\' files', () => {
     await laptop.link.idle()
     clock += REFRESH_MS - 1
     await phone.link.focused()
-    await phone.link.accountChanged()
+    await phone.link.check()
     expect(phone.browser.state.reads, 'inside the window: nothing read, whatever asked').toHaveLength(1)
     expect(valuesOf(phone.journal.find(FRIEREN))).toEqual({ progress: 1 })
 
@@ -156,7 +156,7 @@ describe('a file no key opens any more', () => {
     const phone = await device(world, { account: 'alice' })
     const laptop = await device(world, { account: 'alice' })
     const tablet = await device(world, { account: 'alice' })
-    for (const each of [phone, laptop, tablet]) await each.link.accountChanged()
+    for (const each of [phone, laptop, tablet]) await each.link.check()
     await laptop.journal.save(FRIEREN, { progress: 4 })
     await laptop.link.idle()
     await tablet.journal.save(DUNGEON, { progress: 9 })
@@ -180,14 +180,14 @@ describe('an account switch', () => {
   test('never uploads the previous account\'s list, whether the account had it or it was still waiting', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 3 })
     await shared.link.idle()
     // a second change, still waiting to go up when the account changes
     await shared.journal.save(DUNGEON, { progress: 8 })
 
     shared.browser.account.signIn('bob')
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.link.idle()
 
     expect(world.entriesIn('bob'), 'bob\'s account holds nothing of alice\'s list').toEqual([])
@@ -198,14 +198,14 @@ describe('an account switch', () => {
 
     // the control: alice's list was hers all along, and is there when she comes back
     shared.browser.account.signIn('alice')
-    await shared.link.accountChanged()
+    await shared.link.check()
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ progress: 3 })
   })
 
   test('a switch made while the page was closed is caught when it opens, before anything goes up', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 3 })
     await shared.link.idle()
     await shared.journal.save(DUNGEON, { progress: 8 })
@@ -213,88 +213,164 @@ describe('an account switch', () => {
     shared.browser.state.account = 'bob'
 
     const reopened = await shared.tab()
-    await reopened.link.accountChanged()
+    await reopened.link.check()
     await reopened.link.idle()
 
     expect(world.entriesIn('bob')).toEqual([])
     expect(reopened.journal.find(DUNGEON).state).toBe('NOT_LISTED')
   })
 
-  // Two moments for the switch: the key check right after the listing, and the write itself, the latest
-  // there is, where no check stub makes can see it. The write lands in bob's account either way, since
-  // only FKN could refuse it: what is pinned is that no device reads it and the device does not take
-  // bob's account for alice's.
+  // A switch FKN has not told this page about yet, at the key check right after the listing or as the
+  // upload goes out, the latest moment there is. The upload carries the pin of the account the check
+  // listed, so FKN refuses it before it asks for any key, and the notification that follows checks again.
   test.each([
-    { moment: 'at the key check after the listing', call: 'encryption' },
-    { moment: 'as the upload goes out', call: 'writeFile' },
-  ] as const)('one made $moment misfiles one file, which no device reads, and the device leaves that account', async ({ call }) => {
+    { moment: 'at the key check after the listing', call: 'encryption', locked: [] },
+    { moment: 'as the upload goes out', call: 'writeFile', locked: [] },
+    { moment: 'as the upload goes out, to an account whose key this device lacks', call: 'writeFile', locked: ['bob'] },
+  ] as const)('one made $moment lands nothing in the other account', async ({ call, locked }) => {
     const world = fknWorld()
     let armed = false
-    const switching = <A extends unknown[], R>(work: (...args: A) => Promise<R>) => async (...args: A) => {
+    const switching = <A extends unknown[], R>(work: (...args: A) => Promise<R>) => (...args: A) => {
       if (armed) {
         armed = false
         shared.browser.state.account = 'bob'
       }
       return work(...args)
     }
-    const shared = await device(world, { account: 'alice' }, lib => call === 'encryption'
+    const shared = await device(world, { account: 'alice', locked: [...locked] }, lib => call === 'encryption'
       ? { ...lib, encryption: switching(lib.encryption) }
       : { ...lib, writeFile: switching(lib.writeFile) })
-    await shared.link.accountChanged()
+    await shared.link.check()
     const alicesDevice = shared.journal.device
     await shared.journal.save(FRIEREN, { status: 'WATCHING', progress: 3 })
     await shared.link.idle()
     await shared.journal.save(DUNGEON, { progress: 8 })
+    const alices = JSON.stringify([...world.storageOf('alice')])
     armed = true
     await shared.link.idle()
-    expect(world.entriesIn('bob'), 'the switch did land the upload in bob\'s account').toHaveLength(2)
+    expect(world.entriesIn('bob'), 'FKN refused the upload, as the account the check listed').toEqual([])
+    expect(shared.browser.state.refused).toBe(1)
+    expect(shared.link.status().error, 'which is no problem to show').toBeNull()
 
-    const bobsLaptop = await device(world, { account: 'bob' })
-    await bobsLaptop.link.accountChanged()
-    expect(bobsLaptop.journal.find(FRIEREN).state, 'bob\'s other devices never read it').toBe('NOT_LISTED')
-    expect(bobsLaptop.journal.find(DUNGEON).state).toBe('NOT_LISTED')
-
-    clock += REFRESH_MS
-    await shared.link.accountChanged()
-    expect(shared.journal.device, 'the next check forgets bob\'s account as alice\'s').not.toBe(alicesDevice)
-    expect(shared.journal.find(FRIEREN).state).toBe('NOT_LISTED')
-    await shared.journal.save(FRIEREN, { progress: 4 })
+    shared.browser.account.notify()
     await shared.link.idle()
-    expect(shared.browser.state.writes.filter(write => write.account === 'bob' && write.path === cloudPath(alicesDevice)), 'and uploads nothing more as alice\'s device').toHaveLength(1)
-
-    clock += REFRESH_MS
-    await bobsLaptop.link.focused()
-    expect(valuesOf(bobsLaptop.journal.find(FRIEREN)), 'bob\'s list holds only what was written as bob\'s').toEqual({ progress: 4 })
-    expect(bobsLaptop.journal.find(DUNGEON).state).toBe('NOT_LISTED')
+    expect(world.entriesIn('bob')).toEqual([])
+    expect(shared.browser.state.cards, 'no card asked for a key').toBe(0)
+    expect(JSON.stringify([...world.storageOf('alice')]), 'alice\'s account is as the switch found it').toBe(alices)
+    expect(shared.journal.device, 'and the device leaves alice\'s list').not.toBe(alicesDevice)
+    expect(shared.journal.find(FRIEREN).state).toBe('NOT_LISTED')
 
     // the control: alice's list is still hers, up to what reached her account before the switch
     shared.browser.account.signIn('alice')
-    await shared.link.accountChanged()
+    await shared.link.idle()
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ status: 'WATCHING', progress: 3 })
     expect(shared.journal.find(DUNGEON).state).toBe('NOT_LISTED')
   })
 
-  test('is delivered by account.onChange to every open page', async () => {
+  // FKN keeps a call in the account the page was on when it was made, and the page moves before its
+  // listeners hear of the switch: a call this check made after hearing of it would land in bob's.
+  test('one the page hears of mid-check ends that check, and the next one runs for the new account', async () => {
+    const world = fknWorld()
+    const bobsLaptop = await device(world, { account: 'bob' })
+    await bobsLaptop.link.check()
+    await bobsLaptop.journal.save(FRIEREN, { progress: 9 })
+    await bobsLaptop.link.idle()
+
+    let armed = false
+    const shared = await device(world, { account: 'alice' }, lib => ({
+      ...lib,
+      // the key check, between the listing and the upload
+      encryption: () => {
+        if (armed) {
+          armed = false
+          shared.browser.account.signIn('bob')
+        }
+        return lib.encryption()
+      },
+    }))
+    await shared.link.check()
+    await shared.journal.save(FRIEREN, { status: 'WATCHING', progress: 3 })
+    await shared.link.idle()
+    await shared.journal.save(DUNGEON, { progress: 8 })
+    const alices = JSON.stringify([...world.storageOf('alice')])
+    armed = true
+    await shared.link.idle()
+
+    expect(shared.browser.state.writes.filter(write => write.account === 'bob').every(write => !JSON.parse(write.text).entries?.length), 'nothing of alice\'s list went to bob').toBe(true)
+    expect(shared.browser.state.refused, 'no call was even made for FKN to refuse').toBe(0)
+    expect(JSON.stringify([...world.storageOf('alice')])).toBe(alices)
+    expect(valuesOf(shared.journal.find(FRIEREN)), 'the next check opened bob\'s list').toEqual({ progress: 9 })
+    expect(shared.link.status()).toMatchObject({ where: 'account', signedIn: true, error: null })
+  })
+
+  test('one heard between the listing and the join writes no marker into the other account', async () => {
+    const world = fknWorld()
+    let armed = false
+    let bobsAfterThatCheck: string[] | undefined
+    const shared = await device(world, { account: 'alice' }, lib => ({
+      ...lib,
+      // the key check a join asks first
+      encryption: () => {
+        if (armed) {
+          armed = false
+          // next in line after the check running now, and before the one the switch queues
+          void shared.lock(async () => { bobsAfterThatCheck = [...world.storageOf('bob').keys()] })
+          shared.browser.account.signIn('bob')
+        }
+        return lib.encryption()
+      },
+    }))
+    await shared.link.check()
+    // the viewer took this device off alice's account elsewhere, so the next check joins again
+    world.storageOf('alice').delete(joinedPath(shared.journal.device))
+    armed = true
+    await shared.link.check()
+    await shared.link.idle()
+
+    expect(bobsAfterThatCheck, 'the check that listed alice\'s account wrote nothing into bob\'s').toEqual([])
+    expect([...world.storageOf('bob').keys()], 'the next one joined bob as a device of his').toEqual([joinedPath(shared.journal.device)])
+    expect(shared.browser.state.refused).toBe(0)
+  })
+
+  test('a renewal of the same account\'s token, heard as the upload goes out, leaves that upload alone', async () => {
+    const world = fknWorld()
+    let armed = false
+    const shared = await device(world, { account: 'alice' }, lib => ({
+      ...lib,
+      writeFile: (path, text) => {
+        const writing = lib.writeFile(path, text)
+        if (armed) {
+          armed = false
+          shared.browser.account.renew()
+        }
+        return writing
+      },
+    }))
+    await shared.link.check()
+    const alicesDevice = shared.journal.device
+    await shared.journal.save(FRIEREN, { progress: 3 })
+    await shared.link.idle()
+    await shared.journal.save(DUNGEON, { progress: 8 })
+    armed = true
+    await shared.link.idle()
+
+    const uploads = shared.browser.state.writes.filter(write => write.path === cloudPath(alicesDevice))
+    expect(uploads.map(write => write.account), 'each change went up once, to alice').toEqual(['alice', 'alice'])
+    expect(world.entriesIn('alice')).toHaveLength(2)
+    expect(shared.browser.state.refused).toBe(0)
+    expect(shared.journal.device, 'and the device is still hers').toBe(alicesDevice)
+    expect(shared.link.status()).toMatchObject({ where: 'account', waiting: false, error: null })
+  })
+
+  test('is heard by the worker itself, with nothing from the page', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    let running: Promise<unknown> = Promise.resolve()
-    const page = { addEventListener: () => {} }
-    const stop = watchTrackerAccount({
-      onChange: shared.browser.account.onChange,
-      accountChanged: () => (running = shared.link.accountChanged()),
-      focused: () => (running = shared.link.focused()),
-      page,
-      document: { addEventListener: () => {}, visibilityState: 'visible' },
-      intervalMs: 1e9,
-    })
-    await running
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 3 })
     await shared.link.idle()
 
     shared.browser.account.signIn('bob')
-    await running
     await shared.link.idle()
-    stop()
 
     expect(world.entriesIn('alice')).toHaveLength(1)
     expect(world.entriesIn('bob')).toEqual([])
@@ -302,17 +378,44 @@ describe('an account switch', () => {
   })
 })
 
+describe('a broker older than the account pin', () => {
+  test('gets nothing uploaded, and the viewer is told FKN has to update', async () => {
+    const world = fknWorld()
+    const fresh = await device(world, { account: 'alice', pins: false })
+    await fresh.link.check()
+    expect(fresh.link.status()).toMatchObject({ where: 'device', signedIn: true, error: PIN_UNSUPPORTED_TEXT })
+    await fresh.journal.save(FRIEREN, { progress: 3 })
+    await fresh.link.idle()
+    await fresh.link.focused()
+    expect(fresh.browser.state.writes, 'not even a join').toEqual([])
+    expect(fresh.link.status().error).toBe(PIN_UNSUPPORTED_TEXT)
+    expect(valuesOf(fresh.journal.find(FRIEREN)), 'the list keeps working on this device').toEqual({ progress: 3 })
+
+    // a device that joined while the broker could pin, and then meets an older one
+    const joined = await device(world, { account: 'alice' })
+    await joined.link.check()
+    await joined.journal.save(DUNGEON, { progress: 1 })
+    await joined.link.idle()
+    const alices = JSON.stringify([...world.storageOf('alice')])
+    joined.browser.state.pins = false
+    await joined.journal.save(DUNGEON, { progress: 2 })
+    await joined.link.idle()
+    expect(JSON.stringify([...world.storageOf('alice')])).toBe(alices)
+    expect(joined.link.status()).toMatchObject({ where: 'account', waiting: true, error: PIN_UNSUPPORTED_TEXT })
+  })
+})
+
 describe('signing out', () => {
   test('takes the account\'s list off the device, and nothing written after it goes up', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    await shared.link.accountChanged()
+    await shared.link.check()
     const accountDevice = shared.journal.device
     await shared.journal.save(FRIEREN, { progress: 3 })
     await shared.link.idle()
 
     shared.browser.account.signOut()
-    await shared.link.accountChanged()
+    await shared.link.check()
 
     expect(shared.link.status()).toMatchObject({ where: 'device', signedIn: false })
     expect(shared.disk.files.has(deviceFile(accountDevice))).toBe(false)
@@ -329,19 +432,19 @@ describe('signing out', () => {
   test('an answer that could not be had is not a sign out: nothing is cleared', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 3 })
     await shared.link.idle()
 
     shared.browser.state.reachable = false
-    await shared.link.accountChanged()
+    await shared.link.check()
     expect(shared.link.status()).toMatchObject({ where: 'account', signedIn: null })
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ progress: 3 })
 
     // the control: an answered sign out does clear it
     shared.browser.state.reachable = true
     shared.browser.account.signOut()
-    await shared.link.accountChanged()
+    await shared.link.check()
     expect(shared.journal.find(FRIEREN).state).toBe('NOT_LISTED')
   })
 })
@@ -350,7 +453,7 @@ describe('a list kept while signed out', () => {
   test('is never uploaded, and reaches an account only when the viewer adds it', async () => {
     const world = fknWorld()
     const shared = await device(world)
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 2 })
     await shared.link.idle()
     await shared.link.focused()
@@ -358,7 +461,7 @@ describe('a list kept while signed out', () => {
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ progress: 2 })
 
     shared.browser.account.signIn('alice')
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.link.idle()
     expect(world.entriesIn('alice'), 'signing in uploads none of it').toEqual([])
     expect(shared.link.status()).toMatchObject({ where: 'account', held: 1 })
@@ -374,15 +477,15 @@ describe('a list kept while signed out', () => {
   test('comes back as the device\'s list at sign out when the viewer never added it', async () => {
     const world = fknWorld()
     const shared = await device(world)
-    await shared.link.accountChanged()
+    await shared.link.check()
     await shared.journal.save(FRIEREN, { progress: 2 })
 
     shared.browser.account.signIn('alice')
-    await shared.link.accountChanged()
+    await shared.link.check()
     expect(shared.disk.files.has(HELD_FILE)).toBe(true)
 
     shared.browser.account.signOut()
-    await shared.link.accountChanged()
+    await shared.link.check()
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ progress: 2 })
     expect(shared.link.status()).toMatchObject({ where: 'device', held: 0 })
     expect(await shared.link.addHeld(), 'signed out there is no account to add it to').toContain('Sign in')
@@ -393,12 +496,12 @@ describe('a locked account', () => {
   test('opens no card: nothing is read or written until the viewer unlocks it', async () => {
     const world = fknWorld()
     const other = await device(world, { account: 'alice' })
-    await other.link.accountChanged()
+    await other.link.check()
     await other.journal.save(FRIEREN, { progress: 5 })
     await other.link.idle()
 
     const locked = await device(world, { account: 'alice', unlocked: false })
-    await locked.link.accountChanged()
+    await locked.link.check()
     await locked.journal.save(DUNGEON, { progress: 1 })
     await locked.link.idle()
     clock += REFRESH_MS
@@ -412,7 +515,7 @@ describe('a locked account', () => {
 
     // the viewer's click: the one card, and then the account's list
     await locked.browser.account.unlock()
-    await locked.link.accountChanged()
+    await locked.link.check()
     expect(locked.browser.state.cards).toBe(1)
     expect(valuesOf(locked.journal.find(FRIEREN))).toEqual({ progress: 5 })
     expect(locked.link.status()).toMatchObject({ where: 'account', locked: false, held: 1 })
@@ -421,7 +524,7 @@ describe('a locked account', () => {
   test('a key lost after the list was opened keeps changes waiting, and asks for nothing', async () => {
     const world = fknWorld()
     const shared = await device(world, { account: 'alice' })
-    await shared.link.accountChanged()
+    await shared.link.check()
     shared.browser.state.unlocked = false
 
     await shared.journal.save(FRIEREN, { progress: 4 })

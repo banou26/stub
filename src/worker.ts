@@ -2,15 +2,19 @@ import type { Resolvers as WorkerResolvers } from './worker/yoga'
 import type { FetchInit } from './worker/backoff'
 
 import { expose }  from 'osra'
+import { relayWorker } from '@fkn/lib'
 
 // @ts-expect-error
 import Worker from './worker/index?worker'
 import { fetch } from './utils/fetch'
 import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
 import { sessionResolvers } from './tracking/site-sessions'
-import { trackerCloud } from './tracking/fkn-cloud-live'
 
 const worker = new Worker()
+
+// FKN in the worker, for the stub tracker's list: its storage calls and the account change it listens
+// to are then one realm's, which is what keeps a check's calls in one account (tracking/account-link.ts)
+relayWorker(worker).catch(error => console.warn('tracking: FKN relay', error))
 
 const resolvers = {
   // 404, never 503: `fetchWithBackoff` retries a 503 three times, and this refusal is the same shape
@@ -18,13 +22,7 @@ const resolvers = {
   fetch: (input: RequestInfo | URL, init?: FetchInit) =>
     refusesSeedAsset(location.href, input)
       ? new Response(null, { status: 404, statusText: 'the season seed is switched off for this page' })
-      : fetch(input, init),
-  // FKN storage for the stub tracker's list, which only the page can reach (tracking/account-link.ts)
-  trackerAvailability: trackerCloud.availability,
-  trackerUnlocked: trackerCloud.unlocked,
-  trackerList: trackerCloud.list,
-  trackerRead: trackerCloud.read,
-  trackerWrite: trackerCloud.write,
+      : fetch(input, init)
 }
 
 export type Resolvers = typeof resolvers
@@ -46,7 +44,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, trackerAccountChanged, trackerFocused } = await expose<WorkerResolvers>(
+const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -99,7 +97,7 @@ export {
   // from whatever arrived after the switch rather than from the page under investigation.
   traceGraph,
   traceAnswer,
-  // the page's account and visibility, which the worker cannot see, for the stub tracker's list
-  trackerAccountChanged,
+  // what only the page sees, for the stub tracker's list
+  trackerCheck,
   trackerFocused
 }

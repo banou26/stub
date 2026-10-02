@@ -10,7 +10,7 @@ import { gql } from '../generated'
 import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { trackerSignIns } from '../tracking/site-sessions'
-import { trackerAccountChanged } from '../worker'
+import { trackerCheck } from '../worker'
 import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
 import TrackingPanel, { type EntryValues, type PanelOutcome } from './tracking-panel'
@@ -204,7 +204,7 @@ const MediaTracking = (
   }
 
   // the key card opens from this click, and only from it; the worker then checks the account again
-  const onUnlock = async () => { if (await unlockTracker()) await trackerAccountChanged() }
+  const onUnlock = async () => { if (await unlockTracker()) await trackerCheck() }
 
   return (
     <>

@@ -6,8 +6,8 @@
 import type { Journal } from '../../tracking/journal'
 
 import { accountLink, journalStoreOver, type AccountLink, type TrackerDisk } from '../../tracking/account-link'
+import { onTrackerAccountChange, trackerCloud } from '../../tracking/fkn-cloud-live'
 import { openJournal } from '../../tracking/journal'
-import { workerTrackerCloud } from '../../worker/tracker-cloud'
 import { opfsTrackerDisk } from './opfs-store'
 import { STUB_TRACKER_ID, stubTracker, stubTrackerResolvers } from './tracker-resolvers'
 
@@ -34,7 +34,7 @@ const open = () =>
   (opened ??= (async () => {
     const disk = opfsTrackerDisk()
     const journal = await openJournal(journalStoreOver(disk), deps)
-    return { disk, journal, link: accountLink({ disk, journal, cloud: workerTrackerCloud, lock: linkLock, ...deps }) }
+    return { disk, journal, link: accountLink({ disk, journal, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: linkLock, ...deps }) }
   })().catch(error => { opened = undefined; throw error }))
 
 /** The link between this device's list and the FKN account, which the page drives (worker/yoga.ts). */

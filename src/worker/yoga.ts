@@ -97,10 +97,10 @@ export const osraResolvers = {
   remotePicker: (origin: string) => remotePicker(origin),
   remotePlayer: (origin: string) => remotePlayer(origin),
   selectRemoteRelease: (origin: string, uris: string[]) => selectRemoteRelease(origin, uris),
-  // The page's account and visibility, which a worker cannot see: the stub tracker's list checks which
-  // FKN account is signed in on each change, and reads the other devices' files when the page is back
-  // in view (tracking/account-link.ts).
-  trackerAccountChanged: () => stubTrackerLink().then(link => link.accountChanged()),
+  // What only the page sees, for the stub tracker's list: the page starting, coming back online or
+  // unlocking the list checks which FKN account is signed in, and the page coming back into view reads
+  // the other devices' files (tracking/account-link.ts). An account change the worker hears itself.
+  trackerCheck: () => stubTrackerLink().then(link => link.check()),
   trackerFocused: () => stubTrackerLink().then(link => link.focused())
 }
 

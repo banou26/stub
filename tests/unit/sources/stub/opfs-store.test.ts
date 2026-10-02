@@ -186,7 +186,8 @@ test('a list one tab added to the account is neither offered again nor restored 
   const tab = async () => {
     const { disk: tracker } = await worker()
     const journal = await openJournal(journalStoreOver(tracker), deps)
-    const link = accountLink({ disk: tracker, journal, cloud: fknTrackerCloud(browser.lib, { timeoutMs: 20 }), lock, ...deps, uploadDelayMs: 60_000 })
+    const realm = browser.realm()
+    const link = accountLink({ disk: tracker, journal, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock, ...deps, uploadDelayMs: 60_000 })
     return { journal, link }
   }
   const a = await tab()
@@ -194,8 +195,8 @@ test('a list one tab added to the account is neither offered again nor restored 
   await a.journal.save(media, { progress: 2 })
 
   browser.account.signIn('alice')
-  await a.link.accountChanged()
-  await b.link.accountChanged()
+  await a.link.check()
+  await b.link.check()
   expect(b.link.status().held, 'both tabs offer the list kept before signing in').toBe(1)
 
   await a.link.addHeld()
@@ -203,7 +204,7 @@ test('a list one tab added to the account is neither offered again nor restored 
   expect(b.link.status().held, 'added in the other tab').toBe(0)
 
   browser.account.signOut()
-  await b.link.accountChanged()
+  await b.link.check()
   expect(b.journal.find(media).state, 'the added list went to the account, and left with it').toBe('NOT_LISTED')
 })
 

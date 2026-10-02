@@ -27,7 +27,7 @@ vi.mock('urql', () => ({
 }))
 vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {} }))
 // the page's worker, which Unlock asks to check the account again
-vi.mock('../../../src/worker', () => ({ trackerAccountChanged: async () => {} }))
+vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
 
 const { default: MediaTracking } = await import('../../../src/components/media-tracking')
 const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')

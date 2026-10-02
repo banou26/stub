@@ -1,5 +1,5 @@
-// The page's half of the stub tracker's account link: the worker sees neither the account nor the
-// page's visibility, so the page must tell it of both.
+// The page's half of the stub tracker's account link: the worker hears of an account change itself,
+// and the page tells it of the rest, its start, its way back online and its visibility.
 import { expect, test, vi } from 'vitest'
 
 import { watchTrackerAccount } from '../../../src/tracking/account-watch'
@@ -12,26 +12,23 @@ const events = () => {
   }
 }
 
-test('checks the account at once, on every account change and on the way back online, and refreshes when the page is back in view', async () => {
-  let accountListener: (() => void) | undefined
-  const accountChanged = vi.fn(async () => {})
+test('checks the account at once and on the way back online, and refreshes when the page is back in view', async () => {
+  const check = vi.fn(async () => {})
   const focused = vi.fn(async () => {})
   const page = events()
   const doc = Object.assign(events(), { visibilityState: 'visible' })
 
   const stop = watchTrackerAccount({
-    onChange: async (listener) => { accountListener = listener; return () => {} },
-    accountChanged,
+    check,
     focused,
     page,
     document: doc,
     intervalMs: 1e9,
   })
-  expect(accountChanged).toHaveBeenCalledTimes(1)
+  expect(check).toHaveBeenCalledTimes(1)
 
-  accountListener!()
   page.fire('online')
-  expect(accountChanged).toHaveBeenCalledTimes(3)
+  expect(check).toHaveBeenCalledTimes(2)
 
   doc.visibilityState = 'hidden'
   doc.fire('visibilitychange')
@@ -46,8 +43,7 @@ test('checks the account at once, on every account change and on the way back on
 test('a step that fails is logged, never thrown at the page', async () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   const stop = watchTrackerAccount({
-    onChange: async () => () => {},
-    accountChanged: async () => { throw new Error('worker gone') },
+    check: async () => { throw new Error('worker gone') },
     focused: async () => {},
     page: events(),
     document: Object.assign(events(), { visibilityState: 'visible' }),
