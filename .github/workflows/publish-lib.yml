@@ -103,7 +103,7 @@ jobs:
         if: steps.decide.outputs.changed == 'true'
         env:
           FKN_RELEASE_KEY: ${{ secrets.FKN_RELEASE_KEY }}
-        run: npx --yes @fkn/sign@0.0.10 release . --npm --list "$RUNNER_TEMP/fkn-keys.json"
+        run: npx --yes @fkn/sign@0.0.12 release . --npm --list "$RUNNER_TEMP/fkn-keys.json"
 
       # No credential is passed. npm exchanges the job's OIDC identity for a short lived token against
       # the trusted publisher configured on npmjs.org for banou26/stub + publish-lib.yml. BOTH HALVES
@@ -149,7 +149,7 @@ jobs:
         run: |
           for attempt in $(seq 1 40); do
             set +e
-            npx --yes @fkn/sign@0.0.10 verify "npm:@banou/stub@$VERSION" --list "$RUNNER_TEMP/fkn-keys.json"
+            npx --yes @fkn/sign@0.0.12 verify "npm:@banou/stub@$VERSION" --list "$RUNNER_TEMP/fkn-keys.json"
             CODE=$?
             set -e
             if [ "$CODE" = "0" ]; then exit 0; fi
