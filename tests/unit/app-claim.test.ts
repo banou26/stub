@@ -24,10 +24,11 @@ const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', 
 // since HOR-233 slice 9 every release is signed IN PLACE: `signed: true` is what makes a device ask
 // unpkg for the release's fkn.json, and without it a signed package runs unchecked on every device
 // that holds no list for Stub
-test('package.json claims the managed Stub app and says its releases are signed, and nothing else', () => {
+// since HOR-226 it also names stub's own address, which the api's claim reader ignores (it reads `app` and `signed` only)
+test('package.json claims the managed Stub app, says its releases are signed and names its address, and nothing else', () => {
   expect(pkg.name).toBe('@banou/stub')
   // the whole object, so a reserved key riding along is caught too
-  expect(pkg.fkn).toEqual({ app: APP, signed: true })
+  expect(pkg.fkn).toEqual({ app: APP, signed: true, url: 'https://anime.fkn.app/' })
 })
 
 test('the claim is a managed app id, and not the retired signed one', () => {

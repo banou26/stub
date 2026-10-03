@@ -12,7 +12,8 @@
   },
   "fkn": {
     "app": "fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq",
-    "signed": true
+    "signed": true,
+    "url": "https://anime.fkn.app/"
   },
   "files": [
     "build",
