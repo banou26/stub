@@ -9,7 +9,8 @@
 //
 // Each rule below pins one thing that was measured broken while fixing that, so a config edit that
 // undoes any of them reds the build rather than the next release. The embed page rules are the same
-// story for 0.0.27, whose player answered 502 under /app while anime.fkn.app played fine.
+// story for 0.0.27, whose player answered 502 under /app while anime.fkn.app played fine. The icon
+// rules keep the manifest and icons in the signed release, the only place fkn.app reads an icon from.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, posix, resolve } from 'node:path'
@@ -150,15 +151,93 @@ export const embedPageProblems = (pkg, tree) => {
   return problems
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
+/** The web app manifest the build copies from public/ to the root of the build. */
+export const APP_MANIFEST = 'app.webmanifest'
+
+const LINK_TAG = /<link\b[^>]*>/gi
+const attributeOf = (tag, name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`, 'i'))?.[1]
+
+/**
+ * Every reason the package would show no icon, worst first.
+ *
+ * fkn.app's package page reads an app's icon ONLY from a web app manifest in the signed release
+ * contents, and resolves each icon against the manifest's own path inside the release. anime.fkn.app
+ * serves the same build as its origin root. So the manifest and its icons have to be in the build and
+ * in the tarball, named relative to the manifest, and index.html has to link the manifest and an icon
+ * that exists. Takes the same arguments as `npmEntryProblems`, and an empty array is a pass.
+ *
+ * @returns {string[]} one line per problem, each naming the file it is about
+ */
+export const appIconProblems = (pkg, tree) => {
+  if (typeof pkg.main !== 'string' || !pkg.main.trim()) return []
+
+  const dir = posix.dirname(pkg.main)
+  const path = posix.join(dir, APP_MANIFEST)
+  const text = tree.read(path)
+  if (text === undefined) {
+    return [`${path} does not exist. fkn.app reads the app's icon from it, so the build has to copy it from public/.`]
+  }
+
+  const problems = []
+  if (!publishes(pkg.files, path)) {
+    problems.push(`package.json "files" does not publish ${path}, so the signed release would carry no icon`)
+  }
+
+  let manifest
+  try {
+    manifest = JSON.parse(text)
+  } catch {
+    return [...problems, `${path} is not valid JSON`]
+  }
+
+  const icons = Array.isArray(manifest?.icons) ? manifest.icons : []
+  if (!icons.some(icon => icon?.type === 'image/png')) {
+    problems.push(`${path} declares no png icon, the kind fkn.app's package page picks first`)
+  }
+  for (const icon of icons) {
+    const src = typeof icon?.src === 'string' ? icon.src : ''
+    if (!src || ELSEWHERE.test(src) || src.startsWith('/')) {
+      problems.push(`${path} names the icon '${src}', which is not relative to the manifest, so fkn.app cannot find it inside the release`)
+      continue
+    }
+    const file = posix.join(dir, src)
+    if (tree.read(file) === undefined) problems.push(`${path} names '${src}', and ${file} is not in the build`)
+    else if (!publishes(pkg.files, file)) problems.push(`package.json "files" does not publish ${file}, which ${path} names`)
+  }
+
+  const page = posix.join(dir, 'index.html')
+  const links = [...(tree.read(page) ?? '').matchAll(LINK_TAG)].map(([tag]) => ({
+    rel: (attributeOf(tag, 'rel') ?? '').toLowerCase().split(/\s+/),
+    href: attributeOf(tag, 'href') ?? '',
+  }))
+  if (!links.some(link => link.rel.includes('manifest') && link.href === `/${APP_MANIFEST}`)) {
+    problems.push(`${page} does not link /${APP_MANIFEST}`)
+  }
+  const iconLinks = links.filter(link => link.rel.includes('icon'))
+  if (!iconLinks.length) problems.push(`${page} links no icon`)
+  for (const { href } of iconLinks) {
+    if (ELSEWHERE.test(href) || !href.startsWith('/') || tree.read(posix.join(dir, href)) === undefined) {
+      problems.push(`${page} links the icon '${href}', and that is not a file at the root of the build`)
+    }
+  }
+
+  // the consent card on fkn.app asks the app's origin for /favicon.ico before reading any html
+  if (tree.read(posix.join(dir, 'favicon.ico')) === undefined) {
+    problems.push(`${dir}/favicon.ico does not exist, so anime.fkn.app answers /favicon.ico with its html`)
+  }
+
+  return problems
+}
+
+const isMain =process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   const tree = readTree(root)
-  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree)]
+  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree)]
   if (problems.length) {
     console.error(`the built package cannot be loaded as an app:\n${problems.map(line => `  - ${line}`).join('\n')}`)
     process.exit(1)
   }
-  console.log(`${pkg.main} is an ES module the platform can load, and ${posix.join(dirname(pkg.main), 'embed.html')} loads from wherever ${dirname(pkg.main)}/ is served`)
+  console.log(`${pkg.main} is an ES module the platform can load, ${posix.join(dirname(pkg.main), 'embed.html')} loads from wherever ${dirname(pkg.main)}/ is served, and ${posix.join(dirname(pkg.main), APP_MANIFEST)} names icons the package ships`)
 }

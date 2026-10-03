@@ -28,6 +28,7 @@
     "build": "npm run data:build && npm run gql-generate && vp build && vp build --config vite.lib.config.ts && node scripts/check-npm-entry.mjs",
     "data:build": "node scripts/build-anime-data.mjs",
     "data:build-offline": "node scripts/build-anime-data.mjs --offline",
+    "icons:render": "sh scripts/render-icons.sh",
     "seed:export": "node scripts/export-season-seed.mjs",
     "corpus:walk": "node scripts/walk-season-answers.mjs",
     "corpus:label": "node scripts/label-corpus.mjs",
