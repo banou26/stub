@@ -1,6 +1,7 @@
 // The main thread's wiring of each site's session: which page its hidden frame holds, which page script
-// runs there, and where its sign-in window opens. Over the real session frames and sign-in window, with
-// only FKN's attachFrame, the built page scripts and the page's globals replaced.
+// runs there, where its sign-in window opens, and which jar both run on. Over the real session frames and
+// sign-in window, with only FKN's attachFrame and exposure, the built page scripts and the page's globals
+// replaced.
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { expose } from 'osra'
@@ -8,7 +9,12 @@ import { expose } from 'osra'
 import { SESSION_PORT_MESSAGE } from '../../../src/tracking/session-frames'
 
 const attach = vi.hoisted(() => vi.fn())
-vi.mock('@fkn/lib', async importOriginal => ({ ...await importOriginal<typeof import('@fkn/lib')>(), attachFrame: attach }))
+const extension = vi.hoisted(() => ({ exposed: false }))
+vi.mock('@fkn/lib', async importOriginal => ({
+  ...await importOriginal<typeof import('@fkn/lib')>(),
+  attachFrame: attach,
+  isExtensionExposed: () => extension.exposed,
+}))
 vi.mock('../../../src/sources/anilist/session-page.ts?page-script', () => ({ default: 'function () { return "the AniList page script" }' }))
 vi.mock('../../../src/sources/mal/session-page.ts?page-script', () => ({ default: 'function () { return "the MyAnimeList page script" }' }))
 
@@ -24,6 +30,7 @@ const load = async () => {
   vi.stubGlobal('document', {
     createElement: () => ({ style: {}, setAttribute: () => {}, remove: () => {} }),
     body: { appendChild: () => {} },
+    readyState: 'complete',
   })
   return module
 }
@@ -32,6 +39,7 @@ const ports: MessagePort[] = []
 afterEach(() => {
   while (ports.length) ports.pop()!.close()
   attach.mockReset()
+  extension.exposed = false
   stored.clear()
   vi.unstubAllGlobals()
   vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
@@ -46,7 +54,7 @@ const hiddenFrame = () => {
     ports.push(transfer[0]!)
     if (message.type === SESSION_PORT_MESSAGE) void expose({ whoami: async () => 'the page answered' }, { transport: transfer[0]! })
   })
-  return { frame: { evaluate, goto, postMessage, addEventListener: () => {} }, evaluate, goto, postMessage }
+  return { frame: { evaluate, goto, postMessage, on: () => {} }, evaluate, goto, postMessage }
 }
 
 /** A sign-in window the viewer closes at once. */
@@ -67,9 +75,10 @@ describe("MyAnimeList's session on this device", () => {
     expect(attach).toHaveBeenCalledWith({
       window: { width: 1080 },
       domains: ['myanimelist.net'],
+      cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: 'Read and update your MyAnimeList list with your own myanimelist.net session' }],
     })
-    expect(window.goto).toHaveBeenCalledWith('https://myanimelist.net/login.php?from=%2Fabout.php', { waitUntil: 'documentstart' })
+    expect(window.goto).toHaveBeenCalledWith('https://myanimelist.net/login.php?from=%2Fabout.php', { waitUntil: 'commit' })
     expect(JSON.parse(stored.get('stub.sessions')!), 'connected here, so its answer is read').toEqual(['mal'])
   })
 
@@ -85,9 +94,10 @@ describe("MyAnimeList's session on this device", () => {
     expect(await sessionResolvers.call('mal', 'whoami', {})).toEqual({ kind: 'response', response: 'the page answered' })
     expect(attach).toHaveBeenCalledWith(expect.objectContaining({
       domains: ['myanimelist.net'],
+      cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: 'Read and update your MyAnimeList list with your own myanimelist.net session' }],
     }))
-    expect(page.goto).toHaveBeenCalledWith('https://myanimelist.net/includes/ajax.inc.php?t=64&id=1', { waitUntil: 'documentstart' })
+    expect(page.goto).toHaveBeenCalledWith('https://myanimelist.net/includes/ajax.inc.php?t=64&id=1', { waitUntil: 'commit' })
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the MyAnimeList page script" }', expect.objectContaining({ kind: 'serve', appOrigin: 'https://anime.fkn.app' }))
     expect(page.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: SESSION_PORT_MESSAGE }), 'https://myanimelist.net', expect.any(Array))
   })
@@ -99,8 +109,39 @@ describe("MyAnimeList's session on this device", () => {
     attach.mockResolvedValueOnce(page.frame)
 
     await sessionResolvers.call('anilist', 'whoami', {})
-    expect(page.goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'documentstart' })
+    expect(page.goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'commit' })
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the AniList page script" }', expect.anything())
     expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'mal'])
+  })
+})
+
+// Since @fkn/lib 0.9.42 the jar picks the backend, so the sign-in and the frame that reads its session
+// each name it: the app's kept cloud jar on the cloud, the browser's own cookies on the extension.
+describe('which jar a session runs on', () => {
+  test("with the extension, the sign-in window and the hidden frame both ask for the browser's own cookies", async () => {
+    extension.exposed = true
+    const { sessionResolvers, trackerSignIns } = await load()
+    const window = closedWindow()
+    attach.mockResolvedValueOnce(window.login)
+    await trackerSignIns.anilist!()
+    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ window: {}, cookies: 'native' }))
+
+    const page = hiddenFrame()
+    attach.mockResolvedValueOnce(page.frame)
+    await sessionResolvers.call('anilist', 'whoami', {})
+    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'native' }))
+  })
+
+  test('the control: with no extension, both run on the cloud jar', async () => {
+    const { sessionResolvers, trackerSignIns } = await load()
+    const window = closedWindow()
+    attach.mockResolvedValueOnce(window.login)
+    await trackerSignIns.anilist!()
+    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ window: {}, cookies: 'persistent' }))
+
+    const page = hiddenFrame()
+    attach.mockResolvedValueOnce(page.frame)
+    await sessionResolvers.call('anilist', 'whoami', {})
+    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'persistent' }))
   })
 })

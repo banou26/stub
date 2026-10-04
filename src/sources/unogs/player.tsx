@@ -174,18 +174,19 @@ const NetflixPlayer = ({ url }: PlayerProps) => {
     ;(async () => {
       for (let attempt = 0; !cancelled; attempt++) {
         try {
-          const f = await attachFrame({ iframe, domains: NETFLIX_DOMAINS })
+          // the browser's own cookies, which only the extension serves: the cloud render proxy cannot hand back a RemoteVideoElement
+          const f = await attachFrame({ iframe, domains: NETFLIX_DOMAINS, cookies: 'native' })
           if (cancelled) return
-          // without an exposed extension, attachFrame degrades to the cloud render proxy, which cannot hand back a RemoteVideoElement
+          setFrame(f)
+          return
+        } catch (err) {
+          if (cancelled) return
+          // with no extension the lib already showed its install prompt, so no retry shows it again
           if (!isExtensionExposed()) {
             setError('Netflix playback currently needs the FKN browser extension.')
             setLoading(false)
             return
           }
-          setFrame(f)
-          return
-        } catch (err) {
-          if (cancelled) return
           if (attempt >= 4) {
             console.error('Failed to attach Netflix frame', err)
             setError(err instanceof Error ? err.message : 'Failed to load player')

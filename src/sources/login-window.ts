@@ -1,6 +1,8 @@
 import type { CategoryRequest, Frame, WindowFrame } from '@fkn/lib'
 
-import { attachFrame, isTerminalError } from '@fkn/lib'
+import { attachFrame, isExtensionExposed, isTerminalError } from '@fkn/lib'
+
+import { attachCookies } from '../utils/fkn-backend'
 
 /**
  * How a sign-in through an FKN window ended.
@@ -11,8 +13,9 @@ import { attachFrame, isTerminalError } from '@fkn/lib'
  * - `'closed'`: the window ended first, closed by the viewer or lost. The viewer may still have
  *   finished signing in, since a read can be pending when they close it.
  * - `'blocked'`: the browser opened no window (popup blocker, or no user activation).
- * - `'unsupported'`: the lib refused window mode, on an extension backend or by the window's own
- *   refusal. Nothing else is opened, so the caller can fall back.
+ * - `'unsupported'`: the lib refused window mode, on an extension backend (a window on the
+ *   browser's own cookies) or by the window's own refusal. Nothing else is opened, so the caller
+ *   can fall back.
  */
 export type WindowSignIn = 'authed' | 'closed' | 'blocked' | 'unsupported'
 
@@ -73,6 +76,9 @@ export const signInThroughWindow = async ({
   const opening = attachFrame({
     window: { ...width === undefined ? {} : { width }, ...height === undefined ? {} : { height } },
     domains,
+    // with the extension, the browser's own cookies, on which the lib serves no window: that refusal is
+    // `unsupported` below, and the caller's frames then run on the browser's own session for the site
+    cookies: attachCookies(isExtensionExposed() ? 'extension' : 'cloud'),
     ...permissions ? { permissions } : {},
   })
   let login: WindowFrame
@@ -90,11 +96,11 @@ export const signInThroughWindow = async ({
     throw err
   }
 
-  // opened blank and sent at 'documentstart', never on the attach's own load wait: a viewer whose sign-in
+  // opened blank and sent at 'commit', never on the attach's own load wait: a viewer whose sign-in
   // session is still alive goes straight on to www's home page, whose 1.9 MB consent script held the load
   // past the 30 s deadline (measured 2026-09-27); a window gone meanwhile ends the loop below on `closed`
   try {
-    await login.goto(url, { waitUntil: 'documentstart' })
+    await login.goto(url, { waitUntil: 'commit' })
   } catch (err) {
     if (!isTerminalError(err)) {
       await login.close().catch(() => {})

@@ -179,8 +179,8 @@ export const createSessionFrames = <Api>(
       const { iframe, remove } = mount()
       controller.signal.addEventListener('abort', remove, { once: true })
       const frame = await attach({ iframe, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
-      frame.addEventListener('document', () => { void settle(entry, site, frame) }, { signal: controller.signal })
-      await frame.goto(site.url, { waitUntil: 'documentstart' })
+      frame.on('document', () => { void settle(entry, site, frame) }, { signal: controller.signal })
+      await frame.goto(site.url, { waitUntil: 'commit' })
       return frame
     })()
     // a frame that could not attach is forgotten, so the next use tries again

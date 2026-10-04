@@ -6,9 +6,10 @@ import type { CrunchyrollTrackKind, CrunchyrollTracks } from './cr-native-contro
 import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
 import { css, keyframes } from '@emotion/react'
-import { attachFrame, isExtensionExposed } from '@fkn/lib'
+import { attachFrame } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
@@ -84,27 +85,8 @@ const LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
   state: '/',
 })}`
 
-type Backend = 'detecting' | 'extension' | 'cloud'
-
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
-const detectBackend = async (): Promise<Backend> => {
-  if (isExtensionExposed()) return 'extension'
-  if (document.readyState !== 'complete') {
-    await new Promise<void>(resolve => {
-      const onLoad = () => {
-        clearTimeout(timer)
-        resolve()
-      }
-      const timer = setTimeout(() => {
-        window.removeEventListener('load', onLoad)
-        resolve()
-      }, 10_000)
-      window.addEventListener('load', onLoad, { once: true })
-    })
-  }
-  await new Promise(r => setTimeout(r, 300))
-  return isExtensionExposed() ? 'extension' : 'cloud'
-}
+type Backend = 'detecting' | FknBackend
 
 const VIDEO_TIMEOUT = 30_000
 const waitForVideoElement = async (frame: Frame, isCancelled: () => boolean) => {
@@ -264,21 +246,17 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
   useEffect(() => {
     if (!iframe || mode === 'detecting') return
     let cancelled = false
+    // the jar picks the backend, so the frame always runs on the one the layout was built for
     attachFrame({
       iframe,
       domains: CRUNCHYROLL_DOMAINS,
+      cookies: attachCookies(mode),
       permissions: [
         { category: 'evaluation', reason: 'Switch Crunchyroll audio and subtitles, seek the video, show the seek preview thumbnails, and open picture in picture' }
       ]
     })
       .then(f => {
-        if (cancelled) return
-        const actual: Backend = isExtensionExposed() ? 'extension' : 'cloud'
-        if (actual !== mode) {
-          setMode(actual)
-          return
-        }
-        setFrame(f)
+        if (!cancelled) setFrame(f)
       })
       .catch(err => {
         if (cancelled) return
@@ -300,10 +278,10 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     invalidateTracks()
     ;(async () => {
       if (mode === 'cloud') {
-        // 'documentstart', never 'load': a signed-out page loads a consent script (cdn.ketchjs.com, 1.9 MB) that
-        // took 19 s through the relay and kept the page's load past the 30 s deadline (measured 2026-09-26), so
-        // the page's own markers decide; the render proxy refuses reads retryably until the new document commits
-        await frame.goto(url, { waitUntil: 'documentstart' })
+        // 'commit', never 'load': a signed-out page loads a consent script (cdn.ketchjs.com, 1.9 MB) that took
+        // 19 s through the relay and kept the page's load past the 30 s deadline (measured 2026-09-26), so the
+        // page's own markers decide, read once the new document holds the frame
+        await frame.goto(url, { waitUntil: 'commit' })
         if (cancelled) return
         // auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
         const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
@@ -322,7 +300,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
         setRemoteVideo(video)
         return
       }
-      await frame.goto(url, { waitUntil: 'documentstart' })
+      await frame.goto(url, { waitUntil: 'commit' })
       if (cancelled) return
       await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
       if (cancelled) return

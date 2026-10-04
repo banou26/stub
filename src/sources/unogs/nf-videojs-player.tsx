@@ -23,14 +23,6 @@ const NF_INTERSTITIALS: Record<string, string> = {
   error: '[data-uia="error-container"], [data-uia="nfp-error"]',
 }
 
-// `position` and `reason` aren't in the published @fkn/lib types yet; narrow to the shapes we rely on so they ride along
-type SeekLocator = {
-  click: (options?: { position?: { x?: number, y?: number }, reason?: string }) => Promise<unknown>
-  hover: (options?: { position?: { x?: number, y?: number }, reason?: string }) => Promise<unknown>
-  exists: (options?: { reason?: string }) => Promise<boolean>
-  ensure: (operation: 'hover' | 'click', options?: { reason?: string }) => Promise<void>
-}
-
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n)
 
@@ -54,9 +46,9 @@ const createNetflixSeekMedia = (remote: RemoteVideoElement, frame: Frame) => {
     permissionsPrimed = true
     try {
       await Promise.all([
-        (frame.locator(NF_CANVAS_SELECTOR) as unknown as SeekLocator).ensure('hover', { reason: REVEAL_REASON }),
-        (frame.locator(NF_PLAYER_SELECTOR) as unknown as SeekLocator).ensure('hover', { reason: REVEAL_REASON }),
-        (frame.locator(NF_TIMELINE_SELECTOR) as unknown as SeekLocator).ensure('click', { reason: SEEK_REASON }),
+        frame.locator(NF_CANVAS_SELECTOR).ensure('hover', { reason: REVEAL_REASON }),
+        frame.locator(NF_PLAYER_SELECTOR).ensure('hover', { reason: REVEAL_REASON }),
+        frame.locator(NF_TIMELINE_SELECTOR).ensure('click', { reason: SEEK_REASON }),
       ])
     } catch (err) {
       permissionsPrimed = false
@@ -77,19 +69,19 @@ const createNetflixSeekMedia = (remote: RemoteVideoElement, frame: Frame) => {
   const commitSeek = async (targetSeconds: number) => {
     const duration = remote.duration
     if (!Number.isFinite(duration) || duration <= 0) { console.warn('[nf] seek: duration unknown', duration); return }
-    // Netflix's scrubber is a custom div, not an <input>, so CR's value-`fill` seek cannot be reused; @fkn/lib's click takes position as a 0..1 fraction of the element box, hence targetSeconds/duration with no pixel measuring
+    // Netflix's scrubber is a custom div, not an <input>, so CR's value-`fill` seek cannot be reused; @fkn/lib's click takes relativePosition as a 0..1 fraction of the element box, hence targetSeconds/duration with no pixel measuring
     const fraction = clamp01(targetSeconds / duration)
     // fire-and-forget on purpose: the hover/click ops below self-gate and latch onto the same consent sheet (same key+scope dedupes), so awaiting it would stall the seek for one prompt it already gets
     void primePermissions()
-    const timeline = frame.locator(NF_TIMELINE_SELECTOR) as unknown as SeekLocator
+    const timeline = frame.locator(NF_TIMELINE_SELECTOR)
     // Netflix only mounts its controls while PLAYING and shortly after mouse activity, and the bar idle-hides ~3s after one mousemove, so re-hover
     const wasPaused = remote.paused === true
     if (wasPaused) { try { await remote.play() } catch { /* ignore */ } }
     let mounted = false
     for (let attempt = 0; attempt < REVEAL_ATTEMPTS; attempt++) {
       if (attempt % 2 === 0) {
-        await (frame.locator(NF_CANVAS_SELECTOR) as unknown as SeekLocator).hover({ position: nextRevealPosition(), reason: REVEAL_REASON }).catch(() => {})
-        await (frame.locator(NF_PLAYER_SELECTOR) as unknown as SeekLocator).hover({ position: nextRevealPosition(), reason: REVEAL_REASON }).catch(() => {})
+        await frame.locator(NF_CANVAS_SELECTOR).hover({ relativePosition: nextRevealPosition(), reason: REVEAL_REASON }).catch(() => {})
+        await frame.locator(NF_PLAYER_SELECTOR).hover({ relativePosition: nextRevealPosition(), reason: REVEAL_REASON }).catch(() => {})
       }
       if (await timeline.exists().catch(() => false)) { mounted = true; break }
       await sleep(REVEAL_POLL_MS)
@@ -97,13 +89,13 @@ const createNetflixSeekMedia = (remote: RemoteVideoElement, frame: Frame) => {
     if (!mounted) {
       const blocked = await Promise.all(
         Object.entries(NF_INTERSTITIALS).map(async ([name, sel]) =>
-          (await (frame.locator(sel) as unknown as SeekLocator).exists().catch(() => false)) ? name : ''),
+          (await frame.locator(sel).exists().catch(() => false)) ? name : ''),
       ).then(names => names.filter(Boolean).join(', ')).catch(() => '')
       console.warn(`[nf] seek aborted: controls never revealed${blocked ? ` (blocked by ${blocked})` : ''}`)
       if (wasPaused) { try { await remote.pause() } catch { /* ignore */ } }
       return
     }
-    await timeline.click({ position: { x: fraction, y: 0.5 }, reason: SEEK_REASON })
+    await timeline.click({ relativePosition: { x: fraction, y: 0.5 }, reason: SEEK_REASON })
       .catch(err => console.warn('[nf] timeline click failed:', err?.message ?? err))
     if (wasPaused) { try { await remote.pause() } catch { /* ignore */ } }
   }

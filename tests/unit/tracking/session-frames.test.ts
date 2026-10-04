@@ -26,11 +26,11 @@ const ports: MessagePort[] = []
 afterEach(() => { while (ports.length) ports.pop()!.close() })
 
 /**
- * When the document a `goto(url, { waitUntil: 'documentstart' })` brings is reported, as FKN does since
- * fkn-client 5ff7f147. `held`, the cloud: the goto answers before its document commits, a call made
- * meanwhile waits for it, and the commit is reported before that call answers. `load`, the extension:
- * the goto answers once the document started, calls run on it at once, and it is reported on the
- * iframe's load, which the test fires with `load()`. `early`, the extension on a fast page: that load
+ * When the document a `goto(url, { waitUntil: 'commit' })` brings is reported, as FKN does since
+ * fkn-client 5ff7f147. `held`, the cloud's early goto before @fkn/lib 0.9.42: the goto answers before
+ * its document commits, a call made meanwhile waits for it, and the commit is reported before that
+ * call answers. `load`, the extension: the goto answers once the document started, calls run on it at
+ * once, and it is reported on the iframe's load, which the test fires with `load()`. `early`, the extension on a fast page: that load
  * comes before the goto answers. `never`: nothing is reported for it. On the extension a page that
  * moves before its load is `load` with no `load()`: its document is never reported.
  */
@@ -104,13 +104,13 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
     arrive()
     if (report === 'early') reportDocument()
   })
-  const addEventListener = vi.fn((_type: 'document', listener: (event: { type: 'document', origin: string }) => void, options?: { signal?: AbortSignal }) => {
+  const on = vi.fn((_type: 'document', listener: (event: { type: 'document', origin: string }) => void, options?: { signal?: AbortSignal }) => {
     listeners.add(listener)
     options?.signal?.addEventListener('abort', () => listeners.delete(listener))
   })
 
   return {
-    frame: { evaluate, postMessage, goto, addEventListener } as unknown as Frame,
+    frame: { evaluate, postMessage, goto, on } as unknown as Frame,
     evaluate,
     /** The page script's evaluates, apart from the reads of which install a document serves. */
     installs,
@@ -171,7 +171,7 @@ describe('the session frame', () => {
     expect(await ask('hello')).toBe('hello from document 0')
 
     expect(attach).toHaveBeenCalledWith({ iframe: { index: 1 }, domains: ['anilist.co'], permissions: [{ category: 'evaluation', reason: 'Read your list' }] })
-    expect(goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'documentstart' })
+    expect(goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'commit' })
     expect(installs()).toHaveLength(1)
     expect(evaluate).toHaveBeenCalledWith(SITE.pageScript, { kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'key-1' })
     expect(postMessage).toHaveBeenCalledTimes(1)

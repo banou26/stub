@@ -13,6 +13,7 @@ import { ANILIST_DOMAINS, ANILIST_LOGIN_URL, ANILIST_ORIGIN, ANILIST_SESSION_URL
 import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
+import { attachCookies, detectBackend } from '../utils/fkn-backend'
 import { createConnections, signInAndConnect, siteSessionResolvers } from './connections'
 import { createSessionFrames } from './session-frames'
 
@@ -50,7 +51,8 @@ const frames = createSessionFrames<PageApi>(
     pageScript: malPageScript,
   }],
   {
-    attach: options => attachFrame(options),
+    // the backend the sign-in picks too, so the frame reads the session the sign-in reached
+    attach: async options => attachFrame({ ...options, cookies: attachCookies(await detectBackend()) }),
     mount: mountHidden,
     connect: port => expose<PageApi>({}, { transport: port }),
     appOrigin: location.origin,

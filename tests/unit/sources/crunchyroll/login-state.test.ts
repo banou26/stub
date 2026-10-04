@@ -4,8 +4,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { checkIsLoggedIn } from '../../../../src/sources/crunchyroll/login-state'
 
-// [ms after `goto(url, { waitUntil: 'documentstart' })` resolved, the markers on the page from then on].
-// Both traced through the relay on 2026-09-26, /watch/GE00374453JAJP, polling every 200 ms
+// [ms after the goto resolved, the markers on the page from then on]. Both traced through the relay on
+// 2026-09-26, /watch/GE00374453JAJP, polling every 200 ms, with a goto that resolved as the navigation
+// started, before the `waitUntil: 'commit'` of @fkn/lib 0.9.42
 type Timeline = [number, string[]][]
 
 const ANONYMOUS = '#user-menu-anonymous'

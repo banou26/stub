@@ -133,6 +133,13 @@ describe('cloud backend', () => {
     expect(permissions[0]!.reason).toMatch(/audio and subtitles.*seek.*thumbnails/)
   })
 
+  // since @fkn/lib 0.9.42 the jar picks the backend, so the cloud layout asks for the cloud's jar
+  test('attaches on the cloud jar, the one its sign-in window signs in to', async () => {
+    await render()
+    await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalled())
+    expect(lib.attachFrame).toHaveBeenCalledWith(expect.objectContaining({ cookies: 'persistent' }))
+  })
+
   test('the sign-in button opens the window inside the click, on the SSO page and its hosts', async () => {
     const host = await render()
     const signInButton = await signedOut(host, 'Sign in to Crunchyroll')
@@ -180,7 +187,7 @@ describe('cloud backend', () => {
     expect(first!.isConnected).toBe(false)
     expect(host.querySelector('iframe')).toBe(second)
     await vi.waitFor(() => expect(frame.goto).toHaveBeenCalledTimes(2))
-    expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'documentstart' })
+    expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'commit' })
   })
 
   test('a window closed without signing in comes back to the sign-in button', async () => {
@@ -217,6 +224,14 @@ describe('cloud backend', () => {
 })
 
 describe('extension backend', () => {
+  test("attaches on the browser's own cookies, which only the extension serves, and sends the episode at commit", async () => {
+    lib.extension = true
+    await render()
+    await vi.waitFor(() => expect(frame.goto).toHaveBeenCalled())
+    expect(lib.attachFrame).toHaveBeenCalledWith(expect.objectContaining({ cookies: 'native' }))
+    expect(frame.goto).toHaveBeenCalledWith(EPISODE, { waitUntil: 'commit' })
+  })
+
   // the extension refuses window mode, and its frame reads the real browser session anyway
   test('keeps the plain popup on the real site, and never opens an FKN window', async () => {
     lib.extension = true

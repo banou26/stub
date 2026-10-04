@@ -2,12 +2,15 @@ import type { WindowFrame } from '@fkn/lib'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-// the real lib, with only the window opener replaced: the error classes and isTerminalError below are
-// the lib's own, so a renamed error or a changed terminal name fails here rather than in a browser
+// the real lib, with only the window opener and the extension's exposure replaced: the error classes and
+// isTerminalError below are the lib's own, so a renamed error or a changed terminal name fails here rather
+// than in a browser
 const attach = vi.hoisted(() => vi.fn())
+const extension = vi.hoisted(() => ({ exposed: false }))
 vi.mock('@fkn/lib', async importOriginal => ({
   ...await importOriginal<typeof import('@fkn/lib')>(),
   attachFrame: attach,
+  isExtensionExposed: () => extension.exposed,
 }))
 
 const {
@@ -47,6 +50,7 @@ let warn: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   attach.mockReset()
+  extension.exposed = false
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
@@ -62,7 +66,7 @@ describe('opening the window', () => {
     attach.mockReturnValue(new Promise(() => {}))
     void signIn(async () => false)
     expect(attach).toHaveBeenCalledTimes(1)
-    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS })
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'persistent' })
   })
 
   // a sign-in check that runs code in the page asks for it as the window connects, not mid poll
@@ -70,27 +74,27 @@ describe('opening the window', () => {
     attach.mockReturnValue(new Promise(() => {}))
     const permissions = [{ category: 'evaluation' as const, reason: 'Read your list' }]
     void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, permissions })
-    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, permissions })
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'persistent', permissions })
   })
 
   // a site laid out wider than FKN's default window names its own size, and one that does not keeps FKN's
   test('opens the window at the size it is given, and at FKN\'s default otherwise', () => {
     attach.mockReturnValue(new Promise(() => {}))
     void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, width: 1080, height: 800 })
-    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080, height: 800 }, domains: DOMAINS })
+    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080, height: 800 }, domains: DOMAINS, cookies: 'persistent' })
     void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, width: 1080 })
-    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080 }, domains: DOMAINS })
+    expect(attach).toHaveBeenLastCalledWith({ window: { width: 1080 }, domains: DOMAINS, cookies: 'persistent' })
     void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false })
-    expect(attach).toHaveBeenLastCalledWith({ window: {}, domains: DOMAINS })
+    expect(attach).toHaveBeenLastCalledWith({ window: {}, domains: DOMAINS, cookies: 'persistent' })
   })
 
   // a live sign-in session sends the window straight on to www's home page, whose load a consent script
   // holds past the attach's 30 s deadline, so the window opens blank and is sent without waiting on load
-  test('sends the blank window to the sign-in page at documentstart', async () => {
+  test('sends the blank window to the sign-in page at commit', async () => {
     const { login, goto, end } = fakeWindow()
     attach.mockResolvedValue(login)
     const outcome = signIn(async () => false)
-    await vi.waitFor(() => expect(goto).toHaveBeenCalledWith(LOGIN_URL, { waitUntil: 'documentstart' }))
+    await vi.waitFor(() => expect(goto).toHaveBeenCalledWith(LOGIN_URL, { waitUntil: 'commit' }))
     end()
     expect(await outcome).toBe('closed')
   })
@@ -122,6 +126,19 @@ describe('opening the window', () => {
     expect(open).not.toHaveBeenCalled()
     expect(isSignedIn).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  // since @fkn/lib 0.9.42 the jar picks the backend: the browser's own cookies are the extension's, and
+  // the lib's own router refuses a window on them by name, which keeps the extension's outcome
+  test("with the extension, the window asks for the browser's own cookies, and the lib's refusal resolves unsupported", async () => {
+    extension.exposed = true
+    const { attachFrame } = await vi.importActual<typeof import('@fkn/lib')>('@fkn/lib')
+    attach.mockImplementation(attachFrame)
+    const isSignedIn = vi.fn(async () => false)
+
+    expect(await signIn(isSignedIn)).toBe('unsupported')
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'native' })
+    expect(isSignedIn).not.toHaveBeenCalled()
   })
 
   test('a window that closes before it connects resolves closed', async () => {
