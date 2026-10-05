@@ -1,6 +1,6 @@
 // Removing an added source: the list in this browser and everything listening to it move at once, and
 // FKN is asked to uninstall the package, which it may never answer.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { ENABLED_PLUGINS_KEY } from '../../src/plugin-list'
 

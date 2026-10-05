@@ -1,6 +1,6 @@
 // The viewer's API keys: kept in this browser, with a copy in the worker that the sources are asked with.
 // Clearing them has to clear both, or a source keeps answering with a key the viewer cleared.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { API_KEYS_KEY } from '../../../src/sources/key-configs'
 

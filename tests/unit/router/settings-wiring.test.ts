@@ -1,6 +1,6 @@
 // What the settings page's Accounts section is wired to: which window each Sign in opens, and which
 // cookies each Sign out removes from FKN's jar.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../../src/sources/crunchyroll/session'
 
