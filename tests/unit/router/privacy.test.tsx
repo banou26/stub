@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from '../components/dom'
 
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 

@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { button, mount, unmount } from '../components/dom'
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 import type { AccountsProps, TrackerSite } from '../../../src/router/settings/accounts'

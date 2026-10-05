@@ -1,7 +1,7 @@
 // What a Clear does beyond the item's keys, for the three items that are more than their keys: the
 // worker holds a copy of the keys, each added source holds a connection and an FKN install, and the
 // party store holds the name for the page.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 const calls = vi.hoisted(() => ({
   clearKeys: vi.fn(async () => {}),

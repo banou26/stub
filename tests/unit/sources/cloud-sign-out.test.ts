@@ -1,6 +1,6 @@
 // A sign out on the cloud: the site's session lives in FKN's cookie jar, never in stub, so stub asks FKN
 // to remove that site's cookies from it (`frame.clearCookies`, @fkn/lib 0.9.42).
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { clearCloudCookies } from '../../../src/sources/cloud-sign-out'
 

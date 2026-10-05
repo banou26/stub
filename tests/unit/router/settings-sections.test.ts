@@ -1,6 +1,6 @@
 // The settings page is one page of five sections, in the order the owner chose (HOR-225, L2), each
 // reachable by a link in its index.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { SETTINGS_SECTIONS, sectionFromHash } from '../../../src/router/settings/sections'
 

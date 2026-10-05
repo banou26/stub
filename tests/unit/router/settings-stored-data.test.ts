@@ -2,7 +2,7 @@
 // kept, and an item the page clears clears exactly its own keys and nothing beside them.
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
