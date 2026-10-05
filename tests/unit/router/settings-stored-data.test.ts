@@ -1,5 +1,7 @@
 // What stub keeps per viewer, as the settings page's Data section lists it: every item says where it is
 // kept, and an item the page clears clears exactly its own keys and nothing beside them.
+import { readFileSync, readdirSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
@@ -62,6 +64,25 @@ describe('what stub keeps per viewer', () => {
     const named = STORED.flatMap(item => item.keys?.names ?? [])
     for (const key of [...Object.keys(LOCAL), ...Object.keys(SESSION)].filter(key => !key.startsWith('not-stub'))) {
       expect(named, key).toContain(key)
+    }
+  })
+
+  // what src writes, read from src itself, so a new key anywhere turns this red until the list names it
+  test('names every key src writes with setItem, each spelled as a constant the list can import', () => {
+    const SRC = join(import.meta.dirname, '../../../src')
+    const files = (readdirSync(SRC, { recursive: true }) as string[])
+      .filter(file => /\.tsx?$/.test(file))
+      .map(file => ({ file, text: readFileSync(join(SRC, file), 'utf-8') }))
+    const constants = new Map(files.flatMap(({ text }) => [...text.matchAll(/export const ([A-Z][A-Z0-9_]*) = '([^']*)'/g)].map(([, name, value]) => [name!, value!])))
+
+    const written = files.flatMap(({ file, text }) => [...text.matchAll(/\bsetItem\(\s*([^,)]+?)\s*,/g)].map(([, key]) => ({ at: relative(SRC, join(SRC, file)), key: key! })))
+    expect(written.length, 'the scan finds the writes').toBeGreaterThanOrEqual(7)
+
+    const named = STORED.flatMap(item => item.keys?.names ?? [])
+    for (const { at, key } of written) {
+      const value = /^'[^']*'$/.test(key) ? key.slice(1, -1) : constants.get(key)
+      expect(value, `${at} writes ${key}, which is not an exported constant`).toBeDefined()
+      expect(named, `${at} writes ${key}`).toContain(value)
     }
   })
 
