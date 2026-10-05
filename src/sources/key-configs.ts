@@ -1,5 +1,8 @@
 // Kept separate from the extractors - which pull in the frizbee and sacha wasm modules - so the settings page can read it on the main thread without pulling the worker/WASM bundle
 
+/** The localStorage key holding the viewer's keys, a JSON object of key by source origin. */
+export const API_KEYS_KEY = 'stub.apikeys'
+
 export interface KeyConfig {
   origin: string
   name: string

@@ -14,16 +14,10 @@ import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 import { checkIsLoggedIn } from './login-state'
+import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, crunchyrollSignedIn } from './session'
 import { useCrunchyrollPictureInPicture } from './picture-in-picture'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
-
-const CRUNCHYROLL_DOMAINS = [
-  'www.crunchyroll.com',
-  'crunchyroll.com',
-  'sso.crunchyroll.com',
-  'static.crunchyroll.com'
-]
 
 // leave the scrubber (`.timeline-slider`) layout-measurable so the Bitmovin-seek adapter can drive it
 const CRUNCHYROLL_OUTER_CSS = `
@@ -73,17 +67,6 @@ const CRUNCHYROLL_OUTER_CSS = `
     cursor: pointer !important;
   }
 `
-
-const BASE_URL = 'https://www.crunchyroll.com'
-
-// state '/': returning the sign-in popup or window to the episode would start a second player there
-const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
-const LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
-  client_id: CRUNCHYROLL_SSO_CLIENT_ID,
-  redirect_uri: `${BASE_URL}/callback`,
-  response_type: 'cookie',
-  state: '/',
-})}`
 
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
 type Backend = 'detecting' | FknBackend
@@ -463,7 +446,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     const signingIn = signInThroughWindow({
       url: LOGIN_URL,
       domains: CRUNCHYROLL_DOMAINS,
-      isSignedIn: login => login.locator('#user-menu-authenticated').exists(),
+      isSignedIn: crunchyrollSignedIn,
     })
     setPopupBlocked(false)
     setWindowOpen(true)

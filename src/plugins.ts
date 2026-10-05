@@ -4,8 +4,8 @@ import { packages } from '@fkn/lib'
 
 import { registerRemoteSource, unregisterRemoteSource } from './worker'
 import { STUB_SOURCE_PROTOCOL } from './plugin-api'
+import { loadEnabled, saveEnabled } from './plugin-list'
 
-const ENABLED_KEY = 'stub-enabled-plugins'
 const RECONNECT_DELAY_MS = 3_000
 
 export type PluginStatus = {
@@ -32,21 +32,6 @@ export const pluginStatuses = (): PluginStatus[] =>
   loadEnabled().map(uri => statuses.get(uri) ?? { uri, state: 'connecting' })
 
 export const enabledPluginUris = (): string[] => loadEnabled()
-
-const loadEnabled = (): string[] => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ENABLED_KEY) ?? '[]')
-    return Array.isArray(parsed) ? parsed.filter((uri): uri is string => typeof uri === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-const saveEnabled = (uris: string[]) => {
-  try {
-    localStorage.setItem(ENABLED_KEY, JSON.stringify(uris))
-  } catch {}
-}
 
 const setStatus = (uri: string, status: Omit<PluginStatus, 'uri'>) => {
   statuses.set(uri, { uri, ...status })
@@ -134,6 +119,13 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   await packages.uninstall(uri).catch(() => {})
   notify()
 }
+
+/**
+ * Removes every added source, as Remove does for one. The list in this browser is emptied before this
+ * returns; what it resolves on is FKN uninstalling each package, which may never answer.
+ */
+export const disableAllPlugins = (): Promise<void> =>
+  Promise.all(loadEnabled().map(disablePlugin)).then(() => {})
 
 // picks over npm packages tagged fkn-plugin--stub
 export const addPlugins = async (): Promise<void> => {

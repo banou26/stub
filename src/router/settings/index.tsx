@@ -1,202 +1,178 @@
-import { useEffect, useState } from 'preact/hooks'
-import { css } from '@emotion/react'
+import type { ComponentChildren } from 'preact'
+import type { AccountsProps } from './accounts'
+import type { FknBackend } from '../../utils/fkn-backend'
 
-import { keyConfigs } from '../../sources/key-configs'
-import { loadKeys, saveKeys } from '../../utils/keys'
-import { addPlugins, disablePlugin, enablePlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
+import { css } from '@emotion/react'
+import { useCallback, useEffect, useState } from 'preact/hooks'
+
+import { clearCloudCookies } from '../../sources/cloud-sign-out'
+import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../sources/crunchyroll/session'
+import { signInThroughWindow } from '../../sources/login-window'
+import { isSiteConnected, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
+import { detectBackend } from '../../utils/fkn-backend'
+import { useAccount } from '../../utils/use-account'
+import { cancelReset } from '../scroll-reset'
+import { AccountsSection } from './accounts'
+import { clearers } from './clearers'
+import { DataSection } from './data'
+import { SETTINGS_SECTIONS, sectionFromHash, type SettingsSectionId } from './sections'
+import { SourcesSection } from './sources'
+import { browserStores } from './stored-data'
+import { sectionStyle } from './style'
 
 const style = css`
-  max-width: 720px;
-  margin: calc(var(--stub-header-height) + 3rem) auto 4rem;
-  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  column-gap: 4rem;
+  max-width: 108rem;
+  margin: 0 auto;
+  padding: calc(var(--stub-header-height) + 3rem) 3rem 6rem;
+  color: rgba(255, 255, 255, 0.8);
 
-  h1 { font-size: 2rem; margin-bottom: .25rem; }
-  h2 { font-size: 1.15rem; margin: 2rem 0 .25rem; }
-  .intro { opacity: .75; line-height: 1.55; }
-
-  .keys { display: flex; flex-direction: column; gap: 1.5rem; margin: 1.5rem 0; }
-  .key-field { display: flex; flex-direction: column; gap: .4rem; }
-  .key-field label { font-weight: 600; }
-  .key-field input {
-    padding: .6rem .8rem;
-    border-radius: .4rem;
-    border: 1px solid rgba(255, 255, 255, .18);
-    background: rgba(255, 255, 255, .05);
-    color: inherit;
-    font-family: monospace;
+  & > h1 {
+    grid-column: 1 / -1;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2.4rem;
   }
-  .key-field input:focus { outline: none; border-color: rgba(255, 255, 255, .45); }
-  .help { font-size: .82rem; opacity: .65; }
-  .help a { color: inherit; text-decoration: underline; }
 
-  .actions { display: flex; align-items: center; gap: 1rem; margin-top: .5rem; }
-  button {
-    padding: .55rem 1.3rem;
-    border-radius: .4rem;
-    border: none;
-    cursor: pointer;
-    background: #fff;
-    color: #000;
-    font-weight: 600;
-  }
-  .saved { color: #4ade80; font-size: .9rem; }
-
-  .add-uri { display: flex; gap: .6rem; margin-top: 1rem; }
-  .add-uri input {
-    flex: 1;
-    min-width: 0;
-    padding: .55rem .8rem;
-    border-radius: .4rem;
-    border: 1px solid rgba(255, 255, 255, .18);
-    background: rgba(255, 255, 255, .05);
-    color: inherit;
-    font-family: monospace;
-  }
-  .add-uri input:focus { outline: none; border-color: rgba(255, 255, 255, .45); }
-  .add-error { color: #f87171; font-size: .85rem; margin: .5rem 0 0; overflow-wrap: anywhere; }
-
-  .plugins { display: flex; flex-direction: column; gap: .75rem; margin: 1.5rem 0; }
-  .plugin {
+  .index {
+    position: sticky;
+    top: calc(var(--stub-header-height) + 2rem);
+    align-self: start;
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: .75rem 1rem;
-    border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: .5rem;
+    flex-direction: column;
+    gap: 0.2rem;
   }
-  .plugin .info { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
-  .plugin .name { font-weight: 600; }
-  .plugin .uri { font-size: .8rem; opacity: .6; font-family: monospace; overflow-wrap: anywhere; }
-  .plugin .state { margin-left: auto; font-size: .82rem; opacity: .75; white-space: nowrap; }
-  .plugin .state.error { color: #f87171; opacity: 1; }
-  .plugin .remove {
-    background: none;
-    border: 1px solid rgba(255, 255, 255, .25);
-    color: inherit;
-    font-weight: 400;
-    padding: .35rem .8rem;
+
+  .index a {
+    padding: 0.8rem 1.2rem;
+    border-radius: 0.6rem;
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.6);
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .index a:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+  .index a[aria-current='true'] { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+  .sections { min-width: 0; }
+
+  @media (max-width: 768px) {
+    grid-template-columns: minmax(0, 1fr);
+    padding: calc(var(--stub-header-height) + 2rem) 1.6rem 4rem;
+
+    & > h1 { margin-bottom: 1.4rem; }
+
+    .index {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 2.4rem;
+    }
+
+    .index a {
+      padding: 0.6rem 1.4rem;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 2rem;
+      font-size: 1.4rem;
+    }
   }
 `
 
-const Settings = () => {
-  const [keys, setKeys] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
-  const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
-  const [uri, setUri] = useState('')
-  const [addError, setAddError] = useState('')
+const Section = ({ id, children }: { id: SettingsSectionId, children: ComponentChildren }) => (
+  <section id={id} css={sectionStyle} aria-labelledby={`${id}-title`}>
+    <h2 id={`${id}-title`}>{SETTINGS_SECTIONS.find(section => section.id === id)!.title}</h2>
+    {children}
+  </section>
+)
 
-  useEffect(() => { setKeys(loadKeys()) }, [])
-  // Re-read on subscribe, not just on notify: a plugin whose frame is already warm connects before the effect subscribes, leaving a connected source stuck reading "connecting"
+const crunchyroll: AccountsProps['crunchyroll'] = {
+  signIn: () => signInThroughWindow({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn }),
+  signOut: () => clearCloudCookies(CRUNCHYROLL_DOMAINS),
+}
+
+const sites: AccountsProps['sites'] = {
+  isConnected: isSiteConnected,
+  watch: watchSite,
+  signIn: site => trackerSignIns[site]!(),
+  signOut: signOutOfSite,
+}
+
+const Settings = () => {
+  const account = useAccount()
+  const [backend, setBackend] = useState<FknBackend>()
+  const [current, setCurrent] = useState(() => sectionFromHash(location.hash))
+  const [keysCleared, setKeysCleared] = useState(0)
+  // anything a section changed can change what the Data section lists, which it reads on render
+  const [, setRevision] = useState(0)
+  const changed = useCallback(() => setRevision(revision => revision + 1), [])
+
   useEffect(() => {
-    setPlugins(pluginStatuses())
-    return onPluginsChange(() => setPlugins(pluginStatuses()))
+    let cancelled = false
+    void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
+    return () => { cancelled = true }
   }, [])
 
-  const onAddUri = (event: Event) => {
-    event.preventDefault()
-    const trimmed = uri.trim()
-    if (!trimmed) return
-    setAddError('')
-    enablePlugin(trimmed)
-      .then(() => setUri(''))
-      .catch(error => setAddError(error instanceof Error ? error.message : String(error)))
-      .finally(() => setPlugins(pluginStatuses()))
-  }
+  // A link from elsewhere in the app arrives by pushState, which neither scrolls to a fragment nor stops
+  // the navigation's own reset to the top (router/scroll-reset.ts), so the section is placed here.
+  useEffect(() => {
+    const id = sectionFromHash(location.hash)
+    if (!id) return
+    cancelReset()
+    const frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }))
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
-  const onSubmit = (event: Event) => {
-    event.preventDefault()
-    saveKeys(keys)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2_000)
-  }
+  useEffect(() => {
+    const follow = () => setCurrent(sectionFromHash(location.hash))
+    addEventListener('hashchange', follow)
+    addEventListener('storage', changed)
+    return () => {
+      removeEventListener('hashchange', follow)
+      removeEventListener('storage', changed)
+    }
+  }, [])
 
   return (
     <div css={style}>
       <h1>Settings</h1>
-      <h2>Sources</h2>
-      <p className="intro">
-        Add community-made sources published on npm. They are installed through FKN, run isolated
-        from stub, and only talk to it through a brokered connection.
-      </p>
-      {plugins.length > 0 && (
-        <div className="plugins">
-          {plugins.map(plugin => (
-            <div className="plugin" key={plugin.uri}>
-              <div className="info">
-                <span className="name">
-                  {plugin.sources?.length
-                    ? plugin.sources.map(source => source.name).join(', ')
-                    : plugin.uri}
-                </span>
-                <span className="uri">
-                  {plugin.uri}
-                  {/* a package may register a family of sources, so say how many rather than showing only the first */}
-                  {plugin.sources && plugin.sources.length > 1 ? ` · ${plugin.sources.length} sources` : ''}
-                  {/* a package can register some of its sources and not others, so a partial success is reported */}
-                  {plugin.rejected?.length ? ` · ${plugin.rejected.length} unavailable` : ''}
-                </span>
-              </div>
-              <span className={`state${plugin.state === 'error' ? ' error' : ''}`}>
-                {plugin.state === 'connected' ? 'connected' : plugin.state === 'error' ? (plugin.error ?? 'error') : 'connecting…'}
-              </span>
-              <button
-                type="button"
-                className="remove"
-                onClick={() => { disablePlugin(plugin.uri).then(() => setPlugins(pluginStatuses())) }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="actions">
-        <button type="button" onClick={() => { addPlugins().finally(() => setPlugins(pluginStatuses())) }}>
-          Add sources
-        </button>
-      </div>
-      <form className="add-uri" onSubmit={onAddUri}>
-        <input
-          type="text"
-          autoComplete="off"
-          spellcheck={false}
-          placeholder="Or add one by address, e.g. npm:@banou/example or localhost:4599"
-          value={uri}
-          onInput={event => setUri((event.target as HTMLInputElement).value)}
-        />
-        <button type="submit">Add</button>
-      </form>
-      {addError && <p className="add-error">{addError}</p>}
-      <h2>API keys</h2>
-      <p className="intro">
-        Some sources need your own API key. Keys are kept in this browser only and are used
-        solely to authenticate your requests to that source. Leave a field blank to keep its
-        source disabled.
-      </p>
-      <form className="keys" onSubmit={onSubmit}>
-        {keyConfigs.map(config => (
-          <div className="key-field" key={config.origin}>
-            <label htmlFor={config.origin}>{config.label}</label>
-            <input
-              id={config.origin}
-              type="password"
-              autoComplete="off"
-              spellcheck={false}
-              placeholder={`Paste your ${config.name} key`}
-              value={keys[config.origin] ?? ''}
-              onInput={event => setKeys({ ...keys, [config.origin]: (event.target as HTMLInputElement).value })}
-            />
-            <span className="help">
-              {config.help ? `${config.help} ` : ''}
-              <a href={config.getUrl} target="_blank" rel="noreferrer">Get a key →</a>
-            </span>
-          </div>
+      <nav className="index" aria-label="Settings sections">
+        {SETTINGS_SECTIONS.map(section => (
+          <a key={section.id} href={`#${section.id}`} aria-current={current === section.id ? 'true' : undefined}>{section.title}</a>
         ))}
-        <div className="actions">
-          <button type="submit">Save</button>
-          {saved && <span className="saved">Saved</span>}
-        </div>
-      </form>
+      </nav>
+      <div className="sections">
+        <Section id="accounts">
+          <p className="intro">Every account and sign-in stub uses, what it is for, and how to end it.</p>
+          <AccountsSection account={account} backend={backend} crunchyroll={crunchyroll} sites={sites} onChange={changed}/>
+        </Section>
+        <Section id="sources">
+          <SourcesSection keysCleared={keysCleared} onChange={changed}/>
+        </Section>
+        <Section id="tracking">
+          <p className="intro">
+            Nothing to set here yet. You track a title from its own tracking panel. The AniList and
+            MyAnimeList sign-ins are under <a className="link" href="#accounts">Accounts</a>, and what
+            stub's list keeps is under <a className="link" href="#data">Data</a>.
+          </p>
+        </Section>
+        <Section id="playback">
+          <p className="intro">
+            stub does not remember the player's volume, speed or captions: every episode starts with the
+            player's own defaults.
+          </p>
+        </Section>
+        <Section id="data">
+          <p className="intro">
+            What stub keeps about you, where and for how long. stub has no server of its own: everything
+            here is in your browser, with FKN, or with the site it belongs to.
+          </p>
+          <DataSection stores={browserStores} clearers={clearers} onCleared={id => { if (id === 'api-keys') setKeysCleared(count => count + 1); changed() }}/>
+        </Section>
+      </div>
     </div>
   )
 }
