@@ -1,14 +1,9 @@
 import type { ComponentChildren } from 'preact'
-import type { AccountsProps } from './accounts'
 import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
-import { clearCloudCookies } from '../../sources/cloud-sign-out'
-import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../sources/crunchyroll/session'
-import { signInThroughWindow } from '../../sources/login-window'
-import { isSiteConnected, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
 import { detectBackend } from '../../utils/fkn-backend'
 import { useAccount } from '../../utils/use-account'
 import { cancelReset } from '../scroll-reset'
@@ -19,6 +14,7 @@ import { SETTINGS_SECTIONS, sectionFromHash, type SettingsSectionId } from './se
 import { SourcesSection } from './sources'
 import { browserStores } from './stored-data'
 import { sectionStyle } from './style'
+import { crunchyroll, sites } from './wiring'
 
 const style = css`
   display: grid;
@@ -88,18 +84,6 @@ const Section = ({ id, children }: { id: SettingsSectionId, children: ComponentC
     {children}
   </section>
 )
-
-const crunchyroll: AccountsProps['crunchyroll'] = {
-  signIn: () => signInThroughWindow({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn }),
-  signOut: () => clearCloudCookies(CRUNCHYROLL_DOMAINS),
-}
-
-const sites: AccountsProps['sites'] = {
-  isConnected: isSiteConnected,
-  watch: watchSite,
-  signIn: site => trackerSignIns[site]!(),
-  signOut: signOutOfSite,
-}
 
 const Settings = () => {
   const account = useAccount()

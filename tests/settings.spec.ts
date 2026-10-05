@@ -121,6 +121,7 @@ const headerBottom = (page: Page) => page.locator('header').first().evaluate(hea
 const jumpsTo = async (page: Page, title: string, id: string) => {
   await index(page).getByRole('link', { name: title }).click()
   await expect(page).toHaveURL(new RegExp(`#${id}$`))
+  await expect(index(page).locator('a[aria-current="true"]'), 'the index marks the section it jumped to, and only it').toHaveText([title])
   const heading = page.locator(`section#${id} > h2`)
   await expect(heading).toBeInViewport()
   // below the fixed header, not under it
