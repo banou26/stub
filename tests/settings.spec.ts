@@ -167,11 +167,15 @@ for (const [id, { store, key, after }] of Object.entries(CLEARED)) {
     const row = page.locator(`[data-stored="${id}"]`)
     const before = await readStores(page)
     expect(before[store][key], 'seeded').toBe((SEED[store] as Record<string, string>)[key])
+    const added = page.locator('section#sources .row.plugin')
+    if (id === 'added-sources') await expect(added, 'the seeded source is listed under Sources').toHaveCount(1)
 
     await row.getByRole('button', { name: 'Clear', exact: true }).click()
     expect((await readStores(page))[store][key], 'the first click only asks').toBe(before[store][key])
     await row.getByRole('button', { name: 'Yes, clear' }).click()
     await expect(row).toContainText('Nothing kept')
+    // FKN never answers here, so this is the list moving without waiting on the uninstall
+    if (id === 'added-sources') await expect(added, 'and leaves the Sources list on the same page').toHaveCount(0)
 
     const now = await readStores(page)
     const expected = { ...before, [store]: { ...before[store] } }

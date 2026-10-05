@@ -116,8 +116,9 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   connected.delete(uri)
   statuses.delete(uri)
   unregisterRemoteSource(uri)
-  await packages.uninstall(uri).catch(() => {})
+  // told before the uninstall, which FKN may never answer
   notify()
+  await packages.uninstall(uri).catch(() => {})
 }
 
 /**
