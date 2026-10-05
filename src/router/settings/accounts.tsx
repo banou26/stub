@@ -73,25 +73,22 @@ const useMounted = () => {
 }
 
 const FknRow = ({ account, onChange }: Pick<AccountsProps, 'account' | 'onChange'>) => {
-  const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
+  const heading = useRef<HTMLHeadingElement>(null)
   const { info, ready } = account
 
   const disconnect = () => {
-    setBusy(true)
     setNote(undefined)
-    void account.logout()
-      .then(outcome => {
-        if (!mounted.current) return
-        if (outcome === 'timeout') setNote({ text: 'FKN did not answer, so stub cannot tell whether you were disconnected. Try again.', error: true })
-        onChange?.()
-      })
-      .finally(() => { if (mounted.current) setBusy(false) })
+    return account.logout().then(outcome => {
+      if (!mounted.current) return
+      if (outcome === 'timeout') setNote({ text: 'FKN did not answer, so stub cannot tell whether you were disconnected. Try again.', error: true })
+      onChange?.()
+    })
   }
 
   return (
-    <Row id="fkn" title="FKN account" state={!ready ? 'Checking...' : info ? undefined : 'Not connected'}>
+    <Row id="fkn" title="FKN account" state={!ready ? 'Checking...' : info ? undefined : 'Not connected'} heading={heading}>
       {info
         ? (
           <p>
@@ -104,7 +101,15 @@ const FknRow = ({ account, onChange }: Pick<AccountsProps, 'account' | 'onChange
         ? (
           <div className="actions">
             <a className="link" href={MANAGE_URL} target="_blank" rel="noreferrer">Manage on fkn.app</a>
-            <button type="button" className="secondary" disabled={busy} onClick={disconnect}>{busy ? 'Disconnecting...' : 'Disconnect'}</button>
+            <ConfirmAction
+              label="Disconnect"
+              name="Disconnect your FKN account"
+              home={heading}
+              confirmLabel="Yes, disconnect"
+              busyLabel="Disconnecting..."
+              question="Disconnect your FKN account? If stub keeps its list in your account, that list leaves this device, and any list changes this device has not sent to the account yet are lost."
+              onConfirm={disconnect}
+            />
           </div>
         )
         : undefined}

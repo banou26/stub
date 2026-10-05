@@ -60,12 +60,27 @@ describe('the FKN account', () => {
     expect(row('fkn').querySelector('a')?.getAttribute('href')).toBe('https://fkn.app/account')
 
     await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
+    await act(async () => { button(row('fkn'), 'Yes, disconnect')!.click() })
+    await flush()
     expect(logout).toHaveBeenCalledTimes(1)
+  })
+
+  test('Disconnect asks first, and says that list changes not sent to the account yet are lost', async () => {
+    const logout = vi.fn(async () => 'settled' as const)
+    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout } })
+    expect(button(row('fkn'), 'Disconnect')!.getAttribute('aria-label')).toBe('Disconnect your FKN account')
+    await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
+    expect(logout, 'the first click only asks').not.toHaveBeenCalled()
+    expect(row('fkn').textContent).toContain('not sent to the account yet are lost')
+
+    await act(async () => { button(row('fkn'), 'Cancel')!.click() })
+    expect(logout).not.toHaveBeenCalled()
   })
 
   test('a disconnect FKN never answered is not reported as one', async () => {
     const { row } = render({ account: { info: SIGNED_IN, ready: true, logout: async () => 'timeout' } })
     await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
+    await act(async () => { button(row('fkn'), 'Yes, disconnect')!.click() })
     await flush()
     expect(row('fkn').textContent).toContain('FKN did not answer')
   })
