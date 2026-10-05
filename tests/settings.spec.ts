@@ -210,3 +210,14 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
   await expect(page.locator('[data-account="anilist"]')).toContainText('Not connected')
   await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
 })
+
+test('the privacy page says what stub keeps, and links to where it is cleared', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto(`${origin}/privacy`)
+  const body = page.locator('body')
+  for (const title of ['API keys', 'Added sources', 'Search layout', 'Party name', "Stub's list"]) await expect(body).toContainText(title)
+  await expect(body).not.toContainText('Everything else stub holds is cleared when you close or refresh the tab')
+  await page.getByRole('link', { name: 'Settings, under Data' }).click()
+  await expect(page).toHaveURL(/\/settings#data$/)
+  await expect(page.locator('section#data > h2')).toBeInViewport()
+})
