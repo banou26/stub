@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from 'preact/hooks'
 
 import { detectBackend } from '../../utils/fkn-backend'
 import { useAccount } from '../../utils/use-account'
-import { cancelReset } from '../scroll-reset'
 import { AccountsSection } from './accounts'
 import { clearers } from './clearers'
 import { DataSection } from './data'
@@ -100,12 +99,12 @@ const Settings = () => {
     return () => { cancelled = true }
   }, [])
 
-  // A link from elsewhere in the app arrives by pushState, which neither scrolls to a fragment nor stops
-  // the navigation's own reset to the top (router/scroll-reset.ts), so the section is placed here.
+  // A link from elsewhere in the app arrives by pushState, which does not scroll to a fragment, so the
+  // section is placed here. The navigation's own reset to the top (router/scroll-reset.ts) asked for its
+  // frame during the pushState, before this effect ran, so it has already run when this frame does.
   useEffect(() => {
     const id = sectionFromHash(location.hash)
     if (!id) return
-    cancelReset()
     const frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [])
