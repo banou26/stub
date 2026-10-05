@@ -1,4 +1,4 @@
-import type { ComponentChildren } from 'preact'
+import type { ComponentChildren, RefObject } from 'preact'
 import type { WindowSignIn } from '../../sources/login-window'
 import type { TrackerSite } from '../../tracking/site-sessions'
 import type { DisconnectOutcome } from '../../utils/account-session'
@@ -51,18 +51,19 @@ const signInNote = (name: string, outcome: WindowSignIn): Note => {
   }
 }
 
-const Row = ({ id, title, state, on, children }: { id: string, title: string, state?: string, on?: boolean, children: ComponentChildren }) => (
+const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement>, children: ComponentChildren }) => (
   <div className="row account" data-account={id}>
     <div className="head">
-      <h3>{title}</h3>
+      <h3 ref={heading} tabIndex={-1}>{title}</h3>
       {state ? <span className={`state${on ? ' on' : ''}`}>{state}</span> : undefined}
     </div>
     {children}
   </div>
 )
 
+// always mounted, empty until there is a note: a status region inserted with its text is not announced by every screen reader
 const NoteLine = ({ note }: { note: Note | undefined }) =>
-  note ? <p className={`note${note.error ? ' error' : ''}`} role="status">{note.text}</p> : null
+  <p className={`note${note?.error ? ' error' : ''}`} role="status">{note?.text}</p>
 
 /** Keeps a note from landing on a row that is gone. */
 const useMounted = () => {
@@ -121,6 +122,7 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
+  const heading = useRef<HTMLHeadingElement>(null)
 
   const signIn = () => {
     const signingIn = crunchyroll.signIn()
@@ -138,7 +140,7 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
   )
 
   return (
-    <Row id="crunchyroll" title="Crunchyroll">
+    <Row id="crunchyroll" title="Crunchyroll" heading={heading}>
       <p>Plays Crunchyroll episodes on your own Crunchyroll account.</p>
       {backend === 'cloud'
         ? (
@@ -151,6 +153,8 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
               <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>
               <ConfirmAction
                 label="Sign out"
+                name="Sign out of Crunchyroll"
+                home={heading}
                 confirmLabel="Yes, sign out"
                 busyLabel="Signing out..."
                 question={`Sign out of Crunchyroll? This removes its cookies from FKN's jar, which signs every fkn.app app out of Crunchyroll. ${notTold('Crunchyroll')}`}
@@ -182,6 +186,7 @@ const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: Trac
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
+  const heading = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     setConnected(sites.isConnected(site))
@@ -225,7 +230,7 @@ const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: Trac
   )
 
   return (
-    <Row id={site} title={name} state={connected ? 'Connected on this device' : 'Not connected'} on={connected}>
+    <Row id={site} title={name} state={connected ? 'Connected on this device' : 'Not connected'} on={connected} heading={heading}>
       <p>
         Tracks your {name} list with your own {host} session.{' '}
         {backend === 'cloud' ? CLOUD_JAR : backend === 'extension' ? `With the FKN extension, stub uses your browser's own ${host} session.` : ''}
@@ -237,6 +242,8 @@ const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: Trac
               ? (
                 <ConfirmAction
                   label={backend === 'cloud' ? 'Sign out' : 'Disconnect'}
+                  name={backend === 'cloud' ? `Sign out of ${name}` : `Disconnect ${name}`}
+                  home={heading}
                   confirmLabel={backend === 'cloud' ? 'Yes, sign out' : 'Yes, disconnect'}
                   busyLabel={backend === 'cloud' ? 'Signing out...' : 'Disconnecting...'}
                   question={backend === 'cloud'

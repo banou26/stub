@@ -116,7 +116,7 @@ export const SourcesSection = ({ keysCleared, onChange }: { keysCleared: number,
 
   return (
     <div css={style}>
-      <p className="subheading">Built in</p>
+      <h3 className="subheading">Built in</h3>
       <p className="intro">
         stub ships with these {builtInSources.length} sources, always on. The ones that need your own key do
         nothing until you add it below.
@@ -132,7 +132,7 @@ export const SourcesSection = ({ keysCleared, onChange }: { keysCleared: number,
         ))}
       </ul>
 
-      <p className="subheading">Your keys</p>
+      <h3 className="subheading">Your keys</h3>
       <p className="intro">
         Keys are kept in this browser only and are sent only with the requests to their own source. Leave a
         field blank to keep its source off.
@@ -162,7 +162,7 @@ export const SourcesSection = ({ keysCleared, onChange }: { keysCleared: number,
         </div>
       </form>
 
-      <p className="subheading">Added</p>
+      <h3 className="subheading">Added</h3>
       <p className="intro">
         Community-made sources published on npm. They are installed through FKN, run isolated from stub, and
         only talk to it through a brokered connection.

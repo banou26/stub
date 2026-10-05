@@ -94,3 +94,10 @@ test('an item cleared elsewhere says where, and links to its section', () => {
   expect(button(row('party-invite'), 'Clear')).toBeFalsy()
   expect(button(row('stub-list'), 'Clear')).toBeFalsy()
 })
+
+test('each Clear is named for its row, so a screen reader can tell them apart', () => {
+  const { row } = render()
+  expect(button(row('api-keys'), 'Clear')!.getAttribute('aria-label')).toBe('Clear API keys')
+  expect(button(row('search-layout'), 'Clear')!.getAttribute('aria-label')).toBe('Clear search layout')
+  expect(button(row('party-name'), 'Clear')!.getAttribute('aria-label')).toBe('Clear party name')
+})

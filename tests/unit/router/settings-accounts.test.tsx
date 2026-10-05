@@ -183,3 +183,23 @@ test('while it is not known yet whether the extension runs, no site offers an ac
   const { row } = render({ backend: undefined, sites: fakeSites(['anilist']) })
   for (const id of ['crunchyroll', 'anilist', 'mal', 'netflix']) expect(row(id).querySelectorAll('button'), id).toHaveLength(0)
 })
+
+describe('for a screen reader', () => {
+  test('each sign out is named for its site', () => {
+    const { row } = render({ sites: fakeSites(['anilist']) })
+    expect(button(row('crunchyroll'), 'Sign out')!.getAttribute('aria-label')).toBe('Sign out of Crunchyroll')
+    expect(button(row('anilist'), 'Sign out')!.getAttribute('aria-label')).toBe('Sign out of AniList')
+
+    const extension = render({ backend: 'extension', sites: fakeSites(['mal']) })
+    expect(button(extension.row('mal'), 'Disconnect')!.getAttribute('aria-label')).toBe('Disconnect MyAnimeList')
+  })
+
+  test('every row holds its status region from the start, so the note it later gets is announced', () => {
+    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout: async () => 'settled' } })
+    for (const id of ['fkn', 'crunchyroll', 'anilist', 'mal']) {
+      const status = row(id).querySelector('[role="status"]')
+      expect(status, id).toBeTruthy()
+      expect(status!.textContent, id).toBe('')
+    }
+  })
+})

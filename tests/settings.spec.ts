@@ -110,6 +110,7 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
   await expect(page.locator('section#sources')).toContainText('Crunchyroll')
   await expect(page.locator('section#sources')).toContainText('OMDb')
+  await expect(page.locator('section#sources h3'), 'its parts are headings, under the section\'s own').toHaveText(['Built in', 'Your keys', 'Added'])
   await expect(page.locator('section#playback')).toContainText('does not remember')
   for (const id of ['api-keys', 'added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
     await expect(page.locator(`[data-stored="${id}"]`), id).toBeVisible()
@@ -153,16 +154,17 @@ test('a link to a section opens the page at it', async ({ page }) => {
   await expect(page.locator('section#accounts > h2')).not.toBeInViewport()
 })
 
-const CLEARED: Record<string, { store: 'local' | 'session', key: string, after: string | undefined }> = {
-  'api-keys': { store: 'local', key: 'stub.apikeys', after: undefined },
+// each Clear is named for its row, since the page holds five of them
+const CLEARED: Record<string, { store: 'local' | 'session', key: string, after: string | undefined, name: string }> = {
+  'api-keys': { store: 'local', key: 'stub.apikeys', after: undefined, name: 'Clear API keys' },
   // the plugin list writes the list it has left, which is none
-  'added-sources': { store: 'local', key: 'stub-enabled-plugins', after: '[]' },
-  'search-layout': { store: 'local', key: 'stub-search-display-mode', after: undefined },
-  'quick-tracking': { store: 'local', key: 'stub.tracking.compact', after: undefined },
-  'party-name': { store: 'session', key: 'stub-party-name', after: undefined },
+  'added-sources': { store: 'local', key: 'stub-enabled-plugins', after: '[]', name: 'Clear added sources' },
+  'search-layout': { store: 'local', key: 'stub-search-display-mode', after: undefined, name: 'Clear search layout' },
+  'quick-tracking': { store: 'local', key: 'stub.tracking.compact', after: undefined, name: 'Clear quick tracking choices' },
+  'party-name': { store: 'session', key: 'stub-party-name', after: undefined, name: 'Clear party name' },
 }
 
-for (const [id, { store, key, after }] of Object.entries(CLEARED)) {
+for (const [id, { store, key, after, name }] of Object.entries(CLEARED)) {
   test(`Clear on ${id} clears that store, after asking, and nothing else`, async ({ page }) => {
     await seeded(page)
     const row = page.locator(`[data-stored="${id}"]`)
@@ -171,7 +173,7 @@ for (const [id, { store, key, after }] of Object.entries(CLEARED)) {
     const added = page.locator('section#sources .row.plugin')
     if (id === 'added-sources') await expect(added, 'the seeded source is listed under Sources').toHaveCount(1)
 
-    await row.getByRole('button', { name: 'Clear', exact: true }).click()
+    await row.getByRole('button', { name, exact: true }).click()
     expect((await readStores(page))[store][key], 'the first click only asks').toBe(before[store][key])
     await row.getByRole('button', { name: 'Yes, clear' }).click()
     await expect(row).toContainText('Nothing kept')
@@ -195,21 +197,45 @@ test('cleared keys leave the key fields empty', async ({ page }) => {
   await seeded(page)
   await expect(page.locator('input#omdb')).toHaveValue('a-key-for-the-spec')
   const row = page.locator('[data-stored="api-keys"]')
-  await row.getByRole('button', { name: 'Clear', exact: true }).click()
+  await row.getByRole('button', { name: 'Clear API keys', exact: true }).click()
   await row.getByRole('button', { name: 'Yes, clear' }).click()
   await expect(page.locator('input#omdb')).toHaveValue('')
 })
 
+test('a confirmation opens on Cancel, Cancel gives focus back to its button, and a confirm leaves it on the row', async ({ page }) => {
+  await seeded(page)
+  const row = page.locator('[data-stored="search-layout"]')
+  const clear = row.getByRole('button', { name: 'Clear search layout', exact: true })
+  await clear.focus()
+  await page.keyboard.press('Enter')
+  await expect(row.getByRole('button', { name: 'Cancel' })).toBeFocused()
+
+  // so Enter, Enter is a Cancel, never a clear
+  await page.keyboard.press('Enter')
+  await expect(clear).toBeFocused()
+  expect((await readStores(page)).local['stub-search-display-mode']).toBe('list')
+
+  await page.keyboard.press('Enter')
+  await expect(row.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(row.getByRole('button', { name: 'Yes, clear' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(row).toContainText('Nothing kept')
+  expect((await readStores(page)).local['stub-search-display-mode']).toBeUndefined()
+  await expect(row.getByRole('heading', { name: 'Search layout' }), 'the Clear is gone, so focus goes to its row').toBeFocused()
+})
+
 test('signing out of AniList and MyAnimeList disconnects each on this device, one at a time', async ({ page }) => {
   await seeded(page, '/settings#accounts')
-  for (const [site, left] of [['anilist', ['mal']], ['mal', []]] as const) {
+  for (const [site, title, left] of [['anilist', 'AniList', ['mal']], ['mal', 'MyAnimeList', []]] as const) {
     const row = page.locator(`[data-account="${site}"]`)
     await expect(row).toContainText('Connected on this device')
-    await row.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await row.getByRole('button', { name: `Sign out of ${title}`, exact: true }).click()
     expect(JSON.parse((await readStores(page)).local['stub.sessions']!), 'the first click only asks').toContain(site)
     await row.getByRole('button', { name: 'Yes, sign out' }).click()
     await expect(row).toContainText('Not connected')
     expect(JSON.parse((await readStores(page)).local['stub.sessions']!)).toEqual(left)
+    await expect(row.getByRole('heading', { name: title }), 'focus stays on the row, whose button is gone').toBeFocused()
   }
   await page.reload()
   await expect(page.locator('[data-account="anilist"]')).toContainText('Not connected')

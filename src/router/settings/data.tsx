@@ -1,6 +1,6 @@
 import type { BrowserStores, StoredItem } from './stored-data'
 
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 
 import { ConfirmAction } from './confirm'
 import { SETTINGS_SECTIONS } from './sections'
@@ -16,8 +16,12 @@ export type DataProps = {
 
 const sectionTitle = (id: string) => SETTINGS_SECTIONS.find(section => section.id === id)?.title
 
+// 'Added sources' reads as 'Clear added sources', and 'API keys' keeps its capitals
+const inSentence = (title: string) => /^[A-Z][a-z]/.test(title) ? title[0]!.toLowerCase() + title.slice(1) : title
+
 const Item = ({ item, stores, clearers, onCleared, onClear }: { item: StoredItem, onClear: () => void } & DataProps) => {
   const holds = holdsAnything(item, stores)
+  const heading = useRef<HTMLHeadingElement>(null)
   const clear = async () => {
     const own = clearers?.[item.id]
     if (own) await own()
@@ -29,7 +33,7 @@ const Item = ({ item, stores, clearers, onCleared, onClear }: { item: StoredItem
   return (
     <div className="row" data-stored={item.id}>
       <div className="head">
-        <h3>{item.title}</h3>
+        <h3 ref={heading} tabIndex={-1}>{item.title}</h3>
         {item.keys && !holds ? <span className="state">Nothing kept</span> : undefined}
       </div>
       <p>{item.what}</p>
@@ -43,7 +47,15 @@ const Item = ({ item, stores, clearers, onCleared, onClear }: { item: StoredItem
         ? holds
           ? (
             <div className="actions">
-              <ConfirmAction label="Clear" confirmLabel="Yes, clear" busyLabel="Clearing..." question={item.confirm ?? `Clear ${item.title}?`} onConfirm={clear}/>
+              <ConfirmAction
+                label="Clear"
+                name={`Clear ${inSentence(item.title)}`}
+                confirmLabel="Yes, clear"
+                busyLabel="Clearing..."
+                question={item.confirm ?? `Clear ${inSentence(item.title)}?`}
+                onConfirm={clear}
+                home={heading}
+              />
             </div>
           )
           : undefined
