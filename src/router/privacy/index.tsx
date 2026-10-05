@@ -37,7 +37,7 @@ const Privacy = () => (
     <h2>What stub keeps</h2>
     <p>
       stub sets no advertising or tracking cookies and runs no analytics or telemetry. This is everything
-      it keeps, where, and for how long. Each item is listed again, with a way to clear it, in{' '}
+      it keeps, where, and for how long. Each item is listed again, with how to clear it, in{' '}
       <Link to="/settings#data">Settings, under Data</Link>.
     </p>
     <ul css={keptStyle}>
@@ -54,16 +54,19 @@ const Privacy = () => (
       device and in the account's storage, encrypted in your browser before they leave the device, so
       every device signed in to the same account shows them. A list you kept before signing in is added
       to the account only if you choose to. When you sign out, the account's list is removed from the
-      device.
+      device. Removing an entry keeps a record that it was removed, with the entry's title and last
+      values, so that every device using the list removes it too. There is no way to clear these records
+      yet.
     </p>
 
     <h2>Sign-ins to other sites</h2>
     <p>
       stub plays Crunchyroll and tracks your AniList and MyAnimeList lists with your own accounts on those
-      sites, and you sign in on each site's own page, in an FKN window. Without the FKN browser extension,
+      sites. Without the FKN browser extension, you sign in on each site's own page, in an FKN window, and
       the cookies that sign-in sets are kept by FKN, in a cookie jar every fkn.app app shares, and not by
-      stub. Signing out in <Link to="/settings#accounts">Settings, under Accounts</Link> removes them from
-      FKN. The site itself is not told, so its session stays valid there until it expires, held by nobody.
+      stub. Signing out in <Link to="/settings#accounts">Settings, under Accounts</Link>, removes that
+      site's cookies from FKN. The site itself is not told, so its session stays valid there until it
+      expires, held by nobody.
     </p>
     <p>
       With the extension, stub uses your browser's own sessions for these sites and for Netflix. Those stay
@@ -74,9 +77,11 @@ const Privacy = () => (
     <p>
       To fetch titles, artwork, and streams, stub sends requests through the FKN platform
       proxy, which then reaches third-party services such as AniList, MyAnimeList,
-      Crunchyroll, JustWatch, and Netflix. The proxy processes only the connection metadata
-      needed to route and rate-limit a request (for example your IP address) and requires
-      no account; how the FKN platform handles that data is described in the{' '}
+      Crunchyroll, JustWatch, and Netflix. The proxy requires no account. It uses your IP
+      address to rate-limit requests, and it keeps a copy of each answer for a while, under a
+      key made from the whole request (its address, headers and body), so only an identical
+      request is answered from that copy. How the FKN platform handles that data is described
+      in the{' '}
       <a href="https://fkn.app/privacy" target="_blank" rel="noreferrer noopener">
         FKN platform privacy policy
       </a>
@@ -94,9 +99,9 @@ const Privacy = () => (
 
     <h2>Your control</h2>
     <p>
-      Everything above can be seen and cleared in Settings. Your watch list stays until you remove its
-      entries, and signing out of FKN takes your account's list off the device. Your party name and the
-      party you are in go when you close the tab. If you use the browser extension, you can review and
+      Everything above is listed in Settings, under Data, with how to clear it. Signing out of FKN takes
+      your account's list off the device. Your party name and the party you are in go when you close the
+      tab. If you use the browser extension, you can review and
       revoke its access at any time from the extension itself.
     </p>
 

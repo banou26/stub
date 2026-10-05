@@ -112,6 +112,7 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('section#sources')).toContainText('OMDb')
   await expect(page.locator('section#sources h3'), 'its parts are headings, under the section\'s own').toHaveText(['Built in', 'Your keys', 'Added'])
   await expect(page.locator('section#playback')).toContainText('does not remember')
+  await expect(page.locator('section#data .intro'), 'each address of stub is its own origin').toContainText('each keeps its own copy')
   for (const id of ['api-keys', 'added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
     await expect(page.locator(`[data-stored="${id}"]`), id).toBeVisible()
   }

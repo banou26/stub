@@ -102,6 +102,17 @@ describe('what stub keeps per viewer', () => {
     expect(byId('player').lasts, 'nothing of the player is kept (P0)').toMatch(/not kept/i)
   })
 
+  test("says a removed entry stays in stub's list, with its title and last values, and cannot be cleared yet", () => {
+    expect(byId('stub-list').lasts).toContain('a removed entry stays in it, with its title and last values')
+    expect(byId('stub-list').clearedBy?.text).toContain('there is no way to clear these records yet')
+    expect(byId('stub-list').what).toContain("each title's name and cover")
+  })
+
+  test('says what this browser keeps is per address of stub, since each address is its own origin', () => {
+    for (const item of STORED.filter(candidate => candidate.keys?.store === 'local')) expect(item.where, item.id).toContain('at this address')
+    expect(byId('stub-list').where).toContain('at this address')
+  })
+
   test('the sites a sign in connected are cleared under Accounts, and the party you are in by leaving it', () => {
     expect(isClearedHere(byId('connected-sites'))).toBe(false)
     expect(byId('connected-sites').clearedBy?.section).toBe('accounts')

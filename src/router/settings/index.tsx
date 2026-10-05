@@ -151,7 +151,9 @@ const Settings = () => {
         <Section id="data">
           <p className="intro">
             What stub keeps about you, where and for how long. stub has no server of its own: everything
-            here is in your browser, with FKN, or with the site it belongs to.
+            here is in your browser, with FKN, or with the site it belongs to. stub at anime.fkn.app and stub
+            inside fkn.app are two addresses, and each keeps its own copy of what is in this browser. The
+            site sign-ins FKN keeps are one set for every fkn.app app.
           </p>
           <DataSection stores={browserStores} clearers={clearers} onCleared={id => { if (id === 'api-keys') setKeysCleared(count => count + 1); changed() }}/>
         </Section>

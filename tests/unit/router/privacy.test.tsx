@@ -37,3 +37,29 @@ test('says the site sign-ins are kept by FKN for every fkn.app app, and where to
   expect(page).toContain('every fkn.app app')
   expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(expect.arrayContaining(['/settings#data', '/settings#accounts']))
 })
+
+test("says a removed list entry stays as a record that it was removed, and that nothing clears it yet", () => {
+  const { text: page } = text()
+  expect(page).not.toMatch(/your watch list stays until you remove its entries/i)
+  expect(page).toContain('Removing an entry keeps a record that it was removed')
+  expect(page).toContain('There is no way to clear these records yet')
+})
+
+test('does not claim Settings clears everything, only that it lists each item with how to clear it', () => {
+  const { text: page } = text()
+  expect(page).not.toMatch(/can be seen and cleared in Settings/i)
+  expect(page).not.toMatch(/with a way to clear it/i)
+  expect(page).toContain('Everything above is listed in Settings, under Data, with how to clear it.')
+})
+
+test("a sign out removes that site's cookies, and the FKN window is the case without the extension", () => {
+  const { text: page } = text()
+  expect(page).toContain("Without the FKN browser extension, you sign in on each site's own page, in an FKN window")
+  expect(page).toContain("removes that site's cookies from FKN")
+})
+
+test('says the relay keeps a copy of each answer, rather than only connection metadata', () => {
+  const { text: page } = text()
+  expect(page).not.toMatch(/processes only the connection metadata/i)
+  expect(page).toContain('keeps a copy of each answer for a while')
+})
