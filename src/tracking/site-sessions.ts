@@ -1,6 +1,6 @@
 // The main thread's session frames, one per site a tracker reaches with the viewer's own session
-// (anilist.co and myanimelist.net), and the sign in that connects a site on this device. src/worker.ts
-// exposes `sessionResolvers` to the worker on the `sessions` osra key.
+// (anilist.co and myanimelist.net), the sign in that connects a site on this device and the sign out
+// that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the `sessions` osra key.
 
 import type { WindowSignIn } from '../sources/login-window'
 import type { PageApi } from './site-session'
@@ -10,28 +10,17 @@ import { expose } from 'osra'
 
 import anilistPageScript from '../sources/anilist/session-page.ts?page-script'
 import { ANILIST_DOMAINS, ANILIST_LOGIN_URL, ANILIST_ORIGIN, ANILIST_SESSION_URL, anilistSignedIn } from '../sources/anilist/session'
+import { clearCloudCookies } from '../sources/cloud-sign-out'
 import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
-import { attachCookies, detectBackend } from '../utils/fkn-backend'
-import { createConnections, signInAndConnect, siteSessionResolvers } from './connections'
+import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-backend'
+import { mountHiddenFrame } from '../utils/hidden-frame'
+import { createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
 import { createSessionFrames } from './session-frames'
 
 const ANILIST_REASON = 'Read and update your AniList list with your own anilist.co session'
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
-
-// clipped rather than `display: none`, the way FKN hides its own broker frame, so the page in it runs
-// laid out like any other
-const mountHidden = () => {
-  const iframe = document.createElement('iframe')
-  iframe.title = 'Session'
-  iframe.tabIndex = -1
-  iframe.setAttribute('aria-hidden', 'true')
-  iframe.referrerPolicy = 'no-referrer'
-  iframe.style.cssText = 'position: fixed; top: 0; left: 0; width: 400px; height: 300px; border: 0; clip-path: inset(100%); pointer-events: none;'
-  document.body.appendChild(iframe)
-  return { iframe, remove: () => iframe.remove() }
-}
 
 const frames = createSessionFrames<PageApi>(
   [{
@@ -53,7 +42,7 @@ const frames = createSessionFrames<PageApi>(
   {
     // the backend the sign-in picks too, so the frame reads the session the sign-in reached
     attach: async options => attachFrame({ ...options, cookies: attachCookies(await detectBackend()) }),
-    mount: mountHidden,
+    mount: () => mountHiddenFrame('Session'),
     connect: port => expose<PageApi>({}, { transport: port }),
     appOrigin: location.origin,
     key: () => crypto.randomUUID(),
@@ -95,4 +84,25 @@ export const signInToMyAnimeList = (): Promise<WindowSignIn> =>
 export const trackerSignIns: Record<string, () => Promise<WindowSignIn>> = {
   anilist: signInToAniList,
   mal: signInToMyAnimeList,
+}
+
+/** The sites a tracker reaches with the viewer's own session, by stub's name for them. */
+export type TrackerSite = 'anilist' | 'mal'
+
+const SITE_DOMAINS: Record<TrackerSite, string[]> = { anilist: ANILIST_DOMAINS, mal: MAL_DOMAINS }
+
+/** Whether the viewer signed in to the site through stub on this device. */
+export const isSiteConnected = (site: TrackerSite): boolean => connections.isConnected(site)
+
+/** Called after every sign in to the site and every sign out of it. */
+export const watchSite = (site: TrackerSite, listener: () => void): (() => void) => frames.watch(site, listener)
+
+/**
+ * Stops stub reaching the site with the viewer's session on this device, at once, and on the cloud then
+ * removes the site's cookies from FKN's jar (`clearCloudCookies`). Rejects when that removal failed; the
+ * site is disconnected here either way. With the extension the session is the browser's own and stays.
+ */
+export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Promise<void> => {
+  disconnectAndReload(site, { frames, connections })
+  if (backend === 'cloud') await clearCloudCookies(SITE_DOMAINS[site])
 }

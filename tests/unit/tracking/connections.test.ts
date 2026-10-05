@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest'
 import type { SessionFrames } from '../../../src/tracking/session-frames'
 import type { PageApi } from '../../../src/tracking/site-session'
 
-import { CONNECTED_KEY, createConnections, signInAndConnect, siteSessionResolvers } from '../../../src/tracking/connections'
+import { CONNECTED_KEY, createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from '../../../src/tracking/connections'
 
 const memoryStorage = (initial: Record<string, string> = {}) => {
   const values = new Map(Object.entries(initial))
@@ -109,5 +109,54 @@ describe('a sign in', () => {
     const signIn = vi.fn(() => new Promise<'authed'>(() => {}))
     void signInAndConnect('anilist', signIn, { frames, connections: createConnections(() => memoryStorage()) })
     expect(signIn).toHaveBeenCalledTimes(1)
+  })
+})
+
+// The way back from a sign in (HOR-225): stub stops reaching the site with the viewer's session on this
+// device, and every tracker answer is read again.
+describe('a disconnect', () => {
+  test('forgets the site on this device and keeps every other one', () => {
+    const storage = memoryStorage({ [CONNECTED_KEY]: JSON.stringify(['anilist', 'mal']) })
+    const connections = createConnections(() => storage)
+    connections.disconnect('anilist')
+
+    expect(connections.isConnected('anilist')).toBe(false)
+    expect(connections.isConnected('mal')).toBe(true)
+    expect(JSON.parse(storage.values.get(CONNECTED_KEY)!)).toEqual(['mal'])
+    expect(createConnections(() => storage).isConnected('anilist'), 'the next page reads it gone too').toBe(false)
+  })
+
+  test('undoes a connection made on this page, and a sign in after it connects again', () => {
+    const storage = memoryStorage()
+    const connections = createConnections(() => storage)
+    connections.connect('anilist')
+    connections.disconnect('anilist')
+    expect(connections.isConnected('anilist')).toBe(false)
+
+    connections.connect('anilist')
+    expect(connections.isConnected('anilist')).toBe(true)
+    expect(JSON.parse(storage.values.get(CONNECTED_KEY)!)).toEqual(['anilist'])
+  })
+
+  test('a storage that refuses the write still disconnects for this page', () => {
+    const values = new Map([[CONNECTED_KEY, JSON.stringify(['anilist'])]])
+    const connections = createConnections(() => ({
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: () => { throw new Error('QuotaExceededError') },
+    }))
+    connections.disconnect('anilist')
+    expect(connections.isConnected('anilist')).toBe(false)
+  })
+
+  test('drops the frame, so the worker hears it and asks again, and attaches nothing after', async () => {
+    const { frames, use, reload } = fakeFrames()
+    const storage = memoryStorage({ [CONNECTED_KEY]: JSON.stringify(['anilist']) })
+    const connections = createConnections(() => storage)
+    const resolvers = siteSessionResolvers(frames, connections)
+
+    disconnectAndReload('anilist', { frames, connections })
+    expect(reload).toHaveBeenCalledWith('anilist')
+    expect(await resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'not-connected' })
+    expect(use).not.toHaveBeenCalled()
   })
 })

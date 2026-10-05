@@ -12,6 +12,7 @@ export const CONNECTED_KEY = 'stub.sessions'
 export type Connections = {
   isConnected: (site: string) => boolean
   connect: (site: string) => void
+  disconnect: (site: string) => void
 }
 
 /**
@@ -24,6 +25,8 @@ export type Connections = {
  */
 export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setItem'>): Connections => {
   const here = new Set<string>()
+  // disconnected on this page while the storage refused to forget them
+  const dropped = new Set<string>()
   const stored = (): string[] => {
     try {
       const value: unknown = JSON.parse(storage().getItem(CONNECTED_KEY) ?? '[]')
@@ -33,13 +36,22 @@ export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setI
     }
   }
   return {
-    isConnected: site => here.has(site) || stored().includes(site),
+    isConnected: site => here.has(site) || (!dropped.has(site) && stored().includes(site)),
     connect: site => {
       here.add(site)
+      dropped.delete(site)
       try {
         storage().setItem(CONNECTED_KEY, JSON.stringify([...new Set([...stored(), site])]))
       } catch {
         // kept for this page only
+      }
+    },
+    disconnect: site => {
+      here.delete(site)
+      try {
+        storage().setItem(CONNECTED_KEY, JSON.stringify(stored().filter(other => other !== site)))
+      } catch {
+        dropped.add(site)
       }
     },
   }
@@ -84,3 +96,16 @@ export const signInAndConnect = (
     }
     return outcome
   })
+
+/**
+ * The way back from `signInAndConnect`: the site is no longer connected here and its frame is dropped,
+ * so the next call answers not-connected and the trackers that watch it read it again. The site's own
+ * session is left as it is.
+ */
+export const disconnectAndReload = (
+  site: string,
+  { frames, connections }: { frames: Pick<SessionFrames<unknown>, 'reload'>, connections: Connections },
+): void => {
+  connections.disconnect(site)
+  frames.reload(site)
+}

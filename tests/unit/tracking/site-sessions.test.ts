@@ -145,3 +145,75 @@ describe('which jar a session runs on', () => {
     expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'persistent' }))
   })
 })
+
+// The way out of a site sign in, from the settings page (HOR-225).
+describe('signing out of a site', () => {
+  const recordFrames = () => {
+    const iframes: { removed: boolean }[] = []
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const iframe = { style: {}, removed: false, setAttribute: () => {}, remove: () => { iframe.removed = true } }
+        iframes.push(iframe)
+        return iframe
+      },
+      body: { appendChild: () => {} },
+      readyState: 'complete',
+    })
+    return iframes
+  }
+
+  test("on the cloud, disconnects the site here, drops its frame, and removes the site's cookies from FKN's jar", async () => {
+    const { sessionResolvers, signOutOfSite, isSiteConnected } = await load()
+    const iframes = recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['anilist', 'mal']))
+    const page = hiddenFrame()
+    attach.mockResolvedValueOnce(page.frame)
+    await sessionResolvers.call('anilist', 'whoami', {})
+    expect(isSiteConnected('anilist')).toBe(true)
+
+    const clearCookies = vi.fn(async () => {})
+    attach.mockResolvedValueOnce({ clearCookies })
+    await signOutOfSite('anilist', 'cloud')
+
+    expect(isSiteConnected('anilist')).toBe(false)
+    expect(isSiteConnected('mal'), 'the other site stays connected').toBe(true)
+    expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['mal'])
+    expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: ['anilist.co'], cookies: 'persistent' })
+    expect(clearCookies).toHaveBeenCalledTimes(1)
+    expect(iframes.every(iframe => iframe.removed), "the session frame and the sign out's own frame are both gone").toBe(true)
+    expect(await sessionResolvers.call('anilist', 'whoami', {})).toEqual({ kind: 'not-connected' })
+  })
+
+  test("with the extension, only disconnects: the session is the browser's own and FKN clears none of it", async () => {
+    extension.exposed = true
+    const { signOutOfSite, isSiteConnected } = await load()
+    recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['mal']))
+
+    await signOutOfSite('mal', 'extension')
+    expect(isSiteConnected('mal')).toBe(false)
+    expect(attach).not.toHaveBeenCalled()
+  })
+
+  test('tells whoever watches the site, so a page showing it reads it again', async () => {
+    const { signOutOfSite, watchSite } = await load()
+    recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['anilist']))
+    const heard = vi.fn()
+    watchSite('anilist', heard)
+    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
+
+    await signOutOfSite('anilist', 'cloud')
+    expect(heard).toHaveBeenCalledTimes(1)
+  })
+
+  test('disconnects even when FKN cannot remove the cookies, and says the removal failed', async () => {
+    const { signOutOfSite, isSiteConnected } = await load()
+    recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['anilist']))
+    attach.mockRejectedValueOnce(new Error('FKN is not reachable'))
+
+    await expect(signOutOfSite('anilist', 'cloud')).rejects.toThrow('FKN is not reachable')
+    expect(isSiteConnected('anilist')).toBe(false)
+  })
+})
