@@ -5,7 +5,10 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, desc, img } from '../utils'
 
 const SCORE = 0.3
-const BASE = 'https://api.trakt.tv'
+const BASE = 'https://apiz.trakt.tv'
+// app.trakt.tv's own client id, a public value in its bundle (chunk D5VL6z_E.js, read 2026-10-07).
+// Metadata needs no sign-in with it; without it every read answers 403.
+const CLIENT_ID = '201dc70c5ec6af530f12f079ea1922733f6e1085ad7b02f36d8e011b75bcea7d'
 
 export const icon = 'https://walter.trakt.tv/hotlink-ok/public/favicon.ico'
 export const originUrl = 'https://trakt.tv'
@@ -56,20 +59,17 @@ type TraktSeason = {
   episodes?: TraktEpisode[]
 }
 
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> => {
-  const key = ctx.key(origin)
-  if (!key) return Promise.resolve(undefined)
-  return ctx
+const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
+  ctx
     .fetch(`${BASE}${path}`, {
       headers: {
-        'trakt-api-key': key,
+        'trakt-api-key': CLIENT_ID,
         'trakt-api-version': '2',
         'Content-Type': 'application/json',
       },
     })
     .then(r => r.json() as Promise<T>)
     .catch(() => undefined)
-}
 
 // `first_aired` is an INSTANT (`2008-01-21T02:00:00.000Z`), and an instant and a day are not
 // interchangeable: utils/release-date.ts renders a bare `YYYY-MM-DD` as that calendar day in UTC and

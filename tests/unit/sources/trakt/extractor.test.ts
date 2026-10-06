@@ -4,12 +4,13 @@
 // `Media.episodes` groups the union by episodeNumber ALONE, so the row count becomes the LONGEST
 // season and whatever else the cluster holds shares rows with a season nobody asked for. Measured live
 // 2026-08-31 through the same mechanism: 24 rows on a 14 episode season page.
+import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 
 import { resolvers, origin } from '../../../../src/sources/trakt/extractor'
 import { makeMedia } from '../../../../src/sources/utils'
 
-const BASE = 'https://api.trakt.tv'
+const BASE = 'https://apiz.trakt.tv'
 
 const season = (number: number, episodes: number) => ({
   number,
@@ -36,7 +37,6 @@ const SHOW_IDS = { slug: 'breaking-bad', trakt: 1, imdb: 'tt0903747', tmdb: 1396
 // and an empty list is exactly the absence these tests assert, so a drifted fixture would pass them
 // while proving nothing.
 const context = (seasons: readonly object[], misses: string[], ids: object) => ({
-  key: () => 'test-key',
   fetch: async (url: string) => {
     if (url.startsWith(`${BASE}/shows/breaking-bad?extended=full`)) {
       return { ok: true, status: 200, json: async () => ({ title: 'Breaking Bad', year: 2008, ids }) }
@@ -155,4 +155,49 @@ test('a day-shaped first_aired stays a day', async () => {
 // stamp above is this source's, and the assertion would fail without it.
 test('the helper defaults to RUN, so CONTAINER is this source saying so', () => {
   expect(makeMedia({ origin, id: 'breaking-bad' }).scope).toBe('RUN')
+})
+
+// Recorded signed out from apiz.trakt.tv on 2026-10-07, trimmed: what app.trakt.tv's own client reads.
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
+const WEB_APP_CLIENT_ID = '201dc70c5ec6af530f12f079ea1922733f6e1085ad7b02f36d8e011b75bcea7d'
+
+const recorded = (sent: { url: string, headers: Record<string, string> }[]) => ({
+  fetch: async (url: string, init?: { headers?: Record<string, string> }) => {
+    sent.push({ url, headers: init?.headers ?? {} })
+    const path = url.slice(BASE.length)
+    const body =
+      path.startsWith('/search/show?query=frieren') ? fixture('search-frieren')
+      : path === '/shows/frieren-beyond-journey-s-end?extended=full' ? fixture('show-frieren')
+      : path === '/shows/frieren-beyond-journey-s-end/seasons?extended=episodes,full' ? fixture('seasons-frieren')
+      : undefined
+    if (!body) return { ok: false, status: 403, json: async () => { throw new SyntaxError('Forbidden') } }
+    return { ok: true, status: 200, json: async () => body }
+  },
+}) as never
+
+test('every read goes to the web app\'s endpoint with its own client id, and the viewer gives no key', async () => {
+  const sent: { url: string, headers: Record<string, string> }[] = []
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const { value } = await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
+
+  expect(value.mediaPage.nodes.map((media: { uri: string }) => media.uri)).toEqual(['trakt:frieren-beyond-journey-s-end'])
+  expect(sent).toHaveLength(1)
+  expect(sent[0]!.url.startsWith(`${BASE}/`)).toBe(true)
+  expect(sent[0]!.headers['trakt-api-key']).toBe(WEB_APP_CLIENT_ID)
+  expect(sent[0]!.headers['trakt-api-version']).toBe('2')
+})
+
+test('a recorded show reads as one media with its imdb handle and its one season of episodes', async () => {
+  const sent: { url: string, headers: Record<string, string> }[] = []
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const { value } = await subscribe(undefined, { input: { uri: 'trakt:frieren-beyond-journey-s-end' } }, recorded(sent)).next()
+  const media = value.media
+
+  expect(media.titles.map((title: { title: string }) => title.title)).toEqual(["Frieren: Beyond Journey's End"])
+  expect(media.handles.map((handle: { node: { uri: string } }) => handle.node.uri)).toEqual(['imdb:tt22248376'])
+  expect(media.averageScore).toBe(91)
+  // season 0 is specials and is left out, so the list is season 1's alone
+  expect(media.episodes.map((episode: { seasonNumber: number, episodeNumber: number }) => `${episode.seasonNumber}x${episode.episodeNumber}`)).toEqual(['1x1', '1x2', '1x3'])
+  expect(media.episodes[0].releaseDate).toBe('2023-09-29T14:00:00.000Z')
+  for (const request of sent) expect(request.headers['trakt-api-key'], request.url).toBe(WEB_APP_CLIENT_ID)
 })
