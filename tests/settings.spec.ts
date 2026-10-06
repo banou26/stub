@@ -109,7 +109,7 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('[data-account="fkn"]')).toContainText('Not connected', { timeout: 10_000 })
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
   await expect(page.locator('section#sources')).toContainText('Crunchyroll')
-  await expect(page.locator('section#sources')).toContainText('OMDb')
+  await expect(page.locator('section#sources')).toContainText('IMDb')
   await expect(page.locator('section#sources h3'), 'its parts are headings, under the section\'s own').toHaveText(['Built in', 'Your keys', 'Added'])
   await expect(page.locator('section#playback')).toContainText('does not remember')
   await expect(page.locator('section#data .intro'), 'each address of stub is its own origin').toContainText('each keeps its own copy')

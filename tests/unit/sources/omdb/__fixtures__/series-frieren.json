@@ -1,0 +1,137 @@
+{
+  "data": {
+    "title": {
+      "id": "tt22248376",
+      "titleText": {
+        "text": "Frieren: Beyond Journey's End"
+      },
+      "titleType": {
+        "id": "tvSeries"
+      },
+      "releaseYear": {
+        "year": 2023
+      },
+      "primaryImage": {
+        "url": "https://m.media-amazon.com/images/M/MV5BZTI4ZGMxN2UtODlkYS00MTBjLWE1YzctYzc3NDViMGI0ZmJmXkEyXkFqcGc@._V1_.jpg"
+      },
+      "releaseDate": {
+        "year": 2023,
+        "month": 9,
+        "day": 29
+      },
+      "ratingsSummary": {
+        "aggregateRating": 8.9
+      },
+      "plot": {
+        "plotText": {
+          "plainText": "Elf mage Frieren and her fellow adventurers have defeated the Demon King and brought peace to the land. But Frieren will long outlive the rest of her former party. How will she come to understand what life means to the people around her?"
+        }
+      },
+      "episodes": {
+        "seasons": [
+          {
+            "number": 1
+          },
+          {
+            "number": 2
+          },
+          {
+            "number": 3
+          }
+        ],
+        "episodes": {
+          "edges": [
+            {
+              "node": {
+                "id": "tt23861604",
+                "titleText": {
+                  "text": "Bôken no owari"
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "After defeating the Demon King, Frieren returns home with the hero's party under a rare meteor shower. As time races ahead for her human friends, the elf mage sets out to understand them."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2023,
+                  "month": 9,
+                  "day": 29
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMDgzMjU5OGMtZDFlNy00NTM5LWI0ZTktMDI3OGI5OTJiNTdhXkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 1
+                  }
+                }
+              }
+            },
+            {
+              "node": {
+                "id": "tt29277814",
+                "titleText": {
+                  "text": "Betsu ni mahô janakutatte..."
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "Frieren instructs Fern in the use of magic while deciphering a grimoire for Heiter."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2023,
+                  "month": 9,
+                  "day": 29
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BYzE1YTBmYzAtMGMxMy00OWM3LWI3YjYtZjNhZDM3MDRiOTJiXkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 2
+                  }
+                }
+              }
+            },
+            {
+              "node": {
+                "id": "tt29277815",
+                "titleText": {
+                  "text": "Hito o korosu mahô"
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "While retracing her old route, Frieren and Fern resupply in Warm, but a crumbling seal in a nearby village draws Frieren into a confrontation with an old enemy."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2023,
+                  "month": 9,
+                  "day": 29
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMjU0OGExZjgtMjllMC00N2YyLTkyMTctYWJjNDlkZmY4ZjUxXkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 3
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "janet": [],
+      "markdown": []
+    }
+  }
+}

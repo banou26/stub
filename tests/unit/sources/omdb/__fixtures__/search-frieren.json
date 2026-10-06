@@ -1,0 +1,89 @@
+{
+  "data": {
+    "mainSearch": {
+      "edges": [
+        {
+          "node": {
+            "entity": {
+              "id": "tt22248376",
+              "titleText": {
+                "text": "Frieren: Beyond Journey's End"
+              },
+              "titleType": {
+                "id": "tvSeries"
+              },
+              "releaseYear": {
+                "year": 2023
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BZTI4ZGMxN2UtODlkYS00MTBjLWE1YzctYzc3NDViMGI0ZmJmXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt31076325",
+              "titleText": {
+                "text": "Frieren"
+              },
+              "titleType": {
+                "id": "tvMovie"
+              },
+              "releaseYear": {
+                "year": 1996
+              },
+              "primaryImage": null
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt0056514",
+              "titleText": {
+                "text": "The Suitor"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 1962
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BNmUxNGFkZjAtMTQ4Zi00YTRjLTg1ODktZTY3YTk1N2E4ZmNkXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt34754926",
+              "titleText": {
+                "text": "Frieren: Beyond Journey's End Original Mini-Anime - Magic of ??"
+              },
+              "titleType": {
+                "id": "tvMiniSeries"
+              },
+              "releaseYear": {
+                "year": 2023
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BZTdjODc2NDAtMmJkYS00Mzk1LTgxMzktYWExMjJiZWUzYjE0XkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "search": [],
+      "janet": []
+    }
+  }
+}

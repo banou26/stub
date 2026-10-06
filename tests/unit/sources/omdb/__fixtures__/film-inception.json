@@ -1,0 +1,41 @@
+{
+  "data": {
+    "title": {
+      "id": "tt1375666",
+      "titleText": {
+        "text": "Inception"
+      },
+      "titleType": {
+        "id": "movie"
+      },
+      "releaseYear": {
+        "year": 2010
+      },
+      "primaryImage": {
+        "url": "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg"
+      },
+      "releaseDate": {
+        "year": 2010,
+        "month": 7,
+        "day": 16
+      },
+      "ratingsSummary": {
+        "aggregateRating": 8.8
+      },
+      "plot": {
+        "plotText": {
+          "plainText": "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a CEO, but his tragic past may doom the project and his team to disaster."
+        }
+      },
+      "episodes": null
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "janet": [],
+      "markdown": [],
+      "ratings": []
+    }
+  }
+}

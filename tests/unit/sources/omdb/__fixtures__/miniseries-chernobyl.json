@@ -1,0 +1,132 @@
+{
+  "data": {
+    "title": {
+      "id": "tt7366338",
+      "titleText": {
+        "text": "Chernobyl"
+      },
+      "titleType": {
+        "id": "tvMiniSeries"
+      },
+      "releaseYear": {
+        "year": 2019
+      },
+      "primaryImage": {
+        "url": "https://m.media-amazon.com/images/M/MV5BNzU0OTI4YTQtNGQ1ZS00ZjA4LTg3MTMtZjkyZWNjN2RiZDJmXkEyXkFqcGc@._V1_.jpg"
+      },
+      "releaseDate": {
+        "year": 2019,
+        "month": 5,
+        "day": 6
+      },
+      "ratingsSummary": {
+        "aggregateRating": 9.3
+      },
+      "plot": {
+        "plotText": {
+          "plainText": "In April 1986, the city of Chernobyl in the Soviet Union suffers one of the worst nuclear disasters in the history of mankind. Consequently, many heroes put their lives on the line in the following days, weeks and months."
+        }
+      },
+      "episodes": {
+        "seasons": [
+          {
+            "number": 1
+          }
+        ],
+        "episodes": {
+          "edges": [
+            {
+              "node": {
+                "id": "tt8162428",
+                "titleText": {
+                  "text": "1:23:45"
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "Plant workers and firefighters put their lives on the line to control a catastrophic April 1986 explosion at a Soviet nuclear power plant."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2019,
+                  "month": 5,
+                  "day": 6
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BN2ZkYjFiMTktOWNiMy00M2RhLTk5MWItOGM4ZmFjYjQ1YjkzXkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 1
+                  }
+                }
+              }
+            },
+            {
+              "node": {
+                "id": "tt8482972",
+                "titleText": {
+                  "text": "Please Remain Calm"
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "With untold millions at risk, Ulana makes a desperate attempt to reach Valery and warn him about the threat of a second explosion."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2019,
+                  "month": 5,
+                  "day": 13
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BY2UzYTMxMTEtYzJjMC00OGE4LWI1NmQtODU0MGFkN2I2ODIyXkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 2
+                  }
+                }
+              }
+            },
+            {
+              "node": {
+                "id": "tt9166672",
+                "titleText": {
+                  "text": "Open Wide, O Earth"
+                },
+                "plot": {
+                  "plotText": {
+                    "plainText": "Valery creates a detailed plan to decontaminate Chernobyl; Lyudmilla ignores warnings about her firefighter husband's contamination."
+                  }
+                },
+                "releaseDate": {
+                  "year": 2019,
+                  "month": 5,
+                  "day": 20
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BM2ZmNGFjNTYtNTg2My00OGJmLWIyODYtNDY0NDk3ZDVhYTM5XkEyXkFqcGc@._V1_.jpg"
+                },
+                "series": {
+                  "episodeNumber": {
+                    "seasonNumber": 1,
+                    "episodeNumber": 3
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "janet": [],
+      "ratings": [],
+      "markdown": []
+    }
+  }
+}
