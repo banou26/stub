@@ -78,7 +78,8 @@ const TRACKER_SITES: readonly string[] = ['anilist', 'mal'] satisfies TrackerSta
 /**
  * Remembers what the trackers' answers tell of their site's session: a list read means signed in, and
  * SIGNED_OUT signed out. Only for a site connected here, since an unconnected one answers SIGNED_OUT
- * without asking the site.
+ * without asking the site. Stamped when the answer arrives, so a MyAnimeList state can be up to
+ * `INDEX_TTL_MS` (10 minutes) older than it says: its answers come from a list index held that long.
  */
 export const recordTrackerAnswers = (
   answers: readonly { state: string, tracker: { id: string } }[],
