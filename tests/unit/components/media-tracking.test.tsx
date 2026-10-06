@@ -37,7 +37,10 @@ vi.mock('urql', () => ({
     [{ data: executeSync({ schema, document: query, rootValue: { tracking }, variableValues: variables }).data }],
   useMutation: (document: { definitions: { name?: { value: string } }[] }) => [{}, mutate(document.definitions[0]?.name?.value ?? '')],
 }))
-vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {} }))
+const isSiteConnected = vi.hoisted(() => () => false)
+vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected }))
+const remembered = vi.hoisted(() => ({ recordTrackerAnswers: vi.fn(), siteStatuses: { record: () => {} } }))
+vi.mock('../../../src/tracking/site-status', () => remembered)
 // the page's worker, which Unlock asks to check the account again
 vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
 
@@ -61,6 +64,16 @@ const render = (store = createCompactPrefs(memory())) => {
   return host
 }
 describe('the media tracking', () => {
+  // what the trackers answer is what stub knows of their sites' sessions, shown under Settings, Accounts
+  test('hands the trackers\' answers to the remembered sign-in states, for the sites connected here', () => {
+    render()
+    expect(remembered.recordTrackerAnswers).toHaveBeenCalledWith(
+      [expect.objectContaining({ state: 'LISTED', tracker: expect.objectContaining({ id: 'stub' }) })],
+      remembered.siteStatuses,
+      isSiteConnected,
+    )
+  })
+
   test('shows the row and nothing else, even for a device that had the advanced panel open', () => {
     const storage = memory()
     storage.setItem('stub.tracking.compact', JSON.stringify({ advanced: true, targets: {} }))

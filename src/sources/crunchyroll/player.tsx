@@ -9,6 +9,7 @@ import { css, keyframes } from '@emotion/react'
 import { attachFrame } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
@@ -269,6 +270,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
         // auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
         const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
         if (cancelled) return
+        siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
         if (!isLoggedIn) {
           setLoading(false)
           setLoggedOut(true)
@@ -289,6 +291,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       if (cancelled) return
       const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
       if (cancelled) return
+      siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
       if (!isLoggedIn) {
         setLoading(false)
         setLoggedOut(true)

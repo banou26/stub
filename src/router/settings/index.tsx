@@ -13,7 +13,7 @@ import { SETTINGS_SECTIONS, sectionFromHash, type SettingsSectionId } from './se
 import { SourcesSection } from './sources'
 import { browserStores } from './stored-data'
 import { sectionStyle } from './style'
-import { crunchyroll, sites } from './wiring'
+import { crunchyroll, sites, status } from './wiring'
 
 const style = css`
   display: grid;
@@ -129,7 +129,7 @@ const Settings = () => {
       <div className="sections">
         <Section id="accounts">
           <p className="intro">Every account and sign-in stub uses, what it is for, and how to end it.</p>
-          <AccountsSection account={account} backend={backend} crunchyroll={crunchyroll} sites={sites} onChange={changed}/>
+          <AccountsSection account={account} backend={backend} crunchyroll={crunchyroll} sites={sites} status={status} onChange={changed}/>
         </Section>
         <Section id="sources">
           <SourcesSection onChange={changed}/>

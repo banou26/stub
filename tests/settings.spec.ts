@@ -50,6 +50,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 const SECTIONS = ['Accounts', 'Sources', 'Tracking', 'Playback', 'Data']
+const HOUR = 3_600_000
 
 // every key stub writes, the API keys an older stub kept, and one key that belongs to nobody, plus a
 // file beside stub's list
@@ -60,6 +61,7 @@ const SEED = {
     'stub-search-display-mode': 'list',
     'stub.tracking.compact': JSON.stringify({ targets: { mal: false } }),
     'stub.sessions': JSON.stringify(['anilist', 'mal']),
+    'stub.site-status': JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: Date.now() - 2 * HOUR } }),
     'not-stub': 'kept',
   },
   session: {
@@ -115,7 +117,7 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('section#sources input[type="password"]'), 'no source asks for a key').toHaveCount(0)
   await expect(page.locator('section#playback')).toContainText('does not remember')
   await expect(page.locator('section#data .intro'), 'each address of stub is its own origin').toContainText('each keeps its own copy')
-  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
+  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'site-status', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
     await expect(page.locator(`[data-stored="${id}"]`), id).toBeVisible()
   }
 })
@@ -163,6 +165,7 @@ const CLEARED: Record<string, { store: 'local' | 'session', key: string, after: 
   'added-sources': { store: 'local', key: 'stub-enabled-plugins', after: '[]', name: 'Clear added sources' },
   'search-layout': { store: 'local', key: 'stub-search-display-mode', after: undefined, name: 'Clear search layout' },
   'quick-tracking': { store: 'local', key: 'stub.tracking.compact', after: undefined, name: 'Clear quick tracking choices' },
+  'site-status': { store: 'local', key: 'stub.site-status', after: undefined, name: 'Clear site sign-in states' },
   'party-name': { store: 'session', key: 'stub-party-name', after: undefined, name: 'Clear party name' },
 }
 
@@ -246,6 +249,51 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
   await page.reload()
   await expect(page.locator('[data-account="anilist"]')).toContainText('Not connected')
   await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
+const chip = (page: Page, site: string) => page.locator(`[data-account="${site}"] .head .state`)
+
+test('Accounts shows what stub last learned of each sign-in and how long ago, asking no site to show it', async ({ page }) => {
+  const asked: string[] = []
+  page.on('request', request => { if (/crunchyroll\.com|anilist\.co|myanimelist\.net/.test(new URL(request.url()).hostname)) asked.push(request.url()) })
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(day => {
+    localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
+    localStorage.setItem('stub.site-status', JSON.stringify({
+      crunchyroll: { state: 'signed-in', checkedAt: Date.now() - 2 * 3_600_000 },
+      anilist: { state: 'signed-out', checkedAt: Date.now() - day },
+    }))
+  }, 26 * HOUR)
+  await page.goto(`${origin}/settings#accounts`)
+
+  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in, checked 2 hours ago')
+  await expect(chip(page, 'anilist')).toHaveText('Signed out, checked 1 day ago')
+  await expect(chip(page, 'mal'), 'connected, and nothing learned yet').toHaveText('Connected on this device')
+  for (const [site, name] of [['crunchyroll', 'Crunchyroll'], ['anilist', 'AniList'], ['mal', 'MyAnimeList']]) {
+    await expect(page.locator(`[data-account="${site}"]`).getByRole('button', { name: `Check whether you are signed in to ${name}` }), site).toBeVisible()
+  }
+  await page.waitForTimeout(1_000)
+  expect(asked, 'showing a state asks no site').toEqual([])
+})
+
+test('a site with nothing remembered says so, and a tracking site not connected here offers no Check now', async ({ page }) => {
+  await page.goto(`${origin}/settings#accounts`)
+
+  await expect(chip(page, 'crunchyroll')).toHaveText('Not checked yet')
+  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Check whether you are signed in to Crunchyroll' })).toBeVisible()
+  await expect(chip(page, 'anilist')).toHaveText('Not connected')
+  await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: /Check whether/ })).toHaveCount(0)
+})
+
+test('clearing the sign-in states under Data shows at once under Accounts, and ends no session', async ({ page }) => {
+  await seeded(page)
+  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in, checked 2 hours ago')
+  const row = page.locator('[data-stored="site-status"]')
+  await row.getByRole('button', { name: 'Clear site sign-in states', exact: true }).click()
+  await row.getByRole('button', { name: 'Yes, clear' }).click()
+
+  await expect(chip(page, 'crunchyroll')).toHaveText('Not checked yet')
+  expect(JSON.parse((await readStores(page)).local['stub.sessions']!), 'the connected sites stay connected').toEqual(['anilist', 'mal'])
 })
 
 test('the privacy page says what stub keeps, and links to where it is cleared', async ({ page }) => {
