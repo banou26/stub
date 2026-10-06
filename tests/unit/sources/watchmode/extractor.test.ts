@@ -25,8 +25,9 @@ const FILM = '01000345'
 
 type Edge = { relation: string, node: { uri: string, origin: string, id: string, scope?: string } }
 
-const answer = (json: unknown) => ({ json: async () => ({ result: { data: { json } } }) })
-const inputOf = (url: string) => JSON.parse(new URL(url).searchParams.get('input')!).json
+// the site's client batches every call, so the gateway answers an array of one
+const answer = (json: unknown) => ({ json: async () => [{ result: { data: { json } } }] })
+const inputOf = (url: string) => JSON.parse(new URL(url).searchParams.get('input')!)['0'].json
 
 const source = (webLink: string) => ({ providerID: 1, name: 'x', type: 'sub', region: 'US', webLink })
 
@@ -187,22 +188,35 @@ test('a film\'s netflix title id is SAME_AS and a RUN, while a series keeps PART
 })
 
 // Recorded signed out on 2026-10-07 with no key, trimmed: the gateway www.watchmode.com's own client
-// calls, for the quick searches "frieren" and "inception" and the providers of each first hit.
+// calls, for the quick searches "frieren" and "inception" and the providers of each first hit. Each is
+// the one entry of a batched answer, which is the same entry inside an array (measured that day).
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
 
-const recorded = (sent: string[]) => ({
+const recorded = (sent: string[], headers: Record<string, string>[] = []) => ({
   fetch: async (url: string, init?: { headers?: Record<string, string> }) => {
     sent.push(url)
-    expect(init?.headers, 'no key, no sign-in').toBeUndefined()
+    headers.push(init?.headers ?? {})
     const procedure = new URL(url).pathname.split('/').at(-1)
     const input = inputOf(url)
     const name =
       procedure === 'gateway.quickSearch' ? `quick-search-${input.q}`
       : procedure === 'gateway.fetchTitlePageProviders' ? `providers-${{ '03195245': 'frieren', '01182444': 'inception' }[input.combinedTitleID as string]}`
       : undefined
-    return { json: async () => fixture(name!) }
+    return { json: async () => [fixture(name!)] }
   },
 }) as never
+
+// the site's client is createTRPCClient over httpBatchLink at this gateway, from www.watchmode.com
+test('asks as www.watchmode.com\'s own client does: batched, from its origin, with no key or sign-in', async () => {
+  const sent: string[] = []
+  const headers: Record<string, string>[] = []
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  await subscribe(undefined, { input: { search: 'inception' } }, recorded(sent, headers)).next()
+
+  expect(new URL(sent[0]!).searchParams.get('batch')).toBe('1')
+  expect(JSON.parse(new URL(sent[0]!).searchParams.get('input')!)).toEqual({ 0: { json: { q: 'inception', type: 1 } } })
+  expect(headers).toEqual([{ origin: 'https://www.watchmode.com' }])
+})
 
 test('search asks the site\'s quick search and mints each hit under its combined id', async () => {
   const sent: string[] = []
