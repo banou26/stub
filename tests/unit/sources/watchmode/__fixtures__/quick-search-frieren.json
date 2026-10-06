@@ -1,0 +1,23 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "03195245",
+            "name": "Frieren: Beyond Journey's End",
+            "type": "TV Show",
+            "year": 2023,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03195245_poster_w185.jpg",
+            "imdbId": "tt22248376",
+            "tmdbId": 209867,
+            "tmdbType": "tv",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

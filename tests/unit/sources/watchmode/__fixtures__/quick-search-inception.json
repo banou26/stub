@@ -1,0 +1,45 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "01182444",
+            "name": "Inception",
+            "type": "Movie",
+            "year": 2010,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01182444_poster_w185.jpg",
+            "imdbId": "tt1375666",
+            "tmdbId": 27205,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01670721",
+            "name": "Inception: The Cobol Job",
+            "type": "Movie",
+            "year": 2010,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01670721_poster_w185.jpg",
+            "imdbId": "tt1790736",
+            "tmdbId": 64956,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01863076",
+            "name": "Inception",
+            "type": "Movie",
+            "year": 1980,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/blank.gif",
+            "imdbId": null,
+            "tmdbId": 1359046,
+            "tmdbType": "movie",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}
