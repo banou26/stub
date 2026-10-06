@@ -1,0 +1,47 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "consolidatedProviders": [
+          {
+            "providerID": 387,
+            "region": "BR",
+            "name": "HBO Max",
+            "type": "sub",
+            "webLink": "https://play.hbomax.com/show/14552c93-d318-4563-a00b-343df7e35d0b"
+          },
+          {
+            "providerID": 26,
+            "region": "IN",
+            "name": "Prime Video",
+            "type": "sub",
+            "webLink": "https://app.primevideo.com/detail?gti=amzn1.dv.gti.04a9f72c-f9c8-c4d1-f97b-6d7ad986a51f"
+          },
+          {
+            "providerID": 26,
+            "region": "CL",
+            "name": "Prime Video",
+            "type": "sub",
+            "webLink": "https://www.primevideo.com/detail/amzn1.dv.gti.5ca9f69c-796e-2320-e56f-f758fa5957b5/"
+          },
+          {
+            "providerID": 387,
+            "region": "IT",
+            "name": "HBO Max",
+            "type": "sub",
+            "webLink": "https://www.hbomax.com/it/en/movie/14552c93-d318-4563-a00b-343df7e35d0b"
+          },
+          {
+            "providerID": 203,
+            "region": "BE",
+            "name": "Netflix",
+            "type": "sub",
+            "webLink": "https://www.netflix.com/title/70131314"
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

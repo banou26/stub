@@ -1,0 +1,47 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "consolidatedProviders": [
+          {
+            "providerID": 80,
+            "region": "IS",
+            "name": "Crunchyroll Premium",
+            "type": "free",
+            "webLink": "https://www.crunchyroll.com/watch/G0DUND0K2"
+          },
+          {
+            "providerID": 203,
+            "region": "US",
+            "name": "Netflix",
+            "type": "sub",
+            "webLink": "https://www.netflix.com/watch/81726716"
+          },
+          {
+            "providerID": 157,
+            "region": "US",
+            "name": "Hulu",
+            "type": "sub",
+            "webLink": "https://www.hulu.com/watch/372fec50-3bb0-4957-9e09-08d90274da88"
+          },
+          {
+            "providerID": 491,
+            "region": "US",
+            "name": "Crunchyroll Premium (Via Prime) Amazon Channel",
+            "type": "sub",
+            "webLink": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.a3160da0-1880-468c-a481-9fdcb1a491f3"
+          },
+          {
+            "providerID": 24,
+            "region": "US",
+            "name": "Amazon",
+            "type": "buy",
+            "webLink": "https://www.amazon.com/gp/video/detail/amzn1.dv.gti.a7df210d-87d3-45ce-b052-eaa44122234a"
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

@@ -1,8 +1,8 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, MediaHandle as GQLMediaHandle, MediaScope } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, MediaHandle as GQLMediaHandle } from '../../generated/schema/types.generated'
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img } from '../utils'
+import { makeMedia, makeMovieEpisode, isMovie, img } from '../utils'
 // the same job over the same provider urls, shape tested per host and measured against a 3168 offer corpus
 import { extractContentId, providerContentId } from '../justwatch/id'
 import { mintableAsFilmHandle, streamPointers } from '../kitsu/stream-id'
@@ -21,46 +21,37 @@ export const isApiOnly = true
 export const supportedUris = ['watchmode']
 export const color = '#1fb6ff'
 
-const API_BASE = 'https://api.watchmode.com/v1'
+// The tRPC gateway www.watchmode.com's own client calls (read 2026-10-07). Its title reads need no
+// sign-in, where every api.watchmode.com read needs a key.
+const GATEWAY = 'https://gateway.watchmode.com/trpc'
 
-interface WatchmodeSearchResult {
-  id?: number
+/**
+ * A hit of the site's quick search. `combinedID` is the title id behind a type prefix, `01` for a film
+ * and `03` for a series (`01182444` is Inception, `03195245` is Frieren), and is this source's media id.
+ */
+interface WatchmodeHit {
+  combinedID?: string
   name?: string
-  type?: string
   year?: number
-  imdb_id?: string | null
-  tmdb_id?: number | null
-  tmdb_type?: string | null
+  thumbnailURL?: string
+  imdbId?: string | null
+  tmdbId?: number | null
+  tmdbType?: string | null
 }
 
-interface WatchmodeDetail {
-  id?: number
-  title?: string
-  type?: string
-  plot_overview?: string | null
-  year?: number
-  imdb_id?: string | null
-  tmdb_id?: number | null
-  tmdb_type?: string | null
-  poster?: string | null
-  user_rating?: number | null
+/** A provider row of a title page. `consolidatedProviders` holds every region's, the viewer's included. */
+interface WatchmodeProvider {
+  webLink?: string | null
 }
 
-interface WatchmodeSource {
-  source_id?: number
-  name?: string
-  type?: string
-  region?: string
-  web_url?: string | null
-  format?: string
-}
+const trpc = <T>(procedure: string, input: object, ctx: ExtractorServerContext): Promise<T | undefined> =>
+  ctx
+    .fetch(`${GATEWAY}/gateway.${procedure}?input=${encodeURIComponent(JSON.stringify({ json: input }))}`)
+    .then(r => r.json() as Promise<{ result?: { data?: { json?: T } } }>)
+    .then(answer => answer.result?.data?.json)
+    .catch(() => undefined)
 
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> => {
-  const key = ctx.key(origin)
-  if (!key) return Promise.resolve(undefined)
-  const sep = path.includes('?') ? '&' : '?'
-  return ctx.fetch(`${API_BASE}${path}${sep}apiKey=${key}`).then(r => r.json() as Promise<T>).catch(() => undefined)
-}
+const isFilm = (id: string) => id.startsWith('01')
 
 const STREAM_HOST_ORIGIN_MAP: { match: (host: string) => boolean, origin: string }[] = [
   { match: host => host.endsWith('crunchyroll.com'), origin: 'cr' },
@@ -115,8 +106,8 @@ const streamContentId = (webUrl: string, mappedOrigin: string): string | undefin
  * measured as per-title (a Netflix /title/ or /watch/, see kitsu/stream-id.ts), read through the same
  * pointer so the two readers cannot disagree on the id. A series id names the show, as before.
  */
-const sourceToHandle = (source: WatchmodeSource, film: boolean): GQLMediaHandle | undefined => {
-  const webUrl = source.web_url
+const sourceToHandle = (provider: WatchmodeProvider, film: boolean): GQLMediaHandle | undefined => {
+  const webUrl = provider.webLink
   if (!webUrl) return undefined
   let host: string
   try {
@@ -149,16 +140,16 @@ const sourceToHandle = (source: WatchmodeSource, film: boolean): GQLMediaHandle 
  * the whole reason `SHOW_LEVEL_ORIGINS` exists. Saying so here rather than relying on that Set to
  * demote it means the claim is honest at the point it is made.
  */
-const idHandles = (idSource: { imdb_id?: string | null, tmdb_id?: number | null, tmdb_type?: string | null }): GQLMediaHandle[] => {
+const idHandles = (hit: WatchmodeHit): GQLMediaHandle[] => {
   const handles: GQLMediaHandle[] = []
-  const imdbId = idSource.imdb_id
+  const imdbId = hit.imdbId
   if (imdbId) handles.push(partOf(makeMedia({ origin: 'imdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })))
   // A TMDB TV id names the show, so PART_OF is honest for it. A MOVIE id is refused outright and
   // PART_OF cannot rescue it: TMDB numbers films and shows in separate sequences that both start at 1,
   // so `tmdb:550` is Fight Club as a movie and Till Death Us Do Part as a series. A PART_OF pointing at
   // the wrong ROW is not a weaker claim, it is a wrong one.
-  const tmdbId = idSource.tmdb_id
-  if (tmdbId != null && idSource.tmdb_type !== 'movie') {
+  const tmdbId = hit.tmdbId
+  if (tmdbId != null && hit.tmdbType !== 'movie') {
     handles.push(partOf(makeMedia({ origin: 'tmdb', id: String(tmdbId), url: `https://www.themoviedb.org/tv/${tmdbId}` })))
   }
   return handles
@@ -175,77 +166,57 @@ const dedupeHandles = (handles: GQLMediaHandle[]): GQLMediaHandle[] => {
   return out
 }
 
-const categoriesForType = (type: string | undefined): ('MOVIE' | 'SERIES')[] =>
-  type && (type.includes('movie') || type.includes('short_film')) ? ['MOVIE'] : ['SERIES']
-
 // Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
 // That is a CONTAINER, and only a film, which is its own single run, is a RUN.
-const scopeForType = (type: string | undefined): MediaScope =>
-  categoriesForType(type)[0] === 'MOVIE' ? 'RUN' : 'CONTAINER'
+const kindOf = (id: string): Pick<GQLMedia, 'categories' | 'scope'> =>
+  isFilm(id) ? { categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
 
-const normalizeSearchResult = (result: WatchmodeSearchResult): GQLMedia | undefined => {
-  const wmId = result.id
-  if (wmId == null) return undefined
-  const id = String(wmId)
+const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
+  const id = hit.combinedID
+  if (!id) return undefined
   return makeMedia({
     origin,
     id,
-    url: `https://www.watchmode.com/title/${id}/`,
-    handles: idHandles(result),
+    url: `https://www.watchmode.com/title/${id}`,
+    handles: idHandles(hit),
     score: SCORE,
-    scope: scopeForType(result.type),
-    categories: categoriesForType(result.type),
-    titles: result.name ? [{ language: 'en', title: result.name, score: SCORE }] : [],
+    ...kindOf(id),
+    titles: hit.name ? [{ language: 'en', title: hit.name, score: SCORE }] : [],
+    // a title with no poster names `posters/blank.gif`
+    covers: img(hit.thumbnailURL?.endsWith('/blank.gif') ? undefined : hit.thumbnailURL, SCORE),
+    startDate: hit.year ? `${hit.year}-01-01` : undefined,
   })
 }
 
-const normalizeDetail = (detail: WatchmodeDetail, sources: WatchmodeSource[]): GQLMedia | undefined => {
-  const wmId = detail.id
-  if (wmId == null) return undefined
-  const id = String(wmId)
-  const rating = detail.user_rating
-  const film = categoriesForType(detail.type)[0] === 'MOVIE'
-  const sourceHandles = sources
-    .map(source => sourceToHandle(source, film))
-    .filter((handle): handle is GQLMediaHandle => !!handle)
-  return makeMedia({
-    origin,
-    id,
-    url: `https://www.watchmode.com/title/${id}/`,
-    handles: dedupeHandles([...idHandles(detail), ...sourceHandles]),
-    score: SCORE,
-    scope: scopeForType(detail.type),
-    categories: categoriesForType(detail.type),
-    titles: detail.title ? [{ language: 'en', title: detail.title, score: SCORE }] : [],
-    ...desc(detail.plot_overview ?? undefined, SCORE),
-    covers: img(detail.poster ?? undefined, SCORE),
-    averageScore: rating != null ? Math.round(rating * 10) : undefined,
-  })
-}
-
+// The title page's providers carry no title, so this row is its links alone: the search hit that
+// minted its id carries the title, the year and the catalogue ids.
 const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const [detail, sources] = await Promise.all([
-    api<WatchmodeDetail>(`/title/${encodeURIComponent(id)}/details/`, ctx),
-    api<WatchmodeSource[]>(`/title/${encodeURIComponent(id)}/sources/`, ctx),
-  ])
-  if (!detail) return undefined
-  const media = normalizeDetail(detail, Array.isArray(sources) ? sources : [])
-  if (media && isMovie(media)) {
+  const providers = await trpc<{ consolidatedProviders?: WatchmodeProvider[] }>('fetchTitlePageProviders', { combinedTitleID: id }, ctx)
+  if (!providers) return undefined
+  const film = isFilm(id)
+  const media = makeMedia({
+    origin,
+    id,
+    url: `https://www.watchmode.com/title/${id}`,
+    handles: dedupeHandles(
+      (providers.consolidatedProviders ?? [])
+        .map(provider => sourceToHandle(provider, film))
+        .filter((handle): handle is GQLMediaHandle => !!handle)
+    ),
+    score: SCORE,
+    ...kindOf(id),
+  })
+  if (isMovie(media)) {
     media.episodes = [makeMovieEpisode(media)]
     media.episodeCount = 1
   }
   return media
 }
 
-const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
-  const res = await api<{ title_results?: WatchmodeSearchResult[] }>(
-    `/search/?search_field=name&search_value=${encodeURIComponent(query)}`,
-    ctx
-  )
-  return (res?.title_results ?? [])
-    .map(normalizeSearchResult)
+const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
+  ((await trpc<{ results?: WatchmodeHit[] }>('quickSearch', { q: query, type: 1 }, ctx))?.results ?? [])
+    .map(normalizeHit)
     .filter((media): media is GQLMedia => !!media)
-}
 
 export const resolvers: Resolvers = {
   Subscription: {
@@ -265,7 +236,7 @@ export const resolvers: Resolvers = {
     }
   },
   Media: {
-    episodes: async (parent, _, _ctx: ExtractorServerContext): Promise<GQLEpisode[]> => {
+    episodes: async (parent): Promise<GQLEpisode[]> => {
       if (parent.origin !== origin) return parent.episodes ?? []
       if (parent.episodes?.length) return parent.episodes
       return isMovie(parent) ? [makeMovieEpisode(parent)] : []
