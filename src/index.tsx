@@ -11,11 +11,11 @@ import { party } from './party'
 import './plugin-url.ts'
 import './store-export.ts'
 import './answers-export.ts'
-import { pushKeys } from './utils/keys'
+import { forgetApiKeys } from './utils/forget-api-keys'
 import { watchTrackerAccount } from './tracking/account-watch'
 import { trackerCheck, trackerFocused } from './worker'
 
-pushKeys()
+forgetApiKeys()
 watchTrackerAccount({ check: trackerCheck, focused: trackerFocused })
 
 const style = css`

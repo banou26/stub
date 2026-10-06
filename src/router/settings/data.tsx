@@ -16,7 +16,7 @@ export type DataProps = {
 
 const sectionTitle = (id: string) => SETTINGS_SECTIONS.find(section => section.id === id)?.title
 
-// 'Added sources' reads as 'Clear added sources', and 'API keys' keeps its capitals
+// 'Added sources' reads as 'Clear added sources', and a title opening on an acronym keeps its capitals
 const inSentence = (title: string) => /^[A-Z][a-z]/.test(title) ? title[0]!.toLowerCase() + title.slice(1) : title
 
 const Item = ({ item, stores, clearers, onCleared, onClear }: { item: StoredItem, onClear: () => void } & DataProps) => {

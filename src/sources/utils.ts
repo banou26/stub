@@ -196,7 +196,7 @@ export const stripTitle = (title: string) =>
 
 /**
  * Both wasm modules initialise once, lazily, because only the matching paths need them and the
- * settings page deliberately stays clear of this module for that reason (see key-configs.ts).
+ * settings page deliberately stays clear of this module for that reason (see built-in.ts).
  */
 let frizbeeReady: Promise<unknown> | undefined
 const readyFrizbee = () => (frizbeeReady ??= initFrizbee())

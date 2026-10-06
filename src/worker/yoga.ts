@@ -7,7 +7,7 @@ import { expose } from 'osra'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
-import { extractors, setUserKeys, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
+import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
@@ -42,7 +42,6 @@ export const yoga = createYoga<Omit<ServerContext, keyof YogaInitialContext>, Us
 export const osraResolvers = {
   handleRequest: (input: RequestInfo | URL, init?: RequestInit) =>
     yoga.handleRequest(new Request(input, init), {}),
-  setUserKeys: (keys: Record<string, string>) => setUserKeys(keys),
   // The page owns the `?graph` flag and hands it over once, right after spawning the worker.
   // THE ONE PLACE THE LIVE PASS IS WIRED: `scheduler` is off by default so a caller driving
   // `runPlugins` itself can never race a pass woken by the bus (`./graph/index.ts`).

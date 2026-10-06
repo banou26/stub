@@ -44,7 +44,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -80,7 +80,6 @@ else void setGraphEnabled(flags.has('graph'))
 
 export {
   handleRequest,
-  setUserKeys,
   registerRemoteSource,
   unregisterRemoteSource,
   remotePicker,

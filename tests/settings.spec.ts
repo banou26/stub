@@ -51,7 +51,8 @@ test.beforeEach(async ({ page }) => {
 
 const SECTIONS = ['Accounts', 'Sources', 'Tracking', 'Playback', 'Data']
 
-// every key stub writes, and one that belongs to nobody, plus a file beside stub's list
+// every key stub writes, the API keys an older stub kept, and one key that belongs to nobody, plus a
+// file beside stub's list
 const SEED = {
   local: {
     'stub.apikeys': JSON.stringify({ omdb: 'a-key-for-the-spec' }),
@@ -110,10 +111,11 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
   await expect(page.locator('section#sources')).toContainText('Crunchyroll')
   await expect(page.locator('section#sources')).toContainText('IMDb')
-  await expect(page.locator('section#sources h3'), 'its parts are headings, under the section\'s own').toHaveText(['Built in', 'Your keys', 'Added'])
+  await expect(page.locator('section#sources h3'), 'its parts are headings, under the section\'s own').toHaveText(['Built in', 'Added'])
+  await expect(page.locator('section#sources input[type="password"]'), 'no source asks for a key').toHaveCount(0)
   await expect(page.locator('section#playback')).toContainText('does not remember')
   await expect(page.locator('section#data .intro'), 'each address of stub is its own origin').toContainText('each keeps its own copy')
-  for (const id of ['api-keys', 'added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
+  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
     await expect(page.locator(`[data-stored="${id}"]`), id).toBeVisible()
   }
 })
@@ -157,7 +159,6 @@ test('a link to a section opens the page at it', async ({ page }) => {
 
 // each Clear is named for its row, since the page holds five of them
 const CLEARED: Record<string, { store: 'local' | 'session', key: string, after: string | undefined, name: string }> = {
-  'api-keys': { store: 'local', key: 'stub.apikeys', after: undefined, name: 'Clear API keys' },
   // the plugin list writes the list it has left, which is none
   'added-sources': { store: 'local', key: 'stub-enabled-plugins', after: '[]', name: 'Clear added sources' },
   'search-layout': { store: 'local', key: 'stub-search-display-mode', after: undefined, name: 'Clear search layout' },
@@ -194,13 +195,17 @@ for (const [id, { store, key, after, name }] of Object.entries(CLEARED)) {
   })
 }
 
-test('cleared keys leave the key fields empty', async ({ page }) => {
-  await seeded(page)
-  await expect(page.locator('input#omdb')).toHaveValue('a-key-for-the-spec')
-  const row = page.locator('[data-stored="api-keys"]')
-  await row.getByRole('button', { name: 'Clear API keys', exact: true }).click()
-  await row.getByRole('button', { name: 'Yes, clear' }).click()
-  await expect(page.locator('input#omdb')).toHaveValue('')
+test('the API keys an older stub kept leave this browser on the next load, and nothing else does', async ({ page }) => {
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(seed => { for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value) }, SEED.local)
+  expect((await readStores(page)).local['stub.apikeys'], 'seeded').toBe(SEED.local['stub.apikeys'])
+
+  await page.goto(`${origin}/settings`)
+  await expect(page.locator('section#data')).toBeVisible()
+  const { local } = await readStores(page)
+  expect(local['stub.apikeys'], 'gone').toBeUndefined()
+  expect(local).toMatchObject(Object.fromEntries(Object.entries(SEED.local).filter(([key]) => key !== 'stub.apikeys')))
+  await expect(page.locator('[data-stored="api-keys"]'), 'the Data section no longer lists keys').toHaveCount(0)
 })
 
 test('a confirmation opens on Cancel, Cancel gives focus back to its button, and a confirm leaves it on the row', async ({ page }) => {
@@ -247,7 +252,8 @@ test('the privacy page says what stub keeps, and links to where it is cleared', 
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto(`${origin}/privacy`)
   const body = page.locator('body')
-  for (const title of ['API keys', 'Added sources', 'Search layout', 'Party name', "Stub's list"]) await expect(body).toContainText(title)
+  for (const title of ['Added sources', 'Search layout', 'Party name', "Stub's list"]) await expect(body).toContainText(title)
+  await expect(body).not.toContainText('API key')
   await expect(body).not.toContainText('Everything else stub holds is cleared when you close or refresh the tab')
   await page.getByRole('link', { name: 'Settings, under Data' }).click()
   await expect(page).toHaveURL(/\/settings#data$/)

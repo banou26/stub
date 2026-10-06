@@ -38,7 +38,6 @@ import { closeRoot, descend, openRoot, readContext, stamp, type RequestContext, 
 
 export type ExtractorServerContext = YogaInitialContext & {
   fetch: typeof fetch
-  key: (origin: string) => string | undefined
   findAggregatedMedia: (uri: string) => Promise<Media | undefined>
   listenForMediaChanges: (params: { uri: string }, options?: { abortSignal?: AbortSignal }) => AsyncGenerator<Media | undefined>
   /**
@@ -51,9 +50,6 @@ export type ExtractorServerContext = YogaInitialContext & {
 export type ExtractorUserContext = {
 
 }
-
-let userKeys: Record<string, string> = {}
-export const setUserKeys = (keys: Record<string, string>) => { userKeys = keys ?? {} }
 
 const normalizeToStoreEpisode = (episode: Episode): StoreEpisode => ({
   uri: episode.uri as Uri,
@@ -592,7 +588,6 @@ export const makeExtractor = (
         {
           ...context?.(),
           fetch: fetchWithBackoff,
-          key: (origin: string) => userKeys[origin],
           findAggregatedMedia: (uri: string) => findAggregatedMediaForContext(uri),
           listenForMediaChanges: listenForMediaChangesForContext,
           similarMedia: similarMediaFrom(extractor.origin)
@@ -671,16 +666,11 @@ const makeDelegatingResolvers = (origin: string, remote: RemotePluginSource): Re
       if (!subscribe) return
       /**
        * The ctx a plugin sees is EXACTLY one function and never the real one. Stub's privileged
-       * context, the proxy fetch, the user's API keys and the store reads, still does not cross to
-       * third-party code; what crosses is the ability to ask a first-party source "which run of this
-       * show is the one this evidence describes", which is the same question the app asks on the
-       * plugin's behalf anyway.
-       *
-       * Deliberate, and worth knowing rather than assuming: a plugin CAN now cause a key-gated source
-       * to spend the user's key on a request it did not initiate. The surface is narrow, scalars and
-       * strings that every implementation compares rather than interpolates into a url, and the
-       * answer it gets back is a media the app was going to fetch anyway. It is not nothing, which is
-       * why it is written down here next to the code rather than in a commit message.
+       * context, the proxy fetch and the store reads, still does not cross to third-party code; what
+       * crosses is the ability to ask a first-party source "which run of this show is the one this
+       * evidence describes", which is the same question the app asks on the plugin's behalf anyway.
+       * The surface is narrow: scalars and strings that every implementation compares rather than
+       * interpolates into a url, answered with a media the app was going to fetch anyway.
        */
       for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin) })) {
         // a plugin written against `handles: [Media!]!` sends bare rows where the store reads edges

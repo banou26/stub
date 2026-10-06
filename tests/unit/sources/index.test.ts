@@ -24,11 +24,19 @@ test('every other source is still exported', () => {
   expect(names).toHaveLength(24)
 })
 
-// A key prompt for a source that does not run asks someone to sign up for nothing.
-test('no key is requested for a source that is not exported', async () => {
-  const { keyConfigs } = await import('../../../src/sources/key-configs')
-  const names = Object.keys(sources)
-  for (const config of keyConfigs) expect(names, config.origin).toContain(config.origin)
+// No source asks the viewer for a key: each reads the site's own endpoint (owner's call, 2026-10-07).
+// Read from src itself, so a key read anywhere turns this red, with a control that the scan reads files.
+test('no module reads a key from the viewer, and nothing keeps one', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const SRC = join(import.meta.dirname, '../../../src')
+  const files = (readdirSync(SRC, { recursive: true }) as string[])
+    .filter(file => /\.tsx?$/.test(file) && !file.startsWith('generated'))
+    .map(file => ({ file, text: readFileSync(join(SRC, file), 'utf-8') }))
+  expect(files.find(({ file }) => file === join('sources', 'trakt', 'extractor.ts'))?.text, 'the scan reads the sources').toContain('trakt-api-version')
+
+  const KEY_READS = /\bctx\.key\b|\bkey\(origin\)|\buserKeys\b|\bsetUserKeys\b|[?&]api_?key=|simkl-api-key|key-configs|utils\/keys\b/i
+  expect(files.filter(({ text }) => KEY_READS.test(text)).map(({ file }) => file)).toEqual([])
 })
 
 // Dead schema surface is worse than missing surface: it reads as a promise. Two fields were removed on

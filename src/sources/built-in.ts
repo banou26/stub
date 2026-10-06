@@ -1,5 +1,5 @@
 // The sources stub ships with, for the settings page to list on the main thread: the extractors pull in
-// wasm, so they are never bundled there (see ./key-configs.ts). tests/unit/sources/built-in.test.ts pins
+// wasm, so they are never bundled there. tests/unit/sources/built-in.test.ts pins
 // this to what ./index.ts actually runs, origin, name and site, in the same order.
 
 export type BuiltInSource = {

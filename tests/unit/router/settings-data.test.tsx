@@ -6,7 +6,7 @@ import { act } from 'preact/test-utils'
 
 import type { BrowserStores } from '../../../src/router/settings/stored-data'
 
-import { API_KEYS_KEY } from '../../../src/sources/key-configs'
+import { ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
@@ -27,7 +27,7 @@ const memory = (initial: Record<string, string>) => {
 }
 
 const render = (clearers = {}) => {
-  const local = memory({ [API_KEYS_KEY]: '{"omdb":"a-key"}', [DISPLAY_MODE_KEY]: 'list', [CONNECTED_KEY]: '["anilist"]' })
+  const local = memory({ [ENABLED_PLUGINS_KEY]: '["npm:@banou/example"]', [DISPLAY_MODE_KEY]: 'list', [CONNECTED_KEY]: '["anilist"]' })
   const session = memory({ [PARTY_NAME_KEY]: 'Banou', [PARTY_SESSION_KEY]: 'an-invite' })
   const stores: BrowserStores = { local: () => local, session: () => session }
   const onCleared = vi.fn()
@@ -63,7 +63,7 @@ test('a confirmed Clear clears that item alone, and the row then says nothing is
   await flush()
 
   expect(local.values.has(DISPLAY_MODE_KEY)).toBe(false)
-  expect(local.values.get(API_KEYS_KEY)).toBe('{"omdb":"a-key"}')
+  expect(local.values.get(ENABLED_PLUGINS_KEY)).toBe('["npm:@banou/example"]')
   expect(local.values.get(CONNECTED_KEY)).toBe('["anilist"]')
   expect(session.values.get(PARTY_NAME_KEY)).toBe('Banou')
   expect(onCleared).toHaveBeenCalledWith('search-layout')
@@ -71,14 +71,14 @@ test('a confirmed Clear clears that item alone, and the row then says nothing is
   expect(button(row('search-layout'), 'Clear')).toBeFalsy()
 })
 
-test('an item with its own clear runs that instead, so the keys also leave the worker', async () => {
-  const clearKeys = vi.fn()
-  const { row, local } = render({ 'api-keys': clearKeys })
-  await act(async () => { button(row('api-keys'), 'Clear')!.click() })
-  await act(async () => { button(row('api-keys'), 'Yes, clear')!.click() })
+test('an item with its own clear runs that instead, so the added sources are also uninstalled', async () => {
+  const disableAll = vi.fn()
+  const { row, local } = render({ 'added-sources': disableAll })
+  await act(async () => { button(row('added-sources'), 'Clear')!.click() })
+  await act(async () => { button(row('added-sources'), 'Yes, clear')!.click() })
   await flush()
-  expect(clearKeys).toHaveBeenCalledTimes(1)
-  expect(local.values.get(API_KEYS_KEY), 'the default removal did not run beside it').toBe('{"omdb":"a-key"}')
+  expect(disableAll).toHaveBeenCalledTimes(1)
+  expect(local.values.get(ENABLED_PLUGINS_KEY), 'the default removal did not run beside it').toBe('["npm:@banou/example"]')
 })
 
 test('an item holding nothing offers no Clear', () => {
@@ -97,7 +97,7 @@ test('an item cleared elsewhere says where, and links to its section', () => {
 
 test('each Clear is named for its row, so a screen reader can tell them apart', () => {
   const { row } = render()
-  expect(button(row('api-keys'), 'Clear')!.getAttribute('aria-label')).toBe('Clear API keys')
+  expect(button(row('added-sources'), 'Clear')!.getAttribute('aria-label')).toBe('Clear added sources')
   expect(button(row('search-layout'), 'Clear')!.getAttribute('aria-label')).toBe('Clear search layout')
   expect(button(row('party-name'), 'Clear')!.getAttribute('aria-label')).toBe('Clear party name')
 })
