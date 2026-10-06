@@ -204,6 +204,20 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
   }
 })
 
+// search.min.js posts { s, type, more, sort } through jQuery, which adds X-Requested-With on a
+// same-origin request and sends an undefined `more` as `more=`
+test('search sends the fields and headers simkl.com\'s own search sends', async () => {
+  const sent: Sent[] = []
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
+
+  expect(sent.length, 'control: search posted something').toBeGreaterThan(0)
+  for (const request of sent) {
+    expect([...new URLSearchParams(request.body).keys()]).toEqual(['s', 'type', 'more', 'sort'])
+    expect(request.headers['x-requested-with']).toBe('XMLHttpRequest')
+  }
+})
+
 test('a recorded anime reads with no client id: its ids, its decoded English title and its episodes', async () => {
   const sent: Sent[] = []
   const subscribe = (resolvers.Subscription as any).media.subscribe
