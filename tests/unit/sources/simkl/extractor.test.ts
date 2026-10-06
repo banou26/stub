@@ -303,3 +303,18 @@ test('a part its English title names does not join another run on the main title
   expect(rows.map(row => row.startDate)).toEqual(['2021-01-01', '2021-01-01'])
   expect(await clusterOf([...rows, first, second], 'anilist:108465')).toEqual(['anilist:108465', 'simkl:1059371'])
 })
+
+// simkl.com answers up to 150 rows a type ("greatest" was 150 tv, 16 anime and 150 movies on
+// 2026-10-07), where every other source answers one page: that query alone put 296 Simkl cards on a
+// 143 title search walk.
+test('search keeps the first ten rows simkl.com lists for each type', async () => {
+  const answer = (type: string, base: number, count: number) =>
+    Object.fromEntries(Array.from({ length: count }, (_, i) => [`i${base + i}`, { id: String(base + i), url: `/${type}/${base + i}/greatest`, titles: { m: `Greatest ${i}` } }]))
+  const answers: Record<string, object> = { tv: answer('tv', 1000, 150), anime: answer('anime', 2000, 16), movies: answer('movies', 3000, 150) }
+  const ctx = { fetch: async (_url: string, init?: { body?: string }) => ({ json: async () => answers[new URLSearchParams(init?.body).get('type')!] }) } as never
+  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: 'greatest' } }, ctx).next()
+  const uris = (value.mediaPage.nodes as Row[]).map(row => row.uri)
+
+  const first = (base: number) => Array.from({ length: 10 }, (_, i) => `simkl:${base + i}`)
+  expect(uris).toEqual([...first(1000), ...first(2000), ...first(3000)])
+})

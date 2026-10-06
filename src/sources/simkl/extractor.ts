@@ -271,10 +271,15 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
   return undefined
 }
 
+// The site answers up to 150 rows a type, where TVmaze, Trakt, TheTVDB and IMDb answer ten: "greatest"
+// put 296 Simkl cards on one search page.
+const SEARCH_ROWS_PER_TYPE = 10
+
 const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
   (await siteSearch(query, type, ctx))
     .map(normalizeSearch)
     .filter((media): media is GQLMedia => !!media)
+    .slice(0, SEARCH_ROWS_PER_TYPE)
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
   const perType = await Promise.all((['tv', 'anime', 'movies'] as const).map(type => searchType(query, type, ctx)))
