@@ -21,7 +21,7 @@ hbo, fubo) and imdb. None of them calls `makeMedia` even once, so there is nothi
 | `0.9` | jikan, anizip | `src/sources/jikan/extractor.ts:26`, `src/sources/anizip/extractor.ts:15` |
 | `0.8` | anilist | `src/sources/anilist/extractor.ts:217` |
 | `0.5` | crunchyroll | `src/sources/crunchyroll/extractor.ts:12` |
-| `0.3` | kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze | `kitsu:12`, `omdb:8`, `simkl:8`, `tmdb:11`, `trakt:7`, `tvdb:7`, `tvmaze:9` |
+| `0.3` | kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze | `kitsu:12`, `omdb:8`, `simkl:10`, `tmdb:11`, `trakt:7`, `tvdb:7`, `tvmaze:9` |
 | `0.25` | watchmode | `src/sources/watchmode/extractor.ts:11` |
 | `0.2` | appletv, justwatch, offline, paramount, unogs | `appletv:10`, `justwatch:12`, `offline/normalize.ts:31`, `paramount:9`, `unogs:8` |
 | none | amazon, disney, fubo, hbo, hulu, imdb, peacock | they mint no media |
