@@ -85,13 +85,27 @@ test('with the extension, asks on the browser\'s own session through FKN\'s fetc
   expect(attach).not.toHaveBeenCalled()
 })
 
-test('reuses the device id the site keeps in a cookie, so a check is no new device', async () => {
+const deviceIdSentFrom = async (origin: string, ask: (send: never) => Promise<unknown>) => {
   const send = vi.fn(async (_url: string, _init: RequestInit) => ({ status: 400, ok: false, json: async () => SIGNED_OUT }))
+  vi.stubGlobal('location', { origin })
   vi.stubGlobal('document', { cookie: 'ajs_anonymous_id=x; device_id=a-device-id; c=1' })
   try {
-    await askForToken(TOKEN_REQUEST, send)
+    await ask(send as never)
   } finally {
     vi.unstubAllGlobals()
   }
-  expect(new URLSearchParams(send.mock.calls[0]![1].body as string).get('device_id')).toBe('a-device-id')
+  return new URLSearchParams(send.mock.calls[0]![1].body as string).get('device_id')
+}
+
+test('reuses the device id the site keeps in a cookie, so a check is no new device', async () => {
+  expect(await deviceIdSentFrom('https://www.crunchyroll.com', send => askForToken(TOKEN_REQUEST, send))).toBe('a-device-id')
+})
+
+// with the extension the call runs in stub's own page, whose cookies are stub's and never Crunchyroll's
+test('with the extension, sends none of the calling page\'s cookies', async () => {
+  const { deps } = fakeFrame({ status: 0, body: null })
+  const sent = await deviceIdSentFrom('https://anime.fkn.app', fetch => checkCrunchyroll('extension', { ...deps, fetch }))
+
+  expect(sent).not.toBe('a-device-id')
+  expect(sent).toMatch(/^[0-9a-f-]{36}$/)
 })
