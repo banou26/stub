@@ -72,8 +72,8 @@ const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefine
   ctx.fetch(`${API}${path}`).then(r => r.json() as Promise<T>).catch(() => undefined)
 
 // The api's /search is the one read that needs a client id, so search goes through the form simkl.com's
-// own search page posts (search.min.js, read 2026-10-07). The site answers it only with its own origin
-// and referer, and answers `[]` for no hits.
+// own search page posts (search.min.js, read 2026-10-07), sent as its jQuery sends it. The site answers
+// it only with its own origin and referer, and answers `[]` for no hits.
 const siteSearch = (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<SimklSiteHit[]> =>
   ctx
     .fetch(`${SITE}/ajax/full/search.php`, {
@@ -81,9 +81,10 @@ const siteSearch = (query: string, type: SimklType, ctx: ExtractorServerContext)
       headers: {
         origin: SITE,
         referer: `${SITE}/search/`,
+        'x-requested-with': 'XMLHttpRequest',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
-      body: new URLSearchParams({ s: query, type, sort: '' }).toString(),
+      body: new URLSearchParams({ s: query, type, more: '', sort: '' }).toString(),
     })
     .then(r => r.json() as Promise<Record<string, SimklSiteHit> | SimklSiteHit[] | null>)
     .then(answer => (answer && typeof answer === 'object' ? Object.values(answer) : []))
