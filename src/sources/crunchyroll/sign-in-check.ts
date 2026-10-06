@@ -31,12 +31,13 @@ type PageFetch = (input: string, init: RequestInit) => Promise<Pick<Response, 's
  * Self-contained, since `evaluate` runs it in a page at www.crunchyroll.com on that page's `fetch`. It
  * reuses the device id the site keeps in a cookie when the page can read one, so a check is no new device.
  * The cookie is read only in a page at the site's origin: with the extension this runs in stub's page,
- * whose cookies are stub's.
+ * whose cookies are stub's. The url ends in `_=<nonce>`, so no cache keyed on the request (the FKN
+ * relay's is) answers a check with an earlier one; the site ignores it (measured signed out 2026-10-07).
  */
 export const askForToken = async ({ url, authorization, deviceType }: TokenRequest, send: PageFetch = fetch): Promise<TokenAnswer> => {
   const siteCookie = globalThis.location?.origin === new URL(url).origin ? globalThis.document?.cookie ?? '' : ''
   const deviceId = /(?:^|;\s*)device_id=([^;]+)/.exec(siteCookie)?.[1] ?? crypto.randomUUID()
-  const response = await send(url, {
+  const response = await send(`${url}?_=${crypto.randomUUID()}`, {
     method: 'POST',
     credentials: 'include',
     headers: { authorization, 'content-type': 'application/x-www-form-urlencoded' },

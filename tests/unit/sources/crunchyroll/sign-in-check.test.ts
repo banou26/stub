@@ -22,7 +22,7 @@ test('asks with the site\'s own client id, the etp_rt_cookie grant and the cooki
 
   expect(answer).toEqual({ status: 400, body: SIGNED_OUT })
   const [url, init] = send.mock.calls[0]!
-  expect(url).toBe('https://www.crunchyroll.com/auth/v1/token')
+  expect(url.split('?')[0]).toBe('https://www.crunchyroll.com/auth/v1/token')
   expect(init.method).toBe('POST')
   expect(init.credentials).toBe('include')
   expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${btoa('noaihdevm_6iyg0a8l0q:')}`)
@@ -35,6 +35,22 @@ test('a granted token never leaves the page that asked', async () => {
   const answer = await askForToken(TOKEN_REQUEST, async () => ({ status: 200, ok: true, json: async () => ({ access_token: 'a-token', refresh_token: 'another' }) }))
 
   expect(answer).toEqual({ status: 200, body: null })
+})
+
+// the relay caches POSTs on method, url, headers and body, so two checks on one jar must differ
+test('every check carries a nonce of its own, so no cache answers it with an earlier one', async () => {
+  const send = vi.fn(async (_url: string, _init: RequestInit) => ({ status: 400, ok: false, json: async () => SIGNED_OUT }))
+  vi.stubGlobal('location', { origin: 'https://www.crunchyroll.com' })
+  vi.stubGlobal('document', { cookie: 'device_id=a-device-id' })
+  try {
+    await askForToken(TOKEN_REQUEST, send)
+    await askForToken(TOKEN_REQUEST, send)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+  const [first, second] = send.mock.calls.map(([url, init]) => JSON.stringify([url, init]))
+  expect(first).not.toBe(second)
+  expect(new URL(send.mock.calls[0]![0]).searchParams.get('_')).toMatch(/^[0-9a-f-]{36}$/)
 })
 
 const fakeFrame = (answer: { status: number, body: unknown }) => {
@@ -80,7 +96,7 @@ test('with the extension, asks on the browser\'s own session through FKN\'s fetc
   const { attach, deps } = fakeFrame({ status: 0, body: null })
 
   expect(await checkCrunchyroll('extension', { ...deps, fetch })).toBe('signed-in')
-  expect(fetch.mock.calls[0]![0]).toBe(TOKEN_URL)
+  expect(fetch.mock.calls[0]![0]).toContain(`${TOKEN_URL}?_=`)
   expect(fetch.mock.calls[0]![1].credentials).toBe('include')
   expect(attach).not.toHaveBeenCalled()
 })
