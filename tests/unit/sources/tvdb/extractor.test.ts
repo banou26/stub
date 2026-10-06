@@ -1,7 +1,7 @@
 // Recorded signed out on 2026-10-07, with no key, trimmed: thetvdb.com's own search for "frieren" among
 // series, and the same search asked for series 424536 by id.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers, origin } from '../../../../src/sources/tvdb/extractor'
 import { makeMedia } from '../../../../src/sources/utils'

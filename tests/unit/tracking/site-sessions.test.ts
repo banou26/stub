@@ -2,7 +2,7 @@
 // runs there, where its sign-in window opens, and which jar both run on. Over the real session frames and
 // sign-in window, with only FKN's attachFrame and exposure, the built page scripts and the page's globals
 // replaced.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { expose } from 'osra'
 

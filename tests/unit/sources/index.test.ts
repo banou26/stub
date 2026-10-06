@@ -1,7 +1,7 @@
 // `worker/extractor.ts` builds the live source list as `Object.values(extractorDefinitions)`, so what
 // this module exports IS what runs. A source is disabled by not being exported here, which is a
 // deletion of one line and therefore silently undone by anyone adding one back.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import * as sources from '../../../src/sources/index'
 

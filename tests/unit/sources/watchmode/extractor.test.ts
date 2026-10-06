@@ -15,7 +15,7 @@
 // source be plugged back in at all, so it is asserted here rather than left implied. A film's
 // per-title id is the film's own, and is asserted as such at the bottom.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/watchmode/extractor'
 

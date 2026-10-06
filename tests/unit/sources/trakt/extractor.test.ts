@@ -5,7 +5,7 @@
 // season and whatever else the cluster holds shares rows with a season nobody asked for. Measured live
 // 2026-08-31 through the same mechanism: 24 rows on a 14 episode season page.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers, origin } from '../../../../src/sources/trakt/extractor'
 import { makeMedia } from '../../../../src/sources/utils'
