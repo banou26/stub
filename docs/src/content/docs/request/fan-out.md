@@ -4,8 +4,8 @@ description: One document, replayed against every registered source at once. The
 ---
 
 The first pass asks **every** source. Not the ones whose origin appears in the uri, not the ones that
-declare they can answer, not the ones with a key configured. Every registered source, unconditionally,
-with the same document and the same variables, in one synchronous loop.
+declare they can answer. Every registered source, unconditionally, with the same document and the same
+variables, in one synchronous loop.
 
 `src/worker/extractor.ts:792`:
 
@@ -248,8 +248,8 @@ so the upstream message survives to the client side of that source's own urql cl
 `Client Extractor <name> Network error on <operation>` or `... GraphQL error on ...`. It never swallows
 and never retries; retrying lives in [`fetchWithBackoff`](/request/fetch-and-backoff/).
 
-**Five functions cross into every resolver.** The object literal at `src/worker/extractor.ts:532-538`
-*is* the `ExtractorServerContext` (`src/worker/extractor.ts:34-44`). Two of them are the interesting
+**Four functions cross into every resolver.** The object literal at `src/worker/extractor.ts:589-594`
+*is* the `ExtractorServerContext` (`src/worker/extractor.ts:39-48`). Two of them are the interesting
 ones: `fetch` is `fetchWithBackoff`, never `globalThis.fetch`, so no source can skip the backoff; and
 `similarMedia` is `similarMediaFrom(extractor.origin)`, bound to this source as the **caller**, so
 `MAX_SIMILAR_MEDIA_PER_CALLER = 8` (`src/worker/extractor.ts:227`) is spent against an origin the

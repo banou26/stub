@@ -242,12 +242,12 @@ What the difference cost when it was one setting, measured on the deployed site:
 itself refuses nothing beyond its two lists (`export.ts:28-29`: "a caller that excludes no origin gets
 the plugin rows too"). The exclusion is applied one layer up, in the osra resolver:
 
-`src/worker/yoga.ts:52-53`
+`src/worker/yoga.ts:51-52`
 
 > the plugin origins are derived HERE rather than taken from the caller, so a caller cannot decline
 > to exclude them: a plugin's rows are that user's, never the product's.
 
-`yoga.ts:58-61` concatenates every `extractors` entry that carries a `pluginUri` onto whatever the
+`yoga.ts:57-60` concatenates every `extractors` entry that carries a `pluginUri` onto whatever the
 caller passed, so a plugin origin is always in `excludeOrigins` and is therefore never crossed. Its
 rows stay in that user's store and its bridges never become anybody else's identity.
 :::

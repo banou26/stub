@@ -123,7 +123,7 @@ The second lane needs a second resolver to exist at all. The default is
 implement `Subscription.similarMedia` override it with the same three lines: return the parent's
 episodes if it is not ours, return them if it already has them, otherwise go and fetch
 (`crunchyroll/extractor.ts:592-596`, `unogs/extractor.ts:493`, `justwatch/extractor.ts:777`,
-`tvmaze/extractor.ts:223`, `appletv/extractor.ts:427-434`). So the `episodes` line is not free: for a
+`tvmaze/extractor.ts:217`, `appletv/extractor.ts:427-434`). So the `episodes` line is not free: for a
 Crunchyroll answer it can cost one more upstream call, and that call is the whole point of it.
 
 ### Why `episodes` is the part a selection set can switch off entirely

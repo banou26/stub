@@ -9,7 +9,7 @@ question the same way, because they all call the same function.
 
 `src/sources/similar.ts:173` is `pickSimilarSeason(evidence, candidates)`. Five sources call it and
 none of them own a rule: crunchyroll at `crunchyroll/extractor.ts:518` and `:555`, tvmaze at
-`tvmaze/extractor.ts:168` and `:185`, appletv at `appletv/extractor.ts:230` and `:270`, unogs at
+`tvmaze/extractor.ts:162` and `:179`, appletv at `appletv/extractor.ts:230` and `:270`, unogs at
 `unogs/extractor.ts:358` and `:380`, justwatch at `justwatch/extractor.ts:577`, `:591` and `:703`. What
 differs between them is only what they can put in a `SeasonCandidate`, which is the last table on this
 page.
@@ -466,7 +466,7 @@ and that decides which rules can ever fire for that source.
 | source | `seasonNumber` | `episodeCount` | `premiere` | `year` | `episodeTitles` | built at |
 | --- | --- | --- | --- | --- | --- | --- |
 | crunchyroll | yes, `data[0]?.season_number` | yes, distinct numbered episodes | yes, the first episode's air date | from the premiere | yes, every episode | `crunchyroll/extractor.ts:294-307` |
-| tvmaze | yes | yes, counted off the embedded list | yes, the season's earliest airdate | from the premiere | yes | `tvmaze/extractor.ts:134-146` |
+| tvmaze | yes | yes, counted off the embedded list | yes, the season's earliest airdate | from the premiere | yes | `tvmaze/extractor.ts:128-140` |
 | justwatch | yes, `content.seasonNumber` | `totalEpisodeCount \|\| undefined` | never | yes, `content.originalReleaseYear` | yes, when the node carries episodes | `justwatch/extractor.ts:310-317` |
 | unogs | yes, `season.season` | yes, `season.episodes.length` | never | the first season only | yes | `unogs/extractor.ts:313-320` |
 | appletv | yes | never | yes, `season.releaseDate` | from the premiere | never | `appletv/extractor.ts:209-212` |

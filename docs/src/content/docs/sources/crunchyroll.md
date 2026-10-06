@@ -516,7 +516,7 @@ sequenceDiagram
 **Trap one: the probe must be synchronous.** `waitForMedia` keeps the first result it finds truthy,
 and a promise is always truthy, so an async probe succeeds instantly with a value that resolves to
 nothing. Three other sources carry the same warning verbatim above their own probes
-(`src/sources/tvmaze/extractor.ts:164`, `src/sources/tmdb/extractor.ts:154`,
+(`src/sources/tvmaze/extractor.ts:158`, `src/sources/tmdb/extractor.ts:148`,
 `src/sources/appletv/extractor.ts:219`).
 
 **Trap two: what the probe waits FOR.** Crunchyroll's probe is

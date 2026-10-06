@@ -79,7 +79,7 @@ and `Episode` are keyed by `_id` and every edge type answers null:
 > up only as a dev-console warning while the cache invents keys for unkeyable objects.
 
 **The worker boundary is osra, two keys, two directions.** `src/worker.ts:32-38` takes
-`handleRequest` off key `'yoga'`, which `src/worker/yoga.ts:70-76` exposes; `src/worker.ts:24-30`
+`handleRequest` off key `'yoga'`, which `src/worker/yoga.ts:69-75` exposes; `src/worker.ts:24-30`
 exposes the page's own `fetch` back to the worker under key `'fetch'`, which
 `src/worker/fetch.ts:7-18` picks up. So a source's upstream request leaves the worker, crosses back
 into the page, and only there becomes a network call.
@@ -404,7 +404,7 @@ the top left instead of from a bad link.
 | the page's one urql client | `src/urql.ts:19-50` |
 | graphcache key resolvers | `src/urql-keys.ts:16-44` |
 | page side of the osra boundary, and the seed refusal | `src/worker.ts:13-38` |
-| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:26-76` |
+| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:26-75` |
 | the fan-out driver, and the uri gate | `src/worker/resolvers/media/index.ts:30-93` |
 | one yoga and one urql client per source | `src/worker/extractor.ts:411-549` |
 | the fan-out itself | `src/worker/extractor.ts:777-851` |

@@ -84,7 +84,7 @@ flowchart LR
   class ASK view
 ```
 
-*The worked case is at `src/sources/kitsu/extractor.ts:84-85`. Only the third branch keeps the url without claiming identity, and it is why Kitsu (`src/sources/kitsu/extractor.ts:96`) and Watchmode (`src/sources/watchmode/extractor.ts:134`) contribute at all; the full account is at [/tldr/sources/](/tldr/sources/).*
+*The worked case is at `src/sources/kitsu/extractor.ts:84-85`. Only the third branch keeps the url without claiming identity, and it is why Kitsu (`src/sources/kitsu/extractor.ts:96`) and Watchmode (`src/sources/watchmode/extractor.ts:126`) contribute at all; the full account is at [/tldr/sources/](/tldr/sources/).*
 
 ## Four ways to say no
 

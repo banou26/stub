@@ -20,9 +20,9 @@
 /**
  * Origins whose every id names a CONTAINER, so the effective scope is CONTAINER before any answer.
  *
- * `imdb` (`db.ts:42`), `trakt` (`trakt/extractor.ts:95`), `tvdb` (`tvdb/extractor.ts:96,113`) and
+ * `imdb` (`db.ts:42`), `trakt` (`trakt/extractor.ts:95`), `tvdb` (`tvdb/extractor.ts:76`) and
  * `paramount` (`paramount/extractor.ts:54`). NOT omdb and NOT watchmode, which both mint a RUN for a
- * film (`omdb/extractor.ts:47`, `watchmode/extractor.ts:181-184`), so adding either here would stamp
+ * film (`omdb/extractor.ts:79`, `watchmode/extractor.ts:170-173`), so adding either here would stamp
  * every film they answer as a container.
  */
 export const SHOW_LEVEL_ORIGINS = new Set(['imdb', 'trakt', 'tvdb', 'paramount'])

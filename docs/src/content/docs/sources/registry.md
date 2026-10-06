@@ -207,8 +207,8 @@ the screen.
 
 That is the argument, and it holds. The parenthetical does not: **jikan mints no imdb handle**. Its
 only two handles are `anidb` and `anizip`, both `sameAs`, at `src/sources/jikan/extractor.ts:146-149`.
-The sources that actually mint an `imdb:` handle are six, not five: `omdb` (`:87`), `simkl` (`:140`),
-`trakt` (`:120`), `watchmode` (`:146`), `tvmaze` (`:68`) and `tvdb` (`:60`), each in its own
+The sources that actually mint an `imdb:` handle are six, not five: `omdb` (`:87`), `simkl` (`:141`),
+`trakt` (`:120`), `watchmode` (`:147`), `tvmaze` (`:68`) and `tvdb` (`:60`), each in its own
 `src/sources/<module>/extractor.ts`.
 
 The row-rendering branch the figure ends on is `src/router/home/media-modal.tsx:767-775`, and it is
@@ -267,7 +267,7 @@ stateDiagram-v2
   [*] --> welding
   welding --> unplugged: 2026-09-04, each show level SAME_AS welded two runs of one show
   unplugged --> live: 2026-09-05, refusing them one by one left it contributing nothing
-  live --> pick: every offer handle, watchmode/extractor.ts:121-125
+  live --> pick: every offer handle, watchmode/extractor.ts:122-126
   pick --> identity: film and pointer.origin === mappedOrigin and pointer.id === id and mintableAsFilmHandle(pointer)
   pick --> containment: anything else, and every imdb id unconditionally
   identity --> [*]
@@ -286,7 +286,7 @@ stateDiagram-v2
 > It now mints them PART_OF: the url survives, the claim does not. That is what this source was always
 > for. See `MediaHandleRelation` in worker/resolvers/media/schema.gql.
 
-The choice node in the figure is `src/sources/watchmode/extractor.ts:121-125`, verbatim:
+The choice node in the figure is `src/sources/watchmode/extractor.ts:122-126`, verbatim:
 
 ```ts
 if (!id) return undefined
@@ -297,7 +297,7 @@ return partOf(node)
 ```
 
 The `imdb` handle does not even reach that branch. It is minted `partOf` outright at
-`src/sources/watchmode/extractor.ts:146`, and `:139-141` says why the demotion is made here rather
+`src/sources/watchmode/extractor.ts:147`, and `:140-142` says why the demotion is made here rather
 than left to the store:
 
 > `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
