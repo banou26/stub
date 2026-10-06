@@ -31,6 +31,7 @@ vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
 }))
 
 const { default: CrunchyrollPlayer } = await import('../../../../src/sources/crunchyroll/player')
+const { siteStatuses } = await import('../../../../src/tracking/site-status')
 
 const EPISODE = 'https://www.crunchyroll.com/watch/GXXXXXXXX/an-episode'
 const SIGNED_OUT_NOTE = 'You need to be logged in to Crunchyroll to watch this content.'
@@ -243,5 +244,35 @@ describe('extension backend', () => {
     expect(open).toHaveBeenCalledTimes(1)
     expect(open.mock.calls[0]).toEqual([expect.stringContaining('https://sso.crunchyroll.com/authorize?'), '_blank', 'width=500,height=700'])
     expect(signIn).not.toHaveBeenCalled()
+  })
+})
+
+// what Accounts shows for Crunchyroll comes from here at no cost: the player's own check of the page
+describe('the sign-in state the page settles on', () => {
+  const record = vi.fn<typeof siteStatuses.record>()
+  const recorded = () => record.mock.calls.filter(([site]) => site === 'crunchyroll').map(([, state]) => state)
+
+  beforeEach(() => { vi.spyOn(siteStatuses, 'record').mockImplementation(record.mockReset()) })
+
+  for (const [backend, signInLabel] of [['cloud', 'Sign in to Crunchyroll'], ['extension', 'Open Crunchyroll Login Page']] as const) {
+    test(`on the ${backend}, a signed-out page is remembered as signed out`, async () => {
+      lib.extension = backend === 'extension'
+      await signedOut(await render(), signInLabel)
+      expect(recorded()).toEqual(['signed-out'])
+    })
+
+    test(`on the ${backend}, a signed-in page is remembered as signed in`, async () => {
+      lib.extension = backend === 'extension'
+      frame.locator = (selector: string) => ({ exists: async () => selector === '#user-menu-authenticated' })
+      await render()
+      await vi.waitFor(() => expect(recorded()).toEqual(['signed-in']), { timeout: 5_000 })
+    })
+  }
+
+  test('a check that gets no answer remembers nothing', async () => {
+    frame.locator = () => ({ exists: async () => { throw new Error('The page went away') } })
+    const host = await render()
+    await vi.waitFor(() => expect(host.textContent).toContain('The page went away'), { timeout: 5_000 })
+    expect(recorded()).toEqual([])
   })
 })
