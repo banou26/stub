@@ -88,7 +88,6 @@ const Settings = () => {
   const account = useAccount()
   const [backend, setBackend] = useState<FknBackend>()
   const [current, setCurrent] = useState(() => sectionFromHash(location.hash))
-  const [keysCleared, setKeysCleared] = useState(0)
   // anything a section changed can change what the Data section lists, which it reads on render
   const [, setRevision] = useState(0)
   const changed = useCallback(() => setRevision(revision => revision + 1), [])
@@ -133,7 +132,7 @@ const Settings = () => {
           <AccountsSection account={account} backend={backend} crunchyroll={crunchyroll} sites={sites} onChange={changed}/>
         </Section>
         <Section id="sources">
-          <SourcesSection keysCleared={keysCleared} onChange={changed}/>
+          <SourcesSection onChange={changed}/>
         </Section>
         <Section id="tracking">
           <p className="intro">
@@ -155,7 +154,7 @@ const Settings = () => {
             inside fkn.app are two addresses, and each keeps its own copy of what is in this browser. The
             site sign-ins FKN keeps are one set for every fkn.app app.
           </p>
-          <DataSection stores={browserStores} clearers={clearers} onCleared={id => { if (id === 'api-keys') setKeysCleared(count => count + 1); changed() }}/>
+          <DataSection stores={browserStores} clearers={clearers} onCleared={changed}/>
         </Section>
       </div>
     </div>

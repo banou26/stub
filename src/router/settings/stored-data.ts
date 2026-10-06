@@ -6,7 +6,6 @@ import type { SettingsSectionId } from './sections'
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ENABLED_PLUGINS_KEY } from '../../plugin-list'
-import { API_KEYS_KEY } from '../../sources/key-configs'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { DISPLAY_MODE_KEY } from '../search/display'
@@ -29,15 +28,6 @@ const LOCAL = 'This browser, in its storage for stub at this address'
 const SESSION = 'This tab, in its storage for stub'
 
 export const STORED: readonly StoredItem[] = [
-  {
-    id: 'api-keys',
-    title: 'API keys',
-    what: 'The keys you pasted for the sources that need one. Each is sent only with the requests to its own source.',
-    where: LOCAL,
-    lasts: 'Until you clear them',
-    keys: { store: 'local', names: [API_KEYS_KEY] },
-    confirm: 'Clear every API key? The sources that need one stop answering until you paste it again.',
-  },
   {
     id: 'added-sources',
     title: 'Added sources',
@@ -152,7 +142,7 @@ const storeOf = (item: StoredItem, stores: BrowserStores) => {
 /** Whether the Data section clears the item itself, rather than pointing at where it is cleared. */
 export const isClearedHere = (item: StoredItem): boolean => Boolean(item.keys) && !item.clearedBy
 
-// what the owners write once everything was removed (`saveKeys`, the plugin list)
+// what an owner writes once everything was removed (the plugin list writes `[]`)
 const EMPTY = new Set(['', '[]', '{}', 'null'])
 
 /** Whether any of the item's keys holds something. Always false for an item outside web storage. */

@@ -7,7 +7,6 @@ import { describe, expect, test } from 'vite-plus/test'
 import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
-import { API_KEYS_KEY } from '../../../src/sources/key-configs'
 import { ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { STORED, clearStored, holdsAnything, isClearedHere, type BrowserStores } from '../../../src/router/settings/stored-data'
@@ -23,7 +22,6 @@ const memory = (initial: Record<string, string>) => {
 
 // every key stub writes, filled in, and one that belongs to nobody here
 const LOCAL = {
-  [API_KEYS_KEY]: JSON.stringify({ omdb: 'a-key' }),
   [ENABLED_PLUGINS_KEY]: JSON.stringify(['npm:@banou/example']),
   [DISPLAY_MODE_KEY]: 'list',
   [COMPACT_PREFS_KEY]: JSON.stringify({ targets: { mal: false } }),
@@ -51,7 +49,6 @@ const byId = (id: string) => {
 
 describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
-    expect(byId('api-keys').keys).toEqual({ store: 'local', names: [API_KEYS_KEY] })
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY] })
     expect(byId('search-layout').keys).toEqual({ store: 'local', names: [DISPLAY_MODE_KEY] })
     expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
@@ -124,11 +121,11 @@ describe('what stub keeps per viewer', () => {
 describe('a Clear', () => {
   const clearable = () => STORED.filter(isClearedHere)
 
-  test('is offered for the keys, the added sources, the search layout, the quick tracking choices and the party name', () => {
-    expect(clearable().map(item => item.id)).toEqual(['api-keys', 'added-sources', 'search-layout', 'quick-tracking', 'party-name'])
+  test('is offered for the added sources, the search layout, the quick tracking choices and the party name', () => {
+    expect(clearable().map(item => item.id)).toEqual(['added-sources', 'search-layout', 'quick-tracking', 'party-name'])
   })
 
-  for (const id of ['api-keys', 'added-sources', 'search-layout', 'quick-tracking', 'party-name']) {
+  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'party-name']) {
     test(`on ${id} removes exactly its keys, and every other key is left as it was`, () => {
       const { local, session, stores } = seeded()
       const item = byId(id)
@@ -160,13 +157,10 @@ describe('a Clear', () => {
 describe('whether an item holds anything', () => {
   test('reads its keys, and an empty list or map holds nothing', () => {
     const { stores, local } = seeded()
-    expect(holdsAnything(byId('api-keys'), stores)).toBe(true)
     expect(holdsAnything(byId('added-sources'), stores)).toBe(true)
 
-    // what saveKeys and the plugin list write once everything was removed
-    local.values.set(API_KEYS_KEY, '{}')
+    // what the plugin list writes once everything was removed
     local.values.set(ENABLED_PLUGINS_KEY, '[]')
-    expect(holdsAnything(byId('api-keys'), stores)).toBe(false)
     expect(holdsAnything(byId('added-sources'), stores)).toBe(false)
 
     clearStored(byId('search-layout'), stores)

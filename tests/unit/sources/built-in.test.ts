@@ -5,15 +5,9 @@ import { expect, test } from 'vite-plus/test'
 
 import * as sources from '../../../src/sources/index'
 import { builtInSources } from '../../../src/sources/built-in'
-import { keyConfigs } from '../../../src/sources/key-configs'
 
 test('names every source that runs, under its own origin, name and site, in the order they run', () => {
   const running = Object.values(sources).map(source => ({ origin: source.origin, name: source.name, url: source.originUrl }))
   expect(builtInSources).toEqual(running)
   expect(builtInSources).toHaveLength(24)
-})
-
-test('every source that asks for a key is a built-in one', () => {
-  const origins = builtInSources.map(source => source.origin)
-  for (const config of keyConfigs) expect(origins, config.origin).toContain(config.origin)
 })

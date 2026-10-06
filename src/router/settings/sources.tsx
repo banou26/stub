@@ -2,8 +2,6 @@ import { useEffect, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
 import { builtInSources } from '../../sources/built-in'
-import { keyConfigs } from '../../sources/key-configs'
-import { loadKeys, saveKeys } from '../../utils/keys'
 import { addPlugins, disablePlugin, enablePlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 
 const style = css`
@@ -25,12 +23,6 @@ const style = css`
   }
 
   .built-in a { color: #fff; overflow-wrap: anywhere; }
-  .built-in .key { font-size: 1.2rem; color: rgba(255, 255, 255, 0.5); }
-  .built-in .key.saved { color: #4ade80; }
-
-  .keys { display: flex; flex-direction: column; gap: 1.6rem; }
-  .key-field { display: flex; flex-direction: column; gap: 0.5rem; }
-  .key-field label { font-size: 1.4rem; font-weight: 600; }
 
   input {
     padding: 0.7rem 1rem;
@@ -44,9 +36,6 @@ const style = css`
   }
 
   input:focus { outline: none; border-color: rgba(255, 255, 255, 0.45); }
-  .help { font-size: 1.25rem; line-height: 1.5; color: rgba(255, 255, 255, 0.55); }
-  .help a { color: inherit; text-decoration: underline; }
-  .saved-note { color: #4ade80; font-size: 1.4rem; }
 
   .add-uri { display: flex; gap: 0.8rem; margin-top: 1.2rem; }
   .add-uri input { flex: 1; }
@@ -66,25 +55,12 @@ const style = css`
   .plugins + .actions { margin-top: 1.2rem; }
 `
 
-const keyedOrigins = new Set(keyConfigs.map(config => config.origin))
-
-/**
- * The built-in sources, read only, the keys the keyed ones take, and the sources added from npm.
- * `keysCleared` changes when the keys were cleared elsewhere on the page, so the fields read them again.
- */
-export const SourcesSection = ({ keysCleared, onChange }: { keysCleared: number, onChange: () => void }) => {
-  const [keys, setKeys] = useState<Record<string, string>>({})
-  const [savedKeys, setSavedKeys] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
+/** The built-in sources, read only, and the sources added from npm. */
+export const SourcesSection = ({ onChange }: { onChange: () => void }) => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [uri, setUri] = useState('')
   const [addError, setAddError] = useState('')
 
-  useEffect(() => {
-    const stored = loadKeys()
-    setKeys(stored)
-    setSavedKeys(stored)
-  }, [keysCleared])
   // Re-read on subscribe, not just on notify: a plugin whose frame is already warm connects before the effect subscribes, leaving a connected source stuck reading "connecting"
   useEffect(() => {
     setPlugins(pluginStatuses())
@@ -105,62 +81,17 @@ export const SourcesSection = ({ keysCleared, onChange }: { keysCleared: number,
       .finally(() => setPlugins(pluginStatuses()))
   }
 
-  const onSubmit = (event: Event) => {
-    event.preventDefault()
-    saveKeys(keys)
-    setSavedKeys(loadKeys())
-    setSaved(true)
-    onChange()
-    setTimeout(() => setSaved(false), 2_000)
-  }
-
   return (
     <div css={style}>
       <h3 className="subheading">Built in</h3>
-      <p className="intro">
-        stub ships with these {builtInSources.length} sources, always on. The ones that need your own key do
-        nothing until you add it below.
-      </p>
+      <p className="intro">stub ships with these {builtInSources.length} sources, always on, and none of them needs a key.</p>
       <ul className="built-in">
         {builtInSources.map(source => (
           <li key={source.origin} data-source={source.origin}>
             <a href={source.url} target="_blank" rel="noreferrer">{source.name}</a>
-            {keyedOrigins.has(source.origin)
-              ? <span className={`key${savedKeys[source.origin] ? ' saved' : ''}`}>{savedKeys[source.origin] ? 'Key saved' : 'Needs your key'}</span>
-              : undefined}
           </li>
         ))}
       </ul>
-
-      <h3 className="subheading">Your keys</h3>
-      <p className="intro">
-        Keys are kept in this browser only and are sent only with the requests to their own source. Leave a
-        field blank to keep its source off.
-      </p>
-      <form className="keys" onSubmit={onSubmit}>
-        {keyConfigs.map(config => (
-          <div className="key-field" key={config.origin}>
-            <label htmlFor={config.origin}>{config.label}</label>
-            <input
-              id={config.origin}
-              type="password"
-              autoComplete="off"
-              spellcheck={false}
-              placeholder={`Paste your ${config.name} key`}
-              value={keys[config.origin] ?? ''}
-              onInput={event => setKeys({ ...keys, [config.origin]: (event.target as HTMLInputElement).value })}
-            />
-            <span className="help">
-              {config.help ? `${config.help} ` : ''}
-              <a href={config.getUrl} target="_blank" rel="noreferrer">Get a key →</a>
-            </span>
-          </div>
-        ))}
-        <div className="actions">
-          <button type="submit">Save</button>
-          {saved && <span className="saved-note">Saved</span>}
-        </div>
-      </form>
 
       <h3 className="subheading">Added</h3>
       <p className="intro">
