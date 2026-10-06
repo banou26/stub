@@ -345,29 +345,25 @@ also the one claim that is unchecked. Disabling the plugin afterwards removes it
 
 ## The context a plugin resolver receives
 
-A built-in resolver is handed an `ExtractorServerContext` with five members
-(`src/worker/extractor.ts:34-44`): `fetch` (the backoff-wrapped proxy fetch), `key(origin)` (the user's
-API keys), `findAggregatedMedia`, `listenForMediaChanges`, and `similarMedia`. A plugin resolver is
-handed one object with one member, minted per call at `src/worker/extractor.ts:620`:
+A built-in resolver is handed an `ExtractorServerContext` with four members
+(`src/worker/extractor.ts:39-48`): `fetch` (the backoff-wrapped proxy fetch), `findAggregatedMedia`,
+`listenForMediaChanges`, and `similarMedia`. A plugin resolver is handed one object with one member,
+minted per call at `src/worker/extractor.ts:675`:
 
 ```ts
 for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin) })) {
 ```
 
-`src/worker/extractor.ts:607-619` is the argument for that one function being there at all, and it is
-unusually candid about what it costs:
+`src/worker/extractor.ts:667-674` is the argument for that one function being there at all:
 
 > The ctx a plugin sees is EXACTLY one function and never the real one. Stub's privileged
-> context, the proxy fetch, the user's API keys and the store reads, still does not cross to
-> third-party code; what crosses is the ability to ask a first-party source "which run of this
-> show is the one this evidence describes", which is the same question the app asks on the
-> plugin's behalf anyway.
->
-> Deliberate, and worth knowing rather than assuming: a plugin CAN now cause a key-gated source
-> to spend the user's key on a request it did not initiate. The surface is narrow, scalars and
-> strings that every implementation compares rather than interpolates into a url, and the
-> answer it gets back is a media the app was going to fetch anyway. It is not nothing, which is
-> why it is written down here next to the code rather than in a commit message.
+> context, the proxy fetch and the store reads, still does not cross to third-party code; what
+> crosses is the ability to ask a first-party source "which run of this show is the one this
+> evidence describes", which is the same question the app asks on the plugin's behalf anyway.
+> The surface is narrow: scalars and strings that every implementation compares rather than
+> interpolates into a url, answered with a media the app was going to fetch anyway.
+
+No source takes a key from the viewer since 2026-10-07, so a plugin's question spends nobody's key.
 
 Three bounds hold that surface, all of them in the same file:
 

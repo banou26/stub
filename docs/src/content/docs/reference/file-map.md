@@ -105,7 +105,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 |---|---|---|
 | `src/worker.ts` (49L) | the osra `expose` on the page side, and one resolver back to the worker: `fetch`, with the seed refusal | `src/worker.ts:14-15` states the refusal shape: 404, never 503 |
 | `src/worker/index.ts` (3L) | the worker entry: `./polyfills`, `./yoga`, `./store` | three imports, in that order |
-| `src/worker/yoga.ts` (76L) | the app-level yoga, `maskedErrors: false`, and the osra resolver surface (`setUserKeys`, `registerRemoteSource`, `exportStore`, ...) | reaches `extractor.ts`, so it cannot be tested |
+| `src/worker/yoga.ts` (75L) | the app-level yoga, `maskedErrors: false`, and the osra resolver surface (`registerRemoteSource`, `exportStore`, ...) | reaches `extractor.ts`, so it cannot be tested |
 | `src/worker/fetch.ts` (18L) | `fetch` and `fetchWithBackoff`, over osra | calls `expose()` at module scope, which needs a transport that does not exist under node |
 | `src/worker/backoff.ts` (80L) | `withBackoff`, `RETRYABLE_STATUSES`, `MAX_RETRIES`, `retry-after` parsing | split out of `fetch.ts` with **no imports**, for the reason above |
 | `src/utils/fetch.ts` (6L) | `cloud.fetch` from `@fkn/lib` | the outermost hop, page side |
@@ -146,7 +146,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 | `src/sources/aired-date.ts`, `next-airing.ts`, `average-score.ts`, `mal-image.ts` | small shared field helpers | each import-free or type-only, each with the reason in its header |
 | `src/sources/anilist/frontend.ts`, `jikan/season-scrape.ts`, `kitsu/season-paging.ts`, `kitsu/stream-id.ts` | one fallback or paging rule each, per source | same pattern: no runtime imports |
 | `src/sources/offline/seed.ts`, `seed-gate.ts`, `seed-build.ts`, `seed-source.ts`, `index-lookup.ts` | the season seed's shape, its publish gate, its builder and the generated id index | `seed.ts` and `seed-gate.ts` must load **in node directly**, through type stripping, which is a stricter rule than the rest of this page |
-| `src/sources/key-configs.ts` (47L) | which sources ask for a user key, and where to get one | split for a bundle reason, not a test one: the settings page reads it on the main thread without pulling the worker and WASM bundle |
+| `src/sources/entities.ts` (8L) | `decodeEntities`, the one HTML character reference reader for tmdb, tvmaze and simkl | no imports |
 
 ### The store: writing
 
