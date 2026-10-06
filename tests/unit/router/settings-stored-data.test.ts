@@ -118,6 +118,12 @@ describe('what stub keeps per viewer', () => {
     expect(byId('site-status').confirm).toContain('Your sessions stay as they are')
   })
 
+  // after a Clear only Crunchyroll's row says Not checked yet; a connected tracker says it is connected
+  test('clearing the sign-in states promises no row text that only one site shows', () => {
+    expect(byId('site-status').confirm).not.toContain('Not checked yet')
+    expect(byId('site-status').confirm).toContain('Accounts shows no sign-in state until stub learns it again')
+  })
+
   test('the sites a sign in connected are cleared under Accounts, and the party you are in by leaving it', () => {
     expect(isClearedHere(byId('connected-sites'))).toBe(false)
     expect(byId('connected-sites').clearedBy?.section).toBe('accounts')

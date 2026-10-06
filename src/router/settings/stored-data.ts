@@ -72,7 +72,7 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: 'Until you clear it, or stub learns it again',
     keys: { store: 'local', names: [SITE_STATUS_KEY] },
-    confirm: 'Clear the remembered sign-in states? Your sessions stay as they are; Accounts says Not checked yet until stub learns them again.',
+    confirm: 'Clear the remembered sign-in states? Your sessions stay as they are; Accounts shows no sign-in state until stub learns it again.',
   },
   {
     id: 'party-name',
