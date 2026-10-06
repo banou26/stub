@@ -137,6 +137,20 @@ test('imdb and a readable netflix id are still minted', async () => {
   expect(handles.map(handle => handle.uri)).toContain('nf:80987039')
 })
 
+// Every region's links ride the gateway's answer, and a regional one puts its locale before the id.
+// Read at a fixed index, these minted `nf:title` and `hbo:en`, one id shared by every title carrying
+// such a link (Frieren's and Inception's title pages through the relay, 2026-10-07).
+test('a regional link mints the title it names, never its locale or a path word', async () => {
+  const handles = await handlesFor([
+    source('https://www.netflix.com/be-en/title/81726714'),
+    source('https://www.netflix.com/in/title/81726714'),
+    source('https://www.hbomax.com/it/en/movie/14552c93-d318-4563-a00b-343df7e35d0b'),
+    source('https://www.hbomax.com/at/en/movies/inception/14552c93-d318-4563-a00b-343df7e35d0b'),
+  ])
+
+  expect(handles.map(handle => handle.uri).sort()).toEqual(['hbo:14552c93-d318-4563-a00b-343df7e35d0b', 'nf:81726714'])
+})
+
 // The scope stamp. Watchmode has no season concept, so a series record IS the show and its row is a
 // CONTAINER: one id for every run. A film is its own single run. The id's prefix says which.
 test('a series detail row is a CONTAINER and a film detail row is a RUN', async () => {

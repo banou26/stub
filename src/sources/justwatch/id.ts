@@ -78,6 +78,8 @@ export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
   ppp: 'paramount', ppe: 'paramount', fuv: 'fubo'
 }
 
+const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+
 /**
  * The provider's own id for a title, read out of the deep link the offer carries.
  *
@@ -98,7 +100,11 @@ export const extractContentId = (url: string): string | undefined => {
     const host = parsed.hostname.replace('www.', '')
     const parts = parsed.pathname.split('/').filter(Boolean)
 
-    if (host === 'netflix.com') return parts[1]
+    // `/title/<id>` and `/watch/<id>`, behind a locale on a regional link (`/be-en/title/<id>`)
+    if (host === 'netflix.com') {
+      const kind = parts.findIndex(part => part === 'title' || part === 'watch')
+      return kind === -1 ? undefined : parts[kind + 1]
+    }
     if (host === 'crunchyroll.com' && parts[0] === 'series') return parts[1]
 
     // Prime Video offers now land on watch.amazon.com/detail?gti=<id>, where the id is not in the path
@@ -109,7 +115,7 @@ export const extractContentId = (url: string): string | undefined => {
 
     if (host === 'hulu.com') {
       const last = parts.at(-1)
-      return last?.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1] ?? last
+      return last?.match(UUID_AT_END)?.[1] ?? last
     }
 
     // tv.apple.com names a title twice, as a human slug and as a umc.cmc id, and only the umc id is
@@ -136,9 +142,10 @@ export const extractContentId = (url: string): string | undefined => {
     if (host === 'fubo.tv') return parts[0] === 'welcome' ? parts[2] : undefined
 
     // /show/<uuid> for a title, /video/watch/<uuid> for an episode of one
-    if (host === 'play.hbomax.com' || host === 'hbomax.com') {
-      return parts[0] === 'video' ? parts[2] : parts[1]
-    }
+    if (host === 'play.hbomax.com') return parts[0] === 'video' ? parts[2] : parts[1]
+
+    // the regional site, /<country>/<language>/movies/<slug>/<uuid>, ends on the title's uuid
+    if (host === 'hbomax.com') return parts.at(-1)?.match(UUID_AT_END)?.[1]
   } catch {}
   return undefined
 }
