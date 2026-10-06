@@ -305,26 +305,26 @@ scope: 'RUN',
 | unogs | `titleScope = vtype === 'movie' ? 'RUN' : 'CONTAINER'`, then rewritten to `'RUN'` when a season is pinned | `unogs/extractor.ts:136`, `:271` |
 | justwatch | `showAsContainer` builds `scope: 'CONTAINER'`; `normalizeMedia` leaves `makeMedia`'s RUN for a season-scoped row or a MOVIE | `justwatch/extractor.ts:452` |
 | appletv | `scoped \|\| content.type === 'Movie' ? 'RUN' : 'CONTAINER'`, where `scoped = season?.seasonNumber != null` | `appletv/extractor.ts:92`, `:102` |
-| tvmaze | `seasonNumber == null ? 'CONTAINER' : 'RUN'`, and its imdb handles are stamped CONTAINER | `tvmaze/extractor.ts:81`, `:63` |
-| tmdb | `seasonNumber == null ? 'CONTAINER' : 'RUN'` | `tmdb/extractor.ts:106` |
+| tvmaze | `seasonNumber == null ? 'CONTAINER' : 'RUN'`, and its imdb handles are stamped CONTAINER | `tvmaze/extractor.ts:75`, `:57` |
+| tmdb | `seasonNumber == null ? 'CONTAINER' : 'RUN'` | `tmdb/extractor.ts:100` |
 | paramount | always CONTAINER, because its id is the show slug | `paramount/extractor.ts:54` |
 | trakt | always CONTAINER, and both handles it mints (imdb, tmdb) too | `trakt/extractor.ts:95`, `:82`, `:83` |
-| tvdb | always CONTAINER, for search rows, series rows and remote-id handles alike | `tvdb/extractor.ts:96`, `:114`, `:41` |
-| omdb | `result.Type === 'movie' ? 'RUN' : 'CONTAINER'`, applied to the row and to its imdb handle | `omdb/extractor.ts:47`, `:52`, `:53` |
-| simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'` | `simkl/extractor.ts:87`, `:92` |
-| watchmode | `categoriesForType(type)[0] === 'MOVIE' ? 'RUN' : 'CONTAINER'` | `watchmode/extractor.ts:183` |
+| tvdb | always CONTAINER, for search rows, series rows and remote-id handles alike | `tvdb/extractor.ts:76`, `:60` |
+| omdb | `film ? 'RUN' : 'CONTAINER'`, applied to the row and to its imdb handle | `omdb/extractor.ts:79`, `:86`, `:87` |
+| simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'` | `simkl/extractor.ts:105`, `:110` |
+| watchmode | `isFilm(id) ? 'RUN' : 'CONTAINER'`, read off the id's `01` film prefix | `watchmode/extractor.ts:173` |
 | anilist | RUN by default; its `similarMedia` answer is re-minted preserving `answer.scope` | `anilist/extractor.ts:250` |
 | jikan, anizip, kitsu, offline | never set `scope`, so RUN by `makeMedia`'s default | `sources/utils.ts:65` |
 | disney, amazon, hulu, peacock, hbo, fubo, imdb | never build a media at all | |
 
 Three of those carry their reasoning, and the reasoning is the same argument each time:
 
-`src/sources/watchmode/extractor.ts:181-182`
+`src/sources/watchmode/extractor.ts:170-171`
 
 > Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
 > That is a CONTAINER, and only a film, which is its own single run, is a RUN.
 
-`src/sources/simkl/extractor.ts:84-86`
+`src/sources/simkl/extractor.ts:102-104`
 
 > A tv record is one show with every season under it (its episodes carry a season field), so it is a
 > CONTAINER. An anime record is one run, the reason this source is worth reading: Mushoku Tensei is

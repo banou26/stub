@@ -370,7 +370,7 @@ would scope **every** Apple TV uri as a container, including the honest season-s
 now mints at `src/sources/appletv/extractor.ts:105`
 (`id: scoped ? seasonScopedId(content.id, season!.seasonNumber!) : content.id`). That throws away
 correct handles to fix an id minted wrongly somewhere else, and the argument against it is written out
-at `src/sources/simkl/extractor.ts:112-115`:
+at `src/sources/simkl/extractor.ts:130-133`:
 
 > `tmdb` deliberately does NOT go in `SHOW_LEVEL_ORIGINS` for this. Unlike imdb, tmdb CAN be scoped,
 > and `tmdb/extractor.ts` mints a real `<id>-s<n>` through `seasonScopedId`. Exempting the origin would

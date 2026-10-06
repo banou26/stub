@@ -263,7 +263,7 @@ takes the uris it walks from the caller:
 
 The rule that keeps it safe lives in `sameAsHandleUris` (`aggregate.ts:103-104`) and is pinned at
 `tests/unit/worker/store/part-of.test.ts:117-128`, because the resolver itself cannot be imported
-under vitest. `src/sources/tvdb/extractor.ts:159-165` and
+under vitest. `src/sources/tvdb/extractor.ts:86-88` and
 `src/sources/crunchyroll/extractor.ts:258-270` both carry the same guard on the producing side: a
 show-level id gets the metadata and no episodes.
 

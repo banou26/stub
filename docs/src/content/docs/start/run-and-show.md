@@ -120,12 +120,12 @@ flowchart TD
   classDef refuse fill:#a3a4aa,stroke:#74757c,color:#17181b
 ```
 
-*Every lane asks the same question in its own file, and the rose outcome is the one that cannot be taken back. The conditions are, in order: `src/sources/simkl/extractor.ts:87`, `src/sources/crunchyroll/extractor.ts:174`, `src/sources/unogs/extractor.ts:342`, `src/sources/justwatch/extractor.ts:470`, and `src/worker/store/db.ts:42`.*
+*Every lane asks the same question in its own file, and the rose outcome is the one that cannot be taken back. The conditions are, in order: `src/sources/simkl/extractor.ts:105`, `src/sources/crunchyroll/extractor.ts:174`, `src/sources/unogs/extractor.ts:342`, `src/sources/justwatch/extractor.ts:470`, and `src/worker/store/db.ts:42`.*
 
 Each lane, with the measurement behind it.
 
 **anilist, mal, kitsu, simkl anime records.** The record already is one cour, so its bare id is a
-run and needs no scoping. `src/sources/simkl/extractor.ts:84-86`:
+run and needs no scoping. `src/sources/simkl/extractor.ts:102-104`:
 
 > A tv record is one show with every season under it (its episodes carry a season field), so it is a
 > CONTAINER. An anime record is one run, the reason this source is worth reading: Mushoku Tensei is
@@ -218,7 +218,7 @@ origin hard-coded in the store (`src/worker/store/db.ts:17-26`):
 | bare show id | nothing to mint | imdb, watchmode, trakt, tvdb | no, and this is why they are CONTAINER |
 
 The three that cannot are not gaps waiting to be filled. `trakt/extractor.ts:76` and
-`tvdb/extractor.ts:32` both say the same thing: *everything this source mints is CONTAINER*, because
+`tvdb/extractor.ts:54-55` both say the same thing: *everything this source mints is CONTAINER*, because
 each reads a `/shows/` or `/series/` endpoint and never sees a season. Watchmode was disabled on
 2026-09-04 for exactly this and came back the next day as PART_OF (`src/sources/index.ts:26-32`):
 

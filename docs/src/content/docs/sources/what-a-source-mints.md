@@ -124,12 +124,12 @@ free: the recoverable failure is the one it chooses.
 Three source modules call `partOf`, at six sites. Kitsu builds one per streaming pointer it cannot read
 as a film (`src/sources/kitsu/extractor.ts:96`), JustWatch routes its offers through it
 (`justwatch/extractor.ts:400` and `:510`), and Watchmode is the source that exists in its current
-shape because of it: `watchmode/extractor.ts:134` returns `partOf(node)` for every provider handle,
-after `:133` has decided the one narrow case that may be `sameAs`, and `:155` and `:162` mint its imdb
+shape because of it: `watchmode/extractor.ts:126` returns `partOf(node)` for every provider handle,
+after `:125` has decided the one narrow case that may be `sameAs`, and `:147` and `:154` mint its imdb
 and tmdb ids the same way. Watchmode's own comment says why
 the claim is made at the point of the claim rather than left to the store's backstop:
 
-`src/sources/watchmode/extractor.ts:148-150`
+`src/sources/watchmode/extractor.ts:140-142`
 
 > `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
 > the whole reason `SHOW_LEVEL_ORIGINS` exists. Saying so here rather than relying on that Set to
@@ -140,11 +140,11 @@ the claim is made at the point of the claim rather than left to the store's back
 There is a way to get the CONTAINER outcome without calling `partOf` at all, and three sources use it.
 They put a bare media into the handle list with the scope already set:
 
-`src/sources/tvmaze/extractor.ts:60`
+`src/sources/tvmaze/extractor.ts:54`
 
 > The imdb id is the SHOW's, one for every season, so it is a CONTAINER whichever row carries it.
 
-`src/sources/tvmaze/extractor.ts:61-63`
+`src/sources/tvmaze/extractor.ts:55-57`
 
 ```ts
 const buildHandles = (show: TvmazeShow): GQLMedia[] => {
@@ -154,7 +154,7 @@ const buildHandles = (show: TvmazeShow): GQLMedia[] => {
 ```
 
 Trakt does the same for its imdb and tmdb ids (`trakt/extractor.ts:80-84`) and so does tvdb
-(`tvdb/extractor.ts:41`). These are bare medias, so `makeMedia` coerces each one to `sameAs`, and the
+(`tvdb/extractor.ts:60`). These are bare medias, so `makeMedia` coerces each one to `sameAs`, and the
 claim that reaches `upsertMedia` says SAME_AS. It still lands on an edge, because the node's scope
 makes `mediaScope !== handleScope` true. That is the `BARE` lane on the figure above, and it is worth
 knowing that the two routes are not equivalent in what they say, only in what they do: `partOf` states

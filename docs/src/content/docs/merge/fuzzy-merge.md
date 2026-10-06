@@ -69,8 +69,8 @@ Three properties of the bucketing are worth reading off the code rather than off
   AniList's 2021 date and a streaming catalogue's 2022 date is compared inside both buckets.
 - **A cluster with no dated member appears in no bucket and cannot merge at all.** That is the
   property five extractors lean on by name when they refuse to stamp a show's date onto a season row
-  (`unogs/extractor.ts:276-277`, `appletv/extractor.ts:94-95`, `tvmaze/extractor.ts:92-93`,
-  `tmdb/extractor.ts:117`, `aired-date.ts:17`).
+  (`unogs/extractor.ts:276-277`, `appletv/extractor.ts:94-95`, `tvmaze/extractor.ts:86-87`,
+  `tmdb/extractor.ts:111`, `aired-date.ts:17`).
 - **A cluster with no identity-bearing title is skipped at `:599`.** A Crunchyroll cluster whose only
   title is the literal string `Season 3` lands here, and that is deliberate: see `carriesIdentity`
   below.

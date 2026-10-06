@@ -23,9 +23,9 @@ runs are the same media, once per run, permanently.
 > So the rule is absolute: a series media is `<node>-<season>`, never the bare node id.
 
 Three other files say the same thing in their own words, each after the same failure. TMDB
-(`src/sources/tmdb/extractor.ts:94-97`): *every season handing back `tmdb:94664` union-finds them
+(`src/sources/tmdb/extractor.ts:88-91`): *every season handing back `tmdb:94664` union-finds them
 into a single media, which is what merged all three seasons of Mushoku Tensei even after JustWatch
-stopped doing the same thing.* TVmaze (`src/sources/tvmaze/extractor.ts:66-71`): *the live site fuzzy
+stopped doing the same thing.* TVmaze (`src/sources/tvmaze/extractor.ts:60-65`): *the live site fuzzy
 merged 'tvmaze:52279' into Mushoku Tensei season 1 and season 3 then asserted sameness through it.*
 Apple TV, through the gate module that records the precondition for the next catalogue source
 (`src/sources/catalogue-gate.ts:9-10`): *two Mushoku Tensei clusters three years apart came back as
@@ -74,7 +74,7 @@ The conditions in that figure are real lines. The first is JustWatch's
 (`src/sources/justwatch/extractor.ts:470`), and every source in the ordinal family has its own
 spelling of it, listed [below](#when-there-is-no-season-nobody-guesses-one). The two mint expressions
 are `src/sources/justwatch/extractor.ts:474` and `src/sources/appletv/extractor.ts:105`. The third is
-`src/sources/tmdb/extractor.ts:185`.
+`src/sources/tmdb/extractor.ts:179`.
 
 | shape | function | mints for | example |
 | --- | --- | --- | --- |
@@ -165,10 +165,10 @@ literally the show id plus a suffix. Changing a separator here would silently ha
 The ordinal shapes are only reproducible while the number comes off the catalogue's own season list.
 TMDB reads `show.seasons` out of the scraped show page and pins the season from the uri when the uri
 already carries one (`pinned ?? await resolveSeasonNumber(...)`,
-`src/sources/tmdb/extractor.ts:185`). The failure mode is a number arriving from somewhere else, and
+`src/sources/tmdb/extractor.ts:179`). The failure mode is a number arriving from somewhere else, and
 there is a measured one in the file:
 
-`src/sources/tmdb/extractor.ts:198`
+`src/sources/tmdb/extractor.ts:192`
 
 > spelled out so map's index never lands in seasonNumber: it minted the first row as '&lt;id&gt;-s0'
 
@@ -181,8 +181,8 @@ well-formed, precise, entirely invented id.
 Every source in the ordinal family refuses rather than falling back to the bare id on a linking path.
 
 - justwatch, `src/sources/justwatch/extractor.ts:470`: `if (opts.seasonNumber == null && showRequiresSeason(node.objectType)) return null`, with the comment above it reading *refusing to build the media is the point*. A movie is exempt, because `showRequiresSeason` is `objectType !== 'MOVIE'` (`src/sources/justwatch/id.ts:35`) and a film has no seasons to be confused between.
-- tmdb, `src/sources/tmdb/extractor.ts:188`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`.
-- tvmaze, `src/sources/tvmaze/extractor.ts:175`: `if (seasonNumber == null && candidates.length > 1) return undefined`.
+- tmdb, `src/sources/tmdb/extractor.ts:182`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`.
+- tvmaze, `src/sources/tvmaze/extractor.ts:169`: `if (seasonNumber == null && candidates.length > 1) return undefined`.
 - unogs, `src/sources/unogs/extractor.ts:254`: `if (requireSeason && seasonNumber == null && title.vtype === 'series') return undefined`, and `requireSeason` is passed `true` only where cluster handles are attached, because that is the only path that can weld.
 - appletv, `src/sources/appletv/extractor.ts:102`: it does not refuse, it demotes. `const scope = scoped || content.type === 'Movie' ? 'RUN' : 'CONTAINER'`, so the bare show id is still emitted and the store keeps it out of every run's identity space instead.
 
@@ -281,7 +281,7 @@ bug as the specification.
 
 :::caution[The refusal belongs at the source that cannot make an honest id]
 Not at the origin. Simkl mints no `tmdb` handle at all for exactly this reason, and
-`src/sources/simkl/extractor.ts:112-115` says why the fix is not `SHOW_LEVEL_ORIGINS`:
+`src/sources/simkl/extractor.ts:130-133` says why the fix is not `SHOW_LEVEL_ORIGINS`:
 
 > `tmdb` deliberately does NOT go in `SHOW_LEVEL_ORIGINS` for this. Unlike imdb, tmdb CAN be scoped,
 > and `tmdb/extractor.ts` mints a real `<id>-s<n>` through `seasonScopedId`. Exempting the origin

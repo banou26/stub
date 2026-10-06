@@ -154,7 +154,7 @@ above the merged default every source falls back to:
 > refusal off the first payload
 
 That sentence is repeated, in its own words, above six source resolvers: `crunchyroll/extractor.ts:563-564`,
-`tvmaze/extractor.ts:197`, `unogs/extractor.ts:472`, `appletv/extractor.ts:404`,
+`tvmaze/extractor.ts:191`, `unogs/extractor.ts:472`, `appletv/extractor.ts:404`,
 `justwatch/extractor.ts:749`, `anizip/extractor.ts:119`. `offline/extractor.ts:231-232` states the
 distinction that matters:
 
@@ -263,7 +263,7 @@ Where a throw lands depends on which side of a boundary it happened on.
   ```
 
 - **Across the osra boundary** it is turned back into a value. `registerRemoteExtractor` throws
-  `plugin '<uri>': no source could be registered` at `extractor.ts:703`, and `yoga.ts:44-50` catches it
+  `plugin '<uri>': no source could be registered` at `extractor.ts:703`, and `yoga.ts:57-62` catches it
   and answers `{ error: message }`; `plugins.ts:100` then rethrows it on the page side. The throw
   survives, but it crosses the process boundary as data.
 

@@ -294,7 +294,7 @@ stated once, at `:163-172`:
 | W10 | `db.ts:234` | see `F15` | the container space holds containers only. |
 | W11 | `db.ts:250` | see `F16` | RUN then CONTAINER in that order, unflipped, or nothing. |
 | W12 | `db.ts:400-415` | **no condition** | `upsertEpisodes` has no placeholder gate, no scope ratchet, no description gate, no cross-scope demotion, no `changed` tracking and an unconditional `emit('episode:changed', {})` at `:414`. Every guard in this table is absent on that path, deliberately listed here as the one place with nothing to list. |
-| W13 | `yoga.ts:54-61` | `excludeOrigins: [...(options?.excludeOrigins ?? []), ...extractors.filter(entry => entry.pluginUri).map(entry => entry.extractor.origin)]` | plugin origins are derived worker-side so a caller **cannot decline to exclude them**. A plugin's rows are that user's, never the product's. |
+| W13 | `yoga.ts:53-60` | `excludeOrigins: [...(options?.excludeOrigins ?? []), ...extractors.filter(entry => entry.pluginUri).map(entry => entry.extractor.origin)]` | plugin origins are derived worker-side so a caller **cannot decline to exclude them**. A plugin's rows are that user's, never the product's. |
 | W14 | `graph.ts:167` | `if (mergeFns.length > 1) throw new Error(...)` | the whole `graph.set` call throws, which fails one DataLoader batch of up to 250 medias. |
 | W15 | `graph.ts:85` | `if (rootA === rootB) return false` | already one component, so `graph.link` reports no change and `changed` stays false. This is what keeps an idempotent re-assert from putting every listener back in the re-read loop. |
 

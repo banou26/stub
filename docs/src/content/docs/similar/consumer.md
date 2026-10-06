@@ -145,7 +145,7 @@ flowchart TD
 **definition's** resolvers rather than the merged schema, so `makeExtractor`'s yield-null default
 counts as not implemented. Five sources implement the field: crunchyroll
 (`crunchyroll/extractor.ts:563`), unogs (`unogs/extractor.ts:471`), justwatch
-(`justwatch/extractor.ts:748`), tvmaze (`tvmaze/extractor.ts:196`) and appletv
+(`justwatch/extractor.ts:748`), tvmaze (`tvmaze/extractor.ts:190`) and appletv
 (`appletv/extractor.ts:403`). Everything else is skipped here, which saves a subscription round trip
 that could only answer null.
 

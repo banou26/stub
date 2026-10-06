@@ -446,12 +446,12 @@ defaults, the fan-out join, the DataLoaders, the store, is shared.*
 | definition | a module namespace in `src/sources/index.ts` | `PluginSourceMeta` plus `makeDelegatingResolvers`, `src/worker/extractor.ts:681` |
 | `supportedUris` | declared, read by `answersForOrigins` | absent from `PluginSourceMeta` (`src/worker/plugin-sources.ts:18-26`), so the re-ask matches on origin alone |
 | where resolvers run | in the worker | in the package's own frame, reached over the port |
-| context | five members (`src/worker/extractor.ts:34-44`) | one, `{ similarMedia: similarMediaFrom(origin) }` |
+| context | four members (`src/worker/extractor.ts:39-48`) | one, `{ similarMedia: similarMediaFrom(origin) }` |
 | origin enforcement | none | `enforcePluginOrigin` per payload, nested handles exempt |
 | handle shape | edges, as the schema declares | bare rows accepted, `readPluginHandles`, media depth 4, episode depth 1 |
 | identity | whatever the module exports | `/^[a-z0-9][a-z0-9-]{0,31}$/`, and must not collide |
 | teardown | never | `closed`, `unregisterRemoteSource`, splice plus `leaveFanout` |
-| store export | included | force-excluded worker-side (`src/worker/yoga.ts:52-62`) |
+| store export | included | force-excluded worker-side (`src/worker/yoga.ts:51-61`) |
 
 ### The re-ask matches a plugin on its origin alone
 
@@ -488,7 +488,7 @@ after it is disabled and after the page is reloaded.
 
 ### The export exclusion is decided in the worker
 
-`src/worker/yoga.ts:52-62`:
+`src/worker/yoga.ts:51-61`:
 
 > the plugin origins are derived HERE rather than taken from the caller, so a caller cannot decline
 > to exclude them: a plugin's rows are that user's, never the product's.

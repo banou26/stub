@@ -432,10 +432,10 @@ Worth naming, because the contract is defined as much by its absences.
   yielded and returned, that subscription is finished. Being asked again is the caller's decision,
   through `askOrigins`, and `supportedUris` is what makes the caller choose it
   ([the re-ask](/request/re-ask/)).
-- **No shared context beyond five functions.** A built-in source's `ctx` is
-  `ExtractorServerContext` (`src/worker/extractor.ts:34-44`): `fetch`, `key`, `findAggregatedMedia`,
+- **No shared context beyond four functions.** A built-in source's `ctx` is
+  `ExtractorServerContext` (`src/worker/extractor.ts:39-48`): `fetch`, `findAggregatedMedia`,
   `listenForMediaChanges`, `similarMedia`. A plugin source gets exactly one of those,
-  `{ similarMedia: similarMediaFrom(origin) }` (`src/worker/extractor.ts:620`), which is
+  `{ similarMedia: similarMediaFrom(origin) }` (`src/worker/extractor.ts:675`), which is
   [the plugin page](/request/plugins/).
 
 ## Two sets, and the class of source that never answers
