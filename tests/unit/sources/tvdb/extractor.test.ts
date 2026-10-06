@@ -37,6 +37,16 @@ const searchFor = async (search: string, sent: Sent[] = []) => {
   return value?.mediaPage?.nodes as Row[]
 }
 
+// a filter the index stopped honouring answers some other series, which must not stand in for this one
+test('a search that answers another series than the one asked is no media', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const ignoresFilter = { fetch: async () => ({ json: async () => fixture('search-frieren') }) } as never
+  const { value } = await subscribe(undefined, { input: { uri: 'tvdb:1' } }, ignoresFilter).next()
+
+  expect(fixture('search-frieren').results[0].hits.length, 'control: the answer carries series').toBeGreaterThan(0)
+  expect(value?.media).toBeNull()
+})
+
 test('search asks the site\'s own search for series, with no key and no sign-in', async () => {
   const sent: Sent[] = []
   const rows = await searchFor('frieren', sent)
