@@ -207,9 +207,9 @@ the screen.
 
 That is the argument, and it holds. The parenthetical does not: **jikan mints no imdb handle**. Its
 only two handles are `anidb` and `anizip`, both `sameAs`, at `src/sources/jikan/extractor.ts:146-149`.
-The sources that actually mint an `imdb:` handle are six, not five: `omdb` (`:53`), `simkl` (`:123`),
-`trakt` (`:82`), `watchmode` (`:155`), `tvmaze` (`:63`) and `tvdb`, through its `HANDLE_ORIGINS` map
-at `src/sources/tvdb/extractor.ts:25`.
+The sources that actually mint an `imdb:` handle are six, not five: `omdb` (`:87`), `simkl` (`:140`),
+`trakt` (`:120`), `watchmode` (`:146`), `tvmaze` (`:68`) and `tvdb` (`:60`), each in its own
+`src/sources/<module>/extractor.ts`.
 
 The row-rendering branch the figure ends on is `src/router/home/media-modal.tsx:767-775`, and it is
 the reason a `PART_OF` handle is enough:
@@ -267,7 +267,7 @@ stateDiagram-v2
   [*] --> welding
   welding --> unplugged: 2026-09-04, each show level SAME_AS welded two runs of one show
   unplugged --> live: 2026-09-05, refusing them one by one left it contributing nothing
-  live --> pick: every offer handle, watchmode/extractor.ts:130-134
+  live --> pick: every offer handle, watchmode/extractor.ts:121-125
   pick --> identity: film and pointer.origin === mappedOrigin and pointer.id === id and mintableAsFilmHandle(pointer)
   pick --> containment: anything else, and every imdb id unconditionally
   identity --> [*]
@@ -286,7 +286,7 @@ stateDiagram-v2
 > It now mints them PART_OF: the url survives, the claim does not. That is what this source was always
 > for. See `MediaHandleRelation` in worker/resolvers/media/schema.gql.
 
-The choice node in the figure is `src/sources/watchmode/extractor.ts:130-134`, verbatim:
+The choice node in the figure is `src/sources/watchmode/extractor.ts:121-125`, verbatim:
 
 ```ts
 if (!id) return undefined
@@ -297,7 +297,7 @@ return partOf(node)
 ```
 
 The `imdb` handle does not even reach that branch. It is minted `partOf` outright at
-`src/sources/watchmode/extractor.ts:155`, and `:148-150` says why the demotion is made here rather
+`src/sources/watchmode/extractor.ts:146`, and `:139-141` says why the demotion is made here rather
 than left to the store:
 
 > `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
@@ -319,32 +319,32 @@ cluster.
 `SCORE` is the module-private constant every source threads into `makeMedia`/`makeEpisode`, not an
 export. `store/aggregate.ts` sorts by it descending and the top source takes the field outright.
 
-| module | origin | name | isApiOnly | SCORE | needs a key |
-| --- | --- | --- | --- | --- | --- |
-| jikan | `mal` | MyAnimeList | false | 0.9 | no |
-| anilist | `anilist` | Anilist | false | 0.8 | no |
-| anizip | `anizip` | AniZip | true | 0.9 (per field only) | no |
-| crunchyroll | `cr` | Crunchyroll | false | 0.5 | no |
-| unogs | `nf` | Netflix | false | 0.2 | no |
-| justwatch | `jw` | JustWatch | true | 0.2 | no |
-| appletv | `appletv` | Apple TV+ | false | 0.2 | no |
-| paramount | `paramount` | Paramount+ | false | 0.2 | no |
-| disney | `disney` | Disney+ | false | none | no |
-| amazon | `amazon` | Prime Video | false | none | no |
-| hulu | `hulu` | Hulu | false | none | no |
-| peacock | `peacock` | Peacock | false | none | no |
-| hbo | `hbo` | Max | false | none | no |
-| fubo | `fubo` | Fubo | false | none | no |
-| tmdb | `tmdb` | TMDB | true | 0.3 | no |
-| tvmaze | `tvmaze` | TVmaze | true | 0.3 | no |
-| kitsu | `kitsu` | Kitsu | true | 0.3 | no |
-| omdb | `omdb` | OMDb | true | 0.3 | **yes** |
-| trakt | `trakt` | Trakt | true | 0.3 | **yes** |
-| simkl | `simkl` | Simkl | true | 0.3 | **yes** |
-| tvdb | `tvdb` | TheTVDB | true | 0.3 | **yes** |
-| offline | `offline` | Offline database | true | 0.2 | no |
-| watchmode | `watchmode` | Watchmode | true | 0.25 | **yes** |
-| imdb | `imdb` | IMDb | false | none | no |
+| module | origin | name | isApiOnly | SCORE |
+| --- | --- | --- | --- | --- |
+| jikan | `mal` | MyAnimeList | false | 0.9 |
+| anilist | `anilist` | Anilist | false | 0.8 |
+| anizip | `anizip` | AniZip | true | 0.9 (per field only) |
+| crunchyroll | `cr` | Crunchyroll | false | 0.5 |
+| unogs | `nf` | Netflix | false | 0.2 |
+| justwatch | `jw` | JustWatch | true | 0.2 |
+| appletv | `appletv` | Apple TV+ | false | 0.2 |
+| paramount | `paramount` | Paramount+ | false | 0.2 |
+| disney | `disney` | Disney+ | false | none |
+| amazon | `amazon` | Prime Video | false | none |
+| hulu | `hulu` | Hulu | false | none |
+| peacock | `peacock` | Peacock | false | none |
+| hbo | `hbo` | Max | false | none |
+| fubo | `fubo` | Fubo | false | none |
+| tmdb | `tmdb` | TMDB | true | 0.3 |
+| tvmaze | `tvmaze` | TVmaze | true | 0.3 |
+| kitsu | `kitsu` | Kitsu | true | 0.3 |
+| omdb | `omdb` | IMDb | true | 0.3 |
+| trakt | `trakt` | Trakt | true | 0.3 |
+| simkl | `simkl` | Simkl | true | 0.3 |
+| tvdb | `tvdb` | TheTVDB | true | 0.3 |
+| offline | `offline` | Offline database | true | 0.2 |
+| watchmode | `watchmode` | Watchmode | true | 0.25 |
+| imdb | `imdb` | IMDb | false | none |
 
 Two entries in that table are worth reading twice.
 
@@ -362,9 +362,11 @@ itself sits at the bottom.
 > them from the bundle, plus one this half adds: several live sources score exactly this SCORE,
 > `aggregateMedia` breaks a tie by arrival order, and the seed exists to arrive first.
 
-The five key-gated sources come from `src/sources/key-configs.ts:11-47`, and
-`tests/unit/sources/index.test.ts:28-32` pins the pairing in the direction that matters: a key prompt
-for a source that does not run asks someone to sign up for nothing.
+No source takes a key. The five that did until 2026-10-07 read their site's own endpoint instead,
+signed out: `omdb` asks IMDb's GraphQL (and is named IMDb), `trakt` asks `apiz.trakt.tv` with the web
+app's own client id, `simkl` searches through simkl.com's search form, `tvdb` through thetvdb.com's own
+search, and `watchmode` through its site's tRPC gateway. `tests/unit/sources/index.test.ts` reads `src`
+and fails on any key read coming back.
 
 ## The 24: what each answers
 
@@ -394,7 +396,7 @@ the merged default in `src/worker/extractor.ts:448-464`.
 | omdb | `omdb` | SERIES, MOVIE | M | M | - | M |
 | trakt | `trakt` | SERIES | M | M | - | M |
 | simkl | `simkl` | ANIME, SERIES, MOVIE | M | M | - | M |
-| tvdb | `tvdb` | SERIES | M | M | - | M |
+| tvdb | `tvdb` | SERIES | M | M | - | - |
 | offline | `offline`, `mal`, `anilist`, `kitsu`, `anidb` | ANIME, SERIES, MOVIE | M | M | - | - |
 | watchmode | `watchmode` | SERIES, MOVIE | M | M | - | M |
 | imdb | `imdb` | SERIES, MOVIE | null | null | - | - |
