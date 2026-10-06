@@ -4,9 +4,11 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, MediaCategory
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img } from '../utils'
 import { percentScore } from '../average-score'
+import { decodeEntities } from '../entities'
 
 const SCORE = 0.3
 const API = 'https://api.simkl.com'
+const SITE = 'https://simkl.com'
 const IMG = 'https://simkl.in'
 
 export const icon = 'https://simkl.com/favicon.ico'
@@ -24,7 +26,6 @@ type SimklType = 'tv' | 'anime' | 'movies'
 
 interface SimklIds {
   simkl?: number
-  simkl_id?: number
   slug?: string
   imdb?: string
   tmdb?: string
@@ -37,13 +38,12 @@ interface SimklRatings {
   imdb?: { rating?: number }
   mal?: { rating?: number }
 }
-interface SimklSearchEntry {
-  title?: string
-  year?: number
+/** A row of simkl.com's own search, keyed `i<id>` in its answer. `titles.m` is the main title, `a7` the English one. */
+interface SimklSiteHit {
+  id?: string
+  url?: string
   poster?: string
-  endpoint_type?: string
-  ids?: SimklIds
-  ratings?: SimklRatings
+  titles?: Record<string, string>
 }
 interface SimklDetail {
   title?: string
@@ -66,11 +66,28 @@ interface SimklEpisode {
   date?: string
 }
 
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> => {
-  const key = ctx.key(origin)
-  if (!key) return Promise.resolve(undefined)
-  return ctx.fetch(`${API}${path}`, { headers: { 'simkl-api-key': key } }).then(r => r.json() as Promise<T>).catch(() => undefined)
-}
+// A detail or an episode list needs no client id. A detail asked under the wrong type answers 412
+// `client_id_failed`, which is how getMedia's walk over the three types reads a miss.
+const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
+  ctx.fetch(`${API}${path}`).then(r => r.json() as Promise<T>).catch(() => undefined)
+
+// The api's /search is the one read that needs a client id, so search goes through the form simkl.com's
+// own search page posts (search.min.js, read 2026-10-07). The site answers it only with its own origin
+// and referer, and answers `[]` for no hits.
+const siteSearch = (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<SimklSiteHit[]> =>
+  ctx
+    .fetch(`${SITE}/ajax/full/search.php`, {
+      method: 'POST',
+      headers: {
+        origin: SITE,
+        referer: `${SITE}/search/`,
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      },
+      body: new URLSearchParams({ s: query, type, sort: '' }).toString(),
+    })
+    .then(r => r.json() as Promise<Record<string, SimklSiteHit> | SimklSiteHit[] | null>)
+    .then(answer => (answer && typeof answer === 'object' ? Object.values(answer) : []))
+    .catch(() => [])
 
 const poster = (path?: string): string | undefined => (path ? `${IMG}/posters/${path}_m.jpg` : undefined)
 const fanart = (path?: string): string | undefined => (path ? `${IMG}/fanart/${path}_w.jpg` : undefined)
@@ -78,7 +95,7 @@ const still = (path?: string): string | undefined => (path ? `${IMG}/episodes/${
 
 const detailPath = (type: SimklType): string => (type === 'tv' ? '/tv' : type === 'anime' ? '/anime' : '/movies')
 const episodesPath = (type: SimklType): string => (type === 'tv' ? '/tv/episodes' : '/anime/episodes')
-const normalizeType = (endpoint?: string): SimklType => (endpoint === 'anime' ? 'anime' : endpoint === 'movies' ? 'movies' : 'tv')
+const typeOfUrl = (url?: string): SimklType | undefined => url?.match(/^\/(tv|anime|movies)\//)?.[1] as SimklType | undefined
 const categoriesForType = (type: SimklType): MediaCategory[] => (type === 'movies' ? ['MOVIE'] : type === 'anime' ? ['ANIME', 'SERIES'] : ['SERIES'])
 
 // A tv record is one show with every season under it (its episodes carry a season field), so it is a
@@ -145,27 +162,26 @@ const rating = (ratings?: SimklRatings): number | undefined =>
 const buildTitles = (title?: string, enTitle?: string | null) => {
   const titles: { language: string, title: string, score: number }[] = []
   const seen = new Set<string>()
-  for (const t of [title, enTitle ?? undefined]) {
+  for (const raw of [title, enTitle ?? undefined]) {
+    const t = raw && decodeEntities(raw)
     if (t && !seen.has(t)) { seen.add(t); titles.push({ language: 'en', title: t, score: SCORE }) }
   }
   return titles
 }
 
-const normalizeSearch = (entry: SimklSearchEntry): GQLMedia | undefined => {
-  const id = entry.ids?.simkl ?? entry.ids?.simkl_id
-  if (id === undefined) return undefined
-  const type = normalizeType(entry.endpoint_type)
+// A site hit carries no catalogue ids, so it mints no handle; the detail read supplies them.
+const normalizeSearch = (hit: SimklSiteHit): GQLMedia | undefined => {
+  const type = typeOfUrl(hit.url)
+  if (!hit.id || !type) return undefined
   return makeMedia({
     origin,
-    id: String(id),
-    url: `https://simkl.com/${type}/${id}`,
+    id: hit.id,
+    url: `https://simkl.com/${type}/${hit.id}`,
     scope: scopeForType(type),
-    handles: buildHandles(entry.ids, type),
     categories: categoriesForType(type),
     score: SCORE,
-    titles: buildTitles(entry.title),
-    covers: img(poster(entry.poster), SCORE),
-    averageScore: percentScore(rating(entry.ratings), 10),
+    titles: buildTitles(hit.titles?.m, hit.titles?.a7),
+    covers: img(poster(hit.poster), SCORE),
   })
 }
 
@@ -231,14 +247,10 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
   return undefined
 }
 
-const searchSegment = (type: SimklType): string => (type === 'movies' ? 'movie' : type)
-
-const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
-  const res = await api<SimklSearchEntry[]>(`/search/${searchSegment(type)}?q=${encodeURIComponent(query)}&extended=full&limit=10`, ctx)
-  return (Array.isArray(res) ? res : [])
+const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
+  (await siteSearch(query, type, ctx))
     .map(normalizeSearch)
     .filter((media): media is GQLMedia => !!media)
-}
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
   const perType = await Promise.all((['tv', 'anime', 'movies'] as const).map(type => searchType(query, type, ctx)))

@@ -7,6 +7,7 @@
 // A movie record is no better and fails differently. TMDB numbers movies and tv shows in separate
 // sequences that both start at 1, measured 2026-09-04: themoviedb.org/movie/550 is Fight Club and
 // /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550` for both.
+import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 
 import { resolvers } from '../../../../src/sources/simkl/extractor'
@@ -19,7 +20,6 @@ const IDS = { simkl: 1080329, imdb: 'tt13303712', tmdb: '94664', mal: '39535', a
 type Row = { uri?: string, scope?: string, handles: { node: { uri: string, origin: string, id: string, scope?: string } }[], episodes?: { releaseDate?: string }[] }
 
 const context = (type: 'tv' | 'anime' | 'movies', ids: Record<string, unknown> = IDS, episodes: readonly object[] = []) => ({
-  key: () => 'test-key',
   fetch: async (url: string) => {
     // BEFORE the detail routes: an episodes url starts with `/tv/` and `/anime/` too, so the miss
     // branch below would answer it and the list could never be anything but empty.
@@ -142,19 +142,17 @@ test('an episode simkl has no date for carries none', async () => {
   expect((media.episodes ?? [])[0]!.releaseDate, 'a missing date is left missing, never invented').toBeUndefined()
 })
 
-// Search mints through its own normalizer, keyed on endpoint_type, so it gets its own assertion.
-test('search rows are scoped by endpoint_type the same way', async () => {
-  const entries: Record<string, unknown[]> = {
-    tv: [{ title: 'Breaking Bad', endpoint_type: 'tv', ids: { simkl: 1, imdb: 'tt0903747' } }],
-    anime: [{ title: 'Mushoku Tensei', endpoint_type: 'anime', ids: { simkl: 2, imdb: 'tt13303712', mal: '39535' } }],
-    movie: [{ title: 'Fight Club', endpoint_type: 'movies', ids: { simkl: 3, imdb: 'tt0137523' } }],
+// Search reads simkl.com's own form, whose rows name their type in their url.
+test('search rows are scoped by the type their url names', async () => {
+  const hits: Record<string, unknown> = {
+    tv: { i1: { id: '1', url: '/tv/1/breaking-bad', titles: { m: 'Breaking Bad' } } },
+    anime: { i2: { id: '2', url: '/anime/2/mushoku-tensei', titles: { m: 'Mushoku Tensei' } } },
+    movies: { i3: { id: '3', url: '/movies/3/fight-club', titles: { m: 'Fight Club' } } },
   }
   const ctx = {
-    key: () => 'test-key',
-    fetch: async (url: string) => {
-      const segment = url.match(/\/search\/(tv|anime|movie)\?/)?.[1]
-      if (!segment) throw new Error(`fixture has no route for ${url}`)
-      return { json: async () => entries[segment] }
+    fetch: async (url: string, init?: { body?: string }) => {
+      if (url !== `${SITE}/ajax/full/search.php`) throw new Error(`fixture has no route for ${url}`)
+      return { json: async () => hits[new URLSearchParams(init?.body).get('type')!] }
     },
   } as never
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
@@ -163,10 +161,60 @@ test('search rows are scoped by endpoint_type the same way', async () => {
   const byId = Object.fromEntries(rows.map(row => [row.uri, row]))
 
   expect(byId['simkl:1']!.scope).toBe('CONTAINER')
-  expect(handle(byId['simkl:1']!, 'imdb').scope).toBe('CONTAINER')
   expect(byId['simkl:2']!.scope).toBe('RUN')
-  expect(handle(byId['simkl:2']!, 'mal').scope).toBe('RUN')
-  expect(handle(byId['simkl:2']!, 'imdb').scope).toBe('CONTAINER')
   expect(byId['simkl:3']!.scope).toBe('RUN')
-  expect(handle(byId['simkl:3']!, 'imdb').scope).toBe('RUN')
+})
+
+// Recorded signed out on 2026-10-07 with no client id, trimmed: simkl.com's search form for "frieren"
+// in each type, and api.simkl.com's detail and episodes of anime 1990194.
+const SITE = 'https://simkl.com'
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
+type Sent = { url: string, method?: string, headers: Record<string, string>, body?: string }
+
+const recorded = (sent: Sent[]) => ({
+  fetch: async (url: string, init?: { method?: string, headers?: Record<string, string>, body?: string }) => {
+    sent.push({ url, method: init?.method, headers: init?.headers ?? {}, body: init?.body })
+    const body =
+      url === `${SITE}/ajax/full/search.php` ? fixture(`site-search-frieren-${new URLSearchParams(init?.body).get('type')}`)
+      : url === `${API}/anime/1990194?extended=full` ? fixture('anime-1990194')
+      : url === `${API}/anime/episodes/1990194?extended=full` ? fixture('anime-episodes-1990194')
+      : url.startsWith(`${API}/tv/1990194`) || url.startsWith(`${API}/movies/1990194`) ? fixture('wrong-type')
+      : undefined
+    if (body === undefined) throw new Error(`fixture has no route for ${url}`)
+    return { json: async () => body }
+  },
+}) as never
+
+test('search posts simkl.com\'s own form, with its origin and referer and no client id', async () => {
+  const sent: Sent[] = []
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const { value } = await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
+  const rows = value.mediaPage.nodes as (Row & { titles: { title: string }[], covers: { url: string }[] })[]
+
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
+  expect(rows[0]!.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
+  expect(rows[0]!.covers[0]!.url).toBe('https://simkl.in/posters/14/14625673bbdc6b52ea_m.jpg')
+  expect(sent.map(request => new URLSearchParams(request.body).get('type')).sort()).toEqual(['anime', 'movies', 'tv'])
+  for (const request of sent) {
+    expect(request.method).toBe('POST')
+    expect(request.headers.origin).toBe(SITE)
+    expect(request.headers.referer).toBe(`${SITE}/search/`)
+    expect(new URLSearchParams(request.body).get('s')).toBe('frieren')
+    expect(Object.keys(request.headers).map(name => name.toLowerCase())).not.toContain('simkl-api-key')
+  }
+})
+
+test('a recorded anime reads with no client id: its ids, its decoded English title and its episodes', async () => {
+  const sent: Sent[] = []
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const { value } = await subscribe(undefined, { input: { uri: 'simkl:1990194' } }, recorded(sent)).next()
+  const media = value.media as Row & { titles: { title: string }[] }
+
+  expect(media.uri).toBe('simkl:1990194')
+  expect(media.scope).toBe('RUN')
+  expect(media.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
+  expect(media.handles.map(handle => handle.node.uri).sort()).toEqual(['anilist:154587', 'imdb:tt22248376', 'kitsu:46474', 'mal:52991'])
+  expect(media.episodes).toHaveLength(3)
+  expect(media.episodes![0]!.releaseDate).toBe('2023-09-29T14:00:00.000Z')
+  for (const request of sent) expect(Object.keys(request.headers), request.url).toEqual([])
 })
