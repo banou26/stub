@@ -142,6 +142,23 @@ test('an episode simkl has no date for carries none', async () => {
   expect((media.episodes ?? [])[0]!.releaseDate, 'a missing date is left missing, never invented').toBeUndefined()
 })
 
+// An anime record lists its specials after its episodes, numbered from 1 again and with no season:
+// Frieren (1990194) answered 28 episodes and 25 "Magic Episode" specials through the relay on
+// 2026-10-07. Read as numbers they took the ids and numbers of episodes 1 to 25, and a 28 episode
+// run counted 53.
+test('a special is not numbered as an episode of the run, nor counted in it', async () => {
+  const media = await mediaFor('anime', IDS, [
+    { title: 'The Journey\'s End', episode: 1, type: 'episode', date: '2023-09-29T23:00:00+09:00' },
+    { title: 'It Didn\'t Have to Be Magic...', episode: 2, type: 'episode', date: '2023-09-29T23:00:00+09:00' },
+    { title: 'Magic Episode 1: Magic to Say What You Are Thinking', episode: 1, type: 'special', date: '2023-10-11T23:00:00+09:00' },
+    { title: 'Magic Episode 2: Magic to Just Remove Alcohol from Booze', episode: 2, type: 'special', date: '2023-10-25T23:00:00+09:00' },
+  ]) as unknown as { episodeCount?: number, episodes: { uri: string, episodeNumber?: number }[] }
+
+  expect(new Set(media.episodes.map(episode => episode.uri)).size, 'one id per episode').toBe(4)
+  expect(media.episodes.map(episode => episode.episodeNumber)).toEqual([1, 2, undefined, undefined])
+  expect(media.episodeCount).toBe(2)
+})
+
 // Search reads simkl.com's own form, whose rows name their type in their url.
 test('search rows are scoped by the type their url names', async () => {
   const hits: Record<string, unknown> = {

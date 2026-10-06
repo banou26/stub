@@ -207,7 +207,8 @@ const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLM
 
 const normalizeEpisode = (episode: SimklEpisode, mediaId: string, mediaUri: string, index: number): GQLEpisode => {
   const season = episode.season ?? 1
-  const number = episode.episode
+  // an anime record numbers its specials from 1 again, so a special's number is no episode of the run
+  const number = episode.type === 'special' ? undefined : episode.episode
   return makeEpisode({
     origin,
     id: number !== undefined ? `${mediaId}-s${season}e${number}` : `${mediaId}-i${index}`,
@@ -227,7 +228,7 @@ const fetchEpisodes = async (id: string, type: SimklType, mediaUri: string, ctx:
   if (type === 'movies') return []
   const list = await api<SimklEpisode[]>(`${episodesPath(type)}/${id}?extended=full`, ctx)
   return (Array.isArray(list) ? list : [])
-    .filter(episode => episode.type !== 'special' || episode.episode !== undefined || !!episode.title)
+    .filter(episode => episode.type !== 'special' || !!episode.title)
     .map((episode, index) => normalizeEpisode(episode, id, mediaUri, index))
 }
 
@@ -242,7 +243,7 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
       return media
     }
     media.episodes = await fetchEpisodes(id, type, media.uri, ctx)
-    media.episodeCount = media.episodes.length
+    media.episodeCount = media.episodes.filter(episode => episode.episodeNumber != null).length
     return media
   }
   return undefined
