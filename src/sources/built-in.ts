@@ -26,7 +26,7 @@ export const builtInSources: BuiltInSource[] = [
   { origin: 'tmdb', name: 'TMDB', url: 'https://www.themoviedb.org' },
   { origin: 'tvmaze', name: 'TVmaze', url: 'https://www.tvmaze.com' },
   { origin: 'kitsu', name: 'Kitsu', url: 'https://kitsu.io' },
-  { origin: 'omdb', name: 'OMDb', url: 'https://www.omdbapi.com' },
+  { origin: 'omdb', name: 'IMDb', url: 'https://www.imdb.com' },
   { origin: 'trakt', name: 'Trakt', url: 'https://trakt.tv' },
   { origin: 'simkl', name: 'Simkl', url: 'https://simkl.com' },
   { origin: 'tvdb', name: 'TheTVDB', url: 'https://www.thetvdb.com' },
