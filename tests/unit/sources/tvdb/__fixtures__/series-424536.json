@@ -1,0 +1,85 @@
+{
+  "results": [
+    {
+      "hits": [
+        {
+          "id": 424536,
+          "name": "葬送のフリーレン",
+          "slug": "sousou-no-frieren",
+          "first_air_date": "2023-09-29",
+          "image_url": "https://artworks.thetvdb.com/banners/v4/series/424536/posters/68d6d5b36aa2f.jpg",
+          "primary_language": "jpn",
+          "translations": {
+            "deu": "Frieren - Nach dem Ende der Reise",
+            "eng": "Frieren: Beyond Journey's End",
+            "jpn": "葬送のフリーレン"
+          },
+          "overviews": {
+            "eng": "Decades after her party defeated the Demon King, an old friend's funeral launches the elf wizard Frieren on a journey of self-discovery."
+          },
+          "remote_ids": [
+            {
+              "id": "10.5240/2C19-E50B-96FA-5EFF-B76A-Y",
+              "sourceName": "EIDR",
+              "type": 13
+            },
+            {
+              "id": "https://frieren.fandom.com/wiki/Frieren_Wiki",
+              "sourceName": "Fan Site",
+              "type": 8
+            },
+            {
+              "id": "tt22248376",
+              "sourceName": "IMDB",
+              "type": 2
+            },
+            {
+              "id": "https://frieren-anime.jp/",
+              "sourceName": "Official Website",
+              "type": 4
+            },
+            {
+              "id": "Frieren",
+              "sourceName": "Reddit",
+              "type": 7
+            },
+            {
+              "id": "209867",
+              "sourceName": "TheMovieDB.com",
+              "type": 12
+            },
+            {
+              "id": "SH04909006",
+              "sourceName": "TMS (Zap2It)",
+              "type": 3
+            },
+            {
+              "id": "69956",
+              "sourceName": "TV Maze",
+              "type": 19
+            },
+            {
+              "id": "Q115792176",
+              "sourceName": "Wikidata",
+              "type": 18
+            },
+            {
+              "id": "Frieren%3A_Beyond_Journey's_End",
+              "sourceName": "Wikipedia",
+              "type": 24
+            },
+            {
+              "id": "Anime_Frieren",
+              "sourceName": "X (Twitter)",
+              "type": 6
+            }
+          ],
+          "objectID": "series-424536",
+          "type": "series"
+        }
+      ],
+      "nbHits": 1,
+      "index": "TVDB"
+    }
+  ]
+}

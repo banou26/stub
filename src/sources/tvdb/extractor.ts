@@ -1,12 +1,13 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { makeMedia, makeEpisode, desc, img } from '../utils'
+import { makeMedia, desc, img } from '../utils'
 
 const SCORE = 0.3
-const BASE = 'https://api4.thetvdb.com/v4'
-const ARTWORKS = 'https://artworks.thetvdb.com'
+// The search every thetvdb.com page points its search box at (`window.TVDB_SEARCH_URL`, read
+// 2026-10-07). It needs no key, where every v4 read does.
+const SEARCH = 'https://api4.thetvdb.com/web/search/queries'
 
 export const icon = 'https://www.thetvdb.com/images/icon.png'
 export const originUrl = 'https://www.thetvdb.com'
@@ -19,172 +20,83 @@ export const isApiOnly = true
 export const supportedUris = ['tvdb']
 export const color = '#6cd591'
 
-const resolveImage = (path?: string): string | undefined =>
-  !path ? undefined : path.startsWith('http') ? path : `${ARTWORKS}${path.startsWith('/') ? '' : '/'}${path}`
+type RemoteId = { id?: string, sourceName?: string }
 
-const HANDLE_ORIGINS: Record<string, string> = { imdb: 'imdb', themoviedb: 'tmdb', tmdb: 'tmdb' }
-
-const handleUrl = (handleOrigin: string, id: string): string | undefined =>
-  handleOrigin === 'imdb' ? `https://www.imdb.com/title/${id}`
-  : handleOrigin === 'tmdb' ? `https://www.themoviedb.org/tv/${id}`
-  : undefined
-
-// Everything this source mints is CONTAINER: it reads /series/ and searches type=series only, so a
-// row is a series id and the remote ids on it are the series' imdb and tmdb tv ids, identical for
-// every season. A bare tmdb tv id must never be unioned with the `<id>-s<n>` runs tmdb itself mints.
-const buildHandles = (remoteIds?: { id?: string, sourceName?: string }[]): GQLMedia[] => {
-  const handles: GQLMedia[] = []
-  for (const remote of remoteIds ?? []) {
-    const id = remote.id
-    const handleOrigin = remote.sourceName ? HANDLE_ORIGINS[remote.sourceName.toLowerCase()] : undefined
-    const url = id && handleOrigin ? handleUrl(handleOrigin, id) : undefined
-    if (id && handleOrigin && url) handles.push(makeMedia({ origin: handleOrigin, id, url, scope: 'CONTAINER' }))
-  }
-  return handles
+/** A hit of the site's search. `name` is in the series' own language; both maps are keyed by ISO 639-2 code. */
+type Hit = {
+  id?: number
+  name?: string
+  first_air_date?: string
+  image_url?: string
+  primary_language?: string
+  translations?: Record<string, string>
+  overviews?: Record<string, string>
+  remote_ids?: RemoteId[]
 }
 
-interface LoginResponse { data?: { token?: string } }
-interface RemoteId { id?: string, type?: number, sourceName?: string }
-interface SearchResult { tvdb_id?: string, name?: string, overview?: string, image_url?: string, year?: string, remote_ids?: RemoteId[] }
-interface SeriesExtended { id?: number, name?: string, overview?: string, image?: string, firstAired?: string, score?: number, remoteIds?: RemoteId[] }
-interface EpisodeRecord { id?: number, name?: string, overview?: string, image?: string, seasonNumber?: number, number?: number, aired?: string }
-interface EpisodesResponse { data?: { episodes?: EpisodeRecord[] }, links?: { next?: string } }
+type SearchParams = { query: string, filters: string, hitsPerPage: number }
 
-let token: string | undefined
+const search = (params: SearchParams, ctx: ExtractorServerContext): Promise<Hit[]> =>
+  ctx
+    .fetch(SEARCH, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requests: [{ indexName: 'TVDB', params }] }),
+    })
+    .then(r => r.json() as Promise<{ results?: { hits?: Hit[] }[] }>)
+    .then(answer => answer.results?.[0]?.hits ?? [])
+    .catch(() => [])
 
-const login = async (ctx: ExtractorServerContext): Promise<string | undefined> => {
-  const key = ctx.key(origin)
-  if (!key) return undefined
-  const sep = key.indexOf(':')
-  const apikey = sep === -1 ? key : key.slice(0, sep)
-  const pin = sep === -1 ? undefined : key.slice(sep + 1)
-  const body = JSON.stringify(pin ? { apikey, pin } : { apikey })
-  const res = await ctx
-    .fetch(`${BASE}/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body })
-    .then(r => r.json() as Promise<LoginResponse>)
-    .catch(() => undefined)
-  return res?.data?.token
+// Movies, series, people and companies share one index and are numbered in separate sequences, so
+// `id:1` alone matches a movie, a company and a list at once (measured 2026-10-07).
+const seriesFilter = (id?: string) => (id ? `type:series AND id:${id}` : 'type:series')
+
+// `tvdb:<id>` names the whole series, and the imdb id on it is the series' too, identical for every
+// season, so both go out CONTAINER. No tmdb handle: a tmdb tv id names the show, while
+// `tmdb/extractor.ts` mints season scoped runs a bare id would union, as trakt and simkl record.
+const buildHandles = (remoteIds?: RemoteId[]): GQLMedia[] =>
+  (remoteIds ?? [])
+    .filter(remote => remote.sourceName === 'IMDB' && remote.id)
+    .map(remote => makeMedia({ origin: 'imdb', id: remote.id!, url: `https://www.imdb.com/title/${remote.id}`, scope: 'CONTAINER' }))
+
+const titlesOf = (hit: Hit) => {
+  const english = hit.translations?.eng
+  const titles = english ? [{ language: 'en', title: english, score: SCORE }] : []
+  if (hit.name && hit.name !== english) titles.push({ language: hit.primary_language === 'jpn' ? 'jp' : 'en', title: hit.name, score: SCORE })
+  return titles
 }
 
-const ensureToken = async (ctx: ExtractorServerContext): Promise<string | undefined> => {
-  if (!token) token = await login(ctx)
-  return token
-}
-
-const api = async <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> => {
-  if (!ctx.key(origin)) return undefined
-  const auth = await ensureToken(ctx)
-  if (!auth) return undefined
-  const call = (bearer: string) => ctx.fetch(`${BASE}${path}`, { headers: { 'Authorization': `Bearer ${bearer}` } })
-  let res = await call(auth).catch(() => undefined)
-  if (res?.status === 401) {
-    token = await login(ctx)
-    if (!token) return undefined
-    res = await call(token).catch(() => undefined)
-  }
-  if (!res || !res.ok) return undefined
-  return res.json().then(json => json as T).catch(() => undefined)
-}
-
-const normalizeSearch = (result: SearchResult): GQLMedia | undefined => {
-  const id = result.tvdb_id
-  if (!id) return undefined
+const normalize = (hit: Hit): GQLMedia | undefined => {
+  if (hit.id == null) return undefined
+  const id = String(hit.id)
   return makeMedia({
     origin,
     id,
-    url: `https://www.thetvdb.com/series/${id}`,
+    url: `https://thetvdb.com/dereferrer/series/${id}`,
     scope: 'CONTAINER',
-    handles: buildHandles(result.remote_ids),
+    handles: buildHandles(hit.remote_ids),
     categories: ['SERIES'],
     score: SCORE,
-    titles: result.name ? [{ language: 'en', title: result.name, score: SCORE }] : [],
-    ...desc(result.overview, SCORE),
-    covers: img(resolveImage(result.image_url), SCORE),
-    startDate: result.year ? `${result.year}-01-01` : undefined,
+    titles: titlesOf(hit),
+    ...desc(hit.overviews?.eng, SCORE),
+    covers: img(hit.image_url, SCORE),
+    startDate: hit.first_air_date || undefined,
   })
 }
 
-const normalizeSeries = (series: SeriesExtended): GQLMedia | undefined => {
-  const id = series.id != null ? String(series.id) : undefined
-  if (!id) return undefined
-  return makeMedia({
-    origin,
-    id,
-    url: `https://www.thetvdb.com/series/${id}`,
-    scope: 'CONTAINER',
-    handles: buildHandles(series.remoteIds),
-    categories: ['SERIES'],
-    score: SCORE,
-    titles: series.name ? [{ language: 'en', title: series.name, score: SCORE }] : [],
-    ...desc(series.overview, SCORE),
-    covers: img(resolveImage(series.image), SCORE),
-    startDate: series.firstAired || undefined,
-    // NO averageScore. TheTVDB's `score` is its popularity ranking, a figure in the thousands or
-    // millions, not a rating, and `Media.averageScore` is a 0 to 100 percentage. It was emitted
-    // here unconverted, so any cluster this source won the field on carried a nonsense number.
-  })
-}
-
-// `aired` NAMES A DAY (`2011-04-17`) and goes out as one, never parsed into an instant:
-// utils/release-date.ts renders a bare `YYYY-MM-DD` as that calendar day in UTC and a timestamped
-// value where the viewer is, so widening this would show a day early everywhere west of Greenwich.
-const normalizeEpisode = (episode: EpisodeRecord, seriesId: string, mediaUri: string): GQLEpisode =>
-  makeEpisode({
-    origin,
-    id: episode.id != null ? String(episode.id) : `${seriesId}-s${episode.seasonNumber ?? 0}e${episode.number ?? 0}`,
-    mediaUri,
-    score: SCORE,
-    titles: episode.name ? [{ language: 'en', title: episode.name, score: SCORE }] : [],
-    ...desc(episode.overview, SCORE),
-    thumbnails: img(resolveImage(episode.image), SCORE),
-    seasonNumber: episode.seasonNumber,
-    episodeNumber: episode.number,
-    releaseDate: episode.aired || undefined,
-  })
-
-const fetchEpisodes = async (id: string, mediaUri: string, ctx: ExtractorServerContext): Promise<GQLEpisode[]> => {
-  const episodes: GQLEpisode[] = []
-  let page = 0
-  while (page < 50) {
-    const res = await api<EpisodesResponse>(`/series/${id}/episodes/default?page=${page}`, ctx)
-    const batch = res?.data?.episodes ?? []
-    for (const episode of batch) episodes.push(normalizeEpisode(episode, id, mediaUri))
-    if (!res?.links?.next || batch.length === 0) break
-    page += 1
-  }
-  return episodes
-}
-
+// No episode list. The site renders episodes only on its season pages, named in the series' own
+// language whatever is asked, and a list spanning seasons would be refused anyway: `tvdb:<id>` names
+// the whole series, and every media in this store is one run.
 const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const res = await api<{ data?: SeriesExtended }>(`/series/${id}/extended`, ctx)
-  if (!res?.data) return undefined
-  const media = normalizeSeries(res.data)
-  if (!media) return undefined
-  // This media is SHOW level by construction: `tvdb:<seriesId>` names the whole series, and
-  // /series/<id>/episodes/default answers with every season at once. Every media in this store is one
-  // run, so `episodeNumber` is within-season, and flattening several seasons into one list collides
-  // them: `db.ts` hangs a HAS_EPISODE edge off this uri for each, and `Media.episodes` groups the union
-  // by episodeNumber ALONE, so the row count becomes the LONGEST season and whatever else the cluster
-  // holds shares rows with a season nobody asked for. Measured live 2026-08-31 through the same
-  // mechanism: 24 rows on a 14 episode season page. `crunchyroll/extractor.ts` carries this guard too.
-  //
-  // The media itself stays, because `mediaPage` mints exactly these ids for SEARCH. A series whose
-  // episodes are all one season is unaffected, its list being honest.
-  const episodes = await fetchEpisodes(id, media.uri, ctx)
-  const seasons = new Set(episodes.map(episode => episode.seasonNumber ?? 0))
-  if (seasons.size <= 1) {
-    media.episodes = episodes
-    media.episodeCount = episodes.length
-  }
-  return media
+  const hits = await search({ query: '', filters: seriesFilter(id), hitsPerPage: 1 }, ctx)
+  const hit = hits.find(candidate => String(candidate.id) === id)
+  return hit ? normalize(hit) : undefined
 }
 
-const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
-  const res = await api<{ data?: SearchResult[] }>(`/search?query=${encodeURIComponent(query)}&type=series`, ctx)
-  return (res?.data ?? [])
-    .map(normalizeSearch)
+const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
+  (await search({ query, filters: seriesFilter(), hitsPerPage: 10 }, ctx))
+    .map(normalize)
     .filter((media): media is GQLMedia => !!media)
-}
 
 export const resolvers: Resolvers = {
   Subscription: {
@@ -201,13 +113,6 @@ export const resolvers: Resolvers = {
         if (!search) return yield { mediaPage: { nodes: [] } }
         yield { mediaPage: { nodes: await searchApi(search, ctx) } }
       }
-    }
-  },
-  Media: {
-    episodes: async (parent, _, ctx: ExtractorServerContext) => {
-      if (parent.origin !== origin) return parent.episodes ?? []
-      if (parent.episodes?.length) return parent.episodes
-      return fetchEpisodes(parent.id, parent.uri, ctx)
     }
   }
 }
