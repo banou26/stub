@@ -60,7 +60,7 @@
     "@videojs/react": "10.0.0-beta.26",
     "@xyflow/react": "^12.11.6",
     "dataloader": "^2.2.3",
-    "dompurify": "^3.2.6",
+    "dompurify": "^3.4.16",
     "frizbee": "^0.13.0",
     "graphql": "^16.11.0",
     "graphql-yoga": "^5.15.1",
