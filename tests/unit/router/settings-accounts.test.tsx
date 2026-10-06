@@ -5,6 +5,9 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 import type { AccountsProps, TrackerSite } from '../../../src/router/settings/accounts'
+import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
+
+import { createSiteStatuses } from '../../../src/tracking/site-status'
 
 const { AccountsSection } = await import('../../../src/router/settings/accounts')
 
@@ -35,12 +38,34 @@ const fakeSites = (connected: TrackerSite[] = []) => {
   return sites
 }
 
+const NOW = Date.UTC(2026, 9, 7, 12)
+const HOUR = 3_600_000
+
+/** Remembered states over memory, and a check that answers `answers`, records what it answered, and is counted. */
+const fakeStatus = (answers: Partial<Record<StatusSite, SiteState | Error>> = {}) => {
+  const values = new Map<string, string>()
+  const statuses = createSiteStatuses(() => ({ getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) } }))
+  const status: AccountsProps['status'] = {
+    read: statuses.read,
+    watch: statuses.watch,
+    check: vi.fn(async (site: StatusSite) => {
+      const answer = answers[site]
+      if (answer === undefined || answer instanceof Error) throw answer ?? new Error('no answer')
+      statuses.record(site, answer, NOW)
+      return answer
+    }),
+  }
+  return { status, statuses }
+}
+
 const render = (overrides: Partial<AccountsProps> = {}) => {
   const props: AccountsProps = {
     account: { info: null, ready: true, logout: vi.fn(async () => 'settled' as const) },
     backend: 'cloud',
     crunchyroll: { signIn: vi.fn(async () => 'authed' as const), signOut: vi.fn(async () => {}) },
     sites: fakeSites(),
+    status: fakeStatus().status,
+    now: () => NOW,
     ...overrides,
   }
   const host = mount(<AccountsSection {...props}/>)
@@ -216,5 +241,83 @@ describe('for a screen reader', () => {
       expect(status, id).toBeTruthy()
       expect(status!.textContent, id).toBe('')
     }
+  })
+})
+
+describe('the sign-in states', () => {
+  const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textContent
+
+  test('a row shows what stub last learned and how long ago, without asking the site', () => {
+    const { status, statuses } = fakeStatus()
+    statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    statuses.record('anilist', 'signed-out', NOW - 26 * HOUR)
+    const { row } = render({ status, sites: fakeSites(['anilist']) })
+
+    expect(chip(row('crunchyroll'))).toBe('Signed in, checked 2 hours ago')
+    expect(chip(row('anilist'))).toBe('Signed out, checked 1 day ago')
+    expect(row('anilist').querySelector('.head .state')!.classList.contains('on'), 'signed out is not shown as on').toBe(false)
+    expect(status.check).not.toHaveBeenCalled()
+  })
+
+  test('with nothing remembered, Crunchyroll says it was not checked and a connected site that it is connected', () => {
+    const { row } = render({ sites: fakeSites(['mal']) })
+
+    expect(chip(row('crunchyroll'))).toBe('Not checked yet')
+    expect(chip(row('mal'))).toBe('Connected on this device')
+    expect(chip(row('anilist'))).toBe('Not connected')
+  })
+
+  test('Check now asks the site once, and the row then shows its answer', async () => {
+    const { status } = fakeStatus({ crunchyroll: 'signed-out' })
+    const { row } = render({ status })
+    await act(async () => { button(row('crunchyroll'), 'Check now')!.click() })
+    await flush()
+
+    expect(status.check).toHaveBeenCalledTimes(1)
+    expect(status.check).toHaveBeenCalledWith('crunchyroll', 'cloud')
+    expect(chip(row('crunchyroll'))).toBe('Signed out, checked just now')
+  })
+
+  test('with the extension, Crunchyroll is checked on the browser\'s own session', async () => {
+    const { status } = fakeStatus({ crunchyroll: 'signed-in' })
+    const { row } = render({ status, backend: 'extension' })
+    await act(async () => { button(row('crunchyroll'), 'Check now')!.click() })
+    await flush()
+
+    expect(status.check).toHaveBeenCalledWith('crunchyroll', 'extension')
+    expect(chip(row('crunchyroll'))).toBe('Signed in, checked just now')
+  })
+
+  test('a check that gets no answer says so on the row, and records nothing', async () => {
+    const { status, statuses } = fakeStatus({ mal: new Error('MyAnimeList asked stub to wait. Try again later.') })
+    const { row } = render({ status, sites: fakeSites(['mal']) })
+    await act(async () => { button(row('mal'), 'Check now')!.click() })
+    await flush()
+
+    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('stub could not tell whether you are signed in to MyAnimeList: MyAnimeList asked stub to wait. Try again later.')
+    expect(statuses.read('mal')).toBeUndefined()
+    expect(chip(row('mal'))).toBe('Connected on this device')
+  })
+
+  test('a tracking site not connected here offers no Check now, since checking is what would attach it', () => {
+    const { row } = render({ sites: fakeSites(['anilist']) })
+
+    expect(button(row('anilist'), 'Check now')).toBeTruthy()
+    expect(button(row('mal'), 'Check now')).toBeFalsy()
+  })
+
+  test('a state stub learns elsewhere on the page shows at once', async () => {
+    const { status, statuses } = fakeStatus()
+    const { row } = render({ status })
+    await act(async () => { statuses.record('crunchyroll', 'signed-in', NOW) })
+
+    expect(chip(row('crunchyroll'))).toBe('Signed in, checked just now')
+  })
+
+  test('each Check now is named for its site', () => {
+    const { row } = render({ sites: fakeSites(['anilist']) })
+
+    expect(button(row('crunchyroll'), 'Check now')!.getAttribute('aria-label')).toBe('Check whether you are signed in to Crunchyroll')
+    expect(button(row('anilist'), 'Check now')!.getAttribute('aria-label')).toBe('Check whether you are signed in to AniList')
   })
 })

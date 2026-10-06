@@ -9,7 +9,8 @@ import { useMutation, useSubscription } from 'urql'
 import { gql } from '../generated'
 import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
-import { trackerSignIns } from '../tracking/site-sessions'
+import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
+import { recordTrackerAnswers, siteStatuses } from '../tracking/site-status'
 import { trackerCheck } from '../worker'
 import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
@@ -141,6 +142,9 @@ const MediaTracking = (
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
   const [prefs, setPrefs] = useState(prefsStore.read)
+
+  const answers = data?.tracking?.answers
+  useEffect(() => { if (answers) recordTrackerAnswers(answers, siteStatuses, isSiteConnected) }, [answers])
 
   // another tab changed the choices
   useEffect(() => {

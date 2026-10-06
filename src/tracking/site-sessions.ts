@@ -2,7 +2,9 @@
 // (anilist.co and myanimelist.net), the sign in that connects a site on this device and the sign out
 // that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the `sessions` osra key.
 
+import type { SessionPageApi } from '../sources/anilist/session-page'
 import type { WindowSignIn } from '../sources/login-window'
+import type { MalPageApi } from '../sources/mal/session-page'
 import type { PageApi } from './site-session'
 
 import { attachFrame } from '@fkn/lib'
@@ -18,6 +20,8 @@ import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-back
 import { mountHiddenFrame } from '../utils/hidden-frame'
 import { createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
 import { createSessionFrames } from './session-frames'
+import { ANILIST_VIEWER_QUERY, anilistSignInState, malSignInState } from './site-checks'
+import { rememberSignIn, siteStatuses, type SiteState } from './site-status'
 
 const ANILIST_REASON = 'Read and update your AniList list with your own anilist.co session'
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
@@ -64,7 +68,7 @@ export const signInToAniList = (): Promise<WindowSignIn> =>
       isSignedIn: login => anilistSignedIn(login, anilistPageScript),
     }),
     { frames, connections },
-  )
+  ).then(rememberSignIn(siteStatuses, 'anilist'))
 
 /** Opens myanimelist.net's sign-in page in an FKN window. Call it directly in the click handler. */
 export const signInToMyAnimeList = (): Promise<WindowSignIn> =>
@@ -78,7 +82,7 @@ export const signInToMyAnimeList = (): Promise<WindowSignIn> =>
       isSignedIn: login => malSignedIn(login, malPageScript),
     }),
     { frames, connections },
-  )
+  ).then(rememberSignIn(siteStatuses, 'mal'))
 
 /** The sign in each tracker offers, by tracker id, for a tracker that answers SIGNED_OUT. */
 export const trackerSignIns: Record<string, () => Promise<WindowSignIn>> = {
@@ -104,5 +108,17 @@ export const watchSite = (site: TrackerSite, listener: () => void): (() => void)
  */
 export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Promise<void> => {
   disconnectAndReload(site, { frames, connections })
-  if (backend === 'cloud') await clearCloudCookies(SITE_DOMAINS[site])
+  if (backend !== 'cloud') return
+  await clearCloudCookies(SITE_DOMAINS[site])
+  siteStatuses.record(site, 'signed-out')
 }
+
+/**
+ * Asks the site through its session frame whether anyone is signed in there: AniList for its Viewer,
+ * MyAnimeList for a fresh about.php. Rejects when the answer says neither. For a connected site only,
+ * since the frame is what attaches.
+ */
+export const checkTrackerSite = async (site: TrackerSite): Promise<SiteState> =>
+  site === 'anilist'
+    ? anilistSignInState(await frames.use(site, api => (api as unknown as SessionPageApi).graphql({ query: ANILIST_VIEWER_QUERY })))
+    : malSignInState(await frames.use(site, api => (api as unknown as MalPageApi).whoami({})))

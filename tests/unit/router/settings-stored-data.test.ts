@@ -6,6 +6,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
+import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
@@ -26,6 +27,7 @@ const LOCAL = {
   [DISPLAY_MODE_KEY]: 'list',
   [COMPACT_PREFS_KEY]: JSON.stringify({ advanced: true, targets: { mal: false } }),
   [CONNECTED_KEY]: JSON.stringify(['anilist', 'mal']),
+  [SITE_STATUS_KEY]: JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: 1 } }),
   'not-stub': 'kept',
 }
 const SESSION = {
@@ -53,6 +55,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('search-layout').keys).toEqual({ store: 'local', names: [DISPLAY_MODE_KEY] })
     expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
+    expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
   })
@@ -110,6 +113,11 @@ describe('what stub keeps per viewer', () => {
     expect(byId('stub-list').where).toContain('at this address')
   })
 
+  test('the sign-in states keep no account name, and clearing them leaves every session as it is', () => {
+    expect(byId('site-status').what).toContain('Never your name there')
+    expect(byId('site-status').confirm).toContain('Your sessions stay as they are')
+  })
+
   test('the sites a sign in connected are cleared under Accounts, and the party you are in by leaving it', () => {
     expect(isClearedHere(byId('connected-sites'))).toBe(false)
     expect(byId('connected-sites').clearedBy?.section).toBe('accounts')
@@ -121,11 +129,11 @@ describe('what stub keeps per viewer', () => {
 describe('a Clear', () => {
   const clearable = () => STORED.filter(isClearedHere)
 
-  test('is offered for the added sources, the search layout, the quick tracking choices and the party name', () => {
-    expect(clearable().map(item => item.id)).toEqual(['added-sources', 'search-layout', 'quick-tracking', 'party-name'])
+  test('is offered for the added sources, the search layout, the quick tracking choices, the sign-in states and the party name', () => {
+    expect(clearable().map(item => item.id)).toEqual(['added-sources', 'search-layout', 'quick-tracking', 'site-status', 'party-name'])
   })
 
-  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'party-name']) {
+  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'site-status', 'party-name']) {
     test(`on ${id} removes exactly its keys, and every other key is left as it was`, () => {
       const { local, session, stores } = seeded()
       const item = byId(id)

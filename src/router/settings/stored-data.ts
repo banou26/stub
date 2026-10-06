@@ -8,6 +8,7 @@ import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
+import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../search/display'
 
 export type StoredItem = {
@@ -63,6 +64,15 @@ export const STORED: readonly StoredItem[] = [
     lasts: 'Until you sign out of them',
     keys: { store: 'local', names: [CONNECTED_KEY] },
     clearedBy: { text: 'Sign out of each under Accounts.', section: 'accounts' },
+  },
+  {
+    id: 'site-status',
+    title: 'Site sign-in states',
+    what: 'Whether you were signed in to Crunchyroll, AniList and MyAnimeList when stub last learned it, and when. Never your name there.',
+    where: LOCAL,
+    lasts: 'Until you clear it, or stub learns it again',
+    keys: { store: 'local', names: [SITE_STATUS_KEY] },
+    confirm: 'Clear the remembered sign-in states? Your sessions stay as they are; Accounts says Not checked yet until stub learns them again.',
   },
   {
     id: 'party-name',

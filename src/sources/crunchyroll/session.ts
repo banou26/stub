@@ -12,8 +12,9 @@ export const CRUNCHYROLL_DOMAINS = [
 
 export const CRUNCHYROLL_BASE_URL = 'https://www.crunchyroll.com'
 
+/** crunchyroll.com's own client id for a signed-in account, its pages' `cxApiParams.accountAuthClientId`. */
+export const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
 // state '/': returning the sign-in popup or window to the episode would start a second player there
-const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
 export const CRUNCHYROLL_LOGIN_URL = `https://sso.crunchyroll.com/authorize?${new URLSearchParams({
   client_id: CRUNCHYROLL_SSO_CLIENT_ID,
   redirect_uri: `${CRUNCHYROLL_BASE_URL}/callback`,

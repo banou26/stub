@@ -25,7 +25,10 @@ vi.mock('urql', () => ({
   useSubscription: () => [{ data: { tracking } }],
   useMutation: () => [{}, save],
 }))
-vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {} }))
+const isSiteConnected = vi.hoisted(() => () => false)
+vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected }))
+const remembered = vi.hoisted(() => ({ recordTrackerAnswers: vi.fn(), siteStatuses: { record: () => {} } }))
+vi.mock('../../../src/tracking/site-status', () => remembered)
 // the page's worker, which Unlock asks to check the account again
 vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
 
@@ -50,6 +53,12 @@ const render = (store = createCompactPrefs(memory())) => {
 const toggle = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('[aria-label="Advanced tracking"]')!
 
 describe('the media tracking', () => {
+  // what the trackers answer is what stub knows of their sites' sessions, shown under Settings, Accounts
+  test('hands the trackers\' answers to the remembered sign-in states, for the sites connected here', () => {
+    render()
+    expect(remembered.recordTrackerAnswers).toHaveBeenCalledWith(tracking.answers, remembered.siteStatuses, isSiteConnected)
+  })
+
   test('shows the row alone by default, the panel below it once Advanced is on, and remembers it', async () => {
     const store = createCompactPrefs(memory())
     const host = render(store)

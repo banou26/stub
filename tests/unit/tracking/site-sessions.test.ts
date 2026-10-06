@@ -46,13 +46,13 @@ afterEach(() => {
   vi.stubGlobal('location', { origin: 'https://anime.fkn.app' })
 })
 
-/** A hidden frame whose page serves `whoami` on the port it is sent, and records what it was asked. */
-const hiddenFrame = () => {
+/** A hidden frame whose page serves `api` on the port it is sent, and records what it was asked. */
+const hiddenFrame = (api: Record<string, (arg: never) => Promise<unknown>> = { whoami: async () => 'the page answered' }) => {
   const evaluate = vi.fn(async (_source: string, _arg: unknown) => 'installed')
   const goto = vi.fn(async (_url: string, _options?: unknown) => {})
   const postMessage = vi.fn(async (message: { type: string }, _origin: string, transfer: MessagePort[]) => {
     ports.push(transfer[0]!)
-    if (message.type === SESSION_PORT_MESSAGE) void expose({ whoami: async () => 'the page answered' }, { transport: transfer[0]! })
+    if (message.type === SESSION_PORT_MESSAGE) void expose(api, { transport: transfer[0]! })
   })
   return { frame: { evaluate, goto, postMessage, on: () => {} }, evaluate, goto, postMessage }
 }
@@ -215,5 +215,74 @@ describe('signing out of a site', () => {
 
     await expect(signOutOfSite('anilist', 'cloud')).rejects.toThrow('FKN is not reachable')
     expect(isSiteConnected('anilist')).toBe(false)
+    expect(stored.has('stub.site-status'), 'the session may still be there, so nothing is remembered').toBe(false)
+  })
+
+  test('on the cloud, a sign out is remembered as signed out once the cookies are gone', async () => {
+    const { signOutOfSite } = await load()
+    recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['anilist']))
+    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
+
+    await signOutOfSite('anilist', 'cloud')
+    expect(JSON.parse(stored.get('stub.site-status')!).anilist.state).toBe('signed-out')
+  })
+
+  test("with the extension, a disconnect remembers nothing: the browser's session is still there", async () => {
+    extension.exposed = true
+    const { signOutOfSite } = await load()
+    recordFrames()
+    stored.set('stub.sessions', JSON.stringify(['mal']))
+
+    await signOutOfSite('mal', 'extension')
+    expect(stored.has('stub.site-status')).toBe(false)
+  })
+})
+
+describe('checking whether anyone is signed in to a site', () => {
+  test("asks AniList's page for its Viewer, and a page with none is signed out", async () => {
+    const { checkTrackerSite } = await load()
+    stored.set('stub.sessions', JSON.stringify(['anilist']))
+    const graphql = vi.fn(async (_request: { query: string }) => ({ status: 200, body: { data: { Viewer: null } }, rateLimit: {} }))
+    attach.mockResolvedValueOnce(hiddenFrame({ graphql }).frame)
+
+    expect(await checkTrackerSite('anilist')).toBe('signed-out')
+    expect(graphql).toHaveBeenCalledWith({ query: 'query { Viewer { id } }' })
+  })
+
+  test("asks MyAnimeList's page who it is, and a page naming someone is signed in", async () => {
+    const { checkTrackerSite } = await load()
+    stored.set('stub.sessions', JSON.stringify(['mal']))
+    const whoami = vi.fn(async () => ({ kind: 'whoami', status: 200, url: 'https://myanimelist.net/about.php', page: true, user: 'Banou', token: true, blocked: false, retryAfter: null }))
+    attach.mockResolvedValueOnce(hiddenFrame({ whoami }).frame)
+
+    expect(await checkTrackerSite('mal')).toBe('signed-in')
+    expect(whoami).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('signing in to a site', () => {
+  test('a sign-in that ends signed in is remembered as signed in', async () => {
+    const { trackerSignIns } = await load()
+    const close = vi.fn(async () => {})
+    attach.mockResolvedValueOnce({
+      goto: async () => {},
+      closed: new Promise(() => {}),
+      close,
+      locator: () => ({ exists: async () => false }),
+      evaluate: async () => true,
+    })
+
+    expect(await trackerSignIns.mal!()).toBe('authed')
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(stored.get('stub.site-status')!).mal.state).toBe('signed-in')
+  })
+
+  test('a sign-in window the viewer closed remembers nothing', async () => {
+    const { trackerSignIns } = await load()
+    attach.mockResolvedValueOnce(closedWindow().login)
+
+    expect(await trackerSignIns.anilist!()).toBe('closed')
+    expect(stored.has('stub.site-status')).toBe(false)
   })
 })

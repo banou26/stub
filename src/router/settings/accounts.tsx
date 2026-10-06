@@ -1,12 +1,14 @@
 import type { ComponentChildren, RefObject } from 'preact'
 import type { WindowSignIn } from '../../sources/login-window'
 import type { TrackerSite } from '../../tracking/site-sessions'
+import type { SiteState, SiteStatus, StatusSite } from '../../tracking/site-status'
 import type { DisconnectOutcome } from '../../utils/account-session'
 import type { FknBackend } from '../../utils/fkn-backend'
 import type { AccountInfo } from '../../utils/use-account'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
+import { formatCountdown } from '../../utils/countdown'
 import { ConfirmAction } from './confirm'
 
 export type { TrackerSite }
@@ -32,8 +34,17 @@ export type AccountsProps = {
     signIn: (site: TrackerSite) => Promise<WindowSignIn>
     signOut: (site: TrackerSite, backend: FknBackend) => Promise<void>
   }
+  /** Whether the viewer was signed in to each site when stub last learned it. */
+  status: {
+    read: (site: StatusSite) => SiteStatus | undefined
+    watch: (site: StatusSite, listener: () => void) => () => void
+    /** Asks the site now and remembers its answer. Rejects when the answer says neither. */
+    check: (site: StatusSite, backend: FknBackend) => Promise<SiteState>
+  }
   /** Called after anything here changed what stub keeps. */
   onChange?: () => void
+  /** The clock a remembered state's age is read against. */
+  now?: () => number
 }
 
 const MANAGE_URL = 'https://fkn.app/account'
@@ -49,6 +60,34 @@ const signInNote = (name: string, outcome: WindowSignIn): Note => {
     case 'blocked': return { text: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.', error: true }
     case 'unsupported': return { text: `Connected to your browser's own ${name} session.` }
   }
+}
+
+const STATE_LABEL: Record<SiteState, string> = { 'signed-in': 'Signed in', 'signed-out': 'Signed out' }
+
+const stateText = (status: SiteStatus, now: number) => {
+  const ago = formatCountdown(now - status.checkedAt, 1)
+  return `${STATE_LABEL[status.state]}, checked ${ago ? `${ago} ago` : 'just now'}`
+}
+
+/** The site's remembered state, read again whenever stub records a new one. */
+const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
+  const [, setRevision] = useState(0)
+  useEffect(() => status.watch(site, () => setRevision(revision => revision + 1)), [status, site])
+  return status.read(site)
+}
+
+const CheckNow = ({ site, name, backend, status, onChange, onNote }: { site: StatusSite, name: string, backend: FknBackend, onNote: (note: Note | undefined) => void } & Pick<AccountsProps, 'status' | 'onChange'>) => {
+  const [busy, setBusy] = useState(false)
+  const mounted = useMounted()
+  const check = () => {
+    setBusy(true)
+    onNote(undefined)
+    status.check(site, backend)
+      .then(() => onChange?.())
+      .catch(error => { if (mounted.current) onNote({ text: `stub could not tell whether you are signed in to ${name}: ${messageOf(error)}`, error: true }) })
+      .finally(() => { if (mounted.current) setBusy(false) })
+  }
+  return <button type="button" className="secondary" disabled={busy} aria-label={`Check whether you are signed in to ${name}`} onClick={check}>{busy ? 'Checking...' : 'Check now'}</button>
 }
 
 const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement>, children: ComponentChildren }) => (
@@ -123,11 +162,13 @@ const CLOUD_JAR = 'Without the FKN extension, the session is kept by FKN, in the
 const notTold = (name: string) =>
   `${name} itself is not told, so the session stays valid there until it expires, held by nobody.`
 
-const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' | 'crunchyroll'>) => {
+const CrunchyrollRow = ({ backend, crunchyroll, status, onChange, now }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status' | 'onChange'> & { now: () => number }) => {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
+  const remembered = useSiteStatus(status, 'crunchyroll')
+  const checkNow = backend ? <CheckNow site="crunchyroll" name="Crunchyroll" backend={backend} status={status} onChange={onChange} onNote={setNote}/> : undefined
 
   const signIn = () => {
     const signingIn = crunchyroll.signIn()
@@ -145,15 +186,18 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
   )
 
   return (
-    <Row id="crunchyroll" title="Crunchyroll" heading={heading}>
+    <Row
+      id="crunchyroll"
+      title="Crunchyroll"
+      state={remembered ? stateText(remembered, now()) : 'Not checked yet'}
+      on={remembered?.state === 'signed-in'}
+      heading={heading}
+    >
       <p>Plays Crunchyroll episodes on your own Crunchyroll account.</p>
       {backend === 'cloud'
         ? (
           <>
-            <p>
-              {CLOUD_JAR} stub does not check it here, since that loads a Crunchyroll page: the player says
-              when you are signed out.
-            </p>
+            <p>{CLOUD_JAR} Check now asks Crunchyroll whether that session is signed in, without loading a Crunchyroll page.</p>
             <div className="actions">
               <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>
               <ConfirmAction
@@ -165,6 +209,7 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
                 question={`Sign out of Crunchyroll? This removes its cookies from FKN's jar, which signs every fkn.app app out of Crunchyroll. ${notTold('Crunchyroll')}`}
                 onConfirm={signOut}
               />
+              {checkNow}
             </div>
           </>
         )
@@ -172,7 +217,10 @@ const CrunchyrollRow = ({ backend, crunchyroll }: Pick<AccountsProps, 'backend' 
           ? (
             <>
               <p>With the FKN extension, stub plays it on your browser's own crunchyroll.com session and keeps nothing of it. Sign in and out on crunchyroll.com.</p>
-              <div className="actions"><a className="link" href="https://www.crunchyroll.com" target="_blank" rel="noreferrer">Open crunchyroll.com</a></div>
+              <div className="actions">
+                <a className="link" href="https://www.crunchyroll.com" target="_blank" rel="noreferrer">Open crunchyroll.com</a>
+                {checkNow}
+              </div>
             </>
           )
           : <p>Checking whether the FKN extension runs here...</p>}
@@ -186,12 +234,13 @@ const TRACKER_SITES: { site: TrackerSite, name: string, host: string }[] = [
   { site: 'mal', name: 'MyAnimeList', host: 'myanimelist.net' },
 ]
 
-const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: TrackerSite, name: string, host: string } & Pick<AccountsProps, 'backend' | 'sites' | 'onChange'>) => {
+const TrackerRow = ({ site, name, host, backend, sites, status, onChange, now }: { site: TrackerSite, name: string, host: string, now: () => number } & Pick<AccountsProps, 'backend' | 'sites' | 'status' | 'onChange'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
+  const remembered = useSiteStatus(status, site)
 
   useEffect(() => {
     setConnected(sites.isConnected(site))
@@ -235,7 +284,13 @@ const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: Trac
   )
 
   return (
-    <Row id={site} title={name} state={connected ? 'Connected on this device' : 'Not connected'} on={connected} heading={heading}>
+    <Row
+      id={site}
+      title={name}
+      state={!connected ? 'Not connected' : remembered ? stateText(remembered, now()) : 'Connected on this device'}
+      on={connected && remembered?.state !== 'signed-out'}
+      heading={heading}
+    >
       <p>
         Tracks your {name} list with your own {host} session.{' '}
         {backend === 'cloud' ? CLOUD_JAR : backend === 'extension' ? `With the FKN extension, stub uses your browser's own ${host} session.` : ''}
@@ -258,6 +313,7 @@ const TrackerRow = ({ site, name, host, backend, sites, onChange }: { site: Trac
                 />
               )
               : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
+            {connected ? <CheckNow site={site} name={name} backend={backend} status={status} onChange={onChange} onNote={setNote}/> : undefined}
           </div>
         )
         : undefined}
@@ -280,11 +336,11 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 )
 
 /** Every sign-in stub uses, what each is, and the way out of it where there is one. */
-export const AccountsSection = ({ account, backend, crunchyroll, sites, onChange }: AccountsProps) => (
+export const AccountsSection = ({ account, backend, crunchyroll, sites, status, onChange, now = Date.now }: AccountsProps) => (
   <div className="rows">
     <FknRow account={account} onChange={onChange}/>
-    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll}/>
-    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} onChange={onChange}/>)}
+    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status} onChange={onChange} now={now}/>
+    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status} onChange={onChange} now={now}/>)}
     <NetflixRow backend={backend}/>
   </div>
 )
