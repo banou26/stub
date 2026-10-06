@@ -1,0 +1,21 @@
+[
+  {
+    "type": "show",
+    "score": 578730123365189600,
+    "show": {
+      "title": "Frieren: Beyond Journey's End",
+      "year": 2023,
+      "ids": {
+        "imdb": "tt22248376",
+        "plex": {
+          "guid": "631ccdfccbff4464978f9d53",
+          "slug": "frieren-beyond-journeys-end"
+        },
+        "slug": "frieren-beyond-journey-s-end",
+        "tmdb": 209867,
+        "tvdb": 424536,
+        "trakt": 198225
+      }
+    }
+  }
+]

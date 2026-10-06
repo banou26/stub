@@ -1,0 +1,76 @@
+[
+  {
+    "number": 0,
+    "episodes": [
+      {
+        "season": 0,
+        "number": 1,
+        "title": "OO Magic Episode 1: The Magic of Saying What You Are Thinking",
+        "ids": {
+          "imdb": null,
+          "plex": {
+            "guid": "65281ecd652e2431381cbf48"
+          },
+          "tmdb": 4807632,
+          "tvdb": 10117637,
+          "trakt": 10961618
+        },
+        "first_aired": "2023-10-11T14:00:00.000Z",
+        "overview": "Frieren, Heiter, and Eisen test the spell that causes the user to say whatever they are thinking on Himmel, who begins to wax-poetic about his looks aloud. The three of them agree that it would be unbearable to listen to it long term."
+      }
+    ]
+  },
+  {
+    "number": 1,
+    "episodes": [
+      {
+        "season": 1,
+        "number": 1,
+        "title": "The Journey's End",
+        "ids": {
+          "imdb": "tt23861604",
+          "plex": {
+            "guid": "631ccdfdcbff4464978f9d56"
+          },
+          "tmdb": 3946240,
+          "tvdb": 9350138,
+          "trakt": 6706012
+        },
+        "first_aired": "2023-09-29T14:00:00.000Z",
+        "overview": "The world celebrates the Demon King's defeat at the hands of the Hero and his companions. Now that their great adventure is over, what will Frieren the mage do next?"
+      },
+      {
+        "season": 1,
+        "number": 2,
+        "title": "It Didn't Have to Be Magic...",
+        "ids": {
+          "imdb": "tt29277814",
+          "plex": {
+            "guid": "64f4abd9b81ad553277c6af6"
+          },
+          "tmdb": 4698536,
+          "tvdb": 9993737,
+          "trakt": 10860100
+        },
+        "first_aired": "2023-09-29T14:00:00.000Z",
+        "overview": "Frieren instructs Fern in the use of magic while deciphering a grimoire for Heiter."
+      },
+      {
+        "season": 1,
+        "number": 3,
+        "title": "Killing Magic",
+        "ids": {
+          "imdb": "tt29277815",
+          "plex": {
+            "guid": "64f4abd9b81ad553277c6af5"
+          },
+          "tmdb": 4698538,
+          "tvdb": 9993738,
+          "trakt": 10860104
+        },
+        "first_aired": "2023-09-29T14:00:00.000Z",
+        "overview": "While retracing the path she took on her adventure with her former traveling companions, Frieren confronts an old enemy."
+      }
+    ]
+  }
+]
