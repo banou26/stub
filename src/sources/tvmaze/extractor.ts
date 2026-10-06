@@ -5,6 +5,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, desc, img, waitForMedia } from '../utils'
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
+import { decodeEntities } from '../entities'
 
 const SCORE = 0.3
 const API = 'https://api.tvmaze.com'
@@ -20,16 +21,9 @@ export const isApiOnly = true
 export const supportedUris = ['tvmaze']
 export const color = '#3c948b'
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\'', nbsp: ' ' }
 const text = (html: string | null | undefined): string | undefined => {
   if (!html) return undefined
-  const out = html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-    .replace(/&([a-z]+);/gi, (m, n) => ENTITIES[n.toLowerCase()] ?? m)
-    .trim()
-  return out || undefined
+  return decodeEntities(html.replace(/<[^>]+>/g, '')).trim() || undefined
 }
 
 const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>

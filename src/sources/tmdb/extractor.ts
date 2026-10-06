@@ -5,6 +5,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, desc, img, getFirstTitle, waitForMedia, declaredEpisodeCount } from '../utils'
 import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId } from '../season'
 import { percentScore } from '../average-score'
+import { decodeEntities as decode } from '../entities'
 
 // TMDB (themoviedb.org) - the public API needs a licensed key, so instead we read TMDB's own server-rendered frontend pages through the FKN proxy, whose curl-impersonate gets past their WAF, same approach as the CR/NF sources.
 
@@ -21,13 +22,6 @@ export const metadataOnly = true
 export const isApiOnly = true
 export const supportedUris = ['tmdb']
 export const color = '#01b4e4'
-
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\'', nbsp: ' ' }
-const decode = (s: string): string =>
-  s
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-    .replace(/&([a-z]+);/gi, (m, n) => ENTITIES[n.toLowerCase()] ?? m)
 
 const fetchHtml = (path: string, ctx: ExtractorServerContext): Promise<string | undefined> =>
   ctx.fetch(`${BASE}${path}`).then(r => r.text()).catch(() => undefined)
