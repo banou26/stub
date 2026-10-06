@@ -21,8 +21,9 @@ export const isApiOnly = true
 export const supportedUris = ['watchmode']
 export const color = '#1fb6ff'
 
-// The tRPC gateway www.watchmode.com's own client calls (read 2026-10-07). Its title reads need no
-// sign-in, where every api.watchmode.com read needs a key.
+// The tRPC gateway www.watchmode.com's own client calls (read 2026-10-07), asked as that client asks:
+// batched (`httpBatchLink`), from the site's origin. Its title reads need no sign-in, where every
+// api.watchmode.com read needs a key.
 const GATEWAY = 'https://gateway.watchmode.com/trpc'
 
 /**
@@ -46,9 +47,9 @@ interface WatchmodeProvider {
 
 const trpc = <T>(procedure: string, input: object, ctx: ExtractorServerContext): Promise<T | undefined> =>
   ctx
-    .fetch(`${GATEWAY}/gateway.${procedure}?input=${encodeURIComponent(JSON.stringify({ json: input }))}`)
-    .then(r => r.json() as Promise<{ result?: { data?: { json?: T } } }>)
-    .then(answer => answer.result?.data?.json)
+    .fetch(`${GATEWAY}/gateway.${procedure}?batch=1&input=${encodeURIComponent(JSON.stringify({ 0: { json: input } }))}`, { headers: { origin: originUrl } })
+    .then(r => r.json() as Promise<{ result?: { data?: { json?: T } } }[] | null>)
+    .then(answer => answer?.[0]?.result?.data?.json)
     .catch(() => undefined)
 
 const isFilm = (id: string) => id.startsWith('01')
