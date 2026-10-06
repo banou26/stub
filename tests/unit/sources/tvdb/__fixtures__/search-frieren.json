@@ -1,0 +1,153 @@
+{
+  "results": [
+    {
+      "hits": [
+        {
+          "id": 391612,
+          "name": "Frieden",
+          "slug": "frieden",
+          "first_air_date": "2020-11-08",
+          "image_url": "https://artworks.thetvdb.com/banners/series/391612/posters/5fa96d6106bf5.jpg",
+          "primary_language": "deu",
+          "translations": {
+            "deu": "Frieden",
+            "eng": "Labyrinth of Peace"
+          },
+          "overviews": {
+            "eng": "Year 1945. The war is over and neutral Switzerland has been saved from the conflict. Klara's family looks forward to the future as she cares for young Holocaust survivors. Johann hopes to save and modernize his father-in-law's textile business. And Egon, fresh from military service, takes his first steps in the Attorney General's office chasing fugitive Nazis. The three soon realize that the facade of peace is bought with the blood of war victims. Johann's career ambitions bring him closer to those who committed heinous war crimes. Klara risks her marriage as she grows closer and closer to one of the survivors, whom the locals receive with distrust. And Egon finds himself trapped in a system that voluntarily turns a blind eye to Nazi criminals for financial reasons."
+          },
+          "remote_ids": [
+            {
+              "id": "https://www.srf.ch/play/tv/sendung/frieden?id=01a65802-f650-4633-bf97-18a64a9bbe94",
+              "sourceName": "Official Website",
+              "type": 4
+            },
+            {
+              "id": "tt10639680",
+              "sourceName": "IMDB",
+              "type": 2
+            },
+            {
+              "id": "112370",
+              "sourceName": "TheMovieDB.com",
+              "type": 12
+            }
+          ],
+          "objectID": "series-391612",
+          "type": "series"
+        },
+        {
+          "id": 424536,
+          "name": "葬送のフリーレン",
+          "slug": "sousou-no-frieren",
+          "first_air_date": "2023-09-29",
+          "image_url": "https://artworks.thetvdb.com/banners/v4/series/424536/posters/68d6d5b36aa2f.jpg",
+          "primary_language": "jpn",
+          "translations": {
+            "deu": "Frieren - Nach dem Ende der Reise",
+            "eng": "Frieren: Beyond Journey's End",
+            "jpn": "葬送のフリーレン"
+          },
+          "overviews": {
+            "eng": "Decades after her party defeated the Demon King, an old friend's funeral launches the elf wizard Frieren on a journey of self-discovery."
+          },
+          "remote_ids": [
+            {
+              "id": "10.5240/2C19-E50B-96FA-5EFF-B76A-Y",
+              "sourceName": "EIDR",
+              "type": 13
+            },
+            {
+              "id": "https://frieren.fandom.com/wiki/Frieren_Wiki",
+              "sourceName": "Fan Site",
+              "type": 8
+            },
+            {
+              "id": "tt22248376",
+              "sourceName": "IMDB",
+              "type": 2
+            },
+            {
+              "id": "https://frieren-anime.jp/",
+              "sourceName": "Official Website",
+              "type": 4
+            },
+            {
+              "id": "Frieren",
+              "sourceName": "Reddit",
+              "type": 7
+            },
+            {
+              "id": "209867",
+              "sourceName": "TheMovieDB.com",
+              "type": 12
+            },
+            {
+              "id": "SH04909006",
+              "sourceName": "TMS (Zap2It)",
+              "type": 3
+            },
+            {
+              "id": "69956",
+              "sourceName": "TV Maze",
+              "type": 19
+            },
+            {
+              "id": "Q115792176",
+              "sourceName": "Wikidata",
+              "type": 18
+            },
+            {
+              "id": "Frieren%3A_Beyond_Journey's_End",
+              "sourceName": "Wikipedia",
+              "type": 24
+            },
+            {
+              "id": "Anime_Frieren",
+              "sourceName": "X (Twitter)",
+              "type": 6
+            }
+          ],
+          "objectID": "series-424536",
+          "type": "series"
+        },
+        {
+          "id": 354458,
+          "name": "Friheden",
+          "slug": "friheden",
+          "first_air_date": "2018-10-24",
+          "image_url": "https://artworks.thetvdb.com/banners/posters/5bd0dd7924433.jpg",
+          "primary_language": "dan",
+          "translations": {
+            "deu": "Small Town Criminals",
+            "eng": "Pros and Cons"
+          },
+          "overviews": {
+            "eng": "Officially they are a regular family. Unofficially, they are Denmark's most notorious cheaters. The question is how to deal with parenting meetings, lunch boxes and payouts at the same time as their biggest coup."
+          },
+          "remote_ids": [
+            {
+              "id": "https://viaplay.dk/serier/friheden",
+              "sourceName": "Official Website",
+              "type": 4
+            },
+            {
+              "id": "tt7694874",
+              "sourceName": "IMDB",
+              "type": 2
+            },
+            {
+              "id": "85344",
+              "sourceName": "TheMovieDB.com",
+              "type": 12
+            }
+          ],
+          "objectID": "series-354458",
+          "type": "series"
+        }
+      ],
+      "nbHits": 52,
+      "index": "TVDB"
+    }
+  ]
+}
