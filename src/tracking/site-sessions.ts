@@ -103,8 +103,9 @@ export const watchSite = (site: TrackerSite, listener: () => void): (() => void)
 
 /**
  * Stops stub reaching the site with the viewer's session on this device, at once, and on the cloud then
- * removes the site's cookies from FKN's jar (`clearCloudCookies`). Rejects when that removal failed; the
- * site is disconnected here either way. With the extension the session is the browser's own and stays.
+ * removes the site's cookies from FKN's jar (`clearCloudCookies`) and remembers the site as signed out.
+ * Rejects when that removal failed; the site is disconnected here either way. With the extension the
+ * session is the browser's own and stays.
  */
 export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Promise<void> => {
   disconnectAndReload(site, { frames, connections })
