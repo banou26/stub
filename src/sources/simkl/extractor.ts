@@ -5,6 +5,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img } from '../utils'
 import { percentScore } from '../average-score'
 import { decodeEntities } from '../entities'
+import { parseSeasonNumber } from '../season'
 
 const SCORE = 0.3
 const API = 'https://api.simkl.com'
@@ -38,11 +39,16 @@ interface SimklRatings {
   imdb?: { rating?: number }
   mal?: { rating?: number }
 }
-/** A row of simkl.com's own search, keyed `i<id>` in its answer. `titles.m` is the main title, `a7` the English one. */
+/**
+ * A row of simkl.com's own search, keyed `i<id>` in its answer. `titles.m` is the main title, `a7` the
+ * English one. `year` is the record's start year, alone or opening a span (`2016`, `2023 - 2024`,
+ * `1999 - Now`), and `''` when simkl has none.
+ */
 interface SimklSiteHit {
   id?: string
   url?: string
   poster?: string
+  year?: string
   titles?: Record<string, string>
 }
 interface SimklDetail {
@@ -170,6 +176,21 @@ const buildTitles = (title?: string, enTitle?: string | null) => {
   return titles
 }
 
+// A hit with no start date joins no year bucket in fuzzy-merge.ts, so it was never compared with the
+// run it names. The year is the record's own on every scope: an anime record is one run (Frieren's are
+// 2023, 2026 and 2027), a tv record the show, a movie the film.
+const startOfYear = (year?: string): string | undefined => {
+  const start = year?.match(/^\d{4}\b/)?.[0]
+  return start ? `${start}-01-01` : undefined
+}
+
+// The main title is often the franchise's, on every run (all three Frieren runs are `Sousou no
+// Frieren`), and a year cannot tell two runs of one year apart: Mushoku Tensei's Part 2 welded into
+// season 1 on it, both 2021. So where the English title names a season or part and the main title
+// names none, the main title is left out.
+const searchTitles = ({ m, a7 }: Record<string, string> = {}) =>
+  a7 && parseSeasonNumber(a7) !== undefined && parseSeasonNumber(m ?? '') === undefined ? buildTitles(a7) : buildTitles(m, a7)
+
 // A site hit carries no catalogue ids, so it mints no handle; the detail read supplies them.
 const normalizeSearch = (hit: SimklSiteHit): GQLMedia | undefined => {
   const type = typeOfUrl(hit.url)
@@ -181,8 +202,9 @@ const normalizeSearch = (hit: SimklSiteHit): GQLMedia | undefined => {
     scope: scopeForType(type),
     categories: categoriesForType(type),
     score: SCORE,
-    titles: buildTitles(hit.titles?.m, hit.titles?.a7),
+    titles: searchTitles(hit.titles),
     covers: img(poster(hit.poster), SCORE),
+    startDate: startOfYear(hit.year),
   })
 }
 

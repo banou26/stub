@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/simkl/extractor'
+import { findAggregatedMedia, resetStore, upsertMedia } from '../../../../src/worker/store/db'
+import { fuzzyMergeMediaClusters } from '../../../../src/worker/store/fuzzy-merge'
 
 const API = 'https://api.simkl.com'
 
@@ -248,4 +250,56 @@ test('a recorded anime reads with no client id: its ids, its decoded English tit
   expect(media.episodes).toHaveLength(3)
   expect(media.episodes![0]!.releaseDate).toBe('2023-09-29T14:00:00.000Z')
   for (const request of sent) expect(Object.keys(request.headers), request.url).toEqual([])
+})
+
+// The fuzzy pass buckets clusters by start year, so a search row with no date was never compared with
+// anything: 541 of 987 cards on a 143 title search walk were a Simkl row on its own, 73 of 91 opened
+// ones a run the page already showed. Recorded answers, beside an AniList run as AniList dates it.
+const searchRows = async (name: 'frieren' | 'mushoku') => {
+  const ctx = {
+    fetch: async (_url: string, init?: { body?: string }) => {
+      const type = new URLSearchParams(init?.body).get('type')
+      return { json: async () => (name === 'frieren' || type === 'anime' ? fixture(`site-search-${name}-${type}`) : []) }
+    },
+  } as never
+  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: name } }, ctx).next()
+  return value.mediaPage.nodes as (Row & { startDate?: string })[]
+}
+
+const run = (uri: string, startDate: string, ...titles: string[]) => ({
+  uri,
+  origin: uri.slice(0, uri.indexOf(':')),
+  id: uri.slice(uri.indexOf(':') + 1),
+  scope: 'RUN',
+  type: 'TV',
+  categories: ['ANIME', 'SERIES'],
+  startDate,
+  titles: titles.map(title => ({ language: 'en', title, score: 0.7 })),
+}) as never
+
+const clusterOf = async (rows: object[], uri: string) => {
+  await upsertMedia(rows as never, [])
+  await fuzzyMergeMediaClusters(rows.map(row => [row]) as never)
+  return (await findAggregatedMedia(uri)).map(media => media.uri).sort()
+}
+
+test('a search row carries its record\'s start year, so it sits beside the run it names', async () => {
+  resetStore()
+  const rows = await searchRows('frieren')
+
+  expect(rows.map(row => row.startDate)).toEqual(['2023-01-01', '2026-01-01', '2027-01-01', '1978-01-01'])
+  const frieren = run('anilist:154587', 'Fri, 29 Sep 2023 00:00:00 GMT', 'Sousou no Frieren', 'Frieren: Beyond Journey’s End')
+  expect(await clusterOf([...rows, frieren], 'anilist:154587')).toEqual(['anilist:154587', 'simkl:1990194'])
+})
+
+// Both parts of Mushoku Tensei's first season are 2021 records whose main title is the first part's,
+// so with a year and that title the second part welded into the first.
+test('a part its English title names does not join another run on the main title they share', async () => {
+  resetStore()
+  const rows = await searchRows('mushoku')
+  const first = run('anilist:108465', 'Mon, 11 Jan 2021 00:00:00 GMT', 'Mushoku Tensei: Isekai Ittara Honki Dasu', 'Mushoku Tensei: Jobless Reincarnation')
+  const second = run('anilist:127720', 'Mon, 04 Oct 2021 00:00:00 GMT', 'Mushoku Tensei: Isekai Ittara Honki Dasu Part 2', 'Mushoku Tensei: Jobless Reincarnation Cour 2')
+
+  expect(rows.map(row => row.startDate)).toEqual(['2021-01-01', '2021-01-01'])
+  expect(await clusterOf([...rows, first, second], 'anilist:108465')).toEqual(['anilist:108465', 'simkl:1059371'])
 })
