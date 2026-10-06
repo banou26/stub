@@ -9,7 +9,7 @@
 //
 // The fixtures were recorded signed out from IMDb's own GraphQL on 2026-10-07, with no key, and trimmed.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers, name, originUrl } from '../../../../src/sources/omdb/extractor'
 

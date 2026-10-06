@@ -8,7 +8,7 @@
 // sequences that both start at 1, measured 2026-09-04: themoviedb.org/movie/550 is Fight Club and
 // /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550` for both.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/simkl/extractor'
 

@@ -2,7 +2,7 @@ import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../generated/schema/types.generated'
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { makeMedia, makeEpisode, desc, img } from '../utils'
+import { makeMedia, makeEpisode, desc } from '../utils'
 
 const SCORE = 0.3
 const BASE = 'https://apiz.trakt.tv'
