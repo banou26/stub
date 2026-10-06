@@ -1,0 +1,53 @@
+[
+  {
+    "title": "The Journey's End",
+    "description": "The world celebrates the Demon King`s defeat at the hands of the Hero and his companions. Now that their great adventure is over, what will Frieren the mage do next?",
+    "runtime": 30,
+    "episode": 1,
+    "type": "episode",
+    "aired": true,
+    "img": "14/146256642a3afd9c8e",
+    "date": "2023-09-29T23:00:00+09:00",
+    "ids": {
+      "simkl_id": 10972280
+    },
+    "tvdb": {
+      "season": 1,
+      "episode": 1
+    }
+  },
+  {
+    "title": "It Didn't Have to Be Magic...",
+    "description": "Frieren instructs Fern in the use of magic while deciphering a grimoire for Heiter.",
+    "runtime": 30,
+    "episode": 2,
+    "type": "episode",
+    "aired": true,
+    "img": "14/1462566275fbb93b05",
+    "date": "2023-09-29T23:00:00+09:00",
+    "ids": {
+      "simkl_id": 11759148
+    },
+    "tvdb": {
+      "season": 1,
+      "episode": 2
+    }
+  },
+  {
+    "title": "Killing Magic",
+    "description": "While retracing the path she took on her adventure with her former traveling companions, Frieren confronts an old enemy.",
+    "runtime": 25,
+    "episode": 3,
+    "type": "episode",
+    "aired": true,
+    "img": "14/14625660018c9cccdf",
+    "date": "2023-09-29T23:00:00+09:00",
+    "ids": {
+      "simkl_id": 11759150
+    },
+    "tvdb": {
+      "season": 1,
+      "episode": 3
+    }
+  }
+]
