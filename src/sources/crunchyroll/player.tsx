@@ -235,7 +235,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       domains: CRUNCHYROLL_DOMAINS,
       cookies: attachCookies(mode),
       permissions: [
-        { category: 'evaluation', reason: 'Switch Crunchyroll audio and subtitles, seek the video, show the seek preview thumbnails, and open picture in picture' }
+        { category: 'evaluation', reason: 'Switch audio and subtitles, seek the video, show seek thumbnails and open picture in picture' }
       ]
     })
       .then(f => {

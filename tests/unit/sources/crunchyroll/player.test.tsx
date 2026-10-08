@@ -131,6 +131,8 @@ describe('cloud backend', () => {
     const { permissions } = options as { permissions: { category: string, reason: string }[] }
     expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
     expect(permissions[0]!.reason).toMatch(/audio and subtitles.*seek.*thumbnails/)
+    // @fkn/lib refuses a reason over 100 characters, and that refusal fails the attach itself
+    expect([...permissions[0]!.reason].length).toBeLessThanOrEqual(100)
   })
 
   // since @fkn/lib 0.9.42 the jar picks the backend, so the cloud layout asks for the cloud's jar
