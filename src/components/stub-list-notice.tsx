@@ -58,6 +58,7 @@ const StubListNotice = (
   }
   const account = storage.location === 'ACCOUNT'
   const locked = storage.signedIn === true && storage.locked
+  const one = storage.held === 1
   const lines = [
     locked
       ? (
@@ -74,8 +75,8 @@ const StubListNotice = (
       ? (
         <div key="held" className="line">
           <span>
-            Stub: {entries(storage.held)} saved on this device before you signed in stay on this device, apart from
-            your FKN account's list, and come back if you sign out.
+            Stub: {entries(storage.held)} saved on this device before you signed in {one ? 'stays' : 'stay'} on this device, apart
+            from your FKN account's list, and {one ? 'comes' : 'come'} back if you sign out.
           </span>
           <button type="button" disabled={busy} onClick={run(onAdd)}>Add to my FKN account</button>
         </div>
