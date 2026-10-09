@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { button, mount, unmount } from './dom'
 
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 import type { StubStorage } from '../../../src/components/stub-list-notice'
