@@ -30,12 +30,12 @@ const { THEATER_WAIT_MS } = await import('../../../src/utils/theater')
 
 type Nodes = Parameters<typeof HomeHeader>[0]['mediaNodes']
 
-const show = (id: string, { title = `${id} title`, description = `${id} description`, trailer = id, score = 0.8 } = {}) => ({
+const show = (id: string, { title = `${id} title`, description = `${id} description`, trailers = [id], score = 0.8 } = {}) => ({
   _id: `cl:${id}`,
   uri: `ag:(anilist:${id},kitsu:${id})`,
   titles: [{ language: 'en', title, score }],
   shortDescriptions: [{ language: 'en', shortDescription: description }],
-  trailers: trailer ? [{ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` }] : [],
+  trailers: trailers.map(trailer => ({ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` })),
 })
 
 const hosts: HTMLElement[] = []
@@ -65,11 +65,11 @@ const hero = (nodes: object[]) => {
 // pick after it was shown.
 test('what the hero shows first stays when sources merge into the listing', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  const { shown, update } = hero([show('blue-box', { title: 'Blue Box Season 2', trailer: 'hJ6Y8PAOUk8' }), show('other')])
+  const { shown, update } = hero([show('blue-box', { title: 'Blue Box Season 2', trailers: ['hJ6Y8PAOUk8'] }), show('other')])
   const first = shown()
   expect(first).toEqual({ title: 'Blue Box Season 2', description: 'blue-box description', trailer: 'https://www.youtube.com/watch?v=hJ6Y8PAOUk8' })
 
-  update([show('blue-box', { title: 'Blue Box (2026)', description: 'longer', trailer: 'ZtFrSp4pMJ4', score: 0.9 }), show('other')])
+  update([show('blue-box', { title: 'Blue Box (2026)', description: 'longer', trailers: ['ZtFrSp4pMJ4'], score: 0.9 }), show('other')])
   expect(shown()).toEqual(first)
 })
 
@@ -78,11 +78,11 @@ test('what the hero shows first stays when sources merge into the listing', () =
 // announcement trailer meanwhile, or kept them for good.
 test('while only Kitsu has answered, the hero waits for a better source and shows its fields', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  const kitsu = show('returner', { title: 'Returner Season 2', description: 'The second season of Returner.', trailer: 'TlEAAp9EWio', score: 0.3 })
+  const kitsu = show('returner', { title: 'Returner Season 2', description: 'The second season of Returner.', trailers: ['TlEAAp9EWio'], score: 0.3 })
   const { shown, update } = hero([kitsu])
   expect(shown()).toEqual({ title: '', description: '', trailer: undefined })
 
-  update([show('returner', { title: 'Returner Season 2', description: 'In a land dominated by the Shadow Worlds', trailer: 'YBWOrQCB9r0' })])
+  update([show('returner', { title: 'Returner Season 2', description: 'In a land dominated by the Shadow Worlds', trailers: ['YBWOrQCB9r0'] })])
   expect(shown()).toEqual({ title: 'Returner Season 2', description: 'In a land dominated by the Shadow Worlds', trailer: 'https://www.youtube.com/watch?v=YBWOrQCB9r0' })
 })
 
@@ -102,7 +102,7 @@ test('with no better source answering, the hero fills from Kitsu once the wait i
 // gained a trailer from AniList and pushed it to index 11 to 14 of the candidates.
 test('the show stays when shows gaining a trailer push it out of the pool', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0.99)
-  const ahead = (trailer: boolean) => Array.from({ length: 5 }, (_, index) => show(`ahead-${index}`, trailer ? {} : { trailer: '' }))
+  const ahead = (trailer: boolean) => Array.from({ length: 5 }, (_, index) => show(`ahead-${index}`, trailer ? {} : { trailers: [] }))
   const pool = Array.from({ length: 10 }, (_, index) => show(`pool-${index}`))
   const { shown, update } = hero([...ahead(false), ...pool])
   expect(shown().title).toBe('pool-9 title')
@@ -113,21 +113,31 @@ test('the show stays when shows gaining a trailer push it out of the pool', () =
 
 test('a later answer for the pick does not change it', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  answer.media = show('blue-box', { title: 'Blue Box (2026)', description: 'anizip', trailer: 'hJ6Y8PAOUk8' })
+  answer.media = show('blue-box', { title: 'Blue Box (2026)', description: 'anizip', trailers: ['hJ6Y8PAOUk8'] })
   const { shown } = hero([show('blue-box', { title: 'Blue Box Season 2' })])
 
   expect(shown().title).toBe('Blue Box Season 2')
   expect(shown().description).toBe('blue-box description')
 })
 
-test('a trailer that fails replaces the show, which is then kept', () => {
+// Measured 2026-10-10: YouTube refuses to embed some trailers (error 150, Kitsu's 9QyiEgv33z4 for
+// Black Clover), and the hero then switched to another show about 0.3 s after showing this one.
+test('a trailer that fails gives way to the show\'s next trailer, and the show stays', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  const { shown, update } = hero([show('dead'), show('next')])
-  expect(shown().title).toBe('dead title')
+  const { shown } = hero([show('black-clover', { trailers: ['9QyiEgv33z4', '4MYo8FfiXMA'] }), show('next')])
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=9QyiEgv33z4')
 
   act(() => { player.fail() })
-  expect(shown()).toEqual({ title: 'next title', description: 'next description', trailer: 'https://www.youtube.com/watch?v=next' })
+  expect(shown()).toEqual({ title: 'black-clover title', description: 'black-clover description', trailer: 'https://www.youtube.com/watch?v=4MYo8FfiXMA' })
+})
 
-  update([show('dead'), show('next', { title: 'merged' })])
-  expect(shown().title).toBe('next title')
+// With YouTube unreachable every embed is reported silent about 10 s after its frame loads, and the
+// hero re-picked on each one: six shows in 70 s, measured 2026-10-10.
+test('when every trailer of the show fails, the show stays without one', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown } = hero([show('a'), show('b'), show('c')])
+
+  act(() => { player.fail() })
+  act(() => { player.fail() })
+  expect(shown()).toEqual({ title: 'a title', description: 'a description', trailer: undefined })
 })

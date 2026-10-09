@@ -11,7 +11,7 @@ export type TheaterCandidate = {
   trailers?: readonly unknown[] | null
 }
 
-/** How the hero finds the show it holds, and names one it bans. An index cannot: the listing reorders under it. */
+/** How the hero finds the show it holds. An index cannot: the listing reorders under it. */
 export const theaterKey = (media: TheaterCandidate): string => media._id ?? media.uri ?? ''
 
 /**
@@ -64,13 +64,11 @@ export const THEATER_WAIT_MS = 5000
 
 /**
  * What the hero shows: `current` exactly as it was picked once a good source has filled it
- * (`fromGoodSource`), for as long as it is an unbanned candidate. Before that, the listing's node for
- * the same show, so a show Kitsu or the bundle filled takes AniList's fields when they merge in, and
- * is held from then on. A ban (its trailer failed) or leaving the candidates (a category tab, or
- * trailers arriving for a text-only pick) replaces it with a random unbanned show from the first
- * `THEATER_POOL_SIZE` candidates. Bans are by key, since an index names whichever show sits there next.
- * With nothing unbanned left to pick, `current` stays, so the hero keeps its text rather than going
- * blank over a full listing.
+ * (`fromGoodSource`), for as long as it is a candidate. Before that, the listing's node for the same
+ * show, so a show Kitsu or the bundle filled takes AniList's fields when they merge in, and is held
+ * from then on. Leaving the candidates (a category tab, or trailers arriving for a text-only pick)
+ * replaces it with a random show from the first `THEATER_POOL_SIZE` candidates. With no candidates
+ * at all, `current` stays, so the hero keeps its text rather than going blank.
  *
  * Held rather than looked up again because sources keep merging into the listing for seconds after
  * it fills, and later data is not better data for the hero. Measured on cold loads 2026-10-10, 2.1
@@ -83,12 +81,11 @@ export const THEATER_WAIT_MS = 5000
 export const holdTheaterPick = <T extends TheaterCandidate>(
   candidates: readonly T[],
   current: T | undefined,
-  banned: readonly string[] = [],
   pick: (limit: number) => number = limit => Math.floor(Math.random() * limit)
 ): T | undefined => {
   const listed = current && candidates.find(media => theaterKey(media) === theaterKey(current))
-  if (current && listed && !banned.includes(theaterKey(current))) return fromGoodSource(current) ? current : listed
-  const pool = candidates.slice(0, THEATER_POOL_SIZE).filter(media => !banned.includes(theaterKey(media)))
+  if (current && listed) return fromGoodSource(current) ? current : listed
+  const pool = candidates.slice(0, THEATER_POOL_SIZE)
   if (!pool.length) return current
   return pool[Math.min(pool.length - 1, Math.max(0, pick(pool.length)))]
 }

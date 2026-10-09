@@ -8,7 +8,7 @@ import { useRoute } from 'wouter'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
-import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates, theaterKey } from '../../utils/theater'
+import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates } from '../../utils/theater'
 import { getRouterRoutePath, Route } from '../path'
 
 const style = css`
@@ -118,7 +118,6 @@ height: 70vh;
 
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const [matchMediaRoute] = useRoute(getRouterRoutePath(Route.MEDIA))
-  const [bannedMedia, setBannedMedia] = useState<string[]>([])
   const [waiting, setWaiting] = useState(true)
   useEffect(() => {
     const timer = setTimeout(() => setWaiting(false), THEATER_WAIT_MS)
@@ -131,24 +130,24 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   )
   // held as shown once a good source has filled it, so later merges change nothing on screen, see `holdTheaterPick`
   const held = useRef<typeof candidates[number] | undefined>(undefined)
-  held.current = holdTheaterPick(candidates, held.current, bannedMedia)
+  held.current = holdTheaterPick(candidates, held.current)
   const media = held.current
 
   // todo: instead of just selecting 0, should make a query that selects the wanted language and sort by score
   const title = media?.titles?.at(0)?.title
   const shortDescription = media?.shortDescriptions?.at(0)?.shortDescription
-  const trailer = media?.trailers?.at(0)
+  // a failed trailer gives way to the show's next one, or to none, never to another show: with YouTube
+  // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10)
+  const [deadTrailers, setDeadTrailers] = useState<string[]>([])
+  const trailer = media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
   const [playerVolume, setPlayerVolume] = useState(0.25)
 
   const onTrailerError = useCallback(() => {
-    // nothing was selected, so there is no choice to ban and re-picking would loop on the same miss
-    const key = media && theaterKey(media)
-    if (!key) return
-    setBannedMedia(banned => banned.includes(key) ? banned : [...banned, key])
-  }, [media])
+    if (trailer) setDeadTrailers(dead => [...dead, trailer.uri])
+  }, [trailer])
 
   return (
     <div css={style} className='theater'>

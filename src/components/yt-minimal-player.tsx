@@ -124,9 +124,9 @@ export const YoutubeMinimalPlayer = (
     )
   }, [])
 
-  // a url no shape matched is a miss the caller has to hear about, the same as a player error: the
-  // theater drops the title and picks another rather than showing a dead frame. Keyed on the url, so
-  // a second unaddressable url after a drop is reported too.
+  // a url no shape matched is a miss the caller has to hear about, the same as a player error: every
+  // caller moves to the media's next trailer rather than showing a dead frame. Keyed on the url, so
+  // the next one is reported too when it is unaddressable as well.
   useEffect(() => {
     if (!videoId) onErrorRef.current?.()
   }, [url, videoId])
