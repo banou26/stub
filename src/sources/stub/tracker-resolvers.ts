@@ -51,7 +51,9 @@ const listEntryOf = (entry: JournalEntry, values: Found & { state: 'LISTED' | 'N
   url: null,
   title: values.values.title ?? null,
   cover: values.values.cover ?? null,
-  episodeCount: values.values.episodeCount ?? null,
+  // the count a write keeps is the page's at the time, not one this tracker counts, so progress here is
+  // read on the page's count now
+  episodeCount: null,
 })
 
 /** The entry a write lands on is the one read back as `_id`, so the cache updates the row it holds. */
