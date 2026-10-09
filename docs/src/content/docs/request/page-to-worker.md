@@ -167,7 +167,7 @@ A page that opens is a page that writes. See [upsertMedia](/write/upsert-media/)
 > It lives on the PAGE because a worker cannot see the page's url and an announcement over the port
 > would race the first resolver, and because the page already owns every byte the worker fetches.
 
-## The four documents, and the one consequence
+## The three documents, and the one consequence
 
 ```mermaid
 flowchart LR
@@ -180,10 +180,6 @@ flowchart LR
     C1["episodes, whose handle nodes select embedUrl"]
     C2["handles.node.handles.node<br/>two hops of media handles"]
   end
-  subgraph theater["GET_THEATHER_MEDIA<br/>theater.tsx:127-158"]
-    B1["MediaFragment, one hop of handles"]
-    B2["titles, covers, banners, trailers, popularity"]
-  end
   subgraph listing["GET_RELEASING_MEDIA_PAGE<br/>home/index.tsx:18-53"]
     D1["mediaPage.nodes, MediaFragment plus scalars"]
   end
@@ -194,11 +190,10 @@ flowchart LR
   A1 --> Q
   A2 --> Q
   C1 --> Q
-  B1 --> Q
   D1 --> Q
   Q --> R
   R -->|"the modal and the watch page select episodes"| Y
-  R -->|"the hero and the listing never do"| Z
+  R -->|"the listing never does"| Z
   classDef irrev fill:#e0796f22,stroke:#c9564a,stroke-width:1.5px
   classDef ratchet fill:#f2b45c22,stroke:#b8801f,stroke-width:1.5px
   classDef view fill:#6b95cd22,stroke:#4572b5,stroke-width:1.5px
@@ -207,13 +202,12 @@ flowchart LR
   class Z refuse
 ```
 
-*The four documents differ in what they render, and that difference decides what is stored, not just what is shown.*
+*The three documents differ in what they render, and that difference decides what is stored, not just what is shown.*
 
 | document | file | media handles | episodes | notable |
 | --- | --- | --- | --- | --- |
 | `GET_MEDIA_MODAL` | `src/router/home/media-modal.tsx:334-456` | two hops | yes, with handles | `franchise`, `relations`, `categories`, `descriptions` |
 | `GET_WATCH_MEDIA` | `src/router/watch/index.tsx:32-93` | two hops | yes, with handles | selects `embedUrl` on the episode handle node, which the modal does not |
-| `GET_THEATHER_MEDIA` | `src/router/home/theater.tsx:127-158` | one hop, from the fragment | no | `shortDescriptions(input: { count: 1 })` |
 | `GET_RELEASING_MEDIA_PAGE` | `src/router/home/index.tsx:18-53` | one hop, from the fragment | no | the `mediaPage` root, so the only fan-out that reads its results |
 
 `MediaFragment` (`src/worker/resolvers/media/fragment.ts:3-21`) is
@@ -238,22 +232,20 @@ resolver that never runs, so its type never fires an inserter at all:
 > cluster from two pages: the one whose own subscription owned the fan-out stored 10 nf episode rows,
 > the one that gained the same nf run through this document stored 0.
 
-Read that against the table. The hero on the home page runs a full `MEDIA` fan-out, all 24 sources,
-every source fetching whatever it fetches, and not one episode row can come out of it, because
-`GET_THEATHER_MEDIA` selects no `episodes` field. That is a deliberate trade and not a bug, but it is
+Read that against the table. The listing on the home page fans out to every source, each fetching
+whatever it fetches, and not one episode row can come out of it, because `GET_RELEASING_MEDIA_PAGE`
+selects no `episodes` field. That is a deliberate trade and not a bug, but it is
 why "the modal filled in the episodes" is a sentence about the document rather than about the store.
 The same mechanism, on the `similarMedia` document, is [the document](/similar/document/).
 
 ## Every pause on the page
 
-There are eight `useSubscription` call sites across five files, five of them carrying a `pause`.
+There are seven `useSubscription` call sites across four files, four of them carrying a `pause`.
 
 ```mermaid
 flowchart LR
   M["media modal<br/>media-modal.tsx:612"] --> MD{"is there a uri to ask about?<br/><small>pause: !uri</small>"}
   MD -->|"held: nothing is sent"| MR(["media = foundMedia, the listing's own row"])
-  T["theater hero<br/>theater.tsx:174"] --> TD{"has a hero been picked?<br/><small>pause: !selectedMedia</small>"}
-  TD -->|"held: nothing is sent"| TR(["theaterMedia = selectedMedia, so the hero stays empty"])
   W["watch page<br/>watch/index.tsx:188"] --> WD{"did the route carry a media uri?<br/><small>pause: !params.mediaUri</small>"}
   WD -->|"held: nothing is sent"| WR(["media is undefined, no episode list, no player"])
   S["search listing<br/>search/index.tsx:269"] --> SD{"do the filters name a question?<br/><small>pause: !asked</small>"}
@@ -267,7 +259,7 @@ flowchart LR
   classDef ratchet fill:#f2b45c22,stroke:#b8801f,stroke-width:1.5px
   classDef view fill:#6b95cd22,stroke:#4572b5,stroke-width:1.5px
   classDef refuse fill:#74757c22,stroke:#74757c,stroke-width:1.5px,stroke-dasharray:4 3
-  class MR,TR,WR,SR,OR,OW refuse
+  class MR,WR,SR,OR,OW refuse
 ```
 
 *A held pause is the cheapest refusal in the system: no document is built, no worker hop is made, and no source is asked. It is also invisible, which is why the search page replaces it with a sentence.*

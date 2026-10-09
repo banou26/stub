@@ -90,7 +90,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 | `src/urql.ts` | the one page-side urql `Client`, at the fake url `http://d/graphql`, whose `fetch` is `handleRequest` across the worker boundary rather than a network call | one client for three call sites, so graphcache is shared |
 | `src/urql-keys.ts` | the graphcache key resolvers, one per schema type | `src/urql-keys.ts:1-3`: split out of `./urql.ts` because *that module imports urql itself, and through it a CommonJS require of react that cannot load outside a browser* |
 | `src/router/home/media-modal.tsx` | `GET_MEDIA_MODAL` plus the two origin subscriptions, `decodeRouteUri` on the route param, and the address rewrite | the deepest selection set on the site, and the selection set is what every source is asked with |
-| `src/router/home/theater.tsx` | `GET_THEATHER_MEDIA`: no episodes, no relations, no franchise | the hero reads almost nothing, and that changes what gets stored |
+| `src/router/home/theater.tsx` | the hero, with no document of its own: one of `GET_RELEASING_MEDIA_PAGE`'s nodes, held once a source better than Kitsu has filled it | what the hero shows stops changing once AniList or Jikan fills the pick, Kitsu's fields show only when neither has answered within `THEATER_WAIT_MS`, and no fan-out runs for the pick |
 | `src/router/home/index.tsx` | `GET_RELEASING_MEDIA_PAGE`, the one call site with no `pause` | |
 | `src/router/home/episode-origins.ts` | `episodeOriginIds`, `SAME_AS` handles only | pulled out of the component so the SAME_AS rule can be tested |
 | `src/router/watch/index.tsx` | `GET_WATCH_MEDIA`, the only document selecting `embedUrl`; `playableHandlesOf` | |

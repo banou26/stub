@@ -134,7 +134,7 @@ Everything before a source is asked anything.
 | E21 | `plugin-sources.ts:91`, `:94`, `:99` | `if (!isObject(value)) return undefined`, `if (!isObject(handle.node)) return undefined` | a plugin row or handle that is not an object is dropped at the boundary rather than reaching the store. |
 | E22 | `backoff.ts:75` | `if (!RETRYABLE_STATUSES.has(response.status) \|\| attempt >= MAX_RETRIES) return response` | the response is handed back unretried. `RETRYABLE_STATUSES = new Set([408, 429, 502, 503, 504, 522, 524])` (`:13`), `MAX_RETRIES = 3` (`:17`), so 4 attempts. **500 is deliberately absent.** |
 | E23 | `backoff.ts:71` | `if (attempt >= MAX_RETRIES) throw error` | a rejected fetch, retried three times, finally rethrown to the source. |
-| E24 | `router/home/media-modal.tsx:622`, `:485`, `:645`; `router/watch/index.tsx:191`, `:222`; `router/home/theater.tsx:184`; `router/search/index.tsx:272` | `pause: !uri`, `pause: !originIds`, `pause: !params.mediaUri`, `pause: !selectedMedia`, `pause: !asked` | urql never opens the subscription, so the worker is never asked. The home page has no pause, which is why it fans out on load. |
+| E24 | `router/home/media-modal.tsx:622`, `:485`, `:645`; `router/watch/index.tsx:191`, `:222`; `router/search/index.tsx:272` | `pause: !uri`, `pause: !originIds`, `pause: !params.mediaUri`, `pause: !asked` | urql never opens the subscription, so the worker is never asked. The home page has no pause, which is why it fans out on load. |
 
 ## S. A source deciding it is not the one to answer
 

@@ -294,7 +294,9 @@ A cluster's aggregate does publish a score of its own, `Math.max(...medias.map(m
 of another cluster, only two documents on the page select the field at all
 (`src/router/home/index.tsx:23` and `src/router/search/index.tsx:29`; `MediaFragment` does not carry
 it), and no component in `src/router/` or `src/components/` renders it. The per-TITLE score is the one
-four documents ask for, and that one is only ever a sort key.
+the listing, search and modal documents ask for, and it is a sort key everywhere but the homepage hero,
+which reads the best title's score to tell a show AniList or Jikan has filled from one only Kitsu or the
+bundle has (`fromGoodSource`, `src/utils/theater.ts`).
 
 What the page does read is the ORDER the score produced. `handles` on an aggregate is
 `sorted.map(...)` (`aggregate.ts:365`), so the handle list arrives score-descending, and the media
