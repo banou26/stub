@@ -6,12 +6,12 @@
 export type TheaterCandidate = {
   _id?: string | null
   uri?: string | null
-  titles?: readonly unknown[] | null
+  titles?: readonly { title?: string | null, score?: number | null }[] | null
   shortDescriptions?: readonly unknown[] | null
   trailers?: readonly unknown[] | null
 }
 
-/** How the hero remembers WHICH show it is showing. An index cannot: the listing reorders under it. */
+/** How the hero finds the show it holds, and names one it bans. An index cannot: the listing reorders under it. */
 export const theaterKey = (media: TheaterCandidate): string => media._id ?? media.uri ?? ''
 
 /**
@@ -60,29 +60,56 @@ export const pickTheaterIndex = (
   return allowed[Math.min(allowed.length - 1, Math.max(0, pick(allowed.length)))]
 }
 
+/** Kitsu's score. Above it in the listing are AniList (0.8) and Jikan (0.9), below it the bundle (0.2). */
+const KITSU_SCORE = 0.3
+
 /**
- * The show the hero should be showing: the one it is already showing, for as long as that is possible.
+ * Whether a source better than Kitsu has filled this media, which is what the hero takes the owner's
+ * "good quality source" to mean. Kitsu and the bundle often answer first, Kitsu with a one-line
+ * placeholder synopsis ("The second season of ...") and an announcement trailer that YouTube may
+ * refuse to embed where AniList's trailer for the same show plays (measured 2026-10-10). A source
+ * answers a show's title, description and trailer together, so the best title's score stands for all three.
  *
- * The hero used to pick by INDEX, memoized on the candidate COUNT, with `Math.random`. The count grows
- * as sources answer (22 from the bundle, then more), so every growth re-rolled a new random index, and
- * an index also repoints at a different show whenever the listing reorders under it. The owner saw the
- * result: "the theater switches between 5 different anime in like 1s, and it ALWAYS happens".
+ * It decides when what the hero shows is final, and only for `THEATER_WAIT_MS` whether it shows anything.
+ */
+export const fromGoodSource = (media: TheaterCandidate): boolean => (media.titles?.[0]?.score ?? 0) > KITSU_SCORE
+
+/**
+ * How long after it mounts the hero picks only among shows `fromGoodSource` accepts, rather than show
+ * Kitsu's fields and replace them a second later. Measured on 26 cold loads 2026-10-10, AniList's
+ * fields reached the listing 0.9 to 5.0 s after the hero mounted, and at most 3.8 s after in the loads
+ * where Kitsu answered first. With AniList and Jikan both down, as on 2026-08-16, the hero fills from
+ * Kitsu once this has passed.
+ */
+export const THEATER_WAIT_MS = 5000
+
+/**
+ * What the hero shows: `current` exactly as it was picked once a good source has filled it
+ * (`fromGoodSource`), for as long as it is an unbanned candidate. Before that, the listing's node for
+ * the same show, so a show Kitsu or the bundle filled takes AniList's fields when they merge in, and
+ * is held from then on. A ban (its trailer failed) or leaving the candidates (a category tab, or
+ * trailers arriving for a text-only pick) replaces it with a random unbanned show from the first
+ * `THEATER_POOL_SIZE` candidates. Bans are by key, since an index names whichever show sits there next.
+ * With nothing unbanned left to pick, `current` stays, so the hero keeps its text rather than going
+ * blank over a full listing.
  *
- * So the pick is remembered by KEY and only re-made when it has to be: the show left the candidates,
- * or its trailer failed and it was banned. Banning is by key too, since an index bans whichever show
- * happens to sit there next.
+ * Held rather than looked up again because sources keep merging into the listing for seconds after
+ * it fills, and later data is not better data for the hero. Measured on cold loads 2026-10-10, 2.1
+ * visible changes per load on anime.fkn.app: the pick's title, description or trailer swapped to
+ * another source's in place (anizip's titles carry a year and backticks), and shows that gained a
+ * trailer pushed the pick out of the pool, which re-picked.
  *
  * `pick` is injected so a test does not depend on Math.random.
  */
 export const holdTheaterPick = <T extends TheaterCandidate>(
   candidates: readonly T[],
-  current: string | undefined,
+  current: T | undefined,
   banned: readonly string[] = [],
   pick: (limit: number) => number = limit => Math.floor(Math.random() * limit)
 ): T | undefined => {
+  const listed = current && candidates.find(media => theaterKey(media) === theaterKey(current))
+  if (current && listed && !banned.includes(theaterKey(current))) return fromGoodSource(current) ? current : listed
   const pool = candidates.slice(0, THEATER_POOL_SIZE).filter(media => !banned.includes(theaterKey(media)))
-  const held = current && pool.find(media => theaterKey(media) === current)
-  if (held) return held
-  if (!pool.length) return undefined
+  if (!pool.length) return current
   return pool[Math.min(pool.length - 1, Math.max(0, pick(pool.length)))]
 }

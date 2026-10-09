@@ -1,16 +1,14 @@
 import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 
 import { css } from '@emotion/react'
-import { useSubscription } from 'urql'
-import { useCallback, useMemo, useRef, useState } from 'preact/compat'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat'
 import { LucidePause, LucidePlay } from 'lucide-react'
 import { useRoute } from 'wouter'
 
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
-import { gql } from '../../generated'
-import { holdTheaterPick, theaterCandidates, theaterKey } from '../../utils/theater'
+import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates, theaterKey } from '../../utils/theater'
 import { getRouterRoutePath, Route } from '../path'
 
 const style = css`
@@ -118,71 +116,28 @@ height: 70vh;
 }
 `
 
-const GET_THEATHER_MEDIA = gql(`
-  subscription GetTheatherMedia($input: MediaInput!, $shortDescriptionInput: MediaShortDescriptionInput!) {
-    media(input: $input) {
-      ...MediaFragment
-      titles {
-        language
-        title
-        score
-      }
-      shortDescriptions(input: $shortDescriptionInput) {
-        language
-        shortDescription
-      }
-      covers {
-        language
-        url
-      }
-      banners {
-        language
-        url
-      }
-      trailers {
-        uri
-        origin
-        id
-        url
-        thumbnail
-      }
-      popularity
-    }
-  }
-`)
-
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const [matchMediaRoute] = useRoute(getRouterRoutePath(Route.MEDIA))
   const [bannedMedia, setBannedMedia] = useState<string[]>([])
-  // selected on the fields the hero renders rather than on a source-confidence score, see ../../utils/theater
-  const candidates = useMemo(() => theaterCandidates(mediaNodes), [mediaNodes])
-  // The pick is HELD by key, not re-rolled per render: it used to be a random INDEX memoized on the
-  // candidate COUNT, so every source that answered grew the count and chose a different show, and the
-  // hero flipped through several in the first second. See `holdTheaterPick`.
-  const held = useRef<string | undefined>(undefined)
-  const selectedMedia = useMemo(() => {
-    const chosen = holdTheaterPick(candidates, held.current, bannedMedia)
-    held.current = chosen ? theaterKey(chosen) : undefined
-    return chosen
-  }, [candidates, bannedMedia])
-  const [{ data }] = useSubscription({
-    query: GET_THEATHER_MEDIA,
-    variables: {
-      input: {
-        uri: selectedMedia?.uri
-      },
-      shortDescriptionInput: {
-        count: 1
-      }
-    },
-    pause: !selectedMedia
-  })
-  const theaterMedia = data?.media ?? selectedMedia
+  const [waiting, setWaiting] = useState(true)
+  useEffect(() => {
+    const timer = setTimeout(() => setWaiting(false), THEATER_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  // selected on the fields the hero renders, and for `THEATER_WAIT_MS` on a good source having filled them
+  const candidates = useMemo(
+    () => theaterCandidates(mediaNodes).filter(media => !waiting || fromGoodSource(media)),
+    [mediaNodes, waiting]
+  )
+  // held as shown once a good source has filled it, so later merges change nothing on screen, see `holdTheaterPick`
+  const held = useRef<typeof candidates[number] | undefined>(undefined)
+  held.current = holdTheaterPick(candidates, held.current, bannedMedia)
+  const media = held.current
 
   // todo: instead of just selecting 0, should make a query that selects the wanted language and sort by score
-  const title = useMemo(() => theaterMedia?.titles?.at(0)?.title, [theaterMedia])
-  const shortDescription = useMemo(() => theaterMedia?.shortDescriptions?.at(0)?.shortDescription, [theaterMedia])
-  const trailer = useMemo(() => theaterMedia?.trailers?.at(0), [theaterMedia])
+  const title = media?.titles?.at(0)?.title
+  const shortDescription = media?.shortDescriptions?.at(0)?.shortDescription
+  const trailer = media?.trailers?.at(0)
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
@@ -190,10 +145,10 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
 
   const onTrailerError = useCallback(() => {
     // nothing was selected, so there is no choice to ban and re-picking would loop on the same miss
-    const key = selectedMedia && theaterKey(selectedMedia)
+    const key = media && theaterKey(media)
     if (!key) return
     setBannedMedia(banned => banned.includes(key) ? banned : [...banned, key])
-  }, [selectedMedia])
+  }, [media])
 
   return (
     <div css={style} className='theater'>

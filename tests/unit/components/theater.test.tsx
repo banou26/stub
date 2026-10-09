@@ -1,0 +1,133 @@
+// FIRST: ./dom installs the document @emotion/react reads at module scope.
+import { mount, unmount } from './dom'
+
+import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { render } from 'preact'
+import { act } from 'preact/test-utils'
+import { Router } from 'wouter'
+import { memoryLocation } from 'wouter/memory-location'
+
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['LucidePause', 'LucidePlay', 'Volume', 'Volume1', 'Volume2', 'VolumeX'].map(name => [name, () => null])))
+
+const player = vi.hoisted(() => ({ fail: () => {} }))
+vi.mock('../../../src/components/yt-minimal-player', async () => {
+  const { h } = await import('preact')
+  return {
+    default: ({ url, onError }: { url: string, onError: () => void }) => {
+      player.fail = onError
+      return h('i', { 'data-trailer': url })
+    },
+  }
+})
+
+// A query of the pick's own answering after it was shown, which is how anizip's titles reached the hero.
+const answer = vi.hoisted(() => ({ media: undefined as unknown }))
+vi.mock('urql', () => ({ useSubscription: () => [{ data: answer.media ? { media: answer.media } : undefined }] }))
+
+const { default: HomeHeader } = await import('../../../src/router/home/theater')
+const { THEATER_WAIT_MS } = await import('../../../src/utils/theater')
+
+type Nodes = Parameters<typeof HomeHeader>[0]['mediaNodes']
+
+const show = (id: string, { title = `${id} title`, description = `${id} description`, trailer = id, score = 0.8 } = {}) => ({
+  _id: `cl:${id}`,
+  uri: `ag:(anilist:${id},kitsu:${id})`,
+  titles: [{ language: 'en', title, score }],
+  shortDescriptions: [{ language: 'en', shortDescription: description }],
+  trailers: trailer ? [{ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` }] : [],
+})
+
+const hosts: HTMLElement[] = []
+afterEach(() => {
+  while (hosts.length) unmount(hosts.pop()!)
+  answer.media = undefined
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+const hero = (nodes: object[]) => {
+  const { hook } = memoryLocation({ path: '/' })
+  const tree = (next: object[]) => <Router hook={hook}><HomeHeader mediaNodes={next as Nodes}/></Router>
+  const host = mount(tree(nodes))
+  hosts.push(host)
+  return {
+    update: (next: object[]) => act(() => { render(tree(next), host) }),
+    shown: () => ({
+      title: host.querySelector('.title')?.textContent,
+      description: host.querySelector('.short-description')?.textContent,
+      trailer: host.querySelector('[data-trailer]')?.getAttribute('data-trailer'),
+    }),
+  }
+}
+
+// Measured 2026-10-10: anizip's title, a longer description and another trailer merged into the
+// pick after it was shown.
+test('what the hero shows first stays when sources merge into the listing', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('blue-box', { title: 'Blue Box Season 2', trailer: 'hJ6Y8PAOUk8' }), show('other')])
+  const first = shown()
+  expect(first).toEqual({ title: 'Blue Box Season 2', description: 'blue-box description', trailer: 'https://www.youtube.com/watch?v=hJ6Y8PAOUk8' })
+
+  update([show('blue-box', { title: 'Blue Box (2026)', description: 'longer', trailer: 'ZtFrSp4pMJ4', score: 0.9 }), show('other')])
+  expect(shown()).toEqual(first)
+})
+
+// Measured 2026-10-10 on cold loads: Kitsu alone filled the listing first in 12 of 26, AniList's
+// fields followed 1.3 to 2.6 s later, and the hero showed Kitsu's placeholder synopsis and
+// announcement trailer meanwhile, or kept them for good.
+test('while only Kitsu has answered, the hero waits for a better source and shows its fields', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const kitsu = show('returner', { title: 'Returner Season 2', description: 'The second season of Returner.', trailer: 'TlEAAp9EWio', score: 0.3 })
+  const { shown, update } = hero([kitsu])
+  expect(shown()).toEqual({ title: '', description: '', trailer: undefined })
+
+  update([show('returner', { title: 'Returner Season 2', description: 'In a land dominated by the Shadow Worlds', trailer: 'YBWOrQCB9r0' })])
+  expect(shown()).toEqual({ title: 'Returner Season 2', description: 'In a land dominated by the Shadow Worlds', trailer: 'https://www.youtube.com/watch?v=YBWOrQCB9r0' })
+})
+
+// When AniList and Jikan were both down on 2026-08-16, every record was Kitsu's and a score gate left
+// the hero empty over a full listing.
+test('with no better source answering, the hero fills from Kitsu once the wait is over', () => {
+  vi.useFakeTimers()
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown } = hero([show('kitsu-only', { score: 0.3 })])
+  expect(shown().title).toBe('')
+
+  act(() => { vi.advanceTimersByTime(THEATER_WAIT_MS) })
+  expect(shown()).toEqual({ title: 'kitsu-only title', description: 'kitsu-only description', trailer: 'https://www.youtube.com/watch?v=kitsu-only' })
+})
+
+// Measured 2026-10-10 in 7 of 12 loads where Kitsu answered first: shows listed ahead of the pick
+// gained a trailer from AniList and pushed it to index 11 to 14 of the candidates.
+test('the show stays when shows gaining a trailer push it out of the pool', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.99)
+  const ahead = (trailer: boolean) => Array.from({ length: 5 }, (_, index) => show(`ahead-${index}`, trailer ? {} : { trailer: '' }))
+  const pool = Array.from({ length: 10 }, (_, index) => show(`pool-${index}`))
+  const { shown, update } = hero([...ahead(false), ...pool])
+  expect(shown().title).toBe('pool-9 title')
+
+  update([...ahead(true), ...pool])
+  expect(shown().title).toBe('pool-9 title')
+})
+
+test('a later answer for the pick does not change it', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.media = show('blue-box', { title: 'Blue Box (2026)', description: 'anizip', trailer: 'hJ6Y8PAOUk8' })
+  const { shown } = hero([show('blue-box', { title: 'Blue Box Season 2' })])
+
+  expect(shown().title).toBe('Blue Box Season 2')
+  expect(shown().description).toBe('blue-box description')
+})
+
+test('a trailer that fails replaces the show, which is then kept', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('dead'), show('next')])
+  expect(shown().title).toBe('dead title')
+
+  act(() => { player.fail() })
+  expect(shown()).toEqual({ title: 'next title', description: 'next description', trailer: 'https://www.youtube.com/watch?v=next' })
+
+  update([show('dead'), show('next', { title: 'merged' })])
+  expect(shown().title).toBe('next title')
+})

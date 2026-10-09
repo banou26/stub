@@ -69,10 +69,9 @@ const { handleRequest, setUserKeys, registerRemoteSource, unregisterRemoteSource
 // The read flag is AWAITED, and that is load bearing. `setReadStore` does not return until the engine
 // has opened and the boot pass has run, measured at 1,031 ms (527 ms engine, 497 ms pass, 2026-09-12).
 // Left as a bare `void`, every subscription opened inside that window resolves its store ONCE at
-// subscribe time and keeps the legacy one for its whole life, and the home row's `mediaPage` and the
-// theater's `media` both subscribe on first render and never tear down. The flag then appears to
-// half-work, which is worse than not working. The engine flag keeps its `void`: nothing reads it at
-// subscribe time.
+// subscribe time and keeps the legacy one for its whole life, and the home row's `mediaPage`
+// subscribes on first render and never tears down. The flag then appears to half-work, which is worse
+// than not working. The engine flag keeps its `void`: nothing reads it at subscribe time.
 const flags = new URLSearchParams(location.search)
 const readsGraph = !readsLegacyStore(location.href)
 if (readsGraph) await setReadStore('graph')
