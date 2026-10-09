@@ -32,6 +32,8 @@ const STATE_ENDED = 0
 const LISTEN_INTERVAL_MS = 250
 const LISTEN_ATTEMPTS = 40
 
+// A size container takes no height from its content, so the box it fills (by default its nearest
+// positioned ancestor) has to have one.
 const minimalPlayerStyle = css`
 position: absolute;
 top: 0;
@@ -39,16 +41,28 @@ left: 0;
 width: 100%;
 height: 100%;
 overflow: hidden;
+container-type: size;
+
+/* the frame takes no pointer events, so a redirectTo link has to fill the box itself to be clicked */
+& > a {
+  position: absolute;
+  inset: 0;
+}
 `
 
+// The video covers the box at 16:9 on any box shape, and the frame is 80px taller than the video at
+// each end: YouTube letterboxes the video in the middle of its frame and draws the title bar and the
+// logo row within about 70px of the frame's top and bottom edges at every player size (measured
+// 2026-10-10), so they land in bands the wrapper crops off.
 const youtubeStyle = css`
-grid-area: container;
-height: 140vh !important;
-width: 100% !important;
-margin-top: -20vh;
+position: absolute;
+top: 50%;
+left: 50%;
+translate: -50% -50%;
+width: max(100cqw, 100cqh * 16 / 9);
+height: calc(max(100cqh, 100cqw * 9 / 16) + 160px);
 pointer-events: none;
 border: 0;
-display: block;
 `
 
 /** The player state out of an `infoDelivery` payload, or null when it carries none. */

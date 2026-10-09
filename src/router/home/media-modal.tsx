@@ -71,26 +71,15 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 
   .trailer {
-    --yt-top-margin: -24.5rem;
-    --yt-height: 150.25rem;
-    --trailer-height: 101rem;
     position: relative;
     overflow: hidden;
-    height: var(--trailer-height);
+    aspect-ratio: 16 / 9;
     background-size: cover;
     background-position: center;
     .player {
       border-radius: 1rem 1rem 0 0;
       overflow: hidden;
-      height: var(--trailer-height);
       user-select: none;
-
-      youtube-video {
-        grid-area: container;
-        pointer-events: none;
-        margin-top: var(--yt-top-margin) !important;
-        height: var(--yt-height) !important;
-      }
     }
     .player-controls {
       position: absolute;
@@ -269,12 +258,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
   .modal {
     .trailer {
-      /* The desktop crop is fixed-rem, tuned for an 80rem modal; on a full-width
-         mobile modal retune it in vw so the same crop ratio tracks the width. */
-      --trailer-height: 64vw;
-      --yt-height: 95vw;
-      --yt-top-margin: -15.5vw;
-
       .player-controls {
         padding: 1.5rem;
       }

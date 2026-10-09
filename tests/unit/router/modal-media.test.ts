@@ -31,7 +31,7 @@
 // assertion with a control, the way tests/unit/components/chrome.test.ts reads css it cannot lay out.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { listedMediaFor, namesSameWork } from '../../../src/router/home/modal-media'
 import { shouldGrowAddress } from '../../../src/utils/uri'
@@ -151,4 +151,17 @@ describe('the address the modal leaves behind', () => {
     expect(navigations[0]).toContain('Route.MEDIA')
     expect(source).toContain('if (shouldGrowAddress(media?.uri, params.uri)) {')
   })
+})
+
+/**
+ * The modal's trailer box takes its whole height from its aspect ratio. Everything inside it is
+ * absolutely placed, the player being a size container that gives its box no height, so without the
+ * ratio the box collapses to 0 and the trailer and its cover are gone (measured headless: 562.5px
+ * with it, 0px without).
+ */
+test('the trailer box is 16:9, the shape the player fills without cropping the picture', () => {
+  const source = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
+  const trailer = /\n {2}\.trailer \{\n([^{}]*)\n {4}\.player \{/.exec(source)?.[1]
+  expect(trailer, 'the .trailer block was not found, so this test read nothing').toContain('position: relative;')
+  expect(trailer).toContain('aspect-ratio: 16 / 9;')
 })

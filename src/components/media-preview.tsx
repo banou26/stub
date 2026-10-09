@@ -54,24 +54,13 @@ a {
 
 .title-hovercard-player {
   position: relative;
-  display: grid;
-  grid-template: "container";
   background-color: #000;
   overflow: hidden;
   border-top-left-radius: 1rem;
   border-top-right-radius: 1rem;
   user-select: none;
-  overflow: hidden;
   height: 39.25rem;
   width: 70rem;
-
-  & youtube-video {
-    grid-area: container;
-    pointer-events: none;
-    margin-top: -10.3rem;
-    height: 60rem !important;
-    width: 70rem !important;
-  }
 }
 
 .trailer-fallback-cover {
