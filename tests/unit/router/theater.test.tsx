@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from '../components/dom'
 
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
@@ -30,19 +30,24 @@ const { THEATER_WAIT_MS } = await import('../../../src/utils/theater')
 
 type Nodes = Parameters<typeof HomeHeader>[0]['mediaNodes']
 
-const show = (id: string, { title = `${id} title`, description = `${id} description`, trailers = [id], score = 0.8 } = {}) => ({
+const show = (id: string, { title = `${id} title`, description = `${id} description`, trailers = [id], score = 0.8, banners = [`https://img.test/${id}-banner.jpg`] } = {}) => ({
   _id: `cl:${id}`,
   uri: `ag:(anilist:${id},kitsu:${id})`,
   titles: [{ language: 'en', title, score }],
   shortDescriptions: [{ language: 'en', shortDescription: description }],
   trailers: trailers.map(trailer => ({ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` })),
+  banners: banners.map(url => ({ language: 'en', url })),
+  covers: [{ language: 'en', url: `https://img.test/${id}-cover.jpg` }],
 })
 
 const hosts: HTMLElement[] = []
+// linkedom has no Image, which the cover probe (utils/use-cover-url.ts) loads each banner with
+beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   answer.media = undefined
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
@@ -58,6 +63,8 @@ const hero = (nodes: object[]) => {
       description: host.querySelector('.short-description')?.textContent,
       trailer: host.querySelector('[data-trailer]')?.getAttribute('data-trailer'),
     }),
+    backdrop: () => (host.querySelector('.player-wrapper') as HTMLElement | null)?.getAttribute('style') ?? '',
+    controls: () => host.querySelector('.player-controls') !== null,
   }
 }
 
@@ -141,3 +148,25 @@ test('when every trailer of the show fails, the show stays without one', () => {
   act(() => { player.fail() })
   expect(shown()).toEqual({ title: 'a title', description: 'a description', trailer: undefined })
 })
+
+// Measured 2026-10-10: TOUGEN ANKI's only trailer (upBWYExYoYc) gets YouTube's error 150 in about 1 load
+// in 6, and the hero then kept an empty dark band with pause and mute buttons for a video that was not
+// there. The media modal shows the cover in that case.
+test('a show with no trailer left shows its banner, or its cover, and no playback controls', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, backdrop, controls } = hero([show('tougen', { trailers: ['upBWYExYoYc'] })])
+  expect(controls()).toBe(true)
+  expect(backdrop()).not.toContain('url(')
+
+  act(() => { player.fail() })
+  expect(shown()).toEqual({ title: 'tougen title', description: 'tougen description', trailer: undefined })
+  expect(backdrop()).toContain('https://img.test/tougen-banner.jpg')
+  expect(controls()).toBe(false)
+})
+
+test('with no banner, the cover stands in', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { backdrop } = hero([show('tougen', { trailers: [], banners: [] })])
+  expect(backdrop()).toContain('https://img.test/tougen-cover.jpg')
+})
+

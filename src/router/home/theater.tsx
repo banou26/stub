@@ -9,6 +9,7 @@ import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
 import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates } from '../../utils/theater'
+import { useCoverUrl } from '../../utils/use-cover-url'
 import { getRouterRoutePath, Route } from '../path'
 
 const style = css`
@@ -18,6 +19,8 @@ height: 70vh;
   width: 100%;
   height: calc(100vh - 5rem);
   user-select: none;
+  background-size: cover;
+  background-position: center 20%;
 
   .shadow {
     position: absolute;
@@ -133,13 +136,14 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   held.current = holdTheaterPick(candidates, held.current)
   const media = held.current
 
-  // todo: instead of just selecting 0, should make a query that selects the wanted language and sort by score
   const title = media?.titles?.at(0)?.title
   const shortDescription = media?.shortDescriptions?.at(0)?.shortDescription
   // a failed trailer gives way to the show's next one, or to none, never to another show: with YouTube
   // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
   const trailer = media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
+  // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal
+  const backdrop = useCoverUrl(trailer?.url ? undefined : media?.banners?.length ? media.banners : media?.covers)
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
@@ -151,7 +155,7 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
 
   return (
     <div css={style} className='theater'>
-      <div className="player-wrapper">
+      <div className="player-wrapper" style={!trailer?.url && backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}>
         {
           trailer?.url && (
             <YoutubeMinimalPlayer
@@ -166,26 +170,28 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         <div className="shadow"/>
       </div>
       <div className="information" css={style}>
-        <div className="player-controls">
-          <span className="playback">
-            {
-              playerPaused
-                ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(false)} />
-                : <LucidePause className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(true)} />
-            }
-            {
-              playerPaused
-                ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
-                : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
-            }
-          </span>
-          <VolumeControl
-            defaultMuted={playerMuted}
-            onMutedUpdate={setPlayerMuted}
-            defaultVolume={playerVolume}
-            onVolumeUpdate={volume => setPlayerVolume(volume)}
-          />
-        </div>
+        {trailer?.url && (
+          <div className="player-controls">
+            <span className="playback">
+              {
+                playerPaused
+                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(false)} />
+                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(true)} />
+              }
+              {
+                playerPaused
+                  ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
+                  : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
+              }
+            </span>
+            <VolumeControl
+              defaultMuted={playerMuted}
+              onMutedUpdate={setPlayerMuted}
+              defaultVolume={playerVolume}
+              onVolumeUpdate={volume => setPlayerVolume(volume)}
+            />
+          </div>
+        )}
         <div className="title">{title}</div>
         <TextEllipsis className="short-description">
           {shortDescription}
