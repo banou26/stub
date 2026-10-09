@@ -4,10 +4,6 @@ import type { RouteParams } from '../path'
 import type { WatchSource } from '../../components/source-selector'
 
 import { css } from '@emotion/react'
-import {
-  FloatingFocusManager, FloatingOverlay, FloatingPortal,
-  useClick, useFloating, useInteractions
-} from '@floating-ui/react'
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link, Redirect, useLocation, useParams } from 'wouter'
@@ -21,6 +17,7 @@ import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
+import ModalBackdrop from '../../components/modal-backdrop'
 import TraceLink from '../debug/link'
 import { gql } from '../../generated'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
@@ -680,15 +677,6 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // does, holding the previous route's empty params, so gating on the uri would redirect home on
   // every back and forward (see `fromAggregatedUri` in utils/uri.ts).
   const [open, onOpenChange] = useState(true)
-  const { refs, context } = useFloating({
-    open,
-    onOpenChange: (_, ev) => {
-      if (ev?.target !== refs.reference.current) return
-      onOpenChange(false)
-    }
-  })
-  const click = useClick(context)
-  const {getReferenceProps, getFloatingProps} = useInteractions([click])
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
@@ -719,143 +707,137 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   if (!open) return <Redirect to="/" />
 
   return (
-    <FloatingPortal>
-      {/* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch
-          party has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */}
-      <FloatingOverlay lockScroll data-party-scroll css={style} ref={refs.setReference} {...getReferenceProps()}>
-        <FloatingFocusManager context={context}>
-          <div className="modal" ref={refs.setFloating} {...getFloatingProps()}>
-            <div className="trailer" style={!selectedTrailer?.url && coverUrl ? { backgroundImage: `url(${coverUrl})` } : {}}>
-              {
-                selectedTrailer?.url
-                  ? (
-                    <YoutubeMinimalPlayer
-                      key={selectedTrailer.url}
-                      url={selectedTrailer.url}
-                      className="player"
-                      onError={onTrailerError}
-                      paused={playerPaused}
-                      volume={playerMuted ? 0 : playerVolume}
-                    />
+    /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party
+       has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
+    <ModalBackdrop data-party-scroll css={style} onClose={() => onOpenChange(false)}>
+      <div className="trailer" style={!selectedTrailer?.url && coverUrl ? { backgroundImage: `url(${coverUrl})` } : {}}>
+        {
+          selectedTrailer?.url
+            ? (
+              <YoutubeMinimalPlayer
+                key={selectedTrailer.url}
+                url={selectedTrailer.url}
+                className="player"
+                onError={onTrailerError}
+                paused={playerPaused}
+                volume={playerMuted ? 0 : playerVolume}
+              />
+            )
+            : undefined
+        }
+        <div className={`player-controls ${!selectedTrailer?.url ? 'hidden' : ''}`}>
+          <span className="playback">
+            {
+              playerPaused
+                ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(false)} />
+                : <LucidePause className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(true)} />
+            }
+            {
+              playerPaused
+                ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
+                : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
+            }
+          </span>
+          <VolumeControl
+            defaultMuted={playerMuted}
+            onMutedUpdate={setPlayerMuted}
+            defaultVolume={playerVolume}
+            onVolumeUpdate={volume => setPlayerVolume(volume)}
+          />
+        </div>
+      </div>
+      <div className="content">
+        <div className="header">
+          <span className="title">{title}</span>
+          {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
+              address the store has grown to, which is the one the graph knows this work by. */}
+          <TraceLink uri={media?.uri}/>
+          <span className="origins">
+            {
+              originData
+                ?.originPage
+                ?.nodes
+                ?.map(origin => {
+                  // BOTH RELATIONS, deliberately, and this row is the whole point of the
+                  // refactor. It wants a url and an origin and nothing else: no sameness is
+                  // assumed and nothing is merged across it. A PART_OF handle is exactly as
+                  // good here as a SAME_AS one, which is why IMDb can finally render as a link
+                  // rather than the dead grey icon in the branch below.
+                  // SAME_AS FIRST, then anything. `handles` is ordered by score, which says
+                  // nothing about relation, so a plain `find` could hand the Crunchyroll icon a
+                  // PART_OF `cr:<seriesId>` while the SAME_AS `cr:<seriesId>-<seasonId>` for
+                  // this very cour sat later in the list.
+                  const forOrigin =
+                    media?.handles.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
+                  const link =
+                    (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))
+                      ?.node.url
+                  if (!origin.icon) return undefined
+                  return (
+                    link
+                      ? (
+                        <a className="origin" href={link} target="_blank" rel="noreferrer" title={origin.name}>
+                          <img src={origin.icon}/>
+                        </a>
+                      )
+                      : (
+                        <div className="origin">
+                          <img src={origin.icon}/>
+                        </div>
+                      )
                   )
-                  : undefined
-              }
-              <div className={`player-controls ${!selectedTrailer?.url ? 'hidden' : ''}`}>
-                <span className="playback">
-                  {
-                    playerPaused
-                      ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(false)} />
-                      : <LucidePause className="icon-outline" size={30} strokeWidth={3} color="black" onClick={() => setPlayerPaused(true)} />
-                  }
-                  {
-                    playerPaused
-                      ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
-                      : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
-                  }
-                </span>
-                <VolumeControl
-                  defaultMuted={playerMuted}
-                  onMutedUpdate={setPlayerMuted}
-                  defaultVolume={playerVolume}
-                  onVolumeUpdate={volume => setPlayerVolume(volume)}
+                })
+                .filter(Boolean)
+            }
+          </span>
+        </div>
+        {/* on the address the store has grown to, so the trackers are asked again as the media
+            gains ids; nothing until the worker has answered for this media at all */}
+        <MediaTracking
+          uri={data?.media?.uri}
+          title={title}
+          cover={coverUrl}
+          episodeCount={data?.media?.episodeCount}
+        />
+        {
+          description
+            ? (
+              <Collapsible collapsedHeight={200} className="description">
+                <div dangerouslySetInnerHTML={{ __html: description }}/>
+              </Collapsible>
+            )
+            : undefined
+        }
+        <MediaRelations
+          relations={media && 'relations' in media ? media.relations ?? [] : []}
+          action={
+            <MediaFranchise
+              franchise={media && 'franchise' in media ? media.franchise : undefined}
+              /* every uri this cluster answers to, so the node the reader is on is the one
+                 marked, whichever of its sources named it in the graph */
+              currentUris={media?.handles?.map(handle => handle.node.uri) ?? []}
+            />
+          }
+        />
+        <div className="episodes">
+          {
+            media &&
+            'episodes' in media &&
+            media
+              .episodes
+              ?.map((episode, index) =>
+                <Episode
+                  key={episode.episodeNumber ?? episode.uri ?? index}
+                  episode={episode}
+                  index={index}
+                  mediaUri={media.uri}
+                  isMovie={'categories' in media && media.categories?.includes(MediaCategory.Movie)}
                 />
-              </div>
-            </div>
-            <div className="content">
-              <div className="header">
-                <span className="title">{title}</span>
-                {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
-                    address the store has grown to, which is the one the graph knows this work by. */}
-                <TraceLink uri={media?.uri}/>
-                <span className="origins">
-                  {
-                    originData
-                      ?.originPage
-                      ?.nodes
-                      ?.map(origin => {
-                        // BOTH RELATIONS, deliberately, and this row is the whole point of the
-                        // refactor. It wants a url and an origin and nothing else: no sameness is
-                        // assumed and nothing is merged across it. A PART_OF handle is exactly as
-                        // good here as a SAME_AS one, which is why IMDb can finally render as a link
-                        // rather than the dead grey icon in the branch below.
-                        // SAME_AS FIRST, then anything. `handles` is ordered by score, which says
-                        // nothing about relation, so a plain `find` could hand the Crunchyroll icon a
-                        // PART_OF `cr:<seriesId>` while the SAME_AS `cr:<seriesId>-<seasonId>` for
-                        // this very cour sat later in the list.
-                        const forOrigin =
-                          media?.handles.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
-                        const link =
-                          (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))
-                            ?.node.url
-                        if (!origin.icon) return undefined
-                        return (
-                          link
-                            ? (
-                              <a className="origin" href={link} target="_blank" rel="noreferrer" title={origin.name}>
-                                <img src={origin.icon}/>
-                              </a>
-                            )
-                            : (
-                              <div className="origin">
-                                <img src={origin.icon}/>
-                              </div>
-                            )
-                        )
-                      })
-                      .filter(Boolean)
-                  }
-                </span>
-              </div>
-              {/* on the address the store has grown to, so the trackers are asked again as the media
-                  gains ids; nothing until the worker has answered for this media at all */}
-              <MediaTracking
-                uri={data?.media?.uri}
-                title={title}
-                cover={coverUrl}
-                episodeCount={data?.media?.episodeCount}
-              />
-              {
-                description
-                  ? (
-                    <Collapsible collapsedHeight={200} className="description">
-                      <div dangerouslySetInnerHTML={{ __html: description }}/>
-                    </Collapsible>
-                  )
-                  : undefined
-              }
-              <MediaRelations
-                relations={media && 'relations' in media ? media.relations ?? [] : []}
-                action={
-                  <MediaFranchise
-                    franchise={media && 'franchise' in media ? media.franchise : undefined}
-                    /* every uri this cluster answers to, so the node the reader is on is the one
-                       marked, whichever of its sources named it in the graph */
-                    currentUris={media?.handles?.map(handle => handle.node.uri) ?? []}
-                  />
-                }
-              />
-              <div className="episodes">
-                {
-                  media &&
-                  'episodes' in media &&
-                  media
-                    .episodes
-                    ?.map((episode, index) =>
-                      <Episode
-                        key={episode.episodeNumber ?? episode.uri ?? index}
-                        episode={episode}
-                        index={index}
-                        mediaUri={media.uri}
-                        isMovie={'categories' in media && media.categories?.includes(MediaCategory.Movie)}
-                      />
-                    )
-                }
-              </div>
-            </div>
-          </div>
-        </FloatingFocusManager>
-      </FloatingOverlay>
-    </FloatingPortal>
+              )
+          }
+        </div>
+      </div>
+    </ModalBackdrop>
   )
 }
 

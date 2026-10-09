@@ -9,11 +9,12 @@ import { build } from 'vite-plus'
 
 // Where a tracker's card and its score menu land, and what a pointer or a finger does on a chip, need
 // layout and real event bubbling, which linkedom has neither of. So this builds tests/tracking-card.tsx
-// with the app's JSX setup and drives the real row.
+// with the app's JSX setup and drives the real row, on a page that carries the app's global
+// `.hidden { display: none !important }` (src/index.tsx).
 
 const ROOT = join(import.meta.dirname, '..')
 const ORIGIN = 'http://tracking.test'
-const PAGE = '<!doctype html><html style="font-size: 62.5%"><meta name="viewport" content="width=device-width, initial-scale=1"><body style="margin: 0; background: #000; color: #fff; font-family: sans-serif"><script type="module" src="/page.js"></script>'
+const PAGE = '<!doctype html><html style="font-size: 62.5%"><meta name="viewport" content="width=device-width, initial-scale=1"><style>.hidden { display: none !important; }</style><body style="margin: 0; background: #000; color: #fff; font-family: sans-serif"><script type="module" src="/page.js"></script>'
 
 let dir: string
 
@@ -193,6 +194,27 @@ test.describe('on a phone', () => {
     await expect(card(page, 'stub')).toBeVisible()
     await expect(check).not.toBeChecked()
   })
+})
+
+test("in the media modal, each chip's check and the row's announcements reach the keyboard and a screen reader", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await page.goto(`${ORIGIN}/?modal`)
+  const check = page.getByRole('checkbox', { name: 'Save to Stub' })
+  await expect(check).toHaveCount(1)
+  await logo(page, 'stub').focus()
+  await page.keyboard.press('Tab')
+  await expect(check).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(check).not.toBeChecked()
+  await page.keyboard.press('Space')
+  await expect(check).toBeChecked()
+  await page.locator('.row > .edit select').selectOption('PLANNING')
+  await expect(page.getByRole('status')).toHaveText(/^Saved to (AniList|Stub)$/)
+  const dismissed = () => page.evaluate(() => (window as unknown as { dismissed: boolean }).dismissed)
+  await page.locator('[data-chip="stub"] > label').click()
+  expect(await dismissed(), 'a press inside keeps the modal').toBe(false)
+  await page.mouse.click(700, 880)
+  expect(await dismissed(), 'a press on the backdrop closes it').toBe(true)
 })
 
 test('Escape inside a card closes it and hands focus back to its logo', async ({ page }) => {

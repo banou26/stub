@@ -140,7 +140,8 @@ const style = css`
   .note.problem { color: #f87171; }
   .note button { height: 2.6rem; font-size: 1.2rem; }
 
-  .hidden {
+  /* not .hidden, which the app's global stylesheet sets to display: none */
+  .sr-only {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -608,7 +609,7 @@ const TrackingCompact = (
                 <label>
                   <input
                     type="checkbox"
-                    className="hidden"
+                    className="sr-only"
                     name={`compact-target-${id}`}
                     aria-label={`Save to ${name}`}
                     aria-describedby={problem ? `compact-hint-${id}` : undefined}
@@ -622,7 +623,7 @@ const TrackingCompact = (
                   </span>
                 </label>
                 {failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/> : answer.state === 'PAUSED' ? <span className="badge amber" data-badge="amber"/> : undefined}
-                {problem ? <span id={`compact-hint-${id}`} className="hidden">{problem}</span> : undefined}
+                {problem ? <span id={`compact-hint-${id}`} className="sr-only">{problem}</span> : undefined}
               </Chip>
             )
           })}
@@ -657,7 +658,7 @@ const TrackingCompact = (
           ].filter(Boolean)
         })}
       </div>
-      <div className="hidden" role="status">{announced}</div>
+      <div className="sr-only" role="status">{announced}</div>
     </section>
   )
 }
