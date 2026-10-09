@@ -1,6 +1,5 @@
-// Which media the homepage hero can actually be built from, split out with NO app imports so it can
-// be tested: the vitest project only picks up src/worker, src/sources and src/utils, and a component
-// pulls in Preact and Emotion besides.
+// Which media the homepage hero can be built from, and which one it holds. No app imports, so the rules
+// are tested without rendering the hero.
 
 /** Only the parts of a media the hero reads. Deliberately structural, so any source can satisfy it. */
 export type TheaterCandidate = {

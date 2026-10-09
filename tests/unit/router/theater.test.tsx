@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount } from '../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
