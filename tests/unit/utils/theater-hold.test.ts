@@ -73,10 +73,13 @@ test('a banned show is replaced, and banning is by show rather than by position'
   expect(theaterKey(holdTheaterPick(candidates, candidates[0], ['a'], always(0))!)).toBe('b')
 })
 
+// The hero is a highlight reel, not the whole season, and a pick function answering out of range
+// must not produce an out-of-bounds index.
 test('a replacement is picked from the pool only', () => {
   const candidates = Array.from({ length: THEATER_POOL_SIZE + 5 }, (_, index) => media(`${index}`))
 
   expect(theaterKey(holdTheaterPick(candidates, candidates[0], ['0'], always(99))!)).toBe(`${THEATER_POOL_SIZE - 1}`)
+  expect(theaterKey(holdTheaterPick(candidates, candidates[0], ['0'], always(-3))!)).toBe('1')
 })
 
 // With YouTube unreachable every embed is reported silent about 10 s after load, so every show in the

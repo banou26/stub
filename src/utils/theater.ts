@@ -39,27 +39,6 @@ export const theaterCandidates = <T extends TheaterCandidate>(mediaNodes: readon
 /** How many of the candidates the hero picks between. Kept small so it stays a highlight reel. */
 export const THEATER_POOL_SIZE = 10
 
-/**
- * An index into the candidates that is not banned, or undefined when every choice is exhausted.
- *
- * `pick` is injected so a test does not depend on Math.random.
- *
- * The bound matters: the previous loop retried forever when every index in range was banned, and
- * `onTrailerError` bans one on each failed trailer, so a handful of dead trailers on a short season
- * was enough to spin the render.
- */
-export const pickTheaterIndex = (
-  candidateCount: number,
-  banned: readonly number[] = [],
-  pick: (limit: number) => number = limit => Math.floor(Math.random() * limit)
-): number | undefined => {
-  const limit = Math.min(THEATER_POOL_SIZE, candidateCount)
-  if (limit <= 0) return undefined
-  const allowed = Array.from({ length: limit }, (_, index) => index).filter(index => !banned.includes(index))
-  if (!allowed.length) return undefined
-  return allowed[Math.min(allowed.length - 1, Math.max(0, pick(allowed.length)))]
-}
-
 /** Kitsu's score. Above it in the listing are AniList (0.8) and Jikan (0.9), below it the bundle (0.2). */
 const KITSU_SCORE = 0.3
 

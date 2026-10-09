@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { THEATER_POOL_SIZE, pickTheaterIndex, theaterCandidates } from '../../../src/utils/theater'
+import { theaterCandidates } from '../../../src/utils/theater'
 
 const media = (
   { title = true, description = true, trailer = false, score }:
@@ -38,44 +38,5 @@ describe('theaterCandidates', () => {
   // title and a description still beats no hero.
   test('falls back to media without a trailer rather than showing nothing', () => {
     expect(theaterCandidates([media(), media()])).toHaveLength(2)
-  })
-})
-
-describe('pickTheaterIndex', () => {
-  test('picks inside the candidate list', () => {
-    expect(pickTheaterIndex(5, [], () => 0)).toBe(0)
-    expect(pickTheaterIndex(5, [], limit => limit - 1)).toBe(4)
-  })
-
-  test('never picks a banned index', () => {
-    // 0, 1 and 2 are banned, so every allowed slot must come from 3 and 4
-    for (let choice = 0; choice < 2; choice++) {
-      expect([3, 4]).toContain(pickTheaterIndex(5, [0, 1, 2], () => choice))
-    }
-  })
-
-  // The previous loop retried until it found an unbanned index, so banning them all spun forever.
-  // onTrailerError bans one per failed trailer, so a few dead trailers was enough.
-  test('gives up instead of looping when every choice is banned', () => {
-    expect(pickTheaterIndex(3, [0, 1, 2])).toBeUndefined()
-  })
-
-  test('an empty candidate list selects nothing', () => {
-    expect(pickTheaterIndex(0)).toBeUndefined()
-    expect(pickTheaterIndex(-1)).toBeUndefined()
-  })
-
-  // The hero is a highlight reel, not the whole season.
-  test('never reaches past the pool size', () => {
-    for (let choice = 0; choice < 40; choice++) {
-      const index = pickTheaterIndex(117, [], () => choice % 117)
-      expect(index).toBeLessThan(THEATER_POOL_SIZE)
-    }
-  })
-
-  // A pick function that answers out of range must not produce an out-of-bounds index.
-  test('an out-of-range pick is clamped rather than returning undefined', () => {
-    expect(pickTheaterIndex(5, [], () => 999)).toBe(4)
-    expect(pickTheaterIndex(5, [], () => -3)).toBe(0)
   })
 })
