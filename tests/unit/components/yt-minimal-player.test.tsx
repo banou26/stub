@@ -92,6 +92,8 @@ const player = (props: Props) => {
     rerender: (next: Props) => act(() => { render(<YoutubeMinimalPlayer {...next}/>, host) }),
     frame: () => host.querySelector('iframe')!,
     embed: () => host.querySelector('iframe')!.contentWindow as unknown as FakeEmbed,
+    /** The frame's `load`, which linkedom never fires on its own. */
+    load: () => act(() => { host.querySelector('iframe')!.dispatchEvent(new Event('load')) }),
   }
 }
 
@@ -144,6 +146,72 @@ test('asks until the embed answers, and stops once it has', () => {
   expect(listening(embed())).toBe(5)
 })
 
+// A nonexistent id sometimes never answers at all, which would leave the theater showing a title over
+// an empty frame and the modal without its cover. A throttled network put a WORKING embed's first
+// answer at 12 s, before its `load` at 22 s (measured 2026-10-09), so silence only counts from `load`.
+test('an embed still silent after its frame loaded is reported, however long the load took', () => {
+  const onError = vi.fn()
+  const { frame, embed, load } = player({ url: TRAILER, onError })
+  embed().running = false
+  elapse(30_000)
+  expect(onError, 'not before the frame loaded').not.toHaveBeenCalled()
+
+  load()
+  elapse(9_000)
+  expect(onError, 'not inside the budget').not.toHaveBeenCalled()
+  elapse(2_000)
+  expect(onError).toHaveBeenCalledTimes(1)
+  expect(frame().style.display).toBe('none')
+
+  const asked = listening(embed())
+  elapse(15_000)
+  expect(listening(embed()), 'stopped asking').toBe(asked)
+  expect(onError).toHaveBeenCalledTimes(1)
+})
+
+// Effects run after paint, which a busy main thread or a hidden tab delays past the frame's `load`:
+// a stubbed embed loaded about 25 ms after insertion.
+test('a frame that loaded before the effects ran still starts the budget', () => {
+  const onError = vi.fn()
+  const host = document.body.appendChild(document.createElement('div'))
+  hosts.push(host)
+  act(() => {
+    render(<YoutubeMinimalPlayer url={TRAILER} onError={onError}/>, host)
+    const frame = host.querySelector('iframe')!
+    ;(frame.contentWindow as unknown as FakeEmbed).running = false
+    frame.dispatchEvent(new Event('load'))
+  })
+  elapse(11_000)
+  expect(onError).toHaveBeenCalledTimes(1)
+})
+
+test('a silent video replaced before its budget ran out never reports against the next one', () => {
+  const latest = vi.fn()
+  const { embed, load, rerender } = player({ url: TRAILER, onError: () => {} })
+  embed().running = false
+  load()
+  elapse(5_000)
+
+  rerender({ url: OTHER, onError: latest })
+  embed().running = false
+  elapse(15_000)
+  expect(latest, 'the next frame has not loaded yet').not.toHaveBeenCalled()
+})
+
+test('a silent embed is reported to the latest onError', () => {
+  const first = vi.fn()
+  const latest = vi.fn()
+  const { embed, load, rerender } = player({ url: TRAILER, onError: first })
+  embed().running = false
+  load()
+  elapse(5_000)
+
+  rerender({ url: TRAILER, onError: latest })
+  elapse(6_000)
+  expect(latest).toHaveBeenCalledTimes(1)
+  expect(first).not.toHaveBeenCalled()
+})
+
 // Pins the ref: dropping onError from the effect's dependencies alone would call the first one
 // forever, and the modal's first one spreads a stale list of banned trailers.
 test('an embed error reaches the latest onError', () => {
@@ -160,16 +228,17 @@ test('an embed error reaches the latest onError', () => {
 
 // An unavailable video answers `onReady` and then `onError` 150 as two messages (measured on a live
 // embed 2026-10-09). The theater keeps the errored url once every candidate is banned, so the frame
-// has to stay hidden through a new onError.
+// has to stay hidden through a new onError, and the answer it gave must not read as silence later.
 test('an embed error hides the frame for good while the parent keeps the url', () => {
   const onError = vi.fn()
-  const { frame, embed, rerender } = player({ url: TRAILER, onError })
+  const { frame, embed, rerender, load } = player({ url: TRAILER, onError })
   embed().error = 150
   elapse(300)
   expect(onError).toHaveBeenCalledTimes(1)
   expect(frame().style.display, 'hidden by the error').toBe('none')
 
   rerender({ url: TRAILER, onError: () => onError() })
+  load()
   elapse(15_000)
   expect(frame().style.display, 'still hidden').toBe('none')
   expect(onError, 'reported once').toHaveBeenCalledTimes(1)

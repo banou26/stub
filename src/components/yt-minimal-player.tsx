@@ -85,13 +85,15 @@ export const YoutubeMinimalPlayer = (
     redirectTo?: Path
     volume?: number
     paused?: boolean
-    /** Called on an embed error and on a url that names no video. The latest onError passed is the
-     *  one called, so a parent may pass a new function on every render. Every call site takes no
+    /** Called on an embed error, on a url that names no video, and on an embed that has not answered
+     *  `LISTEN_ATTEMPTS` handshakes after its frame loaded. The latest onError passed is the one
+     *  called, so a parent may pass a new function on every render. Every call site takes no
      *  argument, so it takes none: an error event object here would be invented rather than real. */
     onError?: () => void
   }
 ) => {
   const frameRef = useRef<HTMLIFrameElement | null>(null)
+  const loadedFrameRef = useRef<HTMLIFrameElement | null>(null)
   const [isReady, setIsReady] = useState(false)
   const videoId = youtubeVideoId(url)
   // READ THROUGH A REF, never a dependency: every parent keys its callback on live data the store
@@ -127,6 +129,8 @@ export const YoutubeMinimalPlayer = (
       try {
         payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
       } catch { return }
+      // left running, the silence budget below would report a PLAYING trailer as an error about
+      // 10 s after its frame's `load`
       if (payload?.event === 'onReady') { clearInterval(handshake); setIsReady(true); return }
       // an unavailable video sends this right after its `onReady` (error 150, measured 2026-10-09),
       // as a separate message, so a commit showing the frame can land between the two
@@ -142,12 +146,18 @@ export const YoutubeMinimalPlayer = (
     }
     addEventListener('message', onMessage)
 
-    // repeated because the embed cannot answer until its own script is running, and there is no
-    // event for that: `load` on the iframe fires before the player inside it exists
+    // Repeated because the embed cannot answer until its own script is running, and no event says
+    // when that is. Measured 2026-10-09: a working embed answers before the frame's `load` or within
+    // about 50 ms of it (throttled, the answer came at 12 s and `load` at 22 s), while a nonexistent
+    // id sometimes stays silent after `load` for good (8 loads in 30). So the budget counts from
+    // `load`, and running out of it is an error the parent has to hear, or it shows a dead frame.
     let attempts = 0
     const handshake = setInterval(() => {
-      attempts += 1
-      if (attempts > LISTEN_ATTEMPTS) { clearInterval(handshake); return }
+      if (loadedFrameRef.current === frame && ++attempts > LISTEN_ATTEMPTS) {
+        clearInterval(handshake)
+        onErrorRef.current?.()
+        return
+      }
       frame.contentWindow?.postMessage(
         JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
         YOUTUBE_ORIGIN,
@@ -183,6 +193,9 @@ export const YoutubeMinimalPlayer = (
       // so Back would step the trailer instead of the app (history.length 2 to 3, measured 2026-10-09)
       key={videoId}
       ref={frameRef}
+      // recorded here rather than by a listener the effect adds: effects run after paint, which a busy
+      // main thread or a hidden tab delays past a fast `load`, and a missed one never starts the budget
+      onLoad={event => { loadedFrameRef.current = event.currentTarget }}
       css={youtubeStyle}
       src={embedSrc(videoId)}
       title="Trailer"
