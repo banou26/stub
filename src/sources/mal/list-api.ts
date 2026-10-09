@@ -2,10 +2,10 @@
 // page script hands back means, how a list row maps onto stub's list entries, and which writes a save
 // takes. Import free apart from types and ./page-text.ts, so every mapping is pinned under vitest.
 
-import type { ListEntry, ListEntryInput, ListStatus, Tracker, TrackingField } from '../../generated/schema/types.generated'
+import type { ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
-import { isScored, nativeScore, scoreLabel } from '../../tracking/score-scale'
+import { isScored, nativeScore } from '../../tracking/score-scale'
 import { episodesOf, isBlockPage } from './page-text'
 
 export const MAL_TRACKER_ID = 'mal'
@@ -20,10 +20,7 @@ export const MAL_SCORE_SCALE = 'POINT_10'
  */
 export const LIST_PAGE_SIZE = 300
 
-/** What stub reads and writes on MyAnimeList: its dates and rewatch count are left alone in this slice. */
-export const MAL_KEEPS: TrackingField[] = ['STATUS', 'PROGRESS', 'SCORE']
-
-/** Said in the editor wherever MyAnimeList is ticked. */
+/** What a save to MyAnimeList does beyond the list itself. */
 export const MAL_WRITE_NOTICE = 'Saving to MyAnimeList changes your list on myanimelist.net, which is public by default and shows your updates on your profile. MyAnimeList keeps scores as whole numbers from 1 to 10, and marking a rewatch Completed counts one finished rewatch.'
 
 /**
@@ -184,8 +181,8 @@ const STATUS_WORDS: Record<ListStatus, string> = {
 
 /**
  * A 0 to 100 score as MyAnimeList keeps it, a whole number from 0 (no score) to 10: score-scale.ts's
- * POINT_10, rounded DOWN and never below 1 as AniList keeps it (measured on graphql.anilist.co), so a
- * sync's preview shows exactly what MyAnimeList stores. MAL-Sync rounds instead (api
+ * POINT_10, rounded DOWN and never below 1 as AniList keeps it (measured on graphql.anilist.co), so the
+ * star shows exactly what MyAnimeList stores. MAL-Sync rounds instead (api
  * single.ts:126-137); stub does not follow it there.
  */
 export const malScore = (score?: number | null): number => isScored(score) ? nativeScore(score, MAL_SCORE_SCALE) : 0
@@ -198,7 +195,6 @@ export const listEntryOf = (user: string, row: MalListRow): ListEntry => ({
   status: statusOf(row),
   progress: row.progress,
   score: row.score ? row.score * 10 : null,
-  scoreLabel: scoreLabel(row.score, MAL_SCORE_SCALE),
   startedAt: null,
   completedAt: null,
   rewatchCount: null,
@@ -362,8 +358,4 @@ export const malTracker = (user?: string): Tracker => ({
   canWrite: Boolean(user),
   scoreScale: MAL_SCORE_SCALE,
   writeNotice: MAL_WRITE_NOTICE,
-  keepsPageEpisodeCount: false,
-  keeps: MAL_KEEPS,
-  // planWrite's rule: a rewatch starts on a Completed entry and ends through MyAnimeList's own finish
-  rewatchThroughCompleted: true,
 })

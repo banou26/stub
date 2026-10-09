@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import type { TrackerAnswer } from '../../../src/generated/schema/types.generated'
 import type { CompactAnswer, Fields, Outcome, Row } from '../../../src/tracking/compact'
@@ -23,10 +23,10 @@ describe('rowOf', () => {
     expect(rowOf(tracking, 20)).toEqual({ status: 'WATCHING', progress: 13, score: 80, total: 14, differs: [] })
   })
 
-  test('disagreeing entries give the highest progress, its status, the newest score, and flag only the row fields', () => {
+  test('disagreeing entries give the highest progress, its status, the newest score, and flag each field', () => {
     const tracking = aggregateTracking('m', [
-      listed('a', { status: 'PAUSED', progress: 11, score: 60, episodeCount: 14, updatedAt: '2026-09-02T00:00:00Z', startedAt: { year: 2026 } }),
-      listed('b', { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14, updatedAt: '2026-09-01T00:00:00Z', startedAt: { year: 2025 } }),
+      listed('a', { status: 'PAUSED', progress: 11, score: 60, episodeCount: 14, updatedAt: '2026-09-02T00:00:00Z' }),
+      listed('b', { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14, updatedAt: '2026-09-01T00:00:00Z' }),
     ])
     const shown = rowOf(tracking)
     expect(shown).toMatchObject({ status: 'WATCHING', progress: 13, score: 60, total: 14 })

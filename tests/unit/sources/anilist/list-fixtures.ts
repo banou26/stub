@@ -37,7 +37,6 @@ export const FRIEREN_ENTRY: AnilistEntry = {
   status: 'CURRENT',
   progress: 12,
   scoreRaw: 85,
-  score: 8.5,
   repeat: 0,
   private: false,
   startedAt: { year: 2026, month: 1, day: 10 },

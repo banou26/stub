@@ -1,12 +1,11 @@
 // `satisfies KeyingConfig` does not force exhaustiveness, so a new embedded type compiles, type-checks
 // and ships, and says so only as a dev-console warning while graphcache invents a key for an object
 // that has none. `MediaAiringEpisode` did exactly that the day it was added.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import introspection from '../../src/generated/graphql.schema.json'
 import { keyResolvers } from '../../src/urql-keys'
 import { aggregateTracking } from '../../src/tracking/aggregate'
-import { SYNC_FIELDS } from '../../src/tracking/sync'
 
 type IntrospectionType = {
   kind: string
@@ -61,11 +60,10 @@ test('the tracking summary and a tracker\'s entry never share a cache key', () =
   const entry = { _id: 'stub:e1', tracker: 'stub', progress: 3 }
   const answer = {
     _id: 'answer:stub:ag:(anilist:1)',
-    tracker: { id: 'stub', name: 'Stub', signedIn: true, canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: true, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false },
+    tracker: { id: 'stub', name: 'Stub', signedIn: true, canWrite: true, scoreScale: 'POINT_100' },
     state: 'LISTED' as const,
     entry,
     candidates: [],
-    pending: 0,
   }
   const { summary } = aggregateTracking('ag:(anilist:1)', [answer])
 

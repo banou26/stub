@@ -137,7 +137,7 @@ const Settings = () => {
         </Section>
         <Section id="tracking">
           <p className="intro">
-            Nothing to set here yet. You track a title from its own tracking panel. The AniList and
+            Nothing to set here yet. You track a title from the tracking row on its page. The AniList and
             MyAnimeList sign-ins are under <a className="link" href="#accounts">Accounts</a>, and what
             stub's list keeps is under <a className="link" href="#data">Data</a>.
           </p>

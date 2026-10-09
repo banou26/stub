@@ -15,7 +15,6 @@ const ENTRY = `
   status
   progress
   score
-  scoreLabel
   startedAt { year month day }
   completedAt { year month day }
   rewatchCount
@@ -36,9 +35,6 @@ const TRACKER = `
   canWrite
   scoreScale
   writeNotice
-  keepsPageEpisodeCount
-  keeps
-  rewatchThroughCompleted
 `
 
 export const TRACKING_DOCUMENT = `
@@ -50,7 +46,6 @@ export const TRACKING_DOCUMENT = `
         state
         candidates
         error
-        pending
         episodeCount
         tracker { ${TRACKER} }
         entry { ${ENTRY} }

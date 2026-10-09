@@ -6,16 +6,10 @@ import type { FuzzyDate, FuzzyDateInput, ListEntry, ListEntryInput, ListStatus, 
 import type { AnilistBody } from './frontend'
 import type { SessionRequest } from './session-page'
 
-import { scoreLabel } from '../../tracking/score-scale'
-import { SYNC_FIELDS } from '../../tracking/sync'
-
-/** A score in the viewer's own format, as AniList shows it to them (tracking/score-scale.ts). */
-export { scoreLabel }
-
 export const ANILIST_TRACKER_ID = 'anilist'
 export const ANILIST_ICON = 'https://anilist.co/img/icons/favicon-32x32.png'
 
-/** Said in the editor wherever AniList is ticked. */
+/** What a save to AniList does beyond the list itself. */
 export const ANILIST_WRITE_NOTICE = 'Saving to AniList can post list activity that your followers see, as saving on anilist.co does.'
 
 type AnilistDate = { year: number | null, month: number | null, day: number | null } | null
@@ -26,8 +20,6 @@ export type AnilistEntry = {
   progress: number | null
   /** 0 to 100, whatever the viewer's format. 0 is AniList's "no score". */
   scoreRaw: number | null
-  /** In the viewer's own format. */
-  score: number | null
   repeat: number | null
   private: boolean | null
   startedAt: AnilistDate
@@ -51,7 +43,6 @@ const ENTRY_FIELDS = `
   status
   progress
   scoreRaw: score(format: POINT_100)
-  score
   repeat
   private
   startedAt { year month day }
@@ -194,15 +185,14 @@ export const scoreFormatOf = (viewer: AnilistViewer | undefined) => viewer?.medi
 const fuzzyDate = (date: AnilistDate): FuzzyDate | null =>
   date?.year ? { year: date.year, month: date.month ?? null, day: date.day ?? null } : null
 
-/** One AniList entry as a stub list entry: its own id, its own episode count, the score both ways. */
-export const listEntryOf = (format: string, media: AnilistMedia, entry: AnilistEntry): ListEntry => ({
+/** One AniList entry as a stub list entry: its own id, its own episode count, the score on 0 to 100. */
+export const listEntryOf = (media: AnilistMedia, entry: AnilistEntry): ListEntry => ({
   _id: `${ANILIST_TRACKER_ID}:${entry.id}`,
   tracker: ANILIST_TRACKER_ID,
   mediaUri: `${ANILIST_TRACKER_ID}:${media.id}`,
   status: (entry.status && FROM_ANILIST[entry.status]) || null,
   progress: entry.progress ?? null,
   score: entry.scoreRaw ? Math.round(entry.scoreRaw) : null,
-  scoreLabel: scoreLabel(entry.score, format),
   startedAt: fuzzyDate(entry.startedAt),
   completedAt: fuzzyDate(entry.completedAt),
   rewatchCount: entry.repeat ?? null,
@@ -224,7 +214,4 @@ export const anilistTracker = (viewer: AnilistViewer | undefined): Tracker => ({
   canWrite: Boolean(viewer),
   scoreScale: scoreFormatOf(viewer),
   writeNotice: ANILIST_WRITE_NOTICE,
-  keepsPageEpisodeCount: false,
-  keeps: [...SYNC_FIELDS],
-  rewatchThroughCompleted: false,
 })

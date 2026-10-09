@@ -14,8 +14,32 @@ export type CompactAnswer = {
   state: string
   candidates: string[]
   error?: string | null
-  tracker: { id: string, name: string, canWrite: boolean, scoreScale?: string | null }
+  tracker: {
+    id: string
+    name: string
+    canWrite: boolean
+    scoreScale?: string | null
+    icon?: string | null
+    color?: string | null
+    account?: string | null
+  }
   entry?: CompactEntry | null
+}
+
+/** One media's tracking as the row reads it: the worker's summary and every tracker's own answer. */
+export type CompactTracking = {
+  summary?: CompactEntry | null
+  disagreements: readonly string[]
+  answers: readonly CompactAnswer[]
+}
+
+export const STATUS_LABELS: Record<string, string> = {
+  WATCHING: 'Watching',
+  REWATCHING: 'Rewatching',
+  PLANNING: 'Plan to watch',
+  COMPLETED: 'Completed',
+  PAUSED: 'Paused',
+  DROPPED: 'Dropped',
 }
 
 /** The fields a change touched. A null score clears it; an absent key is left as the tracker has it. */
@@ -32,13 +56,10 @@ export type Row = {
 }
 
 const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
-/** The panel's rule: a tracker that can write, and has answered with its entry or its lack of one. */
+/** A tracker that can write, and has answered with its entry or its lack of one. */
 export const writable = (answer: CompactAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)
 
-/**
- * What the row shows: the worker's summary, which covers every listed tracker whether or not the
- * viewer writes to it, so the row and the panel never show two different summaries.
- */
+/** What the row shows: the worker's summary, which covers every listed tracker whether or not the viewer writes to it. */
 export const rowOf = (
   tracking: { summary?: CompactEntry | null, disagreements: readonly string[] } | null | undefined,
   episodeCount?: number | null,
@@ -49,7 +70,7 @@ export const rowOf = (
     progress: summary?.progress ?? 0,
     score: isScored(summary?.score) ? summary!.score! : null,
     total: summary?.episodeCount ?? episodeCount ?? null,
-    differs: (tracking?.disagreements ?? []).filter(field => field === 'STATUS' || field === 'PROGRESS' || field === 'SCORE'),
+    differs: [...(tracking?.disagreements ?? [])],
   }
 }
 
@@ -131,6 +152,8 @@ export const pickerScale = (scales: readonly (string | null | undefined)[]) => {
 export const written = (score: number, scale: string) => onScale(score, scale)
 
 export type Outcome = { outcome: string, error?: string | null }
+/** How one tracker's write went, as `saveListEntry` reports it; a write that reached no tracker names none. */
+export type TrackerOutcome = Outcome & { tracker: string }
 export type Settled = { tracker: string, outcome: string, fields: Fields, error?: string | null }
 export type QueueState = { busy: boolean, failed?: { fields: Fields, error: string }, refused?: string }
 

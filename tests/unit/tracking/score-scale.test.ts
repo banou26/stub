@@ -1,8 +1,8 @@
 // Scores between scales. The table is AniList's own conversion, read off graphql.anilist.co on
 // 2026-09-27 (see src/tracking/score-scale.ts), written here by hand and never by running the code.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { isScored, nativeScore, onScale, sameScore } from '../../../src/tracking/score-scale'
+import { isScored, nativeScore, onScale } from '../../../src/tracking/score-scale'
 
 const SCALES = ['POINT_100', 'POINT_10_DECIMAL', 'POINT_10', 'POINT_5', 'POINT_3'] as const
 
@@ -67,14 +67,5 @@ describe('a score moved onto a scale', () => {
 
   test('a scale this file does not know keeps 0 to 100', () => {
     expect(onScale(87, 'SOMETHING_ELSE')).toBe(87)
-  })
-})
-
-describe('two scores compared', () => {
-  test('at the coarsest of their scales', () => {
-    expect(sameScore(85, 80, ['POINT_100', 'POINT_10']), '85 is an 8 on ten points').toBe(true)
-    expect(sameScore(88, 90, ['POINT_100', 'POINT_10'])).toBe(false)
-    expect(sameScore(85, 80, ['POINT_100', 'POINT_100']), 'the control: on 0 to 100 they differ').toBe(false)
-    expect(sameScore(70, 100, ['POINT_3', 'POINT_100']), 'both a :)').toBe(true)
   })
 })

@@ -13,7 +13,6 @@ export const errorAnswer = (uri: string, tracker: Tracker, error: string): Track
   entry: null,
   candidates: [],
   error,
-  pending: 0,
 })
 
 const messageOf = (error: unknown) =>

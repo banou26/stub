@@ -1,6 +1,6 @@
 // The AniList tracker served the way every provider is, over a fake session that answers with AniList's
 // own answers (./list-fixtures.ts says which were recorded), and asked the questions the app asks it.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { SessionRateLimit, SessionRequest, SessionResponse } from '../../../../src/sources/anilist/session-page'
 import type { CatalogLookup } from '../../../../src/tracking/identity'
@@ -94,7 +94,7 @@ describe('what the AniList tracker answers', () => {
     expect(answer).toMatchObject({
       state: 'LISTED',
       tracker: { id: 'anilist', name: 'AniList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10_DECIMAL', writeNotice: ANILIST_WRITE_NOTICE },
-      entry: { _id: 'anilist:398761234', mediaUri: 'anilist:154587', status: 'WATCHING', progress: 12, score: 85, scoreLabel: '8.5 / 10', episodeCount: 28 },
+      entry: { _id: 'anilist:398761234', mediaUri: 'anilist:154587', status: 'WATCHING', progress: 12, score: 85, episodeCount: 28 },
     })
   })
 
@@ -179,7 +179,7 @@ describe('what the AniList tracker answers', () => {
 
 describe('what the AniList tracker writes', () => {
   test('a save goes as SaveMediaListEntry, mapped, and the open answer reads again', async () => {
-    const saved = { ...FRIEREN_ENTRY, status: 'COMPLETED', progress: 28, scoreRaw: 90, score: 9, media: FRIEREN }
+    const saved = { ...FRIEREN_ENTRY, status: 'COMPLETED', progress: 28, scoreRaw: 90, media: FRIEREN }
     const { target, asked, operations } = setup({
       StubTracking: () => response(LISTED_BODY),
       StubSaveListEntry: () => response({ data: { SaveMediaListEntry: saved } }),
@@ -191,7 +191,7 @@ describe('what the AniList tracker writes', () => {
 
     expect(asked.find(({ operation }) => operation === 'StubSaveListEntry')!.variables)
       .toEqual({ mediaId: 154587, status: 'COMPLETED', progress: 28, scoreRaw: 90 })
-    expect(result.data.saveListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'SAVED', entry: { status: 'COMPLETED', progress: 28, score: 90, scoreLabel: '9.0 / 10' } }])
+    expect(result.data.saveListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'SAVED', entry: { status: 'COMPLETED', progress: 28, score: 90 } }])
     await tracking.next()
     expect(operations()).toEqual(['StubTracking', 'StubSaveListEntry', 'StubTracking'])
   })

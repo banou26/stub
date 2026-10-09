@@ -26,7 +26,7 @@ const LOCAL = {
   [API_KEYS_KEY]: JSON.stringify({ omdb: 'a-key' }),
   [ENABLED_PLUGINS_KEY]: JSON.stringify(['npm:@banou/example']),
   [DISPLAY_MODE_KEY]: 'list',
-  [COMPACT_PREFS_KEY]: JSON.stringify({ advanced: true, targets: { mal: false } }),
+  [COMPACT_PREFS_KEY]: JSON.stringify({ targets: { mal: false } }),
   [CONNECTED_KEY]: JSON.stringify(['anilist', 'mal']),
   'not-stub': 'kept',
 }

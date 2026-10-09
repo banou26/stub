@@ -57,7 +57,7 @@ const SEED = {
     'stub.apikeys': JSON.stringify({ omdb: 'a-key-for-the-spec' }),
     'stub-enabled-plugins': JSON.stringify(['npm:@banou/spec-example']),
     'stub-search-display-mode': 'list',
-    'stub.tracking.compact': JSON.stringify({ advanced: true, targets: { mal: false } }),
+    'stub.tracking.compact': JSON.stringify({ targets: { mal: false } }),
     'stub.sessions': JSON.stringify(['anilist', 'mal']),
     'not-stub': 'kept',
   },

@@ -1,6 +1,6 @@
 // How the MyAnimeList tracker reads MyAnimeList's answers and plans its writes, on the site's recorded
 // rows (./list-fixtures.ts says which are hand-made).
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import type { MalPageAnswer } from '../../../../src/sources/mal/session-page'
 
@@ -9,7 +9,6 @@ import {
   replaceLists, rowOf, showsNoChange, statusOf, upsertRows, type MalListRow,
 } from '../../../../src/sources/mal/list-api'
 import { onScale } from '../../../../src/tracking/score-scale'
-import { scoreText } from '../../../../src/tracking/sync'
 import {
   AIR_GEAR, A_CHANNEL, BLEACH, CLANNAD, COWBOY_BEBOP, COWBOY_BEBOP_CARD, COWBOY_BEBOP_REWATCHING, ERRORS_400, HACK_SIGN, ONE_PIECE,
   ROWS, cardOf,
@@ -42,7 +41,7 @@ describe('a list row', () => {
     expect(rowOf(null)).toBeUndefined()
   })
 
-  test("as a stub entry: the score both ways, MyAnimeList's own count and page, and no dates", () => {
+  test("as a stub entry: the score on 0 to 100, MyAnimeList's own count and page, and no dates", () => {
     expect(listEntryOf('viewer', row(HACK_SIGN))).toEqual({
       _id: 'mal:viewer:48',
       tracker: 'mal',
@@ -50,7 +49,6 @@ describe('a list row', () => {
       status: 'COMPLETED',
       progress: 26,
       score: 70,
-      scoreLabel: '7 / 10',
       startedAt: null,
       completedAt: null,
       rewatchCount: null,
@@ -60,14 +58,12 @@ describe('a list row', () => {
       cover: HACK_SIGN.anime_image_path,
       episodeCount: 26,
     })
-    expect(listEntryOf('viewer', row(CLANNAD)), 'a score of 0 is no score').toMatchObject({ score: null, scoreLabel: null })
+    expect(listEntryOf('viewer', row(CLANNAD)), 'a score of 0 is no score').toMatchObject({ score: null })
   })
 
   test('the tracker names the viewer, keeps ten points and says what a save does', () => {
     expect(malTracker('viewer')).toMatchObject({ id: 'mal', name: 'MyAnimeList', signedIn: true, canWrite: true, account: 'viewer', scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE })
     expect(malTracker()).toMatchObject({ signedIn: false, canWrite: false, account: null })
-    expect(malTracker('viewer').keeps, 'no date and no rewatch count, which planWrite refuses').toEqual(['STATUS', 'PROGRESS', 'SCORE'])
-    expect(malTracker('viewer').rewatchThroughCompleted, "planWrite's rewatch rule").toBe(true)
     expect(MAL_WRITE_NOTICE).toContain('public by default')
     expect(MAL_WRITE_NOTICE).toContain('counts one finished rewatch')
   })
@@ -140,16 +136,16 @@ describe('a score on ten points', () => {
     expect(malScore(undefined)).toBe(0)
   })
 
-  // a sync writes onScale(score, the tracker's scale) and shows scoreText of it: MyAnimeList has to
-  // read that back as the same score and the same words, for every score a source can hold
-  test("every score a sync shows for MyAnimeList is the one it reads back, in the preview's words", () => {
+  // a write sends onScale(score, the tracker's scale): MyAnimeList has to read that back as the same
+  // score, for every score a source can hold
+  test('every score written to MyAnimeList is the one it reads back', () => {
     const { scoreScale } = malTracker('viewer')
     for (let score = 1; score <= 100; score++) {
       const sent = onScale(score, scoreScale)
       const plan = planWrite(1, undefined, { status: 'COMPLETED', score: sent })
       const step = 'phases' in plan ? plan.phases[0]!.steps[0] : undefined
       const back = listEntryOf('viewer', row({ ...COWBOY_BEBOP, score: step?.kind === 'add' ? step.fields.score : undefined }))
-      expect([score, back.score, back.scoreLabel]).toEqual([score, sent, scoreText(sent, scoreScale)])
+      expect([score, back.score]).toEqual([score, sent])
     }
   })
 })

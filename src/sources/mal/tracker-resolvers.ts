@@ -106,7 +106,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
 
   // `user` null: the answer names nobody, whoever the last read found
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}, user: string | null = userOf() ?? null): TrackerAnswer =>
-    ({ _id: answerId(MAL_TRACKER_ID, uri), tracker: malTracker(user ?? undefined), state, entry: null, candidates: [], error: null, pending: 0, ...extra })
+    ({ _id: answerId(MAL_TRACKER_ID, uri), tracker: malTracker(user ?? undefined), state, entry: null, candidates: [], error: null, ...extra })
 
   const targetOf = async (uri: string, ctx: MalTrackerContext) => catalogueTargetOf(uri, 'mal', await ctx.catalog())
 
@@ -461,8 +461,8 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
               const retry = last.state === 'PAUSED' && pacer.pausedUntil() !== undefined
               yield trackingOf(uri, last)
               if (retry) continue
-              // asked once the answer is on screen, so a sync onto an anime the list does not hold can
-              // tell whether progress means the same on MyAnimeList
+              // asked once the answer is on screen, so the row can tell whether progress means the same on
+              // MyAnimeList for an anime the list does not hold
               if (last.state === 'NOT_LISTED' && !cards.has(target.id)) {
                 const episodeCount = await cardCount(ctx, target.id)
                 if (episodeCount != null) {

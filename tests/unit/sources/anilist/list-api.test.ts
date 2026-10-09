@@ -1,7 +1,7 @@
 // How an AniList answer becomes a stub list entry, and a stub write an AniList one.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { listEntryOf, readResponse, saveRequest, scoreLabel } from '../../../../src/sources/anilist/list-api'
+import { listEntryOf, readResponse, saveRequest } from '../../../../src/sources/anilist/list-api'
 import { FRIEREN, FRIEREN_ENTRY, SIGNED_OUT_BODY } from './list-fixtures'
 
 const argumentsOf = (query: string) => /SaveMediaListEntry\(([^)]*)\)/.exec(query)?.[1]?.split(', ').map(arg => arg.split(':')[0])
@@ -27,7 +27,7 @@ describe('a save as AniList takes it', () => {
     const built = saveRequest(1, { status })
     if ('error' in built) throw new Error(built.error)
     expect(built.request.variables!.status).toBe(anilist)
-    expect(listEntryOf('POINT_100', FRIEREN, { ...FRIEREN_ENTRY, status: anilist }).status).toBe(status)
+    expect(listEntryOf(FRIEREN, { ...FRIEREN_ENTRY, status: anilist }).status).toBe(status)
   })
 
   test('an explicit null clears the score, the counts and the dates, and cannot clear a status', () => {
@@ -63,15 +63,14 @@ describe('a save as AniList takes it', () => {
 })
 
 describe('an AniList entry as stub shows it', () => {
-  test('keeps its own id, its own episode count and the score both ways', () => {
-    expect(listEntryOf('POINT_10_DECIMAL', FRIEREN, FRIEREN_ENTRY)).toEqual({
+  test('keeps its own id, its own episode count and the score on 0 to 100', () => {
+    expect(listEntryOf(FRIEREN, FRIEREN_ENTRY)).toEqual({
       _id: 'anilist:398761234',
       tracker: 'anilist',
       mediaUri: 'anilist:154587',
       status: 'WATCHING',
       progress: 12,
       score: 85,
-      scoreLabel: '8.5 / 10',
       startedAt: { year: 2026, month: 1, day: 10 },
       completedAt: null,
       rewatchCount: 0,
@@ -84,22 +83,8 @@ describe('an AniList entry as stub shows it', () => {
   })
 
   test('reads AniList 0 as no score', () => {
-    const entry = listEntryOf('POINT_100', FRIEREN, { ...FRIEREN_ENTRY, score: 0, scoreRaw: 0 })
+    const entry = listEntryOf(FRIEREN, { ...FRIEREN_ENTRY, scoreRaw: 0 })
     expect(entry.score).toBeNull()
-    expect(entry.scoreLabel).toBeNull()
-  })
-
-  test.each([
-    [85, 'POINT_100', '85 / 100'],
-    [8.5, 'POINT_10_DECIMAL', '8.5 / 10'],
-    [9, 'POINT_10', '9 / 10'],
-    [4, 'POINT_5', '4 / 5'],
-    [1, 'POINT_3', ':('],
-    [2, 'POINT_3', ':|'],
-    [3, 'POINT_3', ':)'],
-    [0, 'POINT_10', null],
-  ])('labels %s in %s as %s', (score, format, label) => {
-    expect(scoreLabel(score, format)).toBe(label)
   })
 })
 

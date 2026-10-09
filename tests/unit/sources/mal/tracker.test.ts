@@ -1,6 +1,6 @@
 // The MyAnimeList tracker served the way every provider is, over a fake session on a hand-made
 // MyAnimeList (./fake-mal.ts) holding the recorded list rows, and asked the questions the app asks it.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { CatalogLookup } from '../../../../src/tracking/identity'
 
@@ -91,7 +91,7 @@ describe('what the MyAnimeList tracker answers', () => {
     expect(await first(target, BEBOP)).toMatchObject({
       state: 'LISTED',
       tracker: { id: 'mal', name: 'MyAnimeList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE },
-      entry: { _id: 'mal:viewer:1', mediaUri: 'mal:1', status: 'COMPLETED', progress: 26, score: 100, scoreLabel: '10 / 10', episodeCount: 26, url: 'https://myanimelist.net/anime/1/Cowboy_Bebop' },
+      entry: { _id: 'mal:viewer:1', mediaUri: 'mal:1', status: 'COMPLETED', progress: 26, score: 100, episodeCount: 26, url: 'https://myanimelist.net/anime/1/Cowboy_Bebop' },
     })
     expect(new Set(sites)).toEqual(new Set(['mal']))
   })
@@ -289,7 +289,7 @@ describe('what the MyAnimeList tracker writes', () => {
     await tracking.next()
 
     expect(await save(target, HACK, { status: 'COMPLETED', progress: 26, score: 85 })).toMatchObject({
-      tracker: 'mal', outcome: 'SAVED', error: null, entry: { status: 'COMPLETED', score: 80, scoreLabel: '8 / 10' },
+      tracker: 'mal', outcome: 'SAVED', error: null, entry: { status: 'COMPLETED', score: 80 },
     })
     expect(writes()).toEqual([{ user: 'viewer', steps: [{ kind: 'edit', fields: { anime_id: 48, status: 2, num_watched_episodes: 26, score: 8 } }], options: { once: true } }])
     expect(answerOfResult(await tracking.next())).toMatchObject({ entry: { score: 80 } })

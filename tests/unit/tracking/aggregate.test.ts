@@ -1,16 +1,15 @@
 // The summary is for display only and each answer stands alone, so what is pinned here is what the
 // summary may combine and what it must never look like.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import type { ListEntry, Tracker, TrackerAnswer } from '../../../src/generated/schema/types.generated'
 
 import { aggregateTracking, summaryId } from '../../../src/tracking/aggregate'
-import { SYNC_FIELDS } from '../../../src/tracking/sync'
 
 const URI = 'ag:(anilist:1,mal:10)'
 
 const tracker = (id: string, scoreScale = 'POINT_100'): Tracker =>
-  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale, keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false })
+  ({ id, name: id, icon: null, color: null, signedIn: true, account: null, canWrite: true, scoreScale })
 
 const listed = (id: string, entry: Partial<ListEntry>, scale?: string): TrackerAnswer => ({
   _id: `answer:${id}:${URI}`,
@@ -19,7 +18,6 @@ const listed = (id: string, entry: Partial<ListEntry>, scale?: string): TrackerA
   entry: { _id: `${id}:entry`, tracker: id, ...entry },
   candidates: [],
   error: null,
-  pending: 0,
 })
 
 const at = (minute: number) => new Date(Date.UTC(2026, 8, 27, 12, minute)).toISOString()
@@ -90,7 +88,6 @@ describe('answers that are not listed', () => {
       entry: null,
       candidates: ['anilist:1', 'anilist:2'],
       error: null,
-      pending: 0,
     }
     const tracking = aggregateTracking(URI, [listed('stub', { progress: 2, updatedAt: at(1) }), ambiguous])
 

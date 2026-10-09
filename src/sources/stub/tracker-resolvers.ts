@@ -9,7 +9,6 @@ import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { trackingId } from '../../tracking/aggregate'
 import { entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
 import { liveValues, patchFrom } from '../../tracking/journal'
-import { SYNC_FIELDS } from '../../tracking/sync'
 
 export const STUB_TRACKER_ID = 'stub'
 
@@ -30,10 +29,6 @@ export const stubTracker: Tracker = {
   canWrite: true,
   scoreScale: 'POINT_100',
   writeNotice: null,
-  // patchFrom stores the episodeCount the page sends with each write
-  keepsPageEpisodeCount: true,
-  keeps: [...SYNC_FIELDS],
-  rewatchThroughCompleted: false,
 }
 
 /** The tracker as it answers, naming whose list it holds. */
@@ -49,7 +44,6 @@ const listEntryOf = (entry: JournalEntry, values: Found & { state: 'LISTED' | 'N
   status: values.values.status ?? null,
   progress: values.values.progress ?? null,
   score: values.values.score ?? null,
-  scoreLabel: values.values.score != null ? String(values.values.score) : null,
   startedAt: values.values.startedAt ?? null,
   completedAt: values.values.completedAt ?? null,
   rewatchCount: values.values.rewatchCount ?? null,
@@ -65,7 +59,7 @@ const primaryOf = (found: Found & { state: 'LISTED' | 'NOT_LISTED' }) =>
   [...found.entries].sort((a, b) => (liveValues(b).updatedAt ?? 0) - (liveValues(a).updatedAt ?? 0))[0]
 
 export const answerFor = (uri: string, found: Found, tracker: Tracker = stubTracker): TrackerAnswer => {
-  const base = { _id: answerId(STUB_TRACKER_ID, uri), tracker, entry: null, candidates: [], error: null, pending: 0 }
+  const base = { _id: answerId(STUB_TRACKER_ID, uri), tracker, entry: null, candidates: [], error: null }
   if (found.state === 'NO_ID') return { ...base, state: 'NO_ID' }
   if (found.state === 'AMBIGUOUS') return { ...base, state: 'AMBIGUOUS', candidates: found.candidates }
   const primary = primaryOf(found)

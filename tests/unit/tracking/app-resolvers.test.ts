@@ -1,20 +1,19 @@
 // The app-level tracking resolvers over two providers: the real stub tracker and a fake second one.
 // Each answers alone through the shared fan-out, the page gets both answers and a summary, and a write
 // reaches the providers it names and no other.
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test } from 'vite-plus/test'
 
 import type { Tracker } from '../../../src/generated/schema/types.generated'
 
 import { trackingResolvers, type TrackerProvider } from '../../../src/tracking/app-resolvers'
 import { stubTrackerResolvers } from '../../../src/sources/stub/tracker-resolvers'
 import { openJournal, type Journal } from '../../../src/tracking/journal'
-import { SYNC_FIELDS } from '../../../src/tracking/sync'
 import { memoryStore } from './memory-store'
 import { providerServer, subscribe, yogaClient } from '../worker/yoga-client'
 
 const URI = 'ag:(anilist:1)'
 
-const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100', keepsPageEpisodeCount: false, keeps: [...SYNC_FIELDS], rewatchThroughCompleted: false }
+const OTHER: Tracker = { id: 'other', name: 'Other', icon: null, color: null, signedIn: true, account: 'someone', canWrite: true, scoreScale: 'POINT_100' }
 
 const otherWrites: unknown[] = []
 const otherDeletes: unknown[] = []
@@ -32,7 +31,6 @@ const other = providerServer('other', {
               entry: { _id: 'other:42', tracker: 'other', mediaUri: 'anilist:1', status: 'WATCHING', progress: 7, score: 90, updatedAt: '2026-09-01T00:00:00.000Z' },
               candidates: [],
               error: null,
-              pending: 0,
             }],
             summary: null,
             disagreements: [],

@@ -1,48 +1,45 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { button, mount, unmount } from './dom'
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { useState } from 'preact/hooks'
 
-import type { PanelAnswer, PanelTracking, SignInOutcome } from '../../../src/components/tracking-panel'
+import type { WindowSignIn } from '../../../src/sources/login-window'
 import type { CompactPrefs } from '../../../src/tracking/compact-prefs'
-import type { Fields } from '../../../src/tracking/compact'
+import type { CompactAnswer, CompactTracking, Fields } from '../../../src/tracking/compact'
 
-// lucide-react is CommonJS and requires react under node (see tracking-panel.test.tsx); no behaviour here
+// lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'SlidersHorizontal', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')
 
-const anilist: PanelAnswer = {
-  _id: 'answer:anilist',
+const anilist: CompactAnswer = {
   state: 'LISTED',
   candidates: [],
-  tracker: { id: 'anilist', name: 'AniList', canWrite: true, account: 'banou', scoreScale: 'POINT_10', writeNotice: 'Saving to AniList can post list activity.' },
-  entry: { _id: 'anilist:1', status: 'PAUSED', progress: 13, score: 60, episodeCount: 14 },
+  tracker: { id: 'anilist', name: 'AniList', canWrite: true, account: 'banou', scoreScale: 'POINT_10' },
+  entry: { status: 'PAUSED', progress: 13, score: 60, episodeCount: 14 },
 }
-const stub: PanelAnswer = {
-  _id: 'answer:stub',
+const stub: CompactAnswer = {
   state: 'NOT_LISTED',
   candidates: [],
   tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100' },
   entry: null,
 }
-const mal: PanelAnswer = {
-  _id: 'answer:mal',
+const mal: CompactAnswer = {
   state: 'SIGNED_OUT',
   candidates: [],
   tracker: { id: 'mal', name: 'MyAnimeList', canWrite: true, scoreScale: 'POINT_10' },
   entry: null,
 }
-const tracking: PanelTracking = {
-  summary: { _id: 'summary:x', status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 },
+const tracking: CompactTracking = {
+  summary: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 },
   disagreements: [],
   answers: [anilist, mal, stub],
 }
-const nothing: PanelTracking = { summary: null, disagreements: [], answers: [{ ...anilist, state: 'NOT_LISTED', entry: null }, stub] }
+const nothing: CompactTracking = { summary: null, disagreements: [], answers: [{ ...anilist, state: 'NOT_LISTED', entry: null }, stub] }
 
 const memory = () => {
   const values = new Map<string, string>()
@@ -88,16 +85,17 @@ const tick = async (input: HTMLInputElement, on: boolean) => {
 const settle = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
 describe('the compact tracking row', () => {
-  test('lays out star, status, episodes, then the chips and the advanced toggle', () => {
+  test('lays out star, status, episodes, then the chips, with no advanced toggle', () => {
     const { host } = render()
     const order = [...host.querySelectorAll('.star, select, .progress-field, [data-chip], .advanced')]
       .map(element => element.getAttribute('data-chip') ?? (element.className.split(' ')[0] || element.tagName))
-    expect(order).toEqual(['star', 'SELECT', 'progress-field', 'anilist', 'mal', 'stub', 'advanced'])
+    expect(order).toEqual(['star', 'SELECT', 'progress-field', 'anilist', 'mal', 'stub'])
+    expect(host.querySelector('[aria-label="Advanced tracking"]')).toBeNull()
   })
 
   test('three + clicks save once, after a second of quiet, to every checked tracker', async () => {
     vi.useFakeTimers()
-    const long: PanelTracking = {
+    const long: CompactTracking = {
       ...tracking,
       summary: { ...tracking.summary!, episodeCount: 28 },
       answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub],
@@ -167,8 +165,8 @@ describe('the compact tracking row', () => {
   })
 
   test('a signed out tracker offers Log in, opens it inside the click, and says when the window was blocked', async () => {
-    let finish: (outcome: SignInOutcome) => void = () => {}
-    const signIn = vi.fn(() => new Promise<SignInOutcome>(resolve => { finish = resolve }))
+    let finish: (outcome: WindowSignIn) => void = () => {}
+    const signIn = vi.fn(() => new Promise<WindowSignIn>(resolve => { finish = resolve }))
     const { host, onSaveFields } = render({ signIns: { mal: signIn } })
     const login = named(host, 'Log in to MyAnimeList')
     expect(login.textContent).toBe('Log in')
@@ -218,14 +216,6 @@ describe('the compact tracking row', () => {
     expect(q(host, '[data-chip="anilist"]').hasAttribute('aria-busy')).toBe(false)
   })
 
-  // the owner's call: the row shows no activity or public list warning, whatever a tracker's write notice says
-  test('a checked tracker with a write notice shows no warning in the row', () => {
-    const { host } = render()
-    expect(host.querySelector('[data-notice]')).toBeNull()
-    expect(host.textContent).not.toContain('can post list activity')
-    expect(q(host, '[data-chip="anilist"]').getAttribute('title')).not.toContain('can post list activity')
-  })
-
   test('suggests Mark completed at the total and Set 14 / 14 when completed below it, and Completed alone sends no progress', async () => {
     const atTotal = render({ tracking: { ...tracking, summary: { ...tracking.summary!, progress: 14 } } })
     await click(button(atTotal.host, 'Mark completed')!)
@@ -246,7 +236,6 @@ describe('the compact tracking row', () => {
     expect(q(host, 'input[name="compact-target-anilist"]').getAttribute('aria-label')).toBe('Save to AniList')
     expect(named(host, 'Score, 8 out of 10').tagName).toBe('BUTTON')
     expect(named(host, 'One episode more').tagName).toBe('BUTTON')
-    expect(named(host, 'Advanced tracking').getAttribute('aria-expanded')).toBe('false')
     expect(q(host, 'label[for="compact-progress"]').textContent).toBe('Episodes')
   })
 
@@ -259,10 +248,18 @@ describe('the compact tracking row', () => {
     }
   })
 
-  test('marks a field the trackers hold differently, naming each value', () => {
-    const { host } = render({ tracking: { ...tracking, disagreements: ['PROGRESS'] } })
+  test('marks a field the trackers hold differently, naming each value and nothing else', () => {
+    const stubListed: CompactAnswer = { ...stub, state: 'LISTED', entry: { status: 'WATCHING', progress: 11, episodeCount: 14 } }
+    const { host } = render({ tracking: { ...tracking, disagreements: ['PROGRESS'], answers: [anilist, mal, stubListed] } })
     const marker = q(host, '.progress-field [data-differs="PROGRESS"]')
-    expect(marker.title).toBe('AniList 13 (Advanced can sync them)')
+    expect(marker.title).toBe('AniList 13, Stub 11')
     expect(host.querySelector('[data-differs="STATUS"]')).toBeNull()
+  })
+
+  test('a tracker that counts other episodes says the row leaves its progress alone', () => {
+    const { host } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub] } })
+    const title = q(host, '[data-chip="anilist"]').title
+    expect(title).toContain('AniList counts 28 episodes, so the row does not save progress there')
+    expect(title).not.toMatch(/advanced|sync/i)
   })
 })

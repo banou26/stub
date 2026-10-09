@@ -14,7 +14,7 @@
 //
 // and a POINT_3 user's :) read back as 85. What was NOT measured: where POINT_3 turns from 1 to 2
 // between 31 and 39, and which side of the line 61 falls. `raw` below only ever writes values that
-// were measured landing on their face, so a sync never depends on either.
+// were measured landing on their face, so a write never depends on either.
 
 type Scale = {
   /** How far apart two neighbouring scores of the scale sit on 0 to 100. The coarser scale has the larger. */
@@ -57,24 +57,3 @@ export const onScale = (score: number, scale: string | null | undefined) => {
 /** The coarser of two scales, which is where two scores kept on them are compared. */
 export const coarser = (a: string | null | undefined, b: string | null | undefined) =>
   scaleOf(b).step > scaleOf(a).step ? b : a
-
-/**
- * Whether two 0 to 100 scores say the same thing, compared at the coarsest of the scales they were
- * kept on: AniList's 85 and a ten point 8 are one score, since 85 is 8 on that scale.
- */
-export const sameScore = (a: number, b: number, scales: readonly (string | null | undefined)[]) => {
-  const scale = scales.reduce<string | null | undefined>(coarser, 'POINT_100')
-  return nativeScore(a, scale) === nativeScore(b, scale)
-}
-
-/** A score in a scale's own terms, as AniList shows it to the viewer. Null for no score. */
-export const scoreLabel = (score: number | null | undefined, format: string): string | null => {
-  if (!score) return null
-  switch (format) {
-    case 'POINT_10_DECIMAL': return `${score.toFixed(1)} / 10`
-    case 'POINT_10': return `${Math.round(score)} / 10`
-    case 'POINT_5': return `${Math.round(score)} / 5`
-    case 'POINT_3': return [':(', ':|', ':)'][Math.round(score) - 1] ?? `${score} / 3`
-    default: return `${Math.round(score)} / 100`
-  }
-}

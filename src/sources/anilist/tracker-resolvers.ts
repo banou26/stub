@@ -11,7 +11,7 @@ import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { catalogueTargetOf } from '../../tracking/identity'
 import {
   ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
-  anilistTracker, listEntryOf, readResponse, saveRequest, scoreFormatOf,
+  anilistTracker, listEntryOf, readResponse, saveRequest,
   type AnilistViewer, type DeleteData, type EntryIdData, type Read, type SaveData, type TrackingData,
 } from './list-api'
 import { createPacer } from './pacing'
@@ -53,7 +53,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   const written = new Set<() => void>()
 
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
-    ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, pending: 0, ...extra })
+    ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, ...extra })
 
   const targetOf = async (uri: string, ctx: AnilistTrackerContext) => catalogueTargetOf(uri, 'anilist', await ctx.catalog())
 
@@ -88,10 +88,10 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     if (!viewer) return answer(uri, 'SIGNED_OUT')
     const media = result.data.Media
     if (!media) return errorAnswer(uri, anilistTracker(viewer), `AniList has no anime ${mediaId}`)
-    // AniList's count even with nothing listed, so a sync onto it holds progress counted differently
+    // AniList's count even with nothing listed, so the row can tell whether progress means the same there
     const episodeCount = media.episodes ?? null
     if (!media.mediaListEntry) return answer(uri, 'NOT_LISTED', { episodeCount })
-    return answer(uri, 'LISTED', { episodeCount, entry: listEntryOf(scoreFormatOf(viewer), media, media.mediaListEntry) })
+    return answer(uri, 'LISTED', { episodeCount, entry: listEntryOf(media, media.mediaListEntry) })
   }
 
   const notWritten = (result: Exclude<Read<unknown>, { kind: 'data' }>): WriteOutcome[] =>
@@ -168,7 +168,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           const saved = result.data.SaveMediaListEntry
           if (!saved) return outcome('FAILED', 'AniList answered the save with no entry')
           changed()
-          return outcome('SAVED', null, saved.media ? listEntryOf(scoreFormatOf(viewer), saved.media, saved) : null)
+          return outcome('SAVED', null, saved.media ? listEntryOf(saved.media, saved) : null)
         } catch (error) {
           return outcome('FAILED', messageOf(error))
         }

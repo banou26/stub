@@ -1,7 +1,7 @@
 // The display-only summary of every tracker's answer about one media. Import free so it can be pinned
 // under vitest. Nothing here is ever written anywhere: a write names its trackers.
 
-import type { FuzzyDate, ListEntry, Tracking, TrackerAnswer, TrackingField } from '../generated/schema/types.generated'
+import type { ListEntry, Tracking, TrackerAnswer, TrackingField } from '../generated/schema/types.generated'
 
 import { coarser, nativeScore } from './score-scale'
 
@@ -15,10 +15,6 @@ export const summaryId = (uri: string) => `summary:${uri}`
 
 const time = (entry: ListEntry) => entry.updatedAt ? Date.parse(entry.updatedAt) || 0 : 0
 const byNewest = (a: ListEntry, b: ListEntry) => time(b) - time(a)
-
-const pad = (value: number | null | undefined, length: number) => String(value ?? 0).padStart(length, '0')
-export const dateKey = (date: FuzzyDate | null | undefined) =>
-  date?.year ? `${pad(date.year, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}` : undefined
 
 type Listed = { entry: ListEntry, scale: string }
 
@@ -47,9 +43,6 @@ const summarize = (uri: string, listed: Listed[], episodeCount: number | null): 
     (progress != null ? entries.find(entry => entry.progress === progress && entry.status)?.status : undefined)
     ?? entries.find(entry => entry.status)?.status
     ?? null
-  const started = entries.map(entry => entry.startedAt).filter(date => dateKey(date)).sort((a, b) => dateKey(a)!.localeCompare(dateKey(b)!))
-  const completed = entries.map(entry => entry.completedAt).filter(date => dateKey(date)).sort((a, b) => dateKey(b)!.localeCompare(dateKey(a)!))
-  const rewatches = entries.filter(entry => entry.rewatchCount != null).map(entry => entry.rewatchCount!)
   const score = entries.find(entry => entry.score != null)?.score ?? null
   return {
     _id: summaryId(uri),
@@ -58,10 +51,6 @@ const summarize = (uri: string, listed: Listed[], episodeCount: number | null): 
     status,
     progress,
     score,
-    scoreLabel: score != null ? String(score) : null,
-    startedAt: started[0] ?? null,
-    completedAt: completed[0] ?? null,
-    rewatchCount: rewatches.length ? Math.max(...rewatches) : null,
     updatedAt: entries[0]!.updatedAt ?? null,
     url: null,
     title: entries.find(entry => entry.title)?.title ?? null,
@@ -82,9 +71,6 @@ const disagreementsOf = (listed: Listed[]): TrackingField[] => {
     ['STATUS', entry => entry.status],
     ['PROGRESS', entry => entry.progress],
     ['SCORE', entry => entry.score == null ? null : nativeScore(entry.score, scale)],
-    ['STARTED_AT', entry => dateKey(entry.startedAt)],
-    ['COMPLETED_AT', entry => dateKey(entry.completedAt)],
-    ['REWATCH_COUNT', entry => entry.rewatchCount],
   ]
   return fields.filter(([, read]) => differ(listed.map(({ entry }) => read(entry)))).map(([field]) => field)
 }

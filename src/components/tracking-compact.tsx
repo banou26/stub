@@ -1,16 +1,22 @@
 import { css } from '@emotion/react'
-import { Check, LoaderCircle, Minus, Plus, SlidersHorizontal } from 'lucide-react'
+import { Check, LoaderCircle, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import type { WindowSignIn } from '../sources/login-window'
 import type { CompactPrefs } from '../tracking/compact-prefs'
-import type { Fields, Row, Settled } from '../tracking/compact'
-import type { PanelAnswer, PanelOutcome, PanelTracking, SignIns } from './tracking-panel'
+import type { CompactAnswer, CompactTracking, Fields, Row, Settled, TrackerOutcome } from '../tracking/compact'
 
-import { countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, targetOf, writable } from '../tracking/compact'
+import { STATUS_LABELS, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, targetOf, writable } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
-import { STATUS_LABELS } from '../tracking/sync'
 import ScorePicker from './score-picker'
-import { SIGN_IN_NOTES } from './tracking-panel'
+
+/** The sign in a tracker offers, by tracker id. Called directly in the click, so a window can open. */
+export type SignIns = Record<string, () => Promise<WindowSignIn>>
+
+const SIGN_IN_NOTES: Partial<Record<WindowSignIn, (name: string) => string>> = {
+  blocked: () => 'The browser blocked the sign-in window. Allow pop-ups for this page and press Log in again.',
+  unsupported: name => `Sign in to ${name} in this browser, then press Log in again.`,
+}
 
 const style = css`
   margin-top: 2rem;
@@ -101,12 +107,6 @@ const style = css`
   @keyframes tracking-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .chip .spin { animation: none; } }
 
-  .advanced {
-    border: none;
-    color: rgba(255, 255, 255, 0.55);
-    &[aria-expanded='true'] { background: rgba(255, 255, 255, 0.12); color: #fff; }
-  }
-
   .notes { display: flex; flex-direction: column; gap: 0.4rem; font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); }
   .note { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
   .note.problem { color: #f87171; }
@@ -122,7 +122,7 @@ const style = css`
   }
 
   @media (max-width: 600px) {
-    .progress-field .word, .advanced .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .progress-field .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .platforms { gap: 0.8rem; }
     .chip { gap: 0.4rem; padding: 0 0.4rem; }
     .chip .login-button { padding: 0 0.6rem; }
@@ -136,7 +136,7 @@ const scoreText = (score: number, scale?: string | null) => {
   return `${nativeScore(score, on)} / ${OUT_OF[on] ?? 100}`
 }
 
-const own = (answer: PanelAnswer, total: number | null) => {
+const own = (answer: CompactAnswer, total: number | null) => {
   switch (answer.state) {
     case 'LISTED': {
       const entry = answer.entry!
@@ -159,15 +159,15 @@ const whatOf = (fields: Fields) => [
   fields.score !== undefined ? 'the score' : undefined,
 ].filter(Boolean).join(' and ')
 
-const Logo = ({ answer }: { answer: PanelAnswer }) => (
+const Logo = ({ answer }: { answer: CompactAnswer }) => (
   <span className="logo" style={answer.tracker.color ? { color: answer.tracker.color } : undefined}>
     {answer.tracker.icon ? <img src={answer.tracker.icon} alt=""/> : answer.tracker.name.slice(0, 1)}
   </span>
 )
 
 /**
- * The quick way to track a media: a score, a status and an episode count, written at once to every
- * tracker whose chip is checked, and a toggle for the full tracking panel.
+ * The way to track a media: a score, a status and an episode count, written at once to every tracker
+ * whose chip is checked.
  *
  * What it shows is the worker's summary of EVERY listed tracker, checked or not: unchecking a tracker
  * means "do not write to it", never "ignore it". A change goes to each checked tracker that can write,
@@ -178,9 +178,9 @@ const Logo = ({ answer }: { answer: PanelAnswer }) => (
 const TrackingCompact = (
   { tracking, episodeCount, onSaveFields, signIns = {}, prefs, onPrefs }:
   {
-    tracking: PanelTracking | null | undefined
+    tracking: CompactTracking | null | undefined
     episodeCount?: number | null
-    onSaveFields: (targets: string[], entry: Fields) => Promise<PanelOutcome[]>
+    onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
     signIns?: SignIns
     prefs: CompactPrefs
     onPrefs: (prefs: CompactPrefs) => void
@@ -273,7 +273,7 @@ const TrackingCompact = (
     onPrefs({ ...prefs, targets: { ...prefs.targets, [id]: on } })
   }
 
-  const signIn = (answer: PanelAnswer) => {
+  const signIn = (answer: CompactAnswer) => {
     const start = signIns[answer.tracker.id]
     const id = answer.tracker.id
     if (!start || signingIn.has(id)) return
@@ -307,9 +307,9 @@ const TrackingCompact = (
   }
   commitLatest.current = commitDraft
 
-  const valuesOf = (read: (answer: PanelAnswer) => string | undefined) =>
-    `${answers.filter(answer => answer.state === 'LISTED').map(answer => `${answer.tracker.name} ${read(answer) ?? 'none'}`).join(', ')} (Advanced can sync them)`
-  const differs = (field: string, read: (answer: PanelAnswer) => string | undefined) =>
+  const valuesOf = (read: (answer: CompactAnswer) => string | undefined) =>
+    answers.filter(answer => answer.state === 'LISTED').map(answer => `${answer.tracker.name} ${read(answer) ?? 'none'}`).join(', ')
+  const differs = (field: string, read: (answer: CompactAnswer) => string | undefined) =>
     row.differs.includes(field) ? <span className="differs" data-differs={field} title={valuesOf(read)}/> : undefined
 
   return (
@@ -414,7 +414,7 @@ const TrackingCompact = (
             const problem = answer.state === 'PAUSED' || answer.state === 'ERROR' ? own(answer, total) : undefined
             const title = [
               `${name}${answer.tracker.account ? `, ${answer.tracker.account}` : ''}: ${own(answer, total)}`,
-              countDiffers(answer, total) ? `${name} counts ${answer.entry!.episodeCount} episodes, so progress is saved there from Advanced` : undefined,
+              countDiffers(answer, total) ? `${name} counts ${answer.entry!.episodeCount} episodes, so the row does not save progress there` : undefined,
             ].filter(Boolean).join('. ')
             return (
               <label key={id} className={`chip${target.checked ? '' : ' off'}`} data-chip={id} title={title} aria-busy={busy ? 'true' : undefined}>
@@ -438,17 +438,6 @@ const TrackingCompact = (
               </label>
             )
           })}
-          <button
-            type="button"
-            className="advanced"
-            aria-label="Advanced tracking"
-            aria-expanded={prefs.advanced}
-            aria-controls="tracking-advanced"
-            onClick={() => onPrefs({ ...prefs, advanced: !prefs.advanced })}
-          >
-            <SlidersHorizontal size={16} aria-hidden="true"/>
-            <span className="word">Advanced</span>
-          </button>
         </div>
       </div>
       <div className="notes">

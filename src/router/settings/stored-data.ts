@@ -59,7 +59,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'quick-tracking',
     title: 'Quick tracking choices',
-    what: 'Whether the tracking row opens its advanced panel, and the trackers you chose not to save to.',
+    what: 'The trackers you chose not to save to from the tracking row.',
     where: LOCAL,
     lasts: 'Until you clear them',
     keys: { store: 'local', names: [COMPACT_PREFS_KEY] },

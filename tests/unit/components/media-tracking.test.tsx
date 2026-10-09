@@ -1,23 +1,22 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
-import type { PanelTracking } from '../../../src/components/tracking-panel'
+import type { CompactTracking } from '../../../src/tracking/compact'
 
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'SlidersHorizontal', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
-const tracking: PanelTracking = {
-  summary: { _id: 'summary:x', status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
+const tracking: CompactTracking = {
+  summary: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   disagreements: [],
   answers: [{
-    _id: 'answer:stub',
     state: 'LISTED',
     candidates: [],
     tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100' },
-    entry: { _id: 'stub:1', status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
+    entry: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   }],
 }
 const save = vi.fn(async (_variables: unknown) => ({ data: { saveListEntry: [{ tracker: 'stub', outcome: 'SAVED' }] } }))
@@ -47,24 +46,13 @@ const render = (store = createCompactPrefs(memory())) => {
   hosts.push(host)
   return host
 }
-const toggle = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('[aria-label="Advanced tracking"]')!
-
 describe('the media tracking', () => {
-  test('shows the row alone by default, the panel below it once Advanced is on, and remembers it', async () => {
-    const store = createCompactPrefs(memory())
-    const host = render(store)
-    expect(host.querySelector('.tracking-compact')).toBeTruthy()
-    expect(host.querySelector('#tracking-advanced')).toBeNull()
-
-    await act(async () => { toggle(host).click() })
-    expect(toggle(host).getAttribute('aria-expanded')).toBe('true')
-    const sections = [...host.querySelectorAll('section')].map(section => section.classList.contains('tracking-compact') ? 'row' : section.classList.contains('tracking') ? 'panel' : '?')
-    expect(sections).toEqual(['row', 'panel'])
-    expect(host.querySelector('#tracking-advanced .tracking')).toBeTruthy()
-    expect(store.read().advanced).toBe(true)
-
-    unmount(hosts.pop()!)
-    expect(render(store).querySelector('#tracking-advanced')).toBeTruthy()
+  test('shows the row and nothing else, even for a device that had the advanced panel open', () => {
+    const storage = memory()
+    storage.setItem('stub.tracking.compact', JSON.stringify({ advanced: true, targets: {} }))
+    const host = render(createCompactPrefs(storage))
+    expect([...host.querySelectorAll('section')].map(section => section.classList.contains('tracking-compact'))).toEqual([true])
+    expect(host.querySelector('#tracking-advanced, .tracking')).toBeNull()
   })
 
   test('a + saves to one tracker with only the fields it changed', async () => {
