@@ -85,7 +85,8 @@ export const YoutubeMinimalPlayer = (
     redirectTo?: Path
     volume?: number
     paused?: boolean
-    /** Called on a player error and on a url this component cannot address. Every call site takes no
+    /** Called on an embed error and on a url that names no video. The latest onError passed is the
+     *  one called, so a parent may pass a new function on every render. Every call site takes no
      *  argument, so it takes none: an error event object here would be invented rather than real. */
     onError?: () => void
   }
@@ -93,6 +94,12 @@ export const YoutubeMinimalPlayer = (
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const [isReady, setIsReady] = useState(false)
   const videoId = youtubeVideoId(url)
+  // READ THROUGH A REF, never a dependency: every parent keys its callback on live data the store
+  // keeps re-emitting, so a new one arrives long after the embed is ready. Re-running the handshake
+  // for it would hide a playing trailer for good, because the embed answers only the first
+  // `listening` with `onReady` and every later one with `alreadyInitialized` (measured 2026-10-09).
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
 
   const command = useCallback((func: string, args: unknown[] = []) => {
     frameRef.current?.contentWindow?.postMessage(
@@ -102,24 +109,28 @@ export const YoutubeMinimalPlayer = (
   }, [])
 
   // a url no shape matched is a miss the caller has to hear about, the same as a player error: the
-  // theater bans the title and picks another rather than showing a dead frame
+  // theater bans the title and picks another rather than showing a dead frame. Keyed on the url, so
+  // a second unaddressable url after a ban is reported too.
   useEffect(() => {
-    if (!videoId) onError?.()
-  }, [videoId, onError])
+    if (!videoId) onErrorRef.current?.()
+  }, [url, videoId])
 
   useEffect(() => {
     setIsReady(false)
-    if (!videoId) return
+    const frame = frameRef.current
+    if (!videoId || !frame) return
 
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== YOUTUBE_ORIGIN) return
-      if (event.source !== frameRef.current?.contentWindow) return
+      if (event.source !== frame.contentWindow) return
       let payload: { event?: string, info?: unknown }
       try {
         payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
       } catch { return }
-      if (payload?.event === 'onReady') { setIsReady(true); return }
-      if (payload?.event === 'onError') { onError?.(); return }
+      if (payload?.event === 'onReady') { clearInterval(handshake); setIsReady(true); return }
+      // an unavailable video sends this right after its `onReady` (error 150, measured 2026-10-09),
+      // as a separate message, so a commit showing the frame can land between the two
+      if (payload?.event === 'onError') { setIsReady(false); onErrorRef.current?.(); return }
       // BOTH SHAPES. Measured against a live embed on 2026-09-14: the current player reports state
       // through `infoDelivery` carrying `{ playerState }` and never sends `onStateChange` at all, so
       // reading only the documented event left this branch dead. Older embeds do send it.
@@ -137,7 +148,7 @@ export const YoutubeMinimalPlayer = (
     const handshake = setInterval(() => {
       attempts += 1
       if (attempts > LISTEN_ATTEMPTS) { clearInterval(handshake); return }
-      frameRef.current?.contentWindow?.postMessage(
+      frame.contentWindow?.postMessage(
         JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
         YOUTUBE_ORIGIN,
       )
@@ -147,9 +158,8 @@ export const YoutubeMinimalPlayer = (
       removeEventListener('message', onMessage)
       clearInterval(handshake)
     }
-  }, [videoId, onError, command])
+  }, [videoId, command])
 
-  // the handshake keeps running until ready, so stopping it is the job of the ready state
   useEffect(() => {
     if (!isReady) return
     if (volume === 0) command('mute')
