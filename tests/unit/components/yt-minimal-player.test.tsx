@@ -213,7 +213,7 @@ test('a silent embed is reported to the latest onError', () => {
 })
 
 // Pins the ref: dropping onError from the effect's dependencies alone would call the first one
-// forever, and the modal's first one spreads a stale list of banned trailers.
+// forever, and the modal's first one spreads a stale list of dropped trailers.
 test('an embed error reaches the latest onError', () => {
   const first = vi.fn()
   const latest = vi.fn()
@@ -227,7 +227,7 @@ test('an embed error reaches the latest onError', () => {
 })
 
 // An unavailable video answers `onReady` and then `onError` 150 as two messages (measured on a live
-// embed 2026-10-09). The theater keeps the errored url once every candidate is banned, so the frame
+// embed 2026-10-09). The theater keeps the errored url once every candidate is dropped, so the frame
 // has to stay hidden through a new onError, and the answer it gave must not read as silence later.
 test('an embed error hides the frame for good while the parent keeps the url', () => {
   const onError = vi.fn()
@@ -244,7 +244,7 @@ test('an embed error hides the frame for good while the parent keeps the url', (
   expect(onError, 'reported once').toHaveBeenCalledTimes(1)
 })
 
-// What a parent does on an error: ban that trailer and pass the next one, which has to show.
+// What a parent does on an error: drop that trailer and pass the next one, which has to show.
 test('an embed error belongs to its video: the next trailer still shows', () => {
   const { frame, embed, rerender } = player({ url: TRAILER, onError: () => {} })
   embed().error = 150
@@ -284,7 +284,7 @@ test('a url that names no video is reported once per url, to the latest onError'
   rerender({ url: 'https://example.com/trailer.mp4', onError: latest })
   expect(latest, 'the same url was already reported').not.toHaveBeenCalled()
 
-  // what follows a ban when the next trailer cannot be addressed either
+  // what follows a drop when the next trailer cannot be addressed either
   rerender({ url: 'https://vimeo.com/1', onError: latest })
   expect(latest).toHaveBeenCalledTimes(1)
   expect(first).toHaveBeenCalledTimes(1)
