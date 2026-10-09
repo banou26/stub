@@ -165,3 +165,13 @@ test('the trailer box is 16:9, the shape the player fills without cropping the p
   expect(trailer, 'the .trailer block was not found, so this test read nothing').toContain('position: relative;')
   expect(trailer).toContain('aspect-ratio: 16 / 9;')
 })
+
+// A portrait poster in a 16:9 box keeps only a band of itself, and centred that band is the poster's
+// middle, below the faces (measured headless: center 20% shows all four faces of the reviewed poster).
+test('the cover fallback in the 16:9 box shows the top of the poster, not its middle', () => {
+  const source = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
+  const trailer = /\n {2}\.trailer \{\n([^{}]*)\n {4}\.player \{/.exec(source)?.[1]
+  const y = /background-position: center (\d+)%;/.exec(trailer ?? '')?.[1]
+  expect(y, 'the .trailer block names no vertical background position').toBeDefined()
+  expect(Number(y)).toBeLessThan(50)
+})

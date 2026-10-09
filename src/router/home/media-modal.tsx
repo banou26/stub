@@ -75,7 +75,8 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
     aspect-ratio: 16 / 9;
     background-size: cover;
-    background-position: center;
+    /* the cover fallback is a portrait poster: its faces sit in the top third, not the middle band */
+    background-position: center 20%;
     .player {
       border-radius: 1rem 1rem 0 0;
       overflow: hidden;
