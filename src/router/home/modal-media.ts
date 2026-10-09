@@ -1,6 +1,6 @@
 // Which listed card, if any, the media route is showing. Kept pure and free of the component's
-// imports so it can be tested: media-modal.tsx reaches @floating-ui/react, which resolves `react`
-// through vite's preact alias and therefore cannot load under vitest at all.
+// imports so it can be tested: media-modal.tsx reaches urql, whose CommonJS `require('react')` no
+// alias intercepts, and therefore cannot load under vitest at all.
 
 import { fromAggregatedUri, isAggregatedUri, isRoutableUri, type AggregatedUri } from '../../utils/uri'
 

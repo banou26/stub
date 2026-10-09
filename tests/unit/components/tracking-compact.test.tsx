@@ -50,7 +50,13 @@ const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   vi.useRealTimers()
+  delete (document as { activeElement?: Element }).activeElement
 })
+
+// linkedom tracks no focus, so this says which element a browser would report as focused
+const focusOn = (element: Element) => {
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => element })
+}
 
 type Props = Partial<Parameters<typeof TrackingCompact>[0]>
 
@@ -75,11 +81,12 @@ const render = (props: Props = {}, store = createCompactPrefs(memory())) => {
 const q = <T extends Element = HTMLElement>(host: HTMLElement, selector: string) => host.querySelector<T & HTMLElement>(selector)!
 const named = (host: HTMLElement, name: string) => q(host, `[aria-label="${name}"]`)
 const click = async (element: HTMLElement) => { await act(async () => { element.click() }) }
-const fire = async (element: HTMLElement, type: string, extra: Record<string, unknown> = {}) => {
-  await act(async () => { element.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), extra)) })
+const fire = async (target: EventTarget, type: string, extra: Record<string, unknown> = {}) => {
+  await act(async () => { target.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), extra)) })
 }
+// the row's own menu comes first, so on the whole row this is the row's and on a card the card's
 const pickStatus = async (host: HTMLElement, value: string) => {
-  const select = q<HTMLSelectElement>(host, 'select[name="compact-status"]')
+  const select = q<HTMLSelectElement>(host, 'select')
   // linkedom's select has a getter alone
   Object.defineProperty(select, 'value', { value, configurable: true })
   await fire(select, 'change')
@@ -89,6 +96,20 @@ const tick = async (input: HTMLInputElement, on: boolean) => {
   await fire(input, 'change')
 }
 const settle = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+const wait = async (ms: number) => {
+  if (vi.isFakeTimers()) await settle(ms)
+  else await act(async () => { await new Promise(resolve => setTimeout(resolve, ms)) })
+}
+const chip = (host: HTMLElement, id: string) => q(host, `[data-chip="${id}"]`)
+const cardOf = (host: HTMLElement, id: string) => host.querySelector<HTMLElement>(`[data-card="${id}"]`)
+// linkedom delivers an event to preact's handlers only on the element it is dispatched on, so these
+// fire on the chip itself what a browser bubbles up to it
+const hover = async (host: HTMLElement, id: string, pointerType = 'mouse') => {
+  await fire(chip(host, id), 'pointerenter', { pointerType })
+  await fire(chip(host, id), 'mouseenter')
+  await wait(150)
+  return cardOf(host, id)!
+}
 
 describe('the compact tracking row', () => {
   test('lays out star, status, episodes, then the chips, with no advanced toggle', () => {
@@ -248,6 +269,11 @@ describe('the compact tracking row', () => {
     expect(signIn, 'called synchronously, inside the click').toHaveBeenCalledTimes(1)
     await act(async () => {})
     expect(named(host, 'Log in to MyAnimeList').textContent).toBe('Logging in')
+    await hover(host, 'mal')
+    const logins = [...host.querySelectorAll<HTMLButtonElement>('[aria-label="Log in to MyAnimeList"]')]
+    expect(logins.map(login => [login.textContent, login.disabled]), "the chip's and the card's").toEqual([['Logging in', true], ['Logging in', true]])
+    logins[1]!.click()
+    expect(signIn, 'one window at a time').toHaveBeenCalledTimes(1)
     await act(async () => {
       finish('blocked')
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -330,10 +356,244 @@ describe('the compact tracking row', () => {
     expect(host.querySelector('[data-differs="STATUS"]')).toBeNull()
   })
 
-  test('a tracker that counts other episodes says the row leaves its progress alone', () => {
-    const { host } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub] } })
-    const title = q(host, '[data-chip="anilist"]').title
-    expect(title).toContain('AniList counts 28 episodes, so the row does not save progress there')
-    expect(title).not.toMatch(/advanced|sync/i)
+  test("unchecking a chip drops the row's waiting change for it, never what its own card holds", async () => {
+    vi.useFakeTimers()
+    const row = render()
+    await click(q(q(row.host, '.row > .edit'), '.more'))
+    await tick(q(row.host, 'input[name="compact-target-anilist"]'), false)
+    await settle(1000)
+    expect(row.onSaveFields.mock.calls.map(([targets]) => targets[0])).toEqual(['stub'])
+
+    const card = render()
+    await click(q(await hover(card.host, 'stub'), '.more'))
+    await tick(q(card.host, 'input[name="compact-target-stub"]'), false)
+    await settle(1000)
+    expect(card.onSaveFields.mock.calls).toEqual([[['stub'], { status: 'WATCHING', progress: 1 }]])
+
+    // the card's 14 and the row's 11 wait as one write to AniList
+    const both = render({ tracking: { ...tracking, summary: { ...tracking.summary!, progress: 10 }, disagreements: ['PROGRESS'] } })
+    await click(q(await hover(both.host, 'anilist'), '.more'))
+    await click(q(q(both.host, '.row > .edit'), '.more'))
+    await tick(q(both.host, 'input[name="compact-target-anilist"]'), false)
+    await settle(1000)
+    expect(both.onSaveFields.mock.calls.filter(([targets]) => targets[0] === 'anilist')).toEqual([[['anilist'], { progress: 14 }]])
+
+    // a card's removal already sent is not sent again
+    const removed = render()
+    await pickStatus(await hover(removed.host, 'anilist'), 'REMOVE')
+    await click(q(q(removed.host, '.row > .edit'), '.more'))
+    await tick(q(removed.host, 'input[name="compact-target-anilist"]'), false)
+    await settle(1000)
+    expect(removed.onRemove.mock.calls).toEqual([[['anilist']]])
+    expect(removed.onSaveFields.mock.calls.map(([targets]) => targets[0])).toEqual(['stub'])
+  })
+
+  test("unchecking a chip keeps a removal its card made while that tracker's save was in flight", async () => {
+    vi.useFakeTimers()
+    const { host, onSaveFields, onRemove } = render()
+    let land = () => {}
+    onSaveFields.mockImplementation(async (targets: string[]) => {
+      if (targets[0] === 'anilist') await new Promise<void>(resolve => { land = resolve })
+      return targets.map(tracker => ({ tracker, outcome: 'SAVED' }))
+    })
+    await click(q(await hover(host, 'anilist'), '.more'))
+    await settle(1000)
+    await pickStatus(cardOf(host, 'anilist')!, 'REMOVE')
+    await tick(q(host, 'input[name="compact-target-anilist"]'), false)
+    await act(async () => { land() })
+    await settle(3000)
+    expect(onSaveFields.mock.calls).toEqual([[['anilist'], { progress: 14 }]])
+    expect(onRemove.mock.calls).toEqual([[['anilist']]])
+  })
+
+  test('a tracker that counts other episodes gets no progress from the row, and its card says so and takes it', async () => {
+    vi.useFakeTimers()
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub] } })
+    await click(q(q(host, '.row > .edit'), '.more'))
+    await settle(1000)
+    expect(onSaveFields.mock.calls.map(([targets]) => targets[0])).toEqual(['stub'])
+    expect(q(host, '[data-note="anilist"]').textContent)
+      .toBe("AniList counts 28 episodes, so the row leaves its progress alone: set it on AniList's card, from its logo.")
+    expect(host.querySelector('[data-note="stub"]'), 'the control: stub counts what the row counts').toBeNull()
+
+    onSaveFields.mockClear()
+    const card = await hover(host, 'anilist')
+    expect(card.textContent).toContain('AniList counts 28 episodes, so the row leaves its progress alone: set it here.')
+    expect(card.textContent).not.toMatch(/advanced|sync/i)
+    expect(q(card, '.of').textContent, 'counted on its own episodes').toBe('/ 28')
+    await click(q(card, '.more'))
+    await settle(1000)
+    expect(onSaveFields.mock.calls).toEqual([[['anilist'], { progress: 14 }]])
+  })
+})
+
+describe("a tracker's card", () => {
+  test("opens on hover over the chip, with that tracker's own entry in the same controls as the row", async () => {
+    const { host } = render()
+    expect(cardOf(host, 'anilist')).toBeNull()
+    const card = await hover(host, 'anilist')
+    expect(card.getAttribute('role')).toBe('dialog')
+    expect(card.textContent).toContain('AniList')
+    expect(card.textContent).toContain('banou')
+    expect(named(card, 'Score, 6 out of 10'), 'its own score, where the row shows the summary 8').toBeTruthy()
+    expect(q<HTMLInputElement>(card, 'input[type="number"]').value).toBe('13')
+    expect([...card.querySelectorAll('select option')].map(option => option.textContent)).toContain('Remove from list')
+    expect(named(chip(host, 'anilist'), 'AniList entry').getAttribute('aria-expanded')).toBe('true')
+  })
+
+  test('a change on a card goes to that tracker alone, checked or not', async () => {
+    const { host, onSaveFields, onRemove } = render()
+    await tick(q(host, 'input[name="compact-target-stub"]'), false)
+    const stubCard = await hover(host, 'stub')
+    await pickStatus(stubCard, 'PLANNING')
+    expect(onSaveFields.mock.calls).toEqual([[['stub'], { status: 'PLANNING', progress: 0 }]])
+
+    onSaveFields.mockClear()
+    const anilistCard = await hover(host, 'anilist')
+    await pickStatus(anilistCard, 'REMOVE')
+    expect(onRemove.mock.calls).toEqual([[['anilist']]])
+    expect(onSaveFields).not.toHaveBeenCalled()
+  })
+
+  test('the card of a tracker that lists nothing offers Add to list, no Remove from list, and a star that waits for a status', async () => {
+    const { host } = render()
+    const card = await hover(host, 'stub')
+    const options = [...card.querySelectorAll('select option')].map(option => option.textContent)
+    expect(options).toContain('Add to list')
+    expect(options).not.toContain('Remove from list')
+    expect(q<HTMLButtonElement>(card, '.star').disabled).toBe(true)
+  })
+
+  test("a card's star is on its own tracker's scale, not the row's", async () => {
+    const stubListed: CompactAnswer = { ...stub, state: 'LISTED', entry: { status: 'WATCHING', progress: 2, score: 80, episodeCount: 14 } }
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stubListed] } })
+    expect(named(q(host, '.row > .edit'), 'Score, 8 out of 10'), 'the row is on AniList\'s ten points').toBeTruthy()
+    expect(named(await hover(host, 'stub'), 'Score, 80 out of 100')).toBeTruthy()
+  })
+
+  test("a card keeps the viewer's pick until its own tracker answers with it, whatever the row shows", async () => {
+    const { host, onSaveFields, setTracking } = render()
+    onSaveFields.mockImplementation(() => new Promise(() => {}))
+    await pickStatus(await hover(host, 'stub'), 'WATCHING')
+    await setTracking({ ...tracking })
+    expect(q(cardOf(host, 'stub')!, 'select').textContent, 'the row reads Watching, and stub has not answered').not.toContain('Add to list')
+  })
+
+  test("once its tracker answers with the viewer's value, a card shows what the tracker holds next", async () => {
+    const { host, setTracking } = render()
+    await click(q(await hover(host, 'anilist'), '.more'))
+    const input = () => q<HTMLInputElement>(cardOf(host, 'anilist')!, 'input[type="number"]')
+    expect(input().value).toBe('14')
+    await setTracking({ ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, progress: 14 } }, mal, stub] })
+    await setTracking({ ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, progress: 9 } }, mal, stub] })
+    expect(input().value, 'set elsewhere since').toBe('9')
+  })
+
+  test('+ clicks on a card show at once and save once, after a second of quiet, to that tracker', async () => {
+    vi.useFakeTimers()
+    const long: CompactTracking = {
+      ...tracking,
+      summary: { ...tracking.summary!, episodeCount: 28 },
+      answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub],
+    }
+    const { host, onSaveFields } = render({ tracking: long })
+    const card = await hover(host, 'anilist')
+    await click(q(card, '.more'))
+    await click(q(card, '.more'))
+    expect(q<HTMLInputElement>(card, 'input[type="number"]').value).toBe('15')
+    expect(q<HTMLInputElement>(host, '#compact-progress').value, 'the row keeps the summary').toBe('13')
+    expect(onSaveFields).not.toHaveBeenCalled()
+    await settle(1000)
+    expect(onSaveFields.mock.calls).toEqual([[['anilist'], { progress: 15 }]])
+  })
+
+  test('Escape and a press outside close it, and Escape inside it hands focus back to the logo', async () => {
+    const { host } = render()
+    await hover(host, 'anilist')
+    // linkedom bubbles nothing up to the document, so the press lands there directly
+    await fire(document, 'pointerdown', { pointerType: 'mouse', button: 0 })
+    expect(cardOf(host, 'anilist'), 'closed by a press outside').toBeNull()
+
+    const logo = named(chip(host, 'anilist'), 'AniList entry')
+    const focus = vi.spyOn(logo, 'focus')
+    await hover(host, 'anilist')
+    await fire(document, 'keydown', { key: 'Escape' })
+    expect(cardOf(host, 'anilist'), 'closed by Escape').toBeNull()
+    expect(focus, 'focus was not in the card').not.toHaveBeenCalled()
+
+    const card = await hover(host, 'anilist')
+    focusOn(q(card, '.more'))
+    await fire(document, 'keydown', { key: 'Escape' })
+    expect(cardOf(host, 'anilist')).toBeNull()
+    expect(focus).toHaveBeenCalledTimes(1)
+  })
+
+  test('stays open while focus is inside it, wherever the pointer goes', async () => {
+    const { host } = render()
+    await hover(host, 'stub')
+    await fire(document.documentElement, 'mouseleave')
+    expect(cardOf(host, 'stub'), 'the control: a pointer leaving closes it').toBeNull()
+
+    const card = await hover(host, 'stub')
+    focusOn(q(card, 'input[type="number"]'))
+    await fire(document.documentElement, 'mouseleave')
+    expect(cardOf(host, 'stub')).toBeTruthy()
+  })
+
+  test("a paused or failing tracker's card says why in its own words, and nothing in it can be changed", async () => {
+    const paused: CompactAnswer = { ...anilist, state: 'PAUSED', entry: null }
+    const failing: CompactAnswer = { ...stub, state: 'ERROR', error: 'Stub is down' }
+    const { host } = render({ tracking: { ...tracking, answers: [paused, mal, failing] } })
+    for (const [id, why] of [['anilist', 'Paused for a while'], ['stub', 'Stub is down']] as const) {
+      const card = await hover(host, id)
+      expect(card.textContent).toContain(why)
+      for (const selector of ['.star', 'select', 'input[type="number"]', '.more']) {
+        expect(q<HTMLButtonElement>(card, selector).disabled, `${id} ${selector}`).toBe(true)
+      }
+    }
+  })
+
+  test('opening a card closes the one open before it, but a hover never takes over a card holding focus', async () => {
+    const { host } = render()
+    await hover(host, 'stub')
+    await hover(host, 'mal')
+    expect(cardOf(host, 'stub'), 'one card at a time').toBeNull()
+
+    focusOn(q(await hover(host, 'stub'), 'input[type="number"]'))
+    await hover(host, 'mal')
+    expect(cardOf(host, 'stub'), 'still being typed in').toBeTruthy()
+    expect(cardOf(host, 'mal')).toBeNull()
+    await click(named(chip(host, 'mal'), 'MyAnimeList entry'))
+    expect(cardOf(host, 'mal'), 'a press on its logo moves to it').toBeTruthy()
+    expect(cardOf(host, 'stub')).toBeNull()
+  })
+
+  test('opens on keyboard focus inside the chip', async () => {
+    const { host } = render()
+    await fire(chip(host, 'stub'), 'focusin')
+    expect(cardOf(host, 'stub')).toBeTruthy()
+  })
+
+  test('on a touch screen a touch is no hover, and a tap on the logo opens it without checking or unchecking', async () => {
+    const { host, store } = render()
+    expect(await hover(host, 'anilist', 'touch'), 'a touch is not a hover').toBeNull()
+    const logo = named(chip(host, 'anilist'), 'AniList entry')
+    await fire(logo, 'pointerdown', { pointerType: 'touch' })
+    await click(logo)
+    expect(cardOf(host, 'anilist')).toBeTruthy()
+    expect(store.read().targets, 'the logo is not the check').toEqual({})
+  })
+
+  test('a signed out tracker offers its sign in, and one that cannot track says why', async () => {
+    const signIn = vi.fn(() => new Promise<WindowSignIn>(() => {}))
+    const ambiguous: CompactAnswer = { ...stub, state: 'AMBIGUOUS', candidates: ['stub:1', 'stub:2'], tracker: { ...stub.tracker, id: 'kitsu', name: 'Kitsu' } }
+    const { host } = render({ signIns: { mal: signIn }, tracking: { ...tracking, answers: [anilist, mal, ambiguous] } })
+    const malCard = await hover(host, 'mal')
+    expect(malCard.textContent).toContain('Signed out')
+    button(malCard, 'Log in')!.click()
+    expect(signIn).toHaveBeenCalledTimes(1)
+    const kitsuCard = await hover(host, 'kitsu')
+    expect(kitsuCard.textContent).toContain('Kitsu cannot track this media: Names stub:1 and stub:2, cannot tell which')
+    expect(kitsuCard.querySelector('select')).toBeNull()
   })
 })

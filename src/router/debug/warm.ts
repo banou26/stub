@@ -12,9 +12,9 @@
 // writes into the graph, which is what a pass then clusters. Then it traces again.
 //
 // ITS OWN DOCUMENT, NOT THE MODAL'S. `src/router/home/media-modal.tsx` cannot be imported outside a
-// browser build at all (it reaches @floating-ui/react, which resolves `react` through vite's preact
-// alias, so a test importing it dies on a missing package: `tests/unit/router/modal-media.test.ts`
-// records the measurement). Reaching for its document would drag that whole module in. This one is
+// browser build at all (it reaches urql, whose CommonJS `require('react')` no alias intercepts, so a
+// test importing it dies on a missing module: `tests/unit/router/modal-media.test.ts` records the
+// measurement). Reaching for its document would drag that whole module in. This one is
 // narrower on purpose and asks for exactly the fields whose resolvers fan out: the handles, so every
 // origin claiming this work is asked, and the episodes, so their lists arrive too. Nothing here is
 // rendered, so a field that exists only for drawing is a request nobody reads.

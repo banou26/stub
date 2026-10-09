@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite-plus'
 
 // What cannot be imported here is a WORKER RESOLVER: src/worker/resolvers/*/index.ts reaches
 // src/worker/extractor.ts and, through urql, a CommonJS `require('react')` that no resolve alias
@@ -71,6 +71,9 @@ export default defineConfig({
     // @banou/media-player and @videojs are inlined so their `react` imports reach the alias, which
     // is what lets tests/unit/sources/crunchyroll/seek-preview.test.tsx render the real seek bar. Its
     // CommonJS icon and tooltip libraries still cannot be, so that test mocks those two.
-    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//] } },
+    //
+    // @floating-ui/react likewise, so the tracking row's chip cards render here: externalized, its
+    // `import 'react'` dies with "Cannot find package 'react'".
+    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//, /@floating-ui\//] } },
   },
 })

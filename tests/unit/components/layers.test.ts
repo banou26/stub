@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import { expect, describe, test } from 'vitest'
+import { expect, describe, test } from 'vite-plus/test'
 
 import { FKN_OVERLAY, layer } from '../../../src/layers'
 
@@ -85,6 +85,10 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
   'src/components/media-franchise.tsx': {
     values: [1],
     why: "the kind filter over the graph canvas, inside the dialog's own sheet",
+  },
+  'src/components/tracking-compact.tsx': {
+    values: [2],
+    why: "a tracker's card, fixed but not portalled, so it orders inside the media modal: over the episode rows' links at 1",
   },
   'src/components/score-picker.tsx': {
     values: [1],

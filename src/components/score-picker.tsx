@@ -1,4 +1,5 @@
 import { css } from '@emotion/react'
+import { autoUpdate, flip, offset, useFloating, useMergeRefs } from '@floating-ui/react'
 import { Frown, Meh, Smile, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -14,9 +15,6 @@ const style = css`
   display: flex;
 
   .menu {
-    position: absolute;
-    top: calc(100% + 0.6rem);
-    left: 0;
     /* over the description below, inside the row; not a page layer */
     z-index: 1;
     width: max-content;
@@ -66,6 +64,15 @@ const ScorePicker = (
   const [exact, setExact] = useState('')
   const root = useRef<HTMLSpanElement>(null)
   const star = useRef<HTMLButtonElement>(null)
+  // over the star when there is no room under it: a tracker's card is fixed, so nothing would scroll
+  // a menu running off its bottom into view
+  const { refs, floatingStyles } = useFloating({
+    open,
+    placement: 'bottom-start',
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(6), flip({ padding: 8 })],
+  })
+  const starRef = useMergeRefs([star, refs.setReference])
   const scored = isScored(score)
   const current = scored ? nativeScore(score, scale) : undefined
 
@@ -111,7 +118,7 @@ const ScorePicker = (
   return (
     <span css={style} ref={root}>
       <button
-        ref={star}
+        ref={starRef}
         type="button"
         className="star"
         aria-label={`Score, ${scored ? nameOf(score, scale) : 'none'}`}
@@ -126,7 +133,7 @@ const ScorePicker = (
       </button>
       {open
         ? (
-          <div className="menu" role="dialog" aria-label="Score" onKeyDown={onKeyDown}>
+          <div ref={refs.setFloating} style={floatingStyles} className="menu" role="dialog" aria-label="Score" onKeyDown={onKeyDown}>
             <div className={`grid${scale === 'POINT_3' ? ' faces' : ''}`}>
               {PICKS[scale]!.map((value, index) => {
                 const native = nativeScore(value, scale)

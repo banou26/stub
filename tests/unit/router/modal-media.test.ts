@@ -23,11 +23,11 @@
 // staying honest, since nothing on that page names Cowboy Bebop; the store fills it a beat later.
 //
 // The rule is tested through `src/router/home/modal-media.ts` because media-modal.tsx cannot be
-// imported here at all: it reaches @floating-ui/react, which resolves `react` through vite's preact
-// alias, and vitest.config.ts carries no plugins, so the import dies with "Cannot find package
-// 'react'". The `tests/unit/components/dom.ts` harness does not help, and it was measured rather
-// than assumed: importing the modal behind it fails identically, since what is missing is a package
-// and not a document. The component's own shape is therefore read off the source below, each
+// imported here at all: it reaches urql, whose CommonJS `require('react')` no resolve alias
+// intercepts, so the import dies with "Cannot find module 'react'" (measured 2026-10-10). The
+// `tests/unit/components/dom.ts` harness does not help, and it was measured rather than assumed:
+// importing the modal behind it fails identically, since what is missing is a module and not a
+// document. The component's own shape is therefore read off the source below, each
 // assertion with a control, the way tests/unit/components/chrome.test.ts reads css it cannot lay out.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

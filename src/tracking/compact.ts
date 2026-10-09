@@ -14,6 +14,8 @@ export type CompactAnswer = {
   state: string
   candidates: string[]
   error?: string | null
+  /** How many episodes the tracker counts for the media, listed or not. */
+  episodeCount?: number | null
   tracker: {
     id: string
     name: string
@@ -22,6 +24,8 @@ export type CompactAnswer = {
     icon?: string | null
     color?: string | null
     account?: string | null
+    /** What a write to this tracker does beyond the list itself. */
+    writeNotice?: string | null
   }
   entry?: CompactEntry | null
 }
@@ -77,6 +81,37 @@ export const rowOf = (
   }
 }
 
+const countOf = (answer: CompactAnswer) => answer.entry?.episodeCount ?? answer.episodeCount
+
+/**
+ * One tracker's own entry as a row, which is what its card shows and changes: counted on the episodes
+ * that tracker counts, so progress there means what it means on that tracker.
+ */
+export const rowOfEntry = (answer: CompactAnswer, total: number | null): Row => ({
+  status: answer.entry?.status ?? null,
+  progress: answer.entry?.progress ?? 0,
+  score: isScored(answer.entry?.score) ? answer.entry!.score! : null,
+  total: countOf(answer) ?? total,
+  differs: [],
+})
+
+/** A row with the viewer's own values over it, while the trackers have not answered with them. */
+export const shownOf = (row: Row, mine: Fields = {}): Row => ({
+  ...row,
+  ...(mine.status !== undefined ? { status: mine.status } : {}),
+  ...(mine.progress !== undefined ? { progress: mine.progress } : {}),
+  ...(mine.score !== undefined ? { score: mine.score } : {}),
+})
+
+/** The viewer's own values that `row` does not show yet. */
+export const unsettled = (mine: Fields, row: Row): Fields => {
+  const left = { ...mine }
+  if (left.status === row.status) delete left.status
+  if (left.progress === row.progress) delete left.progress
+  if (left.score !== undefined && (left.score ?? null) === row.score) delete left.score
+  return left
+}
+
 export type Target =
   | { kind: 'check', checked: boolean, sendable: boolean }
   | { kind: 'login' }
@@ -98,11 +133,12 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
 }
 
 /**
- * Whether a tracker counts the media in other episodes than the row does, which makes the row's
- * progress mean something else there (AniList's 24 episode entry against MyAnimeList's 12 episode part).
+ * Whether a tracker counts the media in other episodes than the row does, listed or not, which makes
+ * the row's progress mean something else there (AniList's 24 episode entry against MyAnimeList's 12
+ * episode part).
  */
 export const countDiffers = (answer: CompactAnswer, total: number | null) => {
-  const own = answer.entry?.episodeCount
+  const own = countOf(answer)
   return own != null && total != null && own !== total
 }
 
@@ -190,6 +226,7 @@ export const createSaveQueue = (
   }
 ) => {
   const waiting = new Map<string, Fields>()
+  const fromCards = new Map<string, Fields>()
   const released = new Set<string>()
   const flying = new Map<string, Fields>()
   const failed = new Map<string, { fields: Fields, error: string }>()
@@ -200,6 +237,7 @@ export const createSaveQueue = (
     const fields = waiting.get(tracker)
     if (!fields || !released.has(tracker) || flying.has(tracker)) return
     waiting.delete(tracker)
+    fromCards.delete(tracker)
     released.delete(tracker)
     flying.set(tracker, fields)
     const settle = (outcome: string, error?: string | null) => {
@@ -229,12 +267,13 @@ export const createSaveQueue = (
   }
 
   return {
-    stage: (patches: Record<string, Fields>, immediate: boolean) => {
+    stage: (patches: Record<string, Fields>, immediate: boolean, fromCard = false) => {
       for (const [tracker, fields] of Object.entries(patches)) {
         const carried = failed.get(tracker)?.fields
         failed.delete(tracker)
         refused.delete(tracker)
         waiting.set(tracker, merge(merge(carried, waiting.get(tracker)), fields))
+        if (fromCard) fromCards.set(tracker, merge(fromCards.get(tracker), fields))
       }
       if (immediate) flush()
       else {
@@ -258,10 +297,17 @@ export const createSaveQueue = (
       next(tracker)
       onChange()
     },
-    /** Forgets everything waiting for a tracker the viewer stopped writing to. */
+    /**
+     * Forgets what waits for a tracker the viewer stopped writing to, but for what its card staged
+     * (`fromCard`), which goes to that tracker whether or not the row does.
+     */
     drop: (tracker: string) => {
-      waiting.delete(tracker)
-      released.delete(tracker)
+      const card = fromCards.get(tracker)
+      if (card) waiting.set(tracker, card)
+      else {
+        waiting.delete(tracker)
+        released.delete(tracker)
+      }
       failed.delete(tracker)
       refused.delete(tracker)
       onChange()

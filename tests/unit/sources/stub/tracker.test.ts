@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 import type { CatalogLookup } from '../../../../src/tracking/identity'
 
 import { aggregateTracking } from '../../../../src/tracking/aggregate'
-import { patchFor, rowOf } from '../../../../src/tracking/compact'
+import { patchFor, rowOf, rowOfEntry } from '../../../../src/tracking/compact'
 import { openJournal, type Journal } from '../../../../src/tracking/journal'
 import { stubTrackerResolvers } from '../../../../src/sources/stub/tracker-resolvers'
 import { SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT, DELETE_LIST_ENTRY_DOCUMENT } from '../../../../src/worker/tracking-document'
@@ -67,6 +67,7 @@ describe('the stub tracker', () => {
     const row = rowOf(aggregateTracking('ag:(anilist:1)', [answer]), 13)
     expect(row.total).toBe(13)
     expect(patchFor(answer, { progress: 13 }, row), 'so the row can record it').toEqual({ progress: 13 })
+    expect(rowOfEntry(answer, row.total).total, 'and so can its card').toBe(13)
   })
 
   test('finds the entry again from another uri of the same run, and after the page is reloaded', async () => {

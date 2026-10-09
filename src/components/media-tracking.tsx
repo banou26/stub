@@ -38,6 +38,7 @@ const MEDIA_TRACKING = gql(`
           canWrite
           account
           scoreScale
+          writeNotice
         }
         entry {
           _id

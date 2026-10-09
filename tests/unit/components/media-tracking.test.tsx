@@ -1,22 +1,25 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
+import { buildASTSchema, executeSync, type DocumentNode } from 'graphql'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
-import type { CompactTracking } from '../../../src/tracking/compact'
+import { typeDefs } from '../../../src/generated/schema/typeDefs.generated'
 
 vi.mock('lucide-react', () => Object.fromEntries(
   ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
-const tracking: CompactTracking = {
-  summary: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
+const tracking = {
+  _id: 'tracking:media:1',
+  summary: { _id: 'summary:media:1', status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   disagreements: [],
   answers: [{
+    _id: 'answer:stub:media:1',
     state: 'LISTED',
     candidates: [],
-    tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100' },
-    entry: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
+    tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100', writeNotice: 'A save here shows on your public profile.' },
+    entry: { _id: 'stub:1', status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   }],
 }
 // every mutation the page sends, by operation name
@@ -26,8 +29,12 @@ const mutate = (operation: string) => async ({ input }: { input: (typeof sent)[n
   const outcomes = input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' }))
   return { data: { saveListEntry: outcomes, deleteListEntry: outcomes } }
 }
+// a subscription is answered by running its own document against the worker's schema, so the page
+// sees exactly the fields it asks for
+const schema = buildASTSchema(typeDefs)
 vi.mock('urql', () => ({
-  useSubscription: () => [{ data: { tracking } }],
+  useSubscription: ({ query, variables }: { query: DocumentNode, variables?: Record<string, unknown> }) =>
+    [{ data: executeSync({ schema, document: query, rootValue: { tracking }, variableValues: variables }).data }],
   useMutation: (document: { definitions: { name?: { value: string } }[] }) => [{}, mutate(document.definitions[0]?.name?.value ?? '')],
 }))
 vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {} }))
@@ -79,5 +86,11 @@ describe('the media tracking', () => {
     Object.defineProperty(select, 'value', { value: 'REMOVE', configurable: true })
     await act(async () => { select.dispatchEvent(new Event('change', { bubbles: true })) })
     expect(sent).toEqual([{ operation: 'DeleteListEntry', input: { uri: 'media:1', trackers: ['stub'] } }])
+  })
+
+  test("a tracker's card says what a write there does beyond the list", async () => {
+    const host = render()
+    await act(async () => { host.querySelector('[data-chip="stub"]')!.dispatchEvent(new Event('focusin', { bubbles: true })) })
+    expect(host.querySelector('[data-card="stub"]')!.textContent).toContain('A save here shows on your public profile.')
   })
 })

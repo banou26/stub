@@ -4,7 +4,7 @@ import type { TrackerAnswer } from '../../../src/generated/schema/types.generate
 import type { CompactAnswer, Fields, Outcome, Row } from '../../../src/tracking/compact'
 
 import { aggregateTracking } from '../../../src/tracking/aggregate'
-import { createSaveQueue, patchFor, pickerScale, rowOf, targetOf, written } from '../../../src/tracking/compact'
+import { createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, targetOf, written } from '../../../src/tracking/compact'
 
 const answer = (id: string, state: string, entry?: CompactAnswer['entry'], extra: Partial<CompactAnswer> = {}): CompactAnswer =>
   ({ state, candidates: [], tracker: { id, name: id, canWrite: true, scoreScale: 'POINT_100' }, entry, ...extra })
@@ -36,6 +36,15 @@ describe('rowOf', () => {
   test('nothing listed gives no status, 0 and the page total', () => {
     expect(rowOf(aggregateTracking('m', []), 28)).toEqual({ status: null, progress: 0, score: null, total: 28, differs: [] })
     expect(rowOf(undefined).total).toBe(null)
+  })
+})
+
+describe('rowOfEntry', () => {
+  test("one tracker's own values, counted on its entry's episodes, else its count for the media, else the page's", () => {
+    expect(rowOfEntry(answer('a', 'LISTED', { status: 'PAUSED', progress: 3, score: 60, episodeCount: 24 }, { episodeCount: 12 }), 14))
+      .toEqual({ status: 'PAUSED', progress: 3, score: 60, total: 24, differs: [] })
+    expect(rowOfEntry(answer('a', 'NOT_LISTED', null, { episodeCount: 12 }), 14)).toEqual({ status: null, progress: 0, score: null, total: 12, differs: [] })
+    expect(rowOfEntry(answer('a', 'NOT_LISTED'), 14).total).toBe(14)
   })
 })
 
@@ -80,6 +89,13 @@ describe('patchFor', () => {
     const other = answer('a', 'LISTED', { episodeCount: 12 })
     expect(patchFor(other, { progress: 14 }, row)).toBeUndefined()
     expect(patchFor(other, { progress: 14, status: 'COMPLETED' }, row)).toEqual({ status: 'COMPLETED' })
+  })
+
+  test('so does one that lists nothing but counts other episodes', () => {
+    const unlisted = answer('a', 'NOT_LISTED', null, { episodeCount: 28 })
+    expect(patchFor(unlisted, { progress: 14 }, row)).toEqual({ status: 'WATCHING', score: 80 })
+    expect(patchFor(answer('a', 'NOT_LISTED', null, { episodeCount: 14 }), { progress: 14 }, row), 'the control: the same count')
+      .toEqual({ status: 'WATCHING', progress: 14, score: 80 })
   })
 
   test('progress is clamped to the total, and a null score stays an explicit null', () => {
@@ -189,6 +205,17 @@ describe('the save queue', () => {
     queue.drop('a')
     queue.flush()
     expect(send.mock.calls).toEqual([['b', { progress: 3 }]])
+    vi.useRealTimers()
+  })
+
+  test("dropping a tracker keeps what its card staged, even behind a send in flight, and drops the row's", async () => {
+    const { send, queue, settle } = setup()
+    queue.stage({ a: { progress: 5 } }, true, true)
+    queue.stage({ a: { remove: true } }, true, true)
+    queue.stage({ a: { status: 'PAUSED' } }, false)
+    queue.drop('a')
+    await settle(0, { outcome: 'SAVED' })
+    expect(send.mock.calls).toEqual([['a', { progress: 5 }], ['a', { remove: true }]])
     vi.useRealTimers()
   })
 })
