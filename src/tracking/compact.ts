@@ -42,8 +42,11 @@ export const STATUS_LABELS: Record<string, string> = {
   DROPPED: 'Dropped',
 }
 
-/** The fields a change touched. A null score clears it; an absent key is left as the tracker has it. */
-export type Fields = { status?: string, progress?: number, score?: number | null }
+/**
+ * The fields a change touched. A null score clears it; an absent key is left as the tracker has it.
+ * `remove` takes the entry off the tracker's list instead, and never travels with fields.
+ */
+export type Fields = { status?: string, progress?: number, score?: number | null, remove?: true }
 
 export type Row = {
   status: string | null
@@ -109,9 +112,11 @@ export const countDiffers = (answer: CompactAnswer, total: number | null) => {
  * A listed tracker gets exactly the fields changed, so a + never overwrites a score or a status that
  * tracker holds differently. A tracker that lists nothing gets the whole row as shown, since a new
  * entry overwrites nothing, with Watching when the row has no status (MyAnimeList refuses an add with
- * none). Progress is held back from a tracker that counts other episodes.
+ * none). Progress is held back from a tracker that counts other episodes. A removal goes only to a
+ * tracker that lists the media.
  */
 export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Fields | undefined => {
+  if (change.remove) return answer.state === 'LISTED' ? { remove: true } : undefined
   const score = 'score' in change ? change.score : row.score
   const fields: Fields = answer.state === 'LISTED'
     ? { ...change }
@@ -159,14 +164,18 @@ export type QueueState = { busy: boolean, failed?: { fields: Fields, error: stri
 
 type Timers = { set: (run: () => void, ms: number) => unknown, clear: (handle: unknown) => void }
 
+// a removal and a change never fold into one write: the later of the two is what goes
+const merge = (earlier: Fields | undefined, later: Fields | undefined): Fields =>
+  !later ? earlier ?? {} : earlier?.remove || later.remove ? later : { ...earlier, ...later }
+
 /**
  * The saves of one row, paced PER TRACKER.
  *
- * `stage` merges a change into each tracker's waiting fields (later fields win). An immediate stage
- * sends at once; any other waits for `delay` of quiet, which is what folds rapid + clicks into one
- * save. At most one save is in flight per tracker, and a change made meanwhile goes when it settles.
- * Trackers never wait on each other: stub's own tracker answers at once, MyAnimeList reads, writes and
- * reads back.
+ * `stage` merges a change into each tracker's waiting fields (later fields win, and a removal and a
+ * change replace each other). An immediate stage sends at once; any other waits for `delay` of quiet,
+ * which is what folds rapid + clicks into one save. At most one save is in flight per tracker, and a
+ * change made meanwhile goes when it settles. Trackers never wait on each other: stub's own tracker
+ * answers at once, MyAnimeList reads, writes and reads back.
  *
  * FAILED keeps its fields for `retry` and for the next change, since every write sets absolute values.
  * REFUSED drops them: the same write would be refused again.
@@ -200,7 +209,7 @@ export const createSaveQueue = (
       else {
         failed.set(tracker, { fields, error: error ?? 'Did not save' })
         const later = waiting.get(tracker)
-        if (later) waiting.set(tracker, { ...fields, ...later })
+        if (later) waiting.set(tracker, merge(fields, later))
       }
       onChange({ tracker, outcome, fields, error })
       next(tracker)
@@ -225,7 +234,7 @@ export const createSaveQueue = (
         const carried = failed.get(tracker)?.fields
         failed.delete(tracker)
         refused.delete(tracker)
-        waiting.set(tracker, { ...carried, ...waiting.get(tracker), ...fields })
+        waiting.set(tracker, merge(merge(carried, waiting.get(tracker)), fields))
       }
       if (immediate) flush()
       else {
@@ -237,14 +246,14 @@ export const createSaveQueue = (
     flush,
     /** Records fields that could not go at all, a paused or failing tracker, as a failed save. */
     fail: (tracker: string, fields: Fields, error: string) => {
-      failed.set(tracker, { fields: { ...failed.get(tracker)?.fields, ...fields }, error })
+      failed.set(tracker, { fields: merge(failed.get(tracker)?.fields, fields), error })
       onChange({ tracker, outcome: 'FAILED', fields, error })
     },
     retry: (tracker: string) => {
       const kept = failed.get(tracker)
       if (!kept) return
       failed.delete(tracker)
-      waiting.set(tracker, { ...kept.fields, ...waiting.get(tracker) })
+      waiting.set(tracker, merge(kept.fields, waiting.get(tracker)))
       released.add(tracker)
       next(tracker)
       onChange()

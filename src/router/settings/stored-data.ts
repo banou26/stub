@@ -98,7 +98,7 @@ export const STORED: readonly StoredItem[] = [
     what: "What you track with stub's own tracker: status, progress, score and dates, with each title's name and cover. Signed in to FKN, stub uses your account's list instead, encrypted in this browser before it is stored.",
     where: "The browser's private files for stub at this address, on this device only, and your FKN account's storage once you use its list",
     lasts: 'As long as the list: a removed entry stays in it, with its title and last values, as a record that it was removed',
-    clearedBy: { text: "Remove an entry from its title's tracking panel. The record that it was removed stays, so any other device using the list removes it too, and there is no way to clear these records yet. Signing out of FKN takes the account's list off this device." },
+    clearedBy: { text: "Remove an entry with Remove from list, in its title's status menu. The record that it was removed stays, so any other device using the list removes it too, and there is no way to clear these records yet. Signing out of FKN takes the account's list off this device." },
   },
   {
     id: 'site-sign-ins',

@@ -71,6 +71,11 @@ describe('patchFor', () => {
     expect(patchFor(answer('a', 'NOT_LISTED'), { status: 'PLANNING' }, row)).toEqual({ status: 'PLANNING', progress: 13, score: 80 })
   })
 
+  test('a removal goes to a tracker that lists the media, alone, and to no other', () => {
+    expect(patchFor(answer('a', 'LISTED', { status: 'PAUSED', progress: 3 }), { remove: true }, row)).toEqual({ remove: true })
+    expect(patchFor(answer('a', 'NOT_LISTED'), { remove: true }, row)).toBeUndefined()
+  })
+
   test('a tracker counting other episodes gets no progress, but still its status', () => {
     const other = answer('a', 'LISTED', { episodeCount: 12 })
     expect(patchFor(other, { progress: 14 }, row)).toBeUndefined()
@@ -149,6 +154,21 @@ describe('the save queue', () => {
     expect(send).toHaveBeenLastCalledWith('a', { progress: 6, score: 80 })
     await settle(2, { outcome: 'SAVED' })
     expect(queue.state('a').failed).toBeUndefined()
+    vi.useRealTimers()
+  })
+
+  test('a removal and a change never fold into one write: the later one is what goes', async () => {
+    const { send, queue, settle } = setup()
+    queue.stage({ a: { progress: 5 } }, true)
+    await settle(0, { outcome: 'FAILED', error: 'down' })
+    queue.stage({ a: { remove: true } }, true)
+    expect(send).toHaveBeenLastCalledWith('a', { remove: true })
+    queue.stage({ a: { status: 'WATCHING' } }, true)
+    await settle(1, { outcome: 'FAILED', error: 'down' })
+    expect(send, 'the change made while the removal was out goes alone').toHaveBeenLastCalledWith('a', { status: 'WATCHING' })
+    await settle(2, { outcome: 'FAILED', error: 'down' })
+    queue.retry('a')
+    expect(send).toHaveBeenLastCalledWith('a', { status: 'WATCHING' })
     vi.useRealTimers()
   })
 

@@ -19,10 +19,16 @@ const tracking: CompactTracking = {
     entry: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   }],
 }
-const save = vi.fn(async (_variables: unknown) => ({ data: { saveListEntry: [{ tracker: 'stub', outcome: 'SAVED' }] } }))
+// every mutation the page sends, by operation name
+const sent: { operation: string, input: { trackers: string[], entry?: Record<string, unknown> } }[] = []
+const mutate = (operation: string) => async ({ input }: { input: (typeof sent)[number]['input'] }) => {
+  sent.push({ operation, input })
+  const outcomes = input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' }))
+  return { data: { saveListEntry: outcomes, deleteListEntry: outcomes } }
+}
 vi.mock('urql', () => ({
   useSubscription: () => [{ data: { tracking } }],
-  useMutation: () => [{}, save],
+  useMutation: (document: { definitions: { name?: { value: string } }[] }) => [{}, mutate(document.definitions[0]?.name?.value ?? '')],
 }))
 vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {} }))
 // the page's worker, which Unlock asks to check the account again
@@ -40,6 +46,7 @@ const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   vi.useRealTimers()
+  sent.length = 0
 })
 const render = (store = createCompactPrefs(memory())) => {
   const host = mount(<MediaTracking uri="media:1" title="A show" episodeCount={12} prefsStore={store}/>)
@@ -60,10 +67,17 @@ describe('the media tracking', () => {
     const host = render()
     await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="One episode more"]')!.click() })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(save).toHaveBeenCalledTimes(1)
-    const { input } = save.mock.calls[0]![0] as { input: { trackers: string[], entry: Record<string, unknown> } }
+    expect(sent.map(({ operation }) => operation)).toEqual(['SaveListEntry'])
+    const { input } = sent[0]!
     expect(input.trackers).toEqual(['stub'])
-    expect(input.entry).toEqual({ progress: 4 })
-    expect('status' in input.entry || 'score' in input.entry).toBe(false)
+    expect(input.entry).toStrictEqual({ progress: 4 })
+  })
+
+  test('Remove from list deletes the entry on the tracker that lists it', async () => {
+    const host = render()
+    const select = host.querySelector<HTMLSelectElement>('select[name="compact-status"]')!
+    Object.defineProperty(select, 'value', { value: 'REMOVE', configurable: true })
+    await act(async () => { select.dispatchEvent(new Event('change', { bubbles: true })) })
+    expect(sent).toEqual([{ operation: 'DeleteListEntry', input: { uri: 'media:1', trackers: ['stub'] } }])
   })
 })

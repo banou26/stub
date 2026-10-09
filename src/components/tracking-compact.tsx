@@ -46,6 +46,8 @@ const style = css`
   button:disabled, select:disabled { opacity: 0.5; cursor: default; }
   .star .value { font-weight: 600; }
   select option { background: #17171a; }
+  /* the width "Plan to watch" gave it, so offering Remove from list never widens it and wraps the row */
+  select { width: 14rem; }
 
   .progress-field {
     input {
@@ -153,7 +155,10 @@ const own = (answer: CompactAnswer, total: number | null) => {
   }
 }
 
-const whatOf = (fields: Fields) => [
+// the status menu's choice that takes the media off the lists instead of setting a status
+const REMOVE = 'REMOVE'
+
+const whatOf = (fields: Fields) => fields.remove ? 'the removal' : [
   fields.status !== undefined ? 'the status' : undefined,
   fields.progress !== undefined ? `episode ${fields.progress}` : undefined,
   fields.score !== undefined ? 'the score' : undefined,
@@ -176,11 +181,12 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
  * paused, failing, or cannot tell which media this is.
  */
 const TrackingCompact = (
-  { tracking, episodeCount, onSaveFields, signIns = {}, prefs, onPrefs }:
+  { tracking, episodeCount, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
   {
     tracking: CompactTracking | null | undefined
     episodeCount?: number | null
     onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
+    onRemove: (targets: string[]) => Promise<TrackerOutcome[]>
     signIns?: SignIns
     prefs: CompactPrefs
     onPrefs: (prefs: CompactPrefs) => void
@@ -194,12 +200,12 @@ const TrackingCompact = (
   const [notes, setNotes] = useState<Record<string, string>>({})
   const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const commitLatest = useRef(() => {})
-  const latest = useRef({ onSaveFields, tracking })
-  latest.current = { onSaveFields, tracking }
+  const latest = useRef({ onSaveFields, onRemove, tracking })
+  latest.current = { onSaveFields, onRemove, tracking }
 
   const queue = useMemo(() => createSaveQueue({
     send: async (tracker, fields) => {
-      const outcomes = await latest.current.onSaveFields([tracker], fields)
+      const outcomes = await (fields.remove ? latest.current.onRemove([tracker]) : latest.current.onSaveFields([tracker], fields))
       return outcomes.find(outcome => outcome.tracker === tracker) ?? outcomes[0] ?? { outcome: 'FAILED', error: 'The write did not reach the trackers' }
     },
     onChange: (settled?: Settled) => {
@@ -207,7 +213,7 @@ const TrackingCompact = (
       if (!settled) return
       const name = latest.current.tracking?.answers.find(answer => answer.tracker.id === settled.tracker)?.tracker.name ?? settled.tracker
       const saved = settled.outcome === 'SAVED' || settled.outcome === 'QUEUED'
-      setAnnounced(saved ? `Saved to ${name}` : `${name} did not save: ${settled.error ?? settled.outcome.toLowerCase()}`)
+      setAnnounced(saved ? `${settled.fields.remove ? 'Removed from' : 'Saved to'} ${name}` : `${name} did not save: ${settled.error ?? settled.outcome.toLowerCase()}`)
       // a save that did not land falls back to what the trackers hold, beside its note
       if (!saved && queue.idle()) setOverride({})
     },
@@ -249,10 +255,11 @@ const TrackingCompact = (
   const disabled = !sendable.length
   const picker = pickerScale(sendable.map(answer => answer.tracker.scoreScale))
   const listed = answers.some(answer => answer.state === 'LISTED')
+  const removable = sendable.some(answer => answer.state === 'LISTED')
   const total = shown.total
 
   const change = (fields: Fields, immediate: boolean) => {
-    setOverride(previous => ({ ...previous, ...fields }))
+    if (!fields.remove) setOverride(previous => ({ ...previous, ...fields }))
     const next: Row = { ...shown, ...fields }
     const patches: Record<string, Fields> = {}
     for (const { answer, target } of targets) {
@@ -266,6 +273,12 @@ const TrackingCompact = (
       if (patch) patches[id] = patch
     }
     queue.stage(patches, immediate)
+  }
+
+  // a removal that could not go is moot once its tracker answers that it lists nothing
+  const stateOf = (answer: CompactAnswer) => {
+    const state = queue.state(answer.tracker.id)
+    return state.failed?.fields.remove && answer.state === 'NOT_LISTED' ? { ...state, failed: undefined } : state
   }
 
   const setChecked = (id: string, on: boolean) => {
@@ -330,10 +343,14 @@ const TrackingCompact = (
             aria-label="Status"
             value={shown.status ?? ''}
             disabled={disabled}
-            onChange={event => change({ status: event.currentTarget.value }, true)}
+            onChange={event => {
+              const value = event.currentTarget.value
+              change(value === REMOVE ? { remove: true } : { status: value }, true)
+            }}
           >
             {shown.status ? undefined : <option value="" disabled>Add to list</option>}
             {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {removable ? <option value={REMOVE}>Remove from list</option> : undefined}
           </select>
           {differs('STATUS', answer => answer.entry?.status ? STATUS_LABELS[answer.entry.status] : undefined)}
           <span className="progress-field">
@@ -410,7 +427,7 @@ const TrackingCompact = (
                 </span>
               )
             }
-            const { busy, failed } = queue.state(id)
+            const { busy, failed } = stateOf(answer)
             const problem = answer.state === 'PAUSED' || answer.state === 'ERROR' ? own(answer, total) : undefined
             const title = [
               `${name}${answer.tracker.account ? `, ${answer.tracker.account}` : ''}: ${own(answer, total)}`,
@@ -444,7 +461,7 @@ const TrackingCompact = (
         {targets.flatMap(({ answer }) => {
           const id = answer.tracker.id
           const name = answer.tracker.name
-          const { failed, refused } = queue.state(id)
+          const { failed, refused } = stateOf(answer)
           return [
             notes[id] && answer.state === 'SIGNED_OUT' ? <div key={`${id}-sign-in`} className="note" data-note={id}>{notes[id]}</div> : undefined,
             failed

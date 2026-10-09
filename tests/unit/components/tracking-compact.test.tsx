@@ -7,7 +7,7 @@ import { useState } from 'preact/hooks'
 
 import type { WindowSignIn } from '../../../src/sources/login-window'
 import type { CompactPrefs } from '../../../src/tracking/compact-prefs'
-import type { CompactAnswer, CompactTracking, Fields } from '../../../src/tracking/compact'
+import type { CompactAnswer, CompactTracking, Fields, TrackerOutcome } from '../../../src/tracking/compact'
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
@@ -56,14 +56,20 @@ type Props = Partial<Parameters<typeof TrackingCompact>[0]>
 
 const render = (props: Props = {}, store = createCompactPrefs(memory())) => {
   const onSaveFields = vi.fn(async (targets: string[], _entry: Fields) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
+  const onRemove = vi.fn(async (targets: string[]) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
+  let answer: (next: CompactTracking) => void = () => {}
   const Harness = () => {
     const [prefs, setPrefs] = useState(store.read)
+    const [live, setLive] = useState(props.tracking ?? tracking)
+    answer = setLive
     const onPrefs = (next: CompactPrefs) => { store.write(next); setPrefs(next) }
-    return <TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={onSaveFields} prefs={prefs} onPrefs={onPrefs} {...props}/>
+    return <TrackingCompact episodeCount={14} onSaveFields={onSaveFields} onRemove={onRemove} prefs={prefs} onPrefs={onPrefs} {...props} tracking={live}/>
   }
   const host = mount(<Harness/>)
   hosts.push(host)
-  return { host, onSaveFields, store }
+  // the trackers answering again, as the subscription does after a write
+  const setTracking = async (next: CompactTracking) => { await act(async () => { answer(next) }) }
+  return { host, onSaveFields, onRemove, store, setTracking }
 }
 
 const q = <T extends Element = HTMLElement>(host: HTMLElement, selector: string) => host.querySelector<T & HTMLElement>(selector)!
@@ -121,6 +127,74 @@ describe('the compact tracking row', () => {
       [['anilist'], { status: 'DROPPED' }],
       [['stub'], { status: 'DROPPED', progress: 13, score: 80 }],
     ])
+  })
+
+  test('Remove from list goes to each checked tracker that lists the media, and to no other', async () => {
+    const stubListed: CompactAnswer = { ...stub, state: 'LISTED', entry: { status: 'WATCHING', progress: 13, episodeCount: 14 } }
+    const { host, onRemove, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stubListed, { ...stub, tracker: { ...stub.tracker, id: 'kitsu', name: 'Kitsu' } }] } })
+    await tick(q(host, 'input[name="compact-target-stub"]'), false)
+    await pickStatus(host, 'REMOVE')
+    expect(onRemove.mock.calls).toEqual([[['anilist']]])
+    expect(onSaveFields).not.toHaveBeenCalled()
+    expect(q(host, '[role="status"]').textContent).toBe('Removed from AniList')
+  })
+
+  test('Remove from list is offered only while a checked tracker lists the media', async () => {
+    const options = (host: HTMLElement) => [...host.querySelectorAll('select option')].map(option => option.textContent)
+    expect(options(render().host)).toContain('Remove from list')
+    expect(options(render({ tracking: nothing }).host)).not.toContain('Remove from list')
+    const unchecked = render()
+    await tick(q(unchecked.host, 'input[name="compact-target-anilist"]'), false)
+    expect(options(unchecked.host)).not.toContain('Remove from list')
+  })
+
+  test('a removal that fails says so, and Retry sends the removal again', async () => {
+    const { host, onRemove } = render()
+    onRemove.mockImplementation(async targets => targets.map(tracker => ({ tracker, outcome: 'FAILED', error: 'AniList is down' })))
+    await pickStatus(host, 'REMOVE')
+    await act(async () => {})
+    expect(q(host, '[data-note="anilist"]').textContent).toContain('AniList did not save the removal: AniList is down')
+    await click(button(q(host, '[data-note="anilist"]'), 'Retry')!)
+    expect(onRemove.mock.calls).toEqual([[['anilist']], [['anilist']]])
+  })
+
+  test('Retry on a failed removal sends the + made while it was in flight, never the removal', async () => {
+    vi.useFakeTimers()
+    let answer: (outcomes: TrackerOutcome[]) => void = () => {}
+    const { host, onRemove, onSaveFields } = render()
+    onRemove.mockImplementation(() => new Promise(resolve => { answer = resolve }))
+    await pickStatus(host, 'REMOVE')
+    await click(named(host, 'One episode more'))
+    answer([{ tracker: 'anilist', outcome: 'FAILED', error: 'AniList is down' }])
+    await settle()
+    expect(q(host, '[data-note="anilist"]').textContent).toContain('did not save the removal')
+    await click(button(q(host, '[data-note="anilist"]'), 'Retry')!)
+    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(onSaveFields.mock.calls.filter(([targets]) => targets[0] === 'anilist')).toEqual([[['anilist'], { progress: 14 }]])
+  })
+
+  test('a tracker that could not take a removal and then a status retries the status alone', async () => {
+    const paused: CompactAnswer = { ...mal, state: 'PAUSED' }
+    const { host, onRemove, onSaveFields, setTracking } = render({ tracking: { ...tracking, answers: [anilist, paused, stub] } })
+    await pickStatus(host, 'REMOVE')
+    await pickStatus(host, 'WATCHING')
+    onRemove.mockClear()
+    onSaveFields.mockClear()
+    await setTracking({ ...tracking, answers: [anilist, { ...mal, state: 'LISTED', entry: { status: 'PAUSED', progress: 3 } }, stub] })
+    await click(button(q(host, '[data-note="mal"]'), 'Retry')!)
+    expect(onRemove).not.toHaveBeenCalled()
+    expect(onSaveFields.mock.calls).toEqual([[['mal'], { status: 'WATCHING' }]])
+  })
+
+  test('a removal kept for a paused tracker is dropped once it answers that it lists nothing', async () => {
+    const paused: CompactAnswer = { ...mal, state: 'PAUSED' }
+    const { host, onRemove, setTracking } = render({ tracking: { ...tracking, answers: [anilist, paused, stub] } })
+    await pickStatus(host, 'REMOVE')
+    expect(q(host, '[data-note="mal"]').textContent, 'the control').toContain('MyAnimeList did not save the removal: Paused for a while')
+    await setTracking({ ...tracking, answers: [anilist, { ...mal, state: 'NOT_LISTED' }, stub] })
+    expect(host.querySelector('[data-note="mal"]')).toBeNull()
+    expect(host.querySelector('[data-chip="mal"] [data-badge]')).toBeNull()
+    expect(onRemove.mock.calls).toEqual([[['anilist']]])
   })
 
   test('the star is disabled while nothing is listed', () => {

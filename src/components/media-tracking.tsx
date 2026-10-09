@@ -68,6 +68,16 @@ const SAVE_LIST_ENTRY = gql(`
   }
 `)
 
+const DELETE_LIST_ENTRY = gql(`
+  mutation DeleteListEntry($input: DeleteListEntryInput!) {
+    deleteListEntry(input: $input) {
+      tracker
+      outcome
+      error
+    }
+  }
+`)
+
 const STUB_TRACKER_STORAGE = gql(`
   subscription StubTrackerStorage {
     stubTrackerStorage {
@@ -108,6 +118,7 @@ const MediaTracking = (
 ) => {
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: uri! } }, pause: !uri })
   const [, save] = useMutation(SAVE_LIST_ENTRY)
+  const [, remove] = useMutation(DELETE_LIST_ENTRY)
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
   const [prefs, setPrefs] = useState(prefsStore.read)
@@ -130,13 +141,18 @@ const MediaTracking = (
       input: {
         uri: uri!,
         trackers: targets,
-        entry: entry as Omit<Fields, 'status'> & { status?: ListStatus },
+        entry: entry as Omit<Fields, 'status' | 'remove'> & { status?: ListStatus },
         title: title ?? null,
         cover: cover ?? null,
         episodeCount: episodeCount ?? null,
       },
     })
     return result.data?.saveListEntry ?? failed(result.error?.message)
+  }
+
+  const onRemove = async (targets: string[]): Promise<TrackerOutcome[]> => {
+    const result = await remove({ input: { uri: uri!, trackers: targets } })
+    return result.data?.deleteListEntry ?? failed(result.error?.message)
   }
 
   // the key card opens from this click, and only from it; the worker then checks the account again
@@ -148,6 +164,7 @@ const MediaTracking = (
         tracking={data?.tracking}
         episodeCount={episodeCount}
         onSaveFields={onSaveFields}
+        onRemove={onRemove}
         signIns={trackerSignIns}
         prefs={prefs}
         onPrefs={onPrefs}
