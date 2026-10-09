@@ -179,6 +179,9 @@ export const YoutubeMinimalPlayer = (
 
   const player = (
     <iframe
+      // a new element per video: changing `src` on a loaded frame pushes a session history entry,
+      // so Back would step the trailer instead of the app (history.length 2 to 3, measured 2026-10-09)
+      key={videoId}
       ref={frameRef}
       css={youtubeStyle}
       src={embedSrc(videoId)}

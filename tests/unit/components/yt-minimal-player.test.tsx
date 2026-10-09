@@ -220,3 +220,21 @@ test('a url that names no video is reported once per url, to the latest onError'
   expect(latest).toHaveBeenCalledTimes(1)
   expect(first).toHaveBeenCalledTimes(1)
 })
+
+// Changing `src` on a loaded frame pushes a session history entry, so Back would step the trailer
+// rather than the app: measured on a live embed 2026-10-09, history.length went from 2 to 3 on a
+// video change with one element, and stayed at 2 with a new element per video.
+test('a new video gets a new frame, hidden until its own embed answers', () => {
+  const { frame, embed, rerender } = player({ url: TRAILER, onError: () => {} })
+  elapse(300)
+  const before = frame()
+
+  rerender({ url: OTHER, onError: () => {} })
+  expect(frame(), 'a new element, so no history entry').not.toBe(before)
+  expect(frame().getAttribute('src')).toContain('/embed/iiuRyNg3giw?')
+  expect(frame().style.display).toBe('none')
+
+  elapse(300)
+  expect(listening(embed())).toBe(1)
+  expect(frame().style.display).toBe('')
+})
