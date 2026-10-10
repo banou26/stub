@@ -2,16 +2,17 @@ import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { execFileSync } from 'node:child_process'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
-import { extname, join, relative } from 'node:path'
+import { dirname, extname, join, relative, resolve } from 'node:path'
+import { build } from 'vite-plus'
 
 // The settings page as anime.fkn.app serves it: the app build, every path that is not a file answered
 // with index.html as Pages does, and every request that leaves this origin refused, so nothing reaches
 // FKN or any site. That is also why a sign out only shows its half on this device (the cookie half is
-// FKN's, pinned in tests/unit).
+// FKN's, pinned in tests/unit), and why the build swaps the plugin runtime for tests/fake-plugins.ts:
+// a real install would wait on FKN forever.
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -27,7 +28,18 @@ let origin: string
 test.beforeAll(async () => {
   test.setTimeout(300_000)
   dir = mkdtempSync(join(tmpdir(), 'stub-settings-'))
-  execFileSync(join(ROOT, 'node_modules', '.bin', 'vp'), ['build', '--config', 'vite.config.ts', '--outDir', dir], { cwd: ROOT, stdio: 'pipe' })
+  const plugins = join(ROOT, 'src', 'plugins')
+  await build({
+    configFile: join(ROOT, 'vite.config.ts'),
+    root: ROOT,
+    logLevel: 'error',
+    build: { outDir: dir, emptyOutDir: true },
+    plugins: [{
+      name: 'spec-fake-plugins',
+      enforce: 'pre',
+      resolveId: (source, importer) => importer && resolve(dirname(importer), source) === plugins ? join(ROOT, 'tests', 'fake-plugins.ts') : undefined,
+    }],
+  })
 
   server = createServer((request, response) => {
     const path = decodeURIComponent(new URL(request.url ?? '/', 'http://app').pathname)
@@ -153,6 +165,74 @@ test('on a phone the categories are a row above the panel, the page stays at the
     await picks(page, title)
     expect(await overflowX(page), title).toBeLessThanOrEqual(0)
   }
+})
+
+const SPEC_SOURCES = ['npm:@spec/anime-source', 'npm:@spec/source-family', 'npm:@spec/slow-source', 'npm:@spec/broken-source'] as const
+
+/** Opens Sources with these addresses added, each in the state tests/fake-plugins.ts gives it. */
+const withSources = async (page: Page, uris: readonly string[]) => {
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(list => localStorage.setItem('stub-enabled-plugins', JSON.stringify(list)), uris)
+  await page.goto(`${origin}/settings#sources`)
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+}
+
+test('Sources lists each added source with its state, and says so once none is left', async ({ page }) => {
+  await withSources(page, SPEC_SOURCES)
+  const row = (uri: string) => page.locator(`[data-plugin="${uri}"]`)
+  const [connected, family, connecting, failed] = SPEC_SOURCES
+  await expect(row(connected).locator('.pill')).toHaveText('Connected')
+  await expect(row(family).locator('.meta')).toHaveText(`${family} · 3 sources · 1 unavailable`)
+  await expect(row(connecting).locator('.pill')).toHaveText('Connecting')
+  await expect(row(failed).locator('.pill')).toHaveText('Error')
+  const failure = row(failed).locator('.failure')
+  await expect(failure).toHaveText("connecting to 'npm:@spec/broken-source' timed out")
+  expect(await failure.evaluate(element => element.scrollWidth <= element.clientWidth && element.clientHeight > 0), 'the whole error shows').toBe(true)
+
+  for (const uri of SPEC_SOURCES) await row(uri).getByRole('button', { name: /^Remove / }).click()
+  await expect(panel(page).locator('.empty')).toHaveText('No sources added yet.')
+  expect(JSON.parse((await readLocal(page))['stub-enabled-plugins']!)).toEqual([])
+})
+
+test('adding by address shows a refused address\'s error under the group, and a good one is added', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await withSources(page, [])
+  await expect(panel(page).locator('.empty')).toHaveText('No sources added yet.')
+  const group = panel(page).locator('.group')
+  const input = panel(page).getByLabel('Or add one by its address')
+  const add = group.getByRole('button')
+  const alert = panel(page).getByRole('alert')
+
+  const [inputBox, addBox] = [await input.boundingBox(), await add.boundingBox()]
+  expect(Math.abs(inputBox!.y - addBox!.y), 'one row at a phone\'s width').toBeLessThan(2)
+
+  await input.fill('not a package')
+  await add.click()
+  await expect(add).toHaveText('Adding...')
+  await expect(add).toBeDisabled()
+  await expect(alert).toHaveText("'not a package' is not an npm package or a local address FKN can install")
+  await expect(add).toHaveText('Add')
+  await expect(input).toHaveAttribute('aria-invalid', 'true')
+  await expect(input).toHaveValue('not a package')
+  expect(await group.evaluate(element => getComputedStyle(element).borderTopColor), 'the group turns red').toBe('rgb(248, 113, 113)')
+  expect(await overflowX(page), 'no sideways scroll with the error showing').toBeLessThanOrEqual(0)
+
+  await input.fill('npm:@spec/anime-source')
+  await add.click()
+  await expect(panel(page).locator('[data-plugin="npm:@spec/anime-source"] .pill')).toHaveText('Connected')
+  await expect(input).toHaveValue('')
+  await expect(alert).toHaveText('')
+  await expect(input).not.toHaveAttribute('aria-invalid')
+})
+
+test('too narrow for one row, the Add button drops under the input at its full width', async ({ page }) => {
+  await page.setViewportSize({ width: 280, height: 700 })
+  await withSources(page, [])
+  const group = panel(page).locator('.group')
+  const [groupBox, inputBox, addBox] = [await group.boundingBox(), await group.locator('input').boundingBox(), await group.getByRole('button').boundingBox()]
+  expect(addBox!.y).toBeGreaterThanOrEqual(inputBox!.y + inputBox!.height - 1)
+  expect(addBox!.width).toBeGreaterThanOrEqual(groupBox!.width - 2)
+  expect(await overflowX(page)).toBeLessThanOrEqual(0)
 })
 
 test('the API keys an older stub kept leave this browser on the next load, and nothing else does', async ({ page }) => {

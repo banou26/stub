@@ -65,14 +65,14 @@ export const sectionStyle = css`
   .row .note { color: rgba(255, 255, 255, 0.85); }
 
   /* out of the layout while empty, and still in the accessibility tree, unlike display: none */
-  .row .note:empty {
+  .note:empty {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .row .note.error { color: #f87171; }
+  .note.error { color: #f87171; }
 
   .actions {
     display: flex;
