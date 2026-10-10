@@ -1,4 +1,4 @@
-// The settings page shows one category at a time, Accounts or Sources (HOR-225), picked by the URL's
+// The settings page shows one category at a time, Accounts or Sources, picked by the URL's
 // fragment so a link or a reload lands on it.
 import { expect, test } from 'vite-plus/test'
 

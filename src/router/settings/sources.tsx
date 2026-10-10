@@ -211,7 +211,6 @@ export const SourcesSection = () => {
 
   return (
     <div css={style}>
-      <p className="intro">Community-made sources, published on npm. FKN installs them for stub, and each one runs isolated from stub.</p>
       {plugins.length
         ? (
           <ul className="rows">

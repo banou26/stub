@@ -78,12 +78,13 @@ const style = css`
 const currentHash = () => location.hash
 
 // The panel carries no id a category's fragment names, so following a category link never scrolls the
-// page to it: the link scrolls to the top itself, and only the panel changes. The fragment is read through
-// wouter's location subscription because a <Link to="/settings"> drops it with a pushState, which
-// sends no hashchange.
+// page to it: the link scrolls to the top itself, and only the panel changes. The fragment is read
+// through wouter's location subscription because a <Link to="/settings"> drops it with a pushState,
+// which sends no hashchange.
 const Settings = () => {
   const [backend, setBackend] = useState<FknBackend>()
-  const current = sectionFromHash(useLocationProperty(currentHash))
+  const id = sectionFromHash(useLocationProperty(currentHash))
+  const current = SETTINGS_SECTIONS.find(section => section.id === id)!
 
   useEffect(() => {
     let cancelled = false
@@ -96,18 +97,14 @@ const Settings = () => {
       <h1>Settings</h1>
       <nav className="index" aria-label="Settings categories">
         {SETTINGS_SECTIONS.map(section => (
-          <a key={section.id} href={`#${section.id}`} aria-current={current === section.id ? 'true' : undefined} onClick={scrollToTop}>{section.title}</a>
+          <a key={section.id} href={`#${section.id}`} aria-current={current === section ? 'true' : undefined} onClick={scrollToTop}>{section.title}</a>
         ))}
       </nav>
-      <section css={sectionStyle} data-section={current} aria-labelledby="settings-section-title">
-        <h2 id="settings-section-title">{SETTINGS_SECTIONS.find(section => section.id === current)!.title}</h2>
-        {current === 'accounts'
-          ? (
-            <>
-              <p className="intro">The sites stub signs in to for you, what each one is for, and how to sign out.</p>
-              <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status}/>
-            </>
-          )
+      <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
+        <h2 id="settings-section-title">{current.title}</h2>
+        <p className="intro">{current.intro}</p>
+        {current.id === 'accounts'
+          ? <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status}/>
           : <SourcesSection/>}
       </section>
     </div>
