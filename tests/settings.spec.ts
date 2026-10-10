@@ -90,7 +90,7 @@ const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
-test('the page lists two categories and shows Accounts alone, without the FKN row, keys, Data, Tracking or Playback', async ({ page }) => {
+test('the page lists two categories and shows Accounts alone, without the FKN row, Data, Tracking or Playback', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
   await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
@@ -101,9 +101,7 @@ test('the page lists two categories and shows Accounts alone, without the FKN ro
   await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(4)
   await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
-  await expect(page.locator('input[type="password"]'), 'no key form').toHaveCount(0)
-  await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback|Built in)$/ })).toHaveCount(0)
-  await expect(page.locator('[data-stored]')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback)$/ })).toHaveCount(0)
 })
 
 /** Clicks a category, and checks it alone is shown, marked, below the header, with the page still at the top. */
@@ -126,6 +124,9 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
   await picks(page, 'Sources')
   await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
+  await expect(page.locator('[data-source]'), 'no built-in list').toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Built in' })).toHaveCount(0)
+  await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
   await picks(page, 'Accounts')
   await expect(page.locator('[data-account="anilist"]')).toBeVisible()
   await expect(page.locator('[data-plugin]')).toHaveCount(0)
