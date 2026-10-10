@@ -88,7 +88,8 @@ test('lists every source stub ships with, each with a switch, all on by default,
   expect(switches.map(isOn)).toEqual(builtInSources.map(() => true))
   expect(host.querySelector('[data-source="cr"]')!.textContent).toBe('Crunchyrollcrunchyroll.com')
   expect(host.querySelector('[data-source="imdb"]'), 'the placeholder origin answers nothing, so it has no switch').toBeNull()
-  expect(host.textContent).toContain(`All ${builtInSources.length} on.`)
+  expect(host.querySelector('.count')!.textContent).toBe(`All ${builtInSources.length} on`)
+  expect(button(host, 'Turn all on')!.getAttribute('aria-disabled'), 'mounted, and inert while all are on').toBe('true')
   expect(host.querySelectorAll('[data-plugin]')).toHaveLength(1)
 })
 
@@ -100,7 +101,9 @@ test('a source turned off stays off in this browser, the count says so, and Turn
   expect(JSON.parse(stored.get(DISABLED_SOURCES_KEY)!)).toEqual(['simkl', 'tvdb'])
   expect(isOn(switchOf(host, 'simkl'))).toBe(false)
   expect(switchOf(host, 'simkl').closest('label')!.classList.contains('off')).toBe(true)
-  expect(host.textContent).toContain(`${builtInSources.length - 2} of ${builtInSources.length} on.`)
+  expect(host.querySelector('.count')!.textContent).toBe(`${builtInSources.length - 2} of ${builtInSources.length} on`)
+  expect(button(host, 'Turn all on')!.hasAttribute('aria-disabled')).toBe(false)
+  expect(switchOf(host, 'simkl').getAttribute('aria-label'), 'a switch is named by its source alone').toBe('Simkl')
   expect(isOn(switchOf(render().host, 'tvdb')), 'a page opened later reads it back').toBe(false)
 
   await flip(switchOf(host, 'tvdb'), true)
@@ -108,7 +111,7 @@ test('a source turned off stays off in this browser, the count says so, and Turn
   await act(() => { button(host, 'Turn all on')!.click() })
   expect(stored.has(DISABLED_SOURCES_KEY)).toBe(false)
   expect([...host.querySelectorAll<HTMLInputElement>('[data-source] input[role="switch"]')].every(isOn)).toBe(true)
-  expect(button(host, 'Turn all on'), 'with all on there is nothing to turn on').toBeFalsy()
+  expect(button(host, 'Turn all on')!.getAttribute('aria-disabled'), 'with all on there is nothing to turn on').toBe('true')
 })
 
 test('with nothing added, says so in place of the list', () => {

@@ -15,13 +15,21 @@ const style = css`
     margin: 0 0 0.6rem;
   }
 
-  h3.part ~ h3.part { margin-top: 3.2rem; }
+  h3.part ~ h3.part, .part-head ~ h3.part { margin-top: 3.2rem; }
 
-  .part-intro {
+  .part-head {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.4rem 1.2rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .part-head h3.part { margin: 0; }
+  .part-head .count { font-size: 1.3rem; color: rgba(255, 255, 255, 0.5); }
+  .part-head .link-button { margin-left: auto; }
+
+  .part-intro {
     margin-bottom: 1.2rem;
     font-size: 1.4rem;
     line-height: 1.55;
@@ -44,14 +52,14 @@ const style = css`
     border-radius: 0.8rem;
     background: rgba(255, 255, 255, 0.02);
     cursor: pointer;
-    transition: border-color 0.15s, opacity 0.15s;
+    transition: border-color 0.15s;
   }
 
   .built-in label:hover { border-color: rgba(255, 255, 255, 0.25); }
   .built-in .source { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
-  .built-in .source-name { font-size: 1.5rem; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
-  .built-in .host { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); overflow-wrap: anywhere; }
-  .built-in label.off .source { opacity: 0.5; }
+  .built-in .source-name { font-size: 1.5rem; font-weight: 600; color: #fff; overflow-wrap: anywhere; transition: color 0.15s; }
+  .built-in .host { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .built-in label.off .source-name { color: rgba(255, 255, 255, 0.5); }
 
   input[role='switch'] {
     appearance: none;
@@ -83,7 +91,7 @@ const style = css`
   input[role='switch']:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
-    input[role='switch'], input[role='switch']::before { transition: none; }
+    input[role='switch'], input[role='switch']::before, .built-in .source-name { transition: none; }
   }
 
   button.link-button {
@@ -95,7 +103,8 @@ const style = css`
     font-weight: 500;
   }
 
-  button.link-button:hover { color: #ff8a3d; }
+  button.link-button:hover:not([aria-disabled='true']) { color: #ff8a3d; }
+  button.link-button[aria-disabled='true'] { color: rgba(255, 255, 255, 0.35); cursor: default; }
 
   .row.plugin {
     display: grid;
@@ -271,7 +280,11 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
   )
 }
 
-const hostOf = (url: string) => new URL(url).host.replace(/^www\./, '')
+// the site a source reads, with its path when it has one: the offline database's site is a project on github.com
+const siteOf = (url: string) => {
+  const { host, pathname } = new URL(url)
+  return host.replace(/^www\./, '') + pathname.replace(/\/$/, '')
+}
 
 /** The sources stub ships with, each with a switch: all on until the viewer turns one off. */
 const BuiltInSources = () => {
@@ -279,17 +292,17 @@ const BuiltInSources = () => {
   useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
   const off = builtInSources.filter(source => disabled.has(source.origin)).length
 
+  // Turn all on stays mounted when nothing is off, so no line comes or goes under the pointer and focus stays put
   return (
     <>
-      <h3 className="part">Built in</h3>
+      <div className="part-head">
+        <h3 className="part">Built in</h3>
+        <span className="count">{off ? `${builtInSources.length - off} of ${builtInSources.length} on` : `All ${builtInSources.length} on`}</span>
+        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnAllSourcesOn() }}>Turn all on</button>
+      </div>
       <p className="part-intro">
-        <span>
-          {off ? `${builtInSources.length - off} of ${builtInSources.length} on.` : `All ${builtInSources.length} on.`} A source you turn
-          off is not asked again, from the next page or search.
-        </span>
-        {off
-          ? <button type="button" className="link-button" onClick={turnAllSourcesOn}>Turn all on</button>
-          : undefined}
+        A source you turn off is skipped from the next page or search you open, and what it already answered is gone after a
+        reload. Tracking your AniList or MyAnimeList list is not affected.
       </p>
       <ul className="built-in">
         {builtInSources.map(source => {
@@ -299,9 +312,9 @@ const BuiltInSources = () => {
               <label className={on ? undefined : 'off'}>
                 <span className="source">
                   <span className="source-name">{source.name}</span>
-                  <span className="host">{hostOf(source.url)}</span>
+                  <span className="host">{siteOf(source.url)}</span>
                 </span>
-                <input type="checkbox" role="switch" checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
+                <input type="checkbox" role="switch" aria-label={source.name} checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
               </label>
             </li>
           )

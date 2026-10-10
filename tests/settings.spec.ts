@@ -137,21 +137,28 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
 // them. By default obviously all enabled."
 test('every source stub ships with is on by default, and one turned off stays off across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#sources`)
-  const simkl = page.getByRole('switch', { name: /^Simkl/ })
+  const simkl = page.getByRole('switch', { name: 'Simkl', exact: true })
+  const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top)
   await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
   await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
-  await expect(page.getByText('All 23 on.')).toBeVisible()
+  await expect(page.getByText('All 23 on', { exact: true })).toBeVisible()
+  const top = await firstTop()
 
   await simkl.click()
   await expect(simkl).not.toBeChecked()
-  await expect(page.getByText('22 of 23 on.')).toBeVisible()
+  await expect(page.getByText('22 of 23 on', { exact: true })).toBeVisible()
+  expect(await firstTop(), 'turning one off moves nothing under the pointer').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBe('["simkl"]')
 
   await page.reload()
-  await expect(page.getByRole('switch', { name: /^Simkl/ }), 'kept in this browser').not.toBeChecked()
+  await expect(simkl, 'kept in this browser').not.toBeChecked()
   await expect(page.getByRole('switch', { checked: true })).toHaveCount(22)
-  await page.getByRole('button', { name: 'Turn all on' }).click()
+  const turnAllOn = page.getByRole('button', { name: 'Turn all on' })
+  await turnAllOn.focus()
+  await page.keyboard.press('Enter')
   await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
+  await expect(turnAllOn, 'the button stays, so the keyboard stays on it').toBeFocused()
+  expect(await firstTop(), 'and turning all on moves nothing either').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBeNull()
 })
 
