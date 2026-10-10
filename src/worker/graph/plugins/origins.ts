@@ -49,12 +49,13 @@ export const RETRANSLATING_ORIGINS = new Set(['nf'])
  * fetched.
  *
  * mal `data.episodes`, anilist `episodes`, anizip `episodeCount`, offline `record.ep`, omdb (a single
- * season or a film), justwatch `totalEpisodeCount`. A Crunchyroll SEARCH row's
+ * season or a film), justwatch `totalEpisodeCount`, livechart `episode_count`
+ * (`livechart/extractor.ts:117`, it fetches no episode list). A Crunchyroll SEARCH row's
  * `series_metadata.episode_count` is also a published figure while Crunchyroll's own list is a length,
  * and that distinction is per answer rather than per origin: `cr` sits in the list-length table below
  * and a declared `episodeCountKind` is what separates the two (4.6).
  */
-export const DECLARED_COUNT_ORIGINS = new Set(['mal', 'anilist', 'anizip', 'offline', 'omdb', 'jw'])
+export const DECLARED_COUNT_ORIGINS = new Set(['mal', 'anilist', 'anizip', 'offline', 'omdb', 'jw', 'livechart'])
 
 /**
  * Origins whose `episodeCount` is the length of the list they fetched.

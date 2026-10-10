@@ -8,7 +8,7 @@
  *
  * Each case carries its own control, since most of these rules are about what NOT to derive.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -18,7 +18,7 @@ import { enableGraph } from '../../../../../src/worker/graph'
 import { closeGraph } from '../../../../../src/worker/graph/engine'
 import { ingestAnswers, replayAnswers } from '../../../../../src/worker/graph/ingest'
 import { resetPassState, runPlugins } from '../../../../../src/worker/graph/plugins/runner'
-import { formatOf, profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
+import { countReadingOf, formatOf, profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
 import { COERCING_ORIGINS } from '../../../../../src/worker/graph/plugins/origins'
 import { answer, episode, media, partOf, rowsOf, sameAs, title } from './fixtures'
 
@@ -249,6 +249,12 @@ test('a fetched list is a listLength count and a published figure is a declared 
   const silent = (await profileOf('kitsu:1'))!
   expect([silent.countKind, silent.countStated, silent.countDistinct], 'no count is not a count of zero')
     .toEqual(['none', null, null])
+})
+
+// LiveChart's `episode_count` is a figure off its season list, and it fetches no episodes at all.
+// Mutation: drop `livechart` from DECLARED_COUNT_ORIGINS and its 12 reads as the length of a list.
+test('a LiveChart count is a published figure', () => {
+  expect(countReadingOf('livechart', 12, 0)).toEqual({ countKind: 'declared', countStated: 12, countDistinct: null })
 })
 
 // (f) THE ID PARENT. Specificity is PREFIX EXTENSION and the parent has to EXIST, which is the whole
