@@ -16,10 +16,10 @@ for (const extractor of extractors) joinFanout(fanout, extractor)
 `joinFanout` (`src/worker/extractor.ts:746-766`) contains exactly one test, and it is not an origin
 test: `if (fanout.joined.has(extractor)) return`. Nothing in it reads the uri, `supportedUris`, or
 `origin`. A source decides for itself, inside its own `Subscription.media`, whether the question is
-about it; that is [self-selection](/request/self-selection/), and it happens 24 times in parallel
-inside 24 separate GraphQL servers. Twenty-four is the built-in count, not a round number:
-`src/sources/index.ts` exports 24 modules and `tests/unit/sources/index.test.ts:24` pins it with
-`expect(names).toHaveLength(24)`.
+about it; that is [self-selection](/request/self-selection/), and it happens 25 times in parallel
+inside 25 separate GraphQL servers. Twenty-five is the built-in count, not a round number:
+`src/sources/index.ts` exports 25 modules and `tests/unit/sources/index.test.ts:24` pins it with
+`expect(names).toHaveLength(25)`.
 
 Open `ag:(anilist:166873)` and Crunchyroll, Netflix, Apple TV, Disney, HBO and eighteen others are all
 asked about it. Exactly two are addressable by that uri at all: anilist, whose own origin is named, and
@@ -267,7 +267,7 @@ flowchart LR
   FAIL1["console.error: Extractor &lt;name&gt; failed to join the fan-out<br/>then return"]
   GONE["not in joined, not in subscriptions:<br/>never asked, nothing to tear down, no retry"]
   OK["fanout.joined.set(extractor, subscription)<br/>fanout.subscriptions.push(subscription)"]
-  CONT["the other 23 built-ins are unaffected"]
+  CONT["the other 24 built-ins are unaffected"]
   CB["per payload: fanout.extractUris(result)"]
   D2{"did extractUris throw?<br/><small>catch (error) inside the callback</small>"}
   FAIL2["console.error: Extractor &lt;name&gt; produced an unreadable fan-out result<br/>the subscription stays alive"]

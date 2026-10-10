@@ -5,7 +5,7 @@ description: The fan-out has no origin test, so every source decides for itself 
 
 Nothing filters the fan-out. `joinFanout` (`src/worker/extractor.ts:746-766`) contains exactly one
 test and it is `if (fanout.joined.has(extractor)) return`; it never reads the uri, never reads
-`origin`, never reads `supportedUris`. Open `ag:(anilist:166873)` and all 24 built-in sources are
+`origin`, never reads `supportedUris`. Open `ag:(anilist:166873)` and all 25 built-in sources are
 subscribed with the same document and the same variables, in one loop, at once.
 
 So the question "is this mine?" is answered 24 times in parallel, each time inside a different
@@ -191,7 +191,7 @@ always precedes what extends it and one pass suffices*. And the guard carries th
 ``startsWith(`${best.id}-`)`` rather than `startsWith(best.id)`, which is the entire difference
 between row 1 and row 3 of that table.
 
-Fourteen of the 24 built-in source modules import `extractAggregatedUriOrigin`: anilist, appletv,
+Fourteen of the 25 built-in source modules import `extractAggregatedUriOrigin`: anilist, appletv,
 crunchyroll, justwatch, kitsu, omdb, paramount, simkl, tmdb, trakt, tvdb, tvmaze, unogs and
 watchmode. It is the canonical shape, and the two sources below are the exceptions.
 
@@ -285,7 +285,7 @@ has nothing to say.
 
 `isUri` accepts `ag:()`: split on `:` gives `['ag', '()']`, two non-empty parts. So the empty
 aggregate satisfies both predicates at once, passes the shape gate on every source, and then contains
-no handles for anybody, so every one of the 24 falls to its own "not mine" branch. It costs 24
+no handles for anybody, so every one of the 25 falls to its own "not mine" branch. It costs 25
 generators that yield once. Nothing else in the tree treats it specially.
 
 ## Where this goes next

@@ -29,7 +29,7 @@ flowchart TD
     G{"does the input name a uri?<br/><small>!requestedUri || !(isUri(requestedUri) || isAggregatedUri(requestedUri))</small>"}
     H["proxyRequestToExtractors(ctx, 'MEDIA')"]
     I["joinFanout, once per registered source"]
-    J["24 private yogas, one per source<br/>each with its own urql Client at http://d/graphql"]
+    J["25 private yogas, one per source<br/>each with its own urql Client at http://d/graphql"]
     K["ctx.fetch = fetchWithBackoff"]
     L["useOnResolve -> mediaInserter -> upsertMedia"]
     M[("graph store")]
@@ -114,7 +114,7 @@ inside it is `fetchWithBackoff`, never `globalThis.fetch`.
 **There is a third process, and it is optional.** A plugin source's data fields materialise in the
 worker while its resolver functions stay remote and run inside the plugin's own sandbox frame
 (`src/worker/extractor.ts:553`). From the fan-out's side it is an ordinary entry in the same
-`extractors` array, pushed onto it at runtime (`:683`), which is why the figure above counts 24 and
+`extractors` array, pushed onto it at runtime (`:683`), which is why the figure above counts 25 and
 can count more. See [plugin sources](/request/plugins/).
 
 **The answer arrives through the store.** `joinFanout`'s subscribe callback ignores its result unless
@@ -183,7 +183,7 @@ flowchart LR
   subgraph listing["GET_RELEASING_MEDIA_PAGE<br/>home/index.tsx:18-53"]
     D1["mediaPage.nodes, MediaFragment plus scalars"]
   end
-  Q["proxyRequestToExtractors replays<br/>ctx.params.query verbatim at all 24 sources"]
+  Q["proxyRequestToExtractors replays<br/>ctx.params.query verbatim at all 25 sources"]
   R{"was a field of named type Episode resolved?<br/><small>getNamedType(info.returnType).name === 'Episode'</small>"}
   Y["episodeInserter.load -> upsertEpisodes<br/>episode rows land"]
   Z(["no Episode resolver ran, so no episode row is ever written"])
@@ -367,7 +367,7 @@ The call site's own comment adds what the fix did not cover before the links cha
 The rewrite deliberately does **not** restart the subscription. `uri` is held in component state and
 replaced only when the two aggregated uris fail to match
 (`src/router/home/media-modal.tsx:603-610`), so a cluster that grows under an open modal keeps its
-one fan-out instead of tearing it down and asking 24 sources again.
+one fan-out instead of tearing it down and asking 25 sources again.
 
 ### One more decoding step, before any of it
 

@@ -141,7 +141,7 @@ And `src/worker/extractor.ts:745`, over a whole source:
 
 The `try` at `extractor.ts:749-763` wraps `client.subscription(...).subscribe(...)`, logs
 `Extractor <name> failed to join the fan-out` and returns. The source is never added to
-`fanout.joined`, and the other 23 keep going.
+`fanout.joined`, and the other 24 keep going.
 
 ### 3. `return` from a subscription generator, which is 204 No Content
 
@@ -193,7 +193,7 @@ mediaPage:    { subscribe: async function* (_parent) { yield { mediaPage: { node
 similarMedia: { subscribe: async function* (_parent) { yield { similarMedia: null } } }
 ```
 
-Thirty-one sites across `src/sources` and `src/worker` yield `media: null`. Six of the 24 built-in
+Thirty-one sites across `src/sources` and `src/worker` yield `media: null`. Six of the 25 built-in
 sources are nothing but this: disney, amazon, hulu, peacock, hbo and fubo exist so JustWatch's package
 map has an origin to mint into, and each one's `media` resolver is the single line at
 `disney/extractor.ts:18`.

@@ -17,7 +17,7 @@ A catalogue's show-level url is true as containment and false as identity, and m
 | --- | --- |
 | `no-evidence` | no origin, no `showId`, or `hasEvidence` false (src/worker/extractor.ts:316) |
 | `bad-show-id` | `SAFE_SHOW_ID` `/^[A-Za-z0-9._~-]{1,128}$/`, the first id a CALLER chooses (:244, :326) |
-| `not-implemented` | 5 of 24 sources, read off the definition's resolvers (:292-295) |
+| `not-implemented` | 5 of 25 sources, read off the definition's resolvers (:292-295) |
 | joined | an identical `similarAskKey` shares the in-flight promise and spends no budget (:349-355) |
 | `ceiling` | `MAX_SIMILAR_MEDIA_PER_CALLER` 8 (:227), `MAX_CONCURRENT_SIMILAR_MEDIA` 32 (:216) |
 | `timeout` | `SIMILAR_MEDIA_TIMEOUT_MS` 30_000; the subscription DID open, so declined never means unsent (:198, :382-384) |

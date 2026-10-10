@@ -55,9 +55,9 @@ Line one is the question in English. Line two is the condition as it is written 
 > read pipeline. `htmlLabels` is what lets a node carry a second line in a smaller face, which
 > is how a decision node states its CONDITION under its question without doubling in width.
 
-That comment is right about `htmlLabels` and stale about the count. There are **24** built-in source
+That comment is right about `htmlLabels` and stale about the count. There are **25** built-in source
 modules, pinned by name and by length at `tests/unit/sources/index.test.ts:19-24`. The 36 figure counts
-JustWatch's provider mappings, not source modules. Say 24.
+JustWatch's provider mappings, not source modules. Say 25.
 
 Edge labels say what the branch **is**, not "yes" or "no". `refused: 204, no payload` tells you
 something; `no` tells you where to look next and nothing else. Line numbers live in the prose beside a

@@ -1,6 +1,6 @@
 ---
 title: What a source may claim
-description: "What a source module exports, which claims it may mint and which it may never mint, how a score is spent, the gate a search hit must clear, and the 24 modules that ship."
+description: "What a source module exports, which claims it may mint and which it may never mint, how a score is spent, the gate a search hit must clear, and the 25 modules that ship."
 ---
 
 A source is an ES module namespace re-exported from `src/sources/index.ts`, and that export line is the on switch: `export const extractors = Object.values(extractorDefinitions).map(makeExtractor)` (src/worker/extractor.ts:551). No enable flag, no config, no allowlist. Disabling a source is deleting one line, so the count and every name are pinned by test (tests/unit/sources/index.test.ts:24).
@@ -74,7 +74,7 @@ Every media here is one season and every catalogue models a show, so a show-leve
 
 Where the season cannot be resolved, the source declines. Over 33 multi-season Netflix series and 105 runs, refusing into the show-level id accounted for 30 of 41 welds; declining to mint anything drops it to 11, costing 56 runs their Netflix row (src/sources/unogs/extractor.ts:215-218). Crunchyroll takes the same trade, a seasonless series id entering as a CONTAINER that answers metadata and no episodes (src/sources/crunchyroll/extractor.ts:174, :269-272). Residue is 11 of 105, down from 51 under the rule it replaced (src/sources/season.ts:154-173), because the picker sees one run and one candidate at a time ([sources/season-ids](/sources/season-ids/)).
 
-## The 24 modules
+## The 25 modules
 
 `M` media row, `P` search page, `E` `Media.episodes`, `S` `similarMedia`, `O` mints provider handles or deep links.
 
@@ -91,6 +91,7 @@ Where the season cannot be resolved, the source declines. Over 33 multi-season N
 | tmdb | `tmdb` | 0.3 | M P E | can be season scoped, which is why it is kept out of `SHOW_LEVEL_ORIGINS` |
 | tvmaze | `tvmaze` | 0.3 | M P E S | the only metadata source declaring `similarMedia` |
 | kitsu | `kitsu` | 0.3 | M P E | publishes Crunchyroll `/series/` urls on every season record, the case `partOf` exists for |
+| livechart | `livechart` | 0.6 | P | a season list and nothing else: `/api/v1/anime/<id>` answers 204, so a row exists only as a season row; drops what premiered before the season |
 | omdb | `omdb` | 0.3 | M P E | key |
 | trakt | `trakt` | 0.3 | M P E | key |
 | simkl | `simkl` | 0.3 | M P E | key |
@@ -107,19 +108,21 @@ Where the season cannot be resolved, the source declines. Over 33 multi-season N
 
 ```mermaid
 flowchart TD
-  P["one Subscription.media payload, put to all 24 at once<br/><small>joinFanout applies no origin test</small>"]
+  P["one Subscription.media payload, put to all 25 at once<br/><small>joinFanout applies no origin test</small>"]
   P --> BM["full metadata: 12 modules<br/><small>jikan anilist anizip kitsu offline tmdb tvmaze omdb trakt simkl tvdb watchmode</small>"]
   P --> BS["streaming with real answers: 5 modules<br/><small>crunchyroll unogs justwatch appletv paramount</small>"]
   P --> BT["provider stubs: 6 modules<br/><small>disney amazon hulu peacock hbo fubo</small>"]
   P --> BI["render only: 1 module<br/><small>imdb</small>"]
+  P --> BL["a season list only: 1 module<br/><small>livechart, whose media falls to the default</small>"]
   BM --> ROW["yield media: a row, scored 0.9 down to 0.2"]
   BS --> ROW
   BT --> NUL["yield media: null, on every call, for ever<br/><small>subscribe: async function* () { yield { media: null } }</small>"]
   BI --> NUL
+  BL --> LIST["media: the default null<br/><small>its rows arrive through mediaPage, the season list</small>"]
   BM --> DS{"can this origin be asked WHICH run?<br/><small>Boolean of resolvers.Subscription.similarMedia, read off the definition</small>"}
   BS --> DS
-  DS -->|"5 of 24 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>worker/extractor.ts:330</small>"]
-  DS -->|"the other 19 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>worker/extractor.ts:331-334</small>"]
+  DS -->|"5 of 25 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>worker/extractor.ts:330</small>"]
+  DS -->|"the other 20 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>worker/extractor.ts:331-334</small>"]
   NUL --> DR{"then why is the module registered at all?<br/><small>isApiOnly === false, so an IS_NOT_API_ONLY filter keeps the origin</small>"}
   DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>media-modal.tsx:783-787</small>"]
   DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>media-modal.tsx:789-792</small>"]

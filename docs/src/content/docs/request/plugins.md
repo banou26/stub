@@ -8,8 +8,8 @@ namespace. After registration it is indistinguishable from a built-in almost eve
 same `extractors` array (`src/worker/extractor.ts:551`, pushed at `:683`), gets its own private yoga
 built by the same `makeExtractor`, is joined to the fan-out by the same `joinFanout`, and writes to the
 store through the same `useOnResolve` hook and the same three DataLoaders
-(`src/worker/extractor.ts:473-495`). Twenty-four built-ins are compiled in
-(`tests/unit/sources/index.test.ts:24`); a plugin makes it twenty-five, and nothing downstream counts.
+(`src/worker/extractor.ts:473-495`). Twenty-five built-ins are compiled in
+(`tests/unit/sources/index.test.ts:24`); a plugin makes it twenty-six, and nothing downstream counts.
 
 What is reduced is the contract, in four places and no others:
 

@@ -194,7 +194,7 @@ Every window in the tree:
 | `IDENTITY_FIELDS` | 4 entries | `src/worker/store/db.ts:104` | `new Set(['uri', 'origin', 'id', 'scope'])`: the fields that name a row rather than describe it |
 | `MAX_TITLES_PER_CLUSTER` | `6` | `src/worker/store/fuzzy-merge.ts:12` | titles kept per cluster profile. The comparison is a square, so this is 36 alignments per pair |
 | `MAX_SIMILAR_MEDIA_PER_CALLER` | `8` | `src/worker/extractor.ts:227` | one caller's share of the global ceiling, so a plugin can only waste its own budget |
-| built-in sources | `24` | `src/sources/index.ts`, pinned at `tests/unit/sources/index.test.ts:24` | the live source list is `Object.values(extractorDefinitions)`, so the barrel IS what runs |
+| built-in sources | `25` | `src/sources/index.ts`, pinned at `tests/unit/sources/index.test.ts:24` | the live source list is `Object.values(extractorDefinitions)`, so the barrel IS what runs |
 | `MAX_CONCURRENT_SIMILAR_MEDIA` | `32` | `src/worker/extractor.ts:216` | the global ceiling on `similarMedia` asks in flight, the blunt half of the cycle bound |
 | origin `maxBatchSize` | `50` | `src/worker/extractor.ts:160` | origins arrive in far smaller batches than media do |
 | episode titles per ask | `200` | `src/worker/similar-consumer.ts:175` | `dedupe(episodeTitles).slice(0, 200)`, the evidence sent with one ask |
@@ -334,7 +334,7 @@ Two more sets that decide things and are one entry long today:
 
 Four corrections found while checking every number on this page against the file it lives in.
 
-1. **`src/worker/extractor.ts:230` says "each of the 23 sources".** The registry is 24, pinned by name
+1. **`src/worker/extractor.ts:230` says "each of the 23 sources".** The registry is 25, pinned by name
    and by length at `tests/unit/sources/index.test.ts:19-24`. The comment predates watchmode being
    re-enabled on 2026-09-05; the count in it is stale and the rule it states is not.
 2. **`COMPANION_MARKERS` and `RETRYABLE_STATUSES` are not regexes**, although a reader coming from an

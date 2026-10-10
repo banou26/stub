@@ -1,9 +1,9 @@
 ---
-title: The 24, and what each answers
+title: The 25, and what each answers
 description: Every built-in source module, the id spaces each one can be asked with, which of them yield a media row at all, and the seven that are registered for a reason other than answering.
 ---
 
-There are **24** built-in source modules. `src/sources/index.ts` is the whole registry and every line
+There are **25** built-in source modules. `src/sources/index.ts` is the whole registry and every line
 in it is `export * as <name> from './<dir>/extractor'`, so a source module is an ES module namespace
 object and nothing more. `src/worker/extractor.ts:551` turns the barrel into the live list:
 
@@ -20,11 +20,11 @@ Which means the export line **is** the on switch, and the test file says so befo
 > deletion of one line and therefore silently undone by anyone adding one back.
 
 The count is pinned by name and by length at `tests/unit/sources/index.test.ts:19-24`, ending in
-`expect(names).toHaveLength(24)`. If you have seen the figure 36 anywhere, that is JustWatch's
+`expect(names).toHaveLength(25)`. If you have seen the figure 36 anywhere, that is JustWatch's
 provider mapping table, not this: `PACKAGE_ORIGIN_MAP` (`src/sources/justwatch/id.ts:75-79`) has 13
 package keys pointing at 9 origins, and none of those 13 is a source module.
 
-One trap before the tables. **The module name is not the origin.** Four of the 24 publish under a
+One trap before the tables. **The module name is not the origin.** Four of the 25 publish under a
 prefix that is not what the export is called: `jikan` publishes `mal:`, `crunchyroll` publishes `cr:`,
 `unogs` publishes `nf:`, `justwatch` publishes `jw:`. Grepping for `nf:` finds the Netflix source;
 grepping for `netflix` finds nothing.
@@ -37,7 +37,7 @@ Every source declares two sets, and conflating them is the whole subject of this
 flowchart LR
   ASK["a batch of newly known origins reaches askOrigins<br/><small>extractor.ts:825, one pass per read that found an origin nobody has been asked about</small>"]
   ASK --> D{"can this source answer once these origins are known?<br/><small>origins.includes(source.origin) || (source.supportedUris ?? []).some(origin =&gt; origins.includes(origin))</small>"}
-  D -->|"22 modules: supportedUris names its own origin and nothing else"| SELF["a self loop<br/><small>asked only once its own name is already in the uri</small>"]
+  D -->|"23 modules: supportedUris names its own origin and nothing else"| SELF["a self loop<br/><small>asked only once its own name is already in the uri</small>"]
   D -->|"anizip: supportedUris names anidb and mal, and never anizip"| AZ["anizip re-joins the fan-out<br/><small>anizip/extractor.ts:13</small>"]
   D -->|"offline: supportedUris names offline plus mal, anilist, kitsu, anidb"| OFF["offline re-joins the fan-out<br/><small>INDEXED_ORIGINS, offline/index-lookup.ts:20</small>"]
   D -->|"a plugin source: PluginSourceMeta carries no supportedUris at all"| PL["matched on its own origin alone<br/><small>extractor.ts:827-828</small>"]
@@ -52,7 +52,7 @@ flowchart LR
   class NOPE,REF refuse
 ```
 
-*Twenty-two of the twenty-four are self loops, and the sparseness is the point: the cross-lines are two modules wide.*
+*Twenty-three of the twenty-five are self loops, and the sparseness is the point: the cross-lines are two modules wide.*
 
 The test is `answersForOrigins` at `src/sources/supported.ts:27-29`, called from `askOrigins` at
 `src/worker/extractor.ts:830`. Its comment is the reason the function exists at all:
@@ -115,19 +115,21 @@ payload can contain at all.
 
 ```mermaid
 flowchart TD
-  P["one Subscription.media payload, put to all 24 at once<br/><small>joinFanout applies no origin test</small>"]
+  P["one Subscription.media payload, put to all 25 at once<br/><small>joinFanout applies no origin test</small>"]
   P --> BM["full metadata: 12 modules<br/><small>jikan anilist anizip kitsu offline tmdb tvmaze omdb trakt simkl tvdb watchmode</small>"]
   P --> BS["streaming with real answers: 5 modules<br/><small>crunchyroll unogs justwatch appletv paramount</small>"]
   P --> BT["provider stubs: 6 modules<br/><small>disney amazon hulu peacock hbo fubo</small>"]
   P --> BI["render only: 1 module<br/><small>imdb</small>"]
+  P --> BL["a season list only: 1 module<br/><small>livechart, whose media falls to the default</small>"]
   BM --> ROW["yield media: a row, scored 0.9 down to 0.2"]
   BS --> ROW
   BT --> NUL["yield media: null, on every call, for ever<br/><small>subscribe: async function* () { yield { media: null } }</small>"]
   BI --> NUL
+  BL --> LIST["media: the default null<br/><small>its rows arrive through mediaPage, the season list</small>"]
   BM --> DS{"can this origin be asked WHICH run?<br/><small>Boolean of resolvers.Subscription.similarMedia, read off the definition</small>"}
   BS --> DS
-  DS -->|"5 of 24 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>extractor.ts:330</small>"]
-  DS -->|"the other 19 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>extractor.ts:331-334</small>"]
+  DS -->|"5 of 25 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>extractor.ts:330</small>"]
+  DS -->|"the other 20 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>extractor.ts:331-334</small>"]
   NUL --> DR{"then why is the module registered at all?<br/><small>isApiOnly === false, so an IS_NOT_API_ONLY filter keeps the origin</small>"}
   DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>media-modal.tsx:777-781</small>"]
   DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>media-modal.tsx:789-792</small>"]
@@ -314,7 +316,7 @@ and the entire reason it came back as `partOf`. A missing link costs a row; a wr
 cluster.
 :::
 
-## The 24: identity
+## The 25: identity
 
 `SCORE` is the module-private constant every source threads into `makeMedia`/`makeEpisode`, not an
 export. `store/aggregate.ts` sorts by it descending and the top source takes the field outright.
@@ -338,6 +340,7 @@ export. `store/aggregate.ts` sorts by it descending and the top source takes the
 | tmdb | `tmdb` | TMDB | true | 0.3 |
 | tvmaze | `tvmaze` | TVmaze | true | 0.3 |
 | kitsu | `kitsu` | Kitsu | true | 0.3 |
+| livechart | `livechart` | LiveChart | true | 0.6 |
 | omdb | `omdb` | IMDb | true | 0.3 |
 | trakt | `trakt` | Trakt | true | 0.3 |
 | simkl | `simkl` | Simkl | true | 0.3 |
@@ -368,7 +371,7 @@ app's own client id, `simkl` searches through simkl.com's search form, `tvdb` th
 search, and `watchmode` through its site's tRPC gateway. `tests/unit/sources/index.test.ts` reads `src`
 and fails on any key read coming back.
 
-## The 24: what each answers
+## The 25: what each answers
 
 `M` is a real implementation. `null` means the field is declared and always yields
 `{ media: null }` or `{ nodes: [] }`. `-` means the module does not declare the field and falls to
@@ -393,6 +396,7 @@ the merged default in `src/worker/extractor.ts:448-464`.
 | tmdb | `tmdb` | SERIES | M | M | - | M |
 | tvmaze | `tvmaze` | SERIES | M | M | **M** | M |
 | kitsu | `kitsu` | ANIME, SERIES, MOVIE | M | M | - | M |
+| livechart | `livechart` | ANIME, SERIES, MOVIE | - | M | - | - |
 | omdb | `omdb` | SERIES, MOVIE | M | M | - | M |
 | trakt | `trakt` | SERIES | M | M | - | M |
 | simkl | `simkl` | ANIME, SERIES, MOVIE | M | M | - | M |
@@ -407,12 +411,12 @@ Totals, counted off the tree: **5** sources implement `Subscription.similarMedia
 
 ## Three exports on every module that decide nothing
 
-They are all declared 24 times and they look like configuration. Two of them are read by nothing.
+They are all declared 25 times and they look like configuration. Two of them are read by nothing.
 
 | export | who reads it | what it decides |
 | --- | --- | --- |
-| `official` | nothing in `src/` | nothing. `true` on jikan, anilist and crunchyroll; `false` on the other 21 |
-| `metadataOnly` | nothing effective | nothing. `false` on crunchyroll only; `true` on the other 23 |
+| `official` | nothing in `src/` | nothing. `true` on jikan, anilist and crunchyroll; `false` on the other 22 |
+| `metadataOnly` | nothing effective | nothing. `false` on crunchyroll only; `true` on the other 24 |
 | `categories` (module level) | nothing | nothing. Every source restates its categories per row inside `makeMedia({ categories: [...] })`, and that per-row list is what `store/filter.ts:65` and `store/aggregate.ts` read |
 
 `src/sources/offline/extractor.ts:30-31` is the measured account of the middle row:
@@ -439,7 +443,7 @@ wins and the comment is quoted anyway, because the reasoning in it is usually st
 
 | claim | where it says so | what the code does |
 | --- | --- | --- |
-| "36 sources" | `docs/astro.config.mjs:17` | 24 modules. 36 counts JustWatch's 13 package keys as sources |
+| "36 sources" | `docs/astro.config.mjs:17` | 25 modules. 36 counts JustWatch's 13 package keys as sources |
 | jikan mints an imdb handle | `src/sources/imdb/extractor.ts:5-6` | it mints `anidb` and `anizip` only. Six sources mint imdb: omdb, simkl, trakt, watchmode, tvmaze, tvdb |
 | `supportedUris` on offline is read by nothing | `src/sources/offline/extractor.ts:46-47` | `answersForOrigins` reads it through the `Answerable` cast at `extractor.ts:829` |
 | the icon guard is at `media-modal.tsx:662` | `src/sources/offline/extractor.ts:25` | it is at `:781`. The argument around it is unchanged |

@@ -6,7 +6,7 @@ description: One module-private constant per source, threaded by hand onto every
 Nothing in the worker ever asks a source what it is worth. `ExtractorDefinition`
 (`src/worker/extractor.ts:164-173`) has no field for a score, `makeExtractor` reads none, and no code
 under `src/worker/` touches a module-level constant. What exists instead is a module-private
-`const SCORE` in seventeen of the twenty-four built-in sources, threaded by hand into every
+`const SCORE` in eighteen of the twenty-five built-in sources, threaded by hand into every
 `makeMedia`, `makeEpisode`, title, cover, banner, description and thumbnail that source mints. The
 store reads a number off each row and each item, and that number is the only thing separating a
 static dump three weeks old from a live catalogue.
@@ -20,6 +20,7 @@ hbo, fubo) and imdb. None of them calls `makeMedia` even once, so there is nothi
 | --- | --- | --- |
 | `0.9` | jikan, anizip | `src/sources/jikan/extractor.ts:26`, `src/sources/anizip/extractor.ts:15` |
 | `0.8` | anilist | `src/sources/anilist/extractor.ts:217` |
+| `0.6` | livechart | `src/sources/livechart/extractor.ts:20` |
 | `0.5` | crunchyroll | `src/sources/crunchyroll/extractor.ts:12` |
 | `0.3` | kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze | `kitsu:12`, `omdb:8`, `simkl:8`, `tmdb:11`, `trakt:7`, `tvdb:7`, `tvmaze:9` |
 | `0.25` | watchmode | `src/sources/watchmode/extractor.ts:11` |
@@ -58,10 +59,11 @@ design.
 
 ```mermaid
 flowchart TD
-  DECL["const SCORE, one per module<br/><small>17 declaration sites; only offline exports it</small>"]
+  DECL["const SCORE, one per module<br/><small>18 declaration sites; only offline exports it</small>"]
   DECL --> T90["0.9 - jikan, anizip"]
   T90 --> T80["0.8 - anilist"]
-  T80 --> T50["0.5 - crunchyroll"]
+  T80 --> T60["0.6 - livechart"]
+  T60 --> T50["0.5 - crunchyroll"]
   T50 --> T30["0.3 - the english metadata block<br/><small>kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze</small>"]
   T30 --> T25["0.25 - watchmode"]
   T25 --> T20["0.2 - appletv, justwatch, offline, paramount, unogs"]

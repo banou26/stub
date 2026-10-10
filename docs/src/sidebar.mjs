@@ -34,7 +34,7 @@ export const sidebar = [
   ]},
   { label: 'Sources', items: [
     { label: 'What a source is',          slug: 'sources/contract' },
-    { label: 'The 24, and what each answers', slug: 'sources/registry' },
+    { label: 'The 25, and what each answers', slug: 'sources/registry' },
     { label: 'What a source may mint',    slug: 'sources/what-a-source-mints' },
     { label: 'Scores, and what they decide', slug: 'sources/scores' },
     { label: 'The search gate',           slug: 'sources/search-gate' },
