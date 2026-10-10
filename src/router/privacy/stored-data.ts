@@ -4,6 +4,7 @@
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ENABLED_PLUGINS_KEY } from '../../plugin-list'
+import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
@@ -31,6 +32,14 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: 'Until you remove them',
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY] },
+  },
+  {
+    id: 'turned-off-sources',
+    title: 'Sources turned off',
+    what: 'Which of the sources stub ships with you turned off, so stub does not ask them.',
+    where: LOCAL,
+    lasts: 'Until you turn them back on',
+    keys: { store: 'local', names: [DISABLED_SOURCES_KEY] },
   },
   {
     id: 'search-layout',

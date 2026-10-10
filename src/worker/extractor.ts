@@ -21,6 +21,7 @@ import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
 import { collectUris, joinFanout, leaveFanout, openFanout, type Fanout } from './fanout'
+import { askable } from './disabled-origins'
 import { answersForOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
@@ -300,7 +301,7 @@ const firstSimilarMedia = (
  * caller can skip the subscription round trip that would only ever answer null.
  */
 export const implementsSimilarMedia = (origin: string): boolean =>
-  extractors.some(entry =>
+  askable(extractors).some(entry =>
     entry.extractor.origin === origin
     && Boolean((entry.extractor.resolvers.Subscription as { similarMedia?: unknown } | undefined)?.similarMedia))
 
@@ -311,7 +312,7 @@ export const implementsSimilarMedia = (origin: string): boolean =>
  * and are never asked.
  */
 export const implementsContainingMedia = (origin: string): boolean =>
-  extractors.some(entry =>
+  askable(extractors).some(entry =>
     entry.extractor.origin === origin
     && Boolean((entry.extractor.resolvers.Subscription as { containingMedia?: unknown } | undefined)?.containingMedia))
 
@@ -403,7 +404,7 @@ export const similarOutcomeFrom = (caller: string) =>
       console.warn(`similarMedia: declined ${origin} ${printableToken(showId)} to '${caller}' (bad-show-id)`)
       return { outcome: 'declined', reason: 'bad-show-id' }
     }
-    const extractor = implementsSimilarMedia(origin) ? extractors.find(candidate => candidate.extractor.origin === origin) : undefined
+    const extractor = implementsSimilarMedia(origin) ? askable(extractors).find(candidate => candidate.extractor.origin === origin) : undefined
     if (!extractor) {
       console.warn(`similarMedia: declined ${origin} ${showId} to '${caller}' (not-implemented)`)
       return { outcome: 'declined', reason: 'not-implemented' }
@@ -792,7 +793,7 @@ export const proxyRequestToExtractors = (
   const root = openRoot(operation)
   const insertedUris = new Set<string>()
   const fanout = openFanout({
-    entries: extractors,
+    entries: askable(extractors),
     query: ctx.params.query!,
     variables: ctx.params.variables,
     root,
@@ -831,7 +832,7 @@ export const proxyRequestToExtractors = (
    * teardown collects them with the rest.
    */
   const askOrigins = (originIds: string[], variables: SubscriptionArgs[1]) => {
-    for (const extractor of extractors) {
+    for (const extractor of askable(extractors)) {
       // A PLUGIN source is matched on its origin alone: `PluginSourceMeta` carries no `supportedUris`
       // (see plugin-sources.ts), so a third party answering from a foreign id keeps the old behaviour.
       const definition = extractor.extractor as Answerable

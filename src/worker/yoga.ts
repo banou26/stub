@@ -8,6 +8,7 @@ import { expose } from 'osra'
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
 import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
+import { setDisabledOrigins } from './disabled-origins'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
@@ -54,6 +55,8 @@ export const osraResolvers = {
     if (store === 'graph') await enableGraph(true, { scheduler: true })
     setReadStore(store)
   },
+  // the built-in sources turned off in Settings, handed over before the page's first question and again on every change
+  setDisabledSources: (origins: string[]) => setDisabledOrigins(origins),
   registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: { origin: string, name: string }[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
     try {
       return { ok: await registerRemoteExtractor(port, pluginUri) }
