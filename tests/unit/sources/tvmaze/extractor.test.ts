@@ -5,7 +5,7 @@
 //
 // Which season a media or a `similarMedia` caller means is decided by the shared picker over what the
 // embedded episode list says about every season: its size, its earliest airdate, its episode titles.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/tvmaze/extractor'
 
@@ -20,6 +20,7 @@ const SHOW = {
   name: 'Mushoku Tensei: Jobless Reincarnation',
   premiered: '2021-01-11',
   externals: { imdb: 'tt13303712' },
+  rating: { average: 7.7 },
   _embedded: { episodes: [episode(1, 1), episode(1, 2), episode(2, 1), episode(2, 2), episode(2, 3), episode(3, 1)] },
 }
 
@@ -116,6 +117,16 @@ test('a search row carries the bare show id and is a CONTAINER', async () => {
   expect(rows.map(row => row.uri)).toEqual(['tvmaze:52279'])
   expect(rows[0]!.scope).toBe('CONTAINER')
   expect(rows[0]!.handles.map(handle => handle.node.scope)).toEqual(['CONTAINER'])
+})
+
+// tvmaze rates out of ten (7.7) and averageScore is a whole percent, an Int: the unscaled 7.7 failed the
+// whole answer with "Int cannot represent non-integer value" on a live "frieren" search (2026-10-10)
+test('a rating out of ten becomes a whole percent, on a search row and on a media', async () => {
+  const [row] = await searchRows() as (Row & { averageScore?: number })[]
+  const media = await mediaFor('tvmaze:52279-s3') as Row & { averageScore?: number }
+
+  expect(row!.averageScore).toBe(77)
+  expect(media.averageScore).toBe(77)
 })
 
 // getMedia hands back the bare id when the show has no season to pick (no episodes at all), so the

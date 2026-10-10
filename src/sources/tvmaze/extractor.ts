@@ -6,6 +6,7 @@ import { makeMedia, makeEpisode, desc, img, waitForMedia } from '../utils'
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { decodeEntities } from '../entities'
+import { percentScore } from '../average-score'
 
 const SCORE = 0.3
 const API = 'https://api.tvmaze.com'
@@ -105,7 +106,7 @@ const normalizeMedia = (
     // Nothing is asserted when it is unknown: an absent date costs this source a year bucket, a wrong
     // one costs a permanent weld, and graph.link has no inverse.
     startDate: (seasonNumber == null ? show.premiered : seasonPremiere) || undefined,
-    averageScore: show.rating?.average ?? undefined,
+    averageScore: percentScore(show.rating?.average, 10),
   })
 
 const normalizeEpisode = (episode: TvmazeEpisode, mediaUri: string): GQLEpisode =>
