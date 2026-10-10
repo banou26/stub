@@ -36,7 +36,7 @@ const style = css`
 `
 
 /** The sources added from npm. */
-export const SourcesSection = ({ onChange }: { onChange: () => void }) => {
+export const SourcesSection = () => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [uri, setUri] = useState('')
   const [addError, setAddError] = useState('')
@@ -44,11 +44,8 @@ export const SourcesSection = ({ onChange }: { onChange: () => void }) => {
   // Re-read on subscribe, not just on notify: a plugin whose frame is already warm connects before the effect subscribes, leaving a connected source stuck reading "connecting"
   useEffect(() => {
     setPlugins(pluginStatuses())
-    return onPluginsChange(() => {
-      setPlugins(pluginStatuses())
-      onChange()
-    })
-  }, [onChange])
+    return onPluginsChange(() => setPlugins(pluginStatuses()))
+  }, [])
 
   const onAddUri = (event: Event) => {
     event.preventDefault()

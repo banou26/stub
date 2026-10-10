@@ -49,55 +49,27 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const SECTIONS = ['Accounts', 'Sources', 'Tracking', 'Playback', 'Data']
+const SECTIONS = ['Accounts', 'Sources', 'Tracking', 'Playback']
 const HOUR = 3_600_000
 
-// every key stub writes, the API keys an older stub kept, and one key that belongs to nobody, plus a
-// file beside stub's list
+// what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
 const SEED = {
-  local: {
-    'stub.apikeys': JSON.stringify({ omdb: 'a-key-for-the-spec' }),
-    'stub-enabled-plugins': JSON.stringify(['npm:@banou/spec-example']),
-    'stub-search-display-mode': 'list',
-    'stub.tracking.compact': JSON.stringify({ targets: { mal: false } }),
-    'stub.sessions': JSON.stringify(['anilist', 'mal']),
-    'stub.site-status': JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: Date.now() - 2 * HOUR } }),
-    'not-stub': 'kept',
-  },
-  session: {
-    'stub-party-name': 'Spec',
-    'not-stub-either': 'kept',
-  },
+  'stub.apikeys': JSON.stringify({ omdb: 'a-key-for-the-spec' }),
+  'stub-enabled-plugins': JSON.stringify(['npm:@banou/spec-example']),
+  'stub.sessions': JSON.stringify(['anilist', 'mal']),
+  'stub.site-status': JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: Date.now() - 2 * HOUR } }),
+  'not-stub': 'kept',
 }
-const MARKER = 'spec-marker.txt'
 
-type Stores = { local: Record<string, string>, session: Record<string, string>, marker: string | null }
+const readLocal = (page: Page): Promise<Record<string, string>> => page.evaluate(() =>
+  Object.fromEntries(Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)!).map(key => [key, localStorage.getItem(key)!])))
 
-const readStores = (page: Page): Promise<Stores> => page.evaluate(async marker => {
-  const all = (storage: Storage) => Object.fromEntries(Array.from({ length: storage.length }, (_, index) => storage.key(index)!).map(key => [key, storage.getItem(key)!]))
-  let text: string | null = null
-  try {
-    const root = await navigator.storage.getDirectory()
-    const tracking = await (await root.getDirectoryHandle('tracking')).getDirectoryHandle('v1')
-    text = await (await (await tracking.getFileHandle(marker)).getFile()).text()
-  } catch {}
-  return { local: all(localStorage), session: all(sessionStorage), marker: text }
-}, MARKER)
-
-/** Loads a page of the app, writes every store, and opens the settings page on them. */
+/** Loads a page of the app, writes what stub keeps, and opens the settings page on it. */
 const seeded = async (page: Page, path = '/settings') => {
   await page.goto(`${origin}/legal`)
-  await page.evaluate(async ({ seed, marker }) => {
-    for (const [key, value] of Object.entries(seed.local)) localStorage.setItem(key, value)
-    for (const [key, value] of Object.entries(seed.session)) sessionStorage.setItem(key, value)
-    const root = await navigator.storage.getDirectory()
-    const tracking = await (await root.getDirectoryHandle('tracking', { create: true })).getDirectoryHandle('v1', { create: true })
-    const writable = await (await tracking.getFileHandle(marker, { create: true })).createWritable()
-    await writable.write('the list is not the settings page\'s to clear')
-    await writable.close()
-  }, { seed: SEED, marker: MARKER })
+  await page.evaluate(seed => { for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value) }, SEED)
   await page.goto(`${origin}${path}`)
-  await expect(page.locator('section#data')).toBeVisible()
+  await expect(page.locator('section#accounts')).toBeVisible()
 }
 
 const index = (page: Page) => page.getByRole('navigation', { name: 'Settings sections' })
@@ -114,10 +86,8 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('section#sources')).not.toContainText('Built in')
   await expect(page.locator('section#sources input[type="password"]'), 'no source asks for a key').toHaveCount(0)
   await expect(page.locator('section#playback')).toContainText('does not remember')
-  await expect(page.locator('section#data .intro'), 'each address of stub is its own origin').toContainText('each keeps its own copy')
-  for (const id of ['added-sources', 'search-layout', 'quick-tracking', 'connected-sites', 'site-status', 'party-name', 'party-invite', 'stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']) {
-    await expect(page.locator(`[data-stored="${id}"]`), id).toBeVisible()
-  }
+  await expect(page.locator('section#data'), 'no Data section').toHaveCount(0)
+  await expect(page.locator('[data-stored]')).toHaveCount(0)
 })
 
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
@@ -146,90 +116,50 @@ test('on a phone the index is a row above the sections, the page never scrolls s
   expect(nav!.y + nav!.height).toBeLessThanOrEqual(accounts!.y)
   for (const link of await index(page).getByRole('link').all()) await expect(link).toBeInViewport()
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
-  await jumpsTo(page, 'Data', 'data')
+  await jumpsTo(page, 'Playback', 'playback')
   await jumpsTo(page, 'Accounts', 'accounts')
 })
 
 test('a link to a section opens the page at it', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto(`${origin}/settings#data`)
-  await expect(page.locator('section#data > h2')).toBeInViewport()
+  await page.goto(`${origin}/settings#playback`)
+  await expect(page.locator('section#playback > h2')).toBeInViewport()
   await expect(page.locator('section#accounts > h2')).not.toBeInViewport()
 })
 
-// each Clear is named for its row, since the page holds five of them
-const CLEARED: Record<string, { store: 'local' | 'session', key: string, after: string | undefined, name: string }> = {
-  // the plugin list writes the list it has left, which is none
-  'added-sources': { store: 'local', key: 'stub-enabled-plugins', after: '[]', name: 'Clear added sources' },
-  'search-layout': { store: 'local', key: 'stub-search-display-mode', after: undefined, name: 'Clear search layout' },
-  'quick-tracking': { store: 'local', key: 'stub.tracking.compact', after: undefined, name: 'Clear quick tracking choices' },
-  'site-status': { store: 'local', key: 'stub.site-status', after: undefined, name: 'Clear site sign-in states' },
-  'party-name': { store: 'session', key: 'stub-party-name', after: undefined, name: 'Clear party name' },
-}
-
-for (const [id, { store, key, after, name }] of Object.entries(CLEARED)) {
-  test(`Clear on ${id} clears that store, after asking, and nothing else`, async ({ page }) => {
-    await seeded(page)
-    const row = page.locator(`[data-stored="${id}"]`)
-    const before = await readStores(page)
-    expect(before[store][key], 'seeded').toBe((SEED[store] as Record<string, string>)[key])
-    const added = page.locator('section#sources .row.plugin')
-    if (id === 'added-sources') await expect(added, 'the seeded source is listed under Sources').toHaveCount(1)
-
-    await row.getByRole('button', { name, exact: true }).click()
-    expect((await readStores(page))[store][key], 'the first click only asks').toBe(before[store][key])
-    await row.getByRole('button', { name: 'Yes, clear' }).click()
-    await expect(row).toContainText('Nothing kept')
-    // FKN never answers here, so this is the list moving without waiting on the uninstall
-    if (id === 'added-sources') await expect(added, 'and leaves the Sources list on the same page').toHaveCount(0)
-
-    const now = await readStores(page)
-    const expected = { ...before, [store]: { ...before[store] } }
-    if (after === undefined) delete expected[store][key]
-    else expected[store][key] = after
-    expect(now).toEqual(expected)
-    expect(now.marker, "stub's list is untouched").toBe(before.marker)
-
-    // and it stays cleared on the next load
-    await page.reload()
-    await expect(page.locator(`[data-stored="${id}"]`)).toContainText('Nothing kept')
-  })
-}
-
 test('the API keys an older stub kept leave this browser on the next load, and nothing else does', async ({ page }) => {
   await page.goto(`${origin}/legal`)
-  await page.evaluate(seed => { for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value) }, SEED.local)
-  expect((await readStores(page)).local['stub.apikeys'], 'seeded').toBe(SEED.local['stub.apikeys'])
+  await page.evaluate(seed => { for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value) }, SEED)
+  expect((await readLocal(page))['stub.apikeys'], 'seeded').toBe(SEED['stub.apikeys'])
 
   await page.goto(`${origin}/settings`)
-  await expect(page.locator('section#data')).toBeVisible()
-  const { local } = await readStores(page)
+  await expect(page.locator('section#accounts')).toBeVisible()
+  const local = await readLocal(page)
   expect(local['stub.apikeys'], 'gone').toBeUndefined()
-  expect(local).toMatchObject(Object.fromEntries(Object.entries(SEED.local).filter(([key]) => key !== 'stub.apikeys')))
-  await expect(page.locator('[data-stored="api-keys"]'), 'the Data section no longer lists keys').toHaveCount(0)
+  expect(local).toMatchObject(Object.fromEntries(Object.entries(SEED).filter(([key]) => key !== 'stub.apikeys')))
 })
 
 test('a confirmation opens on Cancel, Cancel gives focus back to its button, and a confirm leaves it on the row', async ({ page }) => {
   await seeded(page)
-  const row = page.locator('[data-stored="search-layout"]')
-  const clear = row.getByRole('button', { name: 'Clear search layout', exact: true })
-  await clear.focus()
+  const row = page.locator('[data-account="anilist"]')
+  const signOut = row.getByRole('button', { name: 'Sign out of AniList', exact: true })
+  await signOut.focus()
   await page.keyboard.press('Enter')
   await expect(row.getByRole('button', { name: 'Cancel' })).toBeFocused()
 
-  // so Enter, Enter is a Cancel, never a clear
+  // so Enter, Enter is a Cancel, never a sign out
   await page.keyboard.press('Enter')
-  await expect(clear).toBeFocused()
-  expect((await readStores(page)).local['stub-search-display-mode']).toBe('list')
+  await expect(signOut).toBeFocused()
+  expect(JSON.parse((await readLocal(page))['stub.sessions']!)).toContain('anilist')
 
   await page.keyboard.press('Enter')
   await expect(row.getByRole('button', { name: 'Cancel' })).toBeFocused()
   await page.keyboard.press('Shift+Tab')
-  await expect(row.getByRole('button', { name: 'Yes, clear' })).toBeFocused()
+  await expect(row.getByRole('button', { name: 'Yes, sign out' })).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(row).toContainText('Nothing kept')
-  expect((await readStores(page)).local['stub-search-display-mode']).toBeUndefined()
-  await expect(row.getByRole('heading', { name: 'Search layout' }), 'the Clear is gone, so focus goes to its row').toBeFocused()
+  await expect(row).toContainText('Not connected')
+  expect(JSON.parse((await readLocal(page))['stub.sessions']!)).not.toContain('anilist')
+  await expect(row.getByRole('heading', { name: 'AniList' }), 'the Sign out is gone, so focus goes to its row').toBeFocused()
 })
 
 test('signing out of AniList and MyAnimeList disconnects each on this device, one at a time', async ({ page }) => {
@@ -238,10 +168,10 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
     const row = page.locator(`[data-account="${site}"]`)
     await expect(row).toContainText('Connected on this device')
     await row.getByRole('button', { name: `Sign out of ${title}`, exact: true }).click()
-    expect(JSON.parse((await readStores(page)).local['stub.sessions']!), 'the first click only asks').toContain(site)
+    expect(JSON.parse((await readLocal(page))['stub.sessions']!), 'the first click only asks').toContain(site)
     await row.getByRole('button', { name: 'Yes, sign out' }).click()
     await expect(row).toContainText('Not connected')
-    expect(JSON.parse((await readStores(page)).local['stub.sessions']!)).toEqual(left)
+    expect(JSON.parse((await readLocal(page))['stub.sessions']!)).toEqual(left)
     await expect(row.getByRole('heading', { name: title }), 'focus stays on the row, whose button is gone').toBeFocused()
   }
   await page.reload()
@@ -283,25 +213,11 @@ test('a site with nothing remembered says so, and a tracking site not connected 
   await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: /Check whether/ })).toHaveCount(0)
 })
 
-test('clearing the sign-in states under Data shows at once under Accounts, and ends no session', async ({ page }) => {
-  await seeded(page)
-  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in, checked 2 hours ago')
-  const row = page.locator('[data-stored="site-status"]')
-  await row.getByRole('button', { name: 'Clear site sign-in states', exact: true }).click()
-  await row.getByRole('button', { name: 'Yes, clear' }).click()
-
-  await expect(chip(page, 'crunchyroll')).toHaveText('Not checked yet')
-  expect(JSON.parse((await readStores(page)).local['stub.sessions']!), 'the connected sites stay connected').toEqual(['anilist', 'mal'])
-})
-
-test('the privacy page says what stub keeps, and links to where it is cleared', async ({ page }) => {
+test('the privacy page says what stub keeps', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto(`${origin}/privacy`)
   const body = page.locator('body')
   for (const title of ['Added sources', 'Search layout', 'Party name', "Stub's list"]) await expect(body).toContainText(title)
   await expect(body).not.toContainText('API key')
   await expect(body).not.toContainText('Everything else stub holds is cleared when you close or refresh the tab')
-  await page.getByRole('link', { name: 'Settings, under Data' }).click()
-  await expect(page).toHaveURL(/\/settings#data$/)
-  await expect(page.locator('section#data > h2')).toBeInViewport()
 })

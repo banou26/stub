@@ -32,7 +32,7 @@ afterEach(() => {
 })
 
 const render = () => {
-  const host = mount(<SourcesSection onChange={() => {}}/>)
+  const host = mount(<SourcesSection/>)
   hosts.push(host)
   return host
 }

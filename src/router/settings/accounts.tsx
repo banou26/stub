@@ -38,8 +38,6 @@ export type AccountsProps = {
     /** Asks the site now and remembers its answer. Rejects when the answer says neither. */
     check: (site: StatusSite, backend: FknBackend) => Promise<SiteState>
   }
-  /** Called after anything here changed what stub keeps. */
-  onChange?: () => void
   /** The clock a remembered state's age is read against. */
   now?: () => number
 }
@@ -71,14 +69,13 @@ const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
   return status.read(site)
 }
 
-const CheckNow = ({ site, name, backend, status, onChange, onNote }: { site: StatusSite, name: string, backend: FknBackend, onNote: (note: Note | undefined) => void } & Pick<AccountsProps, 'status' | 'onChange'>) => {
+const CheckNow = ({ site, name, backend, status, onNote }: { site: StatusSite, name: string, backend: FknBackend, onNote: (note: Note | undefined) => void } & Pick<AccountsProps, 'status'>) => {
   const [busy, setBusy] = useState(false)
   const mounted = useMounted()
   const check = () => {
     setBusy(true)
     onNote(undefined)
     status.check(site, backend)
-      .then(() => onChange?.())
       .catch(error => { if (mounted.current) onNote({ text: `stub could not tell whether you are signed in to ${name}: ${messageOf(error)}`, error: true }) })
       .finally(() => { if (mounted.current) setBusy(false) })
   }
@@ -111,13 +108,13 @@ const CLOUD_JAR = 'Without the FKN extension, the session is kept by FKN, in the
 const notTold = (name: string) =>
   `${name} itself is not told, so the session stays valid there until it expires, held by nobody.`
 
-const CrunchyrollRow = ({ backend, crunchyroll, status, onChange, now }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status' | 'onChange'> & { now: () => number }) => {
+const CrunchyrollRow = ({ backend, crunchyroll, status, now }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status'> & { now: () => number }) => {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, 'crunchyroll')
-  const checkNow = backend ? <CheckNow site="crunchyroll" name="Crunchyroll" backend={backend} status={status} onChange={onChange} onNote={setNote}/> : undefined
+  const checkNow = backend ? <CheckNow site="crunchyroll" name="Crunchyroll" backend={backend} status={status} onNote={setNote}/> : undefined
 
   const signIn = () => {
     const signingIn = crunchyroll.signIn()
@@ -183,7 +180,7 @@ const TRACKER_SITES: { site: TrackerSite, name: string, host: string }[] = [
   { site: 'mal', name: 'MyAnimeList', host: 'myanimelist.net' },
 ]
 
-const TrackerRow = ({ site, name, host, backend, sites, status, onChange, now }: { site: TrackerSite, name: string, host: string, now: () => number } & Pick<AccountsProps, 'backend' | 'sites' | 'status' | 'onChange'>) => {
+const TrackerRow = ({ site, name, host, backend, sites, status, now }: { site: TrackerSite, name: string, host: string, now: () => number } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
@@ -197,9 +194,7 @@ const TrackerRow = ({ site, name, host, backend, sites, status, onChange, now }:
   }, [sites, site])
 
   const settle = () => {
-    if (!mounted.current) return
-    setConnected(sites.isConnected(site))
-    onChange?.()
+    if (mounted.current) setConnected(sites.isConnected(site))
   }
 
   const signIn = () => {
@@ -262,7 +257,7 @@ const TrackerRow = ({ site, name, host, backend, sites, status, onChange, now }:
                 />
               )
               : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
-            {connected ? <CheckNow site={site} name={name} backend={backend} status={status} onChange={onChange} onNote={setNote}/> : undefined}
+            {connected ? <CheckNow site={site} name={name} backend={backend} status={status} onNote={setNote}/> : undefined}
           </div>
         )
         : undefined}
@@ -285,10 +280,10 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 )
 
 /** Every sign-in stub uses, what each is, and the way out of it where there is one. */
-export const AccountsSection = ({ backend, crunchyroll, sites, status, onChange, now = Date.now }: AccountsProps) => (
+export const AccountsSection = ({ backend, crunchyroll, sites, status, now = Date.now }: AccountsProps) => (
   <div className="rows">
-    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status} onChange={onChange} now={now}/>
-    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status} onChange={onChange} now={now}/>)}
+    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status} now={now}/>
+    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status} now={now}/>)}
     <NetflixRow backend={backend}/>
   </div>
 )

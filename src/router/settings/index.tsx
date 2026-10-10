@@ -2,15 +2,12 @@ import type { ComponentChildren } from 'preact'
 import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
-import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 
 import { detectBackend } from '../../utils/fkn-backend'
 import { AccountsSection } from './accounts'
-import { clearers } from './clearers'
-import { DataSection } from './data'
 import { SETTINGS_SECTIONS, sectionFromHash, type SettingsSectionId } from './sections'
 import { SourcesSection } from './sources'
-import { browserStores } from './stored-data'
 import { sectionStyle } from './style'
 import { crunchyroll, sites, status } from './wiring'
 
@@ -86,9 +83,6 @@ const Section = ({ id, children }: { id: SettingsSectionId, children: ComponentC
 const Settings = () => {
   const [backend, setBackend] = useState<FknBackend>()
   const [current, setCurrent] = useState(() => sectionFromHash(location.hash))
-  // anything a section changed can change what the Data section lists, which it reads on render
-  const [, setRevision] = useState(0)
-  const changed = useCallback(() => setRevision(revision => revision + 1), [])
 
   useEffect(() => {
     let cancelled = false
@@ -109,11 +103,7 @@ const Settings = () => {
   useEffect(() => {
     const follow = () => setCurrent(sectionFromHash(location.hash))
     addEventListener('hashchange', follow)
-    addEventListener('storage', changed)
-    return () => {
-      removeEventListener('hashchange', follow)
-      removeEventListener('storage', changed)
-    }
+    return () => removeEventListener('hashchange', follow)
   }, [])
 
   return (
@@ -127,16 +117,15 @@ const Settings = () => {
       <div className="sections">
         <Section id="accounts">
           <p className="intro">Every account and sign-in stub uses, what it is for, and how to end it.</p>
-          <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status} onChange={changed}/>
+          <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status}/>
         </Section>
         <Section id="sources">
-          <SourcesSection onChange={changed}/>
+          <SourcesSection/>
         </Section>
         <Section id="tracking">
           <p className="intro">
             Nothing to set here yet. You track a title from the tracking row on its page. The AniList and
-            MyAnimeList sign-ins are under <a className="link" href="#accounts">Accounts</a>, and what
-            stub's list keeps is under <a className="link" href="#data">Data</a>.
+            MyAnimeList sign-ins are under <a className="link" href="#accounts">Accounts</a>.
           </p>
         </Section>
         <Section id="playback">
@@ -144,15 +133,6 @@ const Settings = () => {
             stub does not remember the player's volume, speed or captions: every episode starts with the
             player's own defaults.
           </p>
-        </Section>
-        <Section id="data">
-          <p className="intro">
-            What stub keeps about you, where and for how long. stub has no server of its own: everything
-            here is in your browser, with FKN, or with the site it belongs to. stub at anime.fkn.app and stub
-            inside fkn.app are two addresses, and each keeps its own copy of what is in this browser. The
-            site sign-ins FKN keeps are one set for every fkn.app app.
-          </p>
-          <DataSection stores={browserStores} clearers={clearers} onCleared={changed}/>
         </Section>
       </div>
     </div>

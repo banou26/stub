@@ -82,17 +82,6 @@ export const sectionStyle = css`
   }
   .row .note.error { color: #f87171; }
 
-  .facts {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.3rem 1.2rem;
-    font-size: 1.3rem;
-    line-height: 1.5;
-  }
-
-  .facts dt { color: rgba(255, 255, 255, 0.45); }
-  .facts dd { color: rgba(255, 255, 255, 0.75); overflow-wrap: anywhere; }
-
   .actions {
     display: flex;
     flex-wrap: wrap;

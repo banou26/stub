@@ -5,7 +5,7 @@ import { afterEach, expect, test } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-import { STORED } from '../../../src/router/settings/stored-data'
+import { STORED } from '../../../src/router/privacy/stored-data'
 
 const { default: Privacy } = await import('../../../src/router/privacy')
 

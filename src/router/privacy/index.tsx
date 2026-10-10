@@ -2,7 +2,7 @@ import { css } from '@emotion/react'
 import { Link } from 'wouter'
 
 import LegalDoc from '../../components/legal-doc'
-import { STORED } from '../settings/stored-data'
+import { STORED } from './stored-data'
 
 const keptStyle = css`
   display: flex;

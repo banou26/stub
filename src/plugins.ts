@@ -121,13 +121,6 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   await packages.uninstall(uri).catch(() => {})
 }
 
-/**
- * Removes every added source, as Remove does for one. The list in this browser is emptied before this
- * returns; what it resolves on is FKN uninstalling each package, which may never answer.
- */
-export const disableAllPlugins = (): Promise<void> =>
-  Promise.all(loadEnabled().map(disablePlugin)).then(() => {})
-
 // picks over npm packages tagged fkn-plugin--stub
 export const addPlugins = async (): Promise<void> => {
   const picked = await packages.pick(
