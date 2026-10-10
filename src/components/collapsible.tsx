@@ -28,6 +28,7 @@ transition: max-height 0.3s ease-in-out;
 }
 
 .toggle-button {
+  font-family: inherit;
   font-size: 2.5rem;
   position: absolute;
   bottom: 0;
