@@ -2,10 +2,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 
-// HOR-309: fkn.app's package page shows the background, cover and screenshots package.json's fkn
-// field names, only for a verified release and read from unpkg at the exact version, so they ship in
-// the tarball. @fkn/package-manifest's listingOf is the grammar and @fkn/sign 0.0.14 refuses a
-// release that breaks it; its caps are LISTING_IMAGE_MAX_BYTES and LISTING_IMAGE_MAX_SIDE.
+// fkn.app's package page shows the images package.json's fkn field names only for a verified release,
+// read from unpkg at the exact version, so they ship in the tarball. The caps are @fkn/package-manifest's
+// LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_SIDE and SCREENSHOTS_MAX, copied because stub does not
+// depend on that package; fkn-sign refuses a release past them.
 const MAX_BYTES = 1_048_576
 const MAX_SIDE = 3_840
 const SCREENSHOTS_MAX = 6
