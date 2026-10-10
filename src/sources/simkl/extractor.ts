@@ -66,8 +66,8 @@ interface SimklEpisode {
   date?: string
 }
 
-// A detail or an episode list needs no client id. A detail asked under the wrong type answers 412
-// `client_id_failed`, which is how getMedia's walk over the three types reads a miss.
+// With no client id a detail or episode list answers only from Cloudflare's cache (measured 2026-10-10):
+// a record not in it answers 412 `client_id_failed`, as one asked under the wrong type does: a miss.
 const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
   ctx.fetch(`${API}${path}`).then(r => r.json() as Promise<T>).catch(() => undefined)
 
