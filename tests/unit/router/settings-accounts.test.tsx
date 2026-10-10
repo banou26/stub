@@ -60,7 +60,6 @@ const fakeStatus = (answers: Partial<Record<StatusSite, SiteState | Error>> = {}
 
 const render = (overrides: Partial<AccountsProps> = {}) => {
   const props: AccountsProps = {
-    account: { info: null, ready: true, logout: vi.fn(async () => 'settled' as const) },
     backend: 'cloud',
     crunchyroll: { signIn: vi.fn(async () => 'authed' as const), signOut: vi.fn(async () => {}) },
     sites: fakeSites(),
@@ -74,47 +73,9 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
   return { host, props, row }
 }
 
-const SIGNED_IN = { name: 'Banou', image: null, premium: true, premiumUntil: null } as unknown as AccountsProps['account']['info']
-
-describe('the FKN account', () => {
-  test('signed in: who, which tier, a way to manage it on fkn.app, and Disconnect', async () => {
-    const logout = vi.fn(async () => 'settled' as const)
-    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout } })
-    expect(row('fkn').textContent).toContain('Banou')
-    expect(row('fkn').textContent).toContain('Premium')
-    expect(row('fkn').querySelector('a')?.getAttribute('href')).toBe('https://fkn.app/account')
-
-    await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
-    await act(async () => { button(row('fkn'), 'Yes, disconnect')!.click() })
-    await flush()
-    expect(logout).toHaveBeenCalledTimes(1)
-  })
-
-  test('Disconnect asks first, and says that list changes not sent to the account yet are lost', async () => {
-    const logout = vi.fn(async () => 'settled' as const)
-    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout } })
-    expect(button(row('fkn'), 'Disconnect')!.getAttribute('aria-label')).toBe('Disconnect your FKN account')
-    await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
-    expect(logout, 'the first click only asks').not.toHaveBeenCalled()
-    expect(row('fkn').textContent).toContain('not sent to the account yet are lost')
-
-    await act(async () => { button(row('fkn'), 'Cancel')!.click() })
-    expect(logout).not.toHaveBeenCalled()
-  })
-
-  test('a disconnect FKN never answered is not reported as one', async () => {
-    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout: async () => 'timeout' } })
-    await act(async () => { button(row('fkn'), 'Disconnect')!.click() })
-    await act(async () => { button(row('fkn'), 'Yes, disconnect')!.click() })
-    await flush()
-    expect(row('fkn').textContent).toContain('FKN did not answer')
-  })
-
-  test('signed out: says so, and offers no Disconnect', () => {
-    const { row } = render()
-    expect(row('fkn').textContent).toContain('Not connected')
-    expect(button(row('fkn'), 'Disconnect')).toBeFalsy()
-  })
+test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
+  const { host } = render()
+  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account'))).toEqual(['crunchyroll', 'anilist', 'mal', 'netflix'])
 })
 
 describe('Crunchyroll on the cloud', () => {
@@ -235,8 +196,8 @@ describe('for a screen reader', () => {
   })
 
   test('every row holds its status region from the start, so the note it later gets is announced', () => {
-    const { row } = render({ account: { info: SIGNED_IN, ready: true, logout: async () => 'settled' } })
-    for (const id of ['fkn', 'crunchyroll', 'anilist', 'mal']) {
+    const { row } = render()
+    for (const id of ['crunchyroll', 'anilist', 'mal']) {
       const status = row(id).querySelector('[role="status"]')
       expect(status, id).toBeTruthy()
       expect(status!.textContent, id).toBe('')

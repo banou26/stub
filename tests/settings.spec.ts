@@ -10,8 +10,8 @@ import { extname, join, relative } from 'node:path'
 
 // The settings page as anime.fkn.app serves it: the app build, every path that is not a file answered
 // with index.html as Pages does, and every request that leaves this origin refused, so nothing reaches
-// FKN or any site. That is also why the FKN account reads as signed out here, and why a sign out only
-// shows its half on this device (the cookie half is FKN's, pinned in tests/unit).
+// FKN or any site. That is also why a sign out only shows its half on this device (the cookie half is
+// FKN's, pinned in tests/unit).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -108,8 +108,7 @@ test('every section renders, in order, under an index that names each one', asyn
   await expect(page.locator('section[id] > h2')).toHaveText(SECTIONS)
   await expect(index(page).getByRole('link')).toHaveText(SECTIONS)
   for (const title of SECTIONS) await expect(index(page).getByRole('link', { name: title })).toHaveAttribute('href', `#${title.toLowerCase()}`)
-  // with no FKN reachable the account reads as not connected once the read gives up
-  await expect(page.locator('[data-account="fkn"]')).toContainText('Not connected', { timeout: 10_000 })
+  await expect(page.locator('[data-account="fkn"]'), 'the header shows the FKN account').toHaveCount(0)
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
   await expect(page.locator('section#sources')).toContainText('Crunchyroll')
   await expect(page.locator('section#sources')).toContainText('IMDb')

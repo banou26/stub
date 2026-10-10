@@ -2,9 +2,7 @@ import type { ComponentChildren, RefObject } from 'preact'
 import type { WindowSignIn } from '../../sources/login-window'
 import type { TrackerSite } from '../../tracking/site-sessions'
 import type { SiteState, SiteStatus, StatusSite } from '../../tracking/site-status'
-import type { DisconnectOutcome } from '../../utils/account-session'
 import type { FknBackend } from '../../utils/fkn-backend'
-import type { AccountInfo } from '../../utils/use-account'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -19,7 +17,6 @@ export type { TrackerSite }
  * action until then: what a sign out does depends on it.
  */
 export type AccountsProps = {
-  account: { info: AccountInfo, ready: boolean, logout: () => Promise<DisconnectOutcome> }
   backend: FknBackend | undefined
   crunchyroll: {
     /** Opens the sign-in window, so it is called first thing in the click. */
@@ -46,8 +43,6 @@ export type AccountsProps = {
   /** The clock a remembered state's age is read against. */
   now?: () => number
 }
-
-const MANAGE_URL = 'https://fkn.app/account'
 
 type Note = { text: string, error?: boolean }
 
@@ -109,52 +104,6 @@ const useMounted = () => {
   const mounted = useRef(true)
   useEffect(() => () => { mounted.current = false }, [])
   return mounted
-}
-
-const FknRow = ({ account, onChange }: Pick<AccountsProps, 'account' | 'onChange'>) => {
-  const [note, setNote] = useState<Note>()
-  const mounted = useMounted()
-  const heading = useRef<HTMLHeadingElement>(null)
-  const { info, ready } = account
-
-  const disconnect = () => {
-    setNote(undefined)
-    return account.logout().then(outcome => {
-      if (!mounted.current) return
-      if (outcome === 'timeout') setNote({ text: 'FKN did not answer, so stub cannot tell whether you were disconnected. Try again.', error: true })
-      onChange?.()
-    })
-  }
-
-  return (
-    <Row id="fkn" title="FKN account" state={!ready ? 'Checking...' : info ? undefined : 'Not connected'} heading={heading}>
-      {info
-        ? (
-          <p>
-            Signed in as <strong>{info.name || 'your account'}</strong>, {info.premium ? 'Premium' : 'Free'}. stub runs on
-            FKN, and can keep its list in your account, encrypted in this browser first.
-          </p>
-        )
-        : <p>stub runs on FKN. Connect with the button at the top of the page to keep stub's list in your FKN account.</p>}
-      {info
-        ? (
-          <div className="actions">
-            <a className="link" href={MANAGE_URL} target="_blank" rel="noreferrer">Manage on fkn.app</a>
-            <ConfirmAction
-              label="Disconnect"
-              name="Disconnect your FKN account"
-              home={heading}
-              confirmLabel="Yes, disconnect"
-              busyLabel="Disconnecting..."
-              question="Disconnect your FKN account? If stub keeps its list in your account, that list leaves this device, and any list changes this device has not sent to the account yet are lost."
-              onConfirm={disconnect}
-            />
-          </div>
-        )
-        : undefined}
-      <NoteLine note={note}/>
-    </Row>
-  )
 }
 
 const CLOUD_JAR = 'Without the FKN extension, the session is kept by FKN, in the cookie jar every fkn.app app shares, and not by stub.'
@@ -336,9 +285,8 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 )
 
 /** Every sign-in stub uses, what each is, and the way out of it where there is one. */
-export const AccountsSection = ({ account, backend, crunchyroll, sites, status, onChange, now = Date.now }: AccountsProps) => (
+export const AccountsSection = ({ backend, crunchyroll, sites, status, onChange, now = Date.now }: AccountsProps) => (
   <div className="rows">
-    <FknRow account={account} onChange={onChange}/>
     <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status} onChange={onChange} now={now}/>
     {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status} onChange={onChange} now={now}/>)}
     <NetflixRow backend={backend}/>

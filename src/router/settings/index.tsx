@@ -5,7 +5,6 @@ import { css } from '@emotion/react'
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
 import { detectBackend } from '../../utils/fkn-backend'
-import { useAccount } from '../../utils/use-account'
 import { AccountsSection } from './accounts'
 import { clearers } from './clearers'
 import { DataSection } from './data'
@@ -85,7 +84,6 @@ const Section = ({ id, children }: { id: SettingsSectionId, children: ComponentC
 )
 
 const Settings = () => {
-  const account = useAccount()
   const [backend, setBackend] = useState<FknBackend>()
   const [current, setCurrent] = useState(() => sectionFromHash(location.hash))
   // anything a section changed can change what the Data section lists, which it reads on render
@@ -129,7 +127,7 @@ const Settings = () => {
       <div className="sections">
         <Section id="accounts">
           <p className="intro">Every account and sign-in stub uses, what it is for, and how to end it.</p>
-          <AccountsSection account={account} backend={backend} crunchyroll={crunchyroll} sites={sites} status={status} onChange={changed}/>
+          <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status} onChange={changed}/>
         </Section>
         <Section id="sources">
           <SourcesSection onChange={changed}/>
