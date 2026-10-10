@@ -1,0 +1,30 @@
+{
+  "title": "Sousou no Frieren",
+  "en_title": "Frieren: Beyond Journey&#039;s End season 2",
+  "year": 2026,
+  "ids": {
+    "simkl": 2595284,
+    "slug": "sousou-no-frieren",
+    "anidb": "18886",
+    "mal": "59978",
+    "anilist": "182255",
+    "kitsu": "49240",
+    "imdb": "tt22248376",
+    "tmdb": "209867",
+    "tvdb": "424536"
+  },
+  "poster": "19/19347284584794ac34",
+  "fanart": null,
+  "first_aired": "2026-01-16T14:00:00Z",
+  "ratings": {
+    "simkl": {
+      "rating": 8.9,
+      "votes": 1912
+    },
+    "mal": {
+      "rating": 8.8,
+      "votes": 304299,
+      "rank": 34
+    }
+  }
+}

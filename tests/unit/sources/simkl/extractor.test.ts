@@ -183,7 +183,8 @@ test('search rows are scoped by the type their url names', async () => {
 })
 
 // Recorded signed out on 2026-10-07 with no client id, trimmed: simkl.com's search form for "frieren"
-// in each type, and api.simkl.com's detail and episodes of anime 1990194.
+// in each type, and api.simkl.com's detail and episodes of anime 1990194. The details of anime 2595284
+// and 3063278 were recorded the same way on 2026-10-10, when film 523278's own detail answered 412.
 const SITE = 'https://simkl.com'
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
 type Sent = { url: string, method?: string, headers: Record<string, string>, body?: string }
@@ -194,8 +195,10 @@ const recorded = (sent: Sent[]) => ({
     const body =
       url === `${SITE}/ajax/full/search.php` ? fixture(`site-search-frieren-${new URLSearchParams(init?.body).get('type')}`)
       : url === `${API}/anime/1990194?extended=full` ? fixture('anime-1990194')
+      : url === `${API}/anime/2595284?extended=full` ? fixture('anime-2595284')
+      : url === `${API}/anime/3063278?extended=full` ? fixture('anime-3063278')
       : url === `${API}/anime/episodes/1990194?extended=full` ? fixture('anime-episodes-1990194')
-      : url.startsWith(`${API}/tv/1990194`) || url.startsWith(`${API}/movies/1990194`) ? fixture('wrong-type')
+      : url.startsWith(`${API}/tv/1990194`) || url.startsWith(`${API}/movies/1990194`) || url === `${API}/movies/523278?extended=full` ? fixture('wrong-type')
       : undefined
     if (body === undefined) throw new Error(`fixture has no route for ${url}`)
     return { json: async () => body }
@@ -211,8 +214,9 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
   expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
   expect(rows[0]!.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
   expect(rows[0]!.covers[0]!.url).toBe('https://simkl.in/posters/14/14625673bbdc6b52ea_m.jpg')
-  expect(sent.map(request => new URLSearchParams(request.body).get('type') ?? '').sort((a, b) => a.localeCompare(b))).toEqual(['anime', 'movies', 'tv'])
-  for (const request of sent) {
+  const posted = sent.filter(request => request.url === `${SITE}/ajax/full/search.php`)
+  expect(posted.map(request => new URLSearchParams(request.body).get('type') ?? '').sort((a, b) => a.localeCompare(b))).toEqual(['anime', 'movies', 'tv'])
+  for (const request of posted) {
     expect(request.method).toBe('POST')
     expect(request.headers.origin).toBe(SITE)
     expect(request.headers.referer).toBe(`${SITE}/search/`)
@@ -227,9 +231,10 @@ test('search sends the fields and headers simkl.com\'s own search sends', async 
   const sent: Sent[] = []
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
+  const posted = sent.filter(request => request.url === `${SITE}/ajax/full/search.php`)
 
-  expect(sent.length, 'control: search posted something').toBeGreaterThan(0)
-  for (const request of sent) {
+  expect(posted.length, 'control: search posted something').toBeGreaterThan(0)
+  for (const request of posted) {
     expect([...new URLSearchParams(request.body).keys()]).toEqual(['s', 'type', 'more', 'sort'])
     expect(request.headers['x-requested-with']).toBe('XMLHttpRequest')
   }
@@ -263,4 +268,73 @@ test('search keeps the first ten rows simkl.com lists for each type', async () =
 
   const first = (base: number) => Array.from({ length: 10 }, (_, i) => `simkl:${base + i}`)
   expect(uris).toEqual([...first(1000), ...first(2000), ...first(3000)])
+})
+
+const searchFor = async (ctx: unknown, search = 'frieren') => {
+  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search } }, ctx).next()
+  return value.mediaPage.nodes as Row[]
+}
+const handleUris = (row: Row) => row.handles.map(handle => handle.node.uri).sort((a, b) => a.localeCompare(b))
+
+// simkl.com's search rows carry no catalogue ids, and the keyed api search they replaced answered them:
+// they are how a Simkl row joined the run it names. Without them "frieren" showed each Simkl run as a
+// card of its own beside the run AniList and MyAnimeList already put on the page.
+test('a search row carries the ids its detail names, as the keyed search\'s rows did', async () => {
+  const sent: Sent[] = []
+  const rows = await searchFor(recorded(sent))
+
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
+  expect(handleUris(rows[0]!)).toEqual(['anilist:154587', 'imdb:tt22248376', 'kitsu:46474', 'mal:52991'])
+  expect(handleUris(rows[1]!)).toEqual(['anilist:182255', 'imdb:tt22248376', 'kitsu:49240', 'mal:59978'])
+  expect(handleUris(rows[2]!)).toEqual(['imdb:tt22248376', 'mal:63816'])
+  expect(handle(rows[0]!, 'mal').scope).toBe('RUN')
+  expect(handle(rows[0]!, 'imdb').scope).toBe('CONTAINER')
+  expect(rows.flatMap(row => row.handles.map(handle => handle.node.origin)), 'no tmdb or tvdb id, as on a detail').not.toContain('tmdb')
+  const reads = sent.filter(request => request.url.startsWith(API))
+  expect(reads.map(request => request.url).sort((a, b) => a.localeCompare(b)), 'the request getMedia sends for each row').toEqual([
+    `${API}/anime/1990194?extended=full`,
+    `${API}/anime/2595284?extended=full`,
+    `${API}/anime/3063278?extended=full`,
+    `${API}/movies/523278?extended=full`,
+  ])
+  for (const request of reads) expect(Object.keys(request.headers), request.url).toEqual([])
+})
+
+test('a detail read that fails keeps its row, with no ids, and the search', async () => {
+  const sent: Sent[] = []
+  const site = recorded(sent) as unknown as { fetch: (url: string, init?: object) => Promise<unknown> }
+  const ctx = {
+    fetch: (url: string, init?: object) => (url.startsWith(API) ? Promise.reject(new Error('relay refused')) : site.fetch(url, init)),
+  } as never
+  const rows = await searchFor(ctx)
+
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
+  for (const row of rows) expect(row.handles, row.uri).toEqual([])
+  // the film's own detail answered 412 on the recorded run, which reads the same way
+  expect((await searchFor(recorded([]))).find(row => row.uri === 'simkl:523278')!.handles).toEqual([])
+})
+
+test('search reads at most ten details at once, one for each of its thirty rows', async () => {
+  const answer = (type: string, base: number) =>
+    Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`i${base + i}`, { id: String(base + i), url: `/${type}/${base + i}/greatest`, titles: { m: `Greatest ${i}` } }]))
+  const answers: Record<string, object> = { tv: answer('tv', 1000), anime: answer('anime', 2000), movies: answer('movies', 3000) }
+  let reading = 0
+  let most = 0
+  let reads = 0
+  const ctx = {
+    fetch: async (url: string, init?: { body?: string }) => {
+      if (url === `${SITE}/ajax/full/search.php`) return { json: async () => answers[new URLSearchParams(init?.body).get('type')!] }
+      reads++
+      most = Math.max(most, ++reading)
+      await new Promise(resolve => setTimeout(resolve, 1))
+      reading--
+      return { json: async () => ({ ids: { mal: url.match(/\/(\d+)\?/)![1] } }) }
+    },
+  } as never
+  const rows = await searchFor(ctx, 'greatest')
+
+  expect(rows).toHaveLength(30)
+  expect(reads).toBe(30)
+  expect(most).toBe(10)
+  expect(handleUris(rows[29]!)).toEqual(['mal:3009'])
 })

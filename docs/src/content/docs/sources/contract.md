@@ -238,7 +238,7 @@ The counts on that figure are the code as it stands, and one of them is worth co
 a figure of 14 is easy to arrive at and wrong. **13 sources implement `Media.episodes`**, and they
 are crunchyroll (`:592`), unogs (`:493`),
 justwatch (`:777`), appletv (`:427`), paramount (`:90`), tmdb (`:223`), tvmaze (`:223`), kitsu
-(`:319`), omdb (`:139`), trakt (`:177`), simkl (`:260`), tvdb (`:203`) and watchmode (`:268`), each
+(`:319`), omdb (`:139`), trakt (`:177`), simkl (`:310`), tvdb (`:203`) and watchmode (`:268`), each
 in that module's `extractor.ts`. anizip has an `episodes:` at `src/sources/anizip/extractor.ts:53`,
 but it is a field of the media object it builds, not a resolver, so its episodes arrive with the row
 and never through a second request.

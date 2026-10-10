@@ -170,21 +170,29 @@ const buildTitles = (title?: string, enTitle?: string | null) => {
   return titles
 }
 
-// A site hit carries no catalogue ids, so it mints no handle; the detail read supplies them.
-const normalizeSearch = (hit: SimklSiteHit): GQLMedia | undefined => {
+type SiteRow = { id: string, type: SimklType, hit: SimklSiteHit }
+
+const siteRow = (hit: SimklSiteHit): SiteRow | undefined => {
   const type = typeOfUrl(hit.url)
-  if (!hit.id || !type) return undefined
-  return makeMedia({
+  return hit.id && type ? { id: hit.id, type, hit } : undefined
+}
+
+// A site hit carries no catalogue ids, and they are what joins a Simkl row to the run it names (the
+// keyed api search answered them on each row), so the row takes them from its detail. A failed detail
+// read leaves the row with none.
+const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia =>
+  makeMedia({
     origin,
-    id: hit.id,
-    url: `https://simkl.com/${type}/${hit.id}`,
+    id,
+    url: `https://simkl.com/${type}/${id}`,
     scope: scopeForType(type),
+    handles: buildHandles(detail?.ids, type),
     categories: categoriesForType(type),
     score: SCORE,
     titles: buildTitles(hit.titles?.m, hit.titles?.a7),
     covers: img(poster(hit.poster), SCORE),
+    averageScore: percentScore(rating(detail?.ratings), 10),
   })
-}
 
 const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLMedia | undefined => {
   if (!detail.title) return undefined
@@ -254,20 +262,29 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
 // one search page.
 const SEARCH_ROWS_PER_TYPE = 10
 
-const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
+// One detail read per kept row, up to 30 a search, ten at a time. It is the request getMedia sends, so
+// opening the card is answered from the relay's cache.
+const DETAIL_READS_AT_ONCE = 10
+
+const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<SiteRow[]> =>
   (await siteSearch(query, type, ctx))
-    .map(normalizeSearch)
-    .filter((media): media is GQLMedia => !!media)
+    .map(siteRow)
+    .filter((row): row is SiteRow => !!row)
     .slice(0, SEARCH_ROWS_PER_TYPE)
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
   const perType = await Promise.all((['tv', 'anime', 'movies'] as const).map(type => searchType(query, type, ctx)))
-  const out: GQLMedia[] = []
+  const rows: SiteRow[] = []
   const seen = new Set<string>()
-  for (const media of perType.flat()) {
-    if (seen.has(media.id)) continue
-    seen.add(media.id)
-    out.push(media)
+  for (const row of perType.flat()) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    rows.push(row)
+  }
+  const out: GQLMedia[] = []
+  for (let at = 0; at < rows.length; at += DETAIL_READS_AT_ONCE) {
+    out.push(...await Promise.all(rows.slice(at, at + DETAIL_READS_AT_ONCE).map(async row =>
+      normalizeSearch(row, await api<SimklDetail>(`${detailPath(row.type)}/${row.id}?extended=full`, ctx)))))
   }
   return out
 }
