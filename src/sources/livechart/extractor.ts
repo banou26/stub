@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, MediaCategory } from '../../generated/schema/types.generated'
 
 import { MediaType } from '../../generated/graphql'
 import { makeMedia, desc, img } from '../utils'
@@ -37,28 +37,30 @@ export type LiveChartAnime = {
 /**
  * `anime_type` is an undocumented number. Measured 2026-10-10 over the fall and summer 2026 lists
  * against the bundled catalogue's type for the same MyAnimeList id: 1 is TV (156 of 162), 2 a movie
- * (19 of 20), 4 an ONA (14 of 16), 5 a special (one SPECIAL and three MOVIE there), and 3, one title
- * a season, an OVA. A value outside these claims no type.
+ * (19 of 20) and 4 an ONA (14 of 16). 5 is mixed (three MOVIE and one SPECIAL of the four the
+ * catalogue places) and 3 is one title a season (Patlabor EZY, a MOVIE there), so those two, like any
+ * value outside the table, claim no type and no format and leave both to the other members.
  */
 const TYPES: Record<number, MediaType> = {
   1: MediaType.Tv,
   2: MediaType.Movie,
-  3: MediaType.Ova,
   4: MediaType.Ona,
-  5: MediaType.Special,
 }
+
+const categoriesOf = (type: MediaType | undefined): MediaCategory[] =>
+  type === undefined ? ['ANIME'] : type === MediaType.Movie ? ['ANIME', 'MOVIE'] : ['ANIME', 'SERIES']
 
 /**
  * The ONE handle a row mints: its MyAnimeList id, read off the only shape LiveChart published
  * (`myanimelist.net/anime/<id>`, numeric, or nothing).
  *
  * Not its AniList, Kitsu or AniDB link as well, though it carries them. A row naming two catalogues
- * unions their runs for good, and LiveChart keeps some entries per SERIES: on 2026-10-10 its
- * `Girls und Panzer das Finale` entry named Part 5 on MyAnimeList and Part 1 on Kitsu, Kitsu answered
- * for that id with Part 1's MyAnimeList id, and the season walk welded the two parts. One id cannot
- * join two runs. Nothing is lost by it: AniList, Kitsu, AniZip and the bundled index already link
- * MyAnimeList ids to the other three, and 175 of the 176 kept fall and summer 2026 rows that carry
- * any id carry a MyAnimeList one.
+ * unions their runs for good, and on some entries LiveChart's own links disagree about which part they
+ * name: on 2026-10-10 its `Girls und Panzer das Finale` Part 5 entry linked Part 5 on MyAnimeList and
+ * Part 1 on Kitsu, Kitsu answered for that id with Part 1's MyAnimeList id, and the season walk welded
+ * the two parts. One id cannot join two runs. Nothing is lost by it: AniList, Kitsu, AniZip and the
+ * bundled index already link MyAnimeList ids to the other three, and 175 of the 176 kept fall and
+ * summer 2026 rows that carry any id carry a MyAnimeList one.
  */
 const malHandle = (anime: LiveChartAnime): GQLMedia[] => {
   const id = /^https?:\/\/myanimelist\.net\/anime\/(\d+)$/.exec(anime.mal_url ?? '')?.[1]
@@ -102,7 +104,7 @@ export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season
     url: `https://www.livechart.me/anime/${anime.id}`,
     handles: malHandle(anime),
     score: SCORE,
-    categories: type === MediaType.Movie ? ['ANIME', 'MOVIE'] : ['ANIME', 'SERIES'],
+    categories: categoriesOf(type),
     type,
     titles: [
       ...anime.english_title ? [{ language: 'en', title: anime.english_title, score: SCORE }] : [],
@@ -125,8 +127,10 @@ export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season
 /**
  * One season, in ONE request. `limit=200` covers it (148 for fall 2026, 160 for summer) and paging is
  * no way round a longer one: `page=2` answered 2 items with `has_more` still true (2026-08-16). The
- * site's robots.txt asks for 5 seconds between requests, and the relay caching each answer for an hour
- * per node is what keeps this to about one request per season an hour.
+ * site's robots.txt asks for 5 seconds between requests. The relay caches each answer for an hour per
+ * node, which holds one season to about one request an hour, but nothing paces requests ACROSS seasons:
+ * a viewer stepping through years on the search page asks once per year, and the relay has no pacing
+ * entry for www.livechart.me (its default is 50 a second).
  */
 const getSeason = async (ctx: ExtractorServerContext, asked = animeSeasonOf()): Promise<GQLMedia[]> => {
   try {

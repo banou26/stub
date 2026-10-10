@@ -68,7 +68,9 @@ describe('a row', () => {
   test('the start date is the day in Japan, and a month alone is no date', () => {
     expect(normalizeAnime(anime(), FALL_2026).startDate, 'Japanese midnight, the evening before in UTC').toBe('2026-10-09')
     expect(normalizeAnime(anime({ premiere_date: '2026-10-03T13:30:00.000000000Z', premiere_date_precision: 4 }), FALL_2026).startDate).toBe('2026-10-03')
-    expect(normalizeAnime(anime({ premiere_date: '2026-11-01T00:00:00.000000000Z', premiere_date_precision: 2 }), FALL_2026).startDate).toBeUndefined()
+    for (const premiere_date_precision of [2, 1, 0, null]) {
+      expect(normalizeAnime(anime({ premiere_date: '2026-11-01T00:00:00.000000000Z', premiere_date_precision }), FALL_2026).startDate, String(premiere_date_precision)).toBeUndefined()
+    }
   })
 
   test('anime_type names the format, as measured against MyAnimeList', () => {
@@ -78,11 +80,17 @@ describe('a row', () => {
     }
     expect(shaped(1)).toEqual({ type: 'TV', categories: ['ANIME', 'SERIES'] })
     expect(shaped(2)).toEqual({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'] })
-    expect(shaped(3)).toEqual({ type: 'OVA', categories: ['ANIME', 'SERIES'] })
     expect(shaped(4)).toEqual({ type: 'ONA', categories: ['ANIME', 'SERIES'] })
-    expect(shaped(5)).toEqual({ type: 'SPECIAL', categories: ['ANIME', 'SERIES'] })
-    expect(shaped(9), 'a value never seen claims no format').toEqual({ type: undefined, categories: ['ANIME', 'SERIES'] })
-    expect(shaped(null)).toEqual({ type: undefined, categories: ['ANIME', 'SERIES'] })
+  })
+
+  // Type 5 was three films and one special on 2026-10-10, and type 3 one film. A row claiming SPECIAL
+  // or SERIES for those at 0.6 outranks Kitsu's MOVIE in a cluster with no AniList or MyAnimeList
+  // member, and moves the film to the Series tab. So they claim nothing and another member decides.
+  test('a type the measurement does not settle claims no format at all', () => {
+    for (const anime_type of [3, 5, 9, null]) {
+      const { type, categories } = normalizeAnime(anime({ anime_type }), FALL_2026)
+      expect({ type, categories }, String(anime_type)).toEqual({ type: undefined, categories: ['ANIME'] })
+    }
   })
 })
 
@@ -95,9 +103,9 @@ describe('the handle a row mints', () => {
     ])
   })
 
-  // Shaped like the series entry the season walk caught on 2026-10-10: one LiveChart row naming part
-  // five of a film series on MyAnimeList and part one on Kitsu and AniDB. Minting all of them welded
-  // the two parts, so the row names one catalogue and nothing else.
+  // Shaped like the entry the season walk caught on 2026-10-10: one LiveChart row naming part five of a
+  // film series on MyAnimeList and part one on Kitsu. Minting all of them welded the two parts, so the
+  // row names one catalogue and nothing else.
   test('never the AniList, Kitsu or AniDB link beside it, which can name another run', () => {
     const { handles } = normalizeAnime(anime({
       mal_url: 'https://myanimelist.net/anime/61005',
@@ -111,7 +119,13 @@ describe('the handle a row mints', () => {
   // An id read off the wrong shape is a string every record carrying that shape shares, and a
   // SAME_AS handle unions them all for good. So anything but the measured shape mints nothing.
   test('a link not in the shape LiveChart publishes mints nothing', () => {
-    for (const mal_url of ['https://myanimelist.net/anime/61001/Kousoku_Hikousen', 'https://myanimelist.net/manga/61001', 'https://myanimelist.net/anime/', null]) {
+    for (const mal_url of [
+      'https://myanimelist.net/anime/61001/Kousoku_Hikousen',
+      'https://myanimelist.net/manga/61001',
+      'https://myanimelist.net/anime/',
+      'https://x.test/?u=https://myanimelist.net/anime/61001',
+      null,
+    ]) {
       expect(normalizeAnime(anime({ mal_url }), FALL_2026).handles, String(mal_url)).toEqual([])
     }
   })
