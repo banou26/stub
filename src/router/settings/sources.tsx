@@ -4,34 +4,25 @@ import { css } from '@emotion/react'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 
 const style = css`
-  .plugins {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-    margin-bottom: 1.6rem;
-  }
-
   .row.plugin {
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 0.8rem 1.2rem;
   }
 
   .plugin .info {
-    flex: 1 1 20rem;
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     min-width: 0;
   }
 
-  .plugin .name { font-size: 1.5rem; font-weight: 700; color: #fff; overflow-wrap: anywhere; }
+  .plugin .name { font-size: 1.6rem; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
   .plugin .meta { font-size: 1.25rem; color: rgba(255, 255, 255, 0.5); overflow-wrap: anywhere; }
   .plugin .uri { font-family: monospace; }
 
   .pill {
-    margin-left: auto;
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
@@ -67,22 +58,25 @@ const style = css`
   button.small { padding: 0.5rem 1.2rem; font-size: 1.3rem; }
 
   .row.plugin p.failure {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
     color: #f87171;
     font-size: 1.3rem;
   }
 
-  .empty {
-    margin-bottom: 1.6rem;
-    padding: 2rem 1.6rem;
-    border: 1px dashed rgba(255, 255, 255, 0.2);
-    border-radius: 0.8rem;
-    text-align: center;
+  /* on a phone the pill goes under the address, so Remove stays at the right edge of every row */
+  @media (max-width: 480px) {
+    .row.plugin { grid-template-columns: minmax(0, 1fr) auto; }
+    .row.plugin .pill { grid-column: 1; grid-row: 2; justify-self: start; }
+    .row.plugin > button { grid-column: 2; grid-row: 1 / span 2; }
+  }
+
+  .row.empty {
     font-size: 1.4rem;
     color: rgba(255, 255, 255, 0.55);
   }
 
   .add {
+    margin-top: 1.6rem;
     display: flex;
     flex-direction: column;
     gap: 1.6rem;
@@ -102,37 +96,53 @@ const style = css`
   }
 
   .by-address { display: flex; flex-direction: column; gap: 0.6rem; }
-  .by-address label { font-size: 1.4rem; font-weight: 600; color: #fff; }
+  .by-address label { font-size: 1.3rem; font-weight: 500; color: rgba(255, 255, 255, 0.6); }
 
   .group {
     display: flex;
     flex-wrap: wrap;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 0.8rem;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 52rem;
+    padding: 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.6rem;
     background: rgba(255, 255, 255, 0.04);
-    overflow: hidden;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s;
   }
 
-  .group:focus-within { border-color: rgba(255, 255, 255, 0.7); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15); }
-  .group.invalid { border-color: #f87171; }
-  .group.invalid:focus-within { box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25); }
+  .group:focus-within { border-color: rgba(255, 255, 255, 0.5); }
+  .group.invalid, .group.invalid:focus-within { border-color: #f87171; }
 
   /* the input takes the row and the button only its width; once wrapped, alone on its row, the button takes all of it */
   .group input {
     flex: 1000 1 18rem;
     min-width: 0;
-    padding: 1rem 1.2rem;
+    height: 3.2rem;
+    padding: 0 0.8rem;
     border: none;
     background: none;
-    color: inherit;
-    font-family: monospace;
+    color: #fff;
+    font-family: ui-monospace, monospace;
     font-size: 1.4rem;
     outline: none;
   }
 
-  .group button { flex: 1 0 auto; border-radius: 0; }
-  .group button:focus-visible { outline: 2px solid #0f0f0f; outline-offset: -4px; }
+  .group input::placeholder { color: rgba(255, 255, 255, 0.4); }
+
+  /* a minimum width, so Adding... does not widen it under the pointer */
+  .group button {
+    flex: 1 0 auto;
+    height: 3.2rem;
+    min-width: 9.6rem;
+    padding: 0 1.4rem;
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  .group button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+  .group button:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 0; }
 
   .hint { font-size: 1.25rem; color: rgba(255, 255, 255, 0.5); }
   .by-address .note { font-size: 1.35rem; overflow-wrap: anywhere; }
@@ -149,12 +159,17 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
     <li className="row plugin" data-plugin={plugin.uri}>
       <div className="info">
         <span className="name">{name}</span>
-        <span className="meta">
-          <span className="uri">{plugin.uri}</span>
-          {/* a package may register a family of sources, and some of them and not others */}
-          {sources.length > 1 ? ` · ${sources.length} sources` : ''}
-          {plugin.rejected?.length ? ` · ${plugin.rejected.length} unavailable` : ''}
-        </span>
+        {/* until it registers, the name above is the address already */}
+        {sources.length
+          ? (
+            <span className="meta">
+              <span className="uri">{plugin.uri}</span>
+              {/* a package may register a family of sources, and some of them and not others */}
+              {sources.length > 1 ? ` · ${sources.length} sources` : ''}
+              {plugin.rejected?.length ? ` · ${plugin.rejected.length} unavailable` : ''}
+            </span>
+          )
+          : undefined}
       </div>
       <span className="pill" data-state={plugin.state}><span className="dot" aria-hidden="true"/>{STATE_LABEL[plugin.state]}</span>
       <button type="button" className="secondary small" aria-label={`Remove ${name}`} onClick={onRemove}>Remove</button>
@@ -199,11 +214,11 @@ export const SourcesSection = () => {
       <p className="intro">Community-made sources, published on npm. FKN installs them for stub, and each one runs isolated from stub.</p>
       {plugins.length
         ? (
-          <ul className="plugins">
+          <ul className="rows">
             {plugins.map(plugin => <PluginRow key={plugin.uri} plugin={plugin} onRemove={() => { void disablePlugin(plugin.uri).then(refresh) }}/>)}
           </ul>
         )
-        : <p className="empty">No sources added yet.</p>}
+        : <p className="row empty">No sources added yet.</p>}
       <div className="add">
         <div className="browse">
           <button type="button" onClick={() => { void addPlugins().finally(refresh) }}>Browse sources</button>

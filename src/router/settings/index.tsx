@@ -71,7 +71,7 @@ const style = css`
       font-size: 1.4rem;
     }
 
-    .index a[aria-current='true'] { border-color: rgba(255, 255, 255, 0.6); }
+    .index a[aria-current='true'] { background: #fff; color: #000; border-color: #fff; }
   }
 `
 

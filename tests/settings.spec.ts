@@ -237,7 +237,8 @@ test('too narrow for one row, the Add button drops under the input at its full w
   const group = panel(page).locator('.group')
   const [groupBox, inputBox, addBox] = [await group.boundingBox(), await group.locator('input').boundingBox(), await group.getByRole('button').boundingBox()]
   expect(addBox!.y).toBeGreaterThanOrEqual(inputBox!.y + inputBox!.height - 1)
-  expect(addBox!.width).toBeGreaterThanOrEqual(groupBox!.width - 2)
+  expect(addBox!.width, 'as wide as the input').toBeGreaterThanOrEqual(inputBox!.width - 1)
+  expect(addBox!.x + addBox!.width).toBeLessThanOrEqual(groupBox!.x + groupBox!.width)
   expect(await overflowX(page)).toBeLessThanOrEqual(0)
 })
 

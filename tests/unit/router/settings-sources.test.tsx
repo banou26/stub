@@ -79,6 +79,7 @@ test('each source shows its name, its address beneath, and its state', () => {
   expect([pill(CONNECTED.uri), pill(CONNECTING.uri), pill(FAILED.uri)].map(element => [element.getAttribute('data-state'), element.textContent]))
     .toEqual([['connected', 'Connected'], ['connecting', 'Connecting'], ['error', 'Error']])
   expect(row(CONNECTING.uri).querySelector('.name')!.textContent, 'before it registers, the package names it').toBe('@spec/slow')
+  expect(row(CONNECTING.uri).querySelector('.meta'), 'and its address is not said twice').toBeNull()
 })
 
 test('a source that failed shows the whole error under its row', () => {

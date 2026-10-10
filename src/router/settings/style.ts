@@ -16,6 +16,8 @@ export const sectionStyle = css`
     line-height: 1.6;
     color: rgba(255, 255, 255, 0.65);
     margin-bottom: 1.6rem;
+    max-width: 72ch;
+    text-wrap: pretty;
   }
 
   h3 {
@@ -60,6 +62,8 @@ export const sectionStyle = css`
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.7);
     overflow-wrap: anywhere;
+    max-width: 72ch;
+    text-wrap: pretty;
   }
 
   .row .note { color: rgba(255, 255, 255, 0.85); }
@@ -106,6 +110,8 @@ export const sectionStyle = css`
     color: inherit;
     font-weight: 500;
   }
+
+  button.secondary:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.4); color: #fff; }
 
   button.danger {
     background: #f87171;
