@@ -138,7 +138,8 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
 test('every source stub ships with is on by default, and one turned off stays off across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#sources`)
   const simkl = page.getByRole('switch', { name: 'Simkl', exact: true })
-  const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top)
+  // from the top of the page, not of the window: a click scrolls its target into view first
+  const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top + window.scrollY)
   await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
   await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
   await expect(page.getByText('All 23 on', { exact: true })).toBeVisible()
