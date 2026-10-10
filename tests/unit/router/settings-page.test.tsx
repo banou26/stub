@@ -18,7 +18,7 @@ vi.mock('../../../src/plugins', () => ({
   pluginStatuses: () => [],
   onPluginsChange: () => () => {},
   addPlugins: async () => {},
-  enablePlugin: async () => null,
+  installPlugin: async () => null,
   disablePlugin: async () => {},
 }))
 

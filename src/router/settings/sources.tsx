@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
-import { addPlugins, disablePlugin, enablePlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
+import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 
 const style = css`
   .plugins {
@@ -184,7 +184,7 @@ export const SourcesSection = () => {
     if (!trimmed || adding) return
     setAdding(true)
     setAddError('')
-    enablePlugin(trimmed)
+    installPlugin(trimmed)
       // null is the viewer declining FKN's confirm, which keeps the address to try again
       .then(installed => { if (installed) setUri('') })
       .catch(error => setAddError(messageOf(error)))

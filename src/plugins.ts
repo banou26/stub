@@ -102,12 +102,29 @@ const cancelReconnect = (uri: string) => {
 
 // install through FKN first and only persist to the enabled list once it took: FKN refuses to connect a package this app has not installed, so a mistyped address written straight to the list is retried forever
 // key everything on the id FKN hands back, never the caller's string: FKN canonicalizes a version away ('npm:x@1.2.3' installs as 'npm:x')
-export const enablePlugin = async (uri: string, options?: InstallOptions): Promise<string | null> => {
+const install = async (uri: string, options?: InstallOptions): Promise<string | null> => {
   const installed = await packages.install(uri, options)
   if (!installed) return null
   saveEnabled([...new Set([...loadEnabled(), installed.uri])])
-  await connectPlugin(installed.uri)
   return installed.uri
+}
+
+/**
+ * Installs a package and adds it to the list, resolving with its id once FKN has installed it, or null
+ * when the viewer declines FKN's confirm. Rejects only when FKN refuses the install. The connection is
+ * started and not waited for: its state, a failure included, is the list's to show.
+ */
+export const installPlugin = async (uri: string): Promise<string | null> => {
+  const installed = await install(uri)
+  if (installed) connectPlugin(installed).catch(() => {})
+  return installed
+}
+
+/** As `installPlugin`, but settles once the source has connected, and rejects when it cannot. */
+export const enablePlugin = async (uri: string, options?: InstallOptions): Promise<string | null> => {
+  const installed = await install(uri, options)
+  if (installed) await connectPlugin(installed)
+  return installed
 }
 
 export const disablePlugin = async (uri: string): Promise<void> => {

@@ -15,7 +15,7 @@ const fake = vi.hoisted(() => ({
 }))
 const calls = vi.hoisted(() => ({
   addPlugins: vi.fn(async () => {}),
-  enablePlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
+  installPlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
   disablePlugin: vi.fn(async (_uri: string) => {}),
 }))
 vi.mock('../../../src/plugins', () => ({
@@ -131,12 +131,12 @@ test('the address input and its Add button are one group, under a label, with a 
 
 test('while adding, the button reads Adding... and is disabled; once added, the address is cleared', async () => {
   let finish!: (uri: string) => void
-  calls.enablePlugin.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  calls.installPlugin.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
   const { host } = render()
   const input = await typeAddress(host, '  npm:@spec/one  ')
   await submit(host)
 
-  expect(calls.enablePlugin).toHaveBeenCalledWith('npm:@spec/one')
+  expect(calls.installPlugin).toHaveBeenCalledWith('npm:@spec/one')
   const add = host.querySelector<HTMLButtonElement>('.group button')!
   expect(add.textContent).toBe('Adding...')
   expect(add.disabled).toBe(true)
@@ -149,7 +149,7 @@ test('while adding, the button reads Adding... and is disabled; once added, the 
 })
 
 test('an address FKN refuses shows its error under the group, marks the group and keeps the address', async () => {
-  calls.enablePlugin.mockRejectedValueOnce(new Error("'nope' is not an npm package or a local address"))
+  calls.installPlugin.mockRejectedValueOnce(new Error("'nope' is not an npm package or a local address"))
   const { host } = render()
   const input = await typeAddress(host, 'nope')
   await submit(host)
@@ -172,15 +172,15 @@ test('an address FKN refuses shows its error under the group, marks the group an
 })
 
 test('declining FKN\'s confirm keeps the address, and an empty one asks nothing', async () => {
-  calls.enablePlugin.mockResolvedValueOnce(null)
+  calls.installPlugin.mockResolvedValueOnce(null)
   const { host } = render()
   const input = await typeAddress(host, 'npm:@spec/one')
   await submit(host)
   await flush()
   expect(input.value).toBe('npm:@spec/one')
 
-  calls.enablePlugin.mockClear()
+  calls.installPlugin.mockClear()
   await typeAddress(host, '   ')
   await submit(host)
-  expect(calls.enablePlugin).not.toHaveBeenCalled()
+  expect(calls.installPlugin).not.toHaveBeenCalled()
 })
