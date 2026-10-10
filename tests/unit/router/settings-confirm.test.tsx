@@ -17,7 +17,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 const render = () => {
   const onConfirm = vi.fn()
   const host = mount(
-    <ConfirmAction label="Clear" name="Clear API keys" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every API key?" onConfirm={onConfirm}/>,
+    <ConfirmAction label="Clear" name="Clear watch history" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every watched episode?" onConfirm={onConfirm}/>,
   )
   hosts.push(host)
   return { host, onConfirm }
@@ -26,7 +26,7 @@ const render = () => {
 test('the button is named for what it clears, not only "Clear"', () => {
   const { host } = render()
   const trigger = button(host, 'Clear')!
-  expect(trigger.getAttribute('aria-label')).toBe('Clear API keys')
+  expect(trigger.getAttribute('aria-label')).toBe('Clear watch history')
 })
 
 test('the question names what it acts on, and both answers are described by it', async () => {
@@ -34,8 +34,8 @@ test('the question names what it acts on, and both answers are described by it',
   await act(async () => { button(host, 'Clear')!.click() })
 
   const group = host.querySelector('[role="group"]')!
-  expect(group.getAttribute('aria-label')).toBe('Clear API keys')
-  const question = [...host.querySelectorAll('p')].find(paragraph => paragraph.textContent === 'Clear every API key?')!
+  expect(group.getAttribute('aria-label')).toBe('Clear watch history')
+  const question = [...host.querySelectorAll('p')].find(paragraph => paragraph.textContent === 'Clear every watched episode?')!
   expect(question.id).toBeTruthy()
   for (const label of ['Yes, clear', 'Cancel']) expect(button(host, label)!.getAttribute('aria-describedby'), label).toBe(question.id)
 })
@@ -57,8 +57,8 @@ const withHome = (onConfirm: () => Promise<unknown> | void) => {
   const home = createRef<HTMLHeadingElement>()
   const host = mount(
     <div>
-      <h3 ref={home} tabIndex={-1}>API keys</h3>
-      <ConfirmAction label="Clear" name="Clear API keys" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every API key?" onConfirm={onConfirm} home={home}/>
+      <h3 ref={home} tabIndex={-1}>Watch history</h3>
+      <ConfirmAction label="Clear" name="Clear watch history" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every watched episode?" onConfirm={onConfirm} home={home}/>
     </div>,
   )
   hosts.push(host)
