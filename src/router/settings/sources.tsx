@@ -67,7 +67,7 @@ export const SourcesSection = () => {
       {plugins.length > 0 && (
         <div className="rows plugins">
           {plugins.map(plugin => (
-            <div className="row plugin" key={plugin.uri}>
+            <div className="row plugin" key={plugin.uri} data-plugin={plugin.uri}>
               <div className="info">
                 <span className="name">
                   {plugin.sources?.length

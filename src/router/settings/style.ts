@@ -1,16 +1,8 @@
 import { css } from '@emotion/react'
 
-/** The look every settings section shares: its rows, their buttons and the inline confirmation. */
+/** The look every settings category shares: its rows, their buttons and the inline confirmation. */
 export const sectionStyle = css`
-  scroll-margin-top: calc(var(--stub-header-height) + 2rem);
-  padding-bottom: 3.2rem;
-  margin-bottom: 3.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-  &:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0;
-  }
+  min-width: 0;
 
   & > h2 {
     font-size: 2.2rem;

@@ -1,13 +1,14 @@
-/** The settings page's sections, in the order the page and its index show them. */
+/** The settings page's categories, in the order its list shows them. */
 export const SETTINGS_SECTIONS = [
   { id: 'accounts', title: 'Accounts' },
   { id: 'sources', title: 'Sources' },
-  { id: 'tracking', title: 'Tracking' },
-  { id: 'playback', title: 'Playback' },
 ] as const
 
 export type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']
 
-/** The section a fragment names, spelled as `location.hash` spells it (`#data`). */
-export const sectionFromHash = (hash: string): SettingsSectionId | undefined =>
-  SETTINGS_SECTIONS.find(section => `#${section.id}` === hash)?.id
+/**
+ * The category a fragment picks, spelled as `location.hash` spells it (`#sources`). No fragment, or one
+ * naming no category (`#data` from before the Data section went), picks Accounts.
+ */
+export const sectionFromHash = (hash: string): SettingsSectionId =>
+  SETTINGS_SECTIONS.find(section => `#${section.id}` === hash)?.id ?? 'accounts'

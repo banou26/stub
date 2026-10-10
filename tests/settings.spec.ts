@@ -49,7 +49,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const SECTIONS = ['Accounts', 'Sources', 'Tracking', 'Playback']
+const CATEGORIES = ['Accounts', 'Sources']
 const HOUR = 3_600_000
 
 // what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
@@ -69,62 +69,90 @@ const seeded = async (page: Page, path = '/settings') => {
   await page.goto(`${origin}/legal`)
   await page.evaluate(seed => { for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value) }, SEED)
   await page.goto(`${origin}${path}`)
-  await expect(page.locator('section#accounts')).toBeVisible()
+  await expect(panel(page)).toBeVisible()
 }
 
-const index = (page: Page) => page.getByRole('navigation', { name: 'Settings sections' })
+const categories = (page: Page) => page.getByRole('navigation', { name: 'Settings categories' })
+const panel = (page: Page) => page.locator('[data-section]')
+const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
+const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
-test('every section renders, in order, under an index that names each one', async ({ page }) => {
+test('the page lists two categories and shows Accounts alone, without the FKN row, keys, Data, Tracking or Playback', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
-  await expect(page.locator('section[id] > h2')).toHaveText(SECTIONS)
-  await expect(index(page).getByRole('link')).toHaveText(SECTIONS)
-  for (const title of SECTIONS) await expect(index(page).getByRole('link', { name: title })).toHaveAttribute('href', `#${title.toLowerCase()}`)
-  await expect(page.locator('[data-account="fkn"]'), 'the header shows the FKN account').toHaveCount(0)
+  await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
+  for (const title of CATEGORIES) await expect(categories(page).getByRole('link', { name: title })).toHaveAttribute('href', `#${title.toLowerCase()}`)
+  await expect(panel(page)).toHaveCount(1)
+  await expect(panel(page)).toHaveAttribute('data-section', 'accounts')
+  await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Accounts')
+  await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(4)
+  await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
   await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
-  await expect(page.locator('section#sources [data-source]'), 'no list of the sources stub ships with').toHaveCount(0)
-  await expect(page.locator('section#sources')).not.toContainText('Built in')
-  await expect(page.locator('section#sources input[type="password"]'), 'no source asks for a key').toHaveCount(0)
-  await expect(page.locator('section#playback')).toContainText('does not remember')
-  await expect(page.locator('section#data'), 'no Data section').toHaveCount(0)
+  await expect(page.locator('input[type="password"]'), 'no key form').toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback|Built in)$/ })).toHaveCount(0)
   await expect(page.locator('[data-stored]')).toHaveCount(0)
 })
 
-const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
-
-const jumpsTo = async (page: Page, title: string, id: string) => {
-  await index(page).getByRole('link', { name: title }).click()
-  await expect(page).toHaveURL(new RegExp(`#${id}$`))
-  await expect(index(page).locator('a[aria-current="true"]'), 'the index marks the section it jumped to, and only it').toHaveText([title])
-  const heading = page.locator(`section#${id} > h2`)
-  await expect(heading).toBeInViewport()
-  // below the fixed header, not under it
-  await expect.poll(async () => (await heading.boundingBox())!.y - await headerBottom(page)).toBeGreaterThanOrEqual(0)
+/** Clicks a category, and checks it alone is shown, marked, below the header, with the page still at the top. */
+const picks = async (page: Page, title: string) => {
+  await categories(page).getByRole('link', { name: title }).click()
+  // plugin-url.ts writes the added sources into the query, which the fragment follows
+  await expect(page).toHaveURL(new RegExp(`/settings(\\?[^#]*)?#${title.toLowerCase()}$`))
+  await expect(categories(page).locator('a[aria-current="true"]'), 'the list marks the category it shows, and only it').toHaveText([title])
+  await expect(panel(page)).toHaveCount(1)
+  await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText(title)
+  expect(await scrollY(page), 'the page stays at the top').toBe(0)
+  expect((await panel(page).boundingBox())!.y).toBeGreaterThanOrEqual(await headerBottom(page))
 }
 
-test('the index jumps to each section, landing it below the header', async ({ page }) => {
+test('clicking Sources shows Sources and hides Accounts, and back', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto(`${origin}/settings`)
-  for (const title of [...SECTIONS].reverse()) await jumpsTo(page, title, title.toLowerCase())
+  await seeded(page)
+  await picks(page, 'Sources')
+  await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
+  await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
+  await picks(page, 'Accounts')
+  await expect(page.locator('[data-account="anilist"]')).toBeVisible()
+  await expect(page.locator('[data-plugin]')).toHaveCount(0)
+  await page.goBack()
+  await expect(panel(page), 'back returns to the category before').toHaveAttribute('data-section', 'sources')
 })
 
-test('on a phone the index is a row above the sections, the page never scrolls sideways, and it jumps', async ({ page }) => {
+test('a keyboard reaches the categories and switches between them', async ({ page }) => {
+  await page.goto(`${origin}/settings`)
+  await categories(page).getByRole('link', { name: 'Accounts' }).focus()
+  await page.keyboard.press('Tab')
+  await expect(categories(page).getByRole('link', { name: 'Sources' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  await expect(categories(page).getByRole('link', { name: 'Sources' })).toHaveAttribute('aria-current', 'true')
+})
+
+test('a link or a reload on #sources lands on Sources, and a category that is gone lands on Accounts', async ({ page }) => {
+  await page.goto(`${origin}/settings#sources`)
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  await page.reload()
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  for (const gone of ['data', 'tracking', 'playback']) {
+    await page.goto(`${origin}/legal`)
+    await page.goto(`${origin}/settings#${gone}`)
+    await expect(panel(page), gone).toHaveAttribute('data-section', 'accounts')
+    await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Accounts'])
+  }
+})
+
+test('on a phone the categories are a row above the panel, the page stays at the top, and never scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`${origin}/settings`)
-  const nav = await index(page).boundingBox()
-  const accounts = await page.locator('section#accounts').boundingBox()
-  expect(nav!.y + nav!.height).toBeLessThanOrEqual(accounts!.y)
-  for (const link of await index(page).getByRole('link').all()) await expect(link).toBeInViewport()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
-  await jumpsTo(page, 'Playback', 'playback')
-  await jumpsTo(page, 'Accounts', 'accounts')
-})
-
-test('a link to a section opens the page at it', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto(`${origin}/settings#playback`)
-  await expect(page.locator('section#playback > h2')).toBeInViewport()
-  await expect(page.locator('section#accounts > h2')).not.toBeInViewport()
+  await seeded(page, '/settings#accounts')
+  const nav = await categories(page).boundingBox()
+  expect(nav!.y + nav!.height).toBeLessThanOrEqual((await panel(page).boundingBox())!.y)
+  for (const link of await categories(page).getByRole('link').all()) await expect(link).toBeInViewport()
+  expect(await scrollY(page), 'a load on a category does not scroll to it').toBe(0)
+  for (const title of ['Sources', 'Accounts']) {
+    await picks(page, title)
+    expect(await overflowX(page), title).toBeLessThanOrEqual(0)
+  }
 })
 
 test('the API keys an older stub kept leave this browser on the next load, and nothing else does', async ({ page }) => {
@@ -133,7 +161,7 @@ test('the API keys an older stub kept leave this browser on the next load, and n
   expect((await readLocal(page))['stub.apikeys'], 'seeded').toBe(SEED['stub.apikeys'])
 
   await page.goto(`${origin}/settings`)
-  await expect(page.locator('section#accounts')).toBeVisible()
+  await expect(panel(page)).toBeVisible()
   const local = await readLocal(page)
   expect(local['stub.apikeys'], 'gone').toBeUndefined()
   expect(local).toMatchObject(Object.fromEntries(Object.entries(SEED).filter(([key]) => key !== 'stub.apikeys')))
@@ -213,11 +241,16 @@ test('a site with nothing remembered says so, and a tracking site not connected 
   await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: /Check whether/ })).toHaveCount(0)
 })
 
-test('the privacy page says what stub keeps', async ({ page }) => {
+test('the privacy page says what stub keeps, and its link to Sources opens that category', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto(`${origin}/privacy`)
   const body = page.locator('body')
   for (const title of ['Added sources', 'Search layout', 'Party name', "Stub's list"]) await expect(body).toContainText(title)
   await expect(body).not.toContainText('API key')
   await expect(body).not.toContainText('Everything else stub holds is cleared when you close or refresh the tab')
+  await expect(body).not.toContainText('under Data')
+  await page.getByRole('link', { name: 'Settings, under Sources' }).click()
+  await expect(page).toHaveURL(/\/settings#sources$/)
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  expect(await scrollY(page)).toBe(0)
 })
