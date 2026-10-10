@@ -178,21 +178,25 @@ const siteRow = (hit: SimklSiteHit): SiteRow | undefined => {
 }
 
 // A site hit carries no catalogue ids, and they are what joins a Simkl row to the run it names (the
-// keyed api search answered them on each row), so the row takes them from its detail. A failed detail
-// read leaves the row with none.
-const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia =>
-  makeMedia({
-    origin,
-    id,
-    url: `https://simkl.com/${type}/${id}`,
-    scope: scopeForType(type),
-    handles: buildHandles(detail?.ids, type),
-    categories: categoriesForType(type),
-    score: SCORE,
-    titles: buildTitles(hit.titles?.m, hit.titles?.a7),
-    covers: img(poster(hit.poster), SCORE),
-    averageScore: percentScore(rating(detail?.ratings), 10),
-  })
+// keyed api search answered them on each row), so the row takes them from its detail. A row whose detail
+// does not read (a 412 for a record outside Cloudflare's cache, 83 of the 95 Simkl-only cards on the
+// 2026-10-10 search walk) is dropped: it could not join its run, and its card would open on that same
+// unreadable detail.
+const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia | undefined =>
+  detail?.title
+    ? makeMedia({
+      origin,
+      id,
+      url: `https://simkl.com/${type}/${id}`,
+      scope: scopeForType(type),
+      handles: buildHandles(detail.ids, type),
+      categories: categoriesForType(type),
+      score: SCORE,
+      titles: buildTitles(hit.titles?.m, hit.titles?.a7),
+      covers: img(poster(hit.poster), SCORE),
+      averageScore: percentScore(rating(detail.ratings), 10),
+    })
+    : undefined
 
 const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLMedia | undefined => {
   if (!detail.title) return undefined
@@ -283,8 +287,9 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
   }
   const out: GQLMedia[] = []
   for (let at = 0; at < rows.length; at += DETAIL_READS_AT_ONCE) {
-    out.push(...await Promise.all(rows.slice(at, at + DETAIL_READS_AT_ONCE).map(async row =>
-      normalizeSearch(row, await api<SimklDetail>(`${detailPath(row.type)}/${row.id}?extended=full`, ctx)))))
+    const read = await Promise.all(rows.slice(at, at + DETAIL_READS_AT_ONCE).map(async row =>
+      normalizeSearch(row, await api<SimklDetail>(`${detailPath(row.type)}/${row.id}?extended=full`, ctx))))
+    out.push(...read.filter((media): media is GQLMedia => !!media))
   }
   return out
 }

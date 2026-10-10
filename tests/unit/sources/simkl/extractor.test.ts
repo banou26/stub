@@ -168,6 +168,7 @@ test('search rows are scoped by the type their url names', async () => {
   }
   const ctx = {
     fetch: async (url: string, init?: { body?: string }) => {
+      if (url.startsWith(API)) return { json: async () => ({ title: 'x' }) }
       if (url !== `${SITE}/ajax/full/search.php`) throw new Error(`fixture has no route for ${url}`)
       return { json: async () => hits[new URLSearchParams(init?.body).get('type')!] }
     },
@@ -211,7 +212,8 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
   const { value } = await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
   const rows = value.mediaPage.nodes as (Row & { titles: { title: string }[], covers: { url: string }[] })[]
 
-  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
+  // the film 523278 is listed too, and dropped: its detail answered 412
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278'])
   expect(rows[0]!.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
   expect(rows[0]!.covers[0]!.url).toBe('https://simkl.in/posters/14/14625673bbdc6b52ea_m.jpg')
   const posted = sent.filter(request => request.url === `${SITE}/ajax/full/search.php`)
@@ -262,7 +264,10 @@ test('search keeps the first ten rows simkl.com lists for each type', async () =
   const answer = (type: string, base: number, count: number) =>
     Object.fromEntries(Array.from({ length: count }, (_, i) => [`i${base + i}`, { id: String(base + i), url: `/${type}/${base + i}/greatest`, titles: { m: `Greatest ${i}` } }]))
   const answers: Record<string, object> = { tv: answer('tv', 1000, 150), anime: answer('anime', 2000, 16), movies: answer('movies', 3000, 150) }
-  const ctx = { fetch: async (_url: string, init?: { body?: string }) => ({ json: async () => answers[new URLSearchParams(init?.body).get('type')!] }) } as never
+  const ctx = {
+    fetch: async (url: string, init?: { body?: string }) =>
+      ({ json: async () => (url.startsWith(API) ? { title: 'Greatest' } : answers[new URLSearchParams(init?.body).get('type')!]) }),
+  } as never
   const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: 'greatest' } }, ctx).next()
   const uris = (value.mediaPage.nodes as Row[]).map(row => row.uri)
 
@@ -283,7 +288,7 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
   const sent: Sent[] = []
   const rows = await searchFor(recorded(sent))
 
-  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278'])
   expect(handleUris(rows[0]!)).toEqual(['anilist:154587', 'imdb:tt22248376', 'kitsu:46474', 'mal:52991'])
   expect(handleUris(rows[1]!)).toEqual(['anilist:182255', 'imdb:tt22248376', 'kitsu:49240', 'mal:59978'])
   expect(handleUris(rows[2]!)).toEqual(['imdb:tt22248376', 'mal:63816'])
@@ -300,18 +305,17 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
   for (const request of reads) expect(Object.keys(request.headers), request.url).toEqual([])
 })
 
-test('a detail read that fails keeps its row, with no ids, and the search', async () => {
+test('a row whose detail does not read is dropped, and the search still answers', async () => {
   const sent: Sent[] = []
   const site = recorded(sent) as unknown as { fetch: (url: string, init?: object) => Promise<unknown> }
   const ctx = {
-    fetch: (url: string, init?: object) => (url.startsWith(API) ? Promise.reject(new Error('relay refused')) : site.fetch(url, init)),
+    fetch: (url: string, init?: object) =>
+      (url === `${API}/anime/2595284?extended=full` ? Promise.reject(new Error('relay refused')) : site.fetch(url, init)),
   } as never
   const rows = await searchFor(ctx)
 
-  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
-  for (const row of rows) expect(row.handles, row.uri).toEqual([])
-  // the film's own detail answered 412 on the recorded run, which reads the same way
-  expect((await searchFor(recorded([]))).find(row => row.uri === 'simkl:523278')!.handles).toEqual([])
+  // 2595284's read failed, and the film's own detail answered 412 on the recorded run
+  expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:3063278'])
 })
 
 test('search reads at most ten details at once, one for each of its thirty rows', async () => {
@@ -328,7 +332,7 @@ test('search reads at most ten details at once, one for each of its thirty rows'
       most = Math.max(most, ++reading)
       await new Promise(resolve => setTimeout(resolve, 1))
       reading--
-      return { json: async () => ({ ids: { mal: url.match(/\/(\d+)\?/)![1] } }) }
+      return { json: async () => ({ title: 'Greatest', ids: { mal: url.match(/\/(\d+)\?/)![1] } }) }
     },
   } as never
   const rows = await searchFor(ctx, 'greatest')
