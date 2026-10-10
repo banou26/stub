@@ -1,6 +1,7 @@
 {
   "name": "@banou/stub",
   "version": "0.0.52",
+  "description": "Anime, shows and movies in one place: every source merged into one page per title, played and tracked on your own accounts.",
   "keywords": [
     "fkn",
     "fkn-type:app"

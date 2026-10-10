@@ -1,36 +1,31 @@
 # Stub
 
-Shows, Movies, Anime, all in one place from your browser
-
-stub merges show, movie and anime data from many sources into one page per title, and plays a source
-inside your own signed in session on that site. It runs on the [FKN platform](https://fkn.app): FKN
-carries its requests to each site, installs the sources you add and holds the rooms for watch
-parties, so stub has no server of its own.
+Anime, shows and movies in one place. stub gathers the sites you would otherwise check one by one into
+a single page per title, then plays and tracks it on your own accounts. It runs on the
+[FKN platform](https://fkn.app), which carries its requests, installs the sources you add and holds the
+rooms for watch parties, so stub has no server of its own.
 
 - Live at [anime.fkn.app](https://anime.fkn.app), and inside FKN at
   [fkn.app/app/npm:@banou/stub](https://fkn.app/app/npm:@banou/stub)
 - Published on npm as [`@banou/stub`](https://www.npmjs.com/package/@banou/stub)
 
-## What it does
+## Features
 
-- **Sources.** stub ships with catalogues such as AniList, MyAnimeList, Kitsu, TMDB, TVmaze, IMDb,
-  Trakt, Simkl and TheTVDB, and with where to watch: Crunchyroll, Netflix, JustWatch, Watchmode and
-  the main streaming services. The full list is `src/sources/built-in.ts`. Each one has a switch in
-  Settings, under Sources, and all are on until you turn one off. No source asks you for an API key.
-- **Added sources.** Settings, under Sources, also adds community sources published on npm: browse
-  the ones made for stub, or add one by its address (`npm:@scope/package`). FKN installs each one,
-  and it runs isolated from stub.
-- **Playback.** Crunchyroll plays in stub's own player on your Crunchyroll account. Sign in once in
-  Settings, under Accounts, through an FKN window, or let stub use your browser's own session with the
-  FKN browser extension. Netflix needs the extension. An added source can play its own releases
-  inside stub, in a frame of its own.
-- **Tracking.** One row on each title saves your progress to AniList, MyAnimeList and stub's own
-  list. AniList and MyAnimeList use your own accounts on those sites. stub's list stays on this
-  device, or in your FKN account once you choose to add it there.
-- **Watch together.** Start a watch party and share its link. Every guest's player follows the
-  host's, and the party has a chat.
-- **Search.** Search every source at once from the header, or narrow it on the search page by
-  category, format, status, season, year, genre and tag, shown as covers, cards or a list.
+- **One page per title.** AniList, MyAnimeList, Kitsu, LiveChart, TMDB, TVmaze, IMDb, Trakt, Simkl,
+  TheTVDB and more are merged into one page: episodes, trailers, scores, related titles and every
+  place to watch it.
+- **Search everything at once**, or browse a season by genre, tag, format, status and year, shown as
+  covers, cards or a list.
+- **Watch on your own accounts.** Crunchyroll plays in stub's own player on your Crunchyroll account,
+  Netflix through the FKN browser extension, and your volume carries over from one episode to the next.
+- **Movies get a page of their own**, with the runtime, the release date and one Play button.
+- **Track as you watch.** One row updates AniList, MyAnimeList and stub's own list together; hover a
+  tracker to change just that one. A movie is a single Watched button.
+- **Watch together.** Share a party link and every guest's player follows the host's, with a chat.
+- **Your sources, your way.** Turn any built-in source off in Settings, or add community sources
+  published on npm, each running isolated from stub.
+- **No API keys, no stub account, no analytics.** Your settings stay in your browser, and your list
+  can live in your FKN account, encrypted in your browser before it leaves.
 
 ## How it is built
 
@@ -104,7 +99,7 @@ MyAnimeList are kept by FKN, or by your browser with the FKN extension, never by
 
 ## License
 
-MIT, as `package.json` declares.
+MIT, see [LICENSE](./LICENSE).
 
 <!--
 
