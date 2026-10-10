@@ -211,7 +211,7 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
   expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278', 'simkl:523278'])
   expect(rows[0]!.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
   expect(rows[0]!.covers[0]!.url).toBe('https://simkl.in/posters/14/14625673bbdc6b52ea_m.jpg')
-  expect(sent.map(request => new URLSearchParams(request.body).get('type')).sort()).toEqual(['anime', 'movies', 'tv'])
+  expect(sent.map(request => new URLSearchParams(request.body).get('type') ?? '').sort((a, b) => a.localeCompare(b))).toEqual(['anime', 'movies', 'tv'])
   for (const request of sent) {
     expect(request.method).toBe('POST')
     expect(request.headers.origin).toBe(SITE)
