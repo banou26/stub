@@ -144,17 +144,24 @@ const CrunchyrollRow = ({ backend, crunchyroll, status, now }: Pick<AccountsProp
         ? (
           <>
             <p>{CLOUD_JAR} Check now asks Crunchyroll whether that session is signed in, without loading a Crunchyroll page.</p>
+            {/* both until stub has learned which one the session is in */}
             <div className="actions">
-              <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>
-              <ConfirmAction
-                label="Sign out"
-                name="Sign out of Crunchyroll"
-                home={heading}
-                confirmLabel="Yes, sign out"
-                busyLabel="Signing out..."
-                question={`Sign out of Crunchyroll? This removes its cookies from FKN's jar, which signs every fkn.app app out of Crunchyroll. ${notTold('Crunchyroll')}`}
-                onConfirm={signOut}
-              />
+              {remembered?.state === 'signed-in'
+                ? undefined
+                : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>}
+              {remembered?.state === 'signed-out'
+                ? undefined
+                : (
+                  <ConfirmAction
+                    label="Sign out"
+                    name="Sign out of Crunchyroll"
+                    home={heading}
+                    confirmLabel="Yes, sign out"
+                    busyLabel="Signing out..."
+                    question={`Sign out of Crunchyroll? This removes its cookies from FKN's jar, which signs every fkn.app app out of Crunchyroll. ${notTold('Crunchyroll')}`}
+                    onConfirm={signOut}
+                  />
+                )}
               {checkNow}
             </div>
           </>

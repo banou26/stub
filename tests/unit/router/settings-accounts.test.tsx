@@ -220,6 +220,34 @@ describe('the sign-in states', () => {
     expect(status.check).not.toHaveBeenCalled()
   })
 
+  // the owner, 2026-10-10: "it shows Sign in on crunchyroll when it already says signed in"
+  test('Crunchyroll offers the sign in or the sign out its last known state calls for, and both before it knows', () => {
+    const labels = (row: HTMLElement) => [...row.querySelectorAll('.actions button')].map(item => item.textContent)
+    const signedIn = fakeStatus()
+    signedIn.statuses.record('crunchyroll', 'signed-in', NOW)
+    expect(labels(render({ status: signedIn.status }).row('crunchyroll'))).toEqual(['Sign out', 'Check now'])
+
+    const signedOut = fakeStatus()
+    signedOut.statuses.record('crunchyroll', 'signed-out', NOW)
+    expect(labels(render({ status: signedOut.status }).row('crunchyroll'))).toEqual(['Sign in', 'Check now'])
+
+    expect(labels(render().row('crunchyroll'))).toEqual(['Sign in', 'Sign out', 'Check now'])
+  })
+
+  test('a Crunchyroll sign out that lands offers Sign in in its place, and says it signed out', async () => {
+    const { status, statuses } = fakeStatus()
+    statuses.record('crunchyroll', 'signed-in', NOW)
+    const signOut = vi.fn(async () => { statuses.record('crunchyroll', 'signed-out', NOW) })
+    const { row } = render({ status, crunchyroll: { signIn: vi.fn(async () => 'authed' as const), signOut } })
+    await act(async () => { button(row('crunchyroll'), 'Sign out')!.click() })
+    await act(async () => { button(row('crunchyroll'), 'Yes, sign out')!.click() })
+    await flush()
+
+    expect(signOut).toHaveBeenCalledTimes(1)
+    expect([...row('crunchyroll').querySelectorAll('.actions button')].map(item => item.textContent)).toEqual(['Sign in', 'Check now'])
+    expect(row('crunchyroll').textContent).toContain('Signed out. FKN no longer holds a Crunchyroll session')
+  })
+
   test('with nothing remembered, Crunchyroll says it was not checked and a connected site that it is connected', () => {
     const { row } = render({ sites: fakeSites(['mal']) })
 
