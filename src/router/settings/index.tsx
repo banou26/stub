@@ -2,6 +2,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
 import { useEffect, useState } from 'preact/hooks'
+import { useLocationProperty } from 'wouter/use-browser-location'
 
 import { detectBackend } from '../../utils/fkn-backend'
 import { AccountsSection } from './accounts'
@@ -73,22 +74,20 @@ const style = css`
   }
 `
 
+const currentHash = () => location.hash
+
 // The panel carries no id a category's fragment names, so following a category link never scrolls the
-// page to it: the page stays where it is and only the panel changes.
+// page to it: the page stays where it is and only the panel changes. The fragment is read through
+// wouter's location subscription because a <Link to="/settings"> drops it with a pushState, which
+// sends no hashchange.
 const Settings = () => {
   const [backend, setBackend] = useState<FknBackend>()
-  const [current, setCurrent] = useState(() => sectionFromHash(location.hash))
+  const current = sectionFromHash(useLocationProperty(currentHash))
 
   useEffect(() => {
     let cancelled = false
     void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
     return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    const follow = () => setCurrent(sectionFromHash(location.hash))
-    addEventListener('hashchange', follow)
-    return () => removeEventListener('hashchange', follow)
   }, [])
 
   return (

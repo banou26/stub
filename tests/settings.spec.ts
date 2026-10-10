@@ -141,11 +141,15 @@ test('a keyboard reaches the categories and switches between them', async ({ pag
   await expect(categories(page).getByRole('link', { name: 'Sources' })).toHaveAttribute('aria-current', 'true')
 })
 
-test('a link or a reload on #sources lands on Sources, and a category that is gone lands on Accounts', async ({ page }) => {
+test('a link or a reload on #sources lands on Sources, and the header link or a category that is gone lands on Accounts', async ({ page }) => {
   await page.goto(`${origin}/settings#sources`)
   await expect(panel(page)).toHaveAttribute('data-section', 'sources')
   await page.reload()
   await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  await page.locator('header').getByRole('link', { name: 'Settings' }).click()
+  await expect(page, 'the header\'s Settings link drops the fragment').toHaveURL(/\/settings(\?[^#]*)?$/)
+  await expect(panel(page), 'and so shows Accounts').toHaveAttribute('data-section', 'accounts')
+  await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Accounts'])
   for (const gone of ['data', 'tracking', 'playback']) {
     await page.goto(`${origin}/legal`)
     await page.goto(`${origin}/settings#${gone}`)

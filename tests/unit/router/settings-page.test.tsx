@@ -5,8 +5,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 // The settings page: a list of categories, and only the selected one's panel below it. FKN, the sites
-// and the plugin runtime are faked; the URL's fragment is a stub `location` and `hashchange` is sent by
-// hand, as linkedom has neither.
+// and the plugin runtime are faked; the URL's fragment is a stub `location`, and the events a
+// navigation sends (`hashchange`, wouter's `pushState`) are sent by hand, as linkedom has neither.
 
 vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => 'cloud' }))
 vi.mock('../../../src/router/settings/wiring', () => ({
@@ -25,17 +25,21 @@ vi.mock('../../../src/plugins', () => ({
 const { default: Settings } = await import('../../../src/router/settings')
 
 const at = { hash: '' }
-const onHashChange = new Set<() => void>()
+const listeners = new Map<string, Set<() => void>>()
 beforeEach(() => {
   at.hash = ''
+  listeners.clear()
   vi.stubGlobal('location', at)
-  vi.stubGlobal('addEventListener', (type: string, listener: () => void) => { if (type === 'hashchange') onHashChange.add(listener) })
-  vi.stubGlobal('removeEventListener', (_type: string, listener: () => void) => { onHashChange.delete(listener) })
+  vi.stubGlobal('addEventListener', (type: string, listener: () => void) => {
+    listeners.set(type, (listeners.get(type) ?? new Set()).add(listener))
+  })
+  vi.stubGlobal('removeEventListener', (type: string, listener: () => void) => { listeners.get(type)?.delete(listener) })
 })
 
-const go = (hash: string) => act(async () => {
+/** Moves to `hash` and sends the one event that navigation sends. */
+const go = (hash: string, event = 'hashchange') => act(async () => {
   at.hash = hash
-  for (const listener of onHashChange) listener()
+  for (const listener of listeners.get(event) ?? []) listener()
 })
 
 const hosts: HTMLElement[] = []
@@ -84,6 +88,12 @@ test('a change of fragment switches the panel, and back', async () => {
   expect(shown(host).panels).toEqual(['sources'])
   await go('#data')
   expect(shown(host).panels).toEqual(['accounts'])
+})
+
+test('a pushState that drops the fragment, as the header\'s Settings link sends, shows Accounts', async () => {
+  const host = await open('#sources')
+  await go('', 'pushState')
+  expect(shown(host)).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 4 })
 })
 
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload
