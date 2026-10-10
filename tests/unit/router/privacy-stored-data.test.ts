@@ -10,6 +10,7 @@ import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
+import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { STORED } from '../../../src/router/privacy/stored-data'
 
 const byId = (id: string) => {
@@ -25,6 +26,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
+    expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
   })
@@ -57,10 +59,14 @@ describe('what stub keeps per viewer', () => {
     }
   })
 
-  test('lists the stores kept outside web storage too: the list, the sign-ins, the account, the player', () => {
-    expect(STORED.map(item => item.id)).toEqual(expect.arrayContaining(['stub-list', 'site-sign-ins', 'fkn-account', 'player', 'fetched']))
+  test('lists the stores kept outside web storage too: the list, the sign-ins, the account', () => {
+    expect(STORED.map(item => item.id)).toEqual(expect.arrayContaining(['stub-list', 'site-sign-ins', 'fkn-account', 'fetched']))
     expect(byId('stub-list').where).toContain('this device')
-    expect(byId('player').lasts, 'nothing of the player is kept (P0)').toMatch(/not kept/i)
+  })
+
+  test('says the player keeps its volume and mute, and nothing else of the player', () => {
+    expect(byId('player').what).toContain('whether it was muted')
+    expect(byId('player').what).toContain('Speed and captions are not kept')
   })
 
   test("says a removed entry stays in stub's list, with its title and last values", () => {

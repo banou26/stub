@@ -7,6 +7,7 @@ import { ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
+import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
 import { DISPLAY_MODE_KEY } from '../search/display'
 
 export type StoredItem = {
@@ -102,10 +103,11 @@ export const STORED: readonly StoredItem[] = [
   },
   {
     id: 'player',
-    title: 'Player settings',
-    what: 'Volume, speed and captions.',
-    where: 'Nowhere',
-    lasts: 'Not kept: every episode starts with the player defaults',
+    title: 'Player volume',
+    what: 'The volume you last left the episode player at, and whether it was muted, so the next episode starts the same. Speed and captions are not kept.',
+    where: LOCAL,
+    lasts: "Until you clear this site's data in your browser",
+    keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },
   },
   {
     id: 'fetched',

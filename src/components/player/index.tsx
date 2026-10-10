@@ -11,6 +11,7 @@ import '@videojs/react/video/skin.css'
 
 import { exposePlayer } from '@banou/media-player/remote'
 
+import { rememberPlayerVolume } from '../../utils/player-volume'
 import VideoSurface from './video-surface'
 
 const { Provider } = createPlayer({ features: videoFeatures })
@@ -29,6 +30,8 @@ const MediaAttach = ({ remote, frame, adapter }: {
     const adapted = adapter ? adapter(remote, frame) : remote
     if (!adapted) return
     const binding = normalizeBinding(adapted)
+    // before the attach, so the store's first read of the media already finds the kept volume
+    const forgetVolume = rememberPlayerVolume(remote)
     setMedia(binding.media)
     // served to the page that frames this embed, stub's own watch page, and nobody else: the party's
     // playback sync reads and moves the player through it. This is stub's videojs player rather than
@@ -36,6 +39,7 @@ const MediaAttach = ({ remote, frame, adapter }: {
     const stop = exposePlayer(binding.media as unknown as Parameters<typeof exposePlayer>[0])
     return () => {
       stop()
+      forgetVolume()
       setMedia(null)
       binding.dispose?.()
     }

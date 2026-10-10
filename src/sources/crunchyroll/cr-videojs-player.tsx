@@ -3,8 +3,9 @@ import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren, FunctionComponent } from 'preact'
 
 import { MediaPlayer } from '@banou/media-player'
-import { useMemo } from 'preact/hooks'
+import { useEffect, useMemo } from 'preact/hooks'
 
+import { rememberPlayerVolume } from '../../utils/player-volume'
 import { withTimelineSeek } from './timeline-seek'
 
 type Props = {
@@ -28,6 +29,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
     () => (remote && frame ? withTimelineSeek(remote, frame) : null),
     [remote, frame],
   )
+  useEffect(() => (remote ? rememberPlayerVolume(remote) : undefined), [remote])
 
   return (
     <MediaPlayer
