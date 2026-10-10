@@ -1,29 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
-import { builtInSources } from '../../sources/built-in'
 import { addPlugins, disablePlugin, enablePlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 
 const style = css`
-  .built-in {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-    gap: 0.6rem;
-  }
-
-  .built-in li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.8rem 1.1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.6rem;
-    font-size: 1.4rem;
-    min-width: 0;
-  }
-
-  .built-in a { color: #fff; overflow-wrap: anywhere; }
-
   input {
     padding: 0.7rem 1rem;
     border-radius: 0.6rem;
@@ -55,7 +35,7 @@ const style = css`
   .plugins + .actions { margin-top: 1.2rem; }
 `
 
-/** The built-in sources, read only, and the sources added from npm. */
+/** The sources added from npm. */
 export const SourcesSection = ({ onChange }: { onChange: () => void }) => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [uri, setUri] = useState('')
@@ -83,17 +63,6 @@ export const SourcesSection = ({ onChange }: { onChange: () => void }) => {
 
   return (
     <div css={style}>
-      <h3 className="subheading">Built in</h3>
-      <p className="intro">stub ships with these {builtInSources.length} sources, always on, and none of them needs a key.</p>
-      <ul className="built-in">
-        {builtInSources.map(source => (
-          <li key={source.origin} data-source={source.origin}>
-            <a href={source.url} target="_blank" rel="noreferrer">{source.name}</a>
-          </li>
-        ))}
-      </ul>
-
-      <h3 className="subheading">Added</h3>
       <p className="intro">
         Community-made sources published on npm. They are installed through FKN, run isolated from stub, and
         only talk to it through a brokered connection.

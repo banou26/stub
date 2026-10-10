@@ -194,10 +194,7 @@ export const stripTitle = (title: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-/**
- * Both wasm modules initialise once, lazily, because only the matching paths need them and the
- * settings page deliberately stays clear of this module for that reason (see built-in.ts).
- */
+/** Both wasm modules initialise once, lazily, because only the matching paths need them. */
 let frizbeeReady: Promise<unknown> | undefined
 const readyFrizbee = () => (frizbeeReady ??= initFrizbee())
 /**

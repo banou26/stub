@@ -32,15 +32,6 @@ export const sectionStyle = css`
     color: #fff;
   }
 
-  .subheading {
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.45);
-    margin: 2.4rem 0 1rem;
-  }
-
   .rows {
     display: flex;
     flex-direction: column;
