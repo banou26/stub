@@ -118,9 +118,11 @@ const picks = async (page: Page, title: string) => {
   expect((await panel(page).boundingBox())!.y).toBeGreaterThanOrEqual(await headerBottom(page))
 }
 
-test('clicking Sources shows Sources and hides Accounts, and back', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 })
+test('clicking Sources shows Sources and hides Accounts, and back, from the top even when scrolled', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 })
   await seeded(page)
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+  expect(await scrollY(page), 'Accounts is taller than the window').toBeGreaterThan(0)
   await picks(page, 'Sources')
   await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)

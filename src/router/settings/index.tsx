@@ -5,6 +5,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { useLocationProperty } from 'wouter/use-browser-location'
 
 import { detectBackend } from '../../utils/fkn-backend'
+import { scrollToTop } from '../scroll-reset'
 import { AccountsSection } from './accounts'
 import { SETTINGS_SECTIONS, sectionFromHash } from './sections'
 import { SourcesSection } from './sources'
@@ -77,7 +78,7 @@ const style = css`
 const currentHash = () => location.hash
 
 // The panel carries no id a category's fragment names, so following a category link never scrolls the
-// page to it: the page stays where it is and only the panel changes. The fragment is read through
+// page to it: the link scrolls to the top itself, and only the panel changes. The fragment is read through
 // wouter's location subscription because a <Link to="/settings"> drops it with a pushState, which
 // sends no hashchange.
 const Settings = () => {
@@ -95,7 +96,7 @@ const Settings = () => {
       <h1>Settings</h1>
       <nav className="index" aria-label="Settings categories">
         {SETTINGS_SECTIONS.map(section => (
-          <a key={section.id} href={`#${section.id}`} aria-current={current === section.id ? 'true' : undefined}>{section.title}</a>
+          <a key={section.id} href={`#${section.id}`} aria-current={current === section.id ? 'true' : undefined} onClick={scrollToTop}>{section.title}</a>
         ))}
       </nav>
       <section css={sectionStyle} data-section={current} aria-labelledby="settings-section-title">
