@@ -5,8 +5,9 @@
 // builds perfectly and then renders as an empty box, or as mermaid's own error graphic, for every
 // reader. The only check that can see that is one that loads the page and looks for the <svg>.
 //
-// Reads its page list from the sitemap the build already writes, so a new page is covered the moment
-// it exists rather than when someone remembers to add it here.
+// Reads its page list from the pages the build writes, so a new page is covered the moment it exists
+// rather than when someone remembers to add it here. Not from a sitemap: the site has no address, so
+// Astro writes none.
 //
 // Resolves `playwright` by walking up to the stub repo's node_modules, which is why this file lives
 // under docs/ and still runs: an ESM specifier resolves against the file's own location.
@@ -15,14 +16,12 @@ import { execFileSync } from 'node:child_process'
 import { chromium } from 'playwright'
 
 const BASE = process.env.DOCS_BASE ?? 'http://localhost:4321'
-const SITEMAP = process.env.DOCS_SITEMAP ?? 'dist/sitemap-0.xml'
 
-const paths = () => {
-  const xml = readFileSync(SITEMAP, 'utf-8')
-  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
-    .map(match => new URL(match[1]).pathname)
+const paths = () =>
+  execFileSync('find', ['dist', '-name', 'index.html'], { encoding: 'utf-8' })
+    .split('\n').filter(Boolean)
+    .map(file => file.replace(/^dist/, '').replace(/index\.html$/, ''))
     .sort()
-}
 
 // how many ```mermaid fences the SOURCE carries, per page, so a page whose diagrams silently vanished
 // from the html is caught as well as one whose diagram failed to draw

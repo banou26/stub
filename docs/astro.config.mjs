@@ -5,7 +5,6 @@ import mermaid from 'astro-mermaid'
 import { sidebar } from './src/sidebar.mjs'
 
 export default defineConfig({
-  site: 'https://stub.banou.dev',
   integrations: [
     // BEFORE starlight, so a ```mermaid fence is transformed into the diagram component before
     // starlight renders the page around it. Registered the other way round the fence survives as a
