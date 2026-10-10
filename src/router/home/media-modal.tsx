@@ -22,9 +22,10 @@ import TraceLink from '../debug/link'
 import { gql } from '../../generated'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
 import { listedMediaFor } from './modal-media'
+import { isUpcoming, movieFacts } from './movie'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
-import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
+import { releaseDateAttribute, releaseDateDisplay, releaseDateLabel } from '../../utils/release-date'
 import { canPlay } from '../../sources/playable'
 import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
@@ -144,6 +145,47 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
             font-size: 1.8rem;
             font-weight: 700;
           }
+        }
+      }
+    }
+
+    & > .movie {
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+      margin: 1rem 0 2rem;
+
+      & > .facts {
+        font-size: 1.5rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      & > .play-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem 1.6rem;
+
+        & > .play {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.8rem;
+          height: 4.4rem;
+          padding: 0 2.4rem 0 2rem;
+          border-radius: 0.6rem;
+          background: #fff;
+          color: #000;
+          font-size: 1.7rem;
+          font-weight: 700;
+          text-decoration: none;
+        }
+
+        & > .play:hover { background: rgba(255, 255, 255, 0.85); }
+        & > .play:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+
+        & > .when {
+          font-size: 1.5rem;
+          color: rgba(255, 255, 255, 0.8);
         }
       }
     }
@@ -357,6 +399,8 @@ const GET_MEDIA_MODAL = gql(`
       }
       popularity
       categories
+      startDate
+      genres
       franchise {
         nodes {
           uri
@@ -399,6 +443,7 @@ const GET_MEDIA_MODAL = gql(`
         ...EpisodeFragment
         episodeNumber
         releaseDate
+        runtime
         titles {
           title
         }
@@ -461,27 +506,26 @@ const GET_MEDIA_MODAL_ORIGINS = gql(`
   }
 `)
 
-const Episode = (
-  { episode, index, mediaUri, isMovie }:
-  { episode: NonNullable<GetMediaModalSubscription['media']>['episodes'][number], index: number, mediaUri: string, isMovie?: boolean }
-) => {
-  // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
-  const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
-  const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
-  // The store already merges a date across the sources it folded into this row, so the handle is a
-  // fallback rather than the path: it covers an episode whose date only one source knows and which
-  // was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
-  // catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
-  const releasedAt = episode.releaseDate ?? episode.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
-  const released = releaseDateDisplay(releasedAt)
-  const originIds = episodeOriginIds(episode)
+type ModalEpisode = NonNullable<GetMediaModalSubscription['media']>['episodes'][number]
+
+// The store already merges a date across the sources it folded into this row, so the handle is a
+// fallback rather than the path: it covers an episode whose date only one source knows and which
+// was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
+// catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
+const releasedAtOf = (episode: ModalEpisode | undefined) =>
+  episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
+
+/** Where an episode plays or can be watched: stub's own players first, then the sites' own pages. */
+const useWatchSources = (episode: ModalEpisode | undefined, mediaUri: string): WatchSource[] => {
+  const originIds = episode ? episodeOriginIds(episode) : undefined
   const [{ data: originData }] = useSubscription({
     query: GET_MEDIA_MODAL_ORIGINS,
-    variables: { input: { ids: originIds, filters: [OriginFilter.IsNotApiOnly] } },
+    variables: { input: { ids: originIds ?? [], filters: [OriginFilter.IsNotApiOnly] } },
     pause: !originIds
   })
 
-  const sources: WatchSource[] = (originData?.originPage?.nodes ?? [])
+  if (!episode) return []
+  return (originData?.originPage?.nodes ?? [])
     .map(origin => {
       // SAME_AS only. Everything below routes into PLAYBACK: `sourceUri` is handed to the watch route
       // and resolved back to a handle to play, so a node that is merely PART_OF this episode would be
@@ -517,6 +561,44 @@ const Episode = (
     .filter(source => source.href)
     .sort((a, b) => Number(a.external) - Number(b.external))
     .slice(0, 5)
+}
+
+/**
+ * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens stub's
+ * own player on the first source it can play; until the release day it says when, and offers no Play.
+ */
+const MoviePlay = (
+  { episode, mediaUri, startDate, genres }:
+  { episode: ModalEpisode | undefined, mediaUri: string, startDate?: string | null, genres?: readonly string[] | null }
+) => {
+  const sources = useWatchSources(episode, mediaUri)
+  const released = releasedAtOf(episode) ?? startDate
+  const upcoming = isUpcoming(released)
+  const play = upcoming ? undefined : sources.find(source => !source.external && source.href)
+  const day = releaseDateLabel(released)
+  return (
+    <div className="movie">
+      <div className="facts">{movieFacts({ released, runtime: episode?.runtime, genres }).join(' · ')}</div>
+      <div className="play-bar">
+        {play?.href ? <Link className="play" href={play.href}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>Play</Link> : undefined}
+        {sources.length ? <SourceSelector compact sources={sources}/> : undefined}
+        {upcoming && day ? <span className="when">Releases {day}</span> : undefined}
+        {!upcoming && !sources.length ? <span className="when">No source stub knows of plays it yet</span> : undefined}
+      </div>
+    </div>
+  )
+}
+
+const Episode = (
+  { episode, index, mediaUri }:
+  { episode: ModalEpisode, index: number, mediaUri: string }
+) => {
+  // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
+  const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
+  const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
+  const releasedAt = releasedAtOf(episode)
+  const released = releaseDateDisplay(releasedAt)
+  const sources = useWatchSources(episode, mediaUri)
 
   return (
     <div className="episode">
@@ -530,25 +612,14 @@ const Episode = (
           )
           : undefined
       }
-      {isMovie ? undefined : <div className="number">{episode.episodeNumber}</div>}
+      <div className="number">{episode.episodeNumber}</div>
       {
         thumbnail
           ? <img className="thumbnail" src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}></img>
           : <div className="thumbnail"></div>
       }
       {
-        isMovie
-          ? (
-            <div className="content">
-              <div className="header">
-                <div className="title">Play</div>
-                <span className="origins">
-                  <SourceSelector compact sources={sources} />
-                </span>
-              </div>
-            </div>
-          )
-          : episode.titles?.length
+        episode.titles?.length
           ? (
             <div className="content">
               <div className="header">
@@ -649,6 +720,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     pause: !originIds
   })
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
+  // a film released in parts keeps its episode list, so only a movie of one episode or none gets the play bar
+  const isMovie = Boolean(
+    media && 'categories' in media && media.categories?.includes(MediaCategory.Movie)
+    && ('episodes' in media ? (media.episodes?.length ?? 0) : 0) <= 1
+  )
   const description = useMemo(
     () =>
       media
@@ -805,11 +881,24 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         </div>
         {/* on the address the store has grown to, so the trackers are asked again as the media
             gains ids; nothing until the worker has answered for this media at all */}
+        {
+          isMovie && media
+            ? (
+              <MoviePlay
+                episode={'episodes' in media ? media.episodes?.at(0) : undefined}
+                mediaUri={media.uri}
+                startDate={'startDate' in media ? media.startDate : undefined}
+                genres={'genres' in media ? media.genres : undefined}
+              />
+            )
+            : undefined
+        }
         <MediaTracking
           uri={data?.media?.uri}
           title={title}
           cover={coverUrl}
           episodeCount={data?.media?.episodeCount}
+          movie={isMovie}
         />
         {
           description
@@ -831,7 +920,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             />
           }
         />
-        <div className="episodes">
+        {isMovie ? undefined : <div className="episodes">
           {
             media &&
             'episodes' in media &&
@@ -843,11 +932,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                   episode={episode}
                   index={index}
                   mediaUri={media.uri}
-                  isMovie={'categories' in media && media.categories?.includes(MediaCategory.Movie)}
                 />
               )
           }
-        </div>
+        </div>}
       </div>
     </ModalBackdrop>
   )

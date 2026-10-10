@@ -1,0 +1,46 @@
+// A movie's page shows one line of facts and a play bar instead of a series' episode list (HOR-329).
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { expect, test } from 'vite-plus/test'
+
+import { isUpcoming, movieFacts, runtimeText } from '../../../src/router/home/movie'
+
+test('a runtime reads in hours and minutes, and none reads as nothing', () => {
+  expect(runtimeText(112)).toBe('1h 52m')
+  expect(runtimeText(120)).toBe('2h')
+  expect(runtimeText(45)).toBe('45m')
+  for (const none of [0, -3, null, undefined]) expect(runtimeText(none), String(none)).toBeUndefined()
+})
+
+test('the facts line names the format, the year, the runtime and three genres at most', () => {
+  expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance', 'Historical'] }))
+    .toEqual(['Movie', '2026', '1h 52m', 'Mystery, Drama, Romance'])
+})
+
+test('a fact a source did not give is left out rather than shown empty', () => {
+  expect(movieFacts({})).toEqual(['Movie'])
+  expect(movieFacts({ released: 'not a date', runtime: 0, genres: [] })).toEqual(['Movie'])
+  expect(movieFacts({ released: '2024-07-26T15:00:00.000Z' })).toEqual(['Movie', '2024'])
+})
+
+test('a release is upcoming only while its day is still ahead, whatever the hour', () => {
+  const now = new Date('2026-10-11T23:30:00Z')
+  expect(isUpcoming('2026-12-11', now)).toBe(true)
+  expect(isUpcoming('2026-10-12', now)).toBe(true)
+  expect(isUpcoming('2026-10-11', now), 'the day itself is out').toBe(false)
+  expect(isUpcoming('2026-10-01', now)).toBe(false)
+  expect(isUpcoming(undefined, now)).toBe(false)
+  expect(isUpcoming('garbage', now)).toBe(false)
+})
+
+// media-modal.tsx cannot be imported here (urql's CommonJS `require('react')`, see modal-media.test.ts), so
+// its wiring is read off the source, each line with the series path beside it as the control
+const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
+
+test('a movie of one episode gets the play bar and the Watched toggle, and no episode list', () => {
+  expect(modal).toMatch(/media\.categories\?\.includes\(MediaCategory\.Movie\)\s*&& \('episodes' in media \? \(media\.episodes\?\.length \?\? 0\) : 0\) <= 1/)
+  expect(modal).toMatch(/isMovie && media\s*\?\s*\(\s*<MoviePlay/)
+  expect(modal).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
+  expect(modal).toContain('{isMovie ? undefined : <div className="episodes">')
+  expect(modal, 'the series path still renders its rows').toMatch(/<Episode\s+key=/)
+})
