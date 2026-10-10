@@ -21,10 +21,10 @@ inside 25 separate GraphQL servers. Twenty-five is the built-in count, not a rou
 `src/sources/index.ts` exports 25 modules and `tests/unit/sources/index.test.ts:24` pins it with
 `expect(names).toHaveLength(25)`.
 
-Open `ag:(anilist:166873)` and Crunchyroll, Netflix, Apple TV, Disney, HBO and eighteen others are all
+Open `ag:(anilist:166873)` and Crunchyroll, Netflix, Apple TV, Disney, HBO and nineteen others are all
 asked about it. Exactly two are addressable by that uri at all: anilist, whose own origin is named, and
 offline, whose `supportedUris` is `['offline', ...INDEXED_ORIGINS]` and so covers `anilist`
-(`src/sources/offline/extractor.ts:48`, `src/sources/offline/index-lookup.ts:20`). The other twenty-two
+(`src/sources/offline/extractor.ts:48`, `src/sources/offline/index-lookup.ts:20`). The other twenty-three
 find nothing in it they could recognise and yield `media: null`. That is not waste to be optimised
 away: it is the only mechanism by which a source that *does* recognise itself gets to answer, and the
 cost of asking a source that refuses is one generator that yields once and ends.
@@ -101,7 +101,7 @@ the incoming request. Every source's private schema is built from the same gener
 (`src/worker/extractor.ts:416`) as the app's, which is what makes the app's document validate against a
 source's server. The consequence belongs on
 [from the address bar to the worker](/request/page-to-worker/): the page's selection set is replayed
-verbatim at 24 servers, so a field the page did not select is a resolver that never runs at any source.
+verbatim at 25 servers, so a field the page did not select is a resolver that never runs at any source.
 
 **`stamp` fails soft.** `src/worker/request-context.ts:136-140`:
 
@@ -216,7 +216,7 @@ reusable sentence on this page. `src/worker/extractor.ts:459-462`:
 > subscription generator that completes without yielding makes yoga respond 204 No Content, which the
 > caller would sit on until its timeout instead of reading a refusal off the first payload
 
-That timeout is `SIMILAR_MEDIA_TIMEOUT_MS = 30_000` (`src/worker/extractor.ts:198`). Twenty-two sources
+That timeout is `SIMILAR_MEDIA_TIMEOUT_MS = 30_000` (`src/worker/extractor.ts:198`). Twenty-three sources
 that cannot answer, each held for thirty seconds, is the outcome the yield avoids. The rule is
 independently restated inside a source, which is a good sign it is real rather than folklore;
 `src/sources/offline/extractor.ts:231-232`:
@@ -375,7 +375,7 @@ flowchart TD
 ```
 
 *Both of these refuse first and fan out second, which is the opposite order to `Subscription.media`,
-where the refusal is the only thing standing between an unparseable uri and 24 source servers.*
+where the refusal is the only thing standing between an unparseable uri and 25 source servers.*
 
 Four differences, each with a consequence:
 

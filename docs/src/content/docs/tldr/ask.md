@@ -1,9 +1,9 @@
 ---
 title: The ask
-description: "How one uri in the address bar becomes 24 concurrent subscriptions, what each source does with one, and why the answers never come back down the path they went out on."
+description: "How one uri in the address bar becomes 25 concurrent subscriptions, what each source does with one, and why the answers never come back down the path they went out on."
 ---
 
-One uri becomes 24 concurrent GraphQL subscriptions, one per registered source, each against a private yoga replaying the page's own document. Nothing picks which sources to ask: every source gets the question and decides for itself whether it names them.
+One uri becomes 25 concurrent GraphQL subscriptions, one per registered source, each against a private yoga replaying the page's own document. Nothing picks which sources to ask: every source gets the question and decides for itself whether it names them.
 
 ## The gate
 
@@ -19,7 +19,7 @@ wouter hands a route segment through undecoded, so every uri passes `decodeRoute
 
 ## The fan-out
 
-`proxyRequestToExtractors` builds one `Fanout` carrying `ctx.params.query`, the page's literal document, then runs one loop: `for (const extractor of extractors) joinFanout(fanout, extractor)` (worker/extractor.ts:792). `joinFanout` contains exactly one test, `if (fanout.joined.has(extractor)) return` (:747). It reads neither the uri, nor `supportedUris`, nor `origin`. `extractors` is a mutable module singleton (:551, mutated at :683 and :719), so "every registered source" means every source registered when that loop runs: 24 today ([the registry](/tldr/sources/)), plus one per source a connected plugin registers.
+`proxyRequestToExtractors` builds one `Fanout` carrying `ctx.params.query`, the page's literal document, then runs one loop: `for (const extractor of extractors) joinFanout(fanout, extractor)` (worker/extractor.ts:792). `joinFanout` contains exactly one test, `if (fanout.joined.has(extractor)) return` (:747). It reads neither the uri, nor `supportedUris`, nor `origin`. `extractors` is a mutable module singleton (:551, mutated at :683 and :719), so "every registered source" means every source registered when that loop runs: 25 today ([the registry](/tldr/sources/)), plus one per source a connected plugin registers.
 
 On the MEDIA path every payload is dropped on the floor: rows reach the store down a side channel ([the write path](/tldr/write/)), the store emits `media:changed`, and the resolver re-reads the cluster and yields the aggregate (media/index.ts:81-87). Reading a source's answer says nothing about whether it answered: [the fan-out](/request/fan-out/).
 
@@ -75,7 +75,7 @@ The uri was captured at subscribe time and `Subscription.media` is yield-once wi
 
 | bound | sources | why |
 | --- | --- | --- |
-| 2 asks | 22 of 24 | one opening ask, plus one for its own origin |
+| 2 asks | 23 of 25 | one opening ask, plus one for its own origin |
 | 4 asks | anizip | `supportedUris = ['anidb', 'mal']` (anizip/extractor.ts:13) |
 | 6 asks | offline | `['offline', ...INDEXED_ORIGINS]`, mal, anilist, kitsu, anidb (offline/extractor.ts:48, index-lookup.ts:20) |
 
@@ -85,7 +85,7 @@ The uri was captured at subscribe time and `Subscription.media` is yield-once wi
 
 ```mermaid
 flowchart LR
-  SRC["a source resolver<br/><small>ctx.fetch(url, init) - 17 of the 24 sources</small>"]
+  SRC["a source resolver<br/><small>ctx.fetch(url, init) - 18 of the 25 sources</small>"]
   CTX["ExtractorServerContext.fetch<br/><small>declared worker/extractor.ts:35, bound worker/extractor.ts:533</small>"]
   WB["fetchWithBackoff = withBackoff(fetch)<br/><small>worker/fetch.ts:18</small>"]
   OSRA["osra hop, key 'fetch'<br/><small>worker/fetch.ts:7-16, worker.ts:24-30</small>"]

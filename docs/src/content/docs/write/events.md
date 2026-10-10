@@ -171,7 +171,7 @@ both axes at once, guard and queue.
 The debounce is trailing-edge and unconditional about it: every event calls `clearTimeout` and starts
 a fresh `setTimeout(fire, debounceMs)` (`events.ts:133-138`). A stream of `media:changed` arriving
 faster than every 100ms **never fires it at all** until the stream stops. On a cold media page, where
-24 sources are answering into a 50ms DataLoader flush, that is the normal condition for the first
+25 sources are answering into a 50ms DataLoader flush, that is the normal condition for the first
 second or two.
 
 ## The re-read loop

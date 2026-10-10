@@ -43,7 +43,7 @@ flowchart TD
 
 | # | where | the claim | what the code does | verdict |
 | --- | --- | --- | --- | --- |
-| 1 | `resolvers/media/index.ts:56` | "each source is asked at most twice" | true for 22 of the 24; anizip bounds at four questions, offline at six | formula current, numbers stale |
+| 1 | `resolvers/media/index.ts:56` | "each source is asked at most twice" | true for 23 of the 25; anizip bounds at four questions, offline at six | formula current, numbers stale |
 | 2 | `offline/extractor.ts:45-47` | `supportedUris` is "declarative only: nothing in the worker reads it" | `answersForOrigins` reads it at `supported.ts:29`, called from `extractor.ts:830` | was true, is not |
 | 3 | `anizip/extractor.ts:13` | `supportedUris = ['anidb', 'mal']` | the resolver reads only `mal` (`:123-124`); an `anidb`-only cluster buys a re-ask that is guaranteed to refuse | declaration wider than the resolver |
 | 4 | `resolvers/media/index.ts:156-159` | `POPULARITY` and `POPULARITY_DESC` | `POPULARITY` sorted descending and `POPULARITY_DESC` ascending: the names were swapped | FIXED 2026-09-12 on `redesign-representation`: `applyMediaSorts` in `store/filter.ts` reads `POPULARITY` as ascending and `POPULARITY_DESC` as descending, an unranked media sorts last both ways, and the home row and the search page now ask for `POPULARITY_DESC`. The figure below shows the code as it was |
@@ -53,8 +53,8 @@ flowchart TD
 | 8 | `db.ts:46`, `sources/utils.ts:44` | episode containment: `EPISODE_PART_OF` and `episodePartOf` | the label is written at `db.ts:411` and read nowhere; the constructor is called nowhere | declared, written, dead |
 | 9 | `schema.gql:471-489` | `MediaPage` has five cursors and four counts | the resolver returns `{ nodes: parent }` and nothing else; all nine resolve null | schema surface with no producer |
 | 10 | `similar-consumer.ts:276` | the re-ask "is how the answer's episodes reach the store" | since 2026-09-10 the ask's own document selects `episodes`, which is the route that works when a source has no usable `media` path | both routes exist, the doc names the weaker one |
-| 11 | `extractor.ts:230` | "each of the 23 sources" | 24, pinned at `tests/unit/sources/index.test.ts:19-24` | stale count |
-| 12 | `docs/astro.config.mjs:17` | "the flow crosses ~36 sources" | 24 source modules; 36 counts JustWatch's provider mappings | stale count, owned by [reading these diagrams](/start/reading-the-diagrams/) |
+| 11 | `extractor.ts:230` | "each of the 23 sources" | 25, pinned at `tests/unit/sources/index.test.ts:19-24` | stale count |
+| 12 | `docs/astro.config.mjs:17` | "the flow crosses ~36 sources" | 25 source modules; 36 counts JustWatch's provider mappings | stale count, owned by [reading these diagrams](/start/reading-the-diagrams/) |
 
 ---
 
@@ -91,7 +91,7 @@ flowchart TD
   E -->|"no origin it understands is in this batch"| SKIP["continue, not re-asked in this pass<br/><small>extractor.ts:830</small>"]
   E -->|"matched: one fresh subscription, callback discards the payload"| F["one more question for this source<br/><small>extractor.ts:832-834</small>"]
   F --> G["ceiling per source: the opening fan-out ask, plus one per distinct origin it matches"]
-  G --> H["22 of 24 match only their own origin<br/><small>2 questions, which is what index.ts:56 says</small>"]
+  G --> H["23 of 25 match only their own origin<br/><small>2 questions, which is what index.ts:56 says</small>"]
   G --> I["anizip matches anizip, anidb, mal<br/><small>4 questions</small>"]
   G --> J["offline matches offline, mal, anilist, kitsu, anidb<br/><small>6 questions</small>"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
@@ -109,7 +109,7 @@ batch to `askOrigins`. So each origin is handed over exactly once for the life o
 and a source can be re-subscribed once per batch in which any origin it matches appears. Its ceiling
 is therefore the number of distinct origins it matches.
 
-- 22 of the 24 declare `supportedUris` naming only their own origin, so they match one origin and
+- 23 of the 25 declare `supportedUris` naming only their own origin, so they match one origin and
   bound at two questions. `index.ts:56` is right about those.
 - **anizip** declares `['anidb', 'mal']` (`src/sources/anizip/extractor.ts:13`) and publishes under
   `anizip`, so it matches three origins: the opening ask plus three re-asks, four questions.
@@ -156,7 +156,7 @@ the change itself, at `src/sources/supported.ts:25`:
 
 The half of the sentence that is still true is the second half. The resolver decides what the source
 *answers*; `supportedUris` decides whether the question is ever *put*. Also logged on
-[the 24, and what each answers](/sources/registry/) and [what a source is](/sources/contract/).
+[the 25, and what each answers](/sources/registry/) and [what a source is](/sources/contract/).
 
 ---
 
@@ -476,8 +476,8 @@ The full argument is on [the document](/similar/document/) and
 
 > What a showId may look like, checked ONCE here rather than in each of the 23 sources.
 
-There are 24, pinned by name and by length at `tests/unit/sources/index.test.ts:19-24`
-(`expect(names).toHaveLength(24)`). The comment predates watchmode being re-enabled on 2026-09-05.
+There are 25, pinned by name and by length at `tests/unit/sources/index.test.ts:19-24`
+(`expect(names).toHaveLength(25)`). The comment predates watchmode being re-enabled on 2026-09-05.
 The rule it states is unaffected.
 
 **`docs/astro.config.mjs:17`**, this site's own config, says the diagrams cross "~36 sources". Also
@@ -501,7 +501,7 @@ whole index, with the argument left where it was made.
 | `extractor.ts:801` | cites `crunchyroll/extractor.ts:247-252` for the yield-once generator | the resolver is at `src/sources/crunchyroll/extractor.ts:571-579` | [the re-ask](/request/re-ask/) |
 | `resolvers/media/index.ts:45` | cites `sources/anilist/extractor.ts:320 against :295` | the split is `:367` against `:397` | [the re-ask](/request/re-ask/) |
 | `offline/extractor.ts:26` | the `IsNotApiOnly` filter resolves at `db.ts:144-146` | it is at `src/worker/store/db.ts:539-543`; `db.ts:144-146` today is the scope ratchet | [what a source is](/sources/contract/) |
-| `offline/extractor.ts:24` | the media modal's icon guard is at `media-modal.tsx:662` | `media-modal.tsx:781` today | [the 24, and what each answers](/sources/registry/) |
+| `offline/extractor.ts:24` | the media modal's icon guard is at `media-modal.tsx:662` | `media-modal.tsx:781` today | [the 25, and what each answers](/sources/registry/) |
 | the page inventory | the aggregate override pass runs `removeDuplicatesByField` after `byScore` for titles **and** trailers | only `titles` is sorted first; `aggregate.ts:397` dedupes `merged.trailers` raw | [aggregating a media](/read/aggregate-media/) |
 
 ---

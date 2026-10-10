@@ -47,7 +47,7 @@ A refusal is written `return yield`, never `return`: a generator that completes 
 
 ## What a score decides
 
-Seventeen modules keep a module-level `const SCORE` hand-threaded into every `makeMedia`, `makeEpisode`, title, cover, banner and thumbnail. It picks which spelling is shown, which scalar wins the aggregate, which six titles a cluster is compared on, and which tier votes on a number.
+Eighteen modules keep a module-level `const SCORE` hand-threaded into every `makeMedia`, `makeEpisode`, title, cover, banner and thumbnail. It picks which spelling is shown, which scalar wins the aggregate, which six titles a cluster is compared on, and which tier votes on a number.
 
 Tiers are lexicographic, never additive (src/worker/store/consensus.ts:36): the best score present decides which claims are read, agreement breaks ties among equals, nothing beneath is consulted. The sum that was tried first, and what it published, is at [the merge](/tldr/merge/).
 

@@ -121,7 +121,7 @@ flowchart TD
   STOP["if (!unasked.length) return<br/>the common case on every read after the first"]
   ADD["for (const origin of unasked) askedOrigins.add(origin)<br/>before the call, so a re-entrant read cannot double-ask"]
   CALL["askOrigins(unasked, { ...variables, input: { ...variables?.input, uri: mediaUri } })"]
-  LOOP["for (const extractor of extractors)<br/>all 24 built-ins plus every registered plugin"]
+  LOOP["for (const extractor of extractors)<br/>all 25 built-ins plus every registered plugin"]
   D2{"can this source answer from one of the NEW origins?<br/><small>origins.includes(source.origin) || (source.supportedUris ?? []).some(origin => origins.includes(origin))</small>"}
   SKIP["continue: not re-asked in this batch"]
   D3{"did the subscription start?<br/><small>try { fanout.subscriptions.push(...) } catch (error)</small>"}
@@ -176,7 +176,7 @@ cluster's aggregated uri, which grows every time a union lands. `requestedUri` n
 
 **A cluster that never resolves never re-asks.** `if (!cluster.length) return undefined`
 (`src/worker/resolvers/media/index.ts:72`) sits above the call, so a uri that resolves to nothing,
-including the empty aggregate `ag:()`, opens 24 subscriptions on the first pass and then re-asks
+including the empty aggregate `ag:()`, opens 25 subscriptions on the first pass and then re-asks
 nobody, forever.
 
 **`unasked` is a batch, and `answersForOrigins` is matched against the batch, not against the whole
@@ -235,7 +235,7 @@ flowchart LR
   URI["the cluster's aggregated uri<br/>ag:(anilist:166873,mal:...,kitsu:...)"]
   ORIG["originsOfUri -&gt; anilist, mal, kitsu<br/><small>deduped: one origin can contribute several handles</small>"]
   D{"does this source understand any of them?<br/><small>origins.includes(source.origin) || (source.supportedUris ?? []).some(origin => origins.includes(origin))</small>"}
-  SELF["22 of the 24: origin === its only supportedUri<br/>kitsu is origin 'kitsu', supportedUris ['kitsu']"]
+  SELF["23 of the 25: origin === its only supportedUri<br/>kitsu is origin 'kitsu', supportedUris ['kitsu']"]
   AZ["anizip: origin 'anizip', supportedUris ['anidb','mal']<br/><small>src/sources/anizip/extractor.ts:7 and :13</small>"]
   OFF["offline: origin 'offline',<br/>supportedUris ['offline','mal','anilist','kitsu','anidb']<br/><small>src/sources/offline/extractor.ts:48</small>"]
   PLUG["a plugin source: PluginSourceMeta declares no supportedUris,<br/>so ?? [] applies and it is matched on origin alone"]
@@ -264,7 +264,7 @@ flowchart LR
   class ASK view
 ```
 
-*Exactly two of the 24 built-ins declare a foreign origin. For the other 22 the two sets are the same
+*Exactly two of the 25 built-ins declare a foreign origin. For the other 23 the two sets are the same
 one set, and the distinction costs nothing.*
 
 `src/worker/extractor.ts:804-810` is the argument, and it names the cost of getting it wrong:
@@ -343,7 +343,7 @@ Capping a source at one re-ask would terminate too, and would be wrong.
 > (its own plus its `supportedUris`), because each origin enters `askedOrigins` exactly once and can
 > therefore seed at most one batch.
 
-- A source declaring only its own origin, which is 22 of the 24: **2** questions. This is the
+- A source declaring only its own origin, which is 23 of the 25: **2** questions. This is the
   `index.ts` figure, and it is right for almost every source.
 - anizip, `origin 'anizip'` plus `['anidb', 'mal']`, three distinct origins: **4** questions. The
   `extractor.ts` formula is right and its worked number, three, counts only the re-asks.
@@ -376,7 +376,7 @@ Four, all of them stale references rather than wrong behaviour. Recorded here an
 
 | where | what it says | what the code does |
 | --- | --- | --- |
-| `src/worker/resolvers/media/index.ts:56` | "each source is asked at most twice" | true for 22 of 24; anizip bounds at 4, offline at 6 |
+| `src/worker/resolvers/media/index.ts:56` | "each source is asked at most twice" | true for 23 of 25; anizip bounds at 4, offline at 6 |
 | `src/worker/extractor.ts:815` | "three questions for the widest source in the tree" | the formula is right, the number is anizip's; offline declares five distinct origins |
 | `src/worker/extractor.ts:801` | cites `crunchyroll/extractor.ts:247-252` for the yield-once generator | the resolver is at `src/sources/crunchyroll/extractor.ts:571-579` today |
 | `src/worker/resolvers/media/index.ts:45` | cites `sources/anilist/extractor.ts:320 against :295` | the split is `:367` (mapper handles) against `:397` (none) |

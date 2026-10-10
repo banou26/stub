@@ -4,7 +4,7 @@ description: How a source at the bottom of the call knows whether a person is lo
 ---
 
 Every source is asked the same question. `media(input: { uri })` arrives at Crunchyroll's yoga, at
-JustWatch's, at twenty-two others, and none of them can tell from the arguments whether a person has a
+JustWatch's, at twenty-three others, and none of them can tell from the arguments whether a person has a
 detail page open or whether this is row 14 of a search that will scroll past before anyone reads it.
 
 `src/worker/request-context.ts:3-8`:

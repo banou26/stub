@@ -29,7 +29,7 @@ flowchart LR
   D1{"does the input name a uri?<br/><small>!requestedUri || !(isUri(requestedUri) || isAggregatedUri(requestedUri))</small>"}
   NOURI["console.warn, then return with no yield<br/>204 No Content, no source is asked"]
   EX["src/worker/extractor.ts<br/><small>proxyRequestToExtractors, joinFanout, makeExtractor</small>"]
-  SB["src/sources/index.ts<br/><small>24 exports, one per source module</small>"]
+  SB["src/sources/index.ts<br/><small>25 exports, one per source module</small>"]
   SU["src/sources/utils.ts<br/><small>sameAs, partOf, makeMedia, mergeHandles</small>"]
   D2{"what named type did the resolver return?<br/><small>getNamedType(info.returnType).name</small>"}
   NO["nothing inserted<br/><small>MediaHandle, MediaTitle, and every other type</small>"]
@@ -127,7 +127,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 |---|---|---|
 | `src/worker/resolvers/index.ts` | joins the four schema strings and the four resolver maps | |
 | `src/worker/resolvers/media/index.ts` (260L) | `Subscription.media`, `Subscription.mediaPage`, `Media.episodes`, `SEARCH_RELEVANCE_THRESHOLD = 0.7` | reaches `extractor.ts`; three of its rules were moved elsewhere so they could be tested |
-| `src/worker/resolvers/media/schema.gql` (543L) | the wire types, including `input RequestContext` and `MediaHandleRelation` | the same generated `typeDefs` is served by the app and by all 24 private yogas |
+| `src/worker/resolvers/media/schema.gql` (543L) | the wire types, including `input RequestContext` and `MediaHandleRelation` | the same generated `typeDefs` is served by the app and by all 25 private yogas |
 | `src/worker/resolvers/episode/index.ts` (55L) | episode description parsing | |
 | `src/worker/resolvers/origin/index.ts` (82L) | `Subscription.origin` and `Subscription.originPage`, which build their **own** fan-out loop with no `stamp` and no `fanouts` entry | |
 | `src/worker/resolvers/*/fragment.ts` | `MediaFragment`, `EpisodeFragment`, `OriginFragment` | shared by the page documents |
@@ -136,8 +136,8 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 
 | file | what it owns | why it lives where it does |
 |---|---|---|
-| `src/sources/index.ts` (33L) | the barrel: 24 `export * as <name>` lines, pinned by `tests/unit/sources/index.test.ts:24` | a source is disabled by deleting one line here, which is why the test exists |
-| `src/sources/<name>/extractor.ts` (24 files) | one source each: its `origin`, `supportedUris`, `isApiOnly`, `SCORE` and its resolvers | |
+| `src/sources/index.ts` (34L) | the barrel: 25 `export * as <name>` lines, pinned by `tests/unit/sources/index.test.ts:24` | a source is disabled by deleting one line here, which is why the test exists |
+| `src/sources/<name>/extractor.ts` (25 files) | one source each: its `origin`, `supportedUris`, `isApiOnly`, `SCORE` and its resolvers | |
 | `src/sources/utils.ts` (509L) | `sameAs`, `partOf`, `makeMedia`, `buildHandlesFromUri`, `mergeHandles`, `normalizePage`, and the frizbee/sacha title scoring | shared by every source; its one import of `worker/extractor.ts` is `import type`, so it is erased |
 | `src/sources/similar.ts` (338L) | `pickSimilarSeason`, `answerNamesOurShow`, `SHOW_TITLE_THRESHOLD` and the evidence rules | `src/sources/similar.ts:14-15`: it imports only the pure helpers *so it loads under vitest and inside every extractor alike* |
 | `src/sources/season.ts` (228L) | `parseSeasonNumber`, `isOnlySeasonLabel`, `seasonScopedId(id, n)` at `:189` | no imports |
@@ -384,7 +384,7 @@ longer the reason. The worker-side wall, which is the one this page opened with,
 unchanged.
 
 The vitest comment's own count is dated: it says **23** extractors, measured 2026-08-31. There are
-**24** `src/sources/*/extractor.ts` files today, matching `src/sources/index.ts` and the length
+**25** `src/sources/*/extractor.ts` files today, matching `src/sources/index.ts` and the length
 assertion in the test.
 
 ## Two notes where this page disagrees with the inventory it was written from

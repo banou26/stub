@@ -269,13 +269,13 @@ sequenceDiagram
   participant Page
   participant Sub as the subscription generator
   participant Fan as proxyRequestToExtractors
-  participant Src as the 24 sources
+  participant Src as the 25 sources
   participant Store as graph and events
 
   Page->>Sub: media(input), or mediaPage(input)
   Note over Sub: Subscription.media refuses here, before anything else runs. Subscription.mediaPage has no uri gate at all.
   Sub->>Fan: openRoot(operation), then joinFanout for every registered source
-  Note over Fan,Src: joinFanout runs synchronously for all 24, extractor.ts:792, before the generator ever touches the store
+  Note over Fan,Src: joinFanout runs synchronously for all 25, extractor.ts:792, before the generator ever touches the store
   Fan->>Src: the caller's own document, replayed verbatim, one urql client each
   Sub->>Store: subscribe to media:changed, plus episode:changed on the media path only
   Sub->>Store: THE FIRST READ, which is the second thing that happens

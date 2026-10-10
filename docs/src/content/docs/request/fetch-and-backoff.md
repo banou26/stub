@@ -3,7 +3,7 @@ title: Fetching, and backing off
 description: Every upstream request a source makes goes through one 80-line module with no imports. Four attempts, seven statuses, both spellings of retry-after, and a 500 that is deliberately left out.
 ---
 
-No source in this tree calls `globalThis.fetch`. Seventeen of the twenty-four built-in sources touch
+No source in this tree calls `globalThis.fetch`. Eighteen of the twenty-five built-in sources touch
 the network, and every one of them calls `ctx.fetch`, which is `fetchWithBackoff`, wired once per
 source when that source's private yoga is built (`src/worker/extractor.ts:533`). The wrapper is the whole of `src/worker/backoff.ts`, 80
 lines with no imports and no `console` call anywhere in it.
@@ -25,7 +25,7 @@ page has a refusal branch of its own on the way past.
 
 ```mermaid
 flowchart LR
-  SRC["a source resolver<br/><small>ctx.fetch(url, init) - 17 of the 24 sources</small>"]
+  SRC["a source resolver<br/><small>ctx.fetch(url, init) - 18 of the 25 sources</small>"]
   CTX["ExtractorServerContext.fetch<br/><small>declared extractor.ts:35, bound extractor.ts:533</small>"]
   WB["fetchWithBackoff = withBackoff(fetch)<br/><small>worker/fetch.ts:18</small>"]
   OSRA["osra hop, key 'fetch'<br/><small>worker/fetch.ts:7-16, worker.ts:24-30</small>"]

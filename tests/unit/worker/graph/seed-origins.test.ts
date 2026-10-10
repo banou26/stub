@@ -6,7 +6,7 @@
  * name, no icon and no badge, and the link is carried the whole way and dropped one line short of the
  * screen. Nothing but a seed can ever write that row.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { enableGraph } from '../../../../src/worker/graph'
 import { closeGraph } from '../../../../src/worker/graph/engine'
@@ -27,8 +27,8 @@ afterAll(async () => {
 // source answered about it, which is every session: the extractor answers nothing at all.
 test('every extractor definition has an Origin row, imdb included', async () => {
   const rows = await rowsOf('MATCH (o:Origin) RETURN o.id AS id, o.raw AS raw ORDER BY o.id')
-  expect(rows.length, 'the 24 sources of src/sources/index.ts, plus any plugin that registered')
-    .toBeGreaterThanOrEqual(24)
+  expect(rows.length, 'the 25 sources of src/sources/index.ts, plus any plugin that registered')
+    .toBeGreaterThanOrEqual(25)
 
   const imdb = rows.find(row => row.id === 'imdb')
   expect(imdb, 'the origin that answers nothing and therefore can never write its own row').toBeTruthy()

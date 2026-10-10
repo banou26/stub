@@ -12,7 +12,7 @@
  * their own, and each has a control:
  *
  *  - The graph arm answers at all. An empty page is the failure the unit suite cannot see, because
- *    every test there seeds its own graph and never waits on 24 sources.
+ *    every test there seeds its own graph and never waits on 25 sources.
  *  - The graph arm is SERVED BY THE GRAPH. A cluster's `_id` is its `Cluster.id` and starts with
  *    `cl:`, and its `origin` is the literal `ag` (`src/worker/graph/plugins/fields.ts`), neither of
  *    which the old store ever produces. The legacy arm is the control: if it also comes back `cl:`
@@ -35,7 +35,7 @@ import { extname, join, normalize } from 'node:path'
 import { chromium } from 'playwright'
 
 const ROOT = new URL('../build/', import.meta.url).pathname
-// Mushoku Tensei season 1, the same uri the engine check uses: one real work most of the 24 sources
+// Mushoku Tensei season 1, the same uri the engine check uses: one real work most of the 25 sources
 // can answer about, so the fan-out is a real one and the cluster has more than one member.
 const URI = 'ag:(anilist:108465)'
 const ROUTE = `/media/${URI}`

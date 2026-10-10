@@ -14,7 +14,7 @@
  * The third opens a media page with `?export=answers` and reads the log back through
  * `window.__stubExportAnswers`, and the graph the ingest made of it through `window.__stubGraphCounts`.
  * It is the only arm that talks to the real sources over the network, which is deliberate: the unit
- * suite drives the hook against a fixture server, and what it cannot tell you is whether 24 sources
+ * suite drives the hook against a fixture server, and what it cannot tell you is whether 25 sources
  * answering at once produce answers the log recognises and rows the ingest can write. It reports the
  * rows, the bytes, the time and the row count of every table, since that is the cost the tee of step
  * 1b has to fit inside. A log that filled while `Media` or `CLAIMS` stayed at zero is a tee that
@@ -32,7 +32,7 @@ import { chromium } from 'playwright'
 
 const ROOT = new URL('../build/', import.meta.url).pathname
 // Mushoku Tensei season 1, as `getRoutePath(Route.MEDIA, { uri })` spells it (`src/router/path.ts`):
-// one real uri that most of the 24 sources can answer about, so the fan-out is a real one.
+// one real uri that most of the 25 sources can answer about, so the fan-out is a real one.
 const ANSWER_URI = 'ag:(anilist:108465)'
 const TYPES = {
   '.css': 'text/css',

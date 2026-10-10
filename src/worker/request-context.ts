@@ -47,7 +47,7 @@ export type RequestContext = {
   chain: string[]
 }
 
-/** What a source is expected to do, derived here so 24 sources do not each re-derive it. */
+/** What a source is expected to do, derived here so the sources do not each re-derive it. */
 export type RequestPolicy = {
   /**
    * Whether an answer is worth a cross-source request. False on a listing, where the expensive id is

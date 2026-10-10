@@ -199,7 +199,7 @@ season. The same source rows arrive today, and the difference is that the predic
 
 The test file opens by saying it plainly (`filter.test.ts:1-4`):
 
-> The browse filters are answered by 3 of 24 sources. Every other source ignores them and its rows
+> The browse filters are answered by 3 of 25 sources. Every other source ignores them and its rows
 > arrive at the page unfiltered, so this predicate is the whole distance between what the user asked
 > for and what the page lists. Each leniency pinned below is a row the user filtered out being shown
 > anyway, and each is the kind of change a reviewer makes on purpose, believing it kinder.

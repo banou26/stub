@@ -6,7 +6,7 @@ description: A source module is an ES module namespace object with eleven export
 A source is not a class, an interface, or a registration call. It is an **ES module namespace
 object**, and the whole registry is one file of `export * as` lines.
 
-`src/sources/index.ts` is 33 lines, 24 of them a source:
+`src/sources/index.ts` is 34 lines, 25 of them a source:
 
 ```ts
 export * as jikan from './jikan/extractor'
@@ -34,7 +34,7 @@ file exists:
 > this module exports IS what runs. A source is disabled by not being exported here, which is a
 > deletion of one line and therefore silently undone by anyone adding one back.
 
-That test pins the count at `expect(names).toHaveLength(24)` (`tests/unit/sources/index.test.ts:24`)
+That test pins the count at `expect(names).toHaveLength(25)` (`tests/unit/sources/index.test.ts:24`)
 and every name individually at `:19-23`, so a wildcard edit that took the others down with it cannot
 pass by taking everything down.
 
@@ -91,7 +91,7 @@ flowchart LR
 
   RES --> MERGE["merge(defaults, extractor.resolvers)<br/><small>one schema and one yoga per source</small>"]
   RES --> DSIM{"does the DEFINITION declare similarMedia?<br/><small>Boolean(entry.extractor.resolvers.Subscription?.similarMedia)</small>"}
-  DSIM -->|"5 of 24 do: the ask is worth a round trip"| ASK["similarOutcomeFrom asks it"]
+  DSIM -->|"5 of 25 do: the ask is worth a round trip"| ASK["similarOutcomeFrom asks it"]
   DSIM -->|"declined not-implemented, before any subscription"| NOSIM["no round trip is spent"]
 
   META --> DEAD["read by nothing that changes an outcome"]
@@ -117,17 +117,17 @@ and passed `OriginFilter.IsNotApiOnly` by all three consumers
 
 | export | declared by | read by | what it decides |
 | --- | --- | --- | --- |
-| `origin` | 24 of 24 | `normalizeOrigin` as `id`; `implementsSimilarMedia`; `answersForOrigins`; `enforcePluginOrigin`; the plugin collision check | The uri prefix on every row and handle the source mints. See the aside below. |
-| `originUrl` | 24 of 24 | `normalizeOrigin` as `url` | Nothing on screen. `src/sources/offline/extractor.ts:33` records that it "is never rendered anywhere". |
-| `name` | 24 of 24 | `normalizeOrigin`; every console line the worker prints about the source | The label in a source row, and how a failure is attributed. |
-| `icon` | 22 of 24 | `normalizeOrigin` | A row with no icon is skipped outright: `src/router/home/media-modal.tsx:781` is `if (!origin.icon) return undefined`. anizip and offline omit it, and both are `isApiOnly = true`, so that check is never reached for them. |
-| `color` | 18 of 24 | `normalizeOrigin` | Row accent. jikan, anilist, anizip, crunchyroll, unogs and justwatch declare none. |
-| `isApiOnly` | 24 of 24 | `normalizeOrigin` to `Origin.isApiOnly`, then the `OriginFilter` branch | Whether the origin appears in the source rows at all. |
-| `resolvers` | 24 of 24 | `makeExtractor`, merged over the defaults; and `implementsSimilarMedia`, read off the definition rather than the merged schema | Everything the source can answer. |
-| `supportedUris` | 24 of 24 | `answersForOrigins`, through a structural cast: `const definition = extractor.extractor as Answerable` (`src/worker/extractor.ts:829`) | Whether the source is re-asked when a new origin turns up in the cluster. |
-| `metadataOnly` | 24 of 24 | nothing that changes an outcome | dead |
-| `official` | 24 of 24 | nothing at all | dead |
-| `categories` (module level) | 24 of 24 | nothing | dead as an export, live per row |
+| `origin` | 25 of 25 | `normalizeOrigin` as `id`; `implementsSimilarMedia`; `answersForOrigins`; `enforcePluginOrigin`; the plugin collision check | The uri prefix on every row and handle the source mints. See the aside below. |
+| `originUrl` | 25 of 25 | `normalizeOrigin` as `url` | Nothing on screen. `src/sources/offline/extractor.ts:33` records that it "is never rendered anywhere". |
+| `name` | 25 of 25 | `normalizeOrigin`; every console line the worker prints about the source | The label in a source row, and how a failure is attributed. |
+| `icon` | 22 of 25 | `normalizeOrigin` | A row with no icon is skipped outright: `src/router/home/media-modal.tsx:781` is `if (!origin.icon) return undefined`. anizip, offline and livechart omit it, and all three are `isApiOnly = true`, so that check is never reached for them. |
+| `color` | 18 of 25 | `normalizeOrigin` | Row accent. jikan, anilist, anizip, crunchyroll, unogs, justwatch and livechart declare none. |
+| `isApiOnly` | 25 of 25 | `normalizeOrigin` to `Origin.isApiOnly`, then the `OriginFilter` branch | Whether the origin appears in the source rows at all. |
+| `resolvers` | 25 of 25 | `makeExtractor`, merged over the defaults; and `implementsSimilarMedia`, read off the definition rather than the merged schema | Everything the source can answer. |
+| `supportedUris` | 25 of 25 | `answersForOrigins`, through a structural cast: `const definition = extractor.extractor as Answerable` (`src/worker/extractor.ts:829`) | Whether the source is re-asked when a new origin turns up in the cluster. |
+| `metadataOnly` | 25 of 25 | nothing that changes an outcome | dead |
+| `official` | 25 of 25 | nothing at all | dead |
+| `categories` (module level) | 25 of 25 | nothing | dead as an export, live per row |
 
 There is no `export const score`. Every source keeps a module-private `const SCORE` and threads it
 per field into `makeMedia` and `makeEpisode`, which is why the scale is a property of the rows a
@@ -141,7 +141,7 @@ them. Everything else on this page is recoverable by a later slice. Changing a l
 `origin`, or letting a plugin claim one already taken, is therefore not a rename: it is a decision
 about what may be permanently merged with what. The collision check at
 `src/worker/extractor.ts:678-680` is the only guard, and it covers plugins only, since the built-in
-24 are checked by review.
+25 are checked by review.
 
 `graph.set`, one line earlier at `db.ts:147`, is separately **last-write-wins for scalars**: the last
 source to describe a field wins it outright unless the ratchet or the aggregate says otherwise.
@@ -149,7 +149,7 @@ source to describe a field wins it outright unless the ratchet or the aggregate 
 
 ## The three dead exports, and one comment that is wrong about it
 
-`metadataOnly`, `official` and the module-level `categories` are declared by all 24 sources and
+`metadataOnly`, `official` and the module-level `categories` are declared by all 25 sources and
 consumed by nothing. The evidence is short in each case.
 
 `normalizeOrigin` is the only funnel from a definition into the store, and it is an explicit
@@ -198,21 +198,21 @@ flowchart TD
   SCHEMA --> C["Subscription.similarMedia"]
   SCHEMA --> E["Media.episodes"]
 
-  A --> DA{"did the module declare it?<br/><small>24 of 24 do</small>"}
+  A --> DA{"did the module declare it?<br/><small>24 of 25 do</small>"}
   DA -->|"declared: it self-selects on the uri it was handed"| AY["the source's own generator"]
-  DA -->|"never taken today, and it is still the floor"| AD["yield media: null<br/><small>extractor.ts:457</small>"]
+  DA -->|"livechart only: it answers no single media"| AD["yield media: null<br/><small>extractor.ts:457</small>"]
 
-  B --> DB{"did the module declare it?<br/><small>23 of 24; anizip does not</small>"}
+  B --> DB{"did the module declare it?<br/><small>24 of 25; anizip does not</small>"}
   DB -->|"declared"| BY["the source's own generator"]
   DB -->|"anizip only: it answers no listings"| BD["yield mediaPage nodes: empty<br/><small>extractor.ts:458</small>"]
 
-  C --> DC{"did the module declare it?<br/><small>5 of 24: crunchyroll, unogs, justwatch, appletv, tvmaze</small>"}
+  C --> DC{"did the module declare it?<br/><small>5 of 25: crunchyroll, unogs, justwatch, appletv, tvmaze</small>"}
   DC -->|"declared: pickSimilarSeason decides which run"| CY["the source's own generator"]
-  DC -->|"19 of 24 land here"| CD["yield similarMedia: null<br/><small>extractor.ts:463, a refusal on the FIRST payload</small>"]
+  DC -->|"20 of 25 land here"| CD["yield similarMedia: null<br/><small>extractor.ts:463, a refusal on the FIRST payload</small>"]
 
-  E --> DE{"did the module declare it?<br/><small>13 of 24</small>"}
+  E --> DE{"did the module declare it?<br/><small>13 of 25</small>"}
   DE -->|"declared: usually a second upstream request"| EY["fetch this media's episodes"]
-  DE -->|"the other 11 fall to it, imdb among them"| ED["parent.episodes ?? []<br/><small>extractor.ts:436, whatever the media already carried</small>"]
+  DE -->|"the other 12 fall to it, imdb among them"| ED["parent.episodes ?? []<br/><small>extractor.ts:436, whatever the media already carried</small>"]
 
   AY --> D204{"did the generator yield before it returned?<br/><small>a subscription generator that completes without yielding makes yoga respond 204 No Content</small>"}
   BY --> D204
@@ -462,7 +462,7 @@ function that reads it is the best short account of why the field exists at all.
 >
 > `supportedUris` is declared by every source in this directory and was read by nothing until this.
 
-Twenty-two of the 24 declare exactly their own origin, so `answersForOrigins` is a self-loop for
+Twenty-three of the 25 declare exactly their own origin, so `answersForOrigins` is a self-loop for
 them. Two do not, and they are the two that had this problem:
 
 | source | `origin` | `supportedUris` |

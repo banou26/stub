@@ -8,7 +8,7 @@ test and it is `if (fanout.joined.has(extractor)) return`; it never reads the ur
 `origin`, never reads `supportedUris`. Open `ag:(anilist:166873)` and all 25 built-in sources are
 subscribed with the same document and the same variables, in one loop, at once.
 
-So the question "is this mine?" is answered 24 times in parallel, each time inside a different
+So the question "is this mine?" is answered 25 times in parallel, each time inside a different
 source's own `Subscription.media` resolver, against the same three or four lines of code. That is
 self-selection. It is the reason the fan-out can stay dumb, and it is the reason a source that was
 asked one millisecond too early answers "not mine" and ends: see [the re-ask](/request/re-ask/).

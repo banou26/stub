@@ -144,8 +144,8 @@ The character set is not arbitrary either. It is the union of every id shape in 
 `extractor.ts:240-242`: Crunchyroll `G24H1N3MP`, Apple TV
 `umc.cmc.1srk2goyh2q2zdxcx605w8vtx`, a Hulu uuid, a numeric TVmaze or TMDB id, and a trakt slug like
 `mushoku-tensei-jobless-reincarnation`. (The opening line of that comment, `extractor.ts:230`, says
-"each of the 23 sources". There are 24 built-in source modules, pinned at
-`tests/unit/sources/index.test.ts:24`; the count is beside the point of the comment, and 24 is the
+"each of the 23 sources". There are 25 built-in source modules, pinned at
+`tests/unit/sources/index.test.ts:24`; the count is beside the point of the comment, and 25 is the
 number the rest of this site uses.)
 
 `implementsSimilarMedia` (`:292-295`) reads `entry.extractor.resolvers.Subscription?.similarMedia`,
@@ -157,8 +157,8 @@ the definition's own object, and the comment is precise about why not the schema
 > merged schema, so the yield-null default in `makeExtractor` counts as "not implemented" and a
 > caller can skip the subscription round trip that would only ever answer null.
 
-Five of the 24 built-in sources declare it: crunchyroll, unogs, justwatch, tvmaze and appletv. The
-other nineteen get the default at `extractor.ts:459-463` and are skipped here, and are also skipped
+Five of the 25 built-in sources declare it: crunchyroll, unogs, justwatch, tvmaze and appletv. The
+other twenty get the default at `extractor.ts:459-463` and are skipped here, and are also skipped
 one level earlier by `planSimilarAsks`, which reads the same predicate before it plans an ask at all.
 
 ## Declined against refused

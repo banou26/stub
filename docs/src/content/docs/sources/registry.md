@@ -140,7 +140,8 @@ flowchart TD
   class NUL,SKIP,GREY refuse
 ```
 
-*Seven of the twenty-four can never yield a media row, and all seven are registered on purpose.*
+*Eight of the twenty-five can never yield a media row, and all eight are registered on purpose: seven
+for the source row they render, and livechart for its season list.*
 
 The `similarMedia` test in the middle of that figure is at `src/worker/extractor.ts:292-295`. The
 figure drops its type cast for width; the line reads:

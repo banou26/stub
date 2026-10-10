@@ -2,7 +2,7 @@
  * Does a COLD `/debug/trace?uri=...` url answer anything, and does the panel agree with the graph?
  *
  * Three things a unit test cannot reach, because each one lives between a full page load, a real
- * worker and 24 real sources:
+ * worker and 25 real sources:
  *
  *  - **A pasted link resolves.** The engine is in memory for the life of the worker, and a full load
  *    makes a new one, so every pasted trace url arrives at an empty graph. The page asks the sources
@@ -33,7 +33,7 @@ import { extname, join, normalize } from 'node:path'
 import { chromium } from 'playwright'
 
 const ROOT = new URL('../build/', import.meta.url).pathname
-// the same work `check-graph-read.mjs` uses: one real show most of the 24 sources can answer about,
+// the same work `check-graph-read.mjs` uses: one real show most of the 25 sources can answer about,
 // so the cluster has several members and the consumer has containers to ask
 const URI = 'ag:(anilist:108465)'
 const WARM_MS = Number(process.env.WARM_MS ?? 60_000)

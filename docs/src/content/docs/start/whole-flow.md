@@ -4,13 +4,13 @@ description: One map of stub's data flow, from a uri in the address bar to a per
 ---
 
 stub is handed a uri and has to answer two questions with it: what is this thing, and where can you
-watch it. No single catalogue answers both, so it asks 24 of them at once and merges what comes back.
+watch it. No single catalogue answers both, so it asks 25 of them at once and merges what comes back.
 This page is the map of that. Every other page on the site zooms one box on it.
 
 ## Five sentences, before anything else
 
 1. **Every registered source is asked, unconditionally.** `joinFanout` (`src/worker/extractor.ts:746`)
-   has no origin test, no uri inspection and no `supportedUris` check. All 24 built-in modules
+   has no origin test, no uri inspection and no `supportedUris` check. All 25 built-in modules
    (`tests/unit/sources/index.test.ts:24` pins the count) plus any connected plugin get the app's own
    document, replayed verbatim against their own private GraphQL server.
 2. **A source recognises itself by finding its own handle in the uri it was handed.** That is the
@@ -98,13 +98,13 @@ flowchart TD
   classDef refuse fill:#46464b,stroke:#8b8c93,color:#f2f2f4
 
   subgraph FAN["3 - the fan-out"]
-    F1["joinFanout: every registered<br/>source, unconditionally.<br/>24 built-in plus any plugin,<br/>one private yoga each"]
+    F1["joinFanout: every registered<br/>source, unconditionally.<br/>25 built-in plus any plugin,<br/>one private yoga each"]
     F3["askOrigins: the re-ask"]
     D3{"answersForOrigins?<br/><small>origins.includes(source.origin)<br/>|| (source.supportedUris ?? [])<br/>.some(origin =&gt;<br/>origins.includes(origin))</small>"}
     F4["continue: not re-asked"]
   end
 
-  subgraph SRC["4 - one source, and all 24 do this"]
+  subgraph SRC["4 - one source, and all 25 do this"]
     S1["Subscription.media,<br/>in the source's own yoga"]
     D4{"is this mine?<br/><small>extractAggregatedUriOrigin(<br/>_uri, origin)</small>"}
     S2["getMedia(uri.id, ctx)"]
