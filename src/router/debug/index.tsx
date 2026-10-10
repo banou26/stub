@@ -346,10 +346,10 @@ const Debug = ({ load = loadTrace, loadAnswerBytes = loadAnswer, warm = warmTrac
               warming.kind === 'asking'
                 ? `asking the sources about ${asked}: ${warming.progress.payloads} answer(s) so far,`
                   + ` ${warming.progress.handles} handle(s), ${warming.progress.episodes} episode(s).`
-                  + ' All 24 sources are asked, so a cold graph takes tens of seconds. The panel'
+                  + ' Every source is asked, so a cold graph takes tens of seconds. The panel'
                   + ' fills as they answer and stops waiting on its own.'
                 : warming.progress.payloads === 0
-                  ? `nothing answered about ${asked}. All 24 sources were asked and none returned a`
+                  ? `nothing answered about ${asked}. Every source was asked and none returned a`
                     + ' row, so the graph stayed empty: either no source recognises that uri, or'
                     + ' every one of them refused it. Nothing is still loading.'
                   : `the sources have stopped answering about ${asked}:`

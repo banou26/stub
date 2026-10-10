@@ -5,7 +5,7 @@ import { button, mount, unmount } from '../components/dom'
 import type { TraceBundle } from '../../../src/router/debug/trace'
 import type { WarmProgress } from '../../../src/router/debug/warm'
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { act } from 'preact/test-utils'
@@ -476,7 +476,7 @@ describe('a cold graph, which is what a pasted link always finds', () => {
     await act(async () => { report?.({ payloads: 0, uri: null, handles: 0, episodes: 0 }) })
 
     const line = text(host, '[data-warming]')
-    expect(line, 'how many sources are being asked').toContain('24 sources')
+    expect(line, 'that every source is being asked, with no count to go stale').toContain('Every source is asked')
     expect(line, 'and that it is tens of seconds, not milliseconds').toContain('tens of seconds')
     expect(line, 'and that it ends by itself').toContain('stops waiting on its own')
   })
