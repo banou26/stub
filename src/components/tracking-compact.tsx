@@ -54,6 +54,10 @@ const style = css`
   /* the width "Plan to watch" gave it, so offering Remove from list never widens it and wraps the row */
   select { width: 14rem; }
 
+  button.watched svg { opacity: 0.35; }
+  button.watched.on { border-color: rgba(74, 222, 128, 0.5); background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+  button.watched.on svg { opacity: 1; }
+
   .progress-field {
     input {
       width: 4.4ch;
@@ -187,14 +191,17 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
 )
 
 /**
- * A score, a status and an episode count. The row feeds it the summary and writes to every checked
- * tracker; a tracker's card feeds it that tracker's own entry and writes to that tracker alone.
+ * A score, a status and an episode count, or for a movie a Watched toggle in place of the count. The
+ * row feeds it the summary and writes to every checked tracker; a tracker's card feeds it that
+ * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, disabledTitle, listed, removable, onChange, dots = {} }:
+  { name, shown, scale, mixed, disabled, disabledTitle, listed, removable, onChange, dots = {}, movie = false }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
+    /** A movie: one Watched toggle instead of an episode count. */
+    movie?: boolean
     shown: Row
     scale: string
     mixed: boolean
@@ -221,6 +228,14 @@ const Controls = (
     if (progress !== shown.progress) onChange({ progress }, true)
   }
   commitLatest.current = commitDraft
+  // watching it is all there is to a movie: on, it is completed; off, back to the plan
+  const watched = shown.status === 'COMPLETED' || shown.progress >= (total ?? 1)
+  const toggleWatched = () => onChange(
+    watched
+      ? { progress: 0, ...shown.status === 'COMPLETED' ? { status: 'PLANNING' } : {} }
+      : { progress: total ?? 1, status: 'COMPLETED' },
+    true,
+  )
 
   return (
     <div className="group edit">
@@ -248,6 +263,16 @@ const Controls = (
         {removable ? <option value={REMOVE}>Remove from list</option> : undefined}
       </select>
       {dots.STATUS}
+      {movie
+        ? (
+          <>
+            <button type="button" className={`watched${watched ? ' on' : ''}`} aria-pressed={watched} disabled={disabled} onClick={toggleWatched}>
+              <Check size={14} aria-hidden="true"/>Watched
+            </button>
+            {dots.PROGRESS}
+          </>
+        )
+        : (
       <span className="progress-field">
         <label for={`${name}-progress`} className="word">Episodes</label>
         <input
@@ -286,10 +311,11 @@ const Controls = (
           <Plus size={14} aria-hidden="true"/>
         </button>
       </span>
-      {!disabled && total && shown.progress === total && shown.status !== 'COMPLETED'
+        )}
+      {!movie && !disabled && total && shown.progress === total && shown.status !== 'COMPLETED'
         ? <button type="button" onClick={() => onChange({ status: 'COMPLETED' }, true)}>Mark completed</button>
         : undefined}
-      {!disabled && total && shown.status === 'COMPLETED' && shown.progress < total
+      {!movie && !disabled && total && shown.status === 'COMPLETED' && shown.progress < total
         ? <button type="button" onClick={() => onChange({ progress: total }, true)}>Set {total} / {total}</button>
         : undefined}
     </div>
@@ -371,10 +397,12 @@ const Chip = (
  * checked or not, through the same queue.
  */
 const TrackingCompact = (
-  { tracking, episodeCount, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
+  { tracking, episodeCount, movie = false, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
   {
     tracking: CompactTracking | null | undefined
     episodeCount?: number | null
+    /** A movie: a Watched toggle in place of the episode count, in the row and in every card. */
+    movie?: boolean
     onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
     onRemove: (targets: string[]) => Promise<TrackerOutcome[]>
     signIns?: SignIns
@@ -542,6 +570,7 @@ const TrackingCompact = (
         {head}
         <Controls
           name={`card-${id}`}
+          movie={movie}
           shown={shownOf(entry, overrides[id])}
           scale={scale.scale}
           mixed={false}
@@ -568,6 +597,7 @@ const TrackingCompact = (
       <div className="row">
         <Controls
           name="compact"
+          movie={movie}
           shown={shown}
           scale={picker?.scale ?? 'POINT_100'}
           mixed={picker?.mixed ?? false}

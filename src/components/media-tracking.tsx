@@ -115,8 +115,8 @@ const failed = (message?: string): TrackerOutcome[] => [{ tracker: '', outcome: 
  * are asked again as the media gains ids.
  */
 const MediaTracking = (
-  { uri, title, cover, episodeCount, prefsStore = devicePrefs }:
-  { uri: string | undefined, title?: string | null, cover?: string | null, episodeCount?: number | null, prefsStore?: CompactPrefsStore }
+  { uri, title, cover, episodeCount, movie, prefsStore = devicePrefs }:
+  { uri: string | undefined, title?: string | null, cover?: string | null, episodeCount?: number | null, movie?: boolean, prefsStore?: CompactPrefsStore }
 ) => {
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: uri! } }, pause: !uri })
   const [, save] = useMutation(SAVE_LIST_ENTRY)
@@ -168,6 +168,7 @@ const MediaTracking = (
       <TrackingCompact
         tracking={data?.tracking}
         episodeCount={episodeCount}
+        movie={movie}
         onSaveFields={onSaveFields}
         onRemove={onRemove}
         signIns={trackerSignIns}

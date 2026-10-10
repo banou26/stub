@@ -427,6 +427,56 @@ describe('the compact tracking row', () => {
   })
 })
 
+// HOR-329: a movie is watched or not, so its row and cards carry one Watched toggle instead of a count
+describe('a movie', () => {
+  const movieAnilist: CompactAnswer = { ...anilist, entry: { status: 'PLANNING', progress: 0, score: null, episodeCount: 1 } }
+  const planned: CompactTracking = { summary: { status: 'PLANNING', progress: 0, score: null, episodeCount: 1 }, disagreements: [], answers: [movieAnilist, mal, stub] }
+  const watchedOnes: CompactTracking = {
+    summary: { status: 'COMPLETED', progress: 1, score: null, episodeCount: 1 },
+    disagreements: [],
+    answers: [{ ...movieAnilist, entry: { status: 'COMPLETED', progress: 1, score: null, episodeCount: 1 } }, mal, stub],
+  }
+  const watchedButton = (host: HTMLElement) => q<HTMLButtonElement>(host, 'button.watched')
+
+  test('the row has a Watched toggle and no episode count, Mark completed or Set 1 / 1', () => {
+    const { host } = render({ movie: true, episodeCount: 1, tracking: planned })
+    expect(watchedButton(host).textContent).toBe('Watched')
+    expect(watchedButton(host).getAttribute('aria-pressed')).toBe('false')
+    expect(host.querySelector('.progress-field'), 'no episode count').toBeNull()
+    expect(button(host, 'Mark completed')).toBeFalsy()
+    expect(button(host, 'Set 1 / 1')).toBeFalsy()
+  })
+
+  test('Watched marks it completed with its one episode, on every checked tracker', async () => {
+    const { host, onSaveFields } = render({ movie: true, episodeCount: 1, tracking: planned })
+    await click(watchedButton(host))
+    expect(onSaveFields.mock.calls.map(([targets]) => targets).flat().sort()).toEqual(['anilist', 'stub'])
+    for (const [, fields] of onSaveFields.mock.calls) expect(fields).toEqual({ progress: 1, status: 'COMPLETED' })
+  })
+
+  test('once watched it reads as pressed, and turning it off takes it back to the plan with no progress', async () => {
+    const { host, onSaveFields } = render({ movie: true, episodeCount: 1, tracking: watchedOnes })
+    expect(watchedButton(host).getAttribute('aria-pressed')).toBe('true')
+    expect(watchedButton(host).classList.contains('on')).toBe(true)
+    await click(watchedButton(host))
+    expect(onSaveFields.mock.calls.find(([targets]) => targets.includes('anilist'))?.[1]).toEqual({ progress: 0, status: 'PLANNING' })
+  })
+
+  test("a tracker's card carries the same toggle, writing to that tracker alone", async () => {
+    const { host, onSaveFields } = render({ movie: true, episodeCount: 1, tracking: planned })
+    const card = await hover(host, 'anilist')
+    expect(card.querySelector('.progress-field')).toBeNull()
+    await click(watchedButton(card))
+    expect(onSaveFields.mock.calls).toEqual([[['anilist'], { progress: 1, status: 'COMPLETED' }]])
+  })
+
+  test('a series keeps its episode count', () => {
+    const { host } = render()
+    expect(host.querySelector('button.watched')).toBeNull()
+    expect(host.querySelector('.progress-field')).toBeTruthy()
+  })
+})
+
 describe("a tracker's card", () => {
   test("opens on hover over the chip, with that tracker's own entry in the same controls as the row", async () => {
     const { host } = render()
