@@ -24,11 +24,19 @@ const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', 
 // since HOR-233 slice 9 every release is signed IN PLACE: `signed: true` is what makes a device ask
 // unpkg for the release's fkn.json, and without it a signed package runs unchecked on every device
 // that holds no list for Stub
-// since HOR-226 it also names stub's own address, which the api's claim reader ignores (it reads `app` and `signed` only)
-test('package.json claims the managed Stub app, says its releases are signed and names its address, and nothing else', () => {
+// since HOR-226 it also names stub's own address, and since HOR-309 its store images, which the api's
+// claim reader ignores (it reads `app` and `signed` only)
+test('package.json claims the managed Stub app, says its releases are signed and names its address and store images, and nothing else', () => {
   expect(pkg.name).toBe('@banou/stub')
-  // the whole object, so a reserved key riding along is caught too
-  expect(pkg.fkn).toEqual({ app: APP, signed: true, url: 'https://anime.fkn.app/' })
+  // the whole object, so a reserved key riding along is caught too; store-listing.test.ts checks the images
+  expect(pkg.fkn).toEqual({
+    app: APP,
+    signed: true,
+    url: 'https://anime.fkn.app/',
+    background: expect.any(String),
+    cover: expect.any(String),
+    screenshots: expect.any(Array),
+  })
 })
 
 test('the claim is a managed app id, and not the retired signed one', () => {
@@ -39,6 +47,6 @@ test('the claim is a managed app id, and not the retired signed one', () => {
 // the release is fkn.json at the package root, which `fkn-sign release . --npm` writes in CI after
 // the build: `files` has to ship it, and git never holds one, since each is for one version
 test('fkn.json is published with the package, and never committed', () => {
-  expect(pkg.files).toEqual(['build', 'fkn.json'])
+  expect(pkg.files).toEqual(['build', 'fkn.json', 'store'])
   expect(gitignore.split('\n')).toContain('/fkn.json')
 })

@@ -14,11 +14,21 @@
   "fkn": {
     "app": "fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq",
     "signed": true,
-    "url": "https://anime.fkn.app/"
+    "url": "https://anime.fkn.app/",
+    "background": "store/background.webp",
+    "cover": "store/cover.webp",
+    "screenshots": [
+      "store/home.webp",
+      "store/title.webp",
+      "store/search.webp",
+      "store/season.webp",
+      "store/sources.webp"
+    ]
   },
   "files": [
     "build",
-    "fkn.json"
+    "fkn.json",
+    "store"
   ],
   "type": "module",
   "main": "build/index.js",
