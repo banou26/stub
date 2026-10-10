@@ -402,7 +402,7 @@ flowchart TD
   E["one entry in the module-level extractors array"]
   D{"is this entry a plugin's?<br/><small>entry.pluginUri !== undefined</small>"}
 
-  CTXB["ctx: fetch, key, findAggregatedMedia,<br/>listenForMediaChanges, similarMedia"]
+  CTXB["ctx: fetch, findAggregatedMedia,<br/>listenForMediaChanges, similarMedia"]
   ASKB{"re-askable from a FOREIGN origin?<br/><small>origins.includes(source.origin) || (source.supportedUris ?? []).some(origin =&gt; origins.includes(origin))</small>"}
   YESB["anizip and offline: the two built-ins with a wider supportedUris"]
   NOB["the other 22: matched on their own origin"]

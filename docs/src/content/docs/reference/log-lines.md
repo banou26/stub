@@ -418,9 +418,9 @@ These are UI, not data flow, and they are here for completeness.
 | file:line | level | template |
 | --- | --- | --- |
 | `src/components/player/video-surface.tsx:128` | warn | `[player] <selection.label> selection failed:` |
-| `src/sources/crunchyroll/player.tsx:311` | error | `Failed to attach Crunchyroll frame` |
-| `:396` | error | `Failed to load Crunchyroll player` |
-| `:431` | warn | `[cr] track discovery failed:` |
+| `src/sources/crunchyroll/player.tsx:247` | error | `Failed to attach Crunchyroll frame` |
+| `:307` | error | `Failed to load Crunchyroll player` |
+| `:341` | warn | `[cr] track discovery failed:` |
 | `src/sources/crunchyroll/timeline-seek.ts:10` | warn | `[cr] timeline seek failed:` |
 | `src/sources/unogs/player.tsx:190` | error | `Failed to attach Netflix frame` |
 | `:226` | error | `Failed to load Netflix player` |

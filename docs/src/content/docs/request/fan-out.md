@@ -169,7 +169,7 @@ flowchart TD
   STORE[("upsertMedia, upsertEpisodes, upsertOrigins")]
   MASK["maskedErrors.maskError: logs, then re-wraps as<br/>new GraphQLError(error.message). It does not mask."]
   CLIENT["urql Client, http://d/graphql, fetchSubscriptions: true"]
-  CTX["ExtractorServerContext handed to every resolver:<br/>fetch, key, findAggregatedMedia,<br/>listenForMediaChanges, similarMedia"]
+  CTX["ExtractorServerContext handed to every resolver:<br/>fetch, findAggregatedMedia,<br/>listenForMediaChanges, similarMedia"]
 
   DEF --> OD
   DEF --> SCHEMA
