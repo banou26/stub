@@ -41,8 +41,10 @@ const COVER_PREFIX = 'https://cdn.myanimelist.net/images/anime/'
  * `cdn.myanimelist.net/images/anime/https://media.kitsu.app/...`, which resolves nowhere.
  *
  * Measured 2026-09-01 against the shipped bundle: 380 of 874 season rows, 43%, carry an absolute url,
- * and 326 of those serve a real image once asked for the url they actually name. The rest are
- * livechart and anime-planet, which decline a hotlink; those at least now fail honestly.
+ * and 326 of those serve a real image once asked for the url they actually name. The rest fail
+ * honestly: anime-planet declines a hotlink (0 of 3 rendered on an anime.fkn.app page, 2026-10-10),
+ * and the livechart failures read in detail answered HTTP 500 to any referer (2026-10-09), while
+ * LiveChart's current posters rendered 12 of 12 there.
  */
 const coverUrl = (picture: string) =>
   malLargeImage(picture.startsWith('http') ? picture : `${COVER_PREFIX}${picture}`)
