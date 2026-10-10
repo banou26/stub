@@ -2,8 +2,101 @@ import { useEffect, useId, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
+import { builtInSources } from '../../sources/built-in'
+import { readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
 
 const style = css`
+  h3.part {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0 0 0.6rem;
+  }
+
+  h3.part ~ h3.part { margin-top: 3.2rem; }
+
+  .part-intro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.2rem;
+    margin-bottom: 1.2rem;
+    font-size: 1.4rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 72ch;
+  }
+
+  .built-in {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+    gap: 0.8rem;
+  }
+
+  .built-in label {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: border-color 0.15s, opacity 0.15s;
+  }
+
+  .built-in label:hover { border-color: rgba(255, 255, 255, 0.25); }
+  .built-in .source { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
+  .built-in .source-name { font-size: 1.5rem; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
+  .built-in .host { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); overflow-wrap: anywhere; }
+  .built-in label.off .source { opacity: 0.5; }
+
+  input[role='switch'] {
+    appearance: none;
+    flex: none;
+    position: relative;
+    width: 3.6rem;
+    height: 2rem;
+    margin: 0;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  input[role='switch']::before {
+    content: '';
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+
+  input[role='switch']:checked { background: #4ade80; }
+  input[role='switch']:checked::before { transform: translateX(1.6rem); }
+  input[role='switch']:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    input[role='switch'], input[role='switch']::before { transition: none; }
+  }
+
+  button.link-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #f47521;
+    font-size: 1.4rem;
+    font-weight: 500;
+  }
+
+  button.link-button:hover { color: #ff8a3d; }
+
   .row.plugin {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -178,7 +271,47 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
   )
 }
 
-/** The sources the viewer added from npm, and the two ways to add more. */
+const hostOf = (url: string) => new URL(url).host.replace(/^www\./, '')
+
+/** The sources stub ships with, each with a switch: all on until the viewer turns one off. */
+const BuiltInSources = () => {
+  const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
+  useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
+  const off = builtInSources.filter(source => disabled.has(source.origin)).length
+
+  return (
+    <>
+      <h3 className="part">Built in</h3>
+      <p className="part-intro">
+        <span>
+          {off ? `${builtInSources.length - off} of ${builtInSources.length} on.` : `All ${builtInSources.length} on.`} A source you turn
+          off is not asked again, from the next page or search.
+        </span>
+        {off
+          ? <button type="button" className="link-button" onClick={turnAllSourcesOn}>Turn all on</button>
+          : undefined}
+      </p>
+      <ul className="built-in">
+        {builtInSources.map(source => {
+          const on = !disabled.has(source.origin)
+          return (
+            <li key={source.origin} data-source={source.origin}>
+              <label className={on ? undefined : 'off'}>
+                <span className="source">
+                  <span className="source-name">{source.name}</span>
+                  <span className="host">{hostOf(source.url)}</span>
+                </span>
+                <input type="checkbox" role="switch" checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+}
+
+/** The sources stub ships with, the sources the viewer added from npm, and the two ways to add more. */
 export const SourcesSection = () => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [uri, setUri] = useState('')
@@ -211,6 +344,9 @@ export const SourcesSection = () => {
 
   return (
     <div css={style}>
+      <BuiltInSources/>
+      <h3 className="part">Added</h3>
+      <p className="part-intro">Community-made sources, published on npm. FKN installs them for stub, and each one runs isolated from stub.</p>
       {plugins.length
         ? (
           <ul className="rows">

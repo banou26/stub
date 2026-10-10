@@ -97,7 +97,7 @@ test('a pushState that drops the fragment, as the header\'s Settings link sends,
 })
 
 test('each category says what it holds under its heading', async () => {
-  for (const [hash, intro] of [['', 'The sites where stub uses your own account'], ['#sources', 'Community-made sources']]) {
+  for (const [hash, intro] of [['', 'The sites where stub uses your own account'], ['#sources', 'Where stub gets titles, artwork and streams']]) {
     const host = await open(hash)
     expect(host.querySelector('h2 + .intro')?.textContent, hash || 'no fragment').toContain(intro)
   }

@@ -6,8 +6,9 @@ import { act } from 'preact/test-utils'
 
 import type { PluginStatus } from '../../../src/plugins'
 
-// The Sources category of the settings page: the sources the viewer added from npm, and the two ways to
-// add more. FKN is faked: the plugin runtime is replaced by a list in memory.
+// The Sources category of the settings page: the sources stub ships with, each with a switch, the
+// sources the viewer added from npm, and the two ways to add more. FKN is faked: the plugin runtime is
+// replaced by a list in memory, and this browser's storage by a map.
 
 const fake = vi.hoisted(() => ({
   statuses: [] as PluginStatus[],
@@ -28,12 +29,24 @@ vi.mock('../../../src/plugins', () => ({
 }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
+const { builtInSources } = await import('../../../src/sources/built-in')
+const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
 
+const stored = new Map<string, string>()
 const hosts: HTMLElement[] = []
-beforeEach(() => { for (const call of Object.values(calls)) call.mockClear() })
+beforeEach(() => {
+  for (const call of Object.values(calls)) call.mockClear()
+  stored.clear()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  })
+})
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   fake.statuses = []
+  vi.unstubAllGlobals()
 })
 
 const flush = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
@@ -56,12 +69,46 @@ const FAMILY: PluginStatus = {
 const CONNECTING: PluginStatus = { uri: 'npm:@spec/slow', state: 'connecting' }
 const FAILED: PluginStatus = { uri: 'npm:@spec/broken', state: 'error', error: "connecting to 'npm:@spec/broken' timed out" }
 
-test('lists only the sources the viewer added, not the ones stub ships with', () => {
+const switchOf = (host: HTMLElement, origin: string) => host.querySelector<HTMLInputElement>(`[data-source="${origin}"] input[role="switch"]`)!
+// linkedom implements no `checked` property, so Preact renders the attribute; once a flip has set the
+// property, as a click would, Preact keeps the property in step instead
+const isOn = (input: HTMLInputElement) => (input.checked as boolean | undefined) ?? input.hasAttribute('checked')
+const flip = (input: HTMLInputElement, on: boolean) => act(() => {
+  Object.assign(input, { checked: on })
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+})
+
+// the owner, 2026-10-10: "display all of the native sources and make the user able to disable/enable
+// them. By default obviously all enabled."
+test('lists every source stub ships with, each with a switch, all on by default, above the added ones', () => {
   const { host } = render([CONNECTED])
-  expect(host.querySelectorAll('[data-source]')).toHaveLength(0)
-  expect(host.textContent).not.toContain('Built in')
-  expect(host.textContent).not.toContain('Crunchyroll')
+  const switches = [...host.querySelectorAll<HTMLInputElement>('[data-source] input[role="switch"]')]
+
+  expect(host.querySelectorAll('[data-source]')).toHaveLength(builtInSources.length)
+  expect(switches.map(isOn)).toEqual(builtInSources.map(() => true))
+  expect(host.querySelector('[data-source="cr"]')!.textContent).toBe('Crunchyrollcrunchyroll.com')
+  expect(host.querySelector('[data-source="imdb"]'), 'the placeholder origin answers nothing, so it has no switch').toBeNull()
+  expect(host.textContent).toContain(`All ${builtInSources.length} on.`)
   expect(host.querySelectorAll('[data-plugin]')).toHaveLength(1)
+})
+
+test('a source turned off stays off in this browser, the count says so, and Turn all on brings them back', async () => {
+  const { host } = render()
+  await flip(switchOf(host, 'simkl'), false)
+  await flip(switchOf(host, 'tvdb'), false)
+
+  expect(JSON.parse(stored.get(DISABLED_SOURCES_KEY)!)).toEqual(['simkl', 'tvdb'])
+  expect(isOn(switchOf(host, 'simkl'))).toBe(false)
+  expect(switchOf(host, 'simkl').closest('label')!.classList.contains('off')).toBe(true)
+  expect(host.textContent).toContain(`${builtInSources.length - 2} of ${builtInSources.length} on.`)
+  expect(isOn(switchOf(render().host, 'tvdb')), 'a page opened later reads it back').toBe(false)
+
+  await flip(switchOf(host, 'tvdb'), true)
+  expect(JSON.parse(stored.get(DISABLED_SOURCES_KEY)!)).toEqual(['simkl'])
+  await act(() => { button(host, 'Turn all on')!.click() })
+  expect(stored.has(DISABLED_SOURCES_KEY)).toBe(false)
+  expect([...host.querySelectorAll<HTMLInputElement>('[data-source] input[role="switch"]')].every(isOn)).toBe(true)
+  expect(button(host, 'Turn all on'), 'with all on there is nothing to turn on').toBeFalsy()
 })
 
 test('with nothing added, says so in place of the list', () => {

@@ -124,14 +124,35 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
   await picks(page, 'Sources')
   await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
-  await expect(page.locator('[data-source]'), 'no built-in list').toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Built in' })).toHaveCount(0)
+  await expect(page.getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(23)
   await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
   await picks(page, 'Accounts')
   await expect(page.locator('[data-account="anilist"]')).toBeVisible()
   await expect(page.locator('[data-plugin]')).toHaveCount(0)
   await page.goBack()
   await expect(panel(page), 'back returns to the category before').toHaveAttribute('data-section', 'sources')
+})
+
+// the owner, 2026-10-10: "display all of the native sources and make the user able to disable/enable
+// them. By default obviously all enabled."
+test('every source stub ships with is on by default, and one turned off stays off across a reload', async ({ page }) => {
+  await page.goto(`${origin}/settings#sources`)
+  const simkl = page.getByRole('switch', { name: /^Simkl/ })
+  await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
+  await expect(page.getByText('All 23 on.')).toBeVisible()
+
+  await simkl.click()
+  await expect(simkl).not.toBeChecked()
+  await expect(page.getByText('22 of 23 on.')).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBe('["simkl"]')
+
+  await page.reload()
+  await expect(page.getByRole('switch', { name: /^Simkl/ }), 'kept in this browser').not.toBeChecked()
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(22)
+  await page.getByRole('button', { name: 'Turn all on' }).click()
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
+  expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBeNull()
 })
 
 test('a keyboard reaches the categories and switches between them', async ({ page }) => {
