@@ -11,7 +11,7 @@ test('names every source that answers, under its own origin, name and site, in t
     .filter(source => source.origin !== 'imdb')
     .map(source => ({ origin: source.origin, name: source.name, url: source.originUrl }))
   expect(builtInSources).toEqual(answering)
-  expect(builtInSources).toHaveLength(23)
+  expect(builtInSources).toHaveLength(24)
 })
 
 test('lists IMDb once, as the source that reads it', () => {
