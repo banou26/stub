@@ -10,7 +10,7 @@ export type BuiltInSource = {
 
 export const builtInSources: BuiltInSource[] = [
   { origin: 'mal', name: 'MyAnimeList', url: 'https://myanimelist.net' },
-  { origin: 'anilist', name: 'Anilist', url: 'https://anilist.co' },
+  { origin: 'anilist', name: 'AniList', url: 'https://anilist.co' },
   { origin: 'anizip', name: 'AniZip', url: 'https://api.ani.zip/' },
   { origin: 'cr', name: 'Crunchyroll', url: 'https://www.crunchyroll.com' },
   { origin: 'nf', name: 'Netflix', url: 'https://www.netflix.com' },
