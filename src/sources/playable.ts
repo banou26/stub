@@ -16,7 +16,13 @@
  * that this one imports nothing, and separate lists drift. `tests/unit/sources/playable.test.ts`
  * compares them and fails if a player is added to one and not the other.
  */
+import { readDisabledSources } from './disabled-sources'
+
 export const PLAYABLE_ORIGINS: ReadonlySet<string> = new Set(['cr', 'nf'])
 
-/** Whether stub has its own player for this origin. The cheap half of `getPlayer`. */
-export const canPlay = (origin: string): boolean => PLAYABLE_ORIGINS.has(origin)
+/**
+ * Whether stub has its own player for this origin and the viewer has not turned the source off. The
+ * cheap half of `getPlayer`. Read on every call, so a source turned off in Settings loses its play
+ * button at once, even on data it answered before.
+ */
+export const canPlay = (origin: string): boolean => PLAYABLE_ORIGINS.has(origin) && !readDisabledSources().includes(origin)

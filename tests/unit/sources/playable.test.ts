@@ -14,12 +14,12 @@
  * lists match would cost more than the check is worth, so the registry's keys are read out of its
  * text. The control below is what keeps that honest.
  */
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { PLAYABLE_ORIGINS } from '../../../src/sources/playable'
+import { PLAYABLE_ORIGINS, canPlay } from '../../../src/sources/playable'
 
 const registrySource = readFileSync(
   fileURLToPath(new URL('../../../src/sources/players.ts', import.meta.url)),
@@ -47,3 +47,18 @@ test('the reader really does find the registry, and really does fail when it can
   expect(() => registryOrigins('const notTheRecord = 1'), 'and it refuses rather than answering []')
     .toThrow('could not be found')
 })
+
+// a play button stub draws for a source the viewer turned off would load that source's player frame,
+// so asking it again: the answer has to follow the switch at once, on data it answered before
+test('a source turned off in Settings has no play button, and has one again when turned back on', () => {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null })
+  expect(canPlay('cr')).toBe(true)
+  stored.set('stub.sources.disabled', JSON.stringify(['cr']))
+  expect(canPlay('cr')).toBe(false)
+  expect(canPlay('nf'), 'only the source turned off').toBe(true)
+  stored.delete('stub.sources.disabled')
+  expect(canPlay('cr')).toBe(true)
+})
+
+afterEach(() => { vi.unstubAllGlobals() })
