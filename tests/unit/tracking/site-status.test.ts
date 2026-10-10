@@ -29,7 +29,7 @@ test('keeps the state and the time only, never anything the site said about the 
   expect(Object.keys(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).anilist).sort()).toEqual(['checkedAt', 'state'])
 })
 
-test('reads storage on every call, so a Clear from the Data section shows at once', () => {
+test('reads storage on every call, so a state removed from storage is gone here too', () => {
   const storage = memory()
   const statuses = createSiteStatuses(() => storage)
   statuses.record('crunchyroll', 'signed-in', 1_000)

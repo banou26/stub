@@ -26,7 +26,7 @@ const isStatus = (value: unknown): value is SiteStatus =>
 
 /**
  * Kept in `storage` when it can be, and for this page at least when it cannot. Read from storage on
- * every call, so a Clear from the Data section shows at once.
+ * every call, so a state removed from storage, by another tab or by clearing site data, is gone here too.
  */
 export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'setItem'>): SiteStatuses => {
   const unsaved = new Map<StatusSite, SiteStatus>()
