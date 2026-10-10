@@ -100,8 +100,8 @@ const Privacy = () => (
 
     <h2>Your control</h2>
     <p>
-      Signing out of FKN takes your account's list off the device. Your party name and the party you are
-      in go when you close the tab. If you use the browser extension, you can review and revoke its
+      Disconnecting from FKN, in the account menu at the top right, takes your account's list off the
+      device. Your party name and the party you are in go when you close the tab. If you use the browser extension, you can review and revoke its
       access at any time from the extension itself.
     </p>
 
