@@ -26,7 +26,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 6 October 2026</div>
+    <div className="updated">Last updated 10 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -37,8 +37,10 @@ const Privacy = () => (
     <h2>What stub keeps</h2>
     <p>
       stub sets no advertising or tracking cookies and runs no analytics or telemetry. This is everything
-      it keeps, where, and for how long. Each item is listed again, with how to clear it, in{' '}
-      <Link to="/settings#data">Settings, under Data</Link>.
+      it keeps, where, and for how long. You sign out of a site in{' '}
+      <Link to="/settings#accounts">Settings, under Accounts</Link>, and remove a source you added in{' '}
+      <Link to="/settings#sources">Settings, under Sources</Link>. Clearing this site's data in your
+      browser removes everything stub keeps in this browser.
     </p>
     <ul css={keptStyle}>
       {STORED.map(item => (
@@ -98,10 +100,9 @@ const Privacy = () => (
 
     <h2>Your control</h2>
     <p>
-      Everything above is listed in Settings, under Data, with how to clear it. Signing out of FKN takes
-      your account's list off the device. Your party name and the party you are in go when you close the
-      tab. If you use the browser extension, you can review and
-      revoke its access at any time from the extension itself.
+      Signing out of FKN takes your account's list off the device. Your party name and the party you are
+      in go when you close the tab. If you use the browser extension, you can review and revoke its
+      access at any time from the extension itself.
     </p>
 
     <h2>Contact</h2>

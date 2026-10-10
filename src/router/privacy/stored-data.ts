@@ -36,7 +36,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Search layout',
     what: 'Whether search shows covers, cards or a list.',
     where: LOCAL,
-    lasts: 'Until you clear it',
+    lasts: "Until you clear this site's data in your browser",
     keys: { store: 'local', names: [DISPLAY_MODE_KEY] },
   },
   {
@@ -44,7 +44,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Quick tracking choices',
     what: 'The trackers you chose not to save to from the tracking row.',
     where: LOCAL,
-    lasts: 'Until you clear them',
+    lasts: "Until you clear this site's data in your browser",
     keys: { store: 'local', names: [COMPACT_PREFS_KEY] },
   },
   {
@@ -60,7 +60,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Site sign-in states',
     what: 'Whether you were signed in to Crunchyroll, AniList and MyAnimeList when stub last learned it, and when. Never your name there.',
     where: LOCAL,
-    lasts: 'Until you clear it, or stub learns it again',
+    lasts: "Until stub learns it again, or you clear this site's data in your browser",
     keys: { store: 'local', names: [SITE_STATUS_KEY] },
   },
   {

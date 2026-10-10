@@ -27,7 +27,7 @@ test('no longer says that everything else goes with the tab', () => {
   expect(text().text).not.toMatch(/stores nothing persistently/i)
 })
 
-test('names everything the settings page lists, from the same list', () => {
+test('names everything stub keeps, from the list the completeness test pins', () => {
   const { text: page } = text()
   for (const item of STORED) expect(page, item.id).toContain(item.title)
 })
@@ -35,7 +35,7 @@ test('names everything the settings page lists, from the same list', () => {
 test('says the site sign-ins are kept by FKN for every fkn.app app, and where to sign out', () => {
   const { host, text: page } = text()
   expect(page).toContain('every fkn.app app')
-  expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(expect.arrayContaining(['/settings#data', '/settings#accounts']))
+  expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(expect.arrayContaining(['/settings#accounts', '/settings#sources']))
 })
 
 test("says a removed list entry stays as a record that it was removed, and that nothing clears it yet", () => {
@@ -45,11 +45,13 @@ test("says a removed list entry stays as a record that it was removed, and that 
   expect(page).toContain('There is no way to clear these records yet')
 })
 
-test('does not claim Settings clears everything, only that it lists each item with how to clear it', () => {
-  const { text: page } = text()
+test('says how each thing is cleared now that Settings has no Data section', () => {
+  const { host, text: page } = text()
   expect(page).not.toMatch(/can be seen and cleared in Settings/i)
-  expect(page).not.toMatch(/with a way to clear it/i)
-  expect(page).toContain('Everything above is listed in Settings, under Data, with how to clear it.')
+  expect(page).not.toMatch(/under Data/i)
+  expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).not.toContain('/settings#data')
+  expect(page).toContain('You sign out of a site in Settings, under Accounts, and remove a source you added in Settings, under Sources.')
+  expect(page).toContain("Clearing this site's data in your browser removes everything stub keeps in this browser.")
 })
 
 test("a sign out removes that site's cookies, and the FKN window is the case without the extension", () => {
