@@ -31,10 +31,10 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # 'Confirm the registry serves it' may wait ten minutes on npm, on top of the build. A timeout
+    # 'Confirm the registry serves it' may wait an hour on npm, on top of the build. A timeout
     # that expires PAST the publish spends a version whose serving is then never confirmed: a
     # workflow_dispatch re-run reads changed=false from the gate and skips every release step.
-    timeout-minutes: 45
+    timeout-minutes: 90
     permissions:
       # the OIDC token npm exchanges for short lived publish credentials
       id-token: write
@@ -117,7 +117,20 @@ jobs:
         # match this repository and filename otherwise surfaces only as a bare ENEEDAUTH
         env:
           NPM_CONFIG_LOGLEVEL: verbose
-        run: npm publish --access public
+        # npm holds every upload as STAGED while it processes it (a 202, "Your package is being
+        # processed"), and the version document answers 404 until it goes live. A run that lands in that
+        # window, after an earlier run's upload, gets 409 "Cannot publish over previously staged version"
+        # (0.0.52, 2026-10-10): the upload is done, so it goes on to wait for the registry like the first.
+        run: |
+          set +e
+          npm publish --access public 2>&1 | tee "$RUNNER_TEMP/publish.log"
+          CODE=${PIPESTATUS[0]}
+          set -e
+          if [ "$CODE" != "0" ] && grep -q 'previously staged version' "$RUNNER_TEMP/publish.log"; then
+            echo "::notice::npm already holds this version as staged from an earlier run; waiting for it to go live"
+            exit 0
+          fi
+          exit "$CODE"
 
       # Ask the REGISTRY, not the runner. Everything above is a claim about what was uploaded; this is
       # the only step that observes what a consumer would actually get.
@@ -126,16 +139,16 @@ jobs:
         env:
           VERSION: ${{ steps.decide.outputs.version }}
         run: |
-          # the version document lags the publish by minutes on 2026-09-11 (five tries at 15 s all
-          # answered 404 for a publish that had succeeded), so this waits up to ten minutes
-          for attempt in $(seq 1 40); do
+          # npm stages every upload before it goes live, which took 3 minutes for 0.0.51 and over 25 for
+          # 0.0.52 (2026-10-10; others report up to about 55), so this waits up to an hour
+          for attempt in $(seq 1 120); do
             CODE=$(curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@banou%2fstub/$VERSION")
             if [ "$CODE" = "200" ]; then
               echo "::notice::the registry serves @banou/stub $VERSION"
               exit 0
             fi
             echo "attempt $attempt: the registry answered $CODE"
-            sleep 15
+            sleep 30
           done
           echo "::error::the registry still does not serve @banou/stub $VERSION"
           exit 1
