@@ -26,6 +26,7 @@ import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { canPlay } from '../../sources/playable'
+import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { episodeOriginIds } from './episode-origins'
@@ -131,6 +132,17 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           & > img {
             height: 4rem;
             width: 4rem;
+          }
+          & > .letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 4rem;
+            width: 4rem;
+            border-radius: 0.6rem;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 1.8rem;
+            font-weight: 700;
           }
         }
       }
@@ -777,12 +789,12 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                     link
                       ? (
                         <a className="origin" href={link} target="_blank" rel="noreferrer" title={origin.name}>
-                          <img src={origin.icon}/>
+                          <OriginIcon icon={origin.icon} name={origin.name ?? origin.id}/>
                         </a>
                       )
                       : (
-                        <div className="origin">
-                          <img src={origin.icon}/>
+                        <div className="origin" title={origin.name}>
+                          <OriginIcon icon={origin.icon} name={origin.name ?? origin.id}/>
                         </div>
                       )
                   )
