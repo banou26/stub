@@ -233,6 +233,13 @@ beforeAll(async () => {
       handles: [partOf({ uri: 'tvdb:55', origin: 'tvdb', id: '55', scope: 'CONTAINER', url: 'https://thetvdb.com/series/55' })],
     })),
 
+    // J. A MEMBER NOBODY DESCRIBED: AniList names the MyAnimeList id with its url, and MyAnimeList
+    // never answers (api.jikan.moe timing out, 2026-10-12)
+    await answer('media', media('anilist:950', {
+      score: 0.8, type: 'TV', titles: [title('en', 'Named')],
+      handles: [sameAs(media('mal:950', { url: 'https://myanimelist.net/anime/950' }))],
+    })),
+
     // G. TWO IDS OF ONE ORIGIN that extend nothing: the refusal `disagreeing-ids` reports (5.5)
     await answer('media', media('nf:70000-1', {
       score: 0.2, type: 'TV', titles: [title('en', 'Netflix one')],
@@ -556,6 +563,21 @@ test('a placeholder is a cluster of one, with no card, and its url comes from th
   const badge = handles.find(handle => handle.node.uri === 'tvdb:55')
   expect(badge!.relation).toBe('PART_OF')
   expect(badge!.node.url, 'the claimer described it, and that is where the url is').toBe('https://thetvdb.com/series/55')
+})
+
+// A MEMBER NOBODY DESCRIBED LINKS THROUGH ITS CLAIM, the same rule as a container's badge (6.3). On
+// `ag:(anilist:114745,...,mal:41084,...)` the title drew MyAnimeList as a dead icon while jikan was
+// not answering, because the url AniList gave it never left the claim.
+// Mutation: read the claimed urls for containers only and the MyAnimeList handle carries no url.
+test('a member nobody described carries the url its claimer gave it, on the view and the card', async () => {
+  const cluster = (await clusterOf('anilist:950'))!
+  const handles = json(cluster.media).handles as { relation: string, via: string, node: Record<string, unknown> }[]
+  const mal = handles.find(handle => handle.node.uri === 'mal:950')
+  expect(mal, 'a member of the cluster, though nobody answered for it').toMatchObject({ relation: 'SAME_AS', via: 'placeholder' })
+  expect(mal!.node.url).toBe('https://myanimelist.net/anime/950')
+
+  const card = json(cluster.card).handles as { node: Record<string, unknown> }[]
+  expect(card.find(handle => handle.node.uri === 'mal:950')!.node.url).toBe('https://myanimelist.net/anime/950')
 })
 
 // ONE BADGE PER RELATION AND TARGET (6.3), which the narrative axis already did and this side did

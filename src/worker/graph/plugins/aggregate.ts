@@ -293,11 +293,11 @@ const readRelations = async (ctx: PluginContext): Promise<RelationRow[]> => {
 }
 
 /**
- * The url a PLACEHOLDER container's badge renders from: the best-scored claimer's `node.url` (6.3).
+ * The url a PLACEHOLDER's badge renders from: the best-scored claimer's `node.url` (6.3).
  *
- * A container nobody answered about has no `raw` of its own, and its badge is the whole reason the
- * row is kept (`cr:G24H1N3MP` reached only through `ATTACHED_TO`). The claim carries the claimer's
- * own description of it, which is where the url is.
+ * A row nobody answered about has no `raw` of its own, whether it is a container kept for its badge
+ * (`cr:G24H1N3MP` reached only through `ATTACHED_TO`) or a member whose own source has not answered.
+ * The claim carries the claimer's own description of it, which is where the url is.
  */
 const readClaimedUrls = async (ctx: PluginContext, uris: string[]): Promise<Map<string, string>> => {
   const urls = new Map<string, string>()
@@ -833,12 +833,12 @@ export const aggregatePlugin: Plugin = {
       for (const uri of anomaly.uris) anomaliesByUri.set(uri, [...anomaliesByUri.get(uri) ?? [], anomaly])
     }
 
-    // the containers a cluster reaches in ONE hop, and the placeholder urls their badges need
-    const containerUris = new Set<string>()
+    // every placeholder a badge is drawn for, a member or a container reached in ONE hop
+    const placeholderUris = new Set(subjects.filter(subject => !subject.owned).map(subject => subject.uri))
     for (const link of containment) {
-      if (!byUri.get(link.toUri)?.owned) containerUris.add(link.toUri)
+      if (!byUri.get(link.toUri)?.owned) placeholderUris.add(link.toUri)
     }
-    const claimedUrls = await readClaimedUrls(ctx, [...containerUris].sort(compare))
+    const claimedUrls = await readClaimedUrls(ctx, [...placeholderUris].sort(compare))
 
     const episodesByMedia = new Map<string, EpisodeRow[]>()
     for (const episode of episodeRows) {
@@ -1032,7 +1032,7 @@ export const aggregatePlugin: Plugin = {
           ...length,
           anomalies: clusterAnomalies,
         },
-        members,
+        members: members.map(member => member.owned ? member : { ...member, raw: { url: claimedUrls.get(member.uri) ?? null } }),
         related,
         relations: relations.filter(edge => inside.has(edge.fromUri)),
         locationOrigin,
