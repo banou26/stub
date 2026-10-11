@@ -78,7 +78,9 @@ const OUT_DIR = resolve(ROOT, 'src/generated')
 // therefore always takes the live release, which is the point.
 const CACHE = resolve(ROOT, 'node_modules/.cache/stub-anime-data.json')
 
-const REPO = 'manami-project/anime-offline-database'
+// manami-project's database was archived on 2026-07-04; cedya77's continues it, same asset, same ODbL terms, and asks
+// that manami be credited, which the notice below does
+const REPO = 'cedya77/anime-offline-database'
 const ASSET = 'anime-offline-database.jsonl.zst'
 // Two budgets, never one. Sharing a single allowance across naming the release and downloading it
 // meant a slow api.github.com could spend all of it before the fallback below was even chosen, and
@@ -96,8 +98,8 @@ const RETRY_DELAY_MS = 2_000
 // The two licenses also want different things. ODbL section 4.2 wants its notice carried inside the
 // database as well as in the docs, which is why every artifact repeats it in a header AND in a
 // `sources` field. MIT wants its copyright line reproduced in any substantial portion.
-const MANAMI = {
-  name: 'manami-project/anime-offline-database',
+const OFFLINE_DATABASE = {
+  name: 'cedya77/anime-offline-database, continuing manami-project/anime-offline-database',
   url: `https://github.com/${REPO}`,
   license: 'ODbL-1.0',
   licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
@@ -457,14 +459,14 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
   // none, and a stable sort therefore shows manami's alphabetical dump order. See `orderSeasonBucket`.
   for (const key of Object.keys(seasons)) seasons[key] = orderSeasonBucket(seasons[key])
 
-  return { sources: [MANAMI], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons }
+  return { sources: [OFFLINE_DATABASE], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons }
 }
 
 const refreshExtract = async () => {
   const release = await newestRelease()
   // Names the path as well as the release, because a green build is NOT evidence the fallback
   // works: it almost always runs through the api. This line is the only thing that says otherwise.
-  log(`manami release ${release.tag}${release.direct ? ', github.com direct download' : ''}, downloading`)
+  log(`offline database release ${release.tag}${release.direct ? ', github.com direct download' : ''}, downloading`)
 
   // Its own budget, unspent by whatever the naming attempts above cost.
   const response = await fetch(release.url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
@@ -625,7 +627,7 @@ const main = async () => {
   const armEntries = require('@kawaiioverflow/arm/arm.json')
   const manami = await loadManami()
 
-  log(`arm@${armVersion}: ${armEntries.length} rows | manami ${manami.tag}: ${manami.rows.length} rows`)
+  log(`arm@${armVersion}: ${armEntries.length} rows | offline database ${manami.tag}: ${manami.rows.length} rows`)
 
   const { kept, conflicts, cleared } = mergeIds(armEntries, manami.rows)
   log(`merged index: ${kept.length} rows, ${conflicts} dropped on a contradiction, ${cleared} ids cleared as ambiguous`)
@@ -640,7 +642,7 @@ const main = async () => {
       { file: 'anime-index.ts', types: '{ mal: number[], anilist: number[], kitsu: number[], anidb: number[] }' },
       { arm: armVersion, tag: manami.tag, updated: manami.updated, ...encodeIndex(kept) },
       provenance,
-      [ARM, MANAMI],
+      [ARM, OFFLINE_DATABASE],
     ) +
     emit(
       { file: 'anime-seasons.ts', types: '{ seasons: Record<string, { t: string, ty: string, p: string, ep?: number, ml?: number, al?: number, ku?: number, sc?: number }[]> }' },
@@ -648,7 +650,7 @@ const main = async () => {
       // "undefined-undefined" in every shipped artifact, because a string has no .year or .season.
       { tag: manami.tag, updated: manami.updated, anchor, seasons },
       provenance,
-      [MANAMI],
+      [OFFLINE_DATABASE],
     )
 
   log(`${(total / 1024).toFixed(0)} KB brotli total, none of it in the initial bundle`)

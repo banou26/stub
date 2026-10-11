@@ -48,7 +48,7 @@ Use Node 24 (`.node-version` names 24.21.0, which CI uses).
 
 ```sh
 npm ci
-npm run data:build     # the anime id data, from the newest manami release
+npm run data:build     # the anime id data, from the newest anime-offline-database release
 npm run gql-generate   # the GraphQL types, into src/generated
 npm run dev            # http://localhost:4560
 ```
