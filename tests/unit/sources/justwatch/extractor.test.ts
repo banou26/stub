@@ -271,6 +271,13 @@ test('a film keeps its title, on the media and on its one episode', async () => 
     .toEqual([['A Film']])
 })
 
+// The graph reads a film's kind off `type` alone, so an untyped film skips guard 9 and a series can
+// claim it (2026-10-12).
+test('a film is typed MOVIE and a season is not typed', async () => {
+  expect((await mediaFor('jw:999', film)).type).toBe('MOVIE')
+  expect((await mediaFor('jw:12345-111')).type, 'the control: a season').toBeUndefined()
+})
+
 // THE DATE. `${year}-01-01` is the exact spelling the store reads as no day at all, and it was every
 // JustWatch row's date because nothing asked for the day. The day is asked for now, at season level.
 //
@@ -412,6 +419,38 @@ test('the media path picks its season through the shared picker: a season a uniq
   // the control: an agreed ordinal with a count the season does not exceed still places the run
   const { value: placed } = await subscribe(undefined, { input: { uri } }, knowing(uneven, { titles: [{ title: 'A Show Season 3' }], episodeCount: 12 })).next()
   expect(placed?.media?.uri).toBe('jw:12345-222')
+})
+
+// A bare id names two unrelated titles: `tm188787` is Ninja Scroll and `ts188787` is another show
+// (2026-10-12), so a re-asked grown uri reads which node it means from what the cluster is.
+test('a re-asked bare id asks the film node for a film cluster, and the show node for a show', async () => {
+  const asked: string[] = []
+  const nodes: Record<string, unknown> = { tm999: film, ts999: node, ts12345: node }
+  const ctx = (known: Record<string, unknown>) => ({
+    findAggregatedMedia: async () => known,
+    listenForMediaChanges: async function* () {},
+    fetch: async (url: string, init?: { body?: string }) => {
+      if (url !== JW_API) return (context(film) as { fetch: (url: string) => unknown }).fetch(url)
+      const { nodeId } = JSON.parse(init?.body ?? '{}').variables
+      asked.push(nodeId)
+      return { json: async () => ({ data: { node: nodes[nodeId] } }) }
+    },
+  }) as never
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+
+  const { value: movie } = await subscribe(
+    undefined, { input: { uri: 'ag:(anilist:617,jw:999)' } }, ctx({ categories: ['ANIME', 'MOVIE'] })
+  ).next()
+  expect(asked).toEqual(['tm999'])
+  expect(movie?.media?.uri).toBe('jw:999')
+
+  asked.length = 0
+  const { value: show } = await subscribe(
+    undefined, { input: { uri: 'ag:(anilist:1,jw:12345)' } },
+    ctx({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'A Show Season 3' }], episodeCount: 12 })
+  ).next()
+  expect(asked, 'the control: a show cluster still asks the show node').toEqual(['ts12345'])
+  expect(show?.media?.uri).toBe('jw:12345-222')
 })
 
 // A JustWatch offer is scoped to ONE country, and the extractor asked US only. Anime is licensed per

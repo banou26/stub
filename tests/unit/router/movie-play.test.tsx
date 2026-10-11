@@ -9,7 +9,8 @@ import { memoryLocation } from 'wouter/memory-location'
 
 let origin = 'cr'
 vi.mock('urql', () => ({
-  useSubscription: () => [{ data: { originPage: { nodes: [{ id: origin, name: origin, icon: null, color: null }] } } }],
+  useSubscription: ({ variables }: { variables: { input: { ids: string[] } } }) =>
+    [{ data: { originPage: { nodes: variables.input.ids.includes(origin) ? [{ id: origin, name: origin, icon: null, color: null }] : [] } } }],
 }))
 vi.mock('../../../src/worker', () => ({}))
 vi.mock('lucide-react', () => ({ LucidePlay: () => null }))
@@ -27,9 +28,9 @@ afterEach(() => {
   origin = 'cr'
 })
 
-const render = (movie: DetailsEpisode) => {
+const render = (movie: DetailsEpisode, handles: Parameters<typeof MoviePlay>[0]['handles'] = []) => {
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Router hook={hook}><MoviePlay episode={movie} mediaUri="ag:(anilist:9)" startDate="2020-01-01"/></Router>)
+  const host = mount(<Router hook={hook}><MoviePlay episode={movie} mediaUri="ag:(anilist:9)" handles={handles} startDate="2020-01-01"/></Router>)
   hosts.push(host)
   return host
 }
@@ -47,4 +48,21 @@ test('no Play when no source plays in stub', () => {
   const host = render(magnet)
   expect(host.querySelector('a[href^="magnet:"]')).not.toBeNull()
   expect(host.querySelector('.play')).toBeNull()
+})
+
+// a film's offers hang off the media, not its one episode (Ninja Scroll's HIDIVE, 2026-10-12)
+test('a media-level offer the episode does not name links out from the play bar', () => {
+  origin = 'hidive'
+  const host = render(episode, [
+    { relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } },
+  ])
+  const link = host.querySelector('a[href="https://www.hidive.com/interstitial/715215"]')
+  expect(link?.getAttribute('target')).toBe('_blank')
+  expect(host.querySelector('.play')).toBeNull()
+})
+
+test('a media-level handle to a catalogue is not offered as a place to watch', () => {
+  origin = 'anilist'
+  const host = render(episode, [{ relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/617' } }])
+  expect(host.querySelector('a[href="https://anilist.co/anime/617"]')).toBeNull()
 })

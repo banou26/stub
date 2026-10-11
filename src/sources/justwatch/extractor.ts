@@ -573,6 +573,8 @@ const normalizeMedia = async (
   const media = makeMedia({
     origin,
     id,
+    // the type is what tells the graph's guards this is a film, which a category alone does not
+    type: node.objectType === 'MOVIE' ? 'MOVIE' : undefined,
     categories: [node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'],
     url: `https://www.justwatch.com${node.content.fullPath}`,
     score: SCORE,
@@ -787,7 +789,12 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext): Promise<G
   const jwUri = extractAggregatedUriOrigin(uri, origin)
   if (jwUri) {
     const { objectId, seasonObjectId } = splitJwId(jwUri.id)
-    const detailRes = await getNodeDetails(`ts${objectId}`, ctx)
+    // `ts<id>` and `tm<id>` are two unrelated titles, and a bare id is a film's only when the cluster is
+    // a film: anything else stays a show, which is what a show container's bare id is
+    const format = seasonObjectId == null && isAggregatedUri(uri)
+      ? await waitForMedia(uri, ctx, media => ['MOVIE', 'SERIES'].find(category => media?.categories?.includes(category)))
+      : undefined
+    const detailRes = await getNodeDetails(`${format === 'MOVIE' ? 'tm' : 'ts'}${objectId}`, ctx)
     const node = detailRes.data?.node
     if (!node) return null
     // the uri pins a season by ITS id, so the number the episode lists use is looked up, not assumed

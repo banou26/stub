@@ -15,10 +15,16 @@ import { isUpcoming, movieFacts } from './movie'
  * day it says when, and offers no Play.
  */
 const MoviePlay = (
-  { episode, mediaUri, startDate, genres }:
-  { episode: DetailsEpisode | undefined, mediaUri: string, startDate?: string | null, genres?: readonly string[] | null }
+  { episode, mediaUri, handles, startDate, genres }:
+  {
+    episode: DetailsEpisode | undefined
+    mediaUri: string
+    handles?: Parameters<typeof useWatchSources>[2]
+    startDate?: string | null
+    genres?: readonly string[] | null
+  }
 ) => {
-  const sources = useWatchSources(episode, mediaUri)
+  const sources = useWatchSources(episode, mediaUri, handles)
   const released = releasedAtOf(episode) ?? startDate
   const upcoming = isUpcoming(released)
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)

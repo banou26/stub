@@ -425,6 +425,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
               <MoviePlay
                 episode={'episodes' in media ? media.episodes?.at(0) : undefined}
                 mediaUri={media.uri}
+                handles={media.handles}
                 startDate={'startDate' in media ? media.startDate : undefined}
                 genres={'genres' in media ? media.genres : undefined}
               />

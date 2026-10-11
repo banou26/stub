@@ -21,6 +21,7 @@ import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { canPlay } from '../../sources/playable'
+import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { playTarget, type PlayLabel } from '../title/facts'
 
@@ -233,9 +234,20 @@ export const usePlay = (media: DetailsMedia | null | undefined): { label: PlayLa
   return target && { label: target.label, href: getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri }) }
 }
 
-/** Where an episode plays or can be watched: stub's own players first, then the sites' own pages. */
-export const useWatchSources = (episode: DetailsEpisode | undefined, mediaUri: string): WatchSource[] => {
-  const originIds = episode ? episodeOriginIds(episode) : undefined
+const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
+
+/**
+ * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
+ * `offers` are media-level handles, linked out for a streaming site the episode itself does not name,
+ * which is where a film's offers live.
+ */
+export const useWatchSources = (
+  episode: DetailsEpisode | undefined,
+  mediaUri: string,
+  offers: readonly { relation: string, node: { origin: string, url?: string | null } }[] = []
+): WatchSource[] => {
+  const links = offers.filter(handle => handle.relation === 'SAME_AS' && handle.node.url && STREAMING_ORIGINS.has(handle.node.origin))
+  const originIds = episode ? [...new Set([...episodeOriginIds(episode), ...links.map(handle => handle.node.origin)])] : undefined
   const [{ data: originData }] = useSubscription({
     query: GET_MEDIA_ORIGINS,
     variables: { input: { ids: originIds ?? [], filters: [OriginFilter.IsNotApiOnly] } },
@@ -266,7 +278,9 @@ export const useWatchSources = (episode: DetailsEpisode | undefined, mediaUri: s
         name: origin.name ?? origin.id,
         icon: origin.icon,
         color: origin.color,
-        href: multiple || playable ? watchPath : (handle?.url ?? undefined),
+        href: multiple || playable
+          ? watchPath
+          : (handle?.url ?? links.find(link => link.node.origin === origin.id)?.node.url ?? undefined),
         external: multiple ? false : !playable,
         active: false,
       } satisfies WatchSource

@@ -24,7 +24,7 @@ import { profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
 import { contestSites, contestedBy, prepareGuards, readComponents } from '../../../../../src/worker/graph/plugins/guards'
 import { orderLinkProposals, precedenceClassOf } from '../../../../../src/worker/graph/plugins/sameness'
 import { applyPluginOutput } from '../../../../../src/worker/graph/plugins/writer'
-import { answer, media, rowsOf, title } from './fixtures'
+import { answer, episode, media, rowsOf, title } from './fixtures'
 
 const TEST = {
   id: 'plugin:test' as PluginId,
@@ -126,6 +126,13 @@ beforeAll(async () => {
     await answer('media', media('cr:C800-S1', { titles: [title('en', 'Eight')], episodeCount: 12 })),
     await answer('media', media('anilist:800', { titles: [title('en', 'Eight')] })),
     await answer('media', media('anilist:801', { titles: [title('en', 'Eight')], episodeCount: 12 })),
+    // 8b. a JustWatch film's offer: a bare link-only node, the Ninja Scroll shape (`jw:188787` and
+    // `hidive:715215`); the season row beside it still folds, and a film still meets guard 9
+    await answer('media', media('jw:850', { type: 'MOVIE', categories: ['MOVIE'], handles: [{ relation: 'SAME_AS', node: media('hidive:850') }] })),
+    await answer('media', media('jw:851-1', { categories: ['SERIES'], episodeCount: 12, handles: [{ relation: 'SAME_AS', node: media('hidive:851') }] })),
+    await answer('media', media('jw:852', { type: 'MOVIE', categories: ['MOVIE'] })),
+    await answer('episode', episode('jw:852-1', 'jw:852')),
+    await answer('media', media('anilist:852', { type: 'TV', categories: ['ANIME', 'SERIES'], episodeCount: 12, status: 'FINISHED' })),
     // 9. kind-mismatch: `tmdb:550` is Fight Club as a film and Till Death Us Do Part as a series
     await answer('media', media('tmdb:900', { titles: [title('en', 'Nine')], type: 'MOVIE', categories: ['MOVIE'] })),
     await answer('media', media('anilist:900', { titles: [title('en', 'Nine')], type: 'TV', categories: ['SERIES'] })),
@@ -453,6 +460,21 @@ test('guard 8 refuses a folding season facing a run with no length', async () =>
     .toMatchObject({ status: 'active', reason: 'no-length' })
   expect(rows.find(row => row.pair === 'cr:C800-S1 anilist:801'), 'the control: a run that states its length')
     .toMatchObject({ kind: 'SAME_AS', status: 'active' })
+})
+
+// A FILM FOLDS NOTHING, so its offer to a link-only node is not weighed by guards 7 and 8, while a
+// film claimed by a series is still refused, by its kind.
+// Mutation: drop the MOVIE test from `folding` in `profile.ts` and the film is refused `no-length`.
+test('a JustWatch film is not a folding season, so its offer to a bare node is active', async () => {
+  await propose([sameAs('jw:850', 'hidive:850'), sameAs('jw:851-1', 'hidive:851'), sameAs('jw:852', 'anilist:852')])
+
+  const rows = await linksOf()
+  expect(rows.find(row => row.pair === 'jw:850 hidive:850'))
+    .toMatchObject({ kind: 'SAME_AS', status: 'active', reason: 'asserted' })
+  expect(rows.find(row => row.pair === 'jw:851-1 hidive:851' && row.kind === 'SAME_AS'), 'the control: a season still folds')
+    .toMatchObject({ status: 'refused', reason: 'no-length' })
+  expect(rows.find(row => row.pair === 'jw:852 anilist:852' && row.kind === 'SAME_AS'), 'the control: a film against a series')
+    .toMatchObject({ status: 'refused', reason: 'kind-mismatch' })
 })
 
 // (9) KIND-MISMATCH: one uri whose answers disagree about MOVIE against SERIES is an anomaly (5.5),

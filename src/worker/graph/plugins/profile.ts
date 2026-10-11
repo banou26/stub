@@ -575,6 +575,7 @@ const mediaProfileRow = (
   const raw = asRecord(parseJson(row.raw))
   const titles = parseJson(row.titles) ?? raw.titles
   const showLevel = SHOW_LEVEL_ORIGINS.has(row.origin)
+  const format = formatOf(row.type ?? raw.type, row.categories ?? raw.categories)
   const { scope, scopeFrom } = scopeReadingOf({
     owned: row.owned,
     stamp: row.scope,
@@ -609,13 +610,14 @@ const mediaProfileRow = (
       startDay: date.startDay,
       datePrecision: date.datePrecision,
       dateDerivation: date.dateDerivation,
-      format: formatOf(row.type ?? raw.type, row.categories ?? raw.categories),
+      format,
       workKind: workKindOf(row.type ?? raw.type),
       companion: companionOf(titles),
       countKind: counts.countKind,
       countStated: counts.countStated,
       countDistinct: counts.countDistinct,
-      folding: FOLDING_ORIGINS.has(row.origin),
+      // a film has no cours to fold
+      folding: FOLDING_ORIGINS.has(row.origin) && format !== 'MOVIE',
       retranslates: RETRANSLATING_ORIGINS.has(row.origin),
       showLevelOrigin: showLevel,
       idParent: null,
