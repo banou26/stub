@@ -36,6 +36,10 @@ import { bestSource, useAutoPick } from './auto-pick'
 const playableHandlesOf = <T extends { relation: string, node: unknown }>(handles: T[] | undefined) =>
   (handles ?? []).filter(handle => handle.relation === 'SAME_AS').map(handle => handle.node as T['node'])
 
+// A source the address names but this session has not matched to the episode (a shared link, or the
+// reload a click used to be) still plays when its watch url follows from its id.
+const WATCH_URLS: Record<string, (id: string) => string> = { nf: id => `https://www.netflix.com/watch/${id}` }
+
 const GET_WATCH_MEDIA = gql(`
   subscription GetWatchMedia($input: MediaInput!) {
     media(input: $input) {
@@ -215,6 +219,15 @@ const Watch = () => {
     [media?.episodes, params.episodeUri]
   )
 
+  const selectedSourceUri = params.sourceUri
+  const episodeHandles = useMemo(() => {
+    const own = playableHandlesOf(episode?.handles)
+    if (!selectedSourceUri || episode?.handles?.some(h => h.node.uri === selectedSourceUri)) return own
+    const { origin, id } = fromUri(selectedSourceUri as `${string}:${string}`)
+    const url = WATCH_URLS[origin]?.(id)
+    return url ? [...own, { uri: selectedSourceUri, origin, url } as typeof own[number]] : own
+  }, [episode?.handles, selectedSourceUri])
+
   const origins = useMemo(
     () =>
       episode?.uri
@@ -225,8 +238,8 @@ const Watch = () => {
 
   // an origin contributing several handles repeats in the aggregated uri, and findOrigins maps ids positionally, so without this the same origin renders once per handle
   const originIds = useMemo(
-    () => origins && [...new Set(origins.map(o => o.origin))],
-    [origins]
+    () => origins && [...new Set([...origins, ...episodeHandles].map(o => o.origin))],
+    [origins, episodeHandles]
   )
 
   const [{ data: originData }] = useSubscription({
@@ -235,7 +248,6 @@ const Watch = () => {
     pause: !originIds
   })
 
-  const selectedSourceUri = params.sourceUri
   const mediaTitle = media?.titles?.at(0)?.title
   const episodeTitle = episode?.titles?.at(0)?.title
   const episodeNumber = episode?.episodeNumber
@@ -243,7 +255,7 @@ const Watch = () => {
 
   const embedUrl = useMemo(() => {
     if (!selectedSourceUri) return undefined
-    const handle = playableHandlesOf(episode?.handles).find(h => h.uri === selectedSourceUri)
+    const handle = episodeHandles.find(h => h.uri === selectedSourceUri)
     if (!handle) return undefined
     if (handle.embedUrl) return handle.embedUrl
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
@@ -256,7 +268,7 @@ const Watch = () => {
     })
     // the page sits beside the running build's html, which under fkn.app/app is /build/ and not the origin root
     return `${__STUB_EMBED_PAGE__}?${embedParams}`
-  }, [selectedSourceUri, episode?.handles, params.mediaUri, params.episodeUri])
+  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri])
 
   // a plugin source renders its own picker; which origins do is only known to the worker holding the
   // plugin connection, so it is resolved here and folded into the source list
@@ -291,9 +303,9 @@ const Watch = () => {
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
     const pluginUri = players?.[origin]
     if (!pluginUri) return undefined
-    const handle = playableHandlesOf(episode?.handles).find(h => h.uri === selectedSourceUri)
+    const handle = episodeHandles.find(h => h.uri === selectedSourceUri)
     return { pluginUri, release: { uri: selectedSourceUri, url: handle?.url ?? undefined } }
-  }, [selectedSourceUri, players, episode?.handles])
+  }, [selectedSourceUri, players, episodeHandles])
 
   // a source that declined this release falls back to whatever stub would have done, which is the
   // external link the selector already offers
@@ -325,7 +337,7 @@ const Watch = () => {
   const sources: WatchSource[] = useMemo(
     () =>
       (originData?.originPage?.nodes ?? []).map(origin => {
-        const handles = playableHandlesOf(episode?.handles).filter(h => h.origin === origin.id)
+        const handles = episodeHandles.filter(h => h.origin === origin.id)
         // a source that plays its own releases makes every one of them playable IN stub, so the link
         // goes to the watch route rather than out to whatever the raw url opens (for a torrent index
         // that url is a magnet, which leaves the browser entirely)
@@ -359,7 +371,7 @@ const Watch = () => {
           picker: pickers[origin.id] ? { pluginUri: pickers[origin.id]! } : undefined,
         }
       }),
-    [originData, episode?.handles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
+    [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
   )
 
   const [backend, setBackend] = useState<FknBackend>()
@@ -370,7 +382,7 @@ const Watch = () => {
   }, [])
 
   const party = useParty()
-  const best = bestSource(playableHandlesOf(episode?.handles), {
+  const best = bestSource(episodeHandles, {
     builtIn: origin => canPlay(origin) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
     signedOut: origin => origin === 'cr' && siteStatuses.read('crunchyroll')?.state === 'signed-out',
     selfPlaying: players && (origin => Boolean(players[origin])),

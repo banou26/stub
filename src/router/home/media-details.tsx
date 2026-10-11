@@ -465,28 +465,46 @@ const episodesStyle = css`
 
   @media (max-width: 768px) {
     .episode {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr);
+      align-content: center;
       height: auto;
       min-height: 7rem;
       padding: 0.8rem 0;
 
       .number {
+        grid-row: span 2;
         min-width: 3.5rem;
         font-size: 1.6rem;
       }
 
       .thumbnail {
+        grid-row: span 2;
         height: 5rem;
         margin-right: 1rem;
       }
 
       .content {
-        & > .header > .title {
-          font-size: 1.5rem;
+        & > .header {
+          flex-wrap: wrap;
+          gap: 0.4rem 1rem;
+
+          & > .title {
+            font-size: 1.5rem;
+          }
+          & > .origins {
+            margin-left: 0;
+          }
         }
         & > .description {
           font-size: 1.3rem;
           max-height: 4.5rem;
         }
+      }
+
+      .side {
+        margin-left: 0;
+        padding: 0.4rem 1rem 0 0;
       }
     }
   }

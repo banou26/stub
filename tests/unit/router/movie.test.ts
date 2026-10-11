@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
-import { MediaCategory } from '../../../src/generated/graphql'
+import { MediaCategory, MediaType } from '../../../src/generated/graphql'
 import { isMovieMedia, isUpcoming, movieFacts, runtimeText } from '../../../src/router/home/movie'
 
 test('a runtime reads in hours and minutes, and none reads as nothing', () => {
@@ -34,12 +34,18 @@ test('a release is upcoming only while its day is still ahead, whatever the hour
   expect(isUpcoming('garbage', now)).toBe(false)
 })
 
-test('a movie of one episode or none draws as a film, and one released in parts keeps its episodes', () => {
-  const episode = {}
-  expect(isMovieMedia({ categories: [MediaCategory.Anime, MediaCategory.Movie], episodes: [episode] })).toBe(true)
-  expect(isMovieMedia({ categories: [MediaCategory.Movie], episodes: [] })).toBe(true)
-  expect(isMovieMedia({ categories: [MediaCategory.Movie], episodes: [episode, episode] }), 'a film in parts').toBe(false)
-  expect(isMovieMedia({ categories: [MediaCategory.Anime], episodes: [episode] }), 'a series of one episode').toBe(false)
+test('a film draws as a film by its format, and a series of one episode stays a series', () => {
+  expect(isMovieMedia({ categories: [MediaCategory.Anime, MediaCategory.Movie] })).toBe(true)
+  expect(isMovieMedia({ type: MediaType.Movie, categories: [MediaCategory.Anime, MediaCategory.Series] }), 'the type alone').toBe(true)
+  expect(isMovieMedia({ type: MediaType.Tv, categories: [MediaCategory.Anime, MediaCategory.Series] }), 'a series of one episode').toBe(false)
+  expect(isMovieMedia({ type: MediaType.Tv, categories: [MediaCategory.Anime, MediaCategory.Movie] }), 'a source calling a series a film').toBe(false)
+  expect(isMovieMedia({})).toBe(false)
+})
+
+// Spirited Away, 2026-10-12: AniZip lists "Complete Movie" and "Part 1 of 2" to "Part 4 of 4"
+test('a film AniZip lists in several parts is still a film', () => {
+  const spiritedAway = { type: MediaType.Movie, categories: [MediaCategory.Anime, MediaCategory.Movie], episodes: Array.from({ length: 10 }, () => ({})) }
+  expect(isMovieMedia(spiritedAway)).toBe(true)
 })
 
 // the modal and the title page cannot be imported here (urql's CommonJS `require('react')`, see

@@ -1,5 +1,8 @@
+import type { ComponentChildren } from 'preact'
+
 import { css } from '@emotion/react'
 import { useState } from 'preact/hooks'
+import { Link } from 'wouter'
 
 import SourcePopup from './source-popup'
 
@@ -343,6 +346,15 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
   )
 }
 
+// a source played in stub is a client side navigation, which keeps the worker and every match it made this session
+const SourceLink = (
+  { external, href, ...props }:
+  { external: boolean, href?: string, className: string, style?: Record<string, string>, title: string, children: ComponentChildren }
+) =>
+  external || !href
+    ? <a {...props} href={href} target="_blank" rel="noreferrer"/>
+    : <Link {...props} href={href}/>
+
 export const SourceSelector = (
   { sources, compact = false, onPickRelease }:
   { sources: WatchSource[], compact?: boolean, onPickRelease?: (uri: string) => void }
@@ -355,17 +367,16 @@ export const SourceSelector = (
     return (
       <div css={compactStyle}>
         {sources.map(source => (
-          <a
+          <SourceLink
             key={source.id}
             className="src"
             style={{ '--brand': brandColor(source) }}
             href={source.href}
-            target={source.external ? '_blank' : undefined}
-            rel={source.external ? 'noreferrer' : undefined}
+            external={source.external}
             title={`Watch on ${source.name}`}
           >
             <SourceIcon source={source} />
-          </a>
+          </SourceLink>
         ))}
       </div>
     )
@@ -379,13 +390,12 @@ export const SourceSelector = (
           source.releases && source.releases.length > 1
             ? <MultiReleaseSource key={source.id} source={source} onOpenPicker={() => setPicking(source)} />
             : (
-              <a
+              <SourceLink
                 key={source.id}
                 className={`source${source.active ? ' active' : ''}`}
                 style={{ '--brand': brandColor(source) }}
                 href={source.href}
-                target={source.external ? '_blank' : undefined}
-                rel={source.external ? 'noreferrer' : undefined}
+                external={source.external}
                 title={source.name}
               >
                 <SourceIcon source={source} />
@@ -395,7 +405,7 @@ export const SourceSelector = (
                   : source.external
                     ? <span className="ext">↗</span>
                     : <span className="play">▶</span>}
-              </a>
+              </SourceLink>
             )
         )}
       </div>
@@ -441,12 +451,11 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
         ? (
           <div className="releases">
             {releases.map(release => (
-              <a
+              <SourceLink
                 key={release.uri}
                 className={`release${release.active ? ' active' : ''}`}
                 href={release.href}
-                target={release.external ? '_blank' : undefined}
-                rel={release.external ? 'noreferrer' : undefined}
+                external={release.external}
                 title={release.label}
               >
                 <span className="release-label">{release.label}</span>
@@ -455,7 +464,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
                   : release.external
                     ? <span className="ext">↗</span>
                     : <span className="play">▶</span>}
-              </a>
+              </SourceLink>
             ))}
           </div>
         )

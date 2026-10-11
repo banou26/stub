@@ -165,6 +165,26 @@ test('Episodes draws the first 12, and Show all the rest', async ({ page }) => {
   await expect(episodes.getByRole('button', { name: 'Show all' })).toHaveCount(0)
 })
 
+test('390 px wide, each episode row keeps its date and its source icons inside it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const rows = page.locator('[data-episodes] .episode')
+  await expect(rows.first().locator('.date')).toHaveText('Sep 29, 2023', { timeout: 30_000 })
+  // the fixture matches no sources, so the first row gets five icons the size the compact selector draws
+  await rows.first().locator('.origins').evaluate(origins => {
+    origins.innerHTML = `<div style="display: flex; gap: 0.7rem">${'<span style="width: 2.8rem; height: 2.8rem; flex-shrink: 0"></span>'.repeat(5)}</div>`
+  })
+  const outside = await rows.evaluateAll(episodes => episodes.flatMap(row => {
+    const { right, bottom } = row.getBoundingClientRect()
+    return [...row.querySelectorAll('.date, .origins > *')].map(element => {
+      const box = element.getBoundingClientRect()
+      return Math.max(0, box.right - right, box.right - innerWidth, box.bottom - bottom)
+    })
+  }))
+  expect(outside).toEqual(outside.map(() => 0))
+})
+
 test('the page\'s cover style stays on its own cover, off the relation cards\' covers', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openModal(page)
