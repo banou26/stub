@@ -1,0 +1,159 @@
+{
+  "data": {
+    "findAnimeByExternalSite": [
+      {
+        "id": 4136,
+        "slug": "sousou_no_frieren",
+        "animethemes": [
+          {
+            "type": "OP",
+            "sequence": 1,
+            "song": {
+              "title": {
+                "romaji": "Yuusha",
+                "native": null
+              },
+              "performances": [
+                {
+                  "artist": {
+                    "name": {
+                      "main": "YOASOBI"
+                    }
+                  }
+                }
+              ]
+            },
+            "animethemeentries": [
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-OP1.webm"
+                    },
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-OP1-NCBD1080.webm"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "ED",
+            "sequence": 1,
+            "song": {
+              "title": {
+                "romaji": "Anytime Anywhere",
+                "native": null
+              },
+              "performances": [
+                {
+                  "artist": {
+                    "name": {
+                      "main": "milet"
+                    }
+                  }
+                }
+              ]
+            },
+            "animethemeentries": [
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1.webm"
+                    },
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1-NCBD1080.webm"
+                    }
+                  ]
+                }
+              },
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1v2.webm"
+                    }
+                  ]
+                }
+              },
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1v3.webm"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "ED",
+            "sequence": null,
+            "song": {
+              "title": {
+                "romaji": "bliss",
+                "native": null
+              },
+              "performances": [
+                {
+                  "artist": {
+                    "name": {
+                      "main": "milet"
+                    }
+                  }
+                }
+              ]
+            },
+            "animethemeentries": [
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1-TV.webm"
+                    },
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-ED1-TV-NCBD1080.webm"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "OP",
+            "sequence": 2,
+            "song": {
+              "title": {
+                "romaji": "Haru",
+                "native": null
+              },
+              "performances": [
+                {
+                  "artist": {
+                    "name": {
+                      "main": "Yorushika"
+                    }
+                  }
+                }
+              ]
+            },
+            "animethemeentries": [
+              {
+                "videos": {
+                  "nodes": [
+                    {
+                      "link": "https://v.animethemes.moe/SousouNoFrieren-OP2.webm"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

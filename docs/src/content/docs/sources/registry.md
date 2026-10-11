@@ -317,7 +317,7 @@ and the entire reason it came back as `partOf`. A missing link costs a row; a wr
 cluster.
 :::
 
-## The 25: identity
+## The 26: identity
 
 `SCORE` is the module-private constant every source threads into `makeMedia`/`makeEpisode`, not an
 export. `store/aggregate.ts` sorts by it descending and the top source takes the field outright.
@@ -347,6 +347,7 @@ export. `store/aggregate.ts` sorts by it descending and the top source takes the
 | simkl | `simkl` | Simkl | true | 0.3 |
 | tvdb | `tvdb` | TheTVDB | true | 0.3 |
 | offline | `offline` | Offline database | true | 0.2 |
+| animethemes | `animethemes` | AnimeThemes | false | none |
 | watchmode | `watchmode` | Watchmode | true | 0.25 |
 | imdb | `imdb` | IMDb | false | none |
 
@@ -372,7 +373,7 @@ app's own client id, `simkl` searches through simkl.com's search form, `tvdb` th
 search, and `watchmode` through its site's tRPC gateway. `tests/unit/sources/index.test.ts` reads `src`
 and fails on any key read coming back.
 
-## The 25: what each answers
+## The 26: what each answers
 
 `M` is a real implementation. `null` means the field is declared and always yields
 `{ media: null }` or `{ nodes: [] }`. `-` means the module does not declare the field and falls to
@@ -403,6 +404,7 @@ the merged default in `src/worker/extractor.ts:448-464`.
 | simkl | `simkl` | ANIME, SERIES, MOVIE | M | M | - | M |
 | tvdb | `tvdb` | SERIES | M | M | - | - |
 | offline | `offline`, `mal`, `anilist`, `kitsu`, `anidb` | ANIME, SERIES, MOVIE | M | M | - | - |
+| animethemes | `mal`, `anilist` | ANIME | M | - | - | - |
 | watchmode | `watchmode` | SERIES, MOVIE | M | M | - | M |
 | imdb | `imdb` | SERIES, MOVIE | null | null | - | - |
 

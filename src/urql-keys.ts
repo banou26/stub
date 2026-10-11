@@ -41,6 +41,8 @@ export const keyResolvers = {
   // credits are one title's account of its cast and staff: nothing routes to a person, so nothing to key
   MediaPerson: () => null,
   MediaCharacter: () => null,
+  // a theme is one title's song, listed under it like its titles
+  MediaTheme: () => null,
   MediaTrailer: (trailer) => (trailer as MediaTrailer).uri,
   Episode: (episode) => (episode as Episode)._id,
   EpisodeTitle: () => null,

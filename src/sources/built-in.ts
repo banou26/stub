@@ -32,5 +32,6 @@ export const builtInSources: BuiltInSource[] = [
   { origin: 'simkl', name: 'Simkl', url: 'https://simkl.com' },
   { origin: 'tvdb', name: 'TheTVDB', url: 'https://www.thetvdb.com' },
   { origin: 'offline', name: 'Offline database', url: 'https://github.com/manami-project/anime-offline-database' },
+  { origin: 'animethemes', name: 'AnimeThemes', url: 'https://animethemes.moe' },
   { origin: 'watchmode', name: 'Watchmode', url: 'https://www.watchmode.com' },
 ]

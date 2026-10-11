@@ -21,6 +21,7 @@ export * as trakt from './trakt/extractor'
 export * as simkl from './simkl/extractor'
 export * as tvdb from './tvdb/extractor'
 export * as offline from './offline/extractor'
+export * as animethemes from './animethemes/extractor'
 // answers nothing on purpose: it exists so an `imdb:` handle has an origin to render against
 export * as imdb from './imdb/extractor'
 

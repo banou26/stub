@@ -10,7 +10,8 @@ import { build } from 'vite-plus'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
-// AniList answers each of them with Cowboy Bebop's credits and AniZip with 26 episodes (tests/fake-fetch.ts).
+// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes and AnimeThemes with
+// Frieren's themes, one without a video (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -121,6 +122,35 @@ test('Characters shows the Japanese cast, a picked dub swaps it, and 390 px wide
   const ed = characters.locator('li').filter({ hasText: 'Edward Wong Hau Pepelu Tivrusky IV' })
   const [name, actors] = await ed.evaluate(card => [...card.children].map(half => half.getBoundingClientRect().width))
   expect(Math.abs(name! - actors!)).toBeLessThan(1)
+})
+
+test('Themes lists each song, plays one at a time under its row, and 390 px wide has no sideways scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const rows = page.locator('[data-themes] li')
+  await expect(rows).toHaveText([/OP1.*Yuusha.*YOASOBI/, /OP2.*Haru.*Yorushika/, /ED1.*Anytime Anywhere.*milet/, /ED.*bliss.*milet/], { timeout: 30_000 })
+  await expect(rows.nth(3).getByRole('button')).toHaveCount(0)
+  const lefts = await rows.locator('.kind').evaluateAll(kinds => kinds.map(kind => kind.getBoundingClientRect().left))
+  expect(new Set(lefts).size, `a song without a video keeps its label in line: ${lefts.join(', ')}`).toBe(1)
+  // the credit AnimeThemes asks for is its link in the source row
+  await expect(page.locator('.origins a[title="AnimeThemes"]')).toHaveAttribute('href', 'https://animethemes.moe/anime/sousou_no_frieren')
+  const videos = page.locator('[data-themes] video')
+  await expect(videos, 'nothing plays before a click').toHaveCount(0)
+  const advances = () => expect.poll(() => videos.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0)
+
+  await rows.nth(0).getByRole('button', { name: 'Play' }).click()
+  await expect(rows.nth(0).locator('video')).toHaveAttribute('src', 'https://v.animethemes.moe/SousouNoFrieren-OP1.webm')
+  await advances()
+  await rows.nth(1).getByRole('button', { name: 'Play' }).click()
+  await expect(videos).toHaveCount(1)
+  await expect(rows.nth(1).locator('video')).toHaveAttribute('src', 'https://v.animethemes.moe/SousouNoFrieren-OP2.webm')
+  await advances()
+  expect(await videos.evaluate(video => (video as HTMLVideoElement).muted)).toBe(false)
+  expect(await overflowX(page)).toBe(0)
+  await rows.nth(1).getByRole('button', { name: 'Stop' }).click()
+  await expect(videos).toHaveCount(0)
 })
 
 test('Episodes draws the first 12, and Show all the rest', async ({ page }) => {

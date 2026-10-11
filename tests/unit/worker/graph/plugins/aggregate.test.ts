@@ -885,3 +885,29 @@ test('the 800 recorded rows replay, cluster, slot and hold the invariants', asyn
   expect(again.changes, 'the same page twice is the same view').toEqual([])
   console.info(`the second pass over the same graph: ${again.ms} ms, ${again.iterations} iteration(s), nothing written`)
 }, 600_000)
+
+// Themes are one source's whole list, from the first in score order that has one, never spliced.
+// Mutation: drop the `themesFrom` block from `aggregateFields` and the row has none; drop
+// `themes: undefined` from `nodeOf` and the AnimeThemes handle carries the list a second time.
+test('the themes come whole from the first source that has them, and no handle carries them', () => {
+  const theme = (title: string) => ({ kind: 'OP', sequence: 1, title, artists: [], video: null })
+  const member = (uri: string, score: number, raw: Record<string, unknown>) => ({
+    uri, origin: uri.slice(0, uri.indexOf(':')), id: uri.slice(uri.indexOf(':') + 1), owned: true, score, raw, fieldSeq: {},
+  })
+  const row = aggregateFields({
+    cluster: {
+      id: 'cl:mal:52991', aggUri: 'ag:(animethemes:4136,mal:52991,other:1)', scope: 'RUN', runLength: null, runLengthTier: null,
+      runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+    },
+    members: [
+      member('other:1', 0.1, { themes: [theme('Haru')] }),
+      member('mal:52991', 0.9, { themes: [] }),
+      member('animethemes:4136', 0.5, { themes: [theme('Yuusha'), theme('Anytime Anywhere')] }),
+    ],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect((row.themes as { title: string }[]).map(({ title }) => title)).toEqual(['Yuusha', 'Anytime Anywhere'])
+  expect(JSON.stringify(row.handles)).not.toContain('Yuusha')
+})

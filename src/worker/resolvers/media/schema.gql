@@ -415,6 +415,23 @@ type Media {
   duration: Int
   """What the work adapts, in the source's word: MANGA, LIGHT_NOVEL, ORIGINAL."""
   sourceMaterial: String
+  """
+  The opening, ending and insert songs, openings first, taken whole from one source. Null unless
+  `details` was asked.
+  """
+  themes: [MediaTheme!]
+}
+
+"""An opening, ending or insert song, with a video it can be played from."""
+type MediaTheme {
+  """OP, ED or IN."""
+  kind: String!
+  """Its number among its kind, null where the source gives none."""
+  sequence: Int
+  title: String
+  artists: [String!]!
+  """Null where the source lists the song before any video of it."""
+  video: String
 }
 
 """
@@ -540,7 +557,7 @@ enum RootOperation {
 input MediaInput {
   uri: ID
   context: RequestContext
-  """Asks the sources for credits too: a larger request, so only a title's own page sends it."""
+  """Asks the sources for credits and themes too: a larger request, so only a title's own page sends it."""
   details: Boolean
 }
 

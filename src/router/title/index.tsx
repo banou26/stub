@@ -1,7 +1,7 @@
 import type { RouteParams } from '../path'
 
 import { css } from '@emotion/react'
-import { Check, Clapperboard, LucidePlay, Share2 } from 'lucide-react'
+import { Check, Clapperboard, LucidePlay, Share2, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
@@ -358,6 +358,76 @@ const style = css`
       overflow-wrap: anywhere;
     }
   }
+
+  & > .body > .main .themes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 1.4rem;
+
+    & > li {
+      padding: 0.8rem;
+      border-radius: 0.6rem;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .theme {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .toggle {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.2rem;
+      height: 3.2rem;
+      padding: 0;
+      border-radius: 50%;
+      border: 0;
+    }
+
+    button.toggle {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .kind {
+      flex: none;
+      min-width: 3.6rem;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .song {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .artists {
+      flex: 1 1 0;
+      min-width: 0;
+      text-align: right;
+      color: rgba(255, 255, 255, 0.55);
+      overflow-wrap: anywhere;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      max-width: 48rem;
+      aspect-ratio: 16 / 9;
+      margin-top: 0.8rem;
+      border-radius: 0.4rem;
+      background: #000;
+    }
+  }
 `
 
 type Credit = { name: string, image?: string | null, url?: string | null }
@@ -422,6 +492,49 @@ const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) =
         ))}
       </ul>
       {staff.length > SHOWN && !all ? <button type="button" className="more" onClick={() => setAll(true)}>Show all</button> : undefined}
+    </section>
+  )
+}
+
+type Theme = { kind: string, sequence?: number | null, title?: string | null, artists: string[], video?: string | null }
+
+const ThemeVideo = ({ url }: { url: string }) => {
+  const video = useRef<HTMLVideoElement>(null)
+  // mounted by a click on Play, so starting it is that click's doing
+  useEffect(() => { video.current?.play().catch(() => {}) }, [])
+  return <video ref={video} src={url} controls playsInline/>
+}
+
+/** Each opening, ending and insert song, with one of them playing at a time under its row. */
+const Themes = ({ themes }: { themes: Theme[] }) => {
+  const [playing, setPlaying] = useState<number>()
+  return (
+    <section data-themes>
+      <h2>Themes</h2>
+      <ul className="themes">
+        {themes.map((theme, index) => {
+          const url = theme.video
+          return (
+            <li key={index}>
+              <div className="theme">
+                {
+                  url
+                    ? (
+                      <button type="button" className="toggle" aria-label={playing === index ? 'Stop' : 'Play'} onClick={() => setPlaying(playing === index ? undefined : index)}>
+                        {playing === index ? <Square size={14} fill="currentColor"/> : <LucidePlay size={14} fill="currentColor"/>}
+                      </button>
+                    )
+                    : <span className="toggle"/>
+                }
+                <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
+                <span className="song">{theme.title}</span>
+                <span className="artists">{theme.artists.join(', ')}</span>
+              </div>
+              {playing === index && url ? <ThemeVideo url={url}/> : undefined}
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }
@@ -603,6 +716,7 @@ const TitlePage = () => {
           }
           {media?.characters?.length ? <Characters characters={media.characters}/> : undefined}
           {media?.staff?.length ? <Staff staff={media.staff}/> : undefined}
+          {media?.themes?.length ? <Themes themes={media.themes}/> : undefined}
         </div>
       </div>
     </div>

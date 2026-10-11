@@ -273,6 +273,7 @@ const nodeOf = (member: MemberRow): Record<string, unknown> => ({
   handles: [],
   episodes: [],
   credits: undefined,
+  themes: undefined,
 })
 
 const SCALARS = [
@@ -417,6 +418,12 @@ export const aggregateFields = (options: {
   const franchiseFrom = owned.find(member => member.raw.franchise !== null && member.raw.franchise !== undefined)
   row.franchise = franchiseFrom ? franchiseFrom.raw.franchise : null
   if (franchiseFrom) provenance.push({ field: 'franchise', uri: franchiseFrom.uri, rule: 'first-supplier' })
+
+  const themesFrom = owned.find(member => Array.isArray(member.raw.themes) && member.raw.themes.length)
+  if (themesFrom) {
+    row.themes = themesFrom.raw.themes
+    provenance.push({ field: 'themes', uri: themesFrom.uri, rule: 'first-supplier' })
+  }
 
   // the narrative axis: deduped on the pair, and every edge pointing back inside the cluster dropped,
   // because a media drawn as its own alternative navigates to the page it is on (`aggregate.ts:243-247`)

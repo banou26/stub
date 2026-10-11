@@ -179,6 +179,13 @@ export const GET_MEDIA_DETAILS = gql(`
         url
         roles
       }
+      themes @include(if: $details) {
+        kind
+        sequence
+        title
+        artists
+        video
+      }
     }
   }
 `)
