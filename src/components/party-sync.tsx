@@ -5,6 +5,7 @@ import { party } from '../party'
 import { cancelReset } from '../router/scroll-reset'
 import { scrollFraction, scrollRoom, scrollTo } from '../party/scroll'
 import { PARTY_PATH } from '../party/invite'
+import { getRoutePath, Route } from '../router/path'
 import { useParty, usePartyMessages } from '../party/use-party'
 
 // Where the host is, followed. Mounted once at the router root, so it outlives every page: a party
@@ -40,12 +41,20 @@ const PartySync = () => {
 
   // The host: every move goes out, and the latest is what a joiner is told. Except the party's own
   // page: a host there is managing the door, not taking the party somewhere, and a follower dragged
-  // to it would find nothing to follow.
+  // to it would find nothing to follow. On the search page a move goes out once the url has held for
+  // 350 ms, because the search box writes it on every keystroke and the room admits ten messages a
+  // second, so the last navs of a fast typist, the ones carrying the finished query, would be refused.
   const atTheDoor = location === PARTY_PATH
+  const searching = location === getRoutePath(Route.SEARCH)
   useEffect(() => {
     if (role !== 'host' || atTheDoor) return
-    party.setLocation(path, scrollFraction())
-    party.send({ t: 'nav', path })
+    const send = () => {
+      party.setLocation(path, scrollFraction())
+      party.send({ t: 'nav', path })
+    }
+    if (!searching) return send()
+    const timer = setTimeout(send, 350)
+    return () => clearTimeout(timer)
   }, [role, path, atTheDoor])
 
   useEffect(() => {
