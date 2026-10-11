@@ -1,4 +1,4 @@
-import type { Control, PartyMessage, PlaybackState } from './protocol'
+import type { PlaybackState, PlayerAsk, PlayerControl } from './protocol'
 
 // How a follower's player is moved to match the host's. Pure and import-free so the tolerance can be
 // pinned: it is the one number that decides between a follower that stutters every heartbeat and
@@ -132,8 +132,8 @@ export const ASK_THROTTLE_MS = 250
  * the player. `rate` is a speed more than a nudge from the last report's (menus step 0.25, and the
  * player's own nudge can land after the host's new speed) that is neither `wanted`'s nor a nudge of it.
  */
-export const personAction = (previous: PlaybackState, report: PlaybackState, wanted: LocalPlayback): Control[] => {
-  const used: Control[] = []
+export const personAction = (previous: PlaybackState, report: PlaybackState, wanted: LocalPlayback): PlayerControl[] => {
+  const used: PlayerControl[] = []
   if (report.paused !== previous.paused && report.paused !== wanted.paused) used.push('play')
   const jumped = report.time < previous.time - NUDGE_FLOOR_S || report.time > expectedTime(previous, report.at, true) + SEEK_TOLERANCE_S
   if (jumped && Math.abs(report.time - wanted.time) > SEEK_TOLERANCE_S) used.push('seek')
@@ -147,7 +147,7 @@ export const personAction = (previous: PlaybackState, report: PlaybackState, wan
  * seek's age is capped as an unmeasured report's is, so an ask that took long to arrive moves the host
  * at most that far past where the person put it.
  */
-export const askedState = (own: PlaybackState, ask: Extract<PartyMessage, { t: 'ask' }>, now: number): PlaybackState | undefined => {
+export const askedState = (own: PlaybackState, ask: PlayerAsk, now: number): PlaybackState | undefined => {
   const current = advance(own, own.at, now)
   if (ask.c === 'play') return own.paused === ask.s.paused ? undefined : { ...current, paused: ask.s.paused }
   if (ask.c === 'rate') return sameRate(own.rate, ask.s.rate) ? undefined : { ...current, rate: ask.s.rate }

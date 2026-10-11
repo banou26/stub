@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
-import type { Grants, PartyMessage, PlaybackState } from '../../../src/party/protocol'
+import type { Grants, PartyMessage, PlaybackState, PlayerAsk } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -43,7 +43,7 @@ const paused = (time: number) => ({ paused: true, time, rate: 1 })
 let seq = 0
 const say = (fake: ReturnType<typeof fakeRoom>, from: string, message: PartyMessage) =>
   act(() => { seq++; fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
-const asks = (fake: ReturnType<typeof fakeRoom>) => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'ask')
+const asks = (fake: ReturnType<typeof fakeRoom>) => fake.sent.map(text => decodePartyMessage(text)).filter((message): message is PlayerAsk => message?.t === 'ask' && message.c !== 'go')
 const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 
 const hosts: HTMLElement[] = []
@@ -287,6 +287,16 @@ describe('the host', () => {
     expect(player.link.apply).toHaveBeenLastCalledWith({ paused: false, time: 40, rate: 1, at: NOW }, true)
     say(fake, 'ann', { t: 'ask', c: 'rate', path: PATH, s: { ...playing(10), rate: 1.5, at: Date.now() } })
     expect(player.link.apply).toHaveBeenLastCalledWith({ paused: false, time: 10, rate: 1.5, at: NOW }, true)
+  })
+
+  // a go names a page, not a player state: PartySync takes the host there, and the player is left alone
+  test('a granted go for the host\'s own page is not for the host\'s player', async () => {
+    const { fake, player } = await host()
+    current.store.setGrants({ all: ['go'], by: {} })
+    say(fake, 'host', decodePartyMessage(fake.sent.at(-1)!)!)
+    player.report(playing(10))
+    say(fake, 'ann', { t: 'ask', c: 'go', path: PATH })
+    expect(player.link.apply).not.toHaveBeenCalled()
   })
 
   test('an ungranted seek ask is not for the host\'s player', async () => {

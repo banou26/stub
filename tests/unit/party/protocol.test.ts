@@ -20,6 +20,7 @@ describe('encode and decode', () => {
       { t: 'ask', c: 'play', path: '/watch/a/b', s: PLAYBACK },
       { t: 'ask', c: 'seek', path: '/watch/a/b', s: PLAYBACK },
       { t: 'ask', c: 'rate', path: '/watch/a/b', s: { ...PLAYBACK, rate: 1.5 } },
+      { t: 'ask', c: 'go', path: '/watch/a/b/c?at=1' },
       { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['seek', 'rate'], by: { sam: { seek: false }, ann: { rate: true } } } },
       { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: { sam: { play: false }, ann: {} } } },
     ]
@@ -86,6 +87,7 @@ describe('the two classes', () => {
     expect(isHostOnly({ t: 'chat', text: 'hi' })).toBe(false)
     expect(isHostOnly({ t: 'name', name: 'Ann' })).toBe(false)
     expect(isHostOnly({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe(false)
+    expect(isHostOnly({ t: 'ask', c: 'go', path: '/watch/a/b' })).toBe(false)
   })
 })
 
@@ -112,6 +114,16 @@ describe('grants', () => {
     }
   })
 
+  // a granted follower moves everyone with it, so it can name a watch page and nothing else
+  test('a go to anything but a watch page is dropped', () => {
+    for (const path of [
+      '/search?q=a', '//elsewhere/watch/a', '/watchlist', '/watch', '/', 'https://evil.example/watch/a',
+      '/watch/../party', '/watch/%2e%2e/settings', '/watch/..\\party', '/watch/a/../../search?q=x',
+    ]) {
+      expect(decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'ask', c: 'go', path })), path).toBeUndefined()
+    }
+  })
+
   test('allowed: a member\'s own entry wins, else all followers', () => {
     const grants = { all: ['play' as const], by: { sam: { play: false }, ann: {} } }
     expect(allowed(grants, 'ann', 'play')).toBe(true)
@@ -130,6 +142,7 @@ describe('grants', () => {
     expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.5 } })).toBe('set speed to 1.5x')
     expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 2 } })).toBe('set speed to 2x')
     expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.2999999 } })).toBe('set speed to 1.3x')
+    expect(actionText({ t: 'ask', c: 'go', path: '/watch/a/b' })).toBe('changed the episode')
   })
 })
 

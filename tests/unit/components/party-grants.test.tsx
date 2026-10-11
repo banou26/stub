@@ -12,7 +12,7 @@ import { api, fakeRoom, memoryStorage } from '../party/fake-room'
 
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ Check: () => null, FastForward: () => null, Gauge: () => null, MessageCircle: () => null, Play: () => null, Send: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ Check: () => null, Clapperboard: () => null, FastForward: () => null, Gauge: () => null, MessageCircle: () => null, Play: () => null, Send: () => null, X: () => null }))
 vi.mock('../../../src/party', () => ({ party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }) }))
 
 const { default: PartyGrants } = await import('../../../src/components/party-grants')
@@ -80,13 +80,14 @@ describe('the host hands out controls', () => {
     expect(current.store.issued()).toEqual({ all: [], by: {} })
   })
 
-  test('Seek and Speed are columns of their own, three-state like Play/pause', async () => {
+  test('Seek, Episode and Speed are columns of their own, three-state like Play/pause', async () => {
     const { click, cell, host } = await hosting()
-    expect([...host.querySelectorAll('thead th')].map(th => th.getAttribute('title'))).toEqual([null, 'Play/pause', 'Seek', 'Speed'])
+    expect([...host.querySelectorAll('thead th')].map(th => th.getAttribute('title'))).toEqual([null, 'Play/pause', 'Seek', 'Episode', 'Speed'])
     click('All followers', 'Seek')
     click('Ann', 'Speed')
     click('sam123', 'Seek')
-    expect(current.store.issued()).toEqual({ all: ['seek'], by: { ann: { rate: true }, sam1234567: { seek: false } } })
+    click('Ann', 'Episode')
+    expect(current.store.issued()).toEqual({ all: ['seek'], by: { ann: { rate: true, go: true }, sam1234567: { seek: false } } })
     expect(cell('Ann', 'Seek').dataset.grant).toBe('all')
     expect(cell('sam123', 'Seek').dataset.grant).toBe('off')
     expect(cell('Ann', 'Play/pause').getAttribute('aria-pressed')).toBe('false')

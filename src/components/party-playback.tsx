@@ -1,6 +1,6 @@
 import type { PlaybackLink } from '../party/bridge'
 import type { PlaybackState } from '../party'
-import type { Control, PartyMessage } from '../party/protocol'
+import type { PlayerAsk, PlayerControl } from '../party/protocol'
 
 import { useEffect, useRef } from 'preact/hooks'
 
@@ -42,7 +42,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   // a correction seek is the player's until it lands, however long that takes: a torrent player seeking
   // into a range it has not buffered can take longer than SETTLE_MS
   const seekingTo = useRef<number | undefined>(undefined)
-  const throttled = useRef(new Map<Control, { sentAt: number, next?: Extract<PartyMessage, { t: 'ask' }>, timer?: ReturnType<typeof setTimeout> }>())
+  const throttled = useRef(new Map<PlayerControl, { sentAt: number, next?: PlayerAsk, timer?: ReturnType<typeof setTimeout> }>())
 
   const apply = (target: PlaybackState, measured: boolean) => {
     if (!link) return
@@ -59,7 +59,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
     const heard = wanted.current
     if (heard) apply(advance(heard.state, heard.receivedAt, Date.now()), heard.measured)
   }
-  const ask = (controls: Control[], reported: PlaybackState) => {
+  const ask = (controls: PlayerControl[], reported: PlaybackState) => {
     const clock = party.hostClock()
     const s = clock ? { ...reported, at: toHostTime(reported.at, clock.offset) } : reported
     for (const c of controls) {
@@ -120,7 +120,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   usePartyMessages(message => {
     if (role === 'host') {
       // the store already dropped an ask its sender was not granted
-      if (message.t !== 'ask' || message.path !== here() || !link || !last.current) return
+      if (message.t !== 'ask' || message.c === 'go' || message.path !== here() || !link || !last.current) return
       const target = askedState(last.current, message, Date.now())
       if (target) link.apply(target, true)
       return

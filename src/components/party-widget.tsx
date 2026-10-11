@@ -3,15 +3,15 @@ import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useClick, useDismiss, useFloating, useInteractions, useRole,
 } from '@floating-ui/react'
-import { Check, Copy, LogOut, Radio, Users } from 'lucide-react'
-import { useLocation } from 'wouter'
+import { Check, Copy, LogOut, Play, Radio, Users } from 'lucide-react'
+import { useLocation, useSearch } from 'wouter'
 
 import { getRoutePath, Route } from '../router/path'
 import { useEffect, useState } from 'preact/hooks'
 
 import { party, partyLink } from '../party'
-import { CONTROLS } from '../party/protocol'
-import { useParty } from '../party/use-party'
+import { CONTROLS, isWatchPath } from '../party/protocol'
+import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
 import PartyGrants, { CONTROL_LABEL } from './party-grants'
 
@@ -176,7 +176,12 @@ const PartyWidget = () => {
   const state = useParty()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [, navigate] = useLocation()
+  const [page, navigate] = useLocation()
+  const search = useSearch()
+  const here = search ? `${page}?${search}` : page
+  // Play for everyone reads the host's page from the store, which moves on these and re-renders nothing
+  const [, heard] = useState(0)
+  usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state') heard(n => n + 1) })
   const toParty = () => { setOpen(false); navigate(getRoutePath(Route.PARTY)) }
 
   const { refs, floatingStyles, context } = useFloating({
@@ -213,6 +218,7 @@ const PartyWidget = () => {
 
   const live = state.status === 'active'
   const can = CONTROLS.filter(control => party.may(control))
+  const playHere = can.includes('go') && isWatchPath(here) && here !== party.hostPath()
   const label =
     state.status === 'joining' ? 'Joining…'
     : state.status === 'active' ? (state.role === 'host' ? 'Hosting' : 'Following')
@@ -264,6 +270,11 @@ const PartyWidget = () => {
                   </div>
                   {can.length > 0 && (
                     <div className="can">You can {can.map(control => <span key={control} className="badge">{CONTROL_LABEL[control]}</span>)}</div>
+                  )}
+                  {playHere && (
+                    <div className="actions">
+                      <button type="button" onClick={() => { party.send({ t: 'ask', c: 'go', path: here }); setOpen(false) }}><Play size={14}/> Play for everyone</button>
+                    </div>
                   )}
                   <div className="actions">
                     <button type="button" className="primary" onClick={() => { party.replay(); setOpen(false) }}>Catch up</button>

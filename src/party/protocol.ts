@@ -10,8 +10,10 @@ export type PlaybackState = {
 }
 
 /** A control the host can hand out to followers. Each one joins the list in the change that wires it. */
-export type Control = 'play' | 'seek' | 'rate'
-export const CONTROLS: readonly Control[] = ['play', 'seek', 'rate']
+export type Control = 'play' | 'seek' | 'rate' | 'go'
+export const CONTROLS: readonly Control[] = ['play', 'seek', 'go', 'rate']
+/** The controls a follower uses on its player, whose ask carries the player's state. */
+export type PlayerControl = Exclude<Control, 'go'>
 
 /**
  * Who may use which control. `all` is every follower; `by` is per member, where `true` gives a control,
@@ -34,8 +36,9 @@ export const allowed = (grants: Grants, id: string, control: Control): boolean =
  * ANYONE: `chat` is a line of text for the room, `name` is what the sender wants to be called,
  * `ping` is a follower timing a round trip so it can tell the host's clock from its own, and `ask` is
  * a follower asking the host to use a control: `s` is the asker's player right after the person acted
- * (its `at` on the host's clock once measured), `path` the page it acted on. Only the host acts on an
- * ask, and every member drops one whose sender the last `grants` do not allow.
+ * (its `at` on the host's clock once measured), `path` the page it acted on. A `go` ask carries only
+ * the watch page the follower wants the party on. Only the host acts on an ask, and every member
+ * drops one whose sender the last `grants` do not allow.
  *
  * `state.grants` is who may use what; absent is nobody.
  *
@@ -49,11 +52,15 @@ export type PartyMessage =
   | { t: 'cursor', x: number, y: number }
   | { t: 'playback', s: PlaybackState }
   | { t: 'state', path: string, y: number, s?: PlaybackState, grants?: Grants }
-  | { t: 'ask', c: 'play' | 'seek' | 'rate', path: string, s: PlaybackState }
+  | { t: 'ask', c: PlayerControl, path: string, s: PlaybackState }
+  | { t: 'ask', c: 'go', path: string }
   | { t: 'chat', text: string }
   | { t: 'name', name: string }
   | { t: 'ping', n: number, at: number }
   | { t: 'pong', n: number, at: number, host: number }
+
+/** An ask about the follower's player, as opposed to where the party is. */
+export type PlayerAsk = Extract<PartyMessage, { t: 'ask', c: PlayerControl }>
 
 const HOST_ONLY: ReadonlySet<PartyMessage['t']> = new Set(['nav', 'scroll', 'cursor', 'playback', 'state', 'pong'])
 
@@ -124,6 +131,7 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
       return { t: 'state', path: value.path, y: value.y, ...value.s ? { s: value.s } : {}, ...grants ? { grants } : {} }
     }
     case 'ask':
+      if (value.c === 'go') return isWatchPath(value.path) ? { t: 'ask', c: 'go', path: value.path } : undefined
       return isControl(value.c) && isAppPath(value.path) && isPlaybackState(value.s)
         ? { t: 'ask', c: value.c, path: value.path, s: value.s }
         : undefined
@@ -159,7 +167,8 @@ const MAX_GRANTED = 100
 
 /** What an ask did, as a chat line says it after the member's name. */
 export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string =>
-  ask.c === 'seek' ? `skipped to ${clockText(ask.s.time)}`
+  ask.c === 'go' ? 'changed the episode'
+  : ask.c === 'seek' ? `skipped to ${clockText(ask.s.time)}`
   : ask.c === 'rate' ? `set speed to ${Number(ask.s.rate.toFixed(2))}x`
   : ask.s.paused ? 'paused' : 'resumed'
 
@@ -185,6 +194,13 @@ export const isAppPath = (value: unknown): value is string =>
   && !value.startsWith('//')
   && !value.startsWith('/\\')
   && !/[\r\n\t]/.test(value)
+
+/**
+ * Whether a path is a watch page, the only place a follower can ask the party to go. Read on the path
+ * the browser resolves, since a dot segment (`/watch/../party`, `%2e%2e`, a backslash) leaves the prefix.
+ */
+export const isWatchPath = (value: unknown): value is string =>
+  isAppPath(value) && new URL(value, 'https://stub.invalid').pathname.startsWith('/watch/')
 
 /**
  * A number a clock exchange may carry.

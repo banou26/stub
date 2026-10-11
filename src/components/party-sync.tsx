@@ -175,6 +175,11 @@ const PartySync = () => {
   }
 
   usePartyMessages((message, { replayed }) => {
+    // the store already dropped a go its sender was not granted, and the nav above takes everyone along
+    if (role === 'host') {
+      if (message.t === 'ask' && message.c === 'go' && message.path !== path) navigate(message.path)
+      return
+    }
     if (role !== 'guest') return
     switch (message.t) {
       case 'nav':
