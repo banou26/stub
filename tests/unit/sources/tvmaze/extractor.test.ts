@@ -41,6 +41,7 @@ const DATED_SHOW = {
       { id: 771, name: 'a day', season: 1, number: 1, airdate: '2021-01-11' },
       { id: 772, name: 'a day and an instant', season: 1, number: 2, airdate: '2021-01-18', airstamp: '2021-01-18T15:30:00+09:00' },
       { id: 773, name: 'no date at all', season: 1, number: 3, airdate: null },
+      { id: 774, name: 'TBA', season: 1, number: 4, airdate: '2021-02-01' },
     ],
   },
 }
@@ -208,7 +209,7 @@ test('an episode carries the date tvmaze published, a day as a day and an instan
   const media = await mediaFor('tvmaze:77')
   const dates = (media.episodes as { releaseDate?: string }[]).map(episode => episode.releaseDate)
 
-  expect(dates).toEqual(['2021-01-11', '2021-01-18T06:30:00.000Z', undefined])
+  expect(dates).toEqual(['2021-01-11', '2021-01-18T06:30:00.000Z', undefined, '2021-02-01'])
 })
 
 test('an episode tvmaze has no date for carries none', async () => {
@@ -216,6 +217,14 @@ test('an episode tvmaze has no date for carries none', async () => {
   const undated = (media.episodes as { releaseDate?: string }[])[2]
 
   expect(undated!.releaseDate, 'a missing date is left missing, never invented').toBeUndefined()
+})
+
+// tvmaze names an episode not yet titled "TBA" (The Simpsons episode 5 of its 2026 season, measured 2026-10-11)
+test('an episode named TBA carries no title', async () => {
+  const media = await mediaFor('tvmaze:77')
+  const titles = (media.episodes as { titles: { title: string }[] }[]).map(episode => episode.titles.map(({ title }) => title))
+
+  expect(titles).toEqual([['a day'], ['a day and an instant'], ['no date at all'], []])
 })
 
 // THE NO-COUNT SITE. `aggregateMedia` always emits `episodes: []`, so reading a count off that list

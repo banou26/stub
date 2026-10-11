@@ -115,7 +115,7 @@ const normalizeEpisode = (episode: TvmazeEpisode, mediaUri: string): GQLEpisode 
     id: String(episode.id),
     mediaUri,
     score: SCORE,
-    titles: episode.name ? [{ language: 'en', title: episode.name, score: SCORE }] : [],
+    titles: episode.name && episode.name !== 'TBA' ? [{ language: 'en', title: episode.name, score: SCORE }] : [],
     ...desc(text(episode.summary), SCORE),
     thumbnails: img(episode.image?.original ?? episode.image?.medium, SCORE),
     seasonNumber: episode.season,
