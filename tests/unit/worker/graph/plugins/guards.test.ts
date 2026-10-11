@@ -11,7 +11,7 @@
  * half the rule: the refusal is a `LINK` row with a status, and the downgrade is a second row of
  * another kind, and both of those are statements the binder either takes or refuses.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import type { LinkProposal, PluginId, Scope } from '../../../../../src/worker/graph/plugins/contract'
 

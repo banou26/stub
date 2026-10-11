@@ -9,7 +9,7 @@
 // Crunchyroll's offers are `/watch/<episodeId>` urls that get resolved through Crunchyroll itself.
 // That resolution answers with the season of THAT episode, which is one specific season of the show,
 // and the show-level offer hands it to every season media alike, so a pinned season never takes it.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
 import { resolvers } from '../../../../src/sources/justwatch/extractor'
