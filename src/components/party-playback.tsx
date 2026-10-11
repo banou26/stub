@@ -1,3 +1,4 @@
+import type { TracksLink } from '../embed-tracks'
 import type { PlaybackLink } from '../party/bridge'
 import type { PlaybackState } from '../party'
 import type { PlayerAsk, PlayerControl } from '../party/protocol'
@@ -29,7 +30,7 @@ const here = () => location.pathname + location.search
 // change made without one is not the person's.
 const byPerson = () => navigator.userActivation?.isActive ?? true
 
-const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
+const PartyPlayback = ({ link }: { link: PlaybackLink | undefined, tracks?: TracksLink }) => {
   const state = useParty()
   const role = state.status === 'active' ? state.role : undefined
   const following = party.following()

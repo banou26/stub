@@ -20,6 +20,9 @@ const dom = parseHTML('<!doctype html><html><head></head><body></body></html>')
 // document with no constructors beside it gets that null cache all the same.
 const { CustomEvent, DocumentFragment, Element, Event, HTMLElement, Node, SVGElement, Text } = dom
 
+// a top-level page, as a browser has it: linkedom's window has no `parent`
+Object.assign(dom.window, { parent: dom.window })
+
 Object.assign(globalThis, {
   document: dom.document,
   window: dom.window,

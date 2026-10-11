@@ -1,14 +1,16 @@
 import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
+import type { EmbedTracks } from '../../embed-tracks'
 import type { PlayerProps } from '../players'
-import type { CrunchyrollTrackKind, CrunchyrollTracks } from './cr-native-controls'
+import type { CrunchyrollTrackKind, CrunchyrollTrackSelection, CrunchyrollTracks } from './cr-native-controls'
 import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
 import { css, keyframes } from '@emotion/react'
 import { attachFrame } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { serveEmbedTracks } from '../../embed-tracks'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
@@ -184,6 +186,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
   const [windowOpen, setWindowOpen] = useState(false)
   const windowPending = useRef(false)
   const [tracks, setTracks] = useState<CrunchyrollTracks>()
+  const [switching, setSwitching] = useState(0)
   const [thumbnails, setThumbnails] = useState<CrunchyrollThumbnails>()
   const chapters = useCrunchyrollChapters(url, remoteVideo)
   const pictureInPicture = useCrunchyrollPictureInPicture(frame, remoteVideo, iframe)
@@ -363,6 +366,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     if (!frame || !remoteVideo) return Promise.reject(new Error('Crunchyroll player is not ready'))
     const isCancelled = () => !mounted.current || trackSession !== trackGeneration.current
 
+    setSwitching(count => count + 1)
     return runTrackOperation(trackSession, async () => {
       try {
         const nextTracks = await selectCrunchyrollTrack(frame, remoteVideo, kind, id, isCancelled)
@@ -377,7 +381,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
         }
         throw err
       }
-    })
+    }).finally(() => setSwitching(count => count - 1))
   }, [frame, remoteVideo, runTrackOperation, trackSession])
 
   // Crunchyroll's own track shape is already a DelegatedSelection but for the callback name, so this
@@ -398,6 +402,18 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       selection: { ...tracks.audio, select: (id: string | null) => selectTrack('audio', id) },
     },
     [tracks?.audio, selectTrack],
+  )
+
+  const served = useMemo<EmbedTracks>(() => {
+    const listOf = (selection: CrunchyrollTrackSelection | undefined) => selection && {
+      ids: selection.options.filter(option => !option.disabled).map(option => option.id),
+      selected: selection.selectedId,
+    }
+    return { subtitles: listOf(tracks?.subtitles), audio: listOf(tracks?.audio), busy: switching > 0 }
+  }, [tracks, switching])
+  useEffect(
+    () => serveEmbedTracks(served, (kind, id) => { selectTrack(kind, id).catch(() => {}) }),
+    [served, selectTrack],
   )
 
   // the extension frame shares the user's real browser session, so a popup on the real site sets the cookie the frame uses

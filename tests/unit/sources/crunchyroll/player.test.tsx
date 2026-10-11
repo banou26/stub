@@ -2,7 +2,10 @@
 // reads at module scope. See the file for what happens when it does not.
 import { button, mount, unmount } from '../../components/dom'
 
+import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, GotoOptions } from '@fkn/lib'
+import type { EmbedTracks, TrackKind } from '../../../../src/embed-tracks'
+import type { CrunchyrollTracks } from '../../../../src/sources/crunchyroll/cr-native-controls'
 import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
 
@@ -26,8 +29,24 @@ vi.mock('../../../../src/sources/login-window', () => ({ signInThroughWindow: si
 vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
 
 // the media player skin needs a real media to draw anything, and none of it is under test here
+// beyond the audio tracks its menu is handed
+const skin = vi.hoisted(() => ({ audioTracks: undefined as DelegatedTracks | undefined }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
-  default: ({ children }: { children?: ComponentChildren }) => <div className="skin">{children}</div>,
+  default: ({ children, audioTracks }: { children?: ComponentChildren, audioTracks?: DelegatedTracks }) => {
+    skin.audioTracks = audioTracks
+    return <div className="skin">{children}</div>
+  },
+}))
+
+// the channel to the watch page, captured: what the player serves and the pick it hands over
+const served = vi.hoisted(() => vi.fn((..._args: unknown[]) => () => {}))
+vi.mock('../../../../src/embed-tracks', () => ({ serveEmbedTracks: served }))
+
+const controls = vi.hoisted(() => ({ discover: vi.fn(), select: vi.fn() }))
+vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../../src/sources/crunchyroll/cr-native-controls')>(),
+  discoverCrunchyrollTracks: controls.discover,
+  selectCrunchyrollTrack: controls.select,
 }))
 
 const { default: CrunchyrollPlayer } = await import('../../../../src/sources/crunchyroll/player')
@@ -274,4 +293,75 @@ describe('the sign-in state the page settles on', () => {
     await vi.waitFor(() => expect(host.textContent).toContain('The page went away'), { timeout: 5_000 })
     expect(recorded()).toEqual([])
   })
+})
+
+// what the watch page is told, for a party to follow: the tracks by id, and busy while a switch runs
+describe('the tracks served to the watch page', () => {
+  const TRACKS: CrunchyrollTracks = {
+    subtitles: { options: [{ id: 'English', label: 'English' }, { id: 'Deutsch', label: 'Deutsch' }], selectedId: 'English', offLabel: 'Off' },
+    audio: { options: [{ id: 'Japanese', label: 'Japanese' }, { id: 'English#2', label: 'English' }], selectedId: 'Japanese' },
+  }
+  const lastServed = () => served.mock.calls.at(-1) as [EmbedTracks, (kind: TrackKind, id: string | null) => void]
+
+  // a signed-in page whose video is up, so the player discovers its tracks
+  const playing = async () => {
+    lib.extension = true
+    frame.locator = (selector: string) => ({
+      exists: async () => selector === '#user-menu-authenticated' || selector === 'video',
+      videoElement: async () => Object.assign(new EventTarget(), { duration: 1440 }),
+    }) as unknown as ReturnType<typeof frame.locator>
+    Object.assign(frame, { evaluate: () => new Promise(() => {}) })
+    await render()
+    await vi.waitFor(() => expect(lastServed()[0].subtitles).toBeTruthy(), { timeout: 5_000 })
+  }
+
+  beforeEach(() => {
+    served.mockClear()
+    controls.discover.mockReset().mockResolvedValue(TRACKS)
+    controls.select.mockReset()
+  })
+
+  test('both lists by id, with the subtitles off as null and a track Crunchyroll will not switch to left out', async () => {
+    const subtitles = { ...TRACKS.subtitles!, options: [...TRACKS.subtitles!.options, { id: 'Italiano', label: 'Italiano', disabled: true }], selectedId: null }
+    controls.discover.mockResolvedValue({ ...TRACKS, subtitles })
+    await playing()
+    expect(lastServed()[0]).toEqual({
+      subtitles: { ids: ['English', 'Deutsch'], selected: null },
+      audio: { ids: ['Japanese', 'English#2'], selected: 'Japanese' },
+      busy: false,
+    })
+  })
+
+  test('a pick from the page switches that kind of track', async () => {
+    controls.select.mockResolvedValue(TRACKS)
+    await playing()
+    lastServed()[1]('subtitles', 'Deutsch')
+    lastServed()[1]('audio', 'English#2')
+    await vi.waitFor(() => expect(controls.select).toHaveBeenCalledTimes(2))
+    expect(controls.select.mock.calls.map(([, , kind, id]) => [kind, id])).toEqual([['subtitles', 'Deutsch'], ['audio', 'English#2']])
+  })
+
+  test('busy while a switch from the player\'s own menu runs', async () => {
+    const done = Promise.withResolvers<CrunchyrollTracks>()
+    controls.select.mockReturnValue(done.promise)
+    await playing()
+    void skin.audioTracks!.selection.select('English#2')
+    await vi.waitFor(() => expect(lastServed()[0].busy).toBe(true))
+    done.resolve(TRACKS)
+    await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
+  })
+
+  for (const outcome of ['succeeds', 'fails'] as const) {
+    test(`busy while a switch runs, and not once it ${outcome}`, async () => {
+      const done = Promise.withResolvers<CrunchyrollTracks>()
+      controls.select.mockReturnValue(done.promise)
+      await playing()
+      lastServed()[1]('audio', 'English#2')
+      await vi.waitFor(() => expect(lastServed()[0].busy).toBe(true))
+
+      if (outcome === 'succeeds') done.resolve(TRACKS)
+      else done.reject(new Error('Crunchyroll did not apply the audio option'))
+      await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
+    })
+  }
 })

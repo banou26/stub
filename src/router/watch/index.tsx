@@ -16,6 +16,7 @@ import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { serveEmbedTitle } from '../../embed-title'
+import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { getRoutePath, Route } from '../path'
@@ -186,6 +187,7 @@ const Watch = () => {
   const embedFrame = useRef<HTMLIFrameElement>(null)
   // the player the page can hear and move, from whichever of the two below is up
   const [playbackLink, setPlaybackLink] = useState<PlaybackLink | undefined>(undefined)
+  const [tracksLink, setTracksLink] = useState<TracksLink | undefined>(undefined)
 
   const [{ data }] = useSubscription({
     query: GET_WATCH_MEDIA,
@@ -298,8 +300,15 @@ const Watch = () => {
     const iframe = embedFrame.current
     if (viaPlugin || !embedUrl || !iframe) return
     const link = attachPlaybackBridge(iframe)
+    const tracks = embedTracks(iframe)
     setPlaybackLink(link)
-    return () => { link.dispose(); setPlaybackLink(undefined) }
+    setTracksLink(tracks)
+    return () => {
+      link.dispose()
+      tracks.dispose()
+      setPlaybackLink(undefined)
+      setTracksLink(undefined)
+    }
   }, [viaPlugin, embedUrl])
 
   useEffect(() => {
@@ -377,7 +386,7 @@ const Watch = () => {
             />
           )
           : undefined}
-        <PartyPlayback link={playbackLink}/>
+        <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 
         <div className="watch-info">
           <div className="episode-info">
