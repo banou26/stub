@@ -1,13 +1,17 @@
-// Playback sync through a source PLUGIN, across two real browser contexts and all three hops: stub's
-// page, the plugin's frame (a sandbox origin), and ripple's embed inside it. A host and a guest open
-// the same nyaa release through the plugin, the host's player is paused and moved from inside its
-// embed frame, and the guest's embed is read back to see it follow.
+// Playback sync through a source PLUGIN, across three real browser contexts and all three hops: stub's
+// page, the plugin's frame (a sandbox origin), and ripple's embed inside it. A host and two followers
+// open the same nyaa release through the plugin, the host's player is paused and moved from inside its
+// embed frame, and the followers' embeds are read back to see them follow. Then the host hands
+// Play/pause to all followers, follower A pauses, and the host and follower B have to pause with it,
+// with the line in all three chats; A's pause to B's pause is logged in ms. The control runs first:
+// without the grant, B never pauses and A is resumed.
 //
 // HEADFUL. The players stream a torrent, and a headless Chromium never gets past "Loading metadata…"
 // (measured 2026-08-05), so this needs a compositor: `xvfb-run -s "-screen 0 1280x720x24"` when the
 // owner is at the machine. Muted, always.
 //
-//   STUB_ORIGIN=http://localhost:4560 node scripts/check-party-plugin-playback.mjs
+//   STUB_ORIGIN=http://localhost:4560 env -u WAYLAND_DISPLAY -u NIXOS_OZONE_WL \
+//     xvfb-run -s "-screen 0 1280x720x24" node scripts/check-party-plugin-playback.mjs
 //
 // READ THE LAST LINE, NOT THE EXIT CODE, when running this under xvfb-run: that wrapper exits 1
 // whatever happened (measured on this machine, see agent conventions/lessons/verification.md), so a
@@ -43,6 +47,13 @@ const ok = (label, detail = '') => console.log(`  ok    ${label}${detail ? `  ($
 const bad = (label, detail = '') => { failures++; console.log(`  FAIL  ${label}${detail ? `  (${detail})` : ''}`) }
 const check = (condition, label, detail) => condition ? ok(label, detail) : bad(label, detail)
 
+/**
+ * The first reading `want` accepts, or undefined once the budget runs out.
+ *
+ * Undefined rather than the last reading: every caller checks the result for truth, and a last
+ * reading is an object, so "the second guest paused" printed ok over `{"paused":false}` (2026-10-11).
+ * The last reading is printed instead, since it is what says why.
+ */
 const until = async (read, want, timeout = 60_000, every = 500) => {
   const started = Date.now()
   let last
@@ -53,11 +64,12 @@ const until = async (read, want, timeout = 60_000, every = 500) => {
     if (want(last)) return last
     await new Promise(resolve => setTimeout(resolve, every))
   }
-  return last
+  console.log(`  ..    gave up waiting, last read ${JSON.stringify(last)?.slice(0, 160)}`)
+  return undefined
 }
 
-/** The ripple embed frame inside a page, once it exists. */
-const embedOf = page => page.frames().find(frame => /torrent\.fkn\.app\/embed/.test(frame.url()))
+/** The ripple player frame inside a page, once it exists. Ripple's player route is `/watch` since 2026-09-09. */
+const embedOf = page => page.frames().find(frame => /torrent\.fkn\.app\/watch/.test(frame.url()))
 
 /** What the video in a page's embed is doing, or undefined before there is one. */
 const videoOf = async page => {
@@ -98,11 +110,12 @@ const run = async () => {
   const browser = await chromium.launch({
     headless: false,
     executablePath: chromePath(),
-    args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'],
+    args: ['--mute-audio', '--ozone-platform=x11', '--autoplay-policy=no-user-gesture-required'],
   })
   const host = await browser.newContext().then(context => context.newPage())
   const guest = await browser.newContext().then(context => context.newPage())
-  for (const [name, page] of [['host', host], ['guest', guest]]) {
+  const other = await browser.newContext().then(context => context.newPage())
+  for (const [name, page] of [['host', host], ['guest', guest], ['second guest', other]]) {
     page.on('pageerror', error => bad(`an uncaught page error on the ${name}`, String(error).slice(0, 160)))
   }
 
@@ -117,7 +130,7 @@ const run = async () => {
     hosting = await until(() => widget(host).innerText(), text => /Hosting|Joining/.test(text), 4_000)
   }
   hosting = await until(() => widget(host).innerText(), text => /Hosting/.test(text), 30_000)
-  check(/Hosting/.test(hosting), 'the host is hosting', hosting.replace(/\s+/g, ' '))
+  check(/Hosting/.test(hosting), 'the host is hosting', String(hosting).replace(/\s+/g, ' '))
   if (!/Hosting/.test(hosting)) { console.log('\nRIG BLIND: no party'); await browser.close(); process.exit(2) }
   await widget(host).dispatchEvent('click')
   const link = await host.getByRole('textbox', { name: 'Invite link' }).inputValue()
@@ -180,14 +193,53 @@ const run = async () => {
   const guestPlaying = await until(() => videoOf(guest), video => video && !video.paused && video.time > target, 60_000, 1_000)
   check(Boolean(guestPlaying), 'the guest is playing, ahead of where it paused', JSON.stringify(guestPlaying))
 
-  console.log('\nCONTROL: the guest’s own pause does not move the host')
+  console.log('\na second guest joins')
+  await other.goto(`${ORIGIN}${WATCH}?plugins=${PLUGIN}`, { waitUntil: 'domcontentloaded' })
+  check(await addTheSource(other), 'the second guest has the source before it joins')
+  await other.goto(link, { waitUntil: 'domcontentloaded' })
+  const otherPlaying = await until(() => videoOf(other), video => video && !video.paused && video.time > 0, 180_000, 1_000)
+  check(Boolean(otherPlaying), 'the second guest is playing with the party', JSON.stringify(otherPlaying))
+  if (!otherPlaying) { console.log('\nRIG BLIND: the second guest never got a playing player'); await browser.close(); process.exit(2) }
+
+  console.log('\nCONTROL: without the grant, a guest’s own pause moves nobody and is undone')
   const hostBefore = await videoOf(host)
   await embedOf(guest).evaluate(() => document.querySelector('video').pause())
   await new Promise(resolve => setTimeout(resolve, 3_000))
   const hostAfter = await videoOf(host)
   check(hostAfter && !hostAfter.paused && hostAfter.time > hostBefore.time, 'the host kept playing', JSON.stringify(hostAfter))
+  const otherAfter = await videoOf(other)
+  check(otherAfter && !otherAfter.paused, 'the second guest kept playing', JSON.stringify(otherAfter))
   const guestBack = await until(() => videoOf(guest), video => video && !video.paused, 15_000)
-  check(Boolean(guestBack), 'and the guest was put back to playing by the next heartbeat', JSON.stringify(guestBack))
+  check(Boolean(guestBack), 'and the guest was put back to playing', JSON.stringify(guestBack))
+
+  console.log('\nthe host gives Play/pause to all followers, and a guest’s pause pauses the party')
+  await widget(host).dispatchEvent('click')
+  const cell = host.getByRole('button', { name: 'Play/pause, All followers' })
+  await cell.click()
+  check(await cell.getAttribute('aria-pressed') === 'true', 'the host gave Play/pause to all followers')
+  await host.keyboard.press('Escape')
+  // the grant reaches a follower on the next `state`, which the host sends at once
+  await widget(guest).dispatchEvent('click')
+  const can = await until(() => guest.getByText('Play/pause', { exact: true }).count(), count => count > 0, 10_000)
+  check(can > 0, 'the guest sees it can use Play/pause')
+  await guest.keyboard.press('Escape')
+
+  const pausedAt = Date.now()
+  await embedOf(guest).evaluate(() => document.querySelector('video').pause())
+  const otherPaused = await until(() => videoOf(other), video => video && video.paused, 15_000, 50)
+  const latency = Date.now() - pausedAt
+  check(Boolean(otherPaused), 'the second guest paused', `${latency} ms after the guest's pause`)
+  const hostPaused = await until(() => videoOf(host), video => video && video.paused, 5_000, 50)
+  check(Boolean(hostPaused), 'the host paused', JSON.stringify(hostPaused))
+  await new Promise(resolve => setTimeout(resolve, 4_000))
+  const guestStill = await videoOf(guest)
+  check(guestStill && guestStill.paused, 'and the guest that paused stayed paused past the ask’s hold', JSON.stringify(guestStill))
+  for (const [name, page] of Object.entries({ host, guest, 'second guest': other })) {
+    await page.getByRole('button', { name: 'Show chat' }).click()
+    const lines = await until(() => page.locator('.line.action').allInnerTexts(), texts => texts.some(text => text.endsWith(' paused')), 10_000)
+    check(Boolean(lines), `the ${name}'s chat says who paused`, JSON.stringify(lines))
+  }
+  console.log(`\n  latency: the guest's pause to the second guest's pause, ${latency} ms`)
 
   await browser.close()
   console.log(failures ? `\n${failures} failed\n` : '\nall good\n')
