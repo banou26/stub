@@ -253,6 +253,53 @@ describe('a follower', () => {
   })
 })
 
+describe('a follower not following playback', () => {
+  const unfollow = async () => {
+    const following = await follow({ all: ['play'] })
+    act(() => { current.store.setFollowing(false) })
+    return following
+  }
+
+  test('does not apply the host\'s playback', async () => {
+    const { fake, player } = await unfollow()
+    say(fake, 'host', { t: 'playback', s: { ...paused(10.2), at: Date.now() } })
+    expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('pauses for itself: nothing is asked and nothing is undone', async () => {
+    const { fake, player } = await unfollow()
+    player.report(paused(10.1))
+    await wait(ASK_HOLD_MS)
+    expect(asks(fake)).toEqual([])
+    expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('an ask still holding when it stops following does not re-apply the host at the hold\'s end', async () => {
+    const { player } = await follow({ all: ['play'] })
+    player.report(paused(10.1))
+    act(() => { current.store.setFollowing(false) })
+    await wait(ASK_HOLD_MS)
+    expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('following again applies where the host is now', async () => {
+    const { fake, player } = await unfollow()
+    say(fake, 'host', { t: 'playback', s: { ...playing(20), at: Date.now() } })
+    await wait(5_000)
+    act(() => { current.store.setFollowing(true) })
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
+    expect(player.link.apply.mock.calls[0]![0]).toMatchObject({ paused: false, time: 25 })
+  })
+
+  test('Catch up follows again and applies where the host is, once', async () => {
+    const { fake, player } = await unfollow()
+    say(fake, 'host', { t: 'playback', s: { ...paused(30), at: Date.now() } })
+    act(() => { current.store.replay() })
+    expect(current.store.following()).toBe(true)
+    expect(player.link.apply.mock.calls.map(([s]) => [s.paused, s.time])).toEqual([[true, 30]])
+  })
+})
+
 describe('the host', () => {
   const host = async () => {
     const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'ann'] })

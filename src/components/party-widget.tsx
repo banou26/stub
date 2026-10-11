@@ -14,6 +14,7 @@ import { CONTROLS, isWatchPath } from '../party/protocol'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
 import PartyGrants, { CONTROL_LABEL } from './party-grants'
+import { switchStyle } from './switch-style'
 
 const buttonStyle = css`
   display: flex;
@@ -121,6 +122,14 @@ const menuStyle = css`
     background: rgba(74, 222, 128, 0.15);
     color: #4ade80;
     font-size: 1.1rem;
+  }
+
+  .follow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    cursor: pointer;
   }
 
   .actions {
@@ -268,6 +277,10 @@ const PartyWidget = () => {
                   <div className="hint">
                     {state.members} in the party.
                   </div>
+                  <label className="follow">
+                    Follow playback
+                    <input type="checkbox" role="switch" css={switchStyle} checked={party.following()} onChange={event => party.setFollowing(event.currentTarget.checked)}/>
+                  </label>
                   {can.length > 0 && (
                     <div className="can">You can {can.map(control => <span key={control} className="badge">{CONTROL_LABEL[control]}</span>)}</div>
                   )}

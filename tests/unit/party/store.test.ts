@@ -727,3 +727,17 @@ describe('grants', () => {
     expect([...storage.store.keys()].sort()).toEqual([PARTY_NAME_KEY, PARTY_SESSION_KEY].sort())
   })
 })
+
+describe('Follow playback', () => {
+  test('lives in memory for the party only: nothing is stored, and the next party follows again', async () => {
+    const storage = memoryStorage()
+    const party = createPartyStore(api(fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] }).room), storage)
+    await party.join(INVITE)
+    expect(party.following()).toBe(true)
+    party.setFollowing(false)
+    expect(party.following()).toBe(false)
+    expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY])
+    await party.join(INVITE)
+    expect(party.following()).toBe(true)
+  })
+})

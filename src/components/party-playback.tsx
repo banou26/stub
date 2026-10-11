@@ -18,7 +18,8 @@ const here = () => location.pathname + location.search
  * where the video is, and applies a follower's granted ask to its own player, whose report then moves
  * everyone. A guest applies what the host said, and applies it AGAIN on every report from its own
  * player, unless the report is a person using a control the guest was granted: that is asked of the
- * host, and the player is left alone for ASK_HOLD_MS while the answer comes back.
+ * host, and the player is left alone for ASK_HOLD_MS while the answer comes back. A guest that stopped
+ * following playback applies nothing and asks nothing, and is put back where the host is when it follows again.
  *
  * Telling a person from a correction is inference: a report within SETTLE_MS of a correction that
  * played, paused or seeked is the player answering it, and anything else that moved is the person.
@@ -31,6 +32,7 @@ const byPerson = () => navigator.userActivation?.isActive ?? true
 const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   const state = useParty()
   const role = state.status === 'active' ? state.role : undefined
+  const following = party.following()
   // what the host last said, and WHEN it was heard on this clock, so a re-apply later is moved
   // forward by the time that passed rather than seeking the player back to a stale second
   const wanted = useRef<{ state: PlaybackState, receivedAt: number, measured: boolean } | undefined>(undefined)
@@ -45,7 +47,8 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   const throttled = useRef(new Map<PlayerControl, { sentAt: number, next?: PlayerAsk, timer?: ReturnType<typeof setTimeout> }>())
 
   const apply = (target: PlaybackState, measured: boolean) => {
-    if (!link) return
+    // read live: the report listener and the hold timer hold an older render
+    if (!link || !party.following()) return
     const now = Date.now()
     const local = last.current && advance(last.current, last.current.at, now)
     const correction = local && playbackCorrection(local, target, now, measured)
@@ -94,7 +97,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
       }
       const heard = wanted.current
       // off the host's page the player is its own, and at the end the browser paused it, not a person
-      if (!heard || link.ended?.()) return
+      if (!heard || link.ended?.() || !party.following()) return
       const now = Date.now()
       const holding = now < holdUntil.current
       const target = advance(heard.state, heard.receivedAt, now)
@@ -116,6 +119,8 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
       if (role === 'host') party.setPlayback(undefined)
     }
   }, [role, link])
+
+  useEffect(() => { if (following) reapply() }, [following])
 
   usePartyMessages(message => {
     if (role === 'host') {

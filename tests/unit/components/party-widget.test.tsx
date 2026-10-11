@@ -80,3 +80,31 @@ describe('Play for everyone', () => {
     expect(play()).toBeUndefined()
   })
 })
+
+describe('Follow playback', () => {
+  const toggle = () => document.body.querySelector<HTMLInputElement>('input[role="switch"]')
+
+  test('a follower follows by default, the switch shows what the store holds, and turns it off', async () => {
+    await following(HOST_PAGE, { all: [], by: {} })
+    expect(toggle()?.parentElement?.textContent).toBe('Follow playback')
+    expect(toggle()?.hasAttribute('checked')).toBe(true)
+    act(() => { current.store.setFollowing(false) })
+    expect(toggle()?.hasAttribute('checked')).toBe(false)
+    act(() => { current.store.replay() })
+    expect(toggle()?.hasAttribute('checked')).toBe(true)
+    act(() => { toggle()!.checked = false; toggle()!.dispatchEvent(new Event('change')) })
+    expect(current.store.following()).toBe(false)
+  })
+
+  test('the host has no such switch', async () => {
+    const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.create()
+    const location = memoryLocation({ path: HOST_PAGE })
+    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    hosts.push(host)
+    act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
+    expect(document.body.textContent).toContain('You are hosting')
+    expect(toggle()).toBeNull()
+  })
+})

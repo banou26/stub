@@ -106,7 +106,16 @@ export type PartyStore = {
    * cap, which is what everything did before this existed.
    */
   hostClock: () => ClockSample | undefined
-  /** Say the last thing the host said again, for a guest who wandered off and wants back. */
+  /**
+   * Whether a follower applies the host's playback: on for every party it joins, held in memory only.
+   * Off, its player is its own and asks nothing; navigation still follows the host.
+   */
+  following: () => boolean
+  setFollowing: (on: boolean) => void
+  /**
+   * Say the last thing the host said again, for a guest who wandered off and wants back. Follows playback again,
+   * after the re-tell, so the player is applied once, from the freshest.
+   */
   replay: () => void
   /** Clear an ended or failed party from view. */
   dismiss: () => void
@@ -172,6 +181,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
   const lines: PartyChatLine[] = []
   let issued: Grants | undefined
   let grants: Grants = NO_GRANTS
+  let following = true
   // What the host's clock reads relative to this one, and the round being collected. A guest that has
   // measured nothing keeps `undefined`, which every reader treats as no offset: the behaviour there
   // is exactly what it was before any of this existed.
@@ -302,6 +312,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     lines.length = 0
     issued = undefined
     grants = NO_GRANTS
+    following = true
     setState({ status: 'active', role, invite: joined.invite, members: 1, self: joined.self.id, owner: joined.owner })
     remember(joined.invite)
 
@@ -470,6 +481,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
       // one is the one with the higher seq, and both are set in order of arrival
       return last.at(-1)?.path
     },
+    following: () => following,
+    setFollowing: on => { following = on; setState({ ...state }) },
     replay: () => {
       // The state first, since it is the only one carrying a path and a position together, so a scroll
       // or a playback after it lands on the page it was meant for.
@@ -477,6 +490,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
         const message = kind === 'state' ? freshestState() : heard.get(kind)
         if (message && room) tell(message, { replayed: true, from: room.owner, self: false })
       }
+      if (!following) { following = true; setState({ ...state }) }
     },
     nameOf: id => names.get(id),
     roster: async () => {
