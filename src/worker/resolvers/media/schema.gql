@@ -420,6 +420,15 @@ type Media {
   `details` was asked.
   """
   themes: [MediaTheme!]
+  """Each rating site's score, one per site, from the first source in score order that has it."""
+  ratings: [MediaRating!]
+}
+
+"""One rating site's score for a title, out of `scale`: IMDb 8.4 of 10, Rotten Tomatoes 92 of 100."""
+type MediaRating {
+  source: String!
+  value: Float!
+  scale: Int!
 }
 
 """An opening, ending or insert song, with a video it can be played from."""
@@ -557,7 +566,7 @@ enum RootOperation {
 input MediaInput {
   uri: ID
   context: RequestContext
-  """Asks the sources for credits and themes too: a larger request, so only a title's own page sends it."""
+  """Asks the sources for credits, themes and ratings too: a larger request, so only a title's own page sends it."""
   details: Boolean
 }
 

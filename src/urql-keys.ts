@@ -43,6 +43,7 @@ export const keyResolvers = {
   MediaCharacter: () => null,
   // a theme is one title's song, listed under it like its titles
   MediaTheme: () => null,
+  MediaRating: () => null,
   MediaTrailer: (trailer) => (trailer as MediaTrailer).uri,
   Episode: (episode) => (episode as Episode)._id,
   EpisodeTitle: () => null,

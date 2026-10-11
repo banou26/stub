@@ -1,0 +1,332 @@
+{
+  "data": {
+    "node": {
+      "id": "tm1133934",
+      "objectId": 1133934,
+      "objectType": "MOVIE",
+      "content": {
+        "title": "Dune: Part Two",
+        "fullPath": "/us/movie/dune-part-two-2023",
+        "originalReleaseYear": 2024,
+        "originalReleaseDate": "2024-02-27",
+        "shortDescription": "Follow the mythic journey of Paul Atreides as he unites with Chani and the Fremen while on a path of revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the known universe, Paul endeavors to prevent a terrible future only he can foresee.",
+        "posterUrl": "/poster/312362420/s718/dune-part-two-2023.jpg",
+        "externalIds": {
+          "imdbId": "tt15239678"
+        },
+        "genres": [
+          {
+            "shortName": "act"
+          },
+          {
+            "shortName": "drm"
+          },
+          {
+            "shortName": "scf"
+          }
+        ],
+        "runtime": 167,
+        "backdrops": [
+          {
+            "backdropUrl": "/backdrop/310569186/s1920/dune-part-two-2023.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/312420524/s1920/dune-part-two-2023.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/312420522/s1920/dune-part-two-2023.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/312156510/s1920/dune-part-two-2023.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/312379440/s1920/dune-part-two-2023.jpg"
+          }
+        ],
+        "scoring": {
+          "imdbScore": 8.4,
+          "tmdbScore": 8.1,
+          "tomatoMeter": 92,
+          "jwRating": 0.953462963972
+        }
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9392c069-96f9-421b-ac7a-275308e1327a",
+          "package": {
+            "id": "cGF8MTgyNQ==",
+            "packageId": 1825,
+            "clearName": "HBO Max Amazon Channel",
+            "technicalName": "amazonhbomax",
+            "shortName": "aho",
+            "icon": "/icon/343788557/s100/amazonhbomax.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://tv.youtube.com/browse/UCaA-mkSqDa03ajlTEJzHa5w",
+          "package": {
+            "id": "cGF8MjUyOA==",
+            "packageId": 2528,
+            "clearName": "YouTube TV",
+            "technicalName": "youtubetv",
+            "shortName": "ytt",
+            "icon": "/icon/334102416/s100/youtubetv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.tntdrama.com/movies/dune-part-two-theatrical",
+          "package": {
+            "id": "cGF8MzYz",
+            "packageId": 363,
+            "clearName": "TNT",
+            "technicalName": "tnt",
+            "shortName": "tnt",
+            "icon": "/icon/164147684/s100/tnt.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.tbs.com/movies/dune-part-two-theatrical",
+          "package": {
+            "id": "cGF8NTA2",
+            "packageId": 506,
+            "clearName": "TBS",
+            "technicalName": "tbs",
+            "shortName": "tus",
+            "icon": "/icon/209564793/s100/tbs.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.trutv.com/movies/dune-part-two-theatrical",
+          "package": {
+            "id": "cGF8NTA3",
+            "packageId": 507,
+            "clearName": "tru TV",
+            "technicalName": "trutv",
+            "shortName": "tru",
+            "icon": "/icon/209564918/s100/trutv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://play.hbomax.com/show/f0a4f239-0b57-47e2-a39a-54fb96925e61?utm_source=universal_search",
+          "package": {
+            "id": "cGF8MTg5OQ==",
+            "packageId": 1899,
+            "clearName": "HBO Max",
+            "technicalName": "max",
+            "shortName": "mxx",
+            "icon": "/icon/332884837/s100/max.{format}"
+          }
+        },
+        {
+          "monetizationType": "LINEAR_FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.philo.com/player/player/broadcast/QnJvYWRjYXN0OjYwODU0ODg5OTY4MzEzNjMzOA",
+          "package": {
+            "id": "cGF8Mjc2MQ==",
+            "packageId": 2761,
+            "clearName": "Philo Live",
+            "technicalName": "philofast",
+            "shortName": "phi",
+            "icon": "/icon/348553034/s100/philofast.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://ondemand.spectrum.net/movies/20913466/dune-part-two/",
+          "package": {
+            "id": "cGF8NDg2",
+            "packageId": 486,
+            "clearName": "Spectrum On Demand",
+            "technicalName": "spectrumondemand",
+            "shortName": "sod",
+            "icon": "/icon/305635208/s100/spectrumondemand.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.plex.tv/movie/dune-part-two?utm_content=5eb8f22237ccbe0041723253&utm_medium=deeplink&utm_source=justWatch-v2-catalog",
+          "package": {
+            "id": "cGF8NTM4",
+            "packageId": 538,
+            "clearName": "Plex",
+            "technicalName": "plex",
+            "shortName": "plx",
+            "icon": "/icon/301832745/s100/plex.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9392c069-96f9-421b-ac7a-275308e1327a",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://tv.apple.com/us/movie/dune-part-two/umc.cmc.363aycnv6vy9qgekvew6fveb9?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1725365997",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/Dune-Part-Two/3031334",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://gruv.com/products/dune-part-two-dvd-_1000821761",
+          "package": {
+            "id": "cGF8MjU2OQ==",
+            "packageId": 2569,
+            "clearName": "GRUV",
+            "technicalName": "gruv",
+            "shortName": "grv",
+            "icon": "/icon/336965948/s100/gruv.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://www.amazon.com/dp/B0CW361P54?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "package": {
+            "id": "cGF8NTA=",
+            "packageId": 50,
+            "clearName": "Amazon DVD / Blu-ray",
+            "technicalName": "amazondvdbr",
+            "shortName": "adb",
+            "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://www.barnesandnoble.com/w/dvd-dune-part-two-denis-villeneuve/1144996300",
+          "package": {
+            "id": "cGF8MjU0Mg==",
+            "packageId": 2542,
+            "clearName": "Barnes & Noble",
+            "technicalName": "barnesandnoble",
+            "shortName": "bnb",
+            "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "SD",
+          "standardWebURL": "https://www.hulu.jp/watch/100181748",
+          "package": {
+            "id": "cGF8MTU=",
+            "packageId": 15,
+            "clearName": "Hulu",
+            "technicalName": "hulu",
+            "shortName": "hlu",
+            "icon": "/icon/116305230/s100/hulu.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/title/SID0102343",
+          "package": {
+            "id": "cGF8ODQ=",
+            "packageId": 84,
+            "clearName": "U-NEXT",
+            "technicalName": "unext",
+            "shortName": "unx",
+            "icon": "/icon/304760702/s100/unext.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/title/SID0102343",
+          "package": {
+            "id": "cGF8MjI4NA==",
+            "packageId": 2284,
+            "clearName": "HBO Max on U-Next",
+            "technicalName": "unexthbomax",
+            "shortName": "mxu",
+            "icon": "/icon/336809791/s100/unexthbomax.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.9392c069-96f9-421b-ac7a-275308e1327a",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://tv.apple.com/jp/movie/%E3%83%86%E3%83%A5%E3%83%BC%E3%83%B3-%E7%A0%82%E3%81%AE%E6%83%91%E6%98%9Fpart2/umc.cmc.363aycnv6vy9qgekvew6fveb9?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1725365997",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://fod.fujitv.co.jp/title/g2kc/",
+          "package": {
+            "id": "cGF8MjY4Mw==",
+            "packageId": 2683,
+            "clearName": "FOD",
+            "technicalName": "fod",
+            "shortName": "fuj",
+            "icon": "/icon/342951136/s100/fod.{format}"
+          }
+        }
+      ]
+    }
+  }
+}

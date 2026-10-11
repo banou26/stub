@@ -1,0 +1,340 @@
+{
+  "data": {
+    "node": {
+      "id": "ts88632",
+      "objectId": 88632,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Chernobyl",
+        "fullPath": "/us/tv-show/chernobyl",
+        "originalReleaseYear": 2019,
+        "originalReleaseDate": "2019-05-06",
+        "shortDescription": "The true story of one of the worst man-made catastrophes in history: the catastrophic nuclear accident at Chernobyl. A tale of the brave men and women who sacrificed to save Europe from unimaginable disaster.",
+        "posterUrl": "/poster/130849429/s718/chernobyl.jpg",
+        "externalIds": {
+          "imdbId": "tt7366338"
+        },
+        "genres": [
+          {
+            "shortName": "drm"
+          },
+          {
+            "shortName": "hst"
+          },
+          {
+            "shortName": "trl"
+          }
+        ],
+        "runtime": 65,
+        "backdrops": [
+          {
+            "backdropUrl": "/backdrop/335728762/s1920/chernobyl.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/300770452/s1920/chernobyl.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/149248524/s1920/chernobyl.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/125439480/s1920/chernobyl.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/188929305/s1920/chernobyl.jpg"
+          }
+        ],
+        "scoring": {
+          "imdbScore": 9.3,
+          "tmdbScore": 8.727,
+          "tomatoMeter": 95,
+          "jwRating": 0.985005050435
+        }
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.35f22e87-8135-466f-8d0d-9531af27dc0b",
+          "package": {
+            "id": "cGF8MTgyNQ==",
+            "packageId": 1825,
+            "clearName": "HBO Max Amazon Channel",
+            "technicalName": "amazonhbomax",
+            "shortName": "aho",
+            "icon": "/icon/343788557/s100/amazonhbomax.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://play.hbomax.com/video/watch/21acd328-6298-4928-bb08-e926d776f63d?utm_source=universal_search",
+          "package": {
+            "id": "cGF8MTg5OQ==",
+            "packageId": 1899,
+            "clearName": "HBO Max",
+            "technicalName": "max",
+            "shortName": "mxx",
+            "icon": "/icon/332884837/s100/max.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "HD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/Chernobyl-Season-1/1136768",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "SD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.84f4ebac-5813-4ee8-89f1-3ed5c7b330e7",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com/us/show/chernobyl/umc.cmc.4r07f208iugn79go4pmvpcqbt?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.hulu.jp/watch/100273321",
+          "package": {
+            "id": "cGF8MTU=",
+            "packageId": 15,
+            "clearName": "Hulu",
+            "technicalName": "hulu",
+            "shortName": "hlu",
+            "icon": "/icon/116305230/s100/hulu.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/episode/SID0056439/ED00313533",
+          "package": {
+            "id": "cGF8ODQ=",
+            "packageId": 84,
+            "clearName": "U-NEXT",
+            "technicalName": "unext",
+            "shortName": "unx",
+            "icon": "/icon/304760702/s100/unext.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/episode/SID0056439/ED00313533",
+          "package": {
+            "id": "cGF8MjI4NA==",
+            "packageId": 2284,
+            "clearName": "HBO Max on U-Next",
+            "technicalName": "unexthbomax",
+            "shortName": "mxu",
+            "icon": "/icon/336809791/s100/unexthbomax.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "SD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.08b6d93f-2c87-661a-64e1-a296b3e989cd",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 1,
+      "seasons": [
+        {
+          "id": "tss104891",
+          "objectId": 104891,
+          "totalEpisodeCount": 5,
+          "content": {
+            "title": "Miniseries",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/chernobyl/season-1",
+            "posterUrl": "/poster/125426778/{profile}/season-1.{format}",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-05-06",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse1736576",
+              "objectId": 1736576,
+              "content": {
+                "title": "1:23:45",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "April 26, 1986, Ukrainian SSR. Plant workers and firefighters put their lives on the line to control a catastrophic 1986 explosion at a Soviet nuclear power plant.",
+                "originalReleaseDate": "2019-05-06",
+                "runtime": 58
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "HBO Max Amazon Channel",
+                    "packageId": 1825,
+                    "shortName": "aho"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "HBO Max",
+                    "packageId": 1899,
+                    "shortName": "mxx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1767668",
+              "objectId": 1767668,
+              "content": {
+                "title": "Please Remain Calm",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "With untold millions at risk after the Chernobyl explosion, nuclear physicist Ulana Khomyuk makes a desperate attempt to reach Valery Legasov, a leading Soviet nuclear physicist, and warn him about the threat of second explosion that could devastate the continent.",
+                "originalReleaseDate": "2019-05-13",
+                "runtime": 65
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "HBO Max Amazon Channel",
+                    "packageId": 1825,
+                    "shortName": "aho"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "HBO Max",
+                    "packageId": 1899,
+                    "shortName": "mxx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1767669",
+              "objectId": 1767669,
+              "content": {
+                "title": "Open Wide, O Earth",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Lyudmilla Ignatenko, a Pripyat resident, ignores warning about her firefighter husband's contamination. Valery Legasov lays out a decontamination plan, complete with human risks.",
+                "originalReleaseDate": "2019-05-20",
+                "runtime": 65
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "HBO Max Amazon Channel",
+                    "packageId": 1825,
+                    "shortName": "aho"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "HBO Max",
+                    "packageId": 1899,
+                    "shortName": "mxx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1767670",
+              "objectId": 1767670,
+              "content": {
+                "title": "The Happiness of All Mankind",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Valery Legasov and Soviet Deputy Prime Minister Boris Shcherbina consider using lunar rovers to remove radioactive debris, while Ulana Khomyuk faces government hurdles in determining the truth about the cause of the explosion.",
+                "originalReleaseDate": "2019-05-27",
+                "runtime": 67
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "HBO Max Amazon Channel",
+                    "packageId": 1825,
+                    "shortName": "aho"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "HBO Max",
+                    "packageId": 1899,
+                    "shortName": "mxx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1767671",
+              "objectId": 1767671,
+              "content": {
+                "title": "Vichnaya Pamyat",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Valery Legasov, Boris Shcherbina and Ulana Khomyuk risk their lives and reputations to expose the truth about Chernobyl.",
+                "originalReleaseDate": "2019-06-03",
+                "runtime": 72
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "HBO Max Amazon Channel",
+                    "packageId": 1825,
+                    "shortName": "aho"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "HBO Max",
+                    "packageId": 1899,
+                    "shortName": "mxx"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

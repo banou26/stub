@@ -944,3 +944,27 @@ test('the themes come whole from the first source that has them, and no handle c
   expect((row.themes as { title: string }[]).map(({ title }) => title)).toEqual(['Yuusha', 'Anytime Anywhere'])
   expect(JSON.stringify(row.handles)).not.toContain('Yuusha')
 })
+
+// One rating per site, the first source in score order that has one: two sources' IMDb scores are one
+// IMDb score, read at different times.
+// Mutation: drop the `row.ratings` line from `aggregateFields` and the row has none.
+test('the ratings keep one value per site, from the highest scored source that has it', () => {
+  const member = (uri: string, score: number, raw: Record<string, unknown>) => ({
+    uri, origin: uri.slice(0, uri.indexOf(':')), id: uri.slice(uri.indexOf(':') + 1), owned: true, score, raw, fieldSeq: {},
+  })
+  const row = aggregateFields({
+    cluster: {
+      id: 'cl:jw:1133934', aggUri: 'ag:(jw:1133934,omdb:tt15239678,other:1)', scope: 'RUN', runLength: null, runLengthTier: null,
+      runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+    },
+    members: [
+      member('jw:1133934', 0.2, { ratings: [{ source: 'IMDb', value: 8.4, scale: 10 }, { source: 'Rotten Tomatoes', value: 92, scale: 100 }] }),
+      member('other:1', 0.1, {}),
+      member('omdb:tt15239678', 0.5, { ratings: [{ source: 'IMDb', value: 8.5, scale: 10 }] }),
+    ],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect(row.ratings).toEqual([{ source: 'IMDb', value: 8.5, scale: 10 }, { source: 'Rotten Tomatoes', value: 92, scale: 100 }])
+})

@@ -22,6 +22,7 @@ export type TitleMedia = {
   duration?: number | null
   studios?: readonly string[] | null
   sourceMaterial?: string | null
+  ratings?: readonly { source: string, value: number, scale: number }[] | null
 }
 
 export type Fact = { label: string, value: string }
@@ -35,6 +36,9 @@ const episodesLabel = (count: number | null | undefined) =>
 // AniList's word, LIGHT_NOVEL, as a label: Light novel
 const sourceLabel = (source: string | null | undefined) =>
   source ? source.charAt(0) + source.slice(1).toLowerCase().replaceAll('_', ' ') : undefined
+
+const ratingLabel = ({ source, value, scale }: NonNullable<TitleMedia['ratings']>[number]) =>
+  `${source} ${scale === 100 ? `${Math.round(value)}%` : value.toFixed(1)}`
 
 /** The second title under the main one: the first that reads differently, usually the romaji or the native. */
 export const secondTitle = (titles: TitleMedia['titles']): string | undefined =>
@@ -62,6 +66,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}):
     { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
     { label: 'Studios', value: media.studios?.join(', ') },
     { label: 'Source', value: sourceLabel(media.sourceMaterial) },
+    { label: 'Ratings', value: media.ratings?.map(ratingLabel).join(' · ') },
     { label: 'Genres', value: media.genres?.join(', ') },
     { label: 'Tags', value: media.tags?.join(', ') },
     { label: 'Also known as', value: others.join(', ') },

@@ -425,6 +425,11 @@ export const aggregateFields = (options: {
     provenance.push({ field: 'themes', uri: themesFrom.uri, rule: 'first-supplier' })
   }
 
+  row.ratings = dedupeByField('source', owned.flatMap(member => listOf(member.raw.ratings)))
+  for (const member of owned) {
+    if (listOf(member.raw.ratings).length) provenance.push({ field: 'ratings', uri: member.uri, rule: 'dedupe' })
+  }
+
   // the narrative axis: deduped on the pair, and every edge pointing back inside the cluster dropped,
   // because a media drawn as its own alternative navigates to the page it is on (`aggregate.ts:243-247`)
   const inside = new Set(members.map(member => member.uri))

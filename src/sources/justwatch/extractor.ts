@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, SimilarMediaInput } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { resolveEpisodeToSeriesId, crunchyrollId } from '../crunchyroll/extractor'
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
@@ -10,6 +10,8 @@ import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount } from '../utils'
 
 const SCORE = 0.2
+// below every other source's banner (the lowest is 0.2), so a backdrop only fills a gap
+const BACKDROP_SCORE = 0.1
 
 export const icon = 'https://www.justwatch.com/appasset/img/favicon/favicon-32x32.png'
 export const originUrl = 'https://www.justwatch.com'
@@ -133,7 +135,7 @@ const SEARCH_QUERY = `
   }
 `
 
-const NODE_QUERY = `
+const nodeQuery = (details: string) => `
   query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $extraCountry: Country!) {
     node(id: $nodeId) {
       ... on MovieOrShow {
@@ -152,7 +154,7 @@ const NODE_QUERY = `
           }
           genres {
             shortName
-          }
+          }${details}
         }
         offers(country: $country, platform: WEB, filter: { bestOnly: true }) {
           monetizationType
@@ -225,6 +227,21 @@ const NODE_QUERY = `
   }
 `
 
+// The relay caches on the whole body, so the modal's stays byte for byte what it was and only the
+// title page's `details` asks for more
+const NODE_QUERY = nodeQuery('')
+const NODE_DETAILS_QUERY = nodeQuery(`
+          runtime
+          backdrops(profile: S1920, format: JPG) {
+            backdropUrl
+          }
+          scoring {
+            imdbScore
+            tmdbScore
+            tomatoMeter
+            jwRating
+          }`)
+
 const _inflight = new Map<string, Promise<unknown>>()
 
 const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
@@ -244,9 +261,9 @@ const searchTitles = (query: string, ctx: ExtractorServerContext) =>
     }, ctx)
   )
 
-const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext) =>
-  deduplicatedFetch(`node:${nodeId}`, () =>
-    jwFetch<JWNodeResponse>(NODE_QUERY, {
+const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
+  deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, () =>
+    jwFetch<JWNodeResponse>(details ? NODE_DETAILS_QUERY : NODE_QUERY, {
       nodeId, language: LANGUAGE, country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
     }, ctx)
   )
@@ -269,6 +286,10 @@ interface JWSearchNode {
     originalReleaseYear?: number | null
     /** the day this WORK premiered, which on a Show is its first season's day; see `dayOrYear` */
     originalReleaseDate?: string | null
+    /** these three only on NODE_DETAILS_QUERY's answer */
+    runtime?: number | null
+    backdrops?: { backdropUrl: string }[] | null
+    scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
   }
   offers: JWOffer[]
   /** the same offers read on the second licensing region; see OFFER_COUNTRIES */
@@ -331,6 +352,14 @@ interface JWNodeResponse { data: { node: JWShowNode } }
 
 const resolveImageUrl = (url: string | null | undefined) =>
   url ? (url.startsWith('http') ? url : `${JW_IMAGE_BASE}${url}`) : undefined
+
+const ratingsOf = (scoring: JWSearchNode['content']['scoring']): MediaRating[] =>
+  [
+    { source: 'IMDb', value: scoring?.imdbScore, scale: 10 },
+    { source: 'TMDB', value: scoring?.tmdbScore, scale: 10 },
+    { source: 'Rotten Tomatoes', value: scoring?.tomatoMeter, scale: 100 },
+    { source: 'JustWatch', value: scoring?.jwRating == null ? null : Math.round(scoring.jwRating * 100), scale: 100 },
+  ].filter((rating): rating is MediaRating => rating.value != null)
 
 /**
  * A start date at the best precision this node has for THIS media: the day when JustWatch names one,
@@ -595,7 +624,11 @@ const normalizeMedia = async (
     // show's: a season media publishing the show's DATE publishes the franchise's FIRST season's as
     // its own start date, which every date comparison downstream then reads as this season's - the
     // same show-vs-season confusion the uri scoping in ./id.ts exists to prevent, in the date field.
-    startDate: dayOrYear(seasonDay, seasonYear)
+    startDate: dayOrYear(seasonDay, seasonYear),
+    // a show's runtime is an episode's, which the episodes already carry
+    duration: node.objectType === 'MOVIE' ? node.content.runtime ?? undefined : undefined,
+    banners: (node.content.backdrops ?? []).flatMap(({ backdropUrl }) => img(resolveImageUrl(backdropUrl), BACKDROP_SCORE)),
+    ratings: ratingsOf(node.content.scoring),
   })
 
   // A film's episode is the film, so it takes the media's own title and description: `makeMovieEpisode`
@@ -697,7 +730,7 @@ const datedLikeThisMedia = (startDate: string | null | undefined, node: JWShowNo
  * the loop returns on the first query that produces a linkable candidate, and the title axis runs
  * entirely on the search payload, so a candidate the title refuses costs zero requests.
  */
-const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerContext): Promise<GQLMedia | null> => {
+const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerContext, detailed?: boolean | null): Promise<GQLMedia | null> => {
   const known = await waitForMedia(
     aggregatedUri,
     ctx,
@@ -729,7 +762,7 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   const nodeDetails = (nodeId: string) => {
     const cached = details.get(nodeId)
     if (cached) return cached
-    const request = getNodeDetails(nodeId, ctx)
+    const request = getNodeDetails(nodeId, ctx, detailed)
     details.set(nodeId, request)
     return request
   }
@@ -785,7 +818,7 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   return container
 }
 
-const resolveMedia = async (uri: string, ctx: ExtractorServerContext): Promise<GQLMedia | null> => {
+const resolveMedia = async (uri: string, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | null> => {
   const jwUri = extractAggregatedUriOrigin(uri, origin)
   if (jwUri) {
     const { objectId, seasonObjectId } = splitJwId(jwUri.id)
@@ -794,7 +827,7 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext): Promise<G
     const format = seasonObjectId == null && isAggregatedUri(uri)
       ? await waitForMedia(uri, ctx, media => ['MOVIE', 'SERIES'].find(category => media?.categories?.includes(category)))
       : undefined
-    const detailRes = await getNodeDetails(`${format === 'MOVIE' ? 'tm' : 'ts'}${objectId}`, ctx)
+    const detailRes = await getNodeDetails(`${format === 'MOVIE' ? 'tm' : 'ts'}${objectId}`, ctx, details)
     const node = detailRes.data?.node
     if (!node) return null
     // the uri pins a season by ITS id, so the number the episode lists use is looked up, not assumed
@@ -809,7 +842,7 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext): Promise<G
   }
   if (!isAggregatedUri(uri)) return null
   // no `jw:` in the uri, so no source ever supplied one. Search, under the gate above.
-  return searchAndLinkMedia(uri, ctx)
+  return searchAndLinkMedia(uri, ctx, details)
 }
 
 export const resolvers: Resolvers = {
@@ -822,9 +855,9 @@ export const resolvers: Resolvers = {
       }
     },
     media: {
-      subscribe: async function* (_, { input: { uri: _uri } }, ctx: ExtractorServerContext) {
+      subscribe: async function* (_, { input: { uri: _uri, details } }, ctx: ExtractorServerContext) {
         if (!_uri || !(isUri(_uri) || isAggregatedUri(_uri))) return yield { media: null }
-        yield { media: await resolveMedia(_uri, ctx) }
+        yield { media: await resolveMedia(_uri, ctx, details) }
       }
     },
     mediaPage: {
