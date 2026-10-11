@@ -4,7 +4,10 @@
 // embed frame, and the followers' embeds are read back to see them follow. Then the host hands
 // Play/pause to all followers, follower A pauses, and the host and follower B have to pause with it,
 // with the line in all three chats; A's pause to B's pause is logged in ms. The control runs first:
-// without the grant, B never pauses and A is resumed.
+// without the grant, B never pauses and A is resumed. Then the same for Seek and Speed (A's seek to B's
+// seek in ms, and the host's rate EXACTLY the asked one 10 s later, never left nudged 5% off), and last
+// the party plays to the episode's end, where a follower that ends first must not pause the host just
+// short of it (the plugin's `ended`).
 //
 // HEADFUL. The players stream a torrent, and a headless Chromium never gets past "Loading metadata…"
 // (measured 2026-08-05), so this needs a compositor: `xvfb-run -s "-screen 0 1280x720x24"` when the
@@ -77,7 +80,7 @@ const videoOf = async page => {
   if (!frame) return undefined
   return frame.evaluate(() => {
     const video = document.querySelector('video')
-    return video ? { paused: video.paused, time: video.currentTime, ready: video.readyState } : undefined
+    return video ? { paused: video.paused, time: video.currentTime, ready: video.readyState, rate: video.playbackRate, ended: video.ended, duration: video.duration } : undefined
   }).catch(() => undefined)
 }
 
@@ -240,6 +243,86 @@ const run = async () => {
     check(Boolean(lines), `the ${name}'s chat says who paused`, JSON.stringify(lines))
   }
   console.log(`\n  latency: the guest's pause to the second guest's pause, ${latency} ms`)
+
+  console.log('\nCONTROL: without Seek and Speed, a guest’s own seek and speed move nobody and are undone')
+  await embedOf(host).evaluate(() => document.querySelector('video').play())
+  const replaying = await until(() => videoOf(guest), video => video && !video.paused, 15_000)
+  check(Boolean(replaying), 'the party plays again', JSON.stringify(replaying))
+  const hostBeforeSeek = await videoOf(host)
+  await embedOf(guest).evaluate(() => { const v = document.querySelector('video'); v.currentTime += 30; v.playbackRate = 1.5 })
+  await new Promise(resolve => setTimeout(resolve, 3_000))
+  const hostAfterSeek = await videoOf(host)
+  check(hostAfterSeek && hostAfterSeek.time < hostBeforeSeek.time + 10 && hostAfterSeek.rate === 1, 'the host kept its place and speed', JSON.stringify(hostAfterSeek))
+  const guestBackSeek = await until(async () => [await videoOf(guest), await videoOf(host)], ([g, h]) => g && h && Math.abs(g.time - h.time) < 3 && Math.abs(g.rate - 1) < 0.06, 15_000)
+  check(Boolean(guestBackSeek), 'and the guest was put back with the host', JSON.stringify(guestBackSeek))
+
+  console.log('\nthe host gives Seek and Speed to all followers, and a guest’s seek and speed move the party')
+  await widget(host).dispatchEvent('click')
+  for (const control of ['Seek', 'Speed']) {
+    const grant = host.getByRole('button', { name: `${control}, All followers` })
+    await grant.click()
+    check(await grant.getAttribute('aria-pressed') === 'true', `the host gave ${control} to all followers`)
+  }
+  await host.keyboard.press('Escape')
+  await widget(guest).dispatchEvent('click')
+  const canSeek = await until(() => guest.getByText('Speed', { exact: true }).count(), count => count > 0, 10_000)
+  check(canSeek > 0, 'the guest sees it can use Speed')
+  await guest.keyboard.press('Escape')
+
+  const from = (await videoOf(guest)).time
+  const seekTo = from + 30
+  const seekedAt = Date.now()
+  await embedOf(guest).evaluate(t => { document.querySelector('video').currentTime = t }, seekTo)
+  const otherSeeked = await until(() => videoOf(other), video => video && Math.abs(video.time - seekTo) < 3, 15_000, 50)
+  const seekLatency = Date.now() - seekedAt
+  check(Boolean(otherSeeked), 'the second guest seeked with it', `${seekLatency} ms after the guest's seek`)
+  const hostSeeked = await until(() => videoOf(host), video => video && Math.abs(video.time - seekTo) < 5, 5_000, 50)
+  check(Boolean(hostSeeked), 'the host seeked with it', JSON.stringify(hostSeeked))
+  // Every poll above gives the polled page user activation (Playwright evaluates with a user gesture), so
+  // a follower whose own correction lands late is read as seeking and jumps the party back; a stall only
+  // stands still, so any step back on the host is a stray seek.
+  let previous = hostSeeked
+  let strayed
+  for (const started = Date.now(); hostSeeked && !strayed && Date.now() - started < 5_000;) {
+    await new Promise(resolve => setTimeout(resolve, 250))
+    const video = await videoOf(host)
+    if (video && video.time < previous.time - 1) strayed = { from: previous.time, to: video.time }
+    if (video) previous = video
+  }
+  check(hostSeeked && !strayed, 'and the host stayed there, never jumped back', JSON.stringify(strayed ?? previous))
+
+  await embedOf(guest).evaluate(() => { document.querySelector('video').playbackRate = 1.5 })
+  const hostFast = await until(() => videoOf(host), video => video && Math.abs(video.rate - 1.5) < 0.001, 10_000, 50)
+  check(Boolean(hostFast), 'the host runs at 1.5', JSON.stringify(hostFast))
+  // a host that applied the ask with a nudge on top would sit at 1.575 for good, since nothing corrects the host
+  await new Promise(resolve => setTimeout(resolve, 10_000))
+  const hostStill = await videoOf(host)
+  check(hostStill && Math.abs(hostStill.rate - 1.5) < 0.001, 'and still exactly 1.5 ten seconds later', JSON.stringify(hostStill))
+  const otherFast = await videoOf(other)
+  check(otherFast && Math.abs(otherFast.rate - 1.5) <= 1.5 * 0.05 + 0.001, 'the second guest runs at 1.5, or a nudge of it', JSON.stringify(otherFast))
+  for (const [name, page] of Object.entries({ host, guest, 'second guest': other })) {
+    const lines = await until(() => page.locator('.line.action').allInnerTexts(), texts => texts.some(text => /skipped to \d+:\d\d$/.test(text)) && texts.some(text => text.endsWith('set speed to 1.5x')), 10_000)
+    check(Boolean(lines), `the ${name}'s chat says who seeked and who set the speed`, JSON.stringify(lines))
+  }
+  // its own lines read `you ...` in its own chat, and it only followed
+  const strays = await other.locator('.line.action').allInnerTexts()
+  check(!strays.some(text => text.startsWith('you ')), 'and the second guest asked for nothing', JSON.stringify(strays))
+  console.log(`\n  latency: the guest's seek to the second guest's seek, ${seekLatency} ms`)
+
+  console.log('\nthe party plays to the end, and a follower that ends first does not pause it')
+  const { duration } = await videoOf(host)
+  if (!Number.isFinite(duration)) console.log(`  ..    skipped: the host's video has no finite duration (${duration})`)
+  else {
+    await embedOf(host).evaluate(t => { const v = document.querySelector('video'); v.currentTime = t; void v.play() }, duration - 6)
+    let first
+    const end = await until(async () => {
+      const [h, g, o] = [await videoOf(host), await videoOf(guest), await videoOf(other)]
+      if (!first && h && !h.ended) first = g?.ended ? 'guest' : o?.ended ? 'second guest' : undefined
+      return h
+    }, video => video && video.paused, 30_000, 50)
+    if (!first) console.log('  ..    inconclusive: no follower ended before the host, so nothing could pause it early')
+    check(end && end.ended, 'the host played to its end rather than pausing short of it', `${JSON.stringify(end)}, first to end: ${first ?? 'the host'}`)
+  }
 
   await browser.close()
   console.log(failures ? `\n${failures} failed\n` : '\nall good\n')
