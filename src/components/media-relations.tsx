@@ -39,7 +39,9 @@ const style = css`
     display: flex;
     flex-wrap: wrap;
     gap: 1.2rem;
-    align-items: stretch;
+    /* each lane as tall as its own cards: stretched, a lone prequel beside two stacked cards in the
+       middle lane grew to twice its height */
+    align-items: flex-start;
   }
 
   /* The two outer lanes take an EQUAL share of the free space, which is what centres the middle one
