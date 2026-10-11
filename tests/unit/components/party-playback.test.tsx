@@ -1,11 +1,13 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
+import type { EmbedTracks, TrackKind } from '../../../src/embed-tracks'
 import type { Grants, PartyMessage, PlaybackState, PlayerAsk } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
+import { render } from 'preact'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
@@ -37,6 +39,16 @@ const fakeLink = () => {
   }
 }
 
+const fakeTracks = () => {
+  let listener: ((tracks: EmbedTracks) => void) | undefined
+  const link = {
+    onTracks: (next: (tracks: EmbedTracks) => void) => { listener = next; return () => { listener = undefined } },
+    select: vi.fn<(kind: TrackKind, id: string | null) => void>(),
+    dispose: () => {},
+  }
+  return { link, serve: (tracks: EmbedTracks) => act(() => { listener?.(tracks) }) }
+}
+
 const playing = (time: number) => ({ paused: false, time, rate: 1 })
 const paused = (time: number) => ({ paused: true, time, rate: 1 })
 
@@ -61,12 +73,12 @@ afterEach(() => {
 })
 
 /** A follower on the host's page, its player playing level with the host's. */
-const follow = async (grants: { all: Grants['all'], by?: Grants['by'] }) => {
+const follow = async (grants: { all: Grants['all'], by?: Grants['by'] }, tracks?: ReturnType<typeof fakeTracks>) => {
   const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.join(INVITE)
   const player = fakeLink()
-  hosts.push(mount(<PartyPlayback link={player.link}/>))
+  hosts.push(mount(<PartyPlayback link={player.link} tracks={tracks?.link}/>))
   player.report(playing(10))
   say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...playing(10), at: Date.now() }, grants: { by: {}, ...grants } })
   await wait(100)
@@ -365,5 +377,170 @@ describe('the host', () => {
     player.report(playing(10))
     say(fake, 'ann', { ...ask(true), path: '/watch/a/c' })
     expect(player.link.apply).not.toHaveBeenCalled()
+  })
+})
+
+describe('the party\'s tracks', () => {
+  const SUBTITLES = ['English', 'Spanish', 'Japanese']
+  const served = (subtitles: string | null, audio = 'Japanese', busy = false): EmbedTracks => ({
+    subtitles: { ids: SUBTITLES, selected: subtitles },
+    audio: { ids: ['Japanese', 'English'], selected: audio },
+    busy,
+  })
+  const following = async () => {
+    const tracks = fakeTracks()
+    const { fake, player } = await follow({ all: ['play'] }, tracks)
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...playing(10.1), at: Date.now() }, sub: 'Spanish', audio: 'English', grants: { all: ['play'], by: {} } })
+    player.link.apply.mockClear()
+    return { fake, player, tracks }
+  }
+
+  test('a member\'s player is put on the party\'s subtitles and audio', async () => {
+    const { tracks } = await following()
+    tracks.serve(served('English'))
+    expect(tracks.link.select.mock.calls).toEqual([['subtitles', 'Spanish'], ['audio', 'English']])
+    expect([current.store.mine('subtitles'), current.store.mine('audio')]).toEqual(['party', 'party'])
+  })
+
+  // CR's own menu takes seconds per try, and a track it refused stays refused
+  test('a switch the player did not make is not asked again', async () => {
+    const { tracks } = await following()
+    tracks.serve(served('English'))
+    tracks.serve(served('English', 'Japanese', true))
+    tracks.serve(served('English'))
+    expect(tracks.link.select).toHaveBeenCalledTimes(2)
+  })
+
+  test('a pick in the player\'s own menu is the member\'s, and the party moving does not undo it', async () => {
+    const { fake, tracks } = await following()
+    tracks.serve(served('English'))
+    tracks.serve(served('Spanish', 'English'))
+    expect(current.store.mine('subtitles')).toBe('party')
+    tracks.serve(served('Japanese', 'English'))
+    expect(current.store.mine('subtitles')).toBe('Japanese')
+    tracks.link.select.mockClear()
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, sub: 'English', audio: 'English' })
+    expect(tracks.link.select).not.toHaveBeenCalled()
+  })
+
+  test('the member\'s own choice from the widget is selected, and Party goes back to the party\'s', async () => {
+    const { tracks } = await following()
+    tracks.serve(served('Spanish', 'English'))
+    act(() => { current.store.setMine('subtitles', null) })
+    expect(tracks.link.select).toHaveBeenLastCalledWith('subtitles', null)
+    tracks.serve(served(null, 'English'))
+    act(() => { current.store.setMine('subtitles', 'party') })
+    expect(tracks.link.select).toHaveBeenLastCalledWith('subtitles', 'Spanish')
+  })
+
+  test('after a switch the player refused, Party still goes back to the party\'s', async () => {
+    const { tracks } = await following()
+    tracks.serve(served('English', 'English'))
+    tracks.serve(served('English', 'English', true))
+    tracks.serve(served('English', 'English'))
+    tracks.serve(served('Japanese', 'English'))
+    expect(current.store.mine('subtitles')).toBe('Japanese')
+    tracks.link.select.mockClear()
+    act(() => { current.store.setMine('subtitles', 'party') })
+    expect(tracks.link.select.mock.calls).toEqual([['subtitles', 'Spanish']])
+  })
+
+  test('after a switch the player refused, picking that track in its menu is the member\'s own', async () => {
+    const { fake, tracks } = await following()
+    tracks.serve(served('English', 'English'))
+    tracks.serve(served('English', 'English', true))
+    tracks.serve(served('English', 'English'))
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, sub: 'English', audio: 'English' })
+    tracks.link.select.mockClear()
+    tracks.serve(served('Spanish', 'English'))
+    expect(current.store.mine('subtitles')).toBe('Spanish')
+    expect(tracks.link.select).not.toHaveBeenCalled()
+  })
+
+  test('a busy follower applies nothing and reads nothing as the person, then applies the host', async () => {
+    const { fake, player, tracks } = await following()
+    tracks.serve(served('Spanish', 'English', true))
+    say(fake, 'host', { t: 'playback', s: { ...playing(20), at: Date.now() } })
+    player.report(paused(5))
+    expect(asks(fake)).toEqual([])
+    expect(player.link.apply).not.toHaveBeenCalled()
+    tracks.serve(served('Spanish', 'English'))
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
+    expect(player.link.apply.mock.calls[0]![0]).toMatchObject({ paused: false, time: 20 })
+  })
+
+  describe('the host', () => {
+    const hosting = async () => {
+      const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'ann'] })
+      current.store = createPartyStore(api(fake.room), memoryStorage())
+      await current.store.create()
+      const player = fakeLink()
+      const tracks = fakeTracks()
+      hosts.push(mount(<PartyPlayback link={player.link} tracks={tracks.link}/>))
+      tracks.serve(served('English'))
+      player.report(playing(10))
+      const playbacks = () => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'playback')
+      return { fake, player, tracks, playbacks }
+    }
+
+    // a Crunchyroll switch reloads the stream and puts it back where it was when the switch began
+    test('sends no playback while busy, and afterwards seeks back to where the party is', async () => {
+      const { player, tracks, playbacks } = await hosting()
+      tracks.serve(served('English', 'Japanese', true))
+      await wait(2_000)
+      player.report(playing(9))
+      expect(playbacks()).toHaveLength(1)
+      tracks.serve(served('English'))
+      expect(player.link.apply).toHaveBeenCalledWith({ paused: false, time: 12, rate: 1, at: NOW + 2_000 }, true)
+    })
+
+    test('a host back within the tolerance is left alone', async () => {
+      const { player, tracks } = await hosting()
+      tracks.serve(served('English', 'Japanese', true))
+      await wait(2_000)
+      player.report(playing(11.8))
+      tracks.serve(served('English'))
+      expect(player.link.apply).not.toHaveBeenCalled()
+    })
+
+    test('a pause while busy reaches the party once the switch ends', async () => {
+      const { player, tracks, playbacks } = await hosting()
+      tracks.serve(served('English', 'Japanese', true))
+      await wait(1_000)
+      player.report(paused(11))
+      tracks.serve(served('English'))
+      expect(playbacks().at(-1)).toMatchObject({ s: { paused: true, time: 11 } })
+    })
+
+    test('a granted seek applied while busy is not undone when the switch ends', async () => {
+      const { fake, player, tracks } = await hosting()
+      current.store.setGrants({ all: ['seek'], by: {} })
+      say(fake, 'host', decodePartyMessage(fake.sent.at(-1)!)!)
+      tracks.serve(served('English', 'Japanese', true))
+      say(fake, 'ann', { t: 'ask', c: 'seek', path: PATH, s: { ...playing(60), at: Date.now() } })
+      player.link.apply.mockClear()
+      await wait(1_000)
+      player.report(playing(61))
+      tracks.serve(served('English'))
+      expect(player.link.apply).not.toHaveBeenCalled()
+    })
+
+    test('leaving the watch page takes the player\'s tracks away', async () => {
+      await hosting()
+      expect(current.store.playerTracks()).toBeDefined()
+      unmount(hosts.pop()!)
+      expect(current.store.playerTracks()).toBeUndefined()
+    })
+
+    test('a new player is not sent back to where the last one told the party it was', async () => {
+      const { player, tracks } = await hosting()
+      const next = fakeLink()
+      act(() => { render(<PartyPlayback link={next.link} tracks={tracks.link}/>, hosts.at(-1)!) })
+      tracks.serve(served('English', 'Japanese', true))
+      next.report(playing(0))
+      tracks.serve(served('English'))
+      expect(next.link.apply).not.toHaveBeenCalled()
+      expect(player.link.apply).not.toHaveBeenCalled()
+    })
   })
 })

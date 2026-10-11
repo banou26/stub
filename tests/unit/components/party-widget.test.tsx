@@ -16,7 +16,7 @@ import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 // the REAL store, over a fake room each test builds, behind the module every component imports
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ Check: () => null, Clapperboard: () => null, Copy: () => null, FastForward: () => null, Gauge: () => null, LogOut: () => null, Play: () => null, Radio: () => null, Users: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ AudioLines: () => null, Captions: () => null, Check: () => null, Clapperboard: () => null, Copy: () => null, FastForward: () => null, Gauge: () => null, LogOut: () => null, Play: () => null, Radio: () => null, Users: () => null, X: () => null }))
 vi.mock('../../../src/party', () => ({
   party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }),
   partyLink: () => 'link',

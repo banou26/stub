@@ -1,5 +1,6 @@
-// What crosses the room, as data. Pure and import-free so it can be tested: the store that sends it
+// What crosses the room, as data. Pure, with no runtime imports, so it can be tested: the store that sends it
 // reaches @fkn/lib, which cannot load under vitest.
+import type { TrackKind } from '../embed-tracks'
 
 /** What the host's player is doing, as the followers are told it. `at` is the host's own clock. */
 export type PlaybackState = {
@@ -10,10 +11,13 @@ export type PlaybackState = {
 }
 
 /** A control the host can hand out to followers. Each one joins the list in the change that wires it. */
-export type Control = 'play' | 'seek' | 'rate' | 'go'
-export const CONTROLS: readonly Control[] = ['play', 'seek', 'go', 'rate']
+export type Control = 'play' | 'seek' | 'rate' | 'go' | 'subs' | 'audio'
+export const CONTROLS: readonly Control[] = ['play', 'seek', 'go', 'rate', 'subs', 'audio']
 /** The controls a follower uses on its player, whose ask carries the player's state. */
-export type PlayerControl = Exclude<Control, 'go'>
+export type PlayerControl = Exclude<Control, 'go' | 'subs' | 'audio'>
+
+/** The control that sets the party's track of a kind. */
+export const TRACK_CONTROL = { subtitles: 'subs', audio: 'audio' } as const satisfies Record<TrackKind, Control>
 
 /**
  * Who may use which control. `all` is every follower; `by` is per member, where `true` gives a control,
@@ -40,7 +44,9 @@ export const allowed = (grants: Grants, id: string, control: Control): boolean =
  * the watch page the follower wants the party on. Only the host acts on an ask, and every member
  * drops one whose sender the last `grants` do not allow.
  *
- * `state.grants` is who may use what; absent is nobody.
+ * `state.grants` is who may use what; absent is nobody. `state.sub` and `state.audio` are the party's
+ * subtitles and audio track: absent, the party sets none; null, off; a string, a track id as the player
+ * names it. A `subs` or `audio` ask carries the track the follower wants the party on, in the same form.
  *
  * `pong` is host only and is the reply to one ping: it carries the asker's own `at` back untouched
  * plus the host's clock at the moment it answered, which is everything Cristian's algorithm needs
@@ -51,9 +57,11 @@ export type PartyMessage =
   | { t: 'scroll', y: number }
   | { t: 'cursor', x: number, y: number }
   | { t: 'playback', s: PlaybackState }
-  | { t: 'state', path: string, y: number, s?: PlaybackState, grants?: Grants }
+  | { t: 'state', path: string, y: number, s?: PlaybackState, grants?: Grants, sub?: string | null, audio?: string | null }
   | { t: 'ask', c: PlayerControl, path: string, s: PlaybackState }
   | { t: 'ask', c: 'go', path: string }
+  | { t: 'ask', c: 'subs', sub: string | null }
+  | { t: 'ask', c: 'audio', audio: string | null }
   | { t: 'chat', text: string }
   | { t: 'name', name: string }
   | { t: 'ping', n: number, at: number }
@@ -128,13 +136,30 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
       if (!isAppPath(value.path) || !isFraction(value.y)) return undefined
       if (value.s !== undefined && !isPlaybackState(value.s)) return undefined
       const grants = decodeGrants(value.grants)
-      return { t: 'state', path: value.path, y: value.y, ...value.s ? { s: value.s } : {}, ...grants ? { grants } : {} }
+      const sub = trackId(value.sub)
+      const audio = trackId(value.audio)
+      return {
+        t: 'state', path: value.path, y: value.y,
+        ...value.s ? { s: value.s } : {},
+        ...grants ? { grants } : {},
+        ...sub !== undefined ? { sub } : {},
+        ...audio !== undefined ? { audio } : {},
+      }
     }
-    case 'ask':
+    case 'ask': {
       if (value.c === 'go') return isWatchPath(value.path) ? { t: 'ask', c: 'go', path: value.path } : undefined
+      if (value.c === 'subs') {
+        const sub = trackId(value.sub)
+        return sub === undefined ? undefined : { t: 'ask', c: 'subs', sub }
+      }
+      if (value.c === 'audio') {
+        const audio = trackId(value.audio)
+        return audio === undefined ? undefined : { t: 'ask', c: 'audio', audio }
+      }
       return isControl(value.c) && isAppPath(value.path) && isPlaybackState(value.s)
-        ? { t: 'ask', c: value.c, path: value.path, s: value.s }
+        ? { t: 'ask', c: value.c as PlayerControl, path: value.path, s: value.s }
         : undefined
+    }
     default:
       return undefined
   }
@@ -165,12 +190,24 @@ const decodeGrants = (value: unknown): Grants | undefined => {
 
 const MAX_GRANTED = 100
 
+/** A track id as the wire carries it: 1 to 64 characters once its spaces are collapsed, or null for off. Anything else is nothing. */
+const trackId = (value: unknown): string | null | undefined => {
+  if (value === null) return null
+  if (typeof value !== 'string') return undefined
+  const id = value.replace(/\s+/g, ' ').trim()
+  return id && id.length <= 64 ? id : undefined
+}
+
 /** What an ask did, as a chat line says it after the member's name. */
 export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string =>
   ask.c === 'go' ? 'changed the episode'
+  : ask.c === 'subs' ? trackText('subtitles', ask.sub)
+  : ask.c === 'audio' ? trackText('audio', ask.audio)
   : ask.c === 'seek' ? `skipped to ${clockText(ask.s.time)}`
   : ask.c === 'rate' ? `set speed to ${Number(ask.s.rate.toFixed(2))}x`
   : ask.s.paused ? 'paused' : 'resumed'
+
+const trackText = (noun: string, id: string | null) => id === null ? `turned ${noun} off` : `set ${noun} to ${id}`
 
 const clockText = (seconds: number): string => {
   const total = Math.floor(seconds)

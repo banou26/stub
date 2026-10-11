@@ -10,7 +10,8 @@ const TRACKS = 'stub:embed-tracks'
 const ASK = 'stub:embed-tracks?'
 const PICK = 'stub:embed-track-pick'
 
-export type TrackKind = 'subtitles' | 'audio'
+export const TRACK_KINDS = ['subtitles', 'audio'] as const
+export type TrackKind = typeof TRACK_KINDS[number]
 
 /** A player's tracks of one kind: ids as the player names them, `selected` null for subtitles off. */
 export type TrackList = { ids: string[], selected: string | null }

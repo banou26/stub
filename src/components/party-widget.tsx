@@ -14,6 +14,7 @@ import { CONTROLS, isWatchPath } from '../party/protocol'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
 import PartyGrants, { CONTROL_LABEL } from './party-grants'
+import PartyTracks from './party-tracks'
 import { switchStyle } from './switch-style'
 
 const buttonStyle = css`
@@ -265,6 +266,7 @@ const PartyWidget = () => {
                     </button>
                   </div>
                   <PartyGrants/>
+                  <PartyTracks/>
                   <div className="actions">
                     <button type="button" className="primary" onClick={toParty}><Users size={14}/> Party</button>
                     <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> End party</button>
@@ -284,6 +286,7 @@ const PartyWidget = () => {
                   {can.length > 0 && (
                     <div className="can">You can {can.map(control => <span key={control} className="badge">{CONTROL_LABEL[control]}</span>)}</div>
                   )}
+                  <PartyTracks/>
                   {playHere && (
                     <div className="actions">
                       <button type="button" onClick={() => { party.send({ t: 'ask', c: 'go', path: here }); setOpen(false) }}><Play size={14}/> Play for everyone</button>

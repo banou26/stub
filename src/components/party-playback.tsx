@@ -1,4 +1,4 @@
-import type { TracksLink } from '../embed-tracks'
+import type { EmbedTracks, TrackKind, TracksLink } from '../embed-tracks'
 import type { PlaybackLink } from '../party/bridge'
 import type { PlaybackState } from '../party'
 import type { PlayerAsk, PlayerControl } from '../party/protocol'
@@ -6,8 +6,10 @@ import type { PlayerAsk, PlayerControl } from '../party/protocol'
 import { useEffect, useRef } from 'preact/hooks'
 
 import { party } from '../party'
+import { TRACK_KINDS } from '../embed-tracks'
 import { advance, ASK_HOLD_MS, ASK_THROTTLE_MS, askedState, personAction, playbackCorrection, SEEK_TOLERANCE_S, SETTLE_MS } from '../party/playback'
 import { toHostTime, toLocalTime } from '../party/clock'
+import { nextMine, trackToSelect } from '../party/tracks'
 import { useParty, usePartyMessages } from '../party/use-party'
 
 const here = () => location.pathname + location.search
@@ -24,13 +26,18 @@ const here = () => location.pathname + location.search
  *
  * Telling a person from a correction is inference: a report within SETTLE_MS of a correction that
  * played, paused or seeked is the player answering it, and anything else that moved is the person.
+ *
+ * With `tracks`, every member's player is put on the party's subtitles and audio, or on the member's
+ * own pick. A track switch can reload the stream and put the player back where it was, so while one
+ * runs a guest applies and reads nothing and a host sends nothing; afterwards a host more than the
+ * tolerance from where it told the party it was seeks there.
  */
 // A player also resumes by itself (a rebuild after a stall autoplays). Only a click or a key press gives the page
 // user activation, one inside the player's cross-origin frame included (measured in Chrome, 2026-10-11), so a
 // change made without one is not the person's.
 const byPerson = () => navigator.userActivation?.isActive ?? true
 
-const PartyPlayback = ({ link }: { link: PlaybackLink | undefined, tracks?: TracksLink }) => {
+const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, tracks?: TracksLink }) => {
   const state = useParty()
   const role = state.status === 'active' ? state.role : undefined
   const following = party.following()
@@ -46,10 +53,15 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined, tracks?: Trac
   // into a range it has not buffered can take longer than SETTLE_MS
   const seekingTo = useRef<number | undefined>(undefined)
   const throttled = useRef(new Map<PlayerControl, { sentAt: number, next?: PlayerAsk, timer?: ReturnType<typeof setTimeout> }>())
+  // the host's last playback sent, which the party follows while the host's own player is busy
+  const sent = useRef<PlaybackState | undefined>(undefined)
+  const local = useRef<EmbedTracks | undefined>(undefined)
+  const requested = useRef(new Map<TrackKind, string | null>())
+  const busy = () => local.current?.busy ?? false
 
   const apply = (target: PlaybackState, measured: boolean) => {
     // read live: the report listener and the hold timer hold an older render
-    if (!link || !party.following()) return
+    if (!link || !party.following() || busy()) return
     const now = Date.now()
     const local = last.current && advance(last.current, last.current.at, now)
     const correction = local && playbackCorrection(local, target, now, measured)
@@ -86,19 +98,22 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined, tracks?: Trac
     // player on a different release, and either way it starts from what the host says next
     wanted.current = undefined
     last.current = undefined
+    sent.current = undefined
     seekingTo.current = undefined
     if (!link || !role) return
     const off = link.onReport(reported => {
       const before = last.current
       last.current = reported
       if (role === 'host') {
+        if (busy()) return
+        sent.current = reported
         party.setPlayback(reported)
         party.send({ t: 'playback', s: reported })
         return
       }
       const heard = wanted.current
       // off the host's page the player is its own, and at the end the browser paused it, not a person
-      if (!heard || link.ended?.() || !party.following()) return
+      if (!heard || link.ended?.() || !party.following() || busy()) return
       const now = Date.now()
       const holding = now < holdUntil.current
       const target = advance(heard.state, heard.receivedAt, now)
@@ -123,12 +138,68 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined, tracks?: Trac
 
   useEffect(() => { if (following) reapply() }, [following])
 
+  const followTracks = () => {
+    const heard = local.current
+    if (!tracks || !heard || !role) return
+    for (const kind of TRACK_KINDS) {
+      const list = heard[kind]
+      const id = list && trackToSelect(party.partyTrack(kind), party.mine(kind), { ...list, busy: heard.busy })
+      // a request lasts until nothing is wanted, or a change the member makes later reads as the code's own
+      if (id === undefined && !heard.busy) requested.current.delete(kind)
+      // a switch asked for and not reached is not asked again: the source refused it
+      if (id === undefined || requested.current.get(kind) === id) continue
+      requested.current.set(kind, id)
+      tracks.select(kind, id)
+    }
+  }
+  const switched = () => {
+    if (role === 'guest') { reapply(); return }
+    const told = sent.current
+    const own = last.current
+    if (!link || !told || !own) return
+    const now = Date.now()
+    const where = advance(told, told.at, now)
+    const player = advance(own, own.at, now)
+    if (Math.abs(where.time - player.time) > SEEK_TOLERANCE_S) link.apply({ ...player, time: where.time }, true)
+    else {
+      sent.current = own
+      party.setPlayback(own)
+      party.send({ t: 'playback', s: own })
+    }
+  }
+
+  useEffect(() => {
+    local.current = undefined
+    requested.current.clear()
+    if (!tracks || !role) return
+    const off = tracks.onTracks(next => {
+      const before = local.current
+      local.current = next
+      for (const kind of TRACK_KINDS) {
+        const list = next[kind]
+        if (!list) continue
+        const mine = nextMine(party.mine(kind), party.partyTrack(kind), before?.[kind], list, requested.current.get(kind))
+        if (mine !== party.mine(kind)) party.setMine(kind, mine)
+      }
+      party.setPlayerTracks(next)
+      if (before?.busy && !next.busy) switched()
+      followTracks()
+    })
+    return () => { off(); local.current = undefined; party.setPlayerTracks(undefined) }
+  }, [role, tracks, link])
+
+  // the party's choice or this member's own moved
+  useEffect(followTracks)
+
   usePartyMessages(message => {
     if (role === 'host') {
       // the store already dropped an ask its sender was not granted
-      if (message.t !== 'ask' || message.c === 'go' || message.path !== here() || !link || !last.current) return
+      if (message.t !== 'ask' || !('s' in message) || message.path !== here() || !link || !last.current) return
       const target = askedState(last.current, message, Date.now())
-      if (target) link.apply(target, true)
+      if (!target) return
+      // where a switch running now ends up sending the player back to
+      if (busy()) sent.current = target
+      link.apply(target, true)
       return
     }
     if (role !== 'guest') return

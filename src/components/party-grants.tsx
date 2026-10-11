@@ -2,7 +2,7 @@ import type { PartyMember } from '../party'
 import type { Control, Grants } from '../party/protocol'
 
 import { css } from '@emotion/react'
-import { Check, Clapperboard, FastForward, Gauge, Play, X } from 'lucide-react'
+import { AudioLines, Captions, Check, Clapperboard, FastForward, Gauge, Play, X } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
 
 import { party } from '../party'
@@ -10,8 +10,8 @@ import { CONTROLS } from '../party/protocol'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { memberLabel } from './party-chat'
 
-export const CONTROL_LABEL: Record<Control, string> = { play: 'Play/pause', seek: 'Seek', go: 'Episode', rate: 'Speed' }
-const CONTROL_ICON: Record<Control, typeof Play> = { play: Play, seek: FastForward, go: Clapperboard, rate: Gauge }
+export const CONTROL_LABEL: Record<Control, string> = { play: 'Play/pause', seek: 'Seek', go: 'Episode', rate: 'Speed', subs: 'Subtitles', audio: 'Audio' }
+const CONTROL_ICON: Record<Control, typeof Play> = { play: Play, seek: FastForward, go: Clapperboard, rate: Gauge, subs: Captions, audio: AudioLines }
 
 const style = css`
   margin-top: 1rem;

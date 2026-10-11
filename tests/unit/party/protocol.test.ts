@@ -146,6 +146,58 @@ describe('grants', () => {
   })
 })
 
+describe('the party\'s tracks', () => {
+  const wire = (message: Record<string, unknown>) => decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, ...message }))
+
+  // absent is a party that sets nothing, null is a party with subtitles off: two different instructions
+  test('sub and audio ride a state, null apart from absent', () => {
+    for (const message of [
+      { t: 'state', path: '/watch/a/b', y: 0, sub: 'English', audio: 'Japanese' },
+      { t: 'state', path: '/watch/a/b', y: 0, sub: null },
+      { t: 'state', path: '/watch/a/b', y: 0, audio: 'English#2' },
+      { t: 'state', path: '/watch/a/b', y: 0 },
+    ] satisfies PartyMessage[]) expect(decodePartyMessage(encodePartyMessage(message))).toEqual(message)
+  })
+
+  test('a subtitles or audio ask round-trips, and talks rather than steers', () => {
+    for (const message of [
+      { t: 'ask', c: 'subs', sub: 'English' },
+      { t: 'ask', c: 'subs', sub: null },
+      { t: 'ask', c: 'audio', audio: 'Japanese' },
+    ] satisfies PartyMessage[]) {
+      expect(decodePartyMessage(encodePartyMessage(message))).toEqual(message)
+      expect(isHostOnly(message)).toBe(false)
+    }
+  })
+
+  test('a track id of the wrong shape is no track on a state, and drops an ask', () => {
+    for (const bad of ['', '   ', 'x'.repeat(65), 42, {}]) {
+      expect(wire({ t: 'state', path: '/', y: 0, sub: bad, audio: bad })).toEqual({ t: 'state', path: '/', y: 0 })
+      expect(wire({ t: 'ask', c: 'subs', sub: bad })).toBeUndefined()
+      expect(wire({ t: 'ask', c: 'audio', audio: bad })).toBeUndefined()
+    }
+    expect(wire({ t: 'ask', c: 'subs' })).toBeUndefined()
+    expect(wire({ t: 'state', path: '/', y: 0, sub: '  Spanish   (Latin America) ' })).toEqual({ t: 'state', path: '/', y: 0, sub: 'Spanish (Latin America)' })
+  })
+
+  // a subtitles ask carries no player state: read as a player control it would reach the host's player
+  test('a subtitles or audio ask shaped like a player ask is dropped', () => {
+    expect(wire({ t: 'ask', c: 'subs', path: '/watch/a/b', s: PLAYBACK })).toBeUndefined()
+    expect(wire({ t: 'ask', c: 'audio', path: '/watch/a/b', s: PLAYBACK })).toBeUndefined()
+  })
+
+  test('an ask reads as what it did', () => {
+    expect(actionText({ t: 'ask', c: 'subs', sub: 'English' })).toBe('set subtitles to English')
+    expect(actionText({ t: 'ask', c: 'subs', sub: null })).toBe('turned subtitles off')
+    expect(actionText({ t: 'ask', c: 'audio', audio: 'Japanese' })).toBe('set audio to Japanese')
+  })
+
+  test('Subtitles and Audio are grants like any other control', () => {
+    expect(wire({ t: 'state', path: '/', y: 0, grants: { all: ['subs'], by: { sam: { audio: true, subs: false } } } }))
+      .toEqual({ t: 'state', path: '/', y: 0, grants: { all: ['subs'], by: { sam: { audio: true, subs: false } } } })
+  })
+})
+
 describe('chatText and displayName', () => {
   test('trimmed, bounded, and nothing when there is nothing', () => {
     expect(chatText('  hello  ')).toBe('hello')

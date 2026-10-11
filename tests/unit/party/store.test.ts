@@ -741,3 +741,91 @@ describe('Follow playback', () => {
     expect(party.following()).toBe(true)
   })
 })
+
+describe('the party\'s tracks', () => {
+  const say = (fake: ReturnType<typeof fakeRoom>, seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
+    fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+  const hosting = async (grants = { all: ['subs' as const, 'audio' as const], by: { sam: { subs: false, audio: false } } }) => {
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'ann', 'sam'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    party.setGrants(grants)
+    say(fake, 1, 'me', lastSent(fake.sent)!)
+    fake.sent.length = 0
+    return { fake, party }
+  }
+
+  test('the host sets them on every state, and learns them from its own echo like everyone', async () => {
+    vi.useFakeTimers()
+    const { fake, party } = await hosting()
+    party.setPartyTrack('subtitles', null)
+    party.setPartyTrack('audio', 'Japanese')
+    expect(lastSent(fake.sent)).toMatchObject({ t: 'state', sub: null, audio: 'Japanese' })
+    expect(party.partyTrack('subtitles')).toBeUndefined()
+    say(fake, 2, 'me', lastSent(fake.sent)!)
+    expect([party.partyTrack('subtitles'), party.partyTrack('audio')]).toEqual([null, 'Japanese'])
+    fake.sent.length = 0
+    await vi.advanceTimersByTimeAsync(STATE_HEARTBEAT_MS)
+    expect(lastSent(fake.sent)).toMatchObject({ sub: null, audio: 'Japanese' })
+  })
+
+  test('the host applies a granted subtitles or audio ask, and not an ungranted one', async () => {
+    const { fake, party } = await hosting()
+    say(fake, 2, 'sam', { t: 'ask', c: 'subs', sub: 'German' })
+    say(fake, 3, 'sam', { t: 'ask', c: 'audio', audio: 'German' })
+    expect(fake.sent).toEqual([])
+    say(fake, 4, 'ann', { t: 'ask', c: 'subs', sub: 'English' })
+    expect(lastSent(fake.sent)).toMatchObject({ t: 'state', sub: 'English' })
+    say(fake, 5, 'ann', { t: 'ask', c: 'audio', audio: 'Japanese' })
+    expect(lastSent(fake.sent)).toMatchObject({ t: 'state', sub: 'English', audio: 'Japanese' })
+    expect(party.chat().map(line => line.text)).toEqual(['set subtitles to English', 'set audio to Japanese'])
+  })
+
+  test('a follower knows them from the owner only, and asks for one only when granted', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.join(INVITE)
+    say(fake, 1, 'other', { t: 'state', path: '/', y: 0, sub: 'German' })
+    expect(party.partyTrack('subtitles')).toBeUndefined()
+    say(fake, 2, 'host', { t: 'state', path: '/', y: 0, sub: 'English', grants: { all: ['subs'], by: {} } })
+    expect(party.partyTrack('subtitles')).toBe('English')
+    fake.sent.length = 0
+    party.setPartyTrack('audio', 'Japanese')
+    expect(fake.sent).toEqual([])
+    party.setPartyTrack('subtitles', null)
+    expect(lastSent(fake.sent)).toEqual({ t: 'ask', c: 'subs', sub: null })
+    say(fake, 3, 'host', { t: 'state', path: '/', y: 0, grants: { all: ['audio'], by: {} } })
+    party.setPartyTrack('audio', 'English')
+    expect(lastSent(fake.sent)).toEqual({ t: 'ask', c: 'audio', audio: 'English' })
+  })
+
+  test('a host\'s next party starts with no tracks set', async () => {
+    const first = fakeRoom({ self: 'me', owner: 'me', members: ['me'] })
+    const next = fakeRoom({ self: 'me', owner: 'me', members: ['me'] })
+    const rooms = api(first.room)
+    const party = createPartyStore(rooms, memoryStorage())
+    await party.create()
+    party.setPartyTrack('subtitles', 'English')
+    party.setPartyTrack('audio', 'Japanese')
+    await party.leave()
+    rooms.create.mockResolvedValueOnce(next.room)
+    await party.create()
+    party.setGrants({ all: [], by: {} })
+    expect(lastSent(next.sent)).toMatchObject({ t: 'state' })
+    expect(lastSent(next.sent)).not.toHaveProperty('sub')
+    expect(lastSent(next.sent)).not.toHaveProperty('audio')
+  })
+
+  test('a member\'s own choice lives in memory for the party only: nothing is stored, and it ends with the party', async () => {
+    const storage = memoryStorage()
+    const party = createPartyStore(api(fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] }).room), storage)
+    await party.join(INVITE)
+    expect([party.mine('subtitles'), party.mine('audio')]).toEqual(['party', 'party'])
+    party.setMine('subtitles', null)
+    party.setMine('audio', 'English')
+    expect([party.mine('subtitles'), party.mine('audio')]).toEqual([null, 'English'])
+    expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY])
+    await party.leave()
+    expect([party.mine('subtitles'), party.mine('audio')]).toEqual(['party', 'party'])
+  })
+})

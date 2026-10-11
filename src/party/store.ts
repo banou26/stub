@@ -1,7 +1,9 @@
 import type { rooms } from '@fkn/lib'
+import type { EmbedTracks, TrackKind } from '../embed-tracks'
 import type { Control, Grants, PartyMessage, PlaybackState } from './protocol'
+import type { MyTrack } from './tracks'
 
-import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, NO_GRANTS } from './protocol'
+import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, NO_GRANTS, TRACK_CONTROL } from './protocol'
 import { advance } from './playback'
 import { bestSample, clockSample, MAX_USABLE_RTT_MS, type ClockSample } from './clock'
 
@@ -93,6 +95,16 @@ export type PartyStore = {
    * through its own echo, so every member judges it alike.
    */
   may: (control: Control) => boolean
+  /** The party's track of a kind, by the owner's last `state` like the grants: undefined sets none, null is off. */
+  partyTrack: (kind: TrackKind) => string | null | undefined
+  /** The host sets the party's track; a follower granted its control asks the host for it. */
+  setPartyTrack: (kind: TrackKind, id: string | null) => void
+  /** This member's own choice of a kind, `'party'` until it picks one. Memory only, reset when the party ends. */
+  mine: (kind: TrackKind) => MyTrack
+  setMine: (kind: TrackKind, mine: MyTrack) => void
+  /** The tracks of the player on this page, kept current by the watch page for the widget. */
+  playerTracks: () => EmbedTracks | undefined
+  setPlayerTracks: (tracks: EmbedTracks | undefined) => void
   /** The link for a follower, or nothing outside an active party. */
   invite: () => string | undefined
   /** Where the host last said it was, for a guest deciding whether a scroll or a playback is for the page it is on. */
@@ -159,6 +171,8 @@ export const CLOCK_SAMPLES = 5
 export const CLOCK_SPACING_MS = 400
 export const CLOCK_INTERVAL_MS = 60_000
 
+const FOLLOW_PARTY: Record<TrackKind, MyTrack> = { subtitles: 'party', audio: 'party' }
+
 const defaultStorage = (): StorageLike | undefined => {
   try { return globalThis.sessionStorage } catch { return undefined }
 }
@@ -182,6 +196,11 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
   let issued: Grants | undefined
   let grants: Grants = NO_GRANTS
   let following = true
+  // the host's choice of the party's tracks, and the choice in force as every member heard it
+  let chosen: Partial<Record<TrackKind, string | null>> = {}
+  let partyTracks: Partial<Record<TrackKind, string | null>> = {}
+  let mine = FOLLOW_PARTY
+  let playerTracks: EmbedTracks | undefined
   // What the host's clock reads relative to this one, and the round being collected. A guest that has
   // measured nothing keeps `undefined`, which every reader treats as no offset: the behaviour there
   // is exactly what it was before any of this existed.
@@ -261,12 +280,21 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     y: snapshot.y,
     ...snapshot.playback ? { s: advance(snapshot.playback, snapshot.playbackAt ?? Date.now(), Date.now()) } : {},
     ...issued ? { grants: issued } : {},
+    ...chosen.subtitles !== undefined ? { sub: chosen.subtitles } : {},
+    ...chosen.audio !== undefined ? { audio: chosen.audio } : {},
   })
 
-  const hear = (next: Grants) => {
-    if (JSON.stringify(next) === JSON.stringify(grants)) return
+  const hear = ({ grants: next = NO_GRANTS, sub, audio }: Extract<PartyMessage, { t: 'state' }>) => {
+    const tracks = { subtitles: sub, audio }
+    if (JSON.stringify([next, tracks]) === JSON.stringify([grants, partyTracks])) return
     grants = next
+    partyTracks = tracks
     if (state.status === 'active') setState({ ...state })
+  }
+
+  const choose = (kind: TrackKind, id: string | null) => {
+    chosen = { ...chosen, [kind]: id }
+    send(whereWeAre())
   }
 
   /**
@@ -303,6 +331,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     collecting = undefined
     clock = undefined
     pings.clear()
+    mine = FOLLOW_PARTY
   }
 
   const attach = async (joined: Room) => {
@@ -313,6 +342,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     issued = undefined
     grants = NO_GRANTS
     following = true
+    chosen = {}
+    partyTracks = {}
     setState({ status: 'active', role, invite: joined.invite, members: 1, self: joined.self.id, owner: joined.owner })
     remember(joined.invite)
 
@@ -350,7 +381,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           // the room let through.
           if (isHostOnly(message)) {
             if (from !== joined.owner) return
-            if (message.t === 'state') hear(message.grants ?? NO_GRANTS)
+            if (message.t === 'state') hear(message)
             if (role === 'host') return
             heard.delete(message.t)
             heard.set(message.t, message)
@@ -362,6 +393,9 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
             // the same member using the same control again replaces its line, so a scrub reads as one
             const last = lines.at(-1)
             if (last?.from === from && last.action === message.c) lines.pop()
+            // here rather than on the watch page, so the party's track is set from any page
+            if (role === 'host' && message.c === 'subs') choose('subtitles', message.sub)
+            if (role === 'host' && message.c === 'audio') choose('audio', message.audio)
           }
           if (message.t === 'name') names.set(from, message.name)
           if (message.t === 'chat' || message.t === 'ask') {
@@ -420,6 +454,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     })
   }
 
+  const may = (control: Control) => state.status === 'active' && (state.role === 'host' || allowed(grants, state.self, control))
+
   const end = async (reason: PartyEndReason) => {
     const leaving = room
     detach()
@@ -472,7 +508,17 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
       send(whereWeAre())
       setState({ ...state })
     },
-    may: control => state.status === 'active' && (state.role === 'host' || allowed(grants, state.self, control)),
+    may,
+    partyTrack: kind => partyTracks[kind],
+    setPartyTrack: (kind, id) => {
+      if (state.status !== 'active') return
+      if (state.role === 'host') choose(kind, id)
+      else if (may(TRACK_CONTROL[kind])) send(kind === 'subtitles' ? { t: 'ask', c: 'subs', sub: id } : { t: 'ask', c: 'audio', audio: id })
+    },
+    mine: kind => mine[kind],
+    setMine: (kind, next) => { mine = { ...mine, [kind]: next }; setState({ ...state }) },
+    playerTracks: () => playerTracks,
+    setPlayerTracks: tracks => { playerTracks = tracks; setState({ ...state }) },
     invite: () => state.status === 'active' ? state.invite : undefined,
     hostClock: () => clock,
     hostPath: () => {
