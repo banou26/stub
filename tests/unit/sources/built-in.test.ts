@@ -11,9 +11,13 @@ test('names every source that answers, under its own origin, name and site, in t
     .filter(source => source.origin !== 'imdb')
     .map(source => ({ origin: source.origin, name: source.name, url: source.originUrl }))
   expect(builtInSources).toEqual(answering)
-  expect(builtInSources).toHaveLength(34)
+  expect(builtInSources).toHaveLength(35)
 })
 
 test('lists IMDb once, as the source that reads it', () => {
   expect(builtInSources.filter(source => source.name === 'IMDb').map(source => source.origin)).toEqual(['omdb'])
+})
+
+test('lists Anime News Network, for its credits', () => {
+  expect(builtInSources).toContainEqual({ origin: 'ann', name: 'Anime News Network', url: 'https://www.animenewsnetwork.com' })
 })

@@ -5,7 +5,7 @@
 // manami-project/anime-offline-database release so a deploy always carries current data, and merges
 // it with the `@kawaiioverflow/arm` npm package, which is pinned by package-lock.json.
 //
-//   src/generated/anime-index.ts    cross-catalog ids: MyAnimeList, AniList, Kitsu, AniDB
+//   src/generated/anime-index.ts    cross-catalog ids: MyAnimeList, AniList, Kitsu, AniDB, Anime News Network
 //   src/generated/anime-seasons.ts  seasonal listings with titles and covers
 //
 // Both are reached ONLY through a dynamic import, so they are separate content-hashed chunks and
@@ -64,6 +64,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { orderSeasonBucket } from './season-order.mjs'
+import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
 import { get as httpsGet } from 'node:https'
 
 const require = createRequire(import.meta.url)
@@ -128,6 +129,7 @@ const CATALOGS = [
   { key: 'mal', host: 'myanimelist.net' },
   { key: 'kitsu', host: 'kitsu.app' },
   { key: 'anidb', host: 'anidb.net' },
+  { key: 'ann', host: 'animenewsnetwork.com' },
 ]
 
 const JIKAN = 'https://api.jikan.moe/v4'
@@ -311,7 +313,7 @@ const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [
  *
  * Keeping a title and a cover path for every one of the 41,113 usable rows makes an 8.2 MB file,
  * and only the windowed seasons ever render a title. So only they carry one, and every other row is
- * reduced to its four ids, which is the entire contribution the rest of the dump makes to the merge.
+ * reduced to its ids, which is the entire contribution the rest of the dump makes to the merge.
  *
  * It also lands the extract in nearly the shape the build wants, so the cache path exercises the
  * same code as the fresh path rather than a second one that could rot untested.
@@ -425,7 +427,8 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
   const seasons = {}
   for (const entry of entries) {
     const ids = catalogIds(entry)
-    if (ids.mal || ids.anilist || ids.kitsu || ids.anidb) rows.push([ids.mal, ids.anilist, ids.kitsu, ids.anidb])
+    const row = [ids.mal, ...COLUMNS.map(key => ids[key])]
+    if (row.some(Boolean)) rows.push(row)
 
     const season = entry.animeSeason
     if (!season?.year || !SEASON_ORDER.includes(season.season)) continue
@@ -514,80 +517,6 @@ const loadManami = async () => {
 }
 
 /* --------------------------------------------------------------------------------------------- */
-/* merge                                                                                            */
-/* --------------------------------------------------------------------------------------------- */
-
-/**
- * One row per show, carrying every catalog id the two databases agree on.
- *
- * The passes are ordered so that a contradiction always removes a row rather than resolving it. An
- * id that two sources disagree about is exactly the id most likely to weld the wrong pair together,
- * so there is no tie to break: both readings go.
- */
-const mergeIds = (armEntries, manamiRows) => {
-  const rows = new Map()
-  const conflicts = new Set()
-
-  const put = (mal, anilist, kitsu, anidb) => {
-    if (!mal) return
-    const existing = rows.get(mal)
-    if (!existing) { rows.set(mal, { mal, anilist, kitsu, anidb }); return }
-    // A disagreement on a field either side actually knows is a contradiction, and the row dies.
-    if (anilist && existing.anilist && anilist !== existing.anilist) { conflicts.add(mal); return }
-    if (kitsu && existing.kitsu && kitsu !== existing.kitsu) { conflicts.add(mal); return }
-    if (anidb && existing.anidb && anidb !== existing.anidb) { conflicts.add(mal); return }
-    existing.anilist ||= anilist
-    existing.kitsu ||= kitsu
-    existing.anidb ||= anidb
-  }
-
-  for (const entry of armEntries) put(entry.mal_id, entry.anilist_id ?? 0, 0, 0)
-  for (const [mal, anilist, kitsu, anidb] of manamiRows) put(mal, anilist, kitsu, anidb)
-
-  for (const mal of conflicts) rows.delete(mal)
-
-  // A second pass on the OTHER columns, because the map is keyed on the MyAnimeList id and so it
-  // cannot see two different shows claiming one AniList id. Counting first and deleting second is
-  // what removes both sides: dropping the second occurrence as it is met would keep the first,
-  // which is exactly as likely to be the wrong one.
-  const ambiguous = { anilist: new Map(), kitsu: new Map(), anidb: new Map() }
-  for (const row of rows.values()) {
-    for (const key of ['anilist', 'kitsu', 'anidb']) {
-      if (row[key]) ambiguous[key].set(row[key], (ambiguous[key].get(row[key]) ?? 0) + 1)
-    }
-  }
-  let cleared = 0
-  for (const row of rows.values()) {
-    for (const key of ['anilist', 'kitsu', 'anidb']) {
-      if (row[key] && ambiguous[key].get(row[key]) > 1) { row[key] = 0; cleared++ }
-    }
-  }
-
-  const kept = [...rows.values()]
-    .filter(row => row.anilist || row.kitsu || row.anidb)
-    .sort((a, b) => a.mal - b.mal)
-
-  return { kept, conflicts: conflicts.size, cleared }
-}
-
-/**
- * Four columns, sorted by MyAnimeList id, that column delta-coded.
- *
- * Measured against the alternatives on the real rows: the same size after brotli as a hand-rolled
- * text encoding and 40% smaller than an array of rows, while still decoding with one JSON.parse.
- * Zero means absent, which no catalog here ever issues as a real id.
- */
-const encodeIndex = rows => {
-  let previous = 0
-  return {
-    mal: rows.map(row => { const delta = row.mal - previous; previous = row.mal; return delta }),
-    anilist: rows.map(row => row.anilist),
-    kitsu: rows.map(row => row.kitsu),
-    anidb: rows.map(row => row.anidb),
-  }
-}
-
-/* --------------------------------------------------------------------------------------------- */
 /* emit                                                                                             */
 /* --------------------------------------------------------------------------------------------- */
 
@@ -639,7 +568,7 @@ const main = async () => {
 
   const total =
     emit(
-      { file: 'anime-index.ts', types: '{ mal: number[], anilist: number[], kitsu: number[], anidb: number[] }' },
+      { file: 'anime-index.ts', types: '{ mal: number[], anilist: number[], kitsu: number[], anidb: number[], ann: number[] }' },
       { arm: armVersion, tag: manami.tag, updated: manami.updated, ...encodeIndex(kept) },
       provenance,
       [ARM, OFFLINE_DATABASE],

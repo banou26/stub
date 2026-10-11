@@ -30,6 +30,7 @@ import {
   aggregatePlugin, alignedFillsOf, carryIds, containerMayMintSlots, runLengthOf, trimsRow,
 } from '../../../../../src/worker/graph/plugins/aggregate'
 import { aggregateFields } from '../../../../../src/worker/graph/plugins/fields'
+import { resolvers as annResolvers } from '../../../../../src/sources/ann/extractor'
 import { checkInvariants } from '../../../../../src/worker/graph/plugins/invariants'
 import { runEpisodes, runLength } from '../../../../../src/worker/store/consensus'
 import { answer, episode, media, rowsOf, title } from './fixtures'
@@ -699,6 +700,38 @@ test('the episode length and the source material reach the row', () => {
   const row = alone({ duration: 24, sourceMaterial: 'ORIGINAL' })
   expect(row.duration).toBe(24)
   expect(row.sourceMaterial).toBe('ORIGINAL')
+})
+
+// Anime News Network is a member of the cluster for its credits and nothing else: the row with its
+// answer and the row with only its handle differ in `characters`, `staff`, the provenance naming it and
+// its own handle node. Mutation: score it above AniList, or have it name a title, and the row moves.
+test('an Anime News Network answer adds credits and changes no other field of the row', async () => {
+  const subscribe = (annResolvers.Subscription as any).media.subscribe
+  const fetch = async () => new Response(readFileSync(new URL('../../../../fixtures/credits/ann-bebop.xml', import.meta.url), 'utf8'))
+  const { value } = await subscribe(undefined, { input: { uri: 'ag:(anilist:1,ann:13)', details: true } }, { fetch } as never).next()
+  const jet = { id: 'anilist:3', names: ['Jet Black'], role: 'MAIN', voiceActors: [{ language: 'ja', person: { id: 'anilist:95357', name: 'Unshou Ishizuka' } }] }
+  const anilist = {
+    uri: 'anilist:1', origin: 'anilist', id: '1', owned: true, score: 0.8, fieldSeq: {},
+    raw: { url: 'https://anilist.co/anime/1', titles: [{ title: 'Cowboy Bebop' }], genres: ['Action'], studios: ['Sunrise'], duration: 24, credits: { characters: [jet], staff: [] } },
+  }
+  const row = (ann: { owned: boolean, score: number | null, raw: Record<string, unknown> }) => aggregateFields({
+    cluster: {
+      id: 'cl:anilist:1', aggUri: 'ag:(anilist:1,ann:13)', scope: 'RUN', runLength: null, runLengthTier: null,
+      runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+    },
+    members: [anilist, { uri: 'ann:13', origin: 'ann', id: '13', fieldSeq: {}, ...ann }],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  const without = row({ owned: false, score: null, raw: {} })
+  const withAnn = row({ owned: true, score: value.media.score, raw: value.media })
+  const rest = ({ characters, staff, provenance, handles, ...fields }: Record<string, unknown>) => fields
+
+  expect((withAnn.characters as { name: string }[]).map(({ name }) => name)).toEqual(['Jet Black', 'Spike Spiegel', 'Lin'])
+  expect((withAnn.staff as { name: string }[]).map(({ name }) => name)).toEqual(['Shinichirō Watanabe'])
+  expect(rest(withAnn)).toEqual(rest(without))
+  expect(withAnn.handles.filter(({ node }) => node.uri !== 'ann:13')).toEqual(without.handles.filter(({ node }) => node.uri !== 'ann:13'))
 })
 
 // THE ANOMALIES OF 5.5, landed on the cluster rather than left in a fixture test: the rule fires on

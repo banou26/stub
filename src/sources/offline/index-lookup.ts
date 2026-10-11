@@ -1,12 +1,14 @@
 // Reading the generated cross-catalog id index. Pure, and kept out of the extractor so it can be
 // tested without the generated module, which only exists after `npm run data:build`.
 
-/** The generated bundle: four parallel columns, with `mal` delta-coded against the previous row. */
+/** The generated bundle: parallel columns, with `mal` delta-coded against the previous row. */
 export type IndexBundle = {
   mal: number[]
   anilist: number[]
   kitsu: number[]
   anidb: number[]
+  /** Anime News Network, carried for its handle and never looked up by, so tracking ids are unchanged. */
+  ann?: number[]
 }
 
 export type CatalogRow = {
@@ -14,6 +16,7 @@ export type CatalogRow = {
   anilist: number
   kitsu: number
   anidb: number
+  ann?: number
 }
 
 /** The origins this index can answer about, which are exactly the columns the build emits. */
@@ -63,6 +66,7 @@ export const readIndex = (bundle: IndexBundle): CatalogIndex => {
     anilist: bundle.anilist[row] ?? 0,
     kitsu: bundle.kitsu[row] ?? 0,
     anidb: bundle.anidb[row] ?? 0,
+    ann: bundle.ann?.[row] ?? 0,
   })
 
   return {

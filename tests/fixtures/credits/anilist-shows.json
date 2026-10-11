@@ -1,0 +1,895 @@
+{
+  "bebop": {
+    "id": 1,
+    "title": {
+      "romaji": "Cowboy Bebop",
+      "english": "Cowboy Bebop",
+      "native": "カウボーイビバップ"
+    },
+    "siteUrl": "https://anilist.co/anime/1",
+    "characters": {
+      "edges": [
+        {
+          "role": "MAIN",
+          "node": {
+            "id": 1,
+            "name": {
+              "full": "Spike Spiegel",
+              "native": "スパイク・スピーゲル",
+              "alternative": [
+                "Spike Spike",
+                "Swimming Bird"
+              ]
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b1-ChxaldmieFlQ.png"
+            },
+            "siteUrl": "https://anilist.co/character/1"
+          },
+          "voiceActors": [
+            {
+              "id": 95011,
+              "name": {
+                "full": "Kouichi Yamadera"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95011-2RfLzncNyvbR.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95011",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 95012,
+              "name": {
+                "full": "Steven Blum"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95012-jnlK6VyCTf9P.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95012",
+              "languageV2": "English"
+            },
+            {
+              "id": 95781,
+              "name": {
+                "full": "Massimo De Ambrosis"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/781.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95781",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 96099,
+              "name": {
+                "full": "Guilherme Briggs"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96099-n1wxTRslU9gj.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96099",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 96638,
+              "name": {
+                "full": "Viktor Neumann"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/1638.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96638",
+              "languageV2": "German"
+            },
+            {
+              "id": 102787,
+              "name": {
+                "full": "Zoltán Juhász"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/default.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/102787",
+              "languageV2": "Hungarian"
+            },
+            {
+              "id": 104237,
+              "name": {
+                "full": "Yann Pichon"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/9237.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/104237",
+              "languageV2": "French"
+            },
+            {
+              "id": 105021,
+              "name": {
+                "full": "José Gilberto Vilchis"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n105021-Bn6vy2ClY3uX.png"
+              },
+              "siteUrl": "https://anilist.co/staff/105021",
+              "languageV2": "Spanish"
+            },
+            {
+              "id": 105028,
+              "name": {
+                "full": "Yamil Atala"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/10028.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/105028",
+              "languageV2": "Spanish"
+            },
+            {
+              "id": 109781,
+              "name": {
+                "full": "Ja-Hyeong Koo"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n109781-wjjUigU8ZlFq.png"
+              },
+              "siteUrl": "https://anilist.co/staff/109781",
+              "languageV2": "Korean"
+            },
+            {
+              "id": 206333,
+              "name": {
+                "full": "Genaro Vásquez"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n206333-oYkemxJhn4bk.png"
+              },
+              "siteUrl": "https://anilist.co/staff/206333",
+              "languageV2": "Spanish"
+            }
+          ]
+        },
+        {
+          "role": "MAIN",
+          "node": {
+            "id": 3,
+            "name": {
+              "full": "Jet Black",
+              "native": "ジェット・ブラック",
+              "alternative": [
+                "Running Rock",
+                "Black Dog",
+                "Jet Jet"
+              ]
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b3-JjH9Si9UM1NZ.png"
+            },
+            "siteUrl": "https://anilist.co/character/3"
+          },
+          "voiceActors": [
+            {
+              "id": 95357,
+              "name": {
+                "full": "Unshou Ishizuka"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95357-umndcceko65h.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95357",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 95358,
+              "name": {
+                "full": "Beau Billingslea"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95358-WswC6Q3j7dnB.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95358",
+              "languageV2": "English"
+            },
+            {
+              "id": 104256,
+              "name": {
+                "full": "Philippe Roullier"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/9256.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/104256",
+              "languageV2": "French"
+            },
+            {
+              "id": 105030,
+              "name": {
+                "full": "Alfonso Ramírez"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n105030-gxZbxXNbufOh.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/105030",
+              "languageV2": "Spanish"
+            },
+            {
+              "id": 109779,
+              "name": {
+                "full": "Ki-Hyun Kim"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n109779-eOSC5vshn4m9.png"
+              },
+              "siteUrl": "https://anilist.co/staff/109779",
+              "languageV2": "Korean"
+            },
+            {
+              "id": 139110,
+              "name": {
+                "full": "Karl Schulz"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/default.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/139110",
+              "languageV2": "German"
+            },
+            {
+              "id": 174947,
+              "name": {
+                "full": "Nino Prester"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/default.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/174947",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 180569,
+              "name": {
+                "full": "Mauro Ramos"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n180569-d5ctTE6UNLfi.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/180569",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 182551,
+              "name": {
+                "full": "Ricardo Tejedo"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n182551-z5pxnDy9L0DJ.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/182551",
+              "languageV2": "Spanish"
+            }
+          ]
+        }
+      ]
+    },
+    "staff": {
+      "edges": [
+        {
+          "role": "Director",
+          "node": {
+            "id": 97009,
+            "name": {
+              "full": "Shinichirou Watanabe"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n97009-4K1Wc7JG9iLR.png"
+            },
+            "siteUrl": "https://anilist.co/staff/97009"
+          }
+        }
+      ]
+    },
+    "studios": {
+      "nodes": [
+        {
+          "name": "Sunrise"
+        }
+      ]
+    }
+  },
+  "fmab": {
+    "id": 5114,
+    "title": {
+      "romaji": "Hagane no Renkinjutsushi: FULLMETAL ALCHEMIST",
+      "english": "Fullmetal Alchemist: Brotherhood",
+      "native": "鋼の錬金術師 FULLMETAL ALCHEMIST"
+    },
+    "siteUrl": "https://anilist.co/anime/5114",
+    "characters": {
+      "edges": [
+        {
+          "role": "SUPPORTING",
+          "node": {
+            "id": 65,
+            "name": {
+              "full": "Pinako Rockbell",
+              "native": "ピナコ・ロックベル",
+              "alternative": [
+                "Pantheress of Resembool"
+              ]
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b65-Yw7j20Y9uewh.png"
+            },
+            "siteUrl": "https://anilist.co/character/65"
+          },
+          "voiceActors": [
+            {
+              "id": 95193,
+              "name": {
+                "full": "Shelley Calene-Black"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95193-Nvdjk8BIcEJb.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95193",
+              "languageV2": "English"
+            },
+            {
+              "id": 95571,
+              "name": {
+                "full": "Mami Koyama"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95571-QuL7zlRwRcxa.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95571",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 96181,
+              "name": {
+                "full": "Cathy Cerdà"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96181-IG4sxW8p6FlL.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96181",
+              "languageV2": "French"
+            },
+            {
+              "id": 96542,
+              "name": {
+                "full": "Miyoko Asou"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96542-nUqFdwzo1FEX.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96542",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 101912,
+              "name": {
+                "full": "Juli Erickson"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n101912-7FhZiYCA403v.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/101912",
+              "languageV2": "English"
+            },
+            {
+              "id": 103409,
+              "name": {
+                "full": "Katalin Várnagy"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/8409.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/103409",
+              "languageV2": "Hungarian"
+            },
+            {
+              "id": 140334,
+              "name": {
+                "full": "Sibylle Kuhne"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n140334-QzyglbILe0Ui.png"
+              },
+              "siteUrl": "https://anilist.co/staff/140334",
+              "languageV2": "German"
+            },
+            {
+              "id": 158513,
+              "name": {
+                "full": "Elisabetta Cesone"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n158513-FUvVZxwKNlU5.png"
+              },
+              "siteUrl": "https://anilist.co/staff/158513",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 179630,
+              "name": {
+                "full": "Zayra Zordan"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n179630-YPIxc0e4u3Cq.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/179630",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 253294,
+              "name": {
+                "full": "Olga Hnidey"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n253294-NioXZaGRb4jW.png"
+              },
+              "siteUrl": "https://anilist.co/staff/253294",
+              "languageV2": "Spanish"
+            }
+          ]
+        },
+        {
+          "role": "SUPPORTING",
+          "node": {
+            "id": 69,
+            "name": {
+              "full": "Maes Hughes",
+              "native": "マース･ヒューズ",
+              "alternative": []
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b69-MRetSG8Qevvu.png"
+            },
+            "siteUrl": "https://anilist.co/character/69"
+          },
+          "voiceActors": [
+            {
+              "id": 95063,
+              "name": {
+                "full": "Keiji Fujiwara"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95063-xAsEUzspuLMG.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95063",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 95360,
+              "name": {
+                "full": "Sonny Strait"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/360.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95360",
+              "languageV2": "English"
+            },
+            {
+              "id": 96099,
+              "name": {
+                "full": "Guilherme Briggs"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96099-n1wxTRslU9gj.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96099",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 96232,
+              "name": {
+                "full": "Alessandro D'Errico"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96232-IIIfLggIYqZd.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96232",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 101126,
+              "name": {
+                "full": "Simon T. Roden"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n101126-LWVZ7xS6Fo1P.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/101126",
+              "languageV2": "German"
+            },
+            {
+              "id": 102855,
+              "name": {
+                "full": "Pál Oberfrank"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/7855.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/102855",
+              "languageV2": "Hungarian"
+            },
+            {
+              "id": 104884,
+              "name": {
+                "full": "Cyrille Monge"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n104884-8l89jKTjH9om.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/104884",
+              "languageV2": "French"
+            },
+            {
+              "id": 179060,
+              "name": {
+                "full": "Luiz Laffey"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n179060-BvD1u2WGdCON.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/179060",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 182237,
+              "name": {
+                "full": "Alfredo Gabriel Basurto"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n182237-scOnaYXrFlmO.png"
+              },
+              "siteUrl": "https://anilist.co/staff/182237",
+              "languageV2": "Spanish"
+            }
+          ]
+        },
+        {
+          "role": "SUPPORTING",
+          "node": {
+            "id": 2079,
+            "name": {
+              "full": "Alex Louis Armstrong",
+              "native": "アレックス・ルイ・アームストロング",
+              "alternative": [
+                "Strong Arm Alchemist"
+              ]
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b2079-RnhPS44vyqpJ.jpg"
+            },
+            "siteUrl": "https://anilist.co/character/2079"
+          },
+          "voiceActors": [
+            {
+              "id": 95138,
+              "name": {
+                "full": "Kenji Utsumi"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95138-0iK7jnkuJb6o.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95138",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 95253,
+              "name": {
+                "full": "Christopher Sabat"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95253-Z7Yqog73M7E8.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95253",
+              "languageV2": "English"
+            },
+            {
+              "id": 96089,
+              "name": {
+                "full": "Mario Zucca"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96089-q69sRJKRPl65.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96089",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 101125,
+              "name": {
+                "full": "Detlef Bierstedt"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/6125.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/101125",
+              "languageV2": "German"
+            },
+            {
+              "id": 102351,
+              "name": {
+                "full": "Gilberto Baroli"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n102351-uEan6ihStqdz.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/102351",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 102856,
+              "name": {
+                "full": "András Faragó"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/7856.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/102856",
+              "languageV2": "Hungarian"
+            },
+            {
+              "id": 163977,
+              "name": {
+                "full": "Benoît Allemane"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n163977-fxT2j9I5SjF7.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/163977",
+              "languageV2": "French"
+            },
+            {
+              "id": 180569,
+              "name": {
+                "full": "Mauro Ramos"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n180569-d5ctTE6UNLfi.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/180569",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 184397,
+              "name": {
+                "full": "Octavio Rojas"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n184397-AVFS6OxXj0aI.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/184397",
+              "languageV2": "Spanish"
+            }
+          ]
+        }
+      ]
+    },
+    "staff": {
+      "edges": []
+    },
+    "studios": {
+      "nodes": [
+        {
+          "name": "bones"
+        }
+      ]
+    }
+  },
+  "aot": {
+    "id": 16498,
+    "title": {
+      "romaji": "Shingeki no Kyojin",
+      "english": "Attack on Titan",
+      "native": "進撃の巨人"
+    },
+    "siteUrl": "https://anilist.co/anime/16498",
+    "characters": {
+      "edges": [
+        {
+          "role": "MAIN",
+          "node": {
+            "id": 40882,
+            "name": {
+              "full": "Eren Yeager",
+              "native": "エレン・イェーガー",
+              "alternative": [
+                "Eren Jaeger",
+                "Eren Jäger",
+                "Shi ni Isogi Yarou (死に急ぎ野郎)",
+                "Suicidal Maniac"
+              ]
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/b40882-dsj7IP943WFF.jpg"
+            },
+            "siteUrl": "https://anilist.co/character/40882"
+          },
+          "voiceActors": [
+            {
+              "id": 95672,
+              "name": {
+                "full": "Yuuki Kaji"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95672-T33YV7yCDKnL.png"
+              },
+              "siteUrl": "https://anilist.co/staff/95672",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 109757,
+              "name": {
+                "full": "Won-Hyeong Choi"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n109757-J7IN2FNG6FKD.png"
+              },
+              "siteUrl": "https://anilist.co/staff/109757",
+              "languageV2": "Korean"
+            },
+            {
+              "id": 95732,
+              "name": {
+                "full": "Bryce Papenbrook"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/732.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95732",
+              "languageV2": "English"
+            }
+          ]
+        }
+      ]
+    },
+    "staff": {
+      "edges": []
+    },
+    "studios": {
+      "nodes": [
+        {
+          "name": "WIT STUDIO"
+        }
+      ]
+    }
+  },
+  "deathnote": {
+    "id": 1535,
+    "title": {
+      "romaji": "DEATH NOTE",
+      "english": "Death Note",
+      "native": "DEATH NOTE"
+    },
+    "siteUrl": "https://anilist.co/anime/1535",
+    "characters": {
+      "edges": [
+        {
+          "role": "SUPPORTING",
+          "node": {
+            "id": 1931,
+            "name": {
+              "full": "Masahiko Kida",
+              "native": "樹多正彦",
+              "alternative": []
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/character/large/n1931-kJH9pspSPKMJ.png"
+            },
+            "siteUrl": "https://anilist.co/character/1931"
+          },
+          "voiceActors": [
+            {
+              "id": 95807,
+              "name": {
+                "full": "Masaki Aizawa"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95807-aXQRtwu8StXS.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/95807",
+              "languageV2": "Japanese"
+            },
+            {
+              "id": 96461,
+              "name": {
+                "full": "Mario Castañeda"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n96461-Oa02kFQ4wXPL.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/96461",
+              "languageV2": "Spanish"
+            },
+            {
+              "id": 103589,
+              "name": {
+                "full": "Lars Schmidtke"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/8589.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/103589",
+              "languageV2": "German"
+            },
+            {
+              "id": 129242,
+              "name": {
+                "full": "Martin Sims"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n129242-oyiMy7um0Ug3.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/129242",
+              "languageV2": "English"
+            },
+            {
+              "id": 156222,
+              "name": {
+                "full": "Mauro Gravina"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n156222-Ds9mCKq920QT.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/156222",
+              "languageV2": "Italian"
+            },
+            {
+              "id": 176925,
+              "name": {
+                "full": "Marcelo Sandryni"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n176925-2zSM2BXsoXDy.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/176925",
+              "languageV2": "Portuguese"
+            },
+            {
+              "id": 182481,
+              "name": {
+                "full": "Ronaldo Júlio"
+              },
+              "image": {
+                "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n182481-6owdSPaiqCp8.jpg"
+              },
+              "siteUrl": "https://anilist.co/staff/182481",
+              "languageV2": "Portuguese"
+            }
+          ]
+        }
+      ]
+    },
+    "staff": {
+      "edges": [
+        {
+          "role": "Original Story",
+          "node": {
+            "id": 97111,
+            "name": {
+              "full": "Tsugumi Ooba"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n97111-HDCVp6Q1AaDT.png"
+            },
+            "siteUrl": "https://anilist.co/staff/97111"
+          }
+        }
+      ]
+    },
+    "studios": {
+      "nodes": [
+        {
+          "name": "MADHOUSE"
+        }
+      ]
+    }
+  }
+}

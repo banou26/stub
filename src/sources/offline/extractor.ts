@@ -74,7 +74,7 @@ type SeasonBundle = { tag: string, updated: string, seasons: Record<string, Mana
  *
  * TWO bundles, loaded independently, because they are wanted at different moments. The homepage
  * needs seasons and never the index; opening one show needs the index and never the seasons. Split
- * this way a visitor who only browses the season row never fetches the 114 KB id table.
+ * this way a visitor who only browses the season row never fetches the 146 KB id table.
  */
 let seasons: Promise<SeasonBundle> | undefined
 
@@ -155,6 +155,7 @@ const handleCarrier = (row: CatalogRow): GQLMedia | undefined => {
   if (row.anilist) handles.push(makeMedia({ origin: 'anilist', id: String(row.anilist), url: `https://anilist.co/anime/${row.anilist}` }))
   if (row.kitsu) handles.push(makeMedia({ origin: 'kitsu', id: String(row.kitsu), url: `https://kitsu.app/anime/${row.kitsu}` }))
   if (row.anidb) handles.push(makeMedia({ origin: 'anidb', id: String(row.anidb), url: `https://anidb.net/anime/${row.anidb}` }))
+  if (row.ann) handles.push(makeMedia({ origin: 'ann', id: String(row.ann), url: `https://www.animenewsnetwork.com/encyclopedia/anime.php?id=${row.ann}` }))
 
   // A single handle links nothing to anything, so the record would be an orphan node carrying no
   // information. Only rows that actually bridge two catalogues are worth returning.
@@ -183,7 +184,8 @@ const seasonalById = async (id: string): Promise<GQLMedia | undefined> => {
  *
  * The seasonal half and the index half deliberately use the same id scheme, so a show in the
  * current season resolves to one node supplied twice rather than two nodes needing a merge. The
- * seasonal record is preferred when both exist, because it carries a title and a cover.
+ * seasonal record is preferred when both exist, because it carries a title and a cover, and it takes
+ * the index row's handles, because only the row carries AniDB's and Anime News Network's ids.
  */
 const getMedia = async (uri: string): Promise<GQLMedia | null> => {
   const uris = urisOf(uri)
@@ -192,15 +194,12 @@ const getMedia = async (uri: string): Promise<GQLMedia | null> => {
   // The seasonal record wherever one exists, because it is the only half carrying a title and a
   // cover. This must NOT return when it misses: a uri naming this source is the COMMON case once it
   // has contributed once, so an early return here made the index unreachable in production and
-  // answered null for every show outside the season window.
+  // answered null for every show outside the season window. Its row is looked up by its own id
+  // alone, so another id in a mixed address never lends it a second show's handles.
   const own = uris.find(candidate => candidate.origin === origin)
-  if (own) {
-    const seasonal = await seasonalById(own.id)
-    if (seasonal) return seasonal
-  }
-
-  const refs = catalogRefs(uris, origin)
-  if (!refs.length) return null
+  const seasonal = own && await seasonalById(own.id)
+  const refs = catalogRefs(seasonal ? [own] : uris, origin)
+  if (!refs.length) return seasonal ?? null
 
   const table = await loadCatalog()
   for (const ref of refs) {
@@ -208,9 +207,10 @@ const getMedia = async (uri: string): Promise<GQLMedia | null> => {
     if (!row) continue
     const carrier = handleCarrier(row)
     if (!carrier) continue
-    return (await seasonalById(carrier.id)) ?? carrier
+    const media = seasonal ?? await seasonalById(carrier.id)
+    return media ? { ...media, handles: carrier.handles } : carrier
   }
-  return null
+  return seasonal ?? null
 }
 
 // Both resolvers yield the BUNDLED answer first and the seeded one second, and the order is the

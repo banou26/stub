@@ -20,9 +20,9 @@ test('every other source is still exported', () => {
     'jikan', 'anilist', 'anizip', 'crunchyroll', 'unogs', 'justwatch', 'appletv', 'paramount',
     'disney', 'amazon', 'hulu', 'peacock', 'hbo', 'fubo', 'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla',
     'starz', 'amcplus', 'philo', 'tmdb', 'tvmaze', 'kitsu', 'livechart', 'omdb',
-    'trakt', 'simkl', 'tvdb', 'offline', 'animethemes', 'watchmode', 'imdb',
+    'trakt', 'simkl', 'tvdb', 'offline', 'animethemes', 'ann', 'watchmode', 'imdb',
   ]) expect(names, name).toContain(name)
-  expect(names).toHaveLength(35)
+  expect(names).toHaveLength(36)
 })
 
 // No source asks the viewer for a key: each reads the site's own endpoint (owner's call, 2026-10-07).

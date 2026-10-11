@@ -66,6 +66,7 @@ export const sidebar = [
     { label: 'Aligning a numbering',      slug: 'merge/alignment' },
     { label: 'Windowing a run',           slug: 'merge/windowing' },
     { label: 'Anomalies',                 slug: 'merge/anomalies' },
+    { label: 'Credits',                   slug: 'merge/credits' },
   ]},
   { label: 'similarMedia', items: [
     { label: 'Why it exists',             slug: 'similar/why' },
