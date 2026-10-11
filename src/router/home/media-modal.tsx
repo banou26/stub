@@ -583,7 +583,7 @@ const MoviePlay = (
         {play?.href ? <Link className="play" href={play.href}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>Play</Link> : undefined}
         {sources.length ? <SourceSelector compact sources={sources}/> : undefined}
         {upcoming && day ? <span className="when">Releases {day}</span> : undefined}
-        {!upcoming && !sources.length ? <span className="when">No source stub knows of plays it yet</span> : undefined}
+        {!upcoming && !sources.length ? <span className="when">No sources yet</span> : undefined}
       </div>
     </div>
   )

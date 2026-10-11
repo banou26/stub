@@ -8,16 +8,7 @@ export const sectionStyle = css`
     font-size: 2.2rem;
     font-weight: 700;
     color: #fff;
-    margin-bottom: 0.6rem;
-  }
-
-  & > .intro, .intro {
-    font-size: 1.5rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.65);
     margin-bottom: 1.6rem;
-    max-width: 72ch;
-    text-wrap: pretty;
   }
 
   h3 {

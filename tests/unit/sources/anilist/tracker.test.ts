@@ -6,7 +6,6 @@ import type { SessionRateLimit, SessionRequest, SessionResponse } from '../../..
 import type { CatalogLookup } from '../../../../src/tracking/identity'
 import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
-import { ANILIST_WRITE_NOTICE } from '../../../../src/sources/anilist/list-api'
 import { TIMEOUT_AFTER_429_MS } from '../../../../src/sources/anilist/pacing'
 import { anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
@@ -93,7 +92,7 @@ describe('what the AniList tracker answers', () => {
     expect(asked).toMatchObject([{ operation: 'StubTracking', variables: { mediaId: 154587 } }])
     expect(answer).toMatchObject({
       state: 'LISTED',
-      tracker: { id: 'anilist', name: 'AniList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10_DECIMAL', writeNotice: ANILIST_WRITE_NOTICE },
+      tracker: { id: 'anilist', name: 'AniList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10_DECIMAL' },
       entry: { _id: 'anilist:398761234', mediaUri: 'anilist:154587', status: 'WATCHING', progress: 12, score: 85, episodeCount: 28 },
     })
   })

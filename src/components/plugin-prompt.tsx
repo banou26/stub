@@ -31,12 +31,6 @@ const style = css`
     margin-bottom: 0.6rem;
   }
 
-  .intro {
-    font-size: 1.4rem;
-    line-height: 1.55;
-    color: rgba(255, 255, 255, 0.7);
-  }
-
   .list {
     display: flex;
     flex-direction: column;
@@ -133,10 +127,6 @@ export const PluginPrompt = () => {
     <div css={style} role="dialog" aria-modal="true" aria-labelledby="plugin-prompt-title">
       <div className="dialog">
         <h2 id="plugin-prompt-title">{invites.length > 1 ? 'Add these sources?' : 'Add this source?'}</h2>
-        <p className="intro">
-          This link was shared with {invites.length > 1 ? 'sources' : 'a source'} you have not added.
-          {' '}Sources are community-made, installed through FKN, and run isolated from stub.
-        </p>
         <div className="list">
           {invites.map(invite => (
             <div className="invite" key={invite.uri}>

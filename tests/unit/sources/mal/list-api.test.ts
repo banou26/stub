@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import type { MalPageAnswer } from '../../../../src/sources/mal/session-page'
 
 import {
-  MAL_WRITE_NOTICE, listEntryOf, malScore, malTracker, mismatchOf, planWrite, readCard, readListPage, readWhoAmI, readWriteAnswer,
+  listEntryOf, malScore, malTracker, mismatchOf, planWrite, readCard, readListPage, readWhoAmI, readWriteAnswer,
   replaceLists, rowOf, showsNoChange, statusOf, upsertRows, type MalListRow,
 } from '../../../../src/sources/mal/list-api'
 import { onScale } from '../../../../src/tracking/score-scale'
@@ -61,11 +61,9 @@ describe('a list row', () => {
     expect(listEntryOf('viewer', row(CLANNAD)), 'a score of 0 is no score').toMatchObject({ score: null })
   })
 
-  test('the tracker names the viewer, keeps ten points and says what a save does', () => {
-    expect(malTracker('viewer')).toMatchObject({ id: 'mal', name: 'MyAnimeList', signedIn: true, canWrite: true, account: 'viewer', scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE })
+  test('the tracker names the viewer and keeps ten points', () => {
+    expect(malTracker('viewer')).toMatchObject({ id: 'mal', name: 'MyAnimeList', signedIn: true, canWrite: true, account: 'viewer', scoreScale: 'POINT_10' })
     expect(malTracker()).toMatchObject({ signedIn: false, canWrite: false, account: null })
-    expect(MAL_WRITE_NOTICE).toContain('public by default')
-    expect(MAL_WRITE_NOTICE).toContain('counts one finished rewatch')
   })
 })
 

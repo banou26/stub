@@ -222,7 +222,6 @@ const PartyWidget = () => {
                   <div className="title">You are hosting</div>
                   <div className="hint">
                     {state.members === 1 ? 'Nobody has joined yet.' : `${state.members - 1} ${state.members === 2 ? 'person is' : 'people are'} following you.`}
-                    {' '}Everyone who opens this link follows you around and watches what you play.
                   </div>
                   <div className="link">
                     <input readOnly value={link} aria-label="Invite link" onFocus={event => event.currentTarget.select()}/>
@@ -240,7 +239,7 @@ const PartyWidget = () => {
                 <>
                   <div className="title">You are following the host</div>
                   <div className="hint">
-                    {state.members} in the party. The host decides where the party goes and what plays. Wander off if you like, and catch up when you want back.
+                    {state.members} in the party.
                   </div>
                   <div className="actions">
                     <button type="button" className="primary" onClick={() => { party.replay(); setOpen(false) }}>Catch up</button>

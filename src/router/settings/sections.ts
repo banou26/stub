@@ -1,7 +1,7 @@
-/** The settings page's categories, in the order its list shows them, with the line under each heading. */
+/** The settings page's categories, in the order its list shows them. */
 export const SETTINGS_SECTIONS = [
-  { id: 'accounts', title: 'Accounts', intro: 'The sites where stub uses your own account, what each one is for, and how to sign out.' },
-  { id: 'sources', title: 'Sources', intro: 'Where stub gets titles, artwork and streams: the sources it ships with, and the ones you add.' },
+  { id: 'accounts', title: 'Accounts' },
+  { id: 'sources', title: 'Sources' },
 ] as const
 
 type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']

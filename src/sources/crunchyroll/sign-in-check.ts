@@ -69,7 +69,7 @@ export type CheckDeps = {
   settle?: () => Promise<void>
 }
 
-export const EVALUATION_REASON = 'Ask crunchyroll.com whether you are signed in, without loading any of its pages'
+export const EVALUATION_REASON = 'Check whether you are signed in to crunchyroll.com'
 
 /**
  * Asks Crunchyroll whether the backend's session for it is signed in. On the cloud the call runs in an

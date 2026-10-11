@@ -18,7 +18,7 @@ const tracking = {
     _id: 'answer:stub:media:1',
     state: 'LISTED',
     candidates: [],
-    tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100', writeNotice: 'A save here shows on your public profile.' },
+    tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100' },
     entry: { _id: 'stub:1', status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 },
   }],
 }
@@ -99,11 +99,5 @@ describe('the media tracking', () => {
     Object.defineProperty(select, 'value', { value: 'REMOVE', configurable: true })
     await act(async () => { select.dispatchEvent(new Event('change', { bubbles: true })) })
     expect(sent).toEqual([{ operation: 'DeleteListEntry', input: { uri: 'media:1', trackers: ['stub'] } }])
-  })
-
-  test("a tracker's card says what a write there does beyond the list", async () => {
-    const host = render()
-    await act(async () => { host.querySelector('[data-chip="stub"]')!.dispatchEvent(new Event('focusin', { bubbles: true })) })
-    expect(host.querySelector('[data-card="stub"]')!.textContent).toContain('A save here shows on your public profile.')
   })
 })

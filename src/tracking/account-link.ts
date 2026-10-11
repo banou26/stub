@@ -421,7 +421,7 @@ export const accountLink = ({
      */
     addHeld: () => lock(async (): Promise<string | undefined> => {
       const session = await disk.session()
-      if (session.scope !== 'account') return 'Sign in to an FKN account, and open its list here, to add this list to it'
+      if (session.scope !== 'account') return 'Sign in to an FKN account first'
       const held = await readHeld()
       if (held.entries.length) {
         await journal.mergeIn(held)

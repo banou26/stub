@@ -100,7 +100,6 @@ test('the page lists two categories and shows Accounts alone, without the FKN ro
   await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Accounts')
   await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(4)
   await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
-  await expect(page.locator('[data-account="crunchyroll"]')).toContainText('every fkn.app app')
   await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback)$/ })).toHaveCount(0)
 })
 
@@ -343,7 +342,7 @@ test('Accounts shows what stub last learned of each sign-in and how long ago, as
   await expect(chip(page, 'anilist')).toHaveText('Signed out, checked 1 day ago')
   await expect(chip(page, 'mal'), 'connected, and nothing learned yet').toHaveText('Connected on this device')
   for (const [site, name] of [['crunchyroll', 'Crunchyroll'], ['anilist', 'AniList'], ['mal', 'MyAnimeList']]) {
-    await expect(page.locator(`[data-account="${site}"]`).getByRole('button', { name: `Check whether you are signed in to ${name}` }), site).toBeVisible()
+    await expect(page.locator(`[data-account="${site}"]`).getByRole('button', { name: `Check ${name}` }), site).toBeVisible()
   }
   await page.waitForTimeout(1_000)
   expect(asked, 'showing a state asks no site').toEqual([])
@@ -353,9 +352,9 @@ test('a site with nothing remembered says so, and a tracking site not connected 
   await page.goto(`${origin}/settings#accounts`)
 
   await expect(chip(page, 'crunchyroll')).toHaveText('Not checked yet')
-  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Check whether you are signed in to Crunchyroll' })).toBeVisible()
+  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Check Crunchyroll' })).toBeVisible()
   await expect(chip(page, 'anilist')).toHaveText('Not connected')
-  await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: /Check whether/ })).toHaveCount(0)
+  await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: 'Check AniList' })).toHaveCount(0)
 })
 
 test('the privacy page says what stub keeps, and its link to Sources opens that category', async ({ page }) => {

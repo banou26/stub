@@ -49,8 +49,7 @@ test('a list kept before signing in is offered, and added only from the click', 
 
 test('a single entry kept before signing in reads in the singular', () => {
   const text = render({ ...settled, held: 1 }).host.textContent!.replace(/\s+/g, ' ')
-  expect(text).toContain('1 entry saved on this device before you signed in stays on this device')
-  expect(text).toContain('and comes back if you sign out')
+  expect(text).toContain('1 entry saved on this device before you signed in')
 })
 
 test('offers no account to add to while the list is the device\'s own', () => {

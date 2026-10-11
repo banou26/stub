@@ -34,7 +34,7 @@ const { default: CrunchyrollPlayer } = await import('../../../../src/sources/cru
 const { siteStatuses } = await import('../../../../src/tracking/site-status')
 
 const EPISODE = 'https://www.crunchyroll.com/watch/GXXXXXXXX/an-episode'
-const SIGNED_OUT_NOTE = 'You need to be logged in to Crunchyroll to watch this content.'
+const SIGNED_OUT_NOTE = 'Sign in to Crunchyroll to watch.'
 
 // a watch page that settles as signed out: each load shows the client's `.shell-header` on the first
 // read, then the anonymous user menu alone (see login-state.test.ts for the traced timelines)
@@ -146,7 +146,6 @@ describe('cloud backend', () => {
   test('the sign-in button opens the window inside the click, on the SSO page and its hosts', async () => {
     const host = await render()
     const signInButton = await signedOut(host, 'Sign in to Crunchyroll')
-    expect(host.textContent).toContain('window served through FKN')
 
     signInButton.click()
     // counted before anything is awaited: the window only opens with the click's own activation

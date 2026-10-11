@@ -79,18 +79,17 @@ test('lists the sites stub signs in to, and not the FKN account the header alrea
 })
 
 describe('Crunchyroll on the cloud', () => {
-  test("says the session is FKN's, shared by every fkn.app app, and signs in through a window", async () => {
+  test('signs in through a window', async () => {
     const { row, props } = render()
-    expect(row('crunchyroll').textContent).toContain('every fkn.app app')
     await act(async () => { button(row('crunchyroll'), 'Sign in')!.click() })
     expect(props.crunchyroll.signIn).toHaveBeenCalledTimes(1)
   })
 
-  test('signs out only once asked twice, and says what a sign out does not do', async () => {
+  test('signs out only once asked twice, and the question says every fkn.app app is signed out', async () => {
     const { row, props } = render()
     await act(async () => { button(row('crunchyroll'), 'Sign out')!.click() })
     expect(props.crunchyroll.signOut).not.toHaveBeenCalled()
-    expect(row('crunchyroll').textContent).toContain('Crunchyroll itself is not told')
+    expect(row('crunchyroll').textContent).toContain('Sign out of Crunchyroll in every fkn.app app?')
 
     await act(async () => { button(row('crunchyroll'), 'Cancel')!.click() })
     expect(props.crunchyroll.signOut).not.toHaveBeenCalled()
@@ -151,7 +150,6 @@ describe('with the FKN extension', () => {
     const { row } = render({ backend: 'extension' })
     expect(button(row('crunchyroll'), 'Sign out')).toBeFalsy()
     expect(button(row('crunchyroll'), 'Sign in')).toBeFalsy()
-    expect(row('crunchyroll').textContent).toContain("browser's own")
     expect(row('crunchyroll').querySelector('a')?.getAttribute('href')).toBe('https://www.crunchyroll.com')
   })
 
@@ -163,7 +161,7 @@ describe('with the FKN extension', () => {
     await act(async () => { button(row('anilist'), 'Yes, disconnect')!.click() })
     await flush()
     expect(sites.signOut).toHaveBeenCalledWith('anilist', 'extension')
-    expect(row('anilist').textContent).toContain('sign out on anilist.co')
+    expect(row('anilist').textContent).toContain('Disconnected.')
     expect(button(row('mal'), 'Connect')).toBeTruthy()
   })
 })
@@ -171,7 +169,7 @@ describe('with the FKN extension', () => {
 describe('Netflix', () => {
   test('plays only through the extension, on the browser\'s own session, so there is nothing for stub to sign out', () => {
     const cloud = render().row('netflix')
-    expect(cloud.textContent).toContain('needs the FKN browser extension')
+    expect(cloud.textContent).toContain('Needs the FKN browser extension')
     expect(cloud.querySelectorAll('button')).toHaveLength(0)
 
     const extension = render({ backend: 'extension' }).row('netflix')
@@ -245,7 +243,7 @@ describe('the sign-in states', () => {
 
     expect(signOut).toHaveBeenCalledTimes(1)
     expect([...row('crunchyroll').querySelectorAll('.actions button')].map(item => item.textContent)).toEqual(['Sign in', 'Check now'])
-    expect(row('crunchyroll').textContent).toContain('Signed out. FKN no longer holds a Crunchyroll session')
+    expect(row('crunchyroll').querySelector('[role="status"]')!.textContent).toBe('Signed out.')
   })
 
   test('with nothing remembered, Crunchyroll says it was not checked and a connected site that it is connected', () => {
@@ -283,7 +281,7 @@ describe('the sign-in states', () => {
     await act(async () => { button(row('mal'), 'Check now')!.click() })
     await flush()
 
-    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('stub could not tell whether you are signed in to MyAnimeList: MyAnimeList asked stub to wait. Try again later.')
+    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('Could not check MyAnimeList: MyAnimeList asked stub to wait. Try again later.')
     expect(statuses.read('mal')).toBeUndefined()
     expect(chip(row('mal'))).toBe('Connected on this device')
   })
@@ -306,7 +304,7 @@ describe('the sign-in states', () => {
   test('each Check now is named for its site', () => {
     const { row } = render({ sites: fakeSites(['anilist']) })
 
-    expect(button(row('crunchyroll'), 'Check now')!.getAttribute('aria-label')).toBe('Check whether you are signed in to Crunchyroll')
-    expect(button(row('anilist'), 'Check now')!.getAttribute('aria-label')).toBe('Check whether you are signed in to AniList')
+    expect(button(row('crunchyroll'), 'Check now')!.getAttribute('aria-label')).toBe('Check Crunchyroll')
+    expect(button(row('anilist'), 'Check now')!.getAttribute('aria-label')).toBe('Check AniList')
   })
 })

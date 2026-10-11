@@ -197,7 +197,7 @@ const Party = () => {
             ? (
               state.status === 'failed' ? <>Could not join. {FAILURE[state.code] ?? 'Something went wrong.'}</>
               : state.status === 'ended' ? <>The party ended.</>
-              : <>You are not in a party. Start one from the header, or open an invite link.</>
+              : <>You are not in a party. Start one from the header.</>
             )
           : !invite && state.status === 'joining' ? <>Joining the party…</>
           : invite && !active ? (
@@ -207,8 +207,8 @@ const Party = () => {
             : <>This invite link is broken. Ask the host for a new one.</>
           )
           : active && state.role === 'guest' && invite ? <>You are in. Waiting for the host…</>
-          : active && state.role === 'guest' ? <>You are following the host. <Link to={getRoutePath(Route.HOME)}>Go home</Link> and Catch up from the header to rejoin them.</>
-          : <>You are hosting. Everyone here follows you, and you decide who stays.</>
+          : active && state.role === 'guest' ? <>You are following the host. <Link to={getRoutePath(Route.HOME)}>Go home</Link></>
+          : <>You are hosting.</>
         }
         {!invite && !active && state.status !== 'joining' && (state.status === 'failed' || state.status === 'ended')
           ? <> <button type="button" className="action" onClick={() => party.dismiss()}>OK</button></>

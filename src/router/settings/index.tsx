@@ -102,7 +102,6 @@ const Settings = () => {
       </nav>
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
         <h2 id="settings-section-title">{current.title}</h2>
-        <p className="intro">{current.intro}</p>
         {current.id === 'accounts'
           ? <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status}/>
           : <SourcesSection/>}

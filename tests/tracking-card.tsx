@@ -21,7 +21,7 @@ const answers: CompactAnswer[] = [
   {
     state: 'LISTED',
     candidates: [],
-    tracker: { ...tracker('anilist', 'AniList', 'POINT_10'), writeNotice: 'Saving to AniList can post list activity that your followers see, as saving on anilist.co does.' },
+    tracker: tracker('anilist', 'AniList', 'POINT_10'),
     entry: { status: 'WATCHING', progress: 3, score: 70, episodeCount: 24 },
   },
   { state: 'SIGNED_OUT', candidates: [], tracker: tracker('mal', 'MyAnimeList', 'POINT_10'), entry: null },

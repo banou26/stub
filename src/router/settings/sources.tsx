@@ -29,14 +29,6 @@ const style = css`
   .part-head .count { font-size: 1.3rem; color: rgba(255, 255, 255, 0.5); }
   .part-head .link-button { margin-left: auto; }
 
-  .part-intro {
-    margin-bottom: 1.2rem;
-    font-size: 1.4rem;
-    line-height: 1.55;
-    color: rgba(255, 255, 255, 0.6);
-    max-width: 72ch;
-  }
-
   .built-in {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
@@ -188,14 +180,7 @@ const style = css`
     background: rgba(255, 255, 255, 0.02);
   }
 
-  .browse {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.8rem 1.2rem;
-    font-size: 1.4rem;
-    color: rgba(255, 255, 255, 0.6);
-  }
+  .browse { display: flex; }
 
   .by-address { display: flex; flex-direction: column; gap: 0.6rem; }
   .by-address label { font-size: 1.3rem; font-weight: 500; color: rgba(255, 255, 255, 0.6); }
@@ -246,7 +231,6 @@ const style = css`
   .group button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
   .group button:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 0; }
 
-  .hint { font-size: 1.25rem; color: rgba(255, 255, 255, 0.5); }
   .by-address .note { font-size: 1.35rem; overflow-wrap: anywhere; }
 `
 
@@ -300,10 +284,6 @@ const BuiltInSources = () => {
         <span className="count">{off ? `${builtInSources.length - off} of ${builtInSources.length} on` : `All ${builtInSources.length} on`}</span>
         <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnAllSourcesOn() }}>Turn all on</button>
       </div>
-      <p className="part-intro">
-        A source you turn off is skipped from the next page or search you open, and what it already answered is gone after a
-        reload. Tracking your AniList or MyAnimeList list is not affected.
-      </p>
       <ul className="built-in">
         {builtInSources.map(source => {
           const on = !disabled.has(source.origin)
@@ -359,7 +339,6 @@ export const SourcesSection = () => {
     <div css={style}>
       <BuiltInSources/>
       <h3 className="part">Added</h3>
-      <p className="part-intro">Community-made sources, published on npm. FKN installs them for stub, and each one runs isolated from stub.</p>
       {plugins.length
         ? (
           <ul className="rows">
@@ -370,7 +349,6 @@ export const SourcesSection = () => {
       <div className="add">
         <div className="browse">
           <button type="button" onClick={() => { void addPlugins().finally(refresh) }}>Browse sources</button>
-          <span>Pick from the sources published for stub.</span>
         </div>
         <form className="by-address" onSubmit={onAdd}>
           <label for={`${id}-address`}>Or add one by its address</label>
@@ -382,7 +360,7 @@ export const SourcesSection = () => {
               spellcheck={false}
               placeholder="npm:@scope/package"
               aria-invalid={addError ? true : undefined}
-              aria-describedby={`${id}-error ${id}-hint`}
+              aria-describedby={`${id}-error`}
               value={uri}
               onInput={event => setUri((event.target as HTMLInputElement).value)}
             />
@@ -390,7 +368,6 @@ export const SourcesSection = () => {
           </div>
           {/* always mounted, empty until there is an error: an alert inserted with its text is not announced by every screen reader */}
           <p className="note error" id={`${id}-error`} role="alert">{addError}</p>
-          <p className="hint" id={`${id}-hint`}>An npm package, or a local dev address such as localhost:4599.</p>
         </form>
       </div>
     </div>

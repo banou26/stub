@@ -28,7 +28,6 @@ export const stubTracker: Tracker = {
   account: 'This device',
   canWrite: true,
   scoreScale: 'POINT_100',
-  writeNotice: null,
 }
 
 /** The tracker as it answers, naming whose list it holds. */
@@ -80,8 +79,8 @@ type Writable = Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>
 
 /** Why an identity cannot take a write, or undefined when it can. */
 const refusal = (identity: MediaIdentity): string | undefined =>
-  identity.kind === 'none' ? 'This media names no id the stub tracker can keep an entry under'
-  : identity.kind === 'ambiguous' ? `This media names ${identity.candidates.join(' and ')}, and the stub tracker cannot tell which one is meant`
+  identity.kind === 'none' ? 'This media names no id stub can track'
+  : identity.kind === 'ambiguous' ? `This media names ${identity.candidates.join(' and ')}, and stub cannot tell which one is meant`
   : undefined
 
 export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => Promise<SessionScope> = async () => 'device') => ({

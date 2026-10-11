@@ -36,7 +36,7 @@ const LegacySearch = () => {
 
 const LoginCallback = () => {
   useEffect(() => { globalThis.close() }, [])
-  return <div>Logging in... this window will close automatically.</div>
+  return <div>Logging in...</div>
 }
 
 const shellStyle = css`

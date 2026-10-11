@@ -245,7 +245,7 @@ const NetflixPlayer = ({ url }: PlayerProps) => {
     <div className="overlay">
       {loggedOut && (
         <>
-          You need to be logged in to Netflix to watch this content.
+          Sign in to Netflix to watch.
           <button className="login-button" onClick={openLogin}>
             Open Netflix Login Page
           </button>

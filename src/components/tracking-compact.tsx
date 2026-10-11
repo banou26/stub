@@ -19,7 +19,7 @@ import ScorePicker from './score-picker'
 export type SignIns = Record<string, () => Promise<WindowSignIn>>
 
 const SIGN_IN_NOTES: Partial<Record<WindowSignIn, (name: string) => string>> = {
-  blocked: () => 'The browser blocked the sign-in window. Allow pop-ups for this page and press Log in again.',
+  blocked: () => 'The browser blocked the sign-in window: allow pop-ups, then press Log in again.',
   unsupported: name => `Sign in to ${name} in this browser, then press Log in again.`,
 }
 
@@ -196,7 +196,7 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
  * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, disabledTitle, listed, removable, onChange, dots = {}, movie = false }:
+  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
@@ -206,7 +206,6 @@ const Controls = (
     scale: string
     mixed: boolean
     disabled: boolean
-    disabledTitle: string
     listed: boolean
     removable: boolean
     onChange: (fields: Fields, immediate: boolean) => void
@@ -244,7 +243,6 @@ const Controls = (
         scale={scale}
         mixed={mixed}
         disabled={disabled || (!listed && !shown.status && !shown.progress)}
-        disabledTitle={disabled ? disabledTitle : 'Pick a status or add an episode first'}
         onPick={score => onChange({ score }, true)}
       />
       {dots.SCORE}
@@ -547,9 +545,6 @@ const TrackingCompact = (
     </button>
   )
 
-  const countNote = (answer: CompactAnswer) =>
-    `${answer.tracker.name} counts ${rowOfEntry(answer, row.total).total} episodes, so the row leaves its progress alone`
-
   const card = (answer: CompactAnswer, target: Target) => {
     const id = answer.tracker.id
     const name = answer.tracker.name
@@ -575,14 +570,11 @@ const TrackingCompact = (
           scale={scale.scale}
           mixed={false}
           disabled={!canWrite}
-          disabledTitle={whyNot(answer)}
           listed={answer.state === 'LISTED'}
           removable={canWrite && answer.state === 'LISTED'}
           onChange={(fields, immediate) => changeOne(answer, fields, immediate)}
         />
         {canWrite ? undefined : <span className="why">{whyNot(answer)}</span>}
-        {answer.tracker.writeNotice ? <span className="why">{answer.tracker.writeNotice}</span> : undefined}
-        {countDiffers(answer, row.total) ? <span className="why">{countNote(answer)}: set it here.</span> : undefined}
       </>
     )
   }
@@ -602,7 +594,6 @@ const TrackingCompact = (
           scale={picker?.scale ?? 'POINT_100'}
           mixed={picker?.mixed ?? false}
           disabled={disabled}
-          disabledTitle="Check a list to save to"
           listed={answers.some(answer => answer.state === 'LISTED')}
           removable={sendable.some(answer => answer.state === 'LISTED')}
           onChange={change}
@@ -683,7 +674,7 @@ const TrackingCompact = (
               )
               : undefined,
             target.kind === 'check' && target.sendable && countDiffers(answer, row.total)
-              ? <div key={`${id}-count`} className="note" data-note={id}>{countNote(answer)}: set it on {name}'s card, from its logo.</div>
+              ? <div key={`${id}-count`} className="note" data-note={id}>{name}: set progress on its card</div>
               : undefined,
           ].filter(Boolean)
         })}

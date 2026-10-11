@@ -80,8 +80,8 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
     })
     const result = await withDeadline(Promise.race([
       registerRemoteSource(port, uri),
-      closed.then(() => ({ error: 'the package closed before the source registered' as string })),
-    ]), `'${uri}' connected but never registered its source`)
+      closed.then(() => ({ error: 'the plugin closed while connecting' as string })),
+    ]), `'${uri}' did not finish connecting`)
     if ('error' in result) throw new Error(result.error)
     setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected })
   } catch (error) {

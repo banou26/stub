@@ -96,13 +96,6 @@ test('a pushState that drops the fragment, as the header\'s Settings link sends,
   expect(shown(host)).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 4 })
 })
 
-test('each category says what it holds under its heading', async () => {
-  for (const [hash, intro] of [['', 'The sites where stub uses your own account'], ['#sources', 'Where stub gets titles, artwork and streams']]) {
-    const host = await open(hash)
-    expect(host.querySelector('h2 + .intro')?.textContent, hash || 'no fragment').toContain(intro)
-  }
-})
-
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload
 test('no element carries an id a category link names, so following one scrolls nothing', async () => {
   for (const hash of ['', '#sources']) {

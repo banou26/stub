@@ -168,7 +168,7 @@ const typeAddress = async (host: HTMLElement, value: string) => {
 }
 const submit = (host: HTMLElement) => act(async () => { host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
 
-test('the address input and its Add button are one group, under a label, with a hint', () => {
+test('the address input and its Add button are one group, under a label', () => {
   const { host } = render()
   const group = host.querySelector('.group')!
   const input = group.querySelector('input')!
@@ -176,8 +176,6 @@ test('the address input and its Add button are one group, under a label, with a 
   expect(group.querySelector('button')!.textContent).toBe('Add')
   expect(input.getAttribute('placeholder')).toBe('npm:@scope/package')
   expect(host.querySelector(`label[for="${input.id}"]`)?.textContent).toBe('Or add one by its address')
-  const described = input.getAttribute('aria-describedby')!.split(' ').map(id => host.querySelector(`[id="${id}"]`)?.textContent)
-  expect(described).toContain('An npm package, or a local dev address such as localhost:4599.')
 })
 
 test('while adding, the button reads Adding... and is disabled; once added, the address is cleared', async () => {

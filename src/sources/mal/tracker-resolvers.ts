@@ -284,12 +284,12 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   const unwritten = (read: Exclude<Sent, { kind: 'sent' | 'unknown' }>['read'], user: string): WriteOutcome[] => {
     if (read.kind === 'blocked') return outcome('FAILED', waitMessage(pacer.pausedUntil()))
     if (read.kind === 'error') return outcome('FAILED', read.message)
-    if (read.kind === 'data' && read.data === user) return outcome('FAILED', "MyAnimeList's page carried no token for the save")
+    if (read.kind === 'data' && read.data === user) return outcome('FAILED', 'MyAnimeList did not take the save: try again')
     // signed out, or somebody else signed in: every answer is read again, for whoever it is now
     forget()
     changed()
     return read.kind === 'data'
-      ? outcome('REFUSED', 'MyAnimeList is signed in as someone else now; the list is read again')
+      ? outcome('REFUSED', 'MyAnimeList is signed in to another account now')
       : outcome('REFUSED', SIGN_IN)
   }
 
@@ -364,7 +364,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
           index = undefined
           if (accepted) return outcome('SAVED', null)
           return outcome('FAILED', after.kind === 'blocked'
-            ? 'MyAnimeList did not confirm the save; it is read again after the pause'
+            ? 'MyAnimeList did not confirm the save: check again in a few minutes'
             : `MyAnimeList did not confirm the save${after.kind === 'error' ? `: ${after.message}` : ''}`)
         }
         const mismatch = mismatchOf(phase.expect, after.data, before)
@@ -407,7 +407,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
       if (whole.kind !== 'data') {
         index = undefined
         return outcome('FAILED', whole.kind === 'blocked'
-          ? 'MyAnimeList did not confirm the removal; it is read again after the pause'
+          ? 'MyAnimeList did not confirm the removal: check again in a few minutes'
           : `MyAnimeList did not confirm the removal${whole.kind === 'error' ? `: ${whole.message}` : ''}`)
       }
       patch(mine, user, held => replaceLists(held, statuses, whole.data))

@@ -24,8 +24,6 @@ export type CompactAnswer = {
     icon?: string | null
     color?: string | null
     account?: string | null
-    /** What a write to this tracker does beyond the list itself. */
-    writeNotice?: string | null
   }
   entry?: CompactEntry | null
 }

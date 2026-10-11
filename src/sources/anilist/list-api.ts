@@ -9,9 +9,6 @@ import type { SessionRequest } from './session-page'
 export const ANILIST_TRACKER_ID = 'anilist'
 export const ANILIST_ICON = 'https://anilist.co/img/icons/favicon-32x32.png'
 
-/** What a save to AniList does beyond the list itself. */
-export const ANILIST_WRITE_NOTICE = 'Saving to AniList can post list activity that your followers see, as saving on anilist.co does.'
-
 type AnilistDate = { year: number | null, month: number | null, day: number | null } | null
 
 export type AnilistEntry = {
@@ -213,5 +210,4 @@ export const anilistTracker = (viewer: AnilistViewer | undefined): Tracker => ({
   account: viewer?.name ?? null,
   canWrite: Boolean(viewer),
   scoreScale: scoreFormatOf(viewer),
-  writeNotice: ANILIST_WRITE_NOTICE,
 })

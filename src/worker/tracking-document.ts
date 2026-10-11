@@ -34,7 +34,6 @@ const TRACKER = `
   account
   canWrite
   scoreScale
-  writeNotice
 `
 
 export const TRACKING_DOCUMENT = `

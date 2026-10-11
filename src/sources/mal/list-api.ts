@@ -20,9 +20,6 @@ export const MAL_SCORE_SCALE = 'POINT_10'
  */
 export const LIST_PAGE_SIZE = 300
 
-/** What a save to MyAnimeList does beyond the list itself. */
-export const MAL_WRITE_NOTICE = 'Saving to MyAnimeList changes your list on myanimelist.net, which is public by default and shows your updates on your profile. MyAnimeList keeps scores as whole numbers from 1 to 10, and marking a rewatch Completed counts one finished rewatch.'
-
 /**
  * One row of load.json as the tracker keeps it. `status` is MyAnimeList's own number, `rewatching` its
  * raw flag whatever the status, `score` 0 to 10 (0 is no score), `updatedAt` unix seconds.
@@ -357,5 +354,4 @@ export const malTracker = (user?: string): Tracker => ({
   account: user ?? null,
   canWrite: Boolean(user),
   scoreScale: MAL_SCORE_SCALE,
-  writeNotice: MAL_WRITE_NOTICE,
 })

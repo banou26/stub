@@ -221,7 +221,6 @@ describe('the compact tracking row', () => {
   test('the star is disabled while nothing is listed', () => {
     const { host } = render({ tracking: nothing })
     expect(q<HTMLButtonElement>(host, '.star').disabled).toBe(true)
-    expect(q(host, '.star').title).toBe('Pick a status or add an episode first')
     expect(q<HTMLSelectElement>(host, 'select').textContent).toContain('Add to list')
   })
 
@@ -406,19 +405,17 @@ describe('the compact tracking row', () => {
     expect(onRemove.mock.calls).toEqual([[['anilist']]])
   })
 
-  test('a tracker that counts other episodes gets no progress from the row, and its card says so and takes it', async () => {
+  test('a tracker that counts other episodes gets no progress from the row, which says so, and its card takes it', async () => {
     vi.useFakeTimers()
     const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub] } })
     await click(q(q(host, '.row > .edit'), '.more'))
     await settle(1000)
     expect(onSaveFields.mock.calls.map(([targets]) => targets[0])).toEqual(['stub'])
-    expect(q(host, '[data-note="anilist"]').textContent)
-      .toBe("AniList counts 28 episodes, so the row leaves its progress alone: set it on AniList's card, from its logo.")
+    expect(q(host, '[data-note="anilist"]').textContent).toBe('AniList: set progress on its card')
     expect(host.querySelector('[data-note="stub"]'), 'the control: stub counts what the row counts').toBeNull()
 
     onSaveFields.mockClear()
     const card = await hover(host, 'anilist')
-    expect(card.textContent).toContain('AniList counts 28 episodes, so the row leaves its progress alone: set it here.')
     expect(card.textContent).not.toMatch(/advanced|sync/i)
     expect(q(card, '.of').textContent, 'counted on its own episodes').toBe('/ 28')
     await click(q(card, '.more'))

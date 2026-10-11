@@ -57,8 +57,8 @@ const nameOf = (score: number, scale: string) => {
  * as the 0 to 100 value that lands on its face on that scale; "No score" clears it everywhere.
  */
 const ScorePicker = (
-  { score, scale, mixed, disabled, disabledTitle, onPick }:
-  { score: number | null, scale: string, mixed: boolean, disabled: boolean, disabledTitle?: string, onPick: (score: number | null) => void }
+  { score, scale, mixed, disabled, onPick }:
+  { score: number | null, scale: string, mixed: boolean, disabled: boolean, onPick: (score: number | null) => void }
 ) => {
   const [open, setOpen] = useState(false)
   const [exact, setExact] = useState('')
@@ -124,7 +124,6 @@ const ScorePicker = (
         aria-label={`Score, ${scored ? nameOf(score, scale) : 'none'}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={disabled ? disabledTitle : undefined}
         disabled={disabled}
         onClick={() => setOpen(value => !value)}
       >
@@ -162,7 +161,7 @@ const ScorePicker = (
                 </label>
               )
               : undefined}
-            {mixed ? <span className="caption">Out of {OUT_OF[scale]}, the finest scale every checked list keeps</span> : undefined}
+            {mixed ? <span className="caption">Out of {OUT_OF[scale]}</span> : undefined}
             {scored ? <button type="button" onClick={() => pick(null)}>No score</button> : undefined}
           </div>
         )

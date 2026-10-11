@@ -154,13 +154,6 @@ const styles = css`
     }
   }
 
-  .login-note {
-    max-width: 36rem;
-    font-size: 1.2rem;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.6);
-  }
-
   /* @banou/media-player's own buffering spinner (overlay.tsx), same box and centre, so when the video
      arrives still buffering the player's spinner takes over from this one without a jump */
   .loading-spinner {
@@ -281,7 +274,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
         const video = await waitForVideoElement(frame, isCancelled)
         if (cancelled) return
         setLoading(false)
-        if (!video) throw new Error('The episode did not load a player. It may be unavailable or require a different plan.')
+        if (!video) throw new Error('The episode did not load a player.')
         setRemoteVideo(video)
         return
       }
@@ -300,7 +293,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       const video = await waitForVideoElement(frame, isCancelled)
       if (cancelled) return
       setLoading(false)
-      if (!video) throw new Error('The episode did not load a player. It may be unavailable or require a different plan.')
+      if (!video) throw new Error('The episode did not load a player.')
       setRemoteVideo(video)
     })().catch(err => {
       if (cancelled) return
@@ -520,7 +513,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     <div className="overlay">
       {loggedOut && !error && !popupBlocked && (
         <>
-          You need to be logged in to Crunchyroll to watch this content.
+          Sign in to Crunchyroll to watch.
           {mode === 'extension'
             ? (
               <button className="login-button" onClick={openLogin} disabled={popupOpen}>
@@ -528,14 +521,9 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
               </button>
             )
             : (
-              <>
-                <button className="login-button" onClick={openLoginWindow} disabled={windowOpen}>
-                  {windowOpen ? 'Finish signing in the window...' : 'Sign in to Crunchyroll'}
-                </button>
-                <span className="login-note">
-                  Sign-in happens in a window served through FKN, so your browser will not autofill saved passwords or offer passkeys there.
-                </span>
-              </>
+              <button className="login-button" onClick={openLoginWindow} disabled={windowOpen}>
+                {windowOpen ? 'Finish signing in the window...' : 'Sign in to Crunchyroll'}
+              </button>
             )
           }
         </>

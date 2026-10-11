@@ -4,7 +4,6 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { CatalogLookup } from '../../../../src/tracking/identity'
 
-import { MAL_WRITE_NOTICE } from '../../../../src/sources/mal/list-api'
 import { BLOCKED_PAUSE_MS, WRITE_GAP_MS } from '../../../../src/sources/mal/pacing'
 import { CONFIRM_RETRY_MS, FULL_TTL_MS, INDEX_TTL_MS, malTrackerResolvers } from '../../../../src/sources/mal/tracker-resolvers'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
@@ -90,7 +89,7 @@ describe('what the MyAnimeList tracker answers', () => {
     const { target, sites } = setup()
     expect(await first(target, BEBOP)).toMatchObject({
       state: 'LISTED',
-      tracker: { id: 'mal', name: 'MyAnimeList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10', writeNotice: MAL_WRITE_NOTICE },
+      tracker: { id: 'mal', name: 'MyAnimeList', signedIn: true, account: 'viewer', canWrite: true, scoreScale: 'POINT_10' },
       entry: { _id: 'mal:viewer:1', mediaUri: 'mal:1', status: 'COMPLETED', progress: 26, score: 100, episodeCount: 26, url: 'https://myanimelist.net/anime/1/Cowboy_Bebop' },
     })
     expect(new Set(sites)).toEqual(new Set(['mal']))
@@ -399,7 +398,7 @@ describe('what the MyAnimeList tracker writes', () => {
     await tracking.next()
 
     state.user = 'someone'
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'REFUSED', error: 'MyAnimeList is signed in as someone else now; the list is read again' })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'REFUSED', error: 'MyAnimeList is signed in to another account now' })
     expect(answerOfResult(await tracking.next())).toMatchObject({ tracker: { account: 'someone' } })
     expect(log.filter(line => line.startsWith('write'))).toEqual(['write edit'])
   })
@@ -522,7 +521,7 @@ describe('when MyAnimeList refuses stub', () => {
     const saved = await save(target, BEBOP, { status: 'COMPLETED', progress: 26 })
     expect(waits, 'the pause is not waited out').toEqual([])
     expect(log.slice(3)).toEqual(['write finish-rewatch+edit'])
-    expect(saved).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save; it is read again after the pause' })
+    expect(saved).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save: check again in a few minutes' })
   })
 
   test('a lost write whose check was refused fails, as nothing says it arrived', async () => {
@@ -530,6 +529,6 @@ describe('when MyAnimeList refuses stub', () => {
     await first(target, HACK)
     interrupt('after')
     script.list = ({ order }) => order === 5 ? answerOf('', { status: 429 }) : undefined
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save; it is read again after the pause' })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save: check again in a few minutes' })
   })
 })

@@ -239,7 +239,6 @@ const Search = () => {
   const search = useSearch()
   const [, navigate] = useLocation()
   const filters = useMemo(() => parseSearchFilters(search), [search])
-  const filtered = hasSearchFilters(filters)
   const asked = namesAQuery(filters)
 
   // The url is the state, so a control writes to it and re-renders from it. `replace` keeps the back
@@ -474,11 +473,7 @@ const Search = () => {
           ? <div className={layout.className}>{nodes.map(layout.item)}</div>
           : asked
             ? <div className="status">{graceElapsed ? 'No results found.' : 'Searching\u2026'}</div>
-            : filtered
-              // a category on its own is a refinement with nothing to refine: no source reads it, so
-              // nothing was asked and "no results" would blame a filter for a request never made
-              ? <div className="status">Add a title, a season, a year, a format or a genre to browse.</div>
-              : <div className="status">Search by title, or pick a filter to browse.</div>
+            : <div className="status">{hasSearchFilters(filters) ? 'Add a title or another filter.' : 'Search by title, or pick a filter.'}</div>
       }
     </div>
   )
