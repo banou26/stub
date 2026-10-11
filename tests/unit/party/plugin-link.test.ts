@@ -1,5 +1,5 @@
 // A source package's player as the same link the built-in embed produces, driven with a fake source.
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { pluginPlaybackLink } from '../../../src/party/plugin-link'
 
@@ -56,6 +56,21 @@ describe('pluginPlaybackLink', () => {
     expect(source.onPlayback).toHaveBeenCalledTimes(2)
     link.onReport(vi.fn())
     expect(source.onPlayback).toHaveBeenCalledTimes(3)
+  })
+
+  // the browser pauses an ended player itself, and the party must not read that pause as a person's
+  test('the link says the player ended when the package\'s last report did', () => {
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    const heard = vi.fn()
+    link.onReport(heard)
+    expect(link.ended?.()).toBe(false)
+    report({ ...STATE, paused: true, ended: true } as typeof STATE)
+    expect(link.ended?.()).toBe(true)
+    // and only the playback state goes on, since the host's snapshot carries it to every follower
+    expect(heard).toHaveBeenCalledWith({ ...STATE, paused: true })
+    report(STATE)
+    expect(link.ended?.()).toBe(false)
   })
 
   test('apply crosses to the package', () => {

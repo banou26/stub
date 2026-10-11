@@ -39,8 +39,9 @@ export type StubSource = {
    * plays exactly as before and is simply not synced. Stub reads it for watch together, where a host's
    * player is what every follower's player is made to match. `at` is the PLAYER's clock, whatever
    * document that player lives in, passed through untouched; stub trusts it only within a bound.
+   * `ended` is true once the player reached the end, where the browser paused it by itself.
    */
-  onPlayback?: (listener: (state: PlaybackState) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
 }

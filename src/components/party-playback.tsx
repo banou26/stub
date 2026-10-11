@@ -1,11 +1,11 @@
 import type { PlaybackLink } from '../party/bridge'
 import type { PlaybackState } from '../party'
-import type { Control } from '../party/protocol'
+import type { Control, PartyMessage } from '../party/protocol'
 
 import { useEffect, useRef } from 'preact/hooks'
 
 import { party } from '../party'
-import { advance, ASK_HOLD_MS, askedState, personAction, playbackCorrection, SETTLE_MS } from '../party/playback'
+import { advance, ASK_HOLD_MS, ASK_THROTTLE_MS, askedState, personAction, playbackCorrection, SEEK_TOLERANCE_S, SETTLE_MS } from '../party/playback'
 import { toHostTime, toLocalTime } from '../party/clock'
 import { useParty, usePartyMessages } from '../party/use-party'
 
@@ -39,6 +39,10 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   const holdUntil = useRef(0)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const settleUntil = useRef(0)
+  // a correction seek is the player's until it lands, however long that takes: a torrent player seeking
+  // into a range it has not buffered can take longer than SETTLE_MS
+  const seekingTo = useRef<number | undefined>(undefined)
+  const throttled = useRef(new Map<Control, { sentAt: number, next?: Extract<PartyMessage, { t: 'ask' }>, timer?: ReturnType<typeof setTimeout> }>())
 
   const apply = (target: PlaybackState, measured: boolean) => {
     if (!link) return
@@ -48,6 +52,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
     // play() on an ended player starts it over from 0: it follows the host only somewhere else
     if (link.ended?.() && correction?.seek === undefined) return
     if (!correction || correction.seek !== undefined || correction.play || correction.pause) settleUntil.current = now + SETTLE_MS
+    if (correction?.seek !== undefined) seekingTo.current = correction.seek
     link.apply(target, measured)
   }
   const reapply = () => {
@@ -57,7 +62,16 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
   const ask = (controls: Control[], reported: PlaybackState) => {
     const clock = party.hostClock()
     const s = clock ? { ...reported, at: toHostTime(reported.at, clock.offset) } : reported
-    for (const c of controls) party.send({ t: 'ask', c, path: here(), s })
+    for (const c of controls) {
+      const slot = throttled.current.get(c) ?? { sentAt: 0 }
+      throttled.current.set(c, slot)
+      slot.next = { t: 'ask', c, path: here(), s }
+      if (slot.timer) continue
+      const flush = () => { slot.timer = undefined; slot.sentAt = Date.now(); party.send(slot.next!) }
+      const wait = slot.sentAt + ASK_THROTTLE_MS - Date.now()
+      if (wait <= 0) flush()
+      else slot.timer = setTimeout(flush, wait)
+    }
     holdUntil.current = Date.now() + ASK_HOLD_MS
     clearTimeout(holdTimer.current)
     holdTimer.current = setTimeout(reapply, ASK_HOLD_MS)
@@ -68,6 +82,7 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
     // player on a different release, and either way it starts from what the host says next
     wanted.current = undefined
     last.current = undefined
+    seekingTo.current = undefined
     if (!link || !role) return
     const off = link.onReport(reported => {
       const before = last.current
@@ -83,9 +98,11 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
       const now = Date.now()
       const holding = now < holdUntil.current
       const target = advance(heard.state, heard.receivedAt, now)
+      const landed = seekingTo.current !== undefined && Math.abs(reported.time - seekingTo.current) <= SEEK_TOLERANCE_S
+      if (landed) seekingTo.current = undefined
       // while holding nothing is applied, so the person is read against the player's own last report
       const used = before && byPerson() && (holding || now >= settleUntil.current)
-        ? personAction(before, reported, holding ? before : target).filter(control => party.may(control))
+        ? personAction(before, reported, holding ? before : target).filter(control => party.may(control) && !(landed && control === 'seek'))
         : []
       if (used.length) ask(used, reported)
       else if (!holding) apply(target, heard.measured)
@@ -93,6 +110,8 @@ const PartyPlayback = ({ link }: { link: PlaybackLink | undefined }) => {
     return () => {
       off()
       clearTimeout(holdTimer.current)
+      for (const slot of throttled.current.values()) clearTimeout(slot.timer)
+      throttled.current.clear()
       holdUntil.current = 0
       if (role === 'host') party.setPlayback(undefined)
     }

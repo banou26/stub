@@ -70,7 +70,9 @@ const MAX_TRANSIT_MS = 2_000
  * band. Under the floor it is left alone, since a correction that never stops is a stutter.
  *
  * A paused player is never nudged: it is not moving, so a rate has nothing to act on, and it would
- * be left at the wrong rate for whenever it resumes.
+ * be left at the wrong rate for whenever it resumes. Nor is a player whose speed is changing by more
+ * than a nudge: it is set exactly, since the host's own player answers a follower's speed ask with
+ * this, nothing corrects the host afterwards, and a nudge in that step would leave it 5% off.
  */
 export const playbackCorrection = (local: LocalPlayback, wanted: PlaybackState, now: number, measured = false): PlaybackCorrection => {
   const correction: PlaybackCorrection = {}
@@ -81,11 +83,15 @@ export const playbackCorrection = (local: LocalPlayback, wanted: PlaybackState, 
   if (!wanted.paused && local.paused) correction.play = true
 
   // behind the host runs fast, ahead of it runs slow, and anything else runs at the host's own rate
-  const nudging = !wanted.paused && correction.seek === undefined && Math.abs(drift) >= NUDGE_FLOOR_S
+  const nudging = !wanted.paused && correction.seek === undefined && Math.abs(drift) >= NUDGE_FLOOR_S && nudgeOf(local.rate, wanted.rate)
   const rate = nudging ? wanted.rate * (drift > 0 ? NUDGE_RATE : 1 / NUDGE_RATE) : wanted.rate
-  if (Math.abs(local.rate - rate) > 0.001) correction.rate = rate
+  if (!sameRate(local.rate, rate)) correction.rate = rate
   return correction
 }
+
+const sameRate = (a: number, b: number) => Math.abs(a - b) <= 0.001
+/** Whether `rate` is `base` or a nudge either side of it. */
+const nudgeOf = (rate: number, base: number) => rate <= base * NUDGE_RATE + 0.001 && rate >= base / NUDGE_RATE - 0.001
 
 /**
  * A state the follower heard a while ago, moved to where the host's player is NOW.
@@ -112,18 +118,39 @@ export const SETTLE_MS = 2_000
 /** How long a follower that asked the host waits for the answer before its player rejoins the party. */
 export const ASK_HOLD_MS = 3_000
 
+/** The least time between two asks for one control: the latest of a burst goes out at the end, so a held seek key cannot spend the member's ten messages a second. */
+export const ASK_THROTTLE_MS = 250
+
 /**
  * Which controls a person used on a follower's player, from a report against the one before it.
  *
  * `play` is the player pausing or resuming AWAY from `wanted`, so a player answering the host's own
- * pause late is not read as the person.
+ * pause late is not read as the person. `seek` is the time jumping against the previous report, back
+ * past the nudge floor (a player's time never runs back by itself, and a 5 s skip made 4.5 s after the
+ * last report lands only 0.5 s behind it) or forward past what it played since plus the tolerance, and
+ * landing away from `wanted`: a stall stands still, so it is never a seek however far behind it leaves
+ * the player. `rate` is a speed more than a nudge from the last report's (menus step 0.25, and the
+ * player's own nudge can land after the host's new speed) that is neither `wanted`'s nor a nudge of it.
  */
-export const personAction = (previous: LocalPlayback, report: LocalPlayback, wanted: LocalPlayback): Control[] =>
-  report.paused !== previous.paused && report.paused !== wanted.paused ? ['play'] : []
+export const personAction = (previous: PlaybackState, report: PlaybackState, wanted: LocalPlayback): Control[] => {
+  const used: Control[] = []
+  if (report.paused !== previous.paused && report.paused !== wanted.paused) used.push('play')
+  const jumped = report.time < previous.time - NUDGE_FLOOR_S || report.time > expectedTime(previous, report.at, true) + SEEK_TOLERANCE_S
+  if (jumped && Math.abs(report.time - wanted.time) > SEEK_TOLERANCE_S) used.push('seek')
+  if (!nudgeOf(report.rate, previous.rate) && !nudgeOf(report.rate, wanted.rate)) used.push('rate')
+  return used
+}
 
 /**
  * What the host's player should do for an ask: its own last report moved to now with only the asked
- * control changed, or undefined when it already does what was asked. `own.at` is the host's clock.
+ * control changed, or undefined when it already does what was asked. `own.at` is the host's clock. A
+ * seek's age is capped as an unmeasured report's is, so an ask that took long to arrive moves the host
+ * at most that far past where the person put it.
  */
-export const askedState = (own: PlaybackState, ask: Extract<PartyMessage, { t: 'ask' }>, now: number): PlaybackState | undefined =>
-  own.paused === ask.s.paused ? undefined : { ...advance(own, own.at, now), paused: ask.s.paused }
+export const askedState = (own: PlaybackState, ask: Extract<PartyMessage, { t: 'ask' }>, now: number): PlaybackState | undefined => {
+  const current = advance(own, own.at, now)
+  if (ask.c === 'play') return own.paused === ask.s.paused ? undefined : { ...current, paused: ask.s.paused }
+  if (ask.c === 'rate') return sameRate(own.rate, ask.s.rate) ? undefined : { ...current, rate: ask.s.rate }
+  const time = expectedTime(ask.s, now)
+  return Math.abs(time - current.time) <= SEEK_TOLERANCE_S ? undefined : { ...current, time }
+}

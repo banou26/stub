@@ -18,6 +18,9 @@ describe('encode and decode', () => {
       { t: 'chat', text: 'hello there' },
       { t: 'name', name: 'Ann' },
       { t: 'ask', c: 'play', path: '/watch/a/b', s: PLAYBACK },
+      { t: 'ask', c: 'seek', path: '/watch/a/b', s: PLAYBACK },
+      { t: 'ask', c: 'rate', path: '/watch/a/b', s: { ...PLAYBACK, rate: 1.5 } },
+      { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['seek', 'rate'], by: { sam: { seek: false }, ann: { rate: true } } } },
       { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: { sam: { play: false }, ann: {} } } },
     ]
     for (const message of messages) expect(decodePartyMessage(encodePartyMessage(message))).toEqual(message)
@@ -121,6 +124,12 @@ describe('grants', () => {
   test('an ask reads as what it did', () => {
     expect(actionText({ t: 'ask', c: 'play', path: '/', s: { ...PLAYBACK, paused: true } })).toBe('paused')
     expect(actionText({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe('resumed')
+    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 754.9 } })).toBe('skipped to 12:34')
+    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 3_725 } })).toBe('skipped to 1:02:05')
+    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 9 } })).toBe('skipped to 0:09')
+    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.5 } })).toBe('set speed to 1.5x')
+    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 2 } })).toBe('set speed to 2x')
+    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.2999999 } })).toBe('set speed to 1.3x')
   })
 })
 

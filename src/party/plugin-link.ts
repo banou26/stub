@@ -5,7 +5,7 @@ import { isPlaybackState } from './protocol'
 
 /** The two optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
 }
 
@@ -23,9 +23,15 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
 
   const listeners = new Set<(state: PlaybackState) => void>()
   let disposed = false
+  let ended = false
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (state: PlaybackState) => { if (!disposed && isPlaybackState(state)) for (const listener of listeners) listener(state) }
+  const ear = (report: PlaybackState & { ended?: boolean }) => {
+    if (disposed || !isPlaybackState(report)) return
+    ended = report.ended === true
+    const { paused, time, rate, at } = report
+    for (const listener of listeners) listener({ paused, time, rate, at })
+  }
   const listen = () => { onPlayback(ear).catch(() => {}) }
   listen()
 
@@ -39,6 +45,7 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
     // starts against a paused player would otherwise have nothing to tell a joiner until the host
     // touched the controls.
     onReport: listener => { listeners.add(listener); listen(); return () => { listeners.delete(listener) } },
+    ended: () => ended,
     dispose: () => { disposed = true; listeners.clear() },
   }
 }

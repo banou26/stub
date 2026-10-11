@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
-import type { PartyMessage, PlaybackState } from '../../../src/party/protocol'
+import type { Grants, PartyMessage, PlaybackState } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -9,7 +9,7 @@ import { act } from 'preact/test-utils'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
-import { ASK_HOLD_MS, SETTLE_MS } from '../../../src/party/playback'
+import { ASK_HOLD_MS, ASK_THROTTLE_MS, SETTLE_MS } from '../../../src/party/playback'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 // the REAL store, over a fake room each test builds, behind the module every component imports
@@ -61,7 +61,7 @@ afterEach(() => {
 })
 
 /** A follower on the host's page, its player playing level with the host's. */
-const follow = async (grants: { all: 'play'[], by?: Record<string, { play?: boolean }> }) => {
+const follow = async (grants: { all: Grants['all'], by?: Grants['by'] }) => {
   const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.join(INVITE)
@@ -99,7 +99,71 @@ describe('a follower', () => {
     player.report(paused(10.1))
     await wait(200)
     player.report(playing(10.1))
+    await wait(ASK_THROTTLE_MS)
     expect(asks(fake).map(ask => ask?.t === 'ask' && ask.s.paused)).toEqual([true, false])
+  })
+
+  test('a granted seek asks the host, and is left alone', async () => {
+    const { fake, player } = await follow({ all: ['seek'] })
+    player.report(playing(40))
+    expect(asks(fake)).toEqual([{ t: 'ask', c: 'seek', path: PATH, s: { ...playing(40), at: NOW + 100 } }])
+    expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('a granted speed change asks the host', async () => {
+    const { fake, player } = await follow({ all: ['rate'] })
+    player.report({ ...playing(10.1), rate: 1.5 })
+    expect(asks(fake)).toMatchObject([{ t: 'ask', c: 'rate', s: { rate: 1.5 } }])
+    expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('a speed change by a member denied it is undone', async () => {
+    const { fake, player } = await follow({ all: ['rate'], by: { me: { rate: false } } })
+    player.report({ ...playing(10.1), rate: 1.5 })
+    expect(asks(fake)).toEqual([])
+    expect(player.link.apply.mock.calls[0]![0]).toMatchObject({ rate: 1 })
+  })
+
+  // a held seek key: the room admits ten messages a second from a member, chat included
+  test('ten seeks in 100 ms ask once at once and once more at the end, with the last', async () => {
+    const { fake, player } = await follow({ all: ['seek'] })
+    for (let step = 1; step <= 10; step++) {
+      player.report(playing(10 + step * 10))
+      await wait(10)
+    }
+    expect(asks(fake).map(ask => ask?.t === 'ask' && ask.s.time)).toEqual([20])
+    await wait(ASK_THROTTLE_MS)
+    expect(asks(fake).map(ask => ask?.t === 'ask' && ask.s.time)).toEqual([20, 110])
+  })
+
+  // per control: shared across controls, the speed change would replace the seek before it went out
+  test('a seek then a speed change inside the throttle both ask at once', async () => {
+    const { fake, player } = await follow({ all: ['seek', 'rate'] })
+    player.report(playing(40))
+    await wait(10)
+    player.report({ ...playing(40.01), rate: 1.5 })
+    expect(asks(fake).map(ask => ask?.t === 'ask' && ask.c)).toEqual(['seek', 'rate'])
+  })
+
+  test('a trailing ask still waiting when the player goes is never sent', async () => {
+    const { fake, player } = await follow({ all: ['seek'] })
+    player.report(playing(40))
+    await wait(10)
+    player.report(playing(80))
+    unmount(hosts.pop()!)
+    await wait(1_000)
+    expect(asks(fake).map(ask => ask?.t === 'ask' && ask.s.time)).toEqual([40])
+  })
+
+  // A torrent player seeking into a range it has not buffered answers the follower's own correction
+  // seconds later, by when the host has moved on: read as the person, the party jumps back to it.
+  test('a correction seek that lands after the settle window is not the person seeking', async () => {
+    const { fake, player } = await follow({ all: ['seek'] })
+    say(fake, 'host', { t: 'playback', s: { ...playing(40.1), at: Date.now() } })
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
+    await wait(SETTLE_MS + 500)
+    player.report(playing(40.1))
+    expect(asks(fake)).toEqual([])
   })
 
   test('a pause the player made by itself, with no click or key press, is undone and asks nothing', async () => {
@@ -201,6 +265,12 @@ describe('the host', () => {
     return { fake, player }
   }
   const ask = (pause: boolean) => ({ t: 'ask' as const, c: 'play' as const, path: PATH, s: { ...playing(10), paused: pause, at: Date.now() } })
+  const granted = async () => {
+    const hosting = await host()
+    current.store.setGrants({ all: ['play', 'seek', 'rate'], by: {} })
+    say(hosting.fake, 'host', decodePartyMessage(hosting.fake.sent.at(-1)!)!)
+    return hosting
+  }
 
   test('a granted ask moves the host\'s player', async () => {
     const { fake, player } = await host()
@@ -208,6 +278,22 @@ describe('the host', () => {
     await wait(1_000)
     say(fake, 'ann', ask(true))
     expect(player.link.apply).toHaveBeenCalledWith({ paused: true, time: 11, rate: 1, at: NOW + 1_000 }, true)
+  })
+
+  test('a granted seek or speed ask moves the host\'s player', async () => {
+    const { fake, player } = await granted()
+    player.report(playing(10))
+    say(fake, 'ann', { t: 'ask', c: 'seek', path: PATH, s: { ...playing(40), at: Date.now() } })
+    expect(player.link.apply).toHaveBeenLastCalledWith({ paused: false, time: 40, rate: 1, at: NOW }, true)
+    say(fake, 'ann', { t: 'ask', c: 'rate', path: PATH, s: { ...playing(10), rate: 1.5, at: Date.now() } })
+    expect(player.link.apply).toHaveBeenLastCalledWith({ paused: false, time: 10, rate: 1.5, at: NOW }, true)
+  })
+
+  test('an ungranted seek ask is not for the host\'s player', async () => {
+    const { fake, player } = await host()
+    player.report(playing(10))
+    say(fake, 'ann', { t: 'ask', c: 'seek', path: PATH, s: { ...playing(40), at: Date.now() } })
+    expect(player.link.apply).not.toHaveBeenCalled()
   })
 
   test('an ask its player already does is left alone', async () => {

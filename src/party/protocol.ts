@@ -10,8 +10,8 @@ export type PlaybackState = {
 }
 
 /** A control the host can hand out to followers. Each one joins the list in the change that wires it. */
-export type Control = 'play'
-export const CONTROLS: readonly Control[] = ['play']
+export type Control = 'play' | 'seek' | 'rate'
+export const CONTROLS: readonly Control[] = ['play', 'seek', 'rate']
 
 /**
  * Who may use which control. `all` is every follower; `by` is per member, where `true` gives a control,
@@ -49,7 +49,7 @@ export type PartyMessage =
   | { t: 'cursor', x: number, y: number }
   | { t: 'playback', s: PlaybackState }
   | { t: 'state', path: string, y: number, s?: PlaybackState, grants?: Grants }
-  | { t: 'ask', c: 'play', path: string, s: PlaybackState }
+  | { t: 'ask', c: 'play' | 'seek' | 'rate', path: string, s: PlaybackState }
   | { t: 'chat', text: string }
   | { t: 'name', name: string }
   | { t: 'ping', n: number, at: number }
@@ -124,7 +124,7 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
       return { t: 'state', path: value.path, y: value.y, ...value.s ? { s: value.s } : {}, ...grants ? { grants } : {} }
     }
     case 'ask':
-      return value.c === 'play' && isAppPath(value.path) && isPlaybackState(value.s)
+      return isControl(value.c) && isAppPath(value.path) && isPlaybackState(value.s)
         ? { t: 'ask', c: value.c, path: value.path, s: value.s }
         : undefined
     default:
@@ -158,7 +158,17 @@ const decodeGrants = (value: unknown): Grants | undefined => {
 const MAX_GRANTED = 100
 
 /** What an ask did, as a chat line says it after the member's name. */
-export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string => ask.s.paused ? 'paused' : 'resumed'
+export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string =>
+  ask.c === 'seek' ? `skipped to ${clockText(ask.s.time)}`
+  : ask.c === 'rate' ? `set speed to ${Number(ask.s.rate.toFixed(2))}x`
+  : ask.s.paused ? 'paused' : 'resumed'
+
+const clockText = (seconds: number): string => {
+  const total = Math.floor(seconds)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const minutes = Math.floor(total / 60) % 60
+  return total >= 3600 ? `${Math.floor(total / 3600)}:${pad(minutes)}:${pad(total % 60)}` : `${minutes}:${pad(total % 60)}`
+}
 
 /**
  * Whether a string is a path INSIDE this app.
