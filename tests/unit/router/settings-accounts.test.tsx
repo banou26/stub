@@ -256,65 +256,76 @@ describe('the sign-in states', () => {
     expect(chip(row('anilist'))).toBe('Not connected')
   })
 
-  test('once the backend is known, opening the section asks each connected site and a Crunchyroll stub knows of, and no other', async () => {
+  test('once the backend is known to be the cloud, opening the section asks a Crunchyroll stub knows of, and no tracker site', async () => {
     const { status, statuses, ask } = fakeStatus()
     statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    statuses.record('anilist', 'signed-in', NOW - 2 * HOUR)
     let known!: (backend: FknBackend) => void
     const Harness = () => {
       const [backend, setBackend] = useState<FknBackend>()
       known = setBackend
-      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist'])} status={status}/>
+      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
     }
     hosts.push(mount(<Harness/>))
     await flush()
     expect(ask, 'what a check does depends on the backend').not.toHaveBeenCalled()
 
     await act(async () => { known('cloud') })
-    expect(ask.mock.calls).toEqual([['crunchyroll', 'cloud'], ['anilist', 'cloud']])
+    expect(ask.mock.calls, "the trackers' own paced reads keep their sites' states").toEqual([['crunchyroll', 'cloud']])
 
     const unknown = fakeStatus()
     render({ status: unknown.status, sites: fakeSites(['mal', 'anilist']) })
-    expect(unknown.ask.mock.calls, 'nothing learned of Crunchyroll yet').toEqual([['anilist', 'cloud'], ['mal', 'cloud']])
+    expect(unknown.ask, 'nothing learned of Crunchyroll yet').not.toHaveBeenCalled()
+
+    const extension = fakeStatus()
+    extension.statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    render({ status: extension.status, backend: 'extension' })
+    expect(extension.ask, "with the extension each check would be a new Crunchyroll device").not.toHaveBeenCalled()
   })
 
   test('an answer the automatic check gets shows at once', async () => {
-    const { status, ask } = fakeStatus({ mal: 'signed-out' })
-    const { row } = render({ status, sites: fakeSites(['mal']), backend: 'extension' })
+    const { status, statuses, ask } = fakeStatus({ crunchyroll: 'signed-out' })
+    statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    const { row } = render({ status })
     await flush()
 
-    expect(ask.mock.calls).toEqual([['mal', 'extension']])
-    expect(chip(row('mal'))).toBe('Signed out')
+    expect(ask.mock.calls).toEqual([['crunchyroll', 'cloud']])
+    expect(chip(row('crunchyroll'))).toBe('Signed out')
   })
 
-  test('a site whose state is under FRESH_MS old is not asked', async () => {
-    const { status, statuses, ask } = fakeStatus()
-    statuses.record('anilist', 'signed-in', NOW - FRESH_MS + 1_000)
-    statuses.record('mal', 'signed-in', NOW - FRESH_MS)
-    render({ status, sites: fakeSites(['anilist', 'mal']) })
+  test('a state under FRESH_MS old is not asked', async () => {
+    const fresh = fakeStatus()
+    fresh.statuses.record('crunchyroll', 'signed-in', NOW - FRESH_MS + 1_000)
+    render({ status: fresh.status })
+    const stale = fakeStatus()
+    stale.statuses.record('crunchyroll', 'signed-in', NOW - FRESH_MS)
+    render({ status: stale.status })
     await flush()
 
-    expect(ask.mock.calls).toEqual([['mal', 'cloud']])
+    expect(fresh.ask).not.toHaveBeenCalled()
+    expect(stale.ask.mock.calls).toEqual([['crunchyroll', 'cloud']])
   })
 
   test('an automatic check that gets no answer shows nothing and keeps the state stub had', async () => {
-    const { status, statuses, ask } = fakeStatus({ mal: new Error('MyAnimeList asked stub to wait. Try again later.') })
-    statuses.record('mal', 'signed-in', NOW - 2 * HOUR)
-    const { row } = render({ status, sites: fakeSites(['mal']) })
+    const { status, statuses, ask } = fakeStatus({ crunchyroll: new Error('Crunchyroll answered 503') })
+    statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    const { row } = render({ status })
     await flush()
 
     expect(ask).toHaveBeenCalledTimes(1)
-    expect(chip(row('mal'))).toBe('Signed in')
-    expect(statuses.read('mal')).toEqual({ state: 'signed-in', checkedAt: NOW - 2 * HOUR })
-    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('')
+    expect(chip(row('crunchyroll'))).toBe('Signed in')
+    expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-in', checkedAt: NOW - 2 * HOUR })
+    expect(row('crunchyroll').querySelector('[role="status"]')!.textContent).toBe('')
   })
 
   test('the page coming back into view asks again once what stub learned is stale, and a hidden page asks nothing', async () => {
     let clock = NOW
-    const { status, ask } = fakeStatus({ anilist: 'signed-in' }, () => clock)
-    const { row } = render({ status, sites: fakeSites(['anilist']) })
+    const { status, statuses, ask } = fakeStatus({ crunchyroll: 'signed-in' }, () => clock)
+    statuses.record('crunchyroll', 'signed-out', NOW - 2 * HOUR)
+    const { row } = render({ status })
     await flush()
     expect(ask).toHaveBeenCalledTimes(1)
-    expect(chip(row('anilist'))).toBe('Signed in')
+    expect(chip(row('crunchyroll'))).toBe('Signed in')
 
     const visible = async () => { await act(async () => { document.dispatchEvent(new Event('visibilitychange')) }); await flush() }
     await visible()

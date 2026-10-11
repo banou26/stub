@@ -214,13 +214,21 @@ const merge = (earlier: Fields | undefined, later: Fields | undefined): Fields =
  * answers at once, MyAnimeList reads, writes and reads back.
  *
  * FAILED keeps its fields for `retry` and for the next change, since every write sets absolute values.
- * REFUSED drops them: the same write would be refused again.
+ * REFUSED drops them: the same write would be refused again. What `fail` keeps are the row's own fields,
+ * which `shape` turns into that tracker's (`patchFor`) when they go, since only then has it answered.
  */
 export const createSaveQueue = (
-  { send, onChange = () => {}, delay = 1000, timers = { set: (run, ms) => setTimeout(run, ms), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) } }:
+  {
+    send,
+    onChange = () => {},
+    shape = (_tracker, fields) => fields,
+    delay = 1000,
+    timers = { set: (run, ms) => setTimeout(run, ms), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
+  }:
   {
     send: (tracker: string, fields: Fields) => Promise<Outcome>
     onChange?: (settled?: Settled) => void
+    shape?: (tracker: string, fields: Fields) => Fields | undefined
     delay?: number
     timers?: Timers
   }
@@ -229,9 +237,14 @@ export const createSaveQueue = (
   const fromCards = new Map<string, Fields>()
   const released = new Set<string>()
   const flying = new Map<string, Fields>()
-  const failed = new Map<string, { fields: Fields, error: string }>()
+  const failed = new Map<string, { fields: Fields, error: string, unsent?: true }>()
   const refused = new Map<string, string>()
   let timer: unknown
+
+  const kept = (tracker: string) => {
+    const failure = failed.get(tracker)
+    return failure?.unsent ? shape(tracker, failure.fields) : failure?.fields
+  }
 
   const next = (tracker: string) => {
     const fields = waiting.get(tracker)
@@ -269,7 +282,7 @@ export const createSaveQueue = (
   return {
     stage: (patches: Record<string, Fields>, immediate: boolean, fromCard = false) => {
       for (const [tracker, fields] of Object.entries(patches)) {
-        const carried = failed.get(tracker)?.fields
+        const carried = kept(tracker)
         failed.delete(tracker)
         refused.delete(tracker)
         waiting.set(tracker, merge(merge(carried, waiting.get(tracker)), fields))
@@ -285,16 +298,18 @@ export const createSaveQueue = (
     flush,
     /** Records fields that could not go at all, a paused or failing tracker, as a failed save. */
     fail: (tracker: string, fields: Fields, error: string) => {
-      failed.set(tracker, { fields: merge(failed.get(tracker)?.fields, fields), error })
+      failed.set(tracker, { fields: merge(failed.get(tracker)?.fields, fields), error, unsent: true })
       onChange({ tracker, outcome: 'FAILED', fields, error })
     },
     retry: (tracker: string) => {
-      const kept = failed.get(tracker)
-      if (!kept) return
+      if (!failed.has(tracker)) return
+      const fields = kept(tracker)
       failed.delete(tracker)
-      waiting.set(tracker, merge(kept.fields, waiting.get(tracker)))
-      released.add(tracker)
-      next(tracker)
+      if (fields) {
+        waiting.set(tracker, merge(fields, waiting.get(tracker)))
+        released.add(tracker)
+        next(tracker)
+      }
       onChange()
     },
     /**

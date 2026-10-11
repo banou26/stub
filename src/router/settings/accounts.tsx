@@ -34,8 +34,11 @@ export type AccountsProps = {
   status: {
     read: (site: StatusSite) => SiteStatus | undefined
     watch: (site: StatusSite, listener: () => void) => () => void
-    /** Asks the site again when what stub remembers of it is stale, and remembers the answer. Never rejects. */
-    refresh: (site: StatusSite, backend: FknBackend) => void
+    /**
+     * Asks Crunchyroll again when what stub remembers of it is stale, and remembers the answer. Never
+     * rejects. The trackers' sites are not asked here: their own paced reads keep what stub remembers.
+     */
+    refresh: (site: 'crunchyroll', backend: FknBackend) => void
   }
 }
 
@@ -61,15 +64,15 @@ const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
   return status.read(site)
 }
 
-/** Asks the site again when the section opens and each time the page comes back into view, while `enabled`. */
-const useRefresh = (status: AccountsProps['status'], site: StatusSite, backend: FknBackend | undefined, enabled: boolean) => {
+/** Asks Crunchyroll again when the section opens and each time the page comes back into view, while `enabled`. */
+const useRefresh = (status: AccountsProps['status'], backend: FknBackend | undefined, enabled: boolean) => {
   useEffect(() => {
     if (!backend || !enabled) return
-    const refresh = () => { if (document.visibilityState !== 'hidden') status.refresh(site, backend) }
+    const refresh = () => { if (document.visibilityState !== 'hidden') status.refresh('crunchyroll', backend) }
     refresh()
     document.addEventListener('visibilitychange', refresh)
     return () => document.removeEventListener('visibilitychange', refresh)
-  }, [status, site, backend, enabled])
+  }, [status, backend, enabled])
 }
 
 const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement>, children: ComponentChildren }) => (
@@ -99,8 +102,9 @@ const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'b
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, 'crunchyroll')
-  // only a site stub has learned of before: on the cloud the check asks FKN for a permission
-  useRefresh(status, 'crunchyroll', backend, remembered !== undefined)
+  // the cloud only, where the check reuses the site's device id (with the extension each check is a new
+  // device), and only once stub knows of the site, since the check asks FKN for a permission
+  useRefresh(status, backend, backend === 'cloud' && remembered !== undefined)
 
   const signIn = () => {
     const signingIn = crunchyroll.signIn()
@@ -176,9 +180,6 @@ const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite,
     setConnected(sites.isConnected(site))
     return sites.watch(site, () => { if (mounted.current) setConnected(sites.isConnected(site)) })
   }, [sites, site])
-
-  // checking is what attaches the site's session frame, so only a site connected here is asked
-  useRefresh(status, site, backend, connected)
 
   const settle = () => {
     if (mounted.current) setConnected(sites.isConnected(site))

@@ -1,5 +1,5 @@
 // Whether the viewer was signed in to each site when stub last learned it, for the Accounts section to
-// show without asking the site on every visit. Import free, so a test drives it over fake storage.
+// show. Import free, so a test drives it over fake storage.
 
 import type { FknBackend } from '../utils/fkn-backend'
 
@@ -73,7 +73,8 @@ export const FRESH_MS = 60_000
 
 /**
  * Asks a site with `ask` and remembers the answer, unless the remembered state or the last ask of it is
- * under FRESH_MS old or an ask of it is still running. A failed ask remembers nothing.
+ * under FRESH_MS old or an ask of it is still running. A failed ask remembers nothing, and neither does
+ * one outrun by a state recorded while it ran, such as a sign out.
  */
 export const createRefresh = (
   statuses: Pick<SiteStatuses, 'read' | 'record'>,
@@ -84,9 +85,10 @@ export const createRefresh = (
   const asked = new Map<StatusSite, number>()
   return (site: StatusSite, backend: FknBackend): void => {
     if (now() - Math.max(statuses.read(site)?.checkedAt ?? -Infinity, asked.get(site) ?? -Infinity) < FRESH_MS) return
+    const started = now()
     asked.set(site, Infinity)
     void ask(site, backend)
-      .then(state => statuses.record(site, state, now()), () => {})
+      .then(state => { if ((statuses.read(site)?.checkedAt ?? -Infinity) < started) statuses.record(site, state, now()) }, () => {})
       .finally(() => asked.set(site, now()))
   }
 }

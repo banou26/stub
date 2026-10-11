@@ -239,28 +239,6 @@ describe('signing out of a site', () => {
   })
 })
 
-describe('checking whether anyone is signed in to a site', () => {
-  test("asks AniList's page for its Viewer, and a page with none is signed out", async () => {
-    const { checkTrackerSite } = await load()
-    stored.set('stub.sessions', JSON.stringify(['anilist']))
-    const graphql = vi.fn(async (_request: { query: string }) => ({ status: 200, body: { data: { Viewer: null } }, rateLimit: {} }))
-    attach.mockResolvedValueOnce(hiddenFrame({ graphql }).frame)
-
-    expect(await checkTrackerSite('anilist')).toBe('signed-out')
-    expect(graphql).toHaveBeenCalledWith({ query: 'query { Viewer { id } }' })
-  })
-
-  test("asks MyAnimeList's page who it is, and a page naming someone is signed in", async () => {
-    const { checkTrackerSite } = await load()
-    stored.set('stub.sessions', JSON.stringify(['mal']))
-    const whoami = vi.fn(async () => ({ kind: 'whoami', status: 200, url: 'https://myanimelist.net/about.php', page: true, user: 'Banou', token: true, blocked: false, retryAfter: null }))
-    attach.mockResolvedValueOnce(hiddenFrame({ whoami }).frame)
-
-    expect(await checkTrackerSite('mal')).toBe('signed-in')
-    expect(whoami).toHaveBeenCalledTimes(1)
-  })
-})
-
 describe('signing in to a site', () => {
   test('a sign-in that ends signed in is remembered as signed in', async () => {
     const { trackerSignIns } = await load()

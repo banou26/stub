@@ -355,7 +355,7 @@ test('Accounts shows what stub last learned of each sign-in, with no age and not
   await expect(panel(page).getByRole('button', { name: /check/i })).toHaveCount(0)
 })
 
-test('opening Accounts checks a connected site and a Crunchyroll stub knows of once what it learned is stale, and keeps it when no answer comes', async ({ page }) => {
+test('opening Accounts checks a Crunchyroll stub knows of once what it learned is stale, asks no tracker site, and keeps the state when no answer comes', async ({ page }) => {
   await recordFrames(page)
   const seed = (age: number) => page.evaluate(age => {
     localStorage.setItem('stub.sessions', JSON.stringify(['mal']))
@@ -376,7 +376,9 @@ test('opening Accounts checks a connected site and a Crunchyroll stub knows of o
   await seed(2 * HOUR)
   await page.reload()
   await backendKnown()
-  await expect.poll(async () => (await mountedFrames(page)).sort()).toEqual(['Session', 'Sign-in check'])
+  await expect.poll(() => mountedFrames(page)).toEqual(['Sign-in check'])
+  await page.waitForTimeout(1_000)
+  expect(await mountedFrames(page), "the trackers' own paced reads keep their sites' states").toEqual(['Sign-in check'])
   await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
   await expect(chip(page, 'mal')).toHaveText('Signed in')
   await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', ''])

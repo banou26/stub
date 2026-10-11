@@ -182,6 +182,27 @@ describe('the save queue', () => {
     vi.useRealTimers()
   })
 
+  test("what fail kept is shaped for its tracker when it goes, on retry and under the next change, and a sent save's fields are not", async () => {
+    vi.useFakeTimers()
+    const send = vi.fn(async (_tracker: string, _fields: Fields): Promise<Outcome> => ({ outcome: 'SAVED' }))
+    const shape = vi.fn((_tracker: string, { progress: _held, ...fields }: Fields) => fields)
+    const queue = createSaveQueue({ send, shape })
+    queue.fail('a', { progress: 14, score: 80 }, 'paused')
+    queue.retry('a')
+    queue.fail('b', { progress: 14 }, 'paused')
+    queue.stage({ b: { status: 'WATCHING' } }, true)
+    expect(send.mock.calls).toEqual([['a', { score: 80 }], ['b', { status: 'WATCHING' }]])
+    expect(shape.mock.calls.map(([tracker]) => tracker)).toEqual(['a', 'b'])
+
+    send.mockResolvedValueOnce({ outcome: 'FAILED', error: 'down' })
+    queue.stage({ c: { progress: 5 } }, true)
+    await vi.advanceTimersByTimeAsync(0)
+    queue.retry('c')
+    expect(send).toHaveBeenLastCalledWith('c', { progress: 5 })
+    expect(shape).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
   test('a removal and a change never fold into one write: the later one is what goes', async () => {
     const { send, queue, settle } = setup()
     queue.stage({ a: { progress: 5 } }, true)

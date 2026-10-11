@@ -143,3 +143,16 @@ test('a site is asked once at a time, and not again within FRESH_MS of an ask th
   await settled()
   expect(statuses.read('mal')?.state).toBe('signed-in')
 })
+
+test('an answer to an ask that a sign out landed during is dropped, and the sign out stays', async () => {
+  let answer!: (state: SiteState) => void
+  const { statuses, refresh, now, tick } = refreshing(() => new Promise(resolve => { answer = resolve }))
+  statuses.record('crunchyroll', 'signed-in', now() - 2 * FRESH_MS)
+  refresh('crunchyroll', 'cloud')
+  tick(1_000)
+  statuses.record('crunchyroll', 'signed-out', now())
+  answer('signed-in')
+  await settled()
+
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now() })
+})

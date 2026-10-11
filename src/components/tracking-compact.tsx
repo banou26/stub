@@ -417,13 +417,18 @@ const TrackingCompact = (
   // one card at a time: a card holding focus stays open when the pointer leaves, so a second card
   // opened beside it would be drawn under it
   const [openCard, setOpenCard] = useState<string>()
-  const latest = useRef({ onSaveFields, onRemove, tracking })
-  latest.current = { onSaveFields, onRemove, tracking }
+  const latest = useRef({ onSaveFields, onRemove, tracking, episodeCount })
+  latest.current = { onSaveFields, onRemove, tracking, episodeCount }
 
   const queue = useMemo(() => createSaveQueue({
     send: async (tracker, fields) => {
       const outcomes = await (fields.remove ? latest.current.onRemove([tracker]) : latest.current.onSaveFields([tracker], fields))
       return outcomes.find(outcome => outcome.tracker === tracker) ?? outcomes[0] ?? { outcome: 'FAILED', error: 'The write did not reach the trackers' }
+    },
+    shape: (tracker, fields) => {
+      const { tracking, episodeCount } = latest.current
+      const answer = tracking?.answers.find(candidate => candidate.tracker.id === tracker)
+      return answer && patchFor(answer, fields, { ...rowOf(tracking, episodeCount), ...fields })
     },
     onChange: (settled?: Settled) => {
       setTick(tick => tick + 1)

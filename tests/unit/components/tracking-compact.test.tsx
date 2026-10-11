@@ -617,6 +617,26 @@ describe("a tracker's card", () => {
     expect(onSaveFields.mock.calls.flatMap(([targets]) => targets)).toEqual(['stub'])
   })
 
+  test('Retry sends a change kept while its tracker could not answer as that tracker takes a change once it answers', async () => {
+    const failing: CompactAnswer = { ...mal, state: 'ERROR', error: 'boom', tracker: { ...mal.tracker, canWrite: false } }
+    const listed: CompactAnswer = { ...stub, state: 'LISTED', entry: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 } }
+    const twelve: CompactTracking = { summary: { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 }, disagreements: [], answers: [failing, listed] }
+    const added = render({ tracking: twelve })
+    await click(named(added.host, 'One episode more'))
+    expect(q(added.host, '[data-note="mal"]').textContent).toContain('MyAnimeList did not save episode 4: boom')
+    await added.setTracking({ ...twelve, answers: [{ ...mal, state: 'NOT_LISTED' }, listed] })
+    await click(button(q(added.host, '[data-note="mal"]'), 'Retry')!)
+    expect(added.onSaveFields.mock.calls.filter(([targets]) => targets[0] === 'mal'), 'the whole row to one listing nothing')
+      .toEqual([[['mal'], { status: 'WATCHING', progress: 4, score: 80 }]])
+
+    const long: CompactTracking = { ...twelve, summary: { ...twelve.summary, episodeCount: 24 }, answers: [failing, { ...listed, entry: { ...listed.entry, progress: 13, episodeCount: 24 } }] }
+    const counted = render({ tracking: long })
+    await click(named(counted.host, 'One episode more'))
+    await counted.setTracking({ ...long, answers: [{ ...mal, state: 'LISTED', entry: { status: 'WATCHING', progress: 3, episodeCount: 12 } }, long.answers[1]!] })
+    await click(button(q(counted.host, '[data-note="mal"]'), 'Retry')!)
+    expect(counted.onSaveFields.mock.calls.filter(([targets]) => targets[0] === 'mal'), 'no progress to one counting other episodes').toEqual([])
+  })
+
   test('opening a card closes the one open before it, but a hover never takes over a card holding focus', async () => {
     const { host } = render()
     await hover(host, 'stub')
