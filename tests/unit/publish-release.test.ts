@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 const workflow = readFileSync(fileURLToPath(new URL('../../.github/workflows/publish-lib.yml', import.meta.url)), 'utf-8')
 
