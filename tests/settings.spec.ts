@@ -8,6 +8,10 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
+import { builtInSources } from '../src/sources/built-in'
+
+const ALL = builtInSources.length
+
 // The settings page as anime.fkn.app serves it: the app build, every path that is not a file answered
 // with index.html as Pages does, and every request that leaves this origin refused, so nothing reaches
 // FKN or any site. That is also why a sign out only shows its half on this device (the cookie half is
@@ -123,7 +127,7 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
   await picks(page, 'Sources')
   await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
-  await expect(page.getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(24)
+  await expect(page.getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(ALL)
   await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
   await picks(page, 'Accounts')
   await expect(page.locator('[data-account="anilist"]')).toBeVisible()
@@ -140,23 +144,23 @@ test('every source stub ships with is on by default, and one turned off stays of
   // from the top of the page, not of the window: a click scrolls its target into view first
   const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top + window.scrollY)
   await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(24)
-  await expect(page.getByText('All 24 on', { exact: true })).toBeVisible()
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL)
+  await expect(page.getByText(`All ${ALL} on`, { exact: true })).toBeVisible()
   const top = await firstTop()
 
   await simkl.click()
   await expect(simkl).not.toBeChecked()
-  await expect(page.getByText('23 of 24 on', { exact: true })).toBeVisible()
+  await expect(page.getByText(`${ALL - 1} of ${ALL} on`, { exact: true })).toBeVisible()
   expect(await firstTop(), 'turning one off moves nothing under the pointer').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBe('["simkl"]')
 
   await page.reload()
   await expect(simkl, 'kept in this browser').not.toBeChecked()
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(23)
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL - 1)
   const turnAllOn = page.getByRole('button', { name: 'Turn all on' })
   await turnAllOn.focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(24)
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL)
   await expect(turnAllOn, 'the button stays, so the keyboard stays on it').toBeFocused()
   expect(await firstTop(), 'and turning all on moves nothing either').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBeNull()
