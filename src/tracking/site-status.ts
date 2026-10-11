@@ -1,6 +1,8 @@
 // Whether the viewer was signed in to each site when stub last learned it, for the Accounts section to
 // show without asking the site on every visit. Import free, so a test drives it over fake storage.
 
+import type { FknBackend } from '../utils/fkn-backend'
+
 /** The localStorage key holding the remembered states, a JSON object of `SiteStatus` by site. */
 export const SITE_STATUS_KEY = 'stub.site-status'
 
@@ -65,6 +67,29 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
 
 /** This browser's remembered states. */
 export const siteStatuses = createSiteStatuses(() => localStorage)
+
+/** A state stub learned this recently is not asked again, and neither is a site it asked this recently. */
+export const FRESH_MS = 60_000
+
+/**
+ * Asks a site with `ask` and remembers the answer, unless the remembered state or the last ask of it is
+ * under FRESH_MS old or an ask of it is still running. A failed ask remembers nothing.
+ */
+export const createRefresh = (
+  statuses: Pick<SiteStatuses, 'read' | 'record'>,
+  ask: (site: StatusSite, backend: FknBackend) => Promise<SiteState>,
+  now = Date.now,
+) => {
+  // when each site was last asked on this page, Infinity while it is being asked
+  const asked = new Map<StatusSite, number>()
+  return (site: StatusSite, backend: FknBackend): void => {
+    if (now() - Math.max(statuses.read(site)?.checkedAt ?? -Infinity, asked.get(site) ?? -Infinity) < FRESH_MS) return
+    asked.set(site, Infinity)
+    void ask(site, backend)
+      .then(state => statuses.record(site, state, now()), () => {})
+      .finally(() => asked.set(site, now()))
+  }
+}
 
 /** Remembers what a sign-in through a window told: only `authed` says the viewer is signed in now. */
 export const rememberSignIn = <Outcome extends string>(statuses: Pick<SiteStatuses, 'record'>, site: StatusSite) => (outcome: Outcome): Outcome => {

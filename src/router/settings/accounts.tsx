@@ -6,7 +6,6 @@ import type { FknBackend } from '../../utils/fkn-backend'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
-import { formatCountdown } from '../../utils/countdown'
 import { ConfirmAction } from './confirm'
 
 export type { TrackerSite }
@@ -35,11 +34,9 @@ export type AccountsProps = {
   status: {
     read: (site: StatusSite) => SiteStatus | undefined
     watch: (site: StatusSite, listener: () => void) => () => void
-    /** Asks the site now and remembers its answer. Rejects when the answer says neither. */
-    check: (site: StatusSite, backend: FknBackend) => Promise<SiteState>
+    /** Asks the site again when what stub remembers of it is stale, and remembers the answer. Never rejects. */
+    refresh: (site: StatusSite, backend: FknBackend) => void
   }
-  /** The clock a remembered state's age is read against. */
-  now?: () => number
 }
 
 type Note = { text: string, error?: boolean }
@@ -57,11 +54,6 @@ const signInNote = (name: string, outcome: WindowSignIn): Note => {
 
 const STATE_LABEL: Record<SiteState, string> = { 'signed-in': 'Signed in', 'signed-out': 'Signed out' }
 
-const stateText = (status: SiteStatus, now: number) => {
-  const ago = formatCountdown(now - status.checkedAt, 1)
-  return `${STATE_LABEL[status.state]}, checked ${ago ? `${ago} ago` : 'just now'}`
-}
-
 /** The site's remembered state, read again whenever stub records a new one. */
 const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
   const [, setRevision] = useState(0)
@@ -69,17 +61,15 @@ const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
   return status.read(site)
 }
 
-const CheckNow = ({ site, name, backend, status, onNote }: { site: StatusSite, name: string, backend: FknBackend, onNote: (note: Note | undefined) => void } & Pick<AccountsProps, 'status'>) => {
-  const [busy, setBusy] = useState(false)
-  const mounted = useMounted()
-  const check = () => {
-    setBusy(true)
-    onNote(undefined)
-    status.check(site, backend)
-      .catch(error => { if (mounted.current) onNote({ text: `Could not check ${name}: ${messageOf(error)}`, error: true }) })
-      .finally(() => { if (mounted.current) setBusy(false) })
-  }
-  return <button type="button" className="secondary" disabled={busy} aria-label={`Check ${name}`} onClick={check}>{busy ? 'Checking...' : 'Check now'}</button>
+/** Asks the site again when the section opens and each time the page comes back into view, while `enabled`. */
+const useRefresh = (status: AccountsProps['status'], site: StatusSite, backend: FknBackend | undefined, enabled: boolean) => {
+  useEffect(() => {
+    if (!backend || !enabled) return
+    const refresh = () => { if (document.visibilityState !== 'hidden') status.refresh(site, backend) }
+    refresh()
+    document.addEventListener('visibilitychange', refresh)
+    return () => document.removeEventListener('visibilitychange', refresh)
+  }, [status, site, backend, enabled])
 }
 
 const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement>, children: ComponentChildren }) => (
@@ -103,13 +93,14 @@ const useMounted = () => {
   return mounted
 }
 
-const CrunchyrollRow = ({ backend, crunchyroll, status, now }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status'> & { now: () => number }) => {
+const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status'>) => {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, 'crunchyroll')
-  const checkNow = backend ? <CheckNow site="crunchyroll" name="Crunchyroll" backend={backend} status={status} onNote={setNote}/> : undefined
+  // only a site stub has learned of before: on the cloud the check asks FKN for a permission
+  useRefresh(status, 'crunchyroll', backend, remembered !== undefined)
 
   const signIn = () => {
     const signingIn = crunchyroll.signIn()
@@ -130,7 +121,7 @@ const CrunchyrollRow = ({ backend, crunchyroll, status, now }: Pick<AccountsProp
     <Row
       id="crunchyroll"
       title="Crunchyroll"
-      state={remembered ? stateText(remembered, now()) : 'Not checked yet'}
+      state={remembered && STATE_LABEL[remembered.state]}
       on={remembered?.state === 'signed-in'}
       heading={heading}
     >
@@ -154,14 +145,12 @@ const CrunchyrollRow = ({ backend, crunchyroll, status, now }: Pick<AccountsProp
                   onConfirm={signOut}
                 />
               )}
-            {checkNow}
           </div>
         )
         : backend === 'extension'
           ? (
             <div className="actions">
               <a className="link" href="https://www.crunchyroll.com" target="_blank" rel="noreferrer">Open crunchyroll.com</a>
-              {checkNow}
             </div>
           )
           : <p>Loading...</p>}
@@ -175,7 +164,7 @@ const TRACKER_SITES: { site: TrackerSite, name: string }[] = [
   { site: 'mal', name: 'MyAnimeList' },
 ]
 
-const TrackerRow = ({ site, name, backend, sites, status, now }: { site: TrackerSite, name: string, now: () => number } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
+const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite, name: string } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
@@ -187,6 +176,9 @@ const TrackerRow = ({ site, name, backend, sites, status, now }: { site: Tracker
     setConnected(sites.isConnected(site))
     return sites.watch(site, () => { if (mounted.current) setConnected(sites.isConnected(site)) })
   }, [sites, site])
+
+  // checking is what attaches the site's session frame, so only a site connected here is asked
+  useRefresh(status, site, backend, connected)
 
   const settle = () => {
     if (mounted.current) setConnected(sites.isConnected(site))
@@ -220,7 +212,7 @@ const TrackerRow = ({ site, name, backend, sites, status, now }: { site: Tracker
     <Row
       id={site}
       title={name}
-      state={!connected ? 'Not connected' : remembered ? stateText(remembered, now()) : 'Connected on this device'}
+      state={!connected ? 'Not connected' : remembered && STATE_LABEL[remembered.state]}
       on={connected && remembered?.state !== 'signed-out'}
       heading={heading}
     >
@@ -240,7 +232,6 @@ const TrackerRow = ({ site, name, backend, sites, status, now }: { site: Tracker
                 />
               )
               : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
-            {connected ? <CheckNow site={site} name={name} backend={backend} status={status} onNote={setNote}/> : undefined}
           </div>
         )
         : undefined}
@@ -258,10 +249,10 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 )
 
 /** Every sign-in stub uses, and the way out of it where there is one. */
-export const AccountsSection = ({ backend, crunchyroll, sites, status, now = Date.now }: AccountsProps) => (
+export const AccountsSection = ({ backend, crunchyroll, sites, status }: AccountsProps) => (
   <div className="rows">
-    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status} now={now}/>
-    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status} now={now}/>)}
+    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status}/>
+    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status}/>)}
     <NetflixRow backend={backend}/>
   </div>
 )

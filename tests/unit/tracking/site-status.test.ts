@@ -1,6 +1,9 @@
 import { expect, test, vi } from 'vite-plus/test'
 
-import { createSiteStatuses, recordTrackerAnswers, rememberSignIn, SITE_STATUS_KEY } from '../../../src/tracking/site-status'
+import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
+import type { FknBackend } from '../../../src/utils/fkn-backend'
+
+import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers, rememberSignIn, SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 
 const memory = (initial: Record<string, string> = {}) => {
   const values = new Map(Object.entries(initial))
@@ -91,4 +94,52 @@ test('a site not connected here, an answer that asked nothing, and stub\'s own t
   )
 
   expect(record).not.toHaveBeenCalled()
+})
+
+const refreshing = (answer: () => Promise<SiteState>) => {
+  let clock = 1_790_000_000_000
+  const storage = memory()
+  const statuses = createSiteStatuses(() => storage)
+  const ask = vi.fn((_site: StatusSite, _backend: FknBackend) => answer())
+  return { statuses, ask, refresh: createRefresh(statuses, ask, () => clock), now: () => clock, tick: (ms: number) => { clock += ms } }
+}
+
+const settled = () => new Promise(resolve => setTimeout(resolve, 0))
+
+test('a refresh asks a site stub knows nothing of or learned FRESH_MS ago, on the backend given, and remembers the answer', async () => {
+  const { statuses, ask, refresh, now } = refreshing(async () => 'signed-out')
+  statuses.record('crunchyroll', 'signed-in', now() - FRESH_MS)
+  statuses.record('mal', 'signed-in', now() - FRESH_MS + 1)
+  refresh('anilist', 'cloud')
+  refresh('crunchyroll', 'extension')
+  refresh('mal', 'cloud')
+  await settled()
+
+  expect(ask.mock.calls).toEqual([['anilist', 'cloud'], ['crunchyroll', 'extension']])
+  expect(statuses.read('anilist')).toEqual({ state: 'signed-out', checkedAt: now() })
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now() })
+  expect(statuses.read('mal'), 'learned under FRESH_MS ago').toEqual({ state: 'signed-in', checkedAt: now() - FRESH_MS + 1 })
+})
+
+test('a site is asked once at a time, and not again within FRESH_MS of an ask that failed, which remembers nothing', async () => {
+  const answers: { resolve: (state: SiteState) => void, reject: (error: Error) => void }[] = []
+  const { statuses, ask, refresh, tick } = refreshing(() => new Promise((resolve, reject) => { answers.push({ resolve, reject }) }))
+  refresh('mal', 'cloud')
+  tick(10 * FRESH_MS)
+  refresh('mal', 'cloud')
+  expect(ask, 'still being asked').toHaveBeenCalledTimes(1)
+
+  answers[0]!.reject(new Error('MyAnimeList asked stub to wait'))
+  await settled()
+  expect(statuses.read('mal')).toBeUndefined()
+  tick(FRESH_MS - 1)
+  refresh('mal', 'cloud')
+  expect(ask, 'asked under FRESH_MS ago').toHaveBeenCalledTimes(1)
+
+  tick(1)
+  refresh('mal', 'cloud')
+  expect(ask).toHaveBeenCalledTimes(2)
+  answers[1]!.resolve('signed-in')
+  await settled()
+  expect(statuses.read('mal')?.state).toBe('signed-in')
 })

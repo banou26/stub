@@ -310,7 +310,7 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
   await seeded(page, '/settings#accounts')
   for (const [site, title, left] of [['anilist', 'AniList', ['mal']], ['mal', 'MyAnimeList', []]] as const) {
     const row = page.locator(`[data-account="${site}"]`)
-    await expect(row).toContainText('Connected on this device')
+    await expect(row).not.toContainText('Not connected')
     await row.getByRole('button', { name: `Sign out of ${title}`, exact: true }).click()
     expect(JSON.parse((await readLocal(page))['stub.sessions']!), 'the first click only asks').toContain(site)
     await row.getByRole('button', { name: 'Yes, sign out' }).click()
@@ -325,36 +325,72 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
 
 const chip = (page: Page, site: string) => page.locator(`[data-account="${site}"] .head .state`)
 
-test('Accounts shows what stub last learned of each sign-in and how long ago, asking no site to show it', async ({ page }) => {
-  const asked: string[] = []
-  page.on('request', request => { if (/crunchyroll\.com|anilist\.co|myanimelist\.net/.test(new URL(request.url()).hostname)) asked.push(request.url()) })
+// a check asks through FKN, which this page never reaches, so what a check leaves behind is the hidden
+// frame it mounts first, named by its title and recorded even when a failed attach takes it out at once.
+// @fkn/lib mounts an untitled frame of its own on every page.
+const recordFrames = (page: Page) => page.addInitScript(() => {
+  const titles: string[] = []
+  Object.assign(window, { mountedFrames: titles })
+  new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) if (node instanceof HTMLIFrameElement && node.title) titles.push(node.title)
+  }).observe(document, { childList: true, subtree: true })
+})
+const mountedFrames = (page: Page) => page.evaluate(() => (window as unknown as { mountedFrames: string[] }).mountedFrames)
+
+test('Accounts shows what stub last learned of each sign-in, with no age and nothing to press to check it', async ({ page }) => {
   await page.goto(`${origin}/legal`)
-  await page.evaluate(day => {
+  await page.evaluate(() => {
     localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
     localStorage.setItem('stub.site-status', JSON.stringify({
       crunchyroll: { state: 'signed-in', checkedAt: Date.now() - 2 * 3_600_000 },
-      anilist: { state: 'signed-out', checkedAt: Date.now() - day },
+      anilist: { state: 'signed-out', checkedAt: Date.now() - 26 * 3_600_000 },
     }))
-  }, 26 * HOUR)
+  })
   await page.goto(`${origin}/settings#accounts`)
 
-  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in, checked 2 hours ago')
-  await expect(chip(page, 'anilist')).toHaveText('Signed out, checked 1 day ago')
-  await expect(chip(page, 'mal'), 'connected, and nothing learned yet').toHaveText('Connected on this device')
-  for (const [site, name] of [['crunchyroll', 'Crunchyroll'], ['anilist', 'AniList'], ['mal', 'MyAnimeList']]) {
-    await expect(page.locator(`[data-account="${site}"]`).getByRole('button', { name: `Check ${name}` }), site).toBeVisible()
-  }
-  await page.waitForTimeout(1_000)
-  expect(asked, 'showing a state asks no site').toEqual([])
+  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
+  await expect(chip(page, 'anilist')).toHaveText('Signed out')
+  await expect(chip(page, 'mal'), 'connected, and nothing learned yet').toHaveCount(0)
+  await expect(panel(page)).not.toContainText(/checked|Check/)
+  await expect(panel(page).getByRole('button', { name: /check/i })).toHaveCount(0)
 })
 
-test('a site with nothing remembered says so, and a tracking site not connected here offers no Check now', async ({ page }) => {
+test('opening Accounts checks a connected site and a Crunchyroll stub knows of once what it learned is stale, and keeps it when no answer comes', async ({ page }) => {
+  await recordFrames(page)
+  const seed = (age: number) => page.evaluate(age => {
+    localStorage.setItem('stub.sessions', JSON.stringify(['mal']))
+    localStorage.setItem('stub.site-status', JSON.stringify({
+      crunchyroll: { state: 'signed-in', checkedAt: Date.now() - age },
+      mal: { state: 'signed-in', checkedAt: Date.now() - age },
+    }))
+  }, age)
+  const backendKnown = () => expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Sign out of Crunchyroll' })).toBeVisible()
+  await page.goto(`${origin}/legal`)
+
+  await seed(0)
+  await page.goto(`${origin}/settings#accounts`)
+  await backendKnown()
+  await page.waitForTimeout(1_000)
+  expect(await mountedFrames(page), 'learned just now, so nothing is asked').toEqual([])
+
+  await seed(2 * HOUR)
+  await page.reload()
+  await backendKnown()
+  await expect.poll(async () => (await mountedFrames(page)).sort()).toEqual(['Session', 'Sign-in check'])
+  await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
+  await expect(chip(page, 'mal')).toHaveText('Signed in')
+  await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', ''])
+})
+
+test('with nothing remembered no row says anything of it, a site not connected says so, and nothing is asked', async ({ page }) => {
+  await recordFrames(page)
   await page.goto(`${origin}/settings#accounts`)
 
-  await expect(chip(page, 'crunchyroll')).toHaveText('Not checked yet')
-  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Check Crunchyroll' })).toBeVisible()
+  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(chip(page, 'crunchyroll')).toHaveCount(0)
   await expect(chip(page, 'anilist')).toHaveText('Not connected')
-  await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: 'Check AniList' })).toHaveCount(0)
+  await page.waitForTimeout(1_000)
+  expect(await mountedFrames(page), 'Crunchyroll is checked only once stub knows of it').toEqual([])
 })
 
 test('the privacy page says what stub keeps, and its link to Sources opens that category', async ({ page }) => {

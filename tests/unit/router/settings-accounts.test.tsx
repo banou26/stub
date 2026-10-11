@@ -3,11 +3,13 @@ import { button, mount, unmount } from '../components/dom'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
+import { useState } from 'preact/hooks'
 
 import type { AccountsProps, TrackerSite } from '../../../src/router/settings/accounts'
 import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
+import type { FknBackend } from '../../../src/utils/fkn-backend'
 
-import { createSiteStatuses } from '../../../src/tracking/site-status'
+import { createRefresh, createSiteStatuses, FRESH_MS } from '../../../src/tracking/site-status'
 
 const { AccountsSection } = await import('../../../src/router/settings/accounts')
 
@@ -41,21 +43,17 @@ const fakeSites = (connected: TrackerSite[] = []) => {
 const NOW = Date.UTC(2026, 9, 7, 12)
 const HOUR = 3_600_000
 
-/** Remembered states over memory, and a check that answers `answers`, records what it answered, and is counted. */
-const fakeStatus = (answers: Partial<Record<StatusSite, SiteState | Error>> = {}) => {
+/** Remembered states over memory, refreshed the way the page refreshes them, by a counted ask answering `answers`. */
+const fakeStatus = (answers: Partial<Record<StatusSite, SiteState | Error>> = {}, now = () => NOW) => {
   const values = new Map<string, string>()
   const statuses = createSiteStatuses(() => ({ getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) } }))
-  const status: AccountsProps['status'] = {
-    read: statuses.read,
-    watch: statuses.watch,
-    check: vi.fn(async (site: StatusSite) => {
-      const answer = answers[site]
-      if (answer === undefined || answer instanceof Error) throw answer ?? new Error('no answer')
-      statuses.record(site, answer, NOW)
-      return answer
-    }),
-  }
-  return { status, statuses }
+  const ask = vi.fn(async (site: StatusSite, _backend: FknBackend) => {
+    const answer = answers[site]
+    if (answer === undefined || answer instanceof Error) throw answer ?? new Error('no answer')
+    return answer
+  })
+  const status: AccountsProps['status'] = { read: statuses.read, watch: statuses.watch, refresh: createRefresh(statuses, ask, now) }
+  return { status, statuses, ask }
 }
 
 const render = (overrides: Partial<AccountsProps> = {}) => {
@@ -64,7 +62,6 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
     crunchyroll: { signIn: vi.fn(async () => 'authed' as const), signOut: vi.fn(async () => {}) },
     sites: fakeSites(),
     status: fakeStatus().status,
-    now: () => NOW,
     ...overrides,
   }
   const host = mount(<AccountsSection {...props}/>)
@@ -72,6 +69,8 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
   const row = (id: string) => host.querySelector<HTMLElement>(`[data-account="${id}"]`)!
   return { host, props, row }
 }
+
+const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textContent
 
 test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
   const { host } = render()
@@ -115,8 +114,8 @@ describe('AniList and MyAnimeList', () => {
   test('a site connected here offers Sign out, which disconnects it after asking', async () => {
     const sites = fakeSites(['anilist'])
     const { row } = render({ sites })
-    expect(row('anilist').textContent).toContain('Connected on this device')
-    expect(row('mal').textContent).toContain('Not connected')
+    expect(chip(row('anilist')), 'nothing learned yet').toBeUndefined()
+    expect(chip(row('mal'))).toBe('Not connected')
 
     await act(async () => { button(row('anilist'), 'Sign out')!.click() })
     expect(sites.signOut).not.toHaveBeenCalled()
@@ -133,7 +132,8 @@ describe('AniList and MyAnimeList', () => {
     await act(async () => { button(row('mal'), 'Sign in')!.click() })
     expect(sites.signIn).toHaveBeenCalledWith('mal')
     await flush()
-    expect(row('mal').textContent).toContain('Connected on this device')
+    expect(chip(row('mal'))).toBeUndefined()
+    expect(button(row('mal'), 'Sign out')).toBeTruthy()
   })
 
   test('a window the browser blocked says how to let it open', async () => {
@@ -204,32 +204,34 @@ describe('for a screen reader', () => {
 })
 
 describe('the sign-in states', () => {
-  const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textContent
+  const labels = (row: HTMLElement) => [...row.querySelectorAll('.actions button')].map(item => item.textContent)
 
-  test('a row shows what stub last learned and how long ago, without asking the site', () => {
+  // the owner, 2026-10-12: "instead of having things like 'Signed in, checked 6 hours ago', and 'Check
+  // now', can we just make it automatically recheck and hide this from the user?"
+  test('a row shows what stub last learned, with no age and nothing to press to check it', () => {
     const { status, statuses } = fakeStatus()
     statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
     statuses.record('anilist', 'signed-out', NOW - 26 * HOUR)
-    const { row } = render({ status, sites: fakeSites(['anilist']) })
+    const { host, row } = render({ status, sites: fakeSites(['anilist']) })
 
-    expect(chip(row('crunchyroll'))).toBe('Signed in, checked 2 hours ago')
-    expect(chip(row('anilist'))).toBe('Signed out, checked 1 day ago')
+    expect(chip(row('crunchyroll'))).toBe('Signed in')
+    expect(chip(row('anilist'))).toBe('Signed out')
     expect(row('anilist').querySelector('.head .state')!.classList.contains('on'), 'signed out is not shown as on').toBe(false)
-    expect(status.check).not.toHaveBeenCalled()
+    expect(host.textContent).not.toMatch(/checked|Check/)
+    expect([...host.querySelectorAll('button')].map(item => item.textContent).filter(text => /check/i.test(text ?? ''))).toEqual([])
   })
 
   // the owner, 2026-10-10: "it shows Sign in on crunchyroll when it already says signed in"
   test('Crunchyroll offers the sign in or the sign out its last known state calls for, and both before it knows', () => {
-    const labels = (row: HTMLElement) => [...row.querySelectorAll('.actions button')].map(item => item.textContent)
     const signedIn = fakeStatus()
     signedIn.statuses.record('crunchyroll', 'signed-in', NOW)
-    expect(labels(render({ status: signedIn.status }).row('crunchyroll'))).toEqual(['Sign out', 'Check now'])
+    expect(labels(render({ status: signedIn.status }).row('crunchyroll'))).toEqual(['Sign out'])
 
     const signedOut = fakeStatus()
     signedOut.statuses.record('crunchyroll', 'signed-out', NOW)
-    expect(labels(render({ status: signedOut.status }).row('crunchyroll'))).toEqual(['Sign in', 'Check now'])
+    expect(labels(render({ status: signedOut.status }).row('crunchyroll'))).toEqual(['Sign in'])
 
-    expect(labels(render().row('crunchyroll'))).toEqual(['Sign in', 'Sign out', 'Check now'])
+    expect(labels(render().row('crunchyroll'))).toEqual(['Sign in', 'Sign out'])
   })
 
   test('a Crunchyroll sign out that lands offers Sign in in its place, and says it signed out', async () => {
@@ -242,55 +244,92 @@ describe('the sign-in states', () => {
     await flush()
 
     expect(signOut).toHaveBeenCalledTimes(1)
-    expect([...row('crunchyroll').querySelectorAll('.actions button')].map(item => item.textContent)).toEqual(['Sign in', 'Check now'])
+    expect(labels(row('crunchyroll'))).toEqual(['Sign in'])
     expect(row('crunchyroll').querySelector('[role="status"]')!.textContent).toBe('Signed out.')
   })
 
-  test('with nothing remembered, Crunchyroll says it was not checked and a connected site that it is connected', () => {
+  test('with nothing remembered, Crunchyroll and a connected site show no state, and one not connected says so', () => {
     const { row } = render({ sites: fakeSites(['mal']) })
 
-    expect(chip(row('crunchyroll'))).toBe('Not checked yet')
-    expect(chip(row('mal'))).toBe('Connected on this device')
+    expect(chip(row('crunchyroll'))).toBeUndefined()
+    expect(chip(row('mal'))).toBeUndefined()
     expect(chip(row('anilist'))).toBe('Not connected')
   })
 
-  test('Check now asks the site once, and the row then shows its answer', async () => {
-    const { status } = fakeStatus({ crunchyroll: 'signed-out' })
-    const { row } = render({ status })
-    await act(async () => { button(row('crunchyroll'), 'Check now')!.click() })
+  test('once the backend is known, opening the section asks each connected site and a Crunchyroll stub knows of, and no other', async () => {
+    const { status, statuses, ask } = fakeStatus()
+    statuses.record('crunchyroll', 'signed-in', NOW - 2 * HOUR)
+    let known!: (backend: FknBackend) => void
+    const Harness = () => {
+      const [backend, setBackend] = useState<FknBackend>()
+      known = setBackend
+      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist'])} status={status}/>
+    }
+    hosts.push(mount(<Harness/>))
     await flush()
+    expect(ask, 'what a check does depends on the backend').not.toHaveBeenCalled()
 
-    expect(status.check).toHaveBeenCalledTimes(1)
-    expect(status.check).toHaveBeenCalledWith('crunchyroll', 'cloud')
-    expect(chip(row('crunchyroll'))).toBe('Signed out, checked just now')
+    await act(async () => { known('cloud') })
+    expect(ask.mock.calls).toEqual([['crunchyroll', 'cloud'], ['anilist', 'cloud']])
+
+    const unknown = fakeStatus()
+    render({ status: unknown.status, sites: fakeSites(['mal', 'anilist']) })
+    expect(unknown.ask.mock.calls, 'nothing learned of Crunchyroll yet').toEqual([['anilist', 'cloud'], ['mal', 'cloud']])
   })
 
-  test('with the extension, Crunchyroll is checked on the browser\'s own session', async () => {
-    const { status } = fakeStatus({ crunchyroll: 'signed-in' })
-    const { row } = render({ status, backend: 'extension' })
-    await act(async () => { button(row('crunchyroll'), 'Check now')!.click() })
+  test('an answer the automatic check gets shows at once', async () => {
+    const { status, ask } = fakeStatus({ mal: 'signed-out' })
+    const { row } = render({ status, sites: fakeSites(['mal']), backend: 'extension' })
     await flush()
 
-    expect(status.check).toHaveBeenCalledWith('crunchyroll', 'extension')
-    expect(chip(row('crunchyroll'))).toBe('Signed in, checked just now')
+    expect(ask.mock.calls).toEqual([['mal', 'extension']])
+    expect(chip(row('mal'))).toBe('Signed out')
   })
 
-  test('a check that gets no answer says so on the row, and records nothing', async () => {
-    const { status, statuses } = fakeStatus({ mal: new Error('MyAnimeList asked stub to wait. Try again later.') })
+  test('a site whose state is under FRESH_MS old is not asked', async () => {
+    const { status, statuses, ask } = fakeStatus()
+    statuses.record('anilist', 'signed-in', NOW - FRESH_MS + 1_000)
+    statuses.record('mal', 'signed-in', NOW - FRESH_MS)
+    render({ status, sites: fakeSites(['anilist', 'mal']) })
+    await flush()
+
+    expect(ask.mock.calls).toEqual([['mal', 'cloud']])
+  })
+
+  test('an automatic check that gets no answer shows nothing and keeps the state stub had', async () => {
+    const { status, statuses, ask } = fakeStatus({ mal: new Error('MyAnimeList asked stub to wait. Try again later.') })
+    statuses.record('mal', 'signed-in', NOW - 2 * HOUR)
     const { row } = render({ status, sites: fakeSites(['mal']) })
-    await act(async () => { button(row('mal'), 'Check now')!.click() })
     await flush()
 
-    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('Could not check MyAnimeList: MyAnimeList asked stub to wait. Try again later.')
-    expect(statuses.read('mal')).toBeUndefined()
-    expect(chip(row('mal'))).toBe('Connected on this device')
+    expect(ask).toHaveBeenCalledTimes(1)
+    expect(chip(row('mal'))).toBe('Signed in')
+    expect(statuses.read('mal')).toEqual({ state: 'signed-in', checkedAt: NOW - 2 * HOUR })
+    expect(row('mal').querySelector('[role="status"]')!.textContent).toBe('')
   })
 
-  test('a tracking site not connected here offers no Check now, since checking is what would attach it', () => {
-    const { row } = render({ sites: fakeSites(['anilist']) })
+  test('the page coming back into view asks again once what stub learned is stale, and a hidden page asks nothing', async () => {
+    let clock = NOW
+    const { status, ask } = fakeStatus({ anilist: 'signed-in' }, () => clock)
+    const { row } = render({ status, sites: fakeSites(['anilist']) })
+    await flush()
+    expect(ask).toHaveBeenCalledTimes(1)
+    expect(chip(row('anilist'))).toBe('Signed in')
 
-    expect(button(row('anilist'), 'Check now')).toBeTruthy()
-    expect(button(row('mal'), 'Check now')).toBeFalsy()
+    const visible = async () => { await act(async () => { document.dispatchEvent(new Event('visibilitychange')) }); await flush() }
+    await visible()
+    expect(ask, 'just learned').toHaveBeenCalledTimes(1)
+
+    clock += FRESH_MS
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    try {
+      await visible()
+      expect(ask, 'a hidden page').toHaveBeenCalledTimes(1)
+    } finally {
+      delete (document as { visibilityState?: string }).visibilityState
+    }
+    await visible()
+    expect(ask).toHaveBeenCalledTimes(2)
   })
 
   test('a state stub learns elsewhere on the page shows at once', async () => {
@@ -298,13 +337,6 @@ describe('the sign-in states', () => {
     const { row } = render({ status })
     await act(async () => { statuses.record('crunchyroll', 'signed-in', NOW) })
 
-    expect(chip(row('crunchyroll'))).toBe('Signed in, checked just now')
-  })
-
-  test('each Check now is named for its site', () => {
-    const { row } = render({ sites: fakeSites(['anilist']) })
-
-    expect(button(row('crunchyroll'), 'Check now')!.getAttribute('aria-label')).toBe('Check Crunchyroll')
-    expect(button(row('anilist'), 'Check now')!.getAttribute('aria-label')).toBe('Check AniList')
+    expect(chip(row('crunchyroll'))).toBe('Signed in')
   })
 })

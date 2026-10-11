@@ -7,7 +7,7 @@ import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from 
 import { checkCrunchyroll } from '../../sources/crunchyroll/sign-in-check'
 import { signInThroughWindow } from '../../sources/login-window'
 import { checkTrackerSite, isSiteConnected, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
-import { rememberSignIn, siteStatuses } from '../../tracking/site-status'
+import { createRefresh, rememberSignIn, siteStatuses } from '../../tracking/site-status'
 import { mountHiddenFrame } from '../../utils/hidden-frame'
 
 /** What the Accounts section reaches for Crunchyroll: the sign-in window and the cookies a sign out removes. */
@@ -25,15 +25,11 @@ export const sites: AccountsProps['sites'] = {
   signOut: signOutOfSite,
 }
 
-/** The remembered sign-in states, and the check each site's row offers. */
+/** The remembered sign-in states, and each site's own check of it. */
 export const status: AccountsProps['status'] = {
   read: siteStatuses.read,
   watch: siteStatuses.watch,
-  check: async (site, backend) => {
-    const state = site === 'crunchyroll'
-      ? await checkCrunchyroll(backend, { attach: attachFrame, mount: () => mountHiddenFrame('Sign-in check'), fetch })
-      : await checkTrackerSite(site)
-    siteStatuses.record(site, state)
-    return state
-  },
+  refresh: createRefresh(siteStatuses, (site, backend) => site === 'crunchyroll'
+    ? checkCrunchyroll(backend, { attach: attachFrame, mount: () => mountHiddenFrame('Sign-in check'), fetch })
+    : checkTrackerSite(site)),
 }

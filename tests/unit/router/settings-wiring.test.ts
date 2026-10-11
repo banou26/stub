@@ -1,5 +1,5 @@
 // What the settings page's Accounts section is wired to: which window each Sign in opens, which
-// cookies each Sign out removes from FKN's jar, and what each of them and each Check now remembers.
+// cookies each Sign out removes from FKN's jar, and what each of them and each automatic check remembers.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../../src/sources/crunchyroll/session'
@@ -11,7 +11,7 @@ const calls = vi.hoisted(() => ({
   signInToMal: vi.fn(async () => 'closed' as const),
   checkCrunchyroll: vi.fn(async (_backend: string, _deps: Record<string, unknown>) => 'signed-in' as const),
   checkTrackerSite: vi.fn(async (_site: string): Promise<'signed-in' | 'signed-out'> => 'signed-out'),
-  record: vi.fn((_site: string, _state: string) => {}),
+  record: vi.fn((_site: string, _state: string, _now?: number) => {}),
 }))
 vi.mock('../../../src/sources/crunchyroll/sign-in-check', () => ({ checkCrunchyroll: calls.checkCrunchyroll }))
 vi.mock('../../../src/tracking/site-status', async importOriginal => ({
@@ -72,23 +72,29 @@ test('a Crunchyroll sign out is remembered as signed out once the cookies are go
   expect(calls.record).not.toHaveBeenCalled()
 })
 
-test("Crunchyroll's Check now asks on the backend the page runs on, through FKN, and remembers the answer", async () => {
-  expect(await status.check('crunchyroll', 'extension')).toBe('signed-in')
+const settled = () => new Promise(resolve => setTimeout(resolve, 0))
+
+test("Crunchyroll's check asks on the backend the page runs on, through FKN, and remembers the answer", async () => {
+  status.refresh('crunchyroll', 'extension')
+  await settled()
   const [backend, deps] = calls.checkCrunchyroll.mock.calls[0]!
   expect(backend).toBe('extension')
   expect(deps.attach).toBe(attachFrame)
   expect(deps.fetch).toBe(fetch)
-  expect(calls.record.mock.calls).toEqual([['crunchyroll', 'signed-in']])
+  expect(calls.record.mock.calls).toEqual([['crunchyroll', 'signed-in', expect.any(Number)]])
 })
 
-test("a tracking site's Check now asks through its session frame, and remembers the answer", async () => {
-  expect(await status.check('mal', 'cloud')).toBe('signed-out')
+test("a tracking site's check asks through its session frame, and remembers the answer", async () => {
+  status.refresh('mal', 'cloud')
+  await settled()
   expect(calls.checkTrackerSite).toHaveBeenCalledWith('mal')
-  expect(calls.record.mock.calls).toEqual([['mal', 'signed-out']])
+  expect(calls.record.mock.calls).toEqual([['mal', 'signed-out', expect.any(Number)]])
 })
 
-test('a check that got no answer remembers nothing', async () => {
+test('a check that got no answer remembers nothing, and rejects nothing', async () => {
   calls.checkTrackerSite.mockRejectedValueOnce(new Error('MyAnimeList asked stub to wait'))
-  await expect(status.check('mal', 'cloud')).rejects.toThrow('asked stub to wait')
+  status.refresh('anilist', 'cloud')
+  await settled()
+  expect(calls.checkTrackerSite).toHaveBeenCalledWith('anilist')
   expect(calls.record).not.toHaveBeenCalled()
 })
