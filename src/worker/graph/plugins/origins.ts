@@ -118,8 +118,9 @@ export const COERCING_ORIGINS = new Set(['jw', 'omdb', 'tmdb', 'tvdb', 'nf', 'cr
  *   (`sources/offline/seed.ts:108`), so it has no bounded id space to test against. Its SAME_AS is
  *   `seed` before the fallback is reached anyway, and `offline/extractor.ts:163-166` is the narrower
  *   of its two paths, not the whole of it.
- * - `imdb`, `anidb`, `amazon`, `disney`, `hbo`, `hulu`, `peacock`, `fubo`, `paramount`: read, and each
- *   builds no handle at all, so no claim of theirs ever reaches the lookup.
+ * - `imdb`, `anidb`, `amazon`, `disney`, `hbo`, `hulu`, `peacock`, `fubo`, `paramount`, and the link-only
+ *   origins JustWatch's offers name (`hidive`, `tubi`, `roku`, `pluto`, `plex`, `hoopla`, `starz`,
+ *   `amcplus`, `philo`): read, and each builds no handle at all, so no claim of theirs ever reaches the lookup.
  *
  * Every entry was read off the extractor on 2026-09-12; the citation is the line that mints the handle.
  */
@@ -144,10 +145,13 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   omdb: new Set(['imdb']),
   // `imdb_id` and `tmdb_id` (`watchmode:155,162`) plus the stream hosts of `watchmode:66-71`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
-  // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:75-79`, minted at
+  // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:75-81`, minted at
   // `justwatch:400`), plus its own show container (`justwatch:510`). It FETCHES `externalIds.imdbId`
   // (`justwatch:86,148`) and builds no handle from it, so imdb is not native here
-  jw: new Set(['cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo', 'jw']),
+  jw: new Set([
+    'cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo',
+    'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw',
+  ]),
   // the four that build no handle from their own payload. Empty rather than absent because each one
   // DOES emit handles, every one of them rebuilt from the asked uri: `cr:527`, `unogs:518,536`,
   // `appletv:380,393`. tmdb mints none by either route and is here as the read control

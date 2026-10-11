@@ -1,0 +1,420 @@
+{
+  "data": {
+    "node": {
+      "id": "tm157088",
+      "objectId": 157088,
+      "objectType": "MOVIE",
+      "content": {
+        "title": "The One I Love",
+        "fullPath": "/us/movie/the-one-i-love-2014",
+        "originalReleaseYear": 2014,
+        "originalReleaseDate": "2014-08-08",
+        "shortDescription": "Ethan and Sophie are a married couple on the brink of separation when, at the urging of their therapist, they decide to salvage their relationship by escaping to a beautiful vacation house for the weekend.",
+        "posterUrl": "/poster/242301781/s718/the-one-i-love-2014.jpg",
+        "externalIds": {
+          "imdbId": "tt2756032"
+        },
+        "genres": [
+          {
+            "shortName": "cmy"
+          },
+          {
+            "shortName": "drm"
+          },
+          {
+            "shortName": "fnt"
+          },
+          {
+            "shortName": "trl"
+          },
+          {
+            "shortName": "rma"
+          },
+          {
+            "shortName": "scf"
+          }
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.philo.com/player/show/U2hvdzo2MDg1NDg4OTk2NDg1MTAxMjk",
+          "package": {
+            "id": "cGF8MjM4Mw==",
+            "packageId": 2383,
+            "clearName": "Philo",
+            "technicalName": "philo",
+            "shortName": "phl",
+            "icon": "/icon/327419079/s100/philo.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com/us/movie/the-one-i-love/umc.cmc.5hv0o3f791yfhm018wytbhaw5?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv",
+          "package": {
+            "id": "cGF8MTg1NA==",
+            "packageId": 1854,
+            "clearName": "AMC Plus Apple TV channel",
+            "technicalName": "appletvamcplus",
+            "shortName": "aat",
+            "icon": "/icon/303391393/s100/appletvamcplus.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8NTI4",
+            "packageId": 528,
+            "clearName": "AMC+ Amazon Channel",
+            "technicalName": "amazonamcplus",
+            "shortName": "azp",
+            "icon": "/icon/241732522/s100/amazonamcplus.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://therokuchannel.roku.com/details/49b3bfb619ab57f7bd19a194f3a0d7e9/the-one-i-love?source=bing",
+          "package": {
+            "id": "cGF8MjA3",
+            "packageId": 207,
+            "clearName": "The Roku Channel",
+            "technicalName": "rokuchannel",
+            "shortName": "rkc",
+            "icon": "/icon/76972041/s100/rokuchannel.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://therokuchannel.roku.com/details/49b3bfb619ab57f7bd19a194f3a0d7e9/the-one-i-love?source=bing",
+          "package": {
+            "id": "cGF8NjM1",
+            "packageId": 635,
+            "clearName": "AMC+ Roku Premium Channel",
+            "technicalName": "rokuchannelamcplus",
+            "shortName": "ark",
+            "icon": "/icon/252888472/s100/rokuchannelamcplus.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.amcplus.com/movies/the-one-i-love--1073975",
+          "package": {
+            "id": "cGF8NTI2",
+            "packageId": 526,
+            "clearName": "AMC+",
+            "technicalName": "amcplus",
+            "shortName": "acp",
+            "icon": "/icon/277399832/s100/amcplus.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "SD",
+          "standardWebURL": "https://www.cwtv.com/movies/the-one-i-love",
+          "package": {
+            "id": "cGF8ODM=",
+            "packageId": 83,
+            "clearName": "The CW",
+            "technicalName": "thecw",
+            "shortName": "tcw",
+            "icon": "/icon/950814/s100/thecw.{format}"
+          }
+        },
+        {
+          "monetizationType": "FREE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.kanopy.com/product/justwatch-12235910",
+          "package": {
+            "id": "cGF8MTkx",
+            "packageId": 191,
+            "clearName": "Kanopy",
+            "technicalName": "kanopy",
+            "shortName": "knp",
+            "icon": "/icon/241588643/s100/kanopy.{format}"
+          }
+        },
+        {
+          "monetizationType": "FREE",
+          "presentationType": "SD",
+          "standardWebURL": "https://www.hoopladigital.com/title/14973116?utm_source=justwatch",
+          "package": {
+            "id": "cGF8MjEy",
+            "packageId": 212,
+            "clearName": "Hoopla",
+            "technicalName": "hoopla",
+            "shortName": "hop",
+            "icon": "/icon/80212823/s100/hoopla.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/The-One-I-Love/544472",
+          "package": {
+            "id": "cGF8MzMy",
+            "packageId": 332,
+            "clearName": "Fandango at Home Free",
+            "technicalName": "vudufree",
+            "shortName": "vuf",
+            "icon": "/icon/346744144/s100/vudufree.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.sundancenow.com/films/watch/the-one-i-love/53ff58d9fc05a41d",
+          "package": {
+            "id": "cGF8MTQz",
+            "packageId": 143,
+            "clearName": "Sundance Now",
+            "technicalName": "sundancenow",
+            "shortName": "sdn",
+            "icon": "/icon/5676163/s100/sundancenow.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.plex.tv/movie/the-one-i-love-2014?autoplay=1&utm_content=5d9f3963b0262f001f6ef055&utm_medium=deeplink&utm_source=justWatch-v2-catalog",
+          "package": {
+            "id": "cGF8NTM4",
+            "packageId": 538,
+            "clearName": "Plex",
+            "technicalName": "plex",
+            "shortName": "plx",
+            "icon": "/icon/301832745/s100/plex.{format}"
+          }
+        },
+        {
+          "monetizationType": "FAST",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.plex.tv/live-tv/channel/hersphere-by-lionsgate?autoplay=1&utm_content=644c4bc17472b186783f35a0&utm_medium=deeplink&utm_source=justWatch-linear-catalog",
+          "package": {
+            "id": "cGF8MTkyMg==",
+            "packageId": 1922,
+            "clearName": "Plex Live TV",
+            "technicalName": "plexfast",
+            "shortName": "plf",
+            "icon": "/icon/305904935/s100/plexfast.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.plex.tv/embed/movie/the-one-i-love-2014?referrer=JustWatch",
+          "package": {
+            "id": "cGF8MTk0NQ==",
+            "packageId": 1945,
+            "clearName": "Plex Player",
+            "technicalName": "plexplayer",
+            "shortName": "pxp",
+            "icon": "/icon/311774696/s100/plexplayer.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.justwatch.com/us/movie/the-one-i-love-2014?package=plc",
+          "package": {
+            "id": "cGF8MjA3Nw==",
+            "packageId": 2077,
+            "clearName": "Plex Channel",
+            "technicalName": "justwatchplexchannel",
+            "shortName": "plc",
+            "icon": "/icon/311774696/s100/justwatchplexchannel.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8NjEz",
+            "packageId": 613,
+            "clearName": "Amazon Prime Video Free with Ads",
+            "technicalName": "amazonimdbtv",
+            "shortName": "aim",
+            "icon": "/icon/327791663/s100/amazonimdbtv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FREE",
+          "presentationType": "HD",
+          "standardWebURL": "https://fawesome.tv/movies/10808576/the-one-i-love?utm_source=justwatch&utm_medium=feed",
+          "package": {
+            "id": "cGF8MjQwOQ==",
+            "packageId": 2409,
+            "clearName": "Fawesome",
+            "technicalName": "fawesometv",
+            "shortName": "faw",
+            "icon": "/icon/329335186/s100/fawesometv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8MjM1OA==",
+            "packageId": 2358,
+            "clearName": "Lionsgate+ Amazon Channel",
+            "technicalName": "amazonlionsgateplus",
+            "shortName": "alg",
+            "icon": "/icon/348547396/s100/amazonlionsgateplus.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com",
+          "package": {
+            "id": "cGF8MTg1NQ==",
+            "packageId": 1855,
+            "clearName": "Starz Apple TV channel",
+            "technicalName": "appletvstarz",
+            "shortName": "szt",
+            "icon": "/icon/303391389/s100/appletvstarz.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "SD",
+          "standardWebURL": "https://tubitv.com/movies/465330",
+          "package": {
+            "id": "cGF8NzM=",
+            "packageId": 73,
+            "clearName": "Tubi TV",
+            "technicalName": "tubitv",
+            "shortName": "tbv",
+            "icon": "/icon/313528601/s100/tubitv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FAST",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.sling.com/1/program/a2092dcb21ead3d395e6d5d3dc5810e2/watch",
+          "package": {
+            "id": "cGF8Mjc2Ng==",
+            "packageId": 2766,
+            "clearName": "Sling Freestream Live",
+            "technicalName": "slingfreestreamfast",
+            "shortName": "sli",
+            "icon": "/icon/354297647/s100/slingfreestreamfast.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8MTg5OA==",
+            "packageId": 1898,
+            "clearName": "Amazon MX Player",
+            "technicalName": "amazonminitv",
+            "shortName": "mni",
+            "icon": "/icon/324478870/s100/amazonminitv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FAST",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.philo.com/player/player/broadcast/QnJvYWRjYXN0OjYwODU0ODg5OTY4MzE3MTYzMA",
+          "package": {
+            "id": "cGF8Mjc2MQ==",
+            "packageId": 2761,
+            "clearName": "Philo Live",
+            "technicalName": "philofast",
+            "shortName": "phi",
+            "icon": "/icon/348553034/s100/philofast.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6c1f193c-a76b-4a32-b462-9d86abd6f8e6",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/The-One-I-Love/544472",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY",
+          "standardWebURL": "https://www.amazon.com/dp/B00NG4HAX2?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "package": {
+            "id": "cGF8NTA=",
+            "packageId": 50,
+            "clearName": "Amazon DVD / Blu-ray",
+            "technicalName": "amazondvdbr",
+            "shortName": "adb",
+            "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://www.barnesandnoble.com/w/dvd-the-one-i-love-charlie-mcdowell/27132736",
+          "package": {
+            "id": "cGF8MjU0Mg==",
+            "packageId": 2542,
+            "clearName": "Barnes & Noble",
+            "technicalName": "barnesandnoble",
+            "shortName": "bnb",
+            "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+          }
+        }
+      ],
+      "extraOffers": []
+    }
+  }
+}

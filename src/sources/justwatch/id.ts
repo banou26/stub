@@ -73,12 +73,15 @@ export const providerContentId = (mappedOrigin: string, rawContentId: string): s
 // itself, but its url is watch.amazon.com, so its id belongs to Amazon; mapping it to `cr` would mint
 // a Crunchyroll handle out of an Amazon id and assert an identity that no Crunchyroll call reproduces.
 export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
-  cru: 'cr', nfx: 'nf', nfa: 'nf', dnp: 'disney', amp: 'amazon', atp: 'appletv',
+  cru: 'cr', nfx: 'nf', nfa: 'nf', dnp: 'disney', amp: 'amazon', pva: 'amazon', atp: 'appletv',
   hlu: 'hulu', mxx: 'hbo', pcp: 'peacock', pct: 'peacock',
-  ppp: 'paramount', ppe: 'paramount', fuv: 'fubo'
+  ppp: 'paramount', ppe: 'paramount', fuv: 'fubo',
+  hdv: 'hidive', tbv: 'tubi', rkc: 'roku', ptv: 'pluto', plx: 'plex', hop: 'hoopla',
+  stz: 'starz', acp: 'amcplus', phl: 'philo'
 }
 
 const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+const OBJECT_ID = /^[0-9a-f]{24}$/
 
 /**
  * The provider's own id for a title, read out of the deep link the offer carries.
@@ -146,6 +149,41 @@ export const extractContentId = (url: string): string | undefined => {
 
     // the regional site, /<country>/<language>/movies/<slug>/<uuid>, ends on the title's uuid
     if (host === 'hbomax.com') return parts.at(-1)?.match(UUID_AT_END)?.[1]
+
+    // The shapes below were measured 2026-10-12 over 1,266 popular US titles. A show's offer on HIDIVE
+    // and Plex names its first episode, which is still that show's alone.
+
+    // /interstitial/<video id>; the one /playlist/<id> seen is numbered in another space
+    if (host === 'hidive.com') return parts[0] === 'interstitial' ? parts[1] : undefined
+
+    // /movies/<id> and /series/<id>/<slug>. Nothing says films and series are numbered apart, so a
+    // series keeps a leading 0, which no film id carries.
+    if (host === 'tubitv.com') {
+      const id = parts[1]?.match(/^\d+$/)?.[0]
+      return !id ? undefined : parts[0] === 'series' ? `0${id}` : parts[0] === 'movies' ? id : undefined
+    }
+
+    if (host === 'therokuchannel.roku.com') return parts[0] === 'details' ? parts[1] : undefined
+
+    // a fifth of its links carry the title's 24 hex id after /movies or /series; the rest name only a
+    // slug, and give none. A /live-tv/<id> link names a channel, which carries many titles.
+    if (host === 'pluto.tv') return parts.find((part, i) => OBJECT_ID.test(part) && (parts[i - 1] === 'movies' || parts[i - 1] === 'series'))
+
+    // the path is a slug, and the id rides in `utm_content`
+    if (host === 'watch.plex.tv') {
+      const id = parsed.searchParams.get('utm_content')
+      return id && OBJECT_ID.test(id) ? id : undefined
+    }
+
+    // /title/<id> on Hoopla. Starz ends /movies/<id> and /series/<slug>/season-1/<id> in ONE space:
+    // /movies/<a season's id> opens that season.
+    if (host === 'hoopladigital.com' || host === 'starz.com') return parts.at(-1)?.match(/^\d+$/)?.[0]
+
+    // /movies/<slug>--<id>, and a show's episode as /shows/<slug>/episodes/<slug>--<id>
+    if (host === 'amcplus.com') return parts.at(-1)?.match(/--(\d+)$/)?.[1]
+
+    // /player/show/<id> for a film and a show alike
+    if (host === 'philo.com') return parts[1] === 'show' ? parts[2] : undefined
   } catch {}
   return undefined
 }

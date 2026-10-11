@@ -18,10 +18,11 @@ test('every other source is still exported', () => {
   const names = Object.keys(sources)
   for (const name of [
     'jikan', 'anilist', 'anizip', 'crunchyroll', 'unogs', 'justwatch', 'appletv', 'paramount',
-    'disney', 'amazon', 'hulu', 'peacock', 'hbo', 'fubo', 'tmdb', 'tvmaze', 'kitsu', 'livechart', 'omdb',
+    'disney', 'amazon', 'hulu', 'peacock', 'hbo', 'fubo', 'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla',
+    'starz', 'amcplus', 'philo', 'tmdb', 'tvmaze', 'kitsu', 'livechart', 'omdb',
     'trakt', 'simkl', 'tvdb', 'offline', 'animethemes', 'watchmode', 'imdb',
   ]) expect(names, name).toContain(name)
-  expect(names).toHaveLength(26)
+  expect(names).toHaveLength(35)
 })
 
 // No source asks the viewer for a key: each reads the site's own endpoint (owner's call, 2026-10-07).

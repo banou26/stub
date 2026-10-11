@@ -68,6 +68,15 @@ const HOST_ORIGIN = {
   'peacocktv.com': 'peacock',
   'paramountplus.com': 'paramount',
   'fubo.tv': 'fubo',
+  'hidive.com': 'hidive',
+  'tubitv.com': 'tubi',
+  'therokuchannel.roku.com': 'roku',
+  'pluto.tv': 'pluto',
+  'watch.plex.tv': 'plex',
+  'hoopladigital.com': 'hoopla',
+  'starz.com': 'starz',
+  'amcplus.com': 'amcplus',
+  'philo.com': 'philo',
 }
 const hostOf = href => { try { return new URL(href).hostname } catch { return '' } }
 const originOfHost = host => {

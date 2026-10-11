@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from '../../../../src/sources/justwatch/id'
+import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
 
 // ts222366 is Mushoku Tensei: one JustWatch node carrying three seasons, whose own objectIds are
 // 230388, 378206 and 490814. Every season handing back `jw:222366` is what merged them into one media.
@@ -159,12 +160,82 @@ describe('extractContentId, against real offer urls', () => {
   })
 
   test('an unmapped host yields nothing rather than a stray path segment', () => {
-    expect(extractContentId('https://tubitv.com/series/300001/naruto')).toBeUndefined()
+    expect(extractContentId('https://www.kanopy.com/product/justwatch-12235910')).toBeUndefined()
     expect(extractContentId('not a url')).toBeUndefined()
   })
 })
 
+// Captured from the JustWatch api on 2026-10-12, over 1,266 popular US titles.
+describe('extractContentId, the link-only platforms', () => {
+  test('hidive names a video after /interstitial, and a playlist id is another space', () => {
+    expect(extractContentId('https://www.hidive.com/interstitial/715215')).toBe('715215')
+    expect(extractContentId('https://www.hidive.com/playlist/19919')).toBeUndefined()
+  })
+
+  test('tubi keeps a series apart from a film that could share its number', () => {
+    expect(extractContentId('https://tubitv.com/movies/465330')).toBe('465330')
+    expect(extractContentId('https://tubitv.com/series/300000737/taboo')).toBe('0300000737')
+    expect(extractContentId('https://tubitv.com/series/')).toBeUndefined()
+    expect(extractContentId('https://tubitv.com/series/naruto')).toBeUndefined()
+    expect(extractContentId('https://tubitv.com/live/400000081')).toBeUndefined()
+  })
+
+  test('the roku channel names its title after /details', () => {
+    expect(extractContentId('https://therokuchannel.roku.com/details/49b3bfb619ab57f7bd19a194f3a0d7e9/the-one-i-love?source=bing'))
+      .toBe('49b3bfb619ab57f7bd19a194f3a0d7e9')
+    expect(extractContentId('https://therokuchannel.roku.com/browse/movies')).toBeUndefined()
+  })
+
+  test('pluto tv gives a title\'s hex id, and nothing for a slug or a channel', () => {
+    expect(extractContentId('https://pluto.tv/us/movies/5e972482868ca8001a04ad03/#open')).toBe('5e972482868ca8001a04ad03')
+    expect(extractContentId('https://pluto.tv/us/on-demand/series/582bfe2e857920bd1d030c50/season/1')).toBe('582bfe2e857920bd1d030c50')
+    expect(extractContentId('https://pluto.tv/us/search/details/movies/5c6c865dbb225fd2ebadbfc3')).toBe('5c6c865dbb225fd2ebadbfc3')
+    expect(extractContentId('https://pluto.tv/on-demand/movies/coherence-2014-1-1?utm_medium=deeplink&utm_source=justwatch')).toBeUndefined()
+    expect(extractContentId('https://pluto.tv/us/shows/the-twilight-zone/')).toBeUndefined()
+    expect(extractContentId('https://pluto.tv/en/live-tv/545943f1c9f133a519bbac92/details/545943f1c9f133a519bbac92')).toBeUndefined()
+  })
+
+  test('plex carries its id in utm_content, never in the slug', () => {
+    expect(extractContentId('https://watch.plex.tv/movie/the-one-i-love-2014?autoplay=1&utm_content=5d9f3963b0262f001f6ef055&utm_medium=deeplink'))
+      .toBe('5d9f3963b0262f001f6ef055')
+    expect(extractContentId('https://watch.plex.tv/show/broadchurch/season/1/episode/1?autoplay=1&utm_content=5d9c127b4eefaa001f64475b'))
+      .toBe('5d9c127b4eefaa001f64475b')
+    expect(extractContentId('https://watch.plex.tv/show/newsradio')).toBeUndefined()
+    expect(extractContentId('https://watch.plex.tv/movie/x?utm_content=summer-promo')).toBeUndefined()
+  })
+
+  test('hoopla ends on its title id', () => {
+    expect(extractContentId('https://www.hoopladigital.com/title/14973116?utm_source=justwatch')).toBe('14973116')
+    expect(extractContentId('https://www.hoopladigital.com/television/the-civil-war-ken-burns/10085764')).toBe('10085764')
+    expect(extractContentId('https://www.hoopladigital.com/browse/featured')).toBeUndefined()
+  })
+
+  test('starz ends on a film\'s id or on its first season\'s', () => {
+    expect(extractContentId('https://www.starz.com/us/en/movies/51102')).toBe('51102')
+    expect(extractContentId('https://www.starz.com/us/en/series/outlander/season-1/21894')).toBe('21894')
+    expect(extractContentId('https://www.starz.com/us/en/series/outlander')).toBeUndefined()
+  })
+
+  test('amc+ ends its last segment on the id', () => {
+    expect(extractContentId('https://www.amcplus.com/movies/the-one-i-love--1073975')).toBe('1073975')
+    expect(extractContentId('https://www.amcplus.com/shows/mad-men/episodes/season-1-smoke-gets-in-your-eyes--1003132')).toBe('1003132')
+    expect(extractContentId('https://www.amcplus.com/shows/mad-men/episodes/season-1-episode-2')).toBeUndefined()
+  })
+
+  test('philo names films and shows alike after /player/show', () => {
+    expect(extractContentId('https://www.philo.com/player/show/U2hvdzo2MDg1NDg4OTk2NDg1MTAxMjk')).toBe('U2hvdzo2MDg1NDg4OTk2NDg1MTAxMjk')
+    expect(extractContentId('https://www.philo.com/player/show/U2hvdzo2MDg1NDg4OTk2NDg0Mzg3NTA?episode=RXBpc29kZTo2MDg1NDg4OTk2NDg0NDAyNzA'))
+      .toBe('U2hvdzo2MDg1NDg4OTk2NDg0Mzg3NTA')
+    expect(extractContentId('https://www.philo.com/player/channel/abc')).toBeUndefined()
+  })
+})
+
 describe('PACKAGE_ORIGIN_MAP', () => {
+  // `provenanceOf` reads a JustWatch claim outside this set as an echo of the asked address
+  test('every origin an offer can name is one JustWatch publishes', () => {
+    expect(Object.values(PACKAGE_ORIGIN_MAP).filter(origin => !NATIVE_ID_SPACES.jw!.has(origin))).toEqual([])
+  })
+
   test('one service can hold several tiers, and they all name the same origin', () => {
     expect(PACKAGE_ORIGIN_MAP.nfx).toBe('nf')
     expect(PACKAGE_ORIGIN_MAP.nfa).toBe('nf')

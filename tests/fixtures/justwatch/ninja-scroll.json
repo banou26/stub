@@ -1,0 +1,226 @@
+{
+  "data": {
+    "node": {
+      "id": "tm188787",
+      "objectId": 188787,
+      "objectType": "MOVIE",
+      "content": {
+        "title": "Ninja Scroll",
+        "fullPath": "/us/movie/jubei-ninpucho",
+        "originalReleaseYear": 1993,
+        "originalReleaseDate": "1993-06-05",
+        "shortDescription": "Jubei is a masterless ninja who travels the land alone, lending his services to those with gold, or a worthy cause. His fearsome abilities have served him well, but a plot to overthrow the government threatens to end his wandering ways, and possibly his life.",
+        "posterUrl": "/poster/66052842/s718/jubei-ninpucho.jpg",
+        "externalIds": {
+          "imdbId": "tt0107692"
+        },
+        "genres": [
+          {
+            "shortName": "act"
+          },
+          {
+            "shortName": "ani"
+          },
+          {
+            "shortName": "drm"
+          },
+          {
+            "shortName": "fnt"
+          },
+          {
+            "shortName": "hrr"
+          },
+          {
+            "shortName": "trl"
+          }
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.hidive.com/interstitial/715215",
+          "package": {
+            "id": "cGF8NDMw",
+            "packageId": 430,
+            "clearName": "HiDive",
+            "technicalName": "hidive",
+            "shortName": "hdv",
+            "icon": "/icon/254161830/s100/hidive.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d0a9f713-f95a-2620-1212-63c1907b4b7e",
+          "package": {
+            "id": "cGF8MjM5MA==",
+            "packageId": 2390,
+            "clearName": "Hidive Amazon Channel",
+            "technicalName": "amazonhidive",
+            "shortName": "hda",
+            "icon": "/icon/327852609/s100/amazonhidive.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d0a9f713-f95a-2620-1212-63c1907b4b7e",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com/us/movie/ninja-scroll/umc.cmc.12rnzssjk7ros4f1x442d23dd?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1772112516",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/Ninja-Scroll/1160761",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://www.barnesandnoble.com/w/dvd-ninja-scroll-yoshiaki-kawajiri/3627114",
+          "package": {
+            "id": "cGF8MjU0Mg==",
+            "packageId": 2542,
+            "clearName": "Barnes & Noble",
+            "technicalName": "barnesandnoble",
+            "shortName": "bnb",
+            "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY",
+          "standardWebURL": "https://www.amazon.com/dp/B0DKMKZ4H6?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "package": {
+            "id": "cGF8NTA=",
+            "packageId": 50,
+            "clearName": "Amazon DVD / Blu-ray",
+            "technicalName": "amazondvdbr",
+            "shortName": "adb",
+            "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.30e68870-9c25-4caf-a43d-58d82be9e2b3",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "SD",
+          "standardWebURL": "https://www.hulu.jp/watch/100168996",
+          "package": {
+            "id": "cGF8MTU=",
+            "packageId": 15,
+            "clearName": "Hulu",
+            "technicalName": "hulu",
+            "shortName": "hlu",
+            "icon": "/icon/116305230/s100/hulu.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/title/SID0095544",
+          "package": {
+            "id": "cGF8ODQ=",
+            "packageId": 84,
+            "clearName": "U-NEXT",
+            "technicalName": "unext",
+            "shortName": "unx",
+            "icon": "/icon/304760702/s100/unext.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.30e68870-9c25-4caf-a43d-58d82be9e2b3",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://fod.fujitv.co.jp/title/00ep/",
+          "package": {
+            "id": "cGF8MjY4Mw==",
+            "packageId": 2683,
+            "clearName": "FOD",
+            "technicalName": "fod",
+            "shortName": "fuj",
+            "icon": "/icon/342951136/s100/fod.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "SD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.30e68870-9c25-4caf-a43d-58d82be9e2b3",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com/jp/movie/%E7%8D%A3%E5%85%B5%E8%A1%9B%E5%BF%8D%E9%A2%A8%E5%B8%96/umc.cmc.12rnzssjk7ros4f1x442d23dd?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1712646438",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        }
+      ]
+    }
+  }
+}
