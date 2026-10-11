@@ -1,0 +1,248 @@
+{
+  "id": 1,
+  "title": {
+    "romaji": "Cowboy Bebop",
+    "english": "Cowboy Bebop",
+    "native": "カウボーイビバップ"
+  },
+  "format": "TV",
+  "type": "ANIME",
+  "status": "FINISHED",
+  "episodes": 26,
+  "duration": 24,
+  "source": "ORIGINAL",
+  "siteUrl": "https://anilist.co/anime/1",
+  "startDate": {
+    "year": 1998,
+    "month": 4,
+    "day": 3
+  },
+  "endDate": {
+    "year": 1999,
+    "month": 4,
+    "day": 24
+  },
+  "externalLinks": [],
+  "airingSchedule": {
+    "edges": []
+  },
+  "coverImage": {},
+  "studios": {
+    "nodes": [
+      {
+        "name": "Sunrise"
+      }
+    ]
+  },
+  "characters": {
+    "edges": [
+      {
+        "role": "MAIN",
+        "node": {
+          "id": 1,
+          "name": {
+            "full": "Spike Spiegel",
+            "native": "スパイク・スピーゲル",
+            "alternative": [
+              "Spike Spike",
+              "Swimming Bird"
+            ]
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/character/large/b1-ChxaldmieFlQ.png"
+          },
+          "siteUrl": "https://anilist.co/character/1"
+        },
+        "voiceActors": [
+          {
+            "id": 95011,
+            "name": {
+              "full": "Kouichi Yamadera"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95011-2RfLzncNyvbR.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95011",
+            "languageV2": "Japanese"
+          },
+          {
+            "id": 95012,
+            "name": {
+              "full": "Steven Blum"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95012-jnlK6VyCTf9P.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95012",
+            "languageV2": "English"
+          },
+          {
+            "id": 105021,
+            "name": {
+              "full": "José Gilberto Vilchis"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n105021-Bn6vy2ClY3uX.png"
+            },
+            "siteUrl": "https://anilist.co/staff/105021",
+            "languageV2": "Spanish"
+          },
+          {
+            "id": 105028,
+            "name": {
+              "full": "Yamil Atala"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/10028.jpg"
+            },
+            "siteUrl": "https://anilist.co/staff/105028",
+            "languageV2": "Spanish"
+          }
+        ]
+      },
+      {
+        "role": "MAIN",
+        "node": {
+          "id": 2,
+          "name": {
+            "full": "Faye Valentine",
+            "native": "フェイ・バレンタイン",
+            "alternative": [
+              "Poker Alice",
+              "Queen of Hearts",
+              "Romani"
+            ]
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/character/large/b2-0Iszg6Izgt4p.png"
+          },
+          "siteUrl": "https://anilist.co/character/2"
+        },
+        "voiceActors": [
+          {
+            "id": 95014,
+            "name": {
+              "full": "Megumi Hayashibara"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95014-tFYQYYhlVOF0.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95014",
+            "languageV2": "Japanese"
+          },
+          {
+            "id": 95036,
+            "name": {
+              "full": "Wendee Lee"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95036-UkyIYVtEhoPk.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95036",
+            "languageV2": "English"
+          },
+          {
+            "id": 95163,
+            "name": {
+              "full": "Sherry Lynn"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95163-q7DJQ5g1XEPJ.jpg"
+            },
+            "siteUrl": "https://anilist.co/staff/95163",
+            "languageV2": "English"
+          }
+        ]
+      },
+      {
+        "role": "MAIN",
+        "node": {
+          "id": 16,
+          "name": {
+            "full": "Edward Wong Hau Pepelu Tivrusky IV",
+            "native": "エドワード・ウォン・ハウ・ペペル・チブルスキー4世",
+            "alternative": [
+              "Edward IV",
+              "Ed",
+              "Radical Ed",
+              "Radical Edward",
+              "Ed the Hacker",
+              "Françoise"
+            ]
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/character/large/b16-80wd87nl1Rue.png"
+          },
+          "siteUrl": "https://anilist.co/character/16"
+        },
+        "voiceActors": [
+          {
+            "id": 95452,
+            "name": {
+              "full": "Melissa Fahn"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95452-ID2nbW1E8fLk.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95452",
+            "languageV2": "English"
+          },
+          {
+            "id": 95658,
+            "name": {
+              "full": "Aoi Tada"
+            },
+            "image": {
+              "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n95658-paHKYOWkhoOd.png"
+            },
+            "siteUrl": "https://anilist.co/staff/95658",
+            "languageV2": "Japanese"
+          }
+        ]
+      }
+    ]
+  },
+  "staff": {
+    "edges": [
+      {
+        "role": "Original Creator",
+        "node": {
+          "id": 97197,
+          "name": {
+            "full": "Hajime Yatate"
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n97197-6NsKNt4EPoul.jpg"
+          },
+          "siteUrl": "https://anilist.co/staff/97197"
+        }
+      },
+      {
+        "role": "Director",
+        "node": {
+          "id": 97009,
+          "name": {
+            "full": "Shinichirou Watanabe"
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n97009-4K1Wc7JG9iLR.png"
+          },
+          "siteUrl": "https://anilist.co/staff/97009"
+        }
+      },
+      {
+        "role": "Series Composition",
+        "node": {
+          "id": 97334,
+          "name": {
+            "full": "Keiko Nobumoto"
+          },
+          "image": {
+            "large": "https://s4.anilist.co/file/anilistcdn/staff/large/n97334-ewqQWYWhU3wm.png"
+          },
+          "siteUrl": "https://anilist.co/staff/97334"
+        }
+      }
+    ]
+  }
+}

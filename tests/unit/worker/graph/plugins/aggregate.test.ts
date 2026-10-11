@@ -652,6 +652,55 @@ test('a tie inside one score tier is broken by uri, never by the order the membe
   expect(JSON.stringify(reversed), 'the whole row is the same row').toBe(JSON.stringify(forward))
 })
 
+// Credits read the same sorted members as every other field: two sources at one score both voicing
+// Spike in English, handed over in either order, give one row. Mutation: hand `mergeCredits` the
+// members as they arrived and the reversed input takes its English cast from the other source.
+test('the merged credits are the same whatever order the members arrived in', () => {
+  const spike = (actor: string) => ({
+    characters: [{ id: 'anilist:1', names: ['Spike Spiegel'], voiceActors: [{ language: 'en', person: { id: actor, name: actor } }] }],
+    staff: [],
+  })
+  const member = (uri: string, credits: unknown) => ({
+    uri, origin: uri.slice(0, uri.indexOf(':')), id: uri.slice(uri.indexOf(':') + 1),
+    owned: true, score: 0.8, raw: { credits }, fieldSeq: { credits: 1 },
+  })
+  const cluster = {
+    id: 'cl:anilist:1', aggUri: 'ag:(anilist:1,kitsu:1)', scope: 'RUN' as const,
+    runLength: null, runLengthTier: null, runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+  }
+  const members = [member('anilist:1', spike('Steven Blum')), member('kitsu:1', spike('Another Spike'))]
+  const forward = aggregateFields({ cluster, members, related: [], relations: [], locationOrigin: '' })
+  const reversed = aggregateFields({ cluster, members: [...members].reverse(), related: [], relations: [], locationOrigin: '' })
+  expect((forward.characters as { voiceActors: { name: string }[] }[])[0]!.voiceActors.map(({ name }) => name)).toEqual(['Steven Blum'])
+  expect(JSON.stringify(reversed.characters)).toBe(JSON.stringify(forward.characters))
+})
+
+const alone = (raw: Record<string, unknown>) => aggregateFields({
+  cluster: {
+    id: 'cl:anilist:1', aggUri: 'ag:(anilist:1)', scope: 'RUN', runLength: null, runLengthTier: null,
+    runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+  },
+  members: [{ uri: 'anilist:1', origin: 'anilist', id: '1', owned: true, score: 0.8, raw, fieldSeq: {} }],
+  related: [],
+  relations: [],
+  locationOrigin: '',
+})
+
+// A handle node is the member's whole row, and every handle of an opened title would otherwise carry
+// its source's full cast. Mutation: drop `credits: undefined` from `nodeOf`.
+test('a handle node carries no credits', () => {
+  const row = alone({ credits: { characters: [{ id: 'anilist:1', names: ['Spike Spiegel'], voiceActors: [] }], staff: [] } })
+  expect(row.characters, 'the control: the row itself has them').toHaveLength(1)
+  expect(JSON.stringify(row.handles)).not.toContain('Spike Spiegel')
+})
+
+// Mutation: drop `'duration', 'sourceMaterial'` from SCALARS and the page loses Episode length and Source.
+test('the episode length and the source material reach the row', () => {
+  const row = alone({ duration: 24, sourceMaterial: 'ORIGINAL' })
+  expect(row.duration).toBe(24)
+  expect(row.sourceMaterial).toBe('ORIGINAL')
+})
+
 // THE ANOMALIES OF 5.5, landed on the cluster rather than left in a fixture test: the rule fires on
 // the refused link and both clusters it names carry it, with the count the trace panel reads.
 // Mutation: report anomalies only for the rows a rule names as a PAIR and a standing disagreement

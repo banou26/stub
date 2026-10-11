@@ -19,6 +19,9 @@ const FRIEREN = {
   seasonYear: 2023,
   genres: ['Adventure', 'Drama', 'Fantasy'],
   tags: ['Elf', 'Travel'],
+  duration: 24,
+  studios: ['Madhouse'],
+  sourceMaterial: 'MANGA',
 }
 
 test('the chips name the episodes, the format and the status', () => {
@@ -35,9 +38,12 @@ test('the facts are labelled, in reading order', () => {
   expect(titleFacts(FRIEREN, { locale: 'en-US' })).toEqual([
     { label: 'Format', value: 'TV Show' },
     { label: 'Episodes', value: '28' },
+    { label: 'Episode length', value: '24 min' },
     { label: 'Status', value: 'Finished' },
     { label: 'Aired', value: 'Sep 29, 2023 to Mar 22, 2024' },
     { label: 'Season', value: 'Fall 2023' },
+    { label: 'Studios', value: 'Madhouse' },
+    { label: 'Source', value: 'Manga' },
     { label: 'Genres', value: 'Adventure, Drama, Fantasy' },
     { label: 'Tags', value: 'Elf, Travel' },
     { label: 'Also known as', value: '葬送のフリーレン' },
@@ -46,7 +52,7 @@ test('the facts are labelled, in reading order', () => {
 
 test('a fact no source gave is left out rather than shown empty', () => {
   expect(titleFacts({})).toEqual([])
-  expect(titleFacts({ titles: [{ title: 'One' }], genres: [], tags: [], startDate: 'not a date', episodeCount: 0 })).toEqual([])
+  expect(titleFacts({ titles: [{ title: 'One' }], genres: [], tags: [], studios: [], startDate: 'not a date', episodeCount: 0, duration: 0 })).toEqual([])
   expect(titleFacts({ startDate: '2026-10-02', status: MediaStatus.Releasing }, { locale: 'en-US' }), 'a run still airing has no end')
     .toEqual([{ label: 'Status', value: 'Airing' }, { label: 'Aired', value: 'Oct 2, 2026' }])
 })
@@ -57,6 +63,14 @@ const inZone = <T>(zone: string, read: () => T): T => {
   try { return read() } finally { if (TZ === undefined) delete process.env.TZ; else process.env.TZ = TZ }
 }
 const aired = (media: Parameters<typeof titleFacts>[0]) => titleFacts(media, { locale: 'en-US' }).find(({ label }) => label === 'Aired')?.value
+
+test('a film\'s duration is its length, not an episode\'s', () => {
+  expect(titleFacts({ type: MediaType.Movie, duration: 120 })).toEqual([{ label: 'Format', value: 'Movie' }, { label: 'Length', value: '120 min' }])
+})
+
+test('the source material reads as words', () => {
+  expect(titleFacts({ sourceMaterial: 'LIGHT_NOVEL' })).toEqual([{ label: 'Source', value: 'Light novel' }])
+})
 
 test('Aired is the day the source named, west of Greenwich too', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {

@@ -23,7 +23,7 @@ import { canPlay } from '../../sources/playable'
 import { episodeOriginIds } from './episode-origins'
 
 export const GET_MEDIA_DETAILS = gql(`
-  subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!) {
+  subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
     media(input: $input) {
       ...MediaFragment
       titles {
@@ -155,6 +155,27 @@ export const GET_MEDIA_DETAILS = gql(`
       nextAiringEpisode {
         episodeNumber
         airingAt
+      }
+      duration @include(if: $details)
+      sourceMaterial @include(if: $details)
+      studios @include(if: $details)
+      characters @include(if: $details) {
+        name
+        image
+        url
+        role
+        voiceActors {
+          name
+          image
+          url
+          language
+        }
+      }
+      staff @include(if: $details) {
+        name
+        image
+        url
+        roles
       }
     }
   }
@@ -504,13 +525,13 @@ const Episode = (
 }
 
 /** A series' episode rows, an unreleased one dimmed and not linked (HOR-344). */
-export const Episodes = ({ media }: { media: DetailsMedia }) => {
+export const Episodes = ({ media, limit }: { media: DetailsMedia, limit?: number }) => {
   const unreleased = unreleasedEpisodes(media)
   const nextAiring = media.nextAiringEpisode
   return (
     <div className="episodes" css={episodesStyle}>
       {
-        media.episodes.map((episode, index) =>
+        media.episodes.slice(0, limit).map((episode, index) =>
           <Episode
             key={episode.episodeNumber ?? episode.uri ?? index}
             episode={episode}

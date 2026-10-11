@@ -402,6 +402,42 @@ type Media {
   """
   tags: [String!]!
   episodes: [Episode!]!
+  """
+  The characters, main roles first, each with its voice actors per language. Null unless the request
+  asked `details`, NULLABLE like `franchise`: a listing card asks none.
+  """
+  characters: [MediaCharacter!]
+  """The staff, each person once with every job the sources name. Null unless `details` was asked."""
+  staff: [MediaPerson!]
+  """The animation studios, main first."""
+  studios: [String!]
+  """Minutes per episode."""
+  duration: Int
+  """What the work adapts, in the source's word: MANGA, LIGHT_NOVEL, ORIGINAL."""
+  sourceMaterial: String
+}
+
+"""
+A person in a title's credits: a staff member with `roles`, or a voice actor with `language`. One entry
+can stand for the same person in several sources, joined only by a shared id.
+"""
+type MediaPerson {
+  name: String!
+  image: String
+  url: String
+  """A primary language subtag (`ja`, `en`), or the source's own word when it is not a known language."""
+  language: String
+  roles: [String!]
+}
+
+"""A character in a title, joined across sources by a shared id, with its voice actors per language."""
+type MediaCharacter {
+  name: String!
+  image: String
+  url: String
+  """MAIN, SUPPORTING or BACKGROUND. A string rather than an enum, for the reason `genres` gives."""
+  role: String
+  voiceActors: [MediaPerson!]!
 }
 
 type MediaTitle {
@@ -504,6 +540,8 @@ enum RootOperation {
 input MediaInput {
   uri: ID
   context: RequestContext
+  """Asks the sources for credits too: a larger request, so only a title's own page sends it."""
+  details: Boolean
 }
 
 """

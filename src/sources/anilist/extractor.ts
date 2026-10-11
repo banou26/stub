@@ -9,6 +9,7 @@ import { Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './
 import { makeMedia, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
+import { languageCode, type SourceCredits, type SourcePerson } from '../credits'
 
 export const icon = 'https://anilist.co/img/icons/favicon-32x32.png'
 export const originUrl = 'https://anilist.co'
@@ -175,7 +176,7 @@ const RELATION_NODE_FIELDS = `
  * `relationType(version: 2)` rather than the bare field: version 1 is AniList's older vocabulary,
  * where what is now SOURCE was reported as ADAPTATION in the other direction.
  */
-const GET_MEDIA = `
+const mediaQuery = (credits: string) => `
   query GetMedia ($id: Int, $idMal: Int, $type: MediaType) {
     Media(idMal: $idMal, id: $id, type: $type) {
       ${MEDIA_FIELDS.split('\n').join('\n    ')}
@@ -194,10 +195,67 @@ const GET_MEDIA = `
             }
           }
         }
-      }
+      }${credits}
     }
   }
 `
+
+const GET_MEDIA = mediaQuery('')
+
+/**
+ * The title page's form, a different body from the modal's and so its own relay cache entry: 85 KB
+ * against 23 KB on Frieren. AniList pages credits at 25 and the page asks no more. No language
+ * argument on `voiceActors`, so every dub comes back.
+ */
+const GET_MEDIA_CREDITS = mediaQuery(`
+      characters(page: 1, perPage: 25, sort: [ROLE, RELEVANCE, ID]) {
+        edges {
+          role
+          node {
+            id
+            name {
+              full
+              native
+              alternative
+            }
+            image {
+              large
+            }
+            siteUrl
+          }
+          voiceActors(sort: [RELEVANCE, ID]) {
+            id
+            name {
+              full
+            }
+            image {
+              large
+            }
+            siteUrl
+            languageV2
+          }
+        }
+      }
+      staff(page: 1, perPage: 25, sort: [RELEVANCE, ID]) {
+        edges {
+          role
+          node {
+            id
+            name {
+              full
+            }
+            image {
+              large
+            }
+            siteUrl
+          }
+        }
+      }
+      studios(isMain: true) {
+        nodes {
+          name
+        }
+      }`)
 
 /**
  * One score for every field, deliberately BELOW jikan and anizip, which both sit at 0.9.
@@ -330,9 +388,11 @@ const fetchAnilist = async <T>(request: { query: string, variables: any }, conte
 const fetchMedia = async (
   { id, idMal }: { id?: number, idMal?: number },
   context: ExtractorServerContext,
-  requestContext?: RequestContext | null
+  requestContext?: RequestContext | null,
+  details?: boolean | null
 ): Promise<GQLMedia | undefined> => {
-  const data = await fetchAnilist<{ Media: Media }>({ query: GET_MEDIA, variables: { id, idMal, type: 'ANIME' } }, context)
+  const query = details ? GET_MEDIA_CREDITS : GET_MEDIA
+  const data = await fetchAnilist<{ Media: Media }>({ query, variables: { id, idMal, type: 'ANIME' } }, context)
   if (!data?.Media) return undefined
 
   // The same date `normalizeMedia` publishes, rather than a second one built here. A date hand-rolled
@@ -577,6 +637,41 @@ const franchiseNode = (node: { id?: number | null, format?: string | null, statu
       : [],
 })
 
+const CHARACTER_ROLES = ['MAIN', 'SUPPORTING', 'BACKGROUND'] as const
+
+type AnilistPerson = { id: number, name?: Maybe<{ full?: Maybe<string> }>, image?: Maybe<{ large?: Maybe<string> }>, siteUrl?: Maybe<string> }
+
+const personOf = (staff: Maybe<AnilistPerson> | undefined): SourcePerson | undefined =>
+  staff?.id && staff.name?.full
+    ? { id: `${origin}:${staff.id}`, name: staff.name.full, image: staff.image?.large ?? undefined, url: staff.siteUrl ?? undefined }
+    : undefined
+
+/** The credits the details query asked for, or nothing when it was not asked. */
+const normalizeCredits = (media: Media): SourceCredits | undefined => {
+  if (!media.characters && !media.staff) return undefined
+  return {
+    characters: (media.characters?.edges ?? []).flatMap(edge => {
+      const node = edge?.node
+      if (!node?.id || !node.name?.full) return []
+      return [{
+        id: `${origin}:${node.id}`,
+        names: [node.name.full, ...(node.name.alternative ?? []).filter((name): name is string => Boolean(name))],
+        image: node.image?.large ?? undefined,
+        url: node.siteUrl ?? undefined,
+        role: CHARACTER_ROLES.find(role => role === edge?.role),
+        voiceActors: (edge?.voiceActors ?? []).flatMap(actor => {
+          const person = personOf(actor)
+          return person && actor?.languageV2 ? [{ language: languageCode(actor.languageV2), person }] : []
+        }),
+      }]
+    }),
+    staff: (media.staff?.edges ?? []).flatMap(edge => {
+      const person = personOf(edge?.node)
+      return person ? [{ person, roles: edge?.role ? [edge.role] : [] }] : []
+    }),
+  }
+}
+
 const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
   const malHandle =
     media.idMal
@@ -591,6 +686,7 @@ const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
 
   const startDate = airedDate(media.startDate, media.airingSchedule, 'first')
   const endDate = airedDate(media.endDate, media.airingSchedule, 'last')
+  const credits = normalizeCredits(media)
 
   return makeMedia({
     _id: crypto.randomUUID(),
@@ -639,6 +735,10 @@ const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
         : []
     ],
     episodeCount: media.episodes,
+    duration: media.duration,
+    sourceMaterial: media.source,
+    ...media.studios ? { studios: (media.studios.nodes ?? []).flatMap(studio => studio?.name ? [studio.name] : []) } : {},
+    ...credits ? { credits } : {},
     popularity: media.popularity,
     status:
       media.status === MediaStatus.NotYetReleased ? GQLMediaStatus.NotYetReleased
@@ -730,11 +830,11 @@ const browseVariables = (
 export const resolvers: Resolvers = {
   Subscription: {
     media: {
-      subscribe: async function*(_, { input: { uri: _uri, context } }, ctx: ExtractorServerContext) {
+      subscribe: async function*(_, { input: { uri: _uri, context, details } }, ctx: ExtractorServerContext) {
         if (!_uri || !(isUri(_uri) || isAggregatedUri(_uri))) return yield { media: null }
         const uri = extractAggregatedUriOrigin(_uri, origin)
         if (!uri) return yield { media: null }
-        const media = await fetchMedia({ id: Number(uri.id) }, ctx, context)
+        const media = await fetchMedia({ id: Number(uri.id) }, ctx, context, details)
         yield {
           media
         }

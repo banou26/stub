@@ -1,10 +1,10 @@
 // The title page's words: its chips, its facts and what its Play button says. Pure, so they are tested
 // without rendering the page (which cannot load under vitest, see tests/unit/router/modal-media.test.ts).
 
-import type { MediaSeason, MediaType } from '../../generated/graphql'
+import type { MediaSeason } from '../../generated/graphql'
 import type { ReleaseDateOptions } from '../../utils/release-date'
 
-import { MediaStatus } from '../../generated/graphql'
+import { MediaStatus, MediaType } from '../../generated/graphql'
 import { formatLabel, seasonLabel, statusLabel } from '../search/params'
 import { parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
 
@@ -19,6 +19,9 @@ export type TitleMedia = {
   seasonYear?: number | null
   genres?: readonly string[] | null
   tags?: readonly string[] | null
+  duration?: number | null
+  studios?: readonly string[] | null
+  sourceMaterial?: string | null
 }
 
 export type Fact = { label: string, value: string }
@@ -28,6 +31,10 @@ const day = (value: string | null | undefined) => parseReleaseDate(value)?.toISO
 
 const episodesLabel = (count: number | null | undefined) =>
   count ? `${count} ${count === 1 ? 'Episode' : 'Episodes'}` : undefined
+
+// AniList's word, LIGHT_NOVEL, as a label: Light novel
+const sourceLabel = (source: string | null | undefined) =>
+  source ? source.charAt(0) + source.slice(1).toLowerCase().replaceAll('_', ' ') : undefined
 
 /** The second title under the main one: the first that reads differently, usually the romaji or the native. */
 export const secondTitle = (titles: TitleMedia['titles']): string | undefined =>
@@ -49,9 +56,12 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}):
   return [
     { label: 'Format', value: formatLabel(media.type) },
     { label: 'Episodes', value: media.episodeCount ? String(media.episodeCount) : undefined },
+    { label: media.type === MediaType.Movie ? 'Length' : 'Episode length', value: media.duration ? `${media.duration} min` : undefined },
     { label: 'Status', value: statusLabel(media.status) },
     { label: 'Aired', value: start && end && end !== start ? `${start} to ${end}` : start },
     { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
+    { label: 'Studios', value: media.studios?.join(', ') },
+    { label: 'Source', value: sourceLabel(media.sourceMaterial) },
     { label: 'Genres', value: media.genres?.join(', ') },
     { label: 'Tags', value: media.tags?.join(', ') },
     { label: 'Also known as', value: others.join(', ') },

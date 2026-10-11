@@ -19,9 +19,11 @@ import { seasonLabel } from '../search/params'
 import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, shouldGrowAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
+import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { playTarget, secondTitle, titleChips, titleFacts } from './facts'
 
 const RELATIONS_ROW = 3
+const SHOWN = 12
 
 const style = css`
   padding-bottom: 6rem;
@@ -262,20 +264,167 @@ const style = css`
         grid-template-columns: repeat(${RELATIONS_ROW}, minmax(0, 1fr));
       }
     }
+  }
 
-    & > .more {
-      margin-top: 1.2rem;
-      padding: 0.8rem 1.4rem;
+  & > .body > .main .more {
+    margin-top: 1.2rem;
+    padding: 0.8rem 1.4rem;
+    border-radius: 0.6rem;
+    border: 0.1rem solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font: inherit;
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+
+  & > .body > .main select {
+    height: 3.2rem;
+    padding: 0 0.8rem;
+    border-radius: 0.6rem;
+    border: 0.1rem solid rgba(255, 255, 255, 0.18);
+    background: rgb(30, 30, 30);
+    color: #fff;
+    font: inherit;
+    font-size: 1.4rem;
+  }
+
+  & > .body > .main .credits {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    & > li {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.8rem;
       border-radius: 0.6rem;
-      border: 0.1rem solid rgba(255, 255, 255, 0.18);
       background: rgba(255, 255, 255, 0.05);
-      color: #fff;
-      font: inherit;
+
+      & > * {
+        flex: 1 1 0;
+      }
+    }
+
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      min-width: 0;
       font-size: 1.4rem;
-      cursor: pointer;
+    }
+
+    .person.actor {
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+
+    .actors {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      min-width: 0;
+    }
+
+    .face {
+      flex: none;
+      width: 4.8rem;
+      height: 6.4rem;
+      border-radius: 0.4rem;
+      object-fit: cover;
+      background-color: rgb(45, 45, 45);
+    }
+
+    .name {
+      overflow-wrap: anywhere;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a.name:hover { text-decoration: underline; }
+
+    .detail {
+      margin-top: 0.2rem;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 1.3rem;
+      overflow-wrap: anywhere;
     }
   }
 `
+
+type Credit = { name: string, image?: string | null, url?: string | null }
+
+/** A face and a name, linking to the source's page for the person when it has one. */
+const Person = ({ person, detail, actor }: { person: Credit, detail?: string, actor?: boolean }) => (
+  <div className={actor ? 'person actor' : 'person'}>
+    {person.image ? <img className="face" src={person.image} alt="" loading="lazy"/> : <div className="face"/>}
+    <div>
+      {person.url ? <a className="name" href={person.url} target="_blank" rel="noreferrer">{person.name}</a> : <div className="name">{person.name}</div>}
+      {detail ? <div className="detail">{detail}</div> : undefined}
+    </div>
+  </div>
+)
+
+type Character = Credit & { role?: string | null, voiceActors: (Credit & { language?: string | null })[] }
+
+const Characters = ({ characters }: { characters: Character[] }) => {
+  const languages = creditLanguages(characters)
+  const [picked, setPicked] = useState<string>()
+  const [all, setAll] = useState(false)
+  const cast = castIn(characters, picked ?? languages.selected)
+  return (
+    <section data-characters>
+      <h2>
+        <span>Characters</span>
+        {
+          languages.options.length
+            ? (
+              <select aria-label="Language" value={picked ?? languages.selected} onChange={event => setPicked(event.currentTarget.value)}>
+                {languages.options.map(language => <option key={language} value={language}>{languageLabel(language)}</option>)}
+              </select>
+            )
+            : undefined
+        }
+      </h2>
+      <ul className="credits">
+        {(all ? cast : cast.slice(0, SHOWN)).map((character, index) => (
+          <li key={`${character.name}:${index}`}>
+            <Person person={character} detail={roleLabel(character.role)}/>
+            {
+              character.actors.length
+                ? <div className="actors">{character.actors.map(actor => <Person key={actor.name} person={actor} actor/>)}</div>
+                : undefined
+            }
+          </li>
+        ))}
+      </ul>
+      {cast.length > SHOWN && !all ? <button type="button" className="more" onClick={() => setAll(true)}>Show all</button> : undefined}
+    </section>
+  )
+}
+
+const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) => {
+  const [all, setAll] = useState(false)
+  return (
+    <section data-staff>
+      <h2>Staff</h2>
+      <ul className="credits">
+        {(all ? staff : staff.slice(0, SHOWN)).map((person, index) => (
+          <li key={`${person.name}:${index}`}><Person person={person} detail={person.roles?.join(', ')}/></li>
+        ))}
+      </ul>
+      {staff.length > SHOWN && !all ? <button type="button" className="more" onClick={() => setAll(true)}>Show all</button> : undefined}
+    </section>
+  )
+}
 
 /** The full page for one title, at `/title/<address>`: what the modal shows, laid out as one long page. */
 const TitlePage = () => {
@@ -298,7 +447,7 @@ const TitlePage = () => {
 
   const [{ data }] = useSubscription({
     query: GET_MEDIA_DETAILS,
-    variables: { input: { uri }, descriptionInput: { type: MediaDescriptionContentType.Html } },
+    variables: { input: { uri, details: true }, descriptionInput: { type: MediaDescriptionContentType.Html }, details: true },
     pause: !uri
   })
   const media = data?.media
@@ -337,6 +486,7 @@ const TitlePage = () => {
   }, [description, open])
 
   const [allRelations, setAllRelations] = useState(false)
+  const [allEpisodes, setAllEpisodes] = useState(false)
   const [copied, setCopied] = useState(false)
   const share = async () => {
     if (!media) return
@@ -448,13 +598,20 @@ const TitlePage = () => {
           {
             media && !isMovie && media.episodes.length
               ? (
-                <section>
+                <section data-episodes>
                   <h2>Episodes</h2>
-                  <Episodes media={media}/>
+                  <Episodes media={media} limit={allEpisodes ? undefined : SHOWN}/>
+                  {
+                    media.episodes.length > SHOWN && !allEpisodes
+                      ? <button type="button" className="more" onClick={() => setAllEpisodes(true)}>Show all</button>
+                      : undefined
+                  }
                 </section>
               )
               : undefined
           }
+          {media?.characters?.length ? <Characters characters={media.characters}/> : undefined}
+          {media?.staff?.length ? <Staff staff={media.staff}/> : undefined}
         </div>
       </div>
     </div>

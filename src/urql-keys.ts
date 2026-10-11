@@ -38,6 +38,9 @@ export const keyResolvers = {
   // identity away from that media and is embedded in it like every title and cover above.
   MediaFieldProvenance: () => null,
   MediaAnomaly: () => null,
+  // credits are one title's account of its cast and staff: nothing routes to a person, so nothing to key
+  MediaPerson: () => null,
+  MediaCharacter: () => null,
   MediaTrailer: (trailer) => (trailer as MediaTrailer).uri,
   Episode: (episode) => (episode as Episode)._id,
   EpisodeTitle: () => null,

@@ -24,6 +24,7 @@
  */
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
+import { mergeCredits } from './credits'
 
 /** Where one field's value came from, and under which rule (6.3's third column). */
 export type FieldProvenance = {
@@ -38,7 +39,7 @@ export type FieldProvenance = {
   tier?: number | null
   /** How many members backed the value, for a vote. */
   witnesses?: number
-  rule: 'first-non-null' | 'tiered' | 'season-pair' | 'best-score' | 'concat' | 'dedupe' | 'first-supplier'
+  rule: 'first-non-null' | 'tiered' | 'season-pair' | 'best-score' | 'concat' | 'dedupe' | 'first-supplier' | 'merged'
 }
 
 /**
@@ -271,10 +272,12 @@ const nodeOf = (member: MemberRow): Record<string, unknown> => ({
   // drawn inside a handle carries none either: the badge reader needs the address and the url
   handles: [],
   episodes: [],
+  credits: undefined,
 })
 
 const SCALARS = [
   'url', 'type', 'status', 'averageScore', 'popularity', 'startDate', 'endDate', 'isAdult', 'nextAiringEpisode',
+  'duration', 'sourceMaterial',
 ] as const
 
 /**
@@ -375,7 +378,7 @@ export const aggregateFields = (options: {
   row.categories = reconcileCategories(categories)
   if (owned.length) provenance.push({ field: 'categories', uri: owned[0]!.uri, rule: 'first-non-null' })
 
-  for (const field of ['genres', 'tags'] as const) {
+  for (const field of ['genres', 'tags', 'studios'] as const) {
     row[field] = dedupeLabels(owned.flatMap(member => stringsOf(member.raw[field])))
     for (const member of owned) {
       if (stringsOf(member.raw[field]).length) provenance.push({ field, uri: member.uri, rule: 'best-score' })
@@ -401,6 +404,13 @@ export const aggregateFields = (options: {
   }
 
   row.trailers = dedupeByField('uri', byScore(owned.flatMap(member => listOf(member.raw.trailers))))
+
+  const credits = mergeCredits(owned)
+  if (credits) {
+    Object.assign(row, credits)
+    const uris = owned.filter(member => member.raw.credits).map(member => member.uri)
+    provenance.push({ field: 'characters', uris, rule: 'merged' }, { field: 'staff', uris, rule: 'merged' })
+  }
 
   // the first supplier's WHOLE graph, never spliced: a franchise is one source's account of a series
   // and two of them spliced carry edges between nodes only one of them has (`aggregate.ts:348-350`)

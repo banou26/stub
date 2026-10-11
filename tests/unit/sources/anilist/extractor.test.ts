@@ -6,10 +6,13 @@
 // Driven through the real `media` subscription so the request context travels the way the consumer
 // stamps it: `similarMediaFrom` reads a real hop off `input.context` and descends it with 'anilist' on
 // the chain, instead of counting a context miss.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+
+import { createHash } from 'node:crypto'
 
 import { closeRoot, openRoot } from '../../../../src/worker/request-context'
 import { resolvers } from '../../../../src/sources/anilist/extractor'
+import BEBOP from '../../../fixtures/credits/anilist-bebop.json'
 
 const ANILIST = 'https://graphql.anilist.co/'
 
@@ -337,4 +340,67 @@ describe('what the card and list modes read', () => {
     const [node] = await browsedNodes([AIRING])
     expect(node.averageScore).toBe(84)
   })
+})
+
+// Cowboy Bebop as AniList's details query answers it, trimmed to three characters and three staff
+const creditsContext = () => {
+  const bodies: string[] = []
+  const fetch = async (url: string, init?: { body?: string }) => {
+    if (url !== ANILIST) throw new Error(`fixture has no route for ${url}`)
+    bodies.push(init?.body ?? '')
+    const { query } = JSON.parse(init?.body ?? '{}') as { query: string }
+    const { characters, staff, studios, ...media } = BEBOP
+    return { status: 200, json: async () => ({ data: { Media: query.includes('characters(') ? BEBOP : media } }) }
+  }
+  return { ctx: { fetch, similarMedia: async () => undefined } as never, bodies }
+}
+
+const openBebop = async (ctx: never, details?: boolean) => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const { value } = await subscribe(undefined, { input: { uri: 'anilist:1', details } }, ctx).next()
+  return value.media
+}
+
+test('the details answer carries the characters, their voice actors by language, the studios, length and source', async () => {
+  const media = await openBebop(creditsContext().ctx, true)
+
+  const spike = media.credits.characters[0]
+  expect(spike.id).toBe('anilist:1')
+  expect(spike.names[0]).toBe('Spike Spiegel')
+  expect(spike.role).toBe('MAIN')
+  expect(spike.voiceActors.filter((actor: { language: string }) => actor.language === 'ja').map((actor: { person: { id: string, name: string } }) => actor.person))
+    .toEqual([expect.objectContaining({ id: 'anilist:95011', name: 'Kouichi Yamadera' })])
+  expect(spike.voiceActors.filter((actor: { language: string }) => actor.language === 'en').map((actor: { person: { id: string } }) => actor.person.id))
+    .toEqual(['anilist:95012'])
+  expect(media.credits.staff[1]).toEqual(expect.objectContaining({ person: expect.objectContaining({ name: 'Shinichirou Watanabe' }), roles: ['Director'] }))
+  expect(media.studios).toEqual(['Sunrise'])
+  expect(media.duration).toBe(24)
+  expect(media.sourceMaterial).toBe('ORIGINAL')
+})
+
+test('length and source ride on every answer, and the credits only on a details one', async () => {
+  const media = await openBebop(creditsContext().ctx)
+
+  expect(media.duration).toBe(24)
+  expect(media.sourceMaterial).toBe('ORIGINAL')
+  expect(media.credits).toBeUndefined()
+  expect(media.studios).toBeUndefined()
+})
+
+const sha256 = (body: string) => createHash('sha256').update(body).digest('hex')
+
+// The relay caches on the whole request body, so the modal's and the listing's bodies must stay byte
+// for byte what they were before credits existed. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY.
+test('the details query goes out only when asked, and the modal and listing bodies are unchanged', async () => {
+  const { ctx, bodies } = creditsContext()
+  await openBebop(ctx)
+  await openBebop(ctx, true)
+  expect(bodies).toHaveLength(2)
+  expect(sha256(bodies[0]!), 'the modal body').toBe('442755783192b6dbf4201ac6fd17bd02840588585e2dc0b9fdb6d408d917e3e7')
+  expect(bodies[1], 'the page body').toContain('characters(page: 1, perPage: 25')
+  expect(bodies[1]).not.toBe(bodies[0])
+
+  const browse = browseContext({ lastPage: 1 })
+  await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
+  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('4f568b202215e5d9325482c643c3cfb90966f63930b5387a87b2c8ef9314526d')
 })
