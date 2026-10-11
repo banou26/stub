@@ -1,4 +1,4 @@
-import type { PlaybackState } from './protocol'
+import type { Control, PartyMessage, PlaybackState } from './protocol'
 
 // How a follower's player is moved to match the host's. Pure and import-free so the tolerance can be
 // pinned: it is the one number that decides between a follower that stutters every heartbeat and
@@ -102,3 +102,28 @@ export const advance = (state: PlaybackState, receivedAt: number, now: number): 
   time: state.paused ? state.time : state.time + Math.max(0, now - receivedAt) / 1000 * state.rate,
   at: now,
 })
+
+/**
+ * How long a follower's player is still answering a correction that played, paused or seeked it, so a
+ * report inside it is that correction and never read as a person.
+ */
+export const SETTLE_MS = 2_000
+
+/** How long a follower that asked the host waits for the answer before its player rejoins the party. */
+export const ASK_HOLD_MS = 3_000
+
+/**
+ * Which controls a person used on a follower's player, from a report against the one before it.
+ *
+ * `play` is the player pausing or resuming AWAY from `wanted`, so a player answering the host's own
+ * pause late is not read as the person.
+ */
+export const personAction = (previous: LocalPlayback, report: LocalPlayback, wanted: LocalPlayback): Control[] =>
+  report.paused !== previous.paused && report.paused !== wanted.paused ? ['play'] : []
+
+/**
+ * What the host's player should do for an ask: its own last report moved to now with only the asked
+ * control changed, or undefined when it already does what was asked. `own.at` is the host's clock.
+ */
+export const askedState = (own: PlaybackState, ask: Extract<PartyMessage, { t: 'ask' }>, now: number): PlaybackState | undefined =>
+  own.paused === ask.s.paused ? undefined : { ...advance(own, own.at, now), paused: ask.s.paused }

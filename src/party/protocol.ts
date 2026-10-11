@@ -9,6 +9,20 @@ export type PlaybackState = {
   at: number
 }
 
+/** A control the host can hand out to followers. Each one joins the list in the change that wires it. */
+export type Control = 'play'
+export const CONTROLS: readonly Control[] = ['play']
+
+/**
+ * Who may use which control. `all` is every follower; `by` is per member, where `true` gives a control,
+ * `false` takes it away, and an absent control follows `all`. Memory only: never stored, never logged.
+ */
+export type Grants = { all: Control[], by: Record<string, Partial<Record<Control, boolean>>> }
+export const NO_GRANTS: Grants = { all: [], by: {} }
+
+export const allowed = (grants: Grants, id: string, control: Control): boolean =>
+  grants.by[id]?.[control] ?? grants.all.includes(control)
+
 /**
  * What crosses the room, in two classes.
  *
@@ -17,8 +31,13 @@ export type PlaybackState = {
  * sent to whoever just joined so they land where the party already is. A follower drops any of these
  * from anyone but the room's owner, whatever the api let through.
  *
- * ANYONE: `chat` is a line of text for the room, `name` is what the sender wants to be called, and
- * `ping` is a follower timing a round trip so it can tell the host's clock from its own.
+ * ANYONE: `chat` is a line of text for the room, `name` is what the sender wants to be called,
+ * `ping` is a follower timing a round trip so it can tell the host's clock from its own, and `ask` is
+ * a follower asking the host to use a control: `s` is the asker's player right after the person acted
+ * (its `at` on the host's clock once measured), `path` the page it acted on. Only the host acts on an
+ * ask, and every member drops one whose sender the last `grants` do not allow.
+ *
+ * `state.grants` is who may use what; absent is nobody.
  *
  * `pong` is host only and is the reply to one ping: it carries the asker's own `at` back untouched
  * plus the host's clock at the moment it answered, which is everything Cristian's algorithm needs
@@ -29,7 +48,8 @@ export type PartyMessage =
   | { t: 'scroll', y: number }
   | { t: 'cursor', x: number, y: number }
   | { t: 'playback', s: PlaybackState }
-  | { t: 'state', path: string, y: number, s?: PlaybackState }
+  | { t: 'state', path: string, y: number, s?: PlaybackState, grants?: Grants }
+  | { t: 'ask', c: 'play', path: string, s: PlaybackState }
   | { t: 'chat', text: string }
   | { t: 'name', name: string }
   | { t: 'ping', n: number, at: number }
@@ -40,7 +60,7 @@ const HOST_ONLY: ReadonlySet<PartyMessage['t']> = new Set(['nav', 'scroll', 'cur
 /** Whether a message is the host steering the party, as opposed to anyone talking in it. */
 export const isHostOnly = (message: PartyMessage): boolean => HOST_ONLY.has(message.t)
 
-/** The longest chat line and name the room carries. The api's own cap is 4,096 bytes of the whole message. */
+/** The longest chat line and name the room carries. The room's own cap is 262,144 bytes of the whole message. */
 export const CHAT_MAX_CHARS = 500
 export const NAME_MAX_CHARS = 32
 
@@ -100,12 +120,45 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
     case 'state': {
       if (!isAppPath(value.path) || !isFraction(value.y)) return undefined
       if (value.s !== undefined && !isPlaybackState(value.s)) return undefined
-      return { t: 'state', path: value.path, y: value.y, ...value.s ? { s: value.s } : {} }
+      const grants = decodeGrants(value.grants)
+      return { t: 'state', path: value.path, y: value.y, ...value.s ? { s: value.s } : {}, ...grants ? { grants } : {} }
     }
+    case 'ask':
+      return value.c === 'play' && isAppPath(value.path) && isPlaybackState(value.s)
+        ? { t: 'ask', c: value.c, path: value.path, s: value.s }
+        : undefined
     default:
       return undefined
   }
 }
+
+const isControl = (value: unknown): value is Control => CONTROLS.includes(value as Control)
+
+/**
+ * Grants as the wire carries them, or nothing (which reads as nobody may) for a shape that is wrong.
+ *
+ * A control this version does not know is skipped rather than failing the whole, so the next control
+ * added does not make every older follower drop every `state`. More than MAX_GRANTED members cannot
+ * come from a room of a hundred.
+ */
+const decodeGrants = (value: unknown): Grants | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const { all, by } = value as Record<string, unknown>
+  if (!Array.isArray(all) || !by || typeof by !== 'object' || Array.isArray(by)) return undefined
+  const entries = Object.entries(by)
+  if (entries.length > MAX_GRANTED) return undefined
+  const decoded: Grants = { all: all.filter(isControl), by: {} }
+  for (const [id, controls] of entries) {
+    if (!id || id.length > 128 || !controls || typeof controls !== 'object') return undefined
+    decoded.by[id] = Object.fromEntries(Object.entries(controls).filter(([control, on]) => isControl(control) && typeof on === 'boolean'))
+  }
+  return decoded
+}
+
+const MAX_GRANTED = 100
+
+/** What an ask did, as a chat line says it after the member's name. */
+export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string => ask.s.paused ? 'paused' : 'resumed'
 
 /**
  * Whether a string is a path INSIDE this app.

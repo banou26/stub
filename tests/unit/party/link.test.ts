@@ -1,7 +1,7 @@
 // A media as the link the party's playback sync reads: reports on the events a person can cause and
 // on a clock while playing, applies a state with the tolerance in playback.ts, and answers a new ear
 // at once. Driven with a fake media, the same shape @banou/media-player's remote player has.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { linkMedia } from '../../../src/party/bridge'
 import { HEARTBEAT_MS } from '../../../src/party/playback'
@@ -10,6 +10,7 @@ const fakeMedia = () => {
   const target = new EventTarget()
   return Object.assign(target, {
     paused: true,
+    ended: false,
     currentTime: 0,
     playbackRate: 1,
     play: vi.fn(async () => { media.paused = false }),
@@ -22,6 +23,15 @@ afterEach(() => { vi.useRealTimers(); media = fakeMedia() })
 const flush = () => new Promise(resolve => setTimeout(resolve, 0))
 
 describe('linkMedia', () => {
+  // the browser pauses a player at its end, and the party must not read that as anyone's pause
+  test('says when the player has ended', () => {
+    const link = linkMedia(media)
+    expect(link.ended?.()).toBe(false)
+    media.ended = true
+    expect(link.ended?.()).toBe(true)
+    link.dispose()
+  })
+
   test('a new ear is told where the player is, then every event', async () => {
     const link = linkMedia(media)
     const heard = vi.fn()

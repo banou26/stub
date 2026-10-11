@@ -10,8 +10,10 @@ import { getRoutePath, Route } from '../router/path'
 import { useEffect, useState } from 'preact/hooks'
 
 import { party, partyLink } from '../party'
+import { CONTROLS } from '../party/protocol'
 import { useParty } from '../party/use-party'
 import { layer } from '../layers'
+import PartyGrants, { CONTROL_LABEL } from './party-grants'
 
 const buttonStyle = css`
   display: flex;
@@ -104,6 +106,23 @@ const menuStyle = css`
     outline: none;
   }
 
+  .can {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 1rem;
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    font-size: 1.1rem;
+  }
+
   .actions {
     display: flex;
     gap: 0.6rem;
@@ -193,6 +212,7 @@ const PartyWidget = () => {
   }
 
   const live = state.status === 'active'
+  const can = CONTROLS.filter(control => party.may(control))
   const label =
     state.status === 'joining' ? 'Joining…'
     : state.status === 'active' ? (state.role === 'host' ? 'Hosting' : 'Following')
@@ -229,6 +249,7 @@ const PartyWidget = () => {
                       {copied ? <Check size={14}/> : <Copy size={14}/>}
                     </button>
                   </div>
+                  <PartyGrants/>
                   <div className="actions">
                     <button type="button" className="primary" onClick={toParty}><Users size={14}/> Party</button>
                     <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> End party</button>
@@ -241,6 +262,9 @@ const PartyWidget = () => {
                   <div className="hint">
                     {state.members} in the party.
                   </div>
+                  {can.length > 0 && (
+                    <div className="can">You can {can.map(control => <span key={control} className="badge">{CONTROL_LABEL[control]}</span>)}</div>
+                  )}
                   <div className="actions">
                     <button type="button" className="primary" onClick={() => { party.replay(); setOpen(false) }}>Catch up</button>
                     <button type="button" onClick={toParty}><Users size={14}/> Party</button>

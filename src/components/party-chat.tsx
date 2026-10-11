@@ -99,6 +99,7 @@ const style = css`
   .line .who { font-size: 1.1rem; color: rgba(255, 255, 255, 0.45); }
   .line.self .who { color: #4ade80; }
   .line .text { overflow-wrap: anywhere; }
+  .line.action { color: rgba(255, 255, 255, 0.5); font-size: 1.2rem; font-style: italic; }
   .empty { color: rgba(255, 255, 255, 0.4); }
 
   form {
@@ -153,17 +154,18 @@ const PartyChat = () => {
   const active = state.status === 'active'
   const [open, setOpen] = useState(false)
   const [lines, setLines] = useState<PartyChatLine[]>(() => party.chat())
-  const [unread, setUnread] = useState(0)
+  // the newest line the panel has shown: unread counts LINES after it, so an action line replaced by
+  // the same member's next one counts once
+  const [seen, setSeen] = useState(0)
   const [draft, setDraft] = useState('')
   const list = useRef<HTMLDivElement>(null)
 
-  usePartyMessages((message, meta) => {
-    if (message.t !== 'chat' && message.t !== 'name') return
-    setLines(party.chat())
-    if (message.t === 'chat' && !open && !meta.self) setUnread(count => count + 1)
+  usePartyMessages(message => {
+    if (message.t === 'chat' || message.t === 'name' || message.t === 'ask') setLines(party.chat())
   })
-  useEffect(() => { if (open) setUnread(0) }, [open])
-  useEffect(() => { if (!active) { setLines([]); setUnread(0); setOpen(false) } }, [active])
+  useEffect(() => { if (open) setSeen(lines.at(-1)?.seq ?? 0) }, [open, lines])
+  useEffect(() => { if (!active) { setLines([]); setSeen(0); setOpen(false) } }, [active])
+  const unread = open ? 0 : lines.filter(line => line.seq > seen && !line.self).length
   useEffect(() => { list.current?.scrollTo({ top: list.current.scrollHeight }) }, [lines, open])
 
   if (!active) return null
@@ -187,12 +189,14 @@ const PartyChat = () => {
           </div>
           <div className="lines" ref={list}>
             {lines.length === 0 && <div className="empty">Nothing said yet.</div>}
-            {lines.map(line => (
-              <div key={line.seq} className={`line${line.self ? ' self' : ''}`}>
-                <span className="who">{memberLabel(line, owner)}</span>
-                <span className="text">{line.text}</span>
-              </div>
-            ))}
+            {lines.map(line => line.action
+              ? <div key={line.seq} className="line action">{memberLabel(line, owner)} {line.text}</div>
+              : (
+                <div key={line.seq} className={`line${line.self ? ' self' : ''}`}>
+                  <span className="who">{memberLabel(line, owner)}</span>
+                  <span className="text">{line.text}</span>
+                </div>
+              ))}
           </div>
           <form onSubmit={submit}>
             <input

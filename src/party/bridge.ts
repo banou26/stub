@@ -24,6 +24,8 @@ export type PlaybackLink = {
   apply: (state: PlaybackState, measured?: boolean) => void
   /** every report the player makes; returns the unsubscribe */
   onReport: (listener: (state: PlaybackState) => void) => () => void
+  /** Whether the player reached the end, where the browser pauses it on its own: that pause is nobody's. */
+  ended?: () => boolean
   dispose: () => void
 }
 
@@ -33,6 +35,7 @@ const EVENTS = ['play', 'pause', 'seeked', 'ratechange'] as const
 /** The media surface a link reads and drives: what a `PlayerMedia` and a `RemotePlayer` both are. */
 export type LinkableMedia = EventTarget & {
   paused: boolean
+  ended?: boolean
   currentTime: number
   playbackRate?: number
   play: () => Promise<void>
@@ -69,6 +72,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
     },
     // a new ear is answered with where the player is now, not at its next event
     onReport: listener => { listeners.add(listener); queueMicrotask(report); return () => { listeners.delete(listener) } },
+    ended: () => media.ended ?? false,
     dispose: () => {
       for (const event of EVENTS) media.removeEventListener(event, report)
       clearInterval(heartbeat)

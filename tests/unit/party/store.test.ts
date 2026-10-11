@@ -1,80 +1,11 @@
 // The state machine, driven through a fake room: who may speak, who is ignored, what a joiner is
 // told, what ends the party, and what a reload gets back. The real rooms api is @fkn/lib, which
 // cannot load here, and none of this depends on it.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { rooms } from '@fkn/lib'
-import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
+import { api, fakeRoom, INVITE, memoryStorage } from './fake-room'
+import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
-
-type RoomEvent = rooms.RoomEvent
-type Room = rooms.Room
-
-const INVITE = 'Qm9yZWQtYnV0LWhhcHB5LWV2ZXJ5LWRheS1vay1va2F.https://anime.fkn.app/1b4e28ba2fa111d2883f0016d3cc'
-
-/** A room as the store sees one, with the wires to drive it from the test. */
-const fakeRoom = ({ self, owner, members = [self] }: { self: string, owner: string, members?: string[] }) => {
-  const listeners = new Set<(event: RoomEvent) => void>()
-  const sent: string[] = []
-  let resolveClosed!: (end: rooms.RoomEnd) => void
-  const closed = new Promise<rooms.RoomEnd>(resolve => { resolveClosed = resolve })
-  const perms = { send: true, receive: true, remove: false, block: false }
-  const room = {
-    id: INVITE.slice(INVITE.indexOf('.') + 1),
-    name: INVITE.slice(INVITE.lastIndexOf('/') + 1),
-    key: INVITE.slice(0, INVITE.indexOf('.')),
-    invite: INVITE,
-    claimed: false,
-    mailbox: null,
-    self: { id: self, permissions: perms, maxMessageBytes: 262_144 },
-    owner,
-    defaults: () => ({ send: false, receive: true, maxMessageBytes: 262_144 }),
-    members: async () => members.map(id => ({ id, permissions: perms, maxMessageBytes: 262_144 })),
-    send: vi.fn(async (text: string) => { sent.push(text) }),
-    // the surface the party never calls, present so the fake satisfies `Room`
-    edit: vi.fn(async () => {}),
-    delete: vi.fn(async () => {}),
-    backlog: vi.fn(async () => ({ last: 0, more: false })),
-    limit: vi.fn(async () => {}),
-    claim: vi.fn(async () => {}),
-    release: vi.fn(async () => {}),
-    usage: vi.fn(async () => null),
-    setDefault: vi.fn(async () => {}),
-    grant: vi.fn(async () => {}),
-    revoke: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
-    block: vi.fn(async () => {}),
-    unblock: vi.fn(async () => {}),
-    on: async (listener: (event: RoomEvent) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
-    leave: vi.fn(async () => { resolveClosed({ reason: 'left' }) }),
-    closed,
-  } satisfies Room
-  return {
-    room,
-    sent,
-    emit: (event: RoomEvent) => { for (const listener of listeners) listener(event) },
-    end: (reason: rooms.RoomEnd['reason']) => resolveClosed({ reason }),
-    join: (id: string) => { members.push(id) },
-  }
-}
-
-const memoryStorage = () => {
-  const store = new Map<string, string>()
-  return {
-    store,
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => { store.set(key, value) },
-    removeItem: (key: string) => { store.delete(key) },
-  }
-}
-
-const roomsError = (code: rooms.RoomsErrorCode) => Object.assign(new Error(`rooms: ${code}`), { code })
-
-const api = (room: Room, joinError?: rooms.RoomsErrorCode) => ({
-  available: async () => true,
-  create: vi.fn(async () => room),
-  join: vi.fn(async () => { if (joinError) throw roomsError(joinError); return room }),
-})
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -643,5 +574,156 @@ describe('timing the host clock', () => {
     await guest.leave()
     await settle()
     expect(guest.hostClock()).toBeUndefined()
+  })
+})
+
+describe('grants', () => {
+  const PLAYED = { paused: true, time: 12, rate: 1, at: 1 }
+  const say = (fake: ReturnType<typeof fakeRoom>, seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
+    fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+  const granted = (all: 'play'[], by: Record<string, { play?: boolean }> = {}) => ({ t: 'state' as const, path: '/watch/a/b', y: 0, grants: { all, by } })
+  const ask = { t: 'ask' as const, c: 'play' as const, path: '/watch/a/b', s: PLAYED }
+  const member = (id: string) => ({ id, permissions: { send: true, receive: true, remove: false, block: false }, maxMessageBytes: 262_144 })
+
+  test('a guest may play once the owner says so, and never because another member did', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'other'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.join(INVITE)
+    const states = vi.fn()
+    party.subscribe(states)
+    expect(party.may('play')).toBe(false)
+
+    say(fake, 1, 'other', granted(['play']))
+    expect(party.may('play')).toBe(false)
+    say(fake, 2, 'host', granted([], { me: { play: true } }))
+    expect(party.may('play')).toBe(true)
+    // so every `useParty` reader, the widget's "You can" among them, re-renders, but not on every
+    // heartbeat that carries the same grants
+    expect(states).toHaveBeenCalledTimes(1)
+    say(fake, 3, 'host', granted([], { me: { play: true } }))
+    expect(states).toHaveBeenCalledTimes(1)
+    say(fake, 4, 'host', granted(['play'], { me: { play: false } }))
+    expect(party.may('play')).toBe(false)
+  })
+
+  // Every member judges an ask against the same grants, in room order, the host included: an ask the
+  // room ordered before a revoke was made under the grant, whatever the host clicked meanwhile.
+  test('the host judges an ask by its own echo, not by what it just set', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    party.setGrants({ all: ['play'], by: {} })
+    expect(party.issued()).toEqual({ all: ['play'], by: {} })
+    say(fake, 1, 'g1', ask)
+    expect(party.chat()).toEqual([])
+    say(fake, 2, 'me', lastSent(fake.sent)!)
+
+    party.setGrants({ all: [], by: {} })
+    say(fake, 3, 'g1', ask)
+    expect(party.chat().map(line => line.text)).toEqual(['paused'])
+    say(fake, 4, 'me', lastSent(fake.sent)!)
+    say(fake, 5, 'g1', { ...ask, s: { ...PLAYED, paused: false } })
+    expect(party.chat().map(line => line.text)).toEqual(['paused'])
+  })
+
+  test('the grants ride every state: at once when set, to a joiner, and on the heartbeat', async () => {
+    vi.useFakeTimers()
+    const fake = fakeRoom({ self: 'me', owner: 'me' })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    party.setLocation('/watch/a/b', 0)
+    const grants = { all: [], by: { g1: { play: true } } }
+    party.setGrants(grants)
+    expect(lastSent(fake.sent)).toEqual({ t: 'state', path: '/watch/a/b', y: 0, grants })
+    fake.emit({ type: 'joined', member: member('g2') })
+    expect(lastSent(fake.sent)).toEqual({ t: 'state', path: '/watch/a/b', y: 0, grants })
+    fake.sent.length = 0
+    await vi.advanceTimersByTimeAsync(STATE_HEARTBEAT_MS)
+    expect(lastSent(fake.sent)).toEqual({ t: 'state', path: '/watch/a/b', y: 0, grants })
+  })
+
+  test('a fresh party hands out nothing', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'me' })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    fake.emit({ type: 'joined', member: member('g1') })
+    expect(lastSent(fake.sent)).toEqual({ t: 'state', path: '/', y: 0 })
+    say(fake, 1, 'g1', ask)
+    expect(party.chat()).toEqual([])
+  })
+
+  test('a granted ask is a chat line and is told; an ungranted one is neither', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann', 'sam'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.join(INVITE)
+    const heard = vi.fn()
+    party.onMessage(heard)
+    say(fake, 1, 'ann', { t: 'name', name: 'Ann' })
+    say(fake, 2, 'host', granted(['play'], { sam: { play: false } }))
+    heard.mockClear()
+
+    say(fake, 3, 'sam', ask)
+    expect(heard).not.toHaveBeenCalled()
+    expect(party.chat()).toEqual([])
+
+    say(fake, 4, 'ann', ask)
+    expect(heard).toHaveBeenCalledWith(ask, { replayed: false, from: 'ann', self: false })
+    expect(party.chat()).toEqual([{ seq: 4, from: 'ann', name: 'Ann', text: 'paused', at: 4, self: false, action: 'play' }])
+  })
+
+  test('the same member using the same control again replaces its line', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann', 'sam'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.join(INVITE)
+    say(fake, 1, 'host', granted(['play']))
+    say(fake, 2, 'ann', ask)
+    say(fake, 3, 'ann', { ...ask, s: { ...PLAYED, paused: false } })
+    expect(party.chat().map(line => [line.from, line.text])).toEqual([['ann', 'resumed']])
+    say(fake, 4, 'sam', ask)
+    say(fake, 5, 'ann', ask)
+    expect(party.chat().map(line => [line.from, line.text])).toEqual([['ann', 'resumed'], ['sam', 'paused'], ['ann', 'paused']])
+  })
+
+  // A kick or a block arrives as `left` too. Kept, the entries of everyone who ever came and went
+  // would pass the decoder's hundred and every `state` would carry no grants at all.
+  test('a member leaving takes its entry with it, and the party is told', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1', 'g2'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    party.setGrants({ all: [], by: { g1: { play: true } } })
+    fake.sent.length = 0
+
+    fake.emit({ type: 'left', id: 'g2', reason: 'left' })
+    expect(fake.sent).toHaveLength(0)
+    fake.emit({ type: 'left', id: 'g1', reason: 'removed' })
+    expect(party.issued()).toEqual({ all: [], by: {} })
+    expect(lastSent(fake.sent)).toEqual({ t: 'state', path: '/', y: 0, grants: { all: [], by: {} } })
+  })
+
+  // the same tab comes back with the same member id once the seat hold has passed
+  test('a denial outlasts the member leaving, so "everyone except Sam" holds when Sam comes back', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'sam'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.create()
+    party.setGrants({ all: ['play'], by: { sam: { play: false } } })
+    say(fake, 1, 'me', lastSent(fake.sent)!)
+    fake.emit({ type: 'left', id: 'sam', reason: 'left' })
+    say(fake, 2, 'me', lastSent(fake.sent)!)
+    fake.emit({ type: 'joined', member: member('sam') })
+    say(fake, 3, 'sam', ask)
+    expect(party.issued()).toEqual({ all: ['play'], by: { sam: { play: false } } })
+    expect(party.chat()).toEqual([])
+  })
+
+  test('nothing of it is stored: the tab keeps its invite and its name, no more', async () => {
+    const storage = memoryStorage()
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1'] })
+    const party = createPartyStore(api(fake.room), storage)
+    await party.create()
+    party.setName('Ann')
+    party.setGrants({ all: ['play'], by: { g1: { play: false } } })
+    say(fake, 1, 'me', lastSent(fake.sent)!)
+    say(fake, 2, 'g1', ask)
+    expect([...storage.store.keys()].sort()).toEqual([PARTY_NAME_KEY, PARTY_SESSION_KEY].sort())
   })
 })

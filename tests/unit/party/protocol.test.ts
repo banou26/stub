@@ -1,8 +1,8 @@
 // A follower hands a decoded path straight to the router and a decoded state straight to its player,
 // so the decoder is the one place that decides what a host can make a follower do.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { CHAT_MAX_CHARS, NAME_MAX_CHARS, chatText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
+import { CHAT_MAX_CHARS, NAME_MAX_CHARS, actionText, allowed, chatText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
 
 const PLAYBACK = { paused: false, time: 421.5, rate: 1, at: 1_788_700_000_000 }
 
@@ -17,6 +17,8 @@ describe('encode and decode', () => {
       { t: 'cursor', x: 0.25, y: 0.75 },
       { t: 'chat', text: 'hello there' },
       { t: 'name', name: 'Ann' },
+      { t: 'ask', c: 'play', path: '/watch/a/b', s: PLAYBACK },
+      { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: { sam: { play: false }, ann: {} } } },
     ]
     for (const message of messages) expect(decodePartyMessage(encodePartyMessage(message))).toEqual(message)
   })
@@ -80,6 +82,45 @@ describe('the two classes', () => {
     expect(isHostOnly({ t: 'state', path: '/', y: 0 })).toBe(true)
     expect(isHostOnly({ t: 'chat', text: 'hi' })).toBe(false)
     expect(isHostOnly({ t: 'name', name: 'Ann' })).toBe(false)
+    expect(isHostOnly({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe(false)
+  })
+})
+
+describe('grants', () => {
+  const state = (grants: unknown) => decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'state', path: '/watch/a/b', y: 0, grants }))
+
+  // The next control added must not make every older follower drop every `state`: no joiner sync
+  // and no Catch up until it updates.
+  test('a control this version does not know is skipped, and the state survives', () => {
+    expect(state({ all: ['play', 'teleport'], by: { sam: { teleport: true, play: false } } }))
+      .toEqual({ t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: { sam: { play: false } } } })
+  })
+
+  test('grants of the wrong shape read as nobody may, and the state survives', () => {
+    const many = Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`member-${index}`, { play: true }]))
+    for (const grants of ['play', { all: 'play', by: {} }, { all: [], by: [] }, { all: [], by: { sam: true } }, { all: [], by: { ['x'.repeat(129)]: { play: true } } }, { all: [], by: many }]) {
+      expect(state(grants), JSON.stringify(grants).slice(0, 80)).toEqual({ t: 'state', path: '/watch/a/b', y: 0 })
+    }
+  })
+
+  test('an ask for an unknown control, from off the app, or with a bad state is dropped', () => {
+    for (const ask of [{ c: 'teleport', path: '/', s: PLAYBACK }, { c: 'play', path: '//evil.example', s: PLAYBACK }, { c: 'play', path: '/', s: { ...PLAYBACK, rate: 0 } }]) {
+      expect(decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'ask', ...ask }))).toBeUndefined()
+    }
+  })
+
+  test('allowed: a member\'s own entry wins, else all followers', () => {
+    const grants = { all: ['play' as const], by: { sam: { play: false }, ann: {} } }
+    expect(allowed(grants, 'ann', 'play')).toBe(true)
+    expect(allowed(grants, 'bob', 'play')).toBe(true)
+    expect(allowed(grants, 'sam', 'play')).toBe(false)
+    expect(allowed({ all: [], by: { sam: { play: true } } }, 'sam', 'play')).toBe(true)
+    expect(allowed({ all: [], by: { sam: { play: true } } }, 'bob', 'play')).toBe(false)
+  })
+
+  test('an ask reads as what it did', () => {
+    expect(actionText({ t: 'ask', c: 'play', path: '/', s: { ...PLAYBACK, paused: true } })).toBe('paused')
+    expect(actionText({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe('resumed')
   })
 })
 

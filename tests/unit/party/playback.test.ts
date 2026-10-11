@@ -1,8 +1,8 @@
 // The one number that decides between a follower that stutters on every heartbeat and one that
 // drifts is here, so it is pinned with the cases on both sides of it.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { NUDGE_FLOOR_S, NUDGE_RATE, SEEK_TOLERANCE_S, advance, expectedTime, playbackCorrection } from '../../../src/party/playback'
+import { NUDGE_FLOOR_S, NUDGE_RATE, SEEK_TOLERANCE_S, advance, askedState, expectedTime, personAction, playbackCorrection } from '../../../src/party/playback'
 
 const NOW = 1_788_700_000_000
 
@@ -88,5 +88,37 @@ describe('advance', () => {
     expect(playbackCorrection(local, advance(heard, NOW - 5_000, NOW), NOW).seek).toBeUndefined()
     // and as received, the same follower would have been seeked back five seconds
     expect(playbackCorrection(local, heard, NOW).seek).toBeDefined()
+  })
+})
+
+describe('personAction', () => {
+  const playing = { paused: false, time: 100, rate: 1 }
+  const paused = { ...playing, paused: true }
+
+  test('a pause away from a playing host is the person using play', () => {
+    expect(personAction(playing, paused, playing)).toEqual(['play'])
+    expect(personAction(paused, playing, paused)).toEqual(['play'])
+  })
+
+  // the host paused and this player is answering it, however late
+  test('a pause the host also wants is nobody', () => {
+    expect(personAction(playing, paused, paused)).toEqual([])
+  })
+
+  test('a report that did not flip is nobody', () => {
+    expect(personAction(playing, { ...playing, time: 105 }, playing)).toEqual([])
+  })
+})
+
+describe('askedState', () => {
+  const ask = (pause: boolean) => ({ t: 'ask' as const, c: 'play' as const, path: '/', s: { paused: pause, time: 3, rate: 1, at: NOW } })
+
+  test('the host\'s own player, moved to now, with only the asked control changed', () => {
+    expect(askedState({ paused: false, time: 100, rate: 1.5, at: NOW - 2_000 }, ask(true), NOW)).toEqual({ paused: true, time: 103, rate: 1.5, at: NOW })
+  })
+
+  test('nothing when the host already does what was asked', () => {
+    expect(askedState({ paused: true, time: 100, rate: 1, at: NOW }, ask(true), NOW)).toBeUndefined()
+    expect(askedState({ paused: false, time: 100, rate: 1, at: NOW }, ask(false), NOW)).toBeUndefined()
   })
 })

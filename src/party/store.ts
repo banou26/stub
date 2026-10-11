@@ -1,7 +1,7 @@
 import type { rooms } from '@fkn/lib'
-import type { PartyMessage, PlaybackState } from './protocol'
+import type { Control, Grants, PartyMessage, PlaybackState } from './protocol'
 
-import { decodePartyMessage, encodePartyMessage, isHostOnly } from './protocol'
+import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, NO_GRANTS } from './protocol'
 import { advance } from './playback'
 import { bestSample, clockSample, MAX_USABLE_RTT_MS, type ClockSample } from './clock'
 
@@ -28,8 +28,11 @@ export type PartyState =
 /** Who is in the party, as the party page lists them. */
 export type PartyMember = { id: string, name?: string, host: boolean, self: boolean }
 
-/** One line of the room's chat. `seq` is the api's, so two tabs order it the same way. */
-export type PartyChatLine = { seq: number, from: string, name?: string, text: string, at: number, self: boolean }
+/**
+ * One line of the room's chat. `seq` is the api's, so two tabs order it the same way. `action` marks a
+ * member's granted ask ("paused"), whose `text` follows the member's name.
+ */
+export type PartyChatLine = { seq: number, from: string, name?: string, text: string, at: number, self: boolean, action?: Control }
 
 /** What a message listener is told beside the message. */
 export type PartyMessageMeta = { replayed: boolean, from: string, self: boolean }
@@ -81,6 +84,15 @@ export type PartyStore = {
   /** The host's app keeps these current so a joiner can be told where the party is. */
   setLocation: (path: string, y: number) => void
   setPlayback: (playback: PlaybackState | undefined) => void
+  /** Host only: what the host hands out, as last set. Sent at once and with every `state`. */
+  issued: () => Grants
+  setGrants: (grants: Grants) => void
+  /**
+   * Whether this member may use a control: always for the host; for a follower, by the grants in
+   * force, which are the owner's last `state` in room order. The host judges an ask by them too,
+   * through its own echo, so every member judges it alike.
+   */
+  may: (control: Control) => boolean
   /** The link for a follower, or nothing outside an active party. */
   invite: () => string | undefined
   /** Where the host last said it was, for a guest deciding whether a scroll or a playback is for the page it is on. */
@@ -158,6 +170,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
   const heard = new Map<PartyMessage['t'], PartyMessage>()
   const names = new Map<string, string>()
   const lines: PartyChatLine[] = []
+  let issued: Grants | undefined
+  let grants: Grants = NO_GRANTS
   // What the host's clock reads relative to this one, and the round being collected. A guest that has
   // measured nothing keeps `undefined`, which every reader treats as no offset: the behaviour there
   // is exactly what it was before any of this existed.
@@ -236,7 +250,14 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     path: snapshot.path,
     y: snapshot.y,
     ...snapshot.playback ? { s: advance(snapshot.playback, snapshot.playbackAt ?? Date.now(), Date.now()) } : {},
+    ...issued ? { grants: issued } : {},
   })
+
+  const hear = (next: Grants) => {
+    if (JSON.stringify(next) === JSON.stringify(grants)) return
+    grants = next
+    if (state.status === 'active') setState({ ...state })
+  }
 
   /**
    * The host's last `state`, carrying the newest position the host has reported rather than the one
@@ -279,6 +300,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     const role = roleIn(joined)
     names.clear()
     lines.length = 0
+    issued = undefined
+    grants = NO_GRANTS
     setState({ status: 'active', role, invite: joined.invite, members: 1, self: joined.self.id, owner: joined.owner })
     remember(joined.invite)
 
@@ -315,15 +338,24 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           // seq: the host must not follow itself, and nobody follows anyone but the host, whatever
           // the room let through.
           if (isHostOnly(message)) {
-            if (from !== joined.owner || role === 'host') return
+            if (from !== joined.owner) return
+            if (message.t === 'state') hear(message.grants ?? NO_GRANTS)
+            if (role === 'host') return
             heard.delete(message.t)
             heard.set(message.t, message)
             tell(message, { replayed: false, from, self })
             return
           }
+          if (message.t === 'ask') {
+            if (!allowed(grants, from, message.c)) return
+            // the same member using the same control again replaces its line, so a scrub reads as one
+            const last = lines.at(-1)
+            if (last?.from === from && last.action === message.c) lines.pop()
+          }
           if (message.t === 'name') names.set(from, message.name)
-          if (message.t === 'chat') {
-            lines.push({ seq: event.message.seq, from, name: names.get(from), text: message.text, at: event.message.at, self })
+          if (message.t === 'chat' || message.t === 'ask') {
+            const said = message.t === 'chat' ? { text: message.text } : { text: actionText(message), action: message.c }
+            lines.push({ seq: event.message.seq, from, name: names.get(from), at: event.message.at, self, ...said })
             if (lines.length > CHAT_KEEP) lines.splice(0, lines.length - CHAT_KEEP)
           }
           tell(message, { replayed: false, from, self })
@@ -344,6 +376,15 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           if (role === 'guest' && event.id === joined.owner) {
             void end('host-left')
             return
+          }
+          // A kick or a block arrives as `left` too, and a member who is gone needs no grants. A denial
+          // stays: the same tab comes back with the same id after the seat hold, and "everyone except
+          // Sam" must not lift because Sam's connection dropped.
+          const entry = issued?.by[event.id]
+          if (role === 'host' && issued && entry && !Object.values(entry).includes(false)) {
+            issued = { ...issued, by: Object.fromEntries(Object.entries(issued.by).filter(([id]) => id !== event.id)) }
+            send(whereWeAre())
+            setState({ ...state })
           }
           void memberCount(joined)
           return
@@ -413,6 +454,14 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     send,
     setLocation: (path, y) => { snapshot.path = path; snapshot.y = y },
     setPlayback: playback => { snapshot.playback = playback; snapshot.playbackAt = Date.now() },
+    issued: () => issued ?? NO_GRANTS,
+    setGrants: next => {
+      if (state.status !== 'active' || state.role !== 'host') return
+      issued = next
+      send(whereWeAre())
+      setState({ ...state })
+    },
+    may: control => state.status === 'active' && (state.role === 'host' || allowed(grants, state.self, control)),
     invite: () => state.status === 'active' ? state.invite : undefined,
     hostClock: () => clock,
     hostPath: () => {
