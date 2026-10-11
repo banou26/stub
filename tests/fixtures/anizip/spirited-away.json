@@ -1,0 +1,233 @@
+{
+  "titles": {
+    "x-jat": "Chihiro",
+    "en": "Spirited Away",
+    "pl": "Spirited Away: W krainie bogów",
+    "ar": "شيهيرو",
+    "vi": "Vùng đất linh hồn",
+    "uk": "Віднесені привидами",
+    "ja": "千と千尋の神隠し",
+    "de": "Chihiros Reise ins Zauberland",
+    "fr": "Le voyage de Chihiro",
+    "it": "La Città Incantata",
+    "es": "El Viaje de Chihiro",
+    "ru": "Унесённые призраками",
+    "ko": "센과 치히로의 행방불명",
+    "sv": "Spirited Away",
+    "pt": "A Viagem de Chihiro",
+    "no": "Chihiro Og Heksene",
+    "pt-BR": "A Viagem de Chihiro",
+    "cs": "Cesta do fantazie",
+    "da": "Chihiro Og Heksene",
+    "nl": "De reis van Chihiro",
+    "fi": "Henkien kätkemä",
+    "el": "Ταξίδι στη Χώρα των Θαυμάτων",
+    "he": "המסע המופלא",
+    "hu": "Chihiro Szellemországban",
+    "lt": "Stebuklingi Šihiros nuotykiai Dvasių pasaulyje",
+    "th": "มิติวิญญาณมหัศจรรย์",
+    "tr": "Ruhların Kaçışı",
+    "ro": "Călătoria lui Chihiro",
+    "my": "Spirited Away",
+    "sk": "Cesta do fantázie",
+    "sl": "Čudežno potovanje",
+    "lv": "Gariem līdzi",
+    "id": "Spirited Away",
+    "bg": "Отнесени от Духове",
+    "et": "Vaimudest viidud",
+    "hr": "Avanture male Chihiro",
+    "sr": "Začarani grad",
+    "zh-Hant": "千與千尋",
+    "zh-Hans": "千与千寻",
+    "es-419": "El Viaje de Chihiro",
+    "tl": "Spirited Away",
+    "hi": "स्पिरिटेड अवे"
+  },
+  "episodes": {
+    "1": {
+      "episode": "1",
+      "anidbEid": 585,
+      "length": 125,
+      "airdate": "2001-07-20",
+      "rating": "9.43",
+      "title": {
+        "en": "Complete Movie"
+      }
+    },
+    "2": {
+      "episode": "2",
+      "anidbEid": 2552,
+      "length": 65,
+      "airdate": "2001-07-20",
+      "rating": "9.68",
+      "title": {
+        "en": "Part 1 of 2"
+      }
+    },
+    "3": {
+      "episode": "3",
+      "anidbEid": 2553,
+      "length": 60,
+      "airdate": "2001-07-20",
+      "rating": "9.76",
+      "title": {
+        "en": "Part 2 of 2"
+      }
+    },
+    "4": {
+      "episode": "4",
+      "anidbEid": 24396,
+      "length": 45,
+      "airdate": "2001-07-20",
+      "rating": "3.04",
+      "title": {
+        "en": "Part 1 of 3"
+      }
+    },
+    "5": {
+      "episode": "5",
+      "anidbEid": 24397,
+      "length": 40,
+      "airdate": "2001-07-20",
+      "rating": "6.94",
+      "title": {
+        "en": "Part 2 of 3"
+      }
+    },
+    "6": {
+      "episode": "6",
+      "anidbEid": 24399,
+      "length": 40,
+      "airdate": "2001-07-20",
+      "rating": "10.00",
+      "title": {
+        "en": "Part 3 of 3"
+      }
+    },
+    "7": {
+      "episode": "7",
+      "anidbEid": 90845,
+      "length": 30,
+      "airdate": "2001-07-20",
+      "rating": "3.04",
+      "title": {
+        "en": "Part 1 of 4"
+      }
+    },
+    "8": {
+      "episode": "8",
+      "anidbEid": 90846,
+      "length": 35,
+      "airdate": "2001-07-20",
+      "rating": "6.94",
+      "title": {
+        "en": "Part 2 of 4"
+      }
+    },
+    "9": {
+      "episode": "9",
+      "anidbEid": 90847,
+      "length": 30,
+      "airdate": "2001-07-20",
+      "rating": "6.94",
+      "title": {
+        "en": "Part 3 of 4"
+      }
+    },
+    "10": {
+      "episode": "10",
+      "anidbEid": 90844,
+      "length": 35,
+      "airdate": "2001-07-20",
+      "rating": "10.00",
+      "title": {
+        "en": "Part 4 of 4"
+      }
+    },
+    "O1": {
+      "episode": "O1",
+      "anidbEid": 9104,
+      "length": 0,
+      "title": {
+        "en": "Subtitles"
+      }
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 30525,
+      "length": 6,
+      "rating": "10.00",
+      "title": {
+        "en": "Spirited Away Extra - Behind the microphone"
+      }
+    },
+    "S2": {
+      "episode": "S2",
+      "anidbEid": 30527,
+      "length": 15,
+      "rating": "10.00",
+      "title": {
+        "en": "Spirited Away Extra - Storyboard-To-Scene-Selection"
+      }
+    },
+    "S3": {
+      "episode": "S3",
+      "anidbEid": 30529,
+      "length": 15,
+      "rating": "10.00",
+      "title": {
+        "en": "Spirited Away Extra - The Art of Spirited Away"
+      }
+    },
+    "S6": {
+      "episode": "S6",
+      "anidbEid": 92881,
+      "length": 45,
+      "title": {
+        "en": "Nippon Television Special"
+      }
+    },
+    "S5": {
+      "episode": "S5",
+      "anidbEid": 92882,
+      "length": 2,
+      "title": {
+        "en": "Meet Hayao Miyazaki"
+      }
+    },
+    "S4": {
+      "episode": "S4",
+      "anidbEid": 92883,
+      "length": 1,
+      "title": {
+        "en": "Introduction with John Lasseter"
+      }
+    },
+    "S7": {
+      "episode": "S7",
+      "anidbEid": 257416,
+      "length": 125,
+      "title": {
+        "ja": "絵コンテ",
+        "en": "Storyboards"
+      }
+    }
+  },
+  "episodeCount": 1,
+  "specialCount": 7,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "spirited-away",
+    "kitsu_id": 176,
+    "mal_id": 199,
+    "type": "MOVIE",
+    "anilist_id": 199,
+    "anisearch_id": 2895,
+    "anidb_id": 112,
+    "notifymoe_id": null,
+    "livechart_id": 3084,
+    "thetvdb_id": null,
+    "imdb_id": "tt0245429",
+    "themoviedb_id": "129"
+  }
+}

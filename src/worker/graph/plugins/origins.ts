@@ -129,8 +129,8 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   mal: new Set(['anidb', 'anizip']),
   // `idMal` (`anilist:586`), and the Crunchyroll series its own externalLinks name (`anilist:227-251`)
   anilist: new Set(['mal', 'cr']),
-  // `mappings.mal_id` and `mappings.anilist_id` (`anizip:23,28`)
-  anizip: new Set(['mal', 'anilist']),
+  // `mappings.mal_id` and `mappings.anilist_id` (`anizip:23,28`), and its tmdb, tvdb and imdb ids as links (`anizip:36-38`)
+  anizip: new Set(['mal', 'anilist', 'tmdb', 'tvdb', 'imdb']),
   // the `mappings` relationship (`kitsu:70,71`) and the streaming links of `kitsu/stream-id.ts:22-29`
   kitsu: new Set(['anilist', 'mal', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
   // `ids.imdb`, `ids.mal`, `ids.anilist`, `ids.kitsu` (`simkl:123-126`)
@@ -146,11 +146,12 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   // `imdb_id` and `tmdb_id` (`watchmode:155,162`) plus the stream hosts of `watchmode:66-71`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
   // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:75-81`, minted at
-  // `justwatch:400`), plus its own show container (`justwatch:510`). It FETCHES `externalIds.imdbId`
-  // (`justwatch:86,148`) and builds no handle from it, so imdb is not native here
+  // `justwatch:491`), plus its own show container (`justwatch:596`) and the title page's
+  // `externalIds.tmdbId` as a link (`justwatch:606`). It FETCHES `externalIds.imdbId` (`justwatch:90,153`)
+  // and builds no handle from it, so imdb is not native here
   jw: new Set([
     'cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo',
-    'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw',
+    'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb',
   ]),
   // the four that build no handle from their own payload. Empty rather than absent because each one
   // DOES emit handles, every one of them rebuilt from the asked uri: `cr:527`, `unogs:518,536`,

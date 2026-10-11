@@ -187,6 +187,11 @@ export const GET_MEDIA_DETAILS = gql(`
         artists
         video
       }
+      ratings @include(if: $details) {
+        source
+        value
+        scale
+      }
     }
   }
 `)

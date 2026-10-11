@@ -1,7 +1,7 @@
 // A tmdb id is a SHOW id: '94664' is every season of Mushoku Tensei at once, and only the '-s<n>' form
 // names one run. So the bare row (search, or a media-path fallback with no season to pick) goes out
 // scoped CONTAINER, and the store keeps it out of every run's identity space.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/tmdb/extractor'
 
@@ -151,4 +151,15 @@ test('a card with no date at all is still an episode', async () => {
   expect(media.episodes, 'five cards, five episodes: the date is a field and never a filter').toHaveLength(5)
   expect((media.episodes ?? [])[4]!.episodeNumber).toBe(5)
   expect((media.episodes ?? [])[4]!.releaseDate).toBeUndefined()
+})
+
+// JustWatch links a film as `tmdb:movie-<id>`, and this source reads only shows, so a placeholder re-ask
+// of that link must cost no request: it fetched `/tv/movie-693134`, a 404 every time
+test('a film id asks TMDB nothing', async () => {
+  const misses: string[] = []
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const { value } = await subscribe(undefined, { input: { uri: 'ag:(jw:1133934,tmdb:movie-693134)' } }, context(misses)).next()
+
+  expect(misses).toEqual([])
+  expect(value.media).toBeNull()
 })

@@ -40,6 +40,14 @@ export const sameAs = (node: GQLMedia): GQLMediaHandle => ({ node, relation: 'SA
  */
 export const partOf = (node: GQLMedia): GQLMediaHandle => ({ node: { ...node, scope: 'CONTAINER' }, relation: 'PART_OF' })
 
+/**
+ * A TMDB id an enricher carries, as a link that asserts no identity. TMDB numbers films and shows in
+ * separate sequences (`/movie/550` is Fight Club, `/tv/550` Till Death Us Do Part), so a film's id is
+ * `tmdb:movie-<id>` and a show's the bare `tmdb:<id>` the TMDB source mints for the show (HOR-220).
+ */
+export const tmdbLink = (id: string, film: boolean): GQLMediaHandle =>
+  partOf(makeMedia({ origin: 'tmdb', id: film ? `movie-${id}` : id, url: `https://www.themoviedb.org/${film ? 'movie' : 'tv'}/${id}` }))
+
 /** The episode forms of the above. Episodes share `MediaHandleRelation`; see the schema for why. */
 export const episodeSameAs = (node: GQLEpisode): GQLEpisodeHandle => ({ node, relation: 'SAME_AS' })
 export const episodePartOf = (node: GQLEpisode): GQLEpisodeHandle => ({ node, relation: 'PART_OF' })

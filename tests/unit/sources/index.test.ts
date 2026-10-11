@@ -82,3 +82,13 @@ test('imdb is a registered origin that answers nothing', async () => {
   const { value } = await imdb.resolvers.Subscription.media.subscribe(undefined, { input: { uri: 'imdb:tt13303712' } }, {} as never).next()
   expect(value).toEqual({ media: null })
 })
+
+// AniZip and JustWatch link their TMDB and TheTVDB ids, and the source row lists only origins that are
+// not api only and have an icon, as the IMDb test above records.
+test('TMDB and TheTVDB render in the source row', () => {
+  for (const origin of ['tmdb', 'tvdb']) {
+    const source = (sources as Record<string, any>)[origin]
+    expect(source.isApiOnly, origin).toBe(false)
+    expect(source.icon, origin).toBeTruthy()
+  }
+})

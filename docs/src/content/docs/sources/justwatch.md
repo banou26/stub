@@ -3,8 +3,11 @@ title: 'Worked source: JustWatch'
 description: The source that turns streaming offers into handles. Two regions, a package map of 13 keys onto 10 origins, one cross-source call behind six gates, and the show container that catches a season it could not establish.
 ---
 
-JustWatch is not a metadata catalogue. It knows almost nothing worth showing: a title, a poster, a
-short description, a release year. `SCORE = 0.2` at `src/sources/justwatch/extractor.ts:12` is the
+JustWatch is not a metadata catalogue. It knows little worth showing: a title, a poster, a
+short description, a release year. A title's own page (`details`) asks it for more: the ratings
+(`Media.ratings`, one `MediaRating` per site: IMDb, TMDB, Rotten Tomatoes and its own percent, the
+show's on a season), backdrops as banners scored 0.1 so they only fill a gap, a film's runtime, and the
+TMDB id as a `PART_OF` link. `SCORE = 0.2` at `src/sources/justwatch/extractor.ts:12` is the
 lowest score any source carries, shared with unogs, appletv and paramount, so it wins a field only
 where nothing else described it. `isApiOnly = true` at `:21` keeps it off the source rows entirely.
 

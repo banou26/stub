@@ -19,7 +19,7 @@ export const name = 'TMDB'
 export const origin = 'tmdb'
 export const official = false
 export const metadataOnly = true
-export const isApiOnly = true
+export const isApiOnly = false
 export const supportedUris = ['tmdb']
 export const color = '#01b4e4'
 
@@ -248,6 +248,8 @@ export const resolvers: Resolvers = {
         if (!tmdbUri) return yield { media: null }
         // the uri may already pin the season, since that is now part of the id
         const { showId, seasonNumber } = splitSeasonScopedId(tmdbUri.id)
+        // a film's link (`tmdbLink`); this source reads shows only
+        if (showId.startsWith('movie-')) return yield { media: null }
         yield { media: (await getMedia(uri, showId, seasonNumber, ctx)) ?? null }
       }
     },

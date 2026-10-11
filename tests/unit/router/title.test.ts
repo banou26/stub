@@ -68,6 +68,21 @@ test('a film\'s duration is its length, not an episode\'s', () => {
   expect(titleFacts({ type: MediaType.Movie, duration: 120 })).toEqual([{ label: 'Format', value: 'Movie' }, { label: 'Length', value: '120 min' }])
 })
 
+test('Ratings is one line of each site\'s score, after the source and before the genres', () => {
+  const ratings = [
+    { source: 'IMDb', value: 8, scale: 10 },
+    { source: 'TMDB', value: 8.727, scale: 10 },
+    { source: 'Rotten Tomatoes', value: 92, scale: 100 },
+    { source: 'JustWatch', value: 95, scale: 100 },
+  ]
+  expect(titleFacts({ sourceMaterial: 'MANGA', genres: ['Drama'], ratings })).toEqual([
+    { label: 'Source', value: 'Manga' },
+    { label: 'Ratings', value: 'IMDb 8.0 · TMDB 8.7 · Rotten Tomatoes 92% · JustWatch 95%' },
+    { label: 'Genres', value: 'Drama' },
+  ])
+  expect(titleFacts({ ratings: [] }), 'no site, no line').toEqual([])
+})
+
 test('the source material reads as words', () => {
   expect(titleFacts({ sourceMaterial: 'LIGHT_NOVEL' })).toEqual([{ label: 'Source', value: 'Light novel' }])
 })
