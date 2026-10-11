@@ -2,7 +2,7 @@ import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { extractAggregatedUriOrigin } from '../../utils/uri'
-import { languageCode, type SourceCharacter, type SourceCredits } from '../credits'
+import { charactersByName, languageCode, type SourceCredits } from '../credits'
 import { decodeEntities } from '../entities'
 import { makeMedia } from '../utils'
 
@@ -32,18 +32,14 @@ const personOf = (id: string, name: string) =>
  * character ids, and a staff entry per person id with every task.
  */
 export const parseCredits = (xml: string): SourceCredits => {
-  const characters = new Map<string, SourceCharacter>()
-  for (const [, lang, role, id, person] of xml.matchAll(CAST)) {
-    const name = decodeEntities(role!)
-    const character = characters.get(name) ?? characters.set(name, { names: [name], voiceActors: [] }).get(name)!
-    character.voiceActors.push({ language: languageCode(lang!), person: personOf(id!, person!) })
-  }
+  const characters = charactersByName([...xml.matchAll(CAST)].map(([, lang, role, id, person]) =>
+    ({ name: decodeEntities(role!), language: languageCode(lang!), person: personOf(id!, person!) })))
   const staff = new Map<string, SourceCredits['staff'][number]>()
   for (const [, task, id, person] of xml.matchAll(STAFF)) {
     const entry = staff.get(id!) ?? staff.set(id!, { person: personOf(id!, person!), roles: [] }).get(id!)!
     entry.roles.push(decodeEntities(task!))
   }
-  return { characters: [...characters.values()], staff: [...staff.values()] }
+  return { characters, staff: [...staff.values()] }
 }
 
 // One title per request: ANN delays anything over its own limit rather than refusing it

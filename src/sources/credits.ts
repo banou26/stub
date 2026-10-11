@@ -12,13 +12,28 @@ export type SourceCharacter = {
   image?: string
   url?: string
   role?: 'MAIN' | 'SUPPORTING' | 'BACKGROUND'
-  /** `language` is a `languageCode`. */
-  voiceActors: { language: string, person: SourcePerson }[]
+  /** `language` is a `languageCode`, or null for live action, where an actor plays the part on screen. */
+  voiceActors: { language: string | null, person: SourcePerson }[]
 }
 
 export type SourceCredits = {
   characters: SourceCharacter[]
   staff: { person: SourcePerson, roles: string[] }[]
+}
+
+/**
+ * One character per part name, its actors in source order: for a source with no character ids. A part
+ * that names no character ("Self", "Himself") is left out, since it would stack every such person
+ * under one card.
+ */
+export const charactersByName = (parts: { name: string, language: string | null, person: SourcePerson }[]): SourceCharacter[] => {
+  const characters = new Map<string, SourceCharacter>()
+  for (const { name, language, person } of parts) {
+    if (/^(self|himself|herself|themselves)\b/i.test(name)) continue
+    const character = characters.get(name) ?? characters.set(name, { names: [name], voiceActors: [] }).get(name)!
+    character.voiceActors.push({ language, person })
+  }
+  return [...characters.values()]
 }
 
 const LANGUAGES: Record<string, string> = {

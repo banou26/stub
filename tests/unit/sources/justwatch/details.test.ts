@@ -4,10 +4,11 @@
 import { createHash } from 'node:crypto'
 import { expect, test } from 'vite-plus/test'
 
-import { resolvers } from '../../../../src/sources/justwatch/extractor'
+import { parseCredits, resolvers } from '../../../../src/sources/justwatch/extractor'
 import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
 import CHERNOBYL from '../../../fixtures/justwatch/chernobyl.json'
+import DUNE_CREDITS from '../../../fixtures/credits/jw-dune.json'
 
 const open = async (answer: unknown, uri: string, details?: boolean) => {
   const bodies: string[] = []
@@ -51,6 +52,26 @@ test('a show\'s runtime is not the season\'s length, and its ratings still come 
   const { media } = await open(CHERNOBYL, 'jw:88632-104891', true)
   expect(media.duration).toBeUndefined()
   expect(media.ratings.map(({ source }: { source: string }) => source)).toEqual(['IMDb', 'TMDB', 'Rotten Tomatoes', 'JustWatch'])
+})
+
+// the credits of the same answer, trimmed to the first eight actors
+test('a film\'s actors stand under their parts with no language, and its director is staff', async () => {
+  const { characters, staff } = parseCredits(DUNE_CREDITS)
+  expect(characters).toHaveLength(8)
+  expect(characters[0]).toEqual({ names: ['Paul Atreides'], voiceActors: [{ language: null, person: { id: 'jw:1696', name: 'Timothée Chalamet' } }] })
+  expect(staff).toEqual([{ person: { id: 'jw:3669', name: 'Denis Villeneuve' }, roles: ['Director'] }])
+
+  const answer = { data: { node: { ...DUNE.data.node, content: { ...DUNE.data.node.content, credits: DUNE_CREDITS } } } }
+  const { media, bodies } = await open(answer, 'jw:1133934', true)
+  expect(bodies[0]).toContain('credits {')
+  expect(media.credits).toEqual({ characters, staff })
+})
+
+test('only an actor stands under a part: a director JustWatch gives a part is staff alone', () => {
+  expect(parseCredits([{ role: 'DIRECTOR', name: 'Denis Villeneuve', characterName: 'Cameo', personId: 3669 }])).toEqual({
+    characters: [],
+    staff: [{ person: { id: 'jw:3669', name: 'Denis Villeneuve' }, roles: ['Director'] }],
+  })
 })
 
 // Taken once genre names and production countries joined both bodies, since a title's anime signal

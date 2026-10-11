@@ -1,0 +1,315 @@
+{
+  "id": 169,
+  "url": "https://www.tvmaze.com/shows/169/breaking-bad",
+  "name": "Breaking Bad",
+  "type": "Scripted",
+  "language": "English",
+  "genres": [
+    "Drama",
+    "Crime",
+    "Thriller"
+  ],
+  "premiered": "2008-01-20",
+  "externals": {
+    "imdb": "tt0903747"
+  },
+  "_embedded": {
+    "episodes": [
+      {
+        "id": 12192,
+        "name": "Pilot",
+        "season": 1,
+        "number": 1,
+        "airdate": "2008-01-20"
+      },
+      {
+        "id": 12193,
+        "name": "Cat's in the Bag...",
+        "season": 1,
+        "number": 2,
+        "airdate": "2008-01-27"
+      }
+    ],
+    "cast": [
+      {
+        "person": {
+          "id": 14245,
+          "url": "https://www.tvmaze.com/people/14245/bryan-cranston",
+          "name": "Bryan Cranston",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/195/488839.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/195/488839.jpg"
+          }
+        },
+        "character": {
+          "id": 45529,
+          "url": "https://www.tvmaze.com/characters/45529/breaking-bad-walter-white",
+          "name": "Walter White",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2404.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2404.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 12328,
+          "url": "https://www.tvmaze.com/people/12328/aaron-paul",
+          "name": "Aaron Paul",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/264/660079.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/264/660079.jpg"
+          }
+        },
+        "character": {
+          "id": 45531,
+          "url": "https://www.tvmaze.com/characters/45531/breaking-bad-jesse-pinkman",
+          "name": "Jesse Pinkman",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2408.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2408.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 11207,
+          "url": "https://www.tvmaze.com/people/11207/anna-gunn",
+          "name": "Anna Gunn",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/2/6596.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/2/6596.jpg"
+          }
+        },
+        "character": {
+          "id": 45530,
+          "url": "https://www.tvmaze.com/characters/45530/breaking-bad-skyler-white",
+          "name": "Skyler White",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2409.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2409.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 31023,
+          "url": "https://www.tvmaze.com/people/31023/rj-mitte",
+          "name": "RJ Mitte",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/3/8601.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/3/8601.jpg"
+          }
+        },
+        "character": {
+          "id": 45534,
+          "url": "https://www.tvmaze.com/characters/45534/breaking-bad-walter-white-jr",
+          "name": "Walter White Jr.",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2405.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2405.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 9,
+          "url": "https://www.tvmaze.com/people/9/dean-norris",
+          "name": "Dean Norris",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/461/1154757.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/461/1154757.jpg"
+          }
+        },
+        "character": {
+          "id": 45532,
+          "url": "https://www.tvmaze.com/characters/45532/breaking-bad-hank-schrader",
+          "name": "Hank Schrader",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2407.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2407.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 8507,
+          "url": "https://www.tvmaze.com/people/8507/betsy-brandt",
+          "name": "Betsy Brandt",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/3/8600.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/3/8600.jpg"
+          }
+        },
+        "character": {
+          "id": 45533,
+          "url": "https://www.tvmaze.com/characters/45533/breaking-bad-marie-schrader",
+          "name": "Marie Schrader",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2406.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2406.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 21268,
+          "url": "https://www.tvmaze.com/people/21268/bob-odenkirk",
+          "name": "Bob Odenkirk",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/54/136764.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/54/136764.jpg"
+          }
+        },
+        "character": {
+          "id": 45535,
+          "url": "https://www.tvmaze.com/characters/45535/breaking-bad-saul-goodman",
+          "name": "Saul Goodman",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2403.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2403.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 12153,
+          "url": "https://www.tvmaze.com/people/12153/jonathan-banks",
+          "name": "Jonathan Banks",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/2/5737.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/2/5737.jpg"
+          }
+        },
+        "character": {
+          "id": 45537,
+          "url": "https://www.tvmaze.com/characters/45537/breaking-bad-michael-mike-ehrmantraut",
+          "name": "Michael 'Mike' Ehrmantraut",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2401.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2401.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 2955,
+          "url": "https://www.tvmaze.com/people/2955/giancarlo-esposito",
+          "name": "Giancarlo Esposito",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/458/1145127.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/458/1145127.jpg"
+          }
+        },
+        "character": {
+          "id": 45536,
+          "url": "https://www.tvmaze.com/characters/45536/breaking-bad-gustavo-gus-fring",
+          "name": "Gustavo 'Gus' Fring",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2402.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2402.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 8813,
+          "url": "https://www.tvmaze.com/people/8813/jesse-plemons",
+          "name": "Jesse Plemons",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/137/343720.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/137/343720.jpg"
+          }
+        },
+        "character": {
+          "id": 45539,
+          "url": "https://www.tvmaze.com/characters/45539/breaking-bad-todd-alquist",
+          "name": "Todd Alquist",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2411.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2411.jpg"
+          }
+        }
+      },
+      {
+        "person": {
+          "id": 31024,
+          "url": "https://www.tvmaze.com/people/31024/laura-fraser",
+          "name": "Laura Fraser",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/255/637831.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/255/637831.jpg"
+          }
+        },
+        "character": {
+          "id": 45538,
+          "url": "https://www.tvmaze.com/characters/45538/breaking-bad-lydia-rodarte-quayle",
+          "name": "Lydia Rodarte-Quayle",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/0/2410.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/0/2410.jpg"
+          }
+        }
+      }
+    ],
+    "crew": [
+      {
+        "type": "Co-Executive Producer",
+        "person": {
+          "id": 10307,
+          "url": "https://www.tvmaze.com/people/10307/michelle-maclaren",
+          "name": "Michelle MacLaren",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/20/51350.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/20/51350.jpg"
+          }
+        }
+      },
+      {
+        "type": "Executive Producer",
+        "person": {
+          "id": 10307,
+          "url": "https://www.tvmaze.com/people/10307/michelle-maclaren",
+          "name": "Michelle MacLaren",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/20/51350.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/20/51350.jpg"
+          }
+        }
+      },
+      {
+        "type": "Creator",
+        "person": {
+          "id": 31025,
+          "url": "https://www.tvmaze.com/people/31025/vince-gilligan",
+          "name": "Vince Gilligan",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/29/72809.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/29/72809.jpg"
+          }
+        }
+      },
+      {
+        "type": "Executive Producer",
+        "person": {
+          "id": 31025,
+          "url": "https://www.tvmaze.com/people/31025/vince-gilligan",
+          "name": "Vince Gilligan",
+          "image": {
+            "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/29/72809.jpg",
+            "original": "https://static.tvmaze.com/uploads/images/original_untouched/29/72809.jpg"
+          }
+        }
+      },
+      {
+        "type": "Music",
+        "person": {
+          "id": 146030,
+          "url": "https://www.tvmaze.com/people/146030/dave-porter",
+          "name": "Dave Porter",
+          "image": null
+        }
+      }
+    ]
+  }
+}

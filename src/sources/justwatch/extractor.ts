@@ -8,6 +8,7 @@ import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount } from '../utils'
+import { charactersByName, type SourceCredits } from '../credits'
 
 const SCORE = 0.2
 // below every other source's banner (the lowest is 0.2), so a backdrop only fills a gap
@@ -244,6 +245,12 @@ const NODE_DETAILS_QUERY = nodeQuery(`
             tmdbScore
             tomatoMeter
             jwRating
+          }
+          credits {
+            role
+            name
+            characterName
+            personId
           }`)
 
 const _inflight = new Map<string, Promise<unknown>>()
@@ -292,10 +299,11 @@ interface JWSearchNode {
     originalReleaseDate?: string | null
     genres?: { shortName: string, translation?: string | null }[] | null
     productionCountries?: string[] | null
-    /** these three only on NODE_DETAILS_QUERY's answer */
+    /** these four only on NODE_DETAILS_QUERY's answer */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
     scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
+    credits?: JWCredit[] | null
   }
   offers: JWOffer[]
   /** the same offers read on the second licensing region; see OFFER_COUNTRIES */
@@ -352,9 +360,18 @@ interface JWEpisode {
   }
 }
 
+interface JWCredit { role: string, name: string, characterName: string | null, personId: number }
 interface JWShowNode extends JWSearchNode { seasons: JWSeason[] }
 interface JWSearchResponse { data: { popularTitles: { edges: { node: JWSearchNode }[] } } }
 interface JWNodeResponse { data: { node: JWShowNode } }
+
+/** JustWatch's credits as `mergeCredits` reads them: each actor under their part, every other role as staff. */
+export const parseCredits = (credits: JWCredit[]): SourceCredits => ({
+  characters: charactersByName(credits.flatMap(({ role, name, characterName, personId }) =>
+    role === 'ACTOR' && characterName ? [{ name: characterName, language: null, person: { id: `${origin}:${personId}`, name } }] : [])),
+  staff: credits.flatMap(({ role, name, personId }) =>
+    role === 'ACTOR' ? [] : [{ person: { id: `${origin}:${personId}`, name }, roles: [role.charAt(0) + role.slice(1).toLowerCase()] }]),
+})
 
 const resolveImageUrl = (url: string | null | undefined) =>
   url ? (url.startsWith('http') ? url : `${JW_IMAGE_BASE}${url}`) : undefined
@@ -656,6 +673,7 @@ const normalizeMedia = async (
     duration: node.objectType === 'MOVIE' ? node.content.runtime ?? undefined : undefined,
     banners: (node.content.backdrops ?? []).flatMap(({ backdropUrl }) => img(resolveImageUrl(backdropUrl), BACKDROP_SCORE)),
     ratings: ratingsOf(node.content.scoring),
+    ...node.content.credits ? { credits: parseCredits(node.content.credits) } : {},
   })
 
   // A film's episode is the film, so it takes the media's own title and description: `makeMovieEpisode`

@@ -18,9 +18,12 @@ export const creditLanguages = (characters: readonly Character[]): { options: st
   return { options: languages.length < 2 ? [] : languages, selected: languages[0] }
 }
 
-/** Every character, each with only its actors in `language`; one with none there keeps its card. */
+/**
+ * Every character, each with only its actors in `language`; one with none there keeps its card. With no
+ * language, the actors that name none: live action's.
+ */
 export const castIn = <T extends Character>(characters: readonly T[], language: string | undefined): (T & { actors: T['voiceActors'][number][] })[] =>
-  characters.map(character => ({ ...character, actors: character.voiceActors.filter(actor => actor.language === language) }))
+  characters.map(character => ({ ...character, actors: character.voiceActors.filter(actor => (actor.language ?? undefined) === language) }))
 
 const ROLES: Record<string, string> = { MAIN: 'Main', SUPPORTING: 'Supporting', BACKGROUND: 'Background' }
 

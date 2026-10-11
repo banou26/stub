@@ -1,0 +1,86 @@
+[
+  {
+    "role": "ACTOR",
+    "name": "Bryan Cranston",
+    "characterName": "Walter White",
+    "personId": 7063
+  },
+  {
+    "role": "ACTOR",
+    "name": "Aaron Paul",
+    "characterName": "Jesse Pinkman",
+    "personId": 4570
+  },
+  {
+    "role": "ACTOR",
+    "name": "Anna Gunn",
+    "characterName": "Skyler White",
+    "personId": 37752
+  },
+  {
+    "role": "ACTOR",
+    "name": "RJ Mitte",
+    "characterName": "Walter White Jr.",
+    "personId": 85485
+  },
+  {
+    "role": "ACTOR",
+    "name": "Dean Norris",
+    "characterName": "Hank Schrader",
+    "personId": 11230
+  },
+  {
+    "role": "ACTOR",
+    "name": "Betsy Brandt",
+    "characterName": "Marie Schrader",
+    "personId": 20552
+  },
+  {
+    "role": "ACTOR",
+    "name": "Giancarlo Esposito",
+    "characterName": "Gustavo Fring",
+    "personId": 1682
+  },
+  {
+    "role": "ACTOR",
+    "name": "Bob Odenkirk",
+    "characterName": "Saul Goodman",
+    "personId": 13233
+  },
+  {
+    "role": "ACTOR",
+    "name": "Steven Michael Quezada",
+    "characterName": "Steven Gomez",
+    "personId": 23650
+  },
+  {
+    "role": "ACTOR",
+    "name": "Jonathan Banks",
+    "characterName": "Mike Ehrmantraut",
+    "personId": 10373
+  },
+  {
+    "role": "DIRECTOR",
+    "name": "Rian Johnson",
+    "characterName": "",
+    "personId": 8189
+  },
+  {
+    "role": "DIRECTOR",
+    "name": "Bryan Cranston",
+    "characterName": "",
+    "personId": 7063
+  },
+  {
+    "role": "DIRECTOR",
+    "name": "Michelle MacLaren",
+    "characterName": "",
+    "personId": 589133
+  },
+  {
+    "role": "DIRECTOR",
+    "name": "Vince Gilligan",
+    "characterName": "",
+    "personId": 56099
+  }
+]

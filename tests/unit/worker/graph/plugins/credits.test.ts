@@ -6,8 +6,14 @@ import type { SourceCharacter, SourceCredits } from '../../../../../src/sources/
 
 import { resolvers as anilistResolvers } from '../../../../../src/sources/anilist/extractor'
 import { parseCredits } from '../../../../../src/sources/ann/extractor'
+import { parseCredits as justwatchCredits } from '../../../../../src/sources/justwatch/extractor'
+import { parseCredits as imdbCredits } from '../../../../../src/sources/omdb/extractor'
+import { parseCredits as tvmazeCredits } from '../../../../../src/sources/tvmaze/extractor'
 import { mergeCredits, nameKey, type CreditCharacter } from '../../../../../src/worker/graph/plugins/credits'
 import SHOWS from '../../../../fixtures/credits/anilist-shows.json'
+import IMDB_BREAKING_BAD from '../../../../fixtures/credits/imdb-breaking-bad.json'
+import JUSTWATCH_BREAKING_BAD from '../../../../fixtures/credits/jw-breaking-bad.json'
+import TVMAZE_BREAKING_BAD from '../../../../fixtures/credits/tvmaze-breaking-bad.json'
 
 const person = (id: number, name: string) => ({ id: `anilist:${id}`, name })
 const character = (id: number, name: string, role?: SourceCharacter['role'], voiceActors: SourceCharacter['voiceActors'] = []): SourceCharacter =>
@@ -265,4 +271,61 @@ test('a name two characters share on the later side joins nobody, though one of 
     member('mal:1', { characters: [row('mal:1', ['Mother'], 'X'), row('mal:2', ['Mother', 'Kaa'], 'Y')] }),
   ])!
   expect(merged.characters.map(({ name, url }) => `${name} ${url}`)).toEqual(['Mother null', 'Kaa mal:2', 'Mother mal:1'])
+})
+
+// Breaking Bad as IMDb, TVmaze and JustWatch answered the title page on 2026-10-12. Mutation: drop the
+// name rule and every character and person comes once per source.
+test('live action: one part and one person listed by several sources is one entry, with no language', () => {
+  const merged = mergeCredits([
+    member('omdb:tt0903747', imdbCredits(IMDB_BREAKING_BAD.data.title)),
+    member('tvmaze:169-s1', tvmazeCredits(TVMAZE_BREAKING_BAD._embedded)),
+    member('jw:4-1', justwatchCredits(JUSTWATCH_BREAKING_BAD)),
+  ])!
+
+  const walter = merged.characters.filter(({ name }) => name === 'Walter White')
+  expect(walter).toEqual([{
+    name: 'Walter White',
+    image: 'https://static.tvmaze.com/uploads/images/medium_portrait/0/2404.jpg',
+    url: 'https://www.tvmaze.com/characters/45529/breaking-bad-walter-white',
+    role: null,
+    voiceActors: [{
+      name: 'Bryan Cranston',
+      image: 'https://m.media-amazon.com/images/M/MV5BMTA2NjEyMTY4MTVeQTJeQWpwZ15BbWU3MDQ5NDAzNDc@._V1_UY256_.jpg',
+      url: 'https://www.imdb.com/name/nm0186505',
+      language: null,
+    }],
+  }])
+  expect(merged.characters.filter(({ name }) => name === 'Jesse Pinkman')).toHaveLength(1)
+  expect(merged.staff.filter(({ name }) => name === 'Vince Gilligan')).toEqual([{
+    name: 'Vince Gilligan',
+    image: 'https://m.media-amazon.com/images/M/MV5BNTUyNzUxOTAxMV5BMl5BanBnXkFtZTcwNzk0MDM0Nw@@._V1_UY256_.jpg',
+    url: 'https://www.imdb.com/name/nm0319213',
+    roles: ['Creator', 'Executive Producer', 'Director'],
+  }])
+})
+
+// Mutation: take every source's characters, and an anime's TVmaze cast draws Spike a second time.
+test('beside a cast by language, a cast that names none adds no characters, and its staff still join', () => {
+  const merged = mergeCredits([
+    member('anilist:1', {
+      characters: [character(1, 'Spike Spiegel', 'MAIN', [{ language: 'ja', person: person(95011, 'Kouichi Yamadera') }])],
+      staff: [{ person: person(97009, 'Shinichirou Watanabe'), roles: ['Director'] }],
+    }),
+    member('tvmaze:1', {
+      characters: [{ id: 'tvmaze:1', names: ['Spike Spiegel'], voiceActors: [{ language: null, person: { id: 'tvmaze:2', name: 'Steven Blum' } }] }],
+      staff: [{ person: { id: 'tvmaze:3', name: 'Shinichirou Watanabe' }, roles: ['Creator'] }],
+    }),
+  ])!
+  expect(merged.characters.map(({ name, voiceActors }) => [name, voiceActors.map(({ name }) => name)])).toEqual([['Spike Spiegel', ['Kouichi Yamadera']]])
+  expect(merged.staff).toEqual([{ name: 'Shinichirou Watanabe', image: null, url: null, roles: ['Director', 'Creator'] }])
+})
+
+// An upcoming season: AniList lists the characters before any voice actor. Mutation: test the data for
+// a language rather than for a null one, and Spike is drawn twice.
+test('AniList characters with no actor yet still keep an unlabelled cast\'s characters out', () => {
+  const merged = mergeCredits([
+    member('anilist:1', { characters: [character(1, 'Spike Spiegel', 'MAIN')] }),
+    member('omdb:tt3', { characters: [{ names: ['Spike Spiegel'], voiceActors: [{ language: null, person: { id: 'imdb:nm1', name: 'Koichi Yamadera' } }] }] }),
+  ])!
+  expect(merged.characters.map(({ name, voiceActors }) => [name, voiceActors.length])).toEqual([['Spike Spiegel', 0]])
 })

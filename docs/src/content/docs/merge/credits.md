@@ -1,6 +1,6 @@
 ---
 title: Credits
-description: "mergeCredits: how AniList's and Anime News Network's characters and staff become one list, who counts as one person, and what is drawn when two sources disagree."
+description: "mergeCredits: how AniList's, Anime News Network's and live action's characters and staff become one list, who counts as one person, and what is drawn when two sources disagree."
 ---
 
 A title page shows one list of characters and one of staff, merged from every source that sent
@@ -67,5 +67,26 @@ Over 10 shows, AniList's first page of characters against ANN (HOR-348, 2026-10-
 | order | MAIN, SUPPORTING, BACKGROUND, then unstated, each in the first source's order, so characters only ANN lists come last, behind Show all |
 | staff jobs | every source's words, notes in parentheses dropped, deduped case-insensitively |
 
-The tests are in `tests/unit/worker/graph/plugins/credits.test.ts`, on trimmed real rows of both
-sources in `tests/fixtures/credits/`.
+## Live action
+
+IMDb (0.3: the first 25 actors, each under the first part it lists for them, and the directors,
+writers and creators it lists first), TVmaze (0.3: the show's cast and crew) and JustWatch (0.2: actors
+and directors) send credits only with the title page's request, inside the request each already makes,
+so the modal's and the listing's stay as they were. Each actor stands under their part with a null
+language: the same rules join them through the actor on screen, and the page draws no language picker.
+A part that names no character ("Self", "Himself") is left out, so a documentary's or a talk show's
+people show only where a source credits them as staff. TMDB's cast is a request of its own and is not
+read.
+
+An anime's cast on IMDb, TVmaze or JustWatch names no language and shares no actor with AniList's, so
+it would draw each character a second time. So beside a source whose characters carry no null
+language (AniList, ANN, even before any actor is listed), the casts with a null language add no
+characters. Their staff still join.
+
+On Breaking Bad (2026-10-12, the fixtures) 3 of 12 parts are drawn twice, missed merges of the name
+key: IMDb's "Walter White, Jr." flips at its comma away from "Walter White Jr.", and TVmaze's "Michael
+'Mike' Ehrmantraut" and "Gustavo 'Gus' Fring" drop the nickname but keep the first name, so they miss
+IMDb's "Mike Ehrmantraut" and "Gus Fring".
+
+The tests are in `tests/unit/worker/graph/plugins/credits.test.ts`, on trimmed real rows of every
+source in `tests/fixtures/credits/`.

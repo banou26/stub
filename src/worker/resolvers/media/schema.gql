@@ -451,7 +451,10 @@ type MediaPerson {
   name: String!
   image: String
   url: String
-  """A primary language subtag (`ja`, `en`), or the source's own word when it is not a known language."""
+  """
+  A primary language subtag (`ja`, `en`), or the source's own word when it is not a known language.
+  Null for an actor in live action, who plays the part on screen.
+  """
   language: String
   roles: [String!]
 }

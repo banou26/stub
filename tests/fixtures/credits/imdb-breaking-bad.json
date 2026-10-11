@@ -1,0 +1,258 @@
+{
+  "data": {
+    "title": {
+      "id": "tt0903747",
+      "titleText": {
+        "text": "Breaking Bad"
+      },
+      "titleType": {
+        "id": "tvSeries"
+      },
+      "releaseYear": {
+        "year": 2008
+      },
+      "primaryImage": {
+        "url": "https://m.media-amazon.com/images/M/MV5BMzU5ZGYzNmQtMTdhYy00OGRiLTg0NmQtYjVjNzliZTg1ZGE4XkEyXkFqcGc@._V1_.jpg"
+      },
+      "releaseDate": {
+        "year": 2008,
+        "month": 1,
+        "day": 20
+      },
+      "ratingsSummary": {
+        "aggregateRating": 9.5
+      },
+      "plot": {
+        "plotText": {
+          "plainText": "A chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine with a former student to secure his family's future."
+        }
+      },
+      "episodes": {
+        "seasons": [
+          {
+            "number": 1
+          },
+          {
+            "number": 2
+          },
+          {
+            "number": 3
+          },
+          {
+            "number": 4
+          },
+          {
+            "number": 5
+          }
+        ],
+        "episodes": {
+          "edges": []
+        }
+      },
+      "cast": {
+        "edges": [
+          {
+            "node": {
+              "name": {
+                "id": "nm0186505",
+                "nameText": {
+                  "text": "Bryan Cranston"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTA2NjEyMTY4MTVeQTJeQWpwZ15BbWU3MDQ5NDAzNDc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Walter White"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0348152",
+                "nameText": {
+                  "text": "Anna Gunn"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTU0NTk3MDQ3OV5BMl5BanBnXkFtZTcwNDY3NzQ4Mg@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Skyler White"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0666739",
+                "nameText": {
+                  "text": "Aaron Paul"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTY1OTY5NjI5NV5BMl5BanBnXkFtZTcwODA4MjM0OA@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Jesse Pinkman"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0606487",
+                "nameText": {
+                  "text": "Dean Norris"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZDVhMDliNGMtMmViMi00MDMwLTk5YzctNDg1NGExNWI2ZDQ1XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Hank Schrader"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm1336827",
+                "nameText": {
+                  "text": "Betsy Brandt"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTU2OTQ3MzcxMV5BMl5BanBnXkFtZTcwMTk2MTk3Mw@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Marie Schrader"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm2666409",
+                "nameText": {
+                  "text": "RJ Mitte"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTgxNDc1OTEwN15BMl5BanBnXkFtZTcwOTQyMTIwOQ@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Walter White, Jr."
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0644022",
+                "nameText": {
+                  "text": "Bob Odenkirk"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BNjc1MDBkMWEtMzNmYy00NjFjLWFmZDktMzRlYThhMGQxZDYwXkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Saul Goodman"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm2366374",
+                "nameText": {
+                  "text": "Steven Michael Quezada"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BODgxNGFjOTYtMTE3My00NmRiLTliMDQtZjc4YWM2YTg0ZmM4XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Steven Gomez"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0052186",
+                "nameText": {
+                  "text": "Jonathan Banks"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZGNkZjUwNGItYzBjYi00Mjk4LTllNGItNzczZGY5MDMxNjdhXkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Mike Ehrmantraut"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0002064",
+                "nameText": {
+                  "text": "Giancarlo Esposito"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMjEyODM1NjI0OF5BMl5BanBnXkFtZTcwMTE0OTA1Mg@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Gus Fring"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "crew": [
+        {
+          "category": {
+            "id": "creator"
+          },
+          "credits": [
+            {
+              "name": {
+                "id": "nm0319213",
+                "nameText": {
+                  "text": "Vince Gilligan"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BNTUyNzUxOTAxMV5BMl5BanBnXkFtZTcwNzk0MDM0Nw@@._V1_.jpg"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

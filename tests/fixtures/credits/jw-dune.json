@@ -1,0 +1,56 @@
+[
+  {
+    "role": "ACTOR",
+    "name": "Timothée Chalamet",
+    "characterName": "Paul Atreides",
+    "personId": 1696
+  },
+  {
+    "role": "ACTOR",
+    "name": "Zendaya",
+    "characterName": "Chani",
+    "personId": 23825
+  },
+  {
+    "role": "ACTOR",
+    "name": "Rebecca Ferguson",
+    "characterName": "Jessica",
+    "personId": 3459
+  },
+  {
+    "role": "ACTOR",
+    "name": "Javier Bardem",
+    "characterName": "Stilgar",
+    "personId": 946
+  },
+  {
+    "role": "ACTOR",
+    "name": "Josh Brolin",
+    "characterName": "Gurney Halleck",
+    "personId": 1861
+  },
+  {
+    "role": "ACTOR",
+    "name": "Austin Butler",
+    "characterName": "Feyd-Rautha",
+    "personId": 84746
+  },
+  {
+    "role": "ACTOR",
+    "name": "Florence Pugh",
+    "characterName": "Princess Irulan",
+    "personId": 62002
+  },
+  {
+    "role": "ACTOR",
+    "name": "Dave Bautista",
+    "characterName": "Beast Rabban",
+    "personId": 76578
+  },
+  {
+    "role": "DIRECTOR",
+    "name": "Denis Villeneuve",
+    "characterName": "",
+    "personId": 3669
+  }
+]

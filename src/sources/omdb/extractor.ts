@@ -4,6 +4,7 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, MediaScope } 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img } from '../utils'
 import { percentScore } from '../average-score'
+import { charactersByName, type SourceCredits, type SourcePerson } from '../credits'
 
 const SCORE = 0.3
 // IMDb's own GraphQL, which imdb.com's web app calls. It needs no key and answers 403 without the web
@@ -44,12 +45,19 @@ type Title = {
   plot?: Plot
   primaryImage?: { url?: string } | null
   episodes?: { seasons?: { number?: number }[] | null, episodes?: { edges?: { node?: EpisodeNode | null }[] | null } | null } | null
+  cast?: { edges?: { node?: { name?: Name | null, characters?: { name?: string }[] | null } | null }[] | null } | null
+  crew?: { category?: { id?: string } | null, credits?: { name?: Name | null }[] | null }[] | null
 }
+type Name = { id?: string, nameText?: { text?: string } | null, primaryImage?: { url?: string } | null }
 
 const TITLE_FIELDS = 'id titleText { text } titleType { id } releaseYear { year } primaryImage { url }'
 const SEARCH_QUERY = `query Search($q: String!) { mainSearch(first: 10, options: { searchTerm: $q, type: TITLE }) { edges { node { entity { ... on Title { ${TITLE_FIELDS} } } } } } }`
 // The first season's episodes ride along, and are kept only when the series has that one season.
-const TITLE_QUERY = `query Title($id: ID!) { title(id: $id) { ${TITLE_FIELDS} releaseDate { year month day } ratingsSummary { aggregateRating } plot { plotText { plainText } } episodes { seasons { number } episodes(first: 250, filter: { includeSeasons: ["1"] }) { edges { node { id titleText { text } plot { plotText { plainText } } releaseDate { year month day } primaryImage { url } series { episodeNumber { seasonNumber episodeNumber } } } } } } } }`
+const titleQuery = (details: string) => `query Title($id: ID!) { title(id: $id) { ${TITLE_FIELDS} releaseDate { year month day } ratingsSummary { aggregateRating } plot { plotText { plainText } } episodes { seasons { number } episodes(first: 250, filter: { includeSeasons: ["1"] }) { edges { node { id titleText { text } plot { plotText { plainText } } releaseDate { year month day } primaryImage { url } series { episodeNumber { seasonNumber episodeNumber } } } } } }${details} } }`
+// The relay caches on the whole body, so the modal's leaves out what only the title page's `details` reads
+const TITLE_QUERY = titleQuery('')
+const NAME_FIELDS = 'id nameText { text } primaryImage { url }'
+const TITLE_DETAILS_QUERY = titleQuery(` cast: credits(first: 25, filter: { categories: ["cast"] }) { edges { node { name { ${NAME_FIELDS} } ... on Cast { characters { name } } } } } crew: principalCredits(filter: { categories: ["director", "writer", "creator"] }) { category { id } credits { name { ${NAME_FIELDS} } } }`)
 
 const graphql = <T>(query: string, variables: Record<string, string>, ctx: ExtractorServerContext): Promise<T | undefined> =>
   ctx
@@ -95,6 +103,28 @@ const normalizeMedia = (title: Title): GQLMedia | undefined => {
   })
 }
 
+// IMDb's url names the full-size original, 749 KB for one face (2026-10-12); `UY256` asks a copy 256 px
+// tall, 9 KB
+const personOf = (name: Name | null | undefined): SourcePerson | undefined =>
+  name?.id && name.nameText?.text
+    ? { id: `imdb:${name.id}`, name: name.nameText.text, image: name.primaryImage?.url?.replace(/\._V1_\.jpg$/, '._V1_UY256_.jpg'), url: `https://www.imdb.com/name/${name.id}` }
+    : undefined
+
+/**
+ * A title's first 25 actors, each under the first part IMDb lists for them, and its directors, writers
+ * and creators as staff. One part only: on a sketch or variety show one actor has hundreds.
+ */
+export const parseCredits = ({ cast, crew }: Title): SourceCredits => ({
+  characters: charactersByName((cast?.edges ?? []).flatMap(({ node }) => {
+    const person = personOf(node?.name)
+    return person ? (node?.characters ?? []).slice(0, 1).flatMap(({ name }) => (name ? [{ name, language: null, person }] : [])) : []
+  })),
+  staff: (crew ?? []).flatMap(({ category, credits }) => (credits ?? []).flatMap(({ name }) => {
+    const person = personOf(name)
+    return person && category?.id ? [{ person, roles: [category.id.charAt(0).toUpperCase() + category.id.slice(1)] }] : []
+  })),
+})
+
 const normalizeEpisode = (node: EpisodeNode, mediaId: string, mediaUri: string): GQLEpisode => {
   const season = node.series?.episodeNumber?.seasonNumber ?? 1
   const number = node.series?.episodeNumber?.episodeNumber ?? undefined
@@ -112,10 +142,11 @@ const normalizeEpisode = (node: EpisodeNode, mediaId: string, mediaUri: string):
   })
 }
 
-const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const title = (await graphql<{ title?: Title | null }>(TITLE_QUERY, { id }, ctx))?.title
+const getMedia = async (id: string, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | undefined> => {
+  const title = (await graphql<{ title?: Title | null }>(details ? TITLE_DETAILS_QUERY : TITLE_QUERY, { id }, ctx))?.title
   const media = title ? normalizeMedia(title) : undefined
   if (!title || !media) return undefined
+  if (details) Object.assign(media, { credits: parseCredits(title) })
   if (isMovie(media)) {
     media.episodes = [makeMovieEpisode(media)]
     media.episodeCount = 1
@@ -145,10 +176,10 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
 export const resolvers: Resolvers = {
   Subscription: {
     media: {
-      subscribe: async function* (_, { input: { uri } }, ctx: ExtractorServerContext) {
+      subscribe: async function* (_, { input: { uri, details } }, ctx: ExtractorServerContext) {
         if (!uri || !(isUri(uri) || isAggregatedUri(uri))) return yield { media: null }
         const omdbUri = extractAggregatedUriOrigin(uri, origin)
-        yield { media: omdbUri ? (await getMedia(omdbUri.id, ctx)) ?? null : null }
+        yield { media: omdbUri ? (await getMedia(omdbUri.id, ctx, details)) ?? null : null }
       }
     },
     mediaPage: {

@@ -1,0 +1,241 @@
+{
+  "data": {
+    "title": {
+      "id": "tt15239678",
+      "titleText": {
+        "text": "Dune: Part Two"
+      },
+      "titleType": {
+        "id": "movie"
+      },
+      "releaseYear": {
+        "year": 2024
+      },
+      "primaryImage": {
+        "url": "https://m.media-amazon.com/images/M/MV5BNTc0YmQxMjEtODI5MC00NjFiLTlkMWUtOGQ5NjFmYWUyZGJhXkEyXkFqcGc@._V1_.jpg"
+      },
+      "releaseDate": {
+        "year": 2024,
+        "month": 3,
+        "day": 1
+      },
+      "ratingsSummary": {
+        "aggregateRating": 8.4
+      },
+      "plot": {
+        "plotText": {
+          "plainText": "Paul Atreides unites with the Fremen while on a warpath of revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the universe, he endeavors to prevent a terrible future."
+        }
+      },
+      "episodes": null,
+      "cast": {
+        "edges": [
+          {
+            "node": {
+              "name": {
+                "id": "nm3154303",
+                "nameText": {
+                  "text": "Timothée Chalamet"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZTIyZWY4ZjktOGJiZi00NGFkLTllMjctZjJjMmNiMjIxOTY2XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Paul Atreides"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm3918035",
+                "nameText": {
+                  "text": "Zendaya"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZjM5N2U3MzQtZWU5My00YzE0LThmZTgtYjE1NDJjNmIzZmIxXkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Chani"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0272581",
+                "nameText": {
+                  "text": "Rebecca Ferguson"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMDVlZjIzOTktYzNmZC00MjIzLTk1YTMtMzdlOTFiNzQ3ZGY0XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Jessica"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0000849",
+                "nameText": {
+                  "text": "Javier Bardem"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTY1NTc4NTYzMF5BMl5BanBnXkFtZTcwNDIwOTY1NA@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Stilgar"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm0000982",
+                "nameText": {
+                  "text": "Josh Brolin"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTQ1MzYyMjQ0Nl5BMl5BanBnXkFtZTcwMTA0ODkyMg@@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Gurney Halleck"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm2581521",
+                "nameText": {
+                  "text": "Austin Butler"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BYWI2MTc5YmUtMDgyOC00ZjE5LTg5MWYtMTYzNDRlOWI4OTAyXkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Feyd-Rautha"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm6073955",
+                "nameText": {
+                  "text": "Florence Pugh"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZmIxMTFkZTctYzhkZi00MmQ4LThhYzEtMmQwMGZjNzA5MDg0XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Princess Irulan"
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "name": {
+                "id": "nm1176985",
+                "nameText": {
+                  "text": "Dave Bautista"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BZjYyZTc3MzEtZTk0OC00NWNlLWJmOTMtYjFmOGY1YjZlNjI5XkEyXkFqcGc@._V1_.jpg"
+                }
+              },
+              "characters": [
+                {
+                  "name": "Beast Rabban"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "crew": [
+        {
+          "category": {
+            "id": "director"
+          },
+          "credits": [
+            {
+              "name": {
+                "id": "nm0898288",
+                "nameText": {
+                  "text": "Denis Villeneuve"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMzU2MDk5MDI2MF5BMl5BanBnXkFtZTcwNDkwMjMzNA@@._V1_.jpg"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "category": {
+            "id": "writer"
+          },
+          "credits": [
+            {
+              "name": {
+                "id": "nm0898288",
+                "nameText": {
+                  "text": "Denis Villeneuve"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMzU2MDk5MDI2MF5BMl5BanBnXkFtZTcwNDkwMjMzNA@@._V1_.jpg"
+                }
+              }
+            },
+            {
+              "name": {
+                "id": "nm3123612",
+                "nameText": {
+                  "text": "Jon Spaihts"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMGFjOGQyNjMtZWQ1Yi00NjUyLWJjZGEtMjIyN2E3NjlhNDllXkEyXkFqcGc@._V1_.jpg"
+                }
+              }
+            },
+            {
+              "name": {
+                "id": "nm0378541",
+                "nameText": {
+                  "text": "Frank Herbert"
+                },
+                "primaryImage": {
+                  "url": "https://m.media-amazon.com/images/M/MV5BMTI5MzkzMDctZmJjMC00NTNiLWE4NzQtODViYWMyNzQxNDJmXkEyXkFqcGc@._V1_.jpg"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

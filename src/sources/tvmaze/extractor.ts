@@ -7,6 +7,7 @@ import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { decodeEntities } from '../entities'
 import { percentScore } from '../average-score'
+import type { SourceCredits, SourcePerson } from '../credits'
 
 const SCORE = 0.3
 const API = 'https://api.tvmaze.com'
@@ -43,8 +44,10 @@ interface TvmazeShow {
   externals?: { imdb?: string | null, thetvdb?: number | null }
   image?: TvmazeImage | null
   summary?: string | null
-  _embedded?: { episodes?: TvmazeEpisode[] }
+  _embedded?: { episodes?: TvmazeEpisode[], cast?: TvmazeCast[], crew?: { type: string, person: TvmazePerson }[] }
 }
+interface TvmazePerson { id: number, url?: string, name: string, image?: TvmazeImage | null }
+interface TvmazeCast { person: TvmazePerson, character: TvmazePerson }
 interface TvmazeEpisode {
   id: number
   name?: string
@@ -117,6 +120,20 @@ const normalizeMedia = (
     averageScore: percentScore(show.rating?.average, 10),
   })
 
+const personOf = ({ id, url, name, image }: TvmazePerson): SourcePerson => ({ id: `${origin}:${id}`, name, image: image?.medium, url })
+
+/** The show's cast and crew as `mergeCredits` reads them, each actor under their character. */
+export const parseCredits = ({ cast = [], crew = [] }: NonNullable<TvmazeShow['_embedded']>): SourceCredits => ({
+  characters: cast.map(({ person, character }) => ({
+    id: `${origin}:${character.id}`,
+    names: [character.name],
+    image: character.image?.medium,
+    url: character.url,
+    voiceActors: [{ language: null, person: personOf(person) }],
+  })),
+  staff: crew.map(({ type, person }) => ({ person: personOf(person), roles: [type] })),
+})
+
 const normalizeEpisode = (episode: TvmazeEpisode, mediaUri: string): GQLEpisode =>
   makeEpisode({
     origin,
@@ -170,8 +187,9 @@ const runMedia = (show: TvmazeShow, all: TvmazeEpisode[], seasonNumber: number |
   return media
 }
 
-const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const show = await api<TvmazeShow>(`/shows/${id}?embed=episodes`, ctx)
+const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | undefined> => {
+  // the relay caches on the url, so the modal's stays as it was
+  const show = await api<TvmazeShow>(details ? `/shows/${id}?embed[]=episodes&embed[]=cast&embed[]=crew` : `/shows/${id}?embed=episodes`, ctx)
   if (!show) return undefined
   const all = show._embedded?.episodes ?? []
   const candidates = seasonCandidates(all)
@@ -189,7 +207,8 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   // a series whose season cannot be determined has no identity here: see normalizeMedia
   if (seasonNumber == null && candidates.length > 1) return undefined
 
-  return runMedia(show, all, seasonNumber)
+  const media = runMedia(show, all, seasonNumber)
+  return details && show._embedded ? Object.assign(media, { credits: parseCredits(show._embedded) }) : media
 }
 
 /** The one season of `showId` the caller's evidence establishes, as a run, or nothing. */
@@ -217,13 +236,13 @@ export const resolvers: Resolvers = {
       }
     },
     media: {
-      subscribe: async function* (_, { input: { uri } }, ctx: ExtractorServerContext) {
+      subscribe: async function* (_, { input: { uri, details } }, ctx: ExtractorServerContext) {
         if (!uri || !(isUri(uri) || isAggregatedUri(uri))) return yield { media: null }
         const tvmazeUri = extractAggregatedUriOrigin(uri, origin)
         if (!tvmazeUri) return yield { media: null }
         // the uri may already pin the season, since that is now part of the id
         const { showId, seasonNumber } = splitSeasonScopedId(tvmazeUri.id)
-        yield { media: (await getMedia(uri, showId, seasonNumber, ctx)) ?? null }
+        yield { media: (await getMedia(uri, showId, seasonNumber, ctx, details)) ?? null }
       }
     },
     mediaPage: {

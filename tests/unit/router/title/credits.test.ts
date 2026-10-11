@@ -41,3 +41,10 @@ test('roles and languages read as words', () => {
   expect(languageLabel('ja')).toBe('Japanese')
   expect(languageLabel('Klingon')).toBe('Klingon')
 })
+
+test('live action names no language: no picker, and every actor is drawn', () => {
+  const cast = [{ name: 'Walter White', voiceActors: [{ name: 'Bryan Cranston', language: null }] }]
+  const languages = creditLanguages(cast)
+  expect(languages).toEqual({ options: [], selected: undefined })
+  expect(castIn(cast, languages.selected)[0]!.actors.map(({ name }) => name)).toEqual(['Bryan Cranston'])
+})

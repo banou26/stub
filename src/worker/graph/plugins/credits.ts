@@ -1,7 +1,7 @@
 import type { SourceCharacter, SourceCredits, SourcePerson } from '../../../sources/credits'
 
 /** A person as `MediaPerson` answers it. */
-export type CreditPerson = { name: string, image: string | null, url: string | null, language?: string, roles?: string[] }
+export type CreditPerson = { name: string, image: string | null, url: string | null, language?: string | null, roles?: string[] }
 
 /** A character as `MediaCharacter` answers it. */
 export type CreditCharacter = {
@@ -124,8 +124,9 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * any, so only a title opened on its page pays.
  *
  * `members` come in `byScoreThenUri` order, the order every other field reads: AniList (0.8), then
- * Anime News Network (0.2). Nothing is matched across titles and nothing becomes a graph link, so a
- * wrong rule is a code fix and an `AGGREGATE_VERSION` bump.
+ * Anime News Network (0.2); in live action IMDb and TVmaze (0.3), then JustWatch (0.2). Nothing is
+ * matched across titles and nothing becomes a graph link, so a wrong rule is a code fix and an
+ * `AGGREGATE_VERSION` bump.
  *
  * WHO IS ONE (the owner's decision, 2026-10-12). Rows sharing an id are one entry, inside one source
  * (AniList lists a person once per job) and across sources. Otherwise two characters are one when a
@@ -154,16 +155,24 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * dubs or two spellings of one actor ("Ja-Hyeong Koo" and "Ja-Hyeong Gu") never stack. Characters run
  * MAIN, SUPPORTING, BACKGROUND, then unstated, each in the first source's order, so the ones only ANN
  * lists come last; staff keep that order, with every source's jobs, notes in parentheses dropped.
+ *
+ * LIVE ACTION. IMDb, TVmaze and JustWatch list each actor under the part with a null `language`, so the
+ * same rule joins them through the actor on screen and the page draws no language picker. Their casts
+ * name no language for an anime either, so beside a source whose characters carry none of those null
+ * languages (AniList's, even with no actor listed yet) their characters are left out: they share no
+ * actor with AniList's, so each character would be drawn twice.
  */
 export const mergeCredits = (members: readonly Member[]): { characters: CreditCharacter[], staff: CreditPerson[] } | undefined => {
   const sources = members.flatMap(member => creditsOf(member) ?? [])
   if (!sources.length) return undefined
 
   // `languages` holds, per language, the index of the one source its actors come from
+  const unlabelled = (credits: SourceCredits) => credits.characters.some(({ voiceActors }) => voiceActors.some(({ language }) => language === null))
+  const cast = sources.some(credits => credits.characters.length && !unlabelled(credits)) ? sources.filter(credits => !unlabelled(credits)) : sources
   const characters = mergeRows(
-    sources.map(({ characters }) => characters),
+    cast.map(({ characters }) => characters),
     { id: character => character.id, names: character => character.names },
-    (character): { entry: CreditCharacter, languages: Map<string, number> } => ({
+    (character): { entry: CreditCharacter, languages: Map<string | null, number> } => ({
       entry: { name: character.names[0] ?? '', image: null, url: null, role: null, voiceActors: [] },
       languages: new Map(),
     }),

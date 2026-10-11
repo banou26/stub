@@ -10,8 +10,8 @@ import { build } from 'vite-plus'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
-// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes and AnimeThemes with
-// Frieren's themes, one without a video (tests/fake-fetch.ts).
+// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes, AnimeThemes with
+// Frieren's themes, one without a video, and IMDb answers Breaking Bad (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -122,6 +122,15 @@ test('Characters shows the Japanese cast, a picked dub swaps it, and 390 px wide
   const ed = characters.locator('li').filter({ hasText: 'Edward Wong Hau Pepelu Tivrusky IV' })
   const [name, actors] = await ed.evaluate(card => [...card.children].map(half => half.getBoundingClientRect().width))
   expect(Math.abs(name! - actors!)).toBeLessThan(1)
+})
+
+test('a live-action title draws its cast and staff with no language picker', async ({ page }) => {
+  await page.goto(`${origin}/title/ag:(omdb:tt0903747)`)
+  await expect(heading(page)).toHaveText('Breaking Bad', { timeout: 30_000 })
+  const characters = page.locator('[data-characters]')
+  await expect(characters.locator('li').first()).toHaveText('Walter WhiteBryan Cranston')
+  await expect(characters.getByRole('combobox')).toHaveCount(0)
+  await expect(page.locator('[data-staff] li').filter({ hasText: 'Vince Gilligan' })).toContainText('Creator')
 })
 
 test('Themes lists each song, plays one at a time under its row, and 390 px wide has no sideways scroll', async ({ page }) => {
