@@ -8,7 +8,7 @@ import type { MalListRequest, MalListStatus, MalPageApi, MalWrite } from './sess
 import type { SaveTurn } from './pacing'
 
 import { trackingId } from '../../tracking/aggregate'
-import { answerId, changes, errorAnswer } from '../../tracking/collect'
+import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
 import { catalogueTargetOf } from '../../tracking/identity'
 import {
   LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
@@ -120,6 +120,11 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   const forget = () => {
     index = undefined
     epoch++
+  }
+
+  // read whole again before it serves anything, still naming the account it was read for
+  const stale = () => {
+    if (index?.kind === 'list') index = { ...index, checkedAt: -Infinity, fullAt: -Infinity }
   }
 
   // one watch for the whole tracker: a sign in makes everything read before it stale
@@ -361,7 +366,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
         if (sent.kind !== 'sent' || !sent.complete) accepted = false
         const after = await confirm(ctx, user, mine, animeId, phase.expect, before, sent.kind === 'sent' && sent.complete)
         if (after.kind !== 'data') {
-          index = undefined
+          stale()
           if (accepted) return outcome('SAVED', null)
           return outcome('FAILED', after.kind === 'blocked'
             ? 'MyAnimeList did not confirm the save: check again in a few minutes'
@@ -405,7 +410,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
         whole = { kind: 'error', message: messageOf(error) }
       }
       if (whole.kind !== 'data') {
-        index = undefined
+        stale()
         return outcome('FAILED', whole.kind === 'blocked'
           ? 'MyAnimeList did not confirm the removal: check again in a few minutes'
           : `MyAnimeList did not confirm the removal${whole.kind === 'error' ? `: ${whole.message}` : ''}`)
@@ -446,6 +451,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
             written.add(listener)
             return () => { stop(); written.delete(listener) }
           }, { signal: ctx.request.signal })
+          const next = rereads(wakes, wait)
           let last: TrackerAnswer | undefined
           try {
             for (;;) {
@@ -457,7 +463,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
               }
               last = await read(ctx, uri, target.id)
               // asked again once the pause is over, which the pacer waits out. With no pause set nothing
-              // would hold the next read back, so the answer waits for a change like any other.
+              // would hold the next read back, so it waits like a failed read.
               const retry = last.state === 'PAUSED' && pacer.pausedUntil() !== undefined
               yield trackingOf(uri, last)
               if (retry) continue
@@ -470,7 +476,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
                   yield trackingOf(uri, last)
                 }
               }
-              if ((await wakes.next()).done) return
+              if (!await next(last.state === 'PAUSED' || last.state === 'ERROR')) return
             }
           } finally {
             await wakes.return?.()

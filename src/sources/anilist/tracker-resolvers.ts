@@ -7,7 +7,7 @@ import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/sit
 import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
-import { answerId, changes, errorAnswer } from '../../tracking/collect'
+import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
 import { catalogueTargetOf } from '../../tracking/identity'
 import {
   ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
@@ -128,6 +128,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
             written.add(listener)
             return () => { stop(); written.delete(listener) }
           }, { signal: ctx.request.signal })
+          const next = rereads(wakes, wait)
           let last: TrackerAnswer | undefined
           try {
             for (;;) {
@@ -139,11 +140,11 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
               }
               last = await read(ctx, uri, target.id)
               // asked again once the pause is over, which the pacer waits out. With no pause set nothing
-              // would hold the next read back, so the answer waits for a change like any other.
+              // would hold the next read back, so it waits like a failed read.
               const retry = last.state === 'PAUSED' && pacer.pausedUntil() !== undefined
               yield trackingOf(uri, last)
               if (retry) continue
-              if ((await wakes.next()).done) return
+              if (!await next(last.state === 'PAUSED' || last.state === 'ERROR')) return
             }
           } finally {
             await wakes.return?.()

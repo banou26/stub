@@ -600,6 +600,23 @@ describe("a tracker's card", () => {
     }
   })
 
+  // the owner saw "MyAnimeList cannot track this media: Is read only" for a read that had failed
+  test('a paused or failing tracker that has not read the account yet shows its badge and its reason, and keeps a change for Retry', async () => {
+    const paused: CompactAnswer = { ...mal, state: 'PAUSED', tracker: { ...mal.tracker, canWrite: false } }
+    const failing: CompactAnswer = { ...anilist, state: 'ERROR', entry: null, error: 'AniList answered 502', tracker: { ...anilist.tracker, canWrite: false, account: null } }
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [failing, paused, stub] } })
+
+    expect(host.querySelector('[data-chip="anilist"] [data-badge="red"]')).toBeTruthy()
+    expect(host.querySelector('[data-chip="mal"] [data-badge="amber"]')).toBeTruthy()
+    expect(host.innerHTML).not.toContain('read only')
+    expect((await hover(host, 'anilist')).textContent).toContain('AniList answered 502')
+
+    await pickStatus(host, 'COMPLETED')
+    expect(q(host, '[data-note="mal"]').textContent).toContain('MyAnimeList did not save')
+    expect(q(host, '[data-note="anilist"]').textContent).toContain('AniList answered 502')
+    expect(onSaveFields.mock.calls.flatMap(([targets]) => targets)).toEqual(['stub'])
+  })
+
   test('opening a card closes the one open before it, but a hover never takes over a card holding focus', async () => {
     const { host } = render()
     await hover(host, 'stub')

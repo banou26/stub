@@ -117,7 +117,9 @@ export type Target =
 
 /**
  * How one tracker's chip reads. `stored` is the viewer's own choice on this device, if they made one;
- * without it every tracker that can write starts checked.
+ * without it every tracker that can write starts checked. PAUSED and ERROR are about one read, not the
+ * tracker, so they are a check that is not sent to whatever `canWrite` says: a tracker answers them
+ * without write access until it has read the viewer's account.
  */
 export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Target => {
   switch (answer.state) {
@@ -125,7 +127,7 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
     case 'NO_ID': return { kind: 'cannot', reason: 'Has no id for this media' }
     case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }
   }
-  if (!answer.tracker.canWrite) return { kind: 'cannot', reason: 'Is read only' }
+  if (!answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)) return { kind: 'cannot', reason: 'Is read only' }
   const checked = stored ?? true
   return { kind: 'check', checked, sendable: checked && writable(answer) }
 }

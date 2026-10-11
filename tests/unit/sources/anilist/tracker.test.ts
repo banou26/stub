@@ -8,6 +8,7 @@ import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
 import { TIMEOUT_AFTER_429_MS } from '../../../../src/sources/anilist/pacing'
 import { anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
+import { RETRY_MS } from '../../../../src/tracking/collect'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY } from './list-fixtures'
@@ -165,6 +166,23 @@ describe('what the AniList tracker answers', () => {
     expect(asked).toEqual([])
   })
 
+  test('a read that failed is read again on its own after RETRY_MS, and nothing is asked before', async () => {
+    let calls = 0
+    const { target, waits, release } = setup({
+      StubTracking: () => ++calls === 1 ? response({ errors: [{ message: 'Bad Gateway', status: 502 }] }, 502) : response(LISTED_BODY),
+    }, { holdWaits: true })
+    const tracking = watch(target, 'ag:(anilist:154587)')
+
+    expect(answerOf(await tracking.next())).toMatchObject({ state: 'ERROR', tracker: { canWrite: false } })
+    await expect(tracking.next(100)).rejects.toThrow('no payload')
+    expect(waits).toEqual([RETRY_MS])
+    expect(calls).toBe(1)
+
+    release()
+    expect(answerOf(await tracking.next())).toMatchObject({ state: 'LISTED', tracker: { account: 'viewer', canWrite: true } })
+    expect(calls).toBe(2)
+  })
+
   test('reads again once the viewer signed in', async () => {
     const { target, script, changed } = setup({ StubTracking: () => response(SIGNED_OUT_BODY, 401) })
     const tracking = watch(target, 'ag:(anilist:154587)')
@@ -261,15 +279,21 @@ describe("AniList's rate limit", () => {
     expect(waits).toEqual([TIMEOUT_AFTER_429_MS, TIMEOUT_AFTER_429_MS])
   })
 
-  test('a PAUSED read with no pause left to wait out is not asked again on its own', async () => {
+  test('a PAUSED read with no pause left to wait out is asked again like a failed one, never at once', async () => {
     const counted = { calls: 0 }
     // a clock past every pause by the time the tracker looks at it again
-    const { target } = setup({ StubTracking: rateLimitedUpTo(20, counted) }, { drift: TIMEOUT_AFTER_429_MS + 1_000 })
+    const { target, waits, release } = setup({ StubTracking: rateLimitedUpTo(20, counted) }, { holdWaits: true, drift: TIMEOUT_AFTER_429_MS + 1_000 })
     const tracking = watch(target, 'ag:(anilist:154587)')
 
     expect(answerOf(await tracking.next()).state).toBe('PAUSED')
     await expect(tracking.next(100)).rejects.toThrow('no payload')
     expect(counted.calls).toBe(1)
+    expect(waits).toEqual([RETRY_MS])
+
+    release()
+    expect(answerOf(await tracking.next()).state).toBe('PAUSED')
+    expect(counted.calls).toBe(2)
+    await vi.waitFor(() => expect(waits).toEqual([RETRY_MS, 2 * RETRY_MS]))
   })
 
   test('a save refused with a 429 fails, saying why, and is not sent again', async () => {

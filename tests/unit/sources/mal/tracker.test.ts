@@ -6,6 +6,7 @@ import type { CatalogLookup } from '../../../../src/tracking/identity'
 
 import { BLOCKED_PAUSE_MS, WRITE_GAP_MS } from '../../../../src/sources/mal/pacing'
 import { CONFIRM_RETRY_MS, FULL_TTL_MS, INDEX_TTL_MS, malTrackerResolvers } from '../../../../src/sources/mal/tracker-resolvers'
+import { RETRY_MS } from '../../../../src/tracking/collect'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { answerOf, fakeMal, type FakeMalOptions, type RawRow } from './fake-mal'
@@ -509,6 +510,40 @@ describe('when MyAnimeList refuses stub', () => {
 
     expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'SAVED', entry: null })
     expect(answerOfResult(await tracking.next()).state).toBe('PAUSED')
+  })
+
+  test('an answer after a write MyAnimeList did not confirm still names the account', async () => {
+    const saved = setup()
+    const savedTracking = watch(saved.target, HACK)
+    await savedTracking.next()
+    saved.script.list = ({ order }) => order === 5 ? answerOf('', { status: 429 }) : undefined
+    expect(await save(saved.target, HACK, { score: 90 })).toMatchObject({ outcome: 'SAVED' })
+    expect(answerOfResult(await savedTracking.next())).toMatchObject({ state: 'PAUSED', tracker: { account: 'viewer', canWrite: true } })
+
+    const removed = setup()
+    const removedTracking = watch(removed.target, HACK)
+    await removedTracking.next()
+    let refused = false
+    removed.script.list = ({ status }) => status === 2 && !refused ? (refused = true, answerOf('', { status: 429 })) : undefined
+    expect(await remove(removed.target, HACK)).toMatchObject({ outcome: 'FAILED' })
+    expect(answerOfResult(await removedTracking.next())).toMatchObject({ state: 'PAUSED', tracker: { account: 'viewer', canWrite: true } })
+  })
+
+  test('a read that failed is read again on its own after RETRY_MS, through the same read, and nothing is asked before', async () => {
+    const { target, script, waits, log, holdNextWait } = setup()
+    let failed = false
+    script.whoami = () => failed ? undefined : (failed = true, { kind: 'whoami', status: 502, url: 'https://myanimelist.net/about.php', page: false, user: null, token: false, blocked: false, retryAfter: null })
+    const release = holdNextWait()
+    const tracking = watch(target, HACK)
+
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'ERROR', error: 'MyAnimeList answered 502 with a page stub could not read' })
+    await expect(tracking.next(100)).rejects.toThrow('no payload')
+    expect(waits).toEqual([RETRY_MS])
+    expect(log).toEqual(['whoami'])
+
+    release()
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'LISTED', tracker: { account: 'viewer', canWrite: true } })
+    expect(log).toEqual(['whoami', ...READ_ALL])
   })
 
   // the pause a later step of the save drew is reported, never waited out: the save and every save

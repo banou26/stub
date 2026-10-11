@@ -62,6 +62,28 @@ export const changes = (
   }
 }
 
+/** The wait before a failed read is made again, doubled for each failure in a row up to RETRY_MAX_MS. */
+export const RETRY_MS = 60_000
+export const RETRY_MAX_MS = 30 * 60_000
+
+/**
+ * What a tracker's subscription loop waits on before its next read: the next of `wakes`, or after a
+ * failed read whichever comes first of that and the retry wait. Resolves false once `wakes` ended.
+ */
+export const rereads = (wakes: AsyncIterator<void>, wait: (ms: number) => Promise<void>) => {
+  let delay = RETRY_MS
+  return async (failed: boolean): Promise<boolean> => {
+    const woken = wakes.next()
+    if (!failed) {
+      delay = RETRY_MS
+      return !(await woken).done
+    }
+    const retry = wait(delay).then(() => ({ done: false }))
+    delay = Math.min(delay * 2, RETRY_MAX_MS)
+    return !(await Promise.race([woken, retry])).done
+  }
+}
+
 /**
  * Each tracker's latest answer about one media, in the order the trackers were given.
  *
