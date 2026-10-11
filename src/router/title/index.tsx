@@ -10,9 +10,9 @@ import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
 import { RelationCard } from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
-import MediaTracking, { MEDIA_TRACKING } from '../../components/media-tracking'
+import MediaTracking from '../../components/media-tracking'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, GET_MEDIA_DETAILS, SourceLinks, unreleasedEpisodes } from '../home/media-details'
+import { Episodes, GET_MEDIA_DETAILS, SourceLinks, usePlay } from '../home/media-details'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
@@ -20,7 +20,7 @@ import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, shouldGrowAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
-import { playTarget, secondTitle, titleChips, titleFacts } from './facts'
+import { secondTitle, titleChips, titleFacts } from './facts'
 
 const RELATIONS_ROW = 3
 const SHOWN = 12
@@ -451,11 +451,7 @@ const TitlePage = () => {
     pause: !uri
   })
   const media = data?.media
-  const [{ data: tracking }] = useSubscription({
-    query: MEDIA_TRACKING,
-    variables: { input: { uri: media?.uri ?? '' } },
-    pause: !media?.uri
-  })
+  const play = usePlay(media)
 
   useEffect(() => {
     if (shouldGrowAddress(media?.uri, routeUri)) {
@@ -468,11 +464,6 @@ const TitlePage = () => {
   const title = media?.titles.at(0)?.title
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
-  const unreleased = media ? unreleasedEpisodes(media) : []
-  const play = media && playTarget(
-    media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })),
-    tracking?.tracking?.summary
-  )
   const relations = sortRelations(watchableRelations(media?.relations ?? []))
   const facts = media ? titleFacts(media) : []
   const chips = media ? titleChips(media) : []
@@ -540,7 +531,7 @@ const TitlePage = () => {
                   {
                     play
                       ? (
-                        <Link className="play" href={getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: play.episodeUri })}>
+                        <Link className="play" href={play.href}>
                           <LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{play.label}
                         </Link>
                       )

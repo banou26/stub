@@ -14,6 +14,7 @@ import { gql } from '../../generated'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
+import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
 import { firstUnreleased, isUnreleased } from './episodes'
 import { nextThumbnail } from '../../utils/thumbnails'
@@ -21,6 +22,7 @@ import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { canPlay } from '../../sources/playable'
 import { episodeOriginIds } from './episode-origins'
+import { playTarget, type PlayLabel } from '../title/facts'
 
 export const GET_MEDIA_DETAILS = gql(`
   subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
@@ -202,10 +204,26 @@ export const releasedAtOf = (episode: DetailsEpisode | undefined) =>
   episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
 
 /** Which of a media's episodes are not out yet, in the order `episodes` lists them. */
-export const unreleasedEpisodes = (media: DetailsMedia): boolean[] => {
+const unreleasedEpisodes = (media: DetailsMedia): boolean[] => {
   const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
   const first = firstUnreleased({ status: media.status, nextAiringEpisode: media.nextAiringEpisode, episodes: dated })
   return dated.map(episode => isUnreleased(episode, first))
+}
+
+/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, and the episode it opens. Nothing when that episode is not out. */
+export const usePlay = (media: DetailsMedia | null | undefined): { label: PlayLabel, href: string } | undefined => {
+  const [{ data: tracking }] = useSubscription({
+    query: MEDIA_TRACKING,
+    variables: { input: { uri: media?.uri ?? '' } },
+    pause: !media?.uri
+  })
+  if (!media) return undefined
+  const unreleased = unreleasedEpisodes(media)
+  const target = playTarget(
+    media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })),
+    tracking?.tracking?.summary
+  )
+  return target && { label: target.label, href: getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri }) }
 }
 
 /** Where an episode plays or can be watched: stub's own players first, then the sites' own pages. */
@@ -231,22 +249,17 @@ export const useWatchSources = (episode: DetailsEpisode | undefined, mediaUri: s
       const handle = handles.at(0)
       const sourceUri = handle?.uri
       const playable = Boolean(canPlay(origin.id) && handle?.url)
-      // several releases always route inward with no sourceUri, so the user picks on the watch page
-      const watchPath =
-        episode.uri
-          ? handles.length > 1
-            ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
-            : sourceUri
-              ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
-              : undefined
-          : undefined
+      // named even for several releases: a watch address with no source opens the page's own pick
+      const watchPath = episode.uri && sourceUri
+        ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
+        : undefined
       const multiple = handles.length > 1
       return {
         id: origin.id,
         name: origin.name ?? origin.id,
         icon: origin.icon,
         color: origin.color,
-        href: multiple ? watchPath : playable ? watchPath : (handle?.url ?? undefined),
+        href: multiple || playable ? watchPath : (handle?.url ?? undefined),
         external: multiple ? false : !playable,
         active: false,
       } satisfies WatchSource

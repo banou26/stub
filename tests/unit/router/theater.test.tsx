@@ -21,9 +21,28 @@ vi.mock('../../../src/components/yt-minimal-player', async () => {
   }
 })
 
-// A query of the pick's own answering after it was shown, which is how anizip's titles reached the hero.
-const answer = vi.hoisted(() => ({ media: undefined as unknown }))
-vi.mock('urql', () => ({ useSubscription: () => [{ data: answer.media ? { media: answer.media } : undefined }] }))
+// The details of a show by its uri, and the viewer's tracking. Like urql 4.2.2's `computeNextState`, a
+// subscription keeps its last answer when its variables change.
+const answer = vi.hoisted(() => ({ details: {} as Record<string, unknown>, tracking: undefined as unknown }))
+vi.mock('urql', async () => {
+  const { useRef } = await import('preact/hooks')
+  return {
+    useSubscription: (
+      { query, variables, pause }:
+      { query: { definitions: { name?: { value: string } }[] }, variables: { input: { uri: string } }, pause?: boolean }
+    ) => {
+      const last = useRef<unknown>(undefined)
+      const name = query.definitions[0]?.name?.value
+      const data = pause ? undefined
+        : name === 'GetMediaDetails' ? answer.details[variables.input.uri] && { media: answer.details[variables.input.uri] }
+        : name === 'MediaTracking' ? answer.tracking && { tracking: answer.tracking }
+        : undefined
+      if (data) last.current = data
+      return [{ data: last.current }]
+    },
+  }
+})
+vi.mock('../../../src/worker', () => ({}))
 
 const { default: HomeHeader } = await import('../../../src/router/home/theater')
 const { THEATER_WAIT_MS } = await import('../../../src/utils/theater')
@@ -45,7 +64,8 @@ const hosts: HTMLElement[] = []
 beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
-  answer.media = undefined
+  answer.details = {}
+  answer.tracking = undefined
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
@@ -65,8 +85,28 @@ const hero = (nodes: object[]) => {
     }),
     backdrop: () => (host.querySelector('.player-wrapper') as HTMLElement | null)?.getAttribute('style') ?? '',
     controls: () => host.querySelector('.player-controls') !== null,
+    play: () => {
+      const link = host.querySelector('.actions > .play')
+      return link && { label: link.textContent, href: link.getAttribute('href') }
+    },
+    actions: () => host.querySelector('.information > .actions') !== null,
   }
 }
+
+// What the hero's show answers to its own details query, with `episodes` aired and the rest ahead.
+const details = (id: string, { title = `${id} details title`, episodes = 2, aired = episodes } = {}) => ({
+  ...show(id, { title, description: `${id} details description` }),
+  descriptions: [],
+  status: aired < episodes ? 'RELEASING' : 'FINISHED',
+  nextAiringEpisode: aired < episodes ? { episodeNumber: aired + 1, airingAt: '2999-01-01T00:00:00Z' } : null,
+  episodes: Array.from({ length: episodes }, (_, index) => ({
+    uri: `ag:(anilist:${id}-${index + 1})`,
+    episodeNumber: index + 1,
+    releaseDate: index < aired ? '2020-01-01' : undefined,
+    handles: [],
+  })),
+})
+const uriOf = (id: string) => show(id).uri
 
 // Measured 2026-10-10: anizip's title, a longer description and another trailer merged into the
 // pick after it was shown.
@@ -118,13 +158,58 @@ test('the show stays when shows gaining a trailer push it out of the pool', () =
   expect(shown().title).toBe('pool-9 title')
 })
 
-test('a later answer for the pick does not change it', () => {
+test('a details answer with other titles leaves the hero\'s title and description as shown', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  answer.media = show('blue-box', { title: 'Blue Box (2026)', description: 'anizip', trailers: ['hJ6Y8PAOUk8'] })
-  const { shown } = hero([show('blue-box', { title: 'Blue Box Season 2' })])
+  answer.details[uriOf('blue-box')] = details('blue-box', { title: 'Blue Box (2026)' })
+  const { shown, play } = hero([show('blue-box', { title: 'Blue Box Season 2' })])
 
+  expect(play()?.label, 'the answer reached the hero').toBe('Play')
   expect(shown().title).toBe('Blue Box Season 2')
   expect(shown().description).toBe('blue-box description')
+})
+
+test('Play opens the first episode once the show\'s details answer', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { play, update } = hero([show('a')])
+  expect(play()).toBeNull()
+
+  answer.details[uriOf('a')] = details('a')
+  update([show('a')])
+  expect(play()).toEqual({ label: 'Play', href: `/watch/${uriOf('a')}/ag:(anilist:a-1)` })
+})
+
+test('with three episodes watched, it reads Continue and opens the fourth', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.details[uriOf('a')] = details('a', { episodes: 6 })
+  answer.tracking = { summary: { status: 'CURRENT', progress: 3 } }
+  const { play } = hero([show('a')])
+  expect(play()).toEqual({ label: 'Continue', href: `/watch/${uriOf('a')}/ag:(anilist:a-4)` })
+})
+
+test('with nothing aired there is no Play, and its row is there from the first render', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { actions, play, update } = hero([show('a', { score: 0.3 })])
+  expect(actions()).toBe(true)
+
+  answer.details[uriOf('a')] = details('a', { aired: 0 })
+  update([show('a')])
+  expect(play()).toBeNull()
+  expect(actions()).toBe(true)
+})
+
+test('a category change that moves the pick shows no Play until the new show\'s details answer', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.details[uriOf('a')] = details('a')
+  const { play, shown, update } = hero([show('a')])
+  expect(play()?.href).toBe(`/watch/${uriOf('a')}/ag:(anilist:a-1)`)
+
+  update([show('b')])
+  expect(shown().title).toBe('b title')
+  expect(play()).toBeNull()
+
+  answer.details[uriOf('b')] = details('b')
+  update([show('b')])
+  expect(play()?.href).toBe(`/watch/${uriOf('b')}/ag:(anilist:b-1)`)
 })
 
 // Measured 2026-10-10: YouTube refuses to embed some trailers (error 150, Kitsu's 9QyiEgv33z4 for

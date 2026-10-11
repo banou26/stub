@@ -15,11 +15,14 @@ import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
+import { useParty } from '../../party/use-party'
+import { siteStatuses } from '../../tracking/site-status'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { getRoutePath, Route } from '../path'
+import { bestSource, useAutoPick } from './auto-pick'
 
 /**
  * The episode rows this episode claims to BE, unwrapped from their edges.
@@ -260,10 +263,11 @@ const Watch = () => {
   const [pickers, setPickers] = useState<Record<string, string>>({})
   // and separately, which origins play their own releases: stub mounts the package in the player box
   // and the source renders whatever it wants there. Read together, in one pass over the same origins.
-  const [players, setPlayers] = useState<Record<string, string>>({})
+  const [players, setPlayers] = useState<Record<string, string>>()
   useEffect(() => {
+    if (!pickerOrigins) return
     let cancelled = false
-    const ids = pickerOrigins ? pickerOrigins.split(',') : []
+    const ids = pickerOrigins.split(',')
     const collect = async (lookup: (id: string) => Promise<{ pluginUri: string } | null>) =>
       Object.fromEntries(
         (await Promise.all(ids.map(async id => [id, (await lookup(id))?.pluginUri] as const)))
@@ -284,7 +288,7 @@ const Watch = () => {
   const pluginPlayer = useMemo(() => {
     if (!selectedSourceUri) return undefined
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
-    const pluginUri = players[origin]
+    const pluginUri = players?.[origin]
     if (!pluginUri) return undefined
     const handle = playableHandlesOf(episode?.handles).find(h => h.uri === selectedSourceUri)
     return { pluginUri, release: { uri: selectedSourceUri, url: handle?.url ?? undefined } }
@@ -324,7 +328,7 @@ const Watch = () => {
         // a source that plays its own releases makes every one of them playable IN stub, so the link
         // goes to the watch route rather than out to whatever the raw url opens (for a torrent index
         // that url is a magnet, which leaves the browser entirely)
-        const selfPlaying = Boolean(players[origin.id])
+        const selfPlaying = Boolean(players?.[origin.id])
         const playableHandle = (handle: typeof handles[number]) =>
           Boolean(handle?.embedUrl || selfPlaying || (canPlay(origin.id) && handle?.url))
         const pathFor = (sourceUri: string) =>
@@ -356,6 +360,14 @@ const Watch = () => {
       }),
     [originData, episode?.handles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
   )
+
+  const party = useParty()
+  const best = bestSource(playableHandlesOf(episode?.handles), {
+    builtIn: canPlay,
+    signedOut: origin => origin === 'cr' && siteStatuses.read('crunchyroll')?.state === 'signed-out',
+    selfPlaying: players && (origin => Boolean(players[origin])),
+  })
+  useAutoPick(best, { ...params, guest: party.status === 'joining' || (party.status === 'active' && party.role === 'guest') }, navigate)
 
   return (
     <div css={style}>

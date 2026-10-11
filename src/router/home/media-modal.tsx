@@ -1,6 +1,5 @@
 import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import type { RouteParams } from '../path'
-import type { DetailsEpisode } from './media-details'
 
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
@@ -20,11 +19,10 @@ import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
 import { listedMediaFor } from './modal-media'
-import { isMovieMedia, isUpcoming, movieFacts } from './movie'
-import { Episodes, GET_MEDIA_DETAILS, releasedAtOf, SourceLinks, useWatchSources } from './media-details'
+import { isMovieMedia } from './movie'
+import MoviePlay from './movie-play'
+import { Episodes, GET_MEDIA_DETAILS, SourceLinks } from './media-details'
 import { getRoutePath, Route } from '../path'
-import { releaseDateLabel } from '../../utils/release-date'
-import SourceSelector from '../../components/source-selector'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -260,32 +258,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 `
-
-/**
- * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens stub's
- * own player on the first source it can play; until the release day it says when, and offers no Play.
- */
-const MoviePlay = (
-  { episode, mediaUri, startDate, genres }:
-  { episode: DetailsEpisode | undefined, mediaUri: string, startDate?: string | null, genres?: readonly string[] | null }
-) => {
-  const sources = useWatchSources(episode, mediaUri)
-  const released = releasedAtOf(episode) ?? startDate
-  const upcoming = isUpcoming(released)
-  const play = upcoming ? undefined : sources.find(source => !source.external && source.href)
-  const day = releaseDateLabel(released)
-  return (
-    <div className="movie">
-      <div className="facts">{movieFacts({ released, runtime: episode?.runtime, genres }).join(' · ')}</div>
-      <div className="play-bar">
-        {play?.href ? <Link className="play" href={play.href}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>Play</Link> : undefined}
-        {sources.length ? <SourceSelector compact sources={sources}/> : undefined}
-        {upcoming && day ? <span className="when">Releases {day}</span> : undefined}
-        {!upcoming && !sources.length ? <span className="when">No sources yet</span> : undefined}
-      </div>
-    </div>
-  )
-}
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const rawParams = useParams<RouteParams['MEDIA']>()

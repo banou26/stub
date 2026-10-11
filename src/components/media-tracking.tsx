@@ -5,6 +5,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { MEDIA_TRACKING } from './media-tracking-query'
 import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
@@ -12,46 +13,6 @@ import { recordTrackerAnswers, siteStatuses } from '../tracking/site-status'
 import { trackerCheck } from '../worker'
 import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
-
-/** One media's tracking. Exported so a page that reads the status shares this operation rather than asking again. */
-export const MEDIA_TRACKING = gql(`
-  subscription MediaTracking($input: TrackingInput!) {
-    tracking(input: $input) {
-      _id
-      disagreements
-      summary {
-        _id
-        status
-        progress
-        score
-        episodeCount
-      }
-      answers {
-        _id
-        state
-        candidates
-        error
-        episodeCount
-        tracker {
-          id
-          name
-          icon
-          color
-          canWrite
-          account
-          scoreScale
-        }
-        entry {
-          _id
-          status
-          progress
-          score
-          episodeCount
-        }
-      }
-    }
-  }
-`)
 
 const SAVE_LIST_ENTRY = gql(`
   mutation SaveListEntry($input: SaveListEntryInput!) {

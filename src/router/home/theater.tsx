@@ -3,14 +3,17 @@ import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat'
 import { LucidePause, LucidePlay } from 'lucide-react'
-import { useRoute } from 'wouter'
+import { useSubscription } from 'urql'
+import { Link, useRoute } from 'wouter'
 
+import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
-import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates } from '../../utils/theater'
+import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates, theaterKey } from '../../utils/theater'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { getRouterRoutePath, Route } from '../path'
+import { GET_MEDIA_DETAILS, usePlay } from './media-details'
 
 const style = css`
 height: 70vh;
@@ -93,6 +96,29 @@ height: 70vh;
     max-height: 10rem;
     white-space: pre-wrap;
   }
+
+  /* reserved before the button arrives, since the block is centred and would otherwise move up */
+  .actions {
+    height: 4.4rem;
+  }
+
+  .play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    height: 4.4rem;
+    padding: 0 2.4rem 0 2rem;
+    border-radius: 0.6rem;
+    background: #fff;
+    color: #000;
+    font-size: 1.7rem;
+    font-weight: 700;
+    text-decoration: none;
+    text-shadow: none;
+  }
+
+  .play:hover { background: rgba(255, 255, 255, 0.85); }
 }
 
 @media (max-width: 768px) {
@@ -118,6 +144,18 @@ height: 70vh;
   }
 }
 `
+
+/** The show's Play, Continue or Rewatch. Keyed by the show, since urql keeps the last show's answer when the uri changes. */
+const TheaterPlay = ({ uri }: { uri: string }) => {
+  const [{ data }] = useSubscription({
+    query: GET_MEDIA_DETAILS,
+    variables: { input: { uri }, descriptionInput: { type: MediaDescriptionContentType.Html } },
+  })
+  const play = usePlay(data?.media)
+  return play
+    ? <Link className="play" href={play.href}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{play.label}</Link>
+    : null
+}
 
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const [matchMediaRoute] = useRoute(getRouterRoutePath(Route.MEDIA))
@@ -196,6 +234,9 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         <TextEllipsis className="short-description">
           {shortDescription}
         </TextEllipsis>
+        <div className="actions">
+          {media?.uri ? <TheaterPlay key={theaterKey(media)} uri={media.uri}/> : undefined}
+        </div>
       </div>
     </div>
   )
