@@ -378,9 +378,9 @@ export const resolvers: Resolvers = {
        * `isUri` alone, so every ask from a real page was refused on its first line and jikan never
        * fetched anything: `api.jikan.moe` was called ZERO times while the page loaded (measured
        * 2026-09-14). `mal:61316` stayed a placeholder that other sources had named and nobody had
-       * described, `raw` empty, no `url`, so the modal drew the MyAnimeList badge as a dead icon while
-       * every other origin was a link. Nothing else supplies a `mal:` url: AniList names the id
-       * through `buildHandlesFromUri`, which stamps an address and no url.
+       * described. Its badge still links through the url a claimer gave it (anilist, anizip, kitsu,
+       * offline, simkl and livechart all claim `mal:` with one, which `readClaimedUrls` reads), but only
+       * this resolver gives the row data of its own.
        *
        * Same three lines as `anilist`, `kitsu`, `tmdb` and the rest; this file was one of eight that
        * never got them, and the only one of the eight that owns an origin no other source describes.
