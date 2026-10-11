@@ -12,7 +12,7 @@
  * its id looks exactly like one that was minted with that id, and a trimmed row looks exactly like a
  * row that was never there. The pure case names the rule and the graph case proves it is wired.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
