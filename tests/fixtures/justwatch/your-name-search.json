@@ -1,0 +1,496 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm233386",
+            "objectId": 233386,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Your Name.",
+              "fullPath": "/us/movie/your-name",
+              "originalReleaseYear": 2016,
+              "originalReleaseDate": "2016-07-01",
+              "shortDescription": "High schoolers Mitsuha and Taki are complete strangers living separate lives. But one night, they suddenly switch places. Mitsuha wakes up in Taki’s body, and he in hers. This bizarre occurrence continues to happen randomly, and the two must adjust their lives around each other.",
+              "posterUrl": "/poster/201594223/s718/your-name.jpg",
+              "externalIds": {
+                "imdbId": "tt5311514"
+              },
+              "genres": [
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "rma",
+                  "translation": "Romance"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.3004ad12-53d7-4c50-856c-e55711247cd1",
+                "package": {
+                  "id": "cGF8MTgyNQ==",
+                  "packageId": 1825,
+                  "clearName": "HBO Max Amazon Channel",
+                  "technicalName": "amazonhbomax",
+                  "shortName": "aho",
+                  "icon": "/icon/343788557/s100/amazonhbomax.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://play.hbomax.com/show/e95b27d7-7fba-4b3b-bed9-a134dd1bc6ba?utm_source=universal_search",
+                "package": {
+                  "id": "cGF8MTg5OQ==",
+                  "packageId": 1899,
+                  "clearName": "HBO Max",
+                  "technicalName": "max",
+                  "shortName": "mxx",
+                  "icon": "/icon/332884837/s100/max.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.3004ad12-53d7-4c50-856c-e55711247cd1",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/us/movie/your-name/umc.cmc.6ac4xg8jxxgxe4zqc367smjwo?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1843806631",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://athome.fandango.com/content/browse/details/your-name-/4418627",
+                "package": {
+                  "id": "cGF8Nw==",
+                  "packageId": 7,
+                  "clearName": "Fandango At Home",
+                  "technicalName": "vudu",
+                  "shortName": "vdu",
+                  "icon": "/icon/346744144/s100/vudu.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "BLURAY",
+                "standardWebURL": "https://www.amazon.com/dp/B01MY0IIWT?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "package": {
+                  "id": "cGF8NTA=",
+                  "packageId": 50,
+                  "clearName": "Amazon DVD / Blu-ray",
+                  "technicalName": "amazondvdbr",
+                  "shortName": "adb",
+                  "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.barnesandnoble.com/w/dvd-your-name-ryunosuke-kamiki/30230506",
+                "package": {
+                  "id": "cGF8MjU0Mg==",
+                  "packageId": 2542,
+                  "clearName": "Barnes & Noble",
+                  "technicalName": "barnesandnoble",
+                  "shortName": "bnb",
+                  "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/80161371",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/title/SID0029295",
+                "package": {
+                  "id": "cGF8ODQ=",
+                  "packageId": 84,
+                  "clearName": "U-NEXT",
+                  "technicalName": "unext",
+                  "shortName": "unx",
+                  "icon": "/icon/304760702/s100/unext.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/80161371",
+                "package": {
+                  "id": "cGF8MTc5Ng==",
+                  "packageId": 1796,
+                  "clearName": "Netflix Standard with Ads",
+                  "technicalName": "netflixbasicwithads",
+                  "shortName": "nfa",
+                  "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "SD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.ed2d43f9-d305-42c5-8003-a2a693880593",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://fod.fujitv.co.jp/title/6r01/",
+                "package": {
+                  "id": "cGF8MjY4Mw==",
+                  "packageId": 2683,
+                  "clearName": "FOD",
+                  "technicalName": "fod",
+                  "shortName": "fuj",
+                  "icon": "/icon/342951136/s100/fod.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://tv.apple.com/jp/movie/%E5%90%9B%E3%81%AE%E5%90%8D%E3%81%AF/umc.cmc.6ac4xg8jxxgxe4zqc367smjwo?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1229969443",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "tm244234",
+            "objectId": 244234,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Call Me by Your Name",
+              "fullPath": "/us/movie/call-me-by-your-name",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-10-01",
+              "shortDescription": "In the summer of 1983, a 17-year-old Elio spends his days in his family's villa in Italy. One day Oliver, a graduate student, arrives to assist Elio's father, a professor of Greco-Roman culture. Soon, Elio and Oliver discover a summer that will alter their lives forever.",
+              "posterUrl": "/poster/176385710/s718/call-me-by-your-name.jpg",
+              "externalIds": {
+                "imdbId": "tt5726616"
+              },
+              "genres": [
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "rma",
+                  "translation": "Romance"
+                },
+                {
+                  "shortName": "eur",
+                  "translation": "Made in Europe"
+                }
+              ],
+              "productionCountries": [
+                "BR",
+                "FR",
+                "IT",
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/80169498",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/80169498",
+                "package": {
+                  "id": "cGF8MTc5Ng==",
+                  "packageId": 1796,
+                  "clearName": "Netflix Standard with Ads",
+                  "technicalName": "netflixbasicwithads",
+                  "shortName": "nfa",
+                  "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.825fe455-5a7f-4f29-9505-fd634b3edc09",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/us/movie/call-me-by-your-name/umc.cmc.4qs91ldaqauuwed1v8i1dz1c7?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1300348171",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "_4K",
+                "standardWebURL": "https://athome.fandango.com/content/browse/details/Call-Me-by-Your-Name/888448",
+                "package": {
+                  "id": "cGF8Nw==",
+                  "packageId": 7,
+                  "clearName": "Fandango At Home",
+                  "technicalName": "vudu",
+                  "shortName": "vdu",
+                  "icon": "/icon/346744144/s100/vudu.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.flixfling.com/justwatch/24702",
+                "package": {
+                  "id": "cGF8MzMx",
+                  "packageId": 331,
+                  "clearName": "FlixFling",
+                  "technicalName": "flixfling",
+                  "shortName": "fxf",
+                  "icon": "/icon/147271109/s100/flixfling.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.plex.tv/movie/call-me-by-your-name?utm_content=5d776c43fb0d55001f58253f&utm_medium=deeplink&utm_source=justWatch-v2-catalog",
+                "package": {
+                  "id": "cGF8NTM4",
+                  "packageId": 538,
+                  "clearName": "Plex",
+                  "technicalName": "plex",
+                  "shortName": "plx",
+                  "icon": "/icon/301832745/s100/plex.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.amazon.com/dp/B076QFC7FG?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "package": {
+                  "id": "cGF8NTA=",
+                  "packageId": 50,
+                  "clearName": "Amazon DVD / Blu-ray",
+                  "technicalName": "amazondvdbr",
+                  "shortName": "adb",
+                  "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.barnesandnoble.com/w/dvd-call-me-by-your-name-luca-guadagnino/30666184",
+                "package": {
+                  "id": "cGF8MjU0Mg==",
+                  "packageId": 2542,
+                  "clearName": "Barnes & Noble",
+                  "technicalName": "barnesandnoble",
+                  "shortName": "bnb",
+                  "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "BLURAY",
+                "standardWebURL": "https://us.zavvi.com/p/blu-ray/call-me-by-your-name/12274038/",
+                "package": {
+                  "id": "cGF8MjU2Mg==",
+                  "packageId": 2562,
+                  "clearName": "Zavvi",
+                  "technicalName": "zavvi",
+                  "shortName": "zav",
+                  "icon": "/icon/336053590/s100/zavvi.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.b0f050b2-7628-4b55-afd2-cfaa8c642661",
+                "package": {
+                  "id": "cGF8OQ==",
+                  "packageId": 9,
+                  "clearName": "Amazon Prime Video",
+                  "technicalName": "amazonprime",
+                  "shortName": "amp",
+                  "icon": "/icon/322992749/s100/amazonprime.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/title/SID0035887",
+                "package": {
+                  "id": "cGF8ODQ=",
+                  "packageId": 84,
+                  "clearName": "U-NEXT",
+                  "technicalName": "unext",
+                  "shortName": "unx",
+                  "icon": "/icon/304760702/s100/unext.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.e0af0e43-37ee-45e7-a7df-ebb9d6ae8946",
+                "package": {
+                  "id": "cGF8MjQ4Nw==",
+                  "packageId": 2487,
+                  "clearName": "Bloome plus Amazon Channel",
+                  "technicalName": "amazonbloomeplus",
+                  "shortName": "blp",
+                  "icon": "/icon/330852537/s100/amazonbloomeplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.13a4b559-d66b-42d3-a873-dc2517d383b7",
+                "package": {
+                  "id": "cGF8MjQ5Mw==",
+                  "packageId": 2493,
+                  "clearName": "Cinefil Wow Plus Amazon Channel",
+                  "technicalName": "amazoncinefilwowow",
+                  "shortName": "cwp",
+                  "icon": "/icon/330853416/s100/amazoncinefilwowow.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.b0f050b2-7628-4b55-afd2-cfaa8c642661",
+                "package": {
+                  "id": "cGF8MjEwMA==",
+                  "packageId": 2100,
+                  "clearName": "Amazon Prime Video with Ads",
+                  "technicalName": "amazonprimevideowithads",
+                  "shortName": "pva",
+                  "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://fod.fujitv.co.jp/title/6x44/",
+                "package": {
+                  "id": "cGF8MjY4Mw==",
+                  "packageId": 2683,
+                  "clearName": "FOD",
+                  "technicalName": "fod",
+                  "shortName": "fuj",
+                  "icon": "/icon/342951136/s100/fod.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "SD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.13a4b559-d66b-42d3-a873-dc2517d383b7",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://tv.apple.com/jp/movie/%E5%90%9B%E3%81%AE%E5%90%8D%E5%89%8D%E3%81%A6%E5%83%95%E3%82%92%E5%91%BC%E3%82%93%E3%81%A6/umc.cmc.4qs91ldaqauuwed1v8i1dz1c7?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1417918080",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

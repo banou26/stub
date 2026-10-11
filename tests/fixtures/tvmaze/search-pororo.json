@@ -1,0 +1,65 @@
+[
+  {
+    "score": 0.5324817,
+    "show": {
+      "id": 22304,
+      "url": "https://www.tvmaze.com/shows/22304/pororo-the-little-penguin",
+      "name": "Pororo The Little Penguin",
+      "type": "Animation",
+      "language": "Korean",
+      "genres": [
+        "Children",
+        "Family"
+      ],
+      "status": "Ended",
+      "runtime": 8,
+      "averageRuntime": 8,
+      "premiered": "2003-11-27",
+      "ended": "2016-05-26",
+      "officialSite": "http://home.ebs.co.kr/pororo/main",
+      "schedule": {
+        "time": "",
+        "days": [
+          "Wednesday",
+          "Thursday"
+        ]
+      },
+      "rating": {
+        "average": 5.8
+      },
+      "weight": 77,
+      "network": {
+        "id": 714,
+        "name": "EBS",
+        "country": {
+          "name": "Korea, Republic of",
+          "code": "KR",
+          "timezone": "Asia/Seoul"
+        },
+        "officialSite": null
+      },
+      "webChannel": null,
+      "dvdCountry": null,
+      "externals": {
+        "tvrage": null,
+        "thetvdb": 139251,
+        "imdb": null
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/81/203985.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/81/203985.jpg"
+      },
+      "summary": "<p>Far, far away, unknown and untouched by human civilization, lays a peaceful land covered in snow and ice. In this white land, deep inside a small secluded forest, is a tiny village inhabited by little animals. No-one knows how they came to live on the island but they naturally came to live together in the village situated in the little valley where the sunshine is warmest and the cold wind is the least harsh. In the village lives Pororo, a very curious impish little penguin, the good-natured polar bear Poby, the smug nosy red fox Eddy, the shy and timid little beaver Loopy, the cheerful penguin girl Petty and the happy humming bird, Harry . All of our friends have distinct personalities and different interests which sometimes cause little (and sometimes not so little) rifts in their calm white world. But they are all good friends and know how to help each other in times of trouble.</p>",
+      "updated": 1791248786,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/22304"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/970640",
+          "name": "Episode 26"
+        }
+      }
+    }
+  }
+]

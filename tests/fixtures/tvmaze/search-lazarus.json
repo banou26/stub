@@ -1,0 +1,64 @@
+[
+  {
+    "score": 0.89184403,
+    "show": {
+      "id": 70005,
+      "url": "https://www.tvmaze.com/shows/70005/lazarus",
+      "name": "Lazarus",
+      "type": "Animation",
+      "language": "English",
+      "genres": [
+        "Action",
+        "Anime"
+      ],
+      "status": "Ended",
+      "runtime": 30,
+      "averageRuntime": 30,
+      "premiered": "2025-04-05",
+      "ended": "2025-06-28",
+      "officialSite": "https://www.adultswim.com/videos/lazarus",
+      "schedule": {
+        "time": "00:00",
+        "days": [
+          "Saturday"
+        ]
+      },
+      "rating": {
+        "average": 6.8
+      },
+      "weight": 87,
+      "network": {
+        "id": 10,
+        "name": "Adult Swim",
+        "country": {
+          "name": "United States",
+          "code": "US",
+          "timezone": "America/New_York"
+        },
+        "officialSite": "https://www.adultswim.com/"
+      },
+      "webChannel": null,
+      "dvdCountry": null,
+      "externals": {
+        "tvrage": null,
+        "thetvdb": 437408,
+        "imdb": "tt28454008"
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/562/1406204.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/562/1406204.jpg"
+      },
+      "summary": "<p>In 2052 an era of unprecedented peace and prosperity prevails across the globe where humanity is freed from sickness. Dr. Skinner has developed a miracle cure all drug with no drawbacks called Hapuna. Hapuna soon becomes essential.</p>",
+      "updated": 1761843837,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/70005"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/3273482",
+          "name": "The World Is Yours"
+        }
+      }
+    }
+  }
+]

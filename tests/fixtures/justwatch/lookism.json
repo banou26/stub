@@ -1,0 +1,270 @@
+{
+  "data": {
+    "node": {
+      "id": "ts367042",
+      "objectId": 367042,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Lookism",
+        "fullPath": "/us/tv-show/lookism",
+        "originalReleaseYear": 2022,
+        "originalReleaseDate": "2022-12-08",
+        "shortDescription": "In a society that favors good looks, a high school outcast leads a double life switching between his two bodies that are polar opposites in appearance.",
+        "posterUrl": "/poster/302172788/s718/lookism.jpg",
+        "externalIds": {
+          "imdbId": "tt22297722"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "ani",
+            "translation": "Animation"
+          },
+          {
+            "shortName": "cmy",
+            "translation": "Comedy"
+          },
+          {
+            "shortName": "drm",
+            "translation": "Drama"
+          },
+          {
+            "shortName": "rma",
+            "translation": "Romance"
+          }
+        ],
+        "productionCountries": [
+          "KR"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81177634",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81177634",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 1,
+      "seasons": [
+        {
+          "id": "tss375967",
+          "objectId": 375967,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/lookism/season-1",
+            "posterUrl": "/poster/302172788/{profile}/season-1.{format}",
+            "originalReleaseYear": 2022,
+            "originalReleaseDate": "2022-12-08",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse6922939",
+              "objectId": 6922939,
+              "content": {
+                "title": "Change",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "After enduring years of abuse from his peers, Park Hyeong-seok moves to a different neighborhood to start a new life. Big changes are coming for him.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 25
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064417",
+              "objectId": 7064417,
+              "content": {
+                "title": "New Life",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Hyeong-seok attends school in his new body by day and works a part-time job as his true self by night - only to learn that nothing has really changed.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 25
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064414",
+              "objectId": 7064414,
+              "content": {
+                "title": "Friends",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "A student by the nickname Basco helps the old Hyeong-seok fight off bullies, while the new Hyeong-seok hangs out with his first-ever group of friends.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 26
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064416",
+              "objectId": 7064416,
+              "content": {
+                "title": "Mom",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Hyeong-seok takes his mother out to a cafe as his transformed self. Basco seethes with righteous indignation when he spots the two together.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 23
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064413",
+              "objectId": 7064413,
+              "content": {
+                "title": "Kindness",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Hyeong-seok lends a hand to other struggling peers in school, while an enigmatic classmate offers him help and gifts when he needs it most.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 22
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064415",
+              "objectId": 7064415,
+              "content": {
+                "title": "Recommendation",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Pyeon Deok-hwa considers performing at the school festival, while others in his class relentlessly try to trample on his dream of becoming a rap artist.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 27
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064418",
+              "objectId": 7064418,
+              "content": {
+                "title": "Special Training",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Under Deok-hwa’s direction, Hyeong-seok unlocks his singing potential as their musical collaboration nurtures their blossoming friendship.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 25
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7064419",
+              "objectId": 7064419,
+              "content": {
+                "title": "Wall",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Competition heats up backstage on the day of the festival. Hyeong-seok and Deok-hwa leave their past and fears behind to deliver a song from the heart.",
+                "originalReleaseDate": "2022-12-08",
+                "runtime": 31
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

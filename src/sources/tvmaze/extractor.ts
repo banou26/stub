@@ -35,6 +35,9 @@ interface TvmazeShow {
   id: number
   url?: string
   name?: string
+  type?: string | null
+  language?: string | null
+  genres?: string[]
   premiered?: string | null
   rating?: { average?: number | null }
   externals?: { imdb?: string | null, thetvdb?: number | null }
@@ -63,6 +66,11 @@ const airedAt = (episode: TvmazeEpisode): string | undefined => {
   return instant && !Number.isNaN(instant.getTime()) ? instant.toISOString() : episode.airdate || undefined
 }
 
+const ANIME_LANGUAGES = ['Japanese', 'Chinese', 'Korean']
+
+const isAnime = (show: TvmazeShow) =>
+  Boolean(show.genres?.includes('Anime') || (show.type === 'Animation' && show.language && ANIME_LANGUAGES.includes(show.language)))
+
 // The imdb id is the SHOW's, one for every season, so it is a CONTAINER whichever row carries it.
 const buildHandles = (show: TvmazeShow): GQLMedia[] => {
   const imdb = show.externals?.imdb
@@ -87,7 +95,7 @@ const normalizeMedia = (
     scope: seasonNumber == null ? 'CONTAINER' : 'RUN',
     url: show.url ?? `https://www.tvmaze.com/shows/${show.id}`,
     handles,
-    categories: ['SERIES'],
+    categories: isAnime(show) ? ['ANIME', 'SERIES'] : ['SERIES'],
     score: SCORE,
     titles: show.name ? [{ language: 'en', title: show.name, score: SCORE }] : [],
     ...desc(text(show.summary), SCORE),

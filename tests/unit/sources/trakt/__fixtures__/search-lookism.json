@@ -1,0 +1,53 @@
+[
+  {
+    "type": "show",
+    "score": 578730123365189600,
+    "show": {
+      "title": "Lookism",
+      "year": 2022,
+      "ids": {
+        "imdb": "tt22297722",
+        "plex": {
+          "guid": "63307a0fee7a386aa2dbdac6",
+          "slug": "lookism-2022"
+        },
+        "slug": "lookism-2022",
+        "tmdb": 210942,
+        "tvdb": 425285,
+        "trakt": 198488
+      },
+      "genres": [
+        "comedy",
+        "drama",
+        "animation"
+      ],
+      "country": "kr"
+    }
+  },
+  {
+    "type": "show",
+    "score": 578730123365189600,
+    "show": {
+      "title": "Lookism",
+      "year": 2019,
+      "ids": {
+        "imdb": "tt18562516",
+        "plex": {
+          "guid": null,
+          "slug": null
+        },
+        "slug": "lookism",
+        "tmdb": 95459,
+        "tvdb": 379096,
+        "trakt": 159767
+      },
+      "genres": [
+        "romance",
+        "thriller",
+        "mystery",
+        "drama"
+      ],
+      "country": "cn"
+    }
+  }
+]

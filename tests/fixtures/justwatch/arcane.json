@@ -1,0 +1,724 @@
+{
+  "data": {
+    "node": {
+      "id": "ts222333",
+      "objectId": 222333,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Arcane: League of Legends",
+        "fullPath": "/us/tv-show/arcane",
+        "originalReleaseYear": 2021,
+        "originalReleaseDate": "2021-11-06",
+        "shortDescription": "Amid the stark discord of twin cities Piltover and Zaun, two sisters fight on rival sides of a war between magic technologies and clashing convictions.",
+        "posterUrl": "/poster/255388636/s718/arcane.jpg",
+        "externalIds": {
+          "imdbId": "tt11126994"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "ani",
+            "translation": "Animation"
+          },
+          {
+            "shortName": "drm",
+            "translation": "Drama"
+          },
+          {
+            "shortName": "fnt",
+            "translation": "Fantasy"
+          },
+          {
+            "shortName": "scf",
+            "translation": "Science-Fiction"
+          }
+        ],
+        "productionCountries": [
+          "FR",
+          "US"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81435684",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81435684",
+          "package": {
+            "id": "cGF8MTc5Ng==",
+            "packageId": 1796,
+            "clearName": "Netflix Standard with Ads",
+            "technicalName": "netflixbasicwithads",
+            "shortName": "nfa",
+            "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "SD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.bab3b7b8-1878-4ad7-84d6-4b18dff894a5",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "SD",
+          "standardWebURL": "https://tv.apple.com/us/show/arcane/umc.cmc.7kcsd1f20wzzisdvehyth23l?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "SD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/Arcane-League-Of-Legends-Season-1/3549313",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY",
+          "standardWebURL": "https://www.amazon.com/dp/B07GQBQDMZ?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "package": {
+            "id": "cGF8NTA=",
+            "packageId": 50,
+            "clearName": "Amazon DVD / Blu-ray",
+            "technicalName": "amazondvdbr",
+            "shortName": "adb",
+            "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY_4K",
+          "standardWebURL": "https://us.zavvi.com/p/4k/arcane-season-1-4k-ultra-hd/16994052/",
+          "package": {
+            "id": "cGF8MjU2Mg==",
+            "packageId": 2562,
+            "clearName": "Zavvi",
+            "technicalName": "zavvi",
+            "shortName": "zav",
+            "icon": "/icon/336053590/s100/zavvi.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81435684",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81435684",
+          "package": {
+            "id": "cGF8MTc5Ng==",
+            "packageId": 1796,
+            "clearName": "Netflix Standard with Ads",
+            "technicalName": "netflixbasicwithads",
+            "shortName": "nfa",
+            "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 2,
+      "seasons": [
+        {
+          "id": "tss230301",
+          "objectId": 230301,
+          "totalEpisodeCount": 9,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/arcane/season-1",
+            "posterUrl": "/poster/318631250/{profile}/season-1.{format}",
+            "originalReleaseYear": 2021,
+            "originalReleaseDate": "2021-11-06",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse4243445",
+              "objectId": 4243445,
+              "content": {
+                "title": "Welcome to the Playground",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Orphaned sisters Vi and Powder bring trouble to Zaun's underground streets in the wake of a heist in posh Piltover.",
+                "originalReleaseDate": "2021-11-06",
+                "runtime": 43
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057204",
+              "objectId": 6057204,
+              "content": {
+                "title": "Some Mysteries Are Better Left Unsolved",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Idealistic inventor Jayce attempts to harness magic through science-despite his mentor's warnings. Criminal kingpin Silco tests a powerful substance.",
+                "originalReleaseDate": "2021-11-06",
+                "runtime": 41
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057194",
+              "objectId": 6057194,
+              "content": {
+                "title": "The Base Violence Necessary for Change",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "An epic showdown between old rivals results in a fateful moment for Zaun. Jayce and Viktor risk it all for their research.",
+                "originalReleaseDate": "2021-11-06",
+                "runtime": 44
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057206",
+              "objectId": 6057206,
+              "content": {
+                "title": "Happy Progress Day!",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "With Piltover prospering from their tech, Jayce and Viktor weigh their next move. A familiar face re-emerges from Zaun to wreak havoc.",
+                "originalReleaseDate": "2021-11-13",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057200",
+              "objectId": 6057200,
+              "content": {
+                "title": "Everybody Wants to Be My Enemy",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Rogue enforcer Caitlyn tours the undercity to track down Silco. Jayce puts a target on his back trying to root out Piltover corruption.",
+                "originalReleaseDate": "2021-11-13",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057195",
+              "objectId": 6057195,
+              "content": {
+                "title": "When These Walls Come Tumbling Down",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "An eager protégé undermines his mentor on the council as a magical tech rapidly evolves. With authorities in pursuit, Jinx must face her past.",
+                "originalReleaseDate": "2021-11-13",
+                "runtime": 42
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057203",
+              "objectId": 6057203,
+              "content": {
+                "title": "The Boy Savior",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Caitlyn and Vi meet an ally in Zaun’s streets and head into a frenzied battle with a common foe. Viktor makes a dire decision.",
+                "originalReleaseDate": "2021-11-20",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057193",
+              "objectId": 6057193,
+              "content": {
+                "title": "Oil and Water",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Disowned heir Mel and her visiting mother trade combat tactics. Caitlyn and Vi forge an unlikely alliance. Jinx undergoes a startling change.",
+                "originalReleaseDate": "2021-11-20",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6057198",
+              "objectId": 6057198,
+              "content": {
+                "title": "The Monster You Created",
+                "episodeNumber": 9,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Perilously close to war, the leaders of Piltover and Zaun reach an ultimatum. But a fateful standoff changes both cities forever.",
+                "originalReleaseDate": "2021-11-20",
+                "runtime": 39
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss431092",
+          "objectId": 431092,
+          "totalEpisodeCount": 9,
+          "content": {
+            "title": "Season 2",
+            "seasonNumber": 2,
+            "fullPath": "/us/tv-show/arcane/season-2",
+            "posterUrl": "/poster/320871569/{profile}/season-2.{format}",
+            "originalReleaseYear": 2024,
+            "originalReleaseDate": "2024-11-06",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse8040176",
+              "objectId": 8040176,
+              "content": {
+                "title": "Heavy Is the Crown",
+                "episodeNumber": 1,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Vi and Caitlyn wrestle with how best to respond in the wake of a terrible tragedy that claims lives - and escalates tensions between the twin cities.",
+                "originalReleaseDate": "2024-11-06",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771708",
+              "objectId": 8771708,
+              "content": {
+                "title": "Watch It All Burn",
+                "episodeNumber": 2,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "With Piltover ready for war, the Undercity weighs its options. Jinx lies low and plots her next move. A pivotal conversation takes place.",
+                "originalReleaseDate": "2024-11-09",
+                "runtime": 39
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771735",
+              "objectId": 8771735,
+              "content": {
+                "title": "Finally Got the Name Right",
+                "episodeNumber": 3,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Caitlyn doubles down on her hunt for Jinx. Ambessa accepts a fateful meeting. Changes in Zaun lead to a shocking discovery.",
+                "originalReleaseDate": "2024-11-09",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771747",
+              "objectId": 8771747,
+              "content": {
+                "title": "Paint the Town Blue",
+                "episodeNumber": 4,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "As rumors of Jinx's return swirl, Ambessa pursues her target with renewed enthusiasm. Jinx and Sevika go undercover and into the belly of the beast.",
+                "originalReleaseDate": "2024-11-16",
+                "runtime": 39
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771760",
+              "objectId": 8771760,
+              "content": {
+                "title": "Blisters and Bedrock",
+                "episodeNumber": 5,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Vi awakens to surprising news. An unsettling reunion isn't what it seems. Caitlyn uncovers the origins of Shimmer.",
+                "originalReleaseDate": "2024-11-16",
+                "runtime": 42
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771772",
+              "objectId": 8771772,
+              "content": {
+                "title": "The Message Hidden Within the Pattern",
+                "episodeNumber": 6,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Healing comes from a familiar face - in an unfamiliar place. A stunning betrayal threatens to change countless lives.",
+                "originalReleaseDate": "2024-11-16",
+                "runtime": 39
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771782",
+              "objectId": 8771782,
+              "content": {
+                "title": "Pretend Like It's the First Time",
+                "episodeNumber": 7,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "A moment of darkness, a moment of light - and a vision of What Could Have Been.",
+                "originalReleaseDate": "2024-11-23",
+                "runtime": 41
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771796",
+              "objectId": 8771796,
+              "content": {
+                "title": "Killing Is a Cycle",
+                "episodeNumber": 8,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "A brewing storm fuels a series of startling transformations. Elsewhere, the spark of rebellion still burns.",
+                "originalReleaseDate": "2024-11-23",
+                "runtime": 40
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8771802",
+              "objectId": 8771802,
+              "content": {
+                "title": "The Dirt Under Your Nails",
+                "episodeNumber": 9,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Magic. Science. Power. Revenge. Destinies clash in an epic final chapter, igniting an all-out war.",
+                "originalReleaseDate": "2024-11-23",
+                "runtime": 50
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Netflix",
+                    "packageId": 8,
+                    "shortName": "nfx"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Netflix Standard with Ads",
+                    "packageId": 1796,
+                    "shortName": "nfa"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

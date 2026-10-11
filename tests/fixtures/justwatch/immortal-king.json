@@ -1,0 +1,634 @@
+{
+  "data": {
+    "node": {
+      "id": "ts224303",
+      "objectId": 224303,
+      "objectType": "SHOW",
+      "content": {
+        "title": "The Daily Life of the Immortal King",
+        "fullPath": "/us/tv-show/the-daily-life-of-the-immortal-king",
+        "originalReleaseYear": 2020,
+        "originalReleaseDate": "2020-01-18",
+        "shortDescription": "As a cultivation genius who has achieved a new realm every two years since he was a year old, Wang Ling is a near-invincible existence with prowess far beyond his control. But now that he’s sixteen, he faces his greatest battle yet - Senior High School. With one challenge after another popping up, his plans for a low-key high school life seem further and further away…",
+        "posterUrl": "/poster/319496734/s718/the-daily-life-of-the-immortal-king.jpg",
+        "externalIds": {
+          "imdbId": "tt11755260"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "ani",
+            "translation": "Animation"
+          },
+          {
+            "shortName": "cmy",
+            "translation": "Comedy"
+          },
+          {
+            "shortName": "fnt",
+            "translation": "Fantasy"
+          },
+          {
+            "shortName": "scf",
+            "translation": "Science-Fiction"
+          }
+        ],
+        "productionCountries": [
+          "CN"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FG7PU4798V&subId3=justappsvod",
+          "package": {
+            "id": "cGF8Mjgz",
+            "packageId": 283,
+            "clearName": "Crunchyroll",
+            "technicalName": "crunchyroll",
+            "shortName": "cru",
+            "icon": "/icon/324213205/s100/crunchyroll.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.ea36f87a-7976-4456-bb65-aeb03c505e11",
+          "package": {
+            "id": "cGF8MTk2OA==",
+            "packageId": 1968,
+            "clearName": "Crunchyroll Amazon Channel",
+            "technicalName": "amazoncrunchyroll",
+            "shortName": "cra",
+            "icon": "/icon/324213165/s100/amazoncrunchyroll.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "SD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.b2766909-6a22-4599-9bc2-900c7c860e35",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.b4011579-d2e7-40b2-b2a9-9da41e5a179a",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.hulu.jp/watch/100239785",
+          "package": {
+            "id": "cGF8MTU=",
+            "packageId": 15,
+            "clearName": "Hulu",
+            "technicalName": "hulu",
+            "shortName": "hlu",
+            "icon": "/icon/116305230/s100/hulu.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://video.unext.jp/episode/SID0232896/ED00720038",
+          "package": {
+            "id": "cGF8ODQ=",
+            "packageId": 84,
+            "clearName": "U-NEXT",
+            "technicalName": "unext",
+            "shortName": "unx",
+            "icon": "/icon/304760702/s100/unext.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.45df4319-cbb2-4073-b891-05629318d87a",
+          "package": {
+            "id": "cGF8MjQ5NA==",
+            "packageId": 2494,
+            "clearName": "dAnime Amazon Channel",
+            "technicalName": "amazondanime",
+            "shortName": "dan",
+            "icon": "/icon/330853507/s100/amazondanime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.b4011579-d2e7-40b2-b2a9-9da41e5a179a",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://fod.fujitv.co.jp/title/10dc/10dc110001/",
+          "package": {
+            "id": "cGF8MjY4Mw==",
+            "packageId": 2683,
+            "clearName": "FOD",
+            "technicalName": "fod",
+            "shortName": "fuj",
+            "icon": "/icon/342951136/s100/fod.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 5,
+      "seasons": [
+        {
+          "id": "tss234325",
+          "objectId": 234325,
+          "totalEpisodeCount": 16,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/the-daily-life-of-the-immortal-king/season-1",
+            "posterUrl": "/poster/319839018/{profile}/season-1.{format}",
+            "originalReleaseYear": 2020,
+            "originalReleaseDate": "2020-01-18",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse4317523",
+              "objectId": 4317523,
+              "content": {
+                "title": "Wang Ling's Triple Kill of Tuntian-ha",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling is  rookie at the Songhai School. With only 5 points of spiritual strength, he will have to face some problems.",
+                "originalReleaseDate": "2020-01-18",
+                "runtime": 18
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317525",
+              "objectId": 4317525,
+              "content": {
+                "title": "A Fair and Just Class President Election",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Sun Rong and Chen Chao compete for the position of student president of the elite class. Will Sun Rong be able to pull it off with an enchantment?",
+                "originalReleaseDate": "2020-01-18",
+                "runtime": 20
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317526",
+              "objectId": 4317526,
+              "content": {
+                "title": "How to Make an Origin Fostering Pill",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "In  the elite class, students learn how to make vitality pulls. Although the others use wacky ovens or cauldrons, Wang Ling decides to use a microwave.",
+                "originalReleaseDate": "2020-01-18",
+                "runtime": 19
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317527",
+              "objectId": 4317527,
+              "content": {
+                "title": "What Should I Do When the Goddess Forces Me on a Date",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Sun Rong asks Wang Ling out on a special date. But what she doesn't know is that two killers will try to spoil her fun.",
+                "originalReleaseDate": "2020-01-18",
+                "runtime": 19
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317528",
+              "objectId": 4317528,
+              "content": {
+                "title": "The Three Brothers of Shadow Stream",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The killers return to attack the school. But this time the school is prepared to face any threat. However, the attack of the three brothers is too powerful.",
+                "originalReleaseDate": "2020-01-25",
+                "runtime": 20
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317529",
+              "objectId": 4317529,
+              "content": {
+                "title": "B++ is the Best Language in the World",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling comes out first in the national power test and decides to infiltrate the system to change his score.",
+                "originalReleaseDate": "2020-02-01",
+                "runtime": 18
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317530",
+              "objectId": 4317530,
+              "content": {
+                "title": "18 Tips for Maintaining a Spiritual Sword",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling will participate in the interschool sword competition with his friends against his rival, the 59th school.",
+                "originalReleaseDate": "2020-02-08",
+                "runtime": 17
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317524",
+              "objectId": 4317524,
+              "content": {
+                "title": "Like Master, Like Sword",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling doesn't want to participate in the competition and looks for the perfect moment to pretend to feel bad. When his amulet is about to break, Wang Ling's health is in danger of seriously deteriorating.",
+                "originalReleaseDate": "2020-02-15",
+                "runtime": 17
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317531",
+              "objectId": 4317531,
+              "content": {
+                "title": "Master of the Shadow Stream",
+                "episodeNumber": 9,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling needs his father to come to his aid or disaster is imminent. While he waits, Wang Ling runs into a dangerous female leader in the halls of School 59.",
+                "originalReleaseDate": "2020-02-22",
+                "runtime": 17
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317532",
+              "objectId": 4317532,
+              "content": {
+                "title": "Drive! Drive! Drive!",
+                "episodeNumber": 10,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The amulet is broken and now Wang Ling must control his emotions on his own. Meanwhile, Sun Rong is ready to help her most important friend.",
+                "originalReleaseDate": "2020-02-29",
+                "runtime": 24
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317533",
+              "objectId": 4317533,
+              "content": {
+                "title": "The Aohai Rondo",
+                "episodeNumber": 11,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling tries to keep a low profile now that his amulet is broken. At the Water Alter, Sun Rong confronts Tang Jingze.",
+                "originalReleaseDate": "2020-03-07",
+                "runtime": 18
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317534",
+              "objectId": 4317534,
+              "content": {
+                "title": "A Dog is a Man's Best Friend",
+                "episodeNumber": 12,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "As Wang Ling begins to lose control, Toad jumps on top of him and absorbs his negative energy. At that moment, something amazing happens that gives Wang Ling the ability to use his strength without restraint from him.",
+                "originalReleaseDate": "2020-03-14",
+                "runtime": 18
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317535",
+              "objectId": 4317535,
+              "content": {
+                "title": "Let Us Burn!!",
+                "episodeNumber": 13,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Tang Jingze's spirit sword engages Sun Rong and destroys his weapon. Wang Ling's father implores them to stop the competition before someone gets hurt.",
+                "originalReleaseDate": "2020-03-21",
+                "runtime": 20
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317536",
+              "objectId": 4317536,
+              "content": {
+                "title": "Accident",
+                "episodeNumber": 14,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The competition comes to an end. The leader of the League of Shadows attacks and Wang Ling finally loses control.",
+                "originalReleaseDate": "2020-03-21",
+                "runtime": 17
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317537",
+              "objectId": 4317537,
+              "content": {
+                "title": "Helplessness of the Immortal King",
+                "episodeNumber": 15,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Wang Ling quickly realizes his mistake: not having stopped the leader of the League of Shadows sooner, so he decides to take the risk once more.",
+                "originalReleaseDate": "2020-03-28",
+                "runtime": 22
+              },
+              "flatrate": [
+                {
+                  "package": {
+                    "clearName": "Crunchyroll",
+                    "packageId": 283,
+                    "shortName": "cru"
+                  }
+                },
+                {
+                  "package": {
+                    "clearName": "Crunchyroll Amazon Channel",
+                    "packageId": 1968,
+                    "shortName": "cra"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4317538",
+              "objectId": 4317538,
+              "content": {
+                "title": "Episode 16",
+                "episodeNumber": 16,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "",
+                "originalReleaseDate": null,
+                "runtime": 18
+              },
+              "flatrate": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

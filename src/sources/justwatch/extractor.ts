@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { resolveEpisodeToSeriesId, crunchyrollId } from '../crunchyroll/extractor'
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
@@ -91,7 +91,9 @@ const SEARCH_QUERY = `
             }
             genres {
               shortName
+              translation(language: $language)
             }
+            productionCountries
           }
           offers(country: $country, platform: WEB, filter: { bestOnly: true }) {
             monetizationType
@@ -154,7 +156,9 @@ const nodeQuery = (details: string) => `
           }
           genres {
             shortName
-          }${details}
+            translation(language: $language)
+          }
+          productionCountries${details}
         }
         offers(country: $country, platform: WEB, filter: { bestOnly: true }) {
           monetizationType
@@ -227,8 +231,8 @@ const nodeQuery = (details: string) => `
   }
 `
 
-// The relay caches on the whole body, so the modal's stays byte for byte what it was and only the
-// title page's `details` asks for more
+// The relay caches on the whole body, so the modal's leaves out what only the title page's `details`
+// reads
 const NODE_QUERY = nodeQuery('')
 const NODE_DETAILS_QUERY = nodeQuery(`
           runtime
@@ -286,6 +290,8 @@ interface JWSearchNode {
     originalReleaseYear?: number | null
     /** the day this WORK premiered, which on a Show is its first season's day; see `dayOrYear` */
     originalReleaseDate?: string | null
+    genres?: { shortName: string, translation?: string | null }[] | null
+    productionCountries?: string[] | null
     /** these three only on NODE_DETAILS_QUERY's answer */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
@@ -360,6 +366,25 @@ const ratingsOf = (scoring: JWSearchNode['content']['scoring']): MediaRating[] =
     { source: 'Rotten Tomatoes', value: scoring?.tomatoMeter, scale: 100 },
     { source: 'JustWatch', value: scoring?.jwRating == null ? null : Math.round(scoring.jwRating * 100), scale: 100 },
   ].filter((rating): rating is MediaRating => rating.value != null)
+
+// `ani` is any animation, so the production countries say anime, and only when ALL of them are in the
+// set: US shows animated in Korea (Avatar: The Last Airbender, KR, MY, SG, US) and Golden Axe (JP, US)
+// are not anime. Co-produced anime such as Lazarus (JP, US) is lost here and kept by TVmaze and AniList.
+const ANIME_COUNTRIES = ['JP', 'CN', 'KR']
+
+const isAnime = ({ content }: JWSearchNode) =>
+  Boolean(content.genres?.some(genre => genre.shortName === 'ani')
+    && content.productionCountries?.length
+    && content.productionCountries.every(country => ANIME_COUNTRIES.includes(country)))
+
+const categoriesOf = (node: JWSearchNode): MediaCategory[] => {
+  const format = node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'
+  return isAnime(node) ? ['ANIME', format] : [format]
+}
+
+// `eur`, Made in Europe, is a region and not a genre
+const genresOf = (node: JWSearchNode) =>
+  (node.content.genres ?? []).flatMap(genre => genre.shortName === 'eur' ? [] : genre.translation ?? [])
 
 /**
  * A start date at the best precision this node has for THIS media: the day when JustWatch names one,
@@ -533,7 +558,8 @@ export const showAsContainer = async (
     id: String(node.objectId),
     url: `https://www.justwatch.com${node.content.fullPath}`,
     scope: 'CONTAINER',
-    categories: [node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'],
+    categories: categoriesOf(node),
+    genres: genresOf(node),
     score: SCORE,
     handles,
     titles: [{ language: 'en', title: node.content.title, score: SCORE }],
@@ -593,7 +619,7 @@ const normalizeMedia = async (
       origin,
       id: String(node.objectId),
       url: `https://www.justwatch.com${node.content.fullPath}`,
-      categories: [node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'],
+      categories: categoriesOf(node),
       titles: [{ language: 'en', title: node.content.title, score: SCORE }],
       startDate: dayOrYear(node.content.originalReleaseDate, node.content.originalReleaseYear)
     })))
@@ -604,7 +630,8 @@ const normalizeMedia = async (
     id,
     // the type is what tells the graph's guards this is a film, which a category alone does not
     type: node.objectType === 'MOVIE' ? 'MOVIE' : undefined,
-    categories: [node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'],
+    categories: categoriesOf(node),
+    genres: genresOf(node),
     url: `https://www.justwatch.com${node.content.fullPath}`,
     score: SCORE,
     handles,

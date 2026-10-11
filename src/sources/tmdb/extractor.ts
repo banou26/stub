@@ -29,7 +29,7 @@ const fetchHtml = (path: string, ctx: ExtractorServerContext): Promise<string | 
 const meta = (html: string, property: string): string | undefined =>
   html.match(new RegExp(`<meta property="${property}" content="([^"]*)"`))?.[1]
 
-type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number }
+type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number, anime?: boolean }
 /** `releaseDate` is `YYYY-MM-DD`, the day the card named, or absent when the card named none. */
 type TmdbEpisode = { number: number, title?: string, overview?: string, still?: string, releaseDate?: string }
 
@@ -89,6 +89,11 @@ const parseSearch = (html: string): TmdbMedia[] => {
   return out
 }
 
+// the language is named in English for the same reason the MONTHS are
+const isAnime = (html: string) =>
+  html.includes('/keyword/210024-anime/')
+  || (html.includes('/genre/16-animation/') && /Original Language<\/bdi><\/strong> (?:Japanese|Chinese|Korean)</.test(html))
+
 const parseShow = (html: string, id: string): TmdbMedia & { seasons: number[] } => {
   const backdrop = html.match(/\/t\/p\/w1920[^"']+\.(?:jpg|png)/)?.[0]
   const percent = html.match(/class="user_score_chart"[^>]*data-percent="([\d.]+)"/)?.[1]
@@ -102,6 +107,7 @@ const parseShow = (html: string, id: string): TmdbMedia & { seasons: number[] } 
     poster: meta(html, 'og:image'),
     banner: backdrop ? `https://media.themoviedb.org${backdrop}` : undefined,
     score: percent ? Math.round(Number(percent)) / 10 : undefined,
+    anime: isAnime(html),
     seasons,
   }
 }
@@ -139,7 +145,7 @@ const normalizeMedia = (m: TmdbMedia, seasonNumber?: number): GQLMedia =>
     id: seasonNumber == null ? m.id : seasonScopedId(m.id, seasonNumber),
     scope: seasonNumber == null ? 'CONTAINER' : 'RUN',
     url: `${BASE}/tv/${m.id}`,
-    categories: ['SERIES'],
+    categories: m.anime ? ['ANIME', 'SERIES'] : ['SERIES'],
     score: SCORE,
     titles: [{ language: 'en', title: m.title, score: SCORE }],
     ...desc(m.overview, SCORE),

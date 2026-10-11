@@ -36,6 +36,8 @@ type TraktShow = {
   rating?: number
   first_aired?: string
   ids?: TraktIds
+  genres?: string[]
+  country?: string
 }
 
 type TraktSearchResult = {
@@ -121,6 +123,11 @@ const buildHandles = (ids?: TraktIds): GQLMedia[] => {
   return handles
 }
 
+const ANIME_COUNTRIES = ['jp', 'cn', 'kr']
+
+const isAnime = ({ genres = [], country = '' }: TraktShow) =>
+  genres.includes('anime') || genres.includes('donghua') || (genres.includes('animation') && ANIME_COUNTRIES.includes(country))
+
 const normalizeMedia = (show: TraktShow): GQLMedia | undefined => {
   const id = mediaId(show.ids)
   if (!id) return undefined
@@ -131,7 +138,7 @@ const normalizeMedia = (show: TraktShow): GQLMedia | undefined => {
     url: `https://trakt.tv/shows/${id}`,
     scope: 'CONTAINER',
     handles: buildHandles(show.ids),
-    categories: ['SERIES'],
+    categories: isAnime(show) ? ['ANIME', 'SERIES'] : ['SERIES'],
     score: SCORE,
     titles: show.title ? [{ language: 'en', title: show.title, score: SCORE }] : [],
     ...desc(show.overview, SCORE),

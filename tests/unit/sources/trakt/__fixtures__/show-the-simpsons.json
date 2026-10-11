@@ -1,0 +1,23 @@
+{
+  "title": "The Simpsons",
+  "year": 1989,
+  "ids": {
+    "imdb": "tt0096697",
+    "plex": {
+      "guid": "5d9c080d3c3f87001f3460e8",
+      "slug": "the-simpsons"
+    },
+    "slug": "the-simpsons",
+    "tmdb": 456,
+    "tvdb": 71663,
+    "trakt": 455
+  },
+  "overview": "Set in Springfield, the average American town, the show focuses on the antics and everyday adventures of the Simpson family; Homer, Marge, Bart, Lisa and Maggie, as well as a virtual cast of thousands. Since the beginning, the series has been a pop culture icon, attracting hundreds of celebrities to guest star. The show has also made name for itself in its fearless satirical take on politics, media and American life in general.",
+  "first_aired": "1989-12-18T01:00:00.000Z",
+  "rating": 8.26685905456543,
+  "genres": [
+    "animation",
+    "comedy"
+  ],
+  "country": "us"
+}

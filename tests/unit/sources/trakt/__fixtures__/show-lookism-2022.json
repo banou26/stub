@@ -1,0 +1,24 @@
+{
+  "title": "Lookism",
+  "year": 2022,
+  "ids": {
+    "imdb": "tt22297722",
+    "plex": {
+      "guid": "63307a0fee7a386aa2dbdac6",
+      "slug": "lookism-2022"
+    },
+    "slug": "lookism-2022",
+    "tmdb": 210942,
+    "tvdb": 425285,
+    "trakt": 198488
+  },
+  "overview": "In a society that favors good looks, a high school outcast leads a double life switching between his two bodies that are polar opposites in appearance.",
+  "first_aired": "2022-12-08T07:00:00.000Z",
+  "rating": 7.178387641906738,
+  "genres": [
+    "comedy",
+    "drama",
+    "animation"
+  ],
+  "country": "kr"
+}

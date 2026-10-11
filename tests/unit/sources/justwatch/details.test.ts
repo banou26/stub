@@ -53,18 +53,20 @@ test('a show\'s runtime is not the season\'s length, and its ratings still come 
   expect(media.ratings.map(({ source }: { source: string }) => source)).toEqual(['IMDb', 'TMDB', 'Rotten Tomatoes', 'JustWatch'])
 })
 
-// Hashes taken from 0.0.53's NODE_QUERY and SEARCH_QUERY, before the details form existed.
-test('the details form goes out only when asked, and the modal and listing bodies are unchanged', async () => {
+// Taken once genre names and production countries joined both bodies, since a title's anime signal
+// has to reach the modal and the listing too. Every change here sends each JustWatch request past the
+// relay's cache once.
+test('the details form goes out only when asked, and the modal and listing bodies are pinned', async () => {
   const modal = await open(DUNE, 'jw:1133934')
   const page = await open(DUNE, 'jw:1133934', true)
-  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('53ee223a7a859d11dc170491feb7308d544fd51a94f5649fe756f32754dedc68')
+  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('1ec0f18dc883939183ec3813a09765bef8449c0152d1f03c2a6c53afd44692f7')
   expect(page.bodies[0], 'the page body').toContain('scoring {')
 
   const listing: string[] = []
   const context = { fetch: async (_: string, init: { body: string }) => (listing.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   await subscribe(undefined, { input: { search: 'Dune' } }, context).next()
-  expect(sha256(listing[0]!), 'the listing body').toBe('2d88b9f16b1964d0d8500de610c8477237e0c5a90dd0630cc029b51be0c87a5b')
+  expect(sha256(listing[0]!), 'the listing body').toBe('df1297e746a82480e970a726429b65f153b80e89f220b5489bec7f75cd5cfd54')
 })
 
 test('a title the page found by search asks the details form too', async () => {
