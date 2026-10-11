@@ -1,6 +1,7 @@
 // The watch party's grants across two real browser contexts on the live rooms service: the host's grid (All
 // followers and one row per follower, every control a column), a grant reaching the follower as "You can", a per
-// follower denial, and Play for everyone moving the host. Controls first: before a grant nothing is offered.
+// follower denial, Play for everyone moving the host, and a follower's Follow playback switch, which Catch up turns
+// back on. Controls first: before a grant nothing is offered, and the host has no switch.
 //
 // Headless and muted: no media plays here. Run from INSIDE the repo against anime.fkn.app or a dev server:
 //   STUB_ORIGIN=http://localhost:4560 node scripts/check-party-grants.mjs [screenshot.png]
@@ -13,7 +14,7 @@ const out = []
 const log = (ok, label, detail = '') => out.push(`${ok ? 'ok  ' : 'FAIL'}  ${label}${detail ? `  (${detail})` : ''}`)
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const until = async (read, want, timeout = 20_000) => { const end = Date.now() + timeout; let v; while (Date.now() < end) { v = await read().catch(() => undefined); if (want(v)) return v; await sleep(400) } return undefined }
-const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] })
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH, args: ['--mute-audio'] })
 const host = await browser.newContext().then(c => c.newPage())
 const guest = await browser.newContext().then(c => c.newPage())
 const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
@@ -41,11 +42,20 @@ await guest.goto(link, { waitUntil: 'domcontentloaded' })
 const following = await until(() => widget(guest).first().innerText(), t => /Following|Party/.test(t ?? ''), 30_000)
 log(Boolean(following), 'the guest follows', (following ?? '').replace(/\s+/g, ' '))
 log(!/You can/.test(await guestMenu()), 'control: before any grant, the guest is offered nothing')
+const follow = guest.getByRole('switch', { name: 'Follow playback' })
+log(await follow.isChecked().catch(() => false), 'the guest follows playback by default')
+await follow.click().catch(() => {})
+log(!(await follow.isChecked().catch(() => true)), 'the switch turns it off')
+await guest.getByRole('button', { name: 'Catch up' }).click().catch(() => {})
+await guestMenu()
+log(await follow.isChecked().catch(() => false), 'Catch up follows playback again')
+await guest.keyboard.press('Escape')
 
 await widget(host).first().dispatchEvent('click')
 const allCell = host.getByRole('button', { name: 'Play/pause, All followers' })
 await allCell.waitFor({ timeout: 15_000 }).catch(() => {})
 const rows = await host.locator('table th[scope="row"]').allInnerTexts().catch(() => [])
+log(await host.getByRole('switch', { name: 'Follow playback' }).count() === 0, 'the host has no Follow playback switch')
 log(rows.includes('All followers') && rows.length >= 2, 'the host sees All followers and one row per follower', JSON.stringify(rows))
 const t0 = Date.now()
 await allCell.click()
