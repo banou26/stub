@@ -23,6 +23,7 @@ import { gql } from '../../generated'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
 import { listedMediaFor } from './modal-media'
 import { isUpcoming, movieFacts } from './movie'
+import { firstUnreleased, isUnreleased } from './episodes'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay, releaseDateLabel } from '../../utils/release-date'
@@ -222,6 +223,10 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
         &:hover {
           background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        &.unreleased {
+          opacity: 0.45;
         }
 
         .number {
@@ -492,6 +497,11 @@ const GET_MEDIA_MODAL = gql(`
         }
       }
       episodeCount
+      status
+      nextAiringEpisode {
+        episodeNumber
+        airingAt
+      }
     }
   }
 `)
@@ -590,20 +600,20 @@ const MoviePlay = (
 }
 
 const Episode = (
-  { episode, index, mediaUri }:
-  { episode: ModalEpisode, index: number, mediaUri: string }
+  { episode, index, mediaUri, unreleased, airingAt }:
+  { episode: ModalEpisode, index: number, mediaUri: string, unreleased: boolean, airingAt?: string }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
-  const releasedAt = releasedAtOf(episode)
+  const releasedAt = releasedAtOf(episode) ?? airingAt
   const released = releaseDateDisplay(releasedAt)
-  const sources = useWatchSources(episode, mediaUri)
+  const sources = useWatchSources(unreleased ? undefined : episode, mediaUri)
 
   return (
-    <div className="episode">
+    <div className={unreleased ? 'episode unreleased' : 'episode'}>
       {
-        episode.uri
+        episode.uri && !unreleased
           ? (
             <Link
               className="episode-link"
@@ -644,7 +654,7 @@ const Episode = (
           : (
             <div className="content">
               <div className="header">
-                <div className="title">Episode {index + 1}</div>
+                <div className="title">{unreleased ? 'Unreleased episode' : `Episode ${index + 1}`}</div>
               </div>
             </div>
           )
@@ -720,6 +730,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     pause: !originIds
   })
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
+  const episodes = media && 'episodes' in media ? media.episodes ?? [] : []
+  const dated = episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
+  const nextAiring = data?.media?.nextAiringEpisode
+  const firstUnreleasedEpisode = firstUnreleased({ status: data?.media?.status, nextAiringEpisode: nextAiring, episodes: dated })
   // a film released in parts keeps its episode list, so only a movie of one episode or none gets the play bar
   const isMovie = Boolean(
     media && 'categories' in media && media.categories?.includes(MediaCategory.Movie)
@@ -923,17 +937,16 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         {isMovie ? undefined : <div className="episodes">
           {
             media &&
-            'episodes' in media &&
-            media
-              .episodes
-              ?.map((episode, index) =>
-                <Episode
-                  key={episode.episodeNumber ?? episode.uri ?? index}
-                  episode={episode}
-                  index={index}
-                  mediaUri={media.uri}
-                />
-              )
+            episodes.map((episode, index) =>
+              <Episode
+                key={episode.episodeNumber ?? episode.uri ?? index}
+                episode={episode}
+                index={index}
+                mediaUri={media.uri}
+                unreleased={isUnreleased(dated[index]!, firstUnreleasedEpisode)}
+                airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
+              />
+            )
           }
         </div>}
       </div>
