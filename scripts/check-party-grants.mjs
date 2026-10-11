@@ -1,7 +1,8 @@
 // The watch party's grants across two real browser contexts on the live rooms service: the host's grid (All
 // followers and one row per follower, every control a column), a grant reaching the follower as "You can", a per
 // follower denial, Play for everyone moving the host, and a follower's Follow playback switch, which Catch up turns
-// back on. Controls first: before a grant nothing is offered, and the host has no switch.
+// back on. Controls first: before a grant nothing is offered, and the host has no switch. The Subtitles and Audio
+// columns are checked as grants only: the party's tracks need a Crunchyroll player, which needs a signed-in session.
 //
 // Headless and muted: no media plays here. Run from INSIDE the repo against anime.fkn.app or a dev server:
 //   STUB_ORIGIN=http://localhost:4560 node scripts/check-party-grants.mjs [screenshot.png]
@@ -64,10 +65,19 @@ const can = await until(() => guestMenu(), t => /You can\s*Play\/pause/.test(t ?
 log(Boolean(can), 'the grant reaches the guest', can ? `${Date.now() - t0} ms` : 'not in 25 s')
 
 const heads = await host.locator('table thead th[title]').evaluateAll(list => list.map(th => th.getAttribute('title')))
-log(JSON.stringify(heads) === JSON.stringify(['Play/pause', 'Seek', 'Episode', 'Speed']), 'the grid has Play/pause, Seek, Episode and Speed columns', JSON.stringify(heads))
+log(JSON.stringify(heads) === JSON.stringify(['Play/pause', 'Seek', 'Episode', 'Speed', 'Subtitles', 'Audio']), 'the grid has Play/pause, Seek, Episode, Speed, Subtitles and Audio columns', JSON.stringify(heads))
 await host.getByRole('button', { name: 'Seek, All followers' }).click()
 const seek = await until(() => guestMenu(), t => /You can\s*Play\/pause\s*Seek/.test(t ?? ''), 15_000)
 log(Boolean(seek), 'granting Seek to all followers reaches the guest too')
+// the party's tracks need a player serving them (Crunchyroll, signed in), so only the grant shows here
+log(Boolean(seek) && !/Subtitles|Audio/.test(seek), 'control: before the grant, no Subtitles or Audio badge')
+await host.getByRole('button', { name: 'Subtitles, All followers' }).click({ timeout: 5_000 }).catch(() => {})
+await host.getByRole('button', { name: 'Audio, All followers' }).click({ timeout: 5_000 }).catch(() => {})
+const tracks = await until(() => guestMenu(), t => /You can\s*Play\/pause\s*Seek\s*Subtitles\s*Audio/.test(t ?? ''), 15_000)
+log(Boolean(tracks), 'granting Subtitles and Audio to all followers reaches the guest')
+await host.getByRole('button', { name: 'Subtitles, All followers' }).click({ timeout: 5_000 }).catch(() => {})
+await host.getByRole('button', { name: 'Audio, All followers' }).click({ timeout: 5_000 }).catch(() => {})
+log(Boolean(await until(() => guestMenu(), t => /You can\s*Play\/pause\s*Seek/.test(t ?? '') && !/Subtitles|Audio/.test(t ?? ''), 15_000)), 'and taking them back reaches the guest')
 const guestCell = host.locator('table tr').filter({ hasNotText: 'All followers' }).locator('button.cell').first()
 await guestCell.click()
 log((await guestCell.getAttribute('data-grant')) === 'off', 'one click on that follower turns it off for them only', await guestCell.getAttribute('data-grant'))
