@@ -876,18 +876,17 @@ describe('the way into this page from the app', () => {
     expect(source, 'the control: this probe can miss').not.toContain('<TraceLinkThatIsNotThere')
   })
 
-  // Mutation: drop `${location.search}` from the modal's `navigate` (the shape it had until
-  // 2026-09-13). A media view rewrites its own url without the query as the address grows, so on a
-  // real build `location.search` was empty seconds after load and no flag could be read off the
-  // route again. Read off the source for the same reason as the case above.
+  // Mutation: drop `${location.search}` from the modal's or the title page's `navigate` (the modal's
+  // shape until 2026-09-13). A media view rewrites its own url without the query as the address grows,
+  // so on a real build `location.search` was empty seconds after load and no flag could be read off
+  // the route again. Read off the source for the same reason as the case above.
   test('survives the media view rewriting its own url', () => {
-    const source = readFileSync(
-      fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)),
-      'utf-8',
-    )
-    const grow = source.slice(source.indexOf('shouldGrowAddress(media?.uri'), source.indexOf('if (!open) return'))
-    expect(grow, 'the address grow keeps the query string').toContain('${location.search}')
-    expect(grow, 'the control: it is this navigate and not another').toContain('replace: true')
+    for (const [file, end] of [['home/media-modal.tsx', 'if (!open) return'], ['title/index.tsx', 'const bannerUrl']] as const) {
+      const source = readFileSync(fileURLToPath(new URL(`../../../src/router/${file}`, import.meta.url)), 'utf-8')
+      const grow = source.slice(source.indexOf('shouldGrowAddress(media?.uri'), source.indexOf(end))
+      expect(grow, `${file}: the address grow keeps the query string`).toContain('${location.search}')
+      expect(grow, `${file}: the control: it is this navigate and not another`).toContain('replace: true')
+    }
 
     // and the link does not depend on that fix alone: the flag is the session's
     const link = readFileSync(

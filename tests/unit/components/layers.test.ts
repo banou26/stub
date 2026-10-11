@@ -78,7 +78,7 @@ describe('the layer order', () => {
  * not have to work that out again.
  */
 const LOCAL: Record<string, { values: number[], why: string }> = {
-  'src/router/home/media-modal.tsx': {
+  'src/router/home/media-details.tsx': {
     values: [0, 1],
     why: 'inside one episode row: the full-row link under the source chips that sit on top of it',
   },

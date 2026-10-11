@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
-import { isUpcoming, movieFacts, runtimeText } from '../../../src/router/home/movie'
+import { MediaCategory } from '../../../src/generated/graphql'
+import { isMovieMedia, isUpcoming, movieFacts, runtimeText } from '../../../src/router/home/movie'
 
 test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   expect(runtimeText(112)).toBe('1h 52m')
@@ -33,14 +34,31 @@ test('a release is upcoming only while its day is still ahead, whatever the hour
   expect(isUpcoming('garbage', now)).toBe(false)
 })
 
-// media-modal.tsx cannot be imported here (urql's CommonJS `require('react')`, see modal-media.test.ts), so
-// its wiring is read off the source, each line with the series path beside it as the control
-const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
+test('a movie of one episode or none draws as a film, and one released in parts keeps its episodes', () => {
+  const episode = {}
+  expect(isMovieMedia({ categories: [MediaCategory.Anime, MediaCategory.Movie], episodes: [episode] })).toBe(true)
+  expect(isMovieMedia({ categories: [MediaCategory.Movie], episodes: [] })).toBe(true)
+  expect(isMovieMedia({ categories: [MediaCategory.Movie], episodes: [episode, episode] }), 'a film in parts').toBe(false)
+  expect(isMovieMedia({ categories: [MediaCategory.Anime], episodes: [episode] }), 'a series of one episode').toBe(false)
+})
+
+// the modal and the title page cannot be imported here (urql's CommonJS `require('react')`, see
+// modal-media.test.ts), so their wiring is read off the source, each line with the series path beside
+// it as the control
+const read = (path: string) => readFileSync(fileURLToPath(new URL(`../../../src/${path}`, import.meta.url)), 'utf-8')
+const modal = read('router/home/media-modal.tsx')
+const page = read('router/title/index.tsx')
 
 test('a movie of one episode gets the play bar and the Watched toggle, and no episode list', () => {
-  expect(modal).toMatch(/media\.categories\?\.includes\(MediaCategory\.Movie\)\s*&& \('episodes' in media \? \(media\.episodes\?\.length \?\? 0\) : 0\) <= 1/)
+  expect(modal).toContain('const isMovie = Boolean(data?.media && isMovieMedia(data.media))')
   expect(modal).toMatch(/isMovie && media\s*\?\s*\(\s*<MoviePlay/)
   expect(modal).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
-  expect(modal).toContain('{isMovie ? undefined : <div className="episodes">')
-  expect(modal, 'the series path still renders its rows').toMatch(/<Episode\s+key=/)
+  expect(modal).toContain('{isMovie || !data?.media ? undefined : <Episodes media={data.media}/>}')
+  expect(read('router/home/media-details.tsx'), 'the series path still renders its rows').toMatch(/<Episode\s+key=/)
+})
+
+test('the title page draws no episode list for a movie either', () => {
+  expect(page).toContain('const isMovie = Boolean(media && isMovieMedia(media))')
+  expect(page).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
+  expect(page).toMatch(/media && !isMovie && media\.episodes\.length\s*\?\s*\(\s*<section>\s*<h2>Episodes<\/h2>\s*<Episodes media=\{media\}\/>/)
 })

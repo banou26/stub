@@ -1,4 +1,4 @@
-import type { GetMediaModalSubscription } from '../generated/graphql'
+import type { GetMediaDetailsSubscription } from '../generated/graphql'
 
 import { isVideoFormat } from './franchise-layout'
 import { relationRank } from './relation-labels'
@@ -10,7 +10,7 @@ import { relationRank } from './relation-labels'
  * import a .tsx: a rule about where a card goes is exactly the kind of thing that should be pinned
  * without standing a DOM up.
  */
-export type RelationEdge = NonNullable<GetMediaModalSubscription['media']>['relations'][number]
+export type RelationEdge = NonNullable<GetMediaDetailsSubscription['media']>['relations'][number]
 
 /**
  * Sorted by what the relation IS rather than by what the source happened to return first, so the

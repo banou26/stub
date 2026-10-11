@@ -25,6 +25,11 @@ export const movieFacts = (
   ].filter((fact): fact is string => !!fact)
 }
 
+/** Whether a media draws as a film: a movie of one episode or none, since a film released in parts keeps its episode list. */
+export const isMovieMedia = (
+  { categories, episodes }: { categories?: readonly string[] | null, episodes?: readonly unknown[] | null }
+): boolean => Boolean(categories?.includes('MOVIE') && (episodes?.length ?? 0) <= 1)
+
 /** Whether a release day is still ahead of `now`, read as a whole day in UTC. */
 export const isUpcoming = (released: string | null | undefined, now = new Date()): boolean => {
   const date = parseReleaseDate(released)

@@ -1,0 +1,112 @@
+// The full page for one title, opened from the modal's More details link (HOR-348).
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { expect, test } from 'vite-plus/test'
+
+import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
+import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
+import { playLabel, playTarget, secondTitle, titleChips, titleFacts } from '../../../src/router/title/facts'
+
+// Frieren as AniList and the offline catalogue name it
+const FRIEREN = {
+  titles: [{ title: 'Frieren: Beyond Journey\'s End' }, { title: 'Sousou no Frieren' }, { title: '葬送のフリーレン' }, { title: 'Sousou no Frieren' }],
+  type: MediaType.Tv,
+  status: MediaStatus.Finished,
+  episodeCount: 28,
+  startDate: '2023-09-29',
+  endDate: '2024-03-22',
+  season: MediaSeason.Fall,
+  seasonYear: 2023,
+  genres: ['Adventure', 'Drama', 'Fantasy'],
+  tags: ['Elf', 'Travel'],
+}
+
+test('the chips name the episodes, the format and the status', () => {
+  expect(titleChips(FRIEREN)).toEqual(['28 Episodes', 'TV Show', 'Finished'])
+  expect(titleChips({ episodeCount: 1, type: MediaType.Movie }), 'one episode is not plural').toEqual(['1 Episode', 'Movie'])
+})
+
+test('a chip no source named is left out', () => {
+  expect(titleChips({})).toEqual([])
+  expect(titleChips({ episodeCount: 0, status: MediaStatus.Releasing })).toEqual(['Airing'])
+})
+
+test('the facts are labelled, in reading order', () => {
+  expect(titleFacts(FRIEREN, { locale: 'en-US' })).toEqual([
+    { label: 'Format', value: 'TV Show' },
+    { label: 'Episodes', value: '28' },
+    { label: 'Status', value: 'Finished' },
+    { label: 'Aired', value: 'Sep 29, 2023 to Mar 22, 2024' },
+    { label: 'Season', value: 'Fall 2023' },
+    { label: 'Genres', value: 'Adventure, Drama, Fantasy' },
+    { label: 'Tags', value: 'Elf, Travel' },
+    { label: 'Also known as', value: '葬送のフリーレン' },
+  ])
+})
+
+test('a fact no source gave is left out rather than shown empty', () => {
+  expect(titleFacts({})).toEqual([])
+  expect(titleFacts({ titles: [{ title: 'One' }], genres: [], tags: [], startDate: 'not a date', episodeCount: 0 })).toEqual([])
+  expect(titleFacts({ startDate: '2026-10-02', status: MediaStatus.Releasing }, { locale: 'en-US' }), 'a run still airing has no end')
+    .toEqual([{ label: 'Status', value: 'Airing' }, { label: 'Aired', value: 'Oct 2, 2026' }])
+})
+
+const TZ = process.env.TZ
+const inZone = <T>(zone: string, read: () => T): T => {
+  process.env.TZ = zone
+  try { return read() } finally { if (TZ === undefined) delete process.env.TZ; else process.env.TZ = TZ }
+}
+const aired = (media: Parameters<typeof titleFacts>[0]) => titleFacts(media, { locale: 'en-US' }).find(({ label }) => label === 'Aired')?.value
+
+test('Aired is the day the source named, west of Greenwich too', () => {
+  for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+    // AniList's shape, then Jikan's
+    expect(inZone(zone, () => aired({ startDate: 'Fri, 29 Sep 2023 00:00:00 GMT', endDate: 'Fri, 22 Mar 2024 00:00:00 GMT' })), zone)
+      .toBe('Sep 29, 2023 to Mar 22, 2024')
+    expect(inZone(zone, () => aired({ startDate: '2023-09-29T00:00:00+00:00', endDate: '2024-03-22T00:00:00+00:00' })), zone)
+      .toBe('Sep 29, 2023 to Mar 22, 2024')
+  }
+})
+
+test('Aired names one day when the run started and ended on it, and no end while it airs', () => {
+  expect(aired({ startDate: '2024-08-30', endDate: '2024-08-30' })).toBe('Aug 30, 2024')
+  for (const status of [MediaStatus.Releasing, MediaStatus.NotYetReleased]) {
+    expect(aired({ status, startDate: '2026-10-02', endDate: 'Fri, 18 Dec 2026 15:00:00 GMT' }), status).toBe('Oct 2, 2026')
+  }
+})
+
+test('the second title is the first that reads differently from the main one', () => {
+  expect(secondTitle(FRIEREN.titles)).toBe('Sousou no Frieren')
+  expect(secondTitle([{ title: 'Same' }, { title: 'Same' }])).toBeUndefined()
+  expect(secondTitle(undefined)).toBeUndefined()
+})
+
+test('Play follows the tracking: Rewatch once completed, Continue once watched, Play otherwise', () => {
+  expect(playLabel(undefined)).toBe('Play')
+  expect(playLabel({ status: 'PLANNING', progress: 0 })).toBe('Play')
+  expect(playLabel({ status: 'WATCHING', progress: 3 })).toBe('Continue')
+  expect(playLabel({ status: 'COMPLETED', progress: 28 })).toBe('Rewatch')
+})
+
+test('Play opens the first episode, Continue the one after the progress, and neither an unreleased one', () => {
+  const episodes = [1, 2, 3].map(episodeNumber => ({ episodeNumber, uri: `e${episodeNumber}`, unreleased: episodeNumber === 3 }))
+  expect(playTarget(episodes, undefined)).toEqual({ label: 'Play', episodeUri: 'e1' })
+  expect(playTarget(episodes, { status: 'WATCHING', progress: 1 })).toEqual({ label: 'Continue', episodeUri: 'e2' })
+  expect(playTarget(episodes, { status: 'COMPLETED', progress: 3 })).toEqual({ label: 'Rewatch', episodeUri: 'e1' })
+  expect(playTarget(episodes, { status: 'WATCHING', progress: 2 }), 'the next one is not out').toBeUndefined()
+  expect(playTarget([{ episodeNumber: 1, uri: null, unreleased: false }], undefined), 'nowhere to watch it').toBeUndefined()
+})
+
+test('the page is its own route, beside the modal\'s', () => {
+  expect(getRoutePath(Route.TITLE, { uri: 'ag:(mal:1)' })).toBe('/title/ag:(mal:1)')
+  expect(getRouterRoutePath(Route.TITLE)).toBe('/title/:uri')
+  const router = readFileSync(fileURLToPath(new URL('../../../src/router/index.tsx', import.meta.url)), 'utf-8')
+  expect(router).toContain('<WRoute path={getRouterRoutePath(Route.TITLE)} component={Title}/>')
+})
+
+// media-modal.tsx cannot be imported here (see modal-media.test.ts), so its link is read off the source
+test('the modal links to the page for the address it has grown to, with the session\'s flags', () => {
+  const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
+  expect(modal).toContain('<Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>')
+  expect(modal).toContain('const search = carriedSearch(useSearch())')
+})

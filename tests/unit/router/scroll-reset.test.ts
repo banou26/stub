@@ -76,6 +76,11 @@ describe('resetsScroll', () => {
     expect(resetsScroll(go('/search?query=nar', '/search?query=naru', 'replace'))).toBe(false)
   })
 
+  test('the title page growing its address is the same page, and stays where the reader is', () => {
+    expect(resetsScroll(go('/title/ag:(mal:1)', '/title/ag:(anilist:9,mal:1)', 'replace'))).toBe(false)
+    expect(resetsScroll(go('/title/ag:(mal:1)', '/title/ag:(mal:2)', 'push')), 'a link to another title').toBe(true)
+  })
+
   test('a replace that changes the page is a redirect, and the new page starts at the top', () => {
     expect(resetsScroll(go('/search/naruto', '/search?query=naruto', 'replace'))).toBe(true)
   })

@@ -1,37 +1,31 @@
-import type { GetMediaModalSubscription, GetReleasingMediaPageSubscription } from '../../generated/graphql'
-import type { Episode } from '../../generated/schema/types.generated'
+import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import type { RouteParams } from '../path'
-import type { WatchSource } from '../../components/source-selector'
+import type { DetailsEpisode } from './media-details'
 
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
-import { Link, Redirect, useLocation, useParams } from 'wouter'
+import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
-import { MediaCategory, MediaDescriptionContentType, OriginFilter } from '../../generated/graphql'
+import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import { LucidePause, LucidePlay } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
-import TextEllipsis from '../../components/text-ellipsis'
 import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
 import TraceLink from '../debug/link'
-import { gql } from '../../generated'
-import { AggregatedUri, asAggregatedUri, fromAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
+import { carriedSearch } from '../debug/trace'
+import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
 import { listedMediaFor } from './modal-media'
-import { isUpcoming, movieFacts } from './movie'
-import { firstUnreleased, isUnreleased } from './episodes'
-import { nextThumbnail } from '../../utils/thumbnails'
+import { isMovieMedia, isUpcoming, movieFacts } from './movie'
+import { Episodes, GET_MEDIA_DETAILS, releasedAtOf, SourceLinks, useWatchSources } from './media-details'
 import { getRoutePath, Route } from '../path'
-import { releaseDateAttribute, releaseDateDisplay, releaseDateLabel } from '../../utils/release-date'
-import { canPlay } from '../../sources/playable'
-import OriginIcon from '../../components/origin-icon'
+import { releaseDateLabel } from '../../utils/release-date'
 import SourceSelector from '../../components/source-selector'
 import { useCoverUrl } from '../../utils/use-cover-url'
-import { episodeOriginIds } from './episode-origins'
 import { layer } from '../../layers'
 
 const style = css`
@@ -58,6 +52,8 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: hsl(206 22% 7% / 35%) 0px 10px 38px -10px, hsl(206 22% 7% / 20%) 0px 10px 20px -15px;
   overflow: hidden;
   margin: auto;
+  /* it takes the focus on open (see ModalBackdrop), and a box is not a control to ring */
+  outline: none;
 
   @media (min-width: 1024px) {
       max-width: 100rem;
@@ -148,6 +144,22 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           }
         }
       }
+
+      & > .more {
+        align-self: center;
+        margin-left: auto;
+        padding: 0.8rem 1.4rem;
+        border-radius: 0.6rem;
+        border: 0.1rem solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        font-size: 1.4rem;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      & > .more:hover { background: rgba(255, 255, 255, 0.12); }
     }
 
     & > .movie {
@@ -201,111 +213,8 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
-    .episodes {
+    & > .episodes {
       margin-top: 4rem;
-      border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
-      .episode {
-        position: relative;
-        display: flex;
-        border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
-        color: rgb(255, 255, 255);
-        text-decoration: none;
-        overflow: hidden;
-        height: 10rem;
-
-        & > .episode-link {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-          color: inherit;
-          text-decoration: none;
-        }
-
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        &.unreleased {
-          opacity: 0.45;
-        }
-
-        .number {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 2rem;
-          font-weight: bold;
-          min-width: 7.5rem;
-        }
-
-        .thumbnail {
-          flex-shrink: 0;
-          margin: auto 0;
-          height: 7.5rem;
-          aspect-ratio: 16 / 9;
-          object-fit: cover;
-          background-color: rgb(35, 35, 35);
-          border-radius: .5rem;
-          margin-right: 2.5rem;
-          /* decorative only, let the row link under it take hovers and clicks */
-          pointer-events: none;
-        }
-
-        .content {
-          display: flex;
-          flex-direction: column;
-          /*align-items: center;*/
-          justify-content: center;
-
-          & > .header {
-            display: flex;
-
-            & > .title {
-             font-size: 2rem;
-             font-weight: bold;
-            }
-            & > .origins {
-              position: relative;
-              z-index: 1;
-              display: flex;
-              align-items: center;
-              margin-left: 1rem;
-            }
-          }
-
-          & > .description {
-            margin-top: 0.5rem;
-            max-height: 6rem;
-            overflow: hidden;
-
-            * > .ellipsis {
-              max-height: 6rem;
-              white-space: pre-wrap;
-              overflow: hidden;
-            }
-          }
-        }
-
-        .side {
-          /* auto rather than a grown .content: the row's other children keep the widths they had, and
-             the date sits against the right edge however long the title and description turn out */
-          margin-left: auto;
-          display: flex;
-          align-items: center;
-          flex-shrink: 0;
-          padding: 0 2.5rem 0 2rem;
-          /* decorative, like the thumbnail above it: the whole row is one link */
-          pointer-events: none;
-
-          & > .date {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.8);
-            white-space: nowrap;
-            text-align: right;
-          }
-        }
-      }
     }
   }
 }
@@ -322,6 +231,10 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
     & > .content {
       padding: 1.5rem;
+
+      & > .header {
+        flex-wrap: wrap;
+      }
 
       & > .header > .title {
         font-size: 2.2rem;
@@ -340,238 +253,13 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
-      .episodes {
+      & > .episodes {
         margin-top: 2.5rem;
-
-        .episode {
-          height: auto;
-          min-height: 7rem;
-          padding: 0.8rem 0;
-
-          .number {
-            min-width: 3.5rem;
-            font-size: 1.6rem;
-          }
-
-          .thumbnail {
-            height: 5rem;
-            margin-right: 1rem;
-          }
-
-          .content {
-            & > .header > .title {
-              font-size: 1.5rem;
-            }
-            & > .description {
-              font-size: 1.3rem;
-              max-height: 4.5rem;
-            }
-          }
-        }
       }
     }
   }
 }
 `
-
-const GET_MEDIA_MODAL = gql(`
-  subscription GetMediaModal($input: MediaInput!, $descriptionInput: MediaDescriptionInput!) {
-    media(input: $input) {
-      ...MediaFragment
-      titles {
-        language
-        title
-        score
-      }
-      descriptions(input: $descriptionInput) {
-        language
-        description
-      }
-      covers {
-        language
-        url
-      }
-      banners {
-        language
-        url
-      }
-      trailers {
-        uri
-        origin
-        id
-        url
-        thumbnail
-      }
-      popularity
-      categories
-      startDate
-      genres
-      franchise {
-        nodes {
-          uri
-          format
-          status
-          episodeCount
-          startDate
-          titles {
-            title
-          }
-        }
-        edges {
-          from
-          to
-          relation
-        }
-      }
-      relations {
-        relation
-        format
-        node {
-          _id
-          uri
-          origin
-          id
-          url
-          status
-          episodeCount
-          startDate
-          titles {
-            title
-          }
-          covers {
-            url
-            color
-          }
-        }
-      }
-      episodes {
-        ...EpisodeFragment
-        episodeNumber
-        releaseDate
-        runtime
-        titles {
-          title
-        }
-        shortDescriptions {
-          language
-          shortDescription
-        }
-        thumbnails {
-          url
-        }
-        handles {
-          relation
-          node {
-            ...EpisodeFragment
-            episodeNumber
-            releaseDate
-            titles {
-              title
-            }
-            shortDescriptions {
-              language
-              shortDescription
-            }
-            thumbnails {
-              url
-            }
-          }
-        }
-      }
-      handles {
-        relation
-        node {
-          ...MediaFragment
-          handles {
-            relation
-            node {
-              ...MediaFragment
-              episodes {
-                ...EpisodeFragment
-              }
-            }
-          }
-          episodes {
-            ...EpisodeFragment
-          }
-        }
-      }
-      episodeCount
-      status
-      nextAiringEpisode {
-        episodeNumber
-        airingAt
-      }
-    }
-  }
-`)
-
-const GET_MEDIA_MODAL_ORIGINS = gql(`
-  subscription GetMediaModalOrigins($input: OriginPageInput!) {
-    originPage(input: $input) {
-      nodes {
-        ...OriginFragment
-      }
-    }
-  }
-`)
-
-type ModalEpisode = NonNullable<GetMediaModalSubscription['media']>['episodes'][number]
-
-// The store already merges a date across the sources it folded into this row, so the handle is a
-// fallback rather than the path: it covers an episode whose date only one source knows and which
-// was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
-// catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
-const releasedAtOf = (episode: ModalEpisode | undefined) =>
-  episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
-
-/** Where an episode plays or can be watched: stub's own players first, then the sites' own pages. */
-const useWatchSources = (episode: ModalEpisode | undefined, mediaUri: string): WatchSource[] => {
-  const originIds = episode ? episodeOriginIds(episode) : undefined
-  const [{ data: originData }] = useSubscription({
-    query: GET_MEDIA_MODAL_ORIGINS,
-    variables: { input: { ids: originIds ?? [], filters: [OriginFilter.IsNotApiOnly] } },
-    pause: !originIds
-  })
-
-  if (!episode) return []
-  return (originData?.originPage?.nodes ?? [])
-    .map(origin => {
-      // SAME_AS only. Everything below routes into PLAYBACK: `sourceUri` is handed to the watch route
-      // and resolved back to a handle to play, so a node that is merely PART_OF this episode would be
-      // asked to play a different episode. No source emits a PART_OF episode handle today; the filter
-      // is here so that the day one does, it shows up as a missing row rather than a wrong stream.
-      const handles =
-        (episode?.handles ?? [])
-          .filter(handle => handle.relation === 'SAME_AS' && handle.node.origin === origin.id)
-          .map(handle => handle.node)
-      const handle = handles.at(0)
-      const sourceUri = handle?.uri
-      const playable = Boolean(canPlay(origin.id) && handle?.url)
-      // several releases always route inward with no sourceUri, so the user picks on the watch page
-      const watchPath =
-        episode.uri
-          ? handles.length > 1
-            ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
-            : sourceUri
-              ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
-              : undefined
-          : undefined
-      const multiple = handles.length > 1
-      return {
-        id: origin.id,
-        name: origin.name ?? origin.id,
-        icon: origin.icon,
-        color: origin.color,
-        href: multiple ? watchPath : playable ? watchPath : (handle?.url ?? undefined),
-        external: multiple ? false : !playable,
-        active: false,
-      } satisfies WatchSource
-    })
-    .filter(source => source.href)
-    .sort((a, b) => Number(a.external) - Number(b.external))
-    .slice(0, 5)
-}
 
 /**
  * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens stub's
@@ -579,7 +267,7 @@ const useWatchSources = (episode: ModalEpisode | undefined, mediaUri: string): W
  */
 const MoviePlay = (
   { episode, mediaUri, startDate, genres }:
-  { episode: ModalEpisode | undefined, mediaUri: string, startDate?: string | null, genres?: readonly string[] | null }
+  { episode: DetailsEpisode | undefined, mediaUri: string, startDate?: string | null, genres?: readonly string[] | null }
 ) => {
   const sources = useWatchSources(episode, mediaUri)
   const released = releasedAtOf(episode) ?? startDate
@@ -594,77 +282,6 @@ const MoviePlay = (
         {sources.length ? <SourceSelector compact sources={sources}/> : undefined}
         {upcoming && day ? <span className="when">Releases {day}</span> : undefined}
         {!upcoming && !sources.length ? <span className="when">No sources yet</span> : undefined}
-      </div>
-    </div>
-  )
-}
-
-const Episode = (
-  { episode, index, mediaUri, unreleased, airingAt }:
-  { episode: ModalEpisode, index: number, mediaUri: string, unreleased: boolean, airingAt?: string }
-) => {
-  // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
-  const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
-  const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
-  const releasedAt = releasedAtOf(episode) ?? airingAt
-  const released = releaseDateDisplay(releasedAt)
-  const sources = useWatchSources(unreleased ? undefined : episode, mediaUri)
-
-  return (
-    <div className={unreleased ? 'episode unreleased' : 'episode'}>
-      {
-        episode.uri && !unreleased
-          ? (
-            <Link
-              className="episode-link"
-              href={getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })}
-            />
-          )
-          : undefined
-      }
-      <div className="number">{episode.episodeNumber}</div>
-      {
-        thumbnail
-          ? <img className="thumbnail" src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}></img>
-          : <div className="thumbnail"></div>
-      }
-      {
-        episode.titles?.length
-          ? (
-            <div className="content">
-              <div className="header">
-                <div className="title">{episode.titles.at(0)?.title}</div>
-                <span className="origins">
-                  <SourceSelector compact sources={sources} />
-                </span>
-              </div>
-              {
-                episode.shortDescriptions?.at(0)
-                  ? (
-                    <div className="description">
-                      <TextEllipsis className="ellipsis">
-                        {episode.shortDescriptions?.at(0)?.shortDescription}
-                      </TextEllipsis>
-                    </div>
-                  )
-                  : undefined
-              }
-            </div>
-          )
-          : (
-            <div className="content">
-              <div className="header">
-                <div className="title">{unreleased ? 'Unreleased episode' : `Episode ${index + 1}`}</div>
-              </div>
-            </div>
-          )
-      }
-      <div className="side">
-        {
-          released
-            ? <time className="date" dateTime={releaseDateAttribute(releasedAt)}>{released}</time>
-            : undefined
-        }
       </div>
     </div>
   )
@@ -695,7 +312,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   }, [params.uri])
 
   const [{ data }] = useSubscription({
-    query: GET_MEDIA_MODAL,
+    query: GET_MEDIA_DETAILS,
     variables: {
       input: {
         uri
@@ -707,38 +324,8 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     pause: !uri
   })
   const media = data?.media ?? foundMedia
-  const origins =
-    data?.media?.uri
-      ? fromAggregatedUri(data.media.uri as AggregatedUri)?.handleUrisValues
-      : undefined
-  // The aggregated uri names the SAME_AS cluster and nothing else, by construction: `aggregateMedia`
-  // builds it from the cluster members. So an origin that reaches this media only as PART_OF, which is
-  // every origin that cannot name a run, was never in this list and its row was never rendered. Its
-  // url was carried all the way to the client and dropped one line short of the screen.
-  //
-  // Unioned rather than replaced: the uri can name an origin whose handle row is not in this
-  // selection, so deriving from `handles` alone would silently remove rows that render today.
-  const originIds = [
-    ...new Set([
-      ...origins?.map(origin => origin.origin) ?? [],
-      ...media?.handles?.map(handle => handle.node.origin) ?? [],
-    ])
-  ]
-  const [{ data: originData }] = useSubscription({
-    query: GET_MEDIA_MODAL_ORIGINS,
-    variables: { input: { ids: originIds!, filters: [OriginFilter.IsNotApiOnly] } },
-    pause: !originIds
-  })
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
-  const episodes = media && 'episodes' in media ? media.episodes ?? [] : []
-  const dated = episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
-  const nextAiring = data?.media?.nextAiringEpisode
-  const firstUnreleasedEpisode = firstUnreleased({ status: data?.media?.status, nextAiringEpisode: nextAiring, episodes: dated })
-  // a film released in parts keeps its episode list, so only a movie of one episode or none gets the play bar
-  const isMovie = Boolean(
-    media && 'categories' in media && media.categories?.includes(MediaCategory.Movie)
-    && ('episodes' in media ? (media.episodes?.length ?? 0) : 0) <= 1
-  )
+  const isMovie = Boolean(data?.media && isMovieMedia(data.media))
   const description = useMemo(
     () =>
       media
@@ -779,6 +366,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // does, holding the previous route's empty params, so gating on the uri would redirect home on
   // every back and forward (see `fromAggregatedUri` in utils/uri.ts).
   const [open, onOpenChange] = useState(true)
+  const search = carriedSearch(useSearch())
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
@@ -854,44 +442,8 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
-          <span className="origins">
-            {
-              originData
-                ?.originPage
-                ?.nodes
-                ?.map(origin => {
-                  // BOTH RELATIONS, deliberately, and this row is the whole point of the
-                  // refactor. It wants a url and an origin and nothing else: no sameness is
-                  // assumed and nothing is merged across it. A PART_OF handle is exactly as
-                  // good here as a SAME_AS one, which is why IMDb can finally render as a link
-                  // rather than the dead grey icon in the branch below.
-                  // SAME_AS FIRST, then anything. `handles` is ordered by score, which says
-                  // nothing about relation, so a plain `find` could hand the Crunchyroll icon a
-                  // PART_OF `cr:<seriesId>` while the SAME_AS `cr:<seriesId>-<seasonId>` for
-                  // this very cour sat later in the list.
-                  const forOrigin =
-                    media?.handles.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
-                  const link =
-                    (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))
-                      ?.node.url
-                  if (!origin.icon) return undefined
-                  return (
-                    link
-                      ? (
-                        <a className="origin" href={link} target="_blank" rel="noreferrer" title={origin.name}>
-                          <OriginIcon icon={origin.icon} name={origin.name ?? origin.id}/>
-                        </a>
-                      )
-                      : (
-                        <div className="origin" title={origin.name}>
-                          <OriginIcon icon={origin.icon} name={origin.name ?? origin.id}/>
-                        </div>
-                      )
-                  )
-                })
-                .filter(Boolean)
-            }
-          </span>
+          <SourceLinks uri={data?.media?.uri} handles={media?.handles}/>
+          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>
         </div>
         {/* on the address the store has grown to, so the trackers are asked again as the media
             gains ids; nothing until the worker has answered for this media at all */}
@@ -934,21 +486,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             />
           }
         />
-        {isMovie ? undefined : <div className="episodes">
-          {
-            media &&
-            episodes.map((episode, index) =>
-              <Episode
-                key={episode.episodeNumber ?? episode.uri ?? index}
-                episode={episode}
-                index={index}
-                mediaUri={media.uri}
-                unreleased={isUnreleased(dated[index]!, firstUnreleasedEpisode)}
-                airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
-              />
-            )
-          }
-        </div>}
+        {isMovie || !data?.media ? undefined : <Episodes media={data.media}/>}
       </div>
     </ModalBackdrop>
   )

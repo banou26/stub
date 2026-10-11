@@ -13,7 +13,8 @@ import { trackerCheck } from '../worker'
 import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
 
-const MEDIA_TRACKING = gql(`
+/** One media's tracking. Exported so a page that reads the status shares this operation rather than asking again. */
+export const MEDIA_TRACKING = gql(`
   subscription MediaTracking($input: TrackingInput!) {
     tracking(input: $input) {
       _id

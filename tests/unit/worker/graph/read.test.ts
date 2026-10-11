@@ -11,7 +11,7 @@
  *
  * Every case names the mutation that reddens it.
  */
-import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
@@ -101,7 +101,7 @@ const MEDIA_FRAGMENT = documentNamed('../../../../src/worker/resolvers/media/fra
 const EPISODE_FRAGMENT = documentNamed('../../../../src/worker/resolvers/episode/fragment.ts', 'EpisodeFragment')
 const HOME_PAGE = documentNamed('../../../../src/router/home/index.tsx', 'GetReleasingMediaPage')
 const SEARCH_PAGE = documentNamed('../../../../src/router/search/index.tsx', 'SearchMediaPage')
-const MEDIA_MODAL = documentNamed('../../../../src/router/home/media-modal.tsx', 'GetMediaModal')
+const MEDIA_MODAL = documentNamed('../../../../src/router/home/media-details.tsx', 'GetMediaDetails')
 
 // ---------------------------------------------------------------------------------------------
 // One yoga over the REAL generated schema, whose `Media` and `Episode` maps are THE APP'S OWN and

@@ -4,8 +4,9 @@ import { FloatingFocusManager, FloatingOverlay, FloatingPortal, useClick, useFlo
 
 /**
  * A modal over the page: a backdrop that locks the page's scroll and calls `onClose` on a press on
- * itself, never on one inside the modal (its `.modal` box), with focus kept inside. It takes no keys,
- * so Space still reaches the controls inside, a check box among them.
+ * itself, never on one inside the modal (its `.modal` box), with focus kept inside and starting on that
+ * box rather than on its first control. It takes no keys, so Space still reaches the controls inside, a
+ * check box among them.
  */
 const ModalBackdrop = ({ onClose, children, ...rest }: HTMLAttributes<HTMLDivElement> & { onClose: () => void }) => {
   const { refs, context } = useFloating({
@@ -19,7 +20,7 @@ const ModalBackdrop = ({ onClose, children, ...rest }: HTMLAttributes<HTMLDivEle
   return (
     <FloatingPortal>
       <FloatingOverlay lockScroll {...rest} ref={refs.setReference} {...getReferenceProps()}>
-        <FloatingFocusManager context={context}>
+        <FloatingFocusManager context={context} initialFocus={refs.floating}>
           <div className="modal" ref={refs.setFloating} {...getFloatingProps()}>
             {children}
           </div>

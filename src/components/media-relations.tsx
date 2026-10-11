@@ -127,7 +127,8 @@ const cardStyle = css`
   }
 `
 
-const RelationCard = ({ edge, search }: { edge: RelationEdge, search: string }) => {
+/** One related work as a card that opens it; `search` is the session's flags, from `carriedSearch`. */
+export const RelationCard = ({ edge, search }: { edge: RelationEdge, search: string }) => {
   const cover = useCoverUrl(edge.node.covers)
   const title = edge.node.titles?.at(0)?.title
   // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a

@@ -28,6 +28,8 @@ export type Navigation = {
 export const isHomeFamily = (pathname: string): boolean =>
   pathname === '/' || pathname === '/media' || pathname.startsWith('/media/')
 
+const isTitle = (pathname: string) => pathname.startsWith('/title/')
+
 /**
  * Whether a navigation resets the page to the top.
  *
@@ -35,7 +37,8 @@ export const isHomeFamily = (pathname: string): boolean =>
  *   of that would send every back button to the top of a page the person had already read.
  * - Anything within the home family stays: the modal rides over the page, see `isHomeFamily`.
  * - A replace is the url as state (the search filters, the header's typing, a canonical media uri)
- *   rather than the person going somewhere, so it resets only when it changes the page.
+ *   rather than the person going somewhere, so it resets only when it changes the page. The title
+ *   page growing its address as sources merge is the same page.
  * - Everything else is somebody going somewhere, and a page somebody asked for starts at the top.
  *   That includes the same page again: the next episode or another source from the watch page.
  */
@@ -43,7 +46,7 @@ export const resetsScroll = ({ from, to, kind, asked = false }: Navigation): boo
   if (asked) return true
   if (kind === 'pop') return false
   if (isHomeFamily(from.pathname) && isHomeFamily(to.pathname)) return false
-  if (kind === 'replace') return from.pathname !== to.pathname
+  if (kind === 'replace') return from.pathname !== to.pathname && !(isTitle(from.pathname) && isTitle(to.pathname))
   return true
 }
 

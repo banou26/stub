@@ -19,8 +19,9 @@ import { loadSeedEpisodes, loadSeedIndex, seedMedia, seedRunFor, seedSeasonPage 
 // a site you can go to, for what is actually a table compiled at build time.
 //
 // But know what actually keeps this out of the UI, because it is NOT the missing icon.
-// `media-modal.tsx:662` really does render the origin row as `if (!origin.icon) return undefined`,
-// and that check is real, but it is unreachable from here: `isApiOnly` below is true, and all three
+// `SourceLinks` in `src/router/home/media-details.tsx` really does render the origin row as
+// `if (!origin.icon) return undefined`, and that check is real, but it is unreachable from here:
+// `isApiOnly` below is true, and all three
 // `originPage` consumers pass `OriginFilter.IsNotApiOnly`, which `db.ts:144-146` resolves to keeping
 // only `!isApiOnly`. Kitsu is `isApiOnly = true` too, so it is absent from that row as well. So the
 // icon is dead weight rather than a hazard, and nobody should later treat its absence as the guard.

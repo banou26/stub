@@ -1,4 +1,4 @@
-import type { GetMediaModalSubscription } from '../generated/graphql'
+import type { GetMediaDetailsSubscription } from '../generated/graphql'
 
 import type { EdgeProps, NodeProps } from '@xyflow/react'
 
@@ -41,7 +41,7 @@ import '@xyflow/react/dist/style.css'
  * label is `<text>` with explicit lines instead.
  */
 
-type Franchise = NonNullable<NonNullable<GetMediaModalSubscription['media']>['franchise']>
+type Franchise = NonNullable<NonNullable<GetMediaDetailsSubscription['media']>['franchise']>
 
 
 const triggerStyle = css`

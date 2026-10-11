@@ -11,6 +11,7 @@ import Header from '../components/header'
 import Footer from '../components/footer'
 import PluginPrompt from '../components/plugin-prompt'
 import Home from './home'
+import Title from './title'
 import Search from './search'
 import Legal from './legal'
 import Privacy from './privacy'
@@ -62,6 +63,7 @@ const RouterRoot = () => (
         <Switch>
           <WRoute path={getRouterRoutePath(Route.HOME)} component={Home}/>
           <WRoute path={getRouterRoutePath(Route.MEDIA)} component={Home}/>
+          <WRoute path={getRouterRoutePath(Route.TITLE)} component={Title}/>
           <WRoute path={getRouterRoutePath(Route.SEARCH)} component={Search}/>
           <WRoute path={getRouterRoutePath(Route.SEARCH_LEGACY)} component={LegacySearch}/>
           <WRoute path={getRouterRoutePath(Route.LEGAL)} component={Legal}/>
