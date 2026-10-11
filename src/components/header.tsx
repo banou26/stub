@@ -172,28 +172,24 @@ export const Header = () => {
   const [, navigate] = useLocation()
   const [onLoginCallback] = useRoute(getRouterRoutePath(Route.LOGIN_CALLBACK))
   const [onWatch] = useRoute(getRouterRoutePath(Route.WATCH))
+  const [onSearch] = useRoute(getRouterRoutePath(Route.SEARCH))
   // The filters live in the query string, so both halves of the box read it: the value shown, and the
-  // filter set a keystroke must carry forward. Rebuilding a bare `/search?q=...` here would wipe the
-  // year, season, format and genres a user had set, on a 350 ms debounce, from the first keypress.
-  const search = useSearch()
-  const filters = parseSearchFilters(search)
+  // filter set a keystroke must carry forward, so typing never wipes the year, season, format and
+  // genres a user had set.
+  const filters = parseSearchFilters(useSearch())
   const routeQuery = filters.query
-  // The debounced navigation fires from a closure minted at the keystroke. Read the filters through a
-  // ref instead, so a control touched during the 350 ms window is carried forward rather than undone.
-  const latestFilters = useRef(filters)
-  latestFilters.current = filters
   const [query, setQuery] = useState(routeQuery)
   const inputRef = useRef<HTMLInputElement>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (document.activeElement !== inputRef.current && routeQuery !== query) setQuery(routeQuery)
   }, [routeQuery])
 
-  const runSearch = (value: string, replace: boolean) => {
+  // Pushes from any other page, so Back returns there, and replaces on the search page.
+  const runSearch = (value: string) => {
     const trimmed = value.trim()
-    if (!trimmed) return
-    navigate(searchPath({ ...latestFilters.current, query: trimmed }), { replace })
+    if (!trimmed && !onSearch) return
+    navigate(searchPath({ ...filters, query: trimmed }), { replace: onSearch })
   }
 
   // /login/callback is an OAuth redirect target that calls close() on mount, not a page anyone reads.
@@ -210,8 +206,7 @@ export const Header = () => {
         className="search"
         onSubmit={event => {
           event.preventDefault()
-          if (timer.current) clearTimeout(timer.current)
-          runSearch(query, false)
+          runSearch(query)
           inputRef.current?.blur()
         }}
       >
@@ -225,8 +220,7 @@ export const Header = () => {
           onInput={event => {
             const value = event.currentTarget.value
             setQuery(value)
-            if (timer.current) clearTimeout(timer.current)
-            timer.current = setTimeout(() => runSearch(value, true), 350)
+            runSearch(value)
           }}
         />
       </form>

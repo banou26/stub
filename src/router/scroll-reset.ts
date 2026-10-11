@@ -37,8 +37,7 @@ export const isHomeFamily = (pathname: string): boolean =>
  * - A replace is the url as state (the search filters, the header's typing, a canonical media uri)
  *   rather than the person going somewhere, so it resets only when it changes the page.
  * - Everything else is somebody going somewhere, and a page somebody asked for starts at the top.
- *   That includes the same page again: a search submitted from the listing, the next episode or
- *   another source from the watch page.
+ *   That includes the same page again: the next episode or another source from the watch page.
  */
 export const resetsScroll = ({ from, to, kind, asked = false }: Navigation): boolean => {
   if (asked) return true

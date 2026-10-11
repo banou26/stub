@@ -113,8 +113,8 @@ const run = async () => {
   check(after > 0 && after < before, 'and narrows the results', `${before} then ${after}`)
 
   console.log('\nthe header search box keeps the filters it found')
-  // The regression this exists for: the box used to rebuild a bare /search/<term>, on a 350 ms
-  // debounce, wiping every filter from the first keypress.
+  // The regression this exists for: the box used to rebuild a bare /search/<term>, wiping every
+  // filter from the first keypress.
   await page.getByRole('textbox', { name: 'Search', exact: true }).fill('tensei')
   await page.waitForFunction(() => new URL(location.href).searchParams.get('q') === 'tensei', null, { timeout: 5_000 })
     .then(() => ok('typing reaches the url'))
@@ -130,19 +130,6 @@ const run = async () => {
     .then(() => ok('the format is gone'))
     .catch(() => bad('the format is gone', page.url()))
   check(params(page).get('season') === linked?.get('season'), 'and the season is not', page.url())
-
-  console.log('\nthe page field is not overwritten under the reader')
-  // The header's box holds its own 350 ms timer in a ref that survives a focus change, so a keystroke
-  // there can land while the page's own field has focus.
-  await page.goto(`${ORIGIN}/search?season=SUMMER&year=2026`, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2_000)
-  await page.getByRole('textbox', { name: 'Search', exact: true }).fill('one')
-  const own = page.getByRole('textbox', { name: 'Search by title', exact: true })
-  await own.click()
-  await own.fill('slowly typed')
-  await page.waitForTimeout(2_000)
-  const held = await own.inputValue()
-  check(held === 'slowly typed', 'what the reader typed is still there', JSON.stringify(held))
 
   console.log('\nthe old /search/<term> address still lands somewhere')
   await page.goto(`${ORIGIN}/search/mushoku`, { waitUntil: 'domcontentloaded' })

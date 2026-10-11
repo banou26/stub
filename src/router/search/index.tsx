@@ -11,7 +11,7 @@ import { MediaSort } from '../../generated/graphql'
 import { getRoutePath, Route } from '../path'
 import {
   CATEGORY_OPTIONS, FORMAT_OPTIONS, KNOWN_GENRES, SEASON_OPTIONS, STATUS_OPTIONS,
-  YEAR_MIN, hasSearchFilters, isKnownGenre, namesAQuery, parseSearchFilters, searchHeading, searchPath,
+  YEAR_MIN, hasSearchFilters, isKnownGenre, namesAQuery, parseSearchFilters, searchFiltersQuery, searchHeading, searchPath,
   yearMax,
 } from './params'
 import MediaTitle from '../../components/media-title'
@@ -245,30 +245,33 @@ const Search = () => {
   // button pointing at wherever the user came from rather than at every intermediate filter set.
   const setFilters = (next: Partial<SearchFilters>) => navigate(searchPath({ ...filters, ...next }), { replace: true })
 
-  // The text field is uncontrolled between keystrokes: typing writes the url on a debounce, and the url
-  // writes the field back only when it changed from somewhere else (the header's box, a chip, a link).
+  // The url writes the field back only when it changed from somewhere else (the header's box, a chip,
+  // a link, Back), and never while the field has focus, so a keystroke is not overwritten mid-word.
   const [term, setTerm] = useState(filters.query)
   const termRef = useRef<HTMLInputElement>(null)
-  // Never while the user is typing in it. The header's box carries its own 350 ms timer in a ref that
-  // survives a focus change, so a keystroke there can land while this field has focus and would
-  // otherwise overwrite a half-typed word mid-flight. The header guards its own field the same way.
   useEffect(() => {
     if (document.activeElement === termRef.current) return
     setTerm(current => current.trim() === filters.query ? current : filters.query)
   }, [filters.query])
-  // `search` is a dependency, not just `term`: without it a pending keystroke would fire 350 ms later
-  // holding the filter set from BEFORE a control was touched, and write it back over the new one.
-  useEffect(() => {
-    if (term.trim() === filters.query) return
-    const timer = setTimeout(() => setFilters({ query: term }), 350)
-    return () => clearTimeout(timer)
-  }, [term, search])
 
-  const input = useMemo(() => variablesFor(filters), [filters])
+  // The url follows every keystroke, the fetch only the query that has held for 350 ms, so a half-typed
+  // word never starts a subscription. A link, a reload or Back fetches at once; arriving from the
+  // header's first keystroke (its box still focused) does not fetch that one letter.
+  const [fetchedQuery, setFetchedQuery] = useState(() => document.activeElement?.matches('header input') ? '' : filters.query)
+  useEffect(() => {
+    const timer = setTimeout(() => setFetchedQuery(filters.query), 350)
+    return () => clearTimeout(timer)
+  }, [filters.query])
+  const pending = fetchedQuery !== filters.query
+
+  // Keyed and paused on what is fetched rather than on the url, so typing a letter and deleting it
+  // again neither restarts the subscription nor loses the results it already holds.
+  const fetched = { ...filters, query: fetchedQuery }
+  const input = useMemo(() => variablesFor(fetched), [searchFiltersQuery(fetched)])
   const [{ data }] = useSubscription({
     query: SEARCH_MEDIA_PAGE,
     variables: { input, shortDescriptionInput: { count: 1 } },
-    pause: !asked,
+    pause: !namesAQuery(fetched),
   })
 
   // Read from storage once rather than kept in the url: see ./display.ts for why a layout is not part
@@ -284,7 +287,7 @@ const Search = () => {
     setGraceElapsed(false)
     const timer = setTimeout(() => setGraceElapsed(true), 5_000)
     return () => clearTimeout(timer)
-  }, [search])
+  }, [search, input])
 
   // Only the rows this filter set actually asked for.
   //
@@ -302,15 +305,15 @@ const Search = () => {
   // `result.operation` is NOT the test it looks like. It becomes the new operation the moment the
   // subscription restarts, while `data` is still the old page, so comparing it passes in exactly the
   // window the cards are stale. What identifies the data is the input that was current when `data`
-  // last CHANGED, which is what these refs hold. `input` is memoized on the filters, so identity is
-  // the comparison.
+  // last CHANGED, which is what these refs hold. `input` is memoized on the fetched filters, so
+  // identity is the comparison, and `pending` covers the window where the url is already ahead of it.
   const shownData = useRef(data)
   const shownInput = useRef(input)
   if (data !== shownData.current) {
     shownData.current = data
     shownInput.current = input
   }
-  const nodes = asked && shownInput.current === input ? data?.mediaPage?.nodes ?? [] : []
+  const nodes = asked && !pending && shownInput.current === input ? data?.mediaPage?.nodes ?? [] : []
 
   /**
    * The two label vocabularies the picker offers, and which url key each one writes to.
@@ -403,7 +406,11 @@ const Search = () => {
               value={term}
               placeholder="Any title"
               aria-label="Search by title"
-              onInput={event => setTerm(event.currentTarget.value)}
+              onInput={event => {
+                const value = event.currentTarget.value
+                setTerm(value)
+                setFilters({ query: value })
+              }}
             />
           </div>
         </FilterField>

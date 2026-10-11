@@ -1,7 +1,7 @@
 // Every navigation the app makes, tabled against the rule. A wrong answer here is either a page that
 // opens 1,200px down (the report that started this, 2026-09-08) or a modal that yanks the home page to
 // the top under itself, and neither errors.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { askForTop, cancelReset, isHomeFamily, resetPending, resetsScroll, scheduleReset, scrollToTop, takeAskedTop } from '../../../src/router/scroll-reset'
 import type { Navigation, NavigationKind } from '../../../src/router/scroll-reset'
@@ -50,7 +50,7 @@ describe('resetsScroll', () => {
     })
   }
 
-  test('the same page pushed again is the page asked for again: a search submitted from the listing', () => {
+  test('the same page pushed again is the page asked for again', () => {
     expect(resetsScroll(go('/search?season=FALL', '/search?season=FALL&query=naruto', 'push'))).toBe(true)
     expect(resetsScroll(go('/search?query=a', '/search?query=a', 'push'))).toBe(true)
   })
