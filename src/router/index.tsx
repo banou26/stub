@@ -71,7 +71,7 @@ const RouterRoot = () => (
           <WRoute path={getRouterRoutePath(Route.SETTINGS)} component={Settings}/>
           <WRoute path={getRouterRoutePath(Route.WATCH)} component={Watch}/>
           <WRoute path={getRouterRoutePath(Route.PARTY)} component={Party}/>
-          <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)} component={Debug}/>
+          <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)}><Debug/></WRoute>
           <WRoute path={getRouterRoutePath(Route.LOGIN_CALLBACK)} component={LoginCallback}/>
           <WRoute component={() => <div css={notFoundStyle}>404 No page found</div>}/>
         </Switch>

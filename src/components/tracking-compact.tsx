@@ -359,7 +359,7 @@ const Chip = (
     whileElementsMounted: autoUpdate,
     middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
   })
-  const press = useClick(context)
+  const { getReferenceProps: getPressProps } = useInteractions([useClick(context)])
   const { getReferenceProps, getFloatingProps } = useInteractions([
     useHover(context, { mouseOnly: true, delay: { open: 100 }, handleClose: safePolygon() }),
     useFocus(context),
@@ -368,7 +368,7 @@ const Chip = (
   const name = answer.tracker.name
   return (
     <span ref={refs.setReference} className={className} data-chip={answer.tracker.id} aria-busy={busy ? 'true' : undefined} {...getReferenceProps()}>
-      <button ref={logo} type="button" className="logo-button" aria-label={`${name} entry`} aria-haspopup="dialog" aria-expanded={open} {...press.reference}>
+      <button ref={logo} type="button" className="logo-button" aria-label={`${name} entry`} aria-haspopup="dialog" aria-expanded={open} {...getPressProps()}>
         <Logo answer={answer}/>
       </button>
       {children}

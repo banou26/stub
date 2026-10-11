@@ -149,7 +149,7 @@ export const VolumeControl = (
 
   const volumeIcon = (
     <>
-      <VolumeIcon className="icon-outline" size={30} strokeWidth={3} color="black"/>
+      <VolumeIcon className="icon-outline" size={30} strokeWidth={3} stroke="black"/>
       <VolumeIcon className="icon-body" size={30}/>
     </>
   )

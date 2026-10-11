@@ -205,7 +205,7 @@ export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, ti
       }
       <div className='list-container'>
         <Draggable isDragging={isDragging} setIsDragging={setIsDragging}>
-          <Grid
+          <Grid<{ mediaNodes: typeof mediaNodes }>
             gridRef={virtualListRef}
             className='virtual-list'
             cellComponent={CellComponent}

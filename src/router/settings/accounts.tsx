@@ -75,7 +75,7 @@ const useRefresh = (status: AccountsProps['status'], backend: FknBackend | undef
   }, [status, backend, enabled])
 }
 
-const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement>, children: ComponentChildren }) => (
+const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement | null>, children: ComponentChildren }) => (
   <div className="row account" data-account={id}>
     <div className="head">
       <h3 ref={heading} tabIndex={-1}>{title}</h3>

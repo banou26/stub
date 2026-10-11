@@ -127,7 +127,7 @@ const ScorePicker = (
         disabled={disabled}
         onClick={() => setOpen(value => !value)}
       >
-        <Star size={18} aria-hidden="true" fill={scored ? '#facc15' : 'none'} color={scored ? '#facc15' : 'rgba(255, 255, 255, 0.45)'}/>
+        <Star size={18} aria-hidden="true" fill={scored ? '#facc15' : 'none'} stroke={scored ? '#facc15' : 'rgba(255, 255, 255, 0.45)'}/>
         {scored ? <ScoreFace score={score} scale={scale}/> : undefined}
       </button>
       {open

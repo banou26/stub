@@ -22,7 +22,7 @@ export const ConfirmAction = ({ label, name = label, confirmLabel, busyLabel, qu
   busyLabel: string
   question: string
   onConfirm: () => Promise<unknown> | void
-  home?: RefObject<HTMLElement>
+  home?: RefObject<HTMLElement | null>
 }) => {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
