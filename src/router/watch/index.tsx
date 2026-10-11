@@ -10,7 +10,8 @@ import { remotePicker, remotePlayer } from '../../worker'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
-import { canPlay } from '../../sources/playable'
+import { canPlay, EXTENSION_ONLY_ORIGINS } from '../../sources/playable'
+import { detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
@@ -361,9 +362,16 @@ const Watch = () => {
     [originData, episode?.handles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
   )
 
+  const [backend, setBackend] = useState<FknBackend>()
+  useEffect(() => {
+    let cancelled = false
+    void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
+    return () => { cancelled = true }
+  }, [])
+
   const party = useParty()
   const best = bestSource(playableHandlesOf(episode?.handles), {
-    builtIn: canPlay,
+    builtIn: origin => canPlay(origin) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
     signedOut: origin => origin === 'cr' && siteStatuses.read('crunchyroll')?.state === 'signed-out',
     selfPlaying: players && (origin => Boolean(players[origin])),
   })

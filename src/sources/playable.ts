@@ -20,6 +20,9 @@ import { readDisabledSources } from './disabled-sources'
 
 export const PLAYABLE_ORIGINS: ReadonlySet<string> = new Set(['cr', 'nf'])
 
+/** Origins whose player works only with the FKN browser extension: on the cloud backend it can only ask for it. */
+export const EXTENSION_ONLY_ORIGINS: ReadonlySet<string> = new Set(['nf'])
+
 /**
  * Whether stub has its own player for this origin and the viewer has not turned the source off. The
  * cheap half of `getPlayer`. Read on every call, so a source turned off in Settings loses its play
