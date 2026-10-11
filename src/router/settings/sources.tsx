@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
+import { switchStyle } from '../../components/switch-style'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources } from '../../sources/built-in'
 import { readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
@@ -53,37 +54,8 @@ const style = css`
   .built-in .host { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .built-in label.off .source-name { color: rgba(255, 255, 255, 0.5); }
 
-  input[role='switch'] {
-    appearance: none;
-    flex: none;
-    position: relative;
-    width: 3.6rem;
-    height: 2rem;
-    margin: 0;
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.18);
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  input[role='switch']::before {
-    content: '';
-    position: absolute;
-    top: 0.2rem;
-    left: 0.2rem;
-    width: 1.6rem;
-    height: 1.6rem;
-    border-radius: 50%;
-    background: #fff;
-    transition: transform 0.15s;
-  }
-
-  input[role='switch']:checked { background: #4ade80; }
-  input[role='switch']:checked::before { transform: translateX(1.6rem); }
-  input[role='switch']:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
-
   @media (prefers-reduced-motion: reduce) {
-    input[role='switch'], input[role='switch']::before, .built-in .source-name { transition: none; }
+    .built-in .source-name { transition: none; }
   }
 
   button.link-button {
@@ -294,7 +266,7 @@ const BuiltInSources = () => {
                   <span className="source-name">{source.name}</span>
                   <span className="host">{siteOf(source.url)}</span>
                 </span>
-                <input type="checkbox" role="switch" aria-label={source.name} checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
+                <input type="checkbox" role="switch" css={switchStyle} aria-label={source.name} checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
               </label>
             </li>
           )
