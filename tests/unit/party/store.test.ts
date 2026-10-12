@@ -122,9 +122,9 @@ describe('hosting', () => {
     const heard = vi.fn()
     party.onMessage(heard)
 
-    fake.emit({ type: 'message', message: { seq: 1, from: 'me', at: 1, text: encodePartyMessage({ t: 'nav', path: '/x' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'me', at: 1, text: encodePartyMessage({ t: 'nav', path: '/x' }) } , replayed: false })
     expect(heard).not.toHaveBeenCalled()
-    fake.emit({ type: 'message', message: { seq: 2, from: 'me', at: 5, text: encodePartyMessage({ t: 'chat', text: 'hi all' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'me', at: 5, text: encodePartyMessage({ t: 'chat', text: 'hi all' }) } , replayed: false })
     expect(heard).toHaveBeenCalledWith({ t: 'chat', text: 'hi all' }, { replayed: false, from: 'me', self: true })
     expect(party.chat()).toEqual([{ seq: 2, from: 'me', name: undefined, text: 'hi all', at: 5, self: true }])
   })
@@ -136,8 +136,8 @@ describe('hosting', () => {
     const heard = vi.fn()
     party.onMessage(heard)
 
-    fake.emit({ type: 'message', message: { seq: 1, from: 'g1', at: 1, text: encodePartyMessage({ t: 'name', name: 'Ann' }) } , replayed: false })
-    fake.emit({ type: 'message', message: { seq: 2, from: 'g1', at: 2, text: encodePartyMessage({ t: 'chat', text: 'yo' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'g1', at: 1, text: encodePartyMessage({ t: 'name', name: 'Ann' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'g1', at: 2, text: encodePartyMessage({ t: 'chat', text: 'yo' }) } , replayed: false })
     expect(party.chat()).toEqual([{ seq: 2, from: 'g1', name: 'Ann', text: 'yo', at: 2, self: false }])
     expect(await party.roster()).toEqual([
       { id: 'me', name: undefined, host: true, self: true },
@@ -164,9 +164,9 @@ describe('following', () => {
     await settle()
     expect(party.getState()).toEqual({ status: 'active', role: 'guest', invite: INVITE, members: 2, self: 'me', owner: 'host' })
 
-    fake.emit({ type: 'message', message: { seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'nav', path: '/x' }) } , replayed: false })
-    fake.emit({ type: 'message', message: { seq: 2, from: 'someone', at: 1, text: encodePartyMessage({ t: 'nav', path: '/y' }) } , replayed: false })
-    fake.emit({ type: 'message', message: { seq: 3, from: 'host', at: 1, text: 'not a party message' } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'nav', path: '/x' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'someone', at: 1, text: encodePartyMessage({ t: 'nav', path: '/y' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 3, from: 'host', at: 1, text: 'not a party message' } , replayed: false })
     expect(heard).toHaveBeenCalledTimes(1)
     expect(heard).toHaveBeenCalledWith({ t: 'nav', path: '/x' }, { replayed: false, from: 'host', self: false })
   })
@@ -181,7 +181,7 @@ describe('following', () => {
     party.onMessage(heard)
 
     const say = (seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
-      fake.emit({ type: 'message', message: { seq, from, at: 1, text: encodePartyMessage(message) } , replayed: false })
+      fake.emit({ type: 'message', message: { envelope: null, seq, from, at: 1, text: encodePartyMessage(message) } , replayed: false })
     say(1, 'other', { t: 'nav', path: '/evil' })
     say(2, 'other', { t: 'scroll', y: 1 })
     say(3, 'other', { t: 'cursor', x: 0, y: 0 })
@@ -274,7 +274,7 @@ describe('following', () => {
     party.onMessage(message => heard.push(message))
 
     const say = (seq: number, message: Parameters<typeof encodePartyMessage>[0]) =>
-      fake.emit({ type: 'message', message: { seq, from: 'host', at: 1, text: encodePartyMessage(message) } , replayed: false })
+      fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: 1, text: encodePartyMessage(message) } , replayed: false })
     say(1, { t: 'scroll', y: 0.1 })
     say(2, { t: 'nav', path: '/a' })
     say(3, { t: 'scroll', y: 0.9 })
@@ -297,7 +297,7 @@ describe('following', () => {
       const heard: unknown[] = []
       party.onMessage(message => heard.push(message))
       says.forEach((message, index) =>
-        fake.emit({ type: 'message', message: { seq: index + 1, from: 'host', at: 1, text: encodePartyMessage(message) }, replayed: false }))
+        fake.emit({ type: 'message', message: { envelope: null, seq: index + 1, from: 'host', at: 1, text: encodePartyMessage(message) }, replayed: false }))
       heard.length = 0
       party.replay()
       return heard
@@ -337,7 +337,7 @@ describe('following', () => {
     const heard = vi.fn()
     party.onMessage(heard)
 
-    fake.emit({ type: 'message', message: { seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'nav', path: '/a' }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'nav', path: '/a' }) } , replayed: false })
     expect(heard).toHaveBeenLastCalledWith({ t: 'nav', path: '/a' }, { replayed: false, from: 'host', self: false })
     party.replay()
     expect(heard).toHaveBeenLastCalledWith({ t: 'nav', path: '/a' }, { replayed: true, from: 'host', self: false })
@@ -352,7 +352,7 @@ describe('following', () => {
     expect(party.hostPath()).toBeUndefined()
 
     const say = (seq: number, message: Parameters<typeof encodePartyMessage>[0]) =>
-      fake.emit({ type: 'message', message: { seq, from: 'host', at: 1, text: encodePartyMessage(message) } , replayed: false })
+      fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: 1, text: encodePartyMessage(message) } , replayed: false })
     say(1, { t: 'state', path: '/a', y: 0 })
     expect(party.hostPath()).toBe('/a')
     say(2, { t: 'nav', path: '/b' })
@@ -503,7 +503,7 @@ describe('timing the host clock', () => {
     await host.create()
     await settle()
 
-    fake.emit({ type: 'message', message: { from: 'them', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'ping', n: 7, at: 1_000 }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'them', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'ping', n: 7, at: 1_000 }) } , replayed: false })
     await settle()
 
     const pong = lastSent(fake.sent)
@@ -523,7 +523,7 @@ describe('timing the host clock', () => {
     const ping = pingsIn(fake.sent)[0] as { n: number, at: number }
     expect(ping).toBeDefined()
     // a host whose clock reads a full hour ahead, answering at once
-    fake.emit({ type: 'message', message: { from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 3_600_000 }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 3_600_000 }) } , replayed: false })
     await settle()
 
     const clock = guest.hostClock()
@@ -540,9 +540,9 @@ describe('timing the host clock', () => {
     const ping = pingsIn(fake.sent)[0] as { n: number, at: number }
 
     // right nonce, a stamp this guest never sent: another member's trip, timed on another clock
-    fake.emit({ type: 'message', message: { from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at + 5_000, host: ping.at + 9_000 }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at + 5_000, host: ping.at + 9_000 }) } , replayed: false })
     // and an unknown nonce
-    fake.emit({ type: 'message', message: { from: 'host', seq: 2, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: 999_999, at: ping.at, host: ping.at }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'host', seq: 2, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: 999_999, at: ping.at, host: ping.at }) } , replayed: false })
     await settle()
 
     expect(guest.hostClock()).toBeUndefined()
@@ -555,7 +555,7 @@ describe('timing the host clock', () => {
     await settle()
     const ping = pingsIn(fake.sent)[0] as { n: number, at: number }
 
-    fake.emit({ type: 'message', message: { from: 'someone-else', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 60_000 }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'someone-else', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 60_000 }) } , replayed: false })
     await settle()
 
     expect(guest.hostClock(), 'anyone could offer a clock; only the host has the one that counts').toBeUndefined()
@@ -567,7 +567,7 @@ describe('timing the host clock', () => {
     await guest.join(INVITE)
     await settle()
     const ping = pingsIn(fake.sent)[0] as { n: number, at: number }
-    fake.emit({ type: 'message', message: { from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 5_000 }) } , replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, from: 'host', seq: 1, at: Date.now(), text: encodePartyMessage({ t: 'pong', n: ping.n, at: ping.at, host: ping.at + 5_000 }) } , replayed: false })
     await settle()
     expect(guest.hostClock()).toBeDefined()
 
@@ -580,7 +580,7 @@ describe('timing the host clock', () => {
 describe('grants', () => {
   const PLAYED = { paused: true, time: 12, rate: 1, at: 1 }
   const say = (fake: ReturnType<typeof fakeRoom>, seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
-    fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
   const granted = (all: 'play'[], by: Record<string, { play?: boolean }> = {}) => ({ t: 'state' as const, path: '/watch/a/b', y: 0, grants: { all, by } })
   const ask = { t: 'ask' as const, c: 'play' as const, path: '/watch/a/b', s: PLAYED }
   const member = (id: string) => ({ id, permissions: { send: true, receive: true, remove: false, block: false }, maxMessageBytes: 262_144 })
@@ -744,7 +744,7 @@ describe('Follow playback', () => {
 
 describe('the party\'s tracks', () => {
   const say = (fake: ReturnType<typeof fakeRoom>, seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
-    fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
   const hosting = async (grants = { all: ['subs' as const, 'audio' as const], by: { sam: { subs: false, audio: false } } }) => {
     const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'ann', 'sam'] })
     const party = createPartyStore(api(fake.room), memoryStorage())

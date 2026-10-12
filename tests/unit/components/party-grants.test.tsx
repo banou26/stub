@@ -25,7 +25,7 @@ const hosting = async () => {
   const fake = fakeRoom({ self: 'host', owner: 'host', members })
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.create()
-  fake.emit({ type: 'message', message: { seq: 1, from: 'ann', at: 1, text: encodePartyMessage({ t: 'name', name: 'Ann' }) }, replayed: false })
+  fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'ann', at: 1, text: encodePartyMessage({ t: 'name', name: 'Ann' }) }, replayed: false })
   const host = mount(<PartyGrants/>)
   hosts.push(host)
   await act(() => new Promise(resolve => setTimeout(resolve, 0)))

@@ -1,5 +1,6 @@
 import { render } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
+import { triedRelaysOf } from './embed-relays'
 import { receiveEmbedTitle } from './embed-title'
 import { getPlayer } from './sources/players'
 import { fromUri } from './utils/uri'
@@ -9,6 +10,7 @@ const mediaUri = params.get('mediaUri')
 const episodeUri = params.get('episodeUri')
 const sourceUri = params.get('sourceUri')
 const url = params.get('url')
+const triedRelays = triedRelaysOf(params)
 
 const origin = sourceUri ? fromUri(sourceUri as `${string}:${string}`).origin : undefined
 const Player = origin ? getPlayer(origin) : undefined
@@ -19,7 +21,7 @@ const App = () => {
   if (!mediaUri || !episodeUri || !sourceUri || !url || !Player) {
     return <div>Unsupported or missing parameters</div>
   }
-  return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} title={title} />
+  return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} title={title} triedRelays={triedRelays} />
 }
 
 render(<App />, document.getElementById('app')!)

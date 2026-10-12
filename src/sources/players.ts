@@ -17,6 +17,8 @@ export type PlayerProps = {
   sourceUri: string
   /** the episode as `episodeLabel` names it, drawn over the picture; it can arrive after the player mounts */
   title?: string
+  /** the relays this show was unavailable through earlier in the visit, which the player starts past */
+  triedRelays?: readonly string[]
 }
 
 const players: Record<string, (props: PlayerProps) => any> = {

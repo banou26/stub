@@ -2,6 +2,7 @@
 import { mount, unmount } from '../../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { memoryLocation } from 'wouter/memory-location'
 
@@ -32,6 +33,14 @@ vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () =>
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
 vi.mock('../../../../src/party/bridge', () => ({ attachPlaybackBridge: () => ({ dispose: () => {} }) }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
+const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
+vi.mock('../../../../src/embed-relays', () => ({
+  triedRelaysParams: () => relays.remembered,
+  hearTriedRelays: (iframe: HTMLIFrameElement, sourceUri: string) => {
+    relays.heard.push([iframe, sourceUri])
+    return () => {}
+  },
+}))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
@@ -49,6 +58,8 @@ afterEach(() => {
   statuses = { crunchyroll: 'signed-out' }
   params = { mediaUri: params.mediaUri, episodeUri: allUri }
   Object.assign(episode, { uri: allUri, handles: allHandles })
+  relays.remembered = {}
+  relays.heard = []
 })
 
 const settle = async () => {
@@ -183,4 +194,33 @@ test('a watch.amazon.com link stays a link out to Amazon, and is never picked', 
   const link = host.querySelector('a.source')!
   expect(link.getAttribute('href')).toBe(us)
   expect(link.getAttribute('target')).toBe('_blank')
+})
+
+test('the relays a show was unavailable through reach its next episode\'s player, and never reload the one playing', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  const src = () => host.querySelector('iframe')?.getAttribute('src')
+  expect(src()).not.toContain('triedRelays')
+  expect(relays.heard.at(-1)).toEqual([host.querySelector('iframe'), 'cr:GX1'])
+
+  // the embed moved away from a relay, then the episode's handles update while it plays
+  relays.remembered = { triedRelays: 'r1' }
+  Object.assign(episode, { handles: [...allHandles] })
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(src()).not.toContain('triedRelays')
+
+  const next = handle('cr:GX2', 'cr', 'https://www.crunchyroll.com/watch/GX2')
+  Object.assign(episode, { handles: [next, ...allHandles] })
+  params = { ...params, sourceUri: 'cr:GX2' }
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(src()).toContain('triedRelays=r1')
+  expect(relays.heard.at(-1)).toEqual([host.querySelector('iframe'), 'cr:GX2'])
 })

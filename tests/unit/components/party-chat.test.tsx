@@ -33,7 +33,7 @@ describe('an action line', () => {
     hosts.push(host)
     let seq = 0
     const say = (from: string, message: PartyMessage) =>
-      act(() => { seq++; fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
+      act(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
 
     say('host', { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: {} } })
     say('alex', { t: 'name', name: 'Alex' })

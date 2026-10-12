@@ -32,7 +32,7 @@ const render = async (self: string, said: PartyMessage[] = []) => {
   await (self === 'host' ? current.store.create() : current.store.join(INVITE))
   const say = (message: PartyMessage) => act(() => {
     seq++
-    fake.emit({ type: 'message', message: { seq, from: 'host', at: seq, text: encodePartyMessage(message) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: seq, text: encodePartyMessage(message) }, replayed: false })
   })
   for (const message of said) say(message)
   const host = mount(<PartyTracks/>)

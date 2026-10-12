@@ -38,14 +38,14 @@ const following = async (page: string, grants: Grants) => {
   const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.join(INVITE)
-  fake.emit({ type: 'message', message: { seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: HOST_PAGE, y: 0, grants }) }, replayed: false })
+  fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: HOST_PAGE, y: 0, grants }) }, replayed: false })
   const location = memoryLocation({ path: page })
   const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
   hosts.push(host)
   act(() => { button(host, 'Following2')!.click() })
   const asks = () => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'ask')
   const hostSays = (message: PartyMessage) => act(() => {
-    fake.emit({ type: 'message', message: { seq: 2, from: 'host', at: 2, text: encodePartyMessage(message) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'host', at: 2, text: encodePartyMessage(message) }, replayed: false })
   })
   return { asks, hostSays, play: () => button(document.body, ` ${PLAY}`) }
 }

@@ -18,6 +18,7 @@ import PartyPlayback from '../../components/party-playback'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { siteStatuses, type StatusSite } from '../../tracking/site-status'
+import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
@@ -255,6 +256,9 @@ const Watch = () => {
   const episodeNumber = episode?.episodeNumber
   const episodeName = episodeLabel(episodeNumber, episodeTitle)
 
+  // read once per source: a handles update later in the episode would otherwise change the url and reload the player
+  const triedRelays = useMemo(() => selectedSourceUri ? triedRelaysParams(selectedSourceUri) : {}, [selectedSourceUri])
+
   const embedUrl = useMemo(() => {
     if (!selectedSourceUri) return undefined
     const handle = episodeHandles.find(h => h.uri === selectedSourceUri)
@@ -266,11 +270,12 @@ const Watch = () => {
       mediaUri: params.mediaUri,
       episodeUri: params.episodeUri,
       sourceUri: selectedSourceUri,
-      url: handle.url
+      url: handle.url,
+      ...triedRelays,
     })
     // the page sits beside the running build's html, which under fkn.app/app is /build/ and not the origin root
     return `${__STUB_EMBED_PAGE__}?${embedParams}`
-  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri])
+  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays])
 
   // a plugin source renders its own picker; which origins do is only known to the worker holding the
   // plugin connection, so it is resolved here and folded into the source list
@@ -335,6 +340,12 @@ const Watch = () => {
     if (viaPlugin || !embedUrl || !iframe || !episodeName) return
     return serveEmbedTitle(iframe, episodeName)
   }, [viaPlugin, embedUrl, episodeName])
+
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe || !selectedSourceUri) return
+    return hearTriedRelays(iframe, selectedSourceUri)
+  }, [viaPlugin, embedUrl, selectedSourceUri])
 
   const sources: WatchSource[] = useMemo(
     () =>

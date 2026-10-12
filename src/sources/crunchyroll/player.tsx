@@ -7,9 +7,10 @@ import type { CrunchyrollTrackKind, CrunchyrollTrackSelection, CrunchyrollTracks
 import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
 import { css, keyframes } from '@emotion/react'
-import { attachFrame } from '@fkn/lib'
+import { attachFrame, isRelayUnavailable, relayOf } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { tellTriedRelay } from '../../embed-relays'
 import { serveEmbedTracks } from '../../embed-tracks'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
@@ -21,6 +22,7 @@ import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, crunchyrollSig
 import { useCrunchyrollPictureInPicture } from './picture-in-picture'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
+import { waitForUnavailablePage } from './unavailable-page'
 
 // leave the scrubber (`.timeline-slider`) layout-measurable so the Bitmovin-seek adapter can drive it
 const CRUNCHYROLL_OUTER_CSS = `
@@ -73,6 +75,8 @@ const CRUNCHYROLL_OUTER_CSS = `
 
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
 type Backend = 'detecting' | FknBackend
+
+const UNAVAILABLE_NOTE = 'This episode is not available on Crunchyroll in your region. Try another source.'
 
 const VIDEO_TIMEOUT = 30_000
 const waitForVideoElement = async (frame: Frame, isCancelled: () => boolean) => {
@@ -169,13 +173,16 @@ const styles = css`
   }
 `
 
-const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
+const CrunchyrollPlayer = ({ url, title, triedRelays = [] }: PlayerProps) => {
   const [mode, setMode] = useState<Backend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
   const [loading, setLoading] = useState(true)
   const [loggedOut, setLoggedOut] = useState(false)
   const [error, setError] = useState<string>()
+  const [unavailable, setUnavailable] = useState(false)
+  // read at each attach and never rendered: an attach effect keyed on it would run on the iframe being replaced
+  const excluded = useRef(triedRelays)
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [attachKey, setAttachKey] = useState(0)
@@ -231,6 +238,8 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       iframe,
       domains: CRUNCHYROLL_DOMAINS,
       cookies: attachCookies(mode),
+      // none: the viewer's default relay
+      relay: excluded.current.length ? { exclude: excluded.current } : undefined,
       permissions: [
         { category: 'evaluation', reason: 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture' }
       ]
@@ -240,64 +249,77 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       })
       .catch(err => {
         if (cancelled) return
+        setLoading(false)
+        // no relay left to try
+        if (isRelayUnavailable(err)) return setUnavailable(true)
         console.error('Failed to attach Crunchyroll frame', err)
         setError(err?.message || 'Failed to load player')
-        setLoading(false)
       })
     return () => { cancelled = true }
   }, [iframe, mode])
 
+  // bumping attachKey remounts the iframe so attachFrame runs against a fresh element: the cloud backend refuses to re-attach an iframe it already attached
+  const remount = useCallback(() => {
+    setFrame(null)
+    setError(undefined)
+    setRemoteVideo(null)
+    invalidateTracks()
+    setLoggedOut(false)
+    setLoading(true)
+    setAttachKey(k => k + 1)
+  }, [invalidateTracks])
+
   useEffect(() => {
     if (!frame) return
     let cancelled = false
-    const isCancelled = () => cancelled
+    let settled = false
+    const isSettled = () => cancelled || settled
     setLoading(true)
     setError(undefined)
     setLoggedOut(false)
     setRemoteVideo(null)
     invalidateTracks()
+    const load = async () => {
+      if (mode !== 'cloud') await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
+      // on the cloud, auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
+      const { isLoggedIn } = await checkIsLoggedIn(frame, isSettled)
+      if (isSettled()) return null
+      siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
+      if (!isLoggedIn) return 'signed-out' as const
+      if (mode === 'cloud') await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
+      return isSettled() ? null : waitForVideoElement(frame, isSettled)
+    }
     ;(async () => {
-      if (mode === 'cloud') {
-        // 'commit', never 'load': a signed-out page loads a consent script (cdn.ketchjs.com, 1.9 MB) that took
-        // 19 s through the relay and kept the page's load past the 30 s deadline (measured 2026-09-26), so the
-        // page's own markers decide, read once the new document holds the frame
-        await frame.goto(url, { waitUntil: 'commit' })
-        if (cancelled) return
-        // auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
-        const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
-        if (cancelled) return
-        siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
-        if (!isLoggedIn) {
-          setLoading(false)
-          setLoggedOut(true)
-          return
-        }
-        await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
-        if (cancelled) return
-        const video = await waitForVideoElement(frame, isCancelled)
-        if (cancelled) return
-        setLoading(false)
-        if (!video) throw new Error('The episode did not load a player.')
-        setRemoteVideo(video)
-        return
-      }
+      // 'commit', never 'load': a signed-out page loads a consent script (cdn.ketchjs.com, 1.9 MB) that took
+      // 19 s through the relay and kept the page's load past the 30 s deadline (measured 2026-09-26), so the
+      // page's own markers decide, read once the new document holds the frame
       await frame.goto(url, { waitUntil: 'commit' })
       if (cancelled) return
-      await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
+      const loaded = load()
+      const unavailablePage = waitForUnavailablePage(frame, isSettled).then(async found => found ? 'unavailable' as const : loaded)
+      const outcome = await Promise.race([loaded, unavailablePage]).finally(() => { settled = true })
       if (cancelled) return
-      const { isLoggedIn } = await checkIsLoggedIn(frame, isCancelled)
-      if (cancelled) return
-      siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
-      if (!isLoggedIn) {
+      if (outcome === 'unavailable') {
+        // undefined when no relay served the frame, as on the extension: there is no other one to try
+        const served = relayOf(frame)
+        if (served && !excluded.current.includes(served)) {
+          excluded.current = [...excluded.current, served]
+          remount()
+          return
+        }
         setLoading(false)
+        setUnavailable(true)
+        return
+      }
+      setLoading(false)
+      if (outcome === 'signed-out') {
         setLoggedOut(true)
         return
       }
-      const video = await waitForVideoElement(frame, isCancelled)
-      if (cancelled) return
-      setLoading(false)
-      if (!video) throw new Error('The episode did not load a player.')
-      setRemoteVideo(video)
+      if (!outcome) throw new Error('The episode did not load a player.')
+      // only once another relay plays it: an episode no relay serves says nothing about the show's next one
+      for (const relay of excluded.current) if (!triedRelays.includes(relay)) tellTriedRelay(relay)
+      setRemoteVideo(outcome)
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Crunchyroll player', err)
@@ -305,7 +327,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [frame, url, reloadKey, mode, invalidateTracks])
+  }, [frame, url, reloadKey, mode, invalidateTracks, remount])
 
   useEffect(() => {
     if (!frame || !remoteVideo) return
@@ -445,17 +467,6 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     popupInterval.current = interval
   }, [])
 
-  // bumping attachKey remounts the iframe so attachFrame runs against a fresh element: the cloud backend refuses to re-attach an iframe it already attached
-  const remount = useCallback(() => {
-    setFrame(null)
-    setError(undefined)
-    setRemoteVideo(null)
-    invalidateTracks()
-    setLoggedOut(false)
-    setLoading(true)
-    setAttachKey(k => k + 1)
-  }, [invalidateTracks])
-
   // the cloud frame reads this app's cloud cookie jar, which a plain popup never writes: an FKN window
   // signs in on that jar, and the player loaded after it reads what the window committed
   const openLoginWindow = useCallback(() => {
@@ -531,8 +542,9 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     remount()
   }, [remount])
 
-  const overlay = (loading || error || popupBlocked || loggedOut) && (
+  const overlay = (loading || error || popupBlocked || loggedOut || unavailable) && (
     <div className="overlay">
+      {unavailable && UNAVAILABLE_NOTE}
       {loggedOut && !error && !popupBlocked && (
         <>
           Sign in to Crunchyroll to watch.

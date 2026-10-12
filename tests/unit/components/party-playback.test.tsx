@@ -54,7 +54,7 @@ const paused = (time: number) => ({ paused: true, time, rate: 1 })
 
 let seq = 0
 const say = (fake: ReturnType<typeof fakeRoom>, from: string, message: PartyMessage) =>
-  act(() => { seq++; fake.emit({ type: 'message', message: { seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
+  act(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
 const asks = (fake: ReturnType<typeof fakeRoom>) => fake.sent.map(text => decodePartyMessage(text)).filter((message): message is PlayerAsk => message?.t === 'ask' && message.c !== 'go')
 const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 
