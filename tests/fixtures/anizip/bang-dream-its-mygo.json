@@ -1,0 +1,397 @@
+{
+  "titles": {
+    "x-jat": "Bang Dream! It`s MyGo!!!!!",
+    "ja": "BanG Dream! It`s MyGO!!!!!",
+    "en": "Bang Dream! It`s MyGo!!!!!",
+    "de": "Bang Dream! It`s MyGo!!!!!",
+    "ru": "BanG Dream! Это MyGO!",
+    "zh-Hans": "迷途之子!!!!!"
+  },
+  "episodes": {
+    "1": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9846625,
+      "seasonNumber": 1,
+      "episodeNumber": 1,
+      "absoluteEpisodeNumber": 1,
+      "title": {
+        "ja": "羽丘の不思議ちゃん",
+        "en": "Haneoka`s Quirky Girl",
+        "de": "Haneokas Sonderlinge",
+        "x-jat": "Haneoka no Fushigi-chan"
+      },
+      "airDate": "2023-06-29",
+      "airDateUtc": "2023-06-29T14:00:00Z",
+      "runtime": 24,
+      "overview": "Anon transfers into Haneoka Girls Academy late, just before Golden Week. She soon realizes that almost everyone at school is in a band and hurriedly begins building one of her own. She tries inviting Haneoka's quirky girl, Tomori, to join her, but...",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9846625/screencap/649db993802e2.jpg",
+      "episode": "1",
+      "anidbEid": 268464,
+      "length": 25,
+      "airdate": "2023-06-29",
+      "rating": "7.05",
+      "summary": "Due to unforeseen circumstances, Anon transfers into Haneoka Girls` High School just before Golden Week. Knowing that bands are popular in Haneoka, she hurries to find some band members. In the process, she ends up running into \"Haneoka`s Weirdo\", and attempts to recruit her...\nSource: BanG Dream! Wikia"
+    },
+    "2": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9871814,
+      "seasonNumber": 1,
+      "episodeNumber": 2,
+      "absoluteEpisodeNumber": 2,
+      "title": {
+        "ja": "もう誘わない",
+        "en": "I Won`t Invite You Anymore",
+        "de": "Ich lade dich nicht mehr ein",
+        "x-jat": "Mou Sasowanai"
+      },
+      "airDate": "2023-06-29",
+      "airDateUtc": "2023-06-29T14:00:00Z",
+      "runtime": 24,
+      "overview": "Anon’s classmates encourage her to come with them to RiNG, a live venue with practice studios, to look for members for her band. She reluctantly agrees to go along and runs into the last person she wanted to see again.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9871814/screencap/649dba4ee70fb.jpg",
+      "episode": "2",
+      "anidbEid": 268465,
+      "length": 25,
+      "airdate": "2023-06-29",
+      "rating": "4.21",
+      "summary": "Anon asks Tomori to create a band with her, but the latter refuses. While searching for band members at RiNG, she experiences the worst reunion ever. \"She clicked her tongue at me!\"\nSource: BanG Dream! Wikia"
+    },
+    "3": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9871815,
+      "seasonNumber": 1,
+      "episodeNumber": 3,
+      "absoluteEpisodeNumber": 3,
+      "title": {
+        "ja": "CRYCHIC",
+        "en": "Crychic",
+        "de": "CRYCHIC",
+        "x-jat": "Crychic"
+      },
+      "airDate": "2023-06-29",
+      "airDateUtc": "2023-06-29T14:00:00Z",
+      "runtime": 24,
+      "overview": "Tomori is awkward, unable to fit in with those around her. In her third year of middle school, a blossom from a fragrant snowbell tree leads her to a chance encounter that changes everything.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9871815/screencap/649dba795a288.jpg",
+      "episode": "3",
+      "anidbEid": 268466,
+      "length": 25,
+      "airdate": "2023-06-29",
+      "rating": "10.00",
+      "summary": "\"I want to be a human.\" Tomori feels like she doesn`t belong anywhere due to her awkward personality. During the spring of ninth grade, somebody asked her to meet up under Styrax obassia flowers...\nSource: BanG Dream! Wikia"
+    },
+    "4": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9884084,
+      "seasonNumber": 1,
+      "episodeNumber": 4,
+      "absoluteEpisodeNumber": 4,
+      "title": {
+        "ja": "一生だよ!?",
+        "en": "For Our Whole Lives?!",
+        "de": "Lebenslang?!",
+        "x-jat": "Isshou Da yo!?"
+      },
+      "airDate": "2023-07-06",
+      "airDateUtc": "2023-07-06T14:00:00Z",
+      "runtime": 24,
+      "overview": "After hearing from Soyo about the circumstances surrounding CRYCHIC's break up, Anon brings Tomori, Soyo, and Taki together at RiNG where she tells them to talk everything out!",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9884084/screencap/64a6cdec6c664.jpg",
+      "episode": "4",
+      "anidbEid": 268467,
+      "length": 25,
+      "airdate": "2023-07-06",
+      "rating": "4.21",
+      "summary": "Anon learns about the disbandment of CRYCHIC from Soyo and decides to invite her, Tomori and Taki to talk with her at RiNG.\nSource: BanG Dream! Wikia"
+    },
+    "5": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885468,
+      "seasonNumber": 1,
+      "episodeNumber": 5,
+      "absoluteEpisodeNumber": 5,
+      "title": {
+        "ja": "逃げてない!",
+        "en": "I`m Not Running Away!",
+        "de": "Ich laufe nicht weg!",
+        "x-jat": "Nigetenai!"
+      },
+      "airDate": "2023-07-13",
+      "airDateUtc": "2023-07-13T14:00:00Z",
+      "runtime": 24,
+      "overview": "The band forms around a certain promise, but Anon isn’t taking practice seriously even in the face of a rare opportunity for the group. Fed up, Taki says to Anon, \"You're just running away, aren't you?\"",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885468/screencap/64b92fb381bb2.jpg",
+      "episode": "5",
+      "anidbEid": 268795,
+      "length": 25,
+      "airdate": "2023-07-13",
+      "rating": "7.05",
+      "summary": "The girls formed the band with the promise of not disbanding until their first live concert. However, Anon isn`t taking practice seriously, leading to Taki asking her if she`s just running away.\nSource: BanG Dream! Wikia"
+    },
+    "6": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885469,
+      "seasonNumber": 1,
+      "episodeNumber": 6,
+      "absoluteEpisodeNumber": 6,
+      "title": {
+        "ja": "なんで今更",
+        "en": "Why, When It`s Too Late",
+        "de": "Warum gerade jetzt?",
+        "x-jat": "Nande Imasara"
+      },
+      "airDate": "2023-07-20",
+      "airDateUtc": "2023-07-20T14:00:00Z",
+      "runtime": 24,
+      "overview": "Band rehearsals aren’t going well, making Taki more and more annoyed. RiNG’s stray cat, Rāna, appears to say she’ll “do the band,” but she leaves as unexpectedly as she arrived, increasing Taki’s frustration. Will they be ready in time for their concert?",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885469/screencap/64b9404904729.jpg",
+      "episode": "6",
+      "anidbEid": 268796,
+      "length": 25,
+      "airdate": "2023-07-20",
+      "rating": "7.05",
+      "summary": "Everyone is surprised by Rāna`s sudden declaration of wanting to be in the girls` band. Meanwhile, Taki starts feeling annoyed as their practice for the concert isn`t going as smoothly as she`d hoped.\nSource: BanG Dream! Wikia"
+    },
+    "7": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885470,
+      "seasonNumber": 1,
+      "episodeNumber": 7,
+      "absoluteEpisodeNumber": 7,
+      "title": {
+        "ja": "今日のライブが終わっても",
+        "en": "Even After Today`s Concert Ends",
+        "de": "Auch wenn das Konzert heute endet",
+        "x-jat": "Kyou no Live ga Owatte mo"
+      },
+      "airDate": "2023-07-27",
+      "airDateUtc": "2023-07-27T14:00:00Z",
+      "runtime": 24,
+      "overview": "Even as the band rushes around to get ready, the day of their first live performance is upon them. None of them feel ready, but before they know it, it's time to go on. As Tomori stands on the stage, her legs trembling, the crowd grows restless.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885470/screencap/64cbcb4395331.jpg",
+      "episode": "7",
+      "anidbEid": 268797,
+      "length": 25,
+      "airdate": "2023-07-27",
+      "rating": "8.53",
+      "summary": "It is finally the day of the concert and things are hectic for the band. With trembling legs, Tomori finally stands onstage again. \"I may be lost, but I`ll keep on moving as the lost.\"\nSource: BanG Dream! Wikia"
+    },
+    "8": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885471,
+      "seasonNumber": 1,
+      "episodeNumber": 8,
+      "absoluteEpisodeNumber": 8,
+      "title": {
+        "ja": "どうして",
+        "en": "Why",
+        "de": "Warum?",
+        "x-jat": "Doushite"
+      },
+      "airDate": "2023-08-03",
+      "airDateUtc": "2023-08-03T14:00:00Z",
+      "runtime": 24,
+      "overview": "Soyo's shock from playing Spring Sunlight without warning, and from seeing Sakiko's tears, has made her drop out of contact with everyone. Anon and Tomori are worried, but Taki says it doesn't matter. Elsewhere, Sakiko asks Uika to meet with her.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885471/screencap/64cbcbf31babc.jpg",
+      "episode": "8",
+      "anidbEid": 268798,
+      "length": 25,
+      "airdate": "2023-08-03",
+      "rating": "6.49",
+      "summary": "Upon seeing Sakiko`s tearful reaction to Tomori and the others performing \"Haruhikage\" unexpectedly, Soyo decides to cut contact with all of them. In the meantime, Sakiko calls Uika and meets up with her. \"So you still love stars.\"\nSource: BanG Dream! Wikia"
+    },
+    "9": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885473,
+      "seasonNumber": 1,
+      "episodeNumber": 9,
+      "absoluteEpisodeNumber": 9,
+      "title": {
+        "ja": "解散",
+        "en": "Disbanding",
+        "de": "Trennung",
+        "x-jat": "Kaisan"
+      },
+      "airDate": "2023-08-10",
+      "airDateUtc": "2023-08-10T14:00:00Z",
+      "runtime": 24,
+      "overview": "Soyo has always behaved as others wanted her to, even when she was very young, but CRYCHiC was the one thing that she held dear and she refuses to believe that it's finished. What will she do? And how will it affect the others?",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885473/screencap/64d4f173dff12.jpg",
+      "episode": "9",
+      "anidbEid": 269761,
+      "length": 25,
+      "airdate": "2023-08-10",
+      "rating": "9.04",
+      "summary": "Soyo has always acted according to others` expectations of her. As such, CRYCHIC was everything to her... \"We didn`t actually disband.\"\nSource: BanG Dream! Wikia"
+    },
+    "10": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885474,
+      "seasonNumber": 1,
+      "episodeNumber": 10,
+      "absoluteEpisodeNumber": 10,
+      "title": {
+        "ja": "ずっと迷子",
+        "en": "Always Lost",
+        "de": "Ewig verirrt",
+        "x-jat": "Zutto Maigo"
+      },
+      "airDate": "2023-08-17",
+      "airDateUtc": "2023-08-17T14:00:00Z",
+      "runtime": 24,
+      "overview": "The members of the band have all gone their separate ways. Tomori is having a hard time sorting through her feelings, so she goes to the planetarium where she happens to meet someone who helps her see a course of action she can take.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885474/screencap/64de2939a65da.jpg",
+      "episode": "10",
+      "anidbEid": 269762,
+      "length": 25,
+      "airdate": "2023-08-17",
+      "rating": "10.00",
+      "summary": "The members of the band have all gone their separate ways. Tomori is having a hard time sorting through her feelings, so she goes to the planetarium where she happens to meet someone who helps her see a course of action she can take.\nSource: crunchyroll"
+    },
+    "11": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885475,
+      "seasonNumber": 1,
+      "episodeNumber": 11,
+      "absoluteEpisodeNumber": 11,
+      "title": {
+        "ja": "それでも",
+        "en": "Even So",
+        "de": "Aber trotzdem",
+        "x-jat": "Soredemo"
+      },
+      "airDate": "2023-08-24",
+      "airDateUtc": "2023-08-24T14:00:00Z",
+      "runtime": 24,
+      "overview": "Anon, Rāna, Soyo, and Taki were all deeply moved by Tomori's song. The matter is settled. Or at least, that's what they think. Then, they find out that they're scheduled to perform again. What will they do with only one song, no name, and no costumes?",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885475/screencap/64e77b5fc5bd7.jpg",
+      "episode": "11",
+      "anidbEid": 269763,
+      "length": 25,
+      "airdate": "2023-08-24",
+      "rating": "6.49",
+      "summary": "Anon, Rāna, Soyo, and Taki were all deeply moved by Tomori`s song. The matter is settled. Or at least, that`s what they think. Then, they find out that they`re scheduled to perform again. What will they do with only one song, no name, and no costumes?\nSource: crunchyroll"
+    },
+    "12": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885476,
+      "seasonNumber": 1,
+      "episodeNumber": 12,
+      "absoluteEpisodeNumber": 12,
+      "title": {
+        "ja": "It`s my go!!!!!",
+        "en": "It`s My Go!!!!!",
+        "x-jat": "It`s My Go!!!!!"
+      },
+      "airDate": "2023-08-31",
+      "airDateUtc": "2023-08-31T14:00:00Z",
+      "runtime": 24,
+      "overview": "Anon, Tomori, Taki, Rāna, and Soyo have finally come together again as a band. They've managed to finish their costumes, but they're still trying to pull things together right up until they go onstage. Is their new song really ready for an audience?",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885476/screencap/6503b76770b5c.jpg",
+      "episode": "12",
+      "anidbEid": 269764,
+      "length": 25,
+      "airdate": "2023-08-31",
+      "rating": "7.88",
+      "summary": "Anon, Tomori, Taki, Rāna, and Soyo have finally come together again as a band. They`ve managed to finish their costumes, but they`re still trying to pull things together right up until they go onstage. Is their new song really ready for an audience?\nSource: crunchyroll"
+    },
+    "13": {
+      "tvdbShowId": 433560,
+      "tvdbId": 9885477,
+      "seasonNumber": 1,
+      "episodeNumber": 13,
+      "absoluteEpisodeNumber": 13,
+      "title": {
+        "ja": "信じられるのは我が身ひとつ",
+        "en": "The Only One I Can Trust Is Myself",
+        "x-jat": "Shinjirareru no wa Wagami Hitotsu"
+      },
+      "airDate": "2023-09-14",
+      "airDateUtc": "2023-09-14T14:00:00Z",
+      "runtime": 24,
+      "finaleType": "series",
+      "overview": "After successfully concluding their live performance, the members of MyGO!!!!! gather at RiNG for an after party. But not everyone is happy for them.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/9885477/screencap/6503b81eeda4d.jpg",
+      "episode": "13",
+      "anidbEid": 270452,
+      "length": 25,
+      "airdate": "2023-09-14",
+      "rating": "4.31",
+      "summary": "After successfully concluding their live performance, the members of MyGO!!!!! gather at RiNG for an after party. But not everyone is happy for them.\nSource: crunchyroll"
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 270730,
+      "length": 30,
+      "airdate": "2023-09-07",
+      "title": {
+        "ja": "最終回直前! アニメ「BanG Dream! It`s MyGO!!!!!」#1~#12 ダイジェスト特番",
+        "en": "Episode S1",
+        "x-jat": "Saishuukai Chokuzen! Anime \"Bang Dream! It`s MyGo!!!!!\" #1-#12 Digest Tokuban"
+      }
+    },
+    "S2": {
+      "episode": "S2",
+      "anidbEid": 271110,
+      "length": 30,
+      "airdate": "2023-06-22",
+      "title": {
+        "ja": "放送直前特番",
+        "en": "Pre-Broadcast Special",
+        "x-jat": "Housou Chokuzen Tokuban"
+      }
+    },
+    "S3": {
+      "episode": "S3",
+      "anidbEid": 280270,
+      "length": 30,
+      "airdate": "2023-09-21",
+      "title": {
+        "ja": "振り返り特番Part1",
+        "en": "Looking Back Special: Part 1",
+        "x-jat": "Furikaeri Tokuban Part 1"
+      }
+    },
+    "S4": {
+      "episode": "S4",
+      "anidbEid": 280271,
+      "length": 30,
+      "airdate": "2023-09-28",
+      "title": {
+        "ja": "振り返り特番Part2",
+        "en": "Looking Back Special: Part 2",
+        "x-jat": "Furikaeri Tokuban Part 2"
+      }
+    }
+  },
+  "episodeCount": 13,
+  "specialCount": 4,
+  "images": [
+    {
+      "coverType": "Banner",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/433560/banners/6622da9aa5476.jpg"
+    },
+    {
+      "coverType": "Poster",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/433560/posters/6489c618f0e82.jpg"
+    },
+    {
+      "coverType": "Fanart",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/433560/backgrounds/6628b54d867f5.jpg"
+    }
+  ],
+  "mappings": {
+    "animeplanet_id": "bang-dream-its-mygo",
+    "kitsu_id": 47291,
+    "mal_id": 54959,
+    "type": "TV",
+    "anilist_id": 163571,
+    "anisearch_id": 18339,
+    "anidb_id": 17981,
+    "notifymoe_id": null,
+    "livechart_id": 11949,
+    "thetvdb_id": 433560,
+    "imdb_id": "tt27479417",
+    "themoviedb_id": "224207"
+  }
+}

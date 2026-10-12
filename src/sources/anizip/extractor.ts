@@ -14,6 +14,14 @@ export const supportedUris = ['anidb', 'mal']
 
 const SCORE = 0.9
 
+// AniDB, whose titles and summaries these are, writes every apostrophe as a backtick: "Frieren: Beyond Journey`s End"
+const apostrophes = (text: string) => text.replaceAll('`', '\'')
+
+const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
+  ...en ? [{ language: 'en', title: apostrophes(en), score: SCORE }] : [],
+  ...ja ? [{ language: 'ja', title: apostrophes(ja), score: SCORE }] : [],
+]
+
 const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => {
   const id = media.mappings.anidb_id.toString()
   const uri = `${origin}:${id}`
@@ -44,10 +52,7 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
     categories: ['ANIME', 'SERIES'],
     url: `https://api.ani.zip/mappings?anidb_id=${id}`,
     handles,
-    titles: [
-      ...media.titles.en ? [{ language: 'en', title: media.titles.en, score: SCORE }] : [],
-      ...media.titles.ja ? [{ language: 'ja', title: media.titles.ja, score: SCORE }] : [],
-    ],
+    titles: titlesOf(media.titles),
     covers: media.images
       ?.filter(image => image.coverType === 'Poster')
       .map(image => ({ url: image.url, score: SCORE }))
@@ -62,17 +67,14 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
         .entries(media.episodes)
         .map(([episodeId, episode]) => {
           const epId = `${id}-${episodeId}`
-          const summary = episode.summary && dropCredit(episode.summary)
+          const summary = episode.summary && dropCredit(apostrophes(episode.summary))
           return makeEpisode({
             origin,
             id: epId,
             mediaUri: uri,
             url: `https://api.ani.zip/mappings?anidb_id=${id}`,
             score: SCORE,
-            titles: [
-              ...episode.title.en ? [{ language: 'en', title: episode.title.en, score: SCORE }] : [],
-              ...episode.title.ja ? [{ language: 'ja', title: episode.title.ja, score: SCORE }] : [],
-            ],
+            titles: titlesOf(episode.title),
             descriptions: episode.overview
               ? [{ language: 'en', description: episode.overview, score: SCORE }]
               : [],
