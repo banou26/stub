@@ -392,10 +392,12 @@ test('below 480 px the search waits behind a button, and opens focused over the 
     expect(button.x + button.width, `${width}: the button ends before the actions`).toBeLessThanOrEqual(actions.x)
     await searchButton(page).click()
     await expect(searchField(page), `${width}`).toBeFocused()
+    await expect(page.locator('header .actions'), `${width}: the buttons under the open field are hidden`).toBeHidden()
     expect((await searchField(page).boundingBox())!.width, `${width}: the field takes the row`).toBeGreaterThan(width - 120)
     await page.keyboard.press('Escape')
     await expect(searchField(page), `${width}: Escape closes it`).toBeHidden()
     await expect(searchButton(page)).toBeVisible()
+    await expect(page.locator('header .actions')).toBeVisible()
   }
 })
 

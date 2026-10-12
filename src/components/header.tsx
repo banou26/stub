@@ -270,6 +270,13 @@ const style = css`
       border: none;
     }
 
+    /* the row's own buttons are taller than the field, so they would show around it */
+    &.searching > .start,
+    &.searching > .search-toggle,
+    &.searching > .actions {
+      visibility: hidden;
+    }
+
     .search {
       display: none;
 
@@ -451,7 +458,7 @@ export const Header = () => {
   if (onLoginCallback) return null
 
   return (
-    <header css={style} className={onWatch ? 'docked' : undefined}>
+    <header css={style} className={[onWatch && 'docked', searchOpen && 'searching'].filter(Boolean).join(' ') || undefined}>
       <div className="start">
         <Wordmark/>
         {siteLinks.length > 0 && (
