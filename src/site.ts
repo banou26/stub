@@ -3,15 +3,33 @@
 
 export type Site = 'anime' | 'movie' | 'series' | 'stub'
 
+const SITE_HOST = /^(anime|movie|series|stub)\.(fkn\.app|localhost)$/
+
 /**
  * The site an address serves: anime.fkn.app, movie.fkn.app and series.fkn.app by their first label,
  * and `movie.localhost` the same way in development. Any other host, stub.fkn.app, a pages.dev preview
  * or a sandbox tenant, is `stub`, which shows everything.
  */
 export const siteOf = (hostname: string): Site =>
-  (hostname.match(/^(anime|movie|series)\.(fkn\.app|localhost)$/)?.[1] as Site | undefined) ?? 'stub'
+  (hostname.match(SITE_HOST)?.[1] as Site | undefined) ?? 'stub'
 
 export const site: Site = siteOf(globalThis.location?.hostname ?? '')
+
+const SITE_LABELS: [Site, string][] = [['movie', 'Movies'], ['series', 'Series'], ['anime', 'Anime'], ['stub', 'All']]
+
+/**
+ * The four sites' homes as seen from an address, in the header's order: the same domain, protocol and
+ * port with the first label swapped. Only on the four sites' own hosts, on fkn.app or `localhost`;
+ * anywhere else (a pages.dev preview, a sandbox tenant, an IP) there are none, since a link there would
+ * leave a preview for production or navigate an embedded frame away.
+ */
+export const siteLinksOf = ({ protocol, hostname, port }: Pick<URL, 'protocol' | 'hostname' | 'port'>) => {
+  const domain = hostname.match(SITE_HOST)?.[2]
+  if (!domain) return []
+  return SITE_LABELS.map(([to, label]) => ({ site: to, label, href: `${protocol}//${to}.${domain}${port ? `:${port}` : ''}/` }))
+}
+
+export const siteLinks = globalThis.location ? siteLinksOf(globalThis.location) : []
 
 /**
  * Whether a site keeps a title with these categories. Anime keeps anime, film or series; movie keeps

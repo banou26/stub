@@ -1,4 +1,8 @@
 import { css } from '@emotion/react'
+import {
+  autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
+  useDismiss, useFloating, useInteractions, useRole
+} from '@floating-ui/react'
 import { Search, Settings } from 'lucide-react'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -6,10 +10,12 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { getRouterRoutePath, getRoutePath, Route } from '../router/path'
 import { parseSearchFilters, searchPath } from '../router/search/params'
 import { askForTop } from '../router/scroll-reset'
-import AccountWidget from './account-widget'
+import AccountWidget, { menuStyle } from './account-widget'
 import PartyWidget from './party-widget'
 import { layer } from '../layers'
-import { site } from '../site'
+import { site, siteLinks } from '../site'
+import { loadEnabled } from '../plugin-list'
+import { writePluginUris } from '../utils/plugin-links'
 
 const PLACEHOLDERS = {
   anime: 'Search anime…',
@@ -17,6 +23,8 @@ const PLACEHOLDERS = {
   series: 'Search shows…',
   stub: 'Search anime, shows, movies…',
 }
+
+const LONG_PRESS = 500
 
 const style = css`
   position: fixed;
@@ -58,8 +66,25 @@ const style = css`
     pointer-events: auto;
   }
 
-  .logo {
+  .start {
     justify-self: start;
+    display: flex;
+    align-items: baseline;
+    gap: 2.4rem;
+  }
+
+  .sites {
+    display: flex;
+    gap: 1.6rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+
+    @media (max-width: 1023px) {
+      display: none;
+    }
+  }
+
+  .logo {
     font-size: 2.4rem;
     font-weight: 800;
     letter-spacing: 0.05em;
@@ -67,6 +92,12 @@ const style = css`
 
     &:hover {
       color: #fff;
+    }
+
+    /* a long press opens the site menu, so the phone's own link menu and text selection stay off it */
+    &.sites-menu {
+      -webkit-touch-callout: none;
+      user-select: none;
     }
   }
 
@@ -176,6 +207,94 @@ const style = css`
   }
 `
 
+const currentSiteStyle = css`
+  [aria-current='page'] {
+    color: #fff;
+  }
+`
+
+// each site keeps its own list of sources, so a link offers the viewer's to the next one
+const SiteLinks = ({ className }: { className?: string }) => (
+  <>
+    {siteLinks.map(link => (
+      <a
+        key={link.site}
+        className={className}
+        href={writePluginUris(link.href, loadEnabled(), link.href)}
+        aria-current={link.site === site ? 'page' : undefined}
+      >
+        {link.label}
+      </a>
+    ))}
+  </>
+)
+
+/** The wordmark goes home on a tap; on a host with site links, a long press or a right click opens them as a menu. */
+const Wordmark = () => {
+  const [open, setOpen] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const { refs, floatingStyles, context } = useFloating({
+    open,
+    onOpenChange: setOpen,
+    placement: 'bottom-start',
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate
+  })
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    useDismiss(context),
+    useRole(context, { role: 'menu' })
+  ])
+  const release = () => clearTimeout(timer.current)
+  const press = siteLinks.length > 0
+    ? getReferenceProps({
+      className: 'logo sites-menu',
+      onPointerDown: (event: PointerEvent) => {
+        if (event.button !== 0) return
+        timer.current = setTimeout(() => setOpen(true), LONG_PRESS)
+      },
+      onPointerUp: release,
+      onPointerLeave: release,
+      onPointerCancel: release,
+      onContextMenu: (event: MouseEvent) => {
+        event.preventDefault()
+        setOpen(true)
+      },
+    })
+    : { className: 'logo' }
+
+  return (
+    <>
+      {/* "home, from the top": the rule in router/scroll-reset.ts keeps the home page still under its
+          modal and on itself, and the wordmark is the one link that means the top of it anyway */}
+      <Link
+        ref={refs.setReference}
+        to={getRoutePath(Route.HOME)}
+        {...press}
+        onClick={(event: MouseEvent) => {
+          if (open) event.preventDefault()
+          else askForTop()
+        }}
+      >
+        stub
+      </Link>
+      {open && (
+        <FloatingPortal>
+          <FloatingFocusManager context={context} modal={false}>
+            <div
+              ref={refs.setFloating}
+              style={floatingStyles}
+              css={[menuStyle, currentSiteStyle]}
+              {...getFloatingProps({ onClick: () => setOpen(false) })}
+            >
+              <SiteLinks className="item"/>
+            </div>
+          </FloatingFocusManager>
+        </FloatingPortal>
+      )}
+    </>
+  )
+}
+
 export const Header = () => {
   const [, navigate] = useLocation()
   const [onLoginCallback] = useRoute(getRouterRoutePath(Route.LOGIN_CALLBACK))
@@ -207,9 +326,14 @@ export const Header = () => {
 
   return (
     <header css={style} className={onWatch ? 'docked' : undefined}>
-      {/* "home, from the top": the rule in router/scroll-reset.ts keeps the home page still under its
-          modal and on itself, and the wordmark is the one link that means the top of it anyway */}
-      <Link to={getRoutePath(Route.HOME)} className="logo" onClick={askForTop}>stub</Link>
+      <div className="start">
+        <Wordmark/>
+        {siteLinks.length > 0 && (
+          <nav className="sites" css={currentSiteStyle}>
+            <SiteLinks/>
+          </nav>
+        )}
+      </div>
       <form
         className="search"
         onSubmit={event => {

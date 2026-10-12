@@ -165,3 +165,173 @@ test('a title\'s address answers only on a site that keeps it', async ({ page })
   await page.waitForTimeout(8_000)
   await expect(frieren).toHaveCount(0)
 })
+
+const siteLinks = (page: Page) => page.locator('header nav').getByRole('link')
+const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(link => [
+  link.textContent, link.getAttribute('href'), link.getAttribute('aria-current'), getComputedStyle(link).color,
+]))
+
+test('the header links the four sites in order, marks the current one, and a link lands on that site', async ({ page }) => {
+  const grey = 'rgb(119, 119, 119)'
+  const white = 'rgb(255, 255, 255)'
+  await page.goto(at('movie.localhost'))
+  await expect(siteLinks(page)).toHaveCount(4)
+  expect(await linkList(page)).toEqual([
+    ['Movies', at('movie.localhost'), 'page', white],
+    ['Series', at('series.localhost'), null, grey],
+    ['Anime', at('anime.localhost'), null, grey],
+    ['All', at('stub.localhost'), null, grey],
+  ])
+  await siteLinks(page).getByText('Series', { exact: true }).click()
+  await expect(page).toHaveURL(at('series.localhost'))
+  await expect(row(page, 'Popular shows')).toBeVisible()
+  await expect(siteLinks(page).getByText('Series', { exact: true })).toHaveAttribute('aria-current', 'page')
+})
+
+test('stub.localhost marks All as the current site', async ({ page }) => {
+  await page.goto(at('stub.localhost'))
+  await expect(page.locator('header nav [aria-current="page"]')).toHaveText('All')
+  await expect(page.locator('header nav [aria-current]')).toHaveCount(1)
+})
+
+test('any other host has no site links', async ({ page }) => {
+  await page.goto(at('anime.localhost'))
+  await expect(siteLinks(page), 'the control: a site\'s own host has them').toHaveCount(4)
+  await page.goto(at('127.0.0.1'))
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+  await expect(siteLinks(page)).toHaveCount(0)
+})
+
+test('a site link offers the viewer\'s sources to the next site', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (location.hostname.startsWith('anime.')) localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]')
+  })
+  await page.goto(at('anime.localhost'))
+  await expect(siteLinks(page).getByText('Movies', { exact: true }))
+    .toHaveAttribute('href', `${at('movie.localhost')}?plugins=https:stub.plugins.banou.dev`)
+})
+
+test('from 1024 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
+  const searchBox = async (host: string) => {
+    await page.goto(at(host))
+    await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+    return (await page.getByRole('textbox', { name: 'Search' }).boundingBox())!
+  }
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ width, height: 800 })
+    const plain = await searchBox('127.0.0.1')
+    const search = await searchBox('series.localhost')
+    const all = (await siteLinks(page).last().boundingBox())!
+    expect((await page.locator('header').boundingBox())!.height, `${width}`).toBe(70)
+    expect(all.x + all.width, `${width}`).toBeLessThanOrEqual(search.x)
+    expect(search.width, `${width}`).toBeGreaterThanOrEqual(300)
+    if (width === 1280) {
+      expect(search).toEqual(plain)
+      expect(Math.abs(search.x + search.width / 2 - 640)).toBeLessThanOrEqual(1)
+    }
+  }
+})
+
+test('below 1024 px the bar is one row with no visible site links', async ({ page }) => {
+  for (const [width, height] of [[1023, 800], [844, 390], [390, 844]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto(at('127.0.0.1'))
+    const plain = (await page.locator('header').boundingBox())!.height
+    await page.goto(at('movie.localhost'))
+    await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+    await expect(siteLinks(page).first(), `${width}`).toBeHidden()
+    const header = (await page.locator('header').boundingBox())!
+    const search = (await page.getByRole('textbox', { name: 'Search' }).boundingBox())!
+    const logo = (await page.locator('header .logo').boundingBox())!
+    expect(header.height, `${width}`).toBe(plain)
+    if (width === 390) expect(header.height).toBe(64)
+    expect(search.y, `${width}`).toBeLessThan(logo.y + logo.height)
+    expect(search.y + search.height, `${width}`).toBeGreaterThan(logo.y)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}`).toBeLessThanOrEqual(width)
+  }
+})
+
+const siteMenu = (page: Page) => page.getByRole('menu')
+const longPress = async (page: Page) => {
+  const logo = (await page.locator('header .logo').boundingBox())!
+  await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(600)
+  await page.mouse.up()
+}
+
+test('a long press on the wordmark opens the four sites as a menu, with the viewer\'s sources', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]'))
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost', '/settings'))
+  await expect(page.locator('header .logo')).toHaveCSS('user-select', 'none')
+  await longPress(page)
+  const sources = '?plugins=https:stub.plugins.banou.dev'
+  await expect(siteMenu(page).getByRole('link')).toHaveCount(4)
+  expect(await siteMenu(page).getByRole('link').evaluateAll(links => links.map(link => [
+    link.textContent, link.getAttribute('href'), link.getAttribute('aria-current'), getComputedStyle(link).color,
+  ]))).toEqual([
+    ['Movies', `${at('movie.localhost')}${sources}`, 'page', 'rgb(255, 255, 255)'],
+    ['Series', `${at('series.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
+    ['Anime', `${at('anime.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
+    ['All', `${at('stub.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
+  ])
+  await expect(page, 'the press that opened it does not also go home').toHaveURL(/\/settings/)
+  await siteMenu(page).getByRole('link', { name: 'Series' }).click({ modifiers: ['Control'] })
+  await expect(siteMenu(page), 'a pick closes it').toHaveCount(0)
+  await expect(page).toHaveURL(/\/settings/)
+  await page.locator('header .logo').click({ button: 'right' })
+  await expect(siteMenu(page), 'a right click opens it too').toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(siteMenu(page), 'Escape closes it').toHaveCount(0)
+  await page.locator('header .logo').click({ button: 'right' })
+  await page.getByRole('textbox', { name: 'Search' }).click()
+  await expect(siteMenu(page), 'and a click outside closes it').toHaveCount(0)
+})
+
+test('a short tap on the wordmark still goes home', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost', '/settings'))
+  await longPress(page)
+  await expect(siteMenu(page), 'the control: a long press opens the menu').toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.locator('header .logo').click()
+  await expect(page).toHaveURL(at('movie.localhost'))
+  await expect(row(page, 'Popular movies')).toBeVisible()
+  await page.waitForTimeout(800)
+  await expect(siteMenu(page), 'the tap\'s own timer is cleared').toHaveCount(0)
+})
+
+test('a press that leaves the wordmark early opens nothing, and one released off it leaves Enter going home', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost', '/settings'))
+  const logo = (await page.locator('header .logo').boundingBox())!
+  await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(200, 600)
+  await page.waitForTimeout(800)
+  await page.mouse.up()
+  await expect(siteMenu(page)).toHaveCount(0)
+  await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(600)
+  await page.mouse.move(200, 600)
+  await page.mouse.up()
+  await expect(siteMenu(page), 'the control: a long press opens the menu').toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('header .logo')).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(at('movie.localhost'))
+})
+
+test('any other host opens no menu on a long press', async ({ page }) => {
+  await page.goto(at('anime.localhost'))
+  await longPress(page)
+  await expect(siteMenu(page), 'the control: a site\'s own host opens it').toBeVisible()
+  await page.goto(at('127.0.0.1'))
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+  await expect(page.locator('header .logo')).not.toHaveCSS('user-select', 'none')
+  await longPress(page)
+  await page.waitForTimeout(500)
+  await expect(siteMenu(page)).toHaveCount(0)
+})

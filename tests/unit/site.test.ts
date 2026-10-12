@@ -2,7 +2,7 @@
 // movie, Chinese and Korean animation is anime, and live-action adaptations never are.
 import { expect, test } from 'vite-plus/test'
 
-import { siteAllows, siteAsks, siteOf, type Site } from '../../src/site'
+import { siteAllows, siteAsks, siteLinksOf, siteOf, type Site } from '../../src/site'
 
 const SITES: Site[] = ['anime', 'movie', 'series', 'stub']
 
@@ -41,4 +41,40 @@ test('movie and series never ask the anime catalogues, and anime and stub ask ev
     expect([siteAsks(origin, 'anime'), siteAsks(origin, 'stub')], origin).toEqual([true, true])
   }
   expect(SITES.map(site => siteAsks('jw', site))).toEqual([true, true, true, true])
+})
+
+const links = (address: string) => siteLinksOf(new URL(address)).map(({ label, href }) => [label, href])
+
+test('the four sites link to each other\'s homes on fkn.app, from each of them', () => {
+  const fknApp = [
+    ['Movies', 'https://movie.fkn.app/'],
+    ['Series', 'https://series.fkn.app/'],
+    ['Anime', 'https://anime.fkn.app/'],
+    ['All', 'https://stub.fkn.app/'],
+  ]
+  for (const host of ['anime.fkn.app', 'movie.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
+    expect(links(`https://${host}/watch/x?plugins=y`), host).toEqual(fknApp)
+  }
+})
+
+test('on localhost the links keep the protocol and the port, stub.localhost standing for All', () => {
+  const local = [
+    ['Movies', 'http://movie.localhost:4173/'],
+    ['Series', 'http://series.localhost:4173/'],
+    ['Anime', 'http://anime.localhost:4173/'],
+    ['All', 'http://stub.localhost:4173/'],
+  ]
+  expect(links('http://movie.localhost:4173/search')).toEqual(local)
+  expect(links('http://stub.localhost:4173/')).toEqual(local)
+})
+
+test('no links off the four sites\' hosts', () => {
+  expect(links('https://movie.fkn.app/'), 'the control').toHaveLength(4)
+  for (const address of [
+    'https://stub-ben.pages.dev/',
+    'https://movie.stub-ben.pages.dev/',
+    'https://bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku.sdbx.app/',
+    'http://127.0.0.1:4173/',
+    'http://localhost:4173/',
+  ]) expect(links(address), address).toEqual([])
 })

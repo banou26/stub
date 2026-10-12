@@ -69,7 +69,7 @@ const style = css`
 
 /* Portalled to the body rather than left inside the header, so the bar's own stacking context cannot
    cap it. The cost is that it then competes at the root and needs a layer of its own. */
-const menuStyle = css`
+export const menuStyle = css`
   z-index: ${layer.headerPopup};
   display: flex;
   flex-direction: column;
