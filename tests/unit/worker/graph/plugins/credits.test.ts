@@ -6,6 +6,7 @@ import type { SourceCharacter, SourceCredits } from '../../../../../src/sources/
 
 import { resolvers as anilistResolvers } from '../../../../../src/sources/anilist/extractor'
 import { parseCredits } from '../../../../../src/sources/ann/extractor'
+import { parseMalCredits } from '../../../../../src/sources/jikan/credits-page'
 import { parseCredits as justwatchCredits } from '../../../../../src/sources/justwatch/extractor'
 import { parseCredits as imdbCredits } from '../../../../../src/sources/omdb/extractor'
 import { parseCredits as tmdbCredits } from '../../../../../src/sources/tmdb/extractor'
@@ -21,6 +22,7 @@ const character = (id: number, name: string, role?: SourceCharacter['role'], voi
   ({ id: `anilist:${id}`, names: [name], role, voiceActors })
 const member = (uri: string, credits: Partial<SourceCredits>) =>
   ({ uri, raw: { credits: { characters: [], staff: [], ...credits } } })
+const actor = (language: string, name: string) => ({ language, person: { id: `x:${name}`, name } })
 
 test('a person listed under two jobs is one staff entry with both, notes dropped', () => {
   const merged = mergeCredits([member('anilist:1', {
@@ -99,6 +101,39 @@ const cast = (character: CreditCharacter | undefined, language: string) =>
   character?.voiceActors.filter(actor => actor.language === language).map(({ name }) => name)
 const named = (characters: CreditCharacter[], name: string) => characters.filter(character => character.name === name)
 
+const mal = (show: string) => ({
+  ...parseMalCredits(readFileSync(new URL(`../../../../fixtures/credits/mal-${show}.html`, import.meta.url), 'utf8')),
+  score: 0.7,
+})
+
+// MyAnimeList's row scores 0.9, above AniList's 0.8, and its credits 0.7. Mutation: read the sources in
+// member order and MyAnimeList's Spike leads with its url, and Faye and Ed come before Jet.
+test('Bebop: MyAnimeList\'s credits are read after AniList\'s and before ANN\'s, though its row scores above both', async () => {
+  const merged = mergeCredits([
+    { ...member('mal:1', mal('bebop')), score: 0.9 },
+    { ...member('anilist:1', await anilist('bebop')), score: 0.8 },
+    { ...member('ann:13', ann('bebop')), score: 0.2 },
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual([
+    'Spike Spiegel', 'Jet Black', 'Faye Valentine', 'Edward Wong Hau Pepelu Tivrusky IV', 'Alisa', 'Actress', 'Lin',
+  ])
+  expect(merged.characters[0]!.url).toBe('https://anilist.co/character/1')
+  expect(cast(merged.characters[0], 'ko'), 'AniList\'s Korean cast, not MyAnimeList\'s "Ja-hyeong Gu"').toEqual(['Ja-Hyeong Koo'])
+  expect(cast(merged.characters[1], 'tl'), 'ANN still adds the dub neither lists').toEqual(['Vincent Gutierrez'])
+  expect(merged.characters[2]).toMatchObject({
+    role: 'MAIN',
+    url: 'https://myanimelist.net/character/2/Faye_Valentine',
+    image: 'https://cdn.myanimelist.net/images/characters/15/264961.jpg',
+  })
+  expect(merged.staff).toHaveLength(13)
+  expect(merged.staff[0]).toEqual({
+    name: 'Shinichirou Watanabe',
+    image: expect.stringContaining('anilistcdn'),
+    url: 'https://anilist.co/staff/97009',
+    roles: ['Director', 'Episode Director', 'Script', 'Storyboard', 'Series Director', 'Unit Director'],
+  })
+})
+
 // Mutation: remove each fold's line from `nameKey` and its pair splits.
 test('names fold across spellings: marks, long vowels, initials, nicknames and "Family, Given"', () => {
   expect(nameKey('Unshou Ishizuka')).toBe(nameKey('Unshō Ishizuka'))
@@ -131,14 +166,94 @@ test('a father and his son are two: "Lon Chaney" never joins "Lon Chaney, Jr."',
   expect(merged.staff.map(({ name }) => name)).toEqual(['Lon Chaney', 'Lon Chaney, Jr.'])
 })
 
-// Guards, not lines: red only if a word sort or an edit distance is ever added to `nameKey`.
-test('word order is kept and spellings are never compared by likeness', () => {
+// Guards, not lines: red only if a word sort or an edit distance is ever added to `nameKey`, or a
+// person's name is ever tried in the other word order, as a character's is.
+test('a person\'s word order is kept and spellings are never compared by likeness', () => {
   const staffOf = (id: string, name: string) => ({ staff: [{ person: { id, name }, roles: ['Key Animation'] }] })
   const people = (a: [string, string], b: [string, string]) =>
     mergeCredits([member('anilist:1', staffOf(...a)), member('ann:1', staffOf(...b))])!.staff.map(({ name }) => name)
 
   expect(people(['anilist:105003', 'José Leonardo'], ['anilist:194141', 'Leonardo José'])).toEqual(['José Leonardo', 'Leonardo José'])
   expect(people(['anilist:107112', 'Tsutomu Tareki'], ['ann:6602', 'Tsutomu Taruki'])).toEqual(['Tsutomu Tareki', 'Tsutomu Taruki'])
+})
+
+// One Piece's rows on AniList, MyAnimeList (its "Dracule, Mihawk" read "Mihawk Dracule") and ANN on
+// 2026-10-13, each cast trimmed. Mutation: drop `reordered` from the characters' other keys and Mihawk,
+// Hancock and Riku are each drawn twice.
+test('a character named in the other word order is one entry, and still needs an actor in common', () => {
+  const merged = mergeCredits([
+    member('anilist:21', { characters: [{ id: 'anilist:2064', names: ['Dracule Mihawk', 'Hawk-Eyes'], voiceActors: [actor('ja', 'Takeshi Aono')] }] }),
+    member('mal:21', {
+      characters: [
+        { id: 'mal:2064', names: ['Mihawk Dracule'], voiceActors: [actor('ja', 'Takeshi Aono'), actor('en', 'John Gremillion')] },
+        { id: 'mal:16342', names: ['Hancock Boa'], voiceActors: [actor('ja', 'Kotono Mitsuishi')] },
+        { id: 'mal:108585', names: ['Dold III Riku'], voiceActors: [actor('ja', 'Masashi Hirose')] },
+        { id: 'mal:4883', names: ['Roger Gol D.'], voiceActors: [actor('ja', 'Takeshi Kusao')] },
+      ],
+    }),
+    member('ann:836', {
+      characters: [
+        { names: ['Dracule Mihawk'], voiceActors: [actor('ja', 'Takeshi Aono')] },
+        { names: ['Boa Hancock'], voiceActors: [actor('ja', 'Kotono Mitsuishi'), actor('en', 'Lydia Mackay')] },
+        { names: ['Riku Dold III'], voiceActors: [actor('ja', 'Masashi Hirose')] },
+        { names: ['Gol D. Roger'], voiceActors: [actor('es', 'Antón Cancelas')] },
+      ],
+    }),
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual(['Dracule Mihawk', 'Hancock Boa', 'Dold III Riku', 'Roger Gol D.', 'Gol D. Roger'])
+  expect(cast(merged.characters[0], 'en'), 'MyAnimeList\'s dub joins AniList\'s Mihawk').toEqual(['John Gremillion'])
+  expect(cast(merged.characters[1], 'en'), 'ANN\'s dub joins MyAnimeList\'s Hancock').toEqual(['Lydia Mackay'])
+})
+
+// Death Note's rows on 2026-10-13: MyAnimeList's Hideki Ryuuga, the idol, reaches AniList's L through L's
+// alias "Ryuga Hideki" in the other word order. Mutation: drop the rank of a row's own names and the two
+// MyAnimeList rows reaching L join neither, so L is drawn twice.
+test('a row reaching an entry by its own names outranks one reaching it in the other word order', () => {
+  const merged = mergeCredits([
+    member('anilist:1535', { characters: [{ id: 'anilist:71', names: ['L Lawliet', 'Ryuga Hideki', 'Ryuzaki'], voiceActors: [actor('ja', 'Kappei Yamaguchi')] }] }),
+    member('mal:1535', {
+      characters: [
+        { id: 'mal:71', names: ['L Lawliet'], voiceActors: [actor('ja', 'Kappei Yamaguchi'), actor('en', 'Alessandro Juliani')] },
+        { id: 'mal:217386', names: ['Hideki Ryuuga'], voiceActors: [actor('ja', 'Kensuke Nishi')] },
+      ],
+    }),
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual(['L Lawliet', 'Hideki Ryuuga'])
+  expect(cast(merged.characters[0], 'en')).toEqual(['Alessandro Juliani'])
+})
+
+// ANN lists One Piece's Niji twice: "Niji Vinsmoke" for the German dub, "Vinsmoke Niji" for the Japanese
+// one. Mutation: let a row's own names outrank the other word order in a source without ids too, and the
+// German string, sharing no actor alone, is drawn as a second Niji.
+test('a source without ids joins its strings in either word order together, the other order on an actor of its own', () => {
+  const merged = mergeCredits([
+    member('mal:21', { characters: [{ id: 'mal:146917', names: ['Niji Vinsmoke'], voiceActors: [actor('ja', 'Atsushi Miyauchi')] }] }),
+    member('ann:836', {
+      characters: [
+        { names: ['Niji Vinsmoke'], voiceActors: [actor('de', 'Johannes Wolko')] },
+        { names: ['Vinsmoke Niji'], voiceActors: [actor('ja', 'Atsushi Miyauchi')] },
+      ],
+    }),
+  ])!
+  expect(merged.characters).toHaveLength(1)
+  expect(cast(merged.characters[0], 'de')).toEqual(['Johannes Wolko'])
+})
+
+// Death Note's idol Hideki Ryuga is not L, whose AniList alias is "Ryuga Hideki", and ANN lists both, as
+// when MyAnimeList's page has not answered. Mutation: judge ANN's strings reaching L together, whatever
+// the order, and the idol rides in on L's string's actor and is not drawn at all.
+test('a string reaching an entry only in the other word order joins on an actor of its own, never on another string\'s', () => {
+  const merged = mergeCredits([
+    member('anilist:1535', { characters: [{ id: 'anilist:71', names: ['L Lawliet', 'Ryuga Hideki', 'Ryuzaki'], voiceActors: [actor('ja', 'Kappei Yamaguchi'), actor('en', 'Alessandro Juliani')] }] }),
+    member('ann:6592', {
+      characters: [
+        { names: ['L Lawliet'], voiceActors: [actor('ja', 'Kappei Yamaguchi')] },
+        { names: ['Hideki Ryuga'], voiceActors: [actor('ja', 'Kensuke Nishi'), actor('en', 'Paul Dobson')] },
+      ],
+    }),
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual(['L Lawliet', 'Hideki Ryuga'])
+  expect(cast(merged.characters[1], 'en')).toEqual(['Paul Dobson'])
 })
 
 // Mutation: drop the name join from `mergeRows` and Watanabe is drawn twice.
@@ -219,7 +334,6 @@ test('Eren takes ANN\'s "Eren Jaeger" and "Eren Jäger" together, and one string
 
 const mother = (source: 'anilist' | 'ann', voiceActors: SourceCharacter['voiceActors']) =>
   member(`${source}:1`, { characters: [{ ...source === 'anilist' ? { id: 'anilist:900' } : {}, names: ['Mother'], voiceActors }] })
-const actor = (language: string, name: string) => ({ language, person: { id: `x:${name}`, name } })
 
 // Mutation: make `accept` always agree and the two mothers become one.
 test('two characters with one name and no actor in common stay two', () => {

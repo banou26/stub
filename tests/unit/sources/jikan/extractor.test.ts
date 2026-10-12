@@ -3,7 +3,7 @@
 // page is: a season the source cannot answer must ask for nothing, and nothing may ask api.jikan.moe,
 // which shut down on 2026-10-01 and leaves every request waiting until it times out.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vite-plus/test'
+import { expect, test, vi } from 'vite-plus/test'
 
 import { anidbIdFromUrl, resolvers } from '../../../../src/sources/jikan/extractor'
 import { animeSeasonOf, mediaSeasonNow } from '../../../../src/sources/season'
@@ -29,11 +29,13 @@ const routed = (route: (url: string) => unknown) => {
 const html = (body: string, ok = true) => ({ ok, status: ok ? 200 : 404, text: async () => body })
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
 
-const mediaFor = async (asked: string, route: (url: string) => unknown) => {
+// every answer the subscription yields, and the last one's media
+const mediaFor = async (asked: string, route: (url: string) => unknown, details?: boolean) => {
   const { ctx, urls } = routed(route)
   const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri: asked } }, ctx).next()
-  return { media: value?.media, urls }
+  const answers: any[] = []
+  for await (const { media } of subscribe(undefined, { input: { uri: asked, details } }, ctx)) answers.push(media)
+  return { media: answers.at(-1), answers, urls }
 }
 
 const pageFor = async (input: Record<string, unknown>, ctx: never) => {
@@ -112,6 +114,71 @@ test('a page that is not a title answers no media, not a half-built one', async 
     const { media } = await mediaFor('mal:999999', () => answer)
     expect(media).toBeUndefined()
   }
+})
+
+const CREDITS = readFileSync(new URL('../../../fixtures/credits/mal-bebop.html', import.meta.url), 'utf8')
+
+// Mutation: ask the credits page without `details` and the modal's answer reads it too; drop the `_`
+// slug and the site answers the title page, which names nobody.
+test('only the title page asks the credits page, and its characters and staff ride on the title', async () => {
+  const route = (url: string) =>
+    url === 'https://myanimelist.net/anime/1' ? html(fixture('mal-anime-1.html'))
+    : url === 'https://myanimelist.net/anime/1/_/characters' ? html(CREDITS)
+    : html(fixture('mal-anime-1.html'))
+
+  const modal = await mediaFor('mal:1', route)
+  expect(modal.urls).toEqual(['https://myanimelist.net/anime/1'])
+  expect(modal.answers).toHaveLength(1)
+  expect(modal.media).not.toHaveProperty('credits')
+
+  const { media, answers, urls } = await mediaFor('ag:(anilist:1,mal:1)', route, true)
+  expect(urls).toEqual(['https://myanimelist.net/anime/1/_/characters', 'https://myanimelist.net/anime/1'])
+  expect(answers).toHaveLength(2)
+  expect(answers[0]).not.toHaveProperty('credits')
+  expect(media.uri).toBe('mal:1')
+  expect(media.credits.score).toBe(0.7)
+  expect(media.credits.characters.map(({ names }: { names: string[] }) => names[0])).toEqual([
+    'Spike Spiegel', 'Faye Valentine', 'Edward Wong Hau Pepelu Tivrusky IV', 'Jet Black', 'Alisa', 'Actress',
+  ])
+  expect(media.credits.staff).toHaveLength(13)
+})
+
+// Mutation: attach whatever parsed, and a page naming nobody answers credits naming nobody, which
+// replace an earlier answer's; read a refused page as a page, and it is dropped with no log line.
+test('a credits page that fails or names nobody adds no credits, and the title still answers', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const answers = [
+    [html(fixture('mal-anime-1.html')), []],
+    [html('<html><body>Too many requests</body></html>', false), ['MyAnimeList credits 1 failed']],
+    [new TypeError('Failed to fetch'), ['MyAnimeList credits 1 failed']],
+  ] as const
+  for (const [answer, logged] of answers) {
+    errors.mockClear()
+    const { media, answers } = await mediaFor('mal:1', url => url.endsWith('/characters') ? answer : html(fixture('mal-anime-1.html')), true)
+    expect(answers).toHaveLength(1)
+    expect(media.uri).toBe('mal:1')
+    expect(media).not.toHaveProperty('credits')
+    expect(errors.mock.calls.map(([line]) => line)).toEqual(logged)
+  }
+  errors.mockRestore()
+})
+
+// One Piece's credits page is 10 MB and took 6.6 to 8.8 s against its title page's 4.1 to 4.3 s
+// (2026-10-15). Mutation: await the credits page before the first answer, and the row waits on it.
+test('the title page\'s row answers before its credits page, and again with its credits once that lands', async () => {
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const { ctx } = routed(url => url.endsWith('/_/characters') ? held.then(() => html(CREDITS)) : html(fixture('mal-anime-1.html')))
+  const answers = (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'mal:1', details: true } }, ctx)
+  const first = await Promise.race([answers.next(), new Promise(resolve => setTimeout(() => resolve('held'), 200))])
+  expect(first, 'the row does not wait on the credits page').not.toBe('held')
+  expect((first as any).value.media.uri).toBe('mal:1')
+  expect((first as any).value.media).not.toHaveProperty('credits')
+  release()
+  const { value } = await answers.next()
+  expect(value.media.uri).toBe('mal:1')
+  expect(value.media.credits.characters).toHaveLength(6)
+  expect((await answers.next()).done).toBe(true)
 })
 
 /**

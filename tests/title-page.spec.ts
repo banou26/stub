@@ -12,7 +12,8 @@ import { build } from 'vite-plus'
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
 // AniList answers each of them with Cowboy Bebop's credits and one sequel, Spec Sequel, AniZip with 26
 // episodes and Frieren's ids, AnimeThemes with Frieren's themes, one without a video, IMDb answers
-// Breaking Bad, and TMDB Squid Game's three seasons and Frieren's one (tests/fake-fetch.ts).
+// Breaking Bad, TMDB Squid Game's three seasons and Frieren's one, and MyAnimeList Cowboy Bebop's title
+// and credits pages for mal:1 (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -200,6 +201,21 @@ test('Characters shows the Japanese cast, a picked dub swaps it, and 390 px wide
   const ed = characters.locator('li').filter({ hasText: 'Edward Wong Hau Pepelu Tivrusky IV' })
   const [name, actors] = await ed.evaluate(card => [...card.children].map(half => half.getBoundingClientRect().width))
   expect(Math.abs(name! - actors!)).toBeLessThan(1)
+})
+
+// AniList's fake lists Spike, Faye and Ed; MyAnimeList's page adds Jet, its other dubs and its staff.
+test('MyAnimeList\'s characters and staff join AniList\'s on the page, given name first', async ({ page }) => {
+  await page.goto(`${origin}/title/ag:(anilist:1,mal:1)`)
+  const characters = page.locator('[data-characters]')
+  const jet = characters.locator('li').filter({ hasText: 'Jet Black' })
+  await expect(jet).toContainText('Unshou Ishizuka', { timeout: 30_000 })
+  await expect(jet.locator('img').first()).toHaveAttribute('src', 'https://cdn.myanimelist.net/images/characters/11/253723.jpg')
+  await expect(characters.locator('li').filter({ hasText: 'Spike Spiegel' })).toHaveCount(1)
+  await characters.getByRole('combobox', { name: 'Language' }).selectOption({ label: 'French' })
+  await expect(jet).toContainText('Philippe Roullier')
+  const staff = page.locator('[data-staff] li')
+  await expect(staff.filter({ hasText: 'Shinichirou Watanabe' })).toHaveCount(1)
+  await expect(staff.filter({ hasText: 'Kazuhiko Ikeguchi' })).toContainText('Producer')
 })
 
 test('a live-action title draws its cast and staff with no language picker', async ({ page }) => {

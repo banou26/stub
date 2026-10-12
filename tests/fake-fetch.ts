@@ -4,6 +4,7 @@ import { cloud } from '@fkn/lib'
 
 import BEBOP from './fixtures/credits/anilist-bebop.json'
 import BREAKING_BAD from './fixtures/credits/imdb-breaking-bad.json'
+import BEBOP_MAL_CREDITS from './fixtures/credits/mal-bebop.html?raw'
 import FRIEREN_THEMES from './fixtures/themes/animethemes-frieren.json'
 import POPULAR_MOVIES from './fixtures/justwatch/popular-movies.json'
 import POPULAR_SHOWS from './fixtures/justwatch/popular-shows.json'
@@ -11,6 +12,7 @@ import FRIEREN_SEASONS from './fixtures/tmdb/seasons-frieren.html?raw'
 import SQUID_GAME_SEASONS from './fixtures/tmdb/seasons-squid-game.html?raw'
 import FRIEREN_SHOW from './fixtures/tmdb/show-frieren.html?raw'
 import SQUID_GAME_SHOW from './fixtures/tmdb/show-squid-game.html?raw'
+import BEBOP_MAL from './unit/sources/jikan/__fixtures__/mal-anime-1.html?raw'
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
@@ -60,7 +62,8 @@ const TMDB: Record<string, string> = {
 // its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
 // alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
 // Squid Game's first, which lists one episode, and JustWatch with its four most popular films or shows
-// when asked for either; every other request goes where it always went.
+// when asked for either, and MyAnimeList with Cowboy Bebop's title and credits pages for mal:1; every
+// other request goes where it always went.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -69,6 +72,8 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     return Response.json({ titles: {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), type: 'TV', ...FRIEREN_IDS } })
   }
   if (input === 'https://graphql.animethemes.moe/') return Response.json(typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === SEQUEL.id ? SEQUEL_THEMES : THEMES)
+  if (input === 'https://myanimelist.net/anime/1') return new Response(BEBOP_MAL)
+  if (input === 'https://myanimelist.net/anime/1/_/characters') return new Response(BEBOP_MAL_CREDITS)
   if (input === 'https://apis.justwatch.com/graphql' && typeof init?.body === 'string') {
     const [objectType] = JSON.parse(init.body).variables?.searchTitlesFilter?.objectTypes ?? []
     if (objectType === 'MOVIE') return Response.json(POPULAR_MOVIES)

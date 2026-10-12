@@ -5,6 +5,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { desc, makeMedia, sameAs } from '../utils'
 import { MAL_TYPE, isContinuing, parseMalSeason, type MalSeasonEntry } from './season-scrape'
 import { airedDates, parseMalAnime, type MalAnime } from './anime-page'
+import { parseMalCredits } from './credits-page'
 import { malLargeImage } from '../mal-image'
 import { animeSeasonOf, lowerSeason, upperSeason, type AnimeSeason } from '../season'
 import { percentScore } from '../average-score'
@@ -24,6 +25,10 @@ export const supportedUris = ['mal']
 
 const SCORE = 0.9
 const DESCRIPTION_SCORE = 0.9
+// below AniList's credits (0.8), as the first source read sets each shared character's name, face and
+// url and each language's whole cast, and this page lists staff by job, producers first; above Anime
+// News Network's (0.2), which have no faces, roles or ids
+const CREDITS_SCORE = 0.7
 
 /**
  * The AniDB id a MyAnimeList external link carries, or undefined when it carries none.
@@ -117,6 +122,21 @@ const pageMedia = (id: string, page: MalAnime) => {
     }] : [],
   })
 }
+
+// 1 MB for mal:1 and 10 MB for One Piece's 1481 characters, so only the title page asks it. Any slug
+// serves it, and without one the site answers the title page instead.
+const fetchCredits = (id: number, context: ExtractorServerContext) =>
+  context
+    .fetch(`https://myanimelist.net/anime/${id}/_/characters`)
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return response.text()
+    })
+    .then(html => ({ ...parseMalCredits(html), score: CREDITS_SCORE }))
+    .catch(error => {
+      console.error(`MyAnimeList credits ${id} failed`, error)
+      return undefined
+    })
 
 const fetchMedia = async ({ id }: { id: number }, context: ExtractorServerContext) => {
   const response = await context.fetch(`https://myanimelist.net/anime/${id}`)
@@ -217,13 +237,18 @@ export const resolvers: Resolvers = {
        * kitsu, offline, simkl and livechart all claim `mal:` with one, which `readClaimedUrls` reads),
        * but only this resolver gives the row data of its own.
        */
-      subscribe: async function*(_, { input: { uri: asked } }, ctx: ExtractorServerContext) {
+      subscribe: async function*(_, { input: { uri: asked, details } }, ctx: ExtractorServerContext) {
         if (!asked || !(isUri(asked) || isAggregatedUri(asked))) return yield { media: null }
         const uri = extractAggregatedUriOrigin(asked, origin)
         if (!uri) return yield { media: null }
-        yield {
-          media: await fetchMedia({ id: Number(uri.id) }, ctx)
-        }
+        const id = Number(uri.id)
+        const credits = details ? fetchCredits(id, ctx) : undefined
+        const media = await fetchMedia({ id }, ctx)
+        // the row first, and again with its credits, whose page takes seconds longer
+        yield { media }
+        const found = await credits
+        // a later answer replaces these credits, so a page that parses to none (an error page) adds none
+        if (media && (found?.characters.length || found?.staff.length)) yield { media: { ...media, credits: found } }
       }
     },
     mediaPage: {

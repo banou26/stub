@@ -19,6 +19,17 @@ export type SourceCharacter = {
 export type SourceCredits = {
   characters: SourceCharacter[]
   staff: { person: SourcePerson, roles: string[] }[]
+  /** Where these credits are read among a title's, when not at their media row's own score. */
+  score?: number
+}
+
+/**
+ * "Family, Given" as "Given Family", the order every source but MyAnimeList writes. A name with no
+ * comma or two, or a suffix after its comma ("Walter White, Jr."), comes back as written.
+ */
+export const givenFirst = (name: string): string => {
+  const parts = name.split(',')
+  return parts.length === 2 && !/^\s*(jr|sr|ii|iii)\.?\s*$/i.test(parts[1]!) ? `${parts[1]!.trim()} ${parts[0]!.trim()}` : name
 }
 
 /**
@@ -62,6 +73,7 @@ const LANGUAGES: Record<string, string> = {
   norwegian: 'no',
   polish: 'pl',
   portuguese: 'pt',
+  'portuguese (br)': 'pt',
   romanian: 'ro',
   russian: 'ru',
   spanish: 'es',
@@ -75,8 +87,8 @@ const LANGUAGES: Record<string, string> = {
 
 /**
  * A voice actor's language as a primary subtag, whatever the source wrote: AniList's "Japanese",
- * Kitsu's `ja_jp` and Anime News Network's `JA` are all `ja`. A word that is neither a known language
- * nor a code is kept as written.
+ * Kitsu's `ja_jp` and Anime News Network's `JA` are all `ja`, MyAnimeList's "Portuguese (BR)" is `pt`.
+ * A word that is neither a known language nor a code is kept as written.
  */
 export const languageCode = (language: string): string => {
   const word = language.trim().toLowerCase()
