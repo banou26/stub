@@ -167,6 +167,8 @@ test('a title\'s address answers only on a site that keeps it', async ({ page })
 })
 
 const siteLinks = (page: Page) => page.locator('header nav').getByRole('link')
+const searchField = (page: Page) => page.getByRole('textbox', { name: 'Search', exact: true })
+const searchButton = (page: Page) => page.getByRole('button', { name: 'Search', exact: true })
 const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(link => [
   link.textContent, link.getAttribute('href'), link.getAttribute('aria-current'), getComputedStyle(link).color,
 ]))
@@ -238,10 +240,11 @@ test('below 1024 px the bar is one row with no visible site links', async ({ pag
     await page.goto(at('127.0.0.1'))
     const plain = (await page.locator('header').boundingBox())!.height
     await page.goto(at('movie.localhost'))
-    await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+    const searchControl = width < 480 ? searchButton(page) : searchField(page)
+    await expect(searchControl).toBeVisible()
     await expect(siteLinks(page).first(), `${width}`).toBeHidden()
     const header = (await page.locator('header').boundingBox())!
-    const search = (await page.getByRole('textbox', { name: 'Search' }).boundingBox())!
+    const search = (await searchControl.boundingBox())!
     const logo = (await page.locator('header .logo').boundingBox())!
     expect(header.height, `${width}`).toBe(plain)
     if (width === 390) expect(header.height).toBe(64)
@@ -285,7 +288,7 @@ test('a long press on the wordmark opens the four sites as a menu, with the view
   await page.keyboard.press('Escape')
   await expect(siteMenu(page), 'Escape closes it').toHaveCount(0)
   await page.locator('header .logo').click({ button: 'right' })
-  await page.getByRole('textbox', { name: 'Search' }).click()
+  await page.getByRole('heading', { name: 'Settings' }).click()
   await expect(siteMenu(page), 'and a click outside closes it').toHaveCount(0)
 })
 
@@ -355,7 +358,7 @@ test('the arrow shows only where the links are hidden, and only on the four site
   await expect(sitesArrow(page), 'a desktop has the links inline instead').toBeHidden()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('127.0.0.1'))
-  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+  await expect(searchButton(page)).toBeVisible()
   await expect(sitesArrow(page)).toHaveCount(0)
 })
 
@@ -369,4 +372,58 @@ test('any other host opens no menu on a long press', async ({ page }) => {
   await longPress(page)
   await page.waitForTimeout(500)
   await expect(siteMenu(page)).toHaveCount(0)
+})
+
+test('below 480 px the search waits behind a button, and opens focused over the whole row', async ({ page }) => {
+  for (const width of [360, 390, 479]) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto(at('movie.localhost', '/settings'))
+    await expect(searchButton(page), `${width}`).toBeVisible()
+    await expect(searchField(page), `${width}`).toBeHidden()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    const start = (await page.locator('header .start').boundingBox())!
+    const button = (await searchButton(page).boundingBox())!
+    const actions = (await page.locator('header .actions').boundingBox())!
+    expect(start.x + start.width, `${width}: the wordmark ends before the button`).toBeLessThanOrEqual(button.x)
+    expect(button.x + button.width, `${width}: the button ends before the actions`).toBeLessThanOrEqual(actions.x)
+    await searchButton(page).click()
+    await expect(searchField(page), `${width}`).toBeFocused()
+    expect((await searchField(page).boundingBox())!.width, `${width}: the field takes the row`).toBeGreaterThan(width - 120)
+    await page.keyboard.press('Escape')
+    await expect(searchField(page), `${width}: Escape closes it`).toBeHidden()
+    await expect(searchButton(page)).toBeVisible()
+  }
+})
+
+test('the phone search closes on its own button or a tap away, and is open on the search page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost', '/settings'))
+  await searchButton(page).click()
+  await page.getByRole('button', { name: 'Close search' }).click()
+  await expect(searchField(page), 'its close button closes it').toBeHidden()
+  await searchButton(page).click()
+  await expect(searchField(page)).toBeFocused()
+  await page.getByRole('heading', { name: 'Settings' }).click()
+  await expect(searchField(page), 'a tap away with nothing typed closes it').toBeHidden()
+  await searchButton(page).click()
+  await searchField(page).fill('dune')
+  await expect(page).toHaveURL(/\/search\?/)
+  await page.reload()
+  await expect(searchField(page), 'the search page opens with the field shown').toHaveValue('dune')
+  await searchField(page).press('Escape')
+  await expect(searchField(page), 'Escape closes it with a query typed').toBeHidden()
+  await searchButton(page).click()
+  await expect(searchField(page)).toHaveValue('dune')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/settings/)
+  await expect(searchField(page), 'leaving the search page closes it').toBeHidden()
+})
+
+test('from 480 px the field shows as before, with no search button', async ({ page }) => {
+  for (const width of [480, 1280]) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto(at('movie.localhost', '/settings'))
+    await expect(searchField(page), `${width}`).toBeVisible()
+    await expect(searchButton(page), `${width}`).toBeHidden()
+  }
 })

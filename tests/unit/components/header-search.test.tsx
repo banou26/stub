@@ -6,7 +6,7 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-vi.mock('lucide-react', () => ({ Search: () => null, Settings: () => null }))
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
 

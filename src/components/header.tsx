@@ -3,7 +3,7 @@ import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useDismiss, useFloating, useInteractions, useRole
 } from '@floating-ui/react'
-import { ChevronDown, Search, Settings } from 'lucide-react'
+import { ChevronDown, Search, Settings, X } from 'lucide-react'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -183,7 +183,7 @@ const style = css`
       background: rgba(35, 35, 35, 0.95);
     }
 
-    svg {
+    & > svg {
       position: absolute;
       left: 1.4rem;
       top: 50%;
@@ -231,7 +231,7 @@ const style = css`
     }
 
     .search {
-      svg {
+      & > svg {
         left: 1rem;
       }
 
@@ -239,6 +239,56 @@ const style = css`
         padding: 0.6rem 1rem 0.6rem 3.8rem;
         font-size: 1.4rem;
       }
+    }
+  }
+
+  .search-toggle,
+  .search-close {
+    display: none;
+  }
+
+  /* below this the row has no room for a field beside the wordmark and the actions, so the field
+     waits behind a button and opens over the whole row */
+  @media (max-width: 479px) {
+    gap: 0.4rem;
+    padding: 0 1rem;
+
+    .actions {
+      gap: 0.6rem;
+    }
+
+    /* borderless like the site arrow: a 360 px row has no room for a fourth circle */
+    .search-toggle {
+      display: flex;
+      justify-self: end;
+      width: 2.8rem;
+      height: 2.8rem;
+      border: none;
+    }
+
+    .search {
+      display: none;
+
+      &.open {
+        display: flex;
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: auto;
+        background: #232323;
+      }
+    }
+
+    .search-close {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      padding: 0 1rem;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.6);
     }
   }
 `
@@ -370,6 +420,14 @@ export const Header = () => {
   const routeQuery = filters.query
   const [query, setQuery] = useState(routeQuery)
   const inputRef = useRef<HTMLInputElement>(null)
+  // only a phone's layout reads it: the field is open on the search page and after a tap on its button
+  const [searchOpen, setSearchOpen] = useState(onSearch)
+
+  useEffect(() => setSearchOpen(onSearch), [onSearch])
+
+  useEffect(() => {
+    if (searchOpen && !onSearch) inputRef.current?.focus()
+  }, [searchOpen])
 
   useEffect(() => {
     if (document.activeElement !== inputRef.current && routeQuery !== query) setQuery(routeQuery)
@@ -398,7 +456,7 @@ export const Header = () => {
         )}
       </div>
       <form
-        className="search"
+        className={searchOpen ? 'search open' : 'search'}
         onSubmit={event => {
           event.preventDefault()
           runSearch(query)
@@ -417,8 +475,35 @@ export const Header = () => {
             setQuery(value)
             runSearch(value)
           }}
+          onKeyDown={event => {
+            if (event.key !== 'Escape') return
+            setSearchOpen(false)
+            inputRef.current?.blur()
+          }}
+          onBlur={() => {
+            if (!query.trim()) setSearchOpen(false)
+          }}
         />
+        <button
+          type="button"
+          className="search-close"
+          aria-label="Close search"
+          // keeps the field focused through the press, so its blur does not close the row under the finger
+          onPointerDown={event => event.preventDefault()}
+          onClick={() => setSearchOpen(false)}
+        >
+          <X size={18}/>
+        </button>
       </form>
+      <button
+        type="button"
+        className="icon-button search-toggle"
+        aria-label="Search"
+        aria-expanded={searchOpen}
+        onClick={() => setSearchOpen(true)}
+      >
+        <Search size={20}/>
+      </button>
       <div className="actions">
         <PartyWidget/>
         <Link to={getRoutePath(Route.SETTINGS)} className="icon-button" aria-label="Settings" title="Settings">
