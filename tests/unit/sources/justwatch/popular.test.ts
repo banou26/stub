@@ -1,5 +1,5 @@
 // JustWatch's popularTitles with no search, the US films and shows, cut to the first four each on
-// 2026-10-12: the home row of movie.fkn.app and of series.fkn.app.
+// 2026-10-12: the home row of movies.fkn.app and of series.fkn.app.
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/justwatch/extractor'

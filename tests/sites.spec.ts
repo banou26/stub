@@ -10,7 +10,7 @@ import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
 
-// One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movie.fkn.app and
+// One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movies.fkn.app and
 // series.fkn.app: `*.localhost` stands in for fkn.app, and 127.0.0.1 is any other host, which shows
 // everything. Built and served the way tests/title-page.spec.ts does, so JustWatch answers its four most
 // popular films and shows (tests/fake-fetch.ts) and every request that leaves the server is refused.
@@ -85,8 +85,8 @@ test('anime.fkn.app lists the current season alone, with no category tabs', asyn
   await expect(page.getByRole('textbox', { name: 'Search' })).toHaveAttribute('placeholder', 'Search anime…')
 })
 
-test('movie.fkn.app lists JustWatch\'s popular films alone, with no category tabs', async ({ page }) => {
-  await page.goto(at('movie.localhost'))
+test('movies.fkn.app lists JustWatch\'s popular films alone, with no category tabs', async ({ page }) => {
+  await page.goto(at('movies.localhost'))
   await expect(row(page, 'Popular movies')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Practical Magic' }).first()).toBeVisible({ timeout: 30_000 })
   await expect(row(page, 'Current season')).toHaveCount(0)
@@ -112,13 +112,13 @@ test('any other host lists all three rows under the category tabs, and a tab kee
   await expect(row(page, 'Popular movies')).toHaveCount(0)
 })
 
-test('movie.fkn.app\'s settings leave out the anime catalogues and their sign-ins', async ({ page }) => {
+test('movies.fkn.app\'s settings leave out the anime catalogues and their sign-ins', async ({ page }) => {
   const animeCatalogues = ['anilist', 'mal', 'kitsu', 'livechart', 'anizip', 'offline', 'cr']
-  await page.goto(at('movie.localhost', '/settings#sources'))
+  await page.goto(at('movies.localhost', '/settings#sources'))
   await expect(page.getByRole('switch')).toHaveCount(builtInSources.length - animeCatalogues.length)
   await expect(page.getByRole('switch', { name: 'AniList', exact: true })).toHaveCount(0)
   await expect(page.getByRole('switch', { name: 'JustWatch', exact: true })).toBeVisible()
-  await page.goto(at('movie.localhost', '/settings#accounts'))
+  await page.goto(at('movies.localhost', '/settings#accounts'))
   await expect(page.locator('[data-account="netflix"]')).toBeVisible()
   await expect(page.locator('[data-account="anilist"], [data-account="mal"], [data-account="crunchyroll"]')).toHaveCount(0)
 })
@@ -131,7 +131,7 @@ test('search offers Category on stub alone, and Season and Format on anime and s
   }
   expect(await filters('127.0.0.1')).toEqual(['Search', 'Genres & Tags', 'Year', 'Season', 'Format', 'Airing Status', 'Category'])
   expect(await filters('anime.localhost')).toEqual(['Search', 'Genres & Tags', 'Year', 'Season', 'Format', 'Airing Status'])
-  expect(await filters('movie.localhost')).toEqual(['Search', 'Genres & Tags', 'Year'])
+  expect(await filters('movies.localhost')).toEqual(['Search', 'Genres & Tags', 'Year'])
 })
 
 test('a Popular row draws nothing while JustWatch is off, rather than the store\'s films and shows', async ({ page }) => {
@@ -176,10 +176,10 @@ const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(
 test('the header links the four sites in order, marks the current one, and a link lands on that site', async ({ page }) => {
   const grey = 'rgb(119, 119, 119)'
   const white = 'rgb(255, 255, 255)'
-  await page.goto(at('movie.localhost'))
+  await page.goto(at('movies.localhost'))
   await expect(siteLinks(page)).toHaveCount(4)
   expect(await linkList(page)).toEqual([
-    ['Movies', at('movie.localhost'), 'page', white],
+    ['Movies', at('movies.localhost'), 'page', white],
     ['Series', at('series.localhost'), null, grey],
     ['Anime', at('anime.localhost'), null, grey],
     ['All', at('stub.localhost'), null, grey],
@@ -212,7 +212,7 @@ test('a site link offers this device\'s own sources to the next site, never the 
   })
   await page.goto(at('anime.localhost'))
   await expect(siteLinks(page).getByText('Movies', { exact: true }))
-    .toHaveAttribute('href', `${at('movie.localhost')}?plugins=https:stub.plugins.banou.dev`)
+    .toHaveAttribute('href', `${at('movies.localhost')}?plugins=https:stub.plugins.banou.dev`)
 })
 
 test('from 1024 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
@@ -241,7 +241,7 @@ test('below 1024 px the bar is one row with no visible site links', async ({ pag
     await page.setViewportSize({ width, height })
     await page.goto(at('127.0.0.1'))
     const plain = (await page.locator('header').boundingBox())!.height
-    await page.goto(at('movie.localhost'))
+    await page.goto(at('movies.localhost'))
     const searchControl = width < 480 ? searchButton(page) : searchField(page)
     await expect(searchControl).toBeVisible()
     await expect(siteLinks(page).first(), `${width}`).toBeHidden()
@@ -268,7 +268,7 @@ const longPress = async (page: Page) => {
 test('a long press on the wordmark opens the four sites as a menu, with the viewer\'s sources', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]'))
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost', '/settings'))
+  await page.goto(at('movies.localhost', '/settings'))
   await expect(page.locator('header .logo')).toHaveCSS('user-select', 'none')
   await longPress(page)
   const sources = '?plugins=https:stub.plugins.banou.dev'
@@ -276,7 +276,7 @@ test('a long press on the wordmark opens the four sites as a menu, with the view
   expect(await siteMenu(page).getByRole('link').evaluateAll(links => links.map(link => [
     link.textContent, link.getAttribute('href'), link.getAttribute('aria-current'), getComputedStyle(link).color,
   ]))).toEqual([
-    ['Movies', `${at('movie.localhost')}${sources}`, 'page', 'rgb(255, 255, 255)'],
+    ['Movies', `${at('movies.localhost')}${sources}`, 'page', 'rgb(255, 255, 255)'],
     ['Series', `${at('series.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
     ['Anime', `${at('anime.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
     ['All', `${at('stub.localhost')}${sources}`, null, 'rgba(255, 255, 255, 0.7)'],
@@ -296,12 +296,12 @@ test('a long press on the wordmark opens the four sites as a menu, with the view
 
 test('a short tap on the wordmark still goes home', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost', '/settings'))
+  await page.goto(at('movies.localhost', '/settings'))
   await longPress(page)
   await expect(siteMenu(page), 'the control: a long press opens the menu').toBeVisible()
   await page.keyboard.press('Escape')
   await page.locator('header .logo').click()
-  await expect(page).toHaveURL(at('movie.localhost'))
+  await expect(page).toHaveURL(at('movies.localhost'))
   await expect(row(page, 'Popular movies')).toBeVisible()
   await page.waitForTimeout(800)
   await expect(siteMenu(page), 'the tap\'s own timer is cleared').toHaveCount(0)
@@ -309,7 +309,7 @@ test('a short tap on the wordmark still goes home', async ({ page }) => {
 
 test('a press that leaves the wordmark early opens nothing, and one released off it leaves Enter going home', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost', '/settings'))
+  await page.goto(at('movies.localhost', '/settings'))
   const logo = (await page.locator('header .logo').boundingBox())!
   await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
   await page.mouse.down()
@@ -326,14 +326,14 @@ test('a press that leaves the wordmark early opens nothing, and one released off
   await page.keyboard.press('Escape')
   await expect(page.locator('header .logo')).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(at('movie.localhost'))
+  await expect(page).toHaveURL(at('movies.localhost'))
 })
 
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
 
 test('below 1024 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost', '/settings'))
+  await page.goto(at('movies.localhost', '/settings'))
   const arrow = (await sitesArrow(page).boundingBox())!
   const logo = (await page.locator('header .logo').boundingBox())!
   expect(arrow.x + arrow.width, 'it sits before the wordmark').toBeLessThanOrEqual(logo.x)
@@ -353,7 +353,7 @@ test('below 1024 px an arrow before the wordmark opens and closes the site menu 
 
 test('the arrow shows only where the links are hidden, and only on the four sites', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost'))
+  await page.goto(at('movies.localhost'))
   await expect(sitesArrow(page), 'the control: a phone on a site shows it').toBeVisible()
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(siteLinks(page).first()).toBeVisible()
@@ -379,7 +379,7 @@ test('any other host opens no menu on a long press', async ({ page }) => {
 test('below 480 px the search waits behind a button, and opens focused over the whole row', async ({ page }) => {
   for (const width of [360, 390, 479]) {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto(at('movie.localhost', '/settings'))
+    await page.goto(at('movies.localhost', '/settings'))
     await expect(searchButton(page), `${width}`).toBeVisible()
     await expect(searchField(page), `${width}`).toBeHidden()
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}: no sideways scroll`).toBeLessThanOrEqual(width)
@@ -403,7 +403,7 @@ test('below 480 px the search waits behind a button, and opens focused over the 
 
 test('the phone search closes on its own button or a tap away, and is open on the search page', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(at('movie.localhost', '/settings'))
+  await page.goto(at('movies.localhost', '/settings'))
   await searchButton(page).click()
   await page.getByRole('button', { name: 'Close search' }).click()
   await expect(searchField(page), 'its close button closes it').toBeHidden()
@@ -428,8 +428,16 @@ test('the phone search closes on its own button or a tap away, and is open on th
 test('from 480 px the field shows as before, with no search button', async ({ page }) => {
   for (const width of [480, 1280]) {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto(at('movie.localhost', '/settings'))
+    await page.goto(at('movies.localhost', '/settings'))
     await expect(searchField(page), `${width}`).toBeVisible()
     await expect(searchButton(page), `${width}`).toBeHidden()
   }
+})
+
+test('an old movie.fkn.app address lands on the same page at movies.fkn.app', async ({ page }) => {
+  await page.goto(at('movie.localhost', '/settings?plugins=https:stub.plugins.banou.dev#sources'))
+  await expect(page).toHaveURL(at('movies.localhost', '/settings?plugins=https:stub.plugins.banou.dev#sources'))
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await page.goto(at('series.localhost', '/settings'))
+  await expect(page, 'the control: another site stays where it is').toHaveURL(at('series.localhost', '/settings'))
 })

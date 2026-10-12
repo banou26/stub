@@ -143,7 +143,7 @@ test('and a row no live source described cannot answer an airing question', () =
   expect(uris(applyMediaFilters(page, {})), 'and is untouched when nothing asks').toEqual(['offline:1'])
 })
 
-// The site comes before every filter a caller sets, so a page on movie.fkn.app that asks for anime, or
+// The site comes before every filter a caller sets, so a page on movies.fkn.app that asks for anime, or
 // for nothing at all, still gets films only.
 describe('the site a page is served on', () => {
   const page = [

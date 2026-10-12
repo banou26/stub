@@ -3,19 +3,27 @@
 
 export type Site = 'anime' | 'movie' | 'series' | 'stub'
 
-const SITE_HOST = /^(anime|movie|series|stub)\.(fkn\.app|localhost)$/
+const SITE_HOST = /^(anime|movies?|series|stub)\.(fkn\.app|localhost)$/
 
 /**
- * The site an address serves: anime.fkn.app, movie.fkn.app and series.fkn.app by their first label,
- * and `movie.localhost` the same way in development. Any other host, stub.fkn.app, a pages.dev preview
- * or a sandbox tenant, is `stub`, which shows everything.
+ * The site an address serves: anime.fkn.app, movies.fkn.app and series.fkn.app by their first label,
+ * and `movies.localhost` the same way in development. movie.fkn.app, the movie site's first address, is
+ * still the movie site (it redirects to movies.fkn.app at the edge). Any other host, stub.fkn.app, a
+ * pages.dev preview or a sandbox tenant, is `stub`, which shows everything.
  */
-export const siteOf = (hostname: string): Site =>
-  (hostname.match(SITE_HOST)?.[1] as Site | undefined) ?? 'stub'
+export const siteOf = (hostname: string): Site => {
+  const label = hostname.match(SITE_HOST)?.[1]
+  return label === 'movies' ? 'movie' : (label as Site | undefined) ?? 'stub'
+}
 
 export const site: Site = siteOf(globalThis.location?.hostname ?? '')
 
-const SITE_LABELS: [Site, string][] = [['movie', 'Movies'], ['series', 'Series'], ['anime', 'Anime'], ['stub', 'All']]
+const SITE_LINKS: { site: Site, host: string, label: string }[] = [
+  { site: 'movie', host: 'movies', label: 'Movies' },
+  { site: 'series', host: 'series', label: 'Series' },
+  { site: 'anime', host: 'anime', label: 'Anime' },
+  { site: 'stub', host: 'stub', label: 'All' },
+]
 
 /**
  * The four sites' homes as seen from an address, in the header's order: the same domain, protocol and
@@ -26,7 +34,7 @@ const SITE_LABELS: [Site, string][] = [['movie', 'Movies'], ['series', 'Series']
 export const siteLinksOf = ({ protocol, hostname, port }: Pick<URL, 'protocol' | 'hostname' | 'port'>) => {
   const domain = hostname.match(SITE_HOST)?.[2]
   if (!domain) return []
-  return SITE_LABELS.map(([to, label]) => ({ site: to, label, href: `${protocol}//${to}.${domain}${port ? `:${port}` : ''}/` }))
+  return SITE_LINKS.map(({ site: to, host, label }) => ({ site: to, label, href: `${protocol}//${host}.${domain}${port ? `:${port}` : ''}/` }))
 }
 
 export const siteLinks = globalThis.location ? siteLinksOf(globalThis.location) : []

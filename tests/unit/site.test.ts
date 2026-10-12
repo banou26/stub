@@ -25,9 +25,10 @@ test.each(TABLE)('$title shows on $sites', ({ categories, sites }) => {
 
 test('the site is the address\'s first label on fkn.app and localhost, and everything anywhere else', () => {
   expect(siteOf('anime.fkn.app')).toBe('anime')
-  expect(siteOf('movie.fkn.app')).toBe('movie')
+  expect(siteOf('movies.fkn.app')).toBe('movie')
   expect(siteOf('series.fkn.app')).toBe('series')
-  expect(siteOf('movie.localhost')).toBe('movie')
+  expect(siteOf('movies.localhost')).toBe('movie')
+  expect(siteOf('movie.fkn.app'), 'the first address, redirected at the edge').toBe('movie')
   expect(siteOf('stub.fkn.app')).toBe('stub')
   expect(siteOf('stub-ben.pages.dev')).toBe('stub')
   expect(siteOf('movie.stub-ben.pages.dev')).toBe('stub')
@@ -47,29 +48,29 @@ const links = (address: string) => siteLinksOf(new URL(address)).map(({ label, h
 
 test('the four sites link to each other\'s homes on fkn.app, from each of them', () => {
   const fknApp = [
-    ['Movies', 'https://movie.fkn.app/'],
+    ['Movies', 'https://movies.fkn.app/'],
     ['Series', 'https://series.fkn.app/'],
     ['Anime', 'https://anime.fkn.app/'],
     ['All', 'https://stub.fkn.app/'],
   ]
-  for (const host of ['anime.fkn.app', 'movie.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
+  for (const host of ['anime.fkn.app', 'movies.fkn.app', 'movie.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
     expect(links(`https://${host}/watch/x?plugins=y`), host).toEqual(fknApp)
   }
 })
 
 test('on localhost the links keep the protocol and the port, stub.localhost standing for All', () => {
   const local = [
-    ['Movies', 'http://movie.localhost:4173/'],
+    ['Movies', 'http://movies.localhost:4173/'],
     ['Series', 'http://series.localhost:4173/'],
     ['Anime', 'http://anime.localhost:4173/'],
     ['All', 'http://stub.localhost:4173/'],
   ]
-  expect(links('http://movie.localhost:4173/search')).toEqual(local)
+  expect(links('http://movies.localhost:4173/search')).toEqual(local)
   expect(links('http://stub.localhost:4173/')).toEqual(local)
 })
 
 test('no links off the four sites\' hosts', () => {
-  expect(links('https://movie.fkn.app/'), 'the control').toHaveLength(4)
+  expect(links('https://movies.fkn.app/'), 'the control').toHaveLength(4)
   for (const address of [
     'https://stub-ben.pages.dev/',
     'https://movie.stub-ben.pages.dev/',
