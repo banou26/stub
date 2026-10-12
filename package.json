@@ -20,9 +20,10 @@
     "screenshots": [
       "store/home.webp",
       "store/title.webp",
+      "store/movie.webp",
+      "store/series.webp",
       "store/search.webp",
-      "store/season.webp",
-      "store/sources.webp"
+      "store/phone.webp"
     ]
   },
   "files": [

@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 // fkn.app's package page shows the images package.json's fkn field names only for a verified release,
 // read from unpkg at the exact version, so they ship in the tarball. The caps are @fkn/package-manifest's
@@ -37,8 +37,9 @@ describe("stub's store listing", () => {
     for (const path of named) expect(path).toMatch(/^store\/[a-z0-9-]+\.webp$/)
   })
 
-  // what is in store/ ships whether or not the listing names it
-  test('ships no image the listing does not name', () => {
+  // what is in store/ ships whether or not the listing names it, and a named file missing from it
+  // fails the signer's release
+  test('ships exactly the images the listing names, none missing and none extra', () => {
     expect(readdirSync(root('store')).map(name => `store/${name}`).sort()).toEqual([...named].sort())
   })
 
@@ -50,11 +51,12 @@ describe("stub's store listing", () => {
     }
   })
 
-  // the background is Steam's library hero size, the cover its 2:3 capsule, and the screenshots
-  // 1280x800 captures of anime.fkn.app at a device pixel ratio of 2
-  test('draws each image at the size its place on the page recommends', () => {
+  // the background is Steam's library hero size and the cover its 2:3 capsule; the screenshots are
+  // the owner's 4K captures of the live sites, a 1920x1080 page at a device pixel ratio of 2, and a
+  // phone's at its 390x844 CSS size at 3
+  test('draws each image at the size it was made for', () => {
     expect(webpSizeOf(background).size).toBe('3840x1240')
     expect(webpSizeOf(cover).size).toBe('600x900')
-    for (const path of screenshots) expect(webpSizeOf(path).size, path).toBe('2560x1600')
+    for (const path of screenshots) expect(webpSizeOf(path).size, path).toBe(path.startsWith('store/phone') ? '1170x2532' : '3840x2160')
   })
 })
