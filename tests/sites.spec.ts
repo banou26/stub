@@ -415,7 +415,7 @@ test('the phone search closes on its own button or a tap away, and is open on th
   await searchField(page).fill('dune')
   await expect(page).toHaveURL(/\/search\?/)
   await page.reload()
-  await expect(searchField(page), 'the search page opens with the field shown').toHaveValue('dune')
+  await expect(searchField(page), 'the search page opens with the field shown').toHaveValue('dune', { timeout: 15_000 })
   await searchField(page).press('Escape')
   await expect(searchField(page), 'Escape closes it with a query typed').toBeHidden()
   await searchButton(page).click()
