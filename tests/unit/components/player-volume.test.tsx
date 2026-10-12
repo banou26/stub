@@ -7,10 +7,13 @@ import type { FunctionComponent } from 'preact'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { PLAYER_VOLUME_KEY, readPlayerVolume, rememberPlayerVolume } from '../../../src/utils/player-volume'
+import { makeRemoteVideo, settle } from './remote-video'
 
 // Both of stub's episode players, mounted for real over a fake remote video: stub's own videojs skin
-// (Netflix) and @banou/media-player (Crunchyroll). Each must start an episode at the volume and mute
-// the viewer last left a player at, and play exactly as before when storage is blocked or holds junk.
+// (Netflix, bare and with its seek adapter) and @banou/media-player (Crunchyroll). Each must start an
+// episode at the volume and mute the viewer last left a player at, hold it against the page behind
+// the video, keep only what the viewer changes, and play exactly as before when storage is blocked or
+// holds junk.
 
 // @banou/media-player's two CommonJS dependencies cannot reach the react alias under node (see
 // vitest.config.ts), and neither draws anything this test reads
@@ -21,61 +24,41 @@ vi.mock('lucide-react', () => Object.fromEntries(
 vi.mock('react-tooltip', () => ({ Tooltip: () => null }))
 
 const { default: Player } = await import('../../../src/components/player')
+const { default: NetflixVideoJSPlayer } = await import('../../../src/sources/unogs/nf-videojs-player')
 const { default: CrunchyrollVideoJSPlayer } = await import('../../../src/sources/crunchyroll/cr-videojs-player')
-
-type FakeVideo = RemoteVideoElement & { volumeChanges: number }
-
-type Listener = (event: { type: string }) => void
-
-// a video element's volume and mute as @fkn/lib's handle on one has them: own accessors, and a
-// `volumechange` queued as a later task on every write, the way a real element fires it. Its own
-// listener list, since ./dom swaps the global Event for linkedom's, which node's EventTarget refuses,
-// and linkedom's target ignores the `signal` a player store detaches with.
-const makeRemote = (): FakeVideo => {
-  const listeners = new Map<string, Set<Listener>>()
-  const off = (type: string, listener: Listener) => { listeners.get(type)?.delete(listener) }
-  const on = (type: string, listener: Listener, options?: { signal?: AbortSignal }) => {
-    if (!listeners.has(type)) listeners.set(type, new Set())
-    listeners.get(type)!.add(listener)
-    options?.signal?.addEventListener('abort', () => off(type, listener))
-  }
-  let volume = 1
-  let muted = false
-  const changed = () => setTimeout(() => {
-    fake.volumeChanges++
-    for (const listener of listeners.get('volumechange') ?? []) listener({ type: 'volumechange' })
-  }, 0)
-  const fake = Object.defineProperties({
-    volumeChanges: 0,
-    currentTime: 0, duration: 1_440, paused: true, readyState: 4, seeking: false, playbackRate: 1,
-    play: async () => {}, pause: () => {},
-    addEventListener: on, removeEventListener: off, dispatchEvent: () => true,
-  }, {
-    volume: { configurable: true, enumerable: true, get: () => volume, set: (value: number) => { volume = value; changed() } },
-    muted: { configurable: true, enumerable: true, get: () => muted, set: (value: boolean) => { muted = value; changed() } },
-  }) as unknown as FakeVideo
-  return fake
-}
 
 const frame = { locator: () => ({ fill: async () => {} }) } as unknown as Frame
 
 type PlayerUnderTest = {
   name: string
   Component: FunctionComponent<{ remote: RemoteVideoElement | null, frame: Frame | null }>
-  /** Whether the player's own mute control reads as muted, which is the store having read the media. */
+  /** The player's own mute control. */
+  muteControl: (host: HTMLElement) => HTMLButtonElement | null
+  /** Whether that control reads as muted, which is the store having read the media. */
   showsMuted: (host: HTMLElement) => boolean
 }
 
+const videojsMute = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('.media-button--mute')
+const mediaPlayerMute = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button.sound')
+
 const PLAYERS: PlayerUnderTest[] = [
   {
-    name: "stub's own videojs player (Netflix)",
+    name: "stub's own videojs player",
     Component: Player,
-    showsMuted: host => host.querySelector('.media-button--mute')?.getAttribute('aria-label') === 'Unmute',
+    muteControl: videojsMute,
+    showsMuted: host => videojsMute(host)?.getAttribute('aria-label') === 'Unmute',
+  },
+  {
+    name: "stub's own videojs player with Netflix's seek adapter",
+    Component: NetflixVideoJSPlayer,
+    muteControl: videojsMute,
+    showsMuted: host => videojsMute(host)?.getAttribute('aria-label') === 'Unmute',
   },
   {
     name: '@banou/media-player (Crunchyroll)',
     Component: CrunchyrollVideoJSPlayer,
-    showsMuted: host => host.querySelector('button.sound')?.getAttribute('aria-pressed') === 'true',
+    muteControl: mediaPlayerMute,
+    showsMuted: host => mediaPlayerMute(host)?.getAttribute('aria-pressed') === 'true',
   },
 ]
 
@@ -96,10 +79,9 @@ const play = (Component: FunctionComponent<{ remote: RemoteVideoElement | null, 
   return host
 }
 const close = () => { while (hosts.length) unmount(hosts.pop()!) }
-// every queued `volumechange` has been delivered
-const settle = () => new Promise(resolve => setTimeout(resolve, 10))
 
 let storage: ReturnType<typeof memoryStorage>
+const kept = () => JSON.parse(storage.values.get(PLAYER_VOLUME_KEY) ?? 'null')
 beforeEach(() => {
   storage = memoryStorage()
   vi.stubGlobal('localStorage', storage)
@@ -109,62 +91,122 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-for (const { name, Component, showsMuted } of PLAYERS) {
+for (const { name, Component, muteControl, showsMuted } of PLAYERS) {
   describe(name, () => {
-    test('starts the next episode at the volume and mute the last one was left at', async () => {
-      const first = makeRemote()
-      play(Component, first)
+    test('starts an episode at the kept volume and mute', async () => {
+      storage.values.set(PLAYER_VOLUME_KEY, JSON.stringify({ volume: 0.3, muted: true }))
+      const { remote, video } = makeRemoteVideo()
+      const host = play(Component, remote)
       await settle()
-      first.volume = 0.3
-      first.muted = true
-      await settle()
-      close()
-
-      const next = makeRemote()
-      const host = play(Component, next)
-      expect(next.volume).toBe(0.3)
-      expect(next.muted).toBe(true)
-      expect(JSON.parse(storage.values.get(PLAYER_VOLUME_KEY)!)).toEqual({ volume: 0.3, muted: true })
+      expect(video).toEqual({ volume: 0.3, muted: true })
       await vi.waitFor(() => expect(showsMuted(host), 'the mute control shows it').toBe(true))
     })
 
-    test('stops keeping changes once the episode is closed', async () => {
-      const first = makeRemote()
-      play(Component, first)
+    test('keeps the kept mute when the page behind the video unmutes it after the restore', async () => {
+      storage.values.set(PLAYER_VOLUME_KEY, JSON.stringify({ volume: 1, muted: true }))
+      const { remote, video, setByPage } = makeRemoteVideo()
+      const host = play(Component, remote)
+      await vi.waitFor(() => expect(video.muted, 'the kept mute reached the video').toBe(true))
+
+      setByPage('muted', false)
       await settle()
-      first.volume = 0.6
+
+      expect(video.muted, 'the video is muted again').toBe(true)
+      expect(kept(), 'the page\'s unmute is not kept').toEqual({ volume: 1, muted: true })
+      await vi.waitFor(() => expect(showsMuted(host)).toBe(true))
+    })
+
+    test('keeps a mute made with its own control, and the next episode starts muted', async () => {
+      const first = makeRemoteVideo()
+      const host = play(Component, first.remote)
+      await vi.waitFor(() => expect(muteControl(host)).toBeTruthy())
+      muteControl(host)!.click()
+      await settle()
+      expect(first.video.muted).toBe(true)
+      expect(kept()).toEqual({ volume: 1, muted: true })
+      close()
+
+      const next = makeRemoteVideo()
+      const nextHost = play(Component, next.remote)
+      await settle()
+      expect(next.video.muted).toBe(true)
+      await vi.waitFor(() => expect(showsMuted(nextHost)).toBe(true))
+    })
+
+    test('stops holding and keeping once the episode is closed', async () => {
+      const { remote, video, setByPage } = makeRemoteVideo()
+      const host = play(Component, remote)
+      await vi.waitFor(() => expect(muteControl(host)).toBeTruthy())
+      muteControl(host)!.click()
       await settle()
       close()
-      first.volume = 0.1
+      setByPage('muted', false)
       await settle()
-      expect(readPlayerVolume()).toEqual({ volume: 0.6, muted: false })
+      expect(video.muted).toBe(false)
+      expect(readPlayerVolume()).toEqual({ volume: 1, muted: true })
     })
 
     test('plays at its defaults, and keeps nothing, when the browser blocks site data', async () => {
       // reading `localStorage` itself throws there, rather than answering null
       Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new DOMException('blocked', 'SecurityError') } })
-      const remote = makeRemote()
+      const { remote, video } = makeRemoteVideo()
       const host = play(Component, remote)
       await settle()
-      expect(remote.volume).toBe(1)
-      expect(remote.muted).toBe(false)
-      remote.volume = 0.3
+      expect(video).toEqual({ volume: 1, muted: false })
+      await vi.waitFor(() => expect(muteControl(host)).toBeTruthy())
+      muteControl(host)!.click()
       await settle()
-      expect(remote.volumeChanges).toBeGreaterThan(0)
-      expect(host.childElementCount).toBeGreaterThan(0)
+      expect(video.muted).toBe(true)
     })
 
     test('ignores a kept value that is not a volume, and starts at its defaults', async () => {
       storage.values.set(PLAYER_VOLUME_KEY, JSON.stringify({ volume: 4, muted: true }))
-      const remote = makeRemote()
+      const { remote, video } = makeRemoteVideo()
       const host = play(Component, remote)
-      expect(remote.volume).toBe(1)
-      expect(remote.muted).toBe(false)
       await settle()
+      expect(video).toEqual({ volume: 1, muted: false })
       expect(showsMuted(host)).toBe(false)
     })
   })
 }
+
+describe('rememberPlayerVolume', () => {
+  test('keeps a volume written through its media, and puts it back over the page\'s', async () => {
+    const { remote, video, setByPage } = makeRemoteVideo()
+    const remembered = rememberPlayerVolume(remote)
+    remembered.hold()
+    remembered.media.volume = 0.4
+    await settle()
+    expect(kept()).toEqual({ volume: 0.4, muted: false })
+
+    setByPage('volume', 1)
+    await settle()
+    expect(video.volume).toBe(0.4)
+    expect(kept()).toEqual({ volume: 0.4, muted: false })
+  })
+
+  test('leaves the page\'s own changes alone, and keeps none of them, while the viewer has picked nothing', async () => {
+    const { remote, video, setByPage } = makeRemoteVideo()
+    rememberPlayerVolume(remote).hold()
+    setByPage('volume', 0.2)
+    setByPage('muted', true)
+    await settle()
+    expect(video).toEqual({ volume: 0.2, muted: true })
+    expect(storage.values.has(PLAYER_VOLUME_KEY)).toBe(false)
+  })
+
+  test('holds what the viewer picked even when it cannot be kept', async () => {
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new DOMException('blocked', 'SecurityError') } })
+    const { remote, video, setByPage } = makeRemoteVideo()
+    const remembered = rememberPlayerVolume(remote)
+    remembered.hold()
+    remembered.media.muted = true
+    await settle()
+    setByPage('muted', false)
+    await settle()
+    expect(video.muted).toBe(true)
+  })
+})
 
 describe('a kept volume', () => {
   test.each([
@@ -179,10 +221,10 @@ describe('a kept volume', () => {
   ])('%s is ignored', (_, raw) => {
     storage.values.set(PLAYER_VOLUME_KEY, raw)
     expect(readPlayerVolume()).toBeUndefined()
-    const media = makeRemote()
-    rememberPlayerVolume(media)()
-    expect(media.volume).toBe(1)
-    expect(media.muted).toBe(false)
+    const { remote } = makeRemoteVideo()
+    rememberPlayerVolume(remote).hold()()
+    expect(remote.volume).toBe(1)
+    expect(remote.muted).toBe(false)
   })
 
   test('at either end of the range is used', () => {

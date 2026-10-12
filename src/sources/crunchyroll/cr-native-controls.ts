@@ -44,8 +44,6 @@ export type CrunchyrollRawTrackOption = {
 export type CrunchyrollPlaybackSnapshot = {
   currentTime: number
   paused: boolean
-  volume: number
-  muted: boolean
   playbackRate: number
 }
 
@@ -186,8 +184,6 @@ export const clampCrunchyrollTime = (time: number, duration: number) => {
 export const captureCrunchyrollPlayback = (remote: RemoteVideoElement): CrunchyrollPlaybackSnapshot => ({
   currentTime: remote.currentTime,
   paused: remote.paused,
-  volume: remote.volume,
-  muted: remote.muted,
   playbackRate: remote.playbackRate,
 })
 
@@ -223,8 +219,6 @@ const restoreCrunchyrollPlayback = async (
   isCancelled: () => boolean,
 ) => {
   checkCancelled(isCancelled)
-  remote.volume = snapshot.volume
-  remote.muted = snapshot.muted
   remote.playbackRate = snapshot.playbackRate
 
   const target = clampCrunchyrollTime(snapshot.currentTime, remote.duration)
