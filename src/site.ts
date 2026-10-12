@@ -3,13 +3,12 @@
 
 export type Site = 'anime' | 'movie' | 'series' | 'stub'
 
-const SITE_HOST = /^(anime|movies?|series|stub)\.(fkn\.app|localhost)$/
+const SITE_HOST = /^(anime|movies|series|stub)\.(fkn\.app|localhost)$/
 
 /**
  * The site an address serves: anime.fkn.app, movies.fkn.app and series.fkn.app by their first label,
- * and `movies.localhost` the same way in development. movie.fkn.app, the movie site's first address, is
- * still the movie site (it redirects to movies.fkn.app at the edge). Any other host, stub.fkn.app, a
- * pages.dev preview or a sandbox tenant, is `stub`, which shows everything.
+ * and `movies.localhost` the same way in development. Any other host, stub.fkn.app, a pages.dev preview
+ * or a sandbox tenant, is `stub`, which shows everything.
  */
 export const siteOf = (hostname: string): Site => {
   const label = hostname.match(SITE_HOST)?.[1]

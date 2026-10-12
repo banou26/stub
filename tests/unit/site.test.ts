@@ -28,7 +28,6 @@ test('the site is the address\'s first label on fkn.app and localhost, and every
   expect(siteOf('movies.fkn.app')).toBe('movie')
   expect(siteOf('series.fkn.app')).toBe('series')
   expect(siteOf('movies.localhost')).toBe('movie')
-  expect(siteOf('movie.fkn.app'), 'the first address, redirected at the edge').toBe('movie')
   expect(siteOf('stub.fkn.app')).toBe('stub')
   expect(siteOf('stub-ben.pages.dev')).toBe('stub')
   expect(siteOf('movie.stub-ben.pages.dev')).toBe('stub')
@@ -53,7 +52,7 @@ test('the four sites link to each other\'s homes on fkn.app, from each of them',
     ['Anime', 'https://anime.fkn.app/'],
     ['All', 'https://stub.fkn.app/'],
   ]
-  for (const host of ['anime.fkn.app', 'movies.fkn.app', 'movie.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
+  for (const host of ['anime.fkn.app', 'movies.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
     expect(links(`https://${host}/watch/x?plugins=y`), host).toEqual(fknApp)
   }
 })

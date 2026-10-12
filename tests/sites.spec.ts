@@ -433,11 +433,3 @@ test('from 480 px the field shows as before, with no search button', async ({ pa
     await expect(searchButton(page), `${width}`).toBeHidden()
   }
 })
-
-test('an old movie.fkn.app address lands on the same page at movies.fkn.app', async ({ page }) => {
-  await page.goto(at('movie.localhost', '/settings?plugins=https:stub.plugins.banou.dev#sources'))
-  await expect(page).toHaveURL(at('movies.localhost', '/settings?plugins=https:stub.plugins.banou.dev#sources'))
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
-  await page.goto(at('series.localhost', '/settings'))
-  await expect(page, 'the control: another site stays where it is').toHaveURL(at('series.localhost', '/settings'))
-})
