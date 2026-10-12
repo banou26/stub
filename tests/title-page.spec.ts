@@ -86,6 +86,7 @@ const expectEdge = async (page: Page, play: Locator, where: string) => {
   await play.scrollIntoViewIfNeeded()
   await page.addStyleTag({ content: 'html, body { background: #fff !important } body * { visibility: hidden } .play, .play * { visibility: visible }' })
   const { x, y, width, height } = (await play.boundingBox())!
+  expect(y + height, `${where}: the button is on screen`).toBeLessThanOrEqual(page.viewportSize()!.height)
   const png = (await page.screenshot({ animations: 'disabled' })).toString('base64')
   const { edge, inside } = await page.evaluate(async ({ png, x, y, width, height }) => {
     const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(png), char => char.charCodeAt(0))], { type: 'image/png' }))
@@ -374,7 +375,8 @@ test('the white Play button shows its edge over a white backdrop, hovered too, i
   // the bundled catalogue has no short description, so the hero shows no show, and no movie, so the modal no
   // play bar: a Play button is placed where each draws one
   const placePlay = async (parent: Locator, html: string) => {
-    await parent.evaluate((element, html) => element.insertAdjacentHTML('beforeend', html), html)
+    // first: appended to a long modal, the button sat below the screenshot in 5 runs of 20 (measured 2026-10-12)
+    await parent.evaluate((element, html) => element.insertAdjacentHTML('afterbegin', html), html)
     return parent.locator('.play')
   }
   await page.goto(`${origin}/`)
