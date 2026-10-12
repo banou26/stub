@@ -6,6 +6,7 @@ import { makeMedia, makeEpisode, desc, img, getFirstTitle, waitForMedia, declare
 import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId } from '../season'
 import { percentScore } from '../average-score'
 import { decodeEntities as decode } from '../entities'
+import { charactersByName, type SourceCredits } from '../credits'
 
 // TMDB (themoviedb.org) - the public API needs a licensed key, so instead we read TMDB's own server-rendered frontend pages through the FKN proxy, whose curl-impersonate gets past their WAF, same approach as the CR/NF sources.
 
@@ -148,6 +149,25 @@ const parseSeason = (html: string): TmdbEpisode[] => {
   return out
 }
 
+/**
+ * The cast page as `mergeCredits` reads it: the first 25 actors (Breaking Bad's page lists 348), each
+ * under the first part named. The crew is not read: it lists every one-off director, A to Z, and
+ * IMDb's credits already carry the principal ones.
+ */
+export const parseCredits = (html: string): SourceCredits => {
+  const cast = html.split(/<h[34]>/).find(section => section.startsWith('Series Cast')) ?? ''
+  return {
+    characters: charactersByName(cast.split('<li').slice(1, 26).flatMap(item => {
+      const [, id, slug, name] = item.match(/<p><a href="\/person\/(\d+)([^"?]*)[^"]*">([^<]+)<\/a><\/p>/) ?? []
+      const part = item.match(/<p class="character">\s*<a[^>]*>([^<]+)<\/a>/)?.[1]
+      if (!id || !name || !part) return []
+      const image = item.match(/(https:\/\/media\.themoviedb\.org\/t\/p\/w132_and_h132_face\/\S+) 2x/)?.[1]
+      return [{ name: decode(part), language: null, person: { id: `${origin}:${id}`, name: decode(name), image, url: `${BASE}/person/${id}${slug}` } }]
+    })),
+    staff: [],
+  }
+}
+
 // TMDB describes a SHOW - '94664' is Mushoku Tensei with three seasons hanging off it - while a stub
 // media is one season. So a season-scoped media cannot be identified by the show id alone: every
 // season handing back `tmdb:94664` union-finds them into a single media, which is what merged all
@@ -234,19 +254,29 @@ const fetchEpisodes = (id: string, season: number, mediaUri: string, ctx: Extrac
   fetchHtml(`/tv/${id}/season/${season}?language=en-US`, ctx)
     .then(html => html ? parseSeason(html).map(episode => normalizeEpisode(episode, season, id, mediaUri)) : [])
 
-const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
+const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | undefined> => {
   const [html, seasons] = await Promise.all([fetchHtml(`/tv/${id}?language=en-US`, ctx), fetchSeasons(id, ctx)])
   if (!html) return undefined
   const show = { ...parseShow(html, id), seasons }
   if (!show.title) return undefined
 
   const seasonNumber = pinned ?? await resolveSeasonNumber(uri, show.seasons, ctx)
-  // The show's own card is answered as the show, with its season list and no episodes. A season must
-  // not name the show PART_OF instead: with two seasons stored, the store hides the show everywhere.
-  if (seasonNumber === 'show') return normalizeMedia(show)
   // A series whose season cannot be determined has no identity here: the show id is shared by every
   // season of it, and emitting it is what merges them. See normalizeMedia.
   if (seasonNumber == null && show.seasons.length > 1) return undefined
+
+  // the title page's alone, and not an anime's: its cast names no language, so mergeCredits leaves it out
+  const cast = details && !show.anime ? fetchHtml(`/tv/${id}/cast?language=en-US`, ctx) : undefined
+  // a later answer replaces TMDB's credits, so a page that parses to no cast (an error page) adds none
+  const withCredits = async (media: GQLMedia) => {
+    const page = await cast
+    const credits = page ? parseCredits(page) : undefined
+    return credits?.characters.length ? Object.assign(media, { credits }) : media
+  }
+
+  // The show's own card is answered as the show, with its season list and no episodes. A season must
+  // not name the show PART_OF instead: with two seasons stored, the store hides the show everywhere.
+  if (seasonNumber === 'show') return withCredits(normalizeMedia(show))
 
   const media = normalizeMedia(show, seasonNumber)
   media.episodes = seasonNumber == null ? [] : await fetchEpisodes(id, seasonNumber, media.uri, ctx)
@@ -257,7 +287,7 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   // two seasons within 45 days, or in one year with a premiere on the 1st, weld
   // (tests/unit/worker/graph/show-seasons-weld.test.ts).
   if (seasonNumber != null && !show.anime) media.startDate = media.episodes[0]?.releaseDate
-  return media
+  return withCredits(media)
 }
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
@@ -269,7 +299,7 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
 export const resolvers: Resolvers = {
   Subscription: {
     media: {
-      subscribe: async function* (_, { input: { uri } }, ctx: ExtractorServerContext) {
+      subscribe: async function* (_, { input: { uri, details } }, ctx: ExtractorServerContext) {
         if (!uri || !(isUri(uri) || isAggregatedUri(uri))) return yield { media: null }
         const tmdbUri = extractAggregatedUriOrigin(uri, origin)
         if (!tmdbUri) return yield { media: null }
@@ -278,7 +308,7 @@ export const resolvers: Resolvers = {
         // a film's link (`tmdbLink`): this source reads shows only, and alone in an address the id
         // would be fetched as a show's card
         if (showId.startsWith('movie-')) return yield { media: null }
-        yield { media: (await getMedia(uri, showId, seasonNumber, ctx)) ?? null }
+        yield { media: (await getMedia(uri, showId, seasonNumber, ctx, details)) ?? null }
       }
     },
     mediaPage: {

@@ -30,12 +30,18 @@ A refusal draws both entries: a missed merge, never a wrong one.
 
 `nameKey` folds a name so two spellings meet, and nothing more:
 
-1. One comma means "Family, Given": "Yamadera, Kouichi" becomes "Kouichi Yamadera".
+1. One comma means "Family, Given": "Yamadera, Kouichi" becomes "Kouichi Yamadera". A suffix after
+   the comma (Jr., Sr., II, III) stays where it is: "Walter White, Jr." is "Walter White Jr.".
 2. NFKD, combining marks dropped, lower case: "Unshō" is "unsho".
 3. A quoted nickname and a one-letter initial with a dot are dropped: "Christopher R. Sabat".
 4. Anything not a letter or a digit becomes a space. Word order is kept.
 5. `ou` and `oo` to `o`, `uu` to `u`, `oh` to `o` before a consonant other than `n` or at the end of
    a word: "Ooba" and "Ohba" meet, "Ohno" and "Ono" do not.
+
+A quoted nickname is also read as another name, in place of the word before it, for characters and
+staff alike: "Michael 'Mike' Ehrmantraut" is "Mike Ehrmantraut" too. Nicknames, a row's and those of
+the entries before it, are tried only when the row's own names reach no entry's names, under the same
+rule (a key must name exactly one entry on each side), and a nickname never replaces the name drawn.
 
 ## Measured
 
@@ -72,21 +78,27 @@ Over 10 shows, AniList's first page of characters against ANN (HOR-348, 2026-10-
 IMDb (0.3: the first 25 actors, each under the first part it lists for them, and the directors,
 writers and creators it lists first), TVmaze (0.3: the show's cast and crew) and JustWatch (0.2: actors
 and directors) send credits only with the title page's request, inside the request each already makes,
-so the modal's and the listing's stay as they were. Each actor stands under their part with a null
-language: the same rules join them through the actor on screen, and the page draws no language picker.
+so the modal's and the listing's stay as they were. TMDB (0.3) asks one more page for a series that is
+not an anime, `/tv/<id>/cast`, only with the title page's request, and reads the first 25 of its
+actors, each under the first part it names. Its crew is not read: it lists every one-off director in
+alphabetical order (36 rows on Breaking Bad), and IMDb's credits already carry the principal ones.
+Each actor stands under their part with a null language: the same rules join them through the actor
+on screen, and the page draws no language picker.
 A part that names no character ("Self", "Himself") is left out, so a documentary's or a talk show's
-people show only where a source credits them as staff. TMDB's cast is a request of its own and is not
-read.
+people show only where a source credits them as staff.
 
 An anime's cast on IMDb, TVmaze or JustWatch names no language and shares no actor with AniList's, so
 it would draw each character a second time. So beside a source whose characters carry no null
 language (AniList, ANN, even before any actor is listed), the casts with a null language add no
 characters. Their staff still join.
 
-On Breaking Bad (2026-10-12, the fixtures) 3 of 12 parts are drawn twice, missed merges of the name
-key: IMDb's "Walter White, Jr." flips at its comma away from "Walter White Jr.", and TVmaze's "Michael
-'Mike' Ehrmantraut" and "Gustavo 'Gus' Fring" drop the nickname but keep the first name, so they miss
-IMDb's "Mike Ehrmantraut" and "Gus Fring".
+On Breaking Bad (2026-10-12, the fixtures), IMDb, TVmaze and JustWatch list 12 parts. Before the
+suffix and nickname rules they were 15 entries: "Walter White, Jr." flipped at its comma, and TVmaze's
+"Michael 'Mike' Ehrmantraut" and "Gustavo 'Gus' Fring" missed IMDb's "Mike Ehrmantraut" and "Gus
+Fring". With both rules they are 12. With TMDB read as well, sources run IMDb, TMDB, TVmaze,
+JustWatch, and two parts are still drawn twice: TMDB's "Gustavo Fring" reaches nothing of IMDb's
+"Gus Fring", so TVmaze's row joins TMDB's by its own name; and TMDB's "Todd" never meets "Todd
+Alquist".
 
 The tests are in `tests/unit/worker/graph/plugins/credits.test.ts`, on trimmed real rows of every
 source in `tests/fixtures/credits/`.

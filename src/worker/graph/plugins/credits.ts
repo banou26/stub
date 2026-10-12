@@ -29,12 +29,12 @@ const jobOf = (role: string) => role.replace(/\s*\([^)]*\)/g, '').trim()
 /**
  * A name folded so two sources' spellings of it meet, and nothing more: "Yamadera, Kouichi" and
  * "Kouichi Yamadera", "Unshō" and "Unshou", "Ohba" and "Ooba", "Christopher R. Sabat" and
- * "Christopher Sabat" give one key. Word order is kept, so "José Leonardo" and "Leonardo José" stay
- * two people, and "Ohno" and "Ono" stay two names.
+ * "Christopher Sabat", "Walter White, Jr." and "Walter White Jr." give one key. Word order is kept, so
+ * "José Leonardo" and "Leonardo José" stay two people, and "Ohno" and "Ono" stay two names.
  */
 export const nameKey = (name: string): string => {
   const parts = name.split(',')
-  return (parts.length === 2 ? `${parts[1]} ${parts[0]}` : name)
+  return (parts.length === 2 && !/^\s*(jr|sr|ii|iii)\.?\s*$/i.test(parts[1]!) ? `${parts[1]} ${parts[0]}` : name)
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
@@ -47,12 +47,19 @@ export const nameKey = (name: string): string => {
     .trim()
 }
 
+// "Michael 'Mike' Ehrmantraut" read as "Mike Ehrmantraut", the name another source writes
+const nicknamed = (name: string): string[] => {
+  const nickname = name.replace(/\S+\s+['"‘“]([^'"’”]+)['"’”](?=\s|$)/u, '$1')
+  return nickname === name ? [] : [nickname]
+}
+
 /**
  * Every source's rows folded into entries, sources in order. A row joins an entry that shares its id;
  * else the one earlier entry its name keys reach, when they reach exactly one and `accept` agrees; else
- * it starts an entry. A source with ids joins at most one row to an entry, and when two would, neither
- * does, so a key two rows share on either side joins nothing. A source without ids joins every row
- * that reaches the entry, judged together.
+ * it starts an entry. Nicknames, the row's and the entries', are tried only when the row's own names
+ * reach no entry's names. A source with ids joins at most one row to an entry, and when two would,
+ * neither does, so a key two rows share on either side joins nothing. A source without ids joins every
+ * row that reaches the entry, judged together.
  */
 const mergeRows = <Row, Entry>(
   sources: Row[][],
@@ -61,13 +68,15 @@ const mergeRows = <Row, Entry>(
   add: (entry: Entry, row: Row, source: number) => void,
   accept: (entry: Entry, rows: Row[]) => boolean,
 ): Entry[] => {
-  const slots: { entry: Entry, ids: Set<string>, keys: Set<string> }[] = []
-  const keysOf = (rows: Row[]) => new Set(rows.flatMap(rowOf.names).map(nameKey).filter(Boolean))
+  const slots: { entry: Entry, ids: Set<string>, keys: Set<string>, nicknames: Set<string> }[] = []
+  const keysOf = (rows: Row[], fold = (name: string) => [name]) => new Set(rows.flatMap(rowOf.names).flatMap(fold).map(nameKey).filter(Boolean))
+  const allKeysOf = (rows: Row[]) => new Set([...keysOf(rows), ...keysOf(rows, nicknamed)])
   sources.forEach((rows, source) => {
     const join = (slot: (typeof slots)[number], row: Row) => {
       const id = rowOf.id(row)
       if (id) slot.ids.add(id)
       for (const key of keysOf([row])) slot.keys.add(key)
+      for (const key of keysOf([row], nicknamed)) slot.nicknames.add(key)
       add(slot.entry, row, source)
     }
 
@@ -86,11 +95,13 @@ const mergeRows = <Row, Entry>(
 
     const hasIds = rows.some(row => rowOf.id(row))
     const named = new Map<string, number>()
-    for (const group of groups) for (const key of keysOf(group)) named.set(key, (named.get(key) ?? 0) + 1)
+    for (const group of groups) for (const key of allKeysOf(group)) named.set(key, (named.get(key) ?? 0) + 1)
+    const reach = (keys: Set<string>, nicknames = false) =>
+      slots.filter(slot => [...keys].some(key => (!hasIds || named.get(key) === 1) && (slot.keys.has(key) || (nicknames && slot.nicknames.has(key)))))
     const proposals = new Map<(typeof slots)[number], Row[][]>()
     for (const group of groups) {
-      const keys = [...keysOf(group)].filter(key => !hasIds || named.get(key) === 1)
-      const targets = slots.filter(slot => keys.some(key => slot.keys.has(key)))
+      const own = reach(keysOf(group))
+      const targets = own.length ? own : reach(allKeysOf(group), true)
       if (targets.length === 1) proposals.set(targets[0]!, [...proposals.get(targets[0]!) ?? [], group])
     }
     const joined = new Set<Row[]>()
@@ -104,7 +115,7 @@ const mergeRows = <Row, Entry>(
 
     for (const group of groups) {
       if (joined.has(group)) continue
-      const slot = { entry: create(group[0]!), ids: new Set<string>(), keys: new Set<string>() }
+      const slot = { entry: create(group[0]!), ids: new Set<string>(), keys: new Set<string>(), nicknames: new Set<string>() }
       slots.push(slot)
       for (const row of group) join(slot, row)
     }
@@ -124,8 +135,8 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * any, so only a title opened on its page pays.
  *
  * `members` come in `byScoreThenUri` order, the order every other field reads: AniList (0.8), then
- * Anime News Network (0.2); in live action IMDb and TVmaze (0.3), then JustWatch (0.2). Nothing is
- * matched across titles and nothing becomes a graph link, so a wrong rule is a code fix and an
+ * Anime News Network (0.2); in live action IMDb, TMDB and TVmaze (0.3), then JustWatch (0.2). Nothing
+ * is matched across titles and nothing becomes a graph link, so a wrong rule is a code fix and an
  * `AGGREGATE_VERSION` bump.
  *
  * WHO IS ONE (the owner's decision, 2026-10-12). Rows sharing an id are one entry, inside one source
@@ -140,6 +151,14 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * Aizawa and are two characters, the actor's other role hidden past AniList's page of 25. No edit
  * distance: "Tsutomu Tareki" and "Tsutomu Taruki" stay two. A refusal draws both: a missed merge,
  * never a wrong one.
+ *
+ * Two name rules (the owner's decision, 2026-10-12): a suffix after a comma stays a suffix, so IMDb's
+ * "Walter White, Jr." meets "Walter White Jr."; and a quoted nickname is another name, for characters
+ * and staff alike, so TVmaze's "Michael 'Mike' Ehrmantraut" meets "Mike Ehrmantraut" in either order.
+ * Nicknames are tried only when a row's own names reach no entry's names, under the same uniqueness
+ * rule, so a nickname never outvotes a name. On Breaking Bad's IMDb, TVmaze and JustWatch credits they
+ * turn 15 entries for 12 parts into 12. With TMDB read too, Gus Fring stays two: TMDB's "Gustavo
+ * Fring" comes before TVmaze's row, which then joins it by its own name.
  *
  * Measured over 10 shows (HOR-348, AniList page 1 against ANN): 172 of AniList's 239 characters
  * match ANN's by name, 167 of them sharing an actor; 52 of 54 name matches on Cowboy Bebop,
@@ -156,11 +175,11 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * MAIN, SUPPORTING, BACKGROUND, then unstated, each in the first source's order, so the ones only ANN
  * lists come last; staff keep that order, with every source's jobs, notes in parentheses dropped.
  *
- * LIVE ACTION. IMDb, TVmaze and JustWatch list each actor under the part with a null `language`, so the
- * same rule joins them through the actor on screen and the page draws no language picker. Their casts
- * name no language for an anime either, so beside a source whose characters carry none of those null
- * languages (AniList's, even with no actor listed yet) their characters are left out: they share no
- * actor with AniList's, so each character would be drawn twice.
+ * LIVE ACTION. IMDb, TMDB, TVmaze and JustWatch list each actor under the part with a null
+ * `language`, so the same rule joins them through the actor on screen and the page draws no language
+ * picker. Their casts name no language for an anime either, so beside a source whose characters
+ * carry none of those null languages (AniList's, even with no actor listed yet) their characters are
+ * left out: they share no actor with AniList's, so each character would be drawn twice.
  */
 export const mergeCredits = (members: readonly Member[]): { characters: CreditCharacter[], staff: CreditPerson[] } | undefined => {
   const sources = members.flatMap(member => creditsOf(member) ?? [])

@@ -8,6 +8,7 @@ import { resolvers as anilistResolvers } from '../../../../../src/sources/anilis
 import { parseCredits } from '../../../../../src/sources/ann/extractor'
 import { parseCredits as justwatchCredits } from '../../../../../src/sources/justwatch/extractor'
 import { parseCredits as imdbCredits } from '../../../../../src/sources/omdb/extractor'
+import { parseCredits as tmdbCredits } from '../../../../../src/sources/tmdb/extractor'
 import { parseCredits as tvmazeCredits } from '../../../../../src/sources/tvmaze/extractor'
 import { mergeCredits, nameKey, type CreditCharacter } from '../../../../../src/worker/graph/plugins/credits'
 import SHOWS from '../../../../fixtures/credits/anilist-shows.json'
@@ -110,6 +111,24 @@ test('names fold across spellings: marks, long vowels, initials, nicknames and "
   expect(nameKey('Ohno'), 'oh before n stays').not.toBe(nameKey('Ono'))
   expect(nameKey('Yoh Asakura'), 'oh ending a word').toBe(nameKey('Yō Asakura'))
   expect(nameKey('Kenji Satoh'), 'oh ending the name').toBe(nameKey('Kenji Satō'))
+})
+
+// Mutation: flip every name at its one comma and "Walter White, Jr." keys as "Jr. Walter White".
+test('a suffix after a comma stays where it is: "Walter White, Jr." is "Walter White Jr."', () => {
+  expect(nameKey('Walter White, Jr.')).toBe(nameKey('Walter White Jr.'))
+  expect(nameKey('Lon Chaney, Sr.')).toBe(nameKey('Lon Chaney Sr.'))
+  expect(nameKey('Davis Love, III')).toBe(nameKey('Davis Love III'))
+  expect(nameKey('Ken Griffey, II')).toBe(nameKey('Ken Griffey II'))
+})
+
+// A guard, not a line: red only if a suffix is ever dropped from the key. Staff have no actor to tell
+// a father from his son, so the name alone decides.
+test('a father and his son are two: "Lon Chaney" never joins "Lon Chaney, Jr."', () => {
+  const merged = mergeCredits([
+    member('omdb:tt1', { staff: [{ person: { id: 'imdb:nm0151606', name: 'Lon Chaney' }, roles: ['Director'] }] }),
+    member('tvmaze:1', { staff: [{ person: { id: 'tvmaze:1', name: 'Lon Chaney, Jr.' }, roles: ['Creator'] }] }),
+  ])!
+  expect(merged.staff.map(({ name }) => name)).toEqual(['Lon Chaney', 'Lon Chaney, Jr.'])
 })
 
 // Guards, not lines: red only if a word sort or an edit distance is ever added to `nameKey`.
@@ -328,4 +347,94 @@ test('AniList characters with no actor yet still keep an unlabelled cast\'s char
     member('omdb:tt3', { characters: [{ names: ['Spike Spiegel'], voiceActors: [{ language: null, person: { id: 'imdb:nm1', name: 'Koichi Yamadera' } }] }] }),
   ])!
   expect(merged.characters.map(({ name, voiceActors }) => [name, voiceActors.length])).toEqual([['Spike Spiegel', 0]])
+})
+
+const parts = (characters: CreditCharacter[]) => characters.map(({ name, voiceActors }) => `${name}: ${voiceActors.map(({ name }) => name).join(', ')}`)
+
+// The three sources list 12 parts. Mutation: drop the suffix rule and RJ Mitte's part is drawn twice;
+// drop the nickname and Mike and Gus are.
+test('Breaking Bad: "Walter White, Jr." and TVmaze\'s nicknames join, 15 entries for 12 parts become 12', () => {
+  const merged = mergeCredits([
+    member('omdb:tt0903747', imdbCredits(IMDB_BREAKING_BAD.data.title)),
+    member('tvmaze:169-s1', tvmazeCredits(TVMAZE_BREAKING_BAD._embedded)),
+    member('jw:4-1', justwatchCredits(JUSTWATCH_BREAKING_BAD)),
+  ])!
+  expect(parts(merged.characters)).toEqual([
+    'Walter White: Bryan Cranston',
+    'Skyler White: Anna Gunn',
+    'Jesse Pinkman: Aaron Paul',
+    'Hank Schrader: Dean Norris',
+    'Marie Schrader: Betsy Brandt',
+    'Walter White, Jr.: RJ Mitte',
+    'Saul Goodman: Bob Odenkirk',
+    'Steven Gomez: Steven Michael Quezada',
+    'Mike Ehrmantraut: Jonathan Banks',
+    'Gus Fring: Giancarlo Esposito',
+    'Todd Alquist: Jesse Plemons',
+    'Lydia Rodarte-Quayle: Laura Fraser',
+  ])
+})
+
+// With TMDB, sources run IMDb, TMDB, TVmaze, JustWatch. TMDB's "Gustavo Fring" reaches nothing of
+// IMDb's "Gus Fring", and TVmaze's "Gustavo 'Gus' Fring" then names both: its own name joins TMDB's
+// and the nickname stays unused, a missed merge (Todd and "Todd Alquist" are another). Mutation: try
+// the nickname beside the name and TVmaze's row reaches two entries and joins neither, and JustWatch's
+// then too, four Gus entries.
+test('four live-action sources: a nickname is tried only when the name reaches nothing', () => {
+  const merged = mergeCredits([
+    member('omdb:tt0903747', imdbCredits(IMDB_BREAKING_BAD.data.title)),
+    member('tmdb:1396-s1', tmdbCredits(readFileSync(new URL('../../../../fixtures/credits/tmdb-breaking-bad.html', import.meta.url), 'utf8'))),
+    member('tvmaze:169-s1', tvmazeCredits(TVMAZE_BREAKING_BAD._embedded)),
+    member('jw:4-1', justwatchCredits(JUSTWATCH_BREAKING_BAD)),
+  ])!
+  expect(parts(merged.characters)).toEqual([
+    'Walter White: Bryan Cranston',
+    'Skyler White: Anna Gunn',
+    'Jesse Pinkman: Aaron Paul',
+    'Hank Schrader: Dean Norris',
+    'Marie Schrader: Betsy Brandt',
+    'Walter White, Jr.: RJ Mitte',
+    'Saul Goodman: Bob Odenkirk',
+    'Steven Gomez: Steven Michael Quezada',
+    'Mike Ehrmantraut: Jonathan Banks',
+    'Gus Fring: Giancarlo Esposito',
+    'Gustavo Fring: Giancarlo Esposito',
+    'Skinny Pete: Charles Baker',
+    'Ted Beneke: Christopher Cousins',
+    'Francesca (voice): Tina Parker',
+    'Todd Alquist: Jesse Plemons',
+    'Lydia Rodarte-Quayle: Laura Fraser',
+  ])
+  expect(merged.characters[0]!.voiceActors[0]!.image, 'IMDb leads the face').toContain('media-amazon.com')
+  expect(merged.staff.map(({ name, roles }) => `${name}: ${roles!.join(', ')}`), 'TMDB adds no staff').toEqual([
+    'Vince Gilligan: Creator, Executive Producer, Director',
+    'Michelle MacLaren: Co-Executive Producer, Executive Producer, Director',
+    'Dave Porter: Music',
+    'Rian Johnson: Director',
+    'Bryan Cranston: Director',
+  ])
+})
+
+const played = (name: string, actor: string): SourceCredits => ({ characters: [{ names: [name], voiceActors: [{ language: null, person: { id: `x:${actor}`, name: actor } }] }], staff: [] })
+
+// TVmaze's row joins TMDB's "Gustavo Fring" by its own name. Mutation: keep that entry's nickname with
+// its names and the last "Gus Fring" reaches both entries, joins neither and is drawn a third time.
+test('an entry\'s nickname is tried only when a name reaches no entry: a later "Gus Fring" joins IMDb\'s', () => {
+  const merged = mergeCredits([
+    member('omdb:1', played('Gus Fring', 'Giancarlo Esposito')),
+    member('tmdb:1', played('Gustavo Fring', 'Giancarlo Esposito')),
+    member('tvmaze:1', played("Gustavo 'Gus' Fring", 'Giancarlo Esposito')),
+    member('jw:1', played('Gus Fring', 'Giancarlo Esposito')),
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual(['Gus Fring', 'Gustavo Fring'])
+})
+
+// Mutation: match only the row's nickname in the fallback and JustWatch's "Mike Ehrmantraut" misses
+// the entry TVmaze named "Michael 'Mike' Ehrmantraut".
+test('a nickname read first still takes the name a later source writes', () => {
+  const merged = mergeCredits([
+    member('tvmaze:1', played("Michael 'Mike' Ehrmantraut", 'Jonathan Banks')),
+    member('jw:1', played('Mike Ehrmantraut', 'Jonathan Banks')),
+  ])!
+  expect(merged.characters.map(({ name }) => name)).toEqual(["Michael 'Mike' Ehrmantraut"])
 })
