@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../generated/schema/types.generated'
 
-import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
+import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, desc, img, getFirstTitle, waitForMedia, declaredEpisodeCount } from '../utils'
 import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId } from '../season'
 import { percentScore } from '../average-score'
@@ -29,7 +29,7 @@ const fetchHtml = (path: string, ctx: ExtractorServerContext): Promise<string | 
 const meta = (html: string, property: string): string | undefined =>
   html.match(new RegExp(`<meta property="${property}" content="([^"]*)"`))?.[1]
 
-type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number, anime?: boolean }
+type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number, anime?: boolean, seasons?: number[] }
 /** `releaseDate` is `YYYY-MM-DD`, the day the card named, or absent when the card named none. */
 type TmdbEpisode = { number: number, title?: string, overview?: string, still?: string, releaseDate?: string }
 
@@ -94,12 +94,19 @@ const isAnime = (html: string) =>
   html.includes('/keyword/210024-anime/')
   || (html.includes('/genre/16-animation/') && /Original Language<\/bdi><\/strong> (?:Japanese|Chinese|Korean)</.test(html))
 
-const parseShow = (html: string, id: string): TmdbMedia & { seasons: number[] } => {
-  const backdrop = html.match(/\/t\/p\/w1920[^"']+\.(?:jpg|png)/)?.[0]
-  const percent = html.match(/class="user_score_chart"[^>]*data-percent="([\d.]+)"/)?.[1]
-  const seasons = [...new Set([...html.matchAll(new RegExp(`/tv/${id}/season/(\\d+)`, 'g'))].map(m => Number(m[1])))]
+// The show page links only its latest season, so the list is read off `/tv/<id>/seasons`. A show with
+// an English title links under a slug (`/tv/1396-breaking-bad/season/5`), and season 0 is the specials.
+const parseSeasons = (html: string, id: string): number[] =>
+  [...new Set([...html.matchAll(new RegExp(`/tv/${id}(?:-[^/"]*)?/season/(\\d+)`, 'g'))].map(m => Number(m[1])))]
     .filter(n => n > 0)
     .sort((a, b) => a - b)
+
+const fetchSeasons = (id: string, ctx: ExtractorServerContext): Promise<number[]> =>
+  fetchHtml(`/tv/${id}/seasons?language=en-US`, ctx).then(html => html ? parseSeasons(html, id) : [])
+
+const parseShow = (html: string, id: string): TmdbMedia => {
+  const backdrop = html.match(/\/t\/p\/w1920[^"']+\.(?:jpg|png)/)?.[0]
+  const percent = html.match(/class="user_score_chart"[^>]*data-percent="([\d.]+)"/)?.[1]
   return {
     id,
     title: decode(meta(html, 'og:title') ?? ''),
@@ -108,7 +115,6 @@ const parseShow = (html: string, id: string): TmdbMedia & { seasons: number[] } 
     banner: backdrop ? `https://media.themoviedb.org${backdrop}` : undefined,
     score: percent ? Math.round(Number(percent)) / 10 : undefined,
     anime: isAnime(html),
-    seasons,
   }
 }
 
@@ -138,13 +144,15 @@ const parseSeason = (html: string): TmdbEpisode[] => {
 //
 // '-s<n>' is the suffix TMDB's own episode ids already use ('94664-s3e1'), so the two stay one id
 // space. The bare show id is still minted for SEARCH results, and for a show page with no season to
-// pick, scoped CONTAINER so the store keeps it out of every run's identity space.
+// pick, scoped CONTAINER so the store keeps it out of every run's identity space. The season list is
+// left off anime, whose runs are split by cour where TMDB folds them into one season.
 const normalizeMedia = (m: TmdbMedia, seasonNumber?: number): GQLMedia =>
   makeMedia({
     origin,
     id: seasonNumber == null ? m.id : seasonScopedId(m.id, seasonNumber),
     scope: seasonNumber == null ? 'CONTAINER' : 'RUN',
     url: `${BASE}/tv/${m.id}`,
+    seasons: m.anime ? undefined : m.seasons?.map(number => ({ number, uri: toUri({ origin, id: seasonScopedId(m.id, number) }) })),
     categories: m.anime ? ['ANIME', 'SERIES'] : ['SERIES'],
     score: SCORE,
     titles: [{ language: 'en', title: m.title, score: SCORE }],
@@ -188,20 +196,22 @@ const seasonEpisodeCounts = async (id: string, seasons: number[], ctx: Extractor
   })))
 
 /**
- * Which season of this show the caller is asking about.
+ * Which season of this show the caller is asking about, or `'show'` when the caller is the show's own
+ * card, a CONTAINER.
  *
  * The title first, because it is free and usually says. Falling back to matching episode counts costs
  * one request per season, which is what the old code paid unconditionally by fetching every season's
  * episodes; a media whose season IS known now fetches one.
  */
-const resolveSeasonNumber = async (uri: string, id: string, seasons: number[], ctx: ExtractorServerContext) => {
+const resolveSeasonNumber = async (uri: string, id: string, seasons: number[], ctx: ExtractorServerContext): Promise<number | 'show' | undefined> => {
   if (seasons.length === 1) return seasons[0]
   if (!seasons.length) return undefined
   // The probe has to stay SYNCHRONOUS. waitForMedia keeps the first result it finds truthy, and a
   // promise is always truthy - an async probe would make the very first look succeed with a promise
   // that then resolves to undefined, and the waiting this exists for would never happen. So the wait
   // collects the hints, and the request that turns a count into a season is made after it.
-  const hint = await waitForMedia(uri, ctx, (media: any) => {
+  const hint = await waitForMedia(uri, ctx, (media: any): { season?: number | 'show', count?: number } | undefined => {
+    if (media?.scope === 'CONTAINER') return { season: 'show' }
     const title = getFirstTitle(media)
     const season = title ? parseSeasonNumber(title) : undefined
     const count = declaredEpisodeCount(media)
@@ -212,29 +222,26 @@ const resolveSeasonNumber = async (uri: string, id: string, seasons: number[], c
   return pickSeasonByEpisodeCount(await seasonEpisodeCounts(id, seasons, ctx), hint.count)
 }
 
-const fetchEpisodes = async (id: string, seasons: number[], mediaUri: string, ctx: ExtractorServerContext): Promise<GQLEpisode[]> => {
-  const perSeason = await Promise.all(
-    seasons.map(n =>
-      fetchHtml(`/tv/${id}/season/${n}?language=en-US`, ctx)
-        .then(html => html ? parseSeason(html).map(episode => normalizeEpisode(episode, n, id, mediaUri)) : [])
-    )
-  )
-  return perSeason.flat()
-}
+const fetchEpisodes = (id: string, season: number, mediaUri: string, ctx: ExtractorServerContext): Promise<GQLEpisode[]> =>
+  fetchHtml(`/tv/${id}/season/${season}?language=en-US`, ctx)
+    .then(html => html ? parseSeason(html).map(episode => normalizeEpisode(episode, season, id, mediaUri)) : [])
 
 const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const html = await fetchHtml(`/tv/${id}?language=en-US`, ctx)
+  const [html, seasons] = await Promise.all([fetchHtml(`/tv/${id}?language=en-US`, ctx), fetchSeasons(id, ctx)])
   if (!html) return undefined
-  const show = parseShow(html, id)
+  const show = { ...parseShow(html, id), seasons }
   if (!show.title) return undefined
 
   const seasonNumber = pinned ?? await resolveSeasonNumber(uri, id, show.seasons, ctx)
+  // The show's own card is answered as the show, with its season list and no episodes. A season must
+  // not name the show PART_OF instead: with two seasons stored, the store hides the show everywhere.
+  if (seasonNumber === 'show') return normalizeMedia(show)
   // A series whose season cannot be determined has no identity here: the show id is shared by every
   // season of it, and emitting it is what merges them. See normalizeMedia.
   if (seasonNumber == null && show.seasons.length > 1) return undefined
 
   const media = normalizeMedia(show, seasonNumber)
-  media.episodes = await fetchEpisodes(id, seasonNumber != null ? [seasonNumber] : show.seasons, media.uri, ctx)
+  media.episodes = seasonNumber == null ? [] : await fetchEpisodes(id, seasonNumber, media.uri, ctx)
   media.episodeCount = media.episodes.length
   return media
 }
@@ -269,12 +276,10 @@ export const resolvers: Resolvers = {
     episodes: async (parent, _, ctx: ExtractorServerContext) => {
       if (parent.origin !== origin) return parent.episodes ?? []
       if (parent.episodes?.length) return parent.episodes
-      // parent.id is '<show>-s<season>' now, so the show has to be split back out of it
+      // parent.id is '<show>-s<season>' now, so the show has to be split back out of it. The bare show
+      // id gets none: every season of it is its own run.
       const { showId, seasonNumber } = splitSeasonScopedId(parent.id)
-      const html = await fetchHtml(`/tv/${showId}?language=en-US`, ctx)
-      if (!html) return []
-      const seasons = seasonNumber != null ? [seasonNumber] : parseShow(html, showId).seasons
-      return fetchEpisodes(showId, seasons, parent.uri, ctx)
+      return seasonNumber == null ? [] : fetchEpisodes(showId, seasonNumber, parent.uri, ctx)
     }
   }
 }

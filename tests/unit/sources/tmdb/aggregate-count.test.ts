@@ -6,7 +6,7 @@
 // TMDB's own hint is falsy for both readings of an EMPTY list, so an empty one cannot tell them apart
 // here, and the test below hands a NON-EMPTY list instead: the rule is that no list on an aggregated
 // media is ever read as its count, and a list that would be read is the only way to show it is not.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/tmdb/extractor'
@@ -14,11 +14,12 @@ import { resolvers } from '../../../../src/sources/tmdb/extractor'
 const BASE = 'https://www.themoviedb.org'
 const SHOW = '94664'
 
-const showHtml = (seasons: number[]) => `
+const SHOW_HTML = `
 <meta property="og:title" content="A Show">
 <meta property="og:description" content="A show.">
-<meta property="og:image" content="https://media.themoviedb.org/t/p/w600/poster.jpg">
-${seasons.map(n => `<a href="/tv/${SHOW}/season/${n}">Season ${n}</a>`).join('\n')}`
+<meta property="og:image" content="https://media.themoviedb.org/t/p/w600/poster.jpg">`
+
+const seasonListHtml = (seasons: number[]) => seasons.map(n => `<a href="/tv/${SHOW}/season/${n}">Season ${n}</a>`).join('\n')
 
 const seasonHtml = (episodes: number) =>
   Array.from({ length: episodes }, (_, i) => `<div class="card" data-episode-number="${i + 1}"><h3><a href="#">Episode ${i + 1}</a></h3></div>`).join('\n')
@@ -34,7 +35,8 @@ const context = (misses: string[], known: unknown) => ({
   listenForMediaChanges: async function* () {},
   fetch: async (url: string) => {
     const html = (body: string) => ({ ok: true, status: 200, text: async () => body })
-    if (url.startsWith(`${BASE}/tv/${SHOW}?`)) return html(showHtml([1, 2, 3]))
+    if (url.startsWith(`${BASE}/tv/${SHOW}?`)) return html(SHOW_HTML)
+    if (url.startsWith(`${BASE}/tv/${SHOW}/seasons?`)) return html(seasonListHtml([1, 2, 3]))
     for (const [season, count] of Object.entries(EPISODES)) {
       if (url.startsWith(`${BASE}/tv/${SHOW}/season/${season}?`)) return html(seasonHtml(count))
     }

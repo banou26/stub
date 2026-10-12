@@ -10,3 +10,9 @@ declare module '*?page-script' {
   const source: string
   export default source
 }
+
+/** A saved page, as vite's `?raw` hands it over. */
+declare module '*.html?raw' {
+  const source: string
+  export default source
+}

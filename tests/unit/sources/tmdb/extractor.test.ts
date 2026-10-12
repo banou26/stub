@@ -1,7 +1,7 @@
 // A tmdb id is a SHOW id: '94664' is every season of Mushoku Tensei at once, and only the '-s<n>' form
 // names one run. So the bare row (search, or a media-path fallback with no season to pick) goes out
 // scoped CONTAINER, and the store keeps it out of every run's identity space.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/tmdb/extractor'
 
@@ -14,11 +14,13 @@ const SEARCH_HTML = `
   <span class="release_date">January 11, 2021</span>
 </div>`
 
-const showHtml = (id: string, seasons: number[]) => `
+const SHOW_HTML = `
 <meta property="og:title" content="Mushoku Tensei: Jobless Reincarnation">
 <meta property="og:description" content="Reborn as a baby.">
-<meta property="og:image" content="https://media.themoviedb.org/t/p/w600/poster.jpg">
-${seasons.map(n => `<a href="/tv/${id}/season/${n}">Season ${n}</a>`).join('\n')}`
+<meta property="og:image" content="https://media.themoviedb.org/t/p/w600/poster.jpg">`
+
+const seasonListHtml = (id: string, seasons: number[]) =>
+  seasons.map(n => `<a href="/tv/${id}/season/${n}">Season ${n}</a>`).join('\n')
 
 const seasonHtml = (episodes: number) =>
   Array.from({ length: episodes }, (_, i) => `<div class="card" data-episode-number="${i + 1}"><h3><a href="#">Episode ${i + 1}</a></h3></div>`).join('\n')
@@ -57,18 +59,25 @@ const context = (misses: string[]) => ({
   fetch: async (url: string) => {
     const html = (body: string) => ({ ok: true, status: 200, text: async () => body })
     if (url.startsWith(`${BASE}/search/tv?query=`)) return html(SEARCH_HTML)
-    if (url.startsWith(`${BASE}/tv/94664?`)) return html(showHtml('94664', [1, 2, 3]))
+    if (url.startsWith(`${BASE}/tv/94664?`)) return html(SHOW_HTML)
+    if (url.startsWith(`${BASE}/tv/94664/seasons?`)) return html(seasonListHtml('94664', [1, 2, 3]))
     if (url.startsWith(`${BASE}/tv/94664/season/3?`)) return html(seasonHtml(24))
-    // a show page with no season links: nothing to pick, so the bare id comes back
-    if (url.startsWith(`${BASE}/tv/777?`)) return html(showHtml('777', []))
-    if (url.startsWith(`${BASE}/tv/555?`)) return html(showHtml('555', [1]))
+    // a show with no season listed: nothing to pick, so the bare id comes back
+    if (url.startsWith(`${BASE}/tv/777?`)) return html(SHOW_HTML)
+    if (url.startsWith(`${BASE}/tv/777/seasons?`)) return html('')
+    if (url.startsWith(`${BASE}/tv/555?`)) return html(SHOW_HTML)
+    if (url.startsWith(`${BASE}/tv/555/seasons?`)) return html(seasonListHtml('555', [1]))
     if (url.startsWith(`${BASE}/tv/555/season/1?`)) return html(datedSeasonHtml())
+    // an anime show, by TMDB's own keyword
+    if (url.startsWith(`${BASE}/tv/888?`)) return html(`${SHOW_HTML}<a href="/keyword/210024-anime/">anime</a>`)
+    if (url.startsWith(`${BASE}/tv/888/seasons?`)) return html(seasonListHtml('888', [1, 2]))
+    if (url.startsWith(`${BASE}/tv/888/season/2?`)) return html(seasonHtml(12))
     misses.push(url)
     return { ok: false, status: 404, text: async () => '' }
   },
 }) as never
 
-type Row = { uri: string, scope?: string, episodes?: { episodeNumber?: number, releaseDate?: string }[] }
+type Row = { uri: string, scope?: string, categories?: string[], seasons?: unknown[], episodes?: { episodeNumber?: number, releaseDate?: string }[] }
 
 const mediaFor = async (uri: string): Promise<Row> => {
   const misses: string[] = []
@@ -151,4 +160,14 @@ test('a card with no date at all is still an episode', async () => {
   expect(media.episodes, 'five cards, five episodes: the date is a field and never a filter').toHaveLength(5)
   expect((media.episodes ?? [])[4]!.episodeNumber).toBe(5)
   expect((media.episodes ?? [])[4]!.releaseDate).toBeUndefined()
+})
+
+// TMDB folds an anime's cours into one season where its runs split them, so TMDB's season numbers do
+// not match the run on screen.
+test('an anime season lists no seasons, and a live-action one does', async () => {
+  const anime = await mediaFor('tmdb:888-s2')
+
+  expect(anime.categories).toContain('ANIME')
+  expect(anime.seasons).toBeUndefined()
+  expect((await mediaFor('tmdb:94664-s3')).seasons).toHaveLength(3)
 })

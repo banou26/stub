@@ -11,7 +11,8 @@ import { build } from 'vite-plus'
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
 // AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes, AnimeThemes with
-// Frieren's themes, one without a video, and IMDb answers Breaking Bad (tests/fake-fetch.ts).
+// Frieren's themes, one without a video, IMDb answers Breaking Bad, and TMDB Squid Game's three seasons and
+// Frieren's one (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -131,6 +132,30 @@ test('a live-action title draws its cast and staff with no language picker', asy
   await expect(characters.locator('li').first()).toHaveText('Walter WhiteBryan Cranston')
   await expect(characters.getByRole('combobox')).toHaveCount(0)
   await expect(page.locator('[data-staff] li').filter({ hasText: 'Vince Gilligan' })).toContainText('Creator')
+})
+
+test('a show\'s page links each of its seasons, its own marked, at 1440 and 390 px with no sideways scroll', async ({ page }) => {
+  const seasons = page.locator('[data-seasons] a')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`${origin}/title/tmdb:93405-s2`)
+    await expect(heading(page)).toHaveText('Squid Game', { timeout: 30_000 })
+    await expect(seasons).toHaveText(['Season 1', 'Season 2', 'Season 3'], { timeout: 30_000 })
+    await expect(seasons.nth(1)).toHaveAttribute('aria-current', 'page')
+    expect(await overflowX(page)).toBe(0)
+  }
+  await seasons.nth(2).click()
+  await expect(page).toHaveURL(/\/title\/(ag:\()?tmdb:93405-s3/)
+  await expect(seasons.nth(2)).toHaveAttribute('aria-current', 'page', { timeout: 30_000 })
+  // the modal links each season to its own modal
+  await page.goto(`${origin}/media/tmdb:93405-s2`)
+  await expect(modal(page).locator('[data-seasons] a').nth(0)).toHaveAttribute('href', '/media/tmdb:93405-s1', { timeout: 30_000 })
+})
+
+test('a show with one season draws no Seasons row', async ({ page }) => {
+  await page.goto(`${origin}/title/tmdb:209867-s1`)
+  await expect(heading(page)).toHaveText('Frieren: Beyond Journey\'s End', { timeout: 30_000 })
+  await expect(page.locator('[data-seasons]')).toHaveCount(0)
 })
 
 test('Themes lists each song, plays one at a time under its row, and 390 px wide has no sideways scroll', async ({ page }) => {

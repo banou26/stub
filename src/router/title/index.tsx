@@ -10,6 +10,7 @@ import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
 import { RelationCard } from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
+import MediaSeasons from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
 import { carriedSearch } from '../debug/trace'
 import { Episodes, GET_MEDIA_DETAILS, SourceLinks, usePlay } from '../home/media-details'
@@ -699,6 +700,11 @@ const TitlePage = () => {
               )
               : undefined
           }
+          <MediaSeasons
+            seasons={media?.seasons}
+            currentUris={media?.handles.map(handle => handle.node.uri) ?? []}
+            href={uri => `${getRoutePath(Route.TITLE, { uri })}${search}`}
+          />
           {
             media && !isMovie && media.episodes.length
               ? (

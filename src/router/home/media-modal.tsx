@@ -12,6 +12,7 @@ import { LucidePause, LucidePlay } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
 import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
+import MediaSeasons from '../../components/media-seasons'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
@@ -211,7 +212,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
-    & > .episodes {
+    & > .seasons, & > .episodes {
       margin-top: 4rem;
     }
   }
@@ -251,7 +252,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
-      & > .episodes {
+      & > .seasons, & > .episodes {
         margin-top: 2.5rem;
       }
     }
@@ -458,6 +459,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
               currentUris={media?.handles?.map(handle => handle.node.uri) ?? []}
             />
           }
+        />
+        <MediaSeasons
+          seasons={data?.media?.seasons}
+          currentUris={data?.media?.handles.map(handle => handle.node.uri) ?? []}
+          href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
         {isMovie || !data?.media ? undefined : <Episodes media={data.media}/>}
       </div>

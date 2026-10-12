@@ -74,7 +74,7 @@ The conditions in that figure are real lines. The first is JustWatch's
 (`src/sources/justwatch/extractor.ts:470`), and every source in the ordinal family has its own
 spelling of it, listed [below](#when-there-is-no-season-nobody-guesses-one). The two mint expressions
 are `src/sources/justwatch/extractor.ts:474` and `src/sources/appletv/extractor.ts:105`. The third is
-`src/sources/tmdb/extractor.ts:179`.
+`src/sources/tmdb/extractor.ts:235`.
 
 | shape | function | mints for | example |
 | --- | --- | --- | --- |
@@ -163,9 +163,10 @@ literally the show id plus a suffix. Changing a separator here would silently ha
 ### And the ordinal has to be somebody's, not nobody's
 
 The ordinal shapes are only reproducible while the number comes off the catalogue's own season list.
-TMDB reads `show.seasons` out of the scraped show page and pins the season from the uri when the uri
+TMDB reads the show's seasons out of its scraped season list (`/tv/<id>/seasons`, since the show page
+links only the latest season) and pins the season from the uri when the uri
 already carries one (`pinned ?? await resolveSeasonNumber(...)`,
-`src/sources/tmdb/extractor.ts:179`). The failure mode is a number arriving from somewhere else, and
+`src/sources/tmdb/extractor.ts:235`). The failure mode is a number arriving from somewhere else, and
 there is a measured one in the file:
 
 `src/sources/tmdb/extractor.ts:192`
@@ -181,7 +182,7 @@ well-formed, precise, entirely invented id.
 Every source in the ordinal family refuses rather than falling back to the bare id on a linking path.
 
 - justwatch, `src/sources/justwatch/extractor.ts:470`: `if (opts.seasonNumber == null && showRequiresSeason(node.objectType)) return null`, with the comment above it reading *refusing to build the media is the point*. A movie is exempt, because `showRequiresSeason` is `objectType !== 'MOVIE'` (`src/sources/justwatch/id.ts:35`) and a film has no seasons to be confused between.
-- tmdb, `src/sources/tmdb/extractor.ts:182`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`.
+- tmdb, `src/sources/tmdb/extractor.ts:241`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`. The one exception is the show's own card: asked from a CONTAINER, it answers the show itself, a CONTAINER carrying its season list, and the page opens the first season from there.
 - tvmaze, `src/sources/tvmaze/extractor.ts:169`: `if (seasonNumber == null && candidates.length > 1) return undefined`.
 - unogs, `src/sources/unogs/extractor.ts:254`: `if (requireSeason && seasonNumber == null && title.vtype === 'series') return undefined`, and `requireSeason` is passed `true` only where cluster handles are attached, because that is the only path that can weld.
 - appletv, `src/sources/appletv/extractor.ts:102`: it does not refuse, it demotes. `const scope = scoped || content.type === 'Movie' ? 'RUN' : 'CONTAINER'`, so the bare show id is still emitted and the store keeps it out of every run's identity space instead.

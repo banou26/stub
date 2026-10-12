@@ -155,6 +155,10 @@ export const GET_MEDIA_DETAILS = gql(`
       }
       episodeCount
       status
+      seasons {
+        number
+        uri
+      }
       nextAiringEpisode {
         episodeNumber
         airingAt

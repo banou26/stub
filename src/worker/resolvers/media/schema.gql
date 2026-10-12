@@ -422,6 +422,17 @@ type Media {
   themes: [MediaTheme!]
   """Each rating site's score, one per site, from the first source in score order that has it."""
   ratings: [MediaRating!]
+  """
+  Every season of the show this run is part of, or of the show itself, in order, each its own run.
+  Null where no source lists them, and for anime.
+  """
+  seasons: [MediaSeasonLink!]
+}
+
+"""One season of a show: its number and the uri of its own run."""
+type MediaSeasonLink {
+  number: Int!
+  uri: String!
 }
 
 """One rating site's score for a title, out of `scale`: IMDb 8.4 of 10, Rotten Tomatoes 92 of 100."""

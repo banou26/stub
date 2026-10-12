@@ -425,6 +425,12 @@ export const aggregateFields = (options: {
     provenance.push({ field: 'themes', uri: themesFrom.uri, rule: 'first-supplier' })
   }
 
+  const seasonsFrom = owned.find(member => listOf(member.raw.seasons).length)
+  if (seasonsFrom) {
+    row.seasons = seasonsFrom.raw.seasons
+    provenance.push({ field: 'seasons', uri: seasonsFrom.uri, rule: 'first-supplier' })
+  }
+
   row.ratings = dedupeByField('source', owned.flatMap(member => listOf(member.raw.ratings)))
   for (const member of owned) {
     if (listOf(member.raw.ratings).length) provenance.push({ field: 'ratings', uri: member.uri, rule: 'dedupe' })
