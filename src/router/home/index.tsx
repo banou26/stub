@@ -94,10 +94,10 @@ const useRow = (input: MediaPageInput, row: Row) => {
     pause: !rows.includes(row)
   })
 
-  // The season row's placement is held still once a card is on screen: the resolver re-sorts it on
-  // popularity on every store change, so a show the bundle has no count for jumps the moment a live
-  // source supplies one. Measured 2026-09-06: the top ten reordered at 9.0 s, well after it looked
-  // settled at 2.0 s. The Popular rows keep the order JustWatch answered, which never moves, and
+  // The season row's placement is held still once a card is on screen with a popularity: the resolver
+  // re-sorts it on popularity on every store change, so without the hold a show jumps whenever a live
+  // source restates its count. Measured 2026-09-06: the top ten reordered at 9.0 s, well after it
+  // looked settled at 2.0 s. The Popular rows keep the order JustWatch answered, which never moves, and
   // holding a partial first draw still would put the cards that arrive later at the end.
   const resolved = data?.mediaPage?.nodes
   const placed = useRef<string[]>([])
