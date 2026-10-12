@@ -1,0 +1,177 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "01496273",
+            "name": "Dune",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01496273_poster_w185.jpg",
+            "imdbId": "tt1160419",
+            "tmdbId": 438631,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01112621",
+            "name": "Dune",
+            "type": "Movie",
+            "year": 1984,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01112621_poster_w185.jpg",
+            "imdbId": "tt0087182",
+            "tmdbId": 841,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "055440",
+            "name": "Dune",
+            "type": "Limited Series",
+            "year": 2000,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/055440_poster_w185.jpg",
+            "imdbId": "tt0142032",
+            "tmdbId": 19566,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01644435",
+            "name": "Dune: Part Two",
+            "type": "Movie",
+            "year": 2024,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01644435_poster_w185.jpg",
+            "imdbId": "tt15239678",
+            "tmdbId": 693134,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "03163191",
+            "name": "Dune: Prophecy",
+            "type": "TV Show",
+            "year": 2024,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03163191_poster_w185.jpg",
+            "imdbId": "tt10466872",
+            "tmdbId": 90228,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01740590",
+            "name": "Dune: Part Three",
+            "type": "Movie",
+            "year": 2026,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01740590_poster_w185.jpg",
+            "imdbId": "tt31378509",
+            "tmdbId": 1170608,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01388737",
+            "name": "The Dunes",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01388737_poster_w185.jpg",
+            "imdbId": "tt6910678",
+            "tmdbId": 503017,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "0710415530",
+            "name": "Dune Kossatz",
+            "type": "Actress",
+            "year": null,
+            "thumbnailURL": "https://cdn.watchmode.com/profiles/blank.gif",
+            "imdbId": "nm1692878",
+            "tmdbId": 3193287,
+            "tmdbType": null,
+            "resultType": 2
+          },
+          {
+            "combinedID": "02718225",
+            "name": "Dune",
+            "type": "Short Film",
+            "year": 2020,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/02718225_poster_w185.jpg",
+            "imdbId": "tt12451788",
+            "tmdbId": 697620,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "075703171",
+            "name": "Nea Dune",
+            "type": "Actress",
+            "year": null,
+            "thumbnailURL": "https://cdn.watchmode.com/profiles/blank.gif",
+            "imdbId": "nm5872485",
+            "tmdbId": 1482685,
+            "tmdbType": null,
+            "resultType": 2
+          },
+          {
+            "combinedID": "01619649",
+            "name": "Dune Drifter",
+            "type": "Movie",
+            "year": 2020,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01619649_poster_w185.jpg",
+            "imdbId": "tt11835714",
+            "tmdbId": 744738,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "07168752",
+            "name": "Claude Duneton",
+            "type": "Actor",
+            "year": null,
+            "thumbnailURL": "https://cdn.watchmode.com/profiles/blank.gif",
+            "imdbId": "nm0242211",
+            "tmdbId": 17894,
+            "tmdbType": null,
+            "resultType": 2
+          },
+          {
+            "combinedID": "01591332",
+            "name": "The Dunes",
+            "type": "Movie",
+            "year": 2019,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01591332_poster_w185.jpg",
+            "imdbId": "tt4681432",
+            "tmdbId": 641213,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "0710727897",
+            "name": "Ashley Dunec",
+            "type": "Actress",
+            "year": null,
+            "thumbnailURL": "https://cdn.watchmode.com/profiles/blank.gif",
+            "imdbId": "nm8962144",
+            "tmdbId": 3512239,
+            "tmdbType": null,
+            "resultType": 2
+          },
+          {
+            "combinedID": "01388735",
+            "name": "The Dune",
+            "type": "Movie",
+            "year": 2013,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01388735_poster_w185.jpg",
+            "imdbId": "tt2251648",
+            "tmdbId": 271683,
+            "tmdbType": "movie",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

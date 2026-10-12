@@ -1,0 +1,177 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "01496273",
+            "name": "Dune",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01496273_poster_w185.jpg",
+            "imdbId": "tt1160419",
+            "tmdbId": 438631,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01112621",
+            "name": "Dune",
+            "type": "Movie",
+            "year": 1984,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01112621_poster_w185.jpg",
+            "imdbId": "tt0087182",
+            "tmdbId": 841,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "055440",
+            "name": "Dune",
+            "type": "Limited Series",
+            "year": 2000,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/055440_poster_w185.jpg",
+            "imdbId": "tt0142032",
+            "tmdbId": 19566,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01644435",
+            "name": "Dune: Part Two",
+            "type": "Movie",
+            "year": 2024,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01644435_poster_w185.jpg",
+            "imdbId": "tt15239678",
+            "tmdbId": 693134,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "03163191",
+            "name": "Dune: Prophecy",
+            "type": "TV Show",
+            "year": 2024,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03163191_poster_w185.jpg",
+            "imdbId": "tt10466872",
+            "tmdbId": 90228,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01740590",
+            "name": "Dune: Part Three",
+            "type": "Movie",
+            "year": 2026,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01740590_poster_w185.jpg",
+            "imdbId": "tt31378509",
+            "tmdbId": 1170608,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01388737",
+            "name": "The Dunes",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01388737_poster_w185.jpg",
+            "imdbId": "tt6910678",
+            "tmdbId": 503017,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "02718225",
+            "name": "Dune",
+            "type": "Short Film",
+            "year": 2020,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/02718225_poster_w185.jpg",
+            "imdbId": "tt12451788",
+            "tmdbId": 697620,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01619649",
+            "name": "Dune Drifter",
+            "type": "Movie",
+            "year": 2020,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01619649_poster_w185.jpg",
+            "imdbId": "tt11835714",
+            "tmdbId": 744738,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01591332",
+            "name": "The Dunes",
+            "type": "Movie",
+            "year": 2019,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01591332_poster_w185.jpg",
+            "imdbId": "tt4681432",
+            "tmdbId": 641213,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01388735",
+            "name": "The Dune",
+            "type": "Movie",
+            "year": 2013,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01388735_poster_w185.jpg",
+            "imdbId": "tt2251648",
+            "tmdbId": 271683,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "04161984",
+            "name": "Dünen: Europas wandernde Landschaften",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/04161984_poster_w185.jpg",
+            "imdbId": "tt16445002",
+            "tmdbId": 1130036,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01632984",
+            "name": "Dune Dreams",
+            "type": "Movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01632984_poster_w185.jpg",
+            "imdbId": "tt11018038",
+            "tmdbId": 818926,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01112625",
+            "name": "Dune Warriors",
+            "type": "Movie",
+            "year": 1991,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01112625_poster_w185.jpg",
+            "imdbId": "tt0099474",
+            "tmdbId": 222339,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "03232129",
+            "name": "Dünentod - Ein Nordsee-Krimi",
+            "type": "TV Show",
+            "year": 2023,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03232129_poster_w185.jpg",
+            "imdbId": "tt24339158",
+            "tmdbId": 219558,
+            "tmdbType": "tv",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

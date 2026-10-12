@@ -110,25 +110,25 @@ test('a url with no readable id mints nothing, never the watchmode id', async ()
   expect(handles.filter(handle => handle.origin === 'nf')).toEqual([])
 })
 
-// tmdb, and the two cases fail differently, which is why one survives as PART_OF and one does not.
+// A series record names the whole show, as its imdb id and its tmdb tv id do, so it claims to BE them;
+// as PART_OF it was a show hanging off itself, a second card beside the real one. A film links to them.
 //
-// A TV id names the SHOW, so PART_OF is exactly true: this record is part of that. A MOVIE id is in a
-// DIFFERENT SEQUENCE that also starts at 1, measured 2026-09-04: themoviedb.org/movie/550 is Fight Club
-// and /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550` for both, so a PART_OF there would
-// point at the wrong ROW, which is not a weaker claim but a wrong one.
-test('a tmdb tv id is kept as PART_OF, and a tmdb movie id is refused outright', async () => {
+// A tmdb MOVIE id is in a DIFFERENT SEQUENCE that also starts at 1, measured 2026-09-04:
+// themoviedb.org/movie/550 is Fight Club and /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550`
+// for both, so any claim there would point at the wrong ROW.
+test('a series claims its imdb and tmdb tv ids as the show, a film links its imdb id, a tmdb movie id is refused', async () => {
   const [series] = await searchRowsFor([{ combinedID: SERIES, name: 'A Show', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'tv' }])
-  const tmdbEdge = series!.handles.find(edge => edge.node.origin === 'tmdb')
-  expect(tmdbEdge?.node.id).toBe('550')
-  expect(tmdbEdge?.relation).toBe('PART_OF')
+  expect(series!.handles.map(edge => [edge.node.uri, edge.relation, edge.node.scope])).toEqual([
+    ['imdb:tt1234567', 'SAME_AS', 'CONTAINER'],
+    ['tmdb:550', 'SAME_AS', 'CONTAINER'],
+  ])
 
   const [film] = await searchRowsFor([{ combinedID: FILM, name: 'A Film', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'movie' }])
-  expect(film!.handles.filter(handle => handle.node.origin === 'tmdb')).toEqual([])
+  expect(film!.handles.map(edge => [edge.node.uri, edge.relation])).toEqual([['imdb:tt1234567', 'PART_OF']])
 })
 
-// The control. imdb survives because worker/store/db.ts declines to LINK a show-level origin, so it is
-// carried without being asserted, and a netflix title id reads correctly off its own url shape. A run
-// where these vanish too has broken the source rather than fixed the weld.
+// The control. imdb is minted and a netflix title id reads correctly off its own url shape. A run where
+// these vanish too has broken the source rather than fixed the weld.
 test('imdb and a readable netflix id are still minted', async () => {
   const [row] = await searchRowsFor([{ combinedID: SERIES, name: 'A Show', imdbId: 'tt1234567' }])
   expect(row!.handles.map(handle => handle.node.uri)).toEqual(['imdb:tt1234567'])
@@ -228,7 +228,7 @@ test('asks as www.watchmode.com\'s own client does: batched, from its origin, wi
   await subscribe(undefined, { input: { search: 'inception' } }, recorded(sent, headers)).next()
 
   expect(new URL(sent[0]!).searchParams.get('batch')).toBe('1')
-  expect(JSON.parse(new URL(sent[0]!).searchParams.get('input')!)).toEqual({ 0: { json: { q: 'inception', type: 1 } } })
+  expect(JSON.parse(new URL(sent[0]!).searchParams.get('input')!)).toEqual({ 0: { json: { q: 'inception', type: 2 } } })
   expect(headers).toEqual([{ origin: 'https://www.watchmode.com' }])
 })
 
@@ -239,12 +239,25 @@ test('search asks the site\'s quick search and mints each hit under its combined
   const rows = value.mediaPage.nodes as { uri: string, startDate?: string, covers: { url: string }[], titles: { title: string }[] }[]
 
   expect(sent.map(url => new URL(url).pathname)).toEqual(['/trpc/gateway.quickSearch'])
-  expect(inputOf(sent[0]!)).toEqual({ q: 'inception', type: 1 })
+  expect(inputOf(sent[0]!)).toEqual({ q: 'inception', type: 2 })
   expect(rows.map(row => row.uri)).toEqual(['watchmode:01182444', 'watchmode:01670721', 'watchmode:01863076'])
   expect(rows[0]!.titles.map(title => title.title)).toEqual(['Inception'])
   expect(rows[0]!.startDate).toBe('2010-01-01')
   expect(rows[0]!.covers.map(cover => cover.url)).toEqual(['https://cdn.watchmode.com/posters/01182444_poster_w185.jpg'])
   expect(rows[2]!.covers, 'a title with no poster names blank.gif, which is no cover').toEqual([])
+})
+
+// "dune" as the gateway answered it on 2026-10-13 for each `type` it was asked: 1 (titles and people)
+// carried four people among fifteen hits, 2 (titles only) fifteen titles.
+test('search asks for titles only, so no person comes back as a show', async () => {
+  const answers: Record<number, unknown> = { 1: fixture('quick-search-dune-titles-and-people'), 2: fixture('quick-search-dune-titles') }
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const context = { fetch: async (url: string) => ({ json: async () => [answers[inputOf(url).type]] }) } as never
+  const { value } = await subscribe(undefined, { input: { search: 'dune' } }, context).next()
+  const names = (value.mediaPage.nodes as { titles: { title: string }[] }[]).map(row => row.titles[0]?.title)
+
+  expect(names, 'control: the titles still come back').toContain('Dune: Prophecy')
+  for (const person of ['Dune Kossatz', 'Nea Dune', 'Claude Duneton', 'Ashley Dunec']) expect(names).not.toContain(person)
 })
 
 test('a recorded title\'s links come from its title page providers, every region\'s', async () => {

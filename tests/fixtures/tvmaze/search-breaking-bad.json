@@ -1,0 +1,134 @@
+[
+  {
+    "score": 1.1857247,
+    "show": {
+      "id": 169,
+      "url": "https://www.tvmaze.com/shows/169/breaking-bad",
+      "name": "Breaking Bad",
+      "type": "Scripted",
+      "language": "English",
+      "genres": [
+        "Drama",
+        "Crime",
+        "Thriller"
+      ],
+      "status": "Ended",
+      "runtime": 60,
+      "averageRuntime": 60,
+      "premiered": "2008-01-20",
+      "ended": "2019-10-11",
+      "officialSite": "http://www.amc.com/shows/breaking-bad",
+      "schedule": {
+        "time": "22:00",
+        "days": [
+          "Sunday"
+        ]
+      },
+      "rating": {
+        "average": 9.2
+      },
+      "weight": 100,
+      "network": {
+        "id": 20,
+        "name": "AMC",
+        "country": {
+          "name": "United States",
+          "code": "US",
+          "timezone": "America/New_York"
+        },
+        "officialSite": null
+      },
+      "webChannel": null,
+      "dvdCountry": null,
+      "externals": {
+        "tvrage": 18164,
+        "thetvdb": 81189,
+        "imdb": "tt0903747"
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/501/1253519.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/501/1253519.jpg"
+      },
+      "summary": "<p><b>Breaking Bad</b> follows protagonist Walter White, a chemistry teacher who lives in New Mexico with his wife and teenage son who has cerebral palsy. White is diagnosed with Stage III cancer and given a prognosis of two years left to live. With a new sense of fearlessness based on his medical prognosis, and a desire to secure his family's financial security, White chooses to enter a dangerous world of drugs and crime and ascends to power in this world. The series explores how a fatal diagnosis such as White's releases a typical man from the daily concerns and constraints of normal society and follows his transformation from mild family man to a kingpin of the drug trade.</p>",
+      "updated": 1769198028,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/169"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/2007806",
+          "name": "El Camino: A Breaking Bad Movie"
+        }
+      }
+    }
+  },
+  {
+    "score": 0.88832265,
+    "show": {
+      "id": 27845,
+      "url": "https://www.tvmaze.com/shows/27845/breaking-bad-original-minisodes",
+      "name": "Breaking Bad: Original Minisodes",
+      "type": "Scripted",
+      "language": "English",
+      "genres": [
+        "Comedy",
+        "Crime"
+      ],
+      "status": "Ended",
+      "runtime": 5,
+      "averageRuntime": 5,
+      "premiered": "2009-02-17",
+      "ended": "2011-07-11",
+      "officialSite": "https://www.amc.com/shows/breaking-bad/talk/2009/02/original-minisodes#:~:text=Now%20you%20can%20watch%20five,and%20Matt%20Jones%20(Badger).",
+      "schedule": {
+        "time": "",
+        "days": []
+      },
+      "rating": {
+        "average": 7
+      },
+      "weight": 91,
+      "network": {
+        "id": 20,
+        "name": "AMC",
+        "country": {
+          "name": "United States",
+          "code": "US",
+          "timezone": "America/New_York"
+        },
+        "officialSite": null
+      },
+      "webChannel": {
+        "id": 142,
+        "name": "AMC.com",
+        "country": {
+          "name": "United States",
+          "code": "US",
+          "timezone": "America/New_York"
+        },
+        "officialSite": "https://www.amc.com/"
+      },
+      "dvdCountry": null,
+      "externals": {
+        "tvrage": null,
+        "thetvdb": 356427,
+        "imdb": "tt2387761"
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/216/540867.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/216/540867.jpg"
+      },
+      "summary": "<p>Watch Hank and Marie as they celebrate Valentine's Day in the bedroom in \"Good Cop, Bad Cop\". View a flashback to Hank and Marie's wedding as the groom discusses with Walt his last wild night as a bachelor in \"Wedding Day\". Go inside Jesse's band TwaughtHammer as he and Badger make a behind-the-music documentary, and sing along to the full music video for their song \"Fallacies\". Finally, watch Marie discuss politics and patriotism in her personal video diary, \"Marie's Confession\".</p>",
+      "updated": 1593271415,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/27845"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/1163344",
+          "name": "Fighting for You"
+        }
+      }
+    }
+  }
+]

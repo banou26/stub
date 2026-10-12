@@ -6,7 +6,7 @@ import { makeMedia, makeMovieEpisode, isMovie, img } from '../utils'
 // the same job over the same provider urls, shape tested per host and measured against a 3168 offer corpus
 import { extractContentId, providerContentId } from '../justwatch/id'
 import { mintableAsFilmHandle, streamPointers } from '../kitsu/stream-id'
-import { partOf, sameAs, tmdbLink } from '../utils'
+import { partOf, sameAs } from '../utils'
 
 const SCORE = 0.25
 
@@ -127,31 +127,24 @@ const sourceToHandle = (provider: WatchmodeProvider, film: boolean): GQLMediaHan
 }
 
 /**
- * The catalogue ids a Watchmode record publishes that are worth minting.
+ * The catalogue ids a Watchmode record publishes that are worth minting, both show level.
  *
- * `tmdb` is not one of them, and it fails in both of its two forms, exactly as simkl's does. A tv id
- * names the SHOW and this file has no season concept to scope it with. A MOVIE id is worse than
- * unscoped: TMDB numbers movies and tv shows in separate sequences that both start at 1, measured
- * 2026-09-04, so `themoviedb.org/movie/550` is Fight Club and `/tv/550` is Till Death Us Do Part.
- * Stub's uri is `tmdb:550` for both, and `tmdb_type` decided the URL here while the ID stayed bare, so
- * a film could weld to whatever unrelated series holds its number. `tmdb/extractor.ts` is
- * `categories = ['SERIES']` and reads `/tv/` pages only, so it could not resolve a movie id anyway.
+ * A series record names the whole show, as its imdb id and its TMDB tv id do, so it claims to BE them:
+ * three containers of one show, one card. As PART_OF it was a show hanging off itself, listed as a
+ * second, thinner card beside the real one. A film links to them.
  *
- * `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
- * the whole reason `SHOW_LEVEL_ORIGINS` exists. Saying so here rather than relying on that Set to
- * demote it means the claim is honest at the point it is made.
+ * A TMDB MOVIE id is refused outright: TMDB numbers movies and tv shows in separate sequences that both
+ * start at 1, measured 2026-09-04, so `themoviedb.org/movie/550` is Fight Club and `/tv/550` is Till
+ * Death Us Do Part, and stub's uri is `tmdb:550` for both. A claim pointing at the wrong ROW is not a
+ * weaker claim, it is a wrong one.
  */
-const idHandles = (hit: WatchmodeHit): GQLMediaHandle[] => {
-  const handles: GQLMediaHandle[] = []
-  const imdbId = hit.imdbId
-  if (imdbId) handles.push(partOf(makeMedia({ origin: 'imdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })))
-  // A TMDB TV id names the show, so PART_OF is honest for it. A MOVIE id is refused outright and
-  // PART_OF cannot rescue it: TMDB numbers films and shows in separate sequences that both start at 1,
-  // so `tmdb:550` is Fight Club as a movie and Till Death Us Do Part as a series. A PART_OF pointing at
-  // the wrong ROW is not a weaker claim, it is a wrong one.
-  const tmdbId = hit.tmdbId
-  if (tmdbId != null && hit.tmdbType !== 'movie') handles.push(tmdbLink(String(tmdbId), false))
-  return handles
+const idHandles = (hit: WatchmodeHit, film: boolean): GQLMediaHandle[] => {
+  const nodes: GQLMedia[] = []
+  if (hit.imdbId) nodes.push(makeMedia({ origin: 'imdb', id: hit.imdbId, url: `https://www.imdb.com/title/${hit.imdbId}`, scope: 'CONTAINER' }))
+  if (hit.tmdbId != null && hit.tmdbType !== 'movie') {
+    nodes.push(makeMedia({ origin: 'tmdb', id: String(hit.tmdbId), url: `https://www.themoviedb.org/tv/${hit.tmdbId}`, scope: 'CONTAINER' }))
+  }
+  return nodes.map(film ? partOf : sameAs)
 }
 
 const dedupeHandles = (handles: GQLMediaHandle[]): GQLMediaHandle[] => {
@@ -178,7 +171,7 @@ const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
     origin,
     id,
     url: `https://www.watchmode.com/title/${id}`,
-    handles: idHandles(hit),
+    handles: idHandles(hit, isFilm(id)),
     score: SCORE,
     ...kindOf(id),
     titles: hit.name ? [{ language: 'en', title: hit.name, score: SCORE }] : [],
@@ -213,8 +206,10 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
   return media
 }
 
+// `type` is the API's `search_type` (api.watchmode.com/openapi.json): 2 is titles only, where 1 adds
+// people, whose `07` ids would read as shows here
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
-  ((await trpc<{ results?: WatchmodeHit[] }>('quickSearch', { q: query, type: 1 }, ctx))?.results ?? [])
+  ((await trpc<{ results?: WatchmodeHit[] }>('quickSearch', { q: query, type: 2 }, ctx))?.results ?? [])
     .map(normalizeHit)
     .filter((media): media is GQLMedia => !!media)
 

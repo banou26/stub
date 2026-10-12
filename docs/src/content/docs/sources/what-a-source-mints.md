@@ -125,15 +125,9 @@ Three source modules call `partOf`, at six sites. Kitsu builds one per streaming
 as a film (`src/sources/kitsu/extractor.ts:96`), JustWatch routes its offers through it
 (`justwatch/extractor.ts:400` and `:510`), and Watchmode is the source that exists in its current
 shape because of it: `watchmode/extractor.ts:126` returns `partOf(node)` for every provider handle,
-after `:125` has decided the one narrow case that may be `sameAs`, and `:147` and `:154` mint its imdb
-and tmdb ids the same way. Watchmode's own comment says why
-the claim is made at the point of the claim rather than left to the store's backstop:
-
-`src/sources/watchmode/extractor.ts:140-142`
-
-> `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
-> the whole reason `SHOW_LEVEL_ORIGINS` exists. Saying so here rather than relying on that Set to
-> demote it means the claim is honest at the point it is made.
+after `:125` has decided the one narrow case that may be `sameAs`, and `:147` mints a film's imdb and
+tmdb ids the same way. A series hit's go out `sameAs`, still scoped CONTAINER: the record names the
+whole show, as both ids do, so the claim is a union between containers and never touches a run.
 
 ### The third route, which the brief does not name
 

@@ -272,7 +272,7 @@ stateDiagram-v2
   unplugged --> live: 2026-09-05, refusing them one by one left it contributing nothing
   live --> pick: every offer handle, watchmode/extractor.ts:122-126
   pick --> identity: film and pointer.origin === mappedOrigin and pointer.id === id and mintableAsFilmHandle(pointer)
-  pick --> containment: anything else, and every imdb id unconditionally
+  pick --> containment: anything else
   identity --> [*]
   containment --> [*]
 ```
@@ -299,13 +299,12 @@ if (film && pointer?.origin === mappedOrigin && pointer.id === id && mintableAsF
 return partOf(node)
 ```
 
-The `imdb` handle does not even reach that branch. It is minted `partOf` outright at
-`src/sources/watchmode/extractor.ts:147`, and `:140-142` says why the demotion is made here rather
-than left to the store:
-
-> `imdb` stays, as PART_OF: a `tt` id names the show and there is no season-level equivalent, which is
-> the whole reason `SHOW_LEVEL_ORIGINS` exists. Saying so here rather than relying on that Set to
-> demote it means the claim is honest at the point it is made.
+The `imdb` and `tmdb` handles of a search hit do not reach that branch. `idHandles`
+(`src/sources/watchmode/extractor.ts:141-148`) mints them scoped CONTAINER, `partOf` on a film and
+`sameAs` on a series: a series record names the whole show, as its imdb id and its tmdb tv id do, so
+the claim unions three containers of one show and can never reach a run. As `partOf` the record was a
+show hanging off itself, and series.fkn.app listed it as a second, thinner card beside the real one
+(2026-10-12).
 
 :::danger[A SAME_AS handle is not reversible]
 Every `sameAs` handle becomes `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` in
