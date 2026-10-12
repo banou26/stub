@@ -324,6 +324,41 @@ test('a press that leaves the wordmark early opens nothing, and one released off
   await expect(page).toHaveURL(at('movie.localhost'))
 })
 
+const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
+
+test('below 1024 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost', '/settings'))
+  const arrow = (await sitesArrow(page).boundingBox())!
+  const logo = (await page.locator('header .logo').boundingBox())!
+  expect(arrow.x + arrow.width, 'it sits before the wordmark').toBeLessThanOrEqual(logo.x)
+  await sitesArrow(page).click()
+  await expect(siteMenu(page).getByRole('link')).toHaveText(['Movies', 'Series', 'Anime', 'All'])
+  await expect(siteMenu(page).getByRole('link', { name: 'Movies' })).toHaveAttribute('aria-current', 'page')
+  await expect(sitesArrow(page)).toHaveAttribute('aria-expanded', 'true')
+  await expect(page).toHaveURL(/\/settings/)
+  await sitesArrow(page).click()
+  await expect(siteMenu(page), 'a second tap closes it').toHaveCount(0)
+  await sitesArrow(page).click()
+  await expect(siteMenu(page)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(siteMenu(page)).toHaveCount(0)
+  await expect(sitesArrow(page), 'focus goes back to the arrow that opened it').toBeFocused()
+})
+
+test('the arrow shows only where the links are hidden, and only on the four sites', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movie.localhost'))
+  await expect(sitesArrow(page), 'the control: a phone on a site shows it').toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await expect(siteLinks(page).first()).toBeVisible()
+  await expect(sitesArrow(page), 'a desktop has the links inline instead').toBeHidden()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('127.0.0.1'))
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+  await expect(sitesArrow(page)).toHaveCount(0)
+})
+
 test('any other host opens no menu on a long press', async ({ page }) => {
   await page.goto(at('anime.localhost'))
   await longPress(page)

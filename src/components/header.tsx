@@ -3,7 +3,7 @@ import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useDismiss, useFloating, useInteractions, useRole
 } from '@floating-ui/react'
-import { Search, Settings } from 'lucide-react'
+import { ChevronDown, Search, Settings } from 'lucide-react'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -81,6 +81,42 @@ const style = css`
 
     @media (max-width: 1023px) {
       display: none;
+    }
+  }
+
+  .wordmark {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .sites-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+
+    &:hover {
+      color: #fff;
+    }
+
+    svg {
+      transition: transform 0.15s;
+    }
+
+    &[aria-expanded='true'] svg {
+      transform: rotate(180deg);
+    }
+
+    @media (max-width: 1023px) {
+      display: flex;
     }
   }
 
@@ -229,10 +265,15 @@ const SiteLinks = ({ className }: { className?: string }) => (
   </>
 )
 
-/** The wordmark goes home on a tap; on a host with site links, a long press or a right click opens them as a menu. */
+/**
+ * The wordmark goes home on a tap. On a host with site links, the arrow before it opens them as a menu, and so do a
+ * long press or a right click on the wordmark itself.
+ */
 const Wordmark = () => {
   const [open, setOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Escape hands focus back to whichever of the arrow and the wordmark opened the menu
+  const opener = useRef<HTMLElement | null>(null)
   const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: setOpen,
@@ -244,42 +285,64 @@ const Wordmark = () => {
     useDismiss(context),
     useRole(context, { role: 'menu' })
   ])
+  const openFrom = (element: HTMLElement) => {
+    opener.current = element
+    setOpen(true)
+  }
   const release = () => clearTimeout(timer.current)
-  const press = siteLinks.length > 0
-    ? getReferenceProps({
-      className: 'logo sites-menu',
-      onPointerDown: (event: PointerEvent) => {
-        if (event.button !== 0) return
-        timer.current = setTimeout(() => setOpen(true), LONG_PRESS)
-      },
-      onPointerUp: release,
-      onPointerLeave: release,
-      onPointerCancel: release,
-      onContextMenu: (event: MouseEvent) => {
-        event.preventDefault()
-        setOpen(true)
-      },
-    })
-    : { className: 'logo' }
+  const hasMenu = siteLinks.length > 0
+
+  const wordmark = (
+    // "home, from the top": the rule in router/scroll-reset.ts keeps the home page still under its
+    // modal and on itself, and the wordmark is the one link that means the top of it anyway
+    <Link
+      to={getRoutePath(Route.HOME)}
+      className={hasMenu ? 'logo sites-menu' : 'logo'}
+      {...(hasMenu
+        ? {
+          onPointerDown: (event: PointerEvent) => {
+            if (event.button !== 0) return
+            const target = event.currentTarget as HTMLElement
+            timer.current = setTimeout(() => openFrom(target), LONG_PRESS)
+          },
+          onPointerUp: release,
+          onPointerLeave: release,
+          onPointerCancel: release,
+          onContextMenu: (event: MouseEvent) => {
+            event.preventDefault()
+            openFrom(event.currentTarget as HTMLElement)
+          },
+        }
+        : {})}
+      onClick={(event: MouseEvent) => {
+        if (open) event.preventDefault()
+        else askForTop()
+      }}
+    >
+      stub
+    </Link>
+  )
+  if (!hasMenu) return wordmark
 
   return (
-    <>
-      {/* "home, from the top": the rule in router/scroll-reset.ts keeps the home page still under its
-          modal and on itself, and the wordmark is the one link that means the top of it anyway */}
-      <Link
-        ref={refs.setReference}
-        to={getRoutePath(Route.HOME)}
-        {...press}
-        onClick={(event: MouseEvent) => {
-          if (open) event.preventDefault()
-          else askForTop()
-        }}
+    <span ref={refs.setReference} className="wordmark">
+      <button
+        type="button"
+        className="sites-toggle"
+        aria-label="Sites"
+        {...getReferenceProps({
+          onClick: (event: MouseEvent) => {
+            if (open) setOpen(false)
+            else openFrom(event.currentTarget as HTMLElement)
+          },
+        })}
       >
-        stub
-      </Link>
+        <ChevronDown size={16}/>
+      </button>
+      {wordmark}
       {open && (
         <FloatingPortal>
-          <FloatingFocusManager context={context} modal={false}>
+          <FloatingFocusManager context={context} modal={false} returnFocus={opener}>
             <div
               ref={refs.setFloating}
               style={floatingStyles}
@@ -291,7 +354,7 @@ const Wordmark = () => {
           </FloatingFocusManager>
         </FloatingPortal>
       )}
-    </>
+    </span>
   )
 }
 
