@@ -62,10 +62,6 @@ export type ManamiRecord = {
   pop?: number
   /** MyAnimeList's synopsis, current season only: what the homepage hero selects on */
   sy?: string
-  /** a youtube id for the hero's trailer, current season only */
-  tr?: string
-  /** that trailer's thumbnail */
-  th?: string
   // No genres and no tags: the measurement that keeps them out of the bundle is in `seasonMedia`.
 }
 
@@ -133,10 +129,10 @@ const handles = (record: ManamiRecord): GQLMedia[] => {
  * (the 2026-07-04 dump calls 192 of its 219 SUMMER 2026 entries UPCOMING, and every one was airing
  * six weeks later).
  *
- * `popularity` IS published now, and manami still has none: it is MyAnimeList's member count, fetched
- * per season at build time (scripts/build-anime-data.mjs). Without it the listing, which sorts on
- * popularity, swept every bundled row to the tail and painted whatever order the bundle happened to
- * ship in. It is safe at this score because jikan publishes the same count at 0.9 and wins the
+ * `popularity` IS published now, and manami still has none: it is MyAnimeList's member count, read
+ * off its season page at build time (scripts/season-popularity.mjs). Without it the listing, which
+ * sorts on popularity, swept every bundled row to the tail and painted whatever order the bundle
+ * happened to ship in. It is safe at this score because jikan publishes the same count at 0.9 and wins the
  * aggregate, so the value is restated rather than contradicted. A row the fetch did not cover carries
  * none, which sorts it behind the covered ones.
  *
@@ -173,19 +169,9 @@ export const seasonMedia = (record: ManamiRecord, key?: string): GQLMedia | unde
     episodeCount: record.ep || undefined,
     popularity: record.pop || undefined,
     // The hero keeps only media carrying titles AND shortDescriptions (utils/theater.ts), and manami
-    // has no synopsis, so the homepage rendered an empty hero until a live source answered. Both this
-    // and the trailer ride the same build-time jikan call as the member counts, current season only.
+    // has no synopsis, so the homepage rendered an empty hero until a live source answered. It rides
+    // the same build-time read of MyAnimeList's season page as the member counts, current season only.
     ...desc(record.sy, SCORE),
-    trailers: record.tr
-      ? [{
-        uri: `yt:${record.tr}`,
-        origin: 'yt',
-        id: record.tr,
-        url: `https://www.youtube.com/watch?v=${record.tr}`,
-        language: 'en',
-        ...record.th ? { thumbnail: record.th } : {},
-      }]
-      : [],
     // manami scores on 1 to 10, the schema's averageScore is 0 to 100.
     averageScore: record.sc ? Math.round(record.sc * 10) : undefined,
   })

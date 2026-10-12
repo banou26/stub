@@ -65,7 +65,7 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { orderSeasonBucket } from './season-order.mjs'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
-import { get as httpsGet } from 'node:https'
+import { errorText, malSeason } from './season-popularity.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -132,12 +132,6 @@ const CATALOGS = [
   { key: 'ann', host: 'animenewsnetwork.com' },
 ]
 
-const JIKAN = 'https://api.jikan.moe/v4'
-// 3 requests a second is jikan's limit; 6 pages covers a season of 149 with room to spare
-const JIKAN_MAX_PAGES = 10
-const JIKAN_PAUSE_MS = 700
-const JIKAN_TIMEOUT_MS = 15_000
-const JIKAN_ATTEMPTS = 5
 const log = (...args) => console.log('[anime-data]', ...args)
 const warn = (...args) => console.warn('[anime-data] WARNING:', ...args)
 
@@ -298,7 +292,7 @@ const newestRelease = async () => {
         const key = `${source.name}:${error.status ?? error.name}`
         const seen = failures.get(key)
         if (seen) seen.n += 1
-        else failures.set(key, { n: 1, text: `${source.name}: ${error.message}` })
+        else failures.set(key, { n: 1, text: `${source.name}: ${errorText(error)}` })
       }
     }
   }
@@ -307,6 +301,24 @@ const newestRelease = async () => {
 }
 
 const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [key, idIn(entry.sources, host)]))
+
+/**
+ * The popularity the home page sorts on, or an empty map. manami ships none, and its 1 to 10 rating
+ * puts three shows tied at a perfect 10 from a handful of votes above Mushoku Tensei.
+ *
+ * NEVER FATAL: a season's ordering is not worth failing a deploy over. The bucket then falls back to
+ * the rating order, and the line logged says why.
+ */
+const seasonPopularity = async () => {
+  try {
+    const counts = await malSeason()
+    log(`myanimelist season data: ${counts.size} entries, ${[...counts.values()].filter(entry => entry.synopsis).length} with a synopsis`)
+    return counts
+  } catch (error) {
+    log(`myanimelist season data unavailable (${errorText(error)}); the season falls back to its rating order and the hero waits for a live source`)
+    return new Map()
+  }
+}
 
 /**
  * The extract, which is deliberately NOT "the dump with some fields removed".
@@ -318,105 +330,6 @@ const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [
  * It also lands the extract in nearly the shape the build wants, so the cache path exercises the
  * same code as the fresh path rather than a second one that could rot untested.
  */
-/**
- * What jikan knows about the season the clock is in, keyed by mal id, or an empty map: the member
- * count the listing sorts on, plus the synopsis and trailer the homepage hero selects on.
- *
- * This is the popularity the home page is meant to sort on, and it is the ONLY place it exists at
- * build time: manami ships no popularity, and its 1 to 10 rating is a different thing that puts three
- * shows tied at a perfect 10 from a handful of votes above Mushoku Tensei. jikan hands the counts over
- * in bulk, 149 entries in 6 pages, and its order matched the settled live listing exactly when this
- * was measured (2026-09-06: 254638 Mushoku Tensei III, 233645 Youjo Senki II, 161220 Super no Ura de
- * Yani Suu Futari, 111075 Bleach).
- *
- * NEVER FATAL. jikan rate limits at 3 a second and can be down, and a season's ordering is not worth
- * failing a deploy over: any failure returns what was collected so far, the bucket then falls back to
- * the rating order, and the line it logs says which happened. The pause keeps the whole walk inside
- * one rate limit window.
- */
-/**
- * A JSON GET over `node:https`, NOT over `fetch`, and the difference is measured rather than stylistic.
- *
- * Interleaved from this machine on 2026-09-06, three times each in one loop: curl answered 200 and
- * `fetch` answered 504 every time, with jikan's own body ("Jikan failed to connect to MyAnimeList"),
- * so the error text reads like an outage and is not one. Headers, user agent, HTTP version and
- * `ipv4first` made no difference; `node:https` answered 200 on the first try. Whatever undici's client
- * does differently, this endpoint refuses it, so the one call that needs it uses the older client.
- */
-const getJson = (url, page) =>
-  new Promise((resolve, reject) => {
-    const request = httpsGet(url, { headers: { accept: 'application/json' } }, response => {
-      if (response.statusCode !== 200) {
-        response.resume()
-        reject(new Error(`jikan answered ${response.statusCode} on page ${page}`))
-        return
-      }
-      let body = ''
-      response.setEncoding('utf8')
-      response.on('data', chunk => { body += chunk })
-      response.on('end', () => {
-        try { resolve(JSON.parse(body)) } catch (error) { reject(error) }
-      })
-    })
-    request.setTimeout(JIKAN_TIMEOUT_MS, () => request.destroy(new Error(`jikan timed out on page ${page}`)))
-    request.on('error', reject)
-  })
-
-/**
- * One page of jikan's seasonal list, retried on a transient failure.
- *
- * Measured 2026-09-06: a build run got `504` on page 1 and three curls a second apart all answered
- * 200, so a single refusal is not an outage and must not cost the season its ordering. The last
- * failure is rethrown for `seasonPopularity` to log and degrade on.
- */
-const jikanPage = async page => {
-  let last
-  for (let attempt = 1; attempt <= JIKAN_ATTEMPTS; attempt++) {
-    try {
-      return await getJson(`${JIKAN}/seasons/now?limit=25&page=${page}`, page)
-    } catch (error) {
-      last = error
-      if (attempt < JIKAN_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, JIKAN_PAUSE_MS * attempt))
-    }
-  }
-  throw last
-}
-
-const seasonPopularity = async () => {
-  const counts = new Map()
-  const missed = []
-  // a refused page SKIPS rather than ending the walk: the pages are independent, and losing page 2
-  // used to cost pages 3 to 6 as well (measured, 23 counts of 219 instead of the season)
-  for (let page = 1; page <= JIKAN_MAX_PAGES; page++) {
-    let body
-    try {
-      body = await jikanPage(page)
-    } catch (error) {
-      missed.push(`${page} (${error.message})`)
-      await new Promise(resolve => setTimeout(resolve, JIKAN_PAUSE_MS))
-      continue
-    }
-    for (const entry of body?.data ?? []) {
-      if (!entry?.mal_id) continue
-      // the youtube id the hero's trailer needs: `youtube_id` is usually null on this endpoint while
-      // `embed_url` carries the id, which is the same pair sources/jikan/extractor.ts already reads
-      const youtube = entry.trailer?.youtube_id
-        ?? entry.trailer?.embed_url?.match(/youtube(?:-nocookie)?\.com\/embed\/([\w-]+)/)?.[1]
-      counts.set(entry.mal_id, {
-        members: typeof entry.members === 'number' ? entry.members : undefined,
-        synopsis: typeof entry.synopsis === 'string' && entry.synopsis ? entry.synopsis : undefined,
-        youtube: youtube || undefined,
-        thumbnail: entry.trailer?.images?.image_url || undefined,
-      })
-    }
-    if (!body?.pagination?.has_next_page) break
-    await new Promise(resolve => setTimeout(resolve, JIKAN_PAUSE_MS))
-  }
-  if (!counts.size) log(`myanimelist season data unavailable${missed.length ? ` (page ${missed[0]})` : ''}; the season falls back to its rating order and the hero waits for a live source`)
-  else log(`myanimelist season data: ${counts.size} entries, ${[...counts.values()].filter(entry => entry.synopsis).length} with a synopsis, ${[...counts.values()].filter(entry => entry.youtube).length} with a trailer${missed.length ? `, ${missed.length} page(s) refused` : ''}`)
-  return counts
-}
-
 const buildExtract = (entries, meta, tag, popularity = new Map()) => {
   const cut = new Date(`${meta.lastUpdate}T00:00:00Z`)
   const anchor = { year: cut.getUTCFullYear(), season: SEASON_ORDER[Math.floor(cut.getUTCMonth() / 3)] }
@@ -449,12 +362,10 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
     if (ids.anilist) record.al = ids.anilist
     if (ids.kitsu) record.ku = ids.kitsu
     if (entry.score?.arithmeticMean) record.sc = Math.round(entry.score.arithmeticMean * 100) / 100
-    // the current season's jikan data: the count the listing sorts on, and what the hero renders
+    // the current season's count the listing sorts on, and the synopsis the hero renders
     const live = ids.mal ? popularity.get(ids.mal) : undefined
     if (live?.members) record.pop = live.members
     if (live?.synopsis) record.sy = live.synopsis
-    if (live?.youtube) record.tr = live.youtube
-    if (live?.thumbnail) record.th = live.thumbnail
     ;(seasons[`${season.year}-${season.season}`] ??= []).push(record)
   }
 
@@ -500,7 +411,7 @@ const loadManami = async () => {
     try {
       return await refreshExtract()
     } catch (error) {
-      warn(`could not reach ${REPO}: ${error.message}`)
+      warn(`could not reach ${REPO}: ${errorText(error)}`)
     }
   }
   // Deliberately fails rather than emitting a thinner artifact. arm alone would still produce a

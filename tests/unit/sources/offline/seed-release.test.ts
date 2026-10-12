@@ -7,7 +7,7 @@
 // `refusesSeedAsset` cannot check for itself.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import {
   SEED_EPISODES_ASSET, SEED_INDEX_ASSET, SEED_MANIFEST_ASSET, SEED_RELEASE_TAG,
@@ -26,6 +26,15 @@ test('the workflow uploads to the tag and the filenames the runtime downloads', 
   const uploaded = [...workflow.matchAll(/gh release upload "\$TAG"\s+dist-seed\/(\S+)/g)].map(match => match[1])
   expect(uploaded, 'control: the publish step has to name assets for this to prove anything').toHaveLength(3)
   expect(uploaded.sort()).toEqual([SEED_EPISODES_ASSET, SEED_INDEX_ASSET, SEED_MANIFEST_ASSET].sort())
+})
+
+// On node 22 the unit suite this runs fails at tests/unit/sources/stub/opfs-store.test.ts, which needs
+// navigator.locks, so the first scheduled walk would have stopped before publishing anything.
+test('the walk runs on the repo\'s own node, as the unit suite it runs needs', () => {
+  const setups = [...workflow.matchAll(/uses: actions\/setup-node@\S+\s+with:\s+((?:\s*(?:#.*|[\w-]+:.*)\n)+)/g)].map(match => match[1])
+  expect(setups, 'control: the workflow has to set up node for this to prove anything').toHaveLength(1)
+  expect(setups[0]).toMatch(/^\s*node-version-file: \.node-version$/m)
+  expect(setups[0]).not.toMatch(/^\s*node-version:/m)
 })
 
 test('the relay census reads the manifest the exporter writes', () => {

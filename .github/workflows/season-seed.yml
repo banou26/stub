@@ -7,9 +7,8 @@
 # through, gates the result, and replaces the asset. So the data refreshes with no deploy, and a bad
 # seed rolls back by re-pointing the tag.
 #
-# DAILY, because the identity half moves slowly but the episode rows of a current season change every
-# day across roughly 200 airing shows, and that is the half a reader notices. 04:17 rather than the
-# top of the hour: scheduled runs are queued and the top of the hour is the worst slot.
+# ONCE A SEASON, on the 15th of its first month. 04:17 rather than the top of the hour: scheduled runs
+# are queued and the top of the hour is the worst slot.
 #
 # Two GitHub behaviours this depends on. A `schedule` trigger only ever runs the file on the DEFAULT
 # BRANCH, so this fires nothing until it is on main. And in a public repo a scheduled workflow is
@@ -42,7 +41,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # the repo's own version, as test.yml and Pages use: the unit suite below needs its navigator.locks
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
 

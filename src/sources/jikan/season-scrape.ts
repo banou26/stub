@@ -1,4 +1,4 @@
-import { malLargeImage } from '../mal-image'
+import { malLargeImage } from '../mal-image.ts'
 
 // The MAL seasonal page, parsed out of its HTML. Split out so it can be tested: an extractor pulls in
 // the source barrel and, through it, a CommonJS `require('react')` that cannot load outside a
