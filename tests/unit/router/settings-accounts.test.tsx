@@ -60,6 +60,7 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
   const props: AccountsProps = {
     backend: 'cloud',
     crunchyroll: { signIn: vi.fn(async () => 'authed' as const), signOut: vi.fn(async () => {}) },
+    prime: { signIn: vi.fn(async () => 'authed' as const), signOut: vi.fn(async () => {}) },
     sites: fakeSites(),
     status: fakeStatus().status,
     ...overrides,
@@ -74,7 +75,7 @@ const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textConten
 
 test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
   const { host } = render()
-  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account'))).toEqual(['crunchyroll', 'anilist', 'mal', 'netflix'])
+  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account'))).toEqual(['crunchyroll', 'prime', 'anilist', 'mal', 'netflix'])
 })
 
 describe('Crunchyroll on the cloud', () => {
@@ -107,6 +108,39 @@ describe('Crunchyroll on the cloud', () => {
     await act(async () => { button(row('crunchyroll'), 'Yes, sign out')!.click() })
     await flush()
     expect(row('crunchyroll').textContent).toContain('the render proxy did not answer')
+  })
+})
+
+// a cloud Prime Video sign-in sits in FKN's jar like Crunchyroll's, and this is the only way to end it
+describe('Prime Video', () => {
+  test('on the cloud, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
+    const { row, props } = render()
+    expect(row('prime').querySelector('h3')!.textContent).toBe('Prime Video')
+    await act(async () => { button(row('prime'), 'Sign out')!.click() })
+    expect(row('prime').textContent).toContain('Sign out of Prime Video in every fkn.app app?')
+    await act(async () => { button(row('prime'), 'Yes, sign out')!.click() })
+    await flush()
+    expect(props.prime.signOut).toHaveBeenCalledTimes(1)
+    expect(props.crunchyroll.signOut).not.toHaveBeenCalled()
+
+    await act(async () => { button(row('prime'), 'Sign in')!.click() })
+    expect(props.prime.signIn).toHaveBeenCalledTimes(1)
+    expect(props.crunchyroll.signIn).not.toHaveBeenCalled()
+  })
+
+  test('shows what the player last learned, and is never checked on its own', async () => {
+    const { status, statuses, ask } = fakeStatus()
+    statuses.record('prime', 'signed-in', NOW - 2 * HOUR)
+    const { row } = render({ status })
+    await flush()
+    expect(chip(row('prime'))).toBe('Signed in')
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  test('with the extension, links to amazon.co.jp and offers nothing to press', () => {
+    const extension = render({ backend: 'extension' }).row('prime')
+    expect(extension.querySelector('a')!.getAttribute('href')).toBe('https://www.amazon.co.jp')
+    expect(extension.querySelectorAll('button')).toHaveLength(0)
   })
 })
 
@@ -180,7 +214,7 @@ describe('Netflix', () => {
 
 test('while it is not known yet whether the extension runs, no site offers an action', () => {
   const { row } = render({ backend: undefined, sites: fakeSites(['anilist']) })
-  for (const id of ['crunchyroll', 'anilist', 'mal', 'netflix']) expect(row(id).querySelectorAll('button'), id).toHaveLength(0)
+  for (const id of ['crunchyroll', 'prime', 'anilist', 'mal', 'netflix']) expect(row(id).querySelectorAll('button'), id).toHaveLength(0)
 })
 
 describe('for a screen reader', () => {
@@ -264,7 +298,7 @@ describe('the sign-in states', () => {
     const Harness = () => {
       const [backend, setBackend] = useState<FknBackend>()
       known = setBackend
-      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
+      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} prime={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
     }
     hosts.push(mount(<Harness/>))
     await flush()

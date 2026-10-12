@@ -11,6 +11,7 @@ import { act } from 'preact/test-utils'
 vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => 'cloud' }))
 vi.mock('../../../src/router/settings/wiring', () => ({
   crunchyroll: { signIn: async () => 'authed', signOut: async () => {} },
+  prime: { signIn: async () => 'authed', signOut: async () => {} },
   sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'authed', signOut: async () => {} },
   status: { read: () => undefined, watch: () => () => {}, check: async () => 'signed-in' },
 }))
@@ -69,7 +70,7 @@ test('lists both categories as links whose fragment picks them', async () => {
 })
 
 test('with no fragment, shows Accounts and only Accounts', async () => {
-  expect(shown(await open())).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 4 })
+  expect(shown(await open())).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
 })
 
 test('#sources shows Sources and only Sources', async () => {
@@ -78,7 +79,7 @@ test('#sources shows Sources and only Sources', async () => {
 
 for (const removed of ['#data', '#tracking', '#playback']) {
   test(`${removed}, a category that is gone, shows Accounts`, async () => {
-    expect(shown(await open(removed))).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 4 })
+    expect(shown(await open(removed))).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
   })
 }
 
@@ -93,7 +94,7 @@ test('a change of fragment switches the panel, and back', async () => {
 test('a pushState that drops the fragment, as the header\'s Settings link sends, shows Accounts', async () => {
   const host = await open('#sources')
   await go('', 'pushState')
-  expect(shown(host)).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 4 })
+  expect(shown(host)).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
 })
 
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload

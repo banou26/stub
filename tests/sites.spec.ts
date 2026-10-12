@@ -120,6 +120,7 @@ test('movies.fkn.app\'s settings leave out the anime catalogues and their sign-i
   await expect(page.getByRole('switch', { name: 'JustWatch', exact: true })).toBeVisible()
   await page.goto(at('movies.localhost', '/settings#accounts'))
   await expect(page.locator('[data-account="netflix"]')).toBeVisible()
+  await expect(page.locator('[data-account="prime"]')).toBeVisible()
   await expect(page.locator('[data-account="anilist"], [data-account="mal"], [data-account="crunchyroll"]')).toHaveCount(0)
 })
 

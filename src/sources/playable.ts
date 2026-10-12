@@ -1,5 +1,5 @@
 /**
- * Which origins stub can play itself, as a list of ids and NOTHING ELSE.
+ * Which origins and urls stub can play itself, as plain data and NOTHING ELSE.
  *
  * THIS FILE EXISTS TO BE CHEAP TO IMPORT. The question "can this origin be played" is asked on the
  * home page, in the media modal and on the watch page, all of which only ever want a boolean: a play
@@ -18,14 +18,18 @@
  */
 import { readDisabledSources } from './disabled-sources'
 
-export const PLAYABLE_ORIGINS: ReadonlySet<string> = new Set(['cr', 'nf'])
+export const PLAYABLE_ORIGINS: ReadonlySet<string> = new Set(['cr', 'nf', 'amazon'])
 
 /** Origins whose player works only with the FKN browser extension: on the cloud backend it can only ask for it. */
 export const EXTENSION_ONLY_ORIGINS: ReadonlySet<string> = new Set(['nf'])
 
+// Prime Video's player reads amazon.co.jp alone, and a US gti opens amazon.com
+const PLAYABLE_URLS: Readonly<Record<string, RegExp>> = { amazon: /^https:\/\/watch\.amazon\.co\.jp\// }
+
 /**
- * Whether stub has its own player for this origin and the viewer has not turned the source off. The
- * cheap half of `getPlayer`. Read on every call, so a source turned off in Settings loses its play
+ * Whether stub's own player for this origin plays `url`, and the viewer has not turned the source off.
+ * The cheap half of `getPlayer`. Read on every call, so a source turned off in Settings loses its play
  * button at once, even on data it answered before.
  */
-export const canPlay = (origin: string): boolean => PLAYABLE_ORIGINS.has(origin) && !readDisabledSources().includes(origin)
+export const canPlay = (origin: string, url: string | null | undefined): boolean =>
+  !!url && PLAYABLE_ORIGINS.has(origin) && (PLAYABLE_URLS[origin]?.test(url) ?? true) && !readDisabledSources().includes(origin)

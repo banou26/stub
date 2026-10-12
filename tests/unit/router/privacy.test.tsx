@@ -65,3 +65,10 @@ test('says the relay keeps a copy of each answer, rather than only connection me
   expect(page).not.toMatch(/processes only the connection metadata/i)
   expect(page).toContain('keeps a copy of each answer for a while')
 })
+
+test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the states stub remembers', () => {
+  const { text: page } = text()
+  expect(page).toContain('stub plays Crunchyroll and Prime Video')
+  expect(STORED.find(item => item.id === 'site-sign-ins')?.what).toContain('Prime Video')
+  expect(STORED.find(item => item.id === 'site-status')?.what).toContain('Prime Video')
+})

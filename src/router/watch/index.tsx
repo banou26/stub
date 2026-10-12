@@ -17,7 +17,7 @@ import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
-import { siteStatuses } from '../../tracking/site-status'
+import { siteStatuses, type StatusSite } from '../../tracking/site-status'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
@@ -39,6 +39,8 @@ const playableHandlesOf = <T extends { relation: string, node: unknown }>(handle
 // A source the address names but this session has not matched to the episode (a shared link, or the
 // reload a click used to be) still plays when its watch url follows from its id.
 const WATCH_URLS: Record<string, (id: string) => string> = { nf: id => `https://www.netflix.com/watch/${id}` }
+
+const STATUS_SITES = new Map<string, StatusSite>([['cr', 'crunchyroll'], ['amazon', 'prime']])
 
 const GET_WATCH_MEDIA = gql(`
   subscription GetWatchMedia($input: MediaInput!) {
@@ -259,7 +261,7 @@ const Watch = () => {
     if (!handle) return undefined
     if (handle.embedUrl) return handle.embedUrl
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
-    if (!canPlay(origin) || !handle.url) return undefined
+    if (!handle.url || !canPlay(origin, handle.url)) return undefined
     const embedParams = new URLSearchParams({
       mediaUri: params.mediaUri,
       episodeUri: params.episodeUri,
@@ -343,7 +345,7 @@ const Watch = () => {
         // that url is a magnet, which leaves the browser entirely)
         const selfPlaying = Boolean(players?.[origin.id])
         const playableHandle = (handle: typeof handles[number]) =>
-          Boolean(handle?.embedUrl || selfPlaying || (canPlay(origin.id) && handle?.url))
+          Boolean(handle?.embedUrl || selfPlaying || canPlay(origin.id, handle?.url))
         const pathFor = (sourceUri: string) =>
           getRoutePath(Route.WATCH, { mediaUri: params.mediaUri, episodeUri: params.episodeUri, sourceUri })
 
@@ -383,8 +385,11 @@ const Watch = () => {
 
   const party = useParty()
   const best = bestSource(episodeHandles, {
-    builtIn: origin => canPlay(origin) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
-    signedOut: origin => origin === 'cr' && siteStatuses.read('crunchyroll')?.state === 'signed-out',
+    builtIn: (origin, url) => canPlay(origin, url) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
+    signedOut: origin => {
+      const site = STATUS_SITES.get(origin)
+      return site !== undefined && siteStatuses.read(site)?.state === 'signed-out'
+    },
     selfPlaying: players && (origin => Boolean(players[origin])),
   })
   useAutoPick(best, { ...params, guest: party.status === 'joining' || (party.status === 'active' && party.role === 'guest') }, navigate)

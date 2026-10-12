@@ -2,6 +2,7 @@
 // cookies each Sign out removes from FKN's jar, and what each of them and the automatic check remembers.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
+import { PRIME_DOMAINS, PRIME_SIGN_IN_URL, primeSignedIn } from '../../../src/sources/amazon/session'
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../../src/sources/crunchyroll/session'
 
 const calls = vi.hoisted(() => ({
@@ -27,7 +28,7 @@ vi.mock('../../../src/tracking/site-sessions', () => ({
 }))
 
 const { attachFrame, fetch } = await import('@fkn/lib')
-const { crunchyroll, sites, status } = await import('../../../src/router/settings/wiring')
+const { crunchyroll, prime, sites, status } = await import('../../../src/router/settings/wiring')
 
 beforeEach(() => { for (const call of Object.values(calls)) call.mockClear() })
 
@@ -41,6 +42,19 @@ test("Crunchyroll's Sign out removes Crunchyroll's own cookies from FKN's jar", 
 test("Crunchyroll's Sign in opens Crunchyroll's sign-in page on the same hosts", async () => {
   expect(await crunchyroll.signIn()).toBe('authed')
   expect(calls.signInThroughWindow).toHaveBeenCalledWith({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn })
+})
+
+test("Prime Video's Sign out removes the cookies of every host its player reads from FKN's jar, and remembers it", async () => {
+  await prime.signOut()
+  expect(calls.clearCloudCookies.mock.calls).toEqual([[PRIME_DOMAINS]])
+  expect(PRIME_DOMAINS).toEqual(expect.arrayContaining(['www.amazon.co.jp', 'amazon.com', 'a2z.com']))
+  expect(calls.record.mock.calls).toEqual([['prime', 'signed-out']])
+})
+
+test("Prime Video's Sign in opens amazon.co.jp's sign-in on the player's hosts, and remembers an authed one", async () => {
+  expect(await prime.signIn()).toBe('authed')
+  expect(calls.signInThroughWindow).toHaveBeenCalledWith({ url: PRIME_SIGN_IN_URL, domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
+  expect(calls.record.mock.calls).toEqual([['prime', 'signed-in']])
 })
 
 test("a tracking site's Sign in and Sign out are that site's", async () => {

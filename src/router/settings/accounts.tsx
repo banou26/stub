@@ -11,6 +11,14 @@ import { ConfirmAction } from './confirm'
 
 export type { TrackerSite }
 
+/** A streaming site stub plays: its sign-in window, and its cookies in FKN's jar. */
+export type StreamingAccount = {
+  /** Opens the sign-in window, so it is called first thing in the click. */
+  signIn: () => Promise<WindowSignIn>
+  /** Removes the site's cookies from FKN's jar. Cloud only. */
+  signOut: () => Promise<void>
+}
+
 /**
  * What the Accounts section reaches, handed in so the section renders and acts the same over fakes.
  * `backend` is undefined until it is known whether the extension runs here, and no site offers an
@@ -18,12 +26,8 @@ export type { TrackerSite }
  */
 export type AccountsProps = {
   backend: FknBackend | undefined
-  crunchyroll: {
-    /** Opens the sign-in window, so it is called first thing in the click. */
-    signIn: () => Promise<WindowSignIn>
-    /** Removes Crunchyroll's cookies from FKN's jar. Cloud only. */
-    signOut: () => Promise<void>
-  }
+  crunchyroll: StreamingAccount
+  prime: StreamingAccount
   sites: {
     isConnected: (site: TrackerSite) => boolean
     watch: (site: TrackerSite, listener: () => void) => () => void
@@ -97,35 +101,42 @@ const useMounted = () => {
   return mounted
 }
 
-const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'backend' | 'crunchyroll' | 'status'>) => {
+const STREAMING_SITES = ([
+  { site: 'crunchyroll', origin: 'cr', name: 'Crunchyroll', host: 'crunchyroll.com', checked: true },
+  { site: 'prime', origin: 'amazon', name: 'Prime Video', host: 'amazon.co.jp', checked: false },
+] satisfies { site: 'crunchyroll' | 'prime', origin: string, name: string, host: string, checked: boolean }[]).filter(entry => siteAsks(entry.origin))
+
+type StreamingRowProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount } & Pick<AccountsProps, 'backend' | 'status'>
+
+const StreamingRow = ({ site, name, host, checked, account, backend, status }: StreamingRowProps) => {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
-  const remembered = useSiteStatus(status, 'crunchyroll')
+  const remembered = useSiteStatus(status, site)
   // the cloud only, where the check reuses the site's device id (with the extension each check is a new
   // device), and only once stub knows of the site, since the check asks FKN for a permission
-  useRefresh(status, backend, backend === 'cloud' && remembered !== undefined)
+  useRefresh(status, backend, checked && backend === 'cloud' && remembered !== undefined)
 
   const signIn = () => {
-    const signingIn = crunchyroll.signIn()
+    const signingIn = account.signIn()
     setBusy(true)
     setNote(undefined)
     signingIn
-      .then(outcome => { if (mounted.current) setNote(signInNote('Crunchyroll', outcome)) })
+      .then(outcome => { if (mounted.current) setNote(signInNote(name, outcome)) })
       .catch(error => { if (mounted.current) setNote({ text: messageOf(error), error: true }) })
       .finally(() => { if (mounted.current) setBusy(false) })
   }
 
-  const signOut = () => crunchyroll.signOut().then(
+  const signOut = () => account.signOut().then(
     () => { if (mounted.current) setNote({ text: 'Signed out.' }) },
-    error => { if (mounted.current) setNote({ text: `Could not sign out of Crunchyroll: ${messageOf(error)}. Try again.`, error: true }) },
+    error => { if (mounted.current) setNote({ text: `Could not sign out of ${name}: ${messageOf(error)}. Try again.`, error: true }) },
   )
 
   return (
     <Row
-      id="crunchyroll"
-      title="Crunchyroll"
+      id={site}
+      title={name}
       state={remembered && STATE_LABEL[remembered.state]}
       on={remembered?.state === 'signed-in'}
       heading={heading}
@@ -142,11 +153,11 @@ const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'b
               : (
                 <ConfirmAction
                   label="Sign out"
-                  name="Sign out of Crunchyroll"
+                  name={`Sign out of ${name}`}
                   home={heading}
                   confirmLabel="Yes, sign out"
                   busyLabel="Signing out..."
-                  question="Sign out of Crunchyroll in every fkn.app app?"
+                  question={`Sign out of ${name} in every fkn.app app?`}
                   onConfirm={signOut}
                 />
               )}
@@ -155,7 +166,7 @@ const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'b
         : backend === 'extension'
           ? (
             <div className="actions">
-              <a className="link" href="https://www.crunchyroll.com" target="_blank" rel="noreferrer">Open crunchyroll.com</a>
+              <a className="link" href={`https://www.${host}`} target="_blank" rel="noreferrer">Open {host}</a>
             </div>
           )
           : <p>Loading...</p>}
@@ -251,9 +262,9 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 )
 
 /** Every sign-in stub uses, and the way out of it where there is one. */
-export const AccountsSection = ({ backend, crunchyroll, sites, status }: AccountsProps) => (
+export const AccountsSection = ({ backend, sites, status, ...streaming }: AccountsProps) => (
   <div className="rows">
-    {siteAsks('cr') ? <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status}/> : undefined}
+    {STREAMING_SITES.map(entry => <StreamingRow key={entry.site} {...entry} account={streaming[entry.site]} backend={backend} status={status}/>)}
     {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status}/>)}
     <NetflixRow backend={backend}/>
   </div>

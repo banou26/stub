@@ -285,7 +285,7 @@ const watchSources = (episode: DetailsEpisode, mediaUri: string, origins: readon
           .map(handle => handle.node)
       const handle = handles.at(0)
       const sourceUri = handle?.uri
-      const playable = Boolean(canPlay(origin.id) && handle?.url)
+      const playable = canPlay(origin.id, handle?.url)
       // named even for several releases: a watch address with no source opens the page's own pick
       const watchPath = episode.uri && sourceUri
         ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })

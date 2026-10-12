@@ -17,9 +17,9 @@ type Rect = { left: number, top: number, width: number, height: number }
  * that carry their init fields, and `place` gives an element a box. Its own Event is named
  * GlobalEvent, so it is subclassed once to read as `Event` in a recording. Its inputs do not reflect
  * `min` and `max` as properties, so the ones in `html` are given that here. What the page hands to
- * `reportError` lands in `reported`.
+ * `reportError` lands in `reported`, and `location` is `url`'s.
  */
-export const pageRealm = (html: string) => {
+export const pageRealm = (html: string, url = 'about:blank') => {
   const { document, window, Event: LinkedomEvent, CustomEvent, HTMLElement, HTMLInputElement } = parseHTML(html)
   for (const input of document.querySelectorAll('input')) {
     for (const name of ['min', 'max']) {
@@ -38,7 +38,7 @@ export const pageRealm = (html: string) => {
 
   const reported: unknown[] = []
   const context = createContext({
-    document, window, Event, CustomEvent, MouseEvent, PointerEvent, HTMLElement, HTMLInputElement, setTimeout, clearTimeout,
+    document, window, location: new URL(url), Event, CustomEvent, MouseEvent, PointerEvent, HTMLElement, HTMLInputElement, setTimeout, clearTimeout,
     reportError: (error: unknown) => { reported.push(error) },
   })
 

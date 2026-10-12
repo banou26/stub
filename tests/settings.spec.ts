@@ -102,7 +102,7 @@ test('the page lists two categories and shows Accounts alone, without the FKN ro
   await expect(panel(page)).toHaveCount(1)
   await expect(panel(page)).toHaveAttribute('data-section', 'accounts')
   await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Accounts')
-  await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(4)
+  await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(5)
   await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback)$/ })).toHaveCount(0)
 })
@@ -385,7 +385,7 @@ test('opening Accounts checks a Crunchyroll stub knows of once what it learned i
   expect(await mountedFrames(page), "the trackers' own paced reads keep their sites' states").toEqual(['Sign-in check'])
   await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
   await expect(chip(page, 'mal')).toHaveText('Signed in')
-  await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', ''])
+  await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', '', ''])
 })
 
 test('with nothing remembered no row says anything of it, a site not connected says so, and nothing is asked', async ({ page }) => {

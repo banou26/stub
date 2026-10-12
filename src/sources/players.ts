@@ -6,6 +6,7 @@
  * know WHETHER an origin is playable wants `./playable`, which is a set of strings (see its header
  * for the 353 kB this separation keeps off every page load).
  */
+import PrimeVideoPlayer from './amazon/player'
 import CrunchyrollPlayer from './crunchyroll/player'
 import NetflixPlayer from './unogs/player'
 
@@ -20,7 +21,8 @@ export type PlayerProps = {
 
 const players: Record<string, (props: PlayerProps) => any> = {
   cr: CrunchyrollPlayer,
-  nf: NetflixPlayer
+  nf: NetflixPlayer,
+  amazon: PrimeVideoPlayer
 }
 
 export const getPlayer = (origin: string) => players[origin]

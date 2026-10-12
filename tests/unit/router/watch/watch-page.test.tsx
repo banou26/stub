@@ -19,6 +19,7 @@ const media = { uri: params.mediaUri, episodes: [episode] }
 let origins: string[] | undefined
 let party = { status: 'idle' }
 let backend = 'cloud'
+let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 
 vi.mock('urql', () => ({
   useSubscription: ({ variables }: { variables: { input: { uri?: string, ids?: string[] } } }) =>
@@ -28,7 +29,7 @@ vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParam
 vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
-vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: () => ({ state: 'signed-out' }) } }))
+vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
 vi.mock('../../../../src/party/bridge', () => ({ attachPlaybackBridge: () => ({ dispose: () => {} }) }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
@@ -45,6 +46,7 @@ afterEach(() => {
   navigate.mockClear()
   party = { status: 'idle' }
   backend = 'cloud'
+  statuses = { crunchyroll: 'signed-out' }
   params = { mediaUri: params.mediaUri, episodeUri: allUri }
   Object.assign(episode, { uri: allUri, handles: allHandles })
 })
@@ -123,4 +125,62 @@ test('a linked source the episode holds only as PART_OF is not played', async ()
   await settle()
   expect(host.querySelector('.active')).toBeNull()
   expect(host.querySelector('iframe')).toBeNull()
+})
+
+// an episode's own Prime Video handle, as JustWatch's episode offer mints it, with the deep link as its url
+const PRIME = 'amazon:amzn1.dv.gti.fe903f64'
+const PRIME_LINK = 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64'
+const primeEpisode = (...others: ReturnType<typeof handle>[]) =>
+  Object.assign(episode, { uri: `ag:(anilist:1-1,${PRIME})`, handles: [handle(PRIME, 'amazon', PRIME_LINK), ...others] })
+
+test('a Prime Video episode plays in stub\'s own player, framed with its deep link', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri, sourceUri: PRIME }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('a.source.active')?.getAttribute('title')).toBe('amazon')
+  const framed = new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test')
+  expect(framed.pathname).toBe('/embed.html')
+  expect(framed.searchParams.get('sourceUri')).toBe(PRIME)
+  expect(framed.searchParams.get('url')).toBe(PRIME_LINK)
+})
+
+test('with no source named, a Prime Video episode is picked at once, on the cloud too', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri }
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+test('a viewer last seen signed out of Prime Video gets the release first, as for Crunchyroll', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'nyaa']
+  statuses = { prime: 'signed-out' }
+  primeEpisode(allHandles[2]!)
+  params = { ...params, episodeUri: episode.uri }
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+})
+
+// JustWatch hands every viewer outside Japan the US offer, whose gti plays on amazon.com alone
+test('a watch.amazon.com link stays a link out to Amazon, and is never picked', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  const us = 'https://watch.amazon.com/watch?gti=amzn1.dv.gti.us000001'
+  Object.assign(episode, { uri: 'ag:(anilist:1-1,amazon:amzn1.dv.gti.us000001)', handles: [handle('amazon:amzn1.dv.gti.us000001', 'amazon', us)] })
+  params = { ...params, episodeUri: episode.uri }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+  const link = host.querySelector('a.source')!
+  expect(link.getAttribute('href')).toBe(us)
+  expect(link.getAttribute('target')).toBe('_blank')
 })

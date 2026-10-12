@@ -9,8 +9,8 @@ type Handle = { uri: string, origin: string, url?: string | null, embedUrl?: str
 
 /** What the watch page knows about how each origin plays. */
 export type Ways = {
-  /** stub has its own player for the origin and the viewer has not turned it off (`canPlay`). */
-  builtIn: (origin: string) => boolean
+  /** stub's own player for the origin plays the url and the viewer has not turned it off (`canPlay`). */
+  builtIn: (origin: string, url: string) => boolean
   /** The viewer was last seen signed out of the origin's site. */
   signedOut: (origin: string) => boolean
   /** The origin's plugin plays its releases. Undefined until the worker has answered. */
@@ -18,7 +18,7 @@ export type Ways = {
 }
 
 const rankOf = (handle: Handle, ways: Ways): number | undefined =>
-  ways.builtIn(handle.origin) && handle.url ? (ways.signedOut(handle.origin) ? 2 : 0)
+  handle.url && ways.builtIn(handle.origin, handle.url) ? (ways.signedOut(handle.origin) ? 2 : 0)
   : handle.embedUrl || ways.selfPlaying?.(handle.origin) ? 1
   : undefined
 

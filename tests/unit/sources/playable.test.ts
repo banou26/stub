@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url'
 
 import { PLAYABLE_ORIGINS, canPlay } from '../../../src/sources/playable'
 
+const CR = 'https://www.crunchyroll.com/watch/GX1'
+
 const registrySource = readFileSync(
   fileURLToPath(new URL('../../../src/sources/players.ts', import.meta.url)),
   'utf-8'
@@ -53,12 +55,20 @@ test('the reader really does find the registry, and really does fail when it can
 test('a source turned off in Settings has no play button, and has one again when turned back on', () => {
   const stored = new Map<string, string>()
   vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null })
-  expect(canPlay('cr')).toBe(true)
+  expect(canPlay('cr', CR)).toBe(true)
   stored.set('stub.sources.disabled', JSON.stringify(['cr']))
-  expect(canPlay('cr')).toBe(false)
-  expect(canPlay('nf'), 'only the source turned off').toBe(true)
+  expect(canPlay('cr', CR)).toBe(false)
+  expect(canPlay('nf', 'https://www.netflix.com/watch/81'), 'only the source turned off').toBe(true)
   stored.delete('stub.sources.disabled')
-  expect(canPlay('cr')).toBe(true)
+  expect(canPlay('cr', CR)).toBe(true)
+})
+
+// the player reads amazon.co.jp alone, so a US link (every viewer outside Japan gets one) stays an outside link
+test('Prime Video plays a watch.amazon.co.jp link, and not a watch.amazon.com one', () => {
+  vi.stubGlobal('localStorage', { getItem: () => null })
+  expect(canPlay('amazon', 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1')).toBe(true)
+  expect(canPlay('amazon', 'https://watch.amazon.com/watch?gti=amzn1.dv.gti.1')).toBe(false)
+  expect(canPlay('cr', null), 'and nothing plays without a url').toBe(false)
 })
 
 afterEach(() => { vi.unstubAllGlobals() })

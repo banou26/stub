@@ -63,11 +63,11 @@ const Privacy = () => (
 
     <h2>Sign-ins to other sites</h2>
     <p>
-      stub plays Crunchyroll and tracks your AniList and MyAnimeList lists with your own accounts on those
-      sites. Without the FKN browser extension, you sign in on each site's own page, in an FKN window, and
-      the cookies that sign-in sets are kept by FKN, in a cookie jar every fkn.app app shares, and not by
-      stub. Signing out in <Link to="/settings#accounts">Settings, under Accounts</Link>, removes that
-      site's cookies from FKN. The site itself is not told, so its session stays valid there until it
+      stub plays Crunchyroll and Prime Video and tracks your AniList and MyAnimeList lists with your own
+      accounts on those sites. Without the FKN browser extension, you sign in on each site's own page, in an
+      FKN window, and the cookies that sign-in sets are kept by FKN, in a cookie jar every fkn.app app shares,
+      and not by stub. Signing out in <Link to="/settings#accounts">Settings, under Accounts</Link>, removes
+      that site's cookies from FKN. The site itself is not told, so its session stays valid there until it
       expires, held by nobody.
     </p>
     <p>
@@ -79,7 +79,7 @@ const Privacy = () => (
     <p>
       To fetch titles, artwork, and streams, stub sends requests through the FKN platform
       proxy, which then reaches third-party services such as AniList, MyAnimeList,
-      Crunchyroll, JustWatch, and Netflix. The proxy requires no account. It uses your IP
+      Crunchyroll, Prime Video, JustWatch, and Netflix. The proxy requires no account. It uses your IP
       address to rate-limit requests, and it keeps a copy of each answer for a while, under a
       key made from the whole request (its address, headers and body), so only an identical
       request is answered from that copy. How the FKN platform handles that data is described

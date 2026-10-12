@@ -68,7 +68,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-status',
     title: 'Site sign-in states',
-    what: 'Whether you were signed in to Crunchyroll, AniList and MyAnimeList when stub last learned it, and when. Never your name there.',
+    what: 'Whether you were signed in to Crunchyroll, Prime Video, AniList and MyAnimeList when stub last learned it, and when. Never your name there.',
     where: LOCAL,
     lasts: "Until stub learns it again, or you clear this site's data in your browser",
     keys: { store: 'local', names: [SITE_STATUS_KEY] },
@@ -99,7 +99,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-sign-ins',
     title: 'Site sign-ins',
-    what: 'Your Crunchyroll, AniList and MyAnimeList sessions, which stub plays and tracks with.',
+    what: 'Your Crunchyroll, Prime Video, AniList and MyAnimeList sessions, which stub plays and tracks with.',
     where: 'Without the FKN extension, FKN keeps them for every fkn.app app. With it, your browser does.',
     lasts: 'Until you sign out, or the site ends the session',
   },

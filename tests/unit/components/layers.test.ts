@@ -102,6 +102,10 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
     values: [30, 9999999],
     why: 'the same two, for netflix.com',
   },
+  'src/sources/amazon/player.tsx': {
+    values: [30, 9999999],
+    why: 'the same two, for amazon.co.jp',
+  },
 }
 
 describe('nothing writes a layer beside the module', () => {

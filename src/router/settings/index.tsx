@@ -10,7 +10,7 @@ import { AccountsSection } from './accounts'
 import { SETTINGS_SECTIONS, sectionFromHash } from './sections'
 import { SourcesSection } from './sources'
 import { sectionStyle } from './style'
-import { crunchyroll, sites, status } from './wiring'
+import { crunchyroll, prime, sites, status } from './wiring'
 
 const style = css`
   display: grid;
@@ -103,7 +103,7 @@ const Settings = () => {
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
         <h2 id="settings-section-title">{current.title}</h2>
         {current.id === 'accounts'
-          ? <AccountsSection backend={backend} crunchyroll={crunchyroll} sites={sites} status={status}/>
+          ? <AccountsSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
           : <SourcesSection/>}
       </section>
     </div>
