@@ -58,7 +58,7 @@ four-member one differ row by row, and a diagram that draws them as one box is w
 | `episodeCount` | the member's own, uncorroborated | `runLength(medias) ?? merged.episodeCount ?? null` |
 | `categories` | raw, so `['ANIME','MOVIE','SERIES']` can all survive | `reconcileCategories`: ANIME plus exactly one format |
 | `genres` / `tags` | raw, duplicates and all | `dedupeLabels`, case-insensitive |
-| `titles` | raw, in the row's own order | `removeDuplicatesByField('title', byScore(...))` |
+| `titles` | raw, in the row's own order | `removeDuplicatesByField('title', seasonNamesFirst(byScore(...)))` |
 | `descriptions` / `covers` / `banners` | raw | `byScore`, sorted and never deduped |
 | `trailers` | raw | `removeDuplicatesByField('uri', ...)` |
 | `relations` | `relationToGQL` only, so a self edge survives | `mergeRelations`, self edges dropped |
@@ -152,7 +152,7 @@ flowchart LR
   SE -->|"named: the pair is quoted from that ONE member"| SE1["season and seasonYear from the same row<br/><small>a null year there is NOT filled in from another row</small>"]
   SE -->|"nobody named one"| SE2["season null, year from the first member that has one"]
   MERGED --> LB["genres, tags<br/><small>dedupeLabels: case-insensitive key, first spelling kept, empty dropped</small>"]
-  MERGED --> TI["titles<br/><small>removeDuplicatesByField('title', byScore(...))</small>"]
+  MERGED --> TI["titles<br/><small>removeDuplicatesByField('title', seasonNamesFirst(byScore(...)))</small>"]
   MERGED --> TR["trailers<br/><small>removeDuplicatesByField('uri', ...) with NO byScore</small>"]
   MERGED --> BS["descriptions, shortDescriptions, covers, banners<br/><small>byScore only, deduped nowhere</small>"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
@@ -243,7 +243,9 @@ defined uncommented at `:55`. The text belongs to the function forty lines furth
 > strings.
 
 `removeDuplicatesByField` (`aggregate.ts:67-77`) keeps the **first** occurrence. Applied to `titles`
-it is handed `byScore(merged.titles)` first, so "first" means "highest scored". Applied to `trailers`
+it is handed `byScore(merged.titles)` first, so "first" means "highest scored", except that
+`seasonNamesFirst` (`src/sources/season.ts`) moves a show name plus a bare year, ani.zip's "The
+Apothecary Diaries (2026)", behind the rest whenever a title names the season. Applied to `trailers`
 it is handed `merged.trailers` raw, so "first" means "highest-scored member", which is the same
 answer by a different route: the concat already put that member's entries at the front.
 

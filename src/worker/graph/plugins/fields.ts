@@ -24,6 +24,7 @@
  */
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
+import { seasonNamesFirst } from '../../../sources/season'
 import { mergeCredits } from './credits'
 
 /** Where one field's value came from, and under which rule (6.3's third column). */
@@ -386,7 +387,7 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.titles = dedupeByField('title', byScore(owned.flatMap(member => listOf(member.raw.titles))))
+  row.titles = dedupeByField('title', seasonNamesFirst(byScore(owned.flatMap(member => listOf(member.raw.titles))) as { title?: string }[]))
   for (const member of owned) {
     if (listOf(member.raw.titles).length) {
       provenance.push({ field: 'titles', uri: member.uri, answerSeq: member.fieldSeq.titles ?? null, rule: 'concat' })

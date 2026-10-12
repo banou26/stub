@@ -1,0 +1,32 @@
+{
+  "data": {
+    "Media": {
+      "id": 195516,
+      "idMal": 61987,
+      "title": {
+        "english": "The Apothecary Diaries Season 3",
+        "romaji": "Kusuriya no Hitorigoto 3rd Season",
+        "native": "薬屋のひとりごと 第3期"
+      },
+      "startDate": {
+        "year": 2026,
+        "month": 10,
+        "day": 2
+      },
+      "endDate": {
+        "year": null,
+        "month": null,
+        "day": null
+      },
+      "episodes": 12,
+      "format": "TV",
+      "type": "ANIME",
+      "status": "RELEASING",
+      "season": "FALL",
+      "seasonYear": 2026,
+      "siteUrl": "https://anilist.co/anime/195516",
+      "popularity": 96056,
+      "averageScore": 85
+    }
+  }
+}

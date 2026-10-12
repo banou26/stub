@@ -1,0 +1,337 @@
+{
+  "titles": {
+    "x-jat": "Berserk",
+    "bg": "Берсерк (2016)",
+    "zh-Hans": "剑风传奇",
+    "ja": "ベルセルク",
+    "en": "Berserk (2016)",
+    "fr": "Berserk (Saison 1)",
+    "it": "Berserk (2016)",
+    "ru": "Берсерк (2016)",
+    "zh-Hant": "烙印勇士"
+  },
+  "episodes": {
+    "1": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5625232,
+      "seasonNumber": 1,
+      "episodeNumber": 1,
+      "absoluteEpisodeNumber": 1,
+      "title": {
+        "ja": "竜殺しの大剣",
+        "en": "The Branded Swordsman",
+        "fr": "La pourfendeuse de dragons",
+        "x-jat": "Ryuu Koroshi no Daiken"
+      },
+      "airDate": "2016-07-01",
+      "runtime": 25,
+      "overview": "Into a tavern walks a man with a massive sword, where he encounters a caged elf being bullied by grown men. Thus begins the strange partnership between the elf, Puck, and the swordsman, Guts.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5625232.jpg",
+      "episode": "1",
+      "anidbEid": 178344,
+      "length": 25,
+      "airdate": "2016-07-01",
+      "rating": "5.11",
+      "summary": "Into a tavern walks a man with a massive sword, where he encounters a caged elf being bullied by grown men. Thus begins the strange partnership between the elf, Puck, and the swordsman, Guts.\nSource: crunchyroll"
+    },
+    "2": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664129,
+      "seasonNumber": 1,
+      "episodeNumber": 2,
+      "absoluteEpisodeNumber": 2,
+      "title": {
+        "ja": "聖鉄鎖騎士団",
+        "en": "The Holy Iron Chain Knights",
+        "fr": "Les chevaliers de l`Ordre des chaînes sacrées",
+        "x-jat": "Sei Tessa Kishidan"
+      },
+      "airDate": "2016-07-08",
+      "runtime": 25,
+      "overview": "Guts is still coming to terms with his fateful encounter with the monk and his daughter when he is confronted by the Holy Iron Chain Knights. Their commander berates him about his many sins is declares he is to be brought to the Holy See...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664129.jpg",
+      "episode": "2",
+      "anidbEid": 178343,
+      "length": 25,
+      "airdate": "2016-07-08",
+      "rating": "5.41",
+      "summary": "Guts is still coming to terms with his fateful encounter with the monk and his daughter when he is confronted by the Holy Iron Chain Knights. Their commander berates him about his many sins is declares he is to be brought to the Holy See...\nSource: crunchyroll"
+    },
+    "3": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664788,
+      "seasonNumber": 1,
+      "episodeNumber": 3,
+      "absoluteEpisodeNumber": 3,
+      "title": {
+        "ja": "奇跡の夜",
+        "en": "Night of Miracles",
+        "fr": "La nuit du miracle",
+        "x-jat": "Kiseki no Yoru"
+      },
+      "airDate": "2016-07-15",
+      "runtime": 25,
+      "overview": "Guts and Puck are taken aback by Farnese's inability to see the elf. However, Farnese's refusal to accept anything beyond what she considers to be real in her world is about to be sorely tested.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664788.jpg",
+      "episode": "3",
+      "anidbEid": 178342,
+      "length": 25,
+      "airdate": "2016-07-15",
+      "rating": "6.75",
+      "summary": "Guts and Puck are taken aback by Farnese`s inability to see the elf. However, Farnese`s refusal to accept anything beyond what she considers to be real in her world is about to be sorely tested...\nSource: crunchyroll"
+    },
+    "4": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664789,
+      "seasonNumber": 1,
+      "episodeNumber": 4,
+      "absoluteEpisodeNumber": 4,
+      "title": {
+        "ja": "啓示",
+        "en": "Epiphany",
+        "fr": "La révélation",
+        "x-jat": "Keiji"
+      },
+      "airDate": "2016-07-22",
+      "runtime": 25,
+      "overview": "Guts returns to a place he'd left two years ago to reconnect with old friends, but finds that someone he holds most dear has vanished. Guts tries to lay blame, but he is not entirely innocent.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664789.jpg",
+      "episode": "4",
+      "anidbEid": 178341,
+      "length": 25,
+      "airdate": "2016-07-22",
+      "rating": "6.16",
+      "summary": "Guts returns to a place he`d left two years ago to reconnect with old friends, but finds that someone he holds most dear has vanished. Guts tries to lay blame, but he is not entirely innocent...\nSource: crunchyroll"
+    },
+    "5": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664791,
+      "seasonNumber": 1,
+      "episodeNumber": 5,
+      "absoluteEpisodeNumber": 5,
+      "title": {
+        "ja": "断罪の塔",
+        "en": "Tower of Conviction",
+        "fr": "La tour des châtiments",
+        "x-jat": "Danzai no Tou"
+      },
+      "airDate": "2016-07-29",
+      "runtime": 25,
+      "overview": "Intent on finding Casca, Guts continues his journey toward the Tower of Conviction. Meanwhile, Farnese is already there, witnessing unspeakable horrors committed by those who serve the Holy See.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664791.jpg",
+      "episode": "5",
+      "anidbEid": 178491,
+      "length": 25,
+      "airdate": "2016-07-29",
+      "rating": "7.16",
+      "summary": "Intent on finding Casca, Guts continues his journey toward the Tower of Conviction. Meanwhile, Farnese is already there, witnessing unspeakable horrors committed by those who serve the Holy See.\nSource: crunchyroll"
+    },
+    "6": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664792,
+      "seasonNumber": 1,
+      "episodeNumber": 6,
+      "absoluteEpisodeNumber": 6,
+      "title": {
+        "ja": "火あぶりの夜宴",
+        "en": "A Nighttime Feast: Burning at the Stake",
+        "fr": "Le banquet nocturne des supplices",
+        "x-jat": "Hiaburi no Yaen"
+      },
+      "airDate": "2016-08-05",
+      "runtime": 25,
+      "overview": "As Mozgus and his men continue their witchhunt for heretics, Farnese can't help but feel a twinge of doubt. Meanwhile, Guts unexpectedly encounters a familiar face, who brings ill tidings.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664792.jpg",
+      "episode": "6",
+      "anidbEid": 178490,
+      "length": 25,
+      "airdate": "2016-08-05",
+      "rating": "8.06",
+      "summary": "As Mozgus and his men continue their witchhunt for heretics, Farnese can`t help but feel a twinge of doubt. Meanwhile, Guts unexpectedly encounters a familiar face, who brings ill tidings.\nSource: crunchyroll"
+    },
+    "7": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664793,
+      "seasonNumber": 1,
+      "episodeNumber": 7,
+      "absoluteEpisodeNumber": 7,
+      "title": {
+        "ja": "黒き魔女",
+        "en": "The Black Witch",
+        "fr": "La sorcière noire",
+        "x-jat": "Kuroki Majo"
+      },
+      "airDate": "2016-08-12",
+      "runtime": 25,
+      "overview": "Guts is finally close to finding Casca, but Casca has caught the heretics' eye, and the Holy Iron Chain Knights are also homing in on the heretics' location...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664793.jpg",
+      "episode": "7",
+      "anidbEid": 178489,
+      "length": 25,
+      "airdate": "2016-08-12",
+      "rating": "8.83",
+      "summary": "Guts is finally close to finding Casca, but Casca has caught the heretics` eye, and the Holy Iron Chain Knights are also homing in on the heretics` location...\nSource: crunchyroll"
+    },
+    "8": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664795,
+      "seasonNumber": 1,
+      "episodeNumber": 8,
+      "absoluteEpisodeNumber": 8,
+      "title": {
+        "ja": "魔窟の再会",
+        "en": "Reunion in the Den of Evil",
+        "fr": "Retrouvailles dans le repaire",
+        "x-jat": "Makutsu no Saikai"
+      },
+      "airDate": "2016-08-19",
+      "runtime": 25,
+      "overview": "As Guts fights his way to Casca, his way is barred by the possessed leader of the heretics. Little does he know that a far more formidable human opponent lies in wait up ahead...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664795.jpg",
+      "episode": "8",
+      "anidbEid": 178488,
+      "length": 25,
+      "airdate": "2016-08-19",
+      "rating": "6.47",
+      "summary": "As Guts fights his way to Casca, his way is barred by the possessed leader of the heretics. Little does he know that a far more formidable human opponent lies in wait up ahead...\nSource: crunchyroll"
+    },
+    "9": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5664796,
+      "seasonNumber": 1,
+      "episodeNumber": 9,
+      "absoluteEpisodeNumber": 9,
+      "title": {
+        "ja": "亡者の血流",
+        "en": "Blood Flow of the Dead",
+        "fr": "Le sang des morts",
+        "x-jat": "Mouja no Ketsuryuu"
+      },
+      "airDate": "2016-08-26",
+      "runtime": 25,
+      "overview": "As Luca leads Guts, Ishidro, and Puck into the tower, Casca is brought to the torture chamber. Just as Mozgus attempts to torture her, however, there is an unexpected turn of events...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5664796.jpg",
+      "episode": "9",
+      "anidbEid": 179300,
+      "length": 25,
+      "airdate": "2016-08-26",
+      "rating": "6.87",
+      "summary": "As Luca leads Guts, Ishidro, and Puck into the tower, Casca is brought to the torture chamber. Just as Mozgus attempts to torture her, however, there is an unexpected turn of events...\nSource: crunchyroll"
+    },
+    "10": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5707219,
+      "seasonNumber": 1,
+      "episodeNumber": 10,
+      "absoluteEpisodeNumber": 10,
+      "title": {
+        "ja": "ヘルス・エンジェルス",
+        "en": "Hell`s Angels",
+        "fr": "Les anges de l`enfer",
+        "x-jat": "Hell`s Angels"
+      },
+      "airDate": "2016-09-02",
+      "runtime": 25,
+      "overview": "Mozgus and his disciples have been turned, and Guts must work fast to keep them from taking Casca. Meanwhile, Luca finds herself face to face with a strange entity who begins to tell her a story...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5707219.jpg",
+      "episode": "10",
+      "anidbEid": 179299,
+      "length": 25,
+      "airdate": "2016-09-02",
+      "rating": "6.76",
+      "summary": "Mozgus and his disciples have been turned, and Guts must work fast to keep them from taking Casca. Meanwhile, Luca finds herself face to face with a strange entity who begins to tell her a story...\nSource: crunchyroll"
+    },
+    "11": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5707220,
+      "seasonNumber": 1,
+      "episodeNumber": 11,
+      "absoluteEpisodeNumber": 11,
+      "title": {
+        "ja": "イデアの影",
+        "en": "Shadows of Ideas",
+        "fr": "L`ombre d`Idea",
+        "x-jat": "Idea no Kage"
+      },
+      "airDate": "2016-09-09",
+      "runtime": 25,
+      "overview": "Guts faces off with Mozgus, who has transformed into a giant monster, while trying to save Caska from being burned at the stake. Guts has trouble defeating Mozgus in his current form, due to his body being so hard that even his sword cannot break through. Meanwhile, the Egg has a fateful encounter...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5707220.jpg",
+      "episode": "11",
+      "anidbEid": 179298,
+      "length": 25,
+      "airdate": "2016-09-09",
+      "rating": "7.75",
+      "summary": "Guts faces off with Mozgus, who has transformed into a giant monster, while trying to save Caska from being burned at the stake. Guts has trouble defeating Mozgus in his current form, due to his body being so hard that even his sword cannot break through. Meanwhile, the Egg has a fateful encounter...\nSource: crunchyroll"
+    },
+    "12": {
+      "tvdbShowId": 307111,
+      "tvdbId": 5707221,
+      "seasonNumber": 1,
+      "episodeNumber": 12,
+      "absoluteEpisodeNumber": 12,
+      "title": {
+        "ja": "すがるもの, もがくもの",
+        "en": "Those Who Cling, Those Who Struggle",
+        "fr": "Ceux qui s`accrochent et ceux qui se débattent",
+        "x-jat": "Sugaru Mono, Mogaku Mono"
+      },
+      "airDate": "2016-09-16",
+      "runtime": 25,
+      "finaleType": "season",
+      "overview": "As people struggle to survive the onslaught of demonic forces, the eclipse reaches its zenith. What will happen when the prophesied God materializes among mortal men?",
+      "image": "https://artworks.thetvdb.com/banners/episodes/307111/5707221.jpg",
+      "episode": "12",
+      "anidbEid": 179297,
+      "length": 25,
+      "airdate": "2016-09-16",
+      "rating": "7.14",
+      "summary": "As people struggle to survive the onslaught of demonic forces, the eclipse reaches its zenith. What will happen when the prophesied God materializes among mortal men?\nSource: crunchyroll"
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 185157,
+      "length": 25,
+      "airdate": "2017-03-03",
+      "rating": "6.94",
+      "title": {
+        "en": "Recap"
+      },
+      "summary": "Listed as episode 12.5. Recap episode of the first season."
+    }
+  },
+  "episodeCount": 12,
+  "specialCount": 1,
+  "images": [
+    {
+      "coverType": "Banner",
+      "url": "https://artworks.thetvdb.com/banners/graphical/307111-g3.jpg"
+    },
+    {
+      "coverType": "Poster",
+      "url": "https://artworks.thetvdb.com/banners/posters/307111-1.jpg"
+    },
+    {
+      "coverType": "Fanart",
+      "url": "https://artworks.thetvdb.com/banners/fanart/original/307111-9.jpg"
+    },
+    {
+      "coverType": "Clearlogo",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/307111/clearlogo/611c8bfdeef77.png"
+    }
+  ],
+  "mappings": {
+    "animeplanet_id": "berserk-2016",
+    "kitsu_id": 11655,
+    "mal_id": 32379,
+    "type": "TV",
+    "anilist_id": 21560,
+    "anisearch_id": 11039,
+    "anidb_id": 11851,
+    "notifymoe_id": null,
+    "livechart_id": 1975,
+    "thetvdb_id": 307111,
+    "imdb_id": "tt5847454",
+    "themoviedb_id": "66053"
+  }
+}

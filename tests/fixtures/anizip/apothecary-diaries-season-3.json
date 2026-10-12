@@ -1,0 +1,123 @@
+{
+  "titles": {
+    "x-jat": "Kusuriya no Hitorigoto (2026)",
+    "en": "The Apothecary Diaries (2026)",
+    "pt-BR": "Diários de uma Apotecária (2026)",
+    "ja": "薬屋のひとりごと (2026)",
+    "es": "Los diarios de la boticaria Temporada 3"
+  },
+  "episodes": {
+    "1": {
+      "tvdbShowId": 431162,
+      "tvdbId": 11234777,
+      "seasonNumber": 3,
+      "episodeNumber": 1,
+      "absoluteEpisodeNumber": 49,
+      "title": {
+        "ja": "蝗",
+        "en": "Locusts",
+        "x-jat": "Inago"
+      },
+      "airDate": "2026-10-02",
+      "airDateUtc": "2026-10-02T14:00:00Z",
+      "runtime": 24,
+      "overview": "A locust plague is looming, and mysteriously, a book on insects belonging to the Shi clan appears.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/11234777/screencap/6abe27389f17e.jpg",
+      "episode": "1",
+      "anidbEid": 316591,
+      "length": 25,
+      "airdate": "2026-10-02",
+      "rating": "7.34"
+    },
+    "2": {
+      "tvdbShowId": 431162,
+      "tvdbId": 12009011,
+      "seasonNumber": 3,
+      "episodeNumber": 2,
+      "absoluteEpisodeNumber": 50,
+      "title": {
+        "ja": "火鼠の皮衣",
+        "en": "Fire Rat`s Cloak",
+        "x-jat": "Hinezumi no Kawagoromo"
+      },
+      "airDate": "2026-10-09",
+      "airDateUtc": "2026-10-09T14:00:00Z",
+      "runtime": 24,
+      "overview": "An interesting cloak points Maomao's imagination towards international politics.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/12009011/screencap/6ac7676b19473.jpg",
+      "episode": "2",
+      "anidbEid": 316592,
+      "length": 25,
+      "airdate": "2026-10-09",
+      "rating": "8.45"
+    },
+    "3": {
+      "tvdbShowId": 431162,
+      "tvdbId": 12009012,
+      "seasonNumber": 3,
+      "episodeNumber": 3,
+      "absoluteEpisodeNumber": 51,
+      "title": {
+        "en": null
+      },
+      "airDate": "2026-10-16",
+      "airDateUtc": "2026-10-16T14:00:00Z",
+      "runtime": 24,
+      "episode": "3",
+      "anidbEid": 316593,
+      "length": 25,
+      "airdate": "2026-10-16"
+    },
+    "4": {
+      "tvdbShowId": 431162,
+      "tvdbId": 12009013,
+      "seasonNumber": 3,
+      "episodeNumber": 4,
+      "absoluteEpisodeNumber": 52,
+      "airDate": "2026-10-23",
+      "airDateUtc": "2026-10-23T14:00:00Z",
+      "runtime": 24,
+      "episode": "4",
+      "anidbEid": 316594,
+      "length": 25,
+      "airdate": "2026-10-23",
+      "title": {
+        "en": null
+      }
+    }
+  },
+  "episodeCount": 12,
+  "specialCount": 0,
+  "images": [
+    {
+      "coverType": "Banner",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/431162/banners/66424d7513948.jpg"
+    },
+    {
+      "coverType": "Poster",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/431162/posters/67565f0f61e5a.jpg"
+    },
+    {
+      "coverType": "Fanart",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/431162/backgrounds/677ed0320e43e.jpg"
+    },
+    {
+      "coverType": "Clearlogo",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/431162/clearlogo/660f5238334b2.png"
+    }
+  ],
+  "mappings": {
+    "animeplanet_id": "the-apothecary-diaries-3rd-season",
+    "kitsu_id": 50021,
+    "mal_id": 61987,
+    "type": "TV",
+    "anilist_id": 195516,
+    "anisearch_id": 20704,
+    "anidb_id": 19444,
+    "notifymoe_id": null,
+    "livechart_id": 13226,
+    "thetvdb_id": 431162,
+    "imdb_id": "tt26743760",
+    "themoviedb_id": "220542"
+  }
+}

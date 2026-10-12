@@ -1,0 +1,32 @@
+{
+  "data": {
+    "Media": {
+      "id": 182255,
+      "idMal": 59978,
+      "title": {
+        "english": "Frieren: Beyond Journey’s End Season 2",
+        "romaji": "Sousou no Frieren 2nd Season",
+        "native": "葬送のフリーレン 第2期"
+      },
+      "startDate": {
+        "year": 2026,
+        "month": 1,
+        "day": 16
+      },
+      "endDate": {
+        "year": 2026,
+        "month": 3,
+        "day": 27
+      },
+      "episodes": 10,
+      "format": "TV",
+      "type": "ANIME",
+      "status": "FINISHED",
+      "season": "WINTER",
+      "seasonYear": 2026,
+      "siteUrl": "https://anilist.co/anime/182255",
+      "popularity": 230620,
+      "averageScore": 87
+    }
+  }
+}

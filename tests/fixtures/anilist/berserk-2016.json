@@ -1,0 +1,32 @@
+{
+  "data": {
+    "Media": {
+      "id": 21560,
+      "idMal": 32379,
+      "title": {
+        "english": "Berserk (2016)",
+        "romaji": "Berserk",
+        "native": "ベルセルク"
+      },
+      "startDate": {
+        "year": 2016,
+        "month": 7,
+        "day": 1
+      },
+      "endDate": {
+        "year": 2016,
+        "month": 9,
+        "day": 16
+      },
+      "episodes": 12,
+      "format": "TV",
+      "type": "ANIME",
+      "status": "FINISHED",
+      "season": "SUMMER",
+      "seasonYear": 2016,
+      "siteUrl": "https://anilist.co/anime/21560",
+      "popularity": 77118,
+      "averageScore": 56
+    }
+  }
+}

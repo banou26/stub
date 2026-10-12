@@ -46,7 +46,7 @@ const KITSU_SCORE = 0.3
  * "good quality source" to mean. Kitsu and the bundle often answer first, Kitsu with a one-line
  * placeholder synopsis ("The second season of ...") and an announcement trailer that YouTube may
  * refuse to embed where AniList's trailer for the same show plays (measured 2026-10-10). A source
- * answers a show's title, description and trailer together, so the best title's score stands for all three.
+ * answers a show's title, description and trailer together, so the leading title's score stands for all three.
  *
  * It decides when what the hero shows is final, and only for `THEATER_WAIT_MS` whether it shows anything.
  */

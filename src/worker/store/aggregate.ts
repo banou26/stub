@@ -4,6 +4,7 @@ import type { Media, Episode } from './types'
 import { getRoutePath, Route } from '../../router/path'
 import { findPartOfMedia, graph, IDENTITY_LABELS } from './db'
 import { isRoutableUri } from '../../utils/uri'
+import { seasonNamesFirst } from '../../sources/season'
 
 // keep ANIME plus exactly ONE of MOVIE/SERIES (highest-scored source's format wins), so a merged media never lands in both the Movies and the Series listing
 const reconcileCategories = (cats: MediaCategory[]): MediaCategory[] => {
@@ -389,7 +390,7 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
     ...seasonOf(sorted),
     genres: dedupeLabels(merged.genres),
     tags: dedupeLabels(merged.tags),
-    titles: removeDuplicatesByField('title', byScore(merged.titles ?? [])),
+    titles: removeDuplicatesByField('title', seasonNamesFirst(byScore(merged.titles ?? []))),
     descriptions: byScore(merged.descriptions ?? []),
     shortDescriptions: byScore(merged.shortDescriptions ?? []),
     covers: byScore(merged.covers ?? []),
