@@ -114,3 +114,15 @@ test('a card naming other sources waits past the show for the run its page follo
 test('a card naming other sources is answered as the show when no run comes', async () => {
   expect((await ask(SEARCH_CARD, CARD)).uri).toBe('tmdb:93405')
 })
+
+// JustWatch links a film as `tmdb:movie-<id>`, and this source reads shows only: alone in an address
+// the id was fetched as a show's card, `/tv/movie-693134`, a miss on every title view
+test('a film\'s link asks TMDB nothing, alone or beside other sources', async () => {
+  for (const uri of ['tmdb:movie-693134', 'ag:(jw:1133934,tmdb:movie-693134)']) {
+    const paths: string[] = []
+    const subscribe = (resolvers.Subscription as any).media.subscribe
+    const { value } = await subscribe(undefined, { input: { uri } }, context({ scope: 'RUN', categories: ['MOVIE'] }, paths)).next()
+    expect(value.media, uri).toBeNull()
+    expect(paths, uri).toEqual([])
+  }
+})

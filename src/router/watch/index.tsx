@@ -370,7 +370,7 @@ const Watch = () => {
           releases: releases.length > 1 ? releases : undefined,
           picker: pickers[origin.id] ? { pluginUri: pickers[origin.id]! } : undefined,
         }
-      }),
+      }).filter(source => source.href || source.releases),
     [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
   )
 

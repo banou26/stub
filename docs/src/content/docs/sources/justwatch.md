@@ -6,7 +6,8 @@ description: The source that turns streaming offers into handles. Two regions, a
 JustWatch is not a metadata catalogue. It knows little worth showing: a title, a poster, a
 short description, a release year. A title's own page (`details`) asks it for more: the ratings
 (`Media.ratings`, one `MediaRating` per site: IMDb, TMDB, Rotten Tomatoes and its own percent, the
-show's on a season), backdrops as banners scored 0.1 so they only fill a gap, and a film's runtime.
+show's on a season), backdrops as banners scored 0.1 so they only fill a gap, a film's runtime, and the
+TMDB id as a `PART_OF` link.
 `SCORE = 0.2` at `src/sources/justwatch/extractor.ts:12` is the
 lowest score any source carries, shared with unogs, appletv and paramount, so it wins a field only
 where nothing else described it. `isApiOnly = true` at `:21` keeps it off the source rows entirely.

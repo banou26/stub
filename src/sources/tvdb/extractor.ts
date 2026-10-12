@@ -16,7 +16,7 @@ export const name = 'TheTVDB'
 export const origin = 'tvdb'
 export const official = false
 export const metadataOnly = true
-export const isApiOnly = true
+export const isApiOnly = false
 export const supportedUris = ['tvdb']
 export const color = '#6cd591'
 

@@ -7,7 +7,7 @@ import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/requ
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
-import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount } from '../utils'
+import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount, tmdbLink } from '../utils'
 import { charactersByName, type SourceCredits } from '../credits'
 
 const SCORE = 0.2
@@ -246,6 +246,9 @@ const NODE_DETAILS_QUERY = nodeQuery(`
             tomatoMeter
             jwRating
           }
+          externalIds {
+            tmdbId
+          }
           credits {
             role
             name
@@ -299,7 +302,8 @@ interface JWSearchNode {
     originalReleaseDate?: string | null
     genres?: { shortName: string, translation?: string | null }[] | null
     productionCountries?: string[] | null
-    /** these four only on NODE_DETAILS_QUERY's answer */
+    externalIds?: { imdbId?: string | null, tmdbId?: string | null } | null
+    /** these four and `externalIds.tmdbId` only on NODE_DETAILS_QUERY's answer */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
     scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
@@ -641,6 +645,8 @@ const normalizeMedia = async (
       startDate: dayOrYear(node.content.originalReleaseDate, node.content.originalReleaseYear)
     })))
   }
+  const tmdbId = node.content.externalIds?.tmdbId
+  if (tmdbId) handles.push(tmdbLink(tmdbId, node.objectType === 'MOVIE'))
 
   const media = makeMedia({
     origin,

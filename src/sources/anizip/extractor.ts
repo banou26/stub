@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, MediaHandle as GQLMediaHandle } from '../../generated/schema/types.generated'
 import { fromAggregatedUri, isAggregatedUri } from '../../utils/uri'
-import { makeMedia, makeEpisode } from '../utils'
+import { makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
 
 export const originUrl = 'https://api.ani.zip/' as const
 export const origin = 'anizip' as const
@@ -18,7 +18,8 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
   const id = media.mappings.anidb_id.toString()
   const uri = `${origin}:${id}`
 
-  const handles: GQLMedia[] = [
+  const { thetvdb_id: tvdbId, imdb_id: imdbId, themoviedb_id: tmdbId } = media.mappings
+  const handles: (GQLMedia | GQLMediaHandle)[] = [
     media.mappings.mal_id ? makeMedia({
       origin: 'mal',
       id: String(media.mappings.mal_id),
@@ -29,6 +30,12 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
       id: String(media.mappings.anilist_id),
       url: `https://anilist.co/anime/${media.mappings.anilist_id}`,
     }) : undefined,
+    // links, never identity: a community mapping, and the tv ids name the whole show rather than this run.
+    // No TMDB link on a film: its `themoviedb_id` is often the series' (mal 5 has 30991, which is a
+    // different film at /movie/30991), and nothing in the answer tells the two apart
+    tmdbId && media.mappings.type !== 'MOVIE' ? tmdbLink(tmdbId, false) : undefined,
+    tvdbId ? partOf(makeMedia({ origin: 'tvdb', id: String(tvdbId), url: `https://thetvdb.com/dereferrer/series/${tvdbId}` })) : undefined,
+    imdbId ? partOf(makeMedia({ origin: 'imdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })) : undefined,
   ].filter((handle): handle is NonNullable<typeof handle> => Boolean(handle))
 
   return makeMedia({
@@ -175,15 +182,15 @@ interface Mappings {
   animeplanet_id: string
   kitsu_id: number
   mal_id: number
-  type: 'TV' | 'Movie' | 'OVA' | 'ONA' | 'Special'
+  type: 'TV' | 'MOVIE' | 'OVA' | 'ONA' | 'SPECIAL'
   anilist_id: number
   anisearch_id: number
   anidb_id: number
   notifymoe_id: string
   livechart_id: number
-  thetvdb_id: number
-  imdb_id: string
-  themoviedb_id: string
+  thetvdb_id: number | null
+  imdb_id: string | null
+  themoviedb_id: string | null
 }
 
 interface AnimeSeries {

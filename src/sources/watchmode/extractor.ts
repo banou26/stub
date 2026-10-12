@@ -6,7 +6,7 @@ import { makeMedia, makeMovieEpisode, isMovie, img } from '../utils'
 // the same job over the same provider urls, shape tested per host and measured against a 3168 offer corpus
 import { extractContentId, providerContentId } from '../justwatch/id'
 import { mintableAsFilmHandle, streamPointers } from '../kitsu/stream-id'
-import { partOf, sameAs } from '../utils'
+import { partOf, sameAs, tmdbLink } from '../utils'
 
 const SCORE = 0.25
 
@@ -150,9 +150,7 @@ const idHandles = (hit: WatchmodeHit): GQLMediaHandle[] => {
   // so `tmdb:550` is Fight Club as a movie and Till Death Us Do Part as a series. A PART_OF pointing at
   // the wrong ROW is not a weaker claim, it is a wrong one.
   const tmdbId = hit.tmdbId
-  if (tmdbId != null && hit.tmdbType !== 'movie') {
-    handles.push(partOf(makeMedia({ origin: 'tmdb', id: String(tmdbId), url: `https://www.themoviedb.org/tv/${tmdbId}` })))
-  }
+  if (tmdbId != null && hit.tmdbType !== 'movie') handles.push(tmdbLink(String(tmdbId), false))
   return handles
 }
 

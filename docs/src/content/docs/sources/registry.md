@@ -210,8 +210,8 @@ the screen.
 
 That is the argument, and it holds. The parenthetical does not: **jikan mints no imdb handle**. Its
 only two handles are `anidb` and `anizip`, both `sameAs`, at `src/sources/jikan/extractor.ts:146-149`.
-The sources that actually mint an `imdb:` handle are six, not five: `omdb` (`:87`), `simkl` (`:141`),
-`trakt` (`:120`), `watchmode` (`:147`), `tvmaze` (`:68`) and `tvdb` (`:60`), each in its own
+The sources that actually mint an `imdb:` handle are seven, not five: `omdb` (`:87`), `simkl` (`:141`),
+`trakt` (`:120`), `watchmode` (`:147`), `tvmaze` (`:68`), `tvdb` (`:60`) and `anizip` (`:38`), each in its own
 `src/sources/<module>/extractor.ts`.
 
 The row-rendering branch the figure ends on is `src/router/home/media-modal.tsx:767-775`, and it is
@@ -338,14 +338,14 @@ export. `store/aggregate.ts` sorts by it descending and the top source takes the
 | peacock | `peacock` | Peacock | false | none |
 | hbo | `hbo` | Max | false | none |
 | fubo | `fubo` | Fubo | false | none |
-| tmdb | `tmdb` | TMDB | true | 0.3 |
+| tmdb | `tmdb` | TMDB | false | 0.3 |
 | tvmaze | `tvmaze` | TVmaze | true | 0.3 |
 | kitsu | `kitsu` | Kitsu | true | 0.3 |
 | livechart | `livechart` | LiveChart | true | 0.6 |
 | omdb | `omdb` | IMDb | true | 0.3 |
 | trakt | `trakt` | Trakt | true | 0.3 |
 | simkl | `simkl` | Simkl | true | 0.3 |
-| tvdb | `tvdb` | TheTVDB | true | 0.3 |
+| tvdb | `tvdb` | TheTVDB | false | 0.3 |
 | offline | `offline` | Offline database | true | 0.2 |
 | animethemes | `animethemes` | AnimeThemes | false | none |
 | watchmode | `watchmode` | Watchmode | true | 0.25 |
@@ -366,6 +366,13 @@ itself sits at the bottom.
 > `status`, `startDate`, `endDate` and `popularity` are absent for the reason ./normalize.ts withholds
 > them from the bundle, plus one this half adds: several live sources score exactly this SCORE,
 > `aggregateMedia` breaks a tie by arrival order, and the seed exists to arrive first.
+
+**tmdb and tvdb are `isApiOnly = false`** so the source row draws the links two enrichers mint as
+`PART_OF`: anizip's `tmdb:<id>` (never on a film, whose id is often the series'), `tvdb:<id>` and
+`imdb:<id>` (`src/sources/anizip/extractor.ts:36-38`), and justwatch's `tmdb:<id>` or `tmdb:movie-<id>`
+on a title page's answer (`src/sources/justwatch/extractor.ts:649`). A placeholder is re-asked on every
+media read, so each of those links costs tmdb or tvdb a read; tmdb answers a `movie-` id with nothing
+and no fetch.
 
 No source takes a key. The five that did until 2026-10-07 read their site's own endpoint instead,
 signed out: `omdb` asks IMDb's GraphQL (and is named IMDb), `trakt` asks `apiz.trakt.tv` with the web
@@ -447,7 +454,7 @@ wins and the comment is quoted anyway, because the reasoning in it is usually st
 | claim | where it says so | what the code does |
 | --- | --- | --- |
 | "36 sources" | `docs/astro.config.mjs:17` | 25 modules. 36 counts JustWatch's 13 package keys as sources |
-| jikan mints an imdb handle | `src/sources/imdb/extractor.ts:5-6` | it mints `anidb` and `anizip` only. Six sources mint imdb: omdb, simkl, trakt, watchmode, tvmaze, tvdb |
+| jikan mints an imdb handle | `src/sources/imdb/extractor.ts:5-6` | it mints `anidb` and `anizip` only. Seven sources mint imdb: omdb, simkl, trakt, watchmode, tvmaze, tvdb, anizip |
 | `supportedUris` on offline is read by nothing | `src/sources/offline/extractor.ts:46-47` | `answersForOrigins` reads it through the `Answerable` cast at `extractor.ts:829` |
 | the icon guard is at `media-modal.tsx:662` | `src/sources/offline/extractor.ts:25` | it is at `:781`. The argument around it is unchanged |
 | the origin filter resolves at `db.ts:144-146` | `src/sources/offline/extractor.ts:27` | it resolves at `db.ts:539-542` |

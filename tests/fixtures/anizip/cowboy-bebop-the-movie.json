@@ -1,0 +1,217 @@
+{
+  "titles": {
+    "x-jat": "CB Movie",
+    "en": "Cowboy Bebop: Knockin` on Heaven`s Door",
+    "it": "Cowboy Bebop - Il Film",
+    "es": "Cowboy Bebop: llamando a las puertas del cielo",
+    "ru": "Ковбой Бибоп",
+    "pl": "Kowboj Bebop",
+    "tr": "Kovboy Bebop: Film",
+    "bg": "Марсиански Каубой: Врата към Рая",
+    "uk": "Бібоп фільм",
+    "ja": "カウボーイビバップ天国の扉",
+    "de": "Cowboy Bebop - Der Film",
+    "fr": "Cowboy Bebop - Le film",
+    "ko": "카우보이 비밥 - 천국의 문",
+    "sv": "Cowboy Bebop - The Movie",
+    "pt": "Cowboy Bebop - O Filme",
+    "pt-BR": "Cowboy Bebop - O Filme",
+    "cs": "Kovboj Bebop: Lovec odměn",
+    "fi": "Cowboy Bebop - palkkionmetsästäjät",
+    "he": "קאובוי ביבופ: הסרט",
+    "hu": "Cowboy Bebop - A film",
+    "lt": "Kaubojus Bibopas: Filmas",
+    "et": "Kauboipeitus",
+    "zh-Hant": "星際牛仔: 天國之門",
+    "zh-Hans": "星际牛仔 天国之扉",
+    "es-419": "Cowboy Bebop: La Película"
+  },
+  "episodes": {
+    "1": {
+      "tvdbShowId": 76885,
+      "tvdbId": 360926,
+      "seasonNumber": 0,
+      "episodeNumber": 3,
+      "airedBeforeSeasonNumber": 1,
+      "airedBeforeEpisodeNumber": 23,
+      "title": {
+        "en": "Complete Movie"
+      },
+      "airDate": "2001-09-01",
+      "airDateUtc": "2001-09-01T08:00:00Z",
+      "runtime": 115,
+      "overview": "A tanker truck is blown to smithereens in the middle of a busy street, and a deadly viral infection is released with the explosion. The Bebop crew - Spike Spiegel, Jet Black, Faye Valentine, and Edward Wong Hau Pepelu Tivrusky IV - are instantly after the culprit when the gargantuan reward of 300,000,000 woolongs is announced. But the case gets stranger and stranger as the cold-blooded Vincent Volaju, who supposedly has been dead for ten years, seems to be the prime suspect. Meanwhile, Spike encounters the dangerous Electra, who too seeks the madman. Conspiracies and secrets better left alone are uncovered, and Vincent's reign of terror is nowhere near over yet...",
+      "image": "https://artworks.thetvdb.com/banners/episodes/76885/360926.jpg",
+      "episode": "1",
+      "anidbEid": 8544,
+      "length": 115,
+      "airdate": "2001-09-01",
+      "rating": "7.80"
+    },
+    "2": {
+      "episode": "2",
+      "anidbEid": 2549,
+      "length": 60,
+      "airdate": "2001-09-01",
+      "rating": "8.06",
+      "title": {
+        "en": "Part 1 of 2"
+      }
+    },
+    "3": {
+      "episode": "3",
+      "anidbEid": 2550,
+      "length": 60,
+      "airdate": "2001-09-01",
+      "rating": "7.09",
+      "title": {
+        "en": "Part 2 of 2"
+      }
+    },
+    "4": {
+      "episode": "4",
+      "anidbEid": 13276,
+      "length": 0,
+      "airdate": "2001-09-01",
+      "rating": "6.94",
+      "title": {
+        "en": "Part 1 of 3"
+      }
+    },
+    "5": {
+      "episode": "5",
+      "anidbEid": 13275,
+      "length": 0,
+      "airdate": "2001-09-01",
+      "rating": "3.04",
+      "title": {
+        "en": "Part 2 of 3"
+      }
+    },
+    "6": {
+      "episode": "6",
+      "anidbEid": 7183,
+      "length": 0,
+      "airdate": "2001-09-01",
+      "rating": "3.04",
+      "title": {
+        "en": "Part 3 of 3"
+      }
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 26502,
+      "length": 6,
+      "airdate": "",
+      "title": {
+        "en": "Movie Commentary"
+      }
+    },
+    "S2": {
+      "episode": "S2",
+      "anidbEid": 26503,
+      "length": 7,
+      "airdate": "",
+      "title": {
+        "en": "Soundtrack Commentary"
+      }
+    },
+    "S3": {
+      "episode": "S3",
+      "anidbEid": 26504,
+      "length": 7,
+      "airdate": "",
+      "title": {
+        "en": "Character Profile - Spike"
+      }
+    },
+    "S4": {
+      "episode": "S4",
+      "anidbEid": 26505,
+      "length": 7,
+      "airdate": "",
+      "title": {
+        "en": "Character Profile - Faye"
+      }
+    },
+    "S5": {
+      "episode": "S5",
+      "anidbEid": 26506,
+      "length": 7,
+      "airdate": "",
+      "title": {
+        "en": "Character Profile - Ed"
+      }
+    },
+    "S6": {
+      "episode": "S6",
+      "anidbEid": 26507,
+      "length": 5,
+      "airdate": "",
+      "title": {
+        "en": "Character Profile - Jet"
+      }
+    },
+    "S7": {
+      "episode": "S7",
+      "anidbEid": 26508,
+      "length": 15,
+      "airdate": "",
+      "title": {
+        "en": "Storyboard Comparison"
+      }
+    },
+    "S8": {
+      "episode": "S8",
+      "anidbEid": 26509,
+      "length": 4,
+      "airdate": "",
+      "title": {
+        "en": "AMV - Into the Darkness"
+      }
+    },
+    "S9": {
+      "episode": "S9",
+      "anidbEid": 271202,
+      "length": 15,
+      "airdate": "",
+      "title": {
+        "en": "Cowboy Bebop the Movie - English Voice Cast Reunion"
+      }
+    }
+  },
+  "episodeCount": 1,
+  "specialCount": 9,
+  "images": [
+    {
+      "coverType": "Banner",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/76885/banners/688bfe4e8451b.jpg"
+    },
+    {
+      "coverType": "Poster",
+      "url": "https://artworks.thetvdb.com/banners/posters/76885-4.jpg"
+    },
+    {
+      "coverType": "Fanart",
+      "url": "https://artworks.thetvdb.com/banners/fanart/original/76885-20.jpg"
+    },
+    {
+      "coverType": "Clearlogo",
+      "url": "https://artworks.thetvdb.com/banners/v4/series/76885/clearlogo/611b7fa9c4ac2.png"
+    }
+  ],
+  "mappings": {
+    "animeplanet_id": "cowboy-bebop-the-movie",
+    "kitsu_id": 2,
+    "mal_id": 5,
+    "type": "MOVIE",
+    "anilist_id": 5,
+    "anisearch_id": 261,
+    "anidb_id": 219,
+    "notifymoe_id": null,
+    "livechart_id": 3419,
+    "thetvdb_id": 76885,
+    "imdb_id": "tt0275277",
+    "themoviedb_id": "30991"
+  }
+}

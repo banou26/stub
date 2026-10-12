@@ -10,9 +10,9 @@ import { build } from 'vite-plus'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
-// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes, AnimeThemes with
-// Frieren's themes, one without a video, IMDb answers Breaking Bad, and TMDB Squid Game's three seasons and
-// Frieren's one (tests/fake-fetch.ts).
+// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes and Frieren's ids,
+// AnimeThemes with Frieren's themes, one without a video, IMDb answers Breaking Bad, and TMDB Squid Game's
+// three seasons and Frieren's one (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -193,6 +193,23 @@ test('Themes lists each song, plays one at a time under its row, and 390 px wide
   expect(await overflowX(page)).toBe(0)
   await rows.nth(1).getByRole('button', { name: 'Stop' }).click()
   await expect(videos).toHaveCount(0)
+})
+
+test('the source row links the TMDB, TheTVDB and IMDb ids AniZip names', async ({ page }) => {
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const origins = page.locator('.origins')
+  await expect(origins.locator('a[title="TMDB"]')).toHaveAttribute('href', 'https://www.themoviedb.org/tv/209867', { timeout: 30_000 })
+  await expect(origins.locator('a[title="TheTVDB"]')).toHaveAttribute('href', 'https://thetvdb.com/dereferrer/series/424536')
+  await expect(origins.locator('a[title="IMDb"]')).toHaveAttribute('href', 'https://www.imdb.com/title/tt22248376')
+})
+
+test('the watch page lists no source it has nothing to open for', async ({ page }) => {
+  // TMDB names the episode but has no page for it; the Netflix release named in the address is the control
+  await page.goto(`${origin}/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344`)
+  const list = page.locator('.list')
+  await expect(list.locator('a[title="Netflix"]')).toBeVisible({ timeout: 30_000 })
+  await expect(list.locator('a[title="TMDB"]')).toHaveCount(0)
 })
 
 test('Episodes draws the first 12, and Show all the rest', async ({ page }) => {

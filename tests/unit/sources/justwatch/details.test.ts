@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { expect, test } from 'vite-plus/test'
 
 import { parseCredits, resolvers } from '../../../../src/sources/justwatch/extractor'
+import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
 import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
 import CHERNOBYL from '../../../fixtures/justwatch/chernobyl.json'
@@ -52,6 +53,17 @@ test('a show\'s runtime is not the season\'s length, and its ratings still come 
   const { media } = await open(CHERNOBYL, 'jw:88632-104891', true)
   expect(media.duration).toBeUndefined()
   expect(media.ratings.map(({ source }: { source: string }) => source)).toEqual(['IMDb', 'TMDB', 'Rotten Tomatoes', 'JustWatch'])
+})
+
+// TMDB numbers films and shows in separate sequences, so a film's id is kept apart from a show's
+test('a film\'s TMDB id links its /movie/ page and a show\'s its /tv/ page, both PART_OF', async () => {
+  const tmdbLinks = (media: { handles: { relation: string, node: { origin: string, uri: string, url: string } }[] }) =>
+    media.handles.filter(({ node }) => node.origin === 'tmdb').map(({ relation, node }) => `${relation} ${node.uri} ${node.url}`)
+  const dune = await open(DUNE, 'jw:1133934', true)
+  expect(JSON.parse(dune.bodies[0]!).query, 'the page asks for it').toMatch(/externalIds \{\s+tmdbId\s+\}/)
+  expect(tmdbLinks(dune.media)).toEqual(['PART_OF tmdb:movie-693134 https://www.themoviedb.org/movie/693134'])
+  expect(tmdbLinks((await open(CHERNOBYL, 'jw:88632-104891', true)).media)).toEqual(['PART_OF tmdb:87108 https://www.themoviedb.org/tv/87108'])
+  expect(NATIVE_ID_SPACES.jw!.has('tmdb'), 'a TMDB id is JustWatch\'s own, not an echo of the address').toBe(true)
 })
 
 // the credits of the same answer, trimmed to the first eight actors
