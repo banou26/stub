@@ -21,27 +21,46 @@ export const metadataOnly = false
 export const isApiOnly = false
 export const supportedUris = ['cr']
 
-type Token = { timestamp: number, access_token: string, expires_in: number }
+const TOKEN_URL = 'https://www.crunchyroll.com/auth/v1/token'
+
+type Token = { access_token: string, expiresAt: number }
 let _token: Token | undefined
 let _tokenPromise: Promise<Token> | undefined
 
+// The JWT's own `exp`, since the relay's cache can answer with a token minted up to an hour before it
+// arrives. Receipt plus `expires_in` when `exp` cannot be read.
+const expiryOf = (accessToken: string, expiresIn: number): number => {
+  try {
+    const { exp } = JSON.parse(atob(accessToken.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/')))
+    if (typeof exp === 'number') return exp * 1000
+  } catch {}
+  return Date.now() + expiresIn * 1000
+}
+
+const fetchToken = async (url: string, ctx: ExtractorServerContext): Promise<Token> => {
+  const res = await ctx.fetch(url, {
+    headers: {
+      accept: 'application/json, text/plain, */*',
+      authorization: `Basic ${btoa('cr_web:')}`,
+      'content-type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_id',
+    method: 'POST',
+    mode: 'cors',
+    credentials: 'include'
+  }).then(r => r.json())
+  if (!res.access_token) throw new Error(`Crunchyroll token fetch failed: ${JSON.stringify(res)}`)
+  return { access_token: res.access_token, expiresAt: expiryOf(res.access_token, res.expires_in) }
+}
+
 const getToken = async (ctx: ExtractorServerContext): Promise<Token> => {
-  if (_token && Date.now() - _token.timestamp < _token.expires_in * 1000) return _token
+  if (_token && Date.now() < _token.expiresAt) return _token
   if (_tokenPromise) return _tokenPromise
   _tokenPromise = (async () => {
-    const res = await ctx.fetch('https://www.crunchyroll.com/auth/v1/token', {
-      headers: {
-        accept: 'application/json, text/plain, */*',
-        authorization: `Basic ${btoa('cr_web:')}`,
-        'content-type': 'application/x-www-form-urlencoded'
-      },
-      body: 'grant_type=client_id',
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'include'
-    }).then(r => r.json())
-    if (!res.access_token) throw new Error(`Crunchyroll token fetch failed: ${JSON.stringify(res)}`)
-    return (_token = { timestamp: Date.now(), access_token: res.access_token, expires_in: res.expires_in })
+    const token = await fetchToken(TOKEN_URL, ctx)
+    // Every viewer shares the plain request through the relay's cache. Only an answer cached past its
+    // token's life asks again with a request of its own, named by that exp so its viewers share it too.
+    return (_token = Date.now() < token.expiresAt ? token : await fetchToken(`${TOKEN_URL}?_=${token.expiresAt}`, ctx))
   })().finally(() => { _tokenPromise = undefined })
   return _tokenPromise
 }
