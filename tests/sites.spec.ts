@@ -386,7 +386,9 @@ test('below 480 px the search waits behind a button, and opens focused over the 
     const start = (await page.locator('header .start').boundingBox())!
     const button = (await searchButton(page).boundingBox())!
     const actions = (await page.locator('header .actions').boundingBox())!
-    expect(start.x + start.width, `${width}: the wordmark ends before the button`).toBeLessThanOrEqual(button.x)
+    // the rig blocks Google Fonts, so the wordmark falls back to a font 11.3 px narrower than the live Montserrat
+    // (40.7 against 52 px at 360, measured 2026-10-13): the gap here has to cover that difference
+    expect(button.x - (start.x + start.width), `${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
     expect(button.x + button.width, `${width}: the button ends before the actions`).toBeLessThanOrEqual(actions.x)
     await searchButton(page).click()
     await expect(searchField(page), `${width}`).toBeFocused()

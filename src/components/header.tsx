@@ -253,8 +253,12 @@ const style = css`
     gap: 0.4rem;
     padding: 0 1rem;
 
+    .logo {
+      font-size: 1.7rem;
+    }
+
     .actions {
-      gap: 0.6rem;
+      gap: 0.4rem;
     }
 
     /* borderless like the site arrow: a 360 px row has no room for a fourth circle */
