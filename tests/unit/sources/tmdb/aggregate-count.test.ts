@@ -19,13 +19,13 @@ const SHOW_HTML = `
 <meta property="og:description" content="A show.">
 <meta property="og:image" content="https://media.themoviedb.org/t/p/w600/poster.jpg">`
 
-const seasonListHtml = (seasons: number[]) => seasons.map(n => `<a href="/tv/${SHOW}/season/${n}">Season ${n}</a>`).join('\n')
+// Three seasons, and only season 2 holds three episodes: a count of 3 names it and nothing else does.
+const EPISODES: Record<number, number> = { 1: 10, 2: 3, 3: 24 }
+
+const seasonListHtml = (seasons: number[]) => seasons.map(n => `<a href="/tv/${SHOW}/season/${n}">Season ${n}</a> 2023 • ${EPISODES[n]} Episodes`).join('\n')
 
 const seasonHtml = (episodes: number) =>
   Array.from({ length: episodes }, (_, i) => `<div class="card" data-episode-number="${i + 1}"><h3><a href="#">Episode ${i + 1}</a></h3></div>`).join('\n')
-
-// Three seasons, and only season 2 holds three episodes: a count of 3 names it and nothing else does.
-const EPISODES: Record<number, number> = { 1: 10, 2: 3, 3: 24 }
 
 // misses are COLLECTED rather than thrown: `fetchHtml` swallows a rejection, so a drifted fixture
 // would return no media and read as the refusal under test
@@ -48,7 +48,8 @@ const context = (misses: string[], known: unknown) => ({
 const mediaFor = async (known: unknown) => {
   const misses: string[] = []
   const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri: `tmdb:${SHOW}` } }, context(misses, known)).next()
+  // a card naming another source too: one naming TMDB alone is the show, and reads no count
+  const { value } = await subscribe(undefined, { input: { uri: `ag:(tmdb:${SHOW},tvmaze:1)` } }, context(misses, known)).next()
   expect(misses, 'the fixture has drifted: these urls had no route').toEqual([])
   return value?.media ?? null
 }

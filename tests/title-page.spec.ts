@@ -152,6 +152,14 @@ test('a show\'s page links each of its seasons, its own marked, at 1440 and 390 
   await expect(modal(page).locator('[data-seasons] a').nth(0)).toHaveAttribute('href', '/media/tmdb:93405-s1', { timeout: 30_000 })
 })
 
+test('a show\'s own address opens its first season, the Seasons row marking it', async ({ page }) => {
+  await page.goto(`${origin}/title/tmdb:93405`)
+  await expect(page).toHaveURL(/\/title\/tmdb:93405-s1/, { timeout: 30_000 })
+  const seasons = page.locator('[data-seasons] a')
+  await expect(seasons).toHaveText(['Season 1', 'Season 2', 'Season 3'], { timeout: 30_000 })
+  await expect(seasons.nth(0)).toHaveAttribute('aria-current', 'page')
+})
+
 test('a show with one season draws no Seasons row', async ({ page }) => {
   await page.goto(`${origin}/title/tmdb:209867-s1`)
   await expect(heading(page)).toHaveText('Frieren: Beyond Journey\'s End', { timeout: 30_000 })

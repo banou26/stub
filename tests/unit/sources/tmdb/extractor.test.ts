@@ -71,13 +71,13 @@ const context = (misses: string[]) => ({
     // an anime show, by TMDB's own keyword
     if (url.startsWith(`${BASE}/tv/888?`)) return html(`${SHOW_HTML}<a href="/keyword/210024-anime/">anime</a>`)
     if (url.startsWith(`${BASE}/tv/888/seasons?`)) return html(seasonListHtml('888', [1, 2]))
-    if (url.startsWith(`${BASE}/tv/888/season/2?`)) return html(seasonHtml(12))
+    if (url.startsWith(`${BASE}/tv/888/season/2?`)) return html(datedSeasonHtml())
     misses.push(url)
     return { ok: false, status: 404, text: async () => '' }
   },
 }) as never
 
-type Row = { uri: string, scope?: string, categories?: string[], seasons?: unknown[], episodes?: { episodeNumber?: number, releaseDate?: string }[] }
+type Row = { uri: string, scope?: string, startDate?: string, categories?: string[], seasons?: unknown[], episodes?: { episodeNumber?: number, releaseDate?: string }[] }
 
 const mediaFor = async (uri: string): Promise<Row> => {
   const misses: string[] = []
@@ -170,4 +170,11 @@ test('an anime season lists no seasons, and a live-action one does', async () =>
   expect(anime.categories).toContain('ANIME')
   expect(anime.seasons).toBeUndefined()
   expect((await mediaFor('tmdb:94664-s3')).seasons).toHaveLength(3)
+})
+
+// A live-action season dated by its first episode is what lets another catalogue's run of it meet it,
+// where the show's year never could. TMDB's anime season is not one run, so it says no day.
+test('a live-action season is dated by its first episode, and an anime one is not', async () => {
+  expect((await mediaFor('tmdb:555-s1')).startDate).toBe('2023-07-10')
+  expect((await mediaFor('tmdb:888-s2')).startDate).toBeUndefined()
 })

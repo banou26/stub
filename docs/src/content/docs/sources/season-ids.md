@@ -52,7 +52,7 @@ flowchart LR
   D2 -->|"an opaque season id, minted by the catalogue"| K["crunchyrollId: cr:G24H1N3MP-GRDQCGX5E"]
   D2 -->|"only the season's position in a list"| T["seasonScopedId: tmdb:94664-s3"]
   D2 -->|"only the season's position in a list"| N["inline join: nf:80987039-3"]
-  T --> D3{"where did that ordinal come from?<br/><small>pinned ?? await resolveSeasonNumber(uri, id, show.seasons, ctx)</small>"}
+  T --> D3{"where did that ordinal come from?<br/><small>pinned ?? await resolveSeasonNumber(uri, show.seasons, ctx)</small>"}
   N --> D3
   D3 -->|"the catalogue's own season list, or a uri it minted earlier"| OK["one run, one id, reproducible"]
   D3 -->|"an array index, another catalogue's numbering, a title guess"| BAD["an id nothing established was this run's"]
@@ -74,7 +74,7 @@ The conditions in that figure are real lines. The first is JustWatch's
 (`src/sources/justwatch/extractor.ts:470`), and every source in the ordinal family has its own
 spelling of it, listed [below](#when-there-is-no-season-nobody-guesses-one). The two mint expressions
 are `src/sources/justwatch/extractor.ts:474` and `src/sources/appletv/extractor.ts:105`. The third is
-`src/sources/tmdb/extractor.ts:235`.
+`src/sources/tmdb/extractor.ts:243`.
 
 | shape | function | mints for | example |
 | --- | --- | --- | --- |
@@ -166,10 +166,10 @@ The ordinal shapes are only reproducible while the number comes off the catalogu
 TMDB reads the show's seasons out of its scraped season list (`/tv/<id>/seasons`, since the show page
 links only the latest season) and pins the season from the uri when the uri
 already carries one (`pinned ?? await resolveSeasonNumber(...)`,
-`src/sources/tmdb/extractor.ts:235`). The failure mode is a number arriving from somewhere else, and
+`src/sources/tmdb/extractor.ts:243`). The failure mode is a number arriving from somewhere else, and
 there is a measured one in the file:
 
-`src/sources/tmdb/extractor.ts:192`
+`src/sources/tmdb/extractor.ts:265`
 
 > spelled out so map's index never lands in seasonNumber: it minted the first row as '&lt;id&gt;-s0'
 
@@ -182,7 +182,7 @@ well-formed, precise, entirely invented id.
 Every source in the ordinal family refuses rather than falling back to the bare id on a linking path.
 
 - justwatch, `src/sources/justwatch/extractor.ts:470`: `if (opts.seasonNumber == null && showRequiresSeason(node.objectType)) return null`, with the comment above it reading *refusing to build the media is the point*. A movie is exempt, because `showRequiresSeason` is `objectType !== 'MOVIE'` (`src/sources/justwatch/id.ts:35`) and a film has no seasons to be confused between.
-- tmdb, `src/sources/tmdb/extractor.ts:241`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`. The one exception is the show's own card: asked from a CONTAINER, it answers the show itself, a CONTAINER carrying its season list, and the page opens the first season from there.
+- tmdb, `src/sources/tmdb/extractor.ts:249`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`. The one exception is the show's own card: asked by an address naming TMDB alone, or one no other source has split into runs within the wait, it answers the show itself, a CONTAINER carrying its season list, and the page opens the first season from there. A card naming other sources waits for the run its page follows to, and the season it answers is dated by its first episode, which is what lets `plugin:title` put it in that run. A run whose title names no season is placed by its episode count against the counts the season list names, so no season's own page is fetched for it. Two limits stay: two seasons premiering within 45 days, or in one year with a premiere on the 1st of a month, weld (`tests/unit/worker/graph/show-seasons-weld.test.ts`), and a run dated on the other side of New Year from TMDB's first episode lands in another year bucket and stays out.
 - tvmaze, `src/sources/tvmaze/extractor.ts:169`: `if (seasonNumber == null && candidates.length > 1) return undefined`.
 - unogs, `src/sources/unogs/extractor.ts:254`: `if (requireSeason && seasonNumber == null && title.vtype === 'series') return undefined`, and `requireSeason` is passed `true` only where cluster handles are attached, because that is the only path that can weld.
 - appletv, `src/sources/appletv/extractor.ts:102`: it does not refuse, it demotes. `const scope = scoped || content.type === 'Movie' ? 'RUN' : 'CONTAINER'`, so the bare show id is still emitted and the store keeps it out of every run's identity space instead.

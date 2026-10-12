@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../generated/schema/types.generated'
 
-import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
+import { extractAggregatedUriOrigin, isAggregatedUri, isUri, originsOfUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, desc, img, getFirstTitle, waitForMedia, declaredEpisodeCount } from '../utils'
 import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId } from '../season'
 import { percentScore } from '../average-score'
@@ -29,7 +29,8 @@ const fetchHtml = (path: string, ctx: ExtractorServerContext): Promise<string | 
 const meta = (html: string, property: string): string | undefined =>
   html.match(new RegExp(`<meta property="${property}" content="([^"]*)"`))?.[1]
 
-type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number, anime?: boolean, seasons?: number[] }
+type TmdbSeason = { seasonNumber: number, episodeCount: number }
+type TmdbMedia = { id: string, title: string, overview?: string, poster?: string, banner?: string, score?: number, year?: number, anime?: boolean, seasons?: TmdbSeason[] }
 /** `releaseDate` is `YYYY-MM-DD`, the day the card named, or absent when the card named none. */
 type TmdbEpisode = { number: number, title?: string, overview?: string, still?: string, releaseDate?: string }
 
@@ -96,12 +97,22 @@ const isAnime = (html: string) =>
 
 // The show page links only its latest season, so the list is read off `/tv/<id>/seasons`. A show with
 // an English title links under a slug (`/tv/1396-breaking-bad/season/5`), and season 0 is the specials.
-const parseSeasons = (html: string, id: string): number[] =>
-  [...new Set([...html.matchAll(new RegExp(`/tv/${id}(?:-[^/"]*)?/season/(\\d+)`, 'g'))].map(m => Number(m[1])))]
-    .filter(n => n > 0)
-    .sort((a, b) => a - b)
+// Each card names its episode count after its season's link (`2021 • 9 Episodes` on /tv/93405/seasons,
+// 2026-10-12), which places a run by its count without fetching every season's page. A card naming
+// none counts 0, which no run's count matches.
+const parseSeasons = (html: string, id: string): TmdbSeason[] => {
+  const counts = new Map<number, number>()
+  for (const [, number, card] of html.matchAll(new RegExp(`/tv/${id}(?:-[^/"]*)?/season/(\\d+)((?:(?!/tv/${id})[\\s\\S])*)`, 'g'))) {
+    const count = Number(card!.match(/(\d+) Episodes?\b/)?.[1] ?? 0)
+    counts.set(Number(number), Math.max(count, counts.get(Number(number)) ?? 0))
+  }
+  return [...counts]
+    .filter(([seasonNumber]) => seasonNumber > 0)
+    .sort(([a], [b]) => a - b)
+    .map(([seasonNumber, episodeCount]) => ({ seasonNumber, episodeCount }))
+}
 
-const fetchSeasons = (id: string, ctx: ExtractorServerContext): Promise<number[]> =>
+const fetchSeasons = (id: string, ctx: ExtractorServerContext): Promise<TmdbSeason[]> =>
   fetchHtml(`/tv/${id}/seasons?language=en-US`, ctx).then(html => html ? parseSeasons(html, id) : [])
 
 const parseShow = (html: string, id: string): TmdbMedia => {
@@ -152,7 +163,7 @@ const normalizeMedia = (m: TmdbMedia, seasonNumber?: number): GQLMedia =>
     id: seasonNumber == null ? m.id : seasonScopedId(m.id, seasonNumber),
     scope: seasonNumber == null ? 'CONTAINER' : 'RUN',
     url: `${BASE}/tv/${m.id}`,
-    seasons: m.anime ? undefined : m.seasons?.map(number => ({ number, uri: toUri({ origin, id: seasonScopedId(m.id, number) }) })),
+    seasons: m.anime ? undefined : m.seasons?.map(({ seasonNumber: number }) => ({ number, uri: toUri({ origin, id: seasonScopedId(m.id, number) }) })),
     categories: m.anime ? ['ANIME', 'SERIES'] : ['SERIES'],
     score: SCORE,
     titles: [{ language: 'en', title: m.title, score: SCORE }],
@@ -163,10 +174,8 @@ const normalizeMedia = (m: TmdbMedia, seasonNumber?: number): GQLMedia =>
     // Only the SHOW-level media may carry the show's year. A season-scoped one must not: TMDB's search
     // page yields one year for the whole series, so stamping it on season 3 puts season 1's year into
     // that cluster's `years` set, and fuzzyMergeMediaClusters buckets by year, so the two seasons meet
-    // in one bucket where a shared title welds them. Same defect as tvmaze/extractor.ts, and unlike
-    // tvmaze there is no season air date to substitute: this scrapes HTML and only ever sees the one
-    // year. So the season-scoped media asserts no date at all, which costs a year bucket rather than
-    // risking a permanent weld.
+    // in one bucket where a shared title welds them. Same defect as tvmaze/extractor.ts. A season is
+    // dated by its own first episode instead, in getMedia.
     startDate: seasonNumber == null && m.year ? `${m.year}-01-01` : undefined,
   })
 
@@ -189,37 +198,36 @@ const normalizeEpisode = (episode: TmdbEpisode, season: number, tvId: string, me
     releaseDate: episode.releaseDate,
   })
 
-const seasonEpisodeCounts = async (id: string, seasons: number[], ctx: ExtractorServerContext) =>
-  Promise.all(seasons.map(async n => ({
-    seasonNumber: n,
-    episodeCount: await fetchHtml(`/tv/${id}/season/${n}?language=en-US`, ctx).then(html => html ? parseSeason(html).length : 0)
-  })))
-
 /**
  * Which season of this show the caller is asking about, or `'show'` when the caller is the show's own
- * card, a CONTAINER.
+ * card: an address naming TMDB alone, or a show no other source has split into runs.
  *
- * The title first, because it is free and usually says. Falling back to matching episode counts costs
- * one request per season, which is what the old code paid unconditionally by fetching every season's
- * episodes; a media whose season IS known now fetches one.
+ * The title first, then the run's episode count against the counts the season list names.
  */
-const resolveSeasonNumber = async (uri: string, id: string, seasons: number[], ctx: ExtractorServerContext): Promise<number | 'show' | undefined> => {
-  if (seasons.length === 1) return seasons[0]
+const resolveSeasonNumber = async (uri: string, seasons: TmdbSeason[], ctx: ExtractorServerContext): Promise<number | 'show' | undefined> => {
+  if (seasons.length === 1) return seasons[0]!.seasonNumber
   if (!seasons.length) return undefined
+  if (originsOfUri(uri).every(other => other === origin)) return 'show'
+  // A show's card from search is a CONTAINER until another source answers its first run, and the page
+  // then follows to that run: answering the show there leaves the run with no TMDB season in it, so a
+  // container is waited past, and answered as the show only when the last view is still one.
+  let container = false
   // The probe has to stay SYNCHRONOUS. waitForMedia keeps the first result it finds truthy, and a
   // promise is always truthy - an async probe would make the very first look succeed with a promise
   // that then resolves to undefined, and the waiting this exists for would never happen. So the wait
-  // collects the hints, and the request that turns a count into a season is made after it.
-  const hint = await waitForMedia(uri, ctx, (media: any): { season?: number | 'show', count?: number } | undefined => {
-    if (media?.scope === 'CONTAINER') return { season: 'show' }
+  // collects the hints.
+  const hint = await waitForMedia(uri, ctx, (media: any): { season?: number, count?: number } | undefined => {
+    container = media?.scope === 'CONTAINER'
+    if (container) return undefined
     const title = getFirstTitle(media)
     const season = title ? parseSeasonNumber(title) : undefined
     const count = declaredEpisodeCount(media)
     return season != null || count ? { season, count } : undefined
   })
-  if (hint?.season != null) return hint.season
-  if (!hint?.count) return undefined
-  return pickSeasonByEpisodeCount(await seasonEpisodeCounts(id, seasons, ctx), hint.count)
+  if (!hint) return container ? 'show' : undefined
+  if (hint.season != null) return hint.season
+  if (!hint.count) return undefined
+  return pickSeasonByEpisodeCount(seasons, hint.count)
 }
 
 const fetchEpisodes = (id: string, season: number, mediaUri: string, ctx: ExtractorServerContext): Promise<GQLEpisode[]> =>
@@ -232,7 +240,7 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   const show = { ...parseShow(html, id), seasons }
   if (!show.title) return undefined
 
-  const seasonNumber = pinned ?? await resolveSeasonNumber(uri, id, show.seasons, ctx)
+  const seasonNumber = pinned ?? await resolveSeasonNumber(uri, show.seasons, ctx)
   // The show's own card is answered as the show, with its season list and no episodes. A season must
   // not name the show PART_OF instead: with two seasons stored, the store hides the show everywhere.
   if (seasonNumber === 'show') return normalizeMedia(show)
@@ -243,6 +251,12 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   const media = normalizeMedia(show, seasonNumber)
   media.episodes = seasonNumber == null ? [] : await fetchEpisodes(id, seasonNumber, media.uri, ctx)
   media.episodeCount = media.episodes.length
+  // Undated, a season meets no other catalogue's run of it in plugin:title and stays a cluster of its
+  // own, so a show's page never carried its seasons. Anime stays undated: TMDB folds its cours into one
+  // season, so a season's first day is not a run's. The trade is the gap TVmaze's seasons already have:
+  // two seasons within 45 days, or in one year with a premiere on the 1st, weld
+  // (tests/unit/worker/graph/show-seasons-weld.test.ts).
+  if (seasonNumber != null && !show.anime) media.startDate = media.episodes[0]?.releaseDate
   return media
 }
 
