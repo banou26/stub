@@ -272,11 +272,11 @@ const overlayStyle = css`
 const Hover = createContext<(target: HoverTarget) => void>(() => {})
 
 const WorkNode = ({ data }: NodeProps<FranchiseFlowNode>) => {
-  const search = useContext(Search)
+  const href = useContext(Href)
   return (
     <Link
       className={`work-node${data.current ? ' current' : ''}${data.lit ? ' lit' : ''}`}
-      to={`${getRoutePath(Route.MEDIA, { uri: asAggregatedUri(data.uri) })}${search}`}
+      to={href(data.uri)}
       title={data.title}
     >
       <Handle type="target" position={Position.Left}/>
@@ -287,8 +287,8 @@ const WorkNode = ({ data }: NodeProps<FranchiseFlowNode>) => {
   )
 }
 
-/** The session's engine flags, so a work clicked out of this graph lands on a reproducible address. */
-const Search = createContext('')
+/** Where a work clicked out of this graph goes, built by `Graph`. */
+const Href = createContext((uri: string) => uri)
 
 /** A curve from one box's right edge to the next box's left edge, which is both arrow kinds' shape. */
 const curve = (sourceX: number, sourceY: number, targetX: number, targetY: number) => {
@@ -338,10 +338,18 @@ const RelationEdge = ({ id, data, sourceX, sourceY, targetX, targetY }: EdgeProp
 const nodeTypes = { work: WorkNode }
 const edgeTypes = { chain: ChainEdge, relation: RelationEdge }
 
-const Graph = ({ franchise, currentUris }: { franchise: Franchise, currentUris: readonly string[] }) => {
+const Graph = (
+  { franchise, currentUris, route }:
+  { franchise: Franchise, currentUris: readonly string[], route: Route.MEDIA | Route.TITLE }
+) => {
   // the session's engine flags, so a node clicked out of this graph lands on an address that
   // reproduces the page it came from (`carriedSearch`, and the relation cards do the same)
   const search = carriedSearch(useSearch())
+  // memoized: a new function each hover would re-render every node
+  const href = useCallback(
+    (uri: string) => `${getRoutePath(route, { uri: asAggregatedUri(uri) })}${search}`,
+    [route, search],
+  )
   const formats = useMemo(() => formatsIn(franchise), [franchise])
   // Video by default. Stub aggregates things you watch, so a novel or a manga is context rather than
   // somewhere to go: its page here has no episodes and nothing to read.
@@ -408,7 +416,7 @@ const Graph = ({ franchise, currentUris }: { franchise: Franchise, currentUris: 
             )
             : undefined
         }
-        <Search.Provider value={search}>
+        <Href.Provider value={href}>
           <Hover.Provider value={setHover}>
             <ReactFlow
               nodes={nodes}
@@ -428,13 +436,17 @@ const Graph = ({ franchise, currentUris }: { franchise: Franchise, currentUris: 
               <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255, 255, 255, 0.14)"/>
             </ReactFlow>
           </Hover.Provider>
-        </Search.Provider>
+        </Href.Provider>
       </div>
     </>
   )
 }
 
-const MediaFranchise = ({ franchise, currentUris }: { franchise: Franchise | null | undefined, currentUris: readonly string[] }) => {
+/** `route` is where a work clicked out of the graph opens: the modal by default, the title page from a title page. */
+const MediaFranchise = (
+  { franchise, currentUris, route = Route.MEDIA }:
+  { franchise: Franchise | null | undefined, currentUris: readonly string[], route?: Route.MEDIA | Route.TITLE }
+) => {
   const [open, setOpen] = useState(false)
   const { refs, context } = useFloating({ open, onOpenChange: setOpen })
   const { getReferenceProps, getFloatingProps } = useInteractions([
@@ -459,7 +471,7 @@ const MediaFranchise = ({ franchise, currentUris }: { franchise: Franchise | nul
               <FloatingOverlay lockScroll css={overlayStyle} data-franchise>
                 <FloatingFocusManager context={context}>
                   <div className="sheet" ref={refs.setFloating} {...getFloatingProps()}>
-                    <Graph franchise={franchise} currentUris={currentUris}/>
+                    <Graph franchise={franchise} currentUris={currentUris} route={route}/>
                     <button type="button" className="close" aria-label="Close" onClick={() => setOpen(false)}>
                       <X/>
                     </button>

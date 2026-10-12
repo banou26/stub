@@ -10,9 +10,9 @@ import { build } from 'vite-plus'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
-// AniList answers each of them with Cowboy Bebop's credits, AniZip with 26 episodes and Frieren's ids,
-// AnimeThemes with Frieren's themes, one without a video, IMDb answers Breaking Bad, and TMDB Squid Game's
-// three seasons and Frieren's one (tests/fake-fetch.ts).
+// AniList answers each of them with Cowboy Bebop's credits and one sequel, Spec Sequel, AniZip with 26
+// episodes and Frieren's ids, AnimeThemes with Frieren's themes, one without a video, IMDb answers
+// Breaking Bad, and TMDB Squid Game's three seasons and Frieren's one (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -119,6 +119,43 @@ test('More details opens the page, and Back returns to the modal', async ({ page
   await page.goBack()
   await expect(page).toHaveURL(/\/media\/ag:\(/)
   await expect(modal(page).locator('.header > span.title')).toHaveText(title)
+})
+
+const SEQUEL = 'ag:(anilist:900001)'
+
+test('on the page, a relation card and a series graph node open the work\'s page with the flags carried', async ({ page }) => {
+  await page.goto(`${origin}/`)
+  const card = page.locator('a[href^="/media/"]').first()
+  await expect(card).toBeVisible({ timeout: 30_000 })
+  await page.goto(`${origin}${(await card.getAttribute('href'))!.replace('/media/', '/title/')}?store=graph`)
+
+  await page.locator('[data-franchise-open]').click()
+  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/title/${SEQUEL}?store=graph`)
+  await page.keyboard.press('Escape')
+
+  const relation = page.locator('[data-relations] a.relation-card')
+  await expect(relation).toHaveAttribute('href', `/title/${SEQUEL}?store=graph`)
+  await relation.click()
+  await expect(page).toHaveURL(`${origin}/title/${SEQUEL}?store=graph`)
+  await expect(heading(page)).toHaveText('Spec Sequel')
+  await expect(modal(page)).toHaveCount(0)
+})
+
+test('a title opened from a relation starts fresh: what was opened on the last one does not carry over', async ({ page }) => {
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  await page.getByRole('button', { name: 'Expand' }).click()
+  await expect(page.getByRole('button', { name: 'Collapse' })).toBeVisible()
+  await page.locator('[data-relations] a.relation-card').click()
+  await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
+  await expect(page.getByRole('button', { name: 'Expand' }), 'its description opens clamped').toBeVisible()
+})
+
+test('in the modal, a relation card and a series graph node still open the modal', async ({ page }) => {
+  await openModal(page)
+  await expect(modal(page).locator('a.relation-card')).toHaveAttribute('href', `/media/${SEQUEL}`)
+  await modal(page).locator('[data-franchise-open]').click()
+  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/media/${SEQUEL}`)
 })
 
 test('390 px wide, the page stacks with no sideways scroll', async ({ page }) => {
@@ -340,11 +377,7 @@ test('the page\'s cover style stays on its own cover, off the relation cards\' c
   await openModal(page)
   await modal(page).getByRole('link', { name: 'More details' }).click()
   await expect(heading(page)).toBeVisible()
-  // the bundled catalogue has no relations, so a card's cover is placed where the Relations grid is
-  const shadow = await page.locator('.main').evaluate(main => {
-    const card = main.appendChild(Object.assign(document.createElement('a'), { className: 'relation-card' }))
-    return getComputedStyle(card.appendChild(Object.assign(document.createElement('div'), { className: 'cover' }))).boxShadow
-  })
+  const shadow = await page.locator('.relation-card .cover').evaluate(cover => getComputedStyle(cover).boxShadow)
   expect(shadow).toBe('none')
   // the control: the hero's cover does carry it
   expect(await page.locator('.body > .cover').evaluate(cover => getComputedStyle(cover).boxShadow)).not.toBe('none')

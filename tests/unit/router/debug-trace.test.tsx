@@ -918,8 +918,8 @@ describe('the query string an in-app link carries', () => {
       fileURLToPath(new URL('../../../src/components/media-relations.tsx', import.meta.url)),
       'utf-8',
     )
-    expect(source, 'the card appends it to the media path')
-      .toContain('to={`${getRoutePath(Route.MEDIA, { uri: asAggregatedUri(edge.node.uri) })}${search}`}')
+    expect(source, 'the card appends it to the path it opens')
+      .toContain('to={`${getRoutePath(route, { uri: asAggregatedUri(edge.node.uri) })}${search}`}')
     expect(source, 'and the flags are the session\'s, since the media view rewrites its own url')
       .toContain('carriedSearch(useSearch())')
     expect(source, 'the control: this probe can miss').not.toContain('carriedSearchThatIsNotThere')
@@ -930,10 +930,9 @@ describe('the query string an in-app link carries', () => {
       fileURLToPath(new URL('../../../src/components/media-franchise.tsx', import.meta.url)),
       'utf-8',
     )
-    // `data.uri` rather than `node.uri` since 2026-09-13: the link moved into the custom xyflow node,
-    // which is handed a node's `data` rather than the node. The property is the same one.
+    // built once in `Graph` and handed to each custom xyflow node through a context, so it reads a bare `uri`
     expect(graph, 'and every node of the franchise graph carries it too')
-      .toContain('to={`${getRoutePath(Route.MEDIA, { uri: asAggregatedUri(data.uri) })}${search}`}')
+      .toContain('`${getRoutePath(route, { uri: asAggregatedUri(uri) })}${search}`')
     expect(graph).toContain('carriedSearch(useSearch())')
     expect(graph, 'the control: this probe can miss too').not.toContain('carriedSearchThatIsNotThere')
   })

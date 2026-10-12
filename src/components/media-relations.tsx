@@ -129,8 +129,14 @@ const cardStyle = css`
   }
 `
 
-/** One related work as a card that opens it; `search` is the session's flags, from `carriedSearch`. */
-export const RelationCard = ({ edge, search }: { edge: RelationEdge, search: string }) => {
+/**
+ * One related work as a card that opens it; `search` is the session's flags, from `carriedSearch`, and
+ * `route` is where it opens: the modal by default, the title page from a title page.
+ */
+export const RelationCard = (
+  { edge, search, route = Route.MEDIA }:
+  { edge: RelationEdge, search: string, route?: Route.MEDIA | Route.TITLE }
+) => {
   const cover = useCoverUrl(edge.node.covers)
   const title = edge.node.titles?.at(0)?.title
   // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
@@ -138,7 +144,7 @@ export const RelationCard = ({ edge, search }: { edge: RelationEdge, search: str
   const meta = [workFormatLabel(edge.format), statusLabel(edge.node.status)].filter(Boolean).join(' · ')
 
   return (
-    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(Route.MEDIA, { uri: asAggregatedUri(edge.node.uri) })}${search}`}>
+    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(route, { uri: asAggregatedUri(edge.node.uri) })}${search}`}>
       {cover ? <img className="cover" src={cover} alt=""/> : <div className="cover"/>}
       <div className="body">
         <div className="relation">{relationLabel(edge.relation)}</div>

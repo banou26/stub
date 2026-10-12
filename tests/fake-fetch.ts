@@ -14,6 +14,9 @@ import SQUID_GAME_SHOW from './fixtures/tmdb/show-squid-game.html?raw'
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
+const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(60) }
+const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
+
 const THEMES = structuredClone(FRIEREN_THEMES)
 THEMES.data.findAnimeByExternalSite[0]!.animethemes[2]!.animethemeentries = []
 
@@ -26,12 +29,13 @@ const TMDB: Record<string, string> = {
 }
 
 // What tests/title-page.spec.ts builds the app with in place of src/utils/fetch.ts: AniList's public
-// API answers every work with Cowboy Bebop's credits and nothing else, AniZip with 26 dated episodes and
-// Frieren's TMDB, TheTVDB and IMDb ids, AnimeThemes with Frieren's themes, bliss without its video, so no
-// title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747 alone, and TMDB with
-// Squid Game's three seasons and Frieren's one, each season's own page empty but Squid Game's first, which
-// lists one episode, and JustWatch with its four most popular films or shows when asked for either; every
-// other request goes where it always went.
+// API answers every work with Cowboy Bebop's credits and one sequel, Spec Sequel (anilist:900001), which
+// has none of its own, AniZip with 26 dated episodes and Frieren's TMDB, TheTVDB and IMDb ids,
+// AnimeThemes with Frieren's themes, bliss without its video, so no title, cover or date changes under
+// the page, IMDb with Breaking Bad for tt0903747 alone, and TMDB with Squid Game's three seasons and
+// Frieren's one, each season's own page empty but Squid Game's first, which lists one episode, and
+// JustWatch with its four most popular films or shows when asked for either; every other request goes
+// where it always went.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -52,5 +56,9 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const { query, variables } = JSON.parse(init.body) as { query: string, variables: { id?: number } }
   if (query.includes('Page(')) return Response.json({ data: { Page: { pageInfo: { lastPage: 1 }, media: [] } } })
   const { characters, staff, studios } = BEBOP
-  return Response.json({ data: { Media: { id: variables.id, ...query.includes('characters(') ? { characters, staff, studios } : {} } } })
+  const credits = query.includes('characters(') ? { characters, staff, studios } : {}
+  if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...credits, relations: { edges: [{ relationType: 'SEQUEL', node: THIRD }] } } } })
+  if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
+  const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
+  return Response.json({ data: { Media: { id: variables.id, relations, ...credits } } })
 }

@@ -695,11 +695,11 @@ const TitlePage = () => {
                 <section className="relations" data-relations>
                   <h2>
                     <span>Relations</span>
-                    <MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []}/>
+                    <MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>
                   </h2>
                   <div className="grid">
                     {(allRelations ? relations : relations.slice(0, RELATIONS_ROW)).map(edge =>
-                      <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search}/>
+                      <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={Route.TITLE}/>
                     )}
                   </div>
                   {
@@ -740,4 +740,8 @@ const TitlePage = () => {
   )
 }
 
-export default TitlePage
+// keyed by the title, so a relation card opening another title gives it a fresh page: wouter keeps the same
+// instance across a change of `uri`, and Show all or an opened description would carry over to the next title
+const Title = () => <TitlePage key={useParams<RouteParams['TITLE']>().uri}/>
+
+export default Title
