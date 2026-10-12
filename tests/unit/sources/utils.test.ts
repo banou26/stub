@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { buildHandlesFromUri, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity } from '../../../src/sources/utils'
+import { buildHandlesFromUri, desc, dropCredit, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity } from '../../../src/sources/utils'
+import SAMPLES from '../../fixtures/descriptions/samples.json'
 
 // The home and search pages filter on searchRelevance at 0.7, so a query that normalizes to nothing
 // returns an empty page and a query that normalizes to one letter returns nearly the whole catalogue.
@@ -259,5 +260,74 @@ describe('an address naming two ids of one origin', () => {
     mergeHandles(season, 'ag:(anilist:205068,mal:64683,mal:63225,jw:531130-580247)')
 
     expect(season.handles.map(handle => handle.node.uri)).toEqual(['anilist:205068'])
+  })
+})
+
+// Real descriptions as each source answered on 2026-10-12: AniList's and Kitsu's APIs, MyAnimeList's
+// season page as the scrape reads it, and ani.zip's episode summaries.
+describe('the source credit ending a description', () => {
+  const drops = ({ description }: { description: string }, credit: string) => {
+    expect(description).toContain(credit)
+    expect(dropCredit(description)).toBe(description.replace(credit, ''))
+  }
+
+  test('AniList\'s goes, with the breaks leading into it', () => {
+    drops(SAMPLES.anilistFrieren, '\n<br><br>\n(Source: Crunchyroll)')
+    drops(SAMPLES.anilistMononoke, '<br><br>\n[Written by MAL Rewrite]')
+    drops(SAMPLES.anilistKimiToNami, '<br></br>(Source: Toho)')
+    drops(SAMPLES.anilistKooriNoJouheki, '\n<BR><BR>\n(Source: Margaret, translated)')
+  })
+
+  test('and with the breaks after it', () => {
+    drops(SAMPLES.anilistSoloLeveling, '<br>\n<br>\n(Source: Crunchyroll) <br><br>')
+  })
+
+  test('one with no space after its colon goes too', () => {
+    drops(SAMPLES.anilistGhostInTheShell, '  <br><br>\n(Source:攻殻機動隊 THE GHOST IN THE SHELL Site)')
+  })
+
+  test('one before AniList\'s closing note goes, and the note stays', () => {
+    drops(SAMPLES.anilistJujutsuKaisen, '\n<br><br>\n(Source: Crunchyroll)')
+    drops(SAMPLES.anilistKoyomimonogatari, '\n<br><br>\n(Source: Aniplex)')
+  })
+
+  test('MyAnimeList\'s goes, and a parenthesis of the story before it stays', () => {
+    drops(SAMPLES.malSpyFamily, ' [Written by MAL Rewrite]')
+    drops(SAMPLES.malTaneko, ' (Source: ANN)')
+  })
+
+  test('Kitsu\'s goes', () => {
+    drops(SAMPLES.kitsuDemonSlayer, '\n\n(Source: Crunchyroll)')
+    drops(SAMPLES.kitsuBakemonogatari, '\n\n[Written by MAL Rewrite] ')
+  })
+
+  test('ani.zip\'s last line goes', () => {
+    drops(SAMPLES.anizipOnePieceUrl, '\nSource: http://onepiece.fandom.com/')
+  })
+
+  test('one in the middle stays', () => {
+    const { description } = SAMPLES.anilistMekakucityActors
+    expect(description).toContain('(Source: Aniplex USA)')
+    expect(dropCredit(description)).toBe(description)
+  })
+
+  test('a sentence naming the Source is not a credit', () => {
+    expect(dropCredit('They reach the Source: a city of light.')).toBe('They reach the Source: a city of light.')
+  })
+
+  test('a last line of the story starting with Source stays', () => {
+    expect(dropCredit('A hacker tale.\nSource code holds the key to everything.')).toBe('A hacker tale.\nSource code holds the key to everything.')
+  })
+
+  test('a description with none is unchanged', () => {
+    const { description } = SAMPLES.anilistCowboyBebop
+    expect(dropCredit(description)).toBe(description)
+  })
+
+  test('desc publishes the description without it', () => {
+    const { description } = SAMPLES.kitsuDemonSlayer
+    const { descriptions, shortDescriptions } = desc(description, 0.5)
+    expect(descriptions?.[0]?.description).toBe(dropCredit(description))
+    expect(shortDescriptions?.[0]?.shortDescription).toBe(dropCredit(description))
   })
 })

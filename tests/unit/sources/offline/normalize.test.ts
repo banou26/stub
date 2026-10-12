@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { SCORE, recordId, seasonKey, seasonMedia, seasonPage, type ManamiRecord } from '../../../../src/sources/offline/normalize'
+import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
 const record = (overrides: Partial<ManamiRecord> = {}): ManamiRecord => ({
   t: 'Some Show',
@@ -140,6 +141,12 @@ test('a seasonal row publishes the synopsis the hero selects on', () => {
 
   expect(media?.shortDescriptions?.[0]?.shortDescription).toBe('Third season of Mushoku Tensei.')
   expect(media?.shortDescriptions?.[0]?.language, 'the hero reads the first entry, so it needs a shape').toBe('en')
+})
+
+test('a seasonal synopsis is published without the credit ending it', () => {
+  const media = seasonMedia(record({ sy: SAMPLES.malSpyFamily.description }))
+
+  expect(media?.shortDescriptions?.[0]?.shortDescription).toMatch(/family life\.$/)
 })
 
 test('a seasonal row publishes a youtube trailer when the build found one', () => {

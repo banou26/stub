@@ -47,3 +47,15 @@ test('every id AniZip links is one it publishes, not an echo of the address', as
   const origins = (await links(FRIEREN)).map(line => line.split(' ')[2]!.split(':')[0]!)
   expect(origins.filter(origin => !NATIVE_ID_SPACES.anizip!.has(origin))).toEqual([])
 })
+
+// 27 of Frieren's episode summaries end "\nSource: Crunchyroll" or "\nSource: crunchyroll"
+test('an episode\'s summary arrives without the credit ending it', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const context = { fetch: async () => ({ json: async () => FRIEREN }) }
+  const { value } = await subscribe(undefined, { input: { uri: 'ag:(mal:52991)' } }, context).next()
+  const texts = (value.media.episodes as { descriptions: { description: string }[], shortDescriptions: { shortDescription: string }[] }[])
+    .flatMap(episode => [...episode.descriptions.map(({ description }) => description), ...episode.shortDescriptions.map(({ shortDescription }) => shortDescription)])
+
+  expect(texts.length).toBeGreaterThan(0)
+  expect(texts.filter(text => /Source:/i.test(text))).toEqual([])
+})

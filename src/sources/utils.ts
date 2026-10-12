@@ -159,21 +159,32 @@ export const normalizePage = async <T, R>(
   return kept
 }
 
-export const desc = (description?: string | null, score?: number) =>
-  description
+const BREAKS = String.raw`(?:\s|<\/?br\s*\/?>)*`
+// AniList and Kitsu "(Source: Crunchyroll)", MyAnimeList "[Written by MAL Rewrite]", and ani.zip a last
+// line "Source: crunchyroll". AniList often follows the credit with an italic production note, which stays.
+const CREDIT = String.raw`(?:\(Source:[^()]*\)|\[Written by MAL Rewrite\]|(?<=[\n>])Source:[^\n<]*)`
+const ENDING_CREDIT = new RegExp(`${BREAKS}${CREDIT}(?:${BREAKS}$|(?=${BREAKS}<(?:i|em)>))`, 'i')
+
+/** The description without the source credit at its end, which may sit before AniList's closing note. A credit anywhere else stays. */
+export const dropCredit = (description: string) => description.replace(ENDING_CREDIT, '')
+
+export const desc = (description?: string | null, score?: number) => {
+  const text = description && dropCredit(description)
+  return text
     ? {
       descriptions: [{
         language: 'en',
-        description: description,
+        description: text,
         score
       }],
       shortDescriptions: [{
         language: 'en',
-        shortDescription: description,
+        shortDescription: text,
         score
       }]
     }
     : {}
+}
 
 export const img = (url?: string | null, score?: number) =>
   url

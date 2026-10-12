@@ -9,10 +9,11 @@
 // first half could not read minted `anizip:undefined`, or `anidb:animedb.pl` off the common shape,
 // and every record that produced one produced the SAME one. `upsertMedia` welds those, and `graph.link`
 // has no inverse.
-import { expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vite-plus/test'
 
 import { anidbIdFromUrl, resolvers } from '../../../../src/sources/jikan/extractor'
 import { mediaSeasonNow } from '../../../../src/sources/season'
+import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
 const API = 'https://api.jikan.moe/v4'
 
@@ -179,13 +180,13 @@ const mediaFor = async (fields: Record<string, unknown>) => {
   })
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri: 'mal:1' } }, ctx).next()
-  return value?.media as { genres: string[], tags: string[], season: string | null, seasonYear: number | null, averageScore: number | null }
+  return value?.media as { genres: string[], tags: string[], season: string | null, seasonYear: number | null, averageScore: number | null, descriptions: { description: string }[] }
 }
 
 const pageFor = async (input: Record<string, unknown>, ctx: never) => {
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   const { value } = await subscribe(undefined, { input }, ctx).next()
-  return (value?.mediaPage?.nodes ?? []) as { uri: string, season: string | null, seasonYear: number | null, averageScore: number | null }[]
+  return (value?.mediaPage?.nodes ?? []) as { uri: string, season: string | null, seasonYear: number | null, averageScore: number | null, descriptions: { description: string }[] }[]
 }
 
 test('genres merge MAL\'s three vocabularies in order, deduplicated, and never explicit_genres', async () => {
@@ -320,4 +321,27 @@ test('and from the season scrape, which is the path an API outage leaves', async
 
 test('an unrated title carries no score at all, rather than a zero nobody gave it', async () => {
   expect((await mediaFor({ score: null })).averageScore).toBeUndefined()
+})
+
+test('a synopsis arrives without the credit ending it, from the API', async () => {
+  const media = await mediaFor({ synopsis: SAMPLES.malSpyFamily.description })
+
+  expect(media.descriptions[0]!.description).toMatch(/family life\.$/)
+})
+
+test('and from the season scrape', async () => {
+  const card =
+    '<div class="js-anime-category-producer js-anime-type-1">'
+    + '<a href="https://myanimelist.net/anime/59027/Spy_x_Family_Season_3" class="link-title">Spy x Family Season 3</a>'
+    + `<p class="preline">${SAMPLES.malSpyFamily.description}</p>`
+    + '</div>'
+  const { ctx } = routed(url =>
+    url.includes('myanimelist.net')
+      ? { ok: true, text: async () => card }
+      : json({ status: 504, message: 'gateway' })
+  )
+
+  const nodes = await pageFor({ status: 'RELEASING' }, ctx)
+
+  expect(nodes[0]!.descriptions[0]!.description).toMatch(/family life\.$/)
 })

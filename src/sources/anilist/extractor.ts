@@ -6,7 +6,7 @@ import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } fro
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './types'
-import { makeMedia, normalizePage } from '../utils'
+import { desc, makeMedia, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
 import { languageCode, type SourceCredits, type SourcePerson } from '../credits'
@@ -716,14 +716,7 @@ const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
     score: SCORE,
     averageScore: percentScore(media.averageScore, 100),
     nextAiringEpisode: nextAiringEpisode(media.airingSchedule),
-    descriptions:
-      media.description
-        ? [{ language: 'en', description: media.description, score: SCORE }]
-        : [],
-    shortDescriptions:
-      media.description
-        ? [{ language: 'en', shortDescription: media.description, score: SCORE }]
-        : [],
+    ...desc(media.description, SCORE),
     titles: [
       ...media.title?.english ? [{ language: 'en', title: media.title.english, score: SCORE }] : [],
       ...media.title?.romaji ? [{ language: 'jp-en', title: media.title.romaji, score: SCORE }] : [],

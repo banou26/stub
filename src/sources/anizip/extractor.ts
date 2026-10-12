@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, MediaHandle as GQLMediaHandle } from '../../generated/schema/types.generated'
 import { fromAggregatedUri, isAggregatedUri } from '../../utils/uri'
-import { makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
+import { dropCredit, makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
 
 export const originUrl = 'https://api.ani.zip/' as const
 export const origin = 'anizip' as const
@@ -62,6 +62,7 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
         .entries(media.episodes)
         .map(([episodeId, episode]) => {
           const epId = `${id}-${episodeId}`
+          const summary = episode.summary && dropCredit(episode.summary)
           return makeEpisode({
             origin,
             id: epId,
@@ -75,8 +76,8 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
             descriptions: episode.overview
               ? [{ language: 'en', description: episode.overview, score: SCORE }]
               : [],
-            shortDescriptions: episode.summary
-              ? [{ language: 'en', shortDescription: episode.summary, score: SCORE }]
+            shortDescriptions: summary
+              ? [{ language: 'en', shortDescription: summary, score: SCORE }]
               : episode.overview
                 ? [{ language: 'en', shortDescription: episode.overview, score: SCORE }]
                 : [],

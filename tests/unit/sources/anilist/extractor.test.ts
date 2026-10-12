@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto'
 import { closeRoot, openRoot } from '../../../../src/worker/request-context'
 import { resolvers } from '../../../../src/sources/anilist/extractor'
 import BEBOP from '../../../fixtures/credits/anilist-bebop.json'
+import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
 const ANILIST = 'https://graphql.anilist.co/'
 
@@ -209,6 +210,13 @@ test('genres, non spoiler tags, season and seasonYear survive normalization', as
   expect(node.tags, 'and so does one flagged in general').not.toContain('Time Loop')
   expect(node.season).toBe('SUMMER')
   expect(node.seasonYear).toBe(2026)
+})
+
+test('a description arrives without the source credit ending it', async () => {
+  const [node] = await browsedNodes([{ ...PAGE_MEDIA, description: SAMPLES.anilistFrieren.description }])
+
+  expect(node.descriptions[0].description).toMatch(/new adventure…$/)
+  expect(node.shortDescriptions[0].shortDescription).toMatch(/new adventure…$/)
 })
 
 test('a season the schema has no member for never reaches the store', async () => {

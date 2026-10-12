@@ -2,7 +2,7 @@ import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Media, MediaTrailer, Resolvers } from '../../generated/schema/types.generated'
 import { MediaStatus, MediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { makeMedia, normalizePage, sameAs } from '../utils'
+import { desc, makeMedia, normalizePage, sameAs } from '../utils'
 import { MAL_TYPE, isContinuing, parseMalSeason, type MalSeasonEntry } from './season-scrape'
 import { malLargeImage } from '../mal-image'
 import { lowerSeason, mediaSeasonNow, upperSeason, type AnimeSeason } from '../season'
@@ -149,14 +149,9 @@ const normalizeMedia = async <T extends SearchAnimeData & Partial<Pick<AnimeData
     ],
     score: SCORE,
     averageScore: percentScore(data.score, 10),
-    descriptions:
-      data.synopsis
-        ? [{ language: 'en', description: data.synopsis, score: DESCRIPTION_SCORE }]
-        : [],
-    shortDescriptions:
-      data.synopsis
-        ? [{ language: 'en', shortDescription: data.synopsis, score: DESCRIPTION_SCORE }]
-        : [],
+    descriptions: [],
+    shortDescriptions: [],
+    ...desc(data.synopsis, DESCRIPTION_SCORE),
     titles: [
       ... data.title_english ? [{ language: 'en', title: data.title_english, score: SCORE }] : [],
       ... data.title ? [{ language: 'jp-en', title: data.title, score: SCORE }] : [],
@@ -292,8 +287,7 @@ const normalizeScrapedMedia = (entry: MalSeasonEntry): Media => {
     // MAL prints one flat genre list where the API splits genres, themes and demographics, which is
     // the same union `normalizeMedia` builds from those three, so both paths supply the same shape.
     genres: entry.genres ?? [],
-    descriptions: entry.synopsis ? [{ language: 'en', description: entry.synopsis, score: DESCRIPTION_SCORE }] : [],
-    shortDescriptions: entry.synopsis ? [{ language: 'en', shortDescription: entry.synopsis, score: DESCRIPTION_SCORE }] : [],
+    ...desc(entry.synopsis, DESCRIPTION_SCORE),
     episodeCount: entry.episodes,
     // members, the same figure the API returns as `members`, so both paths sort the same way
     popularity: entry.members,

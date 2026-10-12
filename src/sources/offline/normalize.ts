@@ -7,7 +7,7 @@
 import type { Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { MediaType } from '../../generated/graphql'
-import { makeMedia } from '../utils'
+import { desc, makeMedia } from '../utils'
 import { malLargeImage } from '../mal-image'
 import { MEDIA_SEASONS, type MediaSeasonName } from '../season'
 
@@ -175,12 +175,7 @@ export const seasonMedia = (record: ManamiRecord, key?: string): GQLMedia | unde
     // The hero keeps only media carrying titles AND shortDescriptions (utils/theater.ts), and manami
     // has no synopsis, so the homepage rendered an empty hero until a live source answered. Both this
     // and the trailer ride the same build-time jikan call as the member counts, current season only.
-    ...record.sy
-      ? {
-        descriptions: [{ language: 'en', description: record.sy, score: SCORE }],
-        shortDescriptions: [{ language: 'en', shortDescription: record.sy, score: SCORE }],
-      }
-      : {},
+    ...desc(record.sy, SCORE),
     trailers: record.tr
       ? [{
         uri: `yt:${record.tr}`,
