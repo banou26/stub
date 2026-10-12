@@ -7,11 +7,13 @@ import { resolvers } from '../../../../src/sources/justwatch/extractor'
 import THE_ONE_I_LOVE from '../../../fixtures/justwatch/the-one-i-love.json'
 import ALL_IS_LOST from '../../../fixtures/justwatch/all-is-lost.json'
 import NINJA_SCROLL from '../../../fixtures/justwatch/ninja-scroll.json'
+import { viewerIn } from './viewer'
 
 type Offer = { monetizationType: string, standardWebURL: string | null, package: { shortName: string } }
 type Answer = { data: { node: { objectId: number, offers: Offer[], extraOffers: Offer[] } } }
 
 const handlesOf = async (answer: Answer) => {
+  viewerIn('America/New_York')
   const context = {
     fetch: async (url: string) => {
       if (url === 'https://apis.justwatch.com/graphql') return { json: async () => answer }
@@ -49,7 +51,9 @@ test('each platform offer becomes its own origin, under the id its deep link car
     'starz:51102 SAME_AS https://www.starz.com/us/en/movies/51102',
     'tubi:348089 SAME_AS https://tubitv.com/movies/348089',
   ])
+  // on Prime Video in Japan alone
   expect(await handlesOf(NINJA_SCROLL)).toEqual([
+    'amazon:amzn1.dv.gti.30e68870-9c25-4caf-a43d-58d82be9e2b3 SAME_AS https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.30e68870-9c25-4caf-a43d-58d82be9e2b3',
     'hidive:715215 SAME_AS https://www.hidive.com/interstitial/715215',
   ])
 })

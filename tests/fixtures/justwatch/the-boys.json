@@ -1,0 +1,2096 @@
+{
+  "data": {
+    "node": {
+      "id": "ts78125",
+      "objectId": 78125,
+      "objectType": "SHOW",
+      "content": {
+        "title": "The Boys",
+        "fullPath": "/us/tv-show/the-boys",
+        "originalReleaseYear": 2019,
+        "originalReleaseDate": "2019-07-25",
+        "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+        "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+        "externalIds": {
+          "imdbId": "tt1190634"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "cmy",
+            "translation": "Comedy"
+          },
+          {
+            "shortName": "crm",
+            "translation": "Crime"
+          },
+          {
+            "shortName": "scf",
+            "translation": "Science-Fiction"
+          }
+        ],
+        "productionCountries": [
+          "US"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "package": {
+            "id": "cGF8NjEz",
+            "packageId": 613,
+            "clearName": "Amazon Prime Video Free with Ads",
+            "technicalName": "amazonimdbtv",
+            "shortName": "aim",
+            "icon": "/icon/327791663/s100/amazonimdbtv.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+          "package": {
+            "id": "cGF8MTg5OA==",
+            "packageId": 1898,
+            "clearName": "Amazon MX Player",
+            "technicalName": "amazonminitv",
+            "shortName": "mni",
+            "icon": "/icon/324478870/s100/amazonminitv.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "HD",
+          "standardWebURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+          "deeplinkURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "HD",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+          "deeplinkURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY",
+          "standardWebURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "deeplinkURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+          "package": {
+            "id": "cGF8NTA=",
+            "packageId": 50,
+            "clearName": "Amazon DVD / Blu-ray",
+            "technicalName": "amazondvdbr",
+            "shortName": "adb",
+            "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "HD",
+          "standardWebURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+          "deeplinkURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+          "package": {
+            "id": "cGF8MjA3",
+            "packageId": 207,
+            "clearName": "The Roku Channel",
+            "technicalName": "rokuchannel",
+            "shortName": "rkc",
+            "icon": "/icon/76972041/s100/rokuchannel.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "DVD",
+          "standardWebURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+          "deeplinkURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+          "package": {
+            "id": "cGF8MjU0Mg==",
+            "packageId": 2542,
+            "clearName": "Barnes & Noble",
+            "technicalName": "barnesandnoble",
+            "shortName": "bnb",
+            "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+          }
+        },
+        {
+          "monetizationType": "BUY",
+          "presentationType": "BLURAY",
+          "standardWebURL": "https://us.zavvi.com/p/blu-ray/the-boys-season-3/14218958/",
+          "deeplinkURL": "https://us.zavvi.com/p/blu-ray/the-boys-season-3/14218958/",
+          "package": {
+            "id": "cGF8MjU2Mg==",
+            "packageId": 2562,
+            "clearName": "Zavvi",
+            "technicalName": "zavvi",
+            "shortName": "zav",
+            "icon": "/icon/336053590/s100/zavvi.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+          "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+          "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 5,
+      "seasons": [
+        {
+          "id": "tss104253",
+          "objectId": 104253,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/the-boys/season-1",
+            "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse1726627",
+              "objectId": 1726627,
+              "content": {
+                "title": "The Name of the Game",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1801675",
+              "objectId": 1801675,
+              "content": {
+                "title": "Cherry",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 59
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1801676",
+              "objectId": 1801676,
+              "content": {
+                "title": "Get Some",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "It’s the race of the century. A-Train versus Shockwave, vying for the title of World’s Fastest Man. Meanwhile, the Boys are reunited and it feels so good.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 54
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.8eb600aa-6477-4687-a921-2a12646cb790",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.8eb600aa-6477-4687-a921-2a12646cb790",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.70f0d7fe-ef20-4443-8ff9-82d322409276",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.70f0d7fe-ef20-4443-8ff9-82d322409276",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1801677",
+              "objectId": 1801677,
+              "content": {
+                "title": "The Female of the Species",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "On a very special episode of The Boys… an hour of guts, gutterballs, airplane hijackings, madness, ghosts, and one very intriguing Female. Oh, and lots of heart, both in the sentimental sense, and in the gory literal sense.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 56
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.80b600aa-5570-b375-9631-82b730673110",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.80b600aa-5570-b375-9631-82b730673110",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.454013b8-e8e1-4c98-a0f5-a66542643c10",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.454013b8-e8e1-4c98-a0f5-a66542643c10",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1801678",
+              "objectId": 1801678,
+              "content": {
+                "title": "Good for the Soul",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The Boys head to the “Believe” Expo to follow a promising lead in their ongoing war against the Supes. There might, MIGHT, be a homicidal infant, but you’ll have to see for yourself.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.c8b600aa-5c27-1840-868f-6031321312d0",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.c8b600aa-5c27-1840-868f-6031321312d0",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.15e5ec2a-94f1-42d1-94fe-6f897c9f99a4",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.7f1f4a0e-a79e-40c2-8d99-e4c175b2534f",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1801679",
+              "objectId": 1801679,
+              "content": {
+                "title": "The Innocents",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "SUPER IN AMERICA (2019). Vought Studios. Genre: Reality. Starring: Homelander, Queen Maeve, Black Noir, The Deep, A-Train, Starlight, Tara Reid, Billy Zane.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.dcb600aa-628f-64f3-de68-df62bf49aa3f",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.dcb600aa-628f-64f3-de68-df62bf49aa3f",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.ed7eca6b-a735-4f30-87b6-090620383e7b",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0cff101d-12dd-4100-9acf-e98895911ae1",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1813570",
+              "objectId": 1813570,
+              "content": {
+                "title": "The Self-Preservation Society",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Never trust a washed-up Supe, the Boys learn this lesson the hard way. Meanwhile, Homelander digs into his past, Starlight discovers that love hurts, and if you’re ever in Sandusky, Ohio and a girl asks if she can touch your gills, say NO.",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 56
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f0b600aa-63f6-0d77-244a-f59426f3e512",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f0b600aa-63f6-0d77-244a-f59426f3e512",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.398b8f0e-d863-4061-9246-20aa56024585",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.398b8f0e-d863-4061-9246-20aa56024585",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse1813571",
+              "objectId": 1813571,
+              "content": {
+                "title": "You Found Me",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Season Finale Time! Questions answered! Secrets revealed! Conflicts… conflicted! Characters exploded! And so much more!",
+                "originalReleaseDate": "2019-07-25",
+                "runtime": 66
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d4b600aa-5cb9-7025-b304-2d7bb2d66ef7",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d4b600aa-5cb9-7025-b304-2d7bb2d66ef7",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0cdc5436-3e56-4842-8ec4-4378ecd32ad1",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0cdc5436-3e56-4842-8ec4-4378ecd32ad1",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss224796",
+          "objectId": 224796,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 2",
+            "seasonNumber": 2,
+            "fullPath": "/us/tv-show/the-boys/season-2",
+            "posterUrl": "/poster/204034731/{profile}/season-2.{format}",
+            "originalReleaseYear": 2020,
+            "originalReleaseDate": "2020-09-03",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse4113780",
+              "objectId": 4113780,
+              "content": {
+                "title": "The Big Ride",
+                "episodeNumber": 1,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Season 2! New and improved! Now with 50% more explosive decapitations, terrorists, S&M hookers, cults, and a new pine fresh scent! But wait, there’s more! 2X MORE blood, guts and gore than the other leading brands! This exclusive offer is available only on Amazon Prime Video! Don’t delay! Order now!",
+                "originalReleaseDate": "2020-09-03",
+                "runtime": 63
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.ab0fbd49-e036-4128-916d-e4327d40887c",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.ab0fbd49-e036-4128-916d-e4327d40887c",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d2ba023f-314f-157f-6941-edbafa3ef408",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d2ba023f-314f-157f-6941-edbafa3ef408",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4362187",
+              "objectId": 4362187,
+              "content": {
+                "title": "Proper Preparation and Planning",
+                "episodeNumber": 2,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "The Boys get themselves a Super Terrorist, Starlight gets evidence against Vought, The Deep gets in touch with his feelings, and Homelander gets himself a family (sort of).  All that, and a hard-hitting exposé on why Super Suits don’t have pockets.",
+                "originalReleaseDate": "2020-09-03",
+                "runtime": 59
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab9ed83-121b-e864-6faa-f5f89c80f910",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab9ed83-121b-e864-6faa-f5f89c80f910",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.80ba023f-1d0f-18cc-543d-2c0b931b7362",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.80ba023f-1d0f-18cc-543d-2c0b931b7362",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4366041",
+              "objectId": 4366041,
+              "content": {
+                "title": "Over the Hill with the Swords of a Thousand Men",
+                "episodeNumber": 3,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Attention: If you or a loved one were exposed to Compound V, you may be entitled to financial compensation. Vought has given the drug to multiple victims, without their knowledge or consent. If you believe that you or a loved one were administered Compound V, call the law firm of Bremmer & Bremmer at 1-888-177-2774 for a free legal consultation. Know your rights!",
+                "originalReleaseDate": "2020-09-03",
+                "runtime": 58
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.4ab9ed81-9561-fae2-382b-a91dbe5d446a",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.4ab9ed81-9561-fae2-382b-a91dbe5d446a",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.bcba023f-ec83-d6cf-fa06-30a9c45020b1",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.bcba023f-ec83-d6cf-fa06-30a9c45020b1",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4367128",
+              "objectId": 4367128,
+              "content": {
+                "title": "Nothing Like It in the World",
+                "episodeNumber": 4,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Road trip! The Boys head to North Carolina to follow a lead on a mysterious Supe named Liberty. And did you know a person’s choice of candy bars might tell you if they’re a serial killer? Watch and learn the warning signs! This episode could save your life!",
+                "originalReleaseDate": "2020-09-10",
+                "runtime": 68
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.c2b9ed81-92da-0ce9-7dc1-ec28e84c0e1a",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.c2b9ed81-92da-0ce9-7dc1-ec28e84c0e1a",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.baba023f-1ca6-7d7b-2970-5ba75a8f97f5",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.baba023f-1ca6-7d7b-2970-5ba75a8f97f5",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4368818",
+              "objectId": 4368818,
+              "content": {
+                "title": "We Gotta Go Now",
+                "episodeNumber": 5,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "VoughtStudios is pleased to announce that filming has begun on #DawnOfTheSeven. 12 years of VCU movies have led to this. If you like movies about One Hero, you’ll love a movie about Seven Heroes. Introducing newest member @RealStormfront! See how the legend began! In theaters Summer 2021!",
+                "originalReleaseDate": "2020-09-17",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.18b9ed81-93db-b258-212e-5f36f1e955e0",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.18b9ed81-93db-b258-212e-5f36f1e955e0",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.a8ba023f-1e2e-91ec-281d-77455756115d",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.a8ba023f-1e2e-91ec-281d-77455756115d",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4638674",
+              "objectId": 4638674,
+              "content": {
+                "title": "The Bloody Doors Off",
+                "episodeNumber": 6,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "The Sage Grove Center® is dedicated to caring for those struggling with mental illness. Our compassionate doctors and counselors provide personalized services to help patients live their best lives. If you or a loved one need help, call the Sage Grove Center today at 1-800-122-8585. A proud subsidiary of Global Wellness Services®, which is a proud subsidiary of Vought International®",
+                "originalReleaseDate": "2020-09-24",
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.82b9ed81-9407-8b41-1adc-e7c3fc130f38",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.82b9ed81-9407-8b41-1adc-e7c3fc130f38",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.70ba023f-1dc3-c215-86ff-6ad5288accff",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.70ba023f-1dc3-c215-86ff-6ad5288accff",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4638677",
+              "objectId": 4638677,
+              "content": {
+                "title": "Butcher, Baker, Candlestick Maker",
+                "episodeNumber": 7,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Congresswoman Victoria Neuman’s sham Congressional Hearing against Vought takes place in 3 DAYS. Are we going to let her criminalize Superheroes when we need them most? We have to stand up against such blatant partisan politics. Please join fellow Patriotic Americans and send $20 to VOUGHTPROMISE.COM to tell Neuman and her Kangaroo Court Cronies that they won’t win, “Not On Our Watch”™.",
+                "originalReleaseDate": "2020-10-01",
+                "runtime": 54
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f4b9ed81-92bf-02b2-9ed5-255be1a9c976",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f4b9ed81-92bf-02b2-9ed5-255be1a9c976",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.f8ba023f-1dcf-0ef5-b622-6b709576149f",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.f8ba023f-1dcf-0ef5-b622-6b709576149f",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse4682036",
+              "objectId": 4682036,
+              "content": {
+                "title": "What I Know",
+                "episodeNumber": 8,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "***SUPER VILLAIN ALERT*** YOU ARE RECEIVING THIS NOTIFICATION FROM THE DEPARTMENT OF HOMELAND SECURITY. A SUPER VILLAIN ALERT HAS BEEN ISSUED FOR YOUR AREA. PLEASE BE VIGILANT AND REPORT ANY SUSPICIOUS PERSONS OR ACTIVITY. IF YOU BELIEVE YOU HAVE SEEN A SUPER VILLAIN, DO NOT APPROACH OR ATTEMPT TO APPREHEND THEM. CONTACT LAW ENFORCEMENT IMMEDIATELY",
+                "originalReleaseDate": "2020-10-08",
+                "runtime": 67
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.0ab9ed81-9318-b7b3-f1b5-f3b632540a38",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.0ab9ed81-9318-b7b3-f1b5-f3b632540a38",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.74ba023f-1d0e-59f3-fec7-21271a1b5db8",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.74ba023f-1d0e-59f3-fec7-21271a1b5db8",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss250454",
+          "objectId": 250454,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 3",
+            "seasonNumber": 3,
+            "fullPath": "/us/tv-show/the-boys/season-3",
+            "posterUrl": "/poster/267488210/{profile}/season-3.{format}",
+            "originalReleaseYear": 2022,
+            "originalReleaseDate": "2022-06-02",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse4716901",
+              "objectId": 4716901,
+              "content": {
+                "title": "Payback",
+                "episodeNumber": 1,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "You and a guest are invited to the premiere of DAWN OF THE SEVEN this Tuesday at 7PM in Vought Tower’s Lamplighter Memorial Theater! Screening will be followed by a Q&A with director Adam Bourke and an after-party with Supe DJ Malchemical on the turntables! Join us for the greatest true origin story ever told about America’s number one Superhero team and see how the legend began!",
+                "originalReleaseDate": "2022-06-02",
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.b346f853-671f-431f-82db-4cda8a03fe1f",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.b346f853-671f-431f-82db-4cda8a03fe1f",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.a2337a99-da3a-40f1-8539-653e0e7ef749",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.a2337a99-da3a-40f1-8539-653e0e7ef749",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225373",
+              "objectId": 6225373,
+              "content": {
+                "title": "The Only Man in the Sky",
+                "episodeNumber": 2,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Homelander. America’s greatest Superhero. Defending our shores from sea to shining sea. Today, America honors him on his birthday. And the Vought Shopping Network is celebrating by offering the exclusive Homelander Limited Birthday Edition Gold Coin for only $99.95 (plus tax and shipping) while supplies last. Vought Gold Commemorative Coins: An investment that lasts a lifetime.",
+                "originalReleaseDate": "2022-06-02",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.bdfdcfae-f62d-4e29-9a1b-555be14166e8",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.bdfdcfae-f62d-4e29-9a1b-555be14166e8",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d1bea398-aec6-4b5e-aefd-a1fcc4d92448",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d1bea398-aec6-4b5e-aefd-a1fcc4d92448",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225374",
+              "objectId": 6225374,
+              "content": {
+                "title": "Barbary Coast",
+                "episodeNumber": 3,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Tonight at 9/8C on Vought Plus, it’s the season finale of #AmericanHero! Three contestants remain, but only TWO will join #TheSeven! Will Starlight choose her old flame Supersonic? Or will someone else be moving into the Seven Tower? Tune in tonight for the SHOCKING final episode, brought to you by Lean Lady Frozen Dinners by Vought: Where slim tastes super!",
+                "originalReleaseDate": "2022-06-02",
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.eea7ec1a-5974-4d2f-81ce-2efbeabfbe41",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.eea7ec1a-5974-4d2f-81ce-2efbeabfbe41",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.f82fecc8-92ab-4648-9472-e43b567a3089",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.f82fecc8-92ab-4648-9472-e43b567a3089",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225375",
+              "objectId": 6225375,
+              "content": {
+                "title": "Glorious Five Year Plan",
+                "episodeNumber": 4,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Tonight, streaming live exclusively for Supeporn.com Super-Subscribers, it’s the #ClashOfTheDildos! Which of The Seven-inspired dildos will crush the competition in this tip-to-tip challenge? Will it be the reigning champion Homelander Star-Spangled Banger or Starlight’s electrified Star-Brator? Join us as we put these pleasure-pounding penetrators through their paces! Only on Supeporn.com!",
+                "originalReleaseDate": "2022-06-09",
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5de3790a-9fb5-429d-b245-1f4240a6760a",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5de3790a-9fb5-429d-b245-1f4240a6760a",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.505a1fd8-5d99-402b-b5df-2b9935be76dc",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.505a1fd8-5d99-402b-b5df-2b9935be76dc",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225372",
+              "objectId": 6225372,
+              "content": {
+                "title": "The Last Time to Look on This World of Lies",
+                "episodeNumber": 5,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Did you know chimpanzees are an endangered species largely because of human activity? But you can help by supporting construction costs for Crimson Countess’s Chimp Country! This beautiful refuge for chimpanzees will feature a banana plantation, four daily stunt shows, and a petting zoo! And when you donate, you’ll be entered to win a private video chat with Crimson Countess! Donate today!",
+                "originalReleaseDate": "2022-06-16",
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.4a41af0e-b3a4-49d3-bc5d-b57ba2bf028e",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.4a41af0e-b3a4-49d3-bc5d-b57ba2bf028e",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.7e1dd08c-5e6e-45f2-965a-de7e48650949",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.7e1dd08c-5e6e-45f2-965a-de7e48650949",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225378",
+              "objectId": 6225378,
+              "content": {
+                "title": "Herogasm",
+                "episodeNumber": 6,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "You’re invited to the 70th Annual Herogasm! You must present this invitation in order to be admitted! Same rules as always: no cameras, no non-Supe guests unless they sign an NDA and they’re DTF, and no telling any news media! It’s BYOD, but food, alcohol and lube will be provided! And please remember to RSVP so we can get an accurate headcount for the caterer!",
+                "originalReleaseDate": "2022-06-23",
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f47139b2-7df5-4bc7-a017-d0928dc8c076",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f47139b2-7df5-4bc7-a017-d0928dc8c076",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.30e0f63c-dd2b-4b96-b9d3-e92781018eb2",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.30e0f63c-dd2b-4b96-b9d3-e92781018eb2",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225376",
+              "objectId": 6225376,
+              "content": {
+                "title": "Here Comes a Candle to Light You to Bed",
+                "episodeNumber": 7,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Did someone say birthday? Come celebrate at Buster Beaver’s with our new Deluxe VIP Birthday Package, with seating for up to 30 guests, ten large two-topping pizzas, and ten pitchers of your choice of soda! And of course, a special birthday play starring Buster Beaver and his cast of furry forest friends! All for only $199.99 + tax! Buster Beaver’s Pizza! Where Kids Make the Rules®!",
+                "originalReleaseDate": "2022-06-30",
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f8f2615e-1689-4cc5-9700-bbe1e67b1742",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f8f2615e-1689-4cc5-9700-bbe1e67b1742",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.be7252a0-6935-48cb-8dbe-55434ee1010b",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.be7252a0-6935-48cb-8dbe-55434ee1010b",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6225377",
+              "objectId": 6225377,
+              "content": {
+                "title": "The Instant White-Hot Wild",
+                "episodeNumber": 8,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Calling all patriots! Let’s show Homelander we’ve got his back and we’re not going to let Starlight and her Starlight House of Horrors get away with trafficking children and drinking their adrenaline! It’s time for real Americans to fight back! Join the Hometeamers and Stormchasers tomorrow at Vought Square! Stand back and stand by!",
+                "originalReleaseDate": "2022-07-07",
+                "runtime": 62
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.1584489b-d6c4-46ad-95d4-1bf36abf9fe1",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.1584489b-d6c4-46ad-95d4-1bf36abf9fe1",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.4b296916-9951-494c-8c59-594faba2d869",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.4b296916-9951-494c-8c59-594faba2d869",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss371803",
+          "objectId": 371803,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 4",
+            "seasonNumber": 4,
+            "fullPath": "/us/tv-show/the-boys/season-4",
+            "posterUrl": "/poster/315996798/{profile}/season-4.{format}",
+            "originalReleaseYear": 2024,
+            "originalReleaseDate": "2024-06-13",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse6838437",
+              "objectId": 6838437,
+              "content": {
+                "title": "Department of Dirty Tricks",
+                "episodeNumber": 1,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "CALLING ALL PATRIOTS. BE AT THE COURTHOUSE TOMORROW FOR HOMELANDER'S #VERDICT AND BE READY. IF THE CORRUPT \"JUSTICE\" SYSTEM WANTS TO F**K AROUND, THEY'RE GONNA FIND OUT. #HOMEFREE",
+                "originalReleaseDate": "2024-06-13",
+                "runtime": 62
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.7ab176e2-c4b9-4b36-ad07-7c09f87fc347",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.7ab176e2-c4b9-4b36-ad07-7c09f87fc347",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.684a8d93-e376-4972-b2ec-d4f8bd09a8c4",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.684a8d93-e376-4972-b2ec-d4f8bd09a8c4",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832370",
+              "objectId": 7832370,
+              "content": {
+                "title": "Life Among the Septics",
+                "episodeNumber": 2,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Did you know globalists put chemicals in food to make us gay, Dakota Bob is a demon from hell, and the Moon isn't real? Find out what they don't want you to know at #TruthCon!",
+                "originalReleaseDate": "2024-06-13",
+                "runtime": 59
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e2134db3-a07f-467e-b429-89552e43645a",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e2134db3-a07f-467e-b429-89552e43645a",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.90e15ec0-a00d-4076-9a1e-ad2a78f1df18",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.90e15ec0-a00d-4076-9a1e-ad2a78f1df18",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832371",
+              "objectId": 7832371,
+              "content": {
+                "title": "We'll Keep the Red Flag Flying Here",
+                "episodeNumber": 3,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "This December at VoughtCoin Arena, experience the story of Christmas the way it was meant to be told... on ice! Vought Presents Vought on Ice! Tickets available now at VoughtOnIce.com!",
+                "originalReleaseDate": "2024-06-13",
+                "runtime": 60
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f62ea081-9cb4-4f29-a075-e2ed7ef9189b",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.f62ea081-9cb4-4f29-a075-e2ed7ef9189b",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.06eaca4e-01e9-443d-93b4-c440fbab6231",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.06eaca4e-01e9-443d-93b4-c440fbab6231",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832372",
+              "objectId": 7832372,
+              "content": {
+                "title": "Wisdom of the Ages",
+                "episodeNumber": 4,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Vought News Network is proud to announce its new series #Truthbomb! Join host Firecracker and her celebrity guests for the live 6-hour premiere as they expose Starlight's Adrenochrome Parties!",
+                "originalReleaseDate": "2024-06-20",
+                "runtime": 63
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.78b25e59-d00f-4b07-a42f-89d2ffaf13c3",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.78b25e59-d00f-4b07-a42f-89d2ffaf13c3",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.56e74bd7-9f6b-4840-8993-3bb5c158672a",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.56e74bd7-9f6b-4840-8993-3bb5c158672a",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832373",
+              "objectId": 7832373,
+              "content": {
+                "title": "Beware the Jabberwock, My Son",
+                "episodeNumber": 5,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Attention #superfans! This year at #V52 see A-Train live and in person, as he presents an exclusive sneak peek at his powerful, true-life story: TRAINING A-TRAIN! V52: Powered by fans, for fans!",
+                "originalReleaseDate": "2024-06-27",
+                "runtime": 68
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.87540baa-b3ab-4b36-84e6-fcd653e64170",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.87540baa-b3ab-4b36-84e6-fcd653e64170",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.882e0402-f0c5-46e6-b7df-148cfc673202",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.882e0402-f0c5-46e6-b7df-148cfc673202",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832374",
+              "objectId": 7832374,
+              "content": {
+                "title": "Dirty Business",
+                "episodeNumber": 6,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Vernon Correctional Services provides compassionate rehabilitation to those in our care to prepare them for successful community reentry. At Vernon, it's not about custody. It's about family.",
+                "originalReleaseDate": "2024-07-04",
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d91773a8-c4d8-4e6a-8e9b-310c128c91de",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d91773a8-c4d8-4e6a-8e9b-310c128c91de",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.60b1919f-7585-4d2f-ac9c-6a4b3d189116",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.60b1919f-7585-4d2f-ac9c-6a4b3d189116",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7832375",
+              "objectId": 7832375,
+              "content": {
+                "title": "The Insider",
+                "episodeNumber": 7,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Hey kids! Did you know your neighbor, uncle, or even Mom and Dad might be trying to destroy America? Find out how to stop them on the Avenue V Christmas Special! If you see something, say something!",
+                "originalReleaseDate": "2024-07-11",
+                "runtime": 64
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.dee30146-6ccd-49e4-bfe4-0ce20142f693",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.dee30146-6ccd-49e4-bfe4-0ce20142f693",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.3547043b-50ce-47a7-b01b-10543f4bc100",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.3547043b-50ce-47a7-b01b-10543f4bc100",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse7258568",
+              "objectId": 7258568,
+              "content": {
+                "title": "Season Four Finale",
+                "episodeNumber": 8,
+                "seasonNumber": 4,
+                "isReleased": true,
+                "shortDescription": "Calling all patriots! We will not allow this stolen election to be certified tomorrow! We must stop Bob Singer's woke anti-Supe agenda! PREPARE FOR WAR! #WhereWeGoOneWeGoVought",
+                "originalReleaseDate": "2024-07-18",
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e88762ee-811c-44ae-8dd1-a795c7c1660c",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e88762ee-811c-44ae-8dd1-a795c7c1660c",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.420c2bf0-2e6a-4fbf-bdfc-713561d2b902",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.420c2bf0-2e6a-4fbf-bdfc-713561d2b902",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss453461",
+          "objectId": 453461,
+          "totalEpisodeCount": 8,
+          "content": {
+            "title": "Season 5",
+            "seasonNumber": 5,
+            "fullPath": "/us/tv-show/the-boys/season-5",
+            "posterUrl": "/poster/332222832/{profile}/season-5.{format}",
+            "originalReleaseYear": 2026,
+            "originalReleaseDate": "2026-04-08",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse8411835",
+              "objectId": 8411835,
+              "content": {
+                "title": "Fifteen Inches of Sheer Dynamite",
+                "episodeNumber": 1,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "ATTENTION FREEDOM CAMPERS: ESCAPE ATTEMPTS WILL BE MET WITH DEADLY FORCE. Have a super day!",
+                "originalReleaseDate": "2026-04-08",
+                "runtime": 63
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e8b4ca5d-19d9-41fc-92d2-aa8bf71af3b4",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e8b4ca5d-19d9-41fc-92d2-aa8bf71af3b4",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d2334c3c-bbb3-474c-b709-cae74bb8f9bf",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.d2334c3c-bbb3-474c-b709-cae74bb8f9bf",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984664",
+              "objectId": 9984664,
+              "content": {
+                "title": "Teenage Kix",
+                "episodeNumber": 2,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "Tonight at 9/8C a @VoughtNews special report: Is your loved one a secret Starlighter terrorist?",
+                "originalReleaseDate": null,
+                "runtime": 62
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.0cdfdd1a-6b63-46d9-a907-47413460c122",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.0cdfdd1a-6b63-46d9-a907-47413460c122",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.993cfc02-252b-4b79-8e0a-9eac24f251fb",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.993cfc02-252b-4b79-8e0a-9eac24f251fb",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984665",
+              "objectId": 9984665,
+              "content": {
+                "title": "Every One of You Sons of Bitches",
+                "episodeNumber": 3,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "Storm her senses with V-Bro Mango Thunder Body Spray by Vought! She'll never know what hit her!",
+                "originalReleaseDate": null,
+                "runtime": 62
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d4996a28-463d-492a-a701-e273cf38c2f3",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d4996a28-463d-492a-a701-e273cf38c2f3",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0531ab51-b0c4-41ff-b3fe-4eb8c482068c",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0531ab51-b0c4-41ff-b3fe-4eb8c482068c",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984666",
+              "objectId": 9984666,
+              "content": {
+                "title": "King of Hell",
+                "episodeNumber": 4,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "I DET HÄR HUSET TROR VI PÅ HOMELANDER!",
+                "originalReleaseDate": null,
+                "runtime": 62
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.66a492b6-44c4-4a98-a14a-f47e339b30ad",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.66a492b6-44c4-4a98-a14a-f47e339b30ad",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.bac3ebfb-702b-4684-bb51-b5efc02efc83",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.bac3ebfb-702b-4684-bb51-b5efc02efc83",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984667",
+              "objectId": 9984667,
+              "content": {
+                "title": "One-Shots",
+                "episodeNumber": 5,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "Tonight at 9/8C a @VoughtNews special report: Treason in Tinseltown! Find out which of your favorite Hollywood stars are rumored to be Starlighters!",
+                "originalReleaseDate": null,
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e385b182-f347-4ff3-b78f-a7cf927e3f19",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.e385b182-f347-4ff3-b78f-a7cf927e3f19",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.2ca60d43-fd2d-45ce-a1fd-01c7b94acf77",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.2ca60d43-fd2d-45ce-a1fd-01c7b94acf77",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984668",
+              "objectId": 9984668,
+              "content": {
+                "title": " Though the Heavens Fall",
+                "episodeNumber": 6,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "Available now, EXCLUSIVELY at @VMCtheaters, get the new #DeepPopcornBucket for only $32.99!",
+                "originalReleaseDate": null,
+                "runtime": 61
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.cb3a8c0f-5efa-46a1-8609-7e5efbcf02c6",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.cb3a8c0f-5efa-46a1-8609-7e5efbcf02c6",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.9a8cf3d9-1f39-4b8c-8dd8-e9793a8b6b63",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.9a8cf3d9-1f39-4b8c-8dd8-e9793a8b6b63",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984669",
+              "objectId": 9984669,
+              "content": {
+                "title": "The Frenchman, the Female, and the Man Called Mother's Milk",
+                "episodeNumber": 7,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "WARNING: EXERCISE CAUTION WHEN ENTERING SOUNDSTAGE. PERFORMERS MAY BE USING SUPERPOWERS.",
+                "originalReleaseDate": null,
+                "runtime": 66
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.51dd21df-62d2-422f-9e3d-6f012514ea6c",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.51dd21df-62d2-422f-9e3d-6f012514ea6c",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.3f10d564-7bca-407e-8228-57d7a223d670",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.3f10d564-7bca-407e-8228-57d7a223d670",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse9984670",
+              "objectId": 9984670,
+              "content": {
+                "title": "Blood and Bone",
+                "episodeNumber": 8,
+                "seasonNumber": 5,
+                "isReleased": true,
+                "shortDescription": "Easter Sunday. 2PM. Live on @VoughtNews. Bear witness as Homelander reboots the universe.",
+                "originalReleaseDate": null,
+                "runtime": 65
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.55bc7391-04d9-4635-83fd-e47ff65ce8a6",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.55bc7391-04d9-4635-83fd-e47ff65ce8a6",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.01400a26-ae71-4cda-8bb6-c1b99836ab1d",
+                  "package": {
+                    "shortName": "amp"
+                  }
+                },
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.01400a26-ae71-4cda-8bb6-c1b99836ab1d",
+                  "package": {
+                    "shortName": "pva"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

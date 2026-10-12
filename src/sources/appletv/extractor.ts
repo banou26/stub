@@ -21,7 +21,10 @@ export const supportedUris = ['appletv']
 export const color = '#e8e8ed'
 
 const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
-const PARAMS = 'caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0'
+// The US storefront, so every url minted here is a /us/ one. Japan's is 143462; which of the two plays
+// for a Japanese account is for a live check to settle.
+const STOREFRONT = '143441'
+const PARAMS = `caller=web&sf=${STOREFRONT}&v=58&pfm=web&locale=en-US&utsk=0`
 
 const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T> =>
   ctx

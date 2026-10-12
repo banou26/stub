@@ -35,12 +35,55 @@ const LANGUAGE = 'en'
 // and Mushoku Tensei has no US Netflix offer at all while JP names `nf:80987039`. Asking US alone is
 // therefore blind to Netflix for most of this catalogue.
 //
-// Offers from both countries are concatenated and `buildOffersAsHandles` dedupes by package
-// shortName, so US wins for any service in both and JP only ever adds. A JP-only service mints
-// nothing: `extractContentId` switches on the deep link's HOST and returns undefined for one it does
-// not know, so happyon.jp or abema.tv contribute no handle. Netflix is safe to take from either
-// because its host and title id are the same worldwide.
+// Offers from both countries are concatenated, the viewer's own first (`offersOf`), and the first offer
+// per service wins, so the other country only ever adds. A JP-only service mints nothing:
+// `extractContentId` switches on the deep link's HOST and returns undefined for one it does not know,
+// so happyon.jp or abema.tv contribute no handle. Prime Video in Japan is the exception: its
+// watch.amazon.co.jp gti mints, for every viewer, though it plays in Japan alone. Netflix is safe to
+// take from either because its host and title id are the same worldwide.
 const OFFER_COUNTRIES = { primary: COUNTRY, extra: 'JP' } as const
+
+/**
+ * Which of the two countries asked is the viewer's, read off the time zone, else the US. A Prime Video
+ * gti is per catalogue, and a US one sends a viewer in Japan to the amazon.com shop.
+ */
+export const viewerCountry = (timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) =>
+  timeZone === 'Asia/Tokyo' ? OFFER_COUNTRIES.extra : OFFER_COUNTRIES.primary
+
+const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: JWOffer[] }) =>
+  viewerCountry() === OFFER_COUNTRIES.extra
+    ? [...extraOffers ?? [], ...offers ?? []]
+    : [...offers ?? [], ...extraOffers ?? []]
+
+// Prime Video, Disney+ and Max, whose `deeplinkURL` plays the film or episode itself where
+// `standardWebURL` opens the title's page: /watch?gti=, /play/<id> and /video/watch/<id>
+const PLAYBACK_ORIGINS = ['amazon', 'disney', 'hbo']
+const PLAYBACK_PACKAGES = Object.keys(PACKAGE_ORIGIN_MAP).filter(name => PLAYBACK_ORIGINS.includes(PACKAGE_ORIGIN_MAP[name]!))
+
+const OFFER = `
+            monetizationType
+            presentationType
+            standardWebURL
+            deeplinkURL(platform: WEB)
+            package {
+              id
+              packageId
+              clearName
+              technicalName
+              shortName
+              icon(profile: S100)
+            }`
+
+const episodeOffers = (country: string) => `
+                country: ${country}, platform: WEB,
+                filter: { monetizationTypes: [FLATRATE_AND_BUY, FLATRATE, ADS, FREE], bestOnly: true, packages: ${JSON.stringify(PLAYBACK_PACKAGES)} }
+              ) {
+                monetizationType
+                deeplinkURL(platform: WEB)
+                package {
+                  shortName
+                }
+              }`
 
 const extractRealUrl = (affiliateUrl: string): string | undefined => {
   try {
@@ -96,31 +139,9 @@ const SEARCH_QUERY = `
             }
             productionCountries
           }
-          offers(country: $country, platform: WEB, filter: { bestOnly: true }) {
-            monetizationType
-            presentationType
-            standardWebURL
-            package {
-              id
-              packageId
-              clearName
-              technicalName
-              shortName
-              icon(profile: S100)
-            }
+          offers(country: $country, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
-          extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {
-            monetizationType
-            presentationType
-            standardWebURL
-            package {
-              id
-              packageId
-              clearName
-              technicalName
-              shortName
-              icon(profile: S100)
-            }
+          extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
           ... on Show {
             seasons(sortDirection: ASC) {
@@ -161,31 +182,9 @@ const nodeQuery = (details: string) => `
           }
           productionCountries${details}
         }
-        offers(country: $country, platform: WEB, filter: { bestOnly: true }) {
-          monetizationType
-          presentationType
-          standardWebURL
-          package {
-            id
-            packageId
-            clearName
-            technicalName
-            shortName
-            icon(profile: S100)
-          }
+        offers(country: $country, platform: WEB, filter: { bestOnly: true }) {${OFFER}
         }
-        extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {
-          monetizationType
-          presentationType
-          standardWebURL
-          package {
-            id
-            packageId
-            clearName
-            technicalName
-            shortName
-            icon(profile: S100)
-          }
+        extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
         }
         ... on Show {
           totalSeasonCount
@@ -214,16 +213,8 @@ const nodeQuery = (details: string) => `
                 originalReleaseDate
                 runtime
               }
-              flatrate: offers(
-                country: $country, platform: WEB,
-                filter: { monetizationTypes: [FLATRATE_AND_BUY, FLATRATE, ADS, FREE], bestOnly: true }
-              ) {
-                package {
-                  clearName
-                  packageId
-                  shortName
-                }
-              }
+              offers(${episodeOffers('$country')}
+              extraOffers: offers(${episodeOffers('$extraCountry')}
             }
           }
         }
@@ -301,8 +292,10 @@ const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: b
 
 interface JWOffer {
   monetizationType: string
-  standardWebURL: string | null
-  package: { clearName: string, shortName: string }
+  /** absent on an episode's offer, which asks only for the deep link */
+  standardWebURL?: string | null
+  deeplinkURL?: string | null
+  package: { shortName: string }
 }
 
 interface JWSearchNode {
@@ -379,6 +372,9 @@ interface JWEpisode {
     originalReleaseDate?: string | null
     runtime: number | null
   }
+  /** this episode's offers on PLAYBACK_ORIGINS alone, in the title's two countries */
+  offers?: JWOffer[]
+  extraOffers?: JWOffer[]
 }
 
 interface JWCredit { role: string, name: string, characterName: string | null, personId: number }
@@ -586,7 +582,7 @@ export const showAsContainer = async (
   // is downgraded to a contested PART_OF and the listing hides the show behind a row that draws no card
   // (`onlyContested`, graph/plugins/containment.ts): measured 2026-10-12, every show of the home row.
   const handles = listed ? [] : await buildOffersAsHandles(
-    [...node.offers ?? [], ...node.extraOffers ?? []],
+    offersOf(node),
     { showContainer: true },
     ctx,
     policy
@@ -639,14 +635,12 @@ const normalizeMedia = async (
     ? (opts.seasons ?? []).filter(s => s.content.seasonNumber === opts.seasonNumber)
     : opts.seasons ?? []
 
-  const episodes: GQLEpisode[] = filteredSeasons.flatMap(season =>
-    (season.episodes ?? [])
-      .filter(ep => ep.content.isReleased)
-      .map(ep => normalizeEpisode(ep, toUri({ origin, id })))
-  )
+  const released = filteredSeasons.flatMap(season => (season.episodes ?? []).filter(ep => ep.content.isReleased))
+  const episodes = released.flatMap(ep => episodesOf(ep, toUri({ origin, id })))
 
+  const offers = offersOf(node)
   const handles = await buildOffersAsHandles(
-    [...node.offers ?? [], ...node.extraOffers ?? []],
+    offers,
     { seasonNumber: opts.seasonNumber },
     ctx,
     policy
@@ -690,7 +684,7 @@ const normalizeMedia = async (
     titles: title ? [{ language: 'en', title, score: SCORE }] : [],
     // the search query carries totalEpisodeCount but not the episodes themselves, so an expanded
     // season still reports how long it is - which is also what season matching elsewhere keys on
-    episodeCount: episodes.length || filteredSeasons.reduce((total, season) => total + (season.totalEpisodeCount ?? 0), 0) || undefined,
+    episodeCount: released.length || filteredSeasons.reduce((total, season) => total + (season.totalEpisodeCount ?? 0), 0) || undefined,
     // the SEASON's own date, and its own year when it names no day. Only the YEAR falls back to the
     // show's: a season media publishing the show's DATE publishes the franchise's FIRST season's as
     // its own start date, which every date comparison downstream then reads as this season's - the
@@ -706,7 +700,10 @@ const normalizeMedia = async (
   // A film's episode is the film, so it takes the media's own title and description: `makeMovieEpisode`
   // copies `media.titles`, which is now where the title is.
   if (isMovie(media)) {
-    media.episodes = [makeMovieEpisode(media, { score: SCORE, ...desc(shortDescription, SCORE) })]
+    media.episodes = [
+      makeMovieEpisode(media, { score: SCORE, ...desc(shortDescription, SCORE) }),
+      ...playbackLinks(offers).map(link => makeMovieEpisode(media, { ...link, score: SCORE })),
+    ]
     media.episodeCount = 1
   }
 
@@ -729,6 +726,39 @@ const normalizeEpisode = (ep: JWEpisode, mediaUri: string): GQLEpisode =>
     episodeNumber: ep.content.episodeNumber,
     runtime: ep.content.runtime ?? undefined
   })
+
+/**
+ * Where each service in PLAYBACK_ORIGINS plays this film or episode: the first offer per service wins,
+ * so `offersOf` decides whose catalogue. The id is the one the deep link names, which on Max is not the
+ * title's (a film plays /video/watch/<id> from a /show/<other id> page), so it goes on an episode and
+ * never on a media handle.
+ */
+const playbackLinks = (offers: JWOffer[]) => {
+  const links = new Map<string, { origin: string, id: string, url: string }>()
+  for (const { deeplinkURL, package: { shortName } } of offers) {
+    const service = PACKAGE_ORIGIN_MAP[shortName]
+    const id = deeplinkURL ? extractContentId(deeplinkURL) : undefined
+    if (!service || !id || links.has(service) || !PLAYBACK_ORIGINS.includes(service)) continue
+    links.set(service, { origin: service, id, url: deeplinkURL! })
+  }
+  return [...links.values()]
+}
+
+/**
+ * JustWatch's episode, and beside it one episode per service that plays it, hung on the same media so
+ * the graph files them under one slot. Not as a handle on JustWatch's episode: a handle's target hangs
+ * on no media, so the graph refuses that claim `foreign-episode` and the link never reaches the row.
+ */
+const episodesOf = (ep: JWEpisode, mediaUri: string): GQLEpisode[] => [
+  normalizeEpisode(ep, mediaUri),
+  ...playbackLinks(offersOf(ep)).map(link => makeEpisode({
+    ...link,
+    mediaUri,
+    score: SCORE,
+    seasonNumber: ep.content.seasonNumber,
+    episodeNumber: ep.content.episodeNumber,
+  })),
+]
 
 // Which of the node's seasons the aggregated media is, through the shared picker, re-asked as the
 // cluster's evidence lands. The lone-season shortcut, the bare title ordinal and the unique count that
@@ -972,7 +1002,7 @@ export const resolvers: Resolvers = {
         ? node.seasons.filter(s => s.content.seasonNumber === seasonNumber)
         : node.seasons
       return seasons.flatMap(s =>
-        (s.episodes ?? []).filter(ep => ep.content.isReleased).map(ep => normalizeEpisode(ep, parent.uri))
+        (s.episodes ?? []).filter(ep => ep.content.isReleased).flatMap(ep => episodesOf(ep, parent.uri))
       )
     }
   }

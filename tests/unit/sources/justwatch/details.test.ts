@@ -86,20 +86,19 @@ test('only an actor stands under a part: a director JustWatch gives a part is st
   })
 })
 
-// Taken once genre names and production countries joined both bodies, since a title's anime signal
-// has to reach the modal and the listing too. Every change here sends each JustWatch request past the
-// relay's cache once.
+// Taken once every offer asked for its deep link, which is what plays a film or an episode. Every
+// change here sends each JustWatch request past the relay's cache once.
 test('the details form goes out only when asked, and the modal and listing bodies are pinned', async () => {
   const modal = await open(DUNE, 'jw:1133934')
   const page = await open(DUNE, 'jw:1133934', true)
-  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('1ec0f18dc883939183ec3813a09765bef8449c0152d1f03c2a6c53afd44692f7')
+  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('48a6136915b543bdeeeb97c3b29c77bf0a5cd6da12e9b8090101abefa9ad26f7')
   expect(page.bodies[0], 'the page body').toContain('scoring {')
 
   const listing: string[] = []
   const context = { fetch: async (_: string, init: { body: string }) => (listing.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   await subscribe(undefined, { input: { search: 'Dune' } }, context).next()
-  expect(sha256(listing[0]!), 'the listing body').toBe('df1297e746a82480e970a726429b65f153b80e89f220b5489bec7f75cd5cfd54')
+  expect(sha256(listing[0]!), 'the listing body').toBe('11218f067a2d02fad0abc567fa1ce7d92a1e25c7623e4460b186e924d2643911')
 })
 
 test('a title the page found by search asks the details form too', async () => {

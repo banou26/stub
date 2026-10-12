@@ -13,6 +13,7 @@ import { expect, test } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
 import { resolvers } from '../../../../src/sources/justwatch/extractor'
+import { viewerIn } from './viewer'
 
 const JW_API = 'https://apis.justwatch.com/graphql'
 const CMS = 'https://www.crunchyroll.com/content/v2/cms'
@@ -484,10 +485,11 @@ test('a netflix offer that only the second licensing region carries still mints 
   expect(idFor(usOnly.map(edge => edge.node), 'nf'), 'no netflix offer in either region').toEqual([])
 })
 
-// A service both regions carry keeps the PRIMARY region's url, because a deep link is regional and the
-// id read off it is not always. Netflix's is worldwide, but Amazon and Disney number per storefront,
-// so the order the two lists are concatenated in is load bearing rather than incidental.
+// A service both regions carry keeps the VIEWER's region url, here the primary's, because a deep link
+// is regional and the id read off it is not always. Netflix's is worldwide, but Amazon numbers per
+// storefront, so the order the two lists are concatenated in is load bearing rather than incidental.
 test('a service in both regions keeps the primary region url, and the second only adds', async () => {
+  viewerIn('America/New_York')
   const bothRegions = {
     ...node,
     offers: [

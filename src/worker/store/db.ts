@@ -136,8 +136,10 @@ export async function upsertMedia(
   let changed = false
   const landed: string[] = []
 
+  const episodes = graph.labeled('episode')
   for (const media of newMedias) {
-    if (isPlaceholder(media)) continue
+    // see `upsertEpisodes`: a uri already stored as an episode stays one
+    if (isPlaceholder(media) || episodes.has(media.uri)) continue
     const isNew = !graph.has(media.uri)
     // Scope is STICKY toward CONTAINER: once any row for this uri said CONTAINER, a later row that says
     // RUN or says nothing does not flip it back. The failure with no inverse is a wrong SAME_AS, and
@@ -180,7 +182,7 @@ export async function upsertMedia(
     // seasons that hold it. This store has no edge for that direction, and reading it as PART_OF
     // would point the containment the wrong way round, so it is refused here rather than guessed.
     if (relation === 'INCLUDES') continue
-    const undescribed = [mediaUri, handleUri].filter(uri => !graph.has(uri))
+    const undescribed = [mediaUri, handleUri].filter(uri => !graph.labeled('media').has(uri))
     if (undescribed.length) {
       for (const uri of undescribed) defer(uri, claim)
       continue
@@ -405,7 +407,11 @@ export async function upsertEpisodes(
   newEpisodes: Episode[],
   handles: { episodeUri: string; handleUri: string; relation?: ClaimedRelation }[]
 ) {
+  // One uri can name a title and also the episode that plays it (a Prime film's gti, or a Prime
+  // season's, which its first episode carries), and a node takes one of the two labels: the first wins.
+  const media = graph.labeled('media')
   for (const episode of newEpisodes) {
+    if (media.has(episode.uri)) continue
     graph.set(episode.uri, episode, { addLabels: ['episode'] })
     graph.edge(episode.mediaUri, episode.uri, HAS_EPISODE)
   }

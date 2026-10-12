@@ -1,0 +1,220 @@
+{
+  "data": {
+    "node": {
+      "id": "tm1349029",
+      "objectId": 1349029,
+      "objectType": "MOVIE",
+      "content": {
+        "title": "Saltburn",
+        "fullPath": "/us/movie/saltburn",
+        "originalReleaseYear": 2023,
+        "originalReleaseDate": "2023-11-16",
+        "shortDescription": "Struggling to find his place at Oxford University, student Oliver Quick finds himself drawn into the world of the charming and aristocratic Felix Catton, who invites him to Saltburn, his eccentric family's sprawling estate, for a summer never to be forgotten.",
+        "posterUrl": "/poster/308846710/s718/saltburn.jpg",
+        "externalIds": {
+          "imdbId": "tt17351924"
+        },
+        "genres": [
+          {
+            "shortName": "drm",
+            "translation": "Drama"
+          },
+          {
+            "shortName": "trl",
+            "translation": "Mystery & Thriller"
+          }
+        ],
+        "productionCountries": [
+          "GB",
+          "US"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "package": {
+            "id": "cGF8OQ==",
+            "packageId": 9,
+            "clearName": "Amazon Prime Video",
+            "technicalName": "amazonprime",
+            "shortName": "amp",
+            "icon": "/icon/322992749/s100/amazonprime.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.afa4102f-b9a7-479c-bcaf-88002425b471",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.afa4102f-b9a7-479c-bcaf-88002425b471",
+          "package": {
+            "id": "cGF8MTgyNQ==",
+            "packageId": 1825,
+            "clearName": "HBO Max Amazon Channel",
+            "technicalName": "amazonhbomax",
+            "shortName": "aho",
+            "icon": "/icon/343788557/s100/amazonhbomax.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "package": {
+            "id": "cGF8NjEz",
+            "packageId": 613,
+            "clearName": "Amazon Prime Video Free with Ads",
+            "technicalName": "amazonimdbtv",
+            "shortName": "aim",
+            "icon": "/icon/327791663/s100/amazonimdbtv.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://play.hbomax.com/show/3b1e7e8e-d19f-4be3-bda0-859aa65b4a4e?utm_source=universal_search",
+          "deeplinkURL": "https://play.hbomax.com/video/watch/7c9a9a6d-2383-483a-b59a-603b1eab3d20?utm_source=universal_search",
+          "package": {
+            "id": "cGF8MTg5OQ==",
+            "packageId": 1899,
+            "clearName": "HBO Max",
+            "technicalName": "max",
+            "shortName": "mxx",
+            "icon": "/icon/332884837/s100/max.{format}"
+          }
+        },
+        {
+          "monetizationType": "CINEMA",
+          "presentationType": "CANVAS",
+          "standardWebURL": "https://www.fandango.com/saltburn-2023-233019/movie-overview",
+          "deeplinkURL": "https://www.fandango.com/saltburn-2023-233019/movie-overview",
+          "package": {
+            "id": "cGF8NjA=",
+            "packageId": 60,
+            "clearName": "Fandango",
+            "technicalName": "fandango",
+            "shortName": "fad",
+            "icon": "/icon/811323/s100/fandango.{format}"
+          }
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "package": {
+            "id": "cGF8MjEwMA==",
+            "packageId": 2100,
+            "clearName": "Amazon Prime Video with Ads",
+            "technicalName": "amazonprimevideowithads",
+            "shortName": "pva",
+            "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+          }
+        },
+        {
+          "monetizationType": "ADS",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "package": {
+            "id": "cGF8MTg5OA==",
+            "packageId": 1898,
+            "clearName": "Amazon MX Player",
+            "technicalName": "amazonminitv",
+            "shortName": "mni",
+            "icon": "/icon/324478870/s100/amazonminitv.{format}"
+          }
+        },
+        {
+          "monetizationType": "LINEAR_FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.philo.com/player/player/broadcast/QnJvYWRjYXN0OjYwODU0ODg5OTY4MzIwOTI5Nw",
+          "deeplinkURL": "https://www.philo.com/player/player/broadcast/QnJvYWRjYXN0OjYwODU0ODg5OTY4MzIwOTI5Nw",
+          "package": {
+            "id": "cGF8Mjc2MQ==",
+            "packageId": 2761,
+            "clearName": "Philo Live",
+            "technicalName": "philofast",
+            "shortName": "phi",
+            "icon": "/icon/348553034/s100/philofast.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://tv.apple.com/us/movie/saltburn/umc.cmc.39xm0uezcdh9mo95x4uuoyoqt?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1726970757",
+          "deeplinkURL": "https://tv.apple.com/us/movie/saltburn/umc.cmc.39xm0uezcdh9mo95x4uuoyoqt?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A1726970757",
+          "package": {
+            "id": "cGF8Mg==",
+            "packageId": 2,
+            "clearName": "Apple TV Store",
+            "technicalName": "itunes",
+            "shortName": "itu",
+            "icon": "/icon/338253243/s100/itunes.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.plex.tv/movie/saltburn-2023?utm_content=61f4fc0f3e33b8e48e80c03f&utm_medium=deeplink&utm_source=justWatch-v2-catalog",
+          "deeplinkURL": "https://watch.plex.tv/movie/saltburn-2023?utm_content=61f4fc0f3e33b8e48e80c03f&utm_medium=deeplink&utm_source=justWatch-v2-catalog",
+          "package": {
+            "id": "cGF8NTM4",
+            "packageId": 538,
+            "clearName": "Plex",
+            "technicalName": "plex",
+            "shortName": "plx",
+            "icon": "/icon/301832745/s100/plex.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        },
+        {
+          "monetizationType": "RENT",
+          "presentationType": "_4K",
+          "standardWebURL": "https://athome.fandango.com/content/browse/details/Saltburn/2963917",
+          "deeplinkURL": "https://athome.fandango.com/content/browse/details/Saltburn/2963917",
+          "package": {
+            "id": "cGF8Nw==",
+            "packageId": 7,
+            "clearName": "Fandango At Home",
+            "technicalName": "vudu",
+            "shortName": "vdu",
+            "icon": "/icon/346744144/s100/vudu.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "BUY",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.ed457f7e-8962-4a34-acb8-65adce923181",
+          "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.ed457f7e-8962-4a34-acb8-65adce923181",
+          "package": {
+            "id": "cGF8MTA=",
+            "packageId": 10,
+            "clearName": "Amazon Video",
+            "technicalName": "amazon",
+            "shortName": "amz",
+            "icon": "/icon/340823436/s100/amazon.{format}"
+          }
+        }
+      ]
+    }
+  }
+}

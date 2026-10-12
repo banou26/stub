@@ -1,0 +1,856 @@
+{
+  "data": {
+    "node": {
+      "id": "ts85391",
+      "objectId": 85391,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Andor",
+        "fullPath": "/us/tv-show/andor",
+        "originalReleaseYear": 2022,
+        "originalReleaseDate": "2022-09-21",
+        "shortDescription": "In an era filled with danger, deception and intrigue, Cassian Andor will discover the difference he can make in the struggle against the tyrannical Galactic Empire. He embarks on a path that is destined to turn him into a rebel hero.",
+        "posterUrl": "/poster/330389824/s718/andor.jpg",
+        "externalIds": {
+          "imdbId": "tt9253284"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "drm",
+            "translation": "Drama"
+          },
+          {
+            "shortName": "fnt",
+            "translation": "Fantasy"
+          },
+          {
+            "shortName": "trl",
+            "translation": "Mystery & Thriller"
+          },
+          {
+            "shortName": "scf",
+            "translation": "Science-Fiction"
+          }
+        ],
+        "productionCountries": [
+          "US"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://www.disneyplus.com/browse/entity-faba988a-a9f5-45f2-a074-0775a7d6f67a",
+          "deeplinkURL": "https://www.disneyplus.com/play/91310366-d44b-44a4-bdc4-71f999472826",
+          "package": {
+            "id": "cGF8MzM3",
+            "packageId": 337,
+            "clearName": "Disney Plus",
+            "technicalName": "disneyplus",
+            "shortName": "dnp",
+            "icon": "/icon/313118777/s100/disneyplus.{format}"
+          }
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://www.disneyplus.com/browse/entity-faba988a-a9f5-45f2-a074-0775a7d6f67a",
+          "deeplinkURL": "https://www.disneyplus.com/play/91310366-d44b-44a4-bdc4-71f999472826",
+          "package": {
+            "id": "cGF8MzM3",
+            "packageId": 337,
+            "clearName": "Disney Plus",
+            "technicalName": "disneyplus",
+            "shortName": "dnp",
+            "icon": "/icon/313118777/s100/disneyplus.{format}"
+          }
+        }
+      ],
+      "totalSeasonCount": 2,
+      "seasons": [
+        {
+          "id": "tss210776",
+          "objectId": 210776,
+          "totalEpisodeCount": 12,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/andor/season-1",
+            "posterUrl": "/poster/330389868/{profile}/season-1.{format}",
+            "originalReleaseYear": 2022,
+            "originalReleaseDate": "2022-09-21",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse3870053",
+              "objectId": 3870053,
+              "content": {
+                "title": "Kassa",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Cassian Andor's reckless search for answers about his past makes him a wanted man.",
+                "originalReleaseDate": "2022-09-21",
+                "runtime": 41
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/91310366-d44b-44a4-bdc4-71f999472826",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/91310366-d44b-44a4-bdc4-71f999472826",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625336",
+              "objectId": 6625336,
+              "content": {
+                "title": "That Would Be Me",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Cassian attempts to lay low on Ferrix as agents of the law close in.",
+                "originalReleaseDate": "2022-09-21",
+                "runtime": 38
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/ef6356d6-19c9-49c0-a633-fe5a4153316a",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/ef6356d6-19c9-49c0-a633-fe5a4153316a",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625339",
+              "objectId": 6625339,
+              "content": {
+                "title": "Reckoning",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Cassian's desperation to avoid arrest leads him to a mysterious man with unknown connections.",
+                "originalReleaseDate": "2022-09-21",
+                "runtime": 40
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/d7de71f0-ad76-4500-89fc-7f88a276a10d",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/d7de71f0-ad76-4500-89fc-7f88a276a10d",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625332",
+              "objectId": 6625332,
+              "content": {
+                "title": "Aldhani",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Out of options, Cassian is recruited for a dangerous mission to infiltrate an Imperial garrison.",
+                "originalReleaseDate": "2022-09-28",
+                "runtime": 47
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/e93bb276-1af1-486a-9945-4d07d9e3a801",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/e93bb276-1af1-486a-9945-4d07d9e3a801",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625331",
+              "objectId": 6625331,
+              "content": {
+                "title": "The Axe Forgets",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Cassian must carefully navigate the distrust inherent in being the new member of a secret operation.",
+                "originalReleaseDate": "2022-10-05",
+                "runtime": 46
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/14ec4983-6436-42b9-bdbb-462f6ffb319e",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/14ec4983-6436-42b9-bdbb-462f6ffb319e",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625335",
+              "objectId": 6625335,
+              "content": {
+                "title": "The Eye",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "With cover from a spectacular local festival, the Aldhani mission reaches a point of no return.",
+                "originalReleaseDate": "2022-10-12",
+                "runtime": 50
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/53524656-6b7b-4dc1-b2ed-6ed67b3c06e2",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/53524656-6b7b-4dc1-b2ed-6ed67b3c06e2",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625341",
+              "objectId": 6625341,
+              "content": {
+                "title": "Announcement",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The repercussions of the Aldhani heist reach all the way to Coruscant, while Cassian returns home.",
+                "originalReleaseDate": "2022-10-19",
+                "runtime": 50
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/04b71fbf-7367-4f5d-b208-924a75b2eacf",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/04b71fbf-7367-4f5d-b208-924a75b2eacf",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625340",
+              "objectId": 6625340,
+              "content": {
+                "title": "Narkina 5",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The Empire catches up to Cassian, but are as yet unaware of his identity and past.",
+                "originalReleaseDate": "2022-10-26",
+                "runtime": 53
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/dceabdb9-0f5f-4776-8138-81be413a1af6",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/dceabdb9-0f5f-4776-8138-81be413a1af6",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625338",
+              "objectId": 6625338,
+              "content": {
+                "title": "Nobody's Listening!",
+                "episodeNumber": 9,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Under intense scrutiny while imprisoned, Cassian makes allies plan an impossible escape.",
+                "originalReleaseDate": "2022-11-02",
+                "runtime": 47
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/936fde0c-d9f9-435b-85a0-905f1f5a67ea",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/936fde0c-d9f9-435b-85a0-905f1f5a67ea",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625337",
+              "objectId": 6625337,
+              "content": {
+                "title": "One Way Out",
+                "episodeNumber": 10,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "A rare opportunity opens and the time for Cassian and his fellow inmates to act is now.",
+                "originalReleaseDate": "2022-11-09",
+                "runtime": 43
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/30cdaace-ebbf-43ef-bb3c-235fdcb6f5ce",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/30cdaace-ebbf-43ef-bb3c-235fdcb6f5ce",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625334",
+              "objectId": 6625334,
+              "content": {
+                "title": "Daughter of Ferrix",
+                "episodeNumber": 11,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "A fugitive once more, Cassian must make his next move before it is too late.",
+                "originalReleaseDate": "2022-11-16",
+                "runtime": 43
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/3fd5e737-a706-4b28-a555-3da23686f7d7",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/3fd5e737-a706-4b28-a555-3da23686f7d7",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse6625333",
+              "objectId": 6625333,
+              "content": {
+                "title": "Rix Road",
+                "episodeNumber": 12,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Cassian returns home to Ferrix, a tinderbox that is experiencing a spark of rebellion.",
+                "originalReleaseDate": "2022-11-23",
+                "runtime": 57
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/671b433b-1095-42c8-850b-246f6506c0a5",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/671b433b-1095-42c8-850b-246f6506c0a5",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tss459061",
+          "objectId": 459061,
+          "totalEpisodeCount": 12,
+          "content": {
+            "title": "Season 2",
+            "seasonNumber": 2,
+            "fullPath": "/us/tv-show/andor/season-2",
+            "posterUrl": "/poster/330389890/{profile}/season-2.{format}",
+            "originalReleaseYear": 2025,
+            "originalReleaseDate": "2025-04-22",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse8543459",
+              "objectId": 8543459,
+              "content": {
+                "title": "One Year Later",
+                "episodeNumber": 1,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "An undercover mission. A sanctuary threatened. A Chandrilan wedding. A chilling Imperial plan.",
+                "originalReleaseDate": "2025-04-22",
+                "runtime": 51
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/38cf9b36-27a6-4a73-8d7b-49dfdcd2fb2c",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/38cf9b36-27a6-4a73-8d7b-49dfdcd2fb2c",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543458",
+              "objectId": 8543458,
+              "content": {
+                "title": "Sagrona Teema",
+                "episodeNumber": 2,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Cassian caught in a rebel turf war. Mon’s wedding woes mount. The Ferrix survivors face inspection.",
+                "originalReleaseDate": "2025-04-22",
+                "runtime": 44
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/87ed6fbd-d172-40b2-9aee-8d8fe406d00e",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/87ed6fbd-d172-40b2-9aee-8d8fe406d00e",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543462",
+              "objectId": 8543462,
+              "content": {
+                "title": "Harvest",
+                "episodeNumber": 3,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Time is running out for everyone.",
+                "originalReleaseDate": "2025-04-22",
+                "runtime": 53
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/b340405a-d786-4714-b700-a21f2d2cce1a",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/b340405a-d786-4714-b700-a21f2d2cce1a",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543461",
+              "objectId": 8543461,
+              "content": {
+                "title": "Ever Been to Ghorman?",
+                "episodeNumber": 4,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Cassian and Bix adjust to a Luthen safehouse. All eyes are on Ghorman. Wilmon visits Saw Gerrera.",
+                "originalReleaseDate": "2025-04-29",
+                "runtime": 54
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/d0e8b255-4829-40c5-afb8-a6ba931ed4f3",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/d0e8b255-4829-40c5-afb8-a6ba931ed4f3",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543466",
+              "objectId": 8543466,
+              "content": {
+                "title": "I Have Friends Everywhere",
+                "episodeNumber": 5,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Cassian on Ghorman. Syril on Coruscant. Bix failing. Wilmon trapped. Kleya has a serious problem.",
+                "originalReleaseDate": "2025-04-29",
+                "runtime": 54
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/38b4a9b4-f3f8-4c93-a5c8-8932ce552ba4",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/38b4a9b4-f3f8-4c93-a5c8-8932ce552ba4",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543460",
+              "objectId": 8543460,
+              "content": {
+                "title": "What a Festive Evening",
+                "episodeNumber": 6,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Vel and Cinta to Ghorman. Cassian home to Bix. An argument. A heist. A party. Everything at risk.",
+                "originalReleaseDate": "2025-04-29",
+                "runtime": 54
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/ed8ff963-98d3-4406-8e64-641b218459b9",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/ed8ff963-98d3-4406-8e64-641b218459b9",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543464",
+              "objectId": 8543464,
+              "content": {
+                "title": "Messenger",
+                "episodeNumber": 7,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Yavin is growing. Wilmon comes for help. Dedra’s on Ghorman. Cassian heeds the call.",
+                "originalReleaseDate": "2025-05-06",
+                "runtime": 44
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/25aed73f-031b-4fdd-a8d9-b1fe36478327",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/25aed73f-031b-4fdd-a8d9-b1fe36478327",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543467",
+              "objectId": 8543467,
+              "content": {
+                "title": "Who Are You?",
+                "episodeNumber": 8,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Imperial manipulation. Ghorman frustration. Cassian and Syril center stage as Palmo erupts.",
+                "originalReleaseDate": "2025-05-06",
+                "runtime": 47
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/a60bd1c2-6169-465e-9f50-b2af0ac6c859",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/a60bd1c2-6169-465e-9f50-b2af0ac6c859",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543457",
+              "objectId": 8543457,
+              "content": {
+                "title": "Welcome to the Rebellion",
+                "episodeNumber": 9,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "In the Ghorman aftermath, Mon Mothma takes a stand. Cassian must carry out a difficult extraction.",
+                "originalReleaseDate": "2025-05-06",
+                "runtime": 58
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/159a6962-d5a4-487a-a3e4-274c0ad30165",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/159a6962-d5a4-487a-a3e4-274c0ad30165",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543468",
+              "objectId": 8543468,
+              "content": {
+                "title": "Make It Stop",
+                "episodeNumber": 10,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Lonni Jung taps out. Dedra closes in. Luthen scrambles. Kleya delivers.",
+                "originalReleaseDate": "2025-05-13",
+                "runtime": 48
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/2f40e444-1f86-4c30-9e4b-a7b00961b771",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/2f40e444-1f86-4c30-9e4b-a7b00961b771",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543465",
+              "objectId": 8543465,
+              "content": {
+                "title": "Who Else Knows?",
+                "episodeNumber": 11,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Cassian returns to Coruscant for one last extraction.",
+                "originalReleaseDate": "2025-05-13",
+                "runtime": 42
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/3ddc0437-eb4e-4002-947c-b129eaed9bf4",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/3ddc0437-eb4e-4002-947c-b129eaed9bf4",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tse8543463",
+              "objectId": 8543463,
+              "content": {
+                "title": "Jedha, Kyber, Erso",
+                "episodeNumber": 12,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Cassian returns to Yavin with intel that will change everything.",
+                "originalReleaseDate": "2025-05-13",
+                "runtime": 46
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/5e7dca41-e8b3-4260-b32a-309f302f68ce",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/5e7dca41-e8b3-4260-b32a-309f302f68ce",
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -430,8 +430,9 @@ export type CountReading = {
  * The counts of 5.4 P0.
  *
  * `countStated` is the source's own figure and `countDistinct` is `count(DISTINCT HAS_EPISODE
- * targets hung by the row's own origin)`, which is what tells 14 rows over 10 distinct epids from a
- * season of 14 (netflixid 80198505 season 3, 2026-09-10). An empty list is `none`, never 0.
+ * targets of the row's own origin, hung by it)`, which is what tells 14 rows over 10 distinct epids
+ * from a season of 14 (netflixid 80198505 season 3, 2026-09-10). An empty list is `none`, never 0.
+ * Another origin's episode is not counted: JustWatch hangs the one a service plays beside its own.
  */
 export const countReadingOf = (
   origin: string,
@@ -526,7 +527,7 @@ const scan = async (ctx: PluginContext, uris: string[] | undefined) => {
   )
   const owns = nothing ? [] : await ctx.query<{ uri: string, ownEpisodes: number }>(
     form('m:Media', '-[h:HAS_EPISODE]->(e:Episode)',
-      `WHERE h.claimer = m.origin RETURN m.uri AS uri, count(DISTINCT e.uri) AS ownEpisodes`),
+      `WHERE h.claimer = m.origin AND e.origin = m.origin RETURN m.uri AS uri, count(DISTINCT e.uri) AS ownEpisodes`),
     params
   )
   const episodes = nothing ? [] : await ctx.query<EpisodeRow>(

@@ -69,6 +69,8 @@ export const providerContentId = (mappedOrigin: string, rawContentId: string): s
 // dropped for every title, which is why the hbo and paramount sources saw nothing from JustWatch.
 // Measured 2026-09-01 over 25 anime searches: mxx 15 offers, ppp 9, ppe 9, and nfa 38 against nfx's 40.
 //
+// Rent and buy are absent too: `amz` and `itu` are purchases on Amazon and Apple, not the services.
+//
 // Resale channels are deliberately absent. "Crunchyroll Amazon Channel" (`cra`) outnumbers `cru`
 // itself, but its url is watch.amazon.com, so its id belongs to Amazon; mapping it to `cr` would mint
 // a Crunchyroll handle out of an Amazon id and assert an identity that no Crunchyroll call reproduces.
@@ -110,9 +112,10 @@ export const extractContentId = (url: string): string | undefined => {
     }
     if (host === 'crunchyroll.com' && parts[0] === 'series') return parts[1]
 
-    // Prime Video offers now land on watch.amazon.com/detail?gti=<id>, where the id is not in the path
-    // at all. Falling back to the last path segment there would return the literal "detail".
-    if (host.startsWith('amazon.') || host.endsWith('.amazon.com')) {
+    // Prime Video offers now land on watch.amazon.com/detail?gti=<id> (watch.amazon.co.jp in Japan),
+    // where the id is not in the path at all. Falling back to the last path segment there would return
+    // the literal "detail".
+    if (host.startsWith('amazon.') || host.endsWith('.amazon.com') || host === 'watch.amazon.co.jp') {
       return parsed.searchParams.get('gti') ?? (host.startsWith('amazon.') ? parts.at(-1) : undefined)
     }
 
