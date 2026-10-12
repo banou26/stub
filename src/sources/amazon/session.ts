@@ -28,8 +28,12 @@ export const PRIME_SIGN_IN_URL = `https://www.amazon.co.jp/ap/signin?${new URLSe
   'openid.ns': 'http://specs.openid.net/auth/2.0',
 })}`
 
-/** amazon.co.jp's header sign-in link, there only when signed out. */
-export const PRIME_SIGN_IN_LINK = '#nav-link-accountList[data-csa-c-content-id="nav_ya_signin"]'
+/**
+ * amazon.co.jp's header sign-in link, there only when signed out: a link inside the header's
+ * `#nav-link-accountList` div, which carries `nav_youraccount_btn` once signed in (both measured on the Prime
+ * Video detail page 2026-10-13).
+ */
+export const PRIME_SIGN_IN_LINK = 'a[data-csa-c-content-id="nav_ya_signin"]'
 
 /** Whether a sign-in window shows Amazon's header signed in. Free reads, so the poll never prompts. */
 export const primeSignedIn = async (login: Frame) =>

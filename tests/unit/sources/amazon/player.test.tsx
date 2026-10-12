@@ -47,13 +47,13 @@ const SIGN_IN = 'Sign in to Prime Video'
 const HERO = '<div class="draper-player-container"><video src="blob:https://www.amazon.co.jp/hero"></video></div>'
 // signed in: the header's account menu, the muted hero video, Play, and the player's container, empty until Play
 const SIGNED_IN_PAGE = `
-  <header><a id="nav-link-accountList" data-csa-c-content-id="nav_youraccount_btn">Account</a></header>
+  <header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_youraccount_btn" href="/gp/css/homepage.html">Account</a></div></header>
   ${HERO}
   <a data-testid="dp-atf-play-button" href="/gp/video/detail/0PJQL97FNFXU3VZWEHILB694SJ?autoplay=1&t=0">Play S1 E2</a>
   <div id="dv-web-player"></div>`
 // signed out, as the logged-out page saved on 2026-10-12 has it: the header's sign-in link, and no Play
 const SIGNED_OUT_PAGE = `
-  <header><a id="nav-link-accountList" data-csa-c-content-id="nav_ya_signin" href="https://www.amazon.co.jp/ap/signin">Sign in</a></header>
+  <header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_ya_signin" href="https://www.amazon.co.jp/ap/signin">Hello, Sign in</a></div></header>
   ${HERO}
   <div id="dv-web-player"></div>`
 const EPISODE_SURFACE = '<div class="atvwebplayersdk-video-surface"><video src="blob:https://www.amazon.co.jp/episode"></video></div>'
@@ -221,7 +221,7 @@ describe('playing an episode', () => {
   })
 
   test('a page with neither Play nor the sign-in link ends on its line, and remembers nothing', async () => {
-    const host = await afterWaits(amazon('<header><a id="nav-link-accountList" data-csa-c-content-id="nav_youraccount_btn">Account</a></header>'))
+    const host = await afterWaits(amazon('<header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_youraccount_btn" href="/gp/css/homepage.html">Account</a></div></header>'))
     expect(host.textContent).toContain('Prime Video shows no Play button for this episode.')
     expect(button(host, 'Retry')).toBeTruthy()
     expect(remembered()).toBeUndefined()
