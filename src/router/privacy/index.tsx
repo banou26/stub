@@ -26,7 +26,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 10 October 2026</div>
+    <div className="updated">Last updated 13 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server

@@ -138,7 +138,29 @@ const refusalText = (refusal: Refusal) =>
   : refusal.error
 
 /** Makes one storage call of a check, or answers `changed` without making it. */
-type Call = <T>(call: () => Promise<CloudResult<T>>) => Promise<CloudResult<T>>
+export type Call = <T>(call: () => Promise<CloudResult<T>>) => Promise<CloudResult<T>>
+
+/**
+ * Keeps every storage call of a check in the account the check began with. `moved` is run first thing
+ * in `account.onChange` of the @fkn/lib realm making the calls; `begin` starts a check. Its `call`
+ * answers `changed` without making the call once an account change was heard after the check began,
+ * and `current` says whether none was.
+ *
+ * The comparison runs in the same synchronous step as the call, in which @fkn/lib captures the account,
+ * so the check and the call agree on which account they are for.
+ */
+export const accountGeneration = () => {
+  let generation = 0
+  return {
+    moved: () => { generation += 1 },
+    begin: () => {
+      const began = generation
+      const current = () => generation === began
+      const call: Call = work => current() ? work() : Promise.resolve(CHANGED)
+      return { call, current }
+    },
+  }
+}
 
 export type AccountLink = ReturnType<typeof accountLink>
 
@@ -190,8 +212,7 @@ export const accountLink = ({
   let uploadTimer: ReturnType<typeof setTimeout> | undefined
   // the steps the link starts by itself, for `idle`
   let running: Promise<unknown> = Promise.resolve()
-  // how many account changes this realm has heard of
-  let generation = 0
+  const account = accountGeneration()
 
   const readHeld = async () => parseJournal(await disk.read(HELD_FILE), 'held')
   const clearHeld = () => disk.write(HELD_FILE, JSON.stringify(emptyFile('held')))
@@ -327,9 +348,7 @@ export const accountLink = ({
   }
 
   const check = async (): Promise<void> => {
-    const began = generation
-    // compared in the same synchronous step that makes the call, in which @fkn/lib captures the account
-    const call: Call = work => generation === began ? work() : Promise.resolve(CHANGED)
+    const { call } = account.begin()
     let session = await disk.session()
     // another tab may have moved the session: nothing this worker holds of the old one may stay on screen
     if (journal.device !== session.id) await journal.reload()
@@ -390,10 +409,10 @@ export const accountLink = ({
     }, uploadDelayMs)
   })
 
-  // @fkn/lib moves its own account before it calls this, so a call made while `generation` still reads
-  // what a check began with carries the account that check saw
+  // @fkn/lib moves its own account before it calls this, so a call made before `moved` carries the
+  // account the check that made it saw
   void onAccountChange(() => {
-    generation += 1
+    account.moved()
     start(check)
   })
 

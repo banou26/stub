@@ -8,7 +8,7 @@ import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
-import { ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
@@ -22,7 +22,7 @@ const byId = (id: string) => {
 
 describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
-    expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY] })
+    expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
     expect(byId('turned-off-sources').keys).toEqual({ store: 'local', names: [DISABLED_SOURCES_KEY] })
     expect(byId('search-layout').keys).toEqual({ store: 'local', names: [DISPLAY_MODE_KEY] })
     expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
@@ -79,6 +79,18 @@ describe('what stub keeps per viewer', () => {
   test('says what this browser keeps is per address of stub, since each address is its own origin', () => {
     for (const item of STORED.filter(candidate => candidate.keys?.store === 'local')) expect(item.where, item.id).toContain('at this address')
     expect(byId('stub-list').where).toContain('at this address')
+  })
+
+  test('says the added sources are kept on the FKN account, encrypted in this browser, until removed or the account is deleted', () => {
+    const added = byId('added-sources')
+    expect(added.where).toContain("your FKN account's storage while you are signed in, encrypted in this browser before it is stored")
+    expect(added.lasts).toContain('Until you remove them')
+    expect(added.lasts).toContain("The account's copy is deleted with your FKN account")
+    expect(added.lasts).toContain("this browser's copy of it when you sign out")
+  })
+
+  test('says the sources added while signed out join the next FKN account signed in here', () => {
+    expect(byId('added-sources').what).toContain('Sources added while signed out join the list of the next FKN account signed in on this browser.')
   })
 
   test('the sign-in states keep no account name', () => {

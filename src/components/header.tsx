@@ -14,7 +14,7 @@ import AccountWidget, { menuStyle } from './account-widget'
 import PartyWidget from './party-widget'
 import { layer } from '../layers'
 import { site, siteLinks } from '../site'
-import { loadEnabled } from '../plugin-list'
+import { loadDevice } from '../plugin-list'
 import { writePluginUris } from '../utils/plugin-links'
 
 const PLACEHOLDERS = {
@@ -299,14 +299,15 @@ const currentSiteStyle = css`
   }
 `
 
-// each site keeps its own list of sources, so a link offers the viewer's to the next one
+// a link offers the next site only this device's own sources: an FKN account's list reaches it through
+// the account, and offering those too would raise the invite dialog there before the list arrives
 const SiteLinks = ({ className }: { className?: string }) => (
   <>
     {siteLinks.map(link => (
       <a
         key={link.site}
         className={className}
-        href={writePluginUris(link.href, loadEnabled(), link.href)}
+        href={writePluginUris(link.href, loadDevice(), link.href)}
         aria-current={link.site === site ? 'page' : undefined}
       >
         {link.label}

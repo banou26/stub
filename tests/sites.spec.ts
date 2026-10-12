@@ -204,9 +204,11 @@ test('any other host has no site links', async ({ page }) => {
   await expect(siteLinks(page)).toHaveCount(0)
 })
 
-test('a site link offers the viewer\'s sources to the next site', async ({ page }) => {
+test('a site link offers this device\'s own sources to the next site, never the FKN account\'s', async ({ page }) => {
   await page.addInitScript(() => {
-    if (location.hostname.startsWith('anime.')) localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]')
+    if (!location.hostname.startsWith('anime.')) return
+    localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]')
+    localStorage.setItem('stub-account-plugins', '["npm:@banou/on-the-account"]')
   })
   await page.goto(at('anime.localhost'))
   await expect(siteLinks(page).getByText('Movies', { exact: true }))

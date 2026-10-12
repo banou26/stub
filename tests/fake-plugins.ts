@@ -1,6 +1,6 @@
 import type { PluginStatus } from '../src/plugins'
 
-import { loadEnabled, saveEnabled } from '../src/plugin-list'
+import { loadDevice, loadEnabled, saveDevice } from '../src/plugin-list'
 
 // What tests/settings.spec.ts builds the app with in place of src/plugins.ts. FKN never answers there,
 // so a real install or connection would wait forever: here each address in SPEC_PLUGINS is installed at
@@ -34,7 +34,7 @@ export const enabledPluginUris = (): string[] => loadEnabled()
 export const installPlugin = async (uri: string): Promise<string | null> => {
   await new Promise(resolve => setTimeout(resolve, 500))
   if (!SPEC_PLUGINS[uri]) throw Object.assign(new Error(`'${uri}' is not an npm package or a local address FKN can install`), { code: 'invalid' })
-  saveEnabled([...new Set([...loadEnabled(), uri])])
+  saveDevice([...new Set([...loadDevice(), uri])])
   notify()
   return uri
 }
@@ -42,7 +42,7 @@ export const installPlugin = async (uri: string): Promise<string | null> => {
 export const enablePlugin = installPlugin
 
 export const disablePlugin = async (uri: string): Promise<void> => {
-  saveEnabled(loadEnabled().filter(enabled => enabled !== uri))
+  saveDevice(loadDevice().filter(enabled => enabled !== uri))
   notify()
 }
 

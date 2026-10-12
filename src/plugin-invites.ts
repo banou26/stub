@@ -1,5 +1,5 @@
 import { comparablePluginUri } from './utils/plugin-links'
-import { enabledPluginUris, enablePlugin } from './plugins'
+import { enabledPluginUris, enablePlugin, onPluginsChange } from './plugins'
 
 export type PluginInvite = {
   uri: string
@@ -23,8 +23,10 @@ export const pluginInvites = (): PluginInvite[] => [...invites.values()]
 
 export const pendingInviteUris = (): string[] => [...invites.keys()]
 
+const knownUris = () => new Set(enabledPluginUris().map(comparablePluginUri))
+
 export const offerInvites = (uris: string[]): void => {
-  const known = new Set(enabledPluginUris().map(comparablePluginUri))
+  const known = knownUris()
   let added = false
   for (const uri of uris) {
     const key = comparablePluginUri(uri)
@@ -34,6 +36,18 @@ export const offerInvites = (uris: string[]): void => {
   }
   if (added) notify()
 }
+
+// a link is read before the account's list arrives, so an offer it already holds is withdrawn then
+onPluginsChange(() => {
+  const known = knownUris()
+  let dropped = false
+  for (const [uri, invite] of invites) {
+    if (invite.state !== 'offered' || !known.has(comparablePluginUri(uri))) continue
+    invites.delete(uri)
+    dropped = true
+  }
+  if (dropped) notify()
+})
 
 export const declineInvites = (): void => {
   if (!invites.size) return

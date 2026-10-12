@@ -3,7 +3,7 @@
 // is written.
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
-import { ENABLED_PLUGINS_KEY } from '../../plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
@@ -28,10 +28,10 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'added-sources',
     title: 'Added sources',
-    what: 'The source packages you added from npm, installed for stub through FKN.',
-    where: LOCAL,
-    lasts: 'Until you remove them',
-    keys: { store: 'local', names: [ENABLED_PLUGINS_KEY] },
+    what: "The source packages you added from npm, installed for stub through FKN. Signed in to FKN, the list is your account's, so every stub site you sign in on gets it. Sources added while signed out join the list of the next FKN account signed in on this browser.",
+    where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
+    lasts: "Until you remove them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
   },
   {
     id: 'turned-off-sources',

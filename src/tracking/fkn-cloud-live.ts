@@ -1,6 +1,6 @@
-// The stub tracker's FKN storage over the real @fkn/lib. `trackerCloud` and `onTrackerAccountChange` are
-// the worker's, where the tracker runs. `unlockTracker` is the page's: it is the one call here that
-// raises a card, and it is only ever run from a click.
+// The stub tracker's FKN storage over the real @fkn/lib, in whichever realm imports it: the worker's for
+// the tracker, the page's for the added sources (src/plugin-sync.ts). `unlockTracker` is the page's: it
+// is the one call here that raises a card, and it is only ever run from a click.
 
 import { onChange } from '@fkn/lib/account'
 import { availability, encryption, list, promises, unlock } from '@fkn/lib/cloud/fs'

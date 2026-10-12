@@ -4,7 +4,9 @@ import { packages } from '@fkn/lib'
 
 import { registerRemoteSource, unregisterRemoteSource } from './worker'
 import { STUB_SOURCE_PROTOCOL } from './plugin-api'
-import { loadEnabled, saveEnabled } from './plugin-list'
+import { loadEnabled } from './plugin-list'
+import { sourceListSync } from './plugin-sync'
+import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
 
 const RECONNECT_DELAY_MS = 3_000
 
@@ -100,12 +102,55 @@ const cancelReconnect = (uri: string) => {
   if (timer !== undefined) { clearTimeout(timer); retryTimers.delete(uri) }
 }
 
+const disconnect = (uri: string) => {
+  cancelReconnect(uri)
+  connected.delete(uri)
+  statuses.delete(uri)
+  unregisterRemoteSource(uri)
+}
+
+// The list changed under this page: the account's list arrived, changed on another site, device or tab,
+// or left at sign out. A source new here is installed without FKN's confirm, since the viewer approved it
+// when they added it; FKN still shows its own notice.
+const follow = (before: string[], after: string[]) => {
+  for (const uri of before) {
+    if (after.includes(uri)) continue
+    disconnect(uri)
+    packages.uninstall(uri).catch(() => {})
+  }
+  notify()
+  for (const uri of after) {
+    if (before.includes(uri)) continue
+    packages.install(uri, { noConfirm: true })
+      .then(installed => {
+        if (!installed) throw new Error(`FKN did not install '${uri}'`)
+        connectPlugin(uri).catch(() => {})
+      })
+      .catch(error => {
+        console.warn(`Plugin '${uri}' could not be installed:`, error)
+        setStatus(uri, { state: 'error', error: error instanceof Error ? error.message : String(error) })
+      })
+  }
+}
+
+// one step at a time across every tab of the origin, or two tabs adding at once could each write the
+// account's file without the other's source
+const listLock = <T>(work: () => Promise<T>): Promise<T> =>
+  typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request('stub:source-list', work)
+    : work()
+
+const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow })
+
+/** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
+export const checkSources = () => sourceList.check()
+
 // install through FKN first and only persist to the enabled list once it took: FKN refuses to connect a package this app has not installed, so a mistyped address written straight to the list is retried forever
 // key everything on the id FKN hands back, never the caller's string: FKN canonicalizes a version away ('npm:x@1.2.3' installs as 'npm:x')
 const install = async (uri: string, options?: InstallOptions): Promise<string | null> => {
   const installed = await packages.install(uri, options)
   if (!installed) return null
-  saveEnabled([...new Set([...loadEnabled(), installed.uri])])
+  void sourceList.add(installed.uri)
   return installed.uri
 }
 
@@ -128,11 +173,8 @@ export const enablePlugin = async (uri: string, options?: InstallOptions): Promi
 }
 
 export const disablePlugin = async (uri: string): Promise<void> => {
-  saveEnabled(loadEnabled().filter(enabled => enabled !== uri))
-  cancelReconnect(uri)
-  connected.delete(uri)
-  statuses.delete(uri)
-  unregisterRemoteSource(uri)
+  void sourceList.remove(uri)
+  disconnect(uri)
   // told before the uninstall, which FKN may never answer
   notify()
   await packages.uninstall(uri).catch(() => {})
