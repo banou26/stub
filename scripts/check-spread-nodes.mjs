@@ -13,7 +13,7 @@ import { chromium } from 'playwright'
 const origin = process.env.STUB_ORIGIN ?? 'https://anime.fkn.app'
 const NODE = /^([a-z]{2}-[a-z]{3}-\d{3})\.fkn\.app$/
 // the upstreams stub asks to spread; everything else is expected on the session's own node
-const SPREAD_UPSTREAMS = /^(graphql\.anilist\.co|api\.jikan\.moe)$/
+const SPREAD_UPSTREAMS = /^graphql\.anilist\.co$/
 
 const browser = await chromium.launch({
   headless: true,
@@ -62,5 +62,5 @@ const tiedNodes = new Set(rows.filter(([upstream]) => !SPREAD_UPSTREAMS.test(ups
 console.log(`\ntied upstreams used ${tiedNodes.size} node(s), spread upstreams used ${spreadNodes.size} node(s), ${total} proxied requests`)
 // the control: if tied traffic itself moved between nodes, a second node under spread proves nothing
 if (tiedNodes.size !== 1) { console.log('CONTROL FAILED: tied traffic was not on exactly one node'); process.exit(3) }
-if (spreadNodes.size < 2) { console.log('NOT SPREAD: anilist and jikan requests all went to one node'); process.exit(1) }
+if (spreadNodes.size < 2) { console.log('NOT SPREAD: anilist requests all went to one node'); process.exit(1) }
 console.log('SPREAD OK')

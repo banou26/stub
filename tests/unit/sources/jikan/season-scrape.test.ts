@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { MAL_CONTINUING_SECTION, MAL_TYPE, isContinuing, malDate, parseMalSeason } from '../../../../src/sources/jikan/season-scrape'
 
@@ -67,6 +67,7 @@ describe('parseMalSeason', () => {
       genres: [],
       // no heading above it, so it belongs to no section and is never treated as carried over
       section: '',
+      adult: false,
     }])
   })
 
@@ -197,10 +198,9 @@ describe('malDate', () => {
   })
 })
 
-// Jikan's API is unreachable from the FKN proxy's egress, so this scrape is what actually supplies the
-// current season, and without these chips the season carried no genres from this source at all: the
-// filter could only ever match what AniList happened to cover. Measured on the SUMMER 2026 page: 216
-// cards, 674 chips, 64 distinct names.
+// This page is what supplies the season, and without these chips the season carried no genres from
+// this source at all: the filter could only ever match what AniList happened to cover. Measured on the
+// SUMMER 2026 page: 216 cards, 674 chips, 64 distinct names.
 describe('the genre chips MAL prints on each card', () => {
   const [card] = parseMalSeason(cardFixture)
 
@@ -218,5 +218,35 @@ describe('the genre chips MAL prints on each card', () => {
       + '</div>'
     )
     expect(bare!.genres).toEqual([])
+  })
+})
+
+// Real bytes from the FALL 2026 page, 2026-10-13: a new show whose synopsis has paragraphs, one with no
+// synopsis yet, a carried-over show and an R18+ card.
+describe('the FALL 2026 page', () => {
+  const fall = parseMalSeason(readFileSync(new URL('./__fixtures__/mal-season-fall-2026.html', import.meta.url), 'utf8'))
+  const byId = (id: string) => fall.find(entry => entry.id === id)
+
+  test('reads every card under its heading', () => {
+    expect(fall.map(entry => [entry.id, entry.section])).toEqual([
+      ['54344', 'TV (New)'], ['64028', 'TV (New)'], ['48442', MAL_CONTINUING_SECTION], ['64131', 'ONA'],
+    ])
+  })
+
+  // MAL hides these unless the viewer asks, and Jikan, asked with `sfw`, never answered them
+  test('only the card MAL marks R18+ is adult', () => {
+    expect(fall.filter(entry => entry.adult).map(entry => entry.id)).toEqual(['64131'])
+  })
+
+  // The card prints its synopsis with CRLF paragraph breaks, which this used to flatten into one line.
+  test('a synopsis keeps its paragraphs, without carriage returns', () => {
+    expect(byId('54344')!.synopsis).toMatch(/^The deadly game is back!\n\nOnce again, /)
+    expect(byId('54344')!.synopsis).not.toContain('\r')
+  })
+
+  // "(No synopsis yet.)" is MAL's placeholder, and the bundle and the season row both carried it as text.
+  test('the no-synopsis placeholder is no synopsis', () => {
+    expect(byId('64028')!.synopsis).toBeUndefined()
+    expect(byId('48442')!.synopsis).toBeUndefined()
   })
 })

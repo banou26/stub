@@ -26,10 +26,10 @@ const chrome = process.env.CHROME_PATH ?? execFileSync('which', ['google-chrome-
 /** origins whose ids are numeric in every source that mints them */
 const NUMERIC = ['anidb', 'anizip', 'mal', 'anilist', 'kitsu']
 
-// The CURRENT SEASON list, not search. `external` is only on /anime/<id>/full, and jikan's search and
-// season endpoints return `SearchAnimeData`, which omits the field, so no anizip handle can exist on a
-// search page at all. A first version of this check swept four search queries, saw zero anizip handles
-// and would have reported clean if the control had not caught it.
+// The CURRENT SEASON list and title pages, not search. MyAnimeList prints its AniDB link on a title
+// page only, and its season cards and search answers carry none, so the mal source mints no anizip
+// handle on a search page at all. A first version of this check swept four search queries, saw zero
+// anizip handles and would have reported clean if the control had not caught it.
 const PAGES = ['/', '/media/kitsu:49002', '/media/mal:1', '/media/mal:30']
 
 const browser = await chromium.launch({ headless: true, executablePath: chrome, args: ['--mute-audio'] })

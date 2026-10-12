@@ -84,10 +84,10 @@ export const NUMBER_SPACE_ORIGINS: Record<string, 'entry' | 'position'> = { aniz
  * The date rule of 5.4 P0 is deliberately origin-independent: a parsed `startDate` whose UTC
  * day-of-month is 1 reads as `month-or-year` for EVERY origin until that origin declares
  * `startDatePrecision`, because AniList emits `toUTCString()` for every branch including its year-only
- * coercion (`aired-date.ts:33,44,50`) and jikan an offset-bearing ISO string, so a shape test admits
+ * coercion (`aired-date.ts:33,44,50`) and jikan a bare `YYYY-MM-DD`, so a shape test admits
  * both coerced dates to the 45 day veto. Seven extractors template a year followed by `-01-01`
  * (`justwatch:387`, `omdb:55`, `tmdb:120`, `tvdb:99`, `unogs:166` and `:181`, `crunchyroll:152`) and
- * two answer `YYYY-MM-01` when only the month is known (`kitsu:135`, `jikan:126`).
+ * two answer `YYYY-MM-01` when only the month is known (`kitsu:135`, `jikan/anime-page.ts:42`).
  *
  * So nothing reads this table to DECIDE anything. It is the list the profile's own test walks, so the
  * rule is proven to fire for each of them rather than for the one origin a fixture happened to use.
@@ -125,7 +125,7 @@ export const COERCING_ORIGINS = new Set(['jw', 'omdb', 'tmdb', 'tvdb', 'nf', 'cr
  * Every entry was read off the extractor on 2026-09-12; the citation is the line that mints the handle.
  */
 export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
-  // jikan: the AniDB id off `external`, and anizip keyed on that same anidb id (`jikan:87,98`)
+  // jikan: the AniDB id off the title page's AniDB link, and anizip keyed on that same anidb id (`jikan:93,94`)
   mal: new Set(['anidb', 'anizip']),
   // `idMal` (`anilist:586`), and the Crunchyroll series its own externalLinks name (`anilist:227-251`)
   anilist: new Set(['mal', 'cr']),

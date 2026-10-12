@@ -1,160 +1,15 @@
-// MyAnimeList publishes its AniDB link in two shapes, and only one of them puts the id in the path:
-//
-//   https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23   the common one, measured 2026-09-04 on
-//                                                             mal:1, mal:30 and mal:5114
-//   https://anidb.net/anime/23                                the modern one
-//
-// The id read was `searchParams.get('aid') ?? pathname.split('/')[2]`, an unguarded positional
-// fallback, and the anizip handle beside it gated on the LINK rather than on the id. So a link the
-// first half could not read minted `anizip:undefined`, or `anidb:animedb.pl` off the common shape,
-// and every record that produced one produced the SAME one. `upsertMedia` welds those, and `graph.link`
-// has no inverse.
-import { expect, test, vi } from 'vite-plus/test'
+// The `mal` source's two resolvers, driven against a routed `ctx.fetch` that records every url it is
+// asked for and answers with pages saved from myanimelist.net. Which url is asked is half of what a
+// page is: a season the source cannot answer must ask for nothing, and nothing may ask api.jikan.moe,
+// which shut down on 2026-10-01 and leaves every request waiting until it times out.
+import { readFileSync } from 'node:fs'
+import { expect, test } from 'vite-plus/test'
 
 import { anidbIdFromUrl, resolvers } from '../../../../src/sources/jikan/extractor'
-import { mediaSeasonNow } from '../../../../src/sources/season'
+import { animeSeasonOf, mediaSeasonNow } from '../../../../src/sources/season'
 import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
-const API = 'https://api.jikan.moe/v4'
-
-const context = (external: { name: string, url: string }[]) => ({
-  fetch: async (url: string) => {
-    if (!url.startsWith(`${API}/anime/1/full`)) throw new Error(`fixture has no route for ${url}`)
-    return {
-      json: async () => ({
-        data: {
-          mal_id: 1,
-          url: 'https://myanimelist.net/anime/1',
-          title: 'Cowboy Bebop',
-          type: 'TV',
-          external,
-          images: { jpg: {}, webp: {} },
-        },
-      }),
-    }
-  },
-}) as never
-
-const handlesFor = async (external: { name: string, url: string }[]) => {
-  const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri: 'mal:1' } }, context(external)).next()
-  // handles are edges now: { node, relation }. These assertions are about WHICH ids get minted, so
-  // they read the nodes; the relation each one carries is asserted where it is the point.
-  return ((value?.media?.handles ?? []) as { node: { uri: string, origin: string, id: string } }[])
-    .map(handle => handle.node)
-}
-
-const ANIDB = (url: string) => [{ name: 'AniDB', url }]
-
-/**
- * A REAL PAGE ASKS WITH THE CLUSTER'S ADDRESS, never with a bare `mal:` uri.
- *
- * This resolver took `isUri` alone until 2026-09-14, so every ask from a media page was refused on its
- * first line: `api.jikan.moe` was called ZERO times while a page loaded, `mal:61316` stayed a row other
- * sources had named and nobody had described, and the modal drew the MyAnimeList badge as a dead icon
- * while every other origin was a link. Nothing else can supply a `mal:` url, because AniList names the
- * id through `buildHandlesFromUri`, which stamps an address and no url.
- *
- * Mutation: put back `if (!uri || !isUri(uri))` with `fromUri`, and the aggregated case answers null.
- */
-test('it answers when asked with an AGGREGATED uri, which is what a media page sends', async () => {
-  const subscribe = (resolvers.Subscription as any).media.subscribe
-  const asked = 'ag:(anilist:189046,kitsu:49746,mal:1,offline:mal-1)'
-  const { value } = await subscribe(undefined, { input: { uri: asked } }, context(ANIDB('https://anidb.net/anime/23'))).next()
-
-  expect(value?.media, `asked with ${asked}`).toBeTruthy()
-  expect(value?.media?.uri).toBe('mal:1')
-  // the url is the whole point: it is what makes the badge a link rather than a grey icon
-  expect(value?.media?.url).toBeTruthy()
-})
-
-test('the control: an aggregated uri naming no mal handle is still refused', async () => {
-  const subscribe = (resolvers.Subscription as any).media.subscribe
-  const asked = 'ag:(anilist:189046,kitsu:49746)'
-  const { value } = await subscribe(undefined, { input: { uri: asked } }, context([])).next()
-
-  expect(value?.media, 'this source is not in that address and must not answer for it').toBeNull()
-})
-
-test('a link on either real shape yields the anidb id, and both handles carry it', async () => {
-  for (const url of [
-    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23',
-    'https://anidb.net/anime/23',
-  ]) {
-    const uris = (await handlesFor(ANIDB(url))).map(handle => handle.uri)
-    expect(uris, url).toContain('anidb:23')
-    expect(uris, url).toContain('anizip:23')
-  }
-})
-
-// The weld. Before the fix this record minted `anidb:animedb.pl` and `anizip:animedb.pl`, and so did
-// every other record whose `aid` was missing from the same url shape.
-test('a common-shape link with no aid mints NOTHING, never the script name', async () => {
-  const handles = await handlesFor(ANIDB('https://anidb.net/perl-bin/animedb.pl?show=anime'))
-
-  expect(handles.map(handle => handle.uri)).not.toContain('anidb:animedb.pl')
-  expect(handles.filter(handle => handle.origin === 'anidb' || handle.origin === 'anizip')).toEqual([])
-})
-
-// The asymmetry that shipped: the anidb handle gated on the id, the anizip handle beside it gated on
-// the LINK, so only one of the two refused.
-test('a link with no readable id anywhere leaves BOTH handles unminted', async () => {
-  for (const url of [
-    'https://anidb.net/',
-    'https://anidb.net/anime/',
-    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=',
-    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=not-a-number',
-  ]) {
-    const handles = await handlesFor(ANIDB(url))
-    expect(handles.filter(handle => handle.origin === 'anizip'), url).toEqual([])
-    expect(handles.filter(handle => handle.origin === 'anidb'), url).toEqual([])
-  }
-})
-
-// `new URL(...)` used to run unguarded inside normalizeMedia, so a malformed link threw and took the
-// whole record with it rather than costing one handle.
-test('a malformed link costs one handle, not the record', async () => {
-  const handles = await handlesFor(ANIDB('not a url at all'))
-
-  expect(handles.filter(handle => handle.origin === 'anizip')).toEqual([])
-  // the record itself still resolved, which is the part the throw used to take away
-  expect(handles).toBeDefined()
-})
-
-test('no AniDB link at all is simply no handle', async () => {
-  const handles = await handlesFor([{ name: 'AniList', url: 'https://anilist.co/anime/1' }])
-
-  expect(handles.filter(handle => handle.origin === 'anidb' || handle.origin === 'anizip')).toEqual([])
-})
-
-test('anidbIdFromUrl reads the id, or refuses', () => {
-  expect(anidbIdFromUrl('https://anidb.net/perl-bin/animedb.pl?show=anime&aid=6107')).toBe('6107')
-  expect(anidbIdFromUrl('https://anidb.net/anime/22')).toBe('22')
-  expect(anidbIdFromUrl('https://anidb.net/anime/22?highlight=1')).toBe('22')
-
-  expect(anidbIdFromUrl('https://anidb.net/perl-bin/animedb.pl?show=anime')).toBeUndefined()
-  expect(anidbIdFromUrl('https://anidb.net/creator/1234')).toBeUndefined()
-  expect(anidbIdFromUrl('not a url at all')).toBeUndefined()
-  expect(anidbIdFromUrl(undefined)).toBeUndefined()
-  expect(anidbIdFromUrl(null)).toBeUndefined()
-  expect(anidbIdFromUrl('')).toBeUndefined()
-})
-
-// The rest of this file drives the same two resolvers against a routed `ctx.fetch`, which records
-// every url it was asked for. Which url is asked is half of what a season page is: a season the
-// source cannot answer must ask for nothing rather than ask for /seasons/now.
-
-const MAL_ENTITY = (...names: string[]) =>
-  names.map((name, index) => ({ mal_id: index + 1, type: 'anime', name, url: `${API}/genre/${index + 1}` }))
-
-const ANIME = (fields: Record<string, unknown>) => ({
-  mal_id: 1,
-  url: 'https://myanimelist.net/anime/1',
-  title: 'Cowboy Bebop',
-  type: 'TV',
-  images: { jpg: {}, webp: {} },
-  ...fields,
-})
+const fixture = (name: string) => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8')
 
 const routed = (route: (url: string) => unknown) => {
   const urls: string[] = []
@@ -171,177 +26,359 @@ const routed = (route: (url: string) => unknown) => {
   }
 }
 
-const json = (body: unknown, ok = true) => ({ ok, status: ok ? 200 : 504, json: async () => body })
+const html = (body: string, ok = true) => ({ ok, status: ok ? 200 : 404, text: async () => body })
+const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
 
-const mediaFor = async (fields: Record<string, unknown>) => {
-  const { ctx } = routed(url => {
-    if (!url.startsWith(`${API}/anime/1/full`)) throw new Error(`fixture has no route for ${url}`)
-    return json({ data: ANIME(fields) })
-  })
+const mediaFor = async (asked: string, route: (url: string) => unknown) => {
+  const { ctx, urls } = routed(route)
   const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri: 'mal:1' } }, ctx).next()
-  return value?.media as { genres: string[], tags: string[], season: string | null, seasonYear: number | null, averageScore: number | null, descriptions: { description: string }[] }
+  const { value } = await subscribe(undefined, { input: { uri: asked } }, ctx).next()
+  return { media: value?.media, urls }
 }
 
 const pageFor = async (input: Record<string, unknown>, ctx: never) => {
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   const { value } = await subscribe(undefined, { input }, ctx).next()
-  return (value?.mediaPage?.nodes ?? []) as { uri: string, season: string | null, seasonYear: number | null, averageScore: number | null, descriptions: { description: string }[] }[]
+  return (value?.mediaPage?.nodes ?? []) as any[]
 }
 
-test('genres merge MAL\'s three vocabularies in order, deduplicated, and never explicit_genres', async () => {
-  const media = await mediaFor({
-    genres: MAL_ENTITY('Action', 'Comedy'),
-    explicit_genres: MAL_ENTITY('Hentai'),
-    themes: MAL_ENTITY('Isekai', 'action'),
-    demographics: MAL_ENTITY('Shounen'),
+test('a title is read off its myanimelist.net page, with every field Jikan answered', async () => {
+  const { media, urls } = await mediaFor('mal:1', () => html(fixture('mal-anime-1.html')))
+
+  expect(urls).toEqual(['https://myanimelist.net/anime/1'])
+  expect(media).toMatchObject({
+    uri: 'mal:1',
+    url: 'https://myanimelist.net/anime/1',
+    type: 'TV',
+    categories: ['ANIME', 'SERIES'],
+    status: 'FINISHED',
+    season: 'SPRING',
+    seasonYear: 1998,
+    startDate: '1998-04-03',
+    endDate: '1999-04-24',
+    episodeCount: 26,
+    popularity: 2091002,
+    averageScore: 88,
+    genres: ['Action', 'Award Winning', 'Sci-Fi', 'Adult Cast', 'Space'],
+    titles: [
+      { language: 'en', title: 'Cowboy Bebop', score: 0.9 },
+      { language: 'jp-en', title: 'Cowboy Bebop', score: 0.9 },
+      { language: 'jp', title: 'カウボーイビバップ', score: 0.9 },
+    ],
+    covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/4/19644l.jpg', score: 0.9 }],
+    trailers: [{ uri: 'yt:gY5nDXOtv_o', origin: 'yt', id: 'gY5nDXOtv_o', url: 'https://www.youtube.com/watch?v=gY5nDXOtv_o' }],
   })
-
-  expect(media.genres).toEqual(['Action', 'Comedy', 'Isekai', 'Shounen'])
-  // jikan carries the highest score of any source, so a rating leaking in here wins the cluster
-  expect(media.genres).not.toContain('Hentai')
-  expect(media.tags).toEqual([])
+  // both handles are minted off the page's AniDB link, whose `&amp;` has to be read first
+  expect(media.handles.map((handle: any) => [handle.relation, handle.node.uri])).toEqual([
+    ['SAME_AS', 'anidb:23'],
+    ['SAME_AS', 'anizip:23'],
+  ])
+  // the credit goes and the paragraphs stay
+  expect(media.descriptions[0].description).toMatch(/revenge for his old wounds\.$/)
+  expect(media.descriptions[0].description).toContain('corgi.\n\nWhile')
 })
 
-test('a record with none of the three lists carries no genres rather than failing', async () => {
-  expect((await mediaFor({})).genres).toEqual([])
+test('a film is a movie with no season, and a show not yet aired keeps its partial start', async () => {
+  const { media: film } = await mediaFor('mal:199', () => html(fixture('mal-anime-199.html')))
+  expect(film).toMatchObject({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'], startDate: '2001-07-20' })
+  expect(film.season).toBeUndefined()
+  expect(film.seasonYear).toBeUndefined()
+
+  const { media: upcoming } = await mediaFor('mal:63816', () => html(fixture('mal-anime-63816.html')))
+  expect(upcoming).toMatchObject({ status: 'NOT_YET_RELEASED', season: 'FALL', seasonYear: 2027, startDate: '2027-10-01' })
+  expect(upcoming.averageScore).toBeUndefined()
+  expect(upcoming.trailers).toEqual([])
 })
 
-test('season and seasonYear round-trip, and a season MAL spells otherwise is null', async () => {
-  const winter = await mediaFor({ season: 'winter', year: 2024 })
-  expect(winter.season).toBe('WINTER')
-  expect(winter.seasonYear).toBe(2024)
-
-  // null rather than a guess: the store takes jikan's scalars over every other source's
-  const unknown = await mediaFor({ season: 'monsoon', year: 2024 })
-  expect(unknown.season).toBeNull()
-  expect(unknown.seasonYear).toBe(2024)
+// The page's placeholder would otherwise win the description over AniList's real one, at 0.9.
+test('a title with no synopsis carries no description', async () => {
+  const { media } = await mediaFor('mal:64028', () => html(fixture('mal-anime-64028.html')))
+  expect(media.descriptions).toEqual([])
 })
 
-// `&` ends a query parameter, so an unescaped term silently searched for its own first word.
-test('a search term is percent-encoded into the query', async () => {
-  const { ctx, urls } = routed(() => json({ data: [] }))
-
-  await pageFor({ search: 'fate & zero' }, ctx)
-
-  expect(urls).toEqual([`${API}/anime?q=fate%20%26%20zero`])
+// a season card's type 9 is SPECIAL too, so both of the source's paths agree
+test('a TV Special is a special, and a type MAL adds later is no type', async () => {
+  const typed = (type: string) => mediaFor('mal:1', () => html(
+    '<h1 class="title-name h1_bold_none"><strong>X</strong></h1>'
+    + `<div class="spaceit_pad"><span class="dark_text">Type:</span> ${type} </div>`
+  ))
+  expect((await typed('TV Special')).media.type).toBe('SPECIAL')
+  expect((await typed('<a href="https://myanimelist.net/topanime.php?type=ova">OVA</a>')).media.type).toBe('OVA')
+  expect((await typed('CM')).media.type).toBeUndefined()
 })
 
-test('a named season asks for that season and never for /seasons/now', async () => {
-  const { ctx, urls } = routed(() => json({ data: [], pagination: { last_visible_page: 1 } }))
+test('a page that is not a title answers no media, not a half-built one', async () => {
+  for (const answer of [html('Not Found', false), html('<html><body>Too many requests</body></html>')]) {
+    const { media } = await mediaFor('mal:999999', () => answer)
+    expect(media).toBeUndefined()
+  }
+})
+
+/**
+ * A REAL PAGE ASKS WITH THE CLUSTER'S ADDRESS, never with a bare `mal:` uri.
+ *
+ * This resolver took `isUri` alone until 2026-09-14, so every ask from a media page was refused on its
+ * first line, `mal:61316` stayed a row other sources had named and nobody had described, and the modal
+ * drew the MyAnimeList badge as a dead icon while every other origin was a link.
+ *
+ * Mutation: put back `if (!uri || !isUri(uri))` with `fromUri`, and the aggregated case answers null.
+ */
+test('it answers when asked with an AGGREGATED uri, which is what a media page sends', async () => {
+  const asked = 'ag:(anilist:189046,kitsu:49746,mal:1,offline:mal-1)'
+  const { media, urls } = await mediaFor(asked, () => html(fixture('mal-anime-1.html')))
+
+  expect(media?.uri, `asked with ${asked}`).toBe('mal:1')
+  expect(urls).toEqual(['https://myanimelist.net/anime/1'])
+  // the url is the whole point: it is what makes the badge a link rather than a grey icon
+  expect(media?.url).toBeTruthy()
+})
+
+test('the control: an aggregated uri naming no mal handle is still refused', async () => {
+  const { media, urls } = await mediaFor('ag:(anilist:189046,kitsu:49746)', () => html(fixture('mal-anime-1.html')))
+
+  expect(media, 'this source is not in that address and must not answer for it').toBeNull()
+  expect(urls).toEqual([])
+})
+
+// MyAnimeList publishes its AniDB link in two shapes, and only one of them puts the id in the path:
+//
+//   https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23   the common one, measured 2026-09-04 on
+//                                                             mal:1, mal:30 and mal:5114
+//   https://anidb.net/anime/23                                the modern one
+//
+// The id read was `searchParams.get('aid') ?? pathname.split('/')[2]`, an unguarded positional
+// fallback, and the anizip handle beside it gated on the LINK rather than on the id. So a link the
+// first half could not read minted `anizip:undefined`, or `anidb:animedb.pl` off the common shape,
+// and every record that produced one produced the SAME one. `upsertMedia` welds those, and `graph.link`
+// has no inverse.
+const withAnidb = (url: string) =>
+  '<h1 class="title-name h1_bold_none"><strong>Cowboy Bebop</strong></h1>'
+  + `<a href="${url.replace(/&/g, '&amp;')}" target="_blank" class="link ga-click" data-ga-click-type="external-links-anime-pc-anidb">`
+
+const handlesFor = async (url: string) => {
+  const { media } = await mediaFor('mal:1', () => html(withAnidb(url)))
+  return ((media?.handles ?? []) as { node: { uri: string, origin: string } }[]).map(handle => handle.node)
+}
+
+test('a link on either real shape yields the anidb id, and both handles carry it', async () => {
+  for (const url of [
+    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23',
+    'https://anidb.net/anime/23',
+  ]) {
+    const uris = (await handlesFor(url)).map(handle => handle.uri)
+    expect(uris, url).toEqual(['anidb:23', 'anizip:23'])
+  }
+})
+
+// The weld. Before the fix this record minted `anidb:animedb.pl` and `anizip:animedb.pl`, and so did
+// every other record whose `aid` was missing from the same url shape.
+test('a link with no readable id leaves BOTH handles unminted, never the script name', async () => {
+  for (const url of [
+    'https://anidb.net/perl-bin/animedb.pl?show=anime',
+    'https://anidb.net/',
+    'https://anidb.net/anime/',
+    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=',
+    'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=not-a-number',
+    'not a url at all',
+  ]) {
+    expect(await handlesFor(url), url).toEqual([])
+  }
+})
+
+test('no AniDB link at all is simply no handle, and the record still resolves', async () => {
+  const { media } = await mediaFor('mal:1', () => html('<h1 class="title-name h1_bold_none"><strong>Cowboy Bebop</strong></h1>'))
+
+  expect(media.uri).toBe('mal:1')
+  expect(media.handles).toEqual([])
+})
+
+test('anidbIdFromUrl reads the id, or refuses', () => {
+  expect(anidbIdFromUrl('https://anidb.net/perl-bin/animedb.pl?show=anime&aid=6107')).toBe('6107')
+  expect(anidbIdFromUrl('https://anidb.net/anime/22')).toBe('22')
+  expect(anidbIdFromUrl('https://anidb.net/anime/22?highlight=1')).toBe('22')
+
+  expect(anidbIdFromUrl('https://anidb.net/perl-bin/animedb.pl?show=anime')).toBeUndefined()
+  expect(anidbIdFromUrl('https://anidb.net/creator/1234')).toBeUndefined()
+  expect(anidbIdFromUrl('not a url at all')).toBeUndefined()
+  expect(anidbIdFromUrl(undefined)).toBeUndefined()
+  expect(anidbIdFromUrl(null)).toBeUndefined()
+  expect(anidbIdFromUrl('')).toBeUndefined()
+})
+
+const FALL_2026 = fixture('mal-season-fall-2026.html')
+
+// The fixture holds two new shows, a carried-over one and an R18+ card. Jikan answered a season with
+// `sfw` and without `continuing`, so the last two were never part of this source's season. Asked as a
+// past season, so the stamp has to be the season asked for rather than the clock's.
+test('a named season reads that season\'s page, and keeps only its new, non-adult shows', async () => {
+  const { ctx, urls } = routed(() => html(FALL_2026))
 
   const nodes = await pageFor({ season: 'WINTER', seasonYear: 2024, status: 'RELEASING' }, ctx)
 
-  expect(urls[0]).toContain('/seasons/2024/winter')
-  expect(urls.some(url => url.includes('/seasons/now'))).toBe(false)
-  expect(nodes).toEqual([])
+  expect(urls).toEqual(['https://myanimelist.net/anime/season/2024/winter'])
+  expect(nodes.map(node => node.uri)).toEqual(['mal:54344', 'mal:64028'])
+  expect(nodes.map(node => [node.season, node.seasonYear])).toEqual([['WINTER', 2024], ['WINTER', 2024]])
 })
 
-test('the season the clock is in reuses /seasons/now, which carries the MAL fallback', async () => {
+test('a season card carries its type, title, cover, genres, members and start', async () => {
+  const { ctx } = routed(() => html(FALL_2026))
+
+  const [first] = await pageFor({ season: 'FALL', seasonYear: 2026 }, ctx)
+
+  expect(first).toMatchObject({
+    uri: 'mal:54344',
+    type: 'TV',
+    categories: ['ANIME', 'SERIES'],
+    titles: [{ language: 'jp-en', title: 'Mahou Shoujo Ikusei Keikaku: Restart', score: 0.9 }],
+    covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1518/160127l.jpg', score: 0.9 }],
+    genres: ['Action', 'Suspense', 'Gore', 'High Stakes Game', 'Mahou Shoujo', 'Survival'],
+    popularity: 13337,
+    startDate: '2026-10-06',
+  })
+})
+
+test('a season card keeps its synopsis paragraphs, and the no-synopsis line is no description', async () => {
+  const { ctx } = routed(() => html(FALL_2026))
+
+  const [withSynopsis, without] = await pageFor({ season: 'FALL', seasonYear: 2026 }, ctx)
+
+  expect(withSynopsis.descriptions[0].description).toMatch(/^The deadly game is back!\n\nOn/)
+  expect(without.descriptions).toEqual([])
+})
+
+test('the season the clock is in reads that season\'s own page', async () => {
+  const now = animeSeasonOf()
   const { season, year } = mediaSeasonNow()
-  const { ctx, urls } = routed(() => json({ data: [ANIME({ season: season.toLowerCase(), year })], pagination: { last_visible_page: 1 } }))
+  for (const input of [{ status: 'RELEASING' }, { season, seasonYear: year }]) {
+    const { ctx, urls } = routed(() => html(FALL_2026))
 
-  const nodes = await pageFor({ season, seasonYear: year }, ctx)
+    const nodes = await pageFor(input, ctx)
 
-  expect(urls[0]).toContain('/seasons/now')
-  expect(nodes.map(node => node.season)).toEqual([season])
+    expect(urls, JSON.stringify(input)).toEqual([`https://myanimelist.net/anime/season/${now.year}/${now.season}`])
+    expect(nodes.map(node => [node.season, node.seasonYear])).toEqual([[season, year], [season, year]])
+  }
 })
 
-test('a season the api refuses is an empty page, not a throw and not another season', async () => {
+test('a season page that fails is an empty season, not a throw and not another season', async () => {
   for (const answer of [
-    () => new Error('Jikan failed to connect to MyAnimeList'),
-    () => json({ status: 504, message: 'gateway' }, false),
-    // a body that reads like a season behind a status that says it is not one: the route is
-    // unverified from here, so the status is the only thing that can refuse it
-    () => json({ data: [ANIME({})], pagination: { last_visible_page: 1 } }, false),
-    () => json({ status: 'ok', results: [] }),
+    () => new Error('connect ETIMEDOUT'),
+    () => html('<html><body>Too many requests</body></html>', false),
+    () => html(''),
   ]) {
     const { ctx, urls } = routed(answer)
 
     await expect(pageFor({ season: 'SPRING', seasonYear: 2019 }, ctx)).resolves.toEqual([])
-    expect(urls.some(url => url.includes('/seasons/now'))).toBe(false)
-    expect(urls.some(url => url.includes('myanimelist.net'))).toBe(false)
+    expect(urls).toEqual(['https://myanimelist.net/anime/season/2019/spring'])
   }
 })
 
 // Half a season is not a season: without the year this would have to guess one.
 test('a season with no year, or a year with no season, asks for nothing at all', async () => {
   for (const input of [{ season: 'WINTER' }, { seasonYear: 2024 }]) {
-    const { ctx, urls } = routed(() => json({ data: [ANIME({})], pagination: { last_visible_page: 1 } }))
+    const { ctx, urls } = routed(() => html(FALL_2026))
 
     await expect(pageFor({ ...input, status: 'RELEASING' }, ctx)).resolves.toEqual([])
     expect(urls, JSON.stringify(input)).toEqual([])
   }
 })
 
-// The scraped page is one season, the one running, and carries no label saying so. Unstamped, every
-// row it returns fails the store's season filter, which empties the page the fallback exists for.
-test('the MAL scrape stamps the season it is a page of', async () => {
-  const card =
-    '<div class="js-anime-category-producer js-anime-type-1">'
-    + '<a href="https://myanimelist.net/anime/12345/Some_Show" class="link-title">Some Show</a>'
-    + '</div>'
-  const { ctx } = routed(url =>
-    url.includes('myanimelist.net')
-      ? { ok: true, text: async () => card }
-      : json({ status: 504, message: 'gateway' })
-  )
-
-  const nodes = await pageFor({ status: 'RELEASING' }, ctx)
-  const { season, year } = mediaSeasonNow()
-
-  expect(nodes.map(node => node.uri)).toEqual(['mal:12345'])
-  expect(nodes[0]!.season).toBe(season)
-  expect(nodes[0]!.seasonYear).toBe(year)
-})
-
 // MAL rates out of ten and `Media.averageScore` is a 0 to 100 percentage. This source scores 0.9 and
 // AniList 0.8, so wherever both answered the cluster took MAL's number: a 8.34 show read as 8%.
-// Nothing displayed the field until the search page's card and list modes did.
-test('a MAL rating out of ten arrives as a percentage, from the API', async () => {
-  expect((await mediaFor({ score: 8.34 })).averageScore).toBe(83)
-})
-
-test('and from the season scrape, which is the path an API outage leaves', async () => {
+test('a MAL rating out of ten arrives as a percentage, from the season page', async () => {
   const card =
     '<div class="js-anime-category-producer js-anime-type-1">'
     + '<a href="https://myanimelist.net/anime/12345/Some_Show" class="link-title">Some Show</a>'
     + '<span class="js-score">6.71</span>'
     + '</div>'
-  const { ctx } = routed(url =>
-    url.includes('myanimelist.net')
-      ? { ok: true, text: async () => card }
-      : json({ status: 504, message: 'gateway' })
-  )
+  const { ctx } = routed(() => html(card))
 
   const nodes = await pageFor({ status: 'RELEASING' }, ctx)
 
-  expect(nodes[0]!.averageScore).toBe(67)
+  expect(nodes[0].averageScore).toBe(67)
 })
 
-test('an unrated title carries no score at all, rather than a zero nobody gave it', async () => {
-  expect((await mediaFor({ score: null })).averageScore).toBeUndefined()
-})
-
-test('a synopsis arrives without the credit ending it, from the API', async () => {
-  const media = await mediaFor({ synopsis: SAMPLES.malSpyFamily.description })
-
-  expect(media.descriptions[0]!.description).toMatch(/family life\.$/)
-})
-
-test('and from the season scrape', async () => {
+test('a synopsis arrives without the credit ending it, from the season page', async () => {
   const card =
     '<div class="js-anime-category-producer js-anime-type-1">'
     + '<a href="https://myanimelist.net/anime/59027/Spy_x_Family_Season_3" class="link-title">Spy x Family Season 3</a>'
     + `<p class="preline">${SAMPLES.malSpyFamily.description}</p>`
     + '</div>'
-  const { ctx } = routed(url =>
-    url.includes('myanimelist.net')
-      ? { ok: true, text: async () => card }
-      : json({ status: 504, message: 'gateway' })
-  )
+  const { ctx } = routed(() => html(card))
 
   const nodes = await pageFor({ status: 'RELEASING' }, ctx)
 
-  expect(nodes[0]!.descriptions[0]!.description).toMatch(/family life\.$/)
+  expect(nodes[0].descriptions[0].description).toMatch(/family life\.$/)
+})
+
+const SEARCH = JSON.parse(fixture('mal-search-frieren.json'))
+
+// `&` ends a query parameter, so an unescaped term silently searched for its own first word.
+test('a search asks the site\'s own search box, with the term percent-encoded', async () => {
+  const { ctx, urls } = routed(() => json(SEARCH))
+
+  await pageFor({ search: 'fate & zero' }, ctx)
+
+  expect(urls).toEqual(['https://myanimelist.net/search/prefix.json?type=anime&keyword=fate%20%26%20zero'])
+})
+
+test('a search answer carries the id, title, type, status, dates, rating and large cover', async () => {
+  const { ctx } = routed(() => json(SEARCH))
+
+  const nodes = await pageFor({ search: 'frieren' }, ctx)
+
+  expect(nodes.map(node => node.uri)).toEqual(['mal:59978', 'mal:52991', 'mal:63816', 'mal:56885'])
+  expect(nodes[0]).toMatchObject({
+    url: 'https://myanimelist.net/anime/59978',
+    type: 'TV',
+    status: 'FINISHED',
+    startDate: '2026-01-16',
+    endDate: '2026-03-27',
+    averageScore: 88,
+    titles: [{ language: 'jp-en', title: 'Sousou no Frieren 2nd Season', score: 0.9 }],
+    covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1921/154528l.jpg', score: 0.9 }],
+  })
+  // `Oct ??, 2027 to ?` and an `N/A` rating
+  expect(nodes[2]).toMatchObject({ status: 'NOT_YET_RELEASED', startDate: '2027-10-01' })
+  expect(nodes[2].averageScore).toBeUndefined()
+  expect(nodes[3].type).toBe('ONA')
+})
+
+// A title with no picture answers MAL's question mark (`/images/qm_50.gif`, 452 bytes), which at 0.9
+// would sort above AniList's real cover. mal:35490 is that title.
+test('a search answer with no picture carries no cover, not MAL\'s placeholder', async () => {
+  const { ctx } = routed(() => json(JSON.parse(fixture('mal-search-tanuki.json'))))
+
+  const nodes = await pageFor({ search: 'tanuki' }, ctx)
+
+  expect(nodes).toHaveLength(10)
+  for (const node of nodes) {
+    expect(node.covers, node.uri).toEqual(node.uri === 'mal:35490' ? [] : [expect.objectContaining({ url: expect.stringMatching(/^https:\/\/cdn\.myanimelist\.net\/images\/anime\/\d+\/\d+l\.jpg$/) })])
+  }
+})
+
+test('a search that fails or finds nothing is an empty page', async () => {
+  for (const answer of [
+    () => new Error('connect ETIMEDOUT'),
+    () => ({ ok: false, status: 429, json: async () => { throw new SyntaxError('not json') } }),
+    () => json({ categories: [{ type: 'anime', items: [] }] }),
+  ]) {
+    const { ctx } = routed(answer)
+    await expect(pageFor({ search: 'fz' }, ctx)).resolves.toEqual([])
+  }
+})
+
+test('nothing this source does asks anything but myanimelist.net', async () => {
+  const { ctx, urls } = routed(url =>
+    url.includes('/search/') ? json(SEARCH)
+    : url.includes('/season/') ? html(FALL_2026)
+    : html(fixture('mal-anime-1.html'))
+  )
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  await subscribe(undefined, { input: { uri: 'mal:1' } }, ctx).next()
+  await pageFor({ status: 'RELEASING' }, ctx)
+  await pageFor({ season: 'WINTER', seasonYear: 2024 }, ctx)
+  await pageFor({ search: 'frieren' }, ctx)
+
+  expect(urls).toHaveLength(4)
+  for (const url of urls) expect(url).toMatch(/^https:\/\/myanimelist\.net\//)
 })

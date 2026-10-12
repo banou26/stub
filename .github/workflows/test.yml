@@ -55,6 +55,6 @@ jobs:
 
       # The browser specs are CI safe: tests/anilist.ts and tests/jikan.ts drive the extractors through
       # a stub ctx.fetch, tests/crunchyroll-player.ts is pure functions and tests/store.ts is in-memory,
-      # so nothing here reaches AniList, Jikan or TMDB and the gate does not ride on their uptime. The
+      # so nothing here reaches AniList, MyAnimeList or TMDB and the gate does not ride on their uptime. The
       # run is headless, which is playwright's default and needs no display.
       - run: npm test

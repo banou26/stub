@@ -32,7 +32,7 @@ flowchart LR
   GATE{"is this the season seed on a page that switched it off?<br/><small>refusesSeedAsset(location.href, input)</small>"}
   R404["new Response with status 404<br/><small>'the season seed is switched off for this page'</small>"]
   CLOUD["cloud.fetch(input, init)<br/><small>utils/fetch.ts:5-6, through an FKN node</small>"]
-  NET[("the upstream<br/><small>api.jikan.moe, graphql.anilist.co, ...</small>")]
+  NET[("the upstream<br/><small>graphql.anilist.co, myanimelist.net, ...</small>")]
 
   SRC --> CTX
   CTX --> WB
@@ -291,19 +291,16 @@ this module adds to the platform's request options, and it exists for exactly on
 > `spread` sends the request through any healthy FKN node in turn instead of the node the session is
 > on. For an upstream that meters per source address, and nothing else: AniList's public API answers
 > `x-ratelimit-limit: 30` a minute per address (scripts/measure-start-date-window.mjs), shared by
-> every user behind one node, and Jikan documents 3 a second and 60 a minute. An upstream that ties
-> anything to the address a session was opened from stays on the one node.
+> every user behind one node. An upstream that ties anything to the address a session was opened
+> from stays on the one node.
 
-Two sources set it, and both of them also say where they do **not**:
+One source sets it, and says where it does **not**: **AniList**, `src/sources/anilist/extractor.ts:350`,
+on the public GraphQL API only. The frontend fallback beside it is not spread, at `:348-349`:
 
-- **Jikan**, `src/sources/jikan/extractor.ts:24`, as `const SPREAD = { spread: true } as const`, passed
-  to all four of its API calls (`:197`, `:211`, `:222`, `:249`). Its comment at `:21-23` draws the line:
-  *The myanimelist.net scrape is not spread: it is a page, not a metered API.*
-- **AniList**, `src/sources/anilist/extractor.ts:292`, on the public GraphQL API only. The frontend
-  fallback beside it is not spread, at `:290-291`:
+> NOT spread: its CSRF pair was minted through one node and anilist.co may well bind it to the
+> address, which is not something to find out from a gate refusal in production.
 
-  > NOT spread: its CSRF pair was minted through one node and anilist.co may well bind it to the
-  > address, which is not something to find out from a gate refusal in production.
+The MyAnimeList source is not spread either: it reads myanimelist.net's own pages, not a metered API.
 
 The loop passes `init` through unchanged on every attempt. That sounds too trivial to test and has a
 test of its own, because nothing else in the chain would catch losing it

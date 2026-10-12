@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { malLargeImage } from '../../../src/sources/mal-image'
 
@@ -27,4 +27,11 @@ test('a query string survives, and another host is never rewritten', () => {
 test('a missing url passes through, since a source with no image is not this to fix', () => {
   expect(malLargeImage(undefined)).toBeUndefined()
   expect(malLargeImage(null)).toBeNull()
+})
+
+// The site's search answers spell the cover resized, `https://cdn.myanimelist.net/r/116x180/...`, with a
+// signature for that size; the plain large file needs neither (measured 2026-10-13, 200 without it).
+test('a resized url upgrades to the plain large one, without the size\'s signature', () => {
+  expect(malLargeImage('https://cdn.myanimelist.net/r/116x180/images/anime/1921/154528.jpg?s=2c8f7a88b0c041948774328f15908fec'))
+    .toBe('https://cdn.myanimelist.net/images/anime/1921/154528l.jpg')
 })

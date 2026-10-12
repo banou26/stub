@@ -92,7 +92,7 @@ flowchart LR
   GATE{"is this the season seed on a page that switched it off?<br/><small>refusesSeedAsset(location.href, input)</small>"}
   R404["new Response with status 404<br/><small>'the season seed is switched off for this page'</small>"]
   CLOUD["cloud.fetch(input, init)<br/><small>utils/fetch.ts:5-6, through an FKN node</small>"]
-  NET[("the upstream<br/><small>api.jikan.moe, graphql.anilist.co, ...</small>")]
+  NET[("the upstream<br/><small>graphql.anilist.co, myanimelist.net, ...</small>")]
 
   SRC --> CTX
   CTX --> WB

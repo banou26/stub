@@ -1,17 +1,9 @@
+import { decodeEntities } from '../entities.ts'
 import { malLargeImage } from '../mal-image.ts'
 
-// The MAL seasonal page, parsed out of its HTML. Split out so it can be tested: an extractor pulls in
-// the source barrel and, through it, a CommonJS `require('react')` that cannot load outside a
-// browser. Same reason ../season.ts and ../kitsu/season-paging.ts are their own modules. Its one
-// import is ../mal-image.ts, which imports nothing itself, so the reason above still holds.
-//
-// This exists because Jikan, the API this source normally uses, is unreachable from the FKN proxy's
-// egress: every endpoint answers 504 "Jikan failed to connect to MyAnimeList" from both regions
-// while myanimelist.net itself serves the same egress fine. So the scrape is the FALLBACK for a
-// source stub already has, not a new source: this extractor's origin is `mal` either way, and both
-// paths key on the same MAL id, so records from them merge rather than duplicating.
-//
-// Regex rather than a DOM parse, matching how src/sources/tmdb/extractor.ts already scrapes.
+// The MAL seasonal page, parsed out of its HTML. Its own module because the data build loads it under
+// node (scripts/season-popularity.mjs), so it imports only modules that import nothing, by their .ts
+// name. Regex rather than a DOM parse, matching how src/sources/tmdb/extractor.ts already scrapes.
 
 /** One entry from the seasonal grid. Every field except id and title may be missing. */
 export type MalSeasonEntry = {
@@ -29,6 +21,8 @@ export type MalSeasonEntry = {
   section?: string
   /** The genre chips MAL prints on the card. See `genresOf` for why they are worth parsing. */
   genres?: string[]
+  /** MAL marks its R18+ cards, which the page hides unless the viewer asks for them. */
+  adult: boolean
 }
 
 /**
@@ -68,33 +62,38 @@ export const malDate = (raw?: string): string | undefined => {
   return `${year}-${month}-${day}`
 }
 
-const decodeEntities = (text: string) =>
-  text
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-
-const text = (raw?: string) => {
+/** An HTML fragment as one line of plain text, or undefined when nothing is left. */
+export const text = (raw?: string) => {
   if (!raw) return undefined
   const cleaned = decodeEntities(raw.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()
   return cleaned || undefined
 }
 
-const num = (raw?: string) => {
+/** A number as MAL prints it, `2,091,002`, or undefined for anything else (`N/A`, `Unknown`). */
+export const num = (raw?: string) => {
   if (!raw) return undefined
   const value = Number(raw.replace(/,/g, ''))
   return Number.isFinite(value) ? value : undefined
 }
 
-const one = (block: string, pattern: RegExp) => pattern.exec(block)?.[1]
+/** The first capture group of the pattern's first match in the block. */
+export const one = (block: string, pattern: RegExp) => pattern.exec(block)?.[1]
+
+/**
+ * A synopsis as plain text with its paragraphs kept, or undefined for the line MAL prints when it has
+ * none: "(No synopsis yet.)" on a season card, "No synopsis information has been added to this
+ * title..." on a title page.
+ */
+export const synopsisText = (raw?: string) => {
+  const synopsis = raw && decodeEntities(raw.replace(/\r/g, '').replace(/<[^>]*>/g, '')).trim()
+  return synopsis && !/^\(?No synopsis\b/.test(synopsis) ? synopsis : undefined
+}
 
 /**
  * Every genre chip MAL prints on a card, across all three of its captioned groups.
  *
- * Worth parsing because this scrape is not a rare fallback: Jikan's API is unreachable from the FKN
- * proxy's egress, measured 2026-08-16 and again 2026-09-06, so the API path yields no data and THIS is
- * what actually supplies the current season. Without these the season carried no genres from this
- * source at all, and a genre filter could only match what AniList happened to cover.
+ * Worth parsing because this page is what supplies the season. Without these the season carried no
+ * genres from this source at all, and a genre filter could only match what AniList happened to cover.
  *
  * SCANNED OVER THE WHOLE CARD, not over the `genres-inner` div, and that is the whole subtlety. MAL
  * splits its chips the way the API splits its fields: `genres-inner` holds the GENRES, and the themes
@@ -109,7 +108,7 @@ const one = (block: string, pattern: RegExp) => pattern.exec(block)?.[1]
  * Read off `title`, not the link text: both carry the display spelling, and the attribute cannot pick
  * up whitespace or nested markup from the anchor's body.
  */
-const genresOf = (block: string): string[] => {
+export const genresOf = (block: string): string[] => {
   const names: string[] = []
   for (const match of block.matchAll(/<a[^>]+href="\/anime\/genre\/\d+\/[^"]*"[^>]*title="([^"]+)"/g)) {
     const name = text(match[1])
@@ -131,7 +130,8 @@ const genresOf = (block: string): string[] => {
  * A page with no headings comes back as one unnamed section holding everything, which keeps this
  * parser working on any markup it does not recognise. That direction is deliberate: an unrecognised
  * page then behaves exactly as it did before sections existed, where returning nothing would empty
- * the homepage. `scrapeSeasonNow` logs the case so a markup change is visible rather than silent.
+ * the homepage. The extractor's `getSeason` logs the case so a markup change is visible rather
+ * than silent.
  */
 const sectionsOf = (html: string): { name: string, body: string }[] => {
   const heads = [...html.matchAll(/class="anime-header">([^<]*)</g)]
@@ -166,7 +166,7 @@ export const parseMalSeason = (html: string): MalSeasonEntry[] => {
         // the page's thumbnail is 225x318 and the large spelling is 425x600; jikan outranks every
         // other source, so the small one replaced a better cover after the page had already drawn it
         cover: malLargeImage(cover),
-        synopsis: text(one(block, /class="preline">([\s\S]*?)<\/p>/)),
+        synopsis: synopsisText(one(block, /class="preline">([\s\S]*?)<\/p>/)),
         // js-score carries `N/A` for an unrated title, which must not become NaN
         score: num(one(block, /class="js-score">([\d.]+)</)),
         members: num(one(block, /class="js-members">([\d,]+)</)),
@@ -175,6 +175,7 @@ export const parseMalSeason = (html: string): MalSeasonEntry[] => {
         typeId: num(one(block, /js-anime-type-(\d+)/)),
         section: section.name,
         genres: genresOf(block),
+        adult: /^[^"]*\bjs-r18\b/.test(block),
       })
     }
   }

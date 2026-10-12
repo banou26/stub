@@ -1,8 +1,9 @@
 // MyAnimeList's CDN serves three sizes of one picture and the small one is the default spelling.
 // Nothing here imports anything, so both the offline bundle and the jikan source can use it.
 
-// `.../images/anime/1527/158340.jpg`, optionally with a size letter before the extension
-const MAL_IMAGE = /^(https:\/\/cdn\.myanimelist\.net\/images\/anime\/[^/]+\/\d+)[a-z]?(\.\w+)(\?.*)?$/
+// `.../images/anime/1527/158340.jpg`, optionally with a size letter before the extension, or resized
+// under `/r/116x180/` as the site's search answers spell it
+const MAL_IMAGE = /^https:\/\/cdn\.myanimelist\.net(\/r\/\d+x\d+)?(\/images\/anime\/[^/]+\/\d+)[a-z]?(\.\w+)(\?.*)?$/
 
 /**
  * The LARGE variant of a MyAnimeList image url, or the url unchanged when it is not one.
@@ -21,5 +22,6 @@ const MAL_IMAGE = /^(https:\/\/cdn\.myanimelist\.net\/images\/anime\/[^/]+\/\d+)
  */
 export const malLargeImage = <T extends string | null | undefined>(url: T): T => {
   const match = url?.match(MAL_IMAGE)
-  return match ? `${match[1]}l${match[2]}${match[3] ?? ''}` as T : url
+  // a resized url's query is the signature of that size, which the plain file does not need
+  return match ? `https://cdn.myanimelist.net${match[2]}l${match[3]}${match[1] ? '' : match[4] ?? ''}` as T : url
 }
