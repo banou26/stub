@@ -1,7 +1,7 @@
 // What the media modal and the title page both draw: one query, the episode rows, where an episode
 // plays, and the links to each source. One copy, so the two views cannot drift.
 
-import type { GetMediaDetailsSubscription } from '../../generated/graphql'
+import type { GetMediaDetailsSubscription, GetMediaOriginsSubscription } from '../../generated/graphql'
 import type { WatchSource } from '../../components/source-selector'
 
 import { css } from '@emotion/react'
@@ -245,6 +245,18 @@ export const usePlay = (media: DetailsMedia | null | undefined): { label: PlayLa
 
 const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
 
+type Origin = GetMediaOriginsSubscription['originPage']['nodes'][number]
+type Offer = { relation: string, node: { origin: string, url?: string | null } }
+
+const useOrigins = (ids: string[] | undefined): readonly Origin[] => {
+  const [{ data }] = useSubscription({
+    query: GET_MEDIA_ORIGINS,
+    variables: { input: { ids: ids ?? [], filters: [OriginFilter.IsNotApiOnly] } },
+    pause: !ids
+  })
+  return data?.originPage?.nodes ?? []
+}
+
 /**
  * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
  * `offers` are media-level handles, linked out for a streaming site the episode itself does not name,
@@ -253,25 +265,22 @@ const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
 export const useWatchSources = (
   episode: DetailsEpisode | undefined,
   mediaUri: string,
-  offers: readonly { relation: string, node: { origin: string, url?: string | null } }[] = []
+  offers: readonly Offer[] = []
 ): WatchSource[] => {
   const links = offers.filter(handle => handle.relation === 'SAME_AS' && handle.node.url && STREAMING_ORIGINS.has(handle.node.origin))
-  const originIds = episode ? [...new Set([...episodeOriginIds(episode), ...links.map(handle => handle.node.origin)])] : undefined
-  const [{ data: originData }] = useSubscription({
-    query: GET_MEDIA_ORIGINS,
-    variables: { input: { ids: originIds ?? [], filters: [OriginFilter.IsNotApiOnly] } },
-    pause: !originIds
-  })
+  const origins = useOrigins(episode ? [...new Set([...episodeOriginIds(episode), ...links.map(handle => handle.node.origin)])] : undefined)
+  return episode ? watchSources(episode, mediaUri, origins, links) : []
+}
 
-  if (!episode) return []
-  return (originData?.originPage?.nodes ?? [])
+const watchSources = (episode: DetailsEpisode, mediaUri: string, origins: readonly Origin[], links: readonly Offer[] = []): WatchSource[] =>
+  origins
     .map(origin => {
       // SAME_AS only. Everything below routes into PLAYBACK: `sourceUri` is handed to the watch route
       // and resolved back to a handle to play, so a node that is merely PART_OF this episode would be
       // asked to play a different episode. No source emits a PART_OF episode handle today; the filter
       // is here so that the day one does, it shows up as a missing row rather than a wrong stream.
       const handles =
-        (episode?.handles ?? [])
+        (episode.handles ?? [])
           .filter(handle => handle.relation === 'SAME_AS' && handle.node.origin === origin.id)
           .map(handle => handle.node)
       const handle = handles.at(0)
@@ -297,7 +306,6 @@ export const useWatchSources = (
     .filter(source => source.href)
     .sort((a, b) => Number(a.external) - Number(b.external))
     .slice(0, 5)
-}
 
 /**
  * The links to each site that names this media, as icons, unstyled: each view sizes them itself.
@@ -515,15 +523,15 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, unreleased, airingAt }:
-  { episode: DetailsEpisode, index: number, mediaUri: string, unreleased: boolean, airingAt?: string }
+  { episode, index, mediaUri, origins, unreleased, airingAt }:
+  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], unreleased: boolean, airingAt?: string }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
   const releasedAt = releasedAtOf(episode) ?? airingAt
   const released = releaseDateDisplay(releasedAt)
-  const sources = useWatchSources(unreleased ? undefined : episode, mediaUri)
+  const sources = unreleased ? [] : watchSources(episode, mediaUri, origins)
 
   return (
     <div className={unreleased ? 'episode unreleased' : 'episode'}>
@@ -589,6 +597,10 @@ const Episode = (
 export const Episodes = ({ media, limit }: { media: DetailsMedia, limit?: number }) => {
   const unreleased = unreleasedEpisodes(media)
   const nextAiring = media.nextAiringEpisode
+  // one query for every row: urql shares a running subscription with a row mounted after its answer
+  // but never replays that answer, so a row asking on its own when Show all draws it gets nothing.
+  // The list as a whole still can, when SourceLinks or MoviePlay already asks the same ids.
+  const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   return (
     <div className="episodes" css={episodesStyle}>
       {
@@ -598,6 +610,7 @@ export const Episodes = ({ media, limit }: { media: DetailsMedia, limit?: number
             episode={episode}
             index={index}
             mediaUri={media.uri}
+            origins={origins}
             unreleased={unreleased[index]!}
             airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
           />

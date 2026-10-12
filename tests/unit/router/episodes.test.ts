@@ -79,7 +79,7 @@ test('the rows ask the schedule and dim an unreleased row, keeping a known title
 
 test('an unreleased row draws no watch link and no source picker', () => {
   expect(modal).toMatch(/episode\.uri && !unreleased\s*\?\s*\(\s*<Link\s+className="episode-link"/)
-  expect(modal).toContain('useWatchSources(unreleased ? undefined : episode, mediaUri)')
+  expect(modal).toContain('unreleased ? [] : watchSources(episode, mediaUri, origins)')
   expect(modal).toContain('dated.map(episode => isUnreleased(episode, first))')
   expect(modal).toContain('unreleased={unreleased[index]!}')
 })

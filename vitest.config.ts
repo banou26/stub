@@ -42,6 +42,9 @@ export default defineConfig({
       // off it. @xyflow/react reaches it through zustand. See the shim for why the browser build
       // needs none of this.
       'use-sync-external-store/shim/with-selector.js': './tests/shims/use-sync-external-store-with-selector.ts',
+      // urql names no exports map, so node picks its CommonJS build, whose `require('react')` no alias
+      // reaches; its ESM build is what tests/unit/router/media-details.test.tsx renders rows against
+      urql: 'urql/dist/urql.es.js',
     },
   },
   ssr: { resolve: { conditions: ['module', 'browser', 'development', 'import', 'default'] } },
