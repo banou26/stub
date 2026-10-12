@@ -29,11 +29,12 @@ vi.mock('../../../../src/sources/login-window', () => ({ signInThroughWindow: si
 vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
 
 // the media player skin needs a real media to draw anything, and none of it is under test here
-// beyond the audio tracks its menu is handed
-const skin = vi.hoisted(() => ({ audioTracks: undefined as DelegatedTracks | undefined }))
+// beyond the audio tracks and qualities its menu is handed
+const skin = vi.hoisted(() => ({ audioTracks: undefined as DelegatedTracks | undefined, quality: undefined as DelegatedTracks | undefined }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
-  default: ({ children, audioTracks }: { children?: ComponentChildren, audioTracks?: DelegatedTracks }) => {
+  default: ({ children, audioTracks, quality }: { children?: ComponentChildren, audioTracks?: DelegatedTracks, quality?: DelegatedTracks }) => {
     skin.audioTracks = audioTracks
+    skin.quality = quality
     return <div className="skin">{children}</div>
   },
 }))
@@ -144,13 +145,13 @@ describe('while the episode loads', () => {
 
 describe('cloud backend', () => {
   // every control runs as page code (see cr-page.ts), so Interaction and Site data are never asked
-  test('the attach asks upfront for Evaluation alone, for tracks, seeking and thumbnails', async () => {
+  test('the attach asks upfront for Evaluation alone, for tracks, quality, seeking and thumbnails', async () => {
     await render()
     await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalled())
     const [options] = lib.attachFrame.mock.calls[0]!
     const { permissions } = options as { permissions: { category: string, reason: string }[] }
     expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
-    expect(permissions[0]!.reason).toMatch(/audio and subtitles.*seek.*thumbnails/)
+    expect(permissions[0]!.reason).toMatch(/audio, subtitles and quality.*seek.*thumbnails/)
     // @fkn/lib refuses a reason over 100 characters, and that refusal fails the attach itself
     expect([...permissions[0]!.reason].length).toBeLessThanOrEqual(100)
   })
@@ -300,6 +301,7 @@ describe('the tracks served to the watch page', () => {
   const TRACKS: CrunchyrollTracks = {
     subtitles: { options: [{ id: 'English', label: 'English' }, { id: 'Deutsch', label: 'Deutsch' }], selectedId: 'English', offLabel: 'Off' },
     audio: { options: [{ id: 'Japanese', label: 'Japanese' }, { id: 'English#2', label: 'English' }], selectedId: 'Japanese' },
+    quality: { options: [{ id: 'Highest Available', label: 'Highest Available' }, { id: 'Data Saver', label: 'Data Saver' }], selectedId: 'Highest Available' },
   }
   const lastServed = () => served.mock.calls.at(-1) as [EmbedTracks, (kind: TrackKind, id: string | null) => void]
 
@@ -330,6 +332,17 @@ describe('the tracks served to the watch page', () => {
       audio: { ids: ['Japanese', 'English#2'], selected: 'Japanese' },
       busy: false,
     })
+  })
+
+  test('Crunchyroll\'s qualities go to the player\'s menu, whose pick switches Crunchyroll\'s, and stay out of the watch page', async () => {
+    controls.select.mockResolvedValue({ ...TRACKS, quality: { ...TRACKS.quality!, selectedId: 'Data Saver' } })
+    await playing()
+    expect(skin.quality!.selection).toMatchObject(TRACKS.quality!)
+    expect(lastServed()[0]).not.toHaveProperty('quality')
+
+    await skin.quality!.selection.select('Data Saver')
+    expect(controls.select.mock.calls.map(([, , kind, id]) => [kind, id])).toEqual([['quality', 'Data Saver']])
+    await vi.waitFor(() => expect(skin.quality!.selection.selectedId).toBe('Data Saver'))
   })
 
   test('a pick from the page switches that kind of track', async () => {

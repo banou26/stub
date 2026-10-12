@@ -68,3 +68,19 @@ export const playbackTime = () => {
   expect(clampCrunchyrollTime(50, Number.NaN)).to.equal(50)
   expect(clampCrunchyrollTime(Number.NaN, 100)).to.equal(0)
 }
+
+// Crunchyroll checks a quality only when the viewer's profile answered before the stream loaded, and its three choices are there all the same
+export const qualityBeforeTheProfile = () => {
+  expect(normalizeCrunchyrollTrackSelection('quality', [
+    option('Highest Available', 'Highest Available', 0),
+    option('Moderate', 'Moderate', 1),
+    option('Data Saver', 'Data Saver', 2),
+  ])).to.deep.equal({
+    options: [
+      { id: 'Highest Available', label: 'Highest Available', disabled: undefined },
+      { id: 'Moderate', label: 'Moderate', disabled: undefined },
+      { id: 'Data Saver', label: 'Data Saver', disabled: undefined },
+    ],
+    selectedId: null,
+  })
+}

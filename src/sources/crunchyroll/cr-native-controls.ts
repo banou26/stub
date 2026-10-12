@@ -4,15 +4,43 @@ import { pickTrackOption, pressTrackButton, readTrackMenuOptions, seekTimeline }
 
 const TRACK_BUTTON_SELECTOR = '[data-testid="track-selection-button"]'
 const TRACK_MENU_SELECTOR = '[data-testid="audio-text-track-menu"]'
+const SETTINGS_BUTTON_SELECTOR = '[data-testid="player-settings-menu-button"]'
 const TIMELINE_SELECTOR = '.timeline-slider'
 const SECTION_SELECTOR = '[role="menu"]'
 const OPTION_SELECTOR = '[role="menuitemradio"]'
 const TRACK_MENU_TIMEOUT = 10_000
+// short: discovery reads the gear after every track switch, so a gear that will not open costs each switch this long
+const SETTINGS_MENU_TIMEOUT = 2_000
 const TRACK_SELECT_TIMEOUT = 20_000
 const PLAYBACK_STATE_TIMEOUT = 5_000
 const POLL_INTERVAL = 100
-const TRACK_MENU = { menu: TRACK_MENU_SELECTOR, section: SECTION_SELECTOR, option: OPTION_SELECTOR }
 const OFF_LABEL = /^(off|none|disabled)$/i
+
+const TRACK_MENU = {
+  button: TRACK_BUTTON_SELECTOR,
+  open: TRACK_MENU_SELECTOR,
+  menu: TRACK_MENU_SELECTOR,
+  section: SECTION_SELECTOR,
+  option: OPTION_SELECTOR,
+  timeout: TRACK_MENU_TIMEOUT,
+}
+// The gear's menu has no test id: it is the popup next to the button's wrapper, and holds a group with
+// the autoplay switch, then the Quality group, the only one of radios (Crunchyroll's player bundle,
+// katamari 0.29.0, read 2026-10-13)
+const SETTINGS_MENU = {
+  button: SETTINGS_BUTTON_SELECTOR,
+  open: `${SETTINGS_BUTTON_SELECTOR}[aria-expanded="true"]`,
+  menu: `:has(> ${SETTINGS_BUTTON_SELECTOR}) + [role="menu"]`,
+  section: `${SECTION_SELECTOR}:has(${OPTION_SELECTOR})`,
+  option: OPTION_SELECTOR,
+  timeout: SETTINGS_MENU_TIMEOUT,
+}
+const MENUS = {
+  audio: { ...TRACK_MENU, sectionIndex: 0 },
+  subtitles: { ...TRACK_MENU, sectionIndex: 1 },
+  quality: { ...SETTINGS_MENU, sectionIndex: 0 },
+}
+type NativeMenu = typeof MENUS[CrunchyrollTrackKind]
 
 export type CrunchyrollTrackOption = {
   id: string
@@ -29,6 +57,7 @@ export type CrunchyrollTrackSelection = {
 export type CrunchyrollTracks = {
   subtitles?: CrunchyrollTrackSelection
   audio?: CrunchyrollTrackSelection
+  quality?: CrunchyrollTrackSelection
 }
 
 export type CrunchyrollTrackKind = keyof CrunchyrollTracks
@@ -53,8 +82,6 @@ const checkCancelled = (isCancelled: () => boolean) => {
   if (isCancelled()) throw new Error('Crunchyroll track operation cancelled')
 }
 
-const sectionIndex = (kind: CrunchyrollTrackKind) => kind === 'audio' ? 0 : 1
-
 export const normalizeCrunchyrollLabel = (label: string) => label.replace(/\s+/g, ' ').trim()
 
 export const normalizeCrunchyrollTrackSelection = (
@@ -68,7 +95,8 @@ export const normalizeCrunchyrollTrackSelection = (
       .map(option => [option.id, option]),
   ).values()]
   const selected = unique.find(option => option.selected)
-  if (!selected) return undefined
+  // Crunchyroll checks a quality only when the viewer's profile answered before the stream loaded; otherwise none is checked until a pick
+  if (!selected && kind !== 'quality') return undefined
 
   const off = kind === 'subtitles' ? unique.find(option => OFF_LABEL.test(option.label)) : undefined
   const options = unique
@@ -84,34 +112,35 @@ export const normalizeCrunchyrollTrackSelection = (
 
   return {
     options,
-    selectedId: selected === off ? null : selected.id,
+    selectedId: !selected || selected === off ? null : selected.id,
     ...(off ? { offLabel: off.label } : {}),
   }
 }
 
-const openTrackMenu = async (frame: Frame, isCancelled: () => boolean) => {
+// Crunchyroll keeps one of its menus open at a time, so opening this one closes any other
+const openMenu = async (frame: Frame, { button, open, timeout }: NativeMenu, isCancelled: () => boolean) => {
   checkCancelled(isCancelled)
-  const menu = frame.locator(TRACK_MENU_SELECTOR)
+  const menu = frame.locator(open)
   if (await menu.exists({ timeout: 1_000 })) {
     checkCancelled(isCancelled)
     return
   }
 
   checkCancelled(isCancelled)
-  await frame.evaluate(pressTrackButton, { button: TRACK_BUTTON_SELECTOR, timeout: TRACK_MENU_TIMEOUT })
+  await frame.evaluate(pressTrackButton, { button, timeout })
 
-  const deadline = Date.now() + TRACK_MENU_TIMEOUT
+  const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     checkCancelled(isCancelled)
     if (await menu.exists({ timeout: 1_000 })) return
     await sleep(POLL_INTERVAL)
   }
-  throw new Error('Crunchyroll track menu did not open')
+  throw new Error(`Crunchyroll menu did not open: ${button}`)
 }
 
 const readRawOptions = async (frame: Frame, kind: CrunchyrollTrackKind, isCancelled: () => boolean) => {
   checkCancelled(isCancelled)
-  const read = await frame.evaluate(readTrackMenuOptions, { ...TRACK_MENU, sectionIndex: sectionIndex(kind) })
+  const read = await frame.evaluate(readTrackMenuOptions, MENUS[kind])
   checkCancelled(isCancelled)
 
   const rows = read.map((row, index) => ({ ...row, label: normalizeCrunchyrollLabel(row.label), index }))
@@ -129,23 +158,31 @@ const readRawOptions = async (frame: Frame, kind: CrunchyrollTrackKind, isCancel
   })
 }
 
-const readTracks = async (frame: Frame, isCancelled: () => boolean): Promise<CrunchyrollTracks> => {
-  const [audio, subtitles] = await Promise.all([
-    readRawOptions(frame, 'audio', isCancelled),
-    readRawOptions(frame, 'subtitles', isCancelled),
-  ])
-  return {
-    audio: normalizeCrunchyrollTrackSelection('audio', audio),
-    subtitles: normalizeCrunchyrollTrackSelection('subtitles', subtitles),
+const readSelection = async (frame: Frame, kind: CrunchyrollTrackKind, isCancelled: () => boolean) =>
+  normalizeCrunchyrollTrackSelection(kind, await readRawOptions(frame, kind, isCancelled))
+
+// a quality menu that fails to open costs the quality row and nothing else
+const readQuality = async (frame: Frame, isCancelled: () => boolean) => {
+  try {
+    if (!await frame.locator(SETTINGS_BUTTON_SELECTOR).exists({ timeout: 1_000 })) return undefined
+    await openMenu(frame, MENUS.quality, isCancelled)
+    return await readSelection(frame, 'quality', isCancelled)
+  } catch (err) {
+    if (isCancelled()) throw err
+    return undefined
   }
 }
 
 export const discoverCrunchyrollTracks = async (
   frame: Frame,
   isCancelled: () => boolean = neverCancelled,
-) => {
-  await openTrackMenu(frame, isCancelled)
-  return readTracks(frame, isCancelled)
+): Promise<CrunchyrollTracks> => {
+  await openMenu(frame, MENUS.audio, isCancelled)
+  const [audio, subtitles] = await Promise.all([
+    readSelection(frame, 'audio', isCancelled),
+    readSelection(frame, 'subtitles', isCancelled),
+  ])
+  return { audio, subtitles, quality: await readQuality(frame, isCancelled) }
 }
 
 const findOptionIndex = async (
@@ -167,7 +204,7 @@ const waitForTrackSelection = async (
   const deadline = Date.now() + TRACK_SELECT_TIMEOUT
   while (Date.now() < deadline) {
     checkCancelled(isCancelled)
-    await openTrackMenu(frame, isCancelled)
+    await openMenu(frame, MENUS[kind], isCancelled)
     const selected = (await readRawOptions(frame, kind, isCancelled)).find(option => option.selected)
     if (selected && (id === null ? OFF_LABEL.test(selected.label) : selected.id === id)) return
     await sleep(POLL_INTERVAL)
@@ -257,17 +294,20 @@ export const selectCrunchyrollTrack = async (
   id: string | null,
   isCancelled: () => boolean = neverCancelled,
 ) => {
-  await openTrackMenu(frame, isCancelled)
+  await openMenu(frame, MENUS[kind], isCancelled)
   const index = await findOptionIndex(frame, kind, id, isCancelled)
   if (index < 0) throw new Error(`Crunchyroll ${kind} option is no longer available`)
 
   checkCancelled(isCancelled)
   const previousSource = remote.currentSrc
   const playback = captureCrunchyrollPlayback(remote)
-  await frame.evaluate(pickTrackOption, { ...TRACK_MENU, sectionIndex: sectionIndex(kind), optionIndex: index })
+  await frame.evaluate(pickTrackOption, { ...MENUS[kind], optionIndex: index })
 
   await waitForTrackSelection(frame, kind, id, isCancelled)
-  const transitioned = await waitForPlayback(remote, previousSource, isCancelled)
-  if (transitioned) await restoreCrunchyrollPlayback(frame, remote, playback, isCancelled)
+  // a quality only caps the renditions Crunchyroll picks from, so the stream plays on without a reload
+  if (kind !== 'quality') {
+    const transitioned = await waitForPlayback(remote, previousSource, isCancelled)
+    if (transitioned) await restoreCrunchyrollPlayback(frame, remote, playback, isCancelled)
+  }
   return discoverCrunchyrollTracks(frame, isCancelled)
 }

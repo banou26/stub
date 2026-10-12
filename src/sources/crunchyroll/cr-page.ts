@@ -28,7 +28,7 @@ export type TrackMenuRow = {
   disabled: boolean
 }
 
-/** Every option of one group of the track menu, which holds audio first and subtitles second. */
+/** Every option of one group of a menu: the `sectionIndex`th `section` inside `menu`. */
 export const readTrackMenuOptions = (
   { menu, section, option, sectionIndex }: TrackMenuSelectors & { sectionIndex: number },
 ): TrackMenuRow[] => {
@@ -40,7 +40,7 @@ export const readTrackMenuOptions = (
   }))
 }
 
-/** Clicks the button that opens the track menu, once it renders or `timeout` ms have passed. */
+/** Clicks the button that opens a menu, once it renders or `timeout` ms have passed. */
 export const pressTrackButton = async ({ button, timeout }: { button: string, timeout: number }) => {
   const deadline = Date.now() + timeout
   let target = document.querySelector(button)
@@ -49,7 +49,7 @@ export const pressTrackButton = async ({ button, timeout }: { button: string, ti
     target = document.querySelector(button)
   }
   if (!target) {
-    throw Object.assign(new Error('Crunchyroll track button is not on the page'), { name: 'CrunchyrollControlMissingError' })
+    throw Object.assign(new Error(`Crunchyroll button is not on the page: ${button}`), { name: 'CrunchyrollControlMissingError' })
   }
   const box = target.getBoundingClientRect()
   const mouse = { bubbles: true, cancelable: true, composed: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, button: 0 }
@@ -61,14 +61,14 @@ export const pressTrackButton = async ({ button, timeout }: { button: string, ti
   target.dispatchEvent(new MouseEvent('click', { ...mouse, buttons: 0 }))
 }
 
-/** Clicks one option of the open track menu, by its position as `readTrackMenuOptions` listed it. */
+/** Clicks one option of an open menu, by its position as `readTrackMenuOptions` listed it. */
 export const pickTrackOption = (
   { menu, section, option, sectionIndex, optionIndex }: TrackMenuSelectors & { sectionIndex: number, optionIndex: number },
 ) => {
   const group = [...document.querySelectorAll(menu)].flatMap(root => [...root.querySelectorAll(section)])[sectionIndex]
   const target = group?.querySelectorAll(option)[optionIndex]
   if (!target) {
-    throw Object.assign(new Error(`Crunchyroll track option ${optionIndex} is not in the menu`), { name: 'CrunchyrollControlMissingError' })
+    throw Object.assign(new Error(`Crunchyroll option ${optionIndex} is not in the menu: ${menu}`), { name: 'CrunchyrollControlMissingError' })
   }
   const box = target.getBoundingClientRect()
   const mouse = { bubbles: true, cancelable: true, composed: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, button: 0 }

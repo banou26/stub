@@ -232,7 +232,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
       domains: CRUNCHYROLL_DOMAINS,
       cookies: attachCookies(mode),
       permissions: [
-        { category: 'evaluation', reason: 'Switch audio and subtitles, seek the video, show seek thumbnails and open picture in picture' }
+        { category: 'evaluation', reason: 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture' }
       ]
     })
       .then(f => {
@@ -403,6 +403,12 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
     },
     [tracks?.audio, selectTrack],
   )
+  const quality = useMemo<DelegatedTracks | undefined>(
+    () => tracks?.quality && {
+      selection: { ...tracks.quality, select: (id: string | null) => selectTrack('quality', id) },
+    },
+    [tracks?.quality, selectTrack],
+  )
 
   const served = useMemo<EmbedTracks>(() => {
     const listOf = (selection: CrunchyrollTrackSelection | undefined) => selection && {
@@ -569,6 +575,7 @@ const CrunchyrollPlayer = ({ url, title }: PlayerProps) => {
           frame={frame}
           subtitles={subtitles}
           audioTracks={audioTracks}
+          quality={quality}
           thumbnails={thumbnails}
           chapters={chapters}
           pictureInPicture={pictureInPicture}

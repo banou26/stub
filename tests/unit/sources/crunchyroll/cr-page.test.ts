@@ -65,10 +65,10 @@ describe('pickTrackOption', () => {
     expect(seen[2]!.every(({ clientX, clientY }) => clientX === 200 && clientY === 45)).toBe(true)
   })
 
-  test('an option that is gone is a named failure', async () => {
+  test('an option that is gone is a named failure that names its menu', async () => {
     const { evaluate } = page(TRACK_MENU)
     await expect(evaluate(pickTrackOption, { ...MENU, sectionIndex: 1, optionIndex: 3 }))
-      .rejects.toMatchObject({ ...missing, message: 'Crunchyroll track option 3 is not in the menu' })
+      .rejects.toMatchObject({ ...missing, message: `Crunchyroll option 3 is not in the menu: ${MENU.menu}` })
   })
 })
 
@@ -85,11 +85,11 @@ describe('pressTrackButton', () => {
     expect(seen.map(({ event }) => event)).toEqual(CLICK)
   })
 
-  test('a button that never renders is a named failure once the deadline passes', async () => {
+  test('a button that never renders is a named failure that names it, once the deadline passes', async () => {
     const { evaluate } = page('')
     const started = Date.now()
     await expect(evaluate(pressTrackButton, { button: BUTTON, timeout: 250 }))
-      .rejects.toMatchObject({ ...missing, message: 'Crunchyroll track button is not on the page' })
+      .rejects.toMatchObject({ ...missing, message: `Crunchyroll button is not on the page: ${BUTTON}` })
     expect(Date.now() - started).toBeGreaterThanOrEqual(250)
   })
 })

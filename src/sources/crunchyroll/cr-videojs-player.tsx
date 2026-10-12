@@ -14,6 +14,7 @@ type Props = {
   frame: Frame | null
   subtitles?: DelegatedTracks
   audioTracks?: DelegatedTracks
+  quality?: DelegatedTracks
   thumbnails?: ExternalThumbnails
   chapters?: MediaChapter[]
   pictureInPicture?: PassThroughPictureInPicture
@@ -22,7 +23,7 @@ type Props = {
 
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
-const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks, thumbnails, chapters, pictureInPicture, children }: Props) => {
+const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks, quality, thumbnails, chapters, pictureInPicture, children }: Props) => {
   const volume = useMemo(() => (remote ? rememberPlayerVolume(remote) : null), [remote])
   useEffect(() => volume?.hold(), [volume])
   // memoized on both inputs: the player re-attaches whenever the media identity changes, so a fresh
@@ -44,6 +45,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       title={title}
       subtitles={subtitles}
       audioTracks={audioTracks}
+      quality={quality}
       thumbnails={thumbnails}
       chapters={chapters}
       pictureInPicture={pictureInPicture}
