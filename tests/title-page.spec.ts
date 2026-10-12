@@ -166,9 +166,13 @@ test('a show with one season draws no Seasons row', async ({ page }) => {
   await expect(page.locator('[data-seasons]')).toHaveCount(0)
 })
 
-test('Themes lists each song, plays one at a time under its row, and 390 px wide has no sideways scroll', async ({ page }) => {
+test('Themes lists each song, plays one at a time in the media player under its row, and 390 px wide has no sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
+  // every script the page loads, read for a string only @banou/media-player's styles carry
+  const scripts: Promise<string>[] = []
+  page.on('response', response => { if (response.request().resourceType() === 'script') scripts.push(response.text().catch(() => '')) })
+  const playerLoaded = async () => (await Promise.all(scripts)).some(script => script.includes('var(--mp-unit)'))
   await openModal(page)
   await modal(page).getByRole('link', { name: 'More details' }).click()
   const rows = page.locator('[data-themes] li')
@@ -180,11 +184,14 @@ test('Themes lists each song, plays one at a time under its row, and 390 px wide
   await expect(page.locator('.origins a[title="AnimeThemes"]')).toHaveAttribute('href', 'https://animethemes.moe/anime/sousou_no_frieren')
   const videos = page.locator('[data-themes] video')
   await expect(videos, 'nothing plays before a click').toHaveCount(0)
+  expect(await playerLoaded(), 'the player loads on the first Play, not with the page').toBe(false)
   const advances = () => expect.poll(() => videos.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0)
 
   await rows.nth(0).getByRole('button', { name: 'Play' }).click()
   await expect(rows.nth(0).locator('video')).toHaveAttribute('src', 'https://v.animethemes.moe/SousouNoFrieren-OP1.webm')
   await advances()
+  await expect.poll(playerLoaded).toBe(true)
+  await expect(rows.nth(0).getByRole('button', { name: 'Full screen' }), 'the media player\'s controls').toHaveCount(1)
   await rows.nth(1).getByRole('button', { name: 'Play' }).click()
   await expect(videos).toHaveCount(1)
   await expect(rows.nth(1).locator('video')).toHaveAttribute('src', 'https://v.animethemes.moe/SousouNoFrieren-OP2.webm')
@@ -210,6 +217,61 @@ test('the watch page lists no source it has nothing to open for', async ({ page 
   const list = page.locator('.list')
   await expect(list.locator('a[title="Netflix"]')).toBeVisible({ timeout: 30_000 })
   await expect(list.locator('a[title="TMDB"]')).toHaveCount(0)
+})
+
+test('a theme still plays when the player\'s chunk is gone, as after a deploy', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
+  await page.route(/\/theme-player-[^/]*\.js$/, route => route.fulfill({ status: 404 }))
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const row = page.locator('[data-themes] li').nth(0)
+  await row.getByRole('button', { name: 'Play' }).click({ timeout: 30_000 })
+  const video = row.locator('video')
+  await expect(video).toHaveAttribute('src', 'https://v.animethemes.moe/SousouNoFrieren-OP1.webm')
+  await expect.poll(() => video.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0)
+  const [player, box] = await Promise.all([row.locator('.player').boundingBox(), video.boundingBox()])
+  expect(box, 'the video fills its 16:9 box').toEqual(player)
+  expect(await overflowX(page)).toBe(0)
+})
+
+test('a playing theme takes its keys only from inside the player, so Space and the arrows still scroll the page and press its buttons', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const row = page.locator('[data-themes] li').nth(0)
+  await row.getByRole('button', { name: 'Play' }).click({ timeout: 30_000 })
+  const video = row.locator('video')
+  await expect(row.getByRole('button', { name: 'Full screen' })).toHaveCount(1)
+  // the fixture lasts 4 seconds, and an ended video reads as paused
+  await video.evaluate(video => { (video as HTMLVideoElement).loop = true })
+  await expect.poll(() => video.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0)
+  const paused = () => video.evaluate(video => (video as HTMLVideoElement).paused)
+  // a click on the heading before each key, since a second key scroll after the first was measured
+  // dropped by Chromium in 3 runs of 60
+  const scrolls = async (key: string) => {
+    await heading(page).click()
+    const before = await page.evaluate(() => scrollY)
+    await page.keyboard.press(key)
+    await expect.poll(() => page.evaluate(() => scrollY), `${key} on the page heading scrolls the page`).toBeGreaterThan(before)
+  }
+
+  await scrolls('Space')
+  expect(await paused(), 'Space outside the player leaves the video playing').toBe(false)
+  const volume = await video.evaluate(video => (video as HTMLVideoElement).volume)
+  await scrolls('ArrowDown')
+  expect(await video.evaluate(video => (video as HTMLVideoElement).volume), 'ArrowDown outside the player leaves the volume').toBe(volume)
+
+  // the control: a key from inside the player is still its own
+  await video.click()
+  await expect.poll(paused, 'a click on the video pauses it').toBe(true)
+  await page.keyboard.press('Space')
+  await expect.poll(paused, 'and Space then plays it').toBe(false)
+
+  await row.getByRole('button', { name: 'Stop' }).focus()
+  await page.keyboard.press('Space')
+  await expect(video, 'Space on Stop stops the theme').toHaveCount(0)
 })
 
 test('Episodes draws the first 12, and Show all the rest', async ({ page }) => {

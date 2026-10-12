@@ -84,11 +84,22 @@ export const npmEntryProblems = (pkg, tree) => {
 
   // the app build links its stylesheet from index.html; a lib build has no html, so a stylesheet
   // left beside the entry is one nothing loads. vite.lib.config.ts inlines them into the entry.
+  const assets = join(dirname(main), 'assets')
   const orphans = tree
-    .list(join(dirname(main), 'assets'))
+    .list(assets)
     .filter(name => name.startsWith('lib-') && name.endsWith('.css'))
   if (orphans.length) {
     problems.push(`the entry loads no stylesheet, yet the build emitted ${orphans.join(', ')} beside it, so the app would render unstyled. The entry has to carry its css.`)
+  }
+
+  // a lib build inlines every asset, and jassub's wasm inlined made the first theme Play load 6.2 MB:
+  // see the stub-lib-wasm-files plugin in vite.lib.config.ts
+  const themePlayers = tree.list(assets).filter(name => /^lib-theme-player-.*\.js$/.test(name))
+  if (!themePlayers.length) problems.push(`${assets} has no lib-theme-player chunk to check for inlined wasm`)
+  for (const name of themePlayers) {
+    if (tree.read(join(assets, name))?.includes('data:application/wasm')) {
+      problems.push(`${join(assets, name)} carries a wasm file inlined as base64, which the first theme Play would download`)
+    }
   }
 
   return problems

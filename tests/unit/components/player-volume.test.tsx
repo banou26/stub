@@ -14,8 +14,8 @@ import { PLAYER_VOLUME_KEY, readPlayerVolume, rememberPlayerVolume } from '../..
 
 // @banou/media-player's two CommonJS dependencies cannot reach the react alias under node (see
 // vitest.config.ts), and neither draws anything this test reads
-vi.mock('react-feather', () => Object.fromEntries(
-  ['AlertTriangle', 'Check', 'ChevronLeft', 'ChevronRight', 'Copy', 'Maximize', 'Minimize', 'Pause', 'Play', 'RotateCcw', 'Settings', 'Volume1', 'Volume2', 'VolumeX']
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Captions', 'CaptionsOff', 'Check', 'ChevronLeft', 'ChevronRight', 'Copy', 'Maximize', 'Minimize', 'Pause', 'Play', 'RotateCcw', 'Settings', 'TriangleAlert', 'Volume1', 'Volume2', 'VolumeX']
     .map(name => [name, () => null]),
 ))
 vi.mock('react-tooltip', () => ({ Tooltip: () => null }))

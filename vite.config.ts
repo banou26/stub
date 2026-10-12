@@ -79,7 +79,7 @@ export default defineConfig((_) => ({
       'react',
       'react-dom',
       '@banou/media-player > react-tooltip',
-      '@banou/media-player > react-feather',
+      '@banou/media-player > lucide-react',
     ],
   },
   resolve: {

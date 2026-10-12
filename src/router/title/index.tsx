@@ -419,14 +419,19 @@ const style = css`
       overflow-wrap: anywhere;
     }
 
-    video {
-      display: block;
-      width: 100%;
+    .player {
       max-width: 48rem;
       aspect-ratio: 16 / 9;
       margin-top: 0.8rem;
       border-radius: 0.4rem;
+      overflow: hidden;
       background: #000;
+
+      > video {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     }
   }
 `
@@ -499,11 +504,16 @@ const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) =
 
 type Theme = { kind: string, sequence?: number | null, title?: string | null, artists: string[], video?: string | null }
 
+// the player and videojs behind it load on the first Play, never with the page
 const ThemeVideo = ({ url }: { url: string }) => {
-  const video = useRef<HTMLVideoElement>(null)
-  // mounted by a click on Play, so starting it is that click's doing
-  useEffect(() => { video.current?.play().catch(() => {}) }, [])
-  return <video ref={video} src={url} controls playsInline/>
+  const [ThemePlayer, setThemePlayer] = useState<typeof import('./theme-player').default>()
+  useEffect(() => {
+    import('./theme-player')
+      .then(module => setThemePlayer(() => module.default))
+      // a chunk gone since the page loaded, as after a deploy, still plays the theme in the browser's controls
+      .catch(() => setThemePlayer(() => ({ url }: { url: string }) => <video src={url} controls autoPlay playsInline/>))
+  }, [])
+  return <div className="player">{ThemePlayer ? <ThemePlayer url={url}/> : undefined}</div>
 }
 
 /** Each opening, ending and insert song, with one of them playing at a time under its row. */

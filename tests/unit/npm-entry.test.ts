@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 // a plain .mjs beside the other build scripts, so its exports arrive untyped
 import { embedPageProblems, npmEntryProblems } from '../../scripts/check-npm-entry.mjs'
@@ -32,6 +32,7 @@ const MANIFEST = { main: 'build/index.js', files: ['build', 'README.md'] }
 const FILES = {
   'build/index.js': 'import { a } from "./assets/lib-chunk-Dx0.js";\na()\n',
   'build/assets/lib-chunk-Dx0.js': 'export const a = () => {}\n',
+  'build/assets/lib-theme-player-Cz4.js': 'const wasm = new URL(new URL("lib-jassub-worker-C7b.wasm", import.meta.url).href)\n',
 }
 
 describe('the npm entry check', () => {
@@ -70,6 +71,16 @@ describe('the npm entry check', () => {
   test('refuses a stylesheet left beside the entry with nothing loading it', () => {
     const orphan = { ...FILES, 'build/assets/lib-index-3a7.css': '.media-sr-only{}' }
     expect(npmEntryProblems(MANIFEST, treeOf(orphan)).join('\n')).toContain('would render unstyled')
+  })
+
+  test('refuses a theme player chunk with a wasm file inlined in it', () => {
+    const inlined = { ...FILES, 'build/assets/lib-theme-player-Cz4.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(inlined)).join('\n')).toContain('build/assets/lib-theme-player-Cz4.js carries a wasm file inlined')
+  })
+
+  test('refuses a build with no theme player chunk to check', () => {
+    const { 'build/assets/lib-theme-player-Cz4.js': _, ...withoutChunk } = FILES
+    expect(npmEntryProblems(MANIFEST, treeOf(withoutChunk)).join('\n')).toContain('has no lib-theme-player chunk to check')
   })
 
   test('refuses a manifest that names no entry', () => {

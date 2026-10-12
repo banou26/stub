@@ -74,6 +74,19 @@ export default defineConfig(env => {
       // plugin arrays, so this appends without unwrapping it
       app.plugins,
       {
+        // A lib build inlines every asset as base64, `assetsInlineLimit` notwithstanding, so jassub's two
+        // `new URL('./wasm/*.wasm', import.meta.url)` put 6.2 MB (2.6 MB gzip) in the chunk behind the first
+        // theme Play (measured 2026-10-12), for a subtitle renderer a theme never starts. `?no-inline` is
+        // vite's per-import opt out, and the build strips it from the emitted url.
+        name: 'stub-lib-wasm-files',
+        enforce: 'pre',
+        apply: 'build',
+        transform: {
+          filter: { id: /\/node_modules\/jassub\// },
+          handler: code => ({ code: code.replace(/(new URL\(\s*['"][^'"?]+\.wasm)(['"])/g, '$1?no-inline$2'), map: null }),
+        },
+      },
+      {
         name: 'stub-inline-lib-css',
         apply: 'build',
         generateBundle: {
