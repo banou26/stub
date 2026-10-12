@@ -11,16 +11,25 @@ export type PrimePageSelectors = {
   play: string
   /** The header's sign-in link, there only when signed out. */
   signIn: string
+  /**
+   * The detail page's offer to rent or buy the episode, in its top action box. A signed-out page shows
+   * it too, so it says the episode is not included only once the page is signed in.
+   */
+  rent: string
 }
 
-export type PrimePageState = 'play' | 'signed-out' | 'pending'
+export type PrimePageState = 'play' | 'signed-out' | 'rent' | 'pending'
 
-/** Where the episode's page stands: its Play control is up, Amazon asks to sign in, or neither yet. */
-export const readPrimePage = ({ play, signIn }: PrimePageSelectors): PrimePageState => {
+/**
+ * Where the episode's page stands: its Play control is up, Amazon asks to sign in, the page offers the
+ * episode only to rent or buy, or none of these yet.
+ */
+export const readPrimePage = ({ play, signIn, rent }: PrimePageSelectors): PrimePageState => {
   // Amazon's own sign-in pages, which a signed-out autoplay link goes through (measured 2026-10-12)
   if (/^\/(ap\/signin|ax\/claim)\b|\/auth-redirect\b/.test(location.pathname)) return 'signed-out'
   if (document.querySelector(play)) return 'play'
-  return document.querySelector(signIn) ? 'signed-out' : 'pending'
+  if (document.querySelector(signIn)) return 'signed-out'
+  return document.querySelector(rent) ? 'rent' : 'pending'
 }
 
 /** Presses the Play control. Throws an Error named `PrimeControlMissingError` when it is not on the page. */

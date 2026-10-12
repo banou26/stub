@@ -17,6 +17,9 @@ import { PRIME_DOMAINS, PRIME_SIGN_IN_LINK, PRIME_SIGN_IN_URL, primeSignedIn } f
 const PAGE: PrimePageSelectors = {
   play: '[data-testid="dp-atf-play-button"]',
   signIn: PRIME_SIGN_IN_LINK,
+  // the action box's TVOD forms, `ab-episode-tvod_rental` for an episode to rent, the same in English and
+  // Japanese; the episode list's own carry `el-` and are other episodes' (measured 2026-10-13)
+  rent: '[data-automation-id^="ab-"][data-automation-id*="tvod"]',
 }
 
 // the player's video only: the detail page's muted hero video plays outside it, in `.draper-player-container`
@@ -132,6 +135,7 @@ const styles = css`
     border-radius: 0.4rem;
     font-size: 1.4rem;
     font-weight: 600;
+    text-decoration: none;
     cursor: pointer;
 
     &:hover {
@@ -161,6 +165,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   const [frame, setFrame] = useState<Frame | null>(null)
   const [loading, setLoading] = useState(true)
   const [loggedOut, setLoggedOut] = useState(false)
+  const [rentOnly, setRentOnly] = useState(false)
   const [error, setError] = useState<string>()
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -207,6 +212,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     setLoading(true)
     setError(undefined)
     setLoggedOut(false)
+    setRentOnly(false)
     setRemoteVideo(null)
     ;(async () => {
       await frame.goto(detailUrl(url), { waitUntil: 'commit' })
@@ -215,10 +221,15 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
         return state === 'pending' ? undefined : state
       }, isCancelled, PAGE_TIMEOUT)
       if (cancelled) return
-      if (page) siteStatuses.record('prime', page === 'play' ? 'signed-in' : 'signed-out')
+      if (page) siteStatuses.record('prime', page === 'signed-out' ? 'signed-out' : 'signed-in')
       if (page === 'signed-out') {
         setLoading(false)
         setLoggedOut(true)
+        return
+      }
+      if (page === 'rent') {
+        setLoading(false)
+        setRentOnly(true)
         return
       }
       if (!page) throw new Error('Prime Video shows no Play button for this episode.')
@@ -249,6 +260,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     setError(undefined)
     setRemoteVideo(null)
     setLoggedOut(false)
+    setRentOnly(false)
     setBlocked(false)
     setLoading(true)
     setAttachKey(key => key + 1)
@@ -289,13 +301,16 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       .finally(() => { if (mounted.current) setSigningIn(false) })
   }, [mode, remount])
 
-  const overlay = (loading || error || loggedOut) && (
+  const openOnPrime = <a className="login-button" href={detailUrl(url)} target="_blank" rel="noreferrer">Open on Prime Video</a>
+
+  const overlay = (loading || error || loggedOut || rentOnly) && (
     <div className="overlay">
       {error
         ? (
           <>
             {error}
             <button className="login-button" onClick={remount}>Retry</button>
+            {openOnPrime}
           </>
         )
         : loggedOut
@@ -305,6 +320,13 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
             <button className="login-button" onClick={signIn} disabled={signingIn}>
               {signingIn ? 'Finish signing in the window...' : 'Sign in to Prime Video'}
             </button>
+          </>
+        )
+        : rentOnly
+        ? (
+          <>
+            Prime Video offers this episode only to rent or buy here.
+            {openOnPrime}
           </>
         )
         : <div className="loading-spinner" role="status" aria-label="Loading" />}

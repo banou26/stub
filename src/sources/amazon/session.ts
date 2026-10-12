@@ -18,9 +18,11 @@ export const PRIME_DOMAINS = [
   'prime-video.amazon.dev',
 ]
 
-// amazon.co.jp's own header sign-in link, returning to the shop's home, where no video plays
+// the header sign-in link of Prime Video's storefront, which returns there (measured 2026-10-13). Returned
+// to the shop's home instead, FKN's cloud window stayed white after a sign-in and never closed by itself
+// (2026-10-13).
 export const PRIME_SIGN_IN_URL = `https://www.amazon.co.jp/ap/signin?${new URLSearchParams({
-  'openid.return_to': 'https://www.amazon.co.jp/',
+  'openid.return_to': 'https://www.amazon.co.jp/gp/video/storefront',
   'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
   'openid.assoc_handle': 'jpflex',
   'openid.mode': 'checkid_setup',

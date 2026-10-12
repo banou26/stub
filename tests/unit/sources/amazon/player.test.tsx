@@ -43,19 +43,38 @@ const DEEP_LINK = `https://watch.amazon.co.jp/watch?gti=${GTI}`
 const DETAIL = 'https://www.amazon.co.jp/gp/video/detail/0PJQL97FNFXU3VZWEHILB694SJ'
 const SIGNED_OUT_NOTE = 'Sign in to Prime Video to watch.'
 const SIGN_IN = 'Sign in to Prime Video'
+const RENT_NOTE = 'Prime Video offers this episode only to rent or buy here.'
 
 const HERO = '<div class="draper-player-container"><video src="blob:https://www.amazon.co.jp/hero"></video></div>'
+const SIGNED_IN_HEADER = '<header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_youraccount_btn" href="/gp/css/homepage.html">Account</a></div></header>'
+// the action box's offer to rent, as amazon.co.jp served Frieren's page on 2026-10-13, signed out, in English
+// and in Japanese; the episode list below it repeats one per episode under `el-`
+const rentForm = (place: 'ab' | 'el', label: string) => `
+  <form data-automation-id="${place}-episode-tvod_rental" id="tvod-btn-${place}-episode-tvod_rental" action="/gp/video/acquisition/workflow?workflowType=Core-TVOD&ref_=atv_dp_non_js_pur" method="POST">
+    <button class="tvod-button av-button" type="submit">${label}</button>
+  </form>`
+const RENT = rentForm('ab', 'Rent episode 2 HD ¥220')
+const EPISODE_LIST_RENT = rentForm('el', 'Rent episode 3 HD ¥220')
 // signed in: the header's account menu, the muted hero video, Play, and the player's container, empty until Play
 const SIGNED_IN_PAGE = `
-  <header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_youraccount_btn" href="/gp/css/homepage.html">Account</a></div></header>
+  ${SIGNED_IN_HEADER}
   ${HERO}
   <a data-testid="dp-atf-play-button" href="/gp/video/detail/0PJQL97FNFXU3VZWEHILB694SJ?autoplay=1&t=0">Play S1 E2</a>
   <div id="dv-web-player"></div>`
-// signed out, as the logged-out page saved on 2026-10-12 has it: the header's sign-in link, and no Play
+// signed out, as the logged-out pages of 2026-10-12 and 2026-10-13 have it: the header's sign-in link, an
+// offer to rent, and no Play
 const SIGNED_OUT_PAGE = `
   <header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_ya_signin" href="https://www.amazon.co.jp/ap/signin">Hello, Sign in</a></div></header>
   ${HERO}
+  ${RENT}
   <div id="dv-web-player"></div>`
+// signed in where the account's Prime does not stream: the owner's account through FKN's Prague relay showed
+// the account menu, offers to rent and no Play (2026-10-13). Its markup was not saved, so these are the
+// signed-out page's rent forms under the signed-in header.
+const RENT_ONLY_PAGES = {
+  English: `${SIGNED_IN_HEADER}${HERO}${RENT}${EPISODE_LIST_RENT}<div id="dv-web-player"></div>`,
+  Japanese: `${SIGNED_IN_HEADER}${HERO}${rentForm('ab', 'エピソード2をHDでレンタル ￥220')}${rentForm('el', 'エピソード3をHDでレンタル ￥220')}<div id="dv-web-player"></div>`,
+}
 const EPISODE_SURFACE = '<div class="atvwebplayersdk-video-surface"><video src="blob:https://www.amazon.co.jp/episode"></video></div>'
 
 const ready = (video: Element, readyState: number) => Object.defineProperty(video, 'readyState', { configurable: true, value: readyState })
@@ -108,6 +127,13 @@ const playing = async (page: ReturnType<typeof amazon>) => {
   const host = render()
   await vi.waitFor(() => expect(skin.media).toBeTruthy(), { timeout: 5_000 })
   return host
+}
+
+const expectPrimeLink = (host: HTMLElement) => {
+  const link = [...host.querySelectorAll<HTMLAnchorElement>('.overlay a')].find(({ textContent }) => textContent === 'Open on Prime Video')
+  expect(link?.getAttribute('href')).toBe(`https://watch.amazon.co.jp/detail?gti=${GTI}`)
+  expect(link?.getAttribute('target')).toBe('_blank')
+  expect(link?.getAttribute('rel')).toBe('noreferrer')
 }
 
 const signedOut = async (host: HTMLElement) => {
@@ -220,11 +246,20 @@ describe('playing an episode', () => {
     expect(button(host, 'Retry')).toBeTruthy()
   })
 
-  test('a page with neither Play nor the sign-in link ends on its line, and remembers nothing', async () => {
-    const host = await afterWaits(amazon('<header><div id="nav-link-accountList" class="nav-div"><a data-csa-c-content-id="nav_youraccount_btn" href="/gp/css/homepage.html">Account</a></div></header>'))
+  // a title Prime offers with no rental has no rent form (The Boys, B0GZBFZDDB, 2026-10-13), and the
+  // episode list's offers are other episodes', so they say nothing about this one
+  test('a page with neither Play, the sign-in link nor an offer to rent ends on its line, with a link to Prime Video', async () => {
+    const host = await afterWaits(amazon(`${SIGNED_IN_HEADER}${EPISODE_LIST_RENT}`))
     expect(host.textContent).toContain('Prime Video shows no Play button for this episode.')
     expect(button(host, 'Retry')).toBeTruthy()
+    expectPrimeLink(host)
     expect(remembered()).toBeUndefined()
+  })
+
+  test('Play is pressed on a page that also offers the episode to rent', async () => {
+    const page = amazon(`${SIGNED_IN_PAGE}${RENT}`)
+    await playing(page)
+    expect(page.plays).toHaveBeenCalledTimes(1)
   })
 
   test('reads refused for the whole wait end on the player\'s own line, not the lib\'s', async () => {
@@ -289,6 +324,24 @@ describe('playing an episode', () => {
   })
 })
 
+describe('an episode Prime Video offers only to rent or buy', () => {
+  for (const [language, html] of Object.entries(RENT_ONLY_PAGES)) {
+    test(`a signed-in ${language} page says so at once, with a link to the episode on Prime Video`, async () => {
+      const page = amazon(html)
+      lib.attachFrame.mockResolvedValue(page.frame)
+      const host = render()
+      // well inside the 30 s the page is waited on for Play
+      await vi.waitFor(() => expect(host.textContent).toContain(RENT_NOTE), { timeout: 5_000 })
+
+      expectPrimeLink(host)
+      expect(button(host, SIGN_IN)).toBeUndefined()
+      expect(button(host, 'Retry')).toBeUndefined()
+      expect(page.frame.addStyleTag).not.toHaveBeenCalled()
+      expect(remembered()).toBe('signed-in')
+    })
+  }
+})
+
 describe('signed out', () => {
   test('a detail page with the header\'s sign-in link and no Play shows the line and the sign-in', async () => {
     const page = amazon(SIGNED_OUT_PAGE)
@@ -337,6 +390,8 @@ describe('signed out', () => {
     expect(signIn).toHaveBeenCalledTimes(1)
     const [{ url, domains, isSignedIn }] = signIn.mock.calls[0]! as [{ url: string, domains: string[], isSignedIn: (login: Frame) => Promise<boolean> }]
     expect(url).toMatch(/^https:\/\/www\.amazon\.co\.jp\/ap\/signin\?/)
+    // the shop's home it returned to stayed white in the window, which then never read the signed-in header
+    expect(new URL(url).searchParams.get('openid.return_to'), 'back on a Prime Video page').toBe('https://www.amazon.co.jp/gp/video/storefront')
     expect(domains, 'the jar the window writes is the one the frame reads').toEqual(PRIME_DOMAINS)
     await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalledTimes(2), { timeout: 5_000 })
 
