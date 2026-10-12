@@ -173,7 +173,7 @@ const styles = css`
   }
 `
 
-const CrunchyrollPlayer = ({ url, title, triedRelays = [] }: PlayerProps) => {
+const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: PlayerProps) => {
   const [mode, setMode] = useState<Backend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -233,19 +233,24 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [] }: PlayerProps) => {
   useEffect(() => {
     if (!iframe || mode === 'detecting') return
     let cancelled = false
-    // the jar picks the backend, so the frame always runs on the one the layout was built for
-    attachFrame({
-      iframe,
-      domains: CRUNCHYROLL_DOMAINS,
-      cookies: attachCookies(mode),
-      // none: the viewer's default relay
-      relay: excluded.current.length ? { exclude: excluded.current } : undefined,
-      permissions: [
-        { category: 'evaluation', reason: 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture' }
-      ]
-    })
+    Promise.resolve(mode === 'cloud' ? unlistedRelays : undefined)
+      .then(unlisted => {
+        for (const relay of unlisted ?? []) if (!excluded.current.includes(relay)) excluded.current = [...excluded.current, relay]
+        if (cancelled) return undefined
+        // the jar picks the backend, so the frame always runs on the one the layout was built for
+        return attachFrame({
+          iframe,
+          domains: CRUNCHYROLL_DOMAINS,
+          cookies: attachCookies(mode),
+          // none: the viewer's default relay
+          relay: excluded.current.length ? { exclude: excluded.current } : undefined,
+          permissions: [
+            { category: 'evaluation', reason: 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture' }
+          ]
+        })
+      })
       .then(f => {
-        if (!cancelled) setFrame(f)
+        if (!cancelled && f) setFrame(f)
       })
       .catch(err => {
         if (cancelled) return

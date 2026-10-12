@@ -1,0 +1,7 @@
+{
+  "access_token": "<trimmed>",
+  "expires_in": 3600,
+  "token_type": "Bearer",
+  "scope": "account content mp offline_access",
+  "country": "HK"
+}

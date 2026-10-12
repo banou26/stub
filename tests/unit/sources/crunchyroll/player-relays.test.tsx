@@ -66,8 +66,8 @@ const playing = (relay?: string) => frameWith(relay, {
 const relayChoices = () => lib.attachFrame.mock.calls.map(([options]) => (options as { relay?: unknown }).relay)
 
 const hosts: HTMLElement[] = []
-const render = (triedRelays?: string[]) => {
-  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" triedRelays={triedRelays} />)
+const render = (triedRelays?: string[], unlistedRelays?: Promise<readonly string[]>) => {
+  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" triedRelays={triedRelays} unlistedRelays={unlistedRelays} />)
   hosts.push(host)
   return host
 }
@@ -148,4 +148,49 @@ test('the next episode of a show starts past the relays it was unavailable throu
   await vi.waitFor(() => expect(skin.remote).toBe(video), { timeout: 5_000 })
   expect(relayChoices()).toEqual([{ exclude: ['r1'] }, { exclude: ['r1', 'r2'] }])
   expect(told.mock.calls).toEqual([['r2']])
+})
+
+test('a cloud frame waits for the relays\' answers, then opens past the ones that do not list the episode', async () => {
+  const answers = Promise.withResolvers<readonly string[]>()
+  lib.attachFrame.mockResolvedValueOnce(playing('r2'))
+  render(['r0'], answers.promise)
+
+  // the backend is known 300 ms after load
+  await new Promise(resolve => setTimeout(resolve, 600))
+  expect(lib.attachFrame).not.toHaveBeenCalled()
+  answers.resolve(['r1'])
+
+  await vi.waitFor(() => expect(skin.remote).toBe(video), { timeout: 5_000 })
+  expect(relayChoices()).toEqual([{ exclude: ['r0', 'r1'] }])
+  expect(told.mock.calls).toEqual([['r1']])
+})
+
+test('a relay the check found listed that shows the region page still moves on to the next one', async () => {
+  lib.attachFrame.mockResolvedValueOnce(regionPage('r2')).mockResolvedValueOnce(playing('r3'))
+  render(undefined, Promise.resolve(['r1']))
+
+  await vi.waitFor(() => expect(skin.remote).toBe(video), { timeout: 5_000 })
+  expect(relayChoices()).toEqual([{ exclude: ['r1'] }, { exclude: ['r1', 'r2'] }])
+  expect(told.mock.calls).toEqual([['r1'], ['r2']])
+})
+
+test('on the extension the relays\' answers change nothing, as no relay serves its frame', async () => {
+  lib.extension = true
+  lib.attachFrame.mockResolvedValueOnce(playing(undefined))
+  render(undefined, Promise.resolve(['r1']))
+
+  await vi.waitFor(() => expect(skin.remote).toBe(video), { timeout: 5_000 })
+  expect(relayChoices()).toEqual([undefined])
+  expect(told).not.toHaveBeenCalled()
+})
+
+test('a player closed before the relays answer opens no frame', async () => {
+  const answers = Promise.withResolvers<readonly string[]>()
+  const host = render(undefined, answers.promise)
+
+  await new Promise(resolve => setTimeout(resolve, 600))
+  unmount(host)
+  answers.resolve(['r1'])
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(lib.attachFrame).not.toHaveBeenCalled()
 })

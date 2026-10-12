@@ -1,0 +1,27 @@
+{
+  "total": 1,
+  "data": [
+    {
+      "id": "GE00384327JAJP",
+      "external_id": "EPI.GE00384327JAJP",
+      "channel_id": "crunchyroll",
+      "title": "Locusts",
+      "type": "episode",
+      "slug_title": "locusts",
+      "episode_metadata": {
+        "series_id": "G3KHEVDJ7",
+        "series_title": "The Apothecary Diaries",
+        "season_id": "GS00384044JAJP",
+        "season_number": 3,
+        "episode_number": 49,
+        "availability_status": "premium_only",
+        "availability_starts": "9998-11-30T17:45:00Z",
+        "availability_ends": "9998-11-30T17:45:00Z",
+        "premium_available_date": "2026-10-02T15:00:00Z",
+        "is_premium_only": true,
+        "eligible_region": "CZ"
+      }
+    }
+  ],
+  "meta": {}
+}

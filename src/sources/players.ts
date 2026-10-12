@@ -19,6 +19,8 @@ export type PlayerProps = {
   title?: string
   /** the relays this show was unavailable through earlier in the visit, which the player starts past */
   triedRelays?: readonly string[]
+  /** the relays a light check found the episode unlisted on, ahead of one that lists it, which a cloud frame also starts past */
+  unlistedRelays?: Promise<readonly string[]>
 }
 
 const players: Record<string, (props: PlayerProps) => any> = {
