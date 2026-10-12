@@ -5,6 +5,7 @@ import { switchStyle } from '../../components/switch-style'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources } from '../../sources/built-in'
 import { readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
+import { siteAsks } from '../../site'
 
 const style = css`
   h3.part {
@@ -242,22 +243,24 @@ const siteOf = (url: string) => {
   return host.replace(/^www\./, '') + pathname.replace(/\/$/, '')
 }
 
-/** The sources stub ships with, each with a switch: all on until the viewer turns one off. */
+const sources = builtInSources.filter(source => siteAsks(source.origin))
+
+/** The sources stub ships with that this site asks, each with a switch: all on until the viewer turns one off. */
 const BuiltInSources = () => {
   const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
   useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
-  const off = builtInSources.filter(source => disabled.has(source.origin)).length
+  const off = sources.filter(source => disabled.has(source.origin)).length
 
   // Turn all on stays mounted when nothing is off, so no line comes or goes under the pointer and focus stays put
   return (
     <>
       <div className="part-head">
         <h3 className="part">Built in</h3>
-        <span className="count">{off ? `${builtInSources.length - off} of ${builtInSources.length} on` : `All ${builtInSources.length} on`}</span>
+        <span className="count">{off ? `${sources.length - off} of ${sources.length} on` : `All ${sources.length} on`}</span>
         <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnAllSourcesOn() }}>Turn all on</button>
       </div>
       <ul className="built-in">
-        {builtInSources.map(source => {
+        {sources.map(source => {
           const on = !disabled.has(source.origin)
           return (
             <li key={source.origin} data-source={source.origin}>

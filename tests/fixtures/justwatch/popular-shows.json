@@ -1,0 +1,675 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "ts470663",
+            "objectId": 470663,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Lanterns",
+              "fullPath": "/us/tv-show/lanterns",
+              "originalReleaseYear": 2026,
+              "originalReleaseDate": "2026-08-16",
+              "shortDescription": "Two intergalactic cops, new recruit John Stewart and Lantern legend Hal Jordan, are drawn into a dark, Earth-based mystery as they investigate a murder in the American heartland.",
+              "posterUrl": "/poster/347103107/s718/lanterns.jpg",
+              "externalIds": {
+                "imdbId": "tt26545992"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.38bce32c-8377-4467-b4bf-0545d2aa759c",
+                "package": {
+                  "id": "cGF8MTgyNQ==",
+                  "packageId": 1825,
+                  "clearName": "HBO Max Amazon Channel",
+                  "technicalName": "amazonhbomax",
+                  "shortName": "aho",
+                  "icon": "/icon/343788557/s100/amazonhbomax.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://play.hbomax.com/video/watch/bb988e99-2948-4cfe-b9e0-3d41f95380bf?utm_source=universal_search",
+                "package": {
+                  "id": "cGF8MTg5OQ==",
+                  "packageId": 1899,
+                  "clearName": "HBO Max",
+                  "technicalName": "max",
+                  "shortName": "mxx",
+                  "icon": "/icon/332884837/s100/max.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.hulu.jp/watch/100275925",
+                "package": {
+                  "id": "cGF8MTU=",
+                  "packageId": 15,
+                  "clearName": "Hulu",
+                  "technicalName": "hulu",
+                  "shortName": "hlu",
+                  "icon": "/icon/116305230/s100/hulu.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/episode/SID0310278/ED00828270",
+                "package": {
+                  "id": "cGF8MjI4NA==",
+                  "packageId": 2284,
+                  "clearName": "HBO Max on U-Next",
+                  "technicalName": "unexthbomax",
+                  "shortName": "mxu",
+                  "icon": "/icon/336809791/s100/unexthbomax.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 494349,
+                "totalEpisodeCount": 8,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "ts224087",
+            "objectId": 224087,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Ted Lasso",
+              "fullPath": "/us/tv-show/ted-lasso",
+              "originalReleaseYear": 2020,
+              "originalReleaseDate": "2020-08-14",
+              "shortDescription": "American college football coach Ted Lasso is hired to manage AFC Richmond, a struggling English soccer club, and must win over skeptical players, staff, and fans.",
+              "posterUrl": "/poster/304099436/s718/ted-lasso.jpg",
+              "externalIds": {
+                "imdbId": "tt10986410"
+              },
+              "genres": [
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "spt",
+                  "translation": "Sport"
+                }
+              ],
+              "productionCountries": [
+                "GB",
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/us/episode/pilot/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+                "package": {
+                  "id": "cGF8MzUw",
+                  "packageId": 350,
+                  "clearName": "Apple TV",
+                  "technicalName": "appletvplus",
+                  "shortName": "atp",
+                  "icon": "/icon/338367329/s100/appletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+                "package": {
+                  "id": "cGF8MjI0Mw==",
+                  "packageId": 2243,
+                  "clearName": "Apple TV Amazon Channel",
+                  "technicalName": "amazonappletvplus",
+                  "shortName": "avl",
+                  "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.amazon.com/dp/B0G833DX1C?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "package": {
+                  "id": "cGF8NTA=",
+                  "packageId": 50,
+                  "clearName": "Amazon DVD / Blu-ray",
+                  "technicalName": "amazondvdbr",
+                  "shortName": "adb",
+                  "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/jp/episode/%E3%82%88%E3%81%86%E3%81%93%E3%81%9D-%E3%83%A9%E3%83%83%E3%82%BD%E7%9B%A3%E7%9D%A3/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+                "package": {
+                  "id": "cGF8MzUw",
+                  "packageId": 350,
+                  "clearName": "Apple TV",
+                  "technicalName": "appletvplus",
+                  "shortName": "atp",
+                  "icon": "/icon/338367329/s100/appletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+                "package": {
+                  "id": "cGF8MjI0Mw==",
+                  "packageId": 2243,
+                  "clearName": "Apple TV Amazon Channel",
+                  "technicalName": "amazonappletvplus",
+                  "shortName": "avl",
+                  "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 233988,
+                "totalEpisodeCount": 10,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 274066,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 2,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 281160,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 3,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 469982,
+                "totalEpisodeCount": 10,
+                "content": {
+                  "seasonNumber": 4,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "ts131317",
+            "objectId": 131317,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Slow Horses",
+              "fullPath": "/us/tv-show/slow-horses",
+              "originalReleaseYear": 2022,
+              "originalReleaseDate": "2022-04-01",
+              "shortDescription": "Follow a dysfunctional team of MI5 agents, and their obnoxious boss, the notorious Jackson Lamb, as they navigate the espionage world's smoke and mirrors to defend England from sinister forces.",
+              "posterUrl": "/poster/349310634/s718/slow-horses.jpg",
+              "externalIds": {
+                "imdbId": "tt5875444"
+              },
+              "genres": [
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                }
+              ],
+              "productionCountries": [
+                "GB",
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/us/episode/failures-contagious/umc.cmc.72legmwolm5ytctyq637r6x0?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AA0006401001&showId=umc.cmc.2szz3fdt71tl1ulnbp8utgq5o",
+                "package": {
+                  "id": "cGF8MzUw",
+                  "packageId": 350,
+                  "clearName": "Apple TV",
+                  "technicalName": "appletvplus",
+                  "shortName": "atp",
+                  "icon": "/icon/338367329/s100/appletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6bfbde87-5fff-4b2d-9358-81c4dfeddf30",
+                "package": {
+                  "id": "cGF8MjI0Mw==",
+                  "packageId": 2243,
+                  "clearName": "Apple TV Amazon Channel",
+                  "technicalName": "amazonappletvplus",
+                  "shortName": "avl",
+                  "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FREE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6bfbde87-5fff-4b2d-9358-81c4dfeddf30",
+                "package": {
+                  "id": "cGF8OQ==",
+                  "packageId": 9,
+                  "clearName": "Amazon Prime Video",
+                  "technicalName": "amazonprime",
+                  "shortName": "amp",
+                  "icon": "/icon/322992749/s100/amazonprime.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.amazon.com/dp/B0HKY424Q5?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "package": {
+                  "id": "cGF8NTA=",
+                  "packageId": 50,
+                  "clearName": "Amazon DVD / Blu-ray",
+                  "technicalName": "amazondvdbr",
+                  "shortName": "adb",
+                  "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com/jp/episode/%E5%A4%B1%E6%95%97%E3%81%AF%E4%BC%9D%E6%9F%93%E3%81%99%E3%82%8B/umc.cmc.72legmwolm5ytctyq637r6x0?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AA0006401001&showId=umc.cmc.2szz3fdt71tl1ulnbp8utgq5o",
+                "package": {
+                  "id": "cGF8MzUw",
+                  "packageId": 350,
+                  "clearName": "Apple TV",
+                  "technicalName": "appletvplus",
+                  "shortName": "atp",
+                  "icon": "/icon/338367329/s100/appletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.6bfbde87-5fff-4b2d-9358-81c4dfeddf30",
+                "package": {
+                  "id": "cGF8MjI0Mw==",
+                  "packageId": 2243,
+                  "clearName": "Apple TV Amazon Channel",
+                  "technicalName": "amazonappletvplus",
+                  "shortName": "avl",
+                  "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FREE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.6bfbde87-5fff-4b2d-9358-81c4dfeddf30",
+                "package": {
+                  "id": "cGF8OQ==",
+                  "packageId": 9,
+                  "clearName": "Amazon Prime Video",
+                  "technicalName": "amazonprime",
+                  "shortName": "amp",
+                  "icon": "/icon/322992749/s100/amazonprime.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 231438,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 286073,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 2,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 389435,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 3,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 432057,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 4,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 433498,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 5,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 469359,
+                "totalEpisodeCount": 6,
+                "content": {
+                  "seasonNumber": 6,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "ts259735",
+            "objectId": 259735,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Lioness",
+              "fullPath": "/us/tv-show/special-ops-lioness",
+              "originalReleaseYear": 2023,
+              "originalReleaseDate": "2023-07-23",
+              "shortDescription": "Cruz Manuelos, a rough-around-the-edges but passionate young Marine, is recruited to join the CIA's Lioness Engagement Team to help bring down a terrorist organization from within. Joe, the station chief of the Lioness program, is tasked with training, managing and leading her female undercover operatives.",
+              "posterUrl": "/poster/348254871/s718/special-ops-lioness.jpg",
+              "externalIds": {
+                "imdbId": "tt13111078"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "war",
+                  "translation": "War & Military"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.fubo.tv/welcome/series/125234489/lioness/?irmp=1206980&irad=599307&season=1",
+                "package": {
+                  "id": "cGF8MjU3",
+                  "packageId": 257,
+                  "clearName": "fuboTV",
+                  "technicalName": "fubotv",
+                  "shortName": "fuv",
+                  "icon": "/icon/316727345/s100/fubotv.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.paramountplus.com/shows/lioness/video/pEzD394HiWdpdozcyiQg3ciGsX80VgHU/special-ops-lioness-sacrificial-soldiers?searchReferral=publisher&source=search-feeds",
+                "package": {
+                  "id": "cGF8MjMwMw==",
+                  "packageId": 2303,
+                  "clearName": "Paramount Plus Premium",
+                  "technicalName": "paramountpluspremium",
+                  "shortName": "ppp",
+                  "icon": "/icon/332803145/s100/paramountpluspremium.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.paramountplus.com/shows/lioness/video/pEzD394HiWdpdozcyiQg3ciGsX80VgHU/special-ops-lioness-sacrificial-soldiers?searchReferral=publisher&source=search-feeds",
+                "package": {
+                  "id": "cGF8MjYxNg==",
+                  "packageId": 2616,
+                  "clearName": "Paramount Plus Essential",
+                  "technicalName": "paramountplusessential",
+                  "shortName": "ppe",
+                  "icon": "/icon/339047242/s100/paramountplusessential.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://tv.apple.com",
+                "package": {
+                  "id": "cGF8MTg1Mw==",
+                  "packageId": 1853,
+                  "clearName": "Paramount Plus Apple TV channel",
+                  "technicalName": "appletvparamountplus",
+                  "shortName": "ppa",
+                  "icon": "/icon/303391391/s100/appletvparamountplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://therokuchannel.roku.com/details/6154ef6f329b87fbf06399d54df6e10b/sacrificial-soldiers?source=bing",
+                "package": {
+                  "id": "cGF8NjMz",
+                  "packageId": 633,
+                  "clearName": "Paramount+ Roku Premium Channel",
+                  "technicalName": "rokuchannelparamountplus",
+                  "shortName": "prk",
+                  "icon": "/icon/252888457/s100/rokuchannelparamountplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.f1479a2d-881c-48c8-bd86-bf0e83cff1ea",
+                "package": {
+                  "id": "cGF8NTgy",
+                  "packageId": 582,
+                  "clearName": "Paramount+ Amazon Channel",
+                  "technicalName": "amazonparamountplus",
+                  "shortName": "app",
+                  "icon": "/icon/246478651/s100/amazonparamountplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://ondemand.spectrum.net/tv/paramount-plus-with-showtime/28218788/lioness/",
+                "package": {
+                  "id": "cGF8NDg2",
+                  "packageId": 486,
+                  "clearName": "Spectrum On Demand",
+                  "technicalName": "spectrumondemand",
+                  "shortName": "sod",
+                  "icon": "/icon/305635208/s100/spectrumondemand.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.e7b7e9b7-21cd-4359-98c5-3b7b7e0117bf",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "SD",
+                "standardWebURL": "https://tv.apple.com/us/show/lioness/umc.cmc.2nwpw31kplbh2q575x24geppc?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "SD",
+                "standardWebURL": "https://athome.fandango.com/content/browse/details/Special-Ops-Lioness-Season-1/2589649",
+                "package": {
+                  "id": "cGF8Nw==",
+                  "packageId": 7,
+                  "clearName": "Fandango At Home",
+                  "technicalName": "vudu",
+                  "shortName": "vdu",
+                  "icon": "/icon/346744144/s100/vudu.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.barnesandnoble.com/w/dvd-special-ops-lioness-season-one-special-ops-lioness-season-one-3pc-ac3-ws/1144315148",
+                "package": {
+                  "id": "cGF8MjU0Mg==",
+                  "packageId": 2542,
+                  "clearName": "Barnes & Noble",
+                  "technicalName": "barnesandnoble",
+                  "shortName": "bnb",
+                  "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://gruv.com/products/lioness-season-2-dvd-_av13031150",
+                "package": {
+                  "id": "cGF8MjU2OQ==",
+                  "packageId": 2569,
+                  "clearName": "GRUV",
+                  "technicalName": "gruv",
+                  "shortName": "grv",
+                  "icon": "/icon/336965948/s100/gruv.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/episode/SID0195981/ED00659041",
+                "package": {
+                  "id": "cGF8ODQ=",
+                  "packageId": 84,
+                  "clearName": "U-NEXT",
+                  "technicalName": "unext",
+                  "shortName": "unx",
+                  "icon": "/icon/304760702/s100/unext.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 340285,
+                "totalEpisodeCount": 8,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 448477,
+                "totalEpisodeCount": 8,
+                "content": {
+                  "seasonNumber": 2,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 568517,
+                "totalEpisodeCount": 8,
+                "content": {
+                  "seasonNumber": 3,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

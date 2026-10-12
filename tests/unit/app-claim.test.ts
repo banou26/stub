@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 // stub is a MANAGED app since 2026-09-23 (HOR-224 slice 6): it holds no key, and its npm source is
 // claimed by this field, which the api reads from registry.npmjs.org/@banou%2fstub/latest and
@@ -32,7 +32,7 @@ test('package.json claims the managed Stub app, says its releases are signed and
   expect(pkg.fkn).toEqual({
     app: APP,
     signed: true,
-    url: 'https://anime.fkn.app/',
+    url: 'https://stub.fkn.app/',
     background: expect.any(String),
     cover: expect.any(String),
     screenshots: expect.any(Array),

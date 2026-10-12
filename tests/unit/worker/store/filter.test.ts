@@ -4,7 +4,7 @@
 // anyway, and each is the kind of change a reviewer makes on purpose, believing it kinder.
 import { describe, expect, test } from 'vite-plus/test'
 
-import { applyMediaFilters, type MediaPageFilters } from '../../../../src/worker/store/filter'
+import { applyMediaFilters, inAnswerOrder, isListing, pageRows, siteMedia, type MediaPageFilters } from '../../../../src/worker/store/filter'
 
 // an aggregated row as the page receives it, defaulting to the shape a source that says nothing
 // produces: no type, no season, no labels
@@ -143,3 +143,66 @@ test('and a row no live source described cannot answer an airing question', () =
   expect(uris(applyMediaFilters(page, {})), 'and is untouched when nothing asks').toEqual(['offline:1'])
 })
 
+// The site comes before every filter a caller sets, so a page on movie.fkn.app that asks for anime, or
+// for nothing at all, still gets films only.
+describe('the site a page is served on', () => {
+  const page = [
+    media('anilist:1', { categories: ['ANIME', 'SERIES'] }),
+    media('anilist:2', { categories: ['ANIME', 'MOVIE'] }),
+    media('tmdb:3', { categories: ['MOVIE'] }),
+    media('tvmaze:4', { categories: ['SERIES'] }),
+  ]
+
+  test('keeps only what the site holds, before the caller\'s own filters', () => {
+    expect(uris(applyMediaFilters(page, {}, 'anime'))).toEqual(['anilist:1', 'anilist:2'])
+    expect(uris(applyMediaFilters(page, {}, 'movie'))).toEqual(['anilist:2', 'tmdb:3'])
+    expect(uris(applyMediaFilters(page, {}, 'series'))).toEqual(['tvmaze:4'])
+    expect(uris(applyMediaFilters(page, {}, 'stub'))).toEqual(['anilist:1', 'anilist:2', 'tmdb:3', 'tvmaze:4'])
+    expect(uris(applyMediaFilters(page, { categories: ['ANIME'] }, 'series')), 'a category filter cannot widen it').toEqual([])
+  })
+
+  test('a title the site does not keep answers nothing, and a kept one is answered as it is', () => {
+    const title = media('anilist:2', { categories: ['ANIME', 'MOVIE'] })
+    expect(siteMedia(title, 'series')).toBeUndefined()
+    expect(siteMedia(title, 'anime')).toBe(title)
+    expect(siteMedia(title, 'movie')).toBe(title)
+    expect(siteMedia(title, 'stub')).toBe(title)
+  })
+})
+
+// A listing draws only what its sources answered, so it must know itself apart from a page that
+// filters the store: a season, a search or any other filter makes it the latter.
+describe('a listing', () => {
+  test('is one category and nothing else', () => {
+    expect(isListing({ categories: ['MOVIE'] })).toBe(true)
+    expect(isListing({ categories: ['SERIES'], formats: [], genres: [], tags: [] })).toBe(true)
+    expect(isListing({})).toBe(false)
+    expect(isListing({ categories: ['MOVIE', 'SERIES'] })).toBe(false)
+    expect(isListing({ categories: ['MOVIE'], search: 'dune' })).toBe(false)
+    expect(isListing({ categories: ['ANIME'], season: 'FALL', seasonYear: 2026 })).toBe(false)
+    expect(isListing({ categories: ['MOVIE'], status: 'RELEASING' })).toBe(false)
+    expect(isListing({ categories: ['MOVIE'], formats: ['MOVIE'] })).toBe(false)
+    expect(isListing({ categories: ['MOVIE'], genres: ['Drama'] })).toBe(false)
+    expect(isListing({ categories: ['MOVIE'], tags: ['Heist'] })).toBe(false)
+  })
+
+  test('is drawn in the order its uris were answered, a merged row placed by the first of its members', () => {
+    const merged = media('ag:(jw:3,tmdb:9)', { handles: [{ relation: 'SAME_AS', node: { uri: 'jw:3' } }, { relation: 'SAME_AS', node: { uri: 'tmdb:9' } }] })
+    const rows = [media('jw:1'), merged, media('jw:2'), media('offline:7')]
+    expect(uris(inAnswerOrder(rows, ['jw:3', 'jw:2', 'jw:1']))).toEqual(['ag:(jw:3,tmdb:9)', 'jw:2', 'jw:1', 'offline:7'])
+    expect(uris(inAnswerOrder(rows, [])), 'nothing answered keeps the order given').toEqual(['jw:1', 'ag:(jw:3,tmdb:9)', 'jw:2', 'offline:7'])
+  })
+
+  test('places a season card where the show it stands in for was answered', () => {
+    const season = media('ag:(tmdb:2-s1)', { handles: [{ relation: 'SAME_AS', node: { uri: 'tmdb:2-s1' } }, { relation: 'PART_OF', node: { uri: 'jw:ts2' } }] })
+    const rows = [media('jw:ts1'), media('jw:ts3'), season]
+    expect(uris(inAnswerOrder(rows, ['jw:ts1', 'jw:ts2', 'jw:ts3']))).toEqual(['jw:ts1', 'ag:(tmdb:2-s1)', 'jw:ts3'])
+  })
+
+  test('orders a listing\'s rows by the answer, and leaves any other page\'s as given', () => {
+    const rows = [media('jw:1', { categories: ['MOVIE'] }), media('jw:2', { categories: ['MOVIE'] })]
+    expect(uris(pageRows(rows, { categories: ['MOVIE'] }, ['jw:2', 'jw:1'], 'stub'))).toEqual(['jw:2', 'jw:1'])
+    expect(uris(pageRows(rows, { categories: ['MOVIE'], search: 'dune' }, ['jw:2', 'jw:1'], 'stub'))).toEqual(['jw:1', 'jw:2'])
+    expect(uris(pageRows(rows, { categories: ['MOVIE'] }, ['jw:2', 'jw:1'], 'series')), 'and still keeps the site\'s rows only').toEqual([])
+  })
+})

@@ -26,3 +26,9 @@ test('a plugin source is never left out here: removing it is how one is stopped'
   setDisabledOrigins(['nyaa'])
   expect(origins(askable(ENTRIES))).toEqual(['anilist', 'simkl', 'tvdb', 'nyaa'])
 })
+
+test('movie and series leave out the anime catalogues, and keep a plugin source', () => {
+  expect(origins(askable(ENTRIES, 'movie'))).toEqual(['simkl', 'tvdb', 'nyaa'])
+  expect(origins(askable(ENTRIES, 'series'))).toEqual(['simkl', 'tvdb', 'nyaa'])
+  expect(origins(askable(ENTRIES, 'anime'))).toEqual(['anilist', 'simkl', 'tvdb', 'nyaa'])
+})

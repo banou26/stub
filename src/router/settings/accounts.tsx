@@ -6,6 +6,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 
+import { siteAsks } from '../../site'
 import { ConfirmAction } from './confirm'
 
 export type { TrackerSite }
@@ -163,10 +164,10 @@ const CrunchyrollRow = ({ backend, crunchyroll, status }: Pick<AccountsProps, 'b
   )
 }
 
-const TRACKER_SITES: { site: TrackerSite, name: string }[] = [
+const TRACKER_SITES = ([
   { site: 'anilist', name: 'AniList' },
   { site: 'mal', name: 'MyAnimeList' },
-]
+] satisfies { site: TrackerSite, name: string }[]).filter(entry => siteAsks(entry.site))
 
 const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite, name: string } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
@@ -252,7 +253,7 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
 /** Every sign-in stub uses, and the way out of it where there is one. */
 export const AccountsSection = ({ backend, crunchyroll, sites, status }: AccountsProps) => (
   <div className="rows">
-    <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status}/>
+    {siteAsks('cr') ? <CrunchyrollRow backend={backend} crunchyroll={crunchyroll} status={status}/> : undefined}
     {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status}/>)}
     <NetflixRow backend={backend}/>
   </div>

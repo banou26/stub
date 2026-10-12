@@ -20,6 +20,9 @@ import MediaRow from '../../components/media-row'
 import DisplayModeToggle from '../../components/display-mode-toggle'
 import FilterSelect, { FilterField } from '../../components/filter-select'
 import { readDisplayMode, writeDisplayMode, type DisplayMode } from './display'
+import { site } from '../../site'
+
+const LIVE_ACTION_SITE = site === 'movie' || site === 'series'
 
 const SEARCH_MEDIA_PAGE = gql(`
   subscription SearchMediaPage($input: MediaPageInput!, $shortDescriptionInput: MediaShortDescriptionInput!) {
@@ -430,31 +433,37 @@ const Search = () => {
           onChange={picked => setFilters({ year: picked.length ? Number(picked[0]) : null })}
           searchable
         />
-        <FilterSelect
-          label="Season"
-          options={SEASON_OPTIONS}
-          selected={filters.season ? [filters.season] : []}
-          onChange={picked => setFilters({ season: (picked[0] as SearchFilters['season']) ?? null })}
-        />
-        <FilterSelect
-          label="Format"
-          options={FORMAT_OPTIONS}
-          selected={filters.formats}
-          onChange={picked => setFilters({ formats: picked as SearchFilters['formats'] })}
-          multiple
-        />
-        <FilterSelect
-          label="Airing Status"
-          options={STATUS_OPTIONS}
-          selected={filters.status ? [filters.status] : []}
-          onChange={picked => setFilters({ status: (picked[0] as SearchFilters['status']) ?? null })}
-        />
-        <FilterSelect
-          label="Category"
-          options={CATEGORY_OPTIONS}
-          selected={filters.category ? [filters.category] : []}
-          onChange={picked => setFilters({ category: (picked[0] as SearchFilters['category']) ?? null })}
-        />
+        {LIVE_ACTION_SITE ? undefined : (
+          <>
+            <FilterSelect
+              label="Season"
+              options={SEASON_OPTIONS}
+              selected={filters.season ? [filters.season] : []}
+              onChange={picked => setFilters({ season: (picked[0] as SearchFilters['season']) ?? null })}
+            />
+            <FilterSelect
+              label="Format"
+              options={FORMAT_OPTIONS}
+              selected={filters.formats}
+              onChange={picked => setFilters({ formats: picked as SearchFilters['formats'] })}
+              multiple
+            />
+            <FilterSelect
+              label="Airing Status"
+              options={STATUS_OPTIONS}
+              selected={filters.status ? [filters.status] : []}
+              onChange={picked => setFilters({ status: (picked[0] as SearchFilters['status']) ?? null })}
+            />
+          </>
+        )}
+        {site === 'stub' ? (
+          <FilterSelect
+            label="Category"
+            options={CATEGORY_OPTIONS}
+            selected={filters.category ? [filters.category] : []}
+            onChange={picked => setFilters({ category: (picked[0] as SearchFilters['category']) ?? null })}
+          />
+        ) : undefined}
       </div>
 
       <div className="chips">

@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaPageInput, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { resolveEpisodeToSeriesId, crunchyrollId } from '../crunchyroll/extractor'
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
@@ -274,6 +274,23 @@ const searchTitles = (query: string, ctx: ExtractorServerContext) =>
       country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
     }, ctx)
   )
+
+const POPULAR_FIRST = 40
+
+const popularTitles = (objectType: 'MOVIE' | 'SHOW', ctx: ExtractorServerContext) =>
+  deduplicatedFetch(`popular:${objectType}`, () =>
+    jwFetch<JWSearchResponse>(SEARCH_QUERY, {
+      first: POPULAR_FIRST, searchTitlesFilter: { objectTypes: [objectType] }, language: LANGUAGE,
+      country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
+    }, ctx)
+  )
+
+// a home row: one format named and no search, season or status, which no other source answers
+const popularType = ({ categories, season, seasonYear, status }: MediaPageInput) =>
+  season || seasonYear || status || categories?.length !== 1 ? undefined
+  : categories[0] === 'MOVIE' ? 'MOVIE'
+  : categories[0] === 'SERIES' ? 'SHOW'
+  : undefined
 
 const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
   deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, () =>
@@ -562,17 +579,21 @@ const buildOffersAsHandles = async (
 export const showAsContainer = async (
   node: JWSearchNode,
   ctx: ExtractorServerContext,
-  policy: RequestPolicy = UNKNOWN_POLICY
+  policy: RequestPolicy = UNKNOWN_POLICY,
+  listed = false
 ): Promise<GQLMedia | null> => {
-  const handles = await buildOffersAsHandles(
+  // A LISTED SHOW CARRIES NO OFFERS. A show's provider id is stored as a placeholder run, so the claim
+  // is downgraded to a contested PART_OF and the listing hides the show behind a row that draws no card
+  // (`onlyContested`, graph/plugins/containment.ts): measured 2026-10-12, every show of the home row.
+  const handles = listed ? [] : await buildOffersAsHandles(
     [...node.offers ?? [], ...node.extraOffers ?? []],
     { showContainer: true },
     ctx,
     policy
   )
   // a container carrying no provider id is noise: it names a show the cluster already reaches through
-  // its other containers and adds nothing a reader could act on
-  if (!handles.length) return null
+  // its other containers and adds nothing a reader could act on. A listing's show is the card itself.
+  if (!handles.length && !listed) return null
 
   return makeMedia({
     origin,
@@ -915,8 +936,16 @@ export const resolvers: Resolvers = {
       resolve: (parent: { mediaPage: { nodes: GQLMedia[] } }) => parent.mediaPage,
       subscribe: async function* (_, { input }, ctx: ExtractorServerContext) {
         const { search } = input
-        if (!search) return yield { mediaPage: { nodes: [] } }
         const policy = policyFor(input)
+        const popular = search ? undefined : popularType(input)
+        if (popular) {
+          const edges = (await popularTitles(popular, ctx)).data?.popularTitles?.edges ?? []
+          // films as runs, and shows as the CONTAINER a show is until a season of it is picked
+          const nodes = await Promise.all(edges.map(({ node }) =>
+            popular === 'MOVIE' ? normalizeMedia(node, {}, ctx, policy) : showAsContainer(node, ctx, policy, true)))
+          return yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
+        }
+        if (!search) return yield { mediaPage: { nodes: [] } }
         const searchRes = await searchTitles(search, ctx)
         // the search query does not fetch seasons, so normalizeMedia declines every series result and only movies come through
         const nodes = await Promise.all(

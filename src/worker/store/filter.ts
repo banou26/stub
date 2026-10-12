@@ -6,6 +6,8 @@
 
 import type { Media as GQLMedia } from '../../generated/schema/types.generated'
 
+import { site, siteAllows, type Site } from '../../site'
+
 /**
  * The subset of `MediaPageInput` decided here, as plain data.
  *
@@ -50,10 +52,14 @@ const labelSet = (labels: readonly string[] | null | undefined): Set<string> =>
  * SUMMER 2026 rows read UPCOMING in a dump cut six weeks before they aired). So a status filter drops
  * every row only that catalogue describes. That is the honest answer to "which of these is airing" and
  * it is why status is a filter rather than a default.
+ *
+ * The SITE comes first (src/site.ts), and it is a parameter rather than a field of `filters` because a
+ * field is something any caller could widen: no page and no address can ask this past it.
  */
 export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'>>(
   medias: readonly T[],
-  filters: MediaPageFilters
+  filters: MediaPageFilters,
+  current: Site = site
 ): T[] => {
   const categories = filters.categories ?? []
   const formats = filters.formats ?? []
@@ -62,6 +68,7 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
   const { status, season, seasonYear } = filters
 
   return medias.filter(media => {
+    if (!siteAllows(media.categories ?? [], current)) return false
     if (categories.length && !(media.categories ?? []).some(category => categories.includes(category))) return false
     if (formats.length && !(media.type && formats.includes(media.type))) return false
     if (status && media.status !== status) return false
@@ -78,6 +85,46 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
     return true
   })
 }
+
+/** A title as this site answers it: nothing for a title the site does not keep. */
+export const siteMedia = <T extends Pick<GQLMedia, 'categories'>>(media: T, current: Site = site): T | undefined =>
+  siteAllows(media.categories ?? [], current) ? media : undefined
+
+/**
+ * A page that names one category and nothing else is a source's own list: the movie and series home
+ * rows, which only JustWatch answers, with its most popular titles. Such a page draws what the
+ * sources answered and never the rest of the store, which would list under "Popular" every title of
+ * that category a viewer happened to open.
+ */
+export const isListing = ({ search, categories, formats, status, season, seasonYear, genres, tags }: MediaPageFilters & { search?: string | null }) =>
+  categories?.length === 1 && !search && !status && !season && !seasonYear && !formats?.length && !genres?.length && !tags?.length
+
+/**
+ * Rows in the order the sources answered them, each placed by the first of its uris answered: its own, a member's
+ * (SAME_AS), or the show a season card stands in for (PART_OF), since a listed show the store holds a season of is
+ * drawn as that season.
+ */
+export const inAnswerOrder = <T extends { uri: string, handles?: { relation: string, node: { uri: string } }[] | null }>(
+  rows: readonly T[],
+  answered: readonly string[]
+): T[] => {
+  const rank = new Map(answered.map((uri, index) => [uri, index]))
+  const place = (row: T) => Math.min(
+    rank.get(row.uri) ?? Infinity,
+    ...(row.handles ?? [])
+      .filter(handle => handle.relation === 'SAME_AS' || handle.relation === 'PART_OF')
+      .map(handle => rank.get(handle.node.uri) ?? Infinity)
+  )
+  return [...rows].sort((a, b) => place(a) - place(b))
+}
+
+/** The rows a page keeps, a listing's in the order its sources answered them. */
+export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'>>(
+  rows: readonly T[],
+  input: MediaPageFilters & { search?: string | null },
+  answered: readonly string[],
+  current: Site = site
+): T[] => applyMediaFilters(isListing(input) ? inAnswerOrder(rows, answered) : rows, input, current)
 
 // Nulls are decided BEFORE the direction, so reversing the order does not reverse where an unranked
 // row lands. A media with no popularity is unranked rather than unpopular, so it sorts last either

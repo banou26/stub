@@ -141,21 +141,22 @@ export function listenMultipleIterator(
   )
 }
 
+/** The events of `types`, debounced into one wake, and a `wake` that fires this iterator alone through the same debounce. */
 export function debouncedListenIterator(
   types: (keyof StoreEventMap)[],
   debounceMs: number,
   options?: IteratorOptions
-): AsyncIterableIterator<void> {
+): AsyncIterableIterator<void> & { wake: () => void } {
   let timeout: ReturnType<typeof setTimeout> | null = null
+  let wake = () => {}
 
-  return makeAsyncIterator(
+  const iterator = makeAsyncIterator(
     (fire) => {
-      const unlisteners = types.map(type =>
-        listen(type, () => {
-          if (timeout) clearTimeout(timeout)
-          timeout = setTimeout(fire, debounceMs)
-        })
-      )
+      wake = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(fire, debounceMs)
+      }
+      const unlisteners = types.map(type => listen(type, wake))
       return () => {
         if (timeout) clearTimeout(timeout)
         unlisteners.forEach(u => u())
@@ -164,4 +165,5 @@ export function debouncedListenIterator(
     undefined as void,
     options
   )
+  return Object.assign(iterator, { wake: () => wake() })
 }

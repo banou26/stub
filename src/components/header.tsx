@@ -9,6 +9,14 @@ import { askForTop } from '../router/scroll-reset'
 import AccountWidget from './account-widget'
 import PartyWidget from './party-widget'
 import { layer } from '../layers'
+import { site } from '../site'
+
+const PLACEHOLDERS = {
+  anime: 'Search anime…',
+  movie: 'Search movies…',
+  series: 'Search shows…',
+  stub: 'Search anime, shows, movies…',
+}
 
 const style = css`
   position: fixed;
@@ -215,7 +223,7 @@ export const Header = () => {
           ref={inputRef}
           type="text"
           value={query}
-          placeholder="Search anime, shows, movies…"
+          placeholder={PLACEHOLDERS[site]}
           aria-label="Search"
           onInput={event => {
             const value = event.currentTarget.value

@@ -6,7 +6,7 @@ import _schema from './schema.gql?raw'
 import { implementsSimilarMedia, proxyRequestToExtractors, similarOutcomeFrom } from '../../extractor'
 import { resolveSimilarRuns } from '../../similar-consumer'
 import { findAggregatedMedia, findAllAggregatedMedia, findAggregatedEpisodesForMedia, findMediaForPage, findRunEpisodes, hideAttachedContainers } from '../../store/db'
-import { applyMediaFilters, applyMediaSorts } from '../../store/filter'
+import { applyMediaSorts, isListing, pageRows, siteMedia } from '../../store/filter'
 import { fuzzyMergeMediaClusters } from '../../store/fuzzy-merge'
 import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/aggregate'
 import { askAddressOf, createMediaReader, createPageReader, episodesOf, readStore } from '../../graph'
@@ -118,7 +118,7 @@ export const resolvers = {
             // `resolveMedia` follows a container's `preferredRun`, so `_id` is not always the uri's
             void askPlaceholders(String(media._id ?? ''), String(media.uri))
             void findMediaForPage(requestedUri).then(askSimilarRuns)
-            return media as unknown as Media
+            return siteMedia(media as unknown as Media)
           }
           // A show whose run is in the store is shown as that run: see `preferAttachedRun` in
           // store/db.ts, where the choice lives so it can be pinned (this module reaches urql and
@@ -128,7 +128,7 @@ export const resolvers = {
           const media = aggregateMedia(cluster, location.origin)
           askUnasked(media.uri)
           askSimilarRuns(cluster)
-          return media
+          return siteMedia(media)
         }
 
         try {
@@ -152,17 +152,6 @@ export const resolvers = {
     mediaPage: {
       resolve: (parent: Media[]) => ({ nodes: parent }),
       subscribe: async function* (_parent, args, ctx: ExtractorServerContext) {
-        const { subscriptions, insertedUris, close } =
-          proxyRequestToExtractors(
-            ctx,
-            'MEDIA_PAGE',
-            (result: { data: { mediaPage: MediaPage } }) =>
-              result
-                ?.data
-                ?.mediaPage
-                ?.nodes
-                ?.map(({ uri }) => uri)
-          )
         const page = readStore() === 'graph' ? createPageReader() : undefined
         // THE DEBOUNCE STAYS AT 100 ms and the NAMES are collected beside it, because the debounced
         // iterator coalesces events into one wake and drops their payloads with them. A page must
@@ -172,6 +161,19 @@ export const resolvers = {
           ? listen('view:changed', detail => { for (const id of detail.clusters) named.add(id) })
           : undefined
         const iterator = debouncedListenIterator([page ? 'view:changed' : 'media:changed'], 100, { abortSignal: ctx.request.signal })
+        const listing = isListing(args.input)
+        const { subscriptions, insertedUris, close } =
+          proxyRequestToExtractors(
+            ctx,
+            'MEDIA_PAGE',
+            (result: { data: { mediaPage: MediaPage } }) => {
+              const uris = result?.data?.mediaPage?.nodes?.map(({ uri }) => uri)
+              // an answer the store already holds changes nothing and so fires no event, and a
+              // listing, which only ever draws what was answered, would never draw it
+              if (listing && uris?.length) iterator.wake()
+              return uris
+            }
+          )
 
         // How many uris the last SEED read. The seed of 6.1 is a function of `insertedUris`, so a
         // grown fan-out is a new seed rather than an increment: an incremental re-read only ever
@@ -183,10 +185,10 @@ export const resolvers = {
          * both stores: the graph's page is the same three functions over the same fields, which is
          * what makes the two paths comparable at all.
          */
-        const sortPage = async (rows: Media[]) => {
+        const sortPage = async (rows: Media[], uris: string[]) => {
           // It runs AFTER the hide, which on the graph path is store-wide and written into the
           // cluster: dropping a run before the hide leaves its container behind as an orphan card.
-          let aggregated = applyMediaFilters(rows, args.input)
+          let aggregated = pageRows(rows, args.input, uris)
 
           const search = args.input.search
           if (search) {
@@ -212,12 +214,16 @@ export const resolvers = {
 
         const getPage = async () => {
           const uris = [...insertedUris]
+          if (listing && !uris.length) {
+            named.clear()
+            return []
+          }
           if (page) {
             const ids = [...named]
             named.clear()
             const cards = uris.length === seeded ? await page.apply(ids, uris) : await page.read(uris)
             seeded = uris.length
-            return sortPage(cards as unknown as Media[])
+            return sortPage(cards as unknown as Media[], uris)
           }
           // THE WHOLE-STORE FALLBACK IS LOAD BEARING, and it does not look it.
           //
@@ -232,7 +238,9 @@ export const resolvers = {
           //
           // What keeps the fallback honest is `applyMediaFilters` below, which runs on it like any
           // other page: a stale row from an earlier query only survives if it genuinely matches the
-          // season, format, genres and tags now being asked for.
+          // season, format, genres and tags now being asked for. A listing is the one page that answers
+          // [] instead, since no filter can tell its rows from the store's, and it is woken by its own
+          // sources' answers rather than by a store change.
           let clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)
           if (await fuzzyMergeMediaClusters(clusters)) {
             clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)
@@ -240,7 +248,7 @@ export const resolvers = {
           clusters = hideAttachedContainers(clusters)
           // a container is only hidden when a run cluster in the SAME LIST points at it, which is why
           // the hide runs here and the filter runs inside `sortPage`
-          return sortPage(clusters.map(cluster => aggregateMedia(cluster, location.origin)))
+          return sortPage(clusters.map(cluster => aggregateMedia(cluster, location.origin)), uris)
         }
 
         try {
@@ -250,6 +258,7 @@ export const resolvers = {
           }
         } finally {
           unlisten?.()
+          void iterator.return?.()
           close()
           await Promise.allSettled(subscriptions.map(subscription => subscription.unsubscribe()))
         }
