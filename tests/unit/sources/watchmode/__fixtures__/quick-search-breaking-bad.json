@@ -1,0 +1,96 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "03173903",
+            "name": "Breaking Bad",
+            "type": "TV Show",
+            "slugTypeFolder": "tv",
+            "year": 2008,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03173903_poster_w185.jpg",
+            "imdbId": "tt0903747",
+            "tmdbId": 1396,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "03203841",
+            "name": "Breaking Bad Fortune Teller",
+            "type": "TV Show",
+            "slugTypeFolder": "tv",
+            "year": 2016,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03203841_poster_w185.jpg",
+            "imdbId": null,
+            "tmdbId": 232533,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "04146033",
+            "name": "Breaking Bad Wolf",
+            "type": "Movie",
+            "slugTypeFolder": "movie",
+            "year": 2018,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/04146033_poster_w185.jpg",
+            "imdbId": "tt9746510",
+            "tmdbId": 635602,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "0554991",
+            "name": "Breaking the Deal with My Hockey Bad Boy",
+            "type": "Limited Series",
+            "slugTypeFolder": "tv",
+            "year": 2025,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/0554991_poster_w185.jpg",
+            "imdbId": "tt37241211",
+            "tmdbId": 326283,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "03317920",
+            "name": "Breaking Bad: Original Minisodes",
+            "type": "TV Show",
+            "slugTypeFolder": "tv",
+            "year": 2009,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/03317920_poster_w185.jpg",
+            "imdbId": "tt2387761",
+            "tmdbId": 337563,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01913415",
+            "name": "Breaking in Badly",
+            "type": "Movie",
+            "slugTypeFolder": "movie",
+            "year": 2024,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01913415_poster_w185.jpg",
+            "imdbId": null,
+            "tmdbId": 1399762,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "011104498",
+            "name": "Breaking Bad",
+            "type": "Movie",
+            "slugTypeFolder": "movie",
+            "year": null,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/blank.gif",
+            "imdbId": null,
+            "tmdbId": 1638545,
+            "tmdbType": "movie",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

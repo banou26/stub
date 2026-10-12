@@ -211,7 +211,7 @@ the screen.
 That is the argument, and it holds. The parenthetical does not: **jikan mints no imdb handle**. Its
 only two handles are `anidb` and `anizip`, both `sameAs`, at `src/sources/jikan/extractor.ts:146-149`.
 The sources that actually mint an `imdb:` handle are seven, not five: `omdb` (`:87`), `simkl` (`:141`),
-`trakt` (`:120`), `watchmode` (`:147`), `tvmaze` (`:68`), `tvdb` (`:60`) and `anizip` (`:38`), each in its own
+`trakt` (`:120`), `watchmode` (`:153`), `tvmaze` (`:68`), `tvdb` (`:60`) and `anizip` (`:38`), each in its own
 `src/sources/<module>/extractor.ts`.
 
 The row-rendering branch the figure ends on is `src/router/home/media-modal.tsx:767-775`, and it is
@@ -270,7 +270,7 @@ stateDiagram-v2
   [*] --> welding
   welding --> unplugged: 2026-09-04, each show level SAME_AS welded two runs of one show
   unplugged --> live: 2026-09-05, refusing them one by one left it contributing nothing
-  live --> pick: every offer handle, watchmode/extractor.ts:122-126
+  live --> pick: every offer handle, watchmode/extractor.ts:132-136
   pick --> identity: film and pointer.origin === mappedOrigin and pointer.id === id and mintableAsFilmHandle(pointer)
   pick --> containment: anything else
   identity --> [*]
@@ -289,7 +289,7 @@ stateDiagram-v2
 > It now mints them PART_OF: the url survives, the claim does not. That is what this source was always
 > for. See `MediaHandleRelation` in worker/resolvers/media/schema.gql.
 
-The choice node in the figure is `src/sources/watchmode/extractor.ts:122-126`, verbatim:
+The choice node in the figure is `src/sources/watchmode/extractor.ts:132-136`, verbatim:
 
 ```ts
 if (!id) return undefined
@@ -300,7 +300,7 @@ return partOf(node)
 ```
 
 The `imdb` and `tmdb` handles of a search hit do not reach that branch. `idHandles`
-(`src/sources/watchmode/extractor.ts:141-148`) mints them scoped CONTAINER, `partOf` on a film and
+(`src/sources/watchmode/extractor.ts:151-158`) mints them scoped CONTAINER, `partOf` on a film and
 `sameAs` on a series: a series record names the whole show, as its imdb id and its tmdb tv id do, so
 the claim unions three containers of one show and can never reach a run. As `partOf` the record was a
 show hanging off itself, and series.fkn.app listed it as a second, thinner card beside the real one

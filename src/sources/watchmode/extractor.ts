@@ -27,11 +27,13 @@ export const color = '#1fb6ff'
 const GATEWAY = 'https://gateway.watchmode.com/trpc'
 
 /**
- * A hit of the site's quick search. `combinedID` is the title id behind a type prefix, `01` for a film
- * and `03` for a series (`01182444` is Inception, `03195245` is Frieren), and is this source's media id.
+ * A hit of the site's quick search. `combinedID` is this source's media id, and its leading digits do
+ * not say film or series: The Last of Us (2023, TV) is `01564613` and the film Breaking Bad Wolf is
+ * `04146033` (2026-10-13). `slugTypeFolder` says it, `movie` or `tv`, the folder of the title's own url.
  */
 interface WatchmodeHit {
   combinedID?: string
+  slugTypeFolder?: string | null
   name?: string
   year?: number
   thumbnailURL?: string
@@ -45,6 +47,12 @@ interface WatchmodeProvider {
   webLink?: string | null
 }
 
+/** A title as `fetchTitleDetails` answers it: the kind a search hit states, and its title page providers. */
+interface WatchmodeTitle {
+  slugTypeFolder?: string | null
+  consolidatedProviders?: WatchmodeProvider[]
+}
+
 const trpc = <T>(procedure: string, input: object, ctx: ExtractorServerContext): Promise<T | undefined> =>
   ctx
     .fetch(`${GATEWAY}/gateway.${procedure}?batch=1&input=${encodeURIComponent(JSON.stringify({ 0: { json: input } }))}`, { headers: { origin: originUrl } })
@@ -52,7 +60,9 @@ const trpc = <T>(procedure: string, input: object, ctx: ExtractorServerContext):
     .then(answer => answer?.[0]?.result?.data?.json)
     .catch(() => undefined)
 
-const isFilm = (id: string) => id.startsWith('01')
+// `tmdbType` is no substitute: it says `movie` for a TV special, which Watchmode files under `tv` with a
+// season and an episode of its own (Planet Earth: A Celebration, 2026-10-13)
+const isFilm = (title: { slugTypeFolder?: string | null }) => title.slugTypeFolder === 'movie'
 
 const STREAM_HOST_ORIGIN_MAP: { match: (host: string) => boolean, origin: string }[] = [
   { match: host => host.endsWith('crunchyroll.com'), origin: 'cr' },
@@ -161,19 +171,20 @@ const dedupeHandles = (handles: GQLMediaHandle[]): GQLMediaHandle[] => {
 // Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
 // That is a CONTAINER, and only a film, which is its own single run, is a RUN. The type is what tells
 // the graph's guards it is a film, which a category alone does not.
-const kindOf = (id: string): Pick<GQLMedia, 'type' | 'categories' | 'scope'> =>
-  isFilm(id) ? { type: 'MOVIE', categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
+const kindOf = (film: boolean): Pick<GQLMedia, 'type' | 'categories' | 'scope'> =>
+  film ? { type: 'MOVIE', categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
 
 const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
   const id = hit.combinedID
   if (!id) return undefined
+  const film = isFilm(hit)
   return makeMedia({
     origin,
     id,
     url: `https://www.watchmode.com/title/${id}`,
-    handles: idHandles(hit, isFilm(id)),
+    handles: idHandles(hit, film),
     score: SCORE,
-    ...kindOf(id),
+    ...kindOf(film),
     titles: hit.name ? [{ language: 'en', title: hit.name, score: SCORE }] : [],
     // a title with no poster names `posters/blank.gif`
     covers: img(hit.thumbnailURL?.endsWith('/blank.gif') ? undefined : hit.thumbnailURL, SCORE),
@@ -181,23 +192,23 @@ const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
   })
 }
 
-// The title page's providers carry no title, so this row is its links alone: the search hit that
-// minted its id carries the title, the year and the catalogue ids.
+// This row is its kind and its links: the search hit that minted its id carries the title, the year
+// and the catalogue ids.
 const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
-  const providers = await trpc<{ consolidatedProviders?: WatchmodeProvider[] }>('fetchTitlePageProviders', { combinedTitleID: id }, ctx)
-  if (!providers) return undefined
-  const film = isFilm(id)
+  const title = (await trpc<{ title?: WatchmodeTitle | null }>('fetchTitleDetails', { combinedTitleID: id }, ctx))?.title
+  if (!title) return undefined
+  const film = isFilm(title)
   const media = makeMedia({
     origin,
     id,
     url: `https://www.watchmode.com/title/${id}`,
     handles: dedupeHandles(
-      (providers.consolidatedProviders ?? [])
+      (title.consolidatedProviders ?? [])
         .map(provider => sourceToHandle(provider, film))
         .filter((handle): handle is GQLMediaHandle => !!handle)
     ),
     score: SCORE,
-    ...kindOf(id),
+    ...kindOf(film),
   })
   if (isMovie(media)) {
     media.episodes = [makeMovieEpisode(media)]

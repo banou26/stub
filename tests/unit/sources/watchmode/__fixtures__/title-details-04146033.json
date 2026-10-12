@@ -1,0 +1,23 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "title": {
+          "combinedTitleID": "04146033",
+          "title": "Breaking Bad Wolf",
+          "type": "tv_movie",
+          "slugTypeFolder": "movie",
+          "year": 2018,
+          "language": "English",
+          "tmdbId": 635602,
+          "tmdbType": "movie",
+          "seasonCount": 0,
+          "episodeCount": 0,
+          "consolidatedProviders": []
+        },
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

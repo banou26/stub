@@ -1,0 +1,45 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "title": {
+          "combinedTitleID": "01564613",
+          "title": "The Last of Us",
+          "type": "tv_series",
+          "slugTypeFolder": "tv",
+          "year": 2023,
+          "language": "English",
+          "tmdbId": 100088,
+          "tmdbType": "tv",
+          "seasonCount": 2,
+          "episodeCount": 16,
+          "consolidatedProviders": [
+            {
+              "providerID": 385,
+              "region": "US",
+              "name": "HBO (Via Hulu)",
+              "type": "sub",
+              "webLink": "https://www.hulu.com/watch/9fb3aa1f-aea4-4e32-93cb-14a3226515f6"
+            },
+            {
+              "providerID": 387,
+              "region": "US",
+              "name": "HBO Max",
+              "type": "sub",
+              "webLink": "https://play.hbomax.com/video/watch/dae9e532-3714-4f2e-b758-fb9a13def902"
+            },
+            {
+              "providerID": 490,
+              "region": "US",
+              "name": "MAX (Via Amazon Prime)",
+              "type": "sub",
+              "webLink": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.6deef006-7018-428d-b748-5dd40d84eb6a"
+            }
+          ]
+        },
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

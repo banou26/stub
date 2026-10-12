@@ -1,0 +1,48 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "01564613",
+            "name": "The Last of Us",
+            "type": "TV Show",
+            "slugTypeFolder": "tv",
+            "year": 2023,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01564613_poster_w185.jpg",
+            "imdbId": "tt3581920",
+            "tmdbId": 100088,
+            "tmdbType": "tv",
+            "resultType": 1
+          },
+          {
+            "combinedID": "01402369",
+            "name": "The Last of Us",
+            "type": "Movie",
+            "slugTypeFolder": "movie",
+            "year": 2016,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/01402369_poster_w185.jpg",
+            "imdbId": "tt6589330",
+            "tmdbId": 408417,
+            "tmdbType": "movie",
+            "resultType": 1
+          },
+          {
+            "combinedID": "02810545",
+            "name": "The Last of Us: Ellie's Revenge",
+            "type": "Short Film",
+            "slugTypeFolder": "movie",
+            "year": 2021,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/02810545_poster_w185.jpg",
+            "imdbId": "tt14893986",
+            "tmdbId": 1686710,
+            "tmdbType": "movie",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

@@ -124,8 +124,8 @@ free: the recoverable failure is the one it chooses.
 Three source modules call `partOf`, at six sites. Kitsu builds one per streaming pointer it cannot read
 as a film (`src/sources/kitsu/extractor.ts:96`), JustWatch routes its offers through it
 (`justwatch/extractor.ts:400` and `:510`), and Watchmode is the source that exists in its current
-shape because of it: `watchmode/extractor.ts:126` returns `partOf(node)` for every provider handle,
-after `:125` has decided the one narrow case that may be `sameAs`, and `:147` mints a film's imdb and
+shape because of it: `watchmode/extractor.ts:136` returns `partOf(node)` for every provider handle,
+after `:135` has decided the one narrow case that may be `sameAs`, and `:157` mints a film's imdb and
 tmdb ids the same way. A series hit's go out `sameAs`, still scoped CONTAINER: the record names the
 whole show, as both ids do, so the claim is a union between containers and never touches a run.
 

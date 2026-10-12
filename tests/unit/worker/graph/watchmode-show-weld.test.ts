@@ -1,7 +1,7 @@
 // Breaking Bad as TVmaze and Watchmode answered its search on 2026-10-13, each cut to the show and its
-// minisodes. Watchmode's series record names the whole show, as TVmaze's does, and both carry its IMDb
-// id, so each show is one card; series.fkn.app listed a second, thinner `ag:(watchmode:03173903)` beside
-// Breaking Bad's.
+// minisodes, and The Last of Us cut to the show. Watchmode's series record names the whole show, as
+// TVmaze's does, and both carry its IMDb id, so each show is one card; series.fkn.app listed a second,
+// thinner `ag:(watchmode:03173903)` beside Breaking Bad's.
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import * as tvmaze from '../../../../src/sources/tvmaze/extractor'
@@ -13,7 +13,9 @@ import { resolveMedia } from '../../../../src/worker/graph/read'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import TVMAZE from '../../../fixtures/tvmaze/search-breaking-bad.json'
+import TVMAZE_TLOU from '../../../fixtures/tvmaze/search-the-last-of-us.json'
 import WATCHMODE from '../../../fixtures/watchmode/search-breaking-bad.json'
+import WATCHMODE_TLOU from '../../../fixtures/watchmode/search-the-last-of-us.json'
 import { answer } from './plugins/fixtures'
 
 const search = async (source: { resolvers: unknown }, body: unknown) => {
@@ -28,8 +30,13 @@ const search = async (source: { resolvers: unknown }, body: unknown) => {
 
 beforeAll(async () => {
   await enableGraph(true)
-  const rows = [...await search(tvmaze, TVMAZE), ...await search(watchmode, WATCHMODE)]
-  expect(rows.map(row => row.uri).sort()).toEqual(['tvmaze:169', 'tvmaze:27845', 'watchmode:03173903', 'watchmode:03317920'])
+  const rows = [
+    ...await search(tvmaze, TVMAZE), ...await search(watchmode, WATCHMODE),
+    ...await search(tvmaze, TVMAZE_TLOU), ...await search(watchmode, WATCHMODE_TLOU),
+  ]
+  expect(rows.map(row => row.uri).sort()).toEqual([
+    'tvmaze:169', 'tvmaze:27845', 'tvmaze:46562', 'watchmode:01564613', 'watchmode:03173903', 'watchmode:03317920',
+  ])
   await ingestAnswers(await Promise.all(rows.map(row => answer('media', row as never, 'MEDIA_PAGE'))))
   resetPassState()
   const report = await runPlugins(DEFAULT_PLUGINS, { reason: 'manual' }, { audit: true })
@@ -46,4 +53,8 @@ const members = async (uri: string) => {
 test('each Watchmode show is one card with the TVmaze show of the same IMDb id', async () => {
   expect(await members('tvmaze:169')).toEqual(['imdb:tt0903747', 'tmdb:1396', 'tvmaze:169', 'watchmode:03173903'])
   expect(await members('tvmaze:27845')).toEqual(['imdb:tt2387761', 'tmdb:337563', 'tvmaze:27845', 'watchmode:03317920'])
+})
+
+test('The Last of Us, a show whose Watchmode id starts 01, is one card with TVmaze\'s', async () => {
+  expect(await members('tvmaze:46562')).toEqual(['imdb:tt3581920', 'tmdb:100088', 'tvmaze:46562', 'watchmode:01564613'])
 })

@@ -1,0 +1,24 @@
+{
+  "result": {
+    "data": {
+      "json": {
+        "results": [
+          {
+            "combinedID": "0540528",
+            "name": "Planet Earth: A Celebration",
+            "type": "TV Special",
+            "slugTypeFolder": "tv",
+            "year": 2020,
+            "thumbnailURL": "https://cdn.watchmode.com/posters/0540528_poster_w185.jpg",
+            "imdbId": "tt12833022",
+            "tmdbId": 823800,
+            "tmdbType": "movie",
+            "resultType": 1
+          }
+        ],
+        "success": true,
+        "errorMessage": ""
+      }
+    }
+  }
+}

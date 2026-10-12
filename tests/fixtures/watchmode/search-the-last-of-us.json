@@ -1,0 +1,33 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "The Last of Us",
+              "percentile": 499.64,
+              "type": "TV Show",
+              "slug": "the-last-of-us-hbo",
+              "slugTypeFolder": "tv",
+              "combinedID": "01564613",
+              "id": 564613,
+              "year": 2023,
+              "resultType": 1,
+              "subtext": "TV Show (2023)",
+              "thumbnail": "01564613_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01564613_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 100088,
+              "tmdbType": "tv",
+              "imdbId": "tt3581920"
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]

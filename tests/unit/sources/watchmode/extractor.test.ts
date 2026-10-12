@@ -13,7 +13,7 @@
 // And every id that survives off a SERIES is minted PART_OF, because a watchmode series record IS the
 // show: `nf:80987039` off one names the Netflix title, not this run. That relation is what let the
 // source be plugged back in at all, so it is asserted here rather than left implied. A film's
-// per-title id is the film's own, and is asserted as such at the bottom.
+// per-title id is the film's own, and is asserted as such below.
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
@@ -22,6 +22,8 @@ import { resolvers } from '../../../../src/sources/watchmode/extractor'
 const GATEWAY = 'https://gateway.watchmode.com/trpc'
 const SERIES = '03000345'
 const FILM = '01000345'
+// what each fake title's own answer says it is
+const FOLDER: Record<string, string> = { [SERIES]: 'tv', [FILM]: 'movie' }
 
 type Edge = { relation: string, node: { uri: string, origin: string, id: string, scope?: string } }
 
@@ -33,7 +35,9 @@ const source = (webLink: string) => ({ providerID: 1, name: 'x', type: 'sub', re
 
 const context = (providers: { webLink: string }[]) => ({
   fetch: async (url: string) => {
-    if (url.startsWith(`${GATEWAY}/gateway.fetchTitlePageProviders?`)) return answer({ consolidatedProviders: providers })
+    if (url.startsWith(`${GATEWAY}/gateway.fetchTitleDetails?`)) {
+      return answer({ title: { slugTypeFolder: FOLDER[inputOf(url).combinedTitleID], consolidatedProviders: providers } })
+    }
     throw new Error(`fixture has no route for ${url}`)
   },
 }) as never
@@ -117,20 +121,20 @@ test('a url with no readable id mints nothing, never the watchmode id', async ()
 // themoviedb.org/movie/550 is Fight Club and /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550`
 // for both, so any claim there would point at the wrong ROW.
 test('a series claims its imdb and tmdb tv ids as the show, a film links its imdb id, a tmdb movie id is refused', async () => {
-  const [series] = await searchRowsFor([{ combinedID: SERIES, name: 'A Show', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'tv' }])
+  const [series] = await searchRowsFor([{ combinedID: SERIES, slugTypeFolder: 'tv', name: 'A Show', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'tv' }])
   expect(series!.handles.map(edge => [edge.node.uri, edge.relation, edge.node.scope])).toEqual([
     ['imdb:tt1234567', 'SAME_AS', 'CONTAINER'],
     ['tmdb:550', 'SAME_AS', 'CONTAINER'],
   ])
 
-  const [film] = await searchRowsFor([{ combinedID: FILM, name: 'A Film', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'movie' }])
+  const [film] = await searchRowsFor([{ combinedID: FILM, slugTypeFolder: 'movie', name: 'A Film', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'movie' }])
   expect(film!.handles.map(edge => [edge.node.uri, edge.relation])).toEqual([['imdb:tt1234567', 'PART_OF']])
 })
 
 // The control. imdb is minted and a netflix title id reads correctly off its own url shape. A run where
 // these vanish too has broken the source rather than fixed the weld.
 test('imdb and a readable netflix id are still minted', async () => {
-  const [row] = await searchRowsFor([{ combinedID: SERIES, name: 'A Show', imdbId: 'tt1234567' }])
+  const [row] = await searchRowsFor([{ combinedID: SERIES, slugTypeFolder: 'tv', name: 'A Show', imdbId: 'tt1234567' }])
   expect(row!.handles.map(handle => handle.node.uri)).toEqual(['imdb:tt1234567'])
 
   const handles = await handlesFor([source('https://www.netflix.com/title/80987039')])
@@ -152,7 +156,7 @@ test('a regional link mints the title it names, never its locale or a path word'
 })
 
 // The scope stamp. Watchmode has no season concept, so a series record IS the show and its row is a
-// CONTAINER: one id for every run. A film is its own single run. The id's prefix says which.
+// CONTAINER: one id for every run. A film is its own single run. The title's own answer says which.
 test('a series detail row is a CONTAINER and a film detail row is a RUN', async () => {
   const series = await mediaFor([])
   expect(series?.scope, 'one watchmode id for every run of the show').toBe('CONTAINER')
@@ -165,8 +169,8 @@ test('a series detail row is a CONTAINER and a film detail row is a RUN', async 
 
 test('a series search row is a CONTAINER and a film search row is a RUN', async () => {
   const rows = await searchRowsFor([
-    { combinedID: SERIES, name: 'A Show', imdbId: 'tt1111111' },
-    { combinedID: FILM, name: 'A Film', imdbId: 'tt2222222' },
+    { combinedID: SERIES, slugTypeFolder: 'tv', name: 'A Show', imdbId: 'tt1111111' },
+    { combinedID: FILM, slugTypeFolder: 'movie', name: 'A Film', imdbId: 'tt2222222' },
   ])
   const byId = Object.fromEntries(rows.map(row => [row.id, row]))
   expect(byId[SERIES]?.scope).toBe('CONTAINER')
@@ -176,7 +180,7 @@ test('a series search row is a CONTAINER and a film search row is a RUN', async 
 })
 
 test('every handle node it mints arrives scoped CONTAINER', async () => {
-  const [row] = await searchRowsFor([{ combinedID: SERIES, name: 'A Show', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'tv' }])
+  const [row] = await searchRowsFor([{ combinedID: SERIES, slugTypeFolder: 'tv', name: 'A Show', imdbId: 'tt1234567', tmdbId: 550, tmdbType: 'tv' }])
   const edges = [...row!.handles, ...await edgesFor([source('https://www.netflix.com/title/80987039')])]
 
   expect(edges.map(edge => edge.node.origin).sort()).toEqual(['imdb', 'nf', 'tmdb'])
@@ -201,9 +205,10 @@ test('a film\'s netflix title id is SAME_AS and a RUN, while a series keeps PART
   expect(series.find(edge => edge.node.origin === 'nf')?.relation, 'control: a series id names the show').toBe('PART_OF')
 })
 
-// Recorded signed out on 2026-10-07 with no key, trimmed: the gateway www.watchmode.com's own client
-// calls, for the quick searches "frieren" and "inception" and the providers of each first hit. Each is
-// the one entry of a batched answer, which is the same entry inside an array (measured that day).
+// Recorded signed out with no key, trimmed, from the gateway behind www.watchmode.com: the quick search
+// "inception" on 2026-10-07, and on 2026-10-13 the quick searches "breaking bad", "the last of us" and
+// "planet earth" and the title details of Frieren, Inception, The Last of Us and Breaking Bad Wolf.
+// Each is the one entry of a batched answer, which is the same entry inside an array.
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
 
 const recorded = (sent: string[], headers: Record<string, string>[] = []) => ({
@@ -213,8 +218,8 @@ const recorded = (sent: string[], headers: Record<string, string>[] = []) => ({
     const procedure = new URL(url).pathname.split('/').at(-1)
     const input = inputOf(url)
     const name =
-      procedure === 'gateway.quickSearch' ? `quick-search-${input.q}`
-      : procedure === 'gateway.fetchTitlePageProviders' ? `providers-${{ '03195245': 'frieren', '01182444': 'inception' }[input.combinedTitleID as string]}`
+      procedure === 'gateway.quickSearch' ? `quick-search-${input.q.replaceAll(' ', '-')}`
+      : procedure === 'gateway.fetchTitleDetails' ? `title-details-${input.combinedTitleID}`
       : undefined
     return { json: async () => [fixture(name!)] }
   },
@@ -282,4 +287,47 @@ test('a recorded film is one run with its single episode', async () => {
   expect(media.scope).toBe('RUN')
   expect(media.episodes).toHaveLength(1)
   expect(media.handles.find(handle => handle.node.uri === 'nf:70131314')?.relation).toBe('SAME_AS')
+})
+
+// A Watchmode id's leading digits do not say film or series: The Last of Us (2023, TV) is `01564613`,
+// the film Breaking Bad Wolf `04146033`, a short film `02810545`, and a limited series `0554991`.
+const searchKinds = async (query: string) => {
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const { value } = await subscribe(undefined, { input: { search: query } }, recorded([])).next()
+  return value.mediaPage.nodes as { id: string, scope: string, categories: string[], handles: Edge[] }[]
+}
+
+test('a search hit is a film or a series as its answer says, whatever its id starts with', async () => {
+  const rows = [...await searchKinds('the last of us'), ...await searchKinds('breaking bad'), ...await searchKinds('planet earth')]
+
+  expect(Object.fromEntries(rows.map(row => [row.id, row.scope]))).toEqual({
+    '01564613': 'CONTAINER', // The Last of Us, the HBO show
+    '01402369': 'RUN',
+    '02810545': 'RUN',
+    '03173903': 'CONTAINER',
+    '03203841': 'CONTAINER',
+    '04146033': 'RUN',
+    '0554991': 'CONTAINER',
+    '03317920': 'CONTAINER',
+    '01913415': 'RUN',
+    '011104498': 'RUN',
+    '0540528': 'CONTAINER', // a TV special with a season and an episode, which TMDB files as a movie
+  })
+  const show = rows.find(row => row.id === '01564613')!
+  expect(show.categories).toEqual(['SERIES'])
+  expect(show.handles.map(edge => [edge.node.uri, edge.relation])).toEqual([['imdb:tt3581920', 'SAME_AS'], ['tmdb:100088', 'SAME_AS']])
+})
+
+test('a title read by its id alone is a film or a series as its own answer says', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const read = async (id: string) => {
+    const sent: string[] = []
+    const { value } = await subscribe(undefined, { input: { uri: `watchmode:${id}` } }, recorded(sent)).next()
+    expect(sent.map(url => new URL(url).pathname)).toEqual(['/trpc/gateway.fetchTitleDetails'])
+    const media = value.media as { scope: string, categories: string[], episodes?: unknown[] }
+    return [media.scope, media.categories, media.episodes?.length ?? 0]
+  }
+
+  expect(await read('01564613'), 'The Last of Us, the show').toEqual(['CONTAINER', ['SERIES'], 0])
+  expect(await read('04146033'), 'Breaking Bad Wolf, a film').toEqual(['RUN', ['MOVIE'], 1])
 })

@@ -312,14 +312,14 @@ scope: 'RUN',
 | tvdb | always CONTAINER, for search rows, series rows and remote-id handles alike | `tvdb/extractor.ts:76`, `:60` |
 | omdb | `film ? 'RUN' : 'CONTAINER'`, applied to the row and to its imdb handle | `omdb/extractor.ts:79`, `:86`, `:87` |
 | simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'` | `simkl/extractor.ts:105`, `:110` |
-| watchmode | `isFilm(id) ? 'RUN' : 'CONTAINER'`, read off the id's `01` film prefix | `watchmode/extractor.ts:173` |
+| watchmode | `film ? 'RUN' : 'CONTAINER'`, where `film` is the title's own `slugTypeFolder === 'movie'`, never its id | `watchmode/extractor.ts:175`, `:65` |
 | anilist | RUN by default; its `similarMedia` answer is re-minted preserving `answer.scope` | `anilist/extractor.ts:250` |
 | jikan, anizip, kitsu, offline | never set `scope`, so RUN by `makeMedia`'s default | `sources/utils.ts:65` |
 | disney, amazon, hulu, peacock, hbo, fubo, imdb | never build a media at all | |
 
 Three of those carry their reasoning, and the reasoning is the same argument each time:
 
-`src/sources/watchmode/extractor.ts:170-171`
+`src/sources/watchmode/extractor.ts:171-172`
 
 > Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
 > That is a CONTAINER, and only a film, which is its own single run, is a RUN.

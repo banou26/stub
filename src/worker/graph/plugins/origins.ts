@@ -22,7 +22,7 @@
  *
  * `imdb` (`db.ts:42`), `trakt` (`trakt/extractor.ts:95`), `tvdb` (`tvdb/extractor.ts:76`) and
  * `paramount` (`paramount/extractor.ts:54`). NOT omdb and NOT watchmode, which both mint a RUN for a
- * film (`omdb/extractor.ts:79`, `watchmode/extractor.ts:170-173`), so adding either here would stamp
+ * film (`omdb/extractor.ts:79`, `watchmode/extractor.ts:174-175`), so adding either here would stamp
  * every film they answer as a container.
  */
 export const SHOW_LEVEL_ORIGINS = new Set(['imdb', 'trakt', 'tvdb', 'paramount'])
@@ -143,7 +143,7 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   tvmaze: new Set(['imdb']),
   // the row IS an imdb id, minted beside itself (`omdb:53`)
   omdb: new Set(['imdb']),
-  // `imdb_id` and `tmdb_id` (`watchmode:155,162`) plus the stream hosts of `watchmode:66-71`
+  // `imdbId` and `tmdbId` (`watchmode:153-155`) plus the stream hosts of `watchmode:67-74`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
   // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:75-81`, minted at
   // `justwatch:534`), plus its own show container (`justwatch:639`) and the title page's

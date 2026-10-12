@@ -1,0 +1,69 @@
+[
+  {
+    "score": 1.5999383,
+    "show": {
+      "id": 46562,
+      "url": "https://www.tvmaze.com/shows/46562/the-last-of-us",
+      "name": "The Last of Us",
+      "type": "Scripted",
+      "language": "English",
+      "genres": [
+        "Drama",
+        "Action",
+        "Horror"
+      ],
+      "status": "Running",
+      "runtime": null,
+      "averageRuntime": 61,
+      "premiered": "2023-01-15",
+      "ended": null,
+      "officialSite": "https://www.hbo.com/the-last-of-us",
+      "schedule": {
+        "time": "21:00",
+        "days": [
+          "Sunday"
+        ]
+      },
+      "rating": {
+        "average": 7.9
+      },
+      "weight": 100,
+      "network": {
+        "id": 8,
+        "name": "HBO",
+        "country": {
+          "name": "United States",
+          "code": "US",
+          "timezone": "America/New_York"
+        },
+        "officialSite": "https://www.hbo.com/"
+      },
+      "webChannel": null,
+      "dvdCountry": {
+        "name": "United States",
+        "code": "US",
+        "timezone": "America/New_York"
+      },
+      "externals": {
+        "tvrage": null,
+        "thetvdb": 392256,
+        "imdb": "tt3581920"
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/563/1409008.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/563/1409008.jpg"
+      },
+      "summary": "<p>After a global pandemic destroys civilization, a hardened survivor takes charge of a 14-year-old girl who may be humanity's last hope.</p>",
+      "updated": 1756335044,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/46562"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/3153912",
+          "name": "Convergence"
+        }
+      }
+    }
+  }
+]
