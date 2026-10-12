@@ -1,0 +1,312 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "objectId": 255424,
+            "objectType": "SHOW",
+            "content": {
+              "title": "ONE PIECE",
+              "fullPath": "/us/tv-show/one-piece-2023",
+              "originalReleaseYear": 2023,
+              "originalReleaseDate": "2023-08-31",
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                }
+              ],
+              "productionCountries": [
+                "US",
+                "ZA"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.netflix.com/title/80217863",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              }
+            ],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "objectId": 285560,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Yu Yu Hakusho",
+              "fullPath": "/us/tv-show/yu-yu-hakusho-2023",
+              "originalReleaseYear": 2023,
+              "originalReleaseDate": "2023-12-14",
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.netflix.com/title/81243969",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              }
+            ],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "objectId": 219660,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Alice in Borderland",
+              "fullPath": "/us/tv-show/alice-in-borderland",
+              "originalReleaseYear": 2020,
+              "originalReleaseDate": "2020-12-10",
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "hrr",
+                  "translation": "Horror"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.netflix.com/title/80200575",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              }
+            ],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "objectId": 85985,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Cowboy Bebop",
+              "fullPath": "/us/tv-show/cowboy-bebop-2021",
+              "originalReleaseYear": 2021,
+              "originalReleaseDate": "2021-11-19",
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.netflix.com/title/80207033",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              }
+            ],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "objectId": 196674,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Ghost in the Shell",
+              "fullPath": "/us/movie/ghost-in-the-shell-2017",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-03-29",
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "CN",
+                "HK",
+                "IN",
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "objectId": 217228,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Death Note",
+              "fullPath": "/us/movie/death-note",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-08-25",
+              "genres": [
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "hrr",
+                  "translation": "Horror"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "_4K",
+                "standardWebURL": "https://www.netflix.com/title/80122759",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              }
+            ],
+            "extraOffers": []
+          }
+        }
+      ]
+    }
+  }
+}

@@ -93,6 +93,8 @@ const normalizeMedia = (title: Title): GQLMedia | undefined => {
     url,
     scope,
     handles: [makeMedia({ origin: 'imdb', id: title.id, url, scope })],
+    // the type is what tells the graph's guards this is a film, which a category alone does not
+    type: film ? 'MOVIE' : undefined,
     categories: film ? ['MOVIE'] : ['SERIES'],
     score: SCORE,
     titles: title.titleText?.text ? [{ language: 'en', title: title.titleText.text, score: SCORE }] : [],

@@ -8,6 +8,7 @@ import DRIVE_MY_CAR_SEARCH from '../../../fixtures/justwatch/drive-my-car-search
 import IMMORTAL_KING from '../../../fixtures/justwatch/immortal-king.json'
 import LOOKISM from '../../../fixtures/justwatch/lookism.json'
 import ARCANE from '../../../fixtures/justwatch/arcane.json'
+import LIVE_ACTION from '../../../fixtures/justwatch/live-action-search.json'
 
 const context = (answer: unknown) => ({
   findAggregatedMedia: async () => null,
@@ -80,4 +81,13 @@ test('a title takes JustWatch\'s genre names, without its Made in Europe region'
   expect(callMeByYourName.genres).toEqual(['Drama', 'Romance'])
   expect(yourName.genres).toEqual(['Animation', 'Drama', 'Fantasy', 'Romance'])
   expect((await season(ARCANE)).genres).toEqual(['Action & Adventure', 'Animation', 'Drama', 'Fantasy', 'Science-Fiction'])
+})
+
+// each adaptation's live-action node from its search, with its Netflix offer only
+test.each(LIVE_ACTION.data.popularTitles.edges)('the live-action $node.content.title ($node.content.originalReleaseYear) is not anime', async ({ node }) => {
+  const media = node.objectType === 'MOVIE'
+    ? (await listing({ data: { popularTitles: { edges: [{ node }] } } }))[0]
+    : await showAsContainer(node as never, context(undefined) as never)
+  expect(media.titles[0].title).toBe(node.content.title)
+  expect(media.categories).toEqual([node.objectType === 'MOVIE' ? 'MOVIE' : 'SERIES'])
 })

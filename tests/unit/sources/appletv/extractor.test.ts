@@ -7,7 +7,7 @@
 // that (27.280% of its per-season episodes belong to another season), so the only evidence that can
 // place a run here is a day inside the 45 day window: a year cannot show a count-less season is not a
 // fold, so it only ever vetoes.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/appletv/extractor'
@@ -93,11 +93,14 @@ test('a search row for a Show carries the id every season shares, so it is a CON
 
 // The controls. A film has no seasons to be confused between, and a season-scoped row names one
 // season only; a run where either of those read CONTAINER has stamped everything rather than the show.
-test('a search row for a Movie names one run', async () => {
+// A film's MOVIE type is what keeps a live-action film out of its anime's cluster, which the category
+// alone does not.
+test('a search row for a Movie names one run, typed MOVIE', async () => {
   const nodes = await searchPage('A Film', [{ id: 'umc.cmc.film', type: 'Movie', title: 'A Film' }])
 
   expect(nodes.map((node: any) => node.uri)).toEqual(['appletv:umc.cmc.film'])
   expect(nodes[0].scope).toBe('RUN')
+  expect(nodes[0].type).toBe('MOVIE')
 })
 
 test('a season-scoped media names one run, and attaches only that season', async () => {

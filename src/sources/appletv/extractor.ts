@@ -106,6 +106,7 @@ const normalizeMedia = (content: AppleItem, season?: AppleSeason): GQLMedia => {
     scope,
     url: content.url,
     score: SCORE,
+    type: content.type === 'Movie' ? 'MOVIE' : undefined,
     categories: content.type === 'Movie' ? ['MOVIE'] : ['SERIES'],
     titles: [{ language: 'en', title: content.title, score: SCORE }],
     ...desc(content.description, SCORE),

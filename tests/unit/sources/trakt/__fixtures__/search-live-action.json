@@ -1,0 +1,89 @@
+[
+  {
+    "type": "show",
+    "show": {
+      "title": "ONE PIECE",
+      "year": 2023,
+      "ids": {
+        "imdb": "tt11737520",
+        "slug": "one-piece-2023",
+        "tmdb": 111110,
+        "tvdb": 392276,
+        "trakt": 184618
+      },
+      "genres": [
+        "action",
+        "adventure",
+        "fantasy",
+        "science-fiction"
+      ],
+      "country": "us"
+    }
+  },
+  {
+    "type": "show",
+    "show": {
+      "title": "Yu Yu Hakusho",
+      "year": 2023,
+      "ids": {
+        "imdb": "tt13664452",
+        "slug": "yu-yu-hakusho-2023",
+        "tmdb": 121659,
+        "tvdb": 413737,
+        "trakt": 197000
+      },
+      "genres": [
+        "drama",
+        "fantasy",
+        "science-fiction",
+        "action",
+        "adventure"
+      ],
+      "country": "jp"
+    }
+  },
+  {
+    "type": "show",
+    "show": {
+      "title": "Alice in Borderland",
+      "year": 2020,
+      "ids": {
+        "imdb": "tt10795658",
+        "slug": "alice-in-borderland-2020",
+        "tmdb": 110316,
+        "tvdb": 376472,
+        "trakt": 157841
+      },
+      "genres": [
+        "action",
+        "adventure",
+        "drama",
+        "mystery",
+        "suspense",
+        "horror"
+      ],
+      "country": "jp"
+    }
+  },
+  {
+    "type": "show",
+    "show": {
+      "title": "Cowboy Bebop",
+      "year": 2021,
+      "ids": {
+        "imdb": "tt1267295",
+        "slug": "cowboy-bebop-2021",
+        "tmdb": 84469,
+        "tvdb": 367234,
+        "trakt": 187928
+      },
+      "genres": [
+        "science-fiction",
+        "action",
+        "adventure",
+        "crime"
+      ],
+      "country": "us"
+    }
+  }
+]

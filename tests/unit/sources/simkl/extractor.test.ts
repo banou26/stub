@@ -17,7 +17,7 @@ const API = 'https://api.simkl.com'
 // the id block simkl really publishes on an anime run, trimmed to what buildHandles reads
 const IDS = { simkl: 1080329, imdb: 'tt13303712', tmdb: '94664', mal: '39535', anilist: '108465', kitsu: '42323' }
 
-type Row = { uri?: string, scope?: string, handles: { node: { uri: string, origin: string, id: string, scope?: string } }[], episodes?: { releaseDate?: string }[] }
+type Row = { uri?: string, scope?: string, type?: string, handles: { node: { uri: string, origin: string, id: string, scope?: string } }[], episodes?: { releaseDate?: string }[] }
 
 const context = (type: 'tv' | 'anime' | 'movies', ids: Record<string, unknown> = IDS, episodes: readonly object[] = []) => ({
   fetch: async (url: string) => {
@@ -113,10 +113,12 @@ test('an anime record is one run: RUN row, RUN mal/anilist/kitsu, CONTAINER imdb
   expect(handle(media, 'imdb').scope).toBe('CONTAINER')
 })
 
-// A film is a run and its imdb id names the film itself, so nothing on a movie is a container.
-test('a movie is a run and its imdb handle follows it', async () => {
+// A film is a run and its imdb id names the film itself, so nothing on a movie is a container. Its type
+// is what keeps a live-action film out of its anime's cluster, which the MOVIE category alone does not.
+test('a movie is a run typed MOVIE, and its imdb handle follows it', async () => {
   const media = await mediaFor('movies', { simkl: 1080329, imdb: 'tt0137523' })
 
+  expect(media.type).toBe('MOVIE')
   expect(media.scope).toBe('RUN')
   expect(handle(media, 'imdb').scope).toBe('RUN')
 })
@@ -181,6 +183,7 @@ test('search rows are scoped by the type their url names', async () => {
   expect(byId['simkl:1']!.scope).toBe('CONTAINER')
   expect(byId['simkl:2']!.scope).toBe('RUN')
   expect(byId['simkl:3']!.scope).toBe('RUN')
+  expect(rows.map(row => row.type)).toEqual([undefined, undefined, 'MOVIE'])
 })
 
 // Recorded signed out on 2026-10-07 with no client id, trimmed: simkl.com's search form for "frieren"

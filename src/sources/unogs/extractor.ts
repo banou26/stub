@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, MediaScope, SimilarMediaInput } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, simplifyTitle, buildHandlesFromUri, waitForMedia, pickTitleMatch, declaredEpisodeCount } from '../utils'
 import { pickContainingSeason, pickSimilarSeason, type SeasonCandidate } from '../similar'
@@ -599,8 +599,10 @@ const decode = (str: string): string =>
 const httpsUrl = (url: string) => url.replace(/^http:/, 'https:')
 
 // A bare `nf:<netflixid>` is the whole Netflix TITLE: exact for a film, every season at once for a
-// series. Only the season rewrite in `getMedia` turns a series id into a run.
-const titleScope = (vtype: string | undefined): MediaScope => vtype === 'movie' ? 'RUN' : 'CONTAINER'
+// series. Only the season rewrite in `getMedia` turns a series id into a run. The type is what tells the
+// graph's guards a film is a film, which a category alone does not.
+const kindOf = (vtype: string | undefined): Pick<GQLMedia, 'type' | 'categories' | 'scope'> =>
+  vtype === 'movie' ? { type: 'MOVIE', categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
 
 const normalizeTitle = (title: UnogsTitle, bgImages?: UnogsBgImages): GQLMedia => {
   const covers: { url: string, score: number }[] = []
@@ -621,8 +623,7 @@ const normalizeTitle = (title: UnogsTitle, bgImages?: UnogsBgImages): GQLMedia =
     id: String(title.netflixid),
     url: `https://www.netflix.com/title/${title.netflixid}`,
     score: SCORE,
-    scope: titleScope(title.vtype),
-    categories: title.vtype === 'movie' ? ['MOVIE'] : ['SERIES'],
+    ...kindOf(title.vtype),
     titles: [{ language: 'en', title: decode(title.title), score: SCORE }],
     ...desc(title.synopsis ? decode(title.synopsis) : undefined, SCORE),
     covers, banners,
@@ -637,8 +638,7 @@ const normalizeSearchResult = (result: UnogsSearchResult): GQLMedia =>
     id: String(result.nfid),
     url: `https://www.netflix.com/title/${result.nfid}`,
     score: SCORE,
-    scope: titleScope(result.vtype),
-    categories: result.vtype === 'movie' ? ['MOVIE'] : ['SERIES'],
+    ...kindOf(result.vtype),
     titles: [{ language: 'en', title: decode(result.title), score: SCORE }],
     ...desc(result.synopsis ? decode(result.synopsis) : undefined, SCORE),
     covers: result.img ? img(httpsUrl(result.img), SCORE) : [],

@@ -1,0 +1,52 @@
+{
+  "data": {
+    "mainSearch": {
+      "edges": [
+        {
+          "node": {
+            "entity": {
+              "id": "tt0877057",
+              "titleText": {
+                "text": "Death Note"
+              },
+              "titleType": {
+                "id": "tvSeries"
+              },
+              "releaseYear": {
+                "year": 2006
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BYTgyZDhmMTEtZDFhNi00MTc4LTg3NjUtYWJlNGE5Mzk2NzMxXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt0758742",
+              "titleText": {
+                "text": "Death Note"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 2006
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BYmRkNzYzOGMtNjM3Mi00NmZiLTg4MzMtZWVlOTRhZDY4ZDY0XkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "search": []
+    }
+  }
+}

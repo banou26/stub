@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/trakt/extractor'
+import LIVE_ACTION from './__fixtures__/search-live-action.json'
 
 const SHOWS: Record<string, string> = {
   'frieren-beyond-journey-s-end': 'frieren',
@@ -61,4 +62,14 @@ test('a search row carries the signal too', async () => {
   expect(animated.url).toBe('https://trakt.tv/shows/lookism-2022')
   expect(animated.categories).toEqual(['ANIME', 'SERIES'])
   expect(liveAction.categories).toEqual(['SERIES'])
+})
+
+// the live-action row of each adaptation's search, 2026-10-12
+test.each(LIVE_ACTION)('the live-action $show.title ($show.year) is not anime', async row => {
+  const context = { fetch: async () => ({ json: async () => [row] }) }
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const { value } = await subscribe(undefined, { input: { search: row.show.title } }, context).next()
+  const [media] = value.mediaPage.nodes
+  expect(media.url).toBe(`https://trakt.tv/shows/${row.show.ids.slug}`)
+  expect(media.categories).toEqual(['SERIES'])
 })

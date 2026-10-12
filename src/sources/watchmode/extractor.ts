@@ -168,9 +168,10 @@ const dedupeHandles = (handles: GQLMediaHandle[]): GQLMediaHandle[] => {
 }
 
 // Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
-// That is a CONTAINER, and only a film, which is its own single run, is a RUN.
-const kindOf = (id: string): Pick<GQLMedia, 'categories' | 'scope'> =>
-  isFilm(id) ? { categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
+// That is a CONTAINER, and only a film, which is its own single run, is a RUN. The type is what tells
+// the graph's guards it is a film, which a category alone does not.
+const kindOf = (id: string): Pick<GQLMedia, 'type' | 'categories' | 'scope'> =>
+  isFilm(id) ? { type: 'MOVIE', categories: ['MOVIE'], scope: 'RUN' } : { categories: ['SERIES'], scope: 'CONTAINER' }
 
 const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
   const id = hit.combinedID

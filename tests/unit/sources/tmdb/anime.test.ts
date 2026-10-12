@@ -11,6 +11,10 @@ const SHOWS: Record<string, string> = {
   231003: 'lazarus',
   94605: 'arcane',
   93405: 'squid-game',
+  111110: 'one-piece-2023',
+  121659: 'yu-yu-hakusho-2023',
+  110316: 'alice-in-borderland',
+  84469: 'cowboy-bebop-2021',
 }
 
 const fixture = (name: string) => readFileSync(new URL(`../../../fixtures/tmdb/show-${name}.html`, import.meta.url), 'utf8')
@@ -56,4 +60,16 @@ test('animation in English, and a live-action show in Korean, are series only', 
   expect(arcane.categories).toEqual(['SERIES'])
   expect(squidGame.titles[0].title).toBe('Squid Game')
   expect(squidGame.categories).toEqual(['SERIES'])
+})
+
+// Cowboy Bebop's `based on anime` keyword, and the Japanese of the other two, are the near misses
+test.each([
+  ['111110', 'ONE PIECE'],
+  ['121659', 'Yu Yu Hakusho'],
+  ['110316', 'Alice in Borderland'],
+  ['84469', 'Cowboy Bebop'],
+])('the live-action show %s, %s, is not anime', async (id, title) => {
+  const media = await show(id)
+  expect(media.titles[0].title).toBe(title)
+  expect(media.categories).toEqual(['SERIES'])
 })

@@ -1,0 +1,52 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "Death Note",
+              "percentile": 496.87,
+              "type": "TV Show",
+              "slug": "death-note-nippon-tv",
+              "slugTypeFolder": "tv",
+              "combinedID": "0329415",
+              "id": 29415,
+              "year": 2006,
+              "resultType": 1,
+              "subtext": "TV Show (2006)",
+              "thumbnail": "0329415_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/0329415_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 13916,
+              "tmdbType": "tv",
+              "imdbId": "tt0877057"
+            },
+            {
+              "name": "Death Note",
+              "percentile": 323.219,
+              "type": "Movie",
+              "slug": "death-note-2006",
+              "slugTypeFolder": "movie",
+              "combinedID": "0194656",
+              "id": 94656,
+              "year": 2006,
+              "resultType": 1,
+              "subtext": "Movie (2006)",
+              "thumbnail": "0194656_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/0194656_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 16007,
+              "tmdbType": "movie",
+              "imdbId": "tt0758742"
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "score": 1.1911211,
+    "show": {
+      "id": 46065,
+      "url": "https://www.tvmaze.com/shows/46065/one-piece",
+      "name": "One Piece",
+      "type": "Scripted",
+      "language": "English",
+      "genres": [
+        "Action",
+        "Adventure",
+        "Fantasy"
+      ],
+      "premiered": "2023-08-31"
+    }
+  },
+  {
+    "score": 1.4087112,
+    "show": {
+      "id": 71750,
+      "url": "https://www.tvmaze.com/shows/71750/yu-yu-hakusho",
+      "name": "Yu Yu Hakusho",
+      "type": "Scripted",
+      "language": "Japanese",
+      "genres": [
+        "Action",
+        "Fantasy"
+      ],
+      "premiered": "2023-12-14"
+    }
+  },
+  {
+    "score": 1.414875,
+    "show": {
+      "id": 50036,
+      "url": "https://www.tvmaze.com/shows/50036/alice-in-borderland",
+      "name": "Alice in Borderland",
+      "type": "Scripted",
+      "language": "Japanese",
+      "genres": [
+        "Science-Fiction",
+        "Thriller",
+        "Mystery"
+      ],
+      "premiered": "2020-12-10"
+    }
+  },
+  {
+    "score": 1.1697435,
+    "show": {
+      "id": 39892,
+      "url": "https://www.tvmaze.com/shows/39892/cowboy-bebop",
+      "name": "Cowboy Bebop",
+      "type": "Scripted",
+      "language": null,
+      "genres": [
+        "Action",
+        "Adventure",
+        "Science-Fiction"
+      ],
+      "premiered": "2021-11-19"
+    }
+  }
+]
