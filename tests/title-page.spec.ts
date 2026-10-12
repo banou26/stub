@@ -151,6 +151,17 @@ test('a title opened from a relation starts fresh: what was opened on the last o
   await expect(page.getByRole('button', { name: 'Expand' }), 'its description opens clamped').toBeVisible()
 })
 
+test('a wider spelling of the same title keeps the page as it is', async ({ page }) => {
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  await page.getByRole('button', { name: 'Expand' }).click()
+  // what the page itself does once a source names the work by more ids
+  await page.evaluate(() => history.replaceState(null, '', '/title/ag:(anilist:900001,mal:900001)'))
+  await expect(page).toHaveURL(/mal:900001/)
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('button', { name: 'Collapse' }), 'the description stays open').toBeVisible()
+})
+
 test('in the modal, a relation card and a series graph node still open the modal', async ({ page }) => {
   await openModal(page)
   await expect(modal(page).locator('a.relation-card')).toHaveAttribute('href', `/media/${SEQUEL}`)

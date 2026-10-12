@@ -603,6 +603,13 @@ const TitlePage = () => {
 
   const [allRelations, setAllRelations] = useState(false)
   const [allEpisodes, setAllEpisodes] = useState(false)
+  // a relation opens the next title in this same page, so what was opened on the last one closes again; keyed on the
+  // held uri, which a wider spelling of the same work leaves alone
+  useEffect(() => {
+    setOpen(false)
+    setAllRelations(false)
+    setAllEpisodes(false)
+  }, [uri])
   const [copied, setCopied] = useState(false)
   const share = async () => {
     if (!media) return
@@ -740,8 +747,4 @@ const TitlePage = () => {
   )
 }
 
-// keyed by the title, so a relation card opening another title gives it a fresh page: wouter keeps the same
-// instance across a change of `uri`, and Show all or an opened description would carry over to the next title
-const Title = () => <TitlePage key={useParams<RouteParams['TITLE']>().uri}/>
-
-export default Title
+export default TitlePage
