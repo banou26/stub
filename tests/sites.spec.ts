@@ -95,6 +95,20 @@ test('movies.fkn.app lists JustWatch\'s popular films alone, with no category ta
   await expect(page.getByRole('textbox', { name: 'Search' })).toHaveAttribute('placeholder', 'Search movies…')
 })
 
+test('movies.fkn.app draws each popular film\'s poster, and the hero shows one of them', async ({ page }) => {
+  const films = ['Backrooms', 'Obsession', 'The End of Oak Street', 'Practical Magic']
+  await page.goto(at('movies.localhost'))
+  await expect.poll(() => page.locator('.category-item').evaluateAll(cards => cards.map(card => card.style.backgroundImage)), { timeout: 30_000 })
+    .toEqual([
+      'url("https://images.justwatch.com/poster/347350367/s718/backrooms.jpg")',
+      'url("https://images.justwatch.com/poster/346817191/s718/obsession-2026.jpg")',
+      'url("https://images.justwatch.com/poster/347475607/s718/flowervale-street.jpg")',
+      'url("https://images.justwatch.com/poster/11005490/s718/practical-magic.jpg")',
+    ])
+  await expect(page.locator('.theater .information > .title')).toHaveText(new RegExp(`^(${films.join('|')})$`), { timeout: 30_000 })
+  await expect(page.locator('.theater .player-wrapper')).toHaveAttribute('style', /images\.justwatch\.com\/poster\//)
+})
+
 test('series.fkn.app lists JustWatch\'s popular shows, each a card of its own', async ({ page }) => {
   await page.goto(at('series.localhost'))
   await expect(row(page, 'Popular shows')).toBeVisible()

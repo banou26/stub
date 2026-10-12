@@ -8,6 +8,11 @@ import TextEllipsis from './text-ellipsis'
 import { useCoverUrl } from '../utils/use-cover-url'
 
 const style = css`
+&.card {
+  background-color: #191919;
+  background-size: cover;
+}
+
 &.card, .card {
   position: relative;
   display: flex;
@@ -90,7 +95,7 @@ const MediaTitle = ({ media, to, ellipsis = true, ...rest }: React.ButtonHTMLAtt
       {...rest}
       css={style}
       className={`card category-item${ellipsis ? '' : ' full-title'}`}
-      style={{ ...(typeof rest.style === 'object' ? rest.style : undefined), backgroundImage: `url(${coverUrl})`, backgroundSize: 'cover' }}
+      style={{ ...(typeof rest.style === 'object' ? rest.style : undefined), backgroundImage: coverUrl && `url(${coverUrl})` }}
     >
       <Link
         tabIndex={-1}

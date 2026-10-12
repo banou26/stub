@@ -682,6 +682,8 @@ const normalizeMedia = async (
     // source. The show's own title lives on the show CONTAINER handle below as well, because it is
     // true of that node too and that is the node `similarMedia` is asked of.
     titles: title ? [{ language: 'en', title, score: SCORE }] : [],
+    ...desc(shortDescription, SCORE),
+    covers: img(resolveImageUrl(node.content.posterUrl), SCORE),
     // the search query carries totalEpisodeCount but not the episodes themselves, so an expanded
     // season still reports how long it is - which is also what season matching elsewhere keys on
     episodeCount: released.length || filteredSeasons.reduce((total, season) => total + (season.totalEpisodeCount ?? 0), 0) || undefined,
@@ -697,11 +699,10 @@ const normalizeMedia = async (
     ...node.content.credits ? { credits: parseCredits(node.content.credits) } : {},
   })
 
-  // A film's episode is the film, so it takes the media's own title and description: `makeMovieEpisode`
-  // copies `media.titles`, which is now where the title is.
+  // a film's episode is the film, so `makeMovieEpisode` copies the media's title, description and poster
   if (isMovie(media)) {
     media.episodes = [
-      makeMovieEpisode(media, { score: SCORE, ...desc(shortDescription, SCORE) }),
+      makeMovieEpisode(media, { score: SCORE }),
       ...playbackLinks(offers).map(link => makeMovieEpisode(media, { ...link, score: SCORE })),
     ]
     media.episodeCount = 1
