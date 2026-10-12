@@ -3,11 +3,14 @@ import type { HTMLAttributes } from 'react'
 import { css } from '@emotion/react'
 import { useEffect, useState } from 'preact/hooks'
 
+// a set line height, never `normal`: that is the font's own, which on Chrome 155 for Montserrat at 15px is 19px,
+// so a clamp counting 1.2 per line cut the last line's descenders (measured 2026-10-13)
 const style = css`
 display: -webkit-box;
 -webkit-box-orient: vertical;
 overflow: hidden;
 text-overflow: ellipsis;
+line-height: 1.2;
 width: 100%;
 height: 100%;
 `
@@ -25,16 +28,7 @@ export const TextEllipsis = (
 
     let frame = 0
     const update = () => {
-      const computedStyle = window.getComputedStyle(ref)
-      let lineHeightPx: number
-
-      if (computedStyle.lineHeight === 'normal') {
-        const fontSize = parseFloat(computedStyle.fontSize)
-        lineHeightPx = fontSize * 1.2
-      } else {
-        lineHeightPx = parseFloat(computedStyle.lineHeight)
-      }
-
+      const lineHeightPx = parseFloat(window.getComputedStyle(ref).lineHeight)
       const height = ref.clientHeight
       // the min-1 floor and the prev === next guards: sub-pixel rounding of the written height kept the line count flip-flopping so it never settled
       setLineHeight(prev => (prev === lineHeightPx ? prev : lineHeightPx))
