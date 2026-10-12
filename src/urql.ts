@@ -6,6 +6,7 @@ import { cacheExchange } from '@urql/exchange-graphcache'
 
 import { handleRequest } from './worker'
 import { keyResolvers } from './urql-keys'
+import { subscriptionReplay } from './urql-replay'
 import introspection from './generated/graphql.schema.json'
 
 const cache = cacheExchange({
@@ -16,9 +17,12 @@ const cache = cacheExchange({
   }
 })
 
-const client = new Client({
+const replay = subscriptionReplay()
+
+const client = replay.replay(new Client({
   url: 'http://d/graphql',
   exchanges: [
+    replay.exchange,
     mapExchange({
       onError(combinedError, operation) {
         for (const error of combinedError.graphQLErrors) {
@@ -47,6 +51,6 @@ const client = new Client({
   ],
   fetchSubscriptions: true,
   fetch: async (input: RequestInfo | URL, init?: RequestInit) => handleRequest(input, init)
-})
+}))
 
 export default client
