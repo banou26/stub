@@ -186,6 +186,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           padding: 0 2.4rem 0 2rem;
           border-radius: 0.6rem;
           background: #fff;
+          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
           color: #000;
           font-size: 1.7rem;
           font-weight: 700;

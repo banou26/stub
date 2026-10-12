@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -79,6 +79,34 @@ const openModal = async (page: Page) => {
   const title = modal(page).locator('.header > span.title')
   await expect(title).toHaveText(/\S/, { timeout: 30_000 })
   return (await title.textContent())!
+}
+
+/** Draws the white Play button alone over pure white, and expects each edge darker than white and its inside white. */
+const expectEdge = async (page: Page, play: Locator, where: string) => {
+  await play.scrollIntoViewIfNeeded()
+  await page.addStyleTag({ content: 'html, body { background: #fff !important } body * { visibility: hidden } .play, .play * { visibility: visible }' })
+  const { x, y, width, height } = (await play.boundingBox())!
+  const png = (await page.screenshot({ animations: 'disabled' })).toString('base64')
+  const { edge, inside } = await page.evaluate(async ({ png, x, y, width, height }) => {
+    const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(png), char => char.charCodeAt(0))], { type: 'image/png' }))
+    const context = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!
+    context.drawImage(bitmap, 0, 0)
+    const pixel = (px: number, py: number) => context.getImageData(px, py, 1, 1).data.slice(0, 3)
+    const brightest = (px: number, py: number) => Math.max(...pixel(px, py))
+    const darkest = (px: number, py: number) => Math.min(...pixel(px, py))
+    const [midX, midY, right, bottom] = [Math.floor(x + width / 2), Math.floor(y + height / 2), x + width, y + height]
+    // each edge's 1 px ring falls on one or both of these two pixels, wherever the edge sits inside a pixel
+    const edges = [
+      [brightest(Math.floor(x - 1), midY), brightest(Math.floor(x), midY)],
+      [brightest(Math.floor(right), midY), brightest(Math.floor(right + 1), midY)],
+      [brightest(midX, Math.floor(y - 1)), brightest(midX, Math.floor(y))],
+      [brightest(midX, Math.floor(bottom)), brightest(midX, Math.floor(bottom + 1))],
+    ]
+    const inside = [darkest(Math.ceil(x) + 3, midY), darkest(Math.floor(right) - 4, midY), darkest(midX, Math.ceil(y) + 3), darkest(midX, Math.floor(bottom) - 4)]
+    return { edge: Math.max(...edges.map(pair => Math.min(...pair))), inside: Math.min(...inside) }
+  }, { png, x, y, width, height })
+  expect(edge, `${where}: the edge is darker than white`).toBeLessThanOrEqual(250)
+  expect(inside, `${where}: the inside stays white`).toBeGreaterThanOrEqual(254)
 }
 
 test('More details opens the page, and Back returns to the modal', async ({ page }) => {
@@ -338,4 +366,34 @@ test('a long title wraps beside the modal\'s links rather than pushing them unde
   const titleBox = (await title.boundingBox())!
   const linkBox = (await modal(page).getByRole('link', { name: 'More details' }).boundingBox())!
   expect(linkBox.y).toBeLessThan(titleBox.y + titleBox.height)
+})
+
+test('the white Play button shows its edge over a white backdrop, hovered too, in the hero, the modal and the title page', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  // the bundled catalogue has no short description, so the hero shows no show, and no movie, so the modal no
+  // play bar: a Play button is placed where each draws one
+  const placePlay = async (parent: Locator, html: string) => {
+    await parent.evaluate((element, html) => element.insertAdjacentHTML('beforeend', html), html)
+    return parent.locator('.play')
+  }
+  await page.goto(`${origin}/`)
+  const hero = await placePlay(page.locator('.theater .actions'), '<a class="play" href="#">Play</a>')
+  await expectEdge(page, hero, 'the hero')
+  await hero.hover()
+  await expectEdge(page, hero, 'the hero hovered')
+
+  await openModal(page)
+  const movie = await placePlay(page.locator('.modal > .content'), '<div class="movie"><div class="play-bar"><a class="play" href="#">Play</a></div></div>')
+  await expectEdge(page, movie, 'the modal')
+  await movie.hover()
+  await expectEdge(page, movie, 'the modal hovered')
+
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const title = page.locator('.actions .play')
+  await expect(title).toBeVisible({ timeout: 30_000 })
+  await expectEdge(page, title, 'the title page')
+  await title.hover()
+  await expectEdge(page, title, 'the title page hovered')
 })
