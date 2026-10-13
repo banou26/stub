@@ -1,4 +1,7 @@
+import type { TheaterCandidate } from './theater'
+
 import { useEffect, useState } from 'preact/hooks'
+import { isSameShow, standsInFor, theaterKey } from './theater'
 
 const probeResults = new Map<string, Promise<boolean>>()
 const FAILED_PROBE_TTL_MS = 30_000
@@ -19,26 +22,43 @@ const probe = (url: string) => {
   return result
 }
 
-export const useCoverUrl = (covers: ({ url: string } | null | undefined)[] | null | undefined) => {
+/** The media a cover is drawn for. */
+export type CoverOwner = Pick<TheaterCandidate, '_id' | 'uri' | 'handles'>
+
+/**
+ * The url of the first of `covers` that loads, for `owner`.
+ *
+ * The cover drawn stays while each new owner continues from the one it was drawn for, until a cover
+ * of the new owner has loaded, so a later answer with no covers, or only broken ones, never blanks it.
+ * An owner continues from the same show (`isSameShow`), and with `standIn` also from the show it is a
+ * season drawn in the place of (`standsInFor`), which only a listing's card is. Any other owner
+ * starts from its own covers.
+ */
+export const useCoverUrl = (
+  covers: ({ url: string } | null | undefined)[] | null | undefined,
+  owner: CoverOwner | null | undefined,
+  { standIn = false } = {}
+) => {
   const urls = (covers ?? []).map(cover => cover?.url).filter((url): url is string => Boolean(url))
   const key = urls.join('|')
-  const [url, setUrl] = useState<string | undefined>(urls[0])
+  const [drawn, setDrawn] = useState<{ owner: typeof owner, url?: string }>({ owner })
+  const continues = (held: typeof owner) => !!owner && !!held && (isSameShow(owner, held) || (standIn && standsInFor(owner, held)))
 
   useEffect(() => {
     let cancelled = false
-    setUrl(urls[0])
+    setDrawn(drawn => continues(drawn.owner) ? drawn : { owner })
     ;(async () => {
       for (const candidate of urls) {
         const loaded = await probe(candidate)
         if (cancelled) return
         if (loaded) {
-          setUrl(candidate)
+          setDrawn({ owner, url: candidate })
           return
         }
       }
     })()
     return () => { cancelled = true }
-  }, [key])
+  }, [key, owner && theaterKey(owner)])
 
-  return url
+  return (continues(drawn.owner) ? drawn.url : undefined) ?? urls[0]
 }

@@ -137,7 +137,7 @@ export const RelationCard = (
   { edge, search, route = Route.MEDIA }:
   { edge: RelationEdge, search: string, route?: Route.MEDIA | Route.TITLE }
 ) => {
-  const cover = useCoverUrl(edge.node.covers)
+  const cover = useCoverUrl(edge.node.covers, edge.node)
   const title = edge.node.titles?.at(0)?.title
   // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
   // franchise's relations are mostly not anime. See the schema's own note on the field.

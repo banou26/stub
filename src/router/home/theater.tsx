@@ -182,7 +182,7 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
   const trailer = media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal
-  const backdrop = useCoverUrl(trailer?.url ? undefined : media?.banners?.length ? media.banners : media?.covers)
+  const backdrop = useCoverUrl(trailer?.url ? undefined : media?.banners?.length ? media.banners : media?.covers, media)
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)

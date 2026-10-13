@@ -148,7 +148,6 @@ const CellComponent = (
         )
       }
       <MediaTitle
-        key={media._id}
         media={media}
         to={getRoutePath(Route.MEDIA, { uri: media.uri })}
         style={{

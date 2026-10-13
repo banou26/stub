@@ -584,8 +584,8 @@ const TitlePage = () => {
     }
   }, [media?.uri, routeUri])
 
-  const bannerUrl = useCoverUrl(media?.banners)
-  const coverUrl = useCoverUrl(media?.covers)
+  const bannerUrl = useCoverUrl(media?.banners, media)
+  const coverUrl = useCoverUrl(media?.covers, media)
   const title = media?.titles.at(0)?.title
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))

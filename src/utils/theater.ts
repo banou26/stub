@@ -20,14 +20,20 @@ const linksTo = (media: TheaterCandidate, held: TheaterCandidate, relation: stri
   return !!media.handles?.some(handle => handle.relation === relation && sources.includes(handle.node.uri))
 }
 
-// The id is the cluster's, and a merge of two clusters of one show retires one of them, while the
-// merged card keeps every source of both.
-const isSameShow = (media: TheaterCandidate, held: TheaterCandidate): boolean =>
+/**
+ * Whether `media` is the show `held` is: the same id, or a source in common. The id is the cluster's,
+ * and a merge of two clusters of one show retires one of them, while the merged card keeps every
+ * source of both.
+ */
+export const isSameShow = (media: TheaterCandidate, held: TheaterCandidate): boolean =>
   theaterKey(media) === theaterKey(held) || linksTo(media, held, 'SAME_AS')
 
-// A season the listing draws in the show's place (section 6.1 of the representation design,
-// `inAnswerOrder`): it shares no source with the show, only a PART_OF handle to one.
-const standsInFor = (media: TheaterCandidate, held: TheaterCandidate): boolean => linksTo(media, held, 'PART_OF')
+/**
+ * Whether `media` is a season the listing draws in the place of the show `held` is (section 6.1 of
+ * the representation design, `inAnswerOrder`): it shares no source with the show, only a PART_OF
+ * handle to one. A sibling season, PART_OF the same show, is not one.
+ */
+export const standsInFor = (media: TheaterCandidate, held: TheaterCandidate): boolean => linksTo(media, held, 'PART_OF')
 
 /**
  * The media the hero can render, best first.

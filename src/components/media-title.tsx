@@ -1,4 +1,5 @@
 import type { Media } from '../generated/graphql'
+import type { CoverOwner } from '../utils/use-cover-url'
 import type { Ref } from 'react'
 import type { Path } from 'wouter'
 
@@ -86,9 +87,9 @@ const style = css`
 }
 `
 
-const MediaTitle = ({ media, to, ellipsis = true, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'>, to: Path, ellipsis?: boolean }) => {
+const MediaTitle = ({ media, to, ellipsis = true, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean }) => {
   const title = media.titles?.at(0)?.title
-  const coverUrl = useCoverUrl(media.covers)
+  const coverUrl = useCoverUrl(media.covers, media, { standIn: true })
 
   return (
     <div
@@ -105,7 +106,7 @@ const MediaTitle = ({ media, to, ellipsis = true, ...rest }: React.ButtonHTMLAtt
       <div className="information">
           <div className="title">
             <Link to={to} className="title-text">
-              {ellipsis ? <TextEllipsis>{title}</TextEllipsis> : title}
+              {ellipsis ? <TextEllipsis key={title}>{title}</TextEllipsis> : title}
             </Link>
           </div>
       </div>

@@ -313,7 +313,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
       ),
     [media]
   )
-  const coverUrl = useCoverUrl(media?.covers)
+  const coverUrl = useCoverUrl(media?.covers, media)
 
   const [bannedTrailerUris, setBannedTrailerUris] = useState<string[]>([])
   const [pinnedTrailerUri, setPinnedTrailerUri] = useState<string>()

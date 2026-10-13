@@ -101,7 +101,7 @@ const style = css`
  */
 const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const now = useNow()
-  const coverUrl = useCoverUrl(media.covers)
+  const coverUrl = useCoverUrl(media.covers, media)
   const accent = media.covers?.find(cover => cover.color)?.color
 
   const countdown = formatCountdown(airsIn(media, now) ?? 0, 1)
