@@ -57,6 +57,7 @@ const show = (id: string, { title = `${id} title`, description = `${id} descript
   trailers: trailers.map(trailer => ({ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` })),
   banners: banners.map(url => ({ language: 'en', url })),
   covers: [{ language: 'en', url: `https://img.test/${id}-cover.jpg` }],
+  handles: [`anilist:${id}`, `kitsu:${id}`].map(uri => ({ relation: 'SAME_AS', node: { uri } })),
 })
 
 const hosts: HTMLElement[] = []
@@ -210,6 +211,54 @@ test('a category change that moves the pick shows no Play until the new show\'s 
   answer.details[uriOf('b')] = details('b')
   update([show('b')])
   expect(play()?.href).toBe(`/watch/${uriOf('b')}/ag:(anilist:b-1)`)
+})
+
+// The cluster's id the hero held was retired by the merge, and it picked another show.
+test('the hero keeps its show when its cluster merges with another of the same show', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('a'), show('b')])
+  const first = shown()
+  expect(first.title).toBe('a title')
+
+  const merged = {
+    ...show('a', { title: 'a merged title', description: 'merged description' }),
+    _id: 'cl:tmdb:a',
+    uri: 'ag:(anilist:a,kitsu:a,tmdb:a)',
+    handles: ['anilist:a', 'kitsu:a', 'tmdb:a'].map(uri => ({ relation: 'SAME_AS', node: { uri } })),
+  }
+  update([show('b'), merged])
+  expect(shown()).toEqual(first)
+})
+
+// Measured 2026-10-13 on series.fkn.app: reading the hero's show asked Apple TV, whose season 1 then took
+// the show's card, and the hero re-picked, up to three times in one load. JustWatch's titles score 0.2.
+test('the hero keeps its show when the listing draws it as its season', () => {
+  vi.useFakeTimers()
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.details[uriOf('widows-bay')] = details('widows-bay')
+  const { shown, play, update } = hero([show('widows-bay', { score: 0.2 }), show('slow-horses', { score: 0.2 })])
+  act(() => { vi.advanceTimersByTime(THEATER_WAIT_MS) })
+  const first = shown()
+  expect(first.title).toBe('widows-bay title')
+  expect(play()?.href).toBe(`/watch/${uriOf('widows-bay')}/ag:(anilist:widows-bay-1)`)
+
+  const season = {
+    ...show('widows-bay-s1', { title: 'Widow\u2019s Bay', description: 'season one', score: 0.2 }),
+    handles: [{ relation: 'SAME_AS', node: { uri: 'appletv:widows-bay-s1' } }, { relation: 'PART_OF', node: { uri: 'anilist:widows-bay' } }],
+  }
+  update([season, show('slow-horses', { score: 0.2 })])
+  expect(shown()).toEqual(first)
+  expect(play()?.href).toBe(`/watch/${uriOf('widows-bay')}/ag:(anilist:widows-bay-1)`)
+})
+
+test('a show that leaves the listing is replaced, even with seasons of other shows listed', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('a'), show('b')])
+  expect(shown().title).toBe('a title')
+
+  const seasonOfB = { ...show('b-s1'), handles: [{ relation: 'SAME_AS', node: { uri: 'appletv:b-s1' } }, { relation: 'PART_OF', node: { uri: 'anilist:b' } }] }
+  update([seasonOfB])
+  expect(shown().title).toBe('b-s1 title')
 })
 
 // Measured 2026-10-10: YouTube refuses to embed some trailers (error 150, Kitsu's 9QyiEgv33z4 for

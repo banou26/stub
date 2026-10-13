@@ -8,10 +8,26 @@ export type TheaterCandidate = {
   titles?: readonly { title?: string | null, score?: number | null }[] | null
   shortDescriptions?: readonly unknown[] | null
   trailers?: readonly unknown[] | null
+  handles?: readonly { relation: string, node: { uri: string } }[] | null
 }
 
-/** How the hero finds the show it holds. An index cannot: the listing reorders under it. */
+/** The listing's id for a media. A merge can retire it, so the hero does not find its show by it alone. */
 export const theaterKey = (media: TheaterCandidate): string => media._id ?? media.uri ?? ''
+
+/** Whether `media` has a handle of `relation` to one of the sources `held` is (its SAME_AS handles). */
+const linksTo = (media: TheaterCandidate, held: TheaterCandidate, relation: string): boolean => {
+  const sources = held.handles?.filter(handle => handle.relation === 'SAME_AS').map(handle => handle.node.uri) ?? []
+  return !!media.handles?.some(handle => handle.relation === relation && sources.includes(handle.node.uri))
+}
+
+// The id is the cluster's, and a merge of two clusters of one show retires one of them, while the
+// merged card keeps every source of both.
+const isSameShow = (media: TheaterCandidate, held: TheaterCandidate): boolean =>
+  theaterKey(media) === theaterKey(held) || linksTo(media, held, 'SAME_AS')
+
+// A season the listing draws in the show's place (section 6.1 of the representation design,
+// `inAnswerOrder`): it shares no source with the show, only a PART_OF handle to one.
+const standsInFor = (media: TheaterCandidate, held: TheaterCandidate): boolean => linksTo(media, held, 'PART_OF')
 
 /**
  * The media the hero can render, best first.
@@ -64,10 +80,11 @@ export const THEATER_WAIT_MS = 5000
 /**
  * What the hero shows: `current` exactly as it was picked once a good source has filled it
  * (`fromGoodSource`), for as long as it is a candidate. Before that, the listing's node for the same
- * show, so a show Kitsu or the bundle filled takes AniList's fields when they merge in, and is held
- * from then on. Leaving the candidates (a category tab, or trailers arriving for a text-only pick)
- * replaces it with a random show from the first `THEATER_POOL_SIZE` candidates. With no candidates
- * at all, `current` stays, so the hero keeps its text rather than going blank.
+ * show (`isSameShow`), so a show Kitsu or the bundle filled takes AniList's fields when they merge in,
+ * and is held from then on. A season drawn in the show's place (`standsInFor`) keeps `current` as it
+ * is. Leaving the candidates (a category tab, or trailers arriving for a text-only pick) replaces it
+ * with a random show from the first `THEATER_POOL_SIZE` candidates. With no candidates at all,
+ * `current` stays, so the hero keeps its text rather than going blank.
  *
  * Held rather than looked up again because sources keep merging into the listing for seconds after
  * it fills, and later data is not better data for the hero. Measured on cold loads 2026-10-10, 2.1
@@ -82,8 +99,11 @@ export const holdTheaterPick = <T extends TheaterCandidate>(
   current: T | undefined,
   pick: (limit: number) => number = limit => Math.floor(Math.random() * limit)
 ): T | undefined => {
-  const listed = current && candidates.find(media => theaterKey(media) === theaterKey(current))
-  if (current && listed) return fromGoodSource(current) ? current : listed
+  if (current) {
+    const listed = candidates.find(media => isSameShow(media, current))
+    if (listed) return fromGoodSource(current) ? current : listed
+    if (candidates.some(media => standsInFor(media, current))) return current
+  }
   const pool = candidates.slice(0, THEATER_POOL_SIZE)
   if (!pool.length) return current
   return pool[Math.min(pool.length - 1, Math.max(0, pick(pool.length)))]
