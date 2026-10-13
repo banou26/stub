@@ -1,0 +1,45 @@
+{
+  "search": {
+    "movies": [],
+    "anime": {
+      "i1372805": {
+        "rank": 1042,
+        "year": "2021",
+        "poster": "11/1124467806bad86d81",
+        "eps": 24,
+        "type": "TV",
+        "url": "/anime/1372805/tokyo-revengers",
+        "titles": {
+          "m": "Tokyo Revengers"
+        },
+        "show_type": "anime",
+        "id": "1372805"
+      }
+    },
+    "tv": []
+  },
+  "detail": {
+    "/anime/1372805": {
+      "title": "Tokyo Revengers",
+      "en_title": null,
+      "year": 2021,
+      "type": "anime",
+      "anime_type": "tv",
+      "ids": {
+        "simkl": 1372805,
+        "slug": "tokyo-revengers",
+        "anidb": "15601",
+        "mal": "42249",
+        "imdb": "tt13196080",
+        "anilist": "120120",
+        "kitsu": "43321",
+        "tmdb": "105009",
+        "tvdb": "393478",
+        "tvdbslug": "tokyo-revengers",
+        "traktslug": "tokyo-revengers"
+      },
+      "poster": "11/1124467806bad86d81",
+      "first_aired": "2021-04-10T16:15:00Z"
+    }
+  }
+}

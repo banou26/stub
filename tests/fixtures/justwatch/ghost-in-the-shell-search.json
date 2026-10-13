@@ -1,0 +1,106 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm9668",
+            "objectId": 9668,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Ghost in the Shell",
+              "fullPath": "/us/movie/ghost-in-the-shell",
+              "originalReleaseYear": 1995,
+              "originalReleaseDate": "1995-11-18",
+              "shortDescription": "In the year 2029, the barriers of our world have been broken down by the net and by cybernetics, but this brings new vulnerability to humans in the form of brain-hacking. When a highly-wanted hacker known as 'The Puppetmaster' begins involving them in politics, Section 9, a group of cybernetically enhanced cops, are called in to investigate and stop the Puppetmaster.",
+              "posterUrl": "/poster/110675397/s718/ghost-in-the-shell.jpg",
+              "externalIds": {
+                "imdbId": "tt0113568"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "GB",
+                "JP"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm196674",
+            "objectId": 196674,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Ghost in the Shell",
+              "fullPath": "/us/movie/ghost-in-the-shell-2017",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-03-29",
+              "shortDescription": "In the near future, Major is the first of her kind: a human saved from a terrible crash, then cyber-enhanced to be a perfect soldier devoted to stopping the world's most dangerous criminals.",
+              "posterUrl": "/poster/210180745/s718/ghost-in-the-shell-2017.jpg",
+              "externalIds": {
+                "imdbId": "tt1219827"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "crm",
+                  "translation": "Crime"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "CN",
+                "HK",
+                "IN",
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        }
+      ]
+    }
+  }
+}

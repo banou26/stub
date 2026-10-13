@@ -1,0 +1,52 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "Tokyo Revengers",
+              "percentile": 498.22499999999997,
+              "type": "TV Show",
+              "slug": "tokyo-revengers",
+              "slugTypeFolder": "tv",
+              "combinedID": "03173694",
+              "id": 173694,
+              "year": 2021,
+              "resultType": 1,
+              "subtext": "TV Show (2021)",
+              "thumbnail": "03173694_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/03173694_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 105009,
+              "tmdbType": "tv",
+              "imdbId": "tt13196080"
+            },
+            {
+              "name": "Tokyo Revengers",
+              "percentile": 244.85,
+              "type": "Movie",
+              "slug": "tokyo-revengers-2021",
+              "slugTypeFolder": "movie",
+              "combinedID": "01610273",
+              "id": 610273,
+              "year": 2021,
+              "resultType": 1,
+              "subtext": "Movie (2021)",
+              "thumbnail": "01610273_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01610273_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 698201,
+              "tmdbType": "movie",
+              "imdbId": "tt11923304"
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]

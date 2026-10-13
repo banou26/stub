@@ -54,6 +54,7 @@ interface SimklDetail {
   fanart?: string
   overview?: string
   first_aired?: string
+  released?: string
   ratings?: SimklRatings
 }
 interface SimklEpisode {
@@ -157,6 +158,9 @@ const airedAt = (value?: string | null): string | undefined => {
   return Number.isNaN(at.getTime()) ? undefined : at.toISOString()
 }
 
+// A show or an anime dates itself by `first_aired`, a film by `released` alone.
+const startDate = (detail: SimklDetail): string | undefined => detail.first_aired || detail.released || undefined
+
 const rating = (ratings?: SimklRatings): number | undefined =>
   ratings?.simkl?.rating ?? ratings?.imdb?.rating ?? ratings?.mal?.rating
 
@@ -182,6 +186,10 @@ const siteRow = (hit: SimklSiteHit): SiteRow | undefined => {
 // does not read (a 412 for a record outside Cloudflare's cache, 83 of the 95 Simkl-only cards on the
 // 2026-10-10 search walk) is dropped: it could not join its run, and its card would open on that same
 // unreadable detail.
+//
+// Only a film row is dated, so a title match can join it to its film. `categoriesForType` files an anime
+// record ANIME and SERIES even when Simkl's detail names it a film, so a dated anime row turns an anime
+// film's card into a series, or joins a live-action film of the same title and year.
 const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia | undefined =>
   detail?.title
     ? makeMedia({
@@ -195,6 +203,7 @@ const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undef
       score: SCORE,
       titles: buildTitles(hit.titles?.m, hit.titles?.a7),
       covers: img(poster(hit.poster), SCORE),
+      startDate: type === 'movies' ? startDate(detail) : undefined,
       averageScore: percentScore(rating(detail.ratings), 10),
     })
     : undefined
@@ -214,7 +223,7 @@ const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLM
     ...desc(detail.overview, SCORE),
     covers: img(poster(detail.poster), SCORE),
     banners: img(fanart(detail.fanart), SCORE),
-    startDate: detail.first_aired || undefined,
+    startDate: startDate(detail),
     averageScore: percentScore(rating(detail.ratings), 10),
   })
 }

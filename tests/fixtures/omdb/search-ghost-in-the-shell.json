@@ -1,0 +1,27 @@
+{
+  "data": {
+    "mainSearch": {
+      "edges": [
+        {
+          "node": {
+            "entity": {
+              "id": "tt1219827",
+              "titleText": {
+                "text": "Ghost in the Shell"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 2017
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BNzBkNjdjZTctNjdhOS00NmIyLTlkNjQtY2EwNGMwYmZjNTIxXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

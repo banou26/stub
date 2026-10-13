@@ -1,0 +1,234 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm7",
+            "objectId": 7,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: The Force Awakens",
+              "fullPath": "/us/movie/star-wars-the-force-awakens",
+              "originalReleaseYear": 2015,
+              "originalReleaseDate": "2015-12-15",
+              "shortDescription": "Thirty years after defeating the Galactic Empire, Han Solo and his allies face a new threat from the evil Kylo Ren and his army of Stormtroopers.",
+              "posterUrl": "/poster/177028682/s718/star-wars-the-force-awakens.jpg",
+              "externalIds": {
+                "imdbId": "tt2488496"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm6",
+            "objectId": 6,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: Episode III - Revenge of the Sith",
+              "fullPath": "/us/movie/star-wars-episode-iii-revenge-of-the-sith",
+              "originalReleaseYear": 2005,
+              "originalReleaseDate": "2005-05-17",
+              "shortDescription": "When the sinister Sith unveil a thousand-year-old plot to rule the galaxy, the Republic crumbles and from its ashes rises the evil Galactic Empire. Jedi hero Anakin Skywalker must choose a side.",
+              "posterUrl": "/poster/179306323/s718/star-wars-episode-iii-revenge-of-the-sith.jpg",
+              "externalIds": {
+                "imdbId": "tt0121766"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm9",
+            "objectId": 9,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: The Rise of Skywalker",
+              "fullPath": "/us/movie/star-wars-episode-ix",
+              "originalReleaseYear": 2019,
+              "originalReleaseDate": "2019-12-18",
+              "shortDescription": "The surviving Resistance faces the First Order once again as the journey of Rey, Finn and Poe Dameron continues. With the power and knowledge of generations behind them, the final battle begins.",
+              "posterUrl": "/poster/178536888/s718/star-wars-episode-ix.jpg",
+              "externalIds": {
+                "imdbId": "tt2527338"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                },
+                {
+                  "shortName": "eur",
+                  "translation": "Made in Europe"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm8",
+            "objectId": 8,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: The Last Jedi",
+              "fullPath": "/us/movie/star-wars-the-last-jedi",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-12-13",
+              "shortDescription": "Rey develops her newly discovered abilities with the guidance of Luke Skywalker, who is unsettled by the strength of her powers. Meanwhile, the Resistance prepares to do battle with the First Order.",
+              "posterUrl": "/poster/45957177/s718/star-wars-the-last-jedi.jpg",
+              "externalIds": {
+                "imdbId": "tt2527336"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm4",
+            "objectId": 4,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: Episode I - The Phantom Menace",
+              "fullPath": "/us/movie/star-wars-episode-i-the-beginning",
+              "originalReleaseYear": 1999,
+              "originalReleaseDate": "1999-05-19",
+              "shortDescription": "Anakin Skywalker, a young slave strong with the Force, is discovered on Tatooine. Meanwhile, the evil Sith have returned, enacting their plot for revenge against the Jedi.",
+              "posterUrl": "/poster/94015576/s718/star-wars-episode-i-the-beginning.jpg",
+              "externalIds": {
+                "imdbId": "tt0120915"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm5",
+            "objectId": 5,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Star Wars: Episode II - Attack of the Clones",
+              "fullPath": "/us/movie/star-wars-episode-ii-attack-of-the-clones",
+              "originalReleaseYear": 2002,
+              "originalReleaseDate": "2002-05-15",
+              "shortDescription": "Following an assassination attempt on Senator Padmé Amidala, Jedi Knights Anakin Skywalker and Obi-Wan Kenobi investigate a mysterious plot into the heart of the Separatist movement and the beginning of the Clone Wars.",
+              "posterUrl": "/poster/49856629/s718/star-wars-episode-ii-attack-of-the-clones.jpg",
+              "externalIds": {
+                "imdbId": "tt0121765"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        }
+      ]
+    }
+  }
+}

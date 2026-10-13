@@ -308,6 +308,37 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
   for (const request of reads) expect(Object.keys(request.headers), request.url).toEqual([])
 })
 
+// A film's detail dates it by `released` alone (recorded 2026-10-13: Episode I is `1999-05-19`, with no
+// `first_aired`), a show or an anime by `first_aired`. An anime film is still an anime record (recorded
+// 2026-10-15: Ghost in the Shell is `anime_type: 'movie'`).
+const DATED_HITS: Record<string, object> = {
+  tv: { i13007: { id: '13007', url: '/tv/13007/star-wars-the-clone-wars', titles: { m: 'Star Wars: The Clone Wars' } } },
+  anime: { i37585: { id: '37585', url: '/anime/37585/ghost-in-the-shell', titles: { m: 'Ghost in the Shell' } } },
+  movies: { i55520: { id: '55520', url: '/movies/55520/star-wars-episode-i---the-phantom-menace', titles: { m: 'Star Wars: Episode I - The Phantom Menace' } } },
+}
+const DATED_DETAILS: Record<string, object> = {
+  [`${API}/tv/13007?extended=full`]: { title: 'Star Wars: The Clone Wars', year: 2008, first_aired: '2008-10-03T07:00:00Z' },
+  [`${API}/anime/37585?extended=full`]: { title: 'Ghost in the Shell', year: 1995, anime_type: 'movie', first_aired: '1995-11-18T14:00:00Z' },
+  [`${API}/movies/55520?extended=full`]: { title: 'Star Wars: Episode I - The Phantom Menace', year: 1999, released: '1999-05-19' },
+}
+const dated = {
+  fetch: async (url: string, init?: { body?: string }) => ({
+    json: async () => (url === `${SITE}/ajax/full/search.php` ? DATED_HITS[new URLSearchParams(init?.body).get('type')!] : DATED_DETAILS[url]),
+  }),
+} as never
+
+test('only a film\'s search row is dated, by its release day', async () => {
+  const rows = await searchFor(dated) as (Row & { startDate?: string })[]
+
+  expect(rows.map(row => [row.uri, row.startDate])).toEqual([['simkl:13007', undefined], ['simkl:37585', undefined], ['simkl:55520', '1999-05-19']])
+})
+
+test('an opened film carries its release day', async () => {
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'simkl:55520' } }, dated).next()
+
+  expect(value.media.startDate).toBe('1999-05-19')
+})
+
 test('a row whose detail does not read is dropped, and the search still answers', async () => {
   const sent: Sent[] = []
   const site = recorded(sent) as unknown as { fetch: (url: string, init?: object) => Promise<unknown> }

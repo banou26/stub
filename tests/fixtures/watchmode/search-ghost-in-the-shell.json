@@ -1,0 +1,52 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "Ghost in the Shell",
+              "percentile": 423.55499999999995,
+              "type": "Movie",
+              "slug": "ghost-in-the-shell",
+              "slugTypeFolder": "movie",
+              "combinedID": "01147215",
+              "id": 147215,
+              "year": 1995,
+              "resultType": 1,
+              "subtext": "Movie (1995)",
+              "thumbnail": "01147215_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01147215_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 9323,
+              "tmdbType": "movie",
+              "imdbId": "tt0113568"
+            },
+            {
+              "name": "Ghost in the Shell",
+              "percentile": 422.82825,
+              "type": "Movie",
+              "slug": "ghost-in-the-shell-2017",
+              "slugTypeFolder": "movie",
+              "combinedID": "01147214",
+              "id": 147214,
+              "year": 2017,
+              "resultType": 1,
+              "subtext": "Movie (2017)",
+              "thumbnail": "01147214_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01147214_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 315837,
+              "tmdbType": "movie",
+              "imdbId": "tt1219827"
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]

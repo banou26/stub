@@ -1,0 +1,190 @@
+{
+  "search": {
+    "tv": [],
+    "anime": [],
+    "movies": {
+      "i55520": {
+        "rank": 14021,
+        "year": "1999",
+        "poster": "65/65404660fd57a9f94",
+        "eps": "-",
+        "url": "/movies/55520/star-wars-episode-i---the-phantom-menace",
+        "titles": {
+          "a7": "Star Wars: Episode I - The Phantom Menace",
+          "m": "Star Wars: Episode I - The Phantom Menace"
+        },
+        "show_type": "mov",
+        "id": "55520"
+      },
+      "i55524": {
+        "rank": 1506,
+        "year": "2005",
+        "poster": "96/9622786f3a8424c95",
+        "eps": "-",
+        "url": "/movies/55524/star-wars-episode-iii---revenge-of-the-sith",
+        "titles": {
+          "a7": "Star Wars: Episode III - Revenge of the Sith",
+          "m": "Star Wars: Episode III - Revenge of the Sith"
+        },
+        "show_type": "mov",
+        "id": "55524"
+      },
+      "i235018": {
+        "rank": 1502,
+        "year": "2015",
+        "poster": "96/9613908648522424e",
+        "eps": "-",
+        "url": "/movies/235018/star-wars-the-force-awakens",
+        "titles": {
+          "a7": "Star Wars: The Force Awakens",
+          "m": "Star Wars: The Force Awakens"
+        },
+        "show_type": "mov",
+        "id": "235018"
+      },
+      "i55522": {
+        "rank": 12433,
+        "year": "2002",
+        "poster": "66/664286473b8d7bdb2",
+        "eps": "-",
+        "url": "/movies/55522/star-wars-episode-ii---attack-of-the-clones",
+        "titles": {
+          "a7": "Star Wars: Episode II - Attack of the Clones",
+          "m": "Star Wars: Episode II - Attack of the Clones"
+        },
+        "show_type": "mov",
+        "id": "55522"
+      },
+      "i274676": {
+        "rank": 9532,
+        "year": "2017",
+        "poster": "63/6385606554cfb77d3",
+        "eps": "-",
+        "url": "/movies/274676/star-wars-the-last-jedi",
+        "titles": {
+          "a7": "Star Wars: The Last Jedi",
+          "m": "Star Wars: The Last Jedi"
+        },
+        "show_type": "mov",
+        "id": "274676"
+      },
+      "i274680": {
+        "rank": 17329,
+        "year": "2019",
+        "poster": "85/8591466d8d70d102f",
+        "eps": "-",
+        "url": "/movies/274680/star-wars-the-rise-of-skywalker",
+        "titles": {
+          "a7": "Star Wars: The Rise of Skywalker",
+          "m": "Star Wars: The Rise of Skywalker"
+        },
+        "show_type": "mov",
+        "id": "274680"
+      }
+    }
+  },
+  "detail": {
+    "/movies/55520": {
+      "title": "Star Wars: Episode I - The Phantom Menace",
+      "year": 1999,
+      "type": "movie",
+      "ids": {
+        "simkl": 55520,
+        "slug": "star-wars-episode-i---the-phantom-menace",
+        "tmdb": "1893",
+        "imdb": "tt0120915",
+        "tvdb": "334",
+        "tvdbslug": "star-wars-episode-i-the-phantom-menace",
+        "traktslug": "star-wars-episode-i-the-phantom-menace-1999",
+        "letterboxd": "star-wars-episode-i-the-phantom-menace"
+      },
+      "poster": "65/65404660fd57a9f94",
+      "released": "1999-05-19"
+    },
+    "/movies/55522": {
+      "title": "Star Wars: Episode II - Attack of the Clones",
+      "year": 2002,
+      "type": "movie",
+      "ids": {
+        "simkl": 55522,
+        "slug": "star-wars-episode-ii---attack-of-the-clones",
+        "tmdb": "1894",
+        "imdb": "tt0121765",
+        "tvdb": "500",
+        "tvdbslug": "star-wars-episode-ii-attack-of-the-clones",
+        "traktslug": "star-wars-episode-ii-attack-of-the-clones-2002",
+        "letterboxd": "star-wars-episode-ii-attack-of-the-clones"
+      },
+      "poster": "66/664286473b8d7bdb2",
+      "released": "2002-05-15"
+    },
+    "/movies/55524": {
+      "title": "Star Wars: Episode III - Revenge of the Sith",
+      "year": 2005,
+      "type": "movie",
+      "ids": {
+        "simkl": 55524,
+        "slug": "star-wars-episode-iii---revenge-of-the-sith",
+        "tmdb": "1895",
+        "imdb": "tt0121766",
+        "tvdb": "875",
+        "tvdbslug": "star-wars-episode-iii-revenge-of-the-sith",
+        "traktslug": "star-wars-episode-iii-revenge-of-the-sith-2005",
+        "letterboxd": "star-wars-episode-iii-revenge-of-the-sith"
+      },
+      "poster": "96/9622786f3a8424c95",
+      "released": "2005-05-17"
+    },
+    "/movies/235018": {
+      "title": "Star Wars: The Force Awakens",
+      "year": 2015,
+      "type": "movie",
+      "ids": {
+        "simkl": 235018,
+        "slug": "star-wars-the-force-awakens",
+        "tmdb": "140607",
+        "imdb": "tt2488496",
+        "tvdb": "213",
+        "tvdbslug": "star-wars-the-force-awakens",
+        "traktslug": "star-wars-the-force-awakens-2015",
+        "letterboxd": "star-wars-the-force-awakens"
+      },
+      "poster": "96/9613908648522424e",
+      "released": "2015-12-15"
+    },
+    "/movies/274676": {
+      "title": "Star Wars: The Last Jedi",
+      "year": 2017,
+      "type": "movie",
+      "ids": {
+        "simkl": 274676,
+        "slug": "star-wars-the-last-jedi",
+        "tmdb": "181808",
+        "imdb": "tt2527336",
+        "tvdb": "99",
+        "tvdbslug": "star-wars-the-last-jedi",
+        "traktslug": "star-wars-the-last-jedi-2017",
+        "letterboxd": "star-wars-the-last-jedi"
+      },
+      "poster": "63/6385606554cfb77d3",
+      "released": "2017-12-13"
+    },
+    "/movies/274680": {
+      "title": "Star Wars: The Rise of Skywalker",
+      "year": 2019,
+      "type": "movie",
+      "ids": {
+        "simkl": 274680,
+        "slug": "star-wars-the-rise-of-skywalker",
+        "tmdb": "181812",
+        "imdb": "tt2527338",
+        "tvdb": "12879",
+        "tvdbslug": "star-wars-rise-of-skywalker",
+        "traktslug": "star-wars-the-rise-of-skywalker-2019",
+        "letterboxd": "star-wars-the-rise-of-skywalker"
+      },
+      "poster": "85/8591466d8d70d102f",
+      "released": "2019-12-18"
+    }
+  }
+}

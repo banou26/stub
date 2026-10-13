@@ -1,0 +1,70 @@
+{
+  "search": {
+    "tv": [],
+    "anime": [],
+    "movies": {
+      "i61342": {
+        "rank": 90,
+        "year": "1994",
+        "poster": "62/62856543c9e6a658d",
+        "eps": "-",
+        "url": "/movies/61342/the-lion-king",
+        "titles": {
+          "a7": "The Lion King",
+          "m": "The Lion King"
+        },
+        "show_type": "mov",
+        "id": "61342"
+      },
+      "i625300": {
+        "rank": 9589,
+        "year": "2019",
+        "poster": "75/7501096f665264745",
+        "eps": "-",
+        "url": "/movies/625300/the-lion-king",
+        "titles": {
+          "a7": "The Lion King",
+          "m": "The Lion King"
+        },
+        "show_type": "mov",
+        "id": "625300"
+      }
+    }
+  },
+  "detail": {
+    "/movies/61342": {
+      "title": "The Lion King",
+      "year": 1994,
+      "type": "movie",
+      "ids": {
+        "simkl": 61342,
+        "slug": "the-lion-king",
+        "tmdb": "8587",
+        "imdb": "tt0110357",
+        "tvdb": "377",
+        "tvdbslug": "the-lion-king",
+        "traktslug": "the-lion-king-1994",
+        "letterboxd": "the-lion-king"
+      },
+      "poster": "62/62856543c9e6a658d",
+      "released": "1994-06-15"
+    },
+    "/movies/625300": {
+      "title": "The Lion King",
+      "year": 2019,
+      "type": "movie",
+      "ids": {
+        "simkl": 625300,
+        "slug": "the-lion-king",
+        "tmdb": "420818",
+        "imdb": "tt6105098",
+        "tvdb": "5024",
+        "tvdbslug": "the-lion-king-2019",
+        "traktslug": "the-lion-king-2019",
+        "letterboxd": "the-lion-king-2019"
+      },
+      "poster": "75/7501096f665264745",
+      "released": "2019-07-12"
+    }
+  }
+}

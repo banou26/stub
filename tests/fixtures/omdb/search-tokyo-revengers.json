@@ -1,0 +1,46 @@
+{
+  "data": {
+    "mainSearch": {
+      "edges": [
+        {
+          "node": {
+            "entity": {
+              "id": "tt13196080",
+              "titleText": {
+                "text": "Tokyo Revengers"
+              },
+              "titleType": {
+                "id": "tvSeries"
+              },
+              "releaseYear": {
+                "year": 2021
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BNGU3YzdhMWEtMGRkMC00MzY2LThkOGEtMDFmZDE0NGQxYzFjXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt11923304",
+              "titleText": {
+                "text": "Tokyo Revengers"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 2021
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BZjI4MGMyODItNmJkMS00NWNkLTg3ODktMTk1N2Q5N2RjNmU1XkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

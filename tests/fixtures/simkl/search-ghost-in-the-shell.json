@@ -1,0 +1,113 @@
+{
+  "search": {
+    "movies": {
+      "i457116": {
+        "rank": 17415,
+        "year": "2017",
+        "poster": "10/10430832d6a036073f",
+        "eps": "-",
+        "url": "/movies/457116/ghost-in-the-shell",
+        "titles": {
+          "a7": "Ghost in the Shell",
+          "m": "Ghost in the Shell"
+        },
+        "show_type": "mov",
+        "id": "457116"
+      }
+    },
+    "tv": [],
+    "anime": {
+      "i37585": {
+        "rank": 327,
+        "year": "1995",
+        "poster": "71/7125899715061ba80",
+        "eps": 1,
+        "type": "Movie",
+        "url": "/anime/37585/ghost-in-the-shell",
+        "titles": {
+          "m": "Ghost in the Shell"
+        },
+        "show_type": "anime",
+        "id": "37585"
+      },
+      "i39956": {
+        "rank": 756,
+        "year": "2008",
+        "poster": "14/14073553ba288efbf0",
+        "eps": 1,
+        "type": "Movie",
+        "url": "/anime/39956/ghost-in-the-shell",
+        "titles": {
+          "m": "Ghost in the Shell",
+          "a7": "Ghost in the Shell 2.0"
+        },
+        "show_type": "anime",
+        "id": "39956"
+      }
+    }
+  },
+  "detail": {
+    "/anime/37585": {
+      "title": "Ghost in the Shell",
+      "en_title": null,
+      "year": 1995,
+      "type": "anime",
+      "anime_type": "movie",
+      "ids": {
+        "simkl": 37585,
+        "slug": "ghost-in-the-shell",
+        "anidb": "61",
+        "imdb": "tt0113568",
+        "mal": "43",
+        "anilist": "43",
+        "kitsu": "25",
+        "tmdb": "9323",
+        "tvdb": "4549",
+        "tvdbslug": "ghost-in-the-shell-1995",
+        "traktslug": "ghost-in-the-shell-1995",
+        "letterboxd": "ghost-in-the-shell"
+      },
+      "poster": "71/7125899715061ba80",
+      "first_aired": "1995-11-18T14:00:00Z"
+    },
+    "/anime/39956": {
+      "title": "Ghost in the Shell",
+      "en_title": "Ghost in the Shell 2.0",
+      "year": 2008,
+      "type": "anime",
+      "anime_type": "movie",
+      "ids": {
+        "simkl": 39956,
+        "slug": "ghost-in-the-shell",
+        "anidb": "6122",
+        "mal": "4672",
+        "imdb": "tt1260502",
+        "anilist": "4672",
+        "kitsu": "3732",
+        "tmdb": "14092",
+        "tvdbtv": "73749",
+        "traktslug": "ghost-in-the-shell-2-0-2008",
+        "letterboxd": "ghost-in-the-shell-20"
+      },
+      "poster": "14/14073553ba288efbf0",
+      "first_aired": "2008-07-12T00:00:00Z"
+    },
+    "/movies/457116": {
+      "title": "Ghost in the Shell",
+      "year": 2017,
+      "type": "movie",
+      "ids": {
+        "simkl": 457116,
+        "slug": "ghost-in-the-shell",
+        "tmdb": "315837",
+        "imdb": "tt1219827",
+        "tvdb": "535",
+        "tvdbslug": "ghost-in-the-shell",
+        "traktslug": "ghost-in-the-shell-2017",
+        "letterboxd": "ghost-in-the-shell-2017"
+      },
+      "poster": "10/10430832d6a036073f",
+      "released": "2017-03-29"
+    }
+  }
+}
