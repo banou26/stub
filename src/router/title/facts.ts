@@ -75,7 +75,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}):
 
 export type PlayLabel = 'Play' | 'Continue' | 'Rewatch'
 
-type Tracked = { status?: string | null, progress?: number | null } | null | undefined
+export type Tracked = { status?: string | null, progress?: number | null } | null | undefined
 type Playable = { episodeNumber?: number | null, uri?: string | null, unreleased: boolean }
 
 /** What the Play button says: Rewatch once completed, Continue once an episode is watched, Play otherwise. */
@@ -95,3 +95,11 @@ export const playTarget = (episodes: readonly Playable[], summary: Tracked): { l
     : episodes[0]
   return episode?.uri && !episode.unreleased ? { label, episodeUri: episode.uri } : undefined
 }
+
+/**
+ * Where the episode list opens, as an index into `episodes`: the episode after the viewer's progress while they
+ * are on a show, or the last one listed before it, and the first otherwise.
+ */
+export const currentEpisode = (episodes: readonly { episodeNumber?: number | null }[], summary: Tracked): number =>
+  playLabel(summary) !== 'Continue' ? 0
+  : Math.max(0, episodes.findLastIndex(({ episodeNumber }) => episodeNumber != null && episodeNumber <= (summary?.progress ?? 0) + 1))

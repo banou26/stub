@@ -10,6 +10,8 @@ vi.mock('urql', () => ({
   useSubscription: () => [{ data: { originPage: { nodes: [{ id: 'nyaa', name: 'Nyaa', icon: null, color: null }] } } }],
 }))
 vi.mock('../../../src/worker', () => ({}))
+// lucide-react is CommonJS and requires react under node; no behaviour here
+vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
 const { useWatchSources } = await import('../../../src/router/home/media-details')
 

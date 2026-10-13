@@ -22,8 +22,9 @@ import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, sh
 import { listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
-import { Episodes, GET_MEDIA_DETAILS, SourceLinks } from './media-details'
+import { Episodes, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
 import { getRoutePath, Route } from '../path'
+import { currentEpisode } from '../title/facts'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -300,6 +301,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const media = data?.media ?? foundMedia
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
+  const tracked = useTrackingSummary(data?.media?.uri)
   const description = useMemo(
     () =>
       media
@@ -466,7 +468,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           currentUris={data?.media?.handles.map(handle => handle.node.uri) ?? []}
           href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
-        {isMovie || !data?.media ? undefined : <Episodes media={data.media}/>}
+        {isMovie || !data?.media ? undefined : <Episodes key={uri} media={data.media} start={currentEpisode(data.media.episodes, tracked)}/>}
       </div>
     </ModalBackdrop>
   )

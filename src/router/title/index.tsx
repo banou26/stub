@@ -12,8 +12,9 @@ import { RelationCard } from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
 import MediaSeasons from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
+import Paged from '../../components/paged'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, GET_MEDIA_DETAILS, SourceLinks, usePlay } from '../home/media-details'
+import { Episodes, GET_MEDIA_DETAILS, playOf, SourceLinks, useTrackingSummary } from '../home/media-details'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
@@ -21,10 +22,11 @@ import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, shouldGrowAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
-import { secondTitle, titleChips, titleFacts } from './facts'
+import { currentEpisode, secondTitle, titleChips, titleFacts } from './facts'
 
 const RELATIONS_ROW = 3
-const SHOWN = 12
+// even, so a full page fills the credits' two columns
+const PAGE = 12
 
 const style = css`
   padding-bottom: 6rem;
@@ -257,7 +259,7 @@ const style = css`
   }
 
   & > .body > .main > .relations {
-    & > .grid {
+    .grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       gap: 1.2rem;
@@ -266,18 +268,6 @@ const style = css`
         grid-template-columns: repeat(${RELATIONS_ROW}, minmax(0, 1fr));
       }
     }
-  }
-
-  & > .body > .main .more {
-    margin-top: 1.2rem;
-    padding: 0.8rem 1.4rem;
-    border-radius: 0.6rem;
-    border: 0.1rem solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
-    font: inherit;
-    font-size: 1.4rem;
-    cursor: pointer;
   }
 
   & > .body > .main select {
@@ -455,7 +445,6 @@ type Character = Credit & { role?: string | null, voiceActors: (Credit & { langu
 const Characters = ({ characters }: { characters: Character[] }) => {
   const languages = creditLanguages(characters)
   const [picked, setPicked] = useState<string>()
-  const [all, setAll] = useState(false)
   const cast = castIn(characters, picked ?? languages.selected)
   return (
     <section data-characters>
@@ -471,37 +460,40 @@ const Characters = ({ characters }: { characters: Character[] }) => {
             : undefined
         }
       </h2>
-      <ul className="credits">
-        {(all ? cast : cast.slice(0, SHOWN)).map((character, index) => (
-          <li key={`${character.name}:${index}`}>
-            <Person person={character} detail={roleLabel(character.role)}/>
-            {
-              character.actors.length
-                ? <div className="actors">{character.actors.map(actor => <Person key={actor.name} person={actor} actor/>)}</div>
-                : undefined
-            }
-          </li>
-        ))}
-      </ul>
-      {cast.length > SHOWN && !all ? <button type="button" className="more" onClick={() => setAll(true)}>Show all</button> : undefined}
+      <Paged items={cast} size={PAGE} label="Characters">
+        {(page, offset) => (
+          <ul className="credits">
+            {page.map((character, index) => (
+              <li key={`${character.name}:${offset + index}`}>
+                <Person person={character} detail={roleLabel(character.role)}/>
+                {
+                  character.actors.length
+                    ? <div className="actors">{character.actors.map(actor => <Person key={actor.name} person={actor} actor/>)}</div>
+                    : undefined
+                }
+              </li>
+            ))}
+          </ul>
+        )}
+      </Paged>
     </section>
   )
 }
 
-const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) => {
-  const [all, setAll] = useState(false)
-  return (
-    <section data-staff>
-      <h2>Staff</h2>
-      <ul className="credits">
-        {(all ? staff : staff.slice(0, SHOWN)).map((person, index) => (
-          <li key={`${person.name}:${index}`}><Person person={person} detail={person.roles?.join(', ')}/></li>
-        ))}
-      </ul>
-      {staff.length > SHOWN && !all ? <button type="button" className="more" onClick={() => setAll(true)}>Show all</button> : undefined}
-    </section>
-  )
-}
+const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) => (
+  <section data-staff>
+    <h2>Staff</h2>
+    <Paged items={staff} size={PAGE} label="Staff">
+      {(page, offset) => (
+        <ul className="credits">
+          {page.map((person, index) => (
+            <li key={`${person.name}:${offset + index}`}><Person person={person} detail={person.roles?.join(', ')}/></li>
+          ))}
+        </ul>
+      )}
+    </Paged>
+  </section>
+)
 
 type Theme = { kind: string, sequence?: number | null, title?: string | null, artists: string[], video?: string | null }
 
@@ -517,39 +509,46 @@ const ThemeVideo = ({ url }: { url: string }) => {
   return <div className="player">{ThemePlayer ? <ThemePlayer url={url}/> : undefined}</div>
 }
 
-/** Each opening, ending and insert song, with one of them playing at a time under its row. */
-const Themes = ({ themes }: { themes: Theme[] }) => {
+// one page of songs, keyed by its offset, so paging away stops what was playing on it
+const ThemeRows = ({ themes }: { themes: Theme[] }) => {
   const [playing, setPlaying] = useState<number>()
   return (
-    <section data-themes>
-      <h2>Themes</h2>
-      <ul className="themes">
-        {themes.map((theme, index) => {
-          const url = theme.video
-          return (
-            <li key={index}>
-              <div className="theme">
-                {
-                  url
-                    ? (
-                      <button type="button" className="toggle" aria-label={playing === index ? 'Stop' : 'Play'} onClick={() => setPlaying(playing === index ? undefined : index)}>
-                        {playing === index ? <Square size={14} fill="currentColor"/> : <LucidePlay size={14} fill="currentColor"/>}
-                      </button>
-                    )
-                    : <span className="toggle"/>
-                }
-                <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
-                <span className="song">{theme.title}</span>
-                <span className="artists">{theme.artists.join(', ')}</span>
-              </div>
-              {playing === index && url ? <ThemeVideo url={url}/> : undefined}
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <ul className="themes">
+      {themes.map((theme, index) => {
+        const url = theme.video
+        return (
+          <li key={index}>
+            <div className="theme">
+              {
+                url
+                  ? (
+                    <button type="button" className="toggle" aria-label={playing === index ? 'Stop' : 'Play'} onClick={() => setPlaying(playing === index ? undefined : index)}>
+                      {playing === index ? <Square size={14} fill="currentColor"/> : <LucidePlay size={14} fill="currentColor"/>}
+                    </button>
+                  )
+                  : <span className="toggle"/>
+              }
+              <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
+              <span className="song">{theme.title}</span>
+              <span className="artists">{theme.artists.join(', ')}</span>
+            </div>
+            {playing === index && url ? <ThemeVideo url={url}/> : undefined}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
+
+/** Each opening, ending and insert song, with one of them playing at a time under its row. */
+const Themes = ({ themes }: { themes: Theme[] }) => (
+  <section data-themes>
+    <h2>Themes</h2>
+    <Paged items={themes} size={PAGE} label="Themes">
+      {(page, offset) => <ThemeRows key={offset} themes={page}/>}
+    </Paged>
+  </section>
+)
 
 /** The full page for one title, at `/title/<address>`: what the modal shows, laid out as one long page. */
 const TitlePage = () => {
@@ -576,7 +575,8 @@ const TitlePage = () => {
     pause: !uri
   })
   const media = data?.media
-  const play = usePlay(media)
+  const tracked = useTrackingSummary(media?.uri)
+  const play = media ? playOf(media, tracked) : undefined
 
   useEffect(() => {
     if (shouldGrowAddress(media?.uri, routeUri)) {
@@ -601,15 +601,9 @@ const TitlePage = () => {
     if (element && !open) setClamped(element.scrollHeight > element.clientHeight + 1)
   }, [description, open])
 
-  const [allRelations, setAllRelations] = useState(false)
-  const [allEpisodes, setAllEpisodes] = useState(false)
-  // a relation opens the next title in this same page, so what was opened on the last one closes again; keyed on the
-  // held uri, which a wider spelling of the same work leaves alone
-  useEffect(() => {
-    setOpen(false)
-    setAllRelations(false)
-    setAllEpisodes(false)
-  }, [uri])
+  // a relation opens the next title in this same page, so what was opened on the last one closes again, and the
+  // lists, keyed on it, open on their first page; the held uri, which a wider spelling of the same work leaves alone
+  useEffect(() => { setOpen(false) }, [uri])
   const [copied, setCopied] = useState(false)
   const share = async () => {
     if (!media) return
@@ -695,7 +689,7 @@ const TitlePage = () => {
             )
             : undefined
         }
-        <div className="main">
+        <div key={uri} className="main">
           {
             relations.length
               ? (
@@ -704,16 +698,13 @@ const TitlePage = () => {
                     <span>Relations</span>
                     <MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>
                   </h2>
-                  <div className="grid">
-                    {(allRelations ? relations : relations.slice(0, RELATIONS_ROW)).map(edge =>
-                      <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={Route.TITLE}/>
+                  <Paged items={relations} size={RELATIONS_ROW} label="Relations">
+                    {page => (
+                      <div className="grid">
+                        {page.map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={Route.TITLE}/>)}
+                      </div>
                     )}
-                  </div>
-                  {
-                    relations.length > RELATIONS_ROW && !allRelations
-                      ? <button type="button" className="more" onClick={() => setAllRelations(true)}>Show more</button>
-                      : undefined
-                  }
+                  </Paged>
                 </section>
               )
               : undefined
@@ -728,12 +719,7 @@ const TitlePage = () => {
               ? (
                 <section data-episodes>
                   <h2>Episodes</h2>
-                  <Episodes media={media} limit={allEpisodes ? undefined : SHOWN}/>
-                  {
-                    media.episodes.length > SHOWN && !allEpisodes
-                      ? <button type="button" className="more" onClick={() => setAllEpisodes(true)}>Show all</button>
-                      : undefined
-                  }
+                  <Episodes media={media} start={currentEpisode(media.episodes, tracked)}/>
                 </section>
               )
               : undefined

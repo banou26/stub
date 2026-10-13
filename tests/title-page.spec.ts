@@ -146,7 +146,7 @@ test('a title opened from a relation starts fresh: what was opened on the last o
   await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
   await page.getByRole('button', { name: 'Expand' }).click()
   await expect(page.getByRole('button', { name: 'Collapse' })).toBeVisible()
-  await page.locator('[data-relations] a.relation-card').click()
+  await page.locator('[data-relations] a.relation-card').filter({ hasText: 'Spec Third' }).click()
   await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Expand' }), 'its description opens clamped').toBeVisible()
 })
@@ -351,16 +351,176 @@ test('a playing theme takes its keys only from inside the player, so Space and t
   await expect(video, 'Space on Stop stops the theme').toHaveCount(0)
 })
 
-test('Episodes draws the first 12, and Show all the rest', async ({ page }) => {
+test('Episodes draws a page of 12, in the modal too, and its controls move through the rest', async ({ page }) => {
   await openModal(page)
-  // the control: the modal draws every episode AniZip lists (tests/fake-fetch.ts)
-  await expect(modal(page).locator('.episode')).toHaveCount(26, { timeout: 30_000 })
+  // the control: AniZip lists 26 episodes (tests/fake-fetch.ts)
+  await expect(modal(page).locator('.episode')).toHaveCount(12, { timeout: 30_000 })
+  await expect(modal(page).getByRole('navigation', { name: 'Episodes pages' }).getByRole('button', { name: 'Page 3' })).toBeVisible()
   await modal(page).getByRole('link', { name: 'More details' }).click()
   const episodes = page.locator('[data-episodes]')
-  await expect(episodes.locator('.episode')).toHaveCount(12, { timeout: 30_000 })
-  await episodes.getByRole('button', { name: 'Show all' }).click()
-  await expect(episodes.locator('.episode')).toHaveCount(26)
-  await expect(episodes.getByRole('button', { name: 'Show all' })).toHaveCount(0)
+  const numbers = episodes.locator('.episode .number')
+  await expect(numbers).toHaveText(Array.from({ length: 12 }, (_, index) => `${index + 1}`), { timeout: 30_000 })
+  const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
+  await pages.getByRole('button', { name: 'Next page' }).click()
+  await expect(numbers).toHaveText(Array.from({ length: 12 }, (_, index) => `${index + 13}`))
+  await pages.getByRole('button', { name: 'Page 3' }).click()
+  await expect(numbers).toHaveText(['25', '26'])
+  await expect(pages.getByRole('button', { name: 'Page 3' })).toHaveAttribute('aria-current', 'page')
+  await expect(pages.getByRole('button', { name: 'Next page' })).toHaveAttribute('aria-disabled', 'true')
+})
+
+// how far a list's controls sit below the list's top, each slot's left edge, and how many lines they take
+const place = (pages: Locator) => pages.evaluate(nav => {
+  const slots = [...nav.children].filter(slot => slot.getAttribute('role') !== 'status').map(slot => slot.getBoundingClientRect())
+  const below = nav.getBoundingClientRect().top - nav.previousElementSibling!.getBoundingClientRect().top
+  return { below: Math.round(below), lefts: slots.map(slot => Math.round(slot.left)), lines: new Set(slots.map(slot => Math.round(slot.top))).size }
+})
+
+// AniZip lists 1,100 episodes for mal:21 (tests/fake-fetch.ts), 92 pages of 12
+const LONG = `/title/ag:(mal:21)`
+
+test('a long list draws one page, and its controls move through it in place, at 1440 and 390 px', async ({ page }) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto(`${origin}${LONG}`)
+    const episodes = page.locator('[data-episodes]')
+    const numbers = episodes.locator('.episode .number')
+    const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
+    await expect(pages.getByRole('button')).toHaveText(['', '1', '2', '3', '4', '5', '…', '92', ''], { timeout: 30_000 })
+    await expect(numbers).toHaveCount(12)
+    const first = await place(pages)
+    expect(first.lines, `${width}: the controls sit on one line`).toBe(1)
+
+    await pages.getByRole('button', { name: 'Next page' }).click()
+    await expect(numbers.first()).toHaveText('13')
+    await expect(pages.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
+    // the list is taller than the screen, so paging from under it brings its first row back into view, under the header
+    const { y } = (await episodes.locator('.episode').first().boundingBox())!
+    const header = (await page.locator('header').first().boundingBox())!
+    expect(y, `${width}: the new page's first row is clear of the header`).toBeGreaterThanOrEqual(header.y + header.height)
+    expect(y, `${width}: the new page's first row is in view`).toBeLessThan(844)
+
+    await pages.getByRole('button', { name: 'Page 5' }).click()
+    await expect(pages.getByRole('button')).toHaveText(['', '1', '…', '4', '5', '6', '…', '92', ''])
+    expect((await place(pages)).lefts, `${width}: the slots stay put`).toEqual(first.lefts)
+    // the gap after page 6 leads halfway to 92
+    await pages.getByRole('button', { name: 'Page 49' }).click()
+    await expect(numbers.first()).toHaveText('577')
+    await expect(pages.getByRole('button')).toHaveText(['', '1', '…', '48', '49', '50', '…', '92', ''])
+    expect((await place(pages)).lefts, `${width}: the slots stay put`).toEqual(first.lefts)
+    await pages.getByRole('button', { name: 'Page 92' }).click()
+    await expect(numbers).toHaveText(Array.from({ length: 8 }, (_, index) => `${index + 1093}`))
+    expect((await place(pages)).lefts, `${width}: the slots stay put`).toEqual(first.lefts)
+    expect(await overflowX(page)).toBe(0)
+  }
+})
+
+test('paging a list that is all on screen to its short last page leaves the controls where they were', async ({ page }) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 3000 })
+    await page.goto(`${origin}${LONG}`)
+    const episodes = page.locator('[data-episodes]')
+    const numbers = episodes.locator('.episode .number')
+    const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
+    await expect(numbers).toHaveCount(12, { timeout: 30_000 })
+    const first = await place(pages)
+    const scrolled = await page.evaluate(() => scrollY)
+    await pages.getByRole('button', { name: 'Page 92' }).click()
+    await expect(numbers).toHaveCount(8)
+    expect(await place(pages), `${width}: the controls stay put`).toEqual(first)
+    expect(await page.evaluate(() => scrollY), `${width}: and the page did not scroll`).toBe(scrolled)
+  }
+})
+
+test('the episode list opens on the page of the viewer\'s next episode, and stays where it is paged to', async ({ page }) => {
+  await page.goto(`${origin}${LONG}`)
+  const episodes = page.locator('[data-episodes]')
+  const numbers = episodes.locator('.episode .number')
+  const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
+  await expect(numbers.first(), 'the control: nothing tracked opens the first page').toHaveText('1', { timeout: 30_000 })
+  const tracking = page.getByRole('region', { name: 'Quick tracking' })
+  await tracking.getByRole('combobox', { name: 'Status' }).selectOption({ label: 'Watching' })
+  await tracking.getByLabel('Episodes').fill('30')
+  await tracking.getByLabel('Episodes').press('Enter')
+  await expect(page.locator('.actions .play')).toHaveText('Continue', { timeout: 30_000 })
+  // episode 31 is the 31st of 1,100, on the third page of 12
+  await expect(numbers.first()).toHaveText('25')
+  await page.reload()
+  await expect(numbers.first()).toHaveText('25', { timeout: 30_000 })
+  await expect(pages.getByRole('button', { name: 'Page 3' })).toHaveAttribute('aria-current', 'page')
+  await pages.getByRole('button', { name: 'Page 1' }).click()
+  const play = page.locator('.actions .play')
+  const continued = (await play.getAttribute('href'))!
+  await tracking.getByLabel('Episodes').fill('40')
+  await tracking.getByLabel('Episodes').press('Enter')
+  await expect(play, 'the control: the progress moved').not.toHaveAttribute('href', continued)
+  await expect(numbers.first(), 'a page picked stays picked').toHaveText('1')
+  // episode 41 is on the fourth page, in the modal too
+  await page.goto(`${origin}${LONG.replace('/title/', '/media/')}`)
+  const inModal = modal(page)
+  await expect(inModal.locator('.episode .number').first()).toHaveText('37', { timeout: 30_000 })
+  await expect(inModal.getByRole('navigation', { name: 'Episodes pages' }).getByRole('button', { name: 'Page 4', exact: true })).toHaveAttribute('aria-current', 'page')
+})
+
+test('each of a title\'s lists draws a page at a time: characters, staff, relations and themes', async ({ page }) => {
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  // Spec Sequel's 14 characters, 14 people, 4 relations and 14 songs (tests/fake-fetch.ts)
+  for (const [list, rows, label, size, last] of [
+    ['[data-characters]', 'li', 'Characters', 12, 2],
+    ['[data-staff]', 'li', 'Staff', 12, 2],
+    ['[data-relations]', 'a.relation-card', 'Relations', 3, 1],
+    ['[data-themes]', 'li', 'Themes', 12, 2],
+  ] as const) {
+    const section = page.locator(list)
+    await expect(section.locator(rows), label).toHaveCount(size, { timeout: 30_000 })
+    await section.getByRole('navigation', { name: `${label} pages` }).getByRole('button', { name: 'Next page' }).click()
+    await expect(section.locator(rows), label).toHaveCount(last)
+  }
+})
+
+test('a theme playing on one page stops when the list is paged away, and no row of another page takes its place', async ({ page }) => {
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  const themes = page.locator('[data-themes]')
+  const rows = themes.locator('li')
+  const pages = themes.getByRole('navigation', { name: 'Themes pages' })
+  await expect(rows).toHaveCount(12, { timeout: 30_000 })
+  await rows.nth(0).getByRole('button', { name: 'Play' }).click()
+  await expect(themes.locator('video'), 'the control: the first song plays').toHaveCount(1)
+  await expect(rows.nth(0).getByRole('button', { name: 'Stop' })).toBeVisible()
+  await pages.getByRole('button', { name: 'Next page' }).click()
+  await expect(rows.first()).toContainText('Sequel Song 13')
+  await expect(themes.locator('video')).toHaveCount(0)
+  await expect(rows.first().getByRole('button', { name: 'Play' })).toBeVisible()
+  await pages.getByRole('button', { name: 'Previous page' }).click()
+  await expect(rows.first()).toContainText(/Sequel Song 1(?!\d)/)
+  await expect(themes.locator('video'), 'back on its page, nothing plays').toHaveCount(0)
+  await expect(rows.first().getByRole('button', { name: 'Play' })).toBeVisible()
+})
+
+test('another title opened in the page starts its lists on their first page', async ({ page }) => {
+  const characters = page.locator('[data-characters]')
+  const staff = page.locator('[data-staff]')
+  const current = (section: Locator) => section.locator('nav button[aria-current="page"]')
+  // to Spec Third and back first, so each title is drawn whole as soon as it is opened again
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(characters.locator('li').first()).toContainText(/Sequel Character 1(?!\d)/, { timeout: 30_000 })
+  await page.locator('[data-relations] a.relation-card').filter({ hasText: 'Spec Third' }).click()
+  await expect(characters.locator('li').filter({ hasText: 'Spike Spiegel' })).toHaveCount(1, { timeout: 30_000 })
+  await page.goBack()
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  for (const section of [characters, staff]) {
+    await section.getByRole('navigation').getByRole('button', { name: 'Page 2' }).click()
+    await expect(current(section), 'the control: paged').toHaveText('2')
+  }
+  await page.goForward()
+  await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
+  await expect(characters.locator('li').filter({ hasText: 'Spike Spiegel' })).toHaveCount(1)
+  await page.goBack()
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  await expect(characters.locator('li').first()).toContainText(/Sequel Character 1(?!\d)/)
+  await expect(staff.locator('li').first()).toContainText(/Sequel Animator 1(?!\d)/)
+  for (const section of [characters, staff]) await expect(current(section)).toHaveText('1')
 })
 
 test('390 px wide, each episode row keeps its date and its source icons inside it', async ({ page }) => {

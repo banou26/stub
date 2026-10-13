@@ -11,6 +11,7 @@ import { Link } from 'wouter'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
+import Paged from '../../components/paged'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
@@ -23,7 +24,7 @@ import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-da
 import { canPlay } from '../../sources/playable'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
-import { playTarget, type PlayLabel } from '../title/facts'
+import { playTarget, type PlayLabel, type Tracked } from '../title/facts'
 
 export const GET_MEDIA_DETAILS = gql(`
   subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
@@ -227,20 +228,27 @@ const unreleasedEpisodes = (media: DetailsMedia): boolean[] => {
   return dated.map(episode => isUnreleased(episode, first))
 }
 
-/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, and the episode it opens. Nothing when that episode is not out. */
-export const usePlay = (media: DetailsMedia | null | undefined): { label: PlayLabel, href: string } | undefined => {
-  const [{ data: tracking }] = useSubscription({
+/** The viewer's tracking of a media, its status and progress, once the worker has answered. */
+export const useTrackingSummary = (uri: string | undefined): Tracked => {
+  const [{ data }] = useSubscription({
     query: MEDIA_TRACKING,
-    variables: { input: { uri: media?.uri ?? '' } },
-    pause: !media?.uri
+    variables: { input: { uri: uri ?? '' } },
+    pause: !uri
   })
-  if (!media) return undefined
+  return data?.tracking?.summary
+}
+
+/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, and the episode it opens. Nothing when that episode is not out. */
+export const playOf = (media: DetailsMedia, tracked: Tracked): { label: PlayLabel, href: string } | undefined => {
   const unreleased = unreleasedEpisodes(media)
-  const target = playTarget(
-    media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })),
-    tracking?.tracking?.summary
-  )
+  const target = playTarget(media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })), tracked)
   return target && { label: target.label, href: getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri }) }
+}
+
+/** `playOf` on the viewer's tracking, subscribed here. */
+export const usePlay = (media: DetailsMedia | null | undefined) => {
+  const tracked = useTrackingSummary(media?.uri)
+  return media ? playOf(media, tracked) : undefined
 }
 
 const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
@@ -593,29 +601,35 @@ const Episode = (
   )
 }
 
-/** A series' episode rows, an unreleased one dimmed and not linked (HOR-344). */
-export const Episodes = ({ media, limit }: { media: DetailsMedia, limit?: number }) => {
+// a cour
+const EPISODES_PAGE = 12
+
+/** A series' episode rows a page at a time, opening on the page holding episode `start`; an unreleased one dimmed and not linked. */
+export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number }) => {
   const unreleased = unreleasedEpisodes(media)
   const nextAiring = media.nextAiringEpisode
-  // one query for every row: urql shares a running subscription with a row mounted after its answer
-  // but never replays that answer, so a row asking on its own when Show all draws it gets nothing.
-  // The list as a whole still can, when SourceLinks or MoviePlay already asks the same ids.
+  // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   return (
-    <div className="episodes" css={episodesStyle}>
-      {
-        media.episodes.slice(0, limit).map((episode, index) =>
-          <Episode
-            key={episode.episodeNumber ?? episode.uri ?? index}
-            episode={episode}
-            index={index}
-            mediaUri={media.uri}
-            origins={origins}
-            unreleased={unreleased[index]!}
-            airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
-          />
-        )
-      }
-    </div>
+    <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={start}>
+      {(page, offset) => (
+        <div className="episodes" css={episodesStyle}>
+          {page.map((episode, at) => {
+            const index = offset + at
+            return (
+              <Episode
+                key={episode.episodeNumber ?? episode.uri ?? index}
+                episode={episode}
+                index={index}
+                mediaUri={media.uri}
+                origins={origins}
+                unreleased={unreleased[index]!}
+                airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
+              />
+            )
+          })}
+        </div>
+      )}
+    </Paged>
   )
 }

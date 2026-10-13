@@ -70,7 +70,7 @@ Over 10 shows, AniList's first page of characters against ANN (HOR-348, 2026-10-
 | --- | --- |
 | name, image, url, role | the first source that has one; a character only ANN lists has no face and no role |
 | voice actors | per character and language, the whole set from the first source listing any actor in that language: ANN adds only the dubs AniList does not list |
-| order | MAIN, SUPPORTING, BACKGROUND, then unstated, each in the first source's order, so characters only ANN lists come last, behind Show all |
+| order | MAIN, SUPPORTING, BACKGROUND, then unstated, each in the first source's order, so characters only ANN lists come last, on the last pages |
 | staff jobs | every source's words, notes in parentheses dropped, deduped case-insensitively |
 
 ## Live action

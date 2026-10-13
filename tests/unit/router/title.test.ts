@@ -5,7 +5,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
 import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
-import { playLabel, playTarget, secondTitle, titleChips, titleFacts } from '../../../src/router/title/facts'
+import { currentEpisode, playLabel, playTarget, secondTitle, titleChips, titleFacts } from '../../../src/router/title/facts'
 
 // Frieren as AniList and the offline catalogue name it
 const FRIEREN = {
@@ -124,6 +124,16 @@ test('Play opens the first episode, Continue the one after the progress, and nei
   expect(playTarget(episodes, { status: 'COMPLETED', progress: 3 })).toEqual({ label: 'Rewatch', episodeUri: 'e1' })
   expect(playTarget(episodes, { status: 'WATCHING', progress: 2 }), 'the next one is not out').toBeUndefined()
   expect(playTarget([{ episodeNumber: 1, uri: null, unreleased: false }], undefined), 'nowhere to watch it').toBeUndefined()
+})
+
+test('the episode list opens on the viewer\'s next episode, the last one listed before it, and the first otherwise', () => {
+  const episodes = [...Array.from({ length: 1100 }, (_, index) => ({ episodeNumber: index + 1 })), { episodeNumber: null }]
+  expect(currentEpisode(episodes, { status: 'WATCHING', progress: 600 })).toBe(600)
+  expect(currentEpisode(episodes, { status: 'WATCHING', progress: 1100 }), 'caught up').toBe(1099)
+  expect(currentEpisode(episodes, { status: 'WATCHING', progress: 1500 }), 'past the list').toBe(1099)
+  expect(currentEpisode(episodes, undefined)).toBe(0)
+  expect(currentEpisode(episodes, { status: 'PLANNING', progress: 0 })).toBe(0)
+  expect(currentEpisode(episodes, { status: 'COMPLETED', progress: 1100 }), 'Rewatch opens the first').toBe(0)
 })
 
 test('the page is its own route, beside the modal\'s', () => {

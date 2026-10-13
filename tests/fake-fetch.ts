@@ -17,6 +17,31 @@ const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt2
 const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(60) }
 const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
 
+const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))
+const SEQUEL_CREDITS = {
+  characters: { edges: many(14, number => ({ role: 'SUPPORTING', node: { id: 900100 + number, name: { full: `Sequel Character ${number}` } }, voiceActors: [] })) },
+  staff: { edges: many(14, number => ({ role: 'Key Animation', node: { id: 900200 + number, name: { full: `Sequel Animator ${number}` } } })) },
+  studios: { nodes: [] },
+}
+const SEQUEL_RELATIONS = [
+  { relationType: 'SEQUEL', node: THIRD },
+  ...many(3, number => ({ relationType: 'SIDE_STORY', node: { id: 900002 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Side Story ${number}` } } })),
+]
+const SEQUEL_THEMES = {
+  data: {
+    findAnimeByExternalSite: [{
+      id: SEQUEL.id,
+      slug: 'spec_sequel',
+      animethemes: many(14, number => ({
+        type: 'OP',
+        sequence: number,
+        song: { title: { romaji: `Sequel Song ${number}`, native: null }, performances: [{ artist: { name: { main: 'Spec Band' } } }] },
+        animethemeentries: [{ videos: { nodes: [{ link: `https://v.animethemes.moe/SpecSequel-OP${number}.webm` }] } }],
+      })),
+    }],
+  },
+}
+
 const THEMES = structuredClone(FRIEREN_THEMES)
 THEMES.data.findAnimeByExternalSite[0]!.animethemes[2]!.animethemeentries = []
 
@@ -29,20 +54,21 @@ const TMDB: Record<string, string> = {
 }
 
 // What tests/title-page.spec.ts builds the app with in place of src/utils/fetch.ts: AniList's public
-// API answers every work with Cowboy Bebop's credits and one sequel, Spec Sequel (anilist:900001), which
-// has none of its own, AniZip with 26 dated episodes and Frieren's TMDB, TheTVDB and IMDb ids,
-// AnimeThemes with Frieren's themes, bliss without its video, so no title, cover or date changes under
-// the page, IMDb with Breaking Bad for tt0903747 alone, and TMDB with Squid Game's three seasons and
-// Frieren's one, each season's own page empty but Squid Game's first, which lists one episode, and
-// JustWatch with its four most popular films or shows when asked for either; every other request goes
-// where it always went.
+// API answers every work with Cowboy Bebop's credits and one sequel, Spec Sequel (anilist:900001), whose
+// own characters, staff, relations and songs each run past a page, AniZip with 26 dated episodes (1,100
+// for mal:21) and Frieren's TMDB, TheTVDB and IMDb ids, AnimeThemes with Frieren's themes, bliss without
+// its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
+// alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
+// Squid Game's first, which lists one episode, and JustWatch with its four most popular films or shows
+// when asked for either; every other request goes where it always went.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
-    const episodes = Object.fromEntries(Array.from({ length: 26 }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
-    return Response.json({ titles: {}, episodes, episodeCount: 26, mappings: { anidb_id: Number(malId), mal_id: Number(malId), type: 'TV', ...FRIEREN_IDS } })
+    const count = malId === '21' ? 1100 : 26
+    const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
+    return Response.json({ titles: {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), type: 'TV', ...FRIEREN_IDS } })
   }
-  if (input === 'https://graphql.animethemes.moe/') return Response.json(THEMES)
+  if (input === 'https://graphql.animethemes.moe/') return Response.json(typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === SEQUEL.id ? SEQUEL_THEMES : THEMES)
   if (input === 'https://apis.justwatch.com/graphql' && typeof init?.body === 'string') {
     const [objectType] = JSON.parse(init.body).variables?.searchTitlesFilter?.objectTypes ?? []
     if (objectType === 'MOVIE') return Response.json(POPULAR_MOVIES)
@@ -57,7 +83,7 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (query.includes('Page(')) return Response.json({ data: { Page: { pageInfo: { lastPage: 1 }, media: [] } } })
   const { characters, staff, studios } = BEBOP
   const credits = query.includes('characters(') ? { characters, staff, studios } : {}
-  if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...credits, relations: { edges: [{ relationType: 'SEQUEL', node: THIRD }] } } } })
+  if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
   return Response.json({ data: { Media: { id: variables.id, relations, ...credits } } })
