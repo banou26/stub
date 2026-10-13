@@ -347,6 +347,10 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
     if (!season?.year || !SEASON_ORDER.includes(season.season)) continue
     const index = seasonIndex(season)
     if (index < from || index > to) continue
+    const live = ids.mal ? popularity.get(ids.mal) : undefined
+    // MyAnimeList's R18+ mark keeps an adult title out of every season: with a member count it can
+    // rank first in the row whenever no live source has re-ordered it yet (2026-10-13)
+    if (live?.adult) continue
 
     const record = {
       t: entry.title,
@@ -363,7 +367,6 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
     if (ids.kitsu) record.ku = ids.kitsu
     if (entry.score?.arithmeticMean) record.sc = Math.round(entry.score.arithmeticMean * 100) / 100
     // the current season's count the listing sorts on, and the synopsis the hero renders
-    const live = ids.mal ? popularity.get(ids.mal) : undefined
     if (live?.members) record.pop = live.members
     if (live?.synopsis) record.sy = live.synopsis
     ;(seasons[`${season.year}-${season.season}`] ??= []).push(record)

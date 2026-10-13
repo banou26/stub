@@ -108,3 +108,11 @@ test('plain node loads the build\'s popularity module', () => {
   expect(execFileSync(process.execPath, ['-e', `import(${JSON.stringify(module)}).then(m => console.log(typeof m.malSeason))`], { encoding: 'utf8' }).trim())
     .toBe('function')
 })
+
+test('the season data marks MyAnimeList R18+ cards, so the build leaves them out of the season', async () => {
+  const html = readFileSync(fileURLToPath(new URL('../jikan/__fixtures__/mal-season-fall-2026.html', import.meta.url)), 'utf-8')
+  const counts = await malSeason(async () => new Response(html), 0)
+
+  expect(counts.get(64131)?.adult, 'Kanojo no Tomodachi, marked R18+').toBe(true)
+  expect(counts.get(54344)?.adult, 'Mahou Shoujo Ikusei Keikaku: Restart').toBe(false)
+})

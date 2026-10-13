@@ -44,7 +44,7 @@ export const malSeason = async (get = fetch, pauseMs = PAUSE_MS) => {
       const html = await response.text()
       const entries = parseMalSeason(html).filter(entry => !isContinuing(entry))
       if (!entries.length) throw new Error(`${SEASON_PAGE} parsed to no entries from ${html.length} bytes`)
-      return new Map(entries.map(entry => [Number(entry.id), { members: entry.members, synopsis: entry.synopsis }]))
+      return new Map(entries.map(entry => [Number(entry.id), { members: entry.members, synopsis: entry.synopsis, adult: entry.adult }]))
     } catch (error) {
       last = error
     }
