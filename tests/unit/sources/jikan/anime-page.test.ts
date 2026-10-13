@@ -26,7 +26,7 @@ describe('parseMalAnime', () => {
       score: 8.75,
       members: 2091002,
       trailer: 'gY5nDXOtv_o',
-      cover: 'https://cdn.myanimelist.net/images/anime/4/19644l.jpg',
+      cover: 'https://cdn.myanimelist.net/images/anime/4/19644l.webp',
     })
   })
 
