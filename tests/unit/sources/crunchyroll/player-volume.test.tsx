@@ -84,9 +84,8 @@ describe('a muted viewer opening a Crunchyroll episode', () => {
     await vi.waitFor(() => expect(episode.video.muted, 'the kept mute reached the video').toBe(true))
 
     episode.setByPage('muted', false)
-    await settle()
 
-    expect(episode.video.muted, 'the video plays muted').toBe(true)
+    await vi.waitFor(() => expect(episode.video.muted, 'the video plays muted').toBe(true))
     expect(kept(), 'the kept mute is not replaced by the page\'s').toEqual({ volume: 1, muted: true })
     await vi.waitFor(() => expect(muteControl(host)?.getAttribute('aria-pressed')).toBe('true'))
   })
