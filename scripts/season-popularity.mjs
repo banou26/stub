@@ -1,17 +1,22 @@
-// MyAnimeList's season pages, as the data build lays them over the bundled seasons. Its own module so
-// it can be tested: ./build-anime-data.mjs runs the whole build when imported.
+// Every season source stub reads live, as the data build lays them over the bundled seasons:
+// MyAnimeList's season pages, AniList's season browse and Kitsu's season pages. Not LiveChart, the
+// fourth: its robots.txt disallows /api/ to every automated agent (read 2026-10-16), and it carries no
+// count. Its own module so it can be tested: ./build-anime-data.mjs runs the whole build when imported.
 //
-// Imports the live source's parser as .ts, which node loads by stripping the types (22.18 or newer;
+// Imports the live sources' parsers as .ts, which node loads by stripping the types (22.18 or newer;
 // Pages builds on the version .node-version names).
 
 import { MAL_TYPE, isContinuing, parseMalSeason } from '../src/sources/jikan/season-scrape.ts'
+import { seasonPageNumbers, seasonQuery } from '../src/sources/kitsu/season-paging.ts'
 import { mediaSeasonNow } from '../src/sources/season.ts'
+import { COLUMNS, mergeIds } from './merge-ids.mjs'
 import { orderSeasonBucket } from './season-order.mjs'
 
 const TIMEOUT_MS = 30_000
 const ATTEMPTS = 3
 const PAUSE_MS = 2_000
-// six pages take about 2 s (measured 2026-10-16); the budget only stops a slow site stretching a deploy
+// the three sources' six seasons take about 3 s at once (measured 2026-10-16); the budget only stops a
+// slow site stretching a deploy
 const BUDGET_MS = 30_000
 const COVER_PREFIX = 'https://cdn.myanimelist.net/images/anime/'
 
@@ -61,13 +66,13 @@ export const malSeason = async (key, get = fetch, pauseMs = PAUSE_MS) => {
 }
 
 /**
- * Each season's page, one after another, with the seasons whose page could not be read in `failed`.
+ * Each season read by `read`, one after another, with the seasons not read in `failed`.
  *
- * A page that fails every attempt ends the run: MyAnimeList is then not answering this build, and
- * every further page could add 90 s of timeouts to a deploy for nothing. Once `budgetMs` has passed,
- * the run ends after the page being read, so the first season is always asked.
+ * A season that fails ends the run: the source is then not answering this build, and every further
+ * season could add its timeouts to a deploy for nothing. Once `budgetMs` has passed, the run ends after
+ * the season being read, so the first season is always asked.
  */
-export const malSeasons = async (keys, get = fetch, pauseMs = PAUSE_MS, budgetMs = BUDGET_MS) => {
+const seasonsInTurn = async (keys, read, budgetMs = BUDGET_MS) => {
   const until = Date.now() + budgetMs
   const pages = new Map()
   const failed = new Map()
@@ -78,7 +83,7 @@ export const malSeasons = async (keys, get = fetch, pauseMs = PAUSE_MS, budgetMs
       continue
     }
     try {
-      pages.set(key, await malSeason(key, get, pauseMs))
+      pages.set(key, await read(key))
       if (Date.now() > until) skip = `not asked after ${budgetMs / 1000} s`
     } catch (error) {
       failed.set(key, error)
@@ -86,6 +91,101 @@ export const malSeasons = async (keys, get = fetch, pauseMs = PAUSE_MS, budgetMs
     }
   }
   return { pages, failed }
+}
+
+/** Each season's MyAnimeList page in turn (see `seasonsInTurn`), each read with up to three attempts. */
+export const malSeasons = (keys, get = fetch, pauseMs = PAUSE_MS, budgetMs = BUDGET_MS) =>
+  seasonsInTurn(keys, key => malSeason(key, get, pauseMs), budgetMs)
+
+const ANILIST = 'https://graphql.anilist.co'
+// The live source's season browse (src/sources/anilist/extractor.ts): three pages of 50 under this sort
+// are the season's 150 most popular, the window whose counts the live page shows.
+const ANILIST_PAGES = 3
+const ANILIST_QUERY = `query ($season: MediaSeason, $seasonYear: Int, $page: Int) {
+  Page(page: $page) {
+    pageInfo { hasNextPage }
+    media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
+      id idMal isAdult format episodes popularity averageScore title { romaji english } coverImage { extraLarge }
+    }
+  }
+}`
+
+// a 0 to 100 score as the bundle's 1 to 10 one, to two places as the offline database's are
+const outOfTen = score => Math.round(Number(score) * 10) / 100
+
+/**
+ * AniList's season (`2026-SUMMER`) as bundle records keyed by their AniList id, the titles AniList
+ * marks adult left out. Throws, saying why, when a page cannot be read.
+ */
+export const anilistSeason = async (key, get = fetch) => {
+  const [year, season] = key.split('-')
+  const signal = AbortSignal.timeout(TIMEOUT_MS)
+  const media = []
+  for (let page = 1; page <= ANILIST_PAGES; page++) {
+    const response = await get(ANILIST, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ query: ANILIST_QUERY, variables: { season, seasonYear: Number(year), page } }),
+      signal,
+    })
+    if (!response.ok) throw new Error(`AniList ${key} page ${page} answered HTTP ${response.status}`)
+    const { data, errors } = await response.json()
+    if (!data?.Page) throw new Error(`AniList ${key} page ${page} answered no page${errors ? ` (${errors.map(error => error.message).join('; ')})` : ''}`)
+    media.push(...data.Page.media)
+    if (!data.Page.pageInfo.hasNextPage) break
+  }
+  return media
+    .filter(entry => !entry.isAdult)
+    .map(entry => ({
+      t: entry.title.romaji ?? entry.title.english,
+      ty: entry.format ?? 'UNKNOWN',
+      p: entry.coverImage?.extraLarge ?? '',
+      ...entry.episodes && { ep: entry.episodes },
+      al: entry.id,
+      ...entry.idMal && { ml: entry.idMal },
+      ...entry.averageScore && { sc: outOfTen(entry.averageScore) },
+      ...entry.popularity && { pop: entry.popularity },
+    }))
+}
+
+// one id, or none: two mappings to one catalogue, or a slug, name no entry to pair with
+const onlyId = ids => ids.length === 1 ? Number(ids[0]) || undefined : undefined
+
+/**
+ * Kitsu's season (`2026-SUMMER`) as bundle records keyed by their Kitsu id, off the pages the live
+ * `kitsu` source asks, with the MyAnimeList and AniList ids its mappings name. Throws, saying why, when
+ * a page cannot be read, so a season is never counted in part.
+ */
+export const kitsuSeason = async (key, get = fetch) => {
+  const [year, season] = key.split('-')
+  const signal = AbortSignal.timeout(TIMEOUT_MS)
+  const pages = await Promise.all(seasonPageNumbers().map(async page => {
+    const url = `https://kitsu.io/api/edge${seasonQuery({ season: season.toLowerCase(), year: Number(year), page })}`
+    const response = await get(url, { signal })
+    if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`)
+    return response.json()
+  }))
+  return pages.flatMap(({ data = [], included = [] }) => {
+    const mappings = new Map(included.map(mapping => [mapping.id, mapping.attributes]))
+    return data.map(({ id, attributes: anime, relationships }) => {
+      const linked = site => onlyId((relationships?.mappings?.data ?? [])
+        .map(ref => mappings.get(ref.id))
+        .filter(mapping => mapping?.externalSite === site)
+        .map(mapping => mapping.externalId))
+      const [ml, al] = [linked('myanimelist/anime'), linked('anilist/anime')]
+      return {
+        t: anime.canonicalTitle,
+        ty: anime.subtype?.toUpperCase() ?? 'UNKNOWN',
+        p: anime.posterImage?.original ?? anime.posterImage?.large ?? anime.posterImage?.medium ?? '',
+        ...anime.episodeCount && { ep: anime.episodeCount },
+        ku: Number(id),
+        ...ml && { ml },
+        ...al && { al },
+        ...anime.averageRating && { sc: outOfTen(anime.averageRating) },
+        ...anime.userCount && { pop: anime.userCount },
+      }
+    })
+  })
 }
 
 const cardRecord = (id, card, anilist) => ({
@@ -157,6 +257,89 @@ const seasonNow = () => {
   return `${year}-${season}`
 }
 
+const CATALOGUES = ['ml', 'al', 'ku']
+
+/**
+ * `showOf(ids)`: every id of the one show that carries `ids`, through each row of the trackers' index
+ * and each record already bundled that names one of them, directly or through each other; undefined
+ * when those name another id beside one of `ids`, so that `ids` are two shows. The trackers refuse a
+ * record naming ids their index places in two shows, and the store joins everything a record names
+ * into one show for good. `add` makes a new record one of those rows.
+ */
+const pairing = (index, seasons) => {
+  const rows = Object.fromEntries(CATALOGUES.map(catalogue => [catalogue, new Map()]))
+  const add = row => {
+    for (const catalogue of CATALOGUES) {
+      if (row[catalogue]) rows[catalogue].set(row[catalogue], [...rows[catalogue].get(row[catalogue]) ?? [], row])
+    }
+  }
+  for (const { mal, anilist, kitsu } of index) add({ ml: mal, al: anilist, ku: kitsu })
+  for (const records of Object.values(seasons)) records.forEach(add)
+  const showOf = ids => {
+    const show = { ...ids }
+    for (let grew = true; grew;) {
+      grew = false
+      for (const catalogue of CATALOGUES) {
+        for (const row of rows[catalogue].get(show[catalogue]) ?? []) {
+          for (const other of CATALOGUES) {
+            if (!row[other] || row[other] === show[other]) continue
+            if (show[other]) return undefined
+            show[other] = row[other]
+            grew = true
+          }
+        }
+      }
+    }
+    return show
+  }
+  return { add, showOf }
+}
+
+/**
+ * The seasons `withMalSeasons` laid, with the other sources' records laid over them: `answers` is each
+ * source's `{ own, pages }`, in the order the live page scores them, `own` the catalogue its records
+ * are keyed by and `pages` its records by season. `index` is the trackers' index, as
+ * `{ mal, anilist, kitsu }` rows.
+ *
+ * A record takes the count the live page settles on: MyAnimeList's when this season's page lists it,
+ * else that of the first source listing it this season, else the one it already carries. A source's
+ * record joins the bundled record of its season that names one of its ids, and is added when none
+ * does. It keeps its own id and only the ids it claims that agree with every other show's (see
+ * `pairing`). A show MyAnimeList marks R18+ is in no season, also when a source names it by another
+ * catalogue's id only.
+ */
+const withSeasonSources = (seasons, malPages, answers, index = []) => {
+  const { add, showOf } = pairing(index, seasons)
+  const adult = new Set([...malPages.values()].flatMap(page => [...page].filter(([, card]) => card.adult).map(([id]) => id)))
+  const laid = {}
+  for (const [key, bucket] of Object.entries(seasons)) {
+    const records = [...bucket]
+    const counted = new Map(records.flatMap(record => {
+      const members = malPages.get(key)?.get(record.ml)?.members
+      return members ? [[record, members]] : []
+    }))
+    for (const { own, pages } of answers) {
+      for (const row of pages.get(key) ?? []) {
+        const ids = CATALOGUES.reduce((named, catalogue) =>
+          catalogue !== own && row[catalogue] && showOf({ ...named, [catalogue]: row[catalogue] }) ? { ...named, [catalogue]: row[catalogue] } : named,
+        { [own]: row[own] })
+        if (adult.has(row.ml) || adult.has(showOf(ids)?.ml)) continue
+        let record = records.find(candidate => CATALOGUES.some(catalogue => ids[catalogue] && candidate[catalogue] === ids[catalogue]))
+        if (!record) {
+          record = { ...Object.fromEntries(Object.entries(row).filter(([field]) => !CATALOGUES.includes(field))), ...ids }
+          records.push(record)
+          add(record)
+        }
+        if (row.pop && !counted.has(record)) counted.set(record, row.pop)
+      }
+    }
+    laid[key] = orderSeasonBucket(records.map(record => counted.has(record) ? { ...record, pop: counted.get(record) } : record))
+  }
+  return laid
+}
+
+const askOrder = (seasons, now) => Object.keys(seasons).sort((a, b) => Number(b === now) - Number(a === now))
+
 /**
  * The bundled seasons (`2026-SUMMER` to records) with MyAnimeList's page for each laid over them by
  * `withMalSeasons`, with the pages read and the seasons whose page was not, for the build's log.
@@ -168,7 +351,30 @@ const seasonNow = () => {
  */
 export const malSeasonData = async (seasons, arm, { offline = [], now = seasonNow(), get = fetch, pauseMs = PAUSE_MS, budgetMs = BUDGET_MS } = {}) => {
   const anilistOf = anilistPairs(arm, offline)
-  const keys = Object.keys(seasons).sort((a, b) => Number(b === now) - Number(a === now))
-  const { pages, failed } = await malSeasons(keys, get, pauseMs, budgetMs)
+  const { pages, failed } = await malSeasons(askOrder(seasons, now), get, pauseMs, budgetMs)
   return { seasons: withMalSeasons(seasons, pages, now, anilistOf), pages, failed }
+}
+
+/**
+ * The bundled seasons with every season source laid over them (`malSeasonData`, then
+ * `withSeasonSources` with AniList's and Kitsu's), and each source's reads (`{ pages, failed }`) for the
+ * build's log. `rows` is the offline database's rows (`[mal, ...COLUMNS]`), which with arm's give the
+ * trackers' index (`mergeIds`) and the AniList id of each show MyAnimeList adds (`anilistPairs`).
+ *
+ * The three sources are read at once, each season by season as `seasonsInTurn` reads them, the season
+ * running now first, within one time budget. A source that fails or is not asked leaves the seasons as
+ * the others lay them.
+ */
+export const seasonData = async (seasons, arm, { rows = [], ...options } = {}) => {
+  const { now = seasonNow(), get = fetch, budgetMs = BUDGET_MS } = options
+  const keys = askOrder(seasons, now)
+  const offline = rows.map(row => [row[0], row[1 + COLUMNS.indexOf('anilist')]])
+  const [myanimelist, anilist, kitsu] = await Promise.all([
+    malSeasonData(seasons, arm, { ...options, offline, now }),
+    seasonsInTurn(keys, key => anilistSeason(key, get), budgetMs),
+    seasonsInTurn(keys, key => kitsuSeason(key, get), budgetMs),
+  ])
+  const answers = [{ own: 'al', pages: anilist.pages }, { own: 'ku', pages: kitsu.pages }]
+  const index = mergeIds(arm, rows).kept
+  return { seasons: withSeasonSources(myanimelist.seasons, myanimelist.pages, answers, index), reads: { myanimelist, anilist, kitsu } }
 }

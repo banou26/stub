@@ -92,6 +92,11 @@ describe('seasonMedia', () => {
     expect(seasonMedia(record({ ty: 'ONA' }))!.categories).toContain('SERIES')
   })
 
+  // AniList's season browse files shorts as TV_SHORT, which the bundle carries as AniList spells it
+  test('reads a short as a short, as the live AniList source does', () => {
+    expect(seasonMedia(record({ ty: 'TV_SHORT' }))!.type).toBe('TV_SHORT')
+  })
+
   // An unknown type must still produce a media. manami emits UNKNOWN, and dropping those would lose
   // real entries from the row for a field nothing renders.
   test('keeps a record whose type it does not recognise', () => {

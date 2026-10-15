@@ -1,0 +1,478 @@
+[
+ {
+  "data": [
+   {
+    "id": "44778",
+    "type": "anime",
+    "links": {
+     "self": "https://kitsu.io/api/edge/anime/44778"
+    },
+    "attributes": {
+     "slug": "youjo-senki-ii",
+     "titles": {
+      "en": "Saga of Tanya the Evil II",
+      "en_jp": "Youjo Senki II",
+      "ja_jp": "幼女戦記 II"
+     },
+     "canonicalTitle": "Youjo Senki II",
+     "averageRating": "80.42",
+     "userCount": 4841,
+     "startDate": "2026-07-08",
+     "subtype": "TV",
+     "status": "finished",
+     "episodeCount": 12,
+     "posterImage": {
+      "tiny": "https://media.kitsu.app/anime/44778/poster_image/tiny-f6abff35008accf6437d1ace8f56456d.jpeg",
+      "large": "https://media.kitsu.app/anime/44778/poster_image/large-f09d935245e81ce280bb22bd8f16e003.jpeg",
+      "small": "https://media.kitsu.app/anime/44778/poster_image/small-0e9798d38a7b1e049adf5267e15753e2.jpeg",
+      "medium": "https://media.kitsu.app/anime/44778/poster_image/medium-8313e0045e0bde3becfc1898e6c95db1.jpeg",
+      "original": "https://media.kitsu.app/anime/44778/poster_image/0f580b346f34fdb60234152ad2fa2b28.jpg"
+     }
+    },
+    "relationships": {
+     "mappings": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/anime/44778/relationships/mappings",
+       "related": "https://kitsu.io/api/edge/anime/44778/mappings"
+      },
+      "data": [
+       {
+        "type": "mappings",
+        "id": "304501"
+       },
+       {
+        "type": "mappings",
+        "id": "304502"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "49002",
+    "type": "anime",
+    "links": {
+     "self": "https://kitsu.io/api/edge/anime/49002"
+    },
+    "attributes": {
+     "slug": "Mushoku-Tensei-Isekai-Ittara-Honki-Dasu-Season-3",
+     "titles": {
+      "en": "Mushoku Tensei: Jobless Reincarnation Season 3",
+      "en_jp": "Mushoku Tensei: Isekai Ittara Honki Dasu 3rd Season",
+      "ja_jp": "無職転生 ～異世界行ったら本気だす～ 第3期"
+     },
+     "canonicalTitle": "Mushoku Tensei: Isekai Ittara Honki Dasu 3rd Season",
+     "averageRating": "86.64",
+     "userCount": 3689,
+     "startDate": "2026-07-04",
+     "subtype": "TV",
+     "status": "finished",
+     "episodeCount": 14,
+     "posterImage": {
+      "tiny": "https://media.kitsu.app/anime/49002/poster_image/tiny-e7450d9e53ec41988b3850666f305d31.jpeg",
+      "large": "https://media.kitsu.app/anime/49002/poster_image/large-726cee92abdf1aba4683dedb5ad6a7d9.jpeg",
+      "small": "https://media.kitsu.app/anime/49002/poster_image/small-617cb0afcc185c1181cfa5b571a2e9d8.jpeg",
+      "medium": "https://media.kitsu.app/anime/49002/poster_image/medium-cc3eaf73a267ee6707cdf04dd100a23f.jpeg",
+      "original": "https://media.kitsu.app/anime/49002/poster_image/6d09b03ffdd5c49802ad21c160b72cb2.jpg"
+     }
+    },
+    "relationships": {
+     "mappings": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/anime/49002/relationships/mappings",
+       "related": "https://kitsu.io/api/edge/anime/49002/mappings"
+      },
+      "data": [
+       {
+        "type": "mappings",
+        "id": "340036"
+       },
+       {
+        "type": "mappings",
+        "id": "340254"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "included": [
+   {
+    "id": "304501",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/304501"
+    },
+    "attributes": {
+     "createdAt": "2021-06-19T16:15:04.650Z",
+     "updatedAt": "2021-06-19T16:15:04.650Z",
+     "externalSite": "anilist/anime",
+     "externalId": "135865"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/304501/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/304501/item"
+      }
+     }
+    }
+   },
+   {
+    "id": "304502",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/304502"
+    },
+    "attributes": {
+     "createdAt": "2021-06-19T16:15:14.208Z",
+     "updatedAt": "2021-06-19T16:15:14.208Z",
+     "externalSite": "myanimelist/anime",
+     "externalId": "49233"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/304502/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/304502/item"
+      }
+     }
+    }
+   },
+   {
+    "id": "340036",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/340036"
+    },
+    "attributes": {
+     "createdAt": "2024-06-30T16:43:27.106Z",
+     "updatedAt": "2024-06-30T16:43:27.106Z",
+     "externalSite": "anilist/anime",
+     "externalId": "178789"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/340036/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/340036/item"
+      }
+     }
+    }
+   },
+   {
+    "id": "340254",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/340254"
+    },
+    "attributes": {
+     "createdAt": "2024-07-15T02:04:03.456Z",
+     "updatedAt": "2024-07-15T02:04:03.456Z",
+     "externalSite": "myanimelist/anime",
+     "externalId": "59193"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/340254/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/340254/item"
+      }
+     }
+    }
+   }
+  ],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=2&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [],
+  "included": [],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=3&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [],
+  "included": [],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=2&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=4&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [
+   {
+    "id": "50635",
+    "type": "anime",
+    "links": {
+     "self": "https://kitsu.io/api/edge/anime/50635"
+    },
+    "attributes": {
+     "slug": "baki-dou-part-2",
+     "titles": {
+      "en": "BAKI-DOU: The Invincible Samurai Part 2",
+      "en_jp": "BAKI-DOU Part 2",
+      "ja_jp": "刃牙道 第2クール"
+     },
+     "canonicalTitle": "BAKI-DOU Part 2",
+     "averageRating": "75.82",
+     "userCount": 195,
+     "startDate": "2026-06-18",
+     "subtype": "ONA",
+     "status": "finished",
+     "episodeCount": 12,
+     "posterImage": {
+      "tiny": "https://media.kitsu.app/anime/50635/poster_image/tiny-f85465a8d751a5239c5e5bc7f80abc3c.jpeg",
+      "large": "https://media.kitsu.app/anime/50635/poster_image/large-f84f9e81071316466617969d8c6ba075.jpeg",
+      "small": "https://media.kitsu.app/anime/50635/poster_image/small-27afcfabbd44d08988344bdfa1cc3588.jpeg",
+      "medium": "https://media.kitsu.app/anime/50635/poster_image/medium-37c229f330df435ceb94b5ec7087e4f3.jpeg",
+      "original": "https://media.kitsu.app/anime/50635/poster_image/29b5ba2ffdaa731cff4e43605f2ce334.jpg"
+     }
+    },
+    "relationships": {
+     "mappings": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/anime/50635/relationships/mappings",
+       "related": "https://kitsu.io/api/edge/anime/50635/mappings"
+      },
+      "data": [
+       {
+        "type": "mappings",
+        "id": "352142"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "48693",
+    "type": "anime",
+    "links": {
+     "self": "https://kitsu.io/api/edge/anime/48693"
+    },
+    "attributes": {
+     "slug": "Shin-Keroro-Gunsou-Movie-Fukkatsushite-Sokkou-Chikyuu-Metsubou-no-Kiki-de-Arimasu",
+     "titles": {
+      "en_jp": "Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!",
+      "ja_jp": "新劇場版 ケロロ軍曹 復活して速攻地球滅亡の危機であります！"
+     },
+     "canonicalTitle": "Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!",
+     "averageRating": null,
+     "userCount": 28,
+     "startDate": "2026-06-26",
+     "subtype": "movie",
+     "status": "finished",
+     "episodeCount": 1,
+     "posterImage": {
+      "tiny": "https://media.kitsu.app/anime/48693/poster_image/tiny-40c9fa105614a04946ab83bd31a629f2.jpeg",
+      "large": "https://media.kitsu.app/anime/48693/poster_image/large-33d50213f1b6d35f272bc4a5b65cdf83.jpeg",
+      "small": "https://media.kitsu.app/anime/48693/poster_image/small-d7d203c2e387fa8732cc7cff54e1e2ee.jpeg",
+      "medium": "https://media.kitsu.app/anime/48693/poster_image/medium-da38696e267888f6659d598721af377d.jpeg",
+      "original": "https://media.kitsu.app/anime/48693/poster_image/1c76ba671262bed223765b8cb719b49a.jpg"
+     }
+    },
+    "relationships": {
+     "mappings": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/anime/48693/relationships/mappings",
+       "related": "https://kitsu.io/api/edge/anime/48693/mappings"
+      },
+      "data": [
+       {
+        "type": "mappings",
+        "id": "337982"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "included": [
+   {
+    "id": "352142",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/352142"
+    },
+    "attributes": {
+     "createdAt": "2026-03-29T14:23:48.111Z",
+     "updatedAt": "2026-03-29T14:23:48.111Z",
+     "externalSite": "anilist/anime",
+     "externalId": "210032"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/352142/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/352142/item"
+      }
+     }
+    }
+   },
+   {
+    "id": "337982",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/337982"
+    },
+    "attributes": {
+     "createdAt": "2024-04-04T16:13:20.704Z",
+     "updatedAt": "2024-04-04T16:13:20.704Z",
+     "externalSite": "anilist/anime",
+     "externalId": "Keroro-Gunsou-Shin-Anime"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/337982/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/337982/item"
+      }
+     }
+    }
+   }
+  ],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=3&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=5&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [
+   {
+    "id": "50931",
+    "type": "anime",
+    "links": {
+     "self": "https://kitsu.io/api/edge/anime/50931"
+    },
+    "attributes": {
+     "slug": "fbkingdom-story",
+     "titles": {
+      "en_jp": "FBKingdom Story",
+      "ja_jp": "FBKINGDOM STORY"
+     },
+     "canonicalTitle": "FBKingdom Story",
+     "averageRating": null,
+     "userCount": 9,
+     "startDate": "2026-06-30",
+     "subtype": "ONA",
+     "status": "finished",
+     "episodeCount": 1,
+     "posterImage": {
+      "tiny": "https://media.kitsu.app/anime/50931/poster_image/tiny-64d8fa5ce7ce495b2210e4285b6d356c.jpeg",
+      "large": "https://media.kitsu.app/anime/50931/poster_image/large-9015a7c3ea618bd7a47ce9ae93cdc484.jpeg",
+      "small": "https://media.kitsu.app/anime/50931/poster_image/small-849a7e6868d1e44e1e7dcd475020b049.jpeg",
+      "medium": "https://media.kitsu.app/anime/50931/poster_image/medium-8df7f280fd60bd36caf661f90f35889f.jpeg",
+      "original": "https://media.kitsu.app/anime/50931/poster_image/cb53930184cbef0ab80eaa7fdbfb596c.jpg"
+     }
+    },
+    "relationships": {
+     "mappings": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/anime/50931/relationships/mappings",
+       "related": "https://kitsu.io/api/edge/anime/50931/mappings"
+      },
+      "data": [
+       {
+        "type": "mappings",
+        "id": "354219"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "included": [
+   {
+    "id": "354219",
+    "type": "mappings",
+    "links": {
+     "self": "https://kitsu.io/api/edge/mappings/354219"
+    },
+    "attributes": {
+     "createdAt": "2026-08-27T00:51:56.428Z",
+     "updatedAt": "2026-08-27T00:51:56.428Z",
+     "externalSite": "myanimelist/anime",
+     "externalId": "64522"
+    },
+    "relationships": {
+     "item": {
+      "links": {
+       "self": "https://kitsu.io/api/edge/mappings/354219/relationships/item",
+       "related": "https://kitsu.io/api/edge/mappings/354219/item"
+      }
+     }
+    }
+   }
+  ],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=4&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=6&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [],
+  "included": [],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=5&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=7&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [],
+  "included": [],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=6&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "next": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ },
+ {
+  "data": [],
+  "included": [],
+  "meta": {
+   "count": 153
+  },
+  "links": {
+   "first": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=1&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "prev": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=7&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt",
+   "last": "https://kitsu.io/api/edge/anime?filter%5Bseason%5D=summer&filter%5BseasonYear%5D=2026&include=mappings&page%5Bnumber%5D=8&page%5Bsize%5D=20&sort=-userCount%2CcreatedAt"
+  }
+ }
+]

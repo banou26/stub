@@ -64,7 +64,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
-import { errorText, malSeasonData } from './season-popularity.mjs'
+import { errorText, seasonData } from './season-popularity.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -303,17 +303,19 @@ const newestRelease = async () => {
 const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [key, idIn(entry.sources, host)]))
 
 /**
- * The seasons with MyAnimeList's counts laid over them. manami ships no popularity, and its 1 to 10
- * rating puts three shows tied at a perfect 10 from a handful of votes above Mushoku Tensei.
+ * The seasons with every season source's shows and counts laid over them. manami ships no
+ * popularity, and its 1 to 10 rating puts three shows tied at a perfect 10 from a handful of votes
+ * above Mushoku Tensei.
  *
- * NEVER FATAL: a season's ordering is not worth failing a deploy over. A season whose page failed
- * falls back to the rating order, and the line logged says why.
+ * NEVER FATAL: a season's ordering is not worth failing a deploy over. A season a source could not be
+ * read for is laid by the others, or keeps its rating order, and the line logged says why.
  */
 const withPopularity = async (seasons, rows) => {
-  const offline = rows.map(row => [row[0], row[1 + COLUMNS.indexOf('anilist')]])
-  const laid = await malSeasonData(seasons, require('@kawaiioverflow/arm/arm.json'), { offline })
-  for (const [key, page] of laid.pages) log(`myanimelist ${key}: ${page.size} entries`)
-  for (const [key, error] of laid.failed) log(`myanimelist ${key} unavailable (${errorText(error)}); it falls back to its rating order`)
+  const laid = await seasonData(seasons, require('@kawaiioverflow/arm/arm.json'), { rows })
+  for (const [source, { pages, failed }] of Object.entries(laid.reads)) {
+    for (const [key, page] of pages) log(`${source} ${key}: ${page.size ?? page.length} entries`)
+    for (const [key, error] of failed) log(`${source} ${key} unavailable (${errorText(error)})`)
+  }
   return laid.seasons
 }
 

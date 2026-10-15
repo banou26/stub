@@ -355,7 +355,7 @@ test('a connect failure with no message of its own still says what failed', () =
 test('plain node loads the build\'s popularity module', () => {
   const module = fileURLToPath(new URL('../../../../scripts/season-popularity.mjs', import.meta.url))
 
-  expect(execFileSync(process.execPath, ['-e', `import(${JSON.stringify(module)}).then(m => console.log(typeof m.errorText, typeof m.malSeasonData))`], { encoding: 'utf8' }).trim())
+  expect(execFileSync(process.execPath, ['-e', `import(${JSON.stringify(module)}).then(m => console.log(typeof m.errorText, typeof m.seasonData))`], { encoding: 'utf8' }).trim())
     .toBe('function function')
 })
 

@@ -58,7 +58,7 @@ export type ManamiRecord = {
   al?: number
   ku?: number
   sc?: number
-  /** MyAnimeList's member count, attached at build time; see scripts/season-popularity.mjs */
+  /** The count the live season page settles on, read at build time: see `withSeasonSources` in scripts/season-popularity.mjs */
   pop?: number
   /** MyAnimeList's synopsis, current season only: what the homepage hero selects on */
   sy?: string
@@ -87,6 +87,7 @@ export const parseSeasonKey = (key: string): { season: MediaSeasonName, year: nu
 
 const TYPES: Record<string, MediaType> = {
   TV: MediaType.Tv,
+  TV_SHORT: MediaType.TvShort,
   MOVIE: MediaType.Movie,
   OVA: MediaType.Ova,
   ONA: MediaType.Ona,
@@ -129,12 +130,13 @@ const handles = (record: ManamiRecord): GQLMedia[] => {
  * (the 2026-07-04 dump calls 192 of its 219 SUMMER 2026 entries UPCOMING, and every one was airing
  * six weeks later).
  *
- * `popularity` IS published now, and manami still has none: it is MyAnimeList's member count, read
- * off its season page at build time (scripts/season-popularity.mjs). Without it the listing, which
- * sorts on popularity, swept every bundled row to the tail and painted whatever order the bundle
- * happened to ship in. It is safe at this score because jikan publishes the same count at 0.9 and wins the
- * aggregate, so the value is restated rather than contradicted. A row the fetch did not cover carries
- * none, which sorts it behind the covered ones.
+ * `popularity` IS published now, and manami still has none: it is the count the live season page
+ * settles on (MyAnimeList's members, else AniList's or Kitsu's count), read at build time
+ * (scripts/season-popularity.mjs). Without it the listing, which sorts on popularity, swept every
+ * bundled row to the tail and painted whatever order the bundle happened to ship in. The live source
+ * it came from publishes the same count above this score, but so does Kitsu (0.3) on its own scale,
+ * about 80 times smaller: a show Kitsu lists takes Kitsu's count until MyAnimeList or AniList answers.
+ * A row no source counted carries none, which sorts it behind the counted ones.
  *
  * `season` and `seasonYear` come from the BUCKET KEY, which is the only place the bundle states them:
  * the records themselves carry no season, so a caller that has lost the key gets null for both rather
