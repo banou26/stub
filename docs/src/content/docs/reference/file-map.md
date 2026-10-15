@@ -143,7 +143,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 | `src/sources/season.ts` (228L) | `parseSeasonNumber`, `isOnlySeasonLabel`, `seasonScopedId(id, n)` at `:189` | no imports |
 | `src/sources/catalogue-gate.ts` (297L) | `pickGatedCandidate`, `SEASON_DATE_WINDOW`, `CONFIDENT_TITLE_THRESHOLD`, `MAX_CATALOGUE_CANDIDATES` | imports only `./utils` and `./season` |
 | `src/sources/justwatch/id.ts` (144L) | `jwId`, `splitJwId`, `providerContentId`, `PACKAGE_ORIGIN_MAP`, `extractContentId` | every host branch in `extractContentId` is measured, and the failure mode is silent |
-| `src/sources/aired-date.ts`, `next-airing.ts`, `average-score.ts`, `mal-image.ts` | small shared field helpers | each import-free or type-only, each with the reason in its header |
+| `src/sources/aired-date.ts`, `average-score.ts`, `mal-image.ts` | small shared field helpers | each import-free or type-only, each with the reason in its header |
 | `src/sources/anilist/frontend.ts`, `jikan/season-scrape.ts`, `kitsu/season-paging.ts`, `kitsu/stream-id.ts` | one fallback or paging rule each, per source | same pattern: no runtime imports |
 | `src/sources/offline/seed.ts`, `seed-gate.ts`, `seed-build.ts`, `seed-source.ts`, `index-lookup.ts` | the season seed's shape, its publish gate, its builder and the generated id index | `seed.ts` and `seed-gate.ts` must load **in node directly**, through type stripping, which is a stricter rule than the rest of this page |
 | `src/sources/entities.ts` (8L) | `decodeEntities`, the one HTML character reference reader for tmdb, tvmaze and simkl | no imports |

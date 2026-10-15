@@ -1,6 +1,5 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import { airedDate } from '../aired-date'
-import { nextAiringEpisode } from '../next-airing'
 import { percentScore } from '../average-score'
 import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } from '../../generated/schema/types.generated'
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
@@ -89,6 +88,10 @@ const MEDIA_FIELDS = `
         timeUntilAiring
       }
     }
+  }
+  nextAiringEpisode {
+    airingAt
+    episode
   }
 `
 
@@ -715,7 +718,10 @@ const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
     franchise: buildFranchise(media),
     score: SCORE,
     averageScore: percentScore(media.averageScore, 100),
-    nextAiringEpisode: nextAiringEpisode(media.airingSchedule),
+    // not read off `airingSchedule`, whose page holds AniList's 25 oldest entries: all aired on a long run
+    nextAiringEpisode: media.nextAiringEpisode
+      ? { episodeNumber: media.nextAiringEpisode.episode, airingAt: new Date(media.nextAiringEpisode.airingAt * 1000).toUTCString() }
+      : undefined,
     ...desc(media.description, SCORE),
     titles: [
       ...media.title?.english ? [{ language: 'en', title: media.title.english, score: SCORE }] : [],

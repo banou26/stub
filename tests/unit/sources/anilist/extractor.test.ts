@@ -12,6 +12,8 @@ import { createHash } from 'node:crypto'
 
 import { closeRoot, openRoot } from '../../../../src/worker/request-context'
 import { resolvers } from '../../../../src/sources/anilist/extractor'
+import { unreleasedEpisodes } from '../../../../src/router/home/episodes'
+import { neighbours } from '../../../../src/router/watch/neighbours'
 import BEBOP from '../../../fixtures/credits/anilist-bebop.json'
 import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
@@ -316,11 +318,12 @@ describe('what the card and list modes read', () => {
         { node: { airingAt: Date.parse('2026-09-06T15:30:00Z') / 1000, episode: 11 } },
       ],
     },
+    nextAiringEpisode: { airingAt: Date.parse('2026-09-06T15:30:00Z') / 1000, episode: 11 },
   }
 
   afterEach(() => { vi.useRealTimers() })
 
-  test('the next airing is the soonest episode still ahead, never the first in the list', async () => {
+  test('the next airing is the one anilist names', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
 
@@ -330,6 +333,31 @@ describe('what the card and list modes read', () => {
       episodeNumber: 11,
       airingAt: new Date('2026-09-06T15:30:00Z').toUTCString(),
     })
+  })
+
+  // One Piece, measured 2026-10-15: the schedule's first page is its 25 oldest entries, 1123 to 1147,
+  // all aired, and the next is 1181 on 2027-01-03. AniZip dates 1 to 1180 and lists 1181 to 1184 bare,
+  // Kitsu lists 1 to 1410 bare.
+  test('a long run\'s next airing lies past the schedule\'s first page, and no row from it on is out', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-15T22:14:00Z'))
+    const ONE_PIECE = {
+      ...AIRING,
+      id: 21,
+      airingSchedule: {
+        edges: Array.from({ length: 25 }, (_, i) => ({ node: { airingAt: 1743854400 + i * 7 * 86400, episode: 1123 + i } })),
+      },
+      nextAiringEpisode: { airingAt: 1798985760, episode: 1181 },
+    }
+
+    const [node] = await browsedNodes([ONE_PIECE])
+
+    expect(node.nextAiringEpisode).toEqual({ episodeNumber: 1181, airingAt: 'Sun, 03 Jan 2027 14:16:00 GMT' })
+    const episodes = Array.from({ length: 1410 }, (_, i) => ({ episodeNumber: i + 1, releaseDate: i < 1180 ? '2026-09-27' : undefined }))
+    const media = { uri: 'anilist:21', status: node.status, nextAiringEpisode: node.nextAiringEpisode, episodes }
+    expect(unreleasedEpisodes(media).indexOf(true), 'the first dimmed row').toBe(1180)
+    expect(unreleasedEpisodes(media).slice(1180).every(Boolean)).toBe(true)
+    expect(neighbours([undefined, media, undefined], 1179).next, 'Next from 1180').toBeUndefined()
   })
 
   test('a run with nothing left scheduled carries no next airing', async () => {
@@ -398,17 +426,19 @@ test('length and source ride on every answer, and the credits only on a details 
 const sha256 = (body: string) => createHash('sha256').update(body).digest('hex')
 
 // The relay caches on the whole request body, so the modal's and the listing's bodies must stay byte
-// for byte what they were before credits existed. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY.
+// for byte what they were before credits existed. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY
+// plus the `nextAiringEpisode` field.
 test('the details query goes out only when asked, and the modal and listing bodies are unchanged', async () => {
   const { ctx, bodies } = creditsContext()
   await openBebop(ctx)
   await openBebop(ctx, true)
   expect(bodies).toHaveLength(2)
-  expect(sha256(bodies[0]!), 'the modal body').toBe('442755783192b6dbf4201ac6fd17bd02840588585e2dc0b9fdb6d408d917e3e7')
+  expect(JSON.parse(bodies[0]!).query, 'the next airing is asked, not read off the schedule').toMatch(/nextAiringEpisode \{\s*airingAt\s*episode\s*\}/)
+  expect(sha256(bodies[0]!), 'the modal body').toBe('85d61938759a1481a732f4a5adc8bb579808037d1219063a687b0010c4e760d7')
   expect(bodies[1], 'the page body').toContain('characters(page: 1, perPage: 25')
   expect(bodies[1]).not.toBe(bodies[0])
 
   const browse = browseContext({ lastPage: 1 })
   await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
-  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('4f568b202215e5d9325482c643c3cfb90966f63930b5387a87b2c8ef9314526d')
+  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('a95713a9e2d8a139971a01431eacfccb97771c5f12fc2293810eaf896ce44cc4')
 })

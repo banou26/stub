@@ -32,8 +32,9 @@ test('a show not started has every episode unreleased', () => {
   expect(unreleased({ status: 'NOT_YET_RELEASED', episodes: undated }, now)).toEqual(range(1, 12))
 })
 
-test('a finished run with no dates and no schedule dims nothing', () => {
+test('a run with no dates and no schedule dims nothing, finished or not', () => {
   expect(unreleased({ status: 'FINISHED', episodes: undated }, now)).toEqual([])
+  expect(unreleased({ status: 'RELEASING', episodes: undated }, now)).toEqual([])
 })
 
 test('an episode dated in the past stays released whatever its number', () => {

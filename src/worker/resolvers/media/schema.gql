@@ -368,11 +368,11 @@ type Media {
   isAdult: Boolean
   episodeCount: Int
   """
-  The soonest episode a source has scheduled that has not aired yet, or null.
+  The next episode AniList has scheduled, or null.
 
-  Derived from AniList's airing schedule, which was already fetched for `startDate`, so it costs no
-  request. Null means "nobody scheduled anything ahead of now", which covers a finished run and a
-  source that publishes no schedule alike: it is not a promise that the run has ended.
+  Asked in the same query as the rest of AniList's record, so it costs no request. It can have aired
+  since AniList answered. Null means "nobody scheduled anything ahead", which covers a finished run
+  and a source that publishes no schedule alike: it is not a promise that the run has ended.
   """
   nextAiringEpisode: MediaAiringEpisode
   """The broadcast season this run aired in, as the source named it."""
