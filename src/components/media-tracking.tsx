@@ -75,6 +75,8 @@ const failed = (message?: string): TrackerOutcome[] => [{ tracker: '', outcome: 
 type Tracking = NonNullable<MediaTrackingSubscription['tracking']>
 
 const loading = (answer: { state: string }) => answer.state === 'LOADING'
+// what draws a chip: a tracker with no id for the media draws none (tracking-compact.tsx)
+const drawn = (answer: { state: string }) => !loading(answer) && answer.state !== 'NO_ID'
 
 /**
  * What the row shows of the subscription's latest result: the one shown before while the latest still
@@ -82,7 +84,7 @@ const loading = (answer: { state: string }) => answer.state === 'LOADING'
  */
 const heldOf = (shown: Tracking | undefined, latest: Tracking | null | undefined) =>
   shown && latest?.answers.some(answer =>
-    loading(answer) && shown.answers.some(before => before.tracker.id === answer.tracker.id && !loading(before)))
+    loading(answer) && shown.answers.some(before => before.tracker.id === answer.tracker.id && drawn(before)))
     ? shown
     : latest ?? undefined
 

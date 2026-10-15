@@ -7,7 +7,7 @@ import type { Found, Journal, JournalEntry } from '../../tracking/journal'
 
 import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { trackingId } from '../../tracking/aggregate'
-import { entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
+import { catalogFor, entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
 import { liveValues, patchFrom } from '../../tracking/journal'
 
 export const STUB_TRACKER_ID = 'stub'
@@ -92,7 +92,7 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => 
         let identity: MediaIdentity
         try {
           journal = await open()
-          identity = identify(uri, await ctx.catalog())
+          identity = identify(uri, await catalogFor(uri, ctx.catalog))
         } catch (error) {
           yield { tracking: trackingOf(uri, errorAnswer(uri, stubTracker, error instanceof Error ? error.message : String(error))) }
           return
@@ -115,7 +115,7 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => 
       ctx: StubTrackerContext
     ): Promise<WriteOutcome[]> => {
       try {
-        const identity = identify(input.uri, await ctx.catalog())
+        const identity = identify(input.uri, await catalogFor(input.uri, ctx.catalog))
         const why = refusal(identity)
         if (why) return refused(why)
         const patch = patchFrom(input.entry, input)
@@ -130,7 +130,7 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => 
     },
     deleteListEntry: async (_parent: unknown, { input }: { input: { uri: string } }, ctx: StubTrackerContext): Promise<WriteOutcome[]> => {
       try {
-        const identity = identify(input.uri, await ctx.catalog())
+        const identity = identify(input.uri, await catalogFor(input.uri, ctx.catalog))
         const why = refusal(identity)
         if (why) return refused(why)
         await (await open()).remove(identity as Writable)

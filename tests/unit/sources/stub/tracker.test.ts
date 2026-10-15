@@ -22,10 +22,10 @@ let now = 1_000
 let minted = 0
 const deps = { now: () => (now += 1_000), uuid: () => `entry-${++minted}` }
 
-const stubServer = (store = memoryStore(), where?: () => Promise<'device' | 'account'>) => {
+const stubServer = (store = memoryStore(), where?: () => Promise<'device' | 'account'>, catalogue = async () => catalog) => {
   let journal: Promise<Journal> | undefined
   const open = () => (journal ??= openJournal(store, deps))
-  return { store, open, target: providerServer('stub', stubTrackerResolvers(open, where), { catalog: async () => catalog }) }
+  return { store, open, target: providerServer('stub', stubTrackerResolvers(open, where), { catalog: catalogue }) }
 }
 
 const live: { close: () => void }[] = []
@@ -43,6 +43,11 @@ const save = (target: ReturnType<typeof stubServer>['target'], uri: string, entr
   yogaClient(target).mutation(SAVE_LIST_ENTRY_DOCUMENT, { input: { uri, trackers: ['stub'], entry, ...extra } }).toPromise()
 
 describe('the stub tracker', () => {
+  test('answers for a media that names no catalogue id without waiting on the catalogue', async () => {
+    const { target } = stubServer(undefined, undefined, () => new Promise<CatalogLookup>(() => {}))
+    expect(answerOf(await watch(target, 'ag:(jw:1)').next(1_000)).state).toBe('NOT_LISTED')
+  })
+
   test('answers NOT_LISTED, then LISTED with its own entry once a save lands, on the same subscription', async () => {
     const { target } = stubServer()
     const tracking = watch(target, 'ag:(anilist:1)')

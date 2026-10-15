@@ -465,10 +465,11 @@ const TrackingCompact = (
       })))
   }, [tracking])
 
-  if (!tracking?.answers.length) return null
+  // a tracker with no id for the media can never track it, so it is left out rather than shown greyed
+  const answers = tracking?.answers.filter(answer => answer.state !== 'NO_ID') ?? []
+  if (!answers.length) return null
 
   const shown = shownOf(row, overrides[ROW])
-  const answers = tracking.answers
   const targets = answers.map(answer => ({ answer, target: targetOf(answer, prefs.targets[answer.tracker.id]) }))
   const sendable = targets.filter(({ target }) => target.kind === 'check' && target.sendable).map(({ answer }) => answer)
   const disabled = !sendable.length

@@ -126,7 +126,6 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
   switch (answer.state) {
     case 'LOADING': return { kind: 'loading' }
     case 'SIGNED_OUT': return { kind: 'login' }
-    case 'NO_ID': return { kind: 'cannot', reason: 'Has no id for this media' }
     case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }
   }
   if (!answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)) return { kind: 'cannot', reason: 'Is read only' }

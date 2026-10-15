@@ -54,9 +54,8 @@ describe('targetOf', () => {
     expect(targetOf(answer('a', 'NOT_LISTED'), false)).toEqual({ kind: 'check', checked: false, sendable: false })
   })
 
-  test('signed out is a log in, no id and ambiguous cannot track', () => {
+  test('signed out is a log in, ambiguous cannot track', () => {
     expect(targetOf(answer('a', 'SIGNED_OUT'), undefined)).toEqual({ kind: 'login' })
-    expect(targetOf(answer('a', 'NO_ID'), true).kind).toBe('cannot')
     expect(targetOf(answer('a', 'AMBIGUOUS', null, { candidates: ['x', 'y'] }), true))
       .toEqual({ kind: 'cannot', reason: 'Names x and y, cannot tell which' })
   })

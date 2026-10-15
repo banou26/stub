@@ -1,9 +1,9 @@
 // What the stub tracker keys an entry on. The case that shaped these rules is a season beside its own
 // show: a cluster may hold the show-level Crunchyroll id next to the season id (utils/uri.ts), so any
 // rule that matches on SHARED MEMBERS files season 2 under season 1's entry.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { catalogueTargetOf, entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
+import { catalogFor, catalogueTargetOf, entryMatches, identify, newEntryIdentity, type CatalogLookup, type MediaIdentity } from '../../../src/tracking/identity'
 
 const ROWS = [
   { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
@@ -125,5 +125,17 @@ describe('the id of one catalogue a media is kept under', () => {
       .toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'mal:20'] })
     expect(catalogueTargetOf('ag:(anilist:2,anilist:1)', 'anilist', catalog)).toEqual({ kind: 'ambiguous', candidates: ['anilist:1', 'anilist:2'] })
     expect(catalogueTargetOf('ag:(mal:10,mal:20)', 'anilist', catalog)).toEqual({ kind: 'ambiguous', candidates: ['mal:10', 'mal:20'] })
+  })
+})
+
+describe('the catalogue a media is identified with', () => {
+  test('is loaded only for a media that names a catalogue id, the only ids it widens', async () => {
+    const loads: string[] = []
+    const load = async () => { loads.push('load'); return catalog }
+    expect(await catalogFor('ag:(jw:1,nf:2)', load)).toBeUndefined()
+    expect(loads).toEqual([])
+    expect(await catalogFor('ag:(jw:1,mal:10)', load)).toBe(catalog)
+    expect(await catalogFor('ag:(offline:mal-10)', load), "the offline source's borrowed id").toBe(catalog)
+    expect(loads).toHaveLength(2)
   })
 })

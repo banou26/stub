@@ -8,7 +8,7 @@ import type { SessionPageApi, SessionRequest, SessionResponse } from './session-
 
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
-import { catalogueTargetOf } from '../../tracking/identity'
+import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
 import {
   ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
   anilistTracker, listEntryOf, readResponse, saveRequest,
@@ -55,7 +55,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
     ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, ...extra })
 
-  const targetOf = async (uri: string, ctx: AnilistTrackerContext) => catalogueTargetOf(uri, 'anilist', await ctx.catalog())
+  const targetOf = async (uri: string, ctx: AnilistTrackerContext) => catalogueTargetOf(uri, 'anilist', await catalogFor(uri, ctx.catalog))
 
   const refusalOf = (target: CatalogueTarget) =>
     target.kind === 'none' ? 'This media names no AniList id'

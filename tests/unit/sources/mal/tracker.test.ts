@@ -25,7 +25,7 @@ const HACK = 'ag:(mal:48)'
 const AIR = 'ag:(mal:857)'
 const UNLISTED = 'ag:(mal:9999)'
 
-const setup = (options: FakeMalOptions = {}) => {
+const setup = (options: FakeMalOptions = {}, catalogue = async () => catalog) => {
   let at = 1_790_000_000_000
   const waits: number[] = []
   let gate: Promise<void> | undefined
@@ -41,7 +41,7 @@ const setup = (options: FakeMalOptions = {}) => {
       at += ms
     },
   })
-  const target = providerServer('mal', resolvers, { catalog: async () => catalog, session: (site: string) => { sites.push(site); return mal.session } })
+  const target = providerServer('mal', resolvers, { catalog: catalogue, session: (site: string) => { sites.push(site); return mal.session } })
   return {
     ...mal,
     target,
@@ -149,6 +149,11 @@ describe('what the MyAnimeList tracker answers', () => {
     const { target, log } = setup()
     expect((await first(target, 'ag:(cr:GG5H5XQX4)')).state).toBe('NO_ID')
     expect(log).toEqual([])
+  })
+
+  test('NO_ID for a media that names no catalogue id, without waiting on the catalogue', async () => {
+    const { target } = setup({}, () => new Promise<CatalogLookup>(() => {}))
+    expect((await watch(target, 'ag:(jw:1)').next(1_000)).data.tracking.answers[0].state).toBe('NO_ID')
   })
 })
 

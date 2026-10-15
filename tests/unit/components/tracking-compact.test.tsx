@@ -424,6 +424,21 @@ describe('the compact tracking row', () => {
   })
 })
 
+describe('a tracker with no id for the media', () => {
+  // AniList and MyAnimeList key an entry on their own id, which no live-action title has
+  test('has no chip, while one that is signed out still offers Log in', () => {
+    const { host } = render({ tracking: { ...tracking, answers: [{ ...anilist, state: 'NO_ID', entry: null }, mal, stub] } })
+    expect(host.querySelector('[data-chip="anilist"]')).toBeNull()
+    expect(chip(host, 'mal').classList.contains('login')).toBe(true)
+    expect(chip(host, 'stub')).toBeTruthy()
+  })
+
+  test('a media no tracker has an id for has no row', () => {
+    const { host } = render({ tracking: { summary: null, disagreements: [], answers: [{ ...anilist, state: 'NO_ID', entry: null }, { ...stub, state: 'NO_ID' }] } })
+    expect(host.querySelector('.tracking-compact')).toBeNull()
+  })
+})
+
 describe('a tracker that has not answered yet', () => {
   test('has its chip at once, busy, with nothing to check, and the row writes to the trackers that answered', async () => {
     vi.useFakeTimers()

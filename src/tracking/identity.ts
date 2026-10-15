@@ -103,6 +103,14 @@ export const identify = (uri: string, catalog?: CatalogLookup): MediaIdentity =>
   return { kind: 'none' }
 }
 
+/**
+ * The offline catalogue when `uri` names a catalogue id, the only ids it widens, and nothing otherwise:
+ * `identify` answers the same without it, so a film or a show known only off JustWatch is answered
+ * without waiting on the catalogue to load.
+ */
+export const catalogFor = async (uri: string, load: () => Promise<CatalogLookup>): Promise<CatalogLookup | undefined> =>
+  catalogRefs(handlesOf(uri), offlineOrigin).length ? await load() : undefined
+
 /** What a tracker that IS one catalogue keys a media on, or why it keys it on nothing. */
 export type CatalogueTarget = { kind: 'id', id: number } | { kind: 'ambiguous', candidates: string[] } | { kind: 'none' }
 

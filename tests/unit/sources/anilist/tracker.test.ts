@@ -50,7 +50,7 @@ const fakeSession = (script: Record<string, Answer>) => {
  * `holdWaits` keeps every pacer wait pending until `release`, as real time would; `drift` moves the
  * clock on by that much each time the tracker reads it.
  */
-const setup = (script: Record<string, Answer>, { holdWaits = false, drift = 0 } = {}) => {
+const setup = (script: Record<string, Answer>, { holdWaits = false, drift = 0, catalogue = async () => catalog } = {}) => {
   let at = 1_790_000_000_000
   const waits: number[] = []
   const held: (() => void)[] = []
@@ -63,7 +63,7 @@ const setup = (script: Record<string, Answer>, { holdWaits = false, drift = 0 } 
       at += ms
     },
   })
-  const target = providerServer('anilist', resolvers, { catalog: async () => catalog, session: () => fake.session })
+  const target = providerServer('anilist', resolvers, { catalog: catalogue, session: () => fake.session })
   return { ...fake, target, waits, now: () => at, release: () => held.shift()?.() }
 }
 
@@ -164,6 +164,11 @@ describe('what the AniList tracker answers', () => {
     const { target, asked } = setup({})
     expect(answerOf(await watch(target, 'ag:(cr:GG5H5XQX4)').next()).state).toBe('NO_ID')
     expect(asked).toEqual([])
+  })
+
+  test('NO_ID for a media that names no catalogue id, without waiting on the catalogue', async () => {
+    const { target } = setup({}, { catalogue: () => new Promise<CatalogLookup>(() => {}) })
+    expect(answerOf(await watch(target, 'ag:(jw:1)').next(1_000)).state).toBe('NO_ID')
   })
 
   test('a read that failed is read again on its own after RETRY_MS, and nothing is asked before', async () => {

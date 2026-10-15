@@ -162,6 +162,18 @@ describe('while the media gains ids', () => {
     expect(progress(host), "the grown uri's own answer, once it has heard from every tracker").toBe('4')
   })
 
+  test('a tracker with no id for the narrow uri shows as loading once the grown one gives it one', async () => {
+    const NAMELESS = 'ag:(cr:1)'
+    const NAMED = 'ag:(anilist:1,cr:1)'
+    answered.set(NAMELESS, trackingFor(NAMELESS, [answer('anilist', NAMELESS, 'NO_ID'), answer('stub', NAMELESS, 'LISTED', watching)], watching))
+    const { host, show } = render({ work: NAMELESS, uri: NAMELESS })
+    expect(chips(host)).toEqual(['stub'])
+
+    answered.set(NAMED, trackingFor(NAMED, [answer('anilist', NAMED, 'LOADING'), answer('stub', NAMED, 'LISTED', watching)], watching))
+    await show({ work: NAMELESS, uri: NAMED })
+    expect(chips(host)).toEqual(['anilist loading', 'stub'])
+  })
+
   test('the control: a tracker the narrow uri was still loading does not hold back the grown uri', async () => {
     answered.set(NARROW, trackingFor(NARROW, [answer('anilist', NARROW, 'LOADING'), answer('stub', NARROW, 'NOT_LISTED')]))
     const { host, show } = render({ work: NARROW, uri: NARROW })

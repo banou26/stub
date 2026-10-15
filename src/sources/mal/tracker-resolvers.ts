@@ -9,7 +9,7 @@ import type { SaveTurn } from './pacing'
 
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
-import { catalogueTargetOf } from '../../tracking/identity'
+import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
 import {
   LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
   readCard, readListPage, readWhoAmI, readWriteAnswer, replaceLists, showsNoChange, upsertRows,
@@ -108,7 +108,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}, user: string | null = userOf() ?? null): TrackerAnswer =>
     ({ _id: answerId(MAL_TRACKER_ID, uri), tracker: malTracker(user ?? undefined), state, entry: null, candidates: [], error: null, ...extra })
 
-  const targetOf = async (uri: string, ctx: MalTrackerContext) => catalogueTargetOf(uri, 'mal', await ctx.catalog())
+  const targetOf = async (uri: string, ctx: MalTrackerContext) => catalogueTargetOf(uri, 'mal', await catalogFor(uri, ctx.catalog))
 
   const refusalOf = (target: CatalogueTarget) =>
     target.kind === 'none' ? 'This media names no MyAnimeList id'
