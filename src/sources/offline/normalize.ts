@@ -58,7 +58,7 @@ export type ManamiRecord = {
   al?: number
   ku?: number
   sc?: number
-  /** MyAnimeList's member count for the current season, attached at build time; see scripts/season-order.mjs */
+  /** MyAnimeList's member count, attached at build time; see scripts/season-popularity.mjs */
   pop?: number
   /** MyAnimeList's synopsis, current season only: what the homepage hero selects on */
   sy?: string

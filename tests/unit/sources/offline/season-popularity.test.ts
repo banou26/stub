@@ -8,12 +8,13 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from 'vite-plus/test'
+import { expect, test, vi } from 'vite-plus/test'
 
+import { seasonMedia } from '../../../../src/sources/offline/normalize'
 import { orderSeasonBucket } from '../../../../scripts/season-order.mjs'
-import { SEASON_PAGE, errorText, malSeason } from '../../../../scripts/season-popularity.mjs'
+import { errorText, malSeason, malSeasonData, malSeasons, withMalSeasons } from '../../../../scripts/season-popularity.mjs'
 
-const record = (t: string, over: { sc?: number, pop?: number } = {}) => ({ t, ty: 'TV', p: '', ...over })
+const record = (t: string, over: { sc?: number, pop?: number, ml?: number, al?: number } = {}) => ({ t, ty: 'TV', p: '', ...over })
 
 test('member counts decide the order, so the season leads with what MyAnimeList says is popular', () => {
   const bucket = [
@@ -33,16 +34,15 @@ test('a record with no member count falls behind every record that has one, howe
     .toEqual(['Modest But Watched', 'Rated Ten'])
 })
 
-test('with no member counts at all the rating still orders, so a failed popularity fetch degrades', () => {
-  const bucket = [record('Unrated'), record('Well Rated', { sc: 9 }), record('Fairly Rated', { sc: 7 })]
-
-  expect(orderSeasonBucket(bucket).map(entry => entry.t))
-    .toEqual(['Well Rated', 'Fairly Rated', 'Unrated'])
-})
-
+const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../jikan/__fixtures__/${name}`, import.meta.url)), 'utf8')
 // Real bytes of myanimelist.net/anime/season: two cards under "TV (New)", One Piece and Meitantei Conan
 // under "TV (Continuing)".
-const page = readFileSync(new URL('../../sources/jikan/__fixtures__/mal-season-sections.html', import.meta.url), 'utf8')
+const page = fixture('mal-season-sections.html')
+const summer = fixture('mal-season-summer-2026.html')
+const fall = fixture('mal-season-fall-2026.html')
+const SUMMER = 'https://myanimelist.net/anime/season/2026/summer'
+const FALL = 'https://myanimelist.net/anime/season/2026/fall'
+
 const answering = (...answers: (Response | Error)[]) => {
   const asked: string[] = []
   const get = async (url: string) => {
@@ -54,22 +54,109 @@ const answering = (...answers: (Response | Error)[]) => {
   return { get, asked }
 }
 
-// Jikan's public API, which the build read until then, shut down on 2026-10-01 and every build since
-// shipped the season with no count at all.
-test('the build reads member counts and synopses off MyAnimeList\'s season page, keyed by mal id', async () => {
-  const { get, asked } = answering(new Response(page))
+// MyAnimeList answers a season it has no page for (2027 summer and fall, measured 2026-10-16) with a
+// 303 to /anime/season, which is the season running now.
+const site = (pages: Record<string, string | number>) => {
+  const asked: string[] = []
+  const get = async (url: string, init?: RequestInit) => {
+    asked.push(url)
+    const answer = pages[url]
+    if (typeof answer === 'number') return new Response('', { status: answer })
+    if (answer !== undefined) return new Response(answer)
+    return init?.redirect === 'manual' ? new Response(null, { status: 303, headers: { location: '/anime/season' } }) : new Response(fall)
+  }
+  return { get, asked }
+}
 
-  const counts = await malSeason(get, 0)
+const summerPages = async () => (await malSeasons(['2026-SUMMER'], site({ [SUMMER]: summer }).get, 0)).pages
 
-  expect(asked).toEqual([SEASON_PAGE])
-  expect(counts.get(59193)?.members).toBe(299_468)
-  expect(counts.get(49233)?.members).toBe(254_259)
-  expect(counts.get(59193)?.synopsis).toMatch(/\S/)
+test('the build reads every bundled season off its own MyAnimeList page', async () => {
+  const { get, asked } = site({ [SUMMER]: summer, [FALL]: fall })
+
+  const { pages } = await malSeasons(['2026-SUMMER', '2026-FALL'], get, 0)
+
+  expect(asked).toEqual([SUMMER, FALL])
+  expect(pages.get('2026-SUMMER')?.get(59193)?.members, 'Mushoku Tensei III, listed for Summer only').toBe(367_295)
+  expect(pages.get('2026-FALL')?.get(54344)?.members).toBe(13_337)
+})
+
+test('a season page that fails keeps the counts already read, and asks MyAnimeList nothing more', async () => {
+  const { get, asked } = site({ [SUMMER]: summer, [FALL]: 403 })
+
+  const { pages, failed } = await malSeasons(['2026-SUMMER', '2026-FALL', '2027-WINTER'], get, 0)
+
+  expect(pages.get('2026-SUMMER')?.get(59193)?.members).toBe(367_295)
+  expect([...pages.keys()]).toEqual(['2026-SUMMER'])
+  expect(errorText(failed.get('2026-FALL'))).toBe(`${FALL} answered HTTP 403`)
+  expect(asked, 'three attempts at Fall, then nothing').toEqual([SUMMER, FALL, FALL, FALL])
+})
+
+// The offline database's dump lists Summer 2026 before Fall 2026 (measured 2026-10-16), and the home
+// page's row and hero read the season running now.
+test('a failing page listed before the season running now still leaves that season its counts, synopses and R18+ drop', async () => {
+  const { get, asked } = site({ [SUMMER]: 504, [FALL]: fall })
+  const seasons = {
+    '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193 })],
+    '2026-FALL': [record('Mahou Shoujo Ikusei Keikaku: Restart', { ml: 54344 }), record('Kanojo no Tomodachi', { ml: 64131 })],
+  }
+
+  const laid = await malSeasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
+
+  expect(asked).toEqual([FALL, SUMMER, SUMMER, SUMMER])
+  expect(laid.seasons['2026-FALL'].map(entry => [entry.ml, entry.pop, Boolean(entry.sy)])).toEqual([[54344, 13_337, true], [64028, 325, false]])
+  expect(errorText(laid.failed.get('2026-SUMMER'))).toBe(`${SUMMER} answered HTTP 504`)
+})
+
+test('with no season named, the season the clock is in is asked first and keeps the synopses', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-08-01T12:00:00Z'))
+  try {
+    const { get, asked } = site({ [SUMMER]: summer, [FALL]: fall })
+
+    const laid = await malSeasonData({ '2026-FALL': [], '2026-SUMMER': [] }, [], { get, pauseMs: 0 })
+
+    expect(asked).toEqual([SUMMER, FALL])
+    expect(laid.seasons['2026-SUMMER'].map(entry => Boolean(entry.sy))).toEqual([true, true])
+    expect(laid.seasons['2026-FALL'].some(entry => entry.sy)).toBe(false)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('past its time budget the run asks MyAnimeList nothing more', async () => {
+  const { get, asked } = site({ [SUMMER]: summer, [FALL]: fall })
+  const slow = async (url: string, init?: RequestInit) => {
+    await new Promise(resolve => setTimeout(resolve, 5))
+    return get(url, init)
+  }
+
+  const { pages, failed } = await malSeasons(['2026-FALL', '2026-SUMMER'], slow, 0, 0)
+
+  expect([...pages.keys()]).toEqual(['2026-FALL'])
+  expect(errorText(failed.get('2026-SUMMER'))).toBe('not asked after 0 s')
+  expect(asked).toEqual([FALL])
+})
+
+test('an added show takes its AniList id from arm\'s rows', async () => {
+  const arm = [{ mal_id: 61469, anilist_id: 210482 }, { mal_id: 59193 }]
+
+  const laid = await malSeasonData({ '2026-SUMMER': [] }, arm, { now: '2026-FALL', get: site({ [SUMMER]: summer }).get, pauseMs: 0 })
+
+  expect(laid.seasons['2026-SUMMER'].map(entry => [entry.ml, entry.al])).toEqual([[59193, undefined], [61469, 210482]])
+})
+
+test('a season MyAnimeList has no page for lists nothing, rather than the season running now', async () => {
+  const { get, asked } = site({})
+
+  const { pages } = await malSeasons(['2027-SUMMER'], get, 0)
+
+  expect(pages.get('2027-SUMMER')?.size).toBe(0)
+  expect(asked, 'a redirect is an answer, not a fault to retry').toHaveLength(1)
 })
 
 // The live `mal` source drops the same block, so the bundle never counts a show it does not list.
 test('shows MyAnimeList carries over from earlier seasons get no count', async () => {
-  const counts = await malSeason(answering(new Response(page)).get, 0)
+  const counts = await malSeason('2026-SUMMER', answering(new Response(page)).get, 0)
 
   expect([...counts.keys()].sort((a, b) => a - b)).toEqual([49233, 59193])
 })
@@ -77,15 +164,131 @@ test('shows MyAnimeList carries over from earlier seasons get no count', async (
 test('a failed read is retried, so one transient refusal does not cost a deploy its order', async () => {
   const { get, asked } = answering(new TypeError('fetch failed'), new Response('', { status: 503 }), new Response(page))
 
-  expect((await malSeason(get, 0)).size).toBe(2)
+  expect((await malSeason('2026-SUMMER', get, 0)).size).toBe(2)
   expect(asked).toHaveLength(3)
 })
 
 test('when every read fails the error says what the last one was', async () => {
-  await expect(malSeason(answering(new Response('', { status: 403 }), new Response('', { status: 403 }), new Response('', { status: 403 })).get, 0))
-    .rejects.toThrow(`${SEASON_PAGE} answered HTTP 403`)
-  await expect(malSeason(answering(new Response('<html></html>'), new Response('<html></html>'), new Response('<html></html>')).get, 0))
+  await expect(malSeason('2026-SUMMER', answering(new Response('', { status: 403 }), new Response('', { status: 403 }), new Response('', { status: 403 })).get, 0))
+    .rejects.toThrow(`${SUMMER} answered HTTP 403`)
+  await expect(malSeason('2026-SUMMER', answering(new Response('<html></html>'), new Response('<html></html>'), new Response('<html></html>')).get, 0))
     .rejects.toThrow('parsed to no entries from 13 bytes')
+})
+
+test('every bundled record carries the member count MyAnimeList shows for it, so a past season paints in its final order', async () => {
+  const seasons = { '2026-SUMMER': [record('Rated Ten', { ml: 1, sc: 10 }), record('Mushoku Tensei III', { ml: 59193, sc: 8.9 })] }
+
+  const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL')
+
+  expect(laid['2026-SUMMER'].map(entry => [entry.ml, entry.pop])).toEqual([[59193, 367_295], [61469, 247_199], [1, undefined]])
+})
+
+// Measured 2026-10-16: the offline database files Link Click III in Summer and MyAnimeList lists it in Fall.
+test('a record takes its count from whichever season\'s page lists it', async () => {
+  const laid = withMalSeasons({ '2026-FALL': [record('Mushoku Tensei III', { ml: 59193 })] }, await summerPages(), '2026-FALL')
+
+  expect(laid['2026-FALL'].find(entry => entry.ml === 59193)?.pop).toBe(367_295)
+})
+
+// Steel Ball Run is #4 of Summer 2026 by members, and the offline database files it with no MyAnimeList id.
+test('a show MyAnimeList lists for a season that its bucket lacks is added from its card, with its count', async () => {
+  const laid = withMalSeasons({ '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193 })] }, await summerPages(), '2026-FALL')
+  const added = laid['2026-SUMMER'].find(entry => entry.ml === 61469)
+
+  expect(added).toEqual({ t: 'Steel Ball Run: JoJo no Kimyou na Bouken', ty: 'ONA', p: '1065/158884l.webp', ml: 61469, sc: 9.05, pop: 247_199 })
+
+  const media = seasonMedia(added!, '2026-SUMMER')
+  expect(media?.handles.map(handle => handle.node.uri), 'the uri the live MyAnimeList source answers with').toEqual(['mal:61469'])
+  expect(media?.covers[0]?.url).toBe('https://cdn.myanimelist.net/images/anime/1065/158884l.webp')
+  expect([media?.season, media?.seasonYear, media?.popularity]).toEqual(['SUMMER', 2026, 247_199])
+})
+
+// Measured 2026-10-16: MyAnimeList lists Steel Ball Run on both the Summer and the Fall 2026 page, as the
+// live source then answers it for both.
+test('a show MyAnimeList lists in two seasons is in both buckets', async () => {
+  const card = (await summerPages()).get('2026-SUMMER')!.get(61469)!
+  const pages = new Map([['2026-SUMMER', new Map([[61469, card]])], ['2026-FALL', new Map([[61469, card]])]])
+
+  const laid = withMalSeasons({ '2026-SUMMER': [], '2026-FALL': [] }, pages, '2026-FALL')
+
+  expect([laid['2026-SUMMER'].map(entry => entry.ml), laid['2026-FALL'].map(entry => entry.ml)]).toEqual([[61469], [61469]])
+})
+
+// Measured 2026-10-16: the offline database files Link Click III in Summer and MyAnimeList lists it in
+// Fall, so the live source answers it for Fall as well.
+test('a show another bucket holds is still added to the season whose page lists it, with its episodes', async () => {
+  const card = (await summerPages()).get('2026-SUMMER')!.get(59193)!
+  const seasons = { '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193 })], '2026-FALL': [] }
+
+  const laid = withMalSeasons(seasons, new Map([['2026-FALL', new Map([[59193, card]])]]), '2026-FALL')
+
+  expect(laid['2026-FALL'].map(entry => [entry.ml, entry.ep, entry.pop])).toEqual([[59193, 14, 367_295]])
+})
+
+// Measured 2026-10-16 on Fall 2026: the offline database files Steel Ball Run as mal 63825 with AniList's
+// 210482, which AniList ties to mal 61469, the one MyAnimeList lists. Added as well, it drew as a second
+// Steel Ball Run card once AniList answered.
+test('a record holding a listed show\'s AniList id under another mal id becomes that show, not its twin', async () => {
+  const seasons = { '2026-SUMMER': [record('Steel Ball Run 2nd Stage', { ml: 63825, al: 210482 })] }
+
+  const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL', new Map([[61469, 210482]]))
+
+  expect(laid['2026-SUMMER'].map(entry => [entry.t, entry.ml, entry.al, entry.pop])).toEqual([
+    ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 59193, undefined, 367_295],
+    ['Steel Ball Run 2nd Stage', 61469, 210482, 247_199],
+  ])
+})
+
+test('a record MyAnimeList lists under its own id keeps it, whichever show arm ties its AniList id to', async () => {
+  const seasons = { '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193, al: 166873 })] }
+
+  const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL', new Map([[61469, 166873]]))
+
+  expect(laid['2026-SUMMER'].map(entry => [entry.t, entry.ml])).toEqual([
+    ['Mushoku Tensei III', 59193],
+    ['Steel Ball Run: JoJo no Kimyou na Bouken', 61469],
+  ])
+})
+
+// The title page reads whichever bucket holds the id first: a Steel Ball Run card on the Fall page opened
+// the Summer record, which named no AniList show, so the page lost AniList's relations.
+test('a show in two buckets names the same shows in both', async () => {
+  const card = (await summerPages()).get('2026-SUMMER')!.get(61469)!
+  const pages = new Map([['2026-SUMMER', new Map([[61469, card]])], ['2026-FALL', new Map([[61469, card]])]])
+  const seasons = { '2026-SUMMER': [], '2026-FALL': [record('Steel Ball Run 2nd Stage', { ml: 63825, al: 210482 })] }
+
+  const laid = withMalSeasons(seasons, pages, '2026-FALL', new Map([[61469, 210482]]))
+  const named = (key: string) => seasonMedia(laid[key][0], key)?.handles.map(handle => handle.node.uri)
+
+  expect(named('2026-SUMMER')).toEqual(['mal:61469', 'anilist:210482'])
+  expect(named('2026-FALL')).toEqual(named('2026-SUMMER'))
+})
+
+test('an R18+ title is in no season, whether the offline database or MyAnimeList brings it', async () => {
+  const laid = withMalSeasons({ '2026-SUMMER': [record('Ushiro no Shoumen Kamui-san', { ml: 63468 })] }, await summerPages(), '2026-FALL')
+  const listed = laid['2026-SUMMER'].map(entry => entry.ml)
+
+  expect(listed, 'in the offline database, marked R18+ on MyAnimeList').not.toContain(63468)
+  expect(listed, 'Shoujo Ramune, R18+ and only on MyAnimeList').not.toContain(32587)
+  expect(listed).toEqual([59193, 61469])
+})
+
+// The hero reads only the season running now, and a synopsis is most of a record's bytes.
+test('synopses ride only with the season running now', async () => {
+  const seasons = { '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193 })] }
+
+  const now = withMalSeasons(seasons, await summerPages(), '2026-SUMMER')
+  const later = withMalSeasons(seasons, await summerPages(), '2026-FALL')
+
+  expect(now['2026-SUMMER'].map(entry => Boolean(entry.sy))).toEqual([true, true])
+  expect(later['2026-SUMMER'].map(entry => Boolean(entry.sy))).toEqual([false, false])
+})
+
+test('with no page read at all every bucket keeps its rating order, so a failed fetch degrades', () => {
+  const seasons = { '2026-SUMMER': [record('Unrated'), record('Well Rated', { sc: 9 }), record('Fairly Rated', { sc: 7 })] }
+
+  expect(withMalSeasons(seasons, new Map(), '2026-FALL')['2026-SUMMER'].map(entry => entry.t))
+    .toEqual(['Well Rated', 'Fairly Rated', 'Unrated'])
 })
 
 // The exact shape node threw for api.jikan.moe on 2026-10-13, which the build logged as `(page 1 ())`.
@@ -105,13 +308,19 @@ test('a connect failure with no message of its own still says what failed', () =
 test('plain node loads the build\'s popularity module', () => {
   const module = fileURLToPath(new URL('../../../../scripts/season-popularity.mjs', import.meta.url))
 
-  expect(execFileSync(process.execPath, ['-e', `import(${JSON.stringify(module)}).then(m => console.log(typeof m.malSeason))`], { encoding: 'utf8' }).trim())
-    .toBe('function')
+  expect(execFileSync(process.execPath, ['-e', `import(${JSON.stringify(module)}).then(m => console.log(typeof m.errorText, typeof m.malSeasonData))`], { encoding: 'utf8' }).trim())
+    .toBe('function function')
+})
+
+// arm names the AniList id of each show MyAnimeList adds to a season, so it is a contributor to the file
+test('the bundled seasons credit arm as well as the offline database', async () => {
+  const { sources } = (await import('../../../../src/generated/anime-seasons')).default as unknown as { sources: { name: string }[] }
+
+  expect(sources.map(source => source.name)).toEqual([expect.stringContaining('anime-offline-database'), '@kawaiioverflow/arm'])
 })
 
 test('the season data marks MyAnimeList R18+ cards, so the build leaves them out of the season', async () => {
-  const html = readFileSync(fileURLToPath(new URL('../jikan/__fixtures__/mal-season-fall-2026.html', import.meta.url)), 'utf-8')
-  const counts = await malSeason(async () => new Response(html), 0)
+  const counts = await malSeason('2026-FALL', async () => new Response(fall), 0)
 
   expect(counts.get(64131)?.adult, 'Kanojo no Tomodachi, marked R18+').toBe(true)
   expect(counts.get(54344)?.adult, 'Mahou Shoujo Ikusei Keikaku: Restart').toBe(false)

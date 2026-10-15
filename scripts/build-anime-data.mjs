@@ -52,20 +52,19 @@
 //
 // stub is MIT, and neither upstream is, so the derived data carries its own terms rather than the
 // repo's. Attribution is per artifact and lists every contributor to THAT file: anime-seasons is
-// manami alone, anime-index is arm and manami together. Each one repeats its credits in a header
-// comment AND in a `sources` field, because ODbL section 4.2(b) wants the notice inside the
-// database as well as in the documentation. The `sources` field below IS the attribution of record:
-// it travels inside every artifact and names the license, its URI and the upstream url. ODbL 4.3
-// accepts that URI in place of a vendored copy of the text.
+// manami with arm's AniList ids for the shows MyAnimeList adds, anime-index is arm and manami
+// together. Each one repeats its credits in a header comment AND in a `sources` field, because ODbL
+// section 4.2(b) wants the notice inside the database as well as in the documentation. The `sources`
+// field below IS the attribution of record: it travels inside every artifact and names the license,
+// its URI and the upstream url. ODbL 4.3 accepts that URI in place of a vendored copy of the text.
 
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { brotliCompressSync, constants, zstdDecompressSync } from 'node:zlib'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
-import { orderSeasonBucket } from './season-order.mjs'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
-import { errorText, malSeason } from './season-popularity.mjs'
+import { errorText, malSeasonData } from './season-popularity.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -92,9 +91,10 @@ const DOWNLOAD_TIMEOUT_MS = 120_000
 const RETRY_DELAY_MS = 2_000
 
 // Attribution is PER ARTIFACT, not one blanket notice, because the two artifacts are not derived
-// from the same things. anime-seasons is manami alone. anime-index is a merge in which arm supplies
-// the larger share (20,754 of the MyAnimeList to AniList pairs against manami's 18,858), so an
-// ODbL-only notice on it would credit the smaller contributor and omit the larger one entirely.
+// from the same things. anime-seasons is manami's, with arm naming the AniList id of each show
+// MyAnimeList adds to a season. anime-index is a merge in which arm supplies the larger share (20,754
+// of the MyAnimeList to AniList pairs against manami's 18,858), so an ODbL-only notice on it would
+// credit the smaller contributor and omit the larger one entirely.
 //
 // The two licenses also want different things. ODbL section 4.2 wants its notice carried inside the
 // database as well as in the docs, which is why every artifact repeats it in a header AND in a
@@ -303,21 +303,17 @@ const newestRelease = async () => {
 const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [key, idIn(entry.sources, host)]))
 
 /**
- * The popularity the home page sorts on, or an empty map. manami ships none, and its 1 to 10 rating
- * puts three shows tied at a perfect 10 from a handful of votes above Mushoku Tensei.
+ * The seasons with MyAnimeList's counts laid over them. manami ships no popularity, and its 1 to 10
+ * rating puts three shows tied at a perfect 10 from a handful of votes above Mushoku Tensei.
  *
- * NEVER FATAL: a season's ordering is not worth failing a deploy over. The bucket then falls back to
- * the rating order, and the line logged says why.
+ * NEVER FATAL: a season's ordering is not worth failing a deploy over. A season whose page failed
+ * falls back to the rating order, and the line logged says why.
  */
-const seasonPopularity = async () => {
-  try {
-    const counts = await malSeason()
-    log(`myanimelist season data: ${counts.size} entries, ${[...counts.values()].filter(entry => entry.synopsis).length} with a synopsis`)
-    return counts
-  } catch (error) {
-    log(`myanimelist season data unavailable (${errorText(error)}); the season falls back to its rating order and the hero waits for a live source`)
-    return new Map()
-  }
+const withPopularity = async seasons => {
+  const laid = await malSeasonData(seasons, require('@kawaiioverflow/arm/arm.json'))
+  for (const [key, page] of laid.pages) log(`myanimelist ${key}: ${page.size} entries`)
+  for (const [key, error] of laid.failed) log(`myanimelist ${key} unavailable (${errorText(error)}); it falls back to its rating order`)
+  return laid.seasons
 }
 
 /**
@@ -330,7 +326,7 @@ const seasonPopularity = async () => {
  * It also lands the extract in nearly the shape the build wants, so the cache path exercises the
  * same code as the fresh path rather than a second one that could rot untested.
  */
-const buildExtract = (entries, meta, tag, popularity = new Map()) => {
+const buildExtract = (entries, meta, tag) => {
   const cut = new Date(`${meta.lastUpdate}T00:00:00Z`)
   const anchor = { year: cut.getUTCFullYear(), season: SEASON_ORDER[Math.floor(cut.getUTCMonth() / 3)] }
   const from = seasonIndex(anchor) - SEASONS_BACK
@@ -347,10 +343,6 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
     if (!season?.year || !SEASON_ORDER.includes(season.season)) continue
     const index = seasonIndex(season)
     if (index < from || index > to) continue
-    const live = ids.mal ? popularity.get(ids.mal) : undefined
-    // MyAnimeList's R18+ mark keeps an adult title out of every season: with a member count it can
-    // rank first in the row whenever no live source has re-ordered it yet (2026-10-13)
-    if (live?.adult) continue
 
     const record = {
       t: entry.title,
@@ -366,15 +358,8 @@ const buildExtract = (entries, meta, tag, popularity = new Map()) => {
     if (ids.anilist) record.al = ids.anilist
     if (ids.kitsu) record.ku = ids.kitsu
     if (entry.score?.arithmeticMean) record.sc = Math.round(entry.score.arithmeticMean * 100) / 100
-    // the current season's count the listing sorts on, and the synopsis the hero renders
-    if (live?.members) record.pop = live.members
-    if (live?.synopsis) record.sy = live.synopsis
     ;(seasons[`${season.year}-${season.season}`] ??= []).push(record)
   }
-
-  // the bundle's order IS the first paint: the listing sorts on popularity, every bundled row has
-  // none, and a stable sort therefore shows manami's alphabetical dump order. See `orderSeasonBucket`.
-  for (const key of Object.keys(seasons)) seasons[key] = orderSeasonBucket(seasons[key])
 
   return { sources: [OFFLINE_DATABASE], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons }
 }
@@ -399,7 +384,8 @@ const refreshExtract = async () => {
   // API still records the dated tag rather than the rolling pointer that served it. Falls back to
   // whatever named the release if upstream ever changes that url's shape.
   const tag = /refs\/tags\/([^/]+)\//.exec(meta.$schema ?? '')?.[1] ?? release.tag
-  const extract = buildExtract(entries, meta, tag, await seasonPopularity())
+  const extract = buildExtract(entries, meta, tag)
+  extract.seasons = await withPopularity(extract.seasons)
 
   mkdirSync(dirname(CACHE), { recursive: true })
   writeFileSync(CACHE, JSON.stringify(extract))
@@ -493,7 +479,7 @@ const main = async () => {
       // "undefined-undefined" in every shipped artifact, because a string has no .year or .season.
       { tag: manami.tag, updated: manami.updated, anchor, seasons },
       provenance,
-      [OFFLINE_DATABASE],
+      [OFFLINE_DATABASE, ARM],
     )
 
   log(`${(total / 1024).toFixed(0)} KB brotli total, none of it in the initial bundle`)
