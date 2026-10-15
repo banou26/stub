@@ -51,6 +51,7 @@ const TMDB: Record<string, string> = {
   '/tv/93405': SQUID_GAME_SHOW,
   '/tv/93405/seasons': SQUID_GAME_SEASONS,
   '/tv/93405/season/1': '<div class="card" data-episode-number="1"><h3><a href="#">Red Light, Green Light</a></h3><span class="date">September 17, 2021</span></div>',
+  '/tv/93405/season/2': '<div class="card" data-episode-number="1"><h3><a href="#">Bread and Lottery</a></h3><span class="date">December 26, 2024</span></div>',
   '/tv/209867': FRIEREN_SHOW,
   '/tv/209867/seasons': FRIEREN_SEASONS,
 }
@@ -61,7 +62,7 @@ const TMDB: Record<string, string> = {
 // for mal:21) and Frieren's TMDB, TheTVDB and IMDb ids, AnimeThemes with Frieren's themes, bliss without
 // its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
 // alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
-// Squid Game's first, which lists one episode, and JustWatch with its four most popular films or shows
+// Squid Game's first two, which list one episode each, and JustWatch with its four most popular films or shows
 // when asked for either, and MyAnimeList with Cowboy Bebop's title and credits pages for mal:1; every
 // other request goes where it always went.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {

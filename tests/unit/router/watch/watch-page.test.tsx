@@ -20,6 +20,9 @@ const allHandles = [
 const episode = { uri: params.episodeUri, handles: allHandles }
 const single = { uri: params.mediaUri, episodes: [episode] }
 let media: object = single
+// the other runs the page may ask for, by the uri it asks with, and every uri it asked for besides its own
+let runs: Record<string, object> = {}
+let asked: string[] = []
 let watchQuery = ''
 let origins: string[] | undefined
 let party = { status: 'idle' }
@@ -28,18 +31,28 @@ let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 let tracking: object | undefined
 const saved: object[] = []
 
-vi.mock('urql', () => ({
-  useSubscription: ({ query, variables }: { query: Parameters<typeof print>[0], variables: { input: { uri?: string, ids?: string[] } } }) => {
-    const printed = print(query)
-    if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking } }]
-    if (variables.input.uri) watchQuery = printed
-    return [{ data: variables.input.uri ? { media } : origins && { originPage: { nodes: origins.filter(id => variables.input.ids?.includes(id)).map(id => ({ id, name: id })) } } }]
-  },
-  useMutation: () => [{}, async ({ input }: { input: { trackers: string[] } }) => {
-    saved.push(input)
-    return { data: { saveListEntry: input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' })) } }
-  }],
-}))
+vi.mock('urql', async () => {
+  const { useRef } = await import('preact/hooks')
+  return {
+    useSubscription: ({ query, variables, pause }: { query: Parameters<typeof print>[0], variables: { input: { uri?: string, ids?: string[] } }, pause?: boolean }) => {
+      // as urql does, the last answer stays while paused, or while a new uri has none yet
+      const last = useRef<object>({})
+      const printed = print(query)
+      if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking } }]
+      const { uri, ids } = variables.input
+      if (uri === undefined) return [{ data: origins && { originPage: { nodes: origins.filter(id => ids?.includes(id)).map(id => ({ id, name: id })) } } }]
+      if (uri === params.mediaUri) watchQuery = printed
+      else if (!pause && !asked.includes(uri)) asked.push(uri)
+      const answer = uri === params.mediaUri ? media : runs[uri]
+      if (answer && !pause) last.current = { data: { media: answer }, operation: { variables } }
+      return [last.current]
+    },
+    useMutation: () => [{}, async ({ input }: { input: { trackers: string[] } }) => {
+      saved.push(input)
+      return { data: { saveListEntry: input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' })) } }
+    }],
+  }
+})
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate] }))
 vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
@@ -102,9 +115,11 @@ afterEach(() => {
   party = { status: 'idle' }
   backend = 'cloud'
   statuses = { crunchyroll: 'signed-out' }
-  params = { mediaUri: params.mediaUri, episodeUri: allUri }
+  params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
   Object.assign(episode, { uri: allUri, handles: allHandles })
   media = single
+  runs = {}
+  asked = []
   relays.remembered = {}
   relays.heard = []
   bridge.links = []
@@ -313,10 +328,12 @@ const row = (n: number, ...handles: ReturnType<typeof handle>[]) =>
   ({ uri: `ag:(anilist:1-${n})`, episodeNumber: n, titles: [{ title: `Title ${n}` }], handles })
 const crunchyroll = (n: number) => handle(`cr:GX${n}`, 'cr', `https://www.crunchyroll.com/watch/GX${n}`)
 const release = (id: string) => handle(`nyaa:${id}`, 'nyaa', `magnet:?xt=urn:btih:${id}`)
-// three episodes, the address on the second; the third as given
+// three episodes, the address on the second; the third as given. The answer names the media by more
+// sources than the address does, as it does once sources join.
+const SERIES = 'ag:(anilist:1,tvdb:1)'
 const series = (third: object = {}, sourceUri = 'nyaa:a') => {
   media = {
-    uri: params.mediaUri,
+    uri: SERIES,
     episodes: [row(1, crunchyroll(1)), row(2, crunchyroll(2), release('a')), { ...row(3, crunchyroll(3), release('b')), ...third }],
   }
   params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri }
@@ -535,7 +552,7 @@ test('85% of the episode played on the page\'s player saves it to the media\'s t
     await report({ paused: false, time: 840 })
     expect(saved, member.status).toEqual([])
     await report({ paused: false, time: 850 })
-    expect(saved, member.status).toEqual([expect.objectContaining({ uri: params.mediaUri, trackers: ['stub'], entry: { progress: 2, status: 'WATCHING' } })])
+    expect(saved, member.status).toEqual([expect.objectContaining({ uri: SERIES, trackers: ['stub'], entry: { progress: 2, status: 'WATCHING' } })])
     unmount(hosts.pop()!)
     saved.length = 0
   }
@@ -575,7 +592,7 @@ test('another media gets its own tracking: what was played of the first is never
     tracking = stubOnly
     const { rerender } = await atTheEnd()
     await report({ paused: false, time: 900 })
-    expect(saved).toEqual([expect.objectContaining({ uri: first, trackers: ['stub'] })])
+    expect(saved).toEqual([expect.objectContaining({ uri: SERIES, trackers: ['stub'] })])
     params = { ...params, mediaUri: other }
     media = { ...media, uri: other }
     tracking = { summary: null, disagreements: [], answers: [...stubOnly.answers, { state: 'NOT_LISTED', candidates: [], tracker: { id: 'anilist', name: 'AniList', canWrite: true } }] }
@@ -590,4 +607,127 @@ test('another media gets its own tracking: what was played of the first is never
   } finally {
     params = { ...params, mediaUri: first }
   }
+})
+
+const SEQUEL = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:2', uri: 'anilist:2' } }
+const PREQUEL = { relation: 'PREQUEL', format: 'TV', node: { _id: 'anilist:0', uri: 'anilist:0' } }
+const NEXT_SEASON = '/watch/ag:(anilist:2)/ag:(anilist:2-1)'
+// the run after the one playing, under the uri the page asks it by, its first episode as given
+const nextRun = (uri: string, first: object = {}) => {
+  runs[uri] = {
+    uri: 'ag:(anilist:2)',
+    episodes: [{ uri: 'ag:(anilist:2-1)', episodeNumber: 1, titles: [{ title: 'Second season' }], handles: [handle('cr:GY1', 'cr', 'https://www.crunchyroll.com/watch/GY1'), release('d')], ...first }],
+  }
+}
+// the address on the last of three episodes, of a media linked to others as given
+const lastOf = (linked: object, sourceUri: string) => {
+  series()
+  media = { ...media, ...linked }
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri }
+}
+const open = async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  const host = page()
+  hosts.push(host)
+  await settle()
+  return host
+}
+
+test('the last episode of an anime links the first of its sequel, on the release playing now', async () => {
+  lastOf({ relations: [SEQUEL] }, 'nyaa:b')
+  nextRun('anilist:2')
+  const host = await open()
+  expect(episodeLinks(host)).toEqual([
+    ['Previous episode', watchPath(2, 'nyaa:a'), 'E2 - Title 2'],
+    ['Next episode', `${NEXT_SEASON}/nyaa:d`, 'E1 - Second season'],
+  ])
+  expect(asked).toEqual(['anilist:2'])
+})
+
+test('the last episode of a show\'s season links the first of the next season', async () => {
+  lastOf({
+    handles: [{ relation: 'SAME_AS', node: { uri: 'tmdb:9-s1' } }],
+    seasons: [{ number: 1, uri: 'tmdb:9-s1' }, { number: 2, uri: 'tmdb:9-s2' }],
+  }, 'cr:GX3')
+  nextRun('tmdb:9-s2')
+  const host = await open()
+  expect(episodeLinks(host).at(-1)).toEqual(['Next episode', `${NEXT_SEASON}/cr:GY1`, 'E1 - Second season'])
+})
+
+test('with no next season, or one whose first episode is not out, there is no next episode', async () => {
+  for (const [linked, first] of [[{}, {}], [{ relations: [SEQUEL] }, { releaseDate: '2099-01-01' }]] as const) {
+    lastOf(linked, 'cr:GX3')
+    nextRun('anilist:2', first)
+    const host = await open()
+    expect(episodeLinks(host).map(([label]) => label), JSON.stringify(linked)).toEqual(['Previous episode'])
+    unmount(hosts.pop()!)
+  }
+})
+
+test('the first episode links the last of the season before', async () => {
+  series()
+  media = { ...media, relations: [PREQUEL] }
+  params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
+  runs['anilist:0'] = { uri: 'ag:(anilist:0)', episodes: [{ uri: 'ag:(anilist:0-12)', episodeNumber: 12, titles: [{ title: 'Finale' }], handles: [handle('cr:GW12', 'cr', 'https://www.crunchyroll.com/watch/GW12')] }] }
+  const host = await open()
+  expect(episodeLinks(host)).toEqual([
+    ['Previous episode', '/watch/ag:(anilist:0)/ag:(anilist:0-12)/cr:GW12', 'E12 - Finale'],
+    ['Next episode', watchPath(2, 'cr:GX2'), 'E2 - Title 2'],
+  ])
+})
+
+test('an episode inside its season asks for no other run', async () => {
+  series({}, 'cr:GX2')
+  media = { ...media, relations: [PREQUEL, SEQUEL] }
+  nextRun('anilist:2')
+  await open()
+  expect(asked).toEqual([])
+})
+
+test('a film links no episode of its sequel or prequel, and counts down to none', async () => {
+  for (const type of ['MOVIE', 'TV']) {
+    media = { ...single, type, relations: [PREQUEL, SEQUEL] }
+    params = { ...params, sourceUri: 'cr:GX1' }
+    nextRun('anilist:2')
+    asked = []
+    const host = await open()
+    await report(played, ended)
+    const film = type === 'MOVIE'
+    expect(episodeLinks(host).map(([label]) => label), type).toEqual(film ? [] : ['Next episode'])
+    expect(asked, type).toEqual(film ? [] : ['anilist:0', 'anilist:2'])
+    expect(Boolean(host.querySelector('.up-next')), type).toBe(!film)
+    unmount(hosts.pop()!)
+  }
+})
+
+test('at the end of a season, the countdown opens the next season\'s first episode', async () => {
+  lastOf({ relations: [SEQUEL] }, 'cr:GX3')
+  nextRun('anilist:2')
+  const host = await open()
+  await report(played, ended)
+  expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E1 - Second season')
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`${NEXT_SEASON}/cr:GY1`)
+})
+
+test('a run that has not answered yet is never read from the one asked before it', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  lastOf({ relations: [SEQUEL] }, 'cr:GX3')
+  nextRun('anilist:2')
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  expect(episodeLinks(host).at(-1)?.[1]).toBe(`${NEXT_SEASON}/cr:GY1`)
+
+  // on to the sequel's last episode, whose own sequel has not answered
+  media = { ...runs['anilist:2'], relations: [{ ...SEQUEL, node: { _id: 'anilist:3', uri: 'anilist:3' } }] }
+  params = { ...params, mediaUri: 'ag:(anilist:2)', episodeUri: 'ag:(anilist:2-1)', sourceUri: 'cr:GY1' }
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(asked).toEqual(['anilist:2', 'anilist:3'])
+  expect(host.querySelector('.episode-nav')).toBeNull()
 })

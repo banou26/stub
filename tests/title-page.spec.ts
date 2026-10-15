@@ -12,8 +12,8 @@ import { build } from 'vite-plus'
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
 // AniList answers each of them with Cowboy Bebop's credits and one sequel, Spec Sequel, AniZip with 26
 // episodes and Frieren's ids, AnimeThemes with Frieren's themes, one without a video, IMDb answers
-// Breaking Bad, TMDB Squid Game's three seasons and Frieren's one, and MyAnimeList Cowboy Bebop's title
-// and credits pages for mal:1 (tests/fake-fetch.ts).
+// Breaking Bad, TMDB Squid Game's three seasons, the first two with one episode each, and Frieren's one,
+// and MyAnimeList Cowboy Bebop's title and credits pages for mal:1 (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -645,4 +645,19 @@ test('the white Play button shows its edge over a white backdrop, hovered too, i
   await expectEdge(page, title, 'the title page')
   await title.hover()
   await expectEdge(page, title, 'the title page hovered')
+})
+
+test('a season\'s last episode links the first of the next season, which links back, and Back returns', async ({ page }) => {
+  await page.goto(`${origin}/watch/tmdb:93405-s1/tmdb:93405-s1e1`)
+  const nav = page.locator('.episode-nav')
+  const next = nav.getByRole('link', { name: 'Next episode' })
+  await expect(next).toHaveAttribute('title', 'E1 - Bread and Lottery', { timeout: 30_000 })
+  await expect(nav.getByRole('link', { name: 'Previous episode' }), 'the first season has none before it').toHaveCount(0)
+  await next.click()
+  await expect(page).toHaveURL(/\/watch\/[^/]*tmdb:93405-s2\b/)
+  await expect(page.locator('.episode-title')).toHaveText('E1 - Bread and Lottery', { timeout: 30_000 })
+  await expect(nav.getByRole('link', { name: 'Previous episode' })).toHaveAttribute('title', 'E1 - Red Light, Green Light', { timeout: 30_000 })
+  await expect(next, 'the third season lists no episode').toHaveCount(0)
+  await page.goBack()
+  await expect(page.locator('.episode-title')).toHaveText('E1 - Red Light, Green Light')
 })

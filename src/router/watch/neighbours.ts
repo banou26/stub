@@ -1,13 +1,61 @@
-// The episodes either side of the one playing, and the source each opens on. Imports only
-// ./auto-pick, so it is tested without the watch page, which reaches the worker.
+// The episodes either side of the one playing, and the source each opens on. Imports nothing that
+// reaches the worker, so it is tested without the watch page.
 
 import { bestSource, type Ways } from './auto-pick'
+import { unreleasedEpisodes } from '../home/episodes'
+import { isMovieMedia } from '../home/movie'
+import { isVideoFormat } from '../../utils/franchise-layout'
 
-/** The row before `index`, and the row after it once it is out. Rows are in episode order, so a gap in the numbering is stepped over. */
-export const neighbours = <T>(rows: readonly T[], index: number, unreleased: readonly boolean[]) => ({
-  previous: index > 0 ? rows[index - 1] : undefined,
-  next: index >= 0 && !unreleased[index + 1] ? rows[index + 1] : undefined,
-})
+type Dated = Parameters<typeof unreleasedEpisodes>[0]
+
+/** One run of episodes, a season or a film, with what says which of them are out. */
+type Run<T extends Dated['episodes'][number]> = Omit<Dated, 'episodes'> & { uri: string, episodes: readonly T[] }
+
+/**
+ * The run after this one (`1`) or before it (`-1`): a show's next or previous season, else an anime's
+ * sequel or prequel that plays, one of its own format first, so a TV season goes on to the next TV
+ * season rather than to a recap special or a film listed beside it. Undefined for a film, and when
+ * there is none.
+ */
+export const adjacentRun = (
+  media: {
+    /** Every row the media is, which is how it is found in `seasons`. */
+    handles: readonly { node: { uri: string } }[]
+    seasons?: readonly { uri: string }[] | null
+    relations?: readonly { relation: string, format?: string | null, node: { uri: string } }[]
+    type?: string | null
+    categories?: readonly string[] | null
+  },
+  step: 1 | -1,
+): string | undefined => {
+  if (isMovieMedia(media)) return undefined
+  const { handles, seasons, relations, type } = media
+  const at = seasons?.findIndex(season => handles.some(handle => handle.node.uri === season.uri)) ?? -1
+  if (seasons && at >= 0) return seasons[at + step]?.uri
+  const relation = step > 0 ? 'SEQUEL' : 'PREQUEL'
+  // listed in uri order, which says nothing about which came first
+  const runs = relations?.filter(edge => edge.relation === relation && isVideoFormat(edge.format)) ?? []
+  return (runs.find(edge => edge.format === type) ?? runs[0])?.node.uri
+}
+
+/**
+ * The episode before the one at `index` of `run`, and the one after it once it is out, each with the
+ * uri of the run it is in. Rows are in episode order, so a gap in the numbering is stepped over, and
+ * past either end of `run` the neighbour is the last episode of `before` or the first of `after`.
+ */
+export const neighbours = <T extends Dated['episodes'][number]>(
+  [before, run, after]: readonly [Run<T> | undefined, Run<T> | undefined, Run<T> | undefined],
+  index: number,
+) => {
+  const runs = [before, run, after].filter(each => each !== undefined)
+  const rows = runs.flatMap(({ uri, episodes }) => episodes.map(episode => ({ episode, mediaUri: uri })))
+  const unreleased = runs.flatMap(each => unreleasedEpisodes(each))
+  const at = index < 0 ? -1 : index + (before?.episodes.length ?? 0)
+  return {
+    previous: at > 0 ? rows[at - 1] : undefined,
+    next: at >= 0 && !unreleased[at + 1] ? rows[at + 1] : undefined,
+  }
+}
 
 /**
  * The source another episode opens on: its best handle `origin` plays, so a viewer stays on the

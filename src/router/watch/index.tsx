@@ -24,11 +24,11 @@ import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
-import { unreleasedEpisodes } from '../home/episodes'
+import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
-import { neighbours, sourceFor } from './neighbours'
+import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import TrackWatched from './track-watched'
 import UpNext from './up-next'
 
@@ -69,6 +69,18 @@ const GET_WATCH_MEDIA = gql(`
       nextAiringEpisode {
         episodeNumber
         airingAt
+      }
+      seasons {
+        number
+        uri
+      }
+      relations {
+        relation
+        format
+        node {
+          _id
+          uri
+        }
       }
       episodes {
         ...EpisodeFragment
@@ -139,6 +151,12 @@ const GET_WATCH_ORIGINS = gql(`
     }
   }
 `)
+
+/** The run of episodes beside the one playing, while `uri` names it. */
+const useRun = (uri: string | undefined) => {
+  const [state] = useSubscription({ query: GET_WATCH_MEDIA, variables: { input: { uri: uri ?? '' } }, pause: !uri })
+  return currentMedia(state, uri)
+}
 
 const style = css`
   display: flex;
@@ -457,20 +475,25 @@ const Watch = () => {
   // the episodes either side ignore it
   const linkWays: Ways = { ...ways, signedOut: () => false }
   const episodes = media?.episodes ?? []
-  const { previous, next } = neighbours(episodes, episode ? episodes.indexOf(episode) : -1, media ? unreleasedEpisodes(media) : [])
+  const index = episode ? episodes.indexOf(episode) : -1
+  // only a run's first or last episode has a neighbour in another run, so only there is it asked for
+  const before = useRun(media && index === 0 ? adjacentRun(media, -1) : undefined)
+  const after = useRun(media && index >= 0 && index === episodes.length - 1 ? adjacentRun(media, 1) : undefined)
+  // the address's own spelling of this run, so a link inside it keeps the page's subscription
+  const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index)
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
-  const linkTo = (target: typeof episode) => target?.uri ? {
+  const linkTo = (target: typeof next) => target?.episode.uri ? {
     href: getRoutePath(Route.WATCH, {
-      mediaUri: params.mediaUri,
-      episodeUri: target.uri,
-      sourceUri: sourceFor(playableHandlesOf(target.handles), playingOrigin, linkWays),
+      mediaUri: target.mediaUri,
+      episodeUri: target.episode.uri,
+      sourceUri: sourceFor(playableHandlesOf(target.episode.handles), playingOrigin, linkWays),
     }),
-    title: episodeLabel(target.episodeNumber, target.titles?.at(0)?.title),
+    title: episodeLabel(target.episode.episodeNumber, target.episode.titles?.at(0)?.title),
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page
-  const upNext = !guest && next && bestSource(playableHandlesOf(next.handles), linkWays) ? nextLink : undefined
+  const upNext = !guest && next && bestSource(playableHandlesOf(next.episode.handles), linkWays) ? nextLink : undefined
 
   return (
     <div css={style}>
