@@ -243,8 +243,8 @@ const orderWithinTier = (titles: string[]) => [...titles].sort(compareStrings)
  * The titles this cluster is compared on, as a function of the SET of (title, score) pairs it holds
  * and of nothing else.
  *
- * Every title's `score` is a single module constant per SOURCE (0.9 jikan and ani.zip, 0.8 anilist,
- * 0.5 crunchyroll, 0.3 the english metadata block, 0.25 watchmode, 0.2 the streaming catalogues), so
+ * Every title's `score` is a module constant of its SOURCE (0.9 ani.zip and jikan's English, 0.8 anilist,
+ * 0.5 crunchyroll, 0.4 jikan's others, 0.3 the english metadata block, 0.25 watchmode, 0.2 the catalogues), so
  * a comparator on it returns 0 for every pair inside a tier and Array.prototype.sort leaves those in
  * insertion order. Insertion order was cluster order, which is union-find component order, which is
  * [surviving root's members..., absorbed root's members...] and therefore the order the extractors'

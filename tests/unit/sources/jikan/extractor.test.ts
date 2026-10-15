@@ -64,8 +64,8 @@ test('a title is read off its myanimelist.net page, with every field Jikan answe
     genres: ['Action', 'Award Winning', 'Sci-Fi', 'Adult Cast', 'Space'],
     titles: [
       { language: 'en', title: 'Cowboy Bebop', score: 0.9 },
-      { language: 'jp-en', title: 'Cowboy Bebop', score: 0.9 },
-      { language: 'jp', title: 'カウボーイビバップ', score: 0.9 },
+      { language: 'jp-en', title: 'Cowboy Bebop', score: 0.4 },
+      { language: 'jp', title: 'カウボーイビバップ', score: 0.4 },
     ],
     covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/4/19644l.webp', score: 0.9 }],
     trailers: [{ uri: 'yt:gY5nDXOtv_o', origin: 'yt', id: 'gY5nDXOtv_o', url: 'https://www.youtube.com/watch?v=gY5nDXOtv_o' }],
@@ -296,7 +296,7 @@ test('a season card carries its type, title, cover, genres, members and start', 
     uri: 'mal:54344',
     type: 'TV',
     categories: ['ANIME', 'SERIES'],
-    titles: [{ language: 'jp-en', title: 'Mahou Shoujo Ikusei Keikaku: Restart', score: 0.9 }],
+    titles: [{ language: 'jp-en', title: 'Mahou Shoujo Ikusei Keikaku: Restart', score: 0.4 }],
     covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1518/160127l.webp', score: 0.9 }],
     genres: ['Action', 'Suspense', 'Gore', 'High Stakes Game', 'Mahou Shoujo', 'Survival'],
     popularity: 13337,
@@ -401,7 +401,7 @@ test('a search answer carries the id, title, type, status, dates, rating and lar
     startDate: '2026-01-16',
     endDate: '2026-03-27',
     averageScore: 88,
-    titles: [{ language: 'jp-en', title: 'Sousou no Frieren 2nd Season', score: 0.9 }],
+    titles: [{ language: 'jp-en', title: 'Sousou no Frieren 2nd Season', score: 0.4 }],
     covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1921/154528l.webp', score: 0.9 }],
   })
   // `Oct ??, 2027 to ?` and an `N/A` rating

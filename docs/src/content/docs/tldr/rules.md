@@ -56,7 +56,7 @@ that argues each rule, and in full in [Constants](/reference/constants/).
 | the exchange-rate bar | `1.0` wrong welds refused per correct merge lost | `catalogue-gate.ts:83-84` | whether a proposed threshold, window or veto ships at all ([why 1.0](/invariants/nothing-rather-than-a-guess/)) |
 | a third format for SPECIAL/OVA/ONA | `0.003`: 31 of 75 welds, 8808 of 17946 attaches destroyed | `fuzzy-merge.ts:552-557` | refused, worse than any rule the file has refused |
 | title-ordering arms (weld / split / attach) | arrival 64.5 / 94.9 / 56.0; title ascending 69.6 / 99.9 / 70.0; longest first 53.8 / 100.0 / 19.9; shortest first 82.7 / 100.0 / 98.7 | `fuzzy-merge.ts:201-233` | title ascending shipped: five points off the weld arm, five and fourteen onto the recall arms, and independence from arrival order |
-| per-source title scores | 0.9 jikan and ani.zip, 0.8 anilist, 0.5 crunchyroll, 0.3 the english block, 0.25 watchmode, 0.2 the streaming catalogues | `fuzzy-merge.ts:240-250` | which six titles a cluster is compared on. A comparator on score returns 0 inside a tier, so `orderWithinTier` (`:234`) breaks it |
+| per-source title scores | 0.9 ani.zip and jikan's English titles, 0.8 anilist, 0.5 crunchyroll, 0.4 jikan's romaji and Japanese titles, 0.3 the english block, 0.25 watchmode, 0.2 the streaming catalogues | `fuzzy-merge.ts:240-250` | which six titles a cluster is compared on. A comparator on score returns 0 inside a tier, so `orderWithinTier` (`:234`) breaks it |
 
 ### Consensus and windowing
 

@@ -9,7 +9,7 @@ import { formatLabel, seasonLabel, statusLabel } from '../search/params'
 import { parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
 
 export type TitleMedia = {
-  titles?: readonly { title: string }[] | null
+  titles?: readonly { title: string, language?: string | null }[] | null
   type?: MediaType | null
   status?: MediaStatus | null
   episodeCount?: number | null
@@ -40,9 +40,14 @@ const sourceLabel = (source: string | null | undefined) =>
 const ratingLabel = ({ source, value, scale }: NonNullable<TitleMedia['ratings']>[number]) =>
   `${source} ${scale === 100 ? `${Math.round(value)}%` : value.toFixed(1)}`
 
-/** The second title under the main one: the first that reads differently, usually the romaji or the native. */
-export const secondTitle = (titles: TitleMedia['titles']): string | undefined =>
-  titles?.find(({ title }) => title !== titles[0]?.title)?.title
+/**
+ * The second title under the main one: the first that reads differently in another language, usually the
+ * romaji or the native, else the first that reads differently.
+ */
+export const secondTitle = (titles: TitleMedia['titles']): string | undefined => {
+  const others = titles?.filter(({ title }) => title !== titles[0]?.title) ?? []
+  return (others.find(({ language }) => language !== titles?.[0]?.language) ?? others[0])?.title
+}
 
 /** The chips under the title: episodes, format and status, each left out when no source named it. */
 export const titleChips = (media: TitleMedia): string[] =>

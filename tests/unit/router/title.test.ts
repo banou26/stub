@@ -110,6 +110,23 @@ test('the second title is the first that reads differently from the main one', (
   expect(secondTitle(undefined)).toBeUndefined()
 })
 
+test('the second title is in another language than the main one, not a second English spelling of it', () => {
+  // Iron-Blooded Orphans as ani.zip, MyAnimeList and AniList name it, in score order
+  const titles = [
+    { language: 'en', title: 'Mobile Suit Gundam: Iron-Blooded Orphans' },
+    { language: 'en', title: 'Mobile Suit Gundam: Iron Blooded Orphans' },
+    { language: 'ja', title: '機動戦士ガンダム 鉄血のオルフェンズ' },
+    { language: 'jp-en', title: 'Kidou Senshi Gundam: Tekketsu no Orphans' },
+  ]
+  expect(secondTitle(titles)).toBe('機動戦士ガンダム 鉄血のオルフェンズ')
+  expect(titleFacts({ titles }).at(-1)).toEqual({
+    label: 'Also known as',
+    value: 'Mobile Suit Gundam: Iron Blooded Orphans, Kidou Senshi Gundam: Tekketsu no Orphans',
+  })
+  expect(secondTitle([{ language: 'en', title: 'Monster' }, { language: 'jp-en', title: 'Monster' }, { language: 'en', title: 'MONSTER!' }]), 'a title reading the same is never second')
+    .toBe('MONSTER!')
+})
+
 test('Play follows the tracking: Rewatch once completed, Continue once watched, Play otherwise', () => {
   expect(playLabel(undefined)).toBe('Play')
   expect(playLabel({ status: 'PLANNING', progress: 0 })).toBe('Play')

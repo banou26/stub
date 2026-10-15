@@ -80,7 +80,7 @@ export const SOURCES_WAIT_MS = 120_000
 /** How many of the candidates the hero picks between. Kept small so it stays a highlight reel. */
 export const THEATER_POOL_SIZE = 10
 
-/** Kitsu's score. Above it in the listing are AniList (0.8) and Jikan (0.9), below it the bundle (0.2). */
+/** Kitsu's score. Above it in the listing are AniList (0.8) and Jikan (0.9, its romaji 0.4), below it the bundle (0.2). */
 const KITSU_SCORE = 0.3
 
 /**
@@ -89,6 +89,7 @@ const KITSU_SCORE = 0.3
  * placeholder synopsis ("The second season of ...") and an announcement trailer that YouTube may
  * refuse to embed where AniList's trailer for the same show plays (measured 2026-10-10). A source
  * answers a show's title, description and trailer together, so the leading title's score stands for all three.
+ * Jikan's romaji (0.4) sits below its description (0.9), and still above Kitsu.
  *
  * It decides when what the hero shows is final, and only for `THEATER_WAIT_MS` whether it shows anything.
  */

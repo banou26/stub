@@ -25,6 +25,11 @@ export const supportedUris = ['mal']
 
 const SCORE = 0.9
 const DESCRIPTION_SCORE = 0.9
+// the romaji and Japanese titles, which every page carries and the search box answers alone: below the
+// sources that lead with an English title (AniList 0.8, LiveChart 0.6, Crunchyroll 0.5), so a card
+// shows MyAnimeList's English title, else theirs; above Kitsu's 0.3, the bar the home hero holds a
+// leading title to (utils/theater.ts)
+const JAPANESE_TITLE_SCORE = 0.4
 // below AniList's credits (0.8), as the first source read sets each shared character's name, face and
 // url and each language's whole cast, and this page lists staff by job, producers first; above Anime
 // News Network's (0.2), which have no faces, roles or ids
@@ -101,8 +106,8 @@ const pageMedia = (id: string, page: MalAnime) => {
     ...desc(page.synopsis, DESCRIPTION_SCORE),
     titles: [
       ...page.englishTitle ? [{ language: 'en', title: page.englishTitle, score: SCORE }] : [],
-      { language: 'jp-en', title: page.title, score: SCORE },
-      ...page.japaneseTitle ? [{ language: 'jp', title: page.japaneseTitle, score: SCORE }] : [],
+      { language: 'jp-en', title: page.title, score: JAPANESE_TITLE_SCORE },
+      ...page.japaneseTitle ? [{ language: 'jp', title: page.japaneseTitle, score: JAPANESE_TITLE_SCORE }] : [],
     ],
     covers: page.cover ? [{ language: 'en', url: page.cover, score: SCORE }] : [],
     episodeCount: page.episodes,
@@ -150,7 +155,7 @@ const seasonMedia = (entry: MalSeasonEntry, { season, year }: { season: AnimeSea
   malMedia(entry.id, MAL_TYPE[entry.typeId as keyof typeof MAL_TYPE], {
     titles: [
       ...entry.englishTitle ? [{ language: 'en', title: entry.englishTitle, score: SCORE }] : [],
-      { language: 'jp-en', title: entry.title, score: SCORE },
+      { language: 'jp-en', title: entry.title, score: JAPANESE_TITLE_SCORE },
     ],
     covers: entry.cover ? [{ language: 'en', url: entry.cover, score: SCORE }] : [],
     // MAL prints one flat genre list on a card, its genres, themes and demographics, the same three
@@ -206,7 +211,7 @@ type SearchItem = {
 // `/images/qm_50.gif`, which at 0.9 would outrank another source's real cover.
 const searchMedia = (item: SearchItem) =>
   malMedia(String(item.id), item.payload?.media_type, {
-    titles: [{ language: 'jp-en', title: item.name, score: SCORE }],
+    titles: [{ language: 'jp-en', title: item.name, score: JAPANESE_TITLE_SCORE }],
     covers: item.image_url?.includes('/images/anime/') ? [{ language: 'en', url: malLargeImage(item.image_url), score: SCORE }] : [],
     averageScore: percentScore(item.payload?.score, 10),
     status: item.payload?.status ? STATUSES[item.payload.status] : undefined,

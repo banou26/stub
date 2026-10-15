@@ -358,11 +358,11 @@ than failing. They are the loudest group and the least urgent.
 | `:195` | error | `AniList frontend: the gate refused a freshly acquired pair` |
 | `:200` | error | `AniList frontend request failed (HTTP <status>): <reason>` |
 | `:203` | error | `AniList frontend returned no data (HTTP <status>)` |
-| `src/sources/jikan/extractor.ts:137` | error | `MyAnimeList credits <id> failed` |
-| `:182` | error | `MyAnimeList <season> <year> parsed no entries from <n> bytes` |
-| `:186` | error | `MyAnimeList season page has no section headings, so carried-over shows cannot be told apart` |
-| `:192` | error | `MyAnimeList <season> <year> failed` |
-| `:223` | error | `MyAnimeList search failed` |
+| `src/sources/jikan/extractor.ts:142` | error | `MyAnimeList credits <id> failed` |
+| `:187` | error | `MyAnimeList <season> <year> parsed no entries from <n> bytes` |
+| `:191` | error | `MyAnimeList season page has no section headings, so carried-over shows cannot be told apart` |
+| `:197` | error | `MyAnimeList <season> <year> failed` |
+| `:228` | error | `MyAnimeList search failed` |
 | `src/sources/kitsu/extractor.ts:242` | error | `Kitsu season page <page> failed` |
 | `src/sources/offline/extractor.ts:97` | error | `offline: the bundled season data could not be loaded` |
 | `:105` | error | `offline: the bundled id index could not be loaded` |

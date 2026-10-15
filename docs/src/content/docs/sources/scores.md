@@ -1,6 +1,6 @@
 ---
 title: Scores, and what they decide
-description: One module-private constant per source, threaded by hand onto every field it mints. It decides which spelling of a title survives, which episode count is believed, whose episodes may be hidden, and which six titles decide whether two clusters are welded together for good.
+description: One module-private constant per source (two for MyAnimeList's titles), threaded by hand onto every field it mints. It decides which spelling of a title survives, which episode count is believed, whose episodes may be hidden, and which six titles decide whether two clusters are welded together for good.
 ---
 
 Nothing in the worker ever asks a source what it is worth. `ExtractorDefinition`
@@ -22,6 +22,7 @@ hbo, fubo) and imdb. None of them calls `makeMedia` even once, so there is nothi
 | `0.8` | anilist | `src/sources/anilist/extractor.ts:217` |
 | `0.6` | livechart | `src/sources/livechart/extractor.ts:20` |
 | `0.5` | crunchyroll | `src/sources/crunchyroll/extractor.ts:12` |
+| `0.4` | jikan's romaji and Japanese titles, so a card shows MyAnimeList's English title, else AniList's, LiveChart's or Crunchyroll's; its search answers carry the romaji alone | `JAPANESE_TITLE_SCORE`, `src/sources/jikan/extractor.ts:32` |
 | `0.3` | kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze | `kitsu:12`, `omdb:8`, `simkl:8`, `tmdb:11`, `trakt:7`, `tvdb:7`, `tvmaze:9` |
 | `0.25` | watchmode | `src/sources/watchmode/extractor.ts:11` |
 | `0.2` | appletv, justwatch, offline, paramount, unogs | `appletv:10`, `justwatch:12`, `offline/normalize.ts:31`, `paramount:9`, `unogs:8` |
@@ -64,7 +65,8 @@ flowchart TD
   T90 --> T80["0.8 - anilist"]
   T80 --> T60["0.6 - livechart"]
   T60 --> T50["0.5 - crunchyroll"]
-  T50 --> T30["0.3 - the english metadata block<br/><small>kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze</small>"]
+  T50 --> T40["0.4 - jikan's romaji and Japanese titles"]
+  T40 --> T30["0.3 - the english metadata block<br/><small>kitsu, omdb, simkl, tmdb, trakt, tvdb, tvmaze</small>"]
   T30 --> T25["0.25 - watchmode"]
   T25 --> T20["0.2 - appletv, justwatch, offline, paramount, unogs"]
   T20 --> Q{"did the source hand it to makeMedia as the ROW's own score?<br/><small>score: media.score ?? null</small>"}
