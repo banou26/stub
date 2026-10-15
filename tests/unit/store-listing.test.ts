@@ -52,8 +52,7 @@ describe("stub's store listing", () => {
   })
 
   // the background is Steam's library hero size and the cover its 2:3 capsule; the screenshots are
-  // the owner's 4K captures of the live sites, a 1920x1080 page at a device pixel ratio of 2, and a
-  // phone's at its 390x844 CSS size at 3
+  // 4K captures of the live sites (scripts/capture-store.ts), a phone's at its 390x844 CSS size at 3
   test('draws each image at the size it was made for', () => {
     expect(webpSizeOf(background).size).toBe('3840x1240')
     expect(webpSizeOf(cover).size).toBe('600x900')

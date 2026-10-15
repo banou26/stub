@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
+import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
 
 // One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movies.fkn.app and
 // series.fkn.app: `*.localhost` stands in for fkn.app, and 127.0.0.1 is any other host, which shows
@@ -115,6 +116,19 @@ test('series.fkn.app lists JustWatch\'s popular shows, each a card of its own', 
   await expect(page.getByRole('link', { name: 'Ted Lasso' }).first()).toBeVisible({ timeout: 30_000 })
   await expect(row(page, 'Current season')).toHaveCount(0)
   await expect(row(page, 'Popular movies')).toHaveCount(0)
+})
+
+test.describe('on the store screenshots\' desktop page', () => {
+  test.use(DESKTOP)
+  for (const host of ['anime.localhost', 'movies.localhost', 'series.localhost']) {
+    test(`${host} shows the first row's card titles whole`, async ({ page }) => {
+      await page.goto(at(host))
+      await expect(page.locator('.category-item .title-text').first()).toBeVisible({ timeout: 30_000 })
+      const { across, inView } = await page.evaluate(firstRowTitles)
+      expect(across).toBeGreaterThan(0)
+      expect(inView).toBe(across)
+    })
+  }
 })
 
 test('any other host lists all three rows under the category tabs, and a tab keeps its own row', async ({ page }) => {
