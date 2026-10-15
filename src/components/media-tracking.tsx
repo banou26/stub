@@ -1,36 +1,19 @@
-import type { ListStatus, MediaTrackingSubscription } from '../generated/graphql'
-import type { Fields, TrackerOutcome } from '../tracking/compact'
+import type { MediaTrackingSubscription } from '../generated/graphql'
+import type { TrackerOutcome } from '../tracking/compact'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
 import { namesSameWork } from '../router/home/modal-media'
-import { MEDIA_TRACKING } from './media-tracking-query'
-import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
+import { MEDIA_TRACKING, useSaveEntry } from './media-tracking-query'
+import { COMPACT_PREFS_KEY, devicePrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
 import { recordTrackerAnswers, siteStatuses } from '../tracking/site-status'
 import { trackerCheck } from '../worker'
 import StubListNotice from './stub-list-notice'
 import TrackingCompact from './tracking-compact'
-
-const SAVE_LIST_ENTRY = gql(`
-  mutation SaveListEntry($input: SaveListEntryInput!) {
-    saveListEntry(input: $input) {
-      tracker
-      outcome
-      error
-      entry {
-        _id
-        status
-        progress
-        score
-        episodeCount
-      }
-    }
-  }
-`)
 
 const DELETE_LIST_ENTRY = gql(`
   mutation DeleteListEntry($input: DeleteListEntryInput!) {
@@ -68,8 +51,6 @@ const ADD_HELD_STUB_ENTRIES = gql(`
   }
 `)
 
-const devicePrefs = createCompactPrefs()
-
 const failed = (message?: string): TrackerOutcome[] => [{ tracker: '', outcome: 'FAILED', error: message ?? 'The write did not reach the trackers' }]
 
 type Tracking = NonNullable<MediaTrackingSubscription['tracking']>
@@ -104,7 +85,7 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
   const shown = useRef<Tracking>(undefined)
   shown.current = heldOf(shown.current, data?.tracking)
-  const [, save] = useMutation(SAVE_LIST_ENTRY)
+  const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount })
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
@@ -123,21 +104,6 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   const onPrefs = (next: CompactPrefs) => {
     prefsStore.write(next)
     setPrefs(next)
-  }
-
-  // the entry exactly as given: an absent key leaves that field as the tracker has it, a null clears it
-  const onSaveFields = async (targets: string[], entry: Fields): Promise<TrackerOutcome[]> => {
-    const result = await save({
-      input: {
-        uri: uri!,
-        trackers: targets,
-        entry: entry as Omit<Fields, 'status' | 'remove'> & { status?: ListStatus },
-        title: title ?? null,
-        cover: cover ?? null,
-        episodeCount: episodeCount ?? null,
-      },
-    })
-    return result.data?.saveListEntry ?? failed(result.error?.message)
   }
 
   const onRemove = async (targets: string[]): Promise<TrackerOutcome[]> => {

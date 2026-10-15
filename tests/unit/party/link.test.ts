@@ -32,6 +32,13 @@ describe('linkMedia', () => {
     link.dispose()
   })
 
+  // the watch page counts an episode as watched on the share of it played (tracking/watched.ts)
+  test('says how long the media is', () => {
+    const link = linkMedia(Object.assign(media, { duration: 1440 }))
+    expect(link.duration?.()).toBe(1440)
+    link.dispose()
+  })
+
   test('reports at the end, as ended', async () => {
     const link = linkMedia(media)
     const heard = vi.fn()

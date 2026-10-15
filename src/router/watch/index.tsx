@@ -25,9 +25,11 @@ import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { unreleasedEpisodes } from '../home/episodes'
+import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
 import { neighbours, sourceFor } from './neighbours'
+import TrackWatched from './track-watched'
 import UpNext from './up-next'
 
 /**
@@ -57,6 +59,12 @@ const GET_WATCH_MEDIA = gql(`
       titles {
         title
       }
+      covers {
+        url
+      }
+      type
+      categories
+      episodeCount
       status
       nextAiringEpisode {
         episodeNumber
@@ -516,6 +524,20 @@ const Watch = () => {
               )
               : undefined}
           </div>
+          {media?.uri
+            ? (
+              <TrackWatched
+                key={params.mediaUri}
+                link={playbackLink}
+                uri={media.uri}
+                episode={episodeNumber}
+                movie={isMovieMedia(media)}
+                title={mediaTitle}
+                cover={media.covers?.at(0)?.url}
+                episodeCount={media.episodeCount}
+              />
+            )
+            : undefined}
 
           <SourceSelector
             sources={sources}

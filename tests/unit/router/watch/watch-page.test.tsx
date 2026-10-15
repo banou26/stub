@@ -24,19 +24,27 @@ let origins: string[] | undefined
 let party = { status: 'idle' }
 let backend = 'cloud'
 let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
+let tracking: object | undefined
+const saved: object[] = []
 
 vi.mock('urql', () => ({
   useSubscription: ({ query, variables }: { query: Parameters<typeof print>[0], variables: { input: { uri?: string, ids?: string[] } } }) => {
-    if (variables.input.uri) watchQuery = print(query)
+    const printed = print(query)
+    if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking } }]
+    if (variables.input.uri) watchQuery = printed
     return [{ data: variables.input.uri ? { media } : origins && { originPage: { nodes: origins.filter(id => variables.input.ids?.includes(id)).map(id => ({ id, name: id })) } } }]
   },
+  useMutation: () => [{}, async ({ input }: { input: { trackers: string[] } }) => {
+    saved.push(input)
+    return { data: { saveListEntry: input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' })) } }
+  }],
 }))
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate] }))
 vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
-type Report = { paused: boolean, ended?: boolean }
+type Report = { paused: boolean, ended?: boolean, time?: number }
 // each player the page attaches, which a test makes report as a person or the browser would
 const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void }[] }))
 vi.mock('../../../../src/party/bridge', () => ({
@@ -47,10 +55,11 @@ vi.mock('../../../../src/party/bridge', () => ({
       apply: () => {},
       onReport: (listener: (state: object) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
       ended: () => ended,
+      duration: () => 1000,
       dispose: () => listeners.clear(),
-      report: ({ paused, ended: atEnd = false }: Report) => {
+      report: ({ paused, ended: atEnd = false, time = 0 }: Report) => {
         ended = atEnd
-        for (const listener of listeners) listener({ paused, time: 0, rate: 1, at: Date.now() })
+        for (const listener of listeners) listener({ paused, time, rate: 1, at: Date.now() })
       },
     }
     bridge.links.push(link)
@@ -92,6 +101,8 @@ afterEach(() => {
   relays.remembered = {}
   relays.heard = []
   bridge.links = []
+  tracking = undefined
+  saved.length = 0
 })
 
 const settle = async () => {
@@ -463,5 +474,71 @@ test('a player fullscreened in its frame is let out of fullscreen, so the countd
     expect(exitFullscreen).toHaveBeenCalledTimes(1)
   } finally {
     Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
+  }
+})
+
+// each viewer's own player raises each viewer's own trackers, so a guest's page writes as the host's does
+test('85% of the episode played on the page\'s player saves it to the media\'s trackers, a party guest\'s too', async () => {
+  for (const member of [{ status: 'idle' }, { status: 'active', role: 'guest' }]) {
+    party = member as typeof party
+    tracking = { summary: null, disagreements: [], answers: [{ state: 'NOT_LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true } }] }
+    await atTheEnd()
+    await report({ paused: false, time: 840 })
+    expect(saved, member.status).toEqual([])
+    await report({ paused: false, time: 850 })
+    expect(saved, member.status).toEqual([expect.objectContaining({ uri: params.mediaUri, trackers: ['stub'], entry: { progress: 2, status: 'WATCHING' } })])
+    unmount(hosts.pop()!)
+    saved.length = 0
+  }
+})
+
+const stubOnly = { summary: null, disagreements: [], answers: [{ state: 'NOT_LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true } }] }
+
+test('the save carries the media as the page has it, and its count makes the episode the last one', async () => {
+  tracking = stubOnly
+  const { rerender } = await atTheEnd()
+  Object.assign(media, { titles: [{ title: 'A show' }], covers: [{ url: 'https://img.test/a.jpg' }], episodeCount: 2 })
+  rerender()
+  await report({ paused: false, time: 900 })
+  expect(saved).toEqual([expect.objectContaining({ entry: { progress: 2, status: 'COMPLETED' }, title: 'A show', cover: 'https://img.test/a.jpg', episodeCount: 2 })])
+  expect(watchQuery).toMatch(/covers \{\s*url\s*\}/)
+  expect(watchQuery).toMatch(/\bepisodeCount\b/)
+})
+
+test('a film watched is Completed', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  tracking = stubOnly
+  media = { ...single, type: 'MOVIE' }
+  params = { ...params, sourceUri: 'cr:GX1' }
+  hosts.push(page())
+  await settle()
+  await report({ paused: false, time: 900 })
+  expect(saved).toEqual([expect.objectContaining({ entry: { status: 'COMPLETED', progress: 1 } })])
+  expect(watchQuery).toMatch(/\btype\b/)
+  expect(watchQuery).toMatch(/\bcategories\b/)
+})
+
+test('another media gets its own tracking: what was played of the first is never written to the second', async () => {
+  const first = params.mediaUri
+  const other = 'ag:(anilist:9)'
+  try {
+    tracking = stubOnly
+    const { rerender } = await atTheEnd()
+    await report({ paused: false, time: 900 })
+    expect(saved).toEqual([expect.objectContaining({ uri: first, trackers: ['stub'] })])
+    params = { ...params, mediaUri: other }
+    media = { ...media, uri: other }
+    tracking = { summary: null, disagreements: [], answers: [...stubOnly.answers, { state: 'NOT_LISTED', candidates: [], tracker: { id: 'anilist', name: 'AniList', canWrite: true } }] }
+    rerender()
+    await settle()
+    expect(saved, 'before its player says anything').toHaveLength(1)
+    await report({ paused: false, time: 900 })
+    expect(saved.slice(1)).toEqual([
+      expect.objectContaining({ uri: other, trackers: ['stub'], entry: { progress: 2, status: 'WATCHING' } }),
+      expect.objectContaining({ uri: other, trackers: ['anilist'], entry: { progress: 2, status: 'WATCHING' } }),
+    ])
+  } finally {
+    params = { ...params, mediaUri: first }
   }
 })

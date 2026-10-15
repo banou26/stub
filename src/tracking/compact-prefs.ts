@@ -52,3 +52,6 @@ export const createCompactPrefs = (storage = defaultStorage()) => {
 }
 
 export type CompactPrefsStore = ReturnType<typeof createCompactPrefs>
+
+/** This device's prefs, one store for every reader on the page: where storage is blocked, a choice lives in it alone. */
+export const devicePrefs = createCompactPrefs()

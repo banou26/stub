@@ -10,9 +10,10 @@ import type { CompactPrefs } from '../tracking/compact-prefs'
 import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
 
 import {
-  STATUS_LABELS, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, targetOf, unsettled, writable,
+  STATUS_LABELS, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
+import SaveProblems from './save-problems'
 import ScorePicker from './score-picker'
 
 /** The sign in a tracker offers, by tracker id. Called directly in the click, so a window can open. */
@@ -141,7 +142,6 @@ const style = css`
 
   .notes { display: flex; flex-direction: column; gap: 0.4rem; font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); }
   .note { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
-  .note.problem { color: #f87171; }
   .note button { height: 2.6rem; font-size: 1.2rem; }
 
   /* not .hidden, which the app's global stylesheet sets to display: none */
@@ -170,19 +170,10 @@ const scoreText = (score: number, scale?: string | null) => {
   return `${nativeScore(score, on)} / ${OUT_OF[on] ?? 100}`
 }
 
-// a paused or failing tracker's own words, or ours when it gave none
-const whyNot = (answer: CompactAnswer) => answer.error || (answer.state === 'PAUSED' ? 'Paused for a while' : 'Could not answer')
-
 // the status menu's choice that takes the media off the lists instead of setting a status
 const REMOVE = 'REMOVE'
 // the overrides key of the row itself; a card's is its tracker's id
 const ROW = ''
-
-const whatOf = (fields: Fields) => fields.remove ? 'the removal' : [
-  fields.status !== undefined ? 'the status' : undefined,
-  fields.progress !== undefined ? `episode ${fields.progress}` : undefined,
-  fields.score !== undefined ? 'the score' : undefined,
-].filter(Boolean).join(' and ')
 
 const Logo = ({ answer }: { answer: CompactAnswer }) => (
   <span className="logo" style={answer.tracker.color ? { color: answer.tracker.color } : undefined}>
@@ -668,25 +659,9 @@ const TrackingCompact = (
         {targets.flatMap(({ answer, target }) => {
           const id = answer.tracker.id
           const name = answer.tracker.name
-          const { failed, refused } = stateOf(answer)
           return [
             notes[id] && answer.state === 'SIGNED_OUT' ? <div key={`${id}-sign-in`} className="note" data-note={id}>{notes[id]}</div> : undefined,
-            failed
-              ? (
-                <div key={`${id}-failed`} className="note problem" data-note={id}>
-                  {name} did not save {whatOf(failed.fields)}: {failed.error}
-                  <button type="button" disabled={!writable(answer)} onClick={() => queue.retry(id)}>Retry</button>
-                </div>
-              )
-              : undefined,
-            refused
-              ? (
-                <div key={`${id}-refused`} className="note problem" data-note={id}>
-                  {name} did not save: {refused}
-                  <button type="button" onClick={() => queue.dismiss(id)}>Dismiss</button>
-                </div>
-              )
-              : undefined,
+            <SaveProblems key={`${id}-problems`} answer={answer} state={stateOf(answer)} queue={queue}/>,
             target.kind === 'check' && target.sendable && countDiffers(answer, row.total)
               ? <div key={`${id}-count`} className="note" data-note={id}>{name}: set progress on its card</div>
               : undefined,

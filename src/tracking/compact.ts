@@ -64,6 +64,9 @@ const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
 /** A tracker that can write, and has answered with its entry or its lack of one. */
 export const writable = (answer: CompactAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)
 
+/** Why a paused or failing tracker cannot write: its own words, or ours when it gave none. */
+export const whyNot = (answer: CompactAnswer) => answer.error || (answer.state === 'PAUSED' ? 'Paused for a while' : 'Could not answer')
+
 /** What the row shows: the worker's summary, which covers every listed tracker whether or not the viewer writes to it. */
 export const rowOf = (
   tracking: { summary?: CompactEntry | null, disagreements: readonly string[] } | null | undefined,

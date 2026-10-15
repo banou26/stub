@@ -26,6 +26,8 @@ export type PlaybackLink = {
   onReport: (listener: (state: PlaybackState) => void) => () => void
   /** Whether the player reached the end, where the browser pauses it on its own: that pause is nobody's. */
   ended?: () => boolean
+  /** The media's length in seconds, 0 before it is known; a source plugin's player does not say. */
+  duration?: () => number
   dispose: () => void
 }
 
@@ -36,6 +38,7 @@ const EVENTS = ['play', 'pause', 'seeked', 'ratechange', 'ended'] as const
 export type LinkableMedia = EventTarget & {
   paused: boolean
   ended?: boolean
+  duration?: number
   currentTime: number
   playbackRate?: number
   play: () => Promise<void>
@@ -73,6 +76,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
     // a new ear is answered with where the player is now, not at its next event
     onReport: listener => { listeners.add(listener); queueMicrotask(report); return () => { listeners.delete(listener) } },
     ended: () => media.ended ?? false,
+    duration: () => media.duration ?? 0,
     dispose: () => {
       for (const event of EVENTS) media.removeEventListener(event, report)
       clearInterval(heartbeat)
