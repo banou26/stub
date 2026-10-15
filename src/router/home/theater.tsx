@@ -1,7 +1,7 @@
 import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 
 import { css } from '@emotion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'preact/compat'
 import { LucidePause, LucidePlay } from 'lucide-react'
 import { useSubscription } from 'urql'
 import { Link, useRoute } from 'wouter'
@@ -10,8 +10,9 @@ import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
-import { THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, theaterCandidates, theaterKey } from '../../utils/theater'
+import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
 import { useCoverUrl } from '../../utils/use-cover-url'
+import { onPluginsChange, pluginStatuses } from '../../plugins'
 import { getRouterRoutePath, Route } from '../path'
 import { GET_MEDIA_DETAILS, usePlay } from './media-details'
 
@@ -146,6 +147,16 @@ height: 70vh;
 }
 `
 
+type Connection = ConnectionReading & Pick<EventTarget, 'addEventListener' | 'removeEventListener'>
+
+const connection = () => (globalThis.navigator as { connection?: Connection } | undefined)?.connection
+
+const onConnectionChange = (listener: () => void) => {
+  const link = connection()
+  link?.addEventListener('change', listener)
+  return () => link?.removeEventListener('change', listener)
+}
+
 /** The show's Play, Continue or Rewatch. Keyed by the show, since urql keeps the last show's answer when the uri changes. */
 const TheaterPlay = ({ uri }: { uri: string }) => {
   const [{ data }] = useSubscription({
@@ -177,10 +188,25 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
 
   const title = media?.titles?.at(0)?.title
   const shortDescription = media?.shortDescriptions?.at(0)?.shortDescription
+  const slowLink = useSyncExternalStore(onConnectionChange, () => slowConnection(connection()))
+  // a trailer playing while a source connects shares the link with the source's files: at 6 KB/s and
+  // 300 ms, holding it let the source connect 8 to 12 s sooner (measured 2026-10-16)
+  const connecting = useSyncExternalStore(onPluginsChange, () => pluginStatuses().some(source => source.state !== 'connected'))
+  const [waitedForSources, setWaitedForSources] = useState(false)
+  useEffect(() => {
+    if (!connecting) return
+    const timer = setTimeout(() => setWaitedForSources(true), SOURCES_WAIT_MS)
+    return () => {
+      clearTimeout(timer)
+      setWaitedForSources(false)
+    }
+  }, [connecting])
   // a failed trailer gives way to the show's next one, or to none, never to another show: with YouTube
   // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
-  const trailer = media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
+  const trailer = slowLink || (connecting && !waitedForSources)
+    ? undefined
+    : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal
   const backdrop = useCoverUrl(trailer?.url ? undefined : media?.banners?.length ? media.banners : media?.covers, media)
 

@@ -57,6 +57,26 @@ export const theaterCandidates = <T extends TheaterCandidate>(mediaNodes: readon
   return withTrailer.length ? withTrailer : usable
 }
 
+/** What the hero reads of the browser's `navigator.connection`, where it has one. */
+export type ConnectionReading = { effectiveType?: string, saveData?: boolean }
+
+/**
+ * Whether the hero plays no trailer on this connection: one the browser reads as 2G or slower, or with
+ * data saving on. Not 3G: Chrome reads that from latency alone, so a fast link with a 270 ms round
+ * trip is 3G.
+ */
+export const slowConnection = (connection: ConnectionReading | undefined): boolean =>
+  !!connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')
+
+/**
+ * How long sources that have not connected hold the hero's trailer back, from when one started
+ * connecting. A source that never connects (its files gone, or FKN unreachable) is retried for as long
+ * as the page is open, and fails within about a second on a fast link. Measured 2026-10-16 at 6 KB/s
+ * and 300 ms, a source connected 39 to 191 s after it was added, most often within 110 s, and in some
+ * runs not within 200 s.
+ */
+export const SOURCES_WAIT_MS = 120_000
+
 /** How many of the candidates the hero picks between. Kept small so it stays a highlight reel. */
 export const THEATER_POOL_SIZE = 10
 

@@ -44,8 +44,38 @@ vi.mock('urql', async () => {
 })
 vi.mock('../../../src/worker', () => ({}))
 
+const sources = vi.hoisted(() => ({ states: [] as string[], listeners: new Set<() => void>() }))
+vi.mock('../../../src/plugins', () => ({
+  pluginStatuses: () => sources.states.map((state, index) => ({ uri: `https:source-${index}`, state })),
+  onPluginsChange: (listener: () => void) => {
+    sources.listeners.add(listener)
+    return () => { sources.listeners.delete(listener) }
+  },
+}))
+const setSources = (...states: string[]) => act(() => {
+  sources.states = states
+  sources.listeners.forEach(listener => listener())
+})
+
+/** What the hero reads of `navigator.connection`, with its `change` event. */
+const connection = (reading: { effectiveType?: string, saveData?: boolean }) => {
+  const listeners = new Set<() => void>()
+  const link = {
+    ...reading,
+    addEventListener: (_: string, listener: () => void) => { listeners.add(listener) },
+    removeEventListener: (_: string, listener: () => void) => { listeners.delete(listener) },
+  }
+  vi.stubGlobal('navigator', { connection: link })
+  return {
+    change: (next: { effectiveType?: string, saveData?: boolean }) => act(() => {
+      Object.assign(link, next)
+      listeners.forEach(listener => listener())
+    }),
+  }
+}
+
 const { default: HomeHeader } = await import('../../../src/router/home/theater')
-const { THEATER_WAIT_MS } = await import('../../../src/utils/theater')
+const { SOURCES_WAIT_MS, THEATER_WAIT_MS } = await import('../../../src/utils/theater')
 
 type Nodes = Parameters<typeof HomeHeader>[0]['mediaNodes']
 
@@ -67,6 +97,7 @@ afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   answer.details = {}
   answer.tracking = undefined
+  sources.states = []
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
@@ -304,3 +335,76 @@ test('with no banner, the cover stands in', () => {
   expect(backdrop()).toContain('https://img.test/tougen-cover.jpg')
 })
 
+test('while a source connects, the hero holds its trailer, shows its banner, and plays it once connected', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  sources.states = ['connected', 'connecting']
+  const { shown, backdrop, controls } = hero([show('a')])
+  expect(shown()).toEqual({ title: 'a title', description: 'a description', trailer: undefined })
+  expect(backdrop()).toContain('https://img.test/a-banner.jpg')
+  expect(controls()).toBe(false)
+
+  setSources('connected', 'error')
+  expect(shown().trailer).toBeUndefined()
+
+  setSources('connected', 'connected')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+  expect(controls()).toBe(true)
+})
+
+test('a source added while the trailer plays holds it until the source connects', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown } = hero([show('a')])
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+
+  setSources('connecting')
+  expect(shown().trailer).toBeUndefined()
+
+  setSources('connected')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+})
+
+test('a source that never connects holds the trailer for SOURCES_WAIT_MS, and its retries do not hold it again', () => {
+  vi.useFakeTimers()
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  sources.states = ['error']
+  const { shown } = hero([show('a')])
+  act(() => { vi.advanceTimersByTime(SOURCES_WAIT_MS - 1) })
+  expect(shown().trailer).toBeUndefined()
+
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+
+  setSources('connecting')
+  setSources('error')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+})
+
+test('the wait counts from when a source starts connecting, and starts again for the next one', () => {
+  vi.useFakeTimers()
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown } = hero([show('a')])
+  act(() => { vi.advanceTimersByTime(SOURCES_WAIT_MS) })
+
+  setSources('connecting')
+  expect(shown().trailer).toBeUndefined()
+  act(() => { vi.advanceTimersByTime(SOURCES_WAIT_MS) })
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+
+  setSources('connected')
+  setSources('connected', 'connecting')
+  expect(shown().trailer).toBeUndefined()
+})
+
+test('on a connection read as 2G, or with data saving on, the hero holds its trailer until that changes', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const link = connection({ effectiveType: '2g', saveData: false })
+  const { shown, backdrop } = hero([show('a')])
+  expect(shown().trailer).toBeUndefined()
+  expect(backdrop()).toContain('https://img.test/a-banner.jpg')
+
+  link.change({ effectiveType: '4g', saveData: true })
+  expect(shown().trailer).toBeUndefined()
+
+  link.change({ saveData: false })
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+})

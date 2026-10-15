@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { theaterCandidates } from '../../../src/utils/theater'
+import { slowConnection, theaterCandidates } from '../../../src/utils/theater'
 
 const media = (
   { title = true, description = true, trailer = false, score }:
@@ -38,5 +38,24 @@ describe('theaterCandidates', () => {
   // title and a description still beats no hero.
   test('falls back to media without a trailer rather than showing nothing', () => {
     expect(theaterCandidates([media(), media()])).toHaveLength(2)
+  })
+})
+
+describe('slowConnection', () => {
+  test('a connection read as 2G or slower is slow, and 3G is not', () => {
+    expect(slowConnection({ effectiveType: 'slow-2g' })).toBe(true)
+    expect(slowConnection({ effectiveType: '2g' })).toBe(true)
+    expect(slowConnection({ effectiveType: '3g' })).toBe(false)
+    expect(slowConnection({ effectiveType: '4g' })).toBe(false)
+  })
+
+  test('data saving is slow on any connection', () => {
+    expect(slowConnection({ effectiveType: '4g', saveData: true })).toBe(true)
+    expect(slowConnection({ saveData: true })).toBe(true)
+  })
+
+  test('with no connection to read, it is not slow', () => {
+    expect(slowConnection(undefined)).toBe(false)
+    expect(slowConnection({})).toBe(false)
   })
 })
