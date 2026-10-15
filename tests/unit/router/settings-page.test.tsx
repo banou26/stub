@@ -27,10 +27,17 @@ const { default: Settings } = await import('../../../src/router/settings')
 
 const at = { hash: '' }
 const listeners = new Map<string, Set<() => void>>()
+const stored = new Map<string, string>()
 beforeEach(() => {
   at.hash = ''
   listeners.clear()
+  stored.clear()
   vi.stubGlobal('location', at)
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  })
   vi.stubGlobal('addEventListener', (type: string, listener: () => void) => {
     listeners.set(type, (listeners.get(type) ?? new Set()).add(listener))
   })
@@ -57,6 +64,9 @@ const open = async (hash = '') => {
   return host
 }
 
+// linkedom implements no `checked` property, so Preact renders the attribute until a flip sets one
+const isOn = (input: HTMLInputElement) => (input.checked as boolean | undefined) ?? input.hasAttribute('checked')
+
 const shown = (host: HTMLElement) => ({
   panels: [...host.querySelectorAll('[data-section]')].map(panel => panel.getAttribute('data-section')),
   heading: host.querySelector('h2')?.textContent,
@@ -64,9 +74,9 @@ const shown = (host: HTMLElement) => ({
   accountRows: host.querySelectorAll('[data-account]').length,
 })
 
-test('lists both categories as links whose fragment picks them', async () => {
+test('lists every category as a link whose fragment picks it', async () => {
   const host = await open()
-  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Accounts', '#accounts'], ['Sources', '#sources']])
+  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Accounts', '#accounts'], ['Sources', '#sources'], ['Playback', '#playback']])
 })
 
 test('with no fragment, shows Accounts and only Accounts', async () => {
@@ -77,7 +87,24 @@ test('#sources shows Sources and only Sources', async () => {
   expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 0 })
 })
 
-for (const removed of ['#data', '#tracking', '#playback']) {
+test('#playback shows Playback and its one switch, autoplay, on until turned off', async () => {
+  const host = await open('#playback')
+  expect(shown(host)).toEqual({ panels: ['playback'], heading: 'Playback', current: ['Playback'], accountRows: 0 })
+  const autoplay = () => host.querySelector<HTMLInputElement>('input[role="switch"]')!
+  expect([...host.querySelectorAll('input[role="switch"]')].map(input => input.closest('label')?.textContent)).toEqual(['Autoplay next episode'])
+  expect(host.querySelector('[data-section] p'), 'labels only').toBeNull()
+  expect(isOn(autoplay())).toBe(true)
+  await act(() => {
+    Object.assign(autoplay(), { checked: false })
+    autoplay().dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  expect(isOn(autoplay())).toBe(false)
+  expect(stored.get('stub.player.autoplay')).toBe('off')
+  unmount(hosts.pop()!)
+  expect(isOn((await open('#playback')).querySelector<HTMLInputElement>('input[role="switch"]')!), 'kept').toBe(false)
+})
+
+for (const removed of ['#data', '#tracking']) {
   test(`${removed}, a category that is gone, shows Accounts`, async () => {
     expect(shown(await open(removed))).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
   })
@@ -99,8 +126,8 @@ test('a pushState that drops the fragment, as the header\'s Settings link sends,
 
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload
 test('no element carries an id a category link names, so following one scrolls nothing', async () => {
-  for (const hash of ['', '#sources']) {
+  for (const hash of ['', '#sources', '#playback']) {
     const host = await open(hash)
-    expect(host.querySelector('#accounts, #sources'), hash || 'no fragment').toBeNull()
+    expect(host.querySelector('#accounts, #sources, #playback'), hash || 'no fragment').toBeNull()
   }
 })

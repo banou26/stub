@@ -8,6 +8,7 @@ import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
+import { AUTOPLAY_KEY } from '../../utils/autoplay'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
 import { DISPLAY_MODE_KEY } from '../search/display'
 
@@ -117,6 +118,14 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: "Until you clear this site's data in your browser",
     keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },
+  },
+  {
+    id: 'autoplay',
+    title: 'Autoplay',
+    what: 'That you turned off the next episode opening by itself when one ends.',
+    where: LOCAL,
+    lasts: "Until you turn it back on, or clear this site's data in your browser",
+    keys: { store: 'local', names: [AUTOPLAY_KEY] },
   },
   {
     id: 'fetched',

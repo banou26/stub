@@ -30,6 +30,7 @@ let backend = 'cloud'
 let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 let tracking: object | undefined
 const saved: object[] = []
+const stored = new Map<string, string>()
 
 vi.mock('urql', async () => {
   const { useRef } = await import('preact/hooks')
@@ -100,10 +101,16 @@ vi.mock('../../../../src/embed-relays', () => ({
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
+vi.stubGlobal('localStorage', {
+  getItem: (key: string) => stored.get(key) ?? null,
+  setItem: (key: string, value: string) => { stored.set(key, value) },
+  removeItem: (key: string) => { stored.delete(key) },
+})
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
 const { QUIET_MS } = await import('../../../../src/router/watch/auto-pick')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
+const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
@@ -120,6 +127,7 @@ afterEach(() => {
   media = single
   runs = {}
   asked = []
+  stored.clear()
   relays.remembered = {}
   relays.heard = []
   bridge.links = []
@@ -429,7 +437,7 @@ const wait = async (ms: number) => { await act(async () => { await vi.advanceTim
 test('at the end, the next episode opens on the same site once the countdown is out, and only once', async () => {
   const { host } = await atTheEnd()
   await report(played, ended)
-  expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting')?.getAttribute('title')).toBe('E3 - Title 3')
   await wait(UP_NEXT_MS - 1)
   expect(navigate).not.toHaveBeenCalled()
   await wait(1)
@@ -518,6 +526,19 @@ test('nothing starts when the next episode is not out, or has nothing that plays
   await report(played, ended)
   await wait(UP_NEXT_MS)
   expect(navigate, 'nothing plays').not.toHaveBeenCalled()
+})
+
+test('with autoplay turned off, the end offers Next episode and never counts down', async () => {
+  stored.set(AUTOPLAY_KEY, 'off')
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next-cancel'), 'nothing to cancel').toBeNull()
+  expect(host.querySelector('.up-next.counting'), 'and no countdown fill').toBeNull()
+  await wait(UP_NEXT_MS * 2)
+  expect(navigate).not.toHaveBeenCalled()
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
 })
 
 test('a party guest\'s player does not move on, the host takes the party along', async () => {

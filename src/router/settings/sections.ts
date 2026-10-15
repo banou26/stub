@@ -2,6 +2,7 @@
 export const SETTINGS_SECTIONS = [
   { id: 'accounts', title: 'Accounts' },
   { id: 'sources', title: 'Sources' },
+  { id: 'playback', title: 'Playback' },
 ] as const
 
 type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']

@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const CATEGORIES = ['Accounts', 'Sources']
+const CATEGORIES = ['Accounts', 'Sources', 'Playback']
 const HOUR = 3_600_000
 
 // what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
@@ -94,7 +94,7 @@ const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
-test('the page lists two categories and shows Accounts alone, without the FKN row, Data, Tracking or Playback', async ({ page }) => {
+test('the page lists its three categories and shows Accounts alone, without the FKN row, Data or Tracking', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
   await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
@@ -185,7 +185,7 @@ test('a link or a reload on #sources lands on Sources, and the header link or a 
   await expect(page, 'the header\'s Settings link drops the fragment').toHaveURL(/\/settings(\?[^#]*)?$/)
   await expect(panel(page), 'and so shows Accounts').toHaveAttribute('data-section', 'accounts')
   await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Accounts'])
-  for (const gone of ['data', 'tracking', 'playback']) {
+  for (const gone of ['data', 'tracking']) {
     await page.goto(`${origin}/legal`)
     await page.goto(`${origin}/settings#${gone}`)
     await expect(panel(page), gone).toHaveAttribute('data-section', 'accounts')
@@ -200,10 +200,29 @@ test('on a phone the categories are a row above the panel, the page stays at the
   expect(nav!.y + nav!.height).toBeLessThanOrEqual((await panel(page).boundingBox())!.y)
   for (const link of await categories(page).getByRole('link').all()) await expect(link).toBeInViewport()
   expect(await scrollY(page), 'a load on a category does not scroll to it').toBe(0)
-  for (const title of ['Sources', 'Accounts']) {
+  for (const title of ['Sources', 'Playback', 'Accounts']) {
     await picks(page, title)
     expect(await overflowX(page), title).toBeLessThanOrEqual(0)
   }
+})
+
+test('Playback has one switch, autoplay, on by default, and turned off it stays off across a reload', async ({ page }) => {
+  await page.goto(`${origin}/settings#playback`)
+  await expect(panel(page)).toHaveAttribute('data-section', 'playback')
+  const autoplay = page.getByRole('switch', { name: 'Autoplay next episode', exact: true })
+  await expect(page.getByRole('switch')).toHaveCount(1)
+  await expect(autoplay).toBeChecked()
+  await expect(panel(page)).toHaveText(/^Playback\s*Autoplay next episode$/)
+
+  await autoplay.click()
+  await expect(autoplay).not.toBeChecked()
+  expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBe('off')
+  await page.reload()
+  await expect(autoplay, 'kept in this browser').not.toBeChecked()
+
+  await autoplay.click()
+  await expect(autoplay).toBeChecked()
+  expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
 })
 
 const SPEC_SOURCES = ['npm:@spec/anime-source', 'npm:@spec/source-family', 'npm:@spec/slow-source', 'npm:@spec/broken-source'] as const
