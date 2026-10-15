@@ -355,8 +355,10 @@ const Watch = () => {
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
     const pluginUri = players?.[origin]
     if (!pluginUri) return undefined
+    // mounted without its handle, the source is asked to play a release it cannot read and declines it for good
     const handle = episodeHandles.find(h => h.uri === selectedSourceUri)
-    return { pluginUri, release: { uri: selectedSourceUri, url: handle?.url ?? undefined } }
+    if (!handle) return undefined
+    return { pluginUri, release: { uri: selectedSourceUri, url: handle.url ?? undefined } }
   }, [selectedSourceUri, players, episodeHandles])
 
   // a source that declined this release falls back to whatever stub would have done, which is the

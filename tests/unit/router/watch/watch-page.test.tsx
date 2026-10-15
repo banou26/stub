@@ -3,6 +3,7 @@ import { mount, unmount } from '../../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
+import { useEffect } from 'preact/hooks'
 import { act } from 'preact/test-utils'
 import { print } from 'graphql'
 import { memoryLocation } from 'wouter/memory-location'
@@ -66,7 +67,13 @@ vi.mock('../../../../src/party/bridge', () => ({
     return link
   },
 }))
-vi.mock('../../../../src/components/plugin-player', () => ({ default: () => <div className="plugin-player"/> }))
+// the nyaa plugin's play(): it declines a release with no magnet
+vi.mock('../../../../src/components/plugin-player', () => ({
+  default: ({ release, onUnplayable }: { release: { url?: string }, onUnplayable: () => void }) => {
+    useEffect(() => { if (!release.url?.startsWith('magnet:')) onUnplayable() }, [release.url])
+    return <div className="plugin-player" data-url={release.url}/>
+  },
+}))
 vi.mock('../../../../src/components/party-playback', () => ({ default: () => null }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
@@ -179,6 +186,23 @@ test('a linked source the episode holds only as PART_OF is not played', async ()
   await settle()
   expect(host.querySelector('.active')).toBeNull()
   expect(host.querySelector('iframe')).toBeNull()
+})
+
+test('a release the address names before the episode holds it plays once its handle arrives', async () => {
+  vi.useFakeTimers()
+  origins = ['nyaa']
+  Object.assign(episode, { handles: [] })
+  params = { ...params, sourceUri: 'nyaa:a' }
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+
+  Object.assign(episode, { handles: [allHandles[2]] })
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(host.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:a')
 })
 
 // an episode's own Prime Video handle, as JustWatch's episode offer mints it, with the deep link as its url
