@@ -106,7 +106,8 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
             episodeNumber: /^\d+$/.test(episodeId) ? Number(episodeId) : episode.episodeNumber,
             absoluteEpisodeNumber: episode.absoluteEpisodeNumber,
             runtime: episode.runtime ?? episode.length,
-            releaseDate: episode.airDateUtc ?? episode.airdate,
+            // an episode not dated yet carries `airdate: ''`, which as a date would hide every other source's
+            releaseDate: episode.airDateUtc || episode.airdate || undefined,
           })
         })
   })

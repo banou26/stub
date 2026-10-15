@@ -75,3 +75,15 @@ test('a title or synopsis shows an apostrophe where AniDB writes a backtick', as
   expect(texts).toContain('It Didn\'t Have to Be Magic...')
   expect(texts.filter(text => text.includes('`'))).toEqual([])
 })
+
+// One Piece 1181 to 1184 as api.ani.zip answered on 2026-10-15: no `airDateUtc`, `airDate: null`, `airdate: ''`
+test('an episode AniZip has not dated yet has no date', async () => {
+  const undated = { ...FRIEREN.episodes['28'], airDateUtc: undefined, airDate: null, airdate: '' }
+  const answer = { ...FRIEREN, episodes: { ...FRIEREN.episodes, 28: undated } }
+  const media = await normalized(answer)
+  const dates = Object.fromEntries((media.episodes as { episodeNumber: number, releaseDate?: string }[])
+    .map(({ episodeNumber, releaseDate }) => [episodeNumber, releaseDate]))
+
+  expect(dates[27]).toBe('2024-03-15T14:00:00Z')
+  expect(dates[28]).toBeUndefined()
+})
