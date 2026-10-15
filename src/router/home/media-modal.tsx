@@ -16,13 +16,14 @@ import MediaSeasons from '../../components/media-seasons'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
+import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
-import { Episodes, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
 import { getRoutePath, Route } from '../path'
 import { currentEpisode } from '../title/facts'
 import { useCoverUrl } from '../../utils/use-cover-url'
@@ -113,11 +114,19 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     & > .header {
       display: flex;
       gap: 1rem;
+      /* the source icons' height, so the header is one height before and after they land */
+      min-height: 4rem;
 
       & > .title {
         font-size: 3rem;
         font-weight: 600;
         cursor: default;
+      }
+
+      & > .title-pending {
+        align-self: center;
+        width: 30rem;
+        height: 3.6rem;
       }
 
       & > .origins {
@@ -214,7 +223,13 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
-    & > .seasons, & > .episodes {
+    /* the collapsed description's size, five lines in it */
+    & > .description.pending {
+      height: 20rem;
+      font-size: 1.6rem;
+    }
+
+    & > .seasons {
       margin-top: 4rem;
     }
   }
@@ -237,8 +252,26 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         flex-wrap: wrap;
       }
 
+      /* a line of its own, so the source icons landing beside it never wrap the header to a second */
       & > .header > .title {
+        flex-basis: 100%;
         font-size: 2.2rem;
+      }
+
+      & > .header > .title-pending {
+        width: 60%;
+        height: 2.6rem;
+        margin-right: 40%;
+      }
+
+      /* and the icons scroll beside More details rather than wrapping it to a third line as they land,
+         fading at the edge so a row cut between two icons still shows there are more */
+      & > .header > .origins {
+        flex: 1 1 0;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
       }
 
       & > .header > .origins > .origin {
@@ -254,7 +287,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
-      & > .seasons, & > .episodes {
+      & > .seasons {
         margin-top: 2.5rem;
       }
     }
@@ -415,7 +448,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
       </div>
       <div className="content">
         <div className="header">
-          <span className="title">{title}</span>
+          {title || current?.settled ? <span className="title">{title}</span> : <Placeholder className="title-pending"/>}
           {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
@@ -451,7 +484,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                 <div dangerouslySetInnerHTML={{ __html: description }}/>
               </Collapsible>
             )
-            : undefined
+            : current?.settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
         }
         <MediaRelations
           relations={media && 'relations' in media ? media.relations ?? [] : []}
@@ -469,7 +502,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           currentUris={data?.media?.handles.map(handle => handle.node.uri) ?? []}
           href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
-        {isMovie || !current ? undefined : <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/>}
+        {
+          isMovie || !data?.media ? undefined
+            : current ? <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/>
+            : <EpisodesPlaceholder/>
+        }
       </div>
     </ModalBackdrop>
   )

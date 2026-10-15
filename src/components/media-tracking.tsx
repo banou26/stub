@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING, useSaveEntry } from './media-tracking-query'
 import { COMPACT_PREFS_KEY, devicePrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
@@ -69,6 +70,15 @@ const heldOf = (shown: Tracking | undefined, latest: Tracking | null | undefined
     ? shown
     : latest ?? undefined
 
+/** Every tracker that will draw a chip as still loading, and none of the values: the row at its size, and nothing to act on. */
+const loadingOf = (tracking: Tracking | undefined): Tracking | undefined =>
+  tracking && {
+    ...tracking,
+    summary: null,
+    disagreements: [],
+    answers: tracking.answers.map(answer => answer.state === TrackerState.NoId ? answer : { ...answer, state: TrackerState.Loading, entry: null }),
+  }
+
 type Props = {
   work: string | undefined
   address: string | undefined
@@ -85,6 +95,7 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
   const shown = useRef<Tracking>(undefined)
   shown.current = heldOf(shown.current, data?.tracking)
+  const ready = Boolean(uri && namesSameWork(work, address))
   const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount })
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
@@ -117,8 +128,8 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   return (
     <>
       <TrackingCompact
-        tracking={uri && namesSameWork(work, address) ? shown.current : undefined}
-        episodeCount={episodeCount}
+        tracking={ready ? shown.current : loadingOf(shown.current)}
+        episodeCount={ready ? episodeCount : undefined}
         movie={movie}
         onSaveFields={onSaveFields}
         onRemove={onRemove}
@@ -136,9 +147,10 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
  * the address keeps and a navigation to another work replaces; `uri` is the media's own once the
  * details have answered for `work`. The trackers are asked on `work` until then, so they have answered
  * by the time the row draws, and on `uri` from then on, so they are asked again as the media gains
- * ids. A new `work` starts afresh, since urql keeps the last result while a new subscription starts,
- * and nothing is drawn while `address`, the page's own, names another work than `work`: the render
- * after a navigation, before the page has moved `work` to it.
+ * ids. A new `work` starts afresh, since urql keeps the last result while a new subscription starts.
+ * Until the details have answered, and while `address`, the page's own, names another work than `work`
+ * (the render after a navigation, before the page has moved `work` to it), the row is drawn with every
+ * tracker loading and none of its values.
  */
 const MediaTracking = (props: Props) => <WorkTracking key={props.work} {...props}/>
 

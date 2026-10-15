@@ -33,6 +33,7 @@ const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 const show = (_id: string, title: string, { covers = [`https://images.justwatch.com/poster/${_id}.jpg`], handles = [`SAME_AS ${_id.slice(3)}`] } = {}) => ({
@@ -51,6 +52,7 @@ const row = async (nodes: object[]) => {
   const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
   await settle()
   return {
+    held: () => host.querySelectorAll('.list-container > .pending > [aria-hidden]').length,
     posters: () => [...host.querySelectorAll<HTMLElement>('.category-item')]
       .map(card => [card.textContent, card.getAttribute('style')?.match(/url\(([^)]*)\)/)?.[1]]),
     update: async (next: object[]) => {
@@ -59,6 +61,28 @@ const row = async (nodes: object[]) => {
     },
   }
 }
+
+test('an empty row holds cards\' places until its first cards land in them', async () => {
+  const { held, posters, update } = await row([])
+  expect(held()).toBe(8)
+  expect(posters()).toEqual([])
+
+  await update([show('cl:jw:224087', 'Ted Lasso')])
+  expect(held()).toBe(0)
+  expect(posters().map(([title]) => title)).toEqual(['Ted Lasso'])
+})
+
+// series.fkn.app with JustWatch turned off, 2026-10-16: Popular shows shimmered at 5 s and still at 40 s
+test('a row no card lands in stops holding their places as the search page stops searching, at 5 s', async () => {
+  // advancing with the clock too, for the waits `row` makes on real time
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const { held } = await row([])
+  act(() => { vi.advanceTimersByTime(4_800) })
+  expect(held(), 'the control: held until then').toBe(8)
+
+  act(() => { vi.advanceTimersByTime(200) })
+  expect(held()).toBe(0)
+})
 
 // Measured live on series.fkn.app, 2026-10-13: JustWatch's show was hidden 6.8 s in by its Apple TV
 // season, which took its place in the row with no covers

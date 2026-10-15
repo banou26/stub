@@ -13,6 +13,7 @@ import { Link } from 'wouter'
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
 import Paged from '../../components/paged'
+import Placeholder from '../../components/placeholder'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
@@ -499,11 +500,10 @@ const episodesStyle = css`
     text-align: center;
   }
 
-  .episode.placeholder .title {
+  /* not a width in %: on a wide screen the row's content column shrinks to what is in it */
+  .episode.placeholder .title-pending {
     width: 20rem;
     height: 2rem;
-    border-radius: 0.4rem;
-    background-color: rgb(45, 45, 45);
   }
 
   @media (max-width: 768px) {
@@ -511,8 +511,8 @@ const episodesStyle = css`
       display: grid;
       grid-template-columns: auto auto minmax(0, 1fr);
       align-content: center;
-      height: auto;
-      min-height: 7rem;
+      /* one height whatever has arrived, since a row's icons and description land after its title */
+      height: 12.5rem;
       padding: 0.8rem 0;
 
       .number {
@@ -533,15 +533,20 @@ const episodesStyle = css`
           gap: 0.4rem 1rem;
 
           & > .title {
+            flex-basis: 100%;
             font-size: 1.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           & > .origins {
+            min-height: 2.8rem;
             margin-left: 0;
           }
         }
         & > .description {
           font-size: 1.3rem;
-          max-height: 4.5rem;
+          max-height: 3.2rem;
         }
       }
 
@@ -627,14 +632,18 @@ const Episode = (
 // a cour
 const EPISODES_PAGE = 12
 
-/** A row's size and nothing in it, for a list whose rows have not arrived. */
-const PlaceholderEpisode = () => (
-  <div className="episode placeholder" aria-hidden="true">
-    <div className="number"/>
-    <div className="thumbnail"/>
-    <div className="content">
-      <div className="header"><div className="title"/></div>
-    </div>
+/** `count` rows' placeholders, for a list whose rows have not arrived. */
+export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
+  <div className="episodes" css={episodesStyle}>
+    {Array.from({ length: count }, (_, index) => (
+      <div className="episode placeholder" key={index} aria-hidden="true">
+        <div className="number"/>
+        <Placeholder className="thumbnail"/>
+        <div className="content">
+          <div className="header"><Placeholder className="title-pending"/></div>
+        </div>
+      </div>
+    ))}
   </div>
 )
 
@@ -650,15 +659,9 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
   if (!media.episodes.length) {
-    return (
-      <div className="episodes" css={episodesStyle}>
-        {
-          media.settled
-            ? <div className="empty">No episodes found</div>
-            : Array.from({ length: Math.min(media.episodeCount || 3, EPISODES_PAGE) }, (_, index) => <PlaceholderEpisode key={index}/>)
-        }
-      </div>
-    )
+    return media.settled
+      ? <div className="episodes" css={episodesStyle}><div className="empty">No episodes found</div></div>
+      : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
   return (
     <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={start}>

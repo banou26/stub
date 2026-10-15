@@ -169,6 +169,112 @@ test('a title no source lists an episode of keeps its Episodes heading, and says
   await expect(modal(page).locator('.episodes')).toHaveText('No episodes found', { timeout: 45_000 })
 })
 
+test('the page is a screen tall before anything has answered, so the footer waits below the fold, at 1440 and 390 px', async ({ page }) => {
+  // screens taller than the page's placeholders, which on a 900 px screen already reach past the fold
+  for (const [width, height] of [[1440, 2000], [390, 2400]] as const) {
+    await page.setViewportSize({ width, height })
+    // an address no source answers for, so the page stays as it first draws
+    await page.goto(`${origin}/title/ag:(zz:1)`)
+    await expect(page.locator('footer'), `${width}: drawn`).toBeAttached({ timeout: 30_000 })
+    await expect(page.locator('h1 > [aria-hidden="true"]'), `${width}: the title held`).toBeVisible()
+    expect(await page.locator('footer').evaluate(footer => footer.getBoundingClientRect().top), `${width}: below the fold`).toBeGreaterThanOrEqual(height)
+  }
+})
+
+const height = (locator: Locator) => locator.evaluate(element => Math.round(element.getBoundingClientRect().height))
+// a well-known show's sources: nine icons, copies of the first one drawn
+const nineIcons = (origins: Locator) => origins.evaluate(row => { row.innerHTML = row.firstElementChild!.outerHTML.repeat(9) })
+// whether a row scrolls sideways to what it cuts off
+const scrolls = (row: Element) => {
+  row.scrollLeft = row.scrollWidth
+  return row.scrollLeft > 0
+}
+
+test('the preview\'s header and description are one size before the details answer and after, at 1440 and 390 px', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    const header = page.locator('.modal > .content > .header')
+    const description = page.locator('.modal > .content > .description')
+    // an address no source answers for, so the preview stays as it first draws
+    await page.goto(`${origin}/media/ag:(zz:1)`)
+    await expect(header.locator('.title-pending'), `${width}: held`).toBeVisible({ timeout: 30_000 })
+    const held = { header: await height(header), description: await height(description) }
+
+    // Spec Sequel, whose description is long enough to collapse at both widths: the placeholder holds the collapsed size
+    await page.goto(`${origin}/media/${SEQUEL}`)
+    await expect(header.locator('span.title')).toHaveText('Spec Sequel', { timeout: 30_000 })
+    await expect(description).toHaveClass(/collapsed/)
+    await expect(header.locator('.origins > .origin').first()).toBeVisible({ timeout: 30_000 })
+    await nineIcons(header.locator('.origins'))
+    expect({ header: await height(header), description: await height(description) }, `${width}`).toEqual(held)
+    if (width === 390) {
+      const middle = async (locator: Locator) => { const box = (await locator.boundingBox())!; return Math.round(box.y + box.height / 2) }
+      expect(await middle(header.locator('.origins')), 'the icons share More details\' line').toBe(await middle(header.locator('.more')))
+      expect(await header.locator('.origins').evaluate(scrolls), 'and scroll past its edge').toBe(true)
+      expect(await header.locator('.origins').evaluate(row => getComputedStyle(row).maskImage), 'fading there').toContain('linear-gradient')
+      expect(await overflowX(page)).toBe(0)
+    }
+  }
+})
+
+test('390 px wide, the title page holds two lines for its title, and its buttons are one row whatever its sources', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const buttons = page.locator('.actions > .buttons')
+  await page.goto(`${origin}/title/ag:(zz:1)`)
+  await expect(page.locator('h1 > [aria-hidden="true"]'), 'held').toBeVisible({ timeout: 30_000 })
+  const held = { title: await height(heading(page)), buttons: await height(buttons) }
+
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  // the control: a title of one line
+  expect(held.title).toBe(2 * await height(heading(page)))
+  await expect(buttons.locator('.origins > .origin').first()).toBeVisible({ timeout: 30_000 })
+  await nineIcons(buttons.locator('.origins'))
+  expect(await height(buttons)).toBe(held.buttons)
+  expect(await buttons.evaluate(scrolls), 'the icons scroll past its edge').toBe(true)
+  expect(await buttons.evaluate(row => getComputedStyle(row).maskImage), 'fading there').toContain('linear-gradient')
+  expect(await overflowX(page)).toBe(0)
+})
+
+test('in the preview, held episode rows start where rows do, right under what is above them', async ({ page }) => {
+  // from the block above the list to the list, rows or the rows held while a source is out
+  const gap = () => page.locator('.modal > .content').evaluate(content => {
+    const list = content.querySelector('.episodes')!
+    const root = [...content.children].find(child => child.contains(list))!
+    let above = root.previousElementSibling
+    while (above && !above.getBoundingClientRect().height) above = above.previousElementSibling
+    return Math.round(list.getBoundingClientRect().top - above!.getBoundingClientRect().bottom)
+  })
+  await page.goto(`${origin}/media/${THIRD}`)
+  await expect(modal(page).locator('.episode.placeholder').first()).toBeVisible({ timeout: 30_000 })
+  const held = await gap()
+  await openModal(page)
+  await expect(modal(page).locator('.episode:not(.placeholder)').first()).toBeVisible({ timeout: 30_000 })
+  expect(await gap()).toBe(held)
+})
+
+test('390 px wide, an episode row is as tall with its source icons and description as without them, and holds them all', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openModal(page)
+  const rows = modal(page).locator('.episode')
+  await expect(rows).toHaveCount(12, { timeout: 30_000 })
+  const heights = () => rows.evaluateAll(episodes => episodes.map(row => Math.round(row.getBoundingClientRect().height)))
+  const before = await heights()
+  expect(new Set(before).size, 'every row one height').toBe(1)
+  // the fixture matches no sources and describes no episode, so the first row gets five icons the size the
+  // compact selector draws, and a description longer than the row shows
+  await rows.first().locator('.content').evaluate(content => {
+    content.querySelector('.origins')!.innerHTML = `<div style="display: flex; gap: 0.7rem">${'<span style="width: 2.8rem; height: 2.8rem; flex-shrink: 0"></span>'.repeat(5)}</div>`
+    content.insertAdjacentHTML('beforeend', `<div class="description"><div class="ellipsis">${'A long episode description. '.repeat(20)}</div></div>`)
+  })
+  expect(await heights()).toEqual(before)
+  const outside = await rows.first().evaluate(row => {
+    const { bottom } = row.getBoundingClientRect()
+    return [...row.querySelectorAll('.title, .origins > *, .description, .date')].map(element => Math.max(0, element.getBoundingClientRect().bottom - bottom))
+  })
+  expect(outside).toEqual(outside.map(() => 0))
+})
+
 test('a wider spelling of the same title keeps the page as it is', async ({ page }) => {
   await page.goto(`${origin}/title/${SEQUEL}`)
   await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })

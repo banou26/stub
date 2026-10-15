@@ -77,7 +77,7 @@ export const Collapsible = (
       {...rest}
       ref={contentRef}
       css={style}
-      className={`${rest.className || ''} ${!isExpanded && needsToggle ? 'collapsed' : 'expanded'}`}
+      className={`${rest.className || ''} ${isExpanded ? 'expanded' : 'collapsed'}`}
     >
       <div className="content">
         {children}

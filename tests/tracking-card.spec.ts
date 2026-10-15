@@ -60,6 +60,20 @@ const writes = (page: Page) => page.evaluate(() => (window as unknown as { write
 const reaches = (page: Page, id: string, at: { x: number, y: number }) =>
   page.evaluate(({ id, x, y }) => Boolean(document.elementFromPoint(x, y)?.closest(`[data-card="${id}"]`)), { id, ...at })
 
+// 450 px leaves room beside the controls for one chip and not for three
+test('on a phone, the row is as tall before the trackers have answered as once they have', async ({ page }) => {
+  await page.setViewportSize({ width: 450, height: 844 })
+  const height = async (query: string) => {
+    await page.goto(`${ORIGIN}/?top=0${query}`)
+    const row = page.locator('.tracking-compact')
+    await expect(row).toBeVisible()
+    return (await row.boundingBox())!.height
+  }
+  const answered = await height('')
+  await expect(page.locator('[data-chip="stub"]'), 'the control: the chips are drawn').toBeVisible()
+  expect(await height('&waiting')).toBe(answered)
+})
+
 test('a card opens on hover and stays open while the pointer crosses into it', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 })
   await open(page)

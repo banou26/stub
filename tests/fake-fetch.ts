@@ -17,7 +17,7 @@ import BEBOP_MAL from './unit/sources/jikan/__fixtures__/mal-anime-1.html?raw'
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
-const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(60) }
+const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(100) }
 const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
 
 const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))

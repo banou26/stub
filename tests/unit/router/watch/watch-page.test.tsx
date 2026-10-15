@@ -834,3 +834,24 @@ test('a run that has not answered yet is never read from the one asked before it
   expect(asked).toEqual(['anilist:2', 'anilist:3'])
   expect(host.querySelector('.episode-nav')).toBeNull()
 })
+
+test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it', () => {
+  origins = undefined
+  const { hook } = memoryLocation()
+  const tree = () => <Router hook={hook}><Watch/></Router>
+  media = undefined as unknown as object
+  const host = mount(tree())
+  hosts.push(host)
+  const title = () => host.querySelector('.episode-title')!
+  expect(title().querySelector('[aria-hidden="true"]'), 'held').not.toBeNull()
+  expect(title().textContent).toBe('')
+
+  act(() => { media = { uri: params.mediaUri, episodes: [], settled: false }; render(tree(), host) })
+  expect(title().textContent, 'a source is still out').toBe('')
+
+  act(() => { media = { uri: params.mediaUri, episodes: [], settled: true }; render(tree(), host) })
+  expect(title().textContent).toBe(allUri)
+
+  act(() => { media = { uri: params.mediaUri, episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
+  expect(title().textContent).toMatch(/^E3 - Plan$/)
+})

@@ -77,6 +77,8 @@ const open = (path: string) => {
     history: location.history!,
     results: () => [...host.querySelectorAll('.result')].map(result => result.textContent),
     status: () => host.querySelector('.status')?.textContent,
+    // the placeholder items drawn while the search is out
+    pending: () => host.querySelectorAll('.pending').length,
     field: () => field.value,
     // linkedom tracks no focus, so this says which element a browser would report as focused
     focus: () => Object.defineProperty(document, 'activeElement', { configurable: true, get: () => field }),
@@ -114,7 +116,7 @@ describe('the search page', () => {
 
     page.type('naruto')
     expect(page.results()).toEqual([])
-    expect(page.status()).toBe('Searching…')
+    expect(page.pending()).toBeGreaterThan(0)
   })
 
   test('a url change hides them too, while the fetch still lags behind it', async () => {
@@ -175,8 +177,19 @@ describe('the search page', () => {
     // in two steps, since act renders only once a step is over and the fetch starts on that render
     await wait(350)
     await wait(4_650)
-    expect(page.status()).toBe('Searching…')
+    expect(page.status()).toBeUndefined()
+    expect(page.pending()).toBeGreaterThan(0)
     await wait(350)
     expect(page.status()).toBe('No results found.')
+    expect(page.pending()).toBe(0)
+  })
+
+  test('while the search is out, placeholders stand in the layout picked, and go once the results land', async () => {
+    const page = open('/search?q=mushoku')
+    expect(page.pending()).toBe(12)
+    expect(page.status(), 'no line of text in their place').toBeUndefined()
+    await publish('mushoku-1')
+    expect(page.results()).toEqual(['mushoku-1'])
+    expect(page.pending()).toBe(0)
   })
 })

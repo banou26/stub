@@ -109,6 +109,7 @@ const hero = (nodes: object[]) => {
   const host = mount(tree(nodes))
   hosts.push(host)
   return {
+    host,
     update: (next: object[]) => act(() => { render(tree(next), host) }),
     shown: () => ({
       title: host.querySelector('.title')?.textContent,
@@ -139,6 +140,28 @@ const details = (id: string, { title = `${id} details title`, episodes = 2, aire
   })),
 })
 const uriOf = (id: string) => show(id).uri
+
+test('the hero holds its title and lines while it has no show, and draws the show in their place', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update, host } = hero([])
+  const held = () => [...host.querySelectorAll('.information > .title > [aria-hidden], .information > .short-description[aria-hidden]')].length
+  expect(held()).toBe(2)
+
+  update([show('frieren', { title: 'Frieren' })])
+  expect(held()).toBe(0)
+  expect(shown()).toEqual({ title: 'Frieren', description: 'frieren description', trailer: 'https://www.youtube.com/watch?v=frieren' })
+})
+
+test('with no show, the hero holds its place only as long as it waits for one', () => {
+  vi.useFakeTimers()
+  const { host } = hero([])
+  const held = () => host.querySelectorAll('.information > .title > [aria-hidden], .information > .short-description[aria-hidden]').length
+  act(() => { vi.advanceTimersByTime(THEATER_WAIT_MS - 1) })
+  expect(held(), 'the control: held while it waits').toBe(2)
+
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(held()).toBe(0)
+})
 
 // Measured 2026-10-10: anizip's title, a longer description and another trailer merged into the
 // pick after it was shown.

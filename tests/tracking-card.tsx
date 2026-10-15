@@ -10,8 +10,9 @@ import TrackingCompact from '../src/components/tracking-compact'
 // The page tests/tracking-card.spec.ts drives: the tracking row over a listed tracker, a signed out one
 // and one that lists nothing, `?top=` pixels down the page, and with `?clip=` in a box that many pixels
 // tall that clips what overflows it, as the modal does. With `?modal` it sits in the media modal's
-// backdrop instead, and with `?cr` Crunchyroll's read-only history is one episode ahead of AniList.
-// Every write is kept on `window.writes`, and a close of the modal sets `window.dismissed`.
+// backdrop instead, with `?cr` Crunchyroll's read-only history is one episode ahead of AniList, and
+// with `?waiting` none of the trackers has answered yet. Every write is kept on `window.writes`, and a
+// close of the modal sets `window.dismissed`.
 const query = new URLSearchParams(location.search)
 const writes: [string[], Fields | 'remove'][] = []
 Object.assign(window, { writes, dismissed: false })
@@ -38,7 +39,7 @@ const Page = () => {
   const [prefs, setPrefs] = useState<CompactPrefs>({ targets: {} })
   return (
     <TrackingCompact
-      tracking={tracking}
+      tracking={query.has('waiting') ? undefined : tracking}
       episodeCount={24}
       onSaveFields={async (targets, fields) => {
         writes.push([targets, fields])

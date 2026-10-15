@@ -16,6 +16,7 @@ import { detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
+import Placeholder from '../../components/placeholder'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { siteStatuses, type StatusSite } from '../../tracking/site-status'
@@ -66,6 +67,7 @@ const GET_WATCH_MEDIA = gql(`
       categories
       episodeCount
       status
+      settled
       nextAiringEpisode {
         episodeNumber
         airingAt
@@ -211,6 +213,11 @@ const style = css`
     .episode-title {
       font-size: 1.8rem;
       font-weight: 600;
+    }
+
+    .episode-title > .pending {
+      width: min(24rem, 60vw);
+      height: 1.2em;
     }
 
     .media-title {
@@ -540,7 +547,7 @@ const Watch = () => {
         <div className="watch-info">
           <div className="episode-row">
             <div className="episode-info">
-              <div className="episode-title">{episodeName ?? params.episodeUri}</div>
+              <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
               {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
             </div>
             {previousLink || nextLink

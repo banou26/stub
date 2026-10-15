@@ -34,6 +34,8 @@ const style = css`
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
   .group { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
   .platforms { margin-left: auto; justify-content: flex-end; }
+  /* a line of its own on a phone, where the chips never fit beside the controls, so it is there before they are */
+  @media (max-width: 768px) { .platforms { flex-basis: 100%; } }
 
   button, select, .progress-field, .chip {
     display: flex;
@@ -391,7 +393,8 @@ const Chip = (
  * write, as only the fields the viewer touched (tracking/compact.ts `patchFor`), paced per tracker by
  * the save queue, so rapid + clicks become one save. Nothing is written to a tracker that is signed out,
  * paused, failing, or cannot tell which media this is. A change on a card goes to its tracker alone,
- * checked or not, through the same queue.
+ * checked or not, through the same queue. With no `tracking` yet the row holds its place, one loading
+ * chip and nothing to act on; a tracking with no tracker in it draws nothing.
  */
 const TrackingCompact = (
   { tracking, episodeCount, movie = false, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
@@ -466,7 +469,7 @@ const TrackingCompact = (
 
   // a tracker with no id for the media can never track it, so it is left out rather than shown greyed
   const answers = tracking?.answers.filter(answer => answer.state !== 'NO_ID') ?? []
-  if (!answers.length) return null
+  if (tracking !== undefined && !answers.length) return null
 
   const shown = shownOf(row, overrides[ROW])
   const targets = answers.map(answer => ({ answer, target: targetOf(answer, prefs.targets[answer.tracker.id]) }))
@@ -614,6 +617,11 @@ const TrackingCompact = (
           }}
         />
         <div className="group platforms">
+          {
+            tracking === undefined
+              ? <span className="chip loading"><span className="slot" role="img" aria-label="Trackers loading"><LoaderCircle size={14} className="spin" aria-hidden="true"/></span></span>
+              : undefined
+          }
           {targets.map(({ answer, target }) => {
             const id = answer.tracker.id
             const name = answer.tracker.name

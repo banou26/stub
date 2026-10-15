@@ -17,6 +17,7 @@ import {
 import MediaTitle from '../../components/media-title'
 import MediaCard from '../../components/media-card'
 import MediaRow from '../../components/media-row'
+import Placeholder from '../../components/placeholder'
 import DisplayModeToggle from '../../components/display-mode-toggle'
 import FilterSelect, { FilterField } from '../../components/filter-select'
 import { readDisplayMode, writeDisplayMode, type DisplayMode } from './display'
@@ -184,6 +185,11 @@ const style = css`
     gap: 0.8rem;
   }
 
+  /* each layout's own item size, while the search is out */
+  .grid > .pending { width: 25rem; height: 35rem; border-radius: 1rem; }
+  .cards > .pending { height: 23rem; border-radius: 0.8rem; }
+  .rows > .pending { height: 9rem; border-radius: 0.6rem; }
+
   .status {
     font-size: 1.8rem;
     color: rgba(255, 255, 255, 0.5);
@@ -209,6 +215,9 @@ const style = css`
       grid-template-columns: 1fr;
       gap: 1.2rem;
     }
+
+    .grid > .pending { width: 100%; height: auto; aspect-ratio: 5 / 7; }
+    .cards > .pending { height: 17rem; }
   }
 `
 
@@ -488,7 +497,9 @@ const Search = () => {
         nodes.length
           ? <div className={layout.className}>{nodes.map(layout.item)}</div>
           : asked
-            ? <div className="status">{graceElapsed ? 'No results found.' : 'Searching\u2026'}</div>
+            ? graceElapsed
+              ? <div className="status">No results found.</div>
+              : <div className={layout.className}>{Array.from({ length: 12 }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>
             : <div className="status">{hasSearchFilters(filters) ? 'Add a title or another filter.' : 'Search by title, or pick a filter.'}</div>
       }
     </div>

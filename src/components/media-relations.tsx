@@ -57,12 +57,15 @@ const style = css`
   & > .grid > .middle { flex: 0 1 auto; justify-content: center; }
   & > .grid > .after { flex: 1 1 0; justify-content: flex-end; }
 
-  /* Below this the lanes cannot sit side by side, so they wrap onto their own lines and the timeline
-     stops being readable as one: a lone sequel pushed to the right edge of its own line is just a
-     card in a strange place. Measured at a 500px viewport, where the row is 458px and three 28rem
-     cards cannot share it. Stack them and let them read top to bottom instead. */
+  /* Below this the lanes cannot sit side by side (measured at a 500px viewport, where the row is 458px
+     and three 28rem cards cannot share it), so the cards read in order on one line that scrolls
+     sideways, small: stacked a card a line, they took 570px above the episode list on a phone. */
   @media (max-width: 768px) {
-    & > .grid > .lane { flex: 1 1 100%; justify-content: flex-start; }
+    & > .grid { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    & > .grid > .lane { display: contents; }
+    & .relation-card { flex: 0 0 22rem; }
+    & .relation-card > .cover { width: 4rem; }
+    & .relation-card .title { -webkit-line-clamp: 1; }
   }
 `
 

@@ -3,7 +3,7 @@ import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 
 import { css } from '@emotion/react'
 import { Grid, useGridRef } from 'react-window'
-import { useCallback, useState } from 'preact/compat'
+import { useCallback, useEffect, useState } from 'preact/compat'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   autoUpdate, offset, useFloating, shift,
@@ -18,6 +18,7 @@ import { getRoutePath, Route } from '../path'
 import MediaTitle from '../../components/media-title'
 import Draggable from '../../components/draggable'
 import { MediaPreview } from '../../components/media-preview'
+import Placeholder from '../../components/placeholder'
 import { layer } from '../../layers'
 
 const style = css`
@@ -66,6 +67,17 @@ position: relative;
     &.right {
       right: 20px;
     }
+  }
+
+  /* the cells' own size and spacing, from the grid below and media-title.tsx */
+  & > .pending {
+    display: flex;
+    gap: 10px;
+    height: 355px;
+    padding-left: var(--card-gutter);
+    overflow: hidden;
+
+    & > * { flex: 0 0 250px; height: 350px; border-radius: 1rem; }
   }
 
   & > div > .virtual-list {
@@ -193,6 +205,13 @@ export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, ti
     })
   }, [visibleStartIndex, visibleEndIndex, mediaNodes.length, virtualListRef])
 
+  // held as long as the search page waits before it finds nothing, so a row whose sources answer nothing ends empty
+  const [waited, setWaited] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setWaited(true), 5_000)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <div css={style}>
       {
@@ -203,29 +222,37 @@ export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, ti
           : <span className='title'>{title}</span>
       }
       <div className='list-container'>
-        <Draggable isDragging={isDragging} setIsDragging={setIsDragging}>
-          <Grid<{ mediaNodes: typeof mediaNodes }>
-            gridRef={virtualListRef}
-            className='virtual-list'
-            cellComponent={CellComponent}
-            cellProps={{ mediaNodes }}
-            columnCount={mediaNodes.length}
-            columnWidth={260}
-            rowCount={1}
-            rowHeight={350}
-            overscanCount={5}
-            onCellsRendered={({ columnStartIndex, columnStopIndex }) => {
-              setVisibleStartIndex(columnStartIndex)
-              setVisibleEndIndex(columnStopIndex)
-            }}
-          />
-        </Draggable>
-        <button className='scroll-button left' onClick={() => scrollTo('left')}>
-          <ChevronLeft />
-        </button>
-        <button className='scroll-button right' onClick={() => scrollTo('right')}>
-          <ChevronRight />
-        </button>
+        {
+          mediaNodes.length || waited
+            ? (
+              <>
+                <Draggable isDragging={isDragging} setIsDragging={setIsDragging}>
+                  <Grid<{ mediaNodes: typeof mediaNodes }>
+                    gridRef={virtualListRef}
+                    className='virtual-list'
+                    cellComponent={CellComponent}
+                    cellProps={{ mediaNodes }}
+                    columnCount={mediaNodes.length}
+                    columnWidth={260}
+                    rowCount={1}
+                    rowHeight={350}
+                    overscanCount={5}
+                    onCellsRendered={({ columnStartIndex, columnStopIndex }) => {
+                      setVisibleStartIndex(columnStartIndex)
+                      setVisibleEndIndex(columnStopIndex)
+                    }}
+                  />
+                </Draggable>
+                <button className='scroll-button left' onClick={() => scrollTo('left')}>
+                  <ChevronLeft />
+                </button>
+                <button className='scroll-button right' onClick={() => scrollTo('right')}>
+                  <ChevronRight />
+                </button>
+              </>
+            )
+            : <div className="pending">{Array.from({ length: 8 }, (_, index) => <Placeholder key={index}/>)}</div>
+        }
       </div>
     </div>
   )

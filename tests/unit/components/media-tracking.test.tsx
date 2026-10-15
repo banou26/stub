@@ -143,6 +143,14 @@ const trackingFor = (uri: string, answers: ReturnType<typeof answer>[], summary:
 const chips = (host: HTMLElement) => [...host.querySelectorAll('[data-chip]')].map(chip => `${chip.getAttribute('data-chip')}${chip.classList.contains('loading') ? ' loading' : ''}`)
 const status = (host: HTMLElement) => host.querySelector<HTMLSelectElement>('select[name="compact-status"]')?.getAttribute('value')
 const progress = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[name="compact-progress"]')?.getAttribute('value')
+// the row before its work's details are in: every tracker loading, and none of the values of anything
+const loadingRow = (host: HTMLElement) => ({
+  chips: chips(host),
+  status: status(host),
+  progress: progress(host),
+  of: host.querySelector('.progress-field .of')?.textContent,
+  disabled: host.querySelector('select[name="compact-status"]')?.hasAttribute('disabled'),
+})
 
 describe('while the media gains ids', () => {
   const NARROW = 'ag:(anilist:1)'
@@ -213,15 +221,16 @@ describe('a title opened from another title', () => {
 
     // the address names B, for the render before the page asks its details on B
     await show({ work: A, address: B, uri: A })
-    expect(host.querySelector('.tracking-compact')).toBeNull()
+    expect(loadingRow(host)).toEqual({ chips: ['stub loading'], status: '', progress: '0', of: undefined, disabled: true })
 
-    // the page asks on B while its details are still A's
+    // the page asks on B while its details are still A's, and B's trackers have not answered
+    const nothing = { chips: [], status: '', progress: '0', of: undefined, disabled: true }
     await show({ work: B, uri: undefined })
-    expect(host.querySelector('.tracking-compact')).toBeNull()
+    expect(loadingRow(host)).toEqual(nothing)
 
-    // B's details are in, and B's trackers have not answered
+    // B's details are in, its own count with them, and B's trackers have not answered
     await show({ work: B, uri: B })
-    expect(host.querySelector('.tracking-compact')).toBeNull()
+    expect(loadingRow(host)).toEqual({ ...nothing, of: '/ 12' })
 
     answered.set(B, trackingFor(B, [answer('stub', B, 'NOT_LISTED')]))
     await show({ work: B, uri: B })
@@ -237,7 +246,7 @@ describe('a title opened from another title', () => {
 
     await show({ work: B, uri: undefined })
     expect(asked).toEqual([A, B])
-    expect(host.querySelector('.tracking-compact'), "drawn before its details, it would show the episode count of whatever the page holds").toBeNull()
+    expect(loadingRow(host), "drawn before its details as loading, and never with the episode count of whatever the page holds").toEqual({ chips: ['anilist loading', 'stub loading'], status: '', progress: '0', of: undefined, disabled: true })
 
     // B's details answered with a grown uri nothing has answered for yet
     await show({ work: B, uri: B_GROWN })

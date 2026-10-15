@@ -10,6 +10,7 @@ import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
+import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { onPluginsChange, pluginStatuses } from '../../plugins'
@@ -96,6 +97,16 @@ height: 70vh;
     overflow: hidden;
     max-height: 10rem;
     white-space: pre-wrap;
+  }
+
+  /* the block shrinks to its content, so a width in % would size against itself */
+  .title > .pending {
+    width: min(40rem, 60vw);
+    height: 1.2em;
+  }
+
+  .short-description.pending {
+    width: min(60rem, 80vw);
   }
 
   /* reserved before the button arrives, since the block is centred and would otherwise move up */
@@ -257,10 +268,17 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             />
           </div>
         )}
-        <div className="title">{title}</div>
-        <TextEllipsis className="short-description">
-          {shortDescription}
-        </TextEllipsis>
+        {/* held while the hero waits for a show, and no longer, so a row that never fills does not keep it loading */}
+        <div className="title">{title ?? (media || !waiting ? undefined : <Placeholder className="pending"/>)}</div>
+        {
+          media || !waiting
+            ? (
+              <TextEllipsis className="short-description">
+                {shortDescription}
+              </TextEllipsis>
+            )
+            : <PlaceholderLines count={3} className="short-description pending"/>
+        }
         <div className="actions">
           {media?.uri ? <TheaterPlay key={theaterKey(media)} uri={media.uri}/> : undefined}
         </div>

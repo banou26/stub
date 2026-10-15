@@ -767,3 +767,21 @@ describe("a tracker's card", () => {
     expect(kitsuCard.querySelector('select')).toBeNull()
   })
 })
+
+describe('before the trackers have answered at all', () => {
+  const draw = (tracking: CompactTracking | undefined) => {
+    const host = mount(<TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={async () => []} onRemove={async () => []} prefs={createCompactPrefs(memory()).read()} onPrefs={() => {}}/>)
+    hosts.push(host)
+    return host
+  }
+
+  test('the row holds its place with one loading chip and nothing to act on', () => {
+    const host = draw(undefined)
+    expect(host.querySelectorAll('.platforms > .chip.loading')).toHaveLength(1)
+    expect(host.querySelector('select[name="compact-status"]')!.hasAttribute('disabled')).toBe(true)
+  })
+
+  test('the control: trackers that answered with nothing to track draw no row', () => {
+    expect(draw({ summary: null, disagreements: [], answers: [] }).querySelector('.tracking-compact')).toBeNull()
+  })
+})

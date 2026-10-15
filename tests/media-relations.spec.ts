@@ -92,3 +92,16 @@ for (const { name, viewport, width, middleStacked } of WIDTHS) {
     for (const card of measured) expect(card.height, card.relation).toBeCloseTo(card.natural, 0)
   })
 }
+
+// stacked a card a line, the row took 570 px above the episode list on a phone
+test('on a 390 wide phone the relations are one row of small cards, scrolling sideways inside the box', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.goto(`${ORIGIN}/?width=348`)
+  const cards = page.locator('a.relation-card')
+  await expect(cards).toHaveCount(4)
+  const boxes = await cards.evaluateAll(elements => elements.map(element => element.getBoundingClientRect()).map(({ top, height }) => ({ top: Math.round(top), height })))
+  expect(new Set(boxes.map(box => box.top)).size, 'one row').toBe(1)
+  const row = (await page.locator('[data-relations]').boundingBox())!
+  expect(row.height).toBeLessThan(2 * Math.max(...boxes.map(box => box.height)))
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'no sideways scroll of the page').toBe(0)
+})

@@ -13,8 +13,9 @@ import MediaScore from '../../components/media-score'
 import MediaSeasons from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
 import Paged from '../../components/paged'
+import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, GET_MEDIA_DETAILS, playOf, SourceLinks, useTrackingSummary } from '../home/media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, playOf, SourceLinks, useTrackingSummary } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
@@ -30,6 +31,8 @@ const RELATIONS_ROW = 3
 const PAGE = 12
 
 const style = css`
+  /* the footer under it stays below the fold while the page fills, rather than being pushed off it */
+  min-height: 100vh;
   padding-bottom: 6rem;
 
   & > .banner {
@@ -116,6 +119,28 @@ const style = css`
       overflow-wrap: anywhere;
     }
 
+    /* two lines on a phone, where most titles take two, and one on a wider screen */
+    & > h1 > .pending {
+      gap: 0.3em;
+
+      @media (min-width: 768px) {
+        width: 60%;
+        & > * { height: 1.15em; }
+        & > :last-child { display: none; }
+      }
+    }
+
+    & > .season > .pending {
+      width: 10rem;
+      height: 1.2em;
+    }
+
+    & > .chips > .pending {
+      width: 24rem;
+      height: 3rem;
+      border-radius: 1.5rem;
+    }
+
     & > .second {
       font-size: 1.6rem;
       color: rgba(255, 255, 255, 0.6);
@@ -197,6 +222,12 @@ const style = css`
 
     .play:hover { background: rgba(255, 255, 255, 0.85); }
 
+    .play-pending {
+      flex: 0 1 22rem;
+      height: 4.4rem;
+      border-radius: 0.6rem;
+    }
+
     .icon, .origins > .origin {
       display: flex;
       align-items: center;
@@ -222,6 +253,19 @@ const style = css`
 
     /* in place of the top margin the tracking row keeps for the modal */
     & > .tracking > * { margin-top: 1.2rem; }
+
+    /* one line on a phone, the source icons scrolling past the edge, so the row is one height whatever
+       has arrived; they fade there so a row cut between two icons still shows there are more */
+    @media (max-width: 767px) {
+      & > .buttons {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+      }
+      & > .buttons > *, .origins > * { flex-shrink: 0; }
+      .origins { flex-wrap: nowrap; }
+    }
   }
 
   & > .body > .facts {
@@ -594,6 +638,7 @@ const TitlePage = () => {
   const relations = sortRelations(watchableRelations(media?.relations ?? []))
   const facts = media ? titleFacts(media) : []
   const chips = media ? titleChips(media) : []
+  const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
 
   const [open, setOpen] = useState(false)
   const [clamped, setClamped] = useState(false)
@@ -631,8 +676,8 @@ const TitlePage = () => {
       <div className="body">
         {coverUrl ? <img className="cover" src={coverUrl} alt=""/> : <div className="cover"/>}
         <div className="heading">
-          {media && seasonLabel(media.season, media.seasonYear) ? <div className="season">{seasonLabel(media.season, media.seasonYear)}</div> : undefined}
-          <h1>{title}</h1>
+          {season ? <div className="season">{season}</div> : current?.settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
+          <h1>{title ?? (current?.settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
           {media && secondTitle(media.titles) ? <div className="second">{secondTitle(media.titles)}</div> : undefined}
           {
             chips.length || media?.averageScore != null
@@ -642,19 +687,19 @@ const TitlePage = () => {
                   {media?.averageScore != null ? <span className="chip"><MediaScore percent={media.averageScore} size={16}/></span> : undefined}
                 </div>
               )
-              : undefined
+              : current?.settled ? undefined : <div className="chips"><Placeholder className="pending"/></div>
           }
           {
             description
               ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
-              : undefined
+              : current?.settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}
         </div>
-        {
-          media
-            ? (
-              <div className="actions">
+        <div className="actions">
+          {
+            media
+              ? (
                 <div className="buttons">
                   {
                     play
@@ -675,13 +720,13 @@ const TitlePage = () => {
                   }
                   <SourceLinks uri={media.uri} handles={media.handles}/>
                 </div>
-                <div className="tracking">
-                  <MediaTracking work={uri} address={routeUri} uri={current?.uri} title={title} cover={coverUrl} episodeCount={media.episodeCount} movie={isMovie}/>
-                </div>
-              </div>
-            )
-            : undefined
-        }
+              )
+              : <div className="buttons"><Placeholder className="play-pending"/></div>
+          }
+          <div className="tracking">
+            <MediaTracking work={uri} address={routeUri} uri={current?.uri} title={title} cover={coverUrl} episodeCount={current?.episodeCount} movie={isMovie}/>
+          </div>
+        </div>
         {
           facts.length
             ? (
@@ -721,7 +766,7 @@ const TitlePage = () => {
               ? (
                 <section data-episodes>
                   <h2>Episodes</h2>
-                  {current ? <Episodes media={current} start={currentEpisode(current.episodes, tracked)}/> : undefined}
+                  {current ? <Episodes media={current} start={currentEpisode(current.episodes, tracked)}/> : <EpisodesPlaceholder/>}
                 </section>
               )
               : undefined
