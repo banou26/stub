@@ -7,7 +7,7 @@ import { useMutation, useSubscription } from 'urql'
 import { gql } from '../generated'
 import { TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
-import { MEDIA_TRACKING, useSaveEntry } from './media-tracking-query'
+import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
 import { COMPACT_PREFS_KEY, devicePrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
@@ -147,11 +147,16 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
  * the address keeps and a navigation to another work replaces; `uri` is the media's own once the
  * details have answered for `work`. The trackers are asked on `work` until then, so they have answered
  * by the time the row draws, and on `uri` from then on, so they are asked again as the media gains
- * ids. A new `work` starts afresh, since urql keeps the last result while a new subscription starts.
+ * ids. A row starts afresh on a new `work`, where `uri` is unknown again, and on a move to a media
+ * that is not a growth of the one asked before (`useMediaKey`), so a change made on one media is saved
+ * to it and urql's last result, kept while a new subscription starts, is never drawn under another.
  * Until the details have answered, and while `address`, the page's own, names another work than `work`
  * (the render after a navigation, before the page has moved `work` to it), the row is drawn with every
  * tracker loading and none of its values.
  */
-const MediaTracking = (props: Props) => <WorkTracking key={props.work} {...props}/>
+const MediaTracking = (props: Props) => {
+  const media = useMediaKey(props.uri ?? props.work)
+  return <WorkTracking key={`${props.work} ${media}`} {...props}/>
+}
 
 export default MediaTracking

@@ -63,6 +63,7 @@ vi.mock('../../../src/tracking/site-status', () => remembered)
 vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
 
 const { default: MediaTracking } = await import('../../../src/components/media-tracking')
+const { useMediaKey } = await import('../../../src/components/media-tracking-query')
 const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')
 
 const memory = () => {
@@ -143,6 +144,8 @@ const trackingFor = (uri: string, answers: ReturnType<typeof answer>[], summary:
 const chips = (host: HTMLElement) => [...host.querySelectorAll('[data-chip]')].map(chip => `${chip.getAttribute('data-chip')}${chip.classList.contains('loading') ? ' loading' : ''}`)
 const status = (host: HTMLElement) => host.querySelector<HTMLSelectElement>('select[name="compact-status"]')?.getAttribute('value')
 const progress = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[name="compact-progress"]')?.getAttribute('value')
+const more = (host: HTMLElement) => act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="One episode more"]')!.click() })
+const saves = () => sent.map(({ input: { uri, entry } }) => [uri, entry])
 // the row before its work's details are in: every tracker loading, and none of the values of anything
 const loadingRow = (host: HTMLElement) => ({
   chips: chips(host),
@@ -155,6 +158,8 @@ const loadingRow = (host: HTMLElement) => ({
 describe('while the media gains ids', () => {
   const NARROW = 'ag:(anilist:1)'
   const WIDE = 'ag:(anilist:1,mal:1)'
+  const SHOW = 'ag:(jw:1)'
+  const SEASON = 'ag:(appletv:2-s1,jw:1-10)'
   const watching = { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 }
 
   test('no chip drops out and the row keeps its values until the trackers have answered for the grown uri', async () => {
@@ -197,8 +202,6 @@ describe('while the media gains ids', () => {
   })
 
   test('follows a media that names none of the uri the page asked on, as a show whose details are its first season', async () => {
-    const SHOW = 'ag:(jw:1)'
-    const SEASON = 'ag:(appletv:2-s1,jw:1-10)'
     answered.set(SHOW, trackingFor(SHOW, [answer('stub', SHOW, 'LISTED', watching)], watching))
     answered.set(SEASON, trackingFor(SEASON, [answer('stub', SEASON, 'NOT_LISTED')]))
     const { host, show } = render({ work: SHOW, uri: SHOW })
@@ -207,6 +210,97 @@ describe('while the media gains ids', () => {
     await show({ work: SHOW, uri: SEASON })
     expect(status(host), "the season's own entry, the one a change saves to").toBe('')
   })
+
+  test('a + pressed before the uri grows is saved to the grown uri', async () => {
+    vi.useFakeTimers()
+    answered.set(NARROW, trackingFor(NARROW, [answer('stub', NARROW, 'LISTED', watching)], watching))
+    answered.set(WIDE, trackingFor(WIDE, [answer('stub', WIDE, 'LISTED', watching)], watching))
+    const { host, show } = render({ work: NARROW, uri: NARROW })
+    await more(host)
+    await show({ work: NARROW, uri: WIDE })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(saves()).toEqual([[WIDE, { progress: 4 }]])
+  })
+
+  test('a + pressed on the grown uri is saved to it, though the page then opens the media by another of its ids', async () => {
+    vi.useFakeTimers()
+    answered.set(WIDE, trackingFor(WIDE, [answer('stub', WIDE, 'LISTED', watching)], watching))
+    const { host, show } = render({ work: NARROW, uri: WIDE })
+    await more(host)
+    // a new work, whose details have not answered yet
+    await show({ work: 'ag:(mal:1)', uri: undefined })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(saves()).toEqual([[WIDE, { progress: 4 }]])
+  })
+
+  describe('then moves to the first season', () => {
+    beforeEach(() => { answered.set(SHOW, trackingFor(SHOW, [answer('stub', SHOW, 'LISTED', watching)], watching)) })
+    // the season's details are in and its trackers have not answered
+    const unanswered = { chips: [], status: '', progress: '0', of: '/ 12', disabled: true }
+
+    test('a + pressed on the show is saved to the show, with what it was shaped on', async () => {
+      vi.useFakeTimers()
+      answered.set(SEASON, trackingFor(SEASON, [answer('stub', SEASON, 'NOT_LISTED')]))
+      const { host, show } = render({ work: SHOW, uri: SHOW })
+      await more(host)
+      expect(sent).toEqual([])
+      await show({ work: SHOW, uri: SEASON })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(saves()).toEqual([[SHOW, { progress: 4 }]])
+    })
+
+    test('a + waiting behind a save still in flight is saved to the show too', async () => {
+      vi.useFakeTimers()
+      answered.set(SEASON, trackingFor(SEASON, [answer('stub', SEASON, 'NOT_LISTED')]))
+      let land = () => {}
+      held = new Promise<void>(resolve => { land = resolve })
+      const { host, show } = render({ work: SHOW, uri: SHOW })
+      await more(host)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      await more(host)
+      await show({ work: SHOW, uri: SEASON })
+      await act(async () => {
+        land()
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+      expect(saves()).toEqual([[SHOW, { progress: 4 }], [SHOW, { progress: 5 }]])
+    })
+
+    test("the row shows none of the show's values under the season, before or while it answers", async () => {
+      const { host, show } = render({ work: SHOW, uri: SHOW })
+      expect(status(host)).toBe('WATCHING')
+
+      await show({ work: SHOW, uri: SEASON })
+      expect(loadingRow(host)).toEqual(unanswered)
+
+      answered.set(SEASON, trackingFor(SEASON, [answer('stub', SEASON, 'LOADING')]))
+      await show({ work: SHOW, uri: SEASON })
+      expect(chips(host)).toEqual(['stub loading'])
+      expect(status(host)).toBe('')
+    })
+
+    test('nor when the page asked on the show and the details answer with the season', async () => {
+      const { host, show } = render({ work: SHOW, uri: undefined })
+      await show({ work: SHOW, uri: SEASON })
+      expect(loadingRow(host)).toEqual(unanswered)
+    })
+  })
+})
+
+test('the media key stays while the uri grows, goes unknown or is drawn again, and moves with the media', async () => {
+  const keys: number[] = []
+  let showUri: (next: { uri?: string }) => void = () => {}
+  const Probe = () => {
+    const [{ uri }, setUri] = useState<{ uri?: string }>({ uri: 'ag:(jw:1)' })
+    showUri = setUri
+    keys.push(useMediaKey(uri))
+    return null
+  }
+  hosts.push(mount(<Probe/>))
+  for (const uri of [undefined, 'ag:(jw:1,tmdb:1)', 'ag:(appletv:2-s1,jw:1-10)', 'ag:(appletv:2-s1,jw:1-10,tmdb:1-1)', 'nameless', 'nameless']) {
+    await act(async () => { showUri({ uri }) })
+  }
+  expect(keys).toEqual([0, 0, 0, 1, 1, 2, 2])
 })
 
 describe('a title opened from another title', () => {
@@ -255,14 +349,12 @@ describe('a title opened from another title', () => {
   })
 
   const watching = { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 }
-  const more = (host: HTMLElement) => act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="One episode more"]')!.click() })
   // the renders of a title opened from A's row, as the page goes through them
   const openB = async (show: (next: Shown) => Promise<void>) => {
     await show({ work: A, address: B, uri: A })
     await show({ work: B, uri: undefined })
     await show({ work: B, uri: B })
   }
-  const saves = () => sent.map(({ input: { uri, entry } }) => [uri, entry])
 
   test('a + pressed on one title is saved to it, though another opens before the save goes', async () => {
     vi.useFakeTimers()

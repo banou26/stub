@@ -712,6 +712,38 @@ test('a save waiting behind one in flight goes to the media it was due on, thoug
   }
 })
 
+// the page's media moves to `next` on the same address while a save is in flight and another waits behind it
+const moveWhileSaving = async (next: string) => {
+  tracking = stubOnly
+  const { rerender } = await atTheEnd()
+  let land = () => {}
+  held = new Promise<void>(resolve => { land = resolve })
+  await report({ paused: false, time: 900 })
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  rerender()
+  await settle()
+  await report({ paused: false, time: 900 })
+  expect(saved, 'the second waits for the first').toHaveLength(1)
+  media = { ...media, uri: next }
+  rerender()
+  await settle()
+  await act(async () => {
+    land()
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  return (saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])
+}
+
+test('a save waiting behind one in flight goes to the media it was due on, though the media moves to its first season', async () => {
+  const SEASON = 'ag:(tvdb:1-s1)'
+  expect(await moveWhileSaving(SEASON)).toEqual([[SERIES, 2], [SERIES, 3]])
+})
+
+test('the control: one waiting while the media gains ids goes to the grown uri', async () => {
+  const GROWN = 'ag:(anilist:1,mal:1,tvdb:1)'
+  expect(await moveWhileSaving(GROWN)).toEqual([[SERIES, 2], [GROWN, 3]])
+})
+
 const SEQUEL = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:2', uri: 'anilist:2' } }
 const PREQUEL = { relation: 'PREQUEL', format: 'TV', node: { _id: 'anilist:0', uri: 'anilist:0' } }
 const NEXT_SEASON = '/watch/ag:(anilist:2)/ag:(anilist:2-1)'

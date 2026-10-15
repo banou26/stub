@@ -17,6 +17,7 @@ import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
+import { useMediaKey } from '../../components/media-tracking-query'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { siteStatuses, type StatusSite } from '../../tracking/site-status'
@@ -277,6 +278,7 @@ const Watch = () => {
   })
 
   const media = data?.media
+  const tracked = useMediaKey(media?.uri)
   const episode = useMemo(
     () =>
       media?.episodes?.find(ep =>
@@ -562,7 +564,7 @@ const Watch = () => {
           {media?.uri
             ? (
               <TrackWatched
-                key={params.mediaUri}
+                key={tracked}
                 link={playbackLink}
                 uri={media.uri}
                 episode={episodeNumber}
