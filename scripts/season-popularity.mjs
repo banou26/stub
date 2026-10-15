@@ -108,19 +108,14 @@ const cardRecord = (id, card, anilist) => ({
  * season whose page lists it. An R18+ title is in no season. Synopses go only to the season running
  * now (`now`), the one the home page's hero reads.
  *
- * `anilistOf` maps a mal id to AniList's, as arm does. A record holding a listed show's AniList id
- * under another mal id, or none, becomes that show, since AniList's live answer joins the two and the
- * show otherwise drew twice: the offline database files Steel Ball Run as mal 63825 with AniList's
- * 210482, which AniList ties to mal 61469, the one MyAnimeList lists (Fall 2026). An added show carries
- * its AniList id too, so a show in two buckets names the same shows in both.
+ * A bundled record keeps its own ids. An added show carries the AniList id `anilistOf` pairs with its
+ * mal id (see `anilistPairs`), so a show in two buckets names the same shows in both.
  */
 export const withMalSeasons = (seasons, pages, now, anilistOf = new Map()) => {
   const cards = new Map([...pages.values()].flatMap(page => [...page]))
-  const listed = new Map([...cards.keys()].filter(id => anilistOf.has(id)).map(id => [anilistOf.get(id), id]))
   const laid = {}
   for (const key of new Set([...Object.keys(seasons), ...pages.keys()])) {
-    const records = (seasons[key] ?? [])
-      .map(record => cards.has(record.ml) || !listed.has(record.al) ? record : { ...record, ml: listed.get(record.al) })
+    const records = seasons[key] ?? []
     const held = new Set(records.map(record => record.ml))
     const added = [...pages.get(key) ?? []].filter(([id]) => !held.has(id)).map(([id, card]) => cardRecord(id, card, anilistOf.get(id)))
     laid[key] = orderSeasonBucket([...records, ...added]
@@ -137,6 +132,26 @@ export const withMalSeasons = (seasons, pages, now, anilistOf = new Map()) => {
   return laid
 }
 
+/**
+ * The AniList id of each mal id, for the shows MyAnimeList adds: the offline database's pair where it
+ * has a row for the mal id, else arm's, unless the offline database pairs that AniList id with another
+ * mal id. The trackers read the offline database's pairs, and a record naming an AniList id it pairs
+ * elsewhere is two shows to them, so they refuse it: AniList ties Steel Ball Run's 2nd Stage (210482)
+ * to the 1st stage's mal 61469, while the offline database pairs 61469 with 190327 and 210482 with
+ * 63825 (2026-10-16). `offline` is the database's `[mal, anilist]` pairs.
+ */
+export const anilistPairs = (arm, offline) => {
+  const offlineAnilist = new Map(offline.filter(([mal]) => mal).map(([mal, anilist]) => [mal, anilist]))
+  const offlineMal = new Map(offline.filter(([, anilist]) => anilist).map(([mal, anilist]) => [anilist, mal]))
+  const pairs = new Map()
+  for (const { mal_id: mal, anilist_id: anilist } of arm) {
+    if (!mal || !anilist || offlineAnilist.has(mal)) continue
+    if (!offlineMal.has(anilist) || offlineMal.get(anilist) === mal) pairs.set(mal, anilist)
+  }
+  for (const [mal, anilist] of offlineAnilist) if (anilist) pairs.set(mal, anilist)
+  return pairs
+}
+
 const seasonNow = () => {
   const { year, season } = mediaSeasonNow()
   return `${year}-${season}`
@@ -148,10 +163,11 @@ const seasonNow = () => {
  *
  * The season running now (`now`) is asked first, since a failure or a slow site ends the run: its
  * counts and synopses are what the home page's row and hero read. `arm` is @kawaiioverflow/arm's
- * rows, which give the AniList id of each show MyAnimeList lists.
+ * rows and `offline` the offline database's `[mal, anilist]` pairs, which together give the AniList id
+ * of each show MyAnimeList lists (`anilistPairs`).
  */
-export const malSeasonData = async (seasons, arm, { now = seasonNow(), get = fetch, pauseMs = PAUSE_MS, budgetMs = BUDGET_MS } = {}) => {
-  const anilistOf = new Map(arm.filter(entry => entry.mal_id && entry.anilist_id).map(entry => [entry.mal_id, entry.anilist_id]))
+export const malSeasonData = async (seasons, arm, { offline = [], now = seasonNow(), get = fetch, pauseMs = PAUSE_MS, budgetMs = BUDGET_MS } = {}) => {
+  const anilistOf = anilistPairs(arm, offline)
   const keys = Object.keys(seasons).sort((a, b) => Number(b === now) - Number(a === now))
   const { pages, failed } = await malSeasons(keys, get, pauseMs, budgetMs)
   return { seasons: withMalSeasons(seasons, pages, now, anilistOf), pages, failed }

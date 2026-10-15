@@ -309,8 +309,9 @@ const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [
  * NEVER FATAL: a season's ordering is not worth failing a deploy over. A season whose page failed
  * falls back to the rating order, and the line logged says why.
  */
-const withPopularity = async seasons => {
-  const laid = await malSeasonData(seasons, require('@kawaiioverflow/arm/arm.json'))
+const withPopularity = async (seasons, rows) => {
+  const offline = rows.map(row => [row[0], row[1 + COLUMNS.indexOf('anilist')]])
+  const laid = await malSeasonData(seasons, require('@kawaiioverflow/arm/arm.json'), { offline })
   for (const [key, page] of laid.pages) log(`myanimelist ${key}: ${page.size} entries`)
   for (const [key, error] of laid.failed) log(`myanimelist ${key} unavailable (${errorText(error)}); it falls back to its rating order`)
   return laid.seasons
@@ -385,7 +386,7 @@ const refreshExtract = async () => {
   // whatever named the release if upstream ever changes that url's shape.
   const tag = /refs\/tags\/([^/]+)\//.exec(meta.$schema ?? '')?.[1] ?? release.tag
   const extract = buildExtract(entries, meta, tag)
-  extract.seasons = await withPopularity(extract.seasons)
+  extract.seasons = await withPopularity(extract.seasons, extract.rows)
 
   mkdirSync(dirname(CACHE), { recursive: true })
   writeFileSync(CACHE, JSON.stringify(extract))

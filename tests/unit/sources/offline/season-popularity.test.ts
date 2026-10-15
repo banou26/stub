@@ -12,7 +12,12 @@ import { expect, test, vi } from 'vite-plus/test'
 
 import { seasonMedia } from '../../../../src/sources/offline/normalize'
 import { orderSeasonBucket } from '../../../../scripts/season-order.mjs'
-import { errorText, malSeason, malSeasonData, malSeasons, withMalSeasons } from '../../../../scripts/season-popularity.mjs'
+import { anilistPairs, errorText, malSeason, malSeasonData, malSeasons, withMalSeasons } from '../../../../scripts/season-popularity.mjs'
+import index from '../../../../src/generated/anime-index'
+import built from '../../../../src/generated/anime-seasons'
+import { readIndex, type IndexBundle } from '../../../../src/sources/offline/index-lookup'
+import { identify, type CatalogLookup } from '../../../../src/tracking/identity'
+import { toAggregatedUri, type Uri } from '../../../../src/utils/uri'
 
 const record = (t: string, over: { sc?: number, pop?: number, ml?: number, al?: number } = {}) => ({ t, ty: 'TV', p: '', ...over })
 
@@ -225,18 +230,60 @@ test('a show another bucket holds is still added to the season whose page lists 
   expect(laid['2026-FALL'].map(entry => [entry.ml, entry.ep, entry.pop])).toEqual([[59193, 14, 367_295]])
 })
 
-// Measured 2026-10-16 on Fall 2026: the offline database files Steel Ball Run as mal 63825 with AniList's
-// 210482, which AniList ties to mal 61469, the one MyAnimeList lists. Added as well, it drew as a second
-// Steel Ball Run card once AniList answered.
-test('a record holding a listed show\'s AniList id under another mal id becomes that show, not its twin', async () => {
+// Measured 2026-10-16: the offline database pairs Steel Ball Run's 1st stage (mal 61469) with AniList 190327
+// and its 2nd Stage (mal 63825) with AniList 210482, while AniList ties 210482 to mal 61469. The trackers
+// read the offline database's pairs, so a record naming 61469 and 210482 is two shows to them.
+const steelBallRun = { lookup: (origin: string, id: number) =>
+  [{ mal: 61469, anilist: 190327 }, { mal: 63825, anilist: 210482 }].find(row => row[origin as 'mal' | 'anilist'] === id) } as CatalogLookup
+
+// the address a card on the page carries: the record's own uri with every id it names
+const cardUri = (entry: ReturnType<typeof record>) => {
+  const media = seasonMedia(entry, '2026-SUMMER')!
+  return toAggregatedUri([media.uri, ...media.handles.map(handle => handle.node.uri)] as Uri[])
+}
+
+test('an added show takes the offline database\'s AniList id over arm\'s, and none arm pairs with another show', () => {
+  const arm = [{ mal_id: 61469, anilist_id: 210482 }, { mal_id: 1, anilist_id: 11 }, { mal_id: 2, anilist_id: 210482 }]
+
+  expect([...anilistPairs(arm, [[61469, 190327], [63825, 210482]])].sort(([a], [b]) => a - b)).toEqual([[1, 11], [61469, 190327], [63825, 210482]])
+  expect(anilistPairs(arm, [[63825, 210482]]).has(61469), 'arm\'s pair names the offline database\'s 2nd Stage').toBe(false)
+})
+
+test('a bundled record keeps its own ids beside a listed show, and the trackers can tell both apart', async () => {
+  const seasons = { '2026-SUMMER': [record('Steel Ball Run 2nd Stage', { ml: 63825, al: 210482 })] }
+  const anilistOf = anilistPairs([{ mal_id: 61469, anilist_id: 210482 }], [[61469, 190327], [63825, 210482]])
+
+  const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL', anilistOf)
+
+  expect(laid['2026-SUMMER'].map(entry => [entry.t, entry.ml, entry.al])).toEqual([
+    ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 59193, undefined],
+    ['Steel Ball Run: JoJo no Kimyou na Bouken', 61469, 190327],
+    ['Steel Ball Run 2nd Stage', 63825, 210482],
+  ])
+  for (const entry of laid['2026-SUMMER']) expect(identify(cardUri(entry), steelBallRun).kind, entry.t).not.toBe('ambiguous')
+  expect(identify(cardUri({ ...record('welded'), ml: 61469, al: 210482 }), steelBallRun).kind, 'the control: the pair AniList gives').toBe('ambiguous')
+})
+
+// The build's own output against the index the trackers read: on 2026-10-16 both Steel Ball Run records
+// named AniList 210482 with mal 61469, and AniList and MyAnimeList both refused to track them.
+test('no record of the built seasons names ids the trackers read as two shows', () => {
+  const catalog = readIndex(index as IndexBundle)
+  const { seasons } = built as unknown as { seasons: Record<string, Parameters<typeof seasonMedia>[0][]> }
+  const welded = Object.entries(seasons).flatMap(([key, records]) => records
+    .map(entry => seasonMedia(entry, key))
+    .filter(media => media !== undefined)
+    .map(media => toAggregatedUri([media.uri, ...media.handles.map(handle => handle.node.uri)] as Uri[]))
+    .filter(uri => identify(uri, catalog).kind === 'ambiguous'))
+
+  expect(welded).toEqual([])
+})
+
+test('a bundled record is never re-pointed to the show arm ties its AniList id to', async () => {
   const seasons = { '2026-SUMMER': [record('Steel Ball Run 2nd Stage', { ml: 63825, al: 210482 })] }
 
   const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL', new Map([[61469, 210482]]))
 
-  expect(laid['2026-SUMMER'].map(entry => [entry.t, entry.ml, entry.al, entry.pop])).toEqual([
-    ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 59193, undefined, 367_295],
-    ['Steel Ball Run 2nd Stage', 61469, 210482, 247_199],
-  ])
+  expect(laid['2026-SUMMER'].find(entry => entry.t === 'Steel Ball Run 2nd Stage')?.ml).toBe(63825)
 })
 
 test('a record MyAnimeList lists under its own id keeps it, whichever show arm ties its AniList id to', async () => {
@@ -255,12 +302,12 @@ test('a record MyAnimeList lists under its own id keeps it, whichever show arm t
 test('a show in two buckets names the same shows in both', async () => {
   const card = (await summerPages()).get('2026-SUMMER')!.get(61469)!
   const pages = new Map([['2026-SUMMER', new Map([[61469, card]])], ['2026-FALL', new Map([[61469, card]])]])
-  const seasons = { '2026-SUMMER': [], '2026-FALL': [record('Steel Ball Run 2nd Stage', { ml: 63825, al: 210482 })] }
+  const anilistOf = anilistPairs([{ mal_id: 61469, anilist_id: 210482 }], [[61469, 190327], [63825, 210482]])
 
-  const laid = withMalSeasons(seasons, pages, '2026-FALL', new Map([[61469, 210482]]))
+  const laid = withMalSeasons({ '2026-SUMMER': [], '2026-FALL': [] }, pages, '2026-FALL', anilistOf)
   const named = (key: string) => seasonMedia(laid[key][0], key)?.handles.map(handle => handle.node.uri)
 
-  expect(named('2026-SUMMER')).toEqual(['mal:61469', 'anilist:210482'])
+  expect(named('2026-SUMMER')).toEqual(['mal:61469', 'anilist:190327'])
   expect(named('2026-FALL')).toEqual(named('2026-SUMMER'))
 })
 
