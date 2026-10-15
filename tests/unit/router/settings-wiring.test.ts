@@ -9,6 +9,7 @@ const calls = vi.hoisted(() => ({
   clearCloudCookies: vi.fn(async (_domains: string[]) => {}),
   signInThroughWindow: vi.fn(async (_options: unknown) => 'authed' as const),
   signOutOfSite: vi.fn(async (_site: string, _backend: string) => {}),
+  signOutOfCrunchyroll: vi.fn(async () => {}),
   signInToMal: vi.fn(async () => 'closed' as const),
   checkCrunchyroll: vi.fn(async (_backend: string, _deps: Record<string, unknown>) => 'signed-in' as const),
   record: vi.fn((_site: string, _state: string, _now?: number) => {}),
@@ -25,6 +26,7 @@ vi.mock('../../../src/tracking/site-sessions', () => ({
   watchSite: () => () => {},
   trackerSignIns: { mal: calls.signInToMal },
   signOutOfSite: calls.signOutOfSite,
+  signOutOfCrunchyroll: calls.signOutOfCrunchyroll,
 }))
 
 const { attachFrame, fetch } = await import('@fkn/lib')
@@ -32,11 +34,10 @@ const { crunchyroll, prime, sites, status } = await import('../../../src/router/
 
 beforeEach(() => { for (const call of Object.values(calls)) call.mockClear() })
 
-test("Crunchyroll's Sign out removes Crunchyroll's own cookies from FKN's jar", async () => {
+// its cookies and what it remembers are tests/unit/tracking/site-sessions.test.ts's
+test("Crunchyroll's Sign out is the one that also stops its tracker reaching it", async () => {
   await crunchyroll.signOut()
-  expect(calls.clearCloudCookies).toHaveBeenCalledTimes(1)
-  expect(calls.clearCloudCookies).toHaveBeenCalledWith(CRUNCHYROLL_DOMAINS)
-  expect(CRUNCHYROLL_DOMAINS).toContain('crunchyroll.com')
+  expect(calls.signOutOfCrunchyroll).toHaveBeenCalledTimes(1)
 })
 
 test("Crunchyroll's Sign in opens Crunchyroll's sign-in page on the same hosts", async () => {
@@ -71,16 +72,6 @@ test('a Crunchyroll sign-in is remembered as signed in once it says authed, and 
   calls.record.mockClear()
   calls.signInThroughWindow.mockResolvedValueOnce('closed' as never)
   await crunchyroll.signIn()
-  expect(calls.record).not.toHaveBeenCalled()
-})
-
-test('a Crunchyroll sign out is remembered as signed out once the cookies are gone, and not when FKN refused', async () => {
-  await crunchyroll.signOut()
-  expect(calls.record.mock.calls).toEqual([['crunchyroll', 'signed-out']])
-
-  calls.record.mockClear()
-  calls.clearCloudCookies.mockRejectedValueOnce(new Error('refused'))
-  await expect(crunchyroll.signOut()).rejects.toThrow('refused')
   expect(calls.record).not.toHaveBeenCalled()
 })
 

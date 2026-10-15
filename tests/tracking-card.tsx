@@ -10,8 +10,8 @@ import TrackingCompact from '../src/components/tracking-compact'
 // The page tests/tracking-card.spec.ts drives: the tracking row over a listed tracker, a signed out one
 // and one that lists nothing, `?top=` pixels down the page, and with `?clip=` in a box that many pixels
 // tall that clips what overflows it, as the modal does. With `?modal` it sits in the media modal's
-// backdrop instead. Every write is kept on `window.writes`, and a close of the modal sets
-// `window.dismissed`.
+// backdrop instead, and with `?cr` Crunchyroll's read-only history is one episode ahead of AniList.
+// Every write is kept on `window.writes`, and a close of the modal sets `window.dismissed`.
 const query = new URLSearchParams(location.search)
 const writes: [string[], Fields | 'remove'][] = []
 Object.assign(window, { writes, dismissed: false })
@@ -26,8 +26,13 @@ const answers: CompactAnswer[] = [
   },
   { state: 'SIGNED_OUT', candidates: [], tracker: tracker('mal', 'MyAnimeList', 'POINT_10'), entry: null },
   { state: 'NOT_LISTED', candidates: [], tracker: tracker('stub', 'Stub', 'POINT_100'), entry: null },
+  ...query.has('cr')
+    ? [{ state: 'LISTED', candidates: [], tracker: { ...tracker('cr', 'Crunchyroll', 'POINT_100'), canWrite: false, readOnly: true }, entry: { progress: 4 } }]
+    : [],
 ]
-const tracking: CompactTracking = { summary: answers[0]!.entry, disagreements: [], answers }
+const tracking: CompactTracking = query.has('cr')
+  ? { summary: { ...answers[0]!.entry, progress: 4 }, disagreements: ['PROGRESS'], answers }
+  : { summary: answers[0]!.entry, disagreements: [], answers }
 
 const Page = () => {
   const [prefs, setPrefs] = useState<CompactPrefs>({ targets: {} })

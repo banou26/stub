@@ -8,10 +8,12 @@ import {
   makeMedia, makeEpisode, desc, img,
   bestTitleScore, buildHandlesFromUri, getFirstTitle, simplifyTitle, waitForMedia
 } from '../utils'
+import { crunchyrollId, findSeason, resolveSeasonId } from './season-id'
+import { CRUNCHYROLL_ICON } from './session'
 
 const SCORE = 0.5
 
-export const icon = 'https://static.crunchyroll.com/cxweb/assets/img/favicons/favicon-96x96.png'
+export const icon = CRUNCHYROLL_ICON
 export const originUrl = 'https://www.crunchyroll.com'
 export const categories = ['ANIME', 'SERIES'] as const
 export const name = 'Crunchyroll'
@@ -160,16 +162,6 @@ export const resolveEpisodeToSeriesId = async (
   return meta?.series_id ? { seriesId: meta.series_id, seasonId: meta.season_id } : undefined
 }
 
-const stripLocale = (id: string) => id.replace(/JAJP$/, '')
-
-const resolveSeasonId = (season: CrSeason): string =>
-  season.versions?.find(v => v.audio_locale === 'ja-JP')?.guid
-  ?? season.versions?.find(v => v.original)?.guid
-  ?? stripLocale(season.id)
-
-export const crunchyrollId = (seriesId: string, seasonId?: string, episodeId?: string) =>
-  [seriesId, seasonId && stripLocale(seasonId), episodeId].filter(Boolean).join('-')
-
 // Crunchyroll's API hands image `source` urls on www.crunchyroll.com/imgsrv/display/<kind>/<WxH>/<key>,
 // and that host answers a geo-blocked location (Japan, measured 2026-09-05) with a 301 to its
 // "currently unavailable" page, which a browser refuses to embed as an image: every episode thumbnail
@@ -241,9 +233,6 @@ const fetchNormalizedEpisodes = async (seasonId: string, mediaUri: string, ctx: 
   const { data } = await fetchEpisodes(seasonId, ctx)
   return deduplicateEpisodes(data.map(ep => normalizeEpisode(ep, mediaUri)))
 }
-
-const findSeason = (seasons: CrSeason[], seasonId: string) =>
-  seasons.find(s => stripLocale(s.id) === seasonId || resolveSeasonId(s) === seasonId)
 
 export const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
   const [seriesId, seasonId] = id.split('-')

@@ -33,6 +33,7 @@ const TRACKER = `
   signedIn
   account
   canWrite
+  readOnly
   scoreScale
 `
 

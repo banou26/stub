@@ -7,7 +7,7 @@ import { PRIME_DOMAINS, PRIME_SIGN_IN_URL, primeSignedIn } from '../../sources/a
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../sources/crunchyroll/session'
 import { checkCrunchyroll } from '../../sources/crunchyroll/sign-in-check'
 import { signInThroughWindow } from '../../sources/login-window'
-import { isSiteConnected, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
+import { isSiteConnected, signOutOfCrunchyroll, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
 import { createRefresh, rememberSignIn, siteStatuses } from '../../tracking/site-status'
 import { mountHiddenFrame } from '../../utils/hidden-frame'
 
@@ -15,7 +15,7 @@ import { mountHiddenFrame } from '../../utils/hidden-frame'
 export const crunchyroll: AccountsProps['crunchyroll'] = {
   signIn: () => signInThroughWindow({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn })
     .then(rememberSignIn(siteStatuses, 'crunchyroll')),
-  signOut: () => clearCloudCookies(CRUNCHYROLL_DOMAINS).then(() => siteStatuses.record('crunchyroll', 'signed-out')),
+  signOut: signOutOfCrunchyroll,
 }
 
 /** What the Accounts section reaches for Prime Video: the sign-in window and the cookies a sign out removes. */

@@ -30,6 +30,7 @@ export const MEDIA_TRACKING = gql(`
           icon
           color
           canWrite
+          readOnly
           account
           scoreScale
         }

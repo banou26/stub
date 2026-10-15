@@ -1,17 +1,19 @@
 // The page scripts as the build ships them, run the way `frame.evaluate` runs a source string on
 // the cloud backend: `(<source>\n)` evaluated in the page's realm and, being a function, called with the
 // arg (proxy-sandbox locator-modules.ts). Here the page's realm is this one, with its globals stubbed.
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { resolve } from 'node:path'
 
 import { expose } from 'osra'
 
 import type { SessionPageApi } from '../../src/sources/anilist/session-page'
+import type { CrunchyrollPageApi } from '../../src/sources/crunchyroll/session-page'
 import type { MalPageApi } from '../../src/sources/mal/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
 import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
+import { SEASON_ID, SERIES_ID, WATCHED, fakeCrunchyroll } from './sources/crunchyroll/watched-fixtures'
 
 const STATE = Symbol.for(SESSION_INSTALL)
 
@@ -83,4 +85,28 @@ test('ships the MyAnimeList page script the same way, serving whoami and reading
 
   vi.stubGlobal('MAL', { USER_NAME: '' })
   expect(compiled({ kind: 'viewer' }), 'signed out').toBe(false)
+})
+
+test("ships the Crunchyroll page script the same way, reading the season's progress on the site's own device id", async () => {
+  const source = await buildPageScript(resolve(__dirname, '../../src/sources/crunchyroll/session-page.ts'))
+
+  const window = new EventTarget()
+  const site = fakeCrunchyroll()
+  vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+  vi.stubGlobal('location', { origin: 'https://www.crunchyroll.com' })
+  vi.stubGlobal('document', { cookie: 'ajs_anonymous_id=x; device_id=the-sites-own-device; c=1' })
+  vi.stubGlobal('fetch', site.send)
+
+  const compiled = inPage(source) as (arg: unknown) => unknown
+  expect(compiled({ kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'k1' })).toBe('installed')
+  expect(globalThis, 'nothing but its own state lands on the page').not.toHaveProperty('__stubPageScript')
+
+  const { port1, port2 } = new MessageChannel()
+  window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://anime.fkn.app', ports: [port2] }))
+  const page = await expose<CrunchyrollPageApi>({}, { transport: port1 })
+  const answer = await page.watched({ seriesId: SERIES_ID, seasonId: SEASON_ID })
+  port1.close()
+
+  expect(answer).toEqual({ status: 200, body: null, episodes: WATCHED })
+  expect(new URLSearchParams(site.asked[0]!.init.body as string).get('device_id'), 'no new device on the account').toBe('the-sites-own-device')
 })

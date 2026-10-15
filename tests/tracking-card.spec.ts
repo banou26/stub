@@ -155,8 +155,35 @@ test("with room below, the row's score menu opens under the star", async ({ page
   expect(menu.y).toBeGreaterThanOrEqual(star.y + star.height)
 })
 
+test("Crunchyroll's read-only chip shows how far the viewer got there, and the row writes to every tracker but it", async ({ page }) => {
+  await page.goto(`${ORIGIN}/?top=100&cr`)
+  const chip = page.locator('[data-chip="cr"]')
+  await expect(chip.getByRole('img', { name: 'Crunchyroll: 4 watched' })).toHaveText('4')
+  await expect(chip.locator('input')).toHaveCount(0)
+  await expect(page.locator('[data-differs="PROGRESS"]')).toHaveAttribute('title', 'AniList 3, Crunchyroll 4')
+
+  await chip.hover()
+  await expect(card(page, 'cr')).toContainText('Watched 4 / 24')
+  await page.mouse.move(0, 0)
+  await page.locator('.row > .edit .more').click()
+  await expect.poll(() => writes(page)).toHaveLength(2)
+  expect((await writes(page) as [string[]][]).flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'stub'])
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test("with Crunchyroll's chip too, every chip and its card stay on screen", async ({ page }) => {
+    await page.goto(`${ORIGIN}/?top=100&cr`)
+    for (const id of ['anilist', 'mal', 'stub', 'cr']) {
+      const shown = (await page.locator(`[data-chip="${id}"]`).boundingBox())!
+      expect(shown.x + shown.width, id).toBeLessThanOrEqual(390 - 16)
+    }
+    await logo(page, 'cr').tap()
+    const shown = (await card(page, 'cr').boundingBox())!
+    expect(shown.x).toBeGreaterThanOrEqual(0)
+    expect(shown.x + shown.width).toBeLessThanOrEqual(390)
+  })
 
   test("every card stays on screen, and the row keeps to one line with Remove from list offered, which never widens the menu", async ({ page }) => {
     await open(page)

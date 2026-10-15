@@ -1,9 +1,9 @@
-import { expect, test, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
+
+import type { TokenGrant } from '../../../../src/sources/crunchyroll/sign-in-check'
 
 import { askForToken, checkCrunchyroll, crunchyrollSignInState, TOKEN_REQUEST, TOKEN_URL } from '../../../../src/sources/crunchyroll/sign-in-check'
-
-// what www.crunchyroll.com/auth/v1/token answered signed out, measured 2026-10-07
-const SIGNED_OUT = { code: 'auth.obtain_access_token.oauth2_error', context: [{ code: 'auth.obtain_access_token.missing_required_field', field: 'etp_rt' }], error: 'invalid_request' }
+import { ACCESS_TOKEN, ACCOUNT_ID, SIGNED_OUT, TOKEN_GRANTED } from './watched-fixtures'
 
 test('a 200 is signed in, the measured 400 naming the missing etp_rt cookie is signed out', () => {
   expect(crunchyrollSignInState({ status: 200, body: null })).toBe('signed-in')
@@ -124,4 +124,20 @@ test('with the extension, sends none of the calling page\'s cookies', async () =
 
   expect(sent).not.toBe('a-device-id')
   expect(sent).toMatch(/^[0-9a-f-]{36}$/)
+})
+
+test('with a token granted, runs what it was handed in the page that asked, and only its answer leaves', async () => {
+  const withToken = vi.fn(async ({ account_id }: TokenGrant) => `read for ${account_id.length}`)
+  const answer = await askForToken(TOKEN_REQUEST, async () => ({ status: 200, ok: true, json: async () => TOKEN_GRANTED }), withToken)
+
+  expect(withToken).toHaveBeenCalledWith(expect.objectContaining({ access_token: ACCESS_TOKEN, account_id: ACCOUNT_ID }))
+  expect(answer).toEqual({ status: 200, body: null, read: `read for ${ACCOUNT_ID.length}` })
+})
+
+test('signed out, what it was handed never runs', async () => {
+  const withToken = vi.fn(async () => 'read')
+  const answer = await askForToken(TOKEN_REQUEST, async () => ({ status: 400, ok: false, json: async () => SIGNED_OUT }), withToken)
+
+  expect(answer).toEqual({ status: 400, body: SIGNED_OUT })
+  expect(withToken).not.toHaveBeenCalled()
 })

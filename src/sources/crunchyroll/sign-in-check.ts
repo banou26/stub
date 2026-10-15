@@ -5,7 +5,7 @@ import type { AttachFrameOptions, Frame } from '@fkn/lib'
 import type { SiteState } from '../../tracking/site-status'
 import type { FknBackend } from '../../utils/fkn-backend'
 
-import { CRUNCHYROLL_BASE_URL, CRUNCHYROLL_SSO_CLIENT_ID } from './session'
+import { CRUNCHYROLL_BASE_URL, CRUNCHYROLL_SESSION_URL, CRUNCHYROLL_SSO_CLIENT_ID } from './session'
 
 /**
  * The first call crunchyroll.com's own app makes for a signed-in session: the `etp_rt_cookie` grant,
@@ -19,13 +19,16 @@ export type TokenRequest = { url: string, authorization: string, deviceType: str
 /** What the token call answered, with any token taken out: it never leaves the page that asked. */
 export type TokenAnswer = { status: number, body: unknown }
 
+/** What a granted token call answers, for code that runs in the page that asked. */
+export type TokenGrant = { access_token: string, account_id: string }
+
 export const TOKEN_REQUEST: TokenRequest = {
   url: TOKEN_URL,
   authorization: `Basic ${btoa(`${CRUNCHYROLL_SSO_CLIENT_ID}:`)}`,
   deviceType: 'stub on FKN',
 }
 
-type PageFetch = (input: string, init: RequestInit) => Promise<Pick<Response, 'status' | 'ok' | 'json'>>
+export type PageFetch = (input: string, init: RequestInit) => Promise<Pick<Response, 'status' | 'ok' | 'json'>>
 
 /**
  * Self-contained, since `evaluate` runs it in a page at www.crunchyroll.com on that page's `fetch`. It
@@ -33,8 +36,15 @@ type PageFetch = (input: string, init: RequestInit) => Promise<Pick<Response, 's
  * The cookie is read only in a page at the site's origin: with the extension this runs in stub's page,
  * whose cookies are stub's. The url ends in `_=<nonce>`, so no cache keyed on the request (the FKN
  * relay's is) answers a check with an earlier one; the site ignores it (measured signed out 2026-10-07).
+ *
+ * `withToken` runs in the same page once a token is granted, and its answer comes back as `read`: the
+ * token never does.
  */
-export const askForToken = async ({ url, authorization, deviceType }: TokenRequest, send: PageFetch = fetch): Promise<TokenAnswer> => {
+export const askForToken = async <Read = never>(
+  { url, authorization, deviceType }: TokenRequest,
+  send: PageFetch = fetch,
+  withToken?: (grant: TokenGrant) => Promise<Read>,
+): Promise<TokenAnswer & { read?: Read }> => {
   const siteCookie = globalThis.location?.origin === new URL(url).origin ? globalThis.document?.cookie ?? '' : ''
   const deviceId = /(?:^|;\s*)device_id=([^;]+)/.exec(siteCookie)?.[1] ?? crypto.randomUUID()
   const response = await send(`${url}?_=${crypto.randomUUID()}`, {
@@ -44,7 +54,8 @@ export const askForToken = async ({ url, authorization, deviceType }: TokenReque
     body: new URLSearchParams({ grant_type: 'etp_rt_cookie', device_id: deviceId, device_type: deviceType }).toString(),
   })
   const body: unknown = await response.json().catch(() => null)
-  return { status: response.status, body: response.ok ? null : body }
+  if (!response.ok || !withToken) return { status: response.status, body: response.ok ? null : body }
+  return { status: response.status, body: null, read: await withToken(body as TokenGrant) }
 }
 
 const missesRefreshCookie = (body: unknown) =>
@@ -85,7 +96,7 @@ export const checkCrunchyroll = async (
   try {
     const frame = await attach({
       iframe,
-      blank: { url: `${CRUNCHYROLL_BASE_URL}/` },
+      blank: { url: CRUNCHYROLL_SESSION_URL },
       cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: EVALUATION_REASON }],
     })

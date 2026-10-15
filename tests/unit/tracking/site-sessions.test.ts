@@ -6,7 +6,11 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { expose } from 'osra'
 
+import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL } from '../../../src/sources/crunchyroll/session'
 import { SESSION_PORT_MESSAGE } from '../../../src/tracking/session-frames'
+
+const CRUNCHYROLL_REASON = 'Read what you watched on Crunchyroll with your own crunchyroll.com session'
+const SEASON = { seriesId: 'GT00399001', seasonId: 'GS00399002' }
 
 const attach = vi.hoisted(() => vi.fn())
 const extension = vi.hoisted(() => ({ exposed: false }))
@@ -17,6 +21,7 @@ vi.mock('@fkn/lib', async importOriginal => ({
 }))
 vi.mock('../../../src/sources/anilist/session-page.ts?page-script', () => ({ default: 'function () { return "the AniList page script" }' }))
 vi.mock('../../../src/sources/mal/session-page.ts?page-script', () => ({ default: 'function () { return "the MyAnimeList page script" }' }))
+vi.mock('../../../src/sources/crunchyroll/session-page.ts?page-script', () => ({ default: 'function () { return "the Crunchyroll page script" }' }))
 
 const stored = new Map<string, string>()
 vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
@@ -118,7 +123,83 @@ describe("MyAnimeList's session on this device", () => {
     expect(attach).toHaveBeenCalledWith(expect.objectContaining({ domains: ['anilist.co'], blank: { url: 'https://anilist.co/terms' } }))
     expect(page.goto).not.toHaveBeenCalled()
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the AniList page script" }', expect.anything())
-    expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'mal'])
+    expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'cr', 'mal'])
+  })
+})
+
+describe("Crunchyroll's session on this device", () => {
+  test("its Log in opens Crunchyroll's own sign in in an FKN window, asking for evaluation up front, connects it here and remembers a sign in", async () => {
+    const { trackerSignIns } = await load()
+    const goto = vi.fn(async (_url: string, _options?: unknown) => {})
+    attach.mockResolvedValueOnce({ goto, closed: new Promise(() => {}), close: async () => {}, locator: () => ({ exists: async () => true }) })
+
+    expect(await trackerSignIns.cr!()).toBe('authed')
+    expect(attach).toHaveBeenCalledWith({
+      window: {},
+      domains: CRUNCHYROLL_DOMAINS,
+      cookies: 'persistent',
+      permissions: [{ category: 'evaluation', reason: CRUNCHYROLL_REASON }],
+    })
+    expect(goto).toHaveBeenCalledWith(CRUNCHYROLL_LOGIN_URL, { waitUntil: 'commit' })
+    expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['cr'])
+    expect(JSON.parse(stored.get('stub.site-status')!).crunchyroll.state).toBe('signed-in')
+  })
+
+  test('on the cloud its hidden frame is an empty page at www.crunchyroll.com, running the Crunchyroll page script, addressed to that origin', async () => {
+    const { sessionResolvers } = await load()
+    expect(await sessionResolvers.call('cr', 'watched', SEASON), 'nothing attached for a viewer stub never saw sign in').toEqual({ kind: 'not-connected' })
+    expect(attach).not.toHaveBeenCalled()
+
+    stored.set('stub.sessions', JSON.stringify(['cr']))
+    const read = { status: 200, body: null, episodes: [{ number: 1, watched: true }] }
+    const page = hiddenFrame({ watched: async () => read })
+    attach.mockResolvedValueOnce(page.frame)
+
+    expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'response', response: read })
+    expect(attach).toHaveBeenCalledWith(expect.objectContaining({
+      domains: CRUNCHYROLL_DOMAINS,
+      cookies: 'persistent',
+      blank: { url: 'https://www.crunchyroll.com/' },
+      permissions: [{ category: 'evaluation', reason: CRUNCHYROLL_REASON }],
+    }))
+    expect(page.goto).not.toHaveBeenCalled()
+    expect(page.evaluate).toHaveBeenCalledWith('function () { return "the Crunchyroll page script" }', expect.objectContaining({ kind: 'serve' }))
+    expect(page.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: SESSION_PORT_MESSAGE }), 'https://www.crunchyroll.com', expect.any(Array))
+  })
+
+  test('a sign in from its player or the Accounts section connects nothing: only Log in on its chip does', async () => {
+    const { sessionResolvers } = await load()
+    stored.set('stub.site-status', JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: 1 } }))
+
+    expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'not-connected' })
+    expect(attach).not.toHaveBeenCalled()
+  })
+
+  test("its sign out from the Accounts section stops the tracker reaching it at once, then removes its cookies from FKN's jar and remembers it", async () => {
+    const { sessionResolvers, signOutOfCrunchyroll } = await load()
+    stored.set('stub.sessions', JSON.stringify(['cr', 'anilist']))
+    attach.mockResolvedValueOnce(hiddenFrame({ watched: async () => 'read' }).frame)
+    expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'response', response: 'read' })
+
+    const clearCookies = vi.fn(async () => {})
+    attach.mockResolvedValueOnce({ clearCookies })
+    await signOutOfCrunchyroll()
+
+    expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'not-connected' })
+    expect(JSON.parse(stored.get('stub.sessions')!), 'the other site stays connected').toEqual(['anilist'])
+    expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: CRUNCHYROLL_DOMAINS, cookies: 'persistent' })
+    expect(clearCookies).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(stored.get('stub.site-status')!).crunchyroll.state).toBe('signed-out')
+  })
+
+  test('its sign out disconnects even when FKN cannot remove the cookies, and then remembers nothing', async () => {
+    const { sessionResolvers, signOutOfCrunchyroll } = await load()
+    stored.set('stub.sessions', JSON.stringify(['cr']))
+    attach.mockRejectedValueOnce(new Error('FKN is not reachable'))
+
+    await expect(signOutOfCrunchyroll()).rejects.toThrow('FKN is not reachable')
+    expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'not-connected' })
+    expect(stored.has('stub.site-status')).toBe(false)
   })
 })
 

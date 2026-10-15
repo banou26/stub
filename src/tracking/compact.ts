@@ -20,6 +20,7 @@ export type CompactAnswer = {
     id: string
     name: string
     canWrite: boolean
+    readOnly?: boolean | null
     scoreScale?: string | null
     icon?: string | null
     color?: string | null
@@ -115,6 +116,7 @@ export const unsettled = (mine: Fields, row: Row): Fields => {
 
 export type Target =
   | { kind: 'check', checked: boolean, sendable: boolean }
+  | { kind: 'read' }
   | { kind: 'login' }
   | { kind: 'cannot', reason: string }
   | { kind: 'loading' }
@@ -123,7 +125,8 @@ export type Target =
  * How one tracker's chip reads. `stored` is the viewer's own choice on this device, if they made one;
  * without it every tracker that can write starts checked. PAUSED and ERROR are about one read, not the
  * tracker, so they are a check that is not sent to whatever `canWrite` says: a tracker answers them
- * without write access until it has read the viewer's account.
+ * without write access until it has read the viewer's account. A read-only tracker is never a check,
+ * whatever it answered.
  */
 export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Target => {
   switch (answer.state) {
@@ -131,7 +134,7 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
     case 'SIGNED_OUT': return { kind: 'login' }
     case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }
   }
-  if (!answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)) return { kind: 'cannot', reason: 'Is read only' }
+  if (answer.tracker.readOnly) return { kind: 'read' }
   const checked = stored ?? true
   return { kind: 'check', checked, sendable: checked && writable(answer) }
 }

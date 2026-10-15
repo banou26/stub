@@ -70,6 +70,11 @@ type Tracker {
   """Whose list this is, as the tracker names it, or where it is kept."""
   account: String
   canWrite: Boolean!
+  """
+  Never written to: the tracker only shows how far the viewer got on a site of its own (Crunchyroll's
+  watch history). Absent means false.
+  """
+  readOnly: Boolean
   """The scale the viewer scores in on this tracker. Scores on the wire are always 0 to 100."""
   scoreScale: String!
 }

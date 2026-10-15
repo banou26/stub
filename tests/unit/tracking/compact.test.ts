@@ -71,11 +71,18 @@ describe('targetOf', () => {
 
   // MyAnimeList and AniList answer a failed read without write access until they read the account
   test('paused and error from a tracker without write access are still the problem chip, never read only', () => {
-    const readOnly = { tracker: { id: 'a', name: 'a', canWrite: false, scoreScale: 'POINT_100' } }
-    expect(targetOf(answer('a', 'PAUSED', null, readOnly), undefined)).toEqual({ kind: 'check', checked: true, sendable: false })
-    expect(targetOf(answer('a', 'ERROR', null, { ...readOnly, error: 'a answered 502' }), true)).toEqual({ kind: 'check', checked: true, sendable: false })
-    expect(targetOf(answer('a', 'LISTED', {}, readOnly), undefined), 'the control').toEqual({ kind: 'cannot', reason: 'Is read only' })
-    expect(targetOf(answer('a', 'NOT_LISTED', null, readOnly), undefined)).toEqual({ kind: 'cannot', reason: 'Is read only' })
+    const unread = { tracker: { id: 'a', name: 'a', canWrite: false, scoreScale: 'POINT_100' } }
+    expect(targetOf(answer('a', 'PAUSED', null, unread), undefined)).toEqual({ kind: 'check', checked: true, sendable: false })
+    expect(targetOf(answer('a', 'ERROR', null, { ...unread, error: 'a answered 502' }), true)).toEqual({ kind: 'check', checked: true, sendable: false })
+  })
+
+  test('a read-only tracker is never a target, whatever it answered and whatever the viewer stored', () => {
+    const readOnly = { tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true, scoreScale: 'POINT_100' } }
+    for (const state of ['LISTED', 'NOT_LISTED', 'ERROR', 'PAUSED']) {
+      expect(targetOf(answer('cr', state, null, readOnly), true), state).toEqual({ kind: 'read' })
+    }
+    expect(targetOf(answer('cr', 'SIGNED_OUT', null, readOnly), undefined), 'signed out still offers its sign in').toEqual({ kind: 'login' })
+    expect(targetOf(answer('cr', 'LOADING', null, readOnly), undefined)).toEqual({ kind: 'loading' })
   })
 })
 

@@ -439,6 +439,53 @@ describe('a tracker with no id for the media', () => {
   })
 })
 
+describe("a read-only tracker, Crunchyroll's own history", () => {
+  const cr = (state: string, entry: CompactAnswer['entry'] = null, extra: Partial<CompactAnswer> = {}): CompactAnswer =>
+    ({ state, candidates: [], tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true, scoreScale: 'POINT_100' }, entry, ...extra })
+
+  test("its chip shows how far the viewer got there, with nothing to check, and so does its card, on the row's count", async () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 8 })] } })
+
+    expect(named(host, 'Crunchyroll: 8 watched').textContent).toBe('8')
+    expect(chip(host, 'cr').querySelector('input, .login-button')).toBeNull()
+    const card = await hover(host, 'cr')
+    expect(card.textContent).toContain('Watched 8 / 14')
+    expect(card.querySelector('select, input, .star')).toBeNull()
+    expect(card.textContent).not.toContain('cannot track')
+  })
+
+  test('nothing watched there reads 0', () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('NOT_LISTED')] } })
+    expect(named(host, 'Crunchyroll: 0 watched').textContent).toBe('0')
+  })
+
+  test('the row marks where its progress differs from the others, naming each', () => {
+    const answers = [anilist, mal, stub, cr('LISTED', { progress: 8 })]
+    const { host } = render({ tracking: { summary: { ...tracking.summary, progress: 13 }, disagreements: ['PROGRESS'], answers } })
+    expect(q(host, '.progress-field [data-differs="PROGRESS"]').title).toBe('AniList 13, Crunchyroll 8')
+  })
+
+  test('signed out, it offers its sign in like any tracker', () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('SIGNED_OUT')] } })
+    expect(chip(host, 'cr').classList.contains('login')).toBe(true)
+  })
+
+  test('a change on the row never goes to it, and a failing read shows its badge and reason with no save problem', async () => {
+    vi.useFakeTimers()
+    const failing = cr('ERROR', null, { error: 'Crunchyroll answered 503' })
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, failing] } })
+
+    await pickStatus(host, 'COMPLETED')
+    await click(named(host, 'One episode more'))
+    await settle(1000)
+    expect(onSaveFields.mock.calls.flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'anilist', 'stub', 'stub'])
+    expect(host.querySelector('[data-note="cr"]')).toBeNull()
+    expect(host.querySelector('[data-chip="cr"] [data-badge="red"]')).toBeTruthy()
+    expect(named(host, 'Crunchyroll: Crunchyroll answered 503')).toBeTruthy()
+    expect((await hover(host, 'cr')).textContent).toContain('Crunchyroll answered 503')
+  })
+})
+
 describe('a tracker that has not answered yet', () => {
   test('has its chip at once, busy, with nothing to check, and the row writes to the trackers that answered', async () => {
     vi.useFakeTimers()

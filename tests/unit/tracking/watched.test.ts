@@ -92,11 +92,29 @@ describe('watchedPatches', () => {
       answer('mal', 'SIGNED_OUT'),
       answer('kitsu', 'PAUSED'),
       answer('annict', 'ERROR'),
-      answer('simkl', 'NOT_LISTED', null, { tracker: { id: 'simkl', name: 'simkl', canWrite: false } }),
+      answer('simkl', 'NOT_LISTED', null, { tracker: { id: 'simkl', name: 'simkl', canWrite: false, readOnly: true } }),
       answer('stub', 'NOT_LISTED'),
     ), { anilist: false }, 12)).toEqual({
       kitsu: { progress: 5, status: 'WATCHING' },
       annict: { progress: 5, status: 'WATCHING' },
+      stub: { progress: 5, status: 'WATCHING' },
+    })
+  })
+
+  // Crunchyroll's own history: its progress shows in the row and never changes the others by itself
+  test('never to a read-only tracker, behind, listing nothing or failing, and the others go by their own entries', () => {
+    const readOnly = (state: string, entry?: CompactAnswer['entry'], error?: string) =>
+      answer('cr', state, entry, { error, tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true } })
+    const others = [answer('anilist', 'LISTED', { status: 'WATCHING', progress: 3, episodeCount: 12 }), answer('stub', 'NOT_LISTED')]
+    for (const cr of [readOnly('LISTED', { progress: 2 }), readOnly('NOT_LISTED'), readOnly('ERROR', null, 'Crunchyroll answered 503')]) {
+      expect(watchedPatches(at(5), tracking(...others, cr), { cr: true }, 12), cr.state).toEqual({
+        anilist: { progress: 5 },
+        stub: { progress: 5, status: 'WATCHING' },
+      })
+    }
+    const ahead = { summary: { status: 'WATCHING', progress: 8, episodeCount: 12 }, disagreements: ['PROGRESS'], answers: [...others, readOnly('LISTED', { progress: 8 })] }
+    expect(watchedPatches(at(5), ahead, {}, 12), 'its progress ahead of the others raises nothing').toEqual({
+      anilist: { progress: 5 },
       stub: { progress: 5, status: 'WATCHING' },
     })
   })

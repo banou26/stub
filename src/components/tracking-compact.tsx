@@ -108,6 +108,7 @@ const style = css`
     /* the check takes the chip's free area, the gap and the padding beside it included */
     > label { display: flex; align-items: center; align-self: stretch; margin: 0 -0.6rem; padding: 0 0.6rem; cursor: pointer; }
     .slot { display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; }
+    .seen { width: auto; min-width: 1.6rem; font-size: 1.2rem; font-weight: 600; }
     .check { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #4ade80; color: #000; display: flex; align-items: center; justify-content: center; }
     .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 0.15rem solid rgba(255, 255, 255, 0.45); }
     .spin { animation: tracking-spin 1s linear infinite; }
@@ -180,6 +181,13 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
     {answer.tracker.icon ? <img src={answer.tracker.icon} alt=""/> : answer.tracker.name.slice(0, 1)}
   </span>
 )
+
+const problemOf = (answer: CompactAnswer) => answer.state === 'PAUSED' || answer.state === 'ERROR' ? whyNot(answer) : undefined
+
+const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) =>
+  failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/>
+  : answer.state === 'PAUSED' ? <span className="badge amber" data-badge="amber"/>
+  : null
 
 /**
  * A score, a status and an episode count, or for a movie a Watched toggle in place of the count. The
@@ -555,6 +563,10 @@ const TrackingCompact = (
     if (target.kind === 'loading') return head
     if (target.kind === 'login') return <>{head}<span className="why">Signed out</span>{loginButton(answer)}</>
     if (target.kind === 'cannot') return <>{head}<span className="why">{name} cannot track this media: {target.reason}</span></>
+    if (target.kind === 'read') {
+      const { progress, total } = rowOfEntry(answer, row.total)
+      return <>{head}<span className="why">{problemOf(answer) ?? `Watched ${progress}${total ? ` / ${total}` : ''}`}</span></>
+    }
     const canWrite = writable(answer)
     const entry = rowOfEntry(answer, row.total)
     const scale = pickerScale([answer.tracker.scoreScale])!
@@ -628,8 +640,18 @@ const TrackingCompact = (
                 </Chip>
               )
             }
+            if (target.kind === 'read') {
+              const problem = problemOf(answer)
+              const seen = answer.entry?.progress ?? 0
+              return (
+                <Chip key={id} {...chip} className="chip read">
+                  <span className="slot seen" role="img" aria-label={`${name}: ${problem ?? `${seen} watched`}`}>{problem ? undefined : seen}</span>
+                  <Badge answer={answer}/>
+                </Chip>
+              )
+            }
             const { busy, failed } = stateOf(answer)
-            const problem = answer.state === 'PAUSED' || answer.state === 'ERROR' ? whyNot(answer) : undefined
+            const problem = problemOf(answer)
             return (
               <Chip key={id} {...chip} className={`chip${target.checked ? '' : ' off'}`} busy={busy}>
                 <label>
@@ -648,7 +670,7 @@ const TrackingCompact = (
                       : target.checked ? <span className="check"><Check size={11} aria-hidden="true"/></span> : <span className="ring"/>}
                   </span>
                 </label>
-                {failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/> : answer.state === 'PAUSED' ? <span className="badge amber" data-badge="amber"/> : undefined}
+                <Badge answer={answer} failed={failed}/>
                 {problem ? <span id={`compact-hint-${id}`} className="sr-only">{problem}</span> : undefined}
               </Chip>
             )

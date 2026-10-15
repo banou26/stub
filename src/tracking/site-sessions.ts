@@ -1,6 +1,7 @@
 // The main thread's session frames, one per site a tracker reaches with the viewer's own session
-// (anilist.co and myanimelist.net), the sign in that connects a site on this device and the sign out
-// that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the `sessions` osra key.
+// (anilist.co, myanimelist.net and www.crunchyroll.com), the sign in that connects a site on this device
+// and the sign out that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the
+// `sessions` osra key.
 
 import type { WindowSignIn } from '../sources/login-window'
 import type { PageApi } from './site-session'
@@ -11,6 +12,10 @@ import { expose } from 'osra'
 import anilistPageScript from '../sources/anilist/session-page.ts?page-script'
 import { ANILIST_DOMAINS, ANILIST_LOGIN_URL, ANILIST_ORIGIN, ANILIST_SESSION_URL, anilistSignedIn } from '../sources/anilist/session'
 import { clearCloudCookies } from '../sources/cloud-sign-out'
+import crunchyrollPageScript from '../sources/crunchyroll/session-page.ts?page-script'
+import {
+  CRUNCHYROLL_BASE_URL, CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, CRUNCHYROLL_SESSION_URL, CRUNCHYROLL_TRACKER_ID, crunchyrollSignedIn,
+} from '../sources/crunchyroll/session'
 import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
@@ -22,6 +27,7 @@ import { rememberSignIn, siteStatuses } from './site-status'
 
 const ANILIST_REASON = 'Read and update your AniList list with your own anilist.co session'
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
+const CRUNCHYROLL_REASON = 'Read what you watched on Crunchyroll with your own crunchyroll.com session'
 
 const frames = createSessionFrames<PageApi>(
   [{
@@ -39,6 +45,13 @@ const frames = createSessionFrames<PageApi>(
     domains: MAL_DOMAINS,
     reason: MAL_REASON,
     pageScript: malPageScript,
+  }, {
+    id: CRUNCHYROLL_TRACKER_ID,
+    url: CRUNCHYROLL_SESSION_URL,
+    origin: CRUNCHYROLL_BASE_URL,
+    domains: CRUNCHYROLL_DOMAINS,
+    reason: CRUNCHYROLL_REASON,
+    pageScript: crunchyrollPageScript,
   }],
   {
     // the backend the sign-in picks too, so the frame reads the session the sign-in reached. On the
@@ -86,10 +99,24 @@ export const signInToMyAnimeList = (): Promise<WindowSignIn> =>
     { frames, connections },
   ).then(rememberSignIn(siteStatuses, 'mal'))
 
+/** Opens Crunchyroll's sign-in page in an FKN window. Call it directly in the click handler. */
+export const signInToCrunchyroll = (): Promise<WindowSignIn> =>
+  signInAndConnect(
+    CRUNCHYROLL_TRACKER_ID,
+    () => signInThroughWindow({
+      url: CRUNCHYROLL_LOGIN_URL,
+      domains: CRUNCHYROLL_DOMAINS,
+      permissions: [{ category: 'evaluation', reason: CRUNCHYROLL_REASON }],
+      isSignedIn: crunchyrollSignedIn,
+    }),
+    { frames, connections },
+  ).then(rememberSignIn(siteStatuses, 'crunchyroll'))
+
 /** The sign in each tracker offers, by tracker id, for a tracker that answers SIGNED_OUT. */
 export const trackerSignIns: Record<string, () => Promise<WindowSignIn>> = {
   anilist: signInToAniList,
   mal: signInToMyAnimeList,
+  [CRUNCHYROLL_TRACKER_ID]: signInToCrunchyroll,
 }
 
 /** The sites a tracker reaches with the viewer's own session, by stub's name for them. */
@@ -114,4 +141,14 @@ export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Pro
   if (backend !== 'cloud') return
   await clearCloudCookies(SITE_DOMAINS[site])
   siteStatuses.record(site, 'signed-out')
+}
+
+/**
+ * Crunchyroll's sign out on the cloud: as `signOutOfSite`, the tracker stops reaching it at once, then
+ * its cookies leave FKN's jar and it is remembered as signed out. Rejects when that removal failed.
+ */
+export const signOutOfCrunchyroll = async (): Promise<void> => {
+  disconnectAndReload(CRUNCHYROLL_TRACKER_ID, { frames, connections })
+  await clearCloudCookies(CRUNCHYROLL_DOMAINS)
+  siteStatuses.record('crunchyroll', 'signed-out')
 }

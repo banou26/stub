@@ -2,5 +2,6 @@
 // export as a media source, and a tracker must never be asked a media question, nor a media source or
 // a plugin frame a tracking one. worker/trackers.ts builds a server for each of these.
 export * as anilist from './anilist/tracker'
+export * as crunchyroll from './crunchyroll/tracker'
 export * as mal from './mal/tracker'
 export * as stub from './stub/tracker'

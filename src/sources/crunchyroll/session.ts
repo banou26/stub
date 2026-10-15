@@ -12,6 +12,14 @@ export const CRUNCHYROLL_DOMAINS = [
 
 export const CRUNCHYROLL_BASE_URL = 'https://www.crunchyroll.com'
 
+export const CRUNCHYROLL_ICON = 'https://static.crunchyroll.com/cxweb/assets/img/favicons/favicon-96x96.png'
+
+/** The tracker reading the viewer's Crunchyroll history, and its session frame: the Crunchyroll source's own origin. */
+export const CRUNCHYROLL_TRACKER_ID = 'cr'
+
+/** The page the tracker's hidden session frame holds, the empty page the sign-in check asks from on the cloud. */
+export const CRUNCHYROLL_SESSION_URL = `${CRUNCHYROLL_BASE_URL}/`
+
 /** crunchyroll.com's own client id for a signed-in account, its pages' `cxApiParams.accountAuthClientId`. */
 export const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
 // state '/': returning the sign-in popup or window to the episode would start a second player there
