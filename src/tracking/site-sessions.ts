@@ -41,8 +41,13 @@ const frames = createSessionFrames<PageApi>(
     pageScript: malPageScript,
   }],
   {
-    // the backend the sign-in picks too, so the frame reads the session the sign-in reached
-    attach: async options => attachFrame({ ...options, cookies: attachCookies(await detectBackend()) }),
+    // the backend the sign-in picks too, so the frame reads the session the sign-in reached. On the
+    // cloud an empty page presented at the url: a goto there adds a history entry, so the browser's Back
+    // lands in the hidden frame and leaves it with no page. Only the render proxy can present one.
+    attach: async ({ url, ...options }) => {
+      const backend = await detectBackend()
+      return attachFrame({ ...options, cookies: attachCookies(backend), ...backend === 'cloud' ? { blank: { url } } : {} })
+    },
     mount: () => mountHiddenFrame('Session'),
     connect: port => expose<PageApi>({}, { transport: port }),
     appOrigin: location.origin,

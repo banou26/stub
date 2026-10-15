@@ -1,7 +1,7 @@
 // The session frame manager over a fake Frame: the page script it evaluates and the port it posts,
 // served here over a real MessageChannel by a fake page, one page per document the frame holds, each
 // its own realm, where READ_SESSION_INSTALL runs as FKN runs a source string.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { Frame } from '@fkn/lib'
 
@@ -50,10 +50,11 @@ const runInPage = (source: string, realm: Context, arg: unknown) =>
  * `hang` makes that document's answers wait. `order` records each report and each install as it lands,
  * and `reached` every question that reached a page, answered or not.
  */
-const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
+const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url } = {}) => {
   let document = -1
   let realm = newRealm()
   let committed = Promise.resolve()
+  let url = ''
   const listeners = new Set<(event: { type: 'document', origin: string }) => void>()
   const hanging = new Set<number>()
   const order: string[] = []
@@ -92,7 +93,8 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
       },
     }, { transport: port })
   })
-  const goto = vi.fn(async (_url: string, _options?: unknown) => {
+  const goto = vi.fn(async (to: string, _options?: unknown) => {
+    url = to
     if (report === 'held') {
       committed = new Promise(resolve => setTimeout(() => {
         arrive()
@@ -109,8 +111,19 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
     options?.signal?.addEventListener('abort', () => listeners.delete(listener))
   })
 
+  const frame = { evaluate, postMessage, goto, on, url: () => url } as unknown as Frame
+
   return {
-    frame: { evaluate, postMessage, goto, on } as unknown as Frame,
+    frame,
+    /** A new attachment, on nothing, or with `blank` on an empty document already at the site's url, as @fkn/lib's `url()` answers it. */
+    attached: () => {
+      url = ''
+      if (blank) {
+        arrive()
+        url = new URL(siteUrl).href
+      }
+      return frame
+    },
     evaluate,
     /** The page script's evaluates, apart from the reads of which install a document serves. */
     installs,
@@ -130,17 +143,17 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport } = {}) => {
   }
 }
 
-const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as GotoReport } = {}) => {
-  const page = fakeFrame({ serve, report })
+const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url } = {}) => {
+  const page = fakeFrame({ serve, report, blank, siteUrl })
   const removed: number[] = []
   let mounted = 0
   const mount = vi.fn(() => {
     const index = ++mounted
     return { iframe: { index } as unknown as HTMLIFrameElement, remove: () => { removed.push(index) } }
   })
-  const attach = vi.fn(async (_options: unknown) => page.frame)
+  const attach = vi.fn(async (_options: unknown) => page.attached())
   let keys = 0
-  const frames = createSessionFrames<PageApi>([SITE], {
+  const frames = createSessionFrames<PageApi>([{ ...SITE, url: siteUrl }], {
     attach,
     mount,
     connect: port => { ports.push(port); return expose<PageApi>({}, { transport: port }) },
@@ -170,7 +183,7 @@ describe('the session frame', () => {
 
     expect(await ask('hello')).toBe('hello from document 0')
 
-    expect(attach).toHaveBeenCalledWith({ iframe: { index: 1 }, domains: ['anilist.co'], permissions: [{ category: 'evaluation', reason: 'Read your list' }] })
+    expect(attach).toHaveBeenCalledWith({ iframe: { index: 1 }, url: 'https://anilist.co/terms', domains: ['anilist.co'], permissions: [{ category: 'evaluation', reason: 'Read your list' }] })
     expect(goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'commit' })
     expect(installs()).toHaveLength(1)
     expect(evaluate).toHaveBeenCalledWith(SITE.pageScript, { kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'key-1' })
@@ -301,6 +314,27 @@ describe("the goto's own document is installed once, whenever its report lands",
     expect(await ask('first')).toBe('first from document 0')
     expect(order).toEqual(['install 0'])
     expect(installs()).toHaveLength(1)
+  })
+})
+
+describe("a frame the attach already put on the site's page", () => {
+  test('is sent no goto, and its document and every later one gets one install', async () => {
+    const { goto, installs, newDocument, ask } = setup({ blank: true })
+
+    expect(await ask('first')).toBe('first from document 0')
+    expect(goto).not.toHaveBeenCalled()
+    expect(installs()).toHaveLength(1)
+
+    newDocument()
+    expect(await ask('second')).toBe('second from document 1')
+    expect(installs()).toHaveLength(2)
+  })
+
+  test('is sent no goto when the url it answers is the site url written another way', async () => {
+    const { goto, ask } = setup({ blank: true, siteUrl: 'https://AniList.co' })
+
+    expect(await ask('first')).toBe('first from document 0')
+    expect(goto).not.toHaveBeenCalled()
   })
 })
 

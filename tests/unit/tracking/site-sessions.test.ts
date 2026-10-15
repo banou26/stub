@@ -46,7 +46,10 @@ afterEach(() => {
   vi.stubGlobal('location', { origin: 'https://anime.fkn.app' })
 })
 
-/** A hidden frame whose page serves `api` on the port it is sent, and records what it was asked. */
+/**
+ * A hidden frame whose page serves `api` on the port it is sent, and records what it was asked. Its
+ * `url()` answers the blank page's url it was attached on, as FKN's does, and nothing otherwise.
+ */
 const hiddenFrame = (api: Record<string, (arg: never) => Promise<unknown>> = { whoami: async () => 'the page answered' }) => {
   const evaluate = vi.fn(async (_source: string, _arg: unknown) => 'installed')
   const goto = vi.fn(async (_url: string, _options?: unknown) => {})
@@ -54,7 +57,8 @@ const hiddenFrame = (api: Record<string, (arg: never) => Promise<unknown>> = { w
     ports.push(transfer[0]!)
     if (message.type === SESSION_PORT_MESSAGE) void expose(api, { transport: transfer[0]! })
   })
-  return { frame: { evaluate, goto, postMessage, on: () => {} }, evaluate, goto, postMessage }
+  const url = () => (attach.mock.lastCall?.[0] as { blank?: { url: string } } | undefined)?.blank?.url ?? ''
+  return { frame: { evaluate, goto, postMessage, on: () => {}, url }, evaluate, goto, postMessage }
 }
 
 /** A sign-in window the viewer closes at once. */
@@ -82,7 +86,7 @@ describe("MyAnimeList's session on this device", () => {
     expect(JSON.parse(stored.get('stub.sessions')!), 'connected here, so its answer is read').toEqual(['mal'])
   })
 
-  test('its hidden frame holds the hover fragment and runs the MyAnimeList page script, addressed to myanimelist.net', async () => {
+  test('on the cloud its hidden frame is an empty page at the hover fragment, running the MyAnimeList page script, addressed to myanimelist.net', async () => {
     const { sessionResolvers } = await load()
     expect(await sessionResolvers.call('mal', 'whoami', {}), 'nothing attached before a sign in').toEqual({ kind: 'not-connected' })
     expect(attach).not.toHaveBeenCalled()
@@ -95,9 +99,11 @@ describe("MyAnimeList's session on this device", () => {
     expect(attach).toHaveBeenCalledWith(expect.objectContaining({
       domains: ['myanimelist.net'],
       cookies: 'persistent',
+      blank: { url: 'https://myanimelist.net/includes/ajax.inc.php?t=64&id=1' },
       permissions: [{ category: 'evaluation', reason: 'Read and update your MyAnimeList list with your own myanimelist.net session' }],
     }))
-    expect(page.goto).toHaveBeenCalledWith('https://myanimelist.net/includes/ajax.inc.php?t=64&id=1', { waitUntil: 'commit' })
+    // a goto would add a history entry the browser's Back then spends on the hidden frame
+    expect(page.goto).not.toHaveBeenCalled()
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the MyAnimeList page script" }', expect.objectContaining({ kind: 'serve', appOrigin: 'https://anime.fkn.app' }))
     expect(page.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: SESSION_PORT_MESSAGE }), 'https://myanimelist.net', expect.any(Array))
   })
@@ -109,7 +115,8 @@ describe("MyAnimeList's session on this device", () => {
     attach.mockResolvedValueOnce(page.frame)
 
     await sessionResolvers.call('anilist', 'whoami', {})
-    expect(page.goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'commit' })
+    expect(attach).toHaveBeenCalledWith(expect.objectContaining({ domains: ['anilist.co'], blank: { url: 'https://anilist.co/terms' } }))
+    expect(page.goto).not.toHaveBeenCalled()
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the AniList page script" }', expect.anything())
     expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'mal'])
   })
@@ -130,6 +137,9 @@ describe('which jar a session runs on', () => {
     attach.mockResolvedValueOnce(page.frame)
     await sessionResolvers.call('anilist', 'whoami', {})
     expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'native' }))
+    // only the render proxy presents a page without loading it, so the extension's frame is sent there
+    expect(attach.mock.lastCall?.[0]).not.toHaveProperty('blank')
+    expect(page.goto).toHaveBeenCalledWith('https://anilist.co/terms', { waitUntil: 'commit' })
   })
 
   test('the control: with no extension, both run on the cloud jar', async () => {
@@ -142,7 +152,8 @@ describe('which jar a session runs on', () => {
     const page = hiddenFrame()
     attach.mockResolvedValueOnce(page.frame)
     await sessionResolvers.call('anilist', 'whoami', {})
-    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'persistent' }))
+    expect(attach).toHaveBeenLastCalledWith(expect.objectContaining({ domains: ['anilist.co'], cookies: 'persistent', blank: { url: 'https://anilist.co/terms' } }))
+    expect(page.goto).not.toHaveBeenCalled()
   })
 })
 

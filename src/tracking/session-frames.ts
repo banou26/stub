@@ -1,5 +1,5 @@
-// A hidden frame per site, holding one of the site's own pages, so stub can ask the site things with
-// the viewer's own session: the page's requests carry the site's cookies, which nothing else here can.
+// A hidden frame per site, holding a page of the site, so stub can ask the site things with the
+// viewer's own session: the page's requests carry the site's cookies, which nothing else here can.
 // Import free apart from types, so a test drives it with a fake Frame; ./site-sessions.ts wires it to
 // the real attachFrame, a real iframe and the built page script.
 
@@ -42,7 +42,8 @@ export type SessionSite = {
 }
 
 export type SessionFramesOptions<Api> = {
-  attach: (options: { iframe: HTMLIFrameElement, domains: string[], permissions: CategoryRequest[] }) => Promise<Frame>
+  /** May put the frame on `url` itself (the cloud's blank page); a frame whose `url()` then answers it, as `new URL(url).href`, is sent no goto. */
+  attach: (options: { iframe: HTMLIFrameElement, url: string, domains: string[], permissions: CategoryRequest[] }) => Promise<Frame>
   /** A new iframe in the document, hidden, and how to take it out again. */
   mount: () => { iframe: HTMLIFrameElement, remove: () => void }
   /** The app's end of a port the page serves on, as osra connects it. */
@@ -178,9 +179,9 @@ export const createSessionFrames = <Api>(
     entry.frame = (async () => {
       const { iframe, remove } = mount()
       controller.signal.addEventListener('abort', remove, { once: true })
-      const frame = await attach({ iframe, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
+      const frame = await attach({ iframe, url: site.url, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
       frame.on('document', () => { void settle(entry, site, frame) }, { signal: controller.signal })
-      await frame.goto(site.url, { waitUntil: 'commit' })
+      if (frame.url() !== new URL(site.url).href) await frame.goto(site.url, { waitUntil: 'commit' })
       return frame
     })()
     // a frame that could not attach is forgotten, so the next use tries again
