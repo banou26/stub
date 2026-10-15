@@ -17,7 +17,7 @@
 import type { GuardQuery } from './guards'
 
 import { formatOf } from './profile'
-import { identitySpaceOf, prefixRelated, readComponents } from './guards'
+import { disagree, identitySpaceOf, readComponents } from './guards'
 
 /** One finding: the rule that fired, a line a human reads, and the rows it names. */
 export type Anomaly = { rule: string, detail: string, uris: string[] }
@@ -67,8 +67,7 @@ export const disagreeingIds = async (query: GuardQuery): Promise<Anomaly[]> => {
         // when they borrow from the same catalogue. Measured on the recorded page 2026-09-14, this
         // reported 21 `disagreeing-ids` of which 18 were offline pairs the guards accept as one row
         // under two addresses, so the store called a defect the thing it had just been taught to allow.
-        if (identitySpaceOf(a) !== identitySpaceOf(b)) continue
-        if (prefixRelated(a, b, parentOf)) continue
+        if (!disagree(a, b, parentOf)) continue
         found.push({
           rule: 'disagreeing-ids',
           detail: `${a} and ${b} are two ids of ${identitySpaceOf(a)} in one component, and neither extends the other`,

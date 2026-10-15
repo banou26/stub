@@ -31,7 +31,7 @@
  *
  * Nothing here weakens a case to make it pass. A line in the report is a debt, named and owned.
  */
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { writeFileSync } from 'node:fs'
 
@@ -195,6 +195,18 @@ const TRIAGE: TriageRule[] = [
       + 'is at the SOURCE, while the third carries a knownGap whose own text says "A replacement store that '
       + 'splits these two is BETTER than the one this corpus was extracted from: change the case, do not '
       + 'weaken it". A case is never edited here, so each is in the review queue for a person to settle.',
+  },
+  {
+    id: 'the-offline-row-pairs-the-anilist-id-with-another-mal-id',
+    verdict: 'LABEL DOUBTED',
+    cases: ['anilist-205068'],
+    kinds: ['SPLIT'],
+    why: 'The case puts mal:64683 with anilist:205068 on AniList\'s idMal, while the recording\'s Offline row '
+      + 'pairs anilist:205068 with MyAnimeList 63225, as the offline database the trackers read still does '
+      + '(release 2026-42). One id per catalogue, with the batch\'s Offline claims weighed first (5.2, guard 4), '
+      + 'refuses AniList\'s claim, so the run splits from mal:64683 rather than holding two MyAnimeList ids, '
+      + 'and the trackers refuse that card either way. The labeller flagged the same conflict; a person '
+      + 'settles which MyAnimeList id is the run\'s.',
   },
   {
     id: 'the-echo-was-the-only-evidence-and-the-row-has-no-title-or-no-date',

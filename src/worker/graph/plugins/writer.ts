@@ -547,7 +547,10 @@ export const applyPluginOutput = async (options: {
     ? await readStickyLinks(query, id, reproposed)
     : []
   const pass = await prepare(query, [
-    ...ordered.map(proposal => ({ fromUri: proposal.fromUri, toUri: proposal.toUri, supports: proposal.supports })),
+    ...ordered.map(proposal => ({
+      fromUri: proposal.fromUri, toUri: proposal.toUri, supports: proposal.supports,
+      joins: proposal.kind === 'SAME_AS' && !isRefusedProposal(proposal),
+    })),
     ...sticky.map(link => ({ fromUri: link.fromUri, toUri: link.toUri, supports: link.supports })),
   ])
 

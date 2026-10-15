@@ -10,22 +10,22 @@ Every line below carries a VERDICT (see Triage), and a line with none fails the 
 
 ## Counts
 
-- cases: 249, of which 197 report nothing at all
-- cases with at least one line: 52
+- cases: 249, of which 196 report nothing at all
+- cases with at least one line: 53
 - `PART_OF` lines a source CLAIMED, which is the store's debt: 0
 - `PART_OF` lines no claim carries: 7
 - `WELD` cases: 0
 
 | kind | 2d | now | what it means |
 | --- | --- | --- | --- |
-| SPLIT | 106 | 280 | a `together` group came back as more than one cluster |
+| SPLIT | 106 | 283 | a `together` group came back as more than one cluster |
 | WELD | 15 | 0 | an `apart` pair came back as one cluster |
 | PART_OF | 0 | 7 | a container attachment the labels state and the store does not hold |
 | INCLUDES | 2 | 0 | an episode range, which `plugin:range` writes (5.4 P4) |
 | EPISODE_PAIR | 162 | 710 | two rows that are one broadcast episode, or two that must never be one |
 | UNRELATED | 169 | 0 | a row that must stand alone and does not |
 | ORDER | 0 | 0 | the two arrival orders disagreed (invariant I15) |
-| cases reporting nothing | 166 | 197 | the case is fully satisfied, both arrival orders |
+| cases reporting nothing | 166 | 196 | the case is fully satisfied, both arrival orders |
 
 ### What moved, per kind
 
@@ -37,7 +37,7 @@ Every line below carries a VERDICT (see Triage), and a line with none fails the 
   `known-disagreements.graph.json`), and it no longer attaches to it either, which is what every
   `UNRELATED ATTACHED` and `UNRELATED HOLDS` line was.
 - **`SPLIT` 106 to 280, and `EPISODE_PAIR` 162 to 732, while the cases reporting nothing went 166 to
-  197.** The same change, seen from the other side, and the reason the line count rises
+  196.** The same change, seen from the other side, and the reason the line count rises
   while the case count falls: thirty cases that only ever failed through an echo weld now pass
   outright, and the cases that used the echo to HOLD a group now fail visibly instead, each one
   naming every member of the group rather than one pair. `plugin:title` holds a group only when it
@@ -51,7 +51,7 @@ Every line below carries a VERDICT (see Triage), and a line with none fails the 
 
 | what would hold the group | failing groups | expected |
 | --- | --- | --- |
-| a first-party `SAME_AS` claim | 0 | only where a guard of 5.2 REFUSED it, named on the line: 0 of them, and 0 with no refusal behind them |
+| a first-party `SAME_AS` claim | 1 | only where a guard of 5.2 REFUSED it, named on the line: 1 of them, and 0 with no refusal behind them |
 | a `SAME_AS` claim naming another origin | 44 | sometimes: a guard of 5.2 may have refused it, and an address echo is refused by guard 3 and contributes nothing (3.3) |
 | a containment edge | 0 | a containment edge never welds: `plugin:containment` attaches and mints no sameness (5.4 P2) |
 | a title match | 5 | only when both sides publish a title and a year: gate 0 buckets and gate 5 compares (5.4 P3) |
@@ -64,7 +64,7 @@ failures, so this section cannot rot quietly.
 | verdict | lines | rules | cases |
 | --- | --- | --- | --- |
 | STORE BUG | 0 | 0 | 0 |
-| LABEL DOUBTED | 8 | 1 | 3 |
+| LABEL DOUBTED | 11 | 2 | 4 |
 | RECORDING | 982 | 3 | 44 |
 | EXPECTED GAP | 7 | 1 | 7 |
 | (untriaged) | 0 | 0 | 0 |
@@ -78,6 +78,12 @@ failures, so this section cannot rot quietly.
 The case asserts a WELD of two seasons that the graph store refuses, and the refusal is right about the works: guard 4 (disagreeing-ids) on two anilist ids in one component, and guard 5 (contested) on two components claiming one show-level Apple TV id. All three cases were extracted from a store that had neither guard, and two of them are named in tests/corpus/README.md as pinning a defect whose fix is at the SOURCE, while the third carries a knownGap whose own text says "A replacement store that splits these two is BETTER than the one this corpus was extracted from: change the case, do not weaken it". A case is never edited here, so each is in the review queue for a person to settle.
 
 Cases: `a-member-carrying-another-seasons-date-widens-the-year-set`, `a-show-level-source-id-welds-two-season-clusters`, `known-gap-a-year-only-side-welds-to-a-season-3-cluster`
+
+**`the-offline-row-pairs-the-anilist-id-with-another-mal-id`**, 3 lines over 1 case, kinds SPLIT.
+
+The case puts mal:64683 with anilist:205068 on AniList's idMal, while the recording's Offline row pairs anilist:205068 with MyAnimeList 63225, as the offline database the trackers read still does (release 2026-42). One id per catalogue, with the batch's Offline claims weighed first (5.2, guard 4), refuses AniList's claim, so the run splits from mal:64683 rather than holding two MyAnimeList ids, and the trackers refuse that card either way. The labeller flagged the same conflict; a person settles which MyAnimeList id is the run's.
+
+Cases: `anilist-205068`
 
 ### RECORDING
 
@@ -225,18 +231,18 @@ Mebius Dust
 
 PENDING on "new store": the case says this cannot be asked of any store yet.
 
-- the group [anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440, jw:224953-235214] would be held by: claim (other origins)
+- the group [anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440, jw:224953-235214] would be held by: claim (other origins), and a guard of 5.2 refused: anilist:108992 mal:63802: disagreeing-ids
 
 
 VERDICTS: the-echo-was-the-only-evidence-and-the-row-has-no-title-or-no-date
 
 ```
-SPLIT: anilist:108992 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: kitsu:42337 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: mal:63802 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: offline:anilist-108992 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: offline:mal-63802 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
-SPLIT: cr:GT00379439-GS00379440 should share a cluster with jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, mal:63802, offline:anilist-108992, offline:mal-63802]
+SPLIT: anilist:108992 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: kitsu:42337 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: mal:63802 should share a cluster with anilist:108992, kitsu:42337, offline:anilist-108992, cr:GT00379439-GS00379440, jw:224953-235214 but its cluster is [mal:63802, offline:mal-63802]
+SPLIT: offline:anilist-108992 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
+SPLIT: offline:mal-63802 should share a cluster with anilist:108992, kitsu:42337, offline:anilist-108992, cr:GT00379439-GS00379440, jw:224953-235214 but its cluster is [mal:63802, offline:mal-63802]
+SPLIT: cr:GT00379439-GS00379440 should share a cluster with mal:63802, offline:mal-63802, jw:224953-235214 but its cluster is [anilist:108992, cr:GT00379439-GS00379440, kitsu:42337, mal:39473, offline:anilist-108992]
 SPLIT: jw:224953-235214 should share a cluster with anilist:108992, kitsu:42337, mal:63802, offline:anilist-108992, offline:mal-63802, cr:GT00379439-GS00379440 but its cluster is [jw:224953-235214]
 EPISODE_PAIR: cr:GT00379439-GS00379440-GE00380106JAJP and jw:4327125 are one broadcast episode. episodePairsOf(cr:GT00379439-GS00379440-GE00380106JAJP) is [kitsu:274262]
 EPISODE_PAIR: jw:4327125 and cr:GT00379439-GS00379440-GE00380106JAJP are one broadcast episode. episodePairsOf(jw:4327125) is [nothing]
@@ -1351,6 +1357,23 @@ EPISODE_PAIR: cr:GT00378081-GS00378082-GE00378404JAJP and jw:10592493 are one br
 EPISODE_PAIR: jw:10592493 and cr:GT00378081-GS00378082-GE00378404JAJP are one broadcast episode. episodePairsOf(jw:10592493) is [nothing]
 EPISODE_PAIR: cr:GT00378081-GS00378082-GE00378405JAJP and jw:10592494 are one broadcast episode. episodePairsOf(cr:GT00378081-GS00378082-GE00378405JAJP) is [anizip:19782-11, kitsu:391535]
 EPISODE_PAIR: jw:10592494 and cr:GT00378081-GS00378082-GE00378405JAJP are one broadcast episode. episodePairsOf(jw:10592494) is [nothing]
+```
+
+### anilist-205068.json
+
+One-Room TA
+
+PENDING on "new store": the case says this cannot be asked of any store yet.
+
+- the group [anilist:205068, kitsu:50932, mal:64683] would be held by: claim, and a guard of 5.2 refused: anilist:205068 mal:64683: disagreeing-ids
+
+
+VERDICTS: the-offline-row-pairs-the-anilist-id-with-another-mal-id
+
+```
+SPLIT: anilist:205068 should share a cluster with mal:64683 but its cluster is [anilist:205068, kitsu:50932, offline:mal-63225]
+SPLIT: kitsu:50932 should share a cluster with mal:64683 but its cluster is [anilist:205068, kitsu:50932, offline:mal-63225]
+SPLIT: mal:64683 should share a cluster with anilist:205068, kitsu:50932 but its cluster is [mal:64683]
 ```
 
 ### anilist-206249.json

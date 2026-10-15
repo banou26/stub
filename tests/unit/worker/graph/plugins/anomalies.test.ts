@@ -9,7 +9,7 @@
  * nothing, so each of them is FIRED here by writing the membership by hand through the writer: the
  * positive is what makes the zero elsewhere worth reading.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import type { PluginId, PluginOutput, Scope } from '../../../../../src/worker/graph/plugins/contract'
 
@@ -197,7 +197,7 @@ test('disagreeing-ids reads the BORROWED source of an offline id, not the offlin
   })
   const sameCatalogue = (await disagreeingIds(query)).filter(anomaly => anomaly.detail.includes('in one component'))
   expect(sameCatalogue.map(anomaly => anomaly.detail)).toEqual([
-    'offline:mal-30 and offline:mal-31 are two ids of offline/mal in one component, and neither extends the other',
+    'offline:mal-30 and offline:mal-31 are two ids of mal in one component, and neither extends the other',
   ])
 
   await retractPlugin(FAKE)

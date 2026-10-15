@@ -12,8 +12,8 @@
  * WHAT IS READ, AND WHEN. A batch is PREPARED once (`prepareGuards`) with every pair the writer is
  * about to weigh: a few reads, then every verdict is computed in JS off that snapshot. Two of the
  * guards say what they read in their own rule:
- * - guard 4 is evaluated against the GRAPH AS IT STANDS, never within one pass, so the snapshot is
- *   taken before the first verdict and no proposal of this pass can move it,
+ * - guard 4 is evaluated against the GRAPH AS IT STANDS, so the snapshot is taken before the first
+ *   verdict, and then once more with the batch's own Offline claims joined in (`prepareGuards`),
  * - guard 5 is evaluated over every CLAIM rather than over active links, so two claimants landing in
  *   different flushes meet anyway and the verdict is the same on every later pass.
  *
@@ -43,8 +43,11 @@ import type { Refusal } from './contract'
 /** The read handle the guards are given: Cypher in, rows out, exactly the writer's own handle. */
 export type GuardQuery = (cypher: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>[]>
 
-/** One pair the writer is about to weigh, with the claim and link keys it was derived from. */
-export type SameAsSubject = { fromUri: string, toUri: string, supports: string[] }
+/**
+ * One pair the writer is about to weigh, with the claim and link keys it was derived from. `joins` is
+ * true for a `SAME_AS` the plugin did not already refuse, which is a pair accepting it would join.
+ */
+export type SameAsSubject = { fromUri: string, toUri: string, supports: string[], joins?: boolean }
 
 /** The containment edge a refusal is written as (5.2, "the downgrade"). */
 export type Downgrade = { fromUri: string, toUri: string, reason: Refusal, evidence: { theirs: unknown, ours: unknown } }
@@ -113,28 +116,30 @@ const originOf = (uri: string): string => uri.slice(0, uri.indexOf(':'))
 const idOf = (uri: string): string => uri.slice(uri.indexOf(':') + 1)
 
 /** An `offline:` id is borrowed from another catalogue, as `<source>-<id>` (`offline/index-lookup.ts`). */
-const BORROWED = /^([a-z]+)-\d+$/
+const BORROWED = /^([a-z]+)-(\d+)$/
 
 /**
- * The space a uri's id is unique in, which is the origin for every source but one.
+ * The id a uri names, which is the uri itself for every source but one.
  *
- * TWO IDS OF ONE ORIGIN DISAGREE ONLY IF THE ORIGIN ISSUES THEM. `offline` does not: an
- * anime offline database row has no id of its own and is named by whichever foreign id reached it
+ * `offline` issues no ids: an anime offline database row is named by whichever foreign id reached it
  * first, `mal` before `anilist` before `kitsu` before `anidb` (`offline/index-lookup.ts` `rowId`), so
- * `offline:anilist-103303` and `offline:mal-62856` are routinely ONE row under two addresses.
+ * `offline:mal-61469` IS MyAnimeList 61469, and `offline:anilist-103303` and `offline:mal-62856` are
+ * routinely ONE row under two addresses.
  *
- * Read as a plain origin they look like two rows that cannot both be this show, which is what guards
- * 4 and 5 are built to refuse. Measured on the recorded page 2026-09-14: every one of the 57 corpus
- * lines that guard 5 newly split was an `offline:` pair borrowing from two different catalogues, and
- * the labels say all of them are one show. Splitting on the borrowed source instead leaves a real
- * offline disagreement (`offline:mal-100` against `offline:mal-200`) reported exactly as before.
+ * Read as a plain origin they look like two rows that cannot both be this show. Measured on the
+ * recorded page 2026-09-14: every one of the 57 corpus lines that guard 5 newly split was an `offline:`
+ * pair borrowing from two different catalogues, and the labels say all of them are one show. Read as
+ * nothing at all, the same row lets a cluster hold two runs of one catalogue: Steel Ball Run's second
+ * stage, `offline:mal-63825`, welded to `mal:61469` through AniList's wrong `idMal` (2026-10-16).
  */
-export const identitySpaceOf = (uri: string): string => {
-  const origin = originOf(uri)
-  if (origin !== 'offline') return origin
+export const identityOf = (uri: string): string => {
+  if (originOf(uri) !== 'offline') return uri
   const borrowed = BORROWED.exec(idOf(uri))
-  return borrowed ? `offline/${borrowed[1]}` : origin
+  return borrowed ? `${borrowed[1]}:${borrowed[2]}` : uri
 }
+
+/** The space a uri's id is unique in: its origin, or the catalogue an `offline` id borrows from. */
+export const identitySpaceOf = (uri: string): string => originOf(identityOf(uri))
 
 const unknownProfile = (uri: string): ProfileFacts => ({
   uri,
@@ -160,7 +165,7 @@ const unknownProfile = (uri: string): ProfileFacts => ({
  * intermediate `cr:A-1` was never a row: with no chain to climb the two ids still stand in the one
  * relation the rule is about.
  */
-export const prefixRelated = (a: string, b: string, parentOf: (uri: string) => string | null): boolean => {
+const prefixRelated = (a: string, b: string, parentOf: (uri: string) => string | null): boolean => {
   if (a === b) return true
   if (originOf(a) !== originOf(b)) return false
   const climbs = (from: string, to: string): boolean => {
@@ -175,26 +180,11 @@ export const prefixRelated = (a: string, b: string, parentOf: (uri: string) => s
   return idOf(a).startsWith(`${idOf(b)}-`) || idOf(b).startsWith(`${idOf(a)}-`)
 }
 
-/** The first pair of one origin's ids in `uris` that are not one id at two precisions. */
-const disagreementIn = (uris: string[], parentOf: (uri: string) => string | null): [string, string] | undefined => {
-  const byOrigin = new Map<string, string[]>()
-  for (const uri of [...new Set(uris)].sort()) {
-    const space = identitySpaceOf(uri)
-    const list = byOrigin.get(space)
-    if (list) list.push(uri)
-    else byOrigin.set(space, [uri])
-  }
-  for (const [, list] of [...byOrigin].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-    for (let i = 0; i < list.length; i += 1) {
-      for (let j = i + 1; j < list.length; j += 1) {
-        if (!prefixRelated(list[i]!, list[j]!, parentOf)) return [list[i]!, list[j]!]
-      }
-    }
-  }
-  return undefined
-}
+/** Whether two uris name ids that disagree: one space, and not one id at two precisions. */
+export const disagree = (a: string, b: string, parentOf: (uri: string) => string | null): boolean =>
+  identitySpaceOf(a) === identitySpaceOf(b) && !prefixRelated(identityOf(a), identityOf(b), parentOf)
 
-/** The same test across two sides: only a pair that STRADDLES them is a disagreement the union adds. */
+/** Only a pair that STRADDLES the two sides is a disagreement their union adds. */
 const straddlingDisagreement = (
   left: string[],
   right: string[],
@@ -205,8 +195,7 @@ const straddlingDisagreement = (
     // a uri on both sides carries no disagreement ACROSS them: it is one row, in one component
     if (rightSet.has(a)) continue
     for (const b of [...new Set(right)].sort()) {
-      if (identitySpaceOf(a) !== identitySpaceOf(b)) continue
-      if (!prefixRelated(a, b, parentOf)) return [a, b]
+      if (disagree(a, b, parentOf)) return [a, b]
     }
   }
   return undefined
@@ -239,6 +228,8 @@ export type Components = {
    * full relation. Memoized for the life of the snapshot, which is one write.
    */
   without: (excluded: string | Iterable<string>) => Pick<Components, 'keyOf' | 'membersOf'>
+  /** The same relation with `edges` added: the components a write accepting them would leave. */
+  joined: (edges: [string, string][]) => Components
 }
 
 /**
@@ -296,6 +287,15 @@ export const readComponents = async (query: GuardQuery): Promise<Components> => 
 }
 
 const buildComponents = async (query: GuardQuery): Promise<Components> => {
+  const rows = await query(
+    `MATCH (a:Media)-[l:LINK]->(b:Media)
+     WHERE l.kind = 'SAME_AS' AND l.status = 'active'
+     RETURN a.uri AS fromUri, b.uri AS toUri`
+  )
+  return componentsOf(rows.map(row => [String(row.fromUri), String(row.toUri)]))
+}
+
+const componentsOf = (edges: [string, string][]): Components => {
   const parent = new Map<string, string>()
   const find = (uri: string): string => {
     let root = uri
@@ -318,11 +318,6 @@ const buildComponents = async (query: GuardQuery): Promise<Components> => {
     if (rootA < rootB) parent.set(rootB, rootA)
     else parent.set(rootA, rootB)
   }
-  const rows = await query(
-    `MATCH (a:Media)-[l:LINK]->(b:Media)
-     WHERE l.kind = 'SAME_AS' AND l.status = 'active'
-     RETURN a.uri AS fromUri, b.uri AS toUri`
-  )
   // INDEXED BY ENDPOINT, because `without` walks only the edges inside the cut. Iterating the whole
   // active SAME_AS list and filtering made one memo miss O(|E|) however small the cut: measured on the
   // recorded page 2026-09-14, 7,781 `without` calls, 802 of them misses, 380,757 edge visits against
@@ -334,8 +329,7 @@ const buildComponents = async (query: GuardQuery): Promise<Components> => {
     if (list) list.push(pair)
     else incident.set(uri, [pair])
   }
-  for (const row of rows) {
-    const pair: [string, string] = [String(row.fromUri), String(row.toUri)]
+  for (const pair of edges) {
     index(pair[0], pair)
     index(pair[1], pair)
     union(pair[0], pair[1])
@@ -400,7 +394,7 @@ const buildComponents = async (query: GuardQuery): Promise<Components> => {
     return view
   }
 
-  return { keyOf, membersOf, without }
+  return { keyOf, membersOf, without, joined: more => componentsOf([...edges, ...more]) }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -455,10 +449,7 @@ const readOwnClaims = async (query: GuardQuery, targets: string[]): Promise<Map<
  * Each statement is written once and parameterized, and none of them ever runs with an empty
  * `UNWIND` list (that dies at runtime on this engine, 2026-09-12).
  */
-export const prepareGuards = async (
-  query: GuardQuery,
-  subjects: { fromUri: string, toUri: string, supports: string[] }[]
-): Promise<GuardPass> => {
+export const prepareGuards = async (query: GuardQuery, subjects: SameAsSubject[]): Promise<GuardPass> => {
   const endpoints = new Set<string>()
   const supports = new Set<string>()
   for (const subject of subjects) {
@@ -596,13 +587,29 @@ export const prepareGuards = async (
     }
   }
   const sites = contestSites(claimsInto, claims, components, parentOf)
-  // (5b) only a target contested with nothing merged can be refused by guard 5, so only those are read
+  // (5b) what a target contested with nothing merged claims in its own answer, which settles it
+  // (guard 5). A contest only this batch's Offline claims make visible is read once it stands.
   const ownClaims = await readOwnClaims(query, sites.filter(site => site.standing && endpoints.has(site.target)).map(site => site.target))
+  const facts: Facts = { profileOf, parentOf, components, claimsInto, addressKeys, contained, sites, claims, ownClaims }
+
+  // OFFLINE'S PAIRS ARE WEIGHED FIRST: every pair is weighed again with this batch's Offline claims
+  // joined in, and that second weighing only ever refuses. They are the pairs the trackers read a card
+  // through (`src/tracking/identity.ts`), and against the graph as it stands a claim contradicting one
+  // that lands beside it is welded first and split a pass later, which leaves both runs in the address
+  // for good (`Cluster.published` only grows). Steel Ball Run's second stage, 2026-10-16: AniList's row
+  // lands with Offline's claim into it, and its own `idMal` names the first stage.
+  const offline = subjects
+    .filter(subject => subject.joins && originOf(subject.fromUri) === 'offline')
+    .map((subject): [string, string] => [subject.fromUri, subject.toUri])
+  const withOffline = offline.length ? { ...facts, components: components.joined(offline) } : undefined
 
   return {
     profileOf,
     components,
-    sameAs: subject => sameAsVerdict(subject, { profileOf, parentOf, components, claimsInto, addressKeys, contained, sites, claims, ownClaims }),
+    sameAs: subject => {
+      const verdict = sameAsVerdict(subject, facts)
+      return verdict.ok && withOffline ? sameAsVerdict(subject, withOffline) : verdict
+    },
     partOf: (part, whole) => partOfVerdict(part, whole, profileOf),
   }
 }
@@ -611,6 +618,8 @@ const pairKey = (a: string, b: string): string => (a < b ? `${a}\u0000${b}` : `$
 
 /** How the writer builds one batch of verdicts. `prepareGuards` is the only one that reads a rule. */
 export type GuardsFactory = (query: GuardQuery, subjects: SameAsSubject[]) => Promise<GuardPass>
+
+const apart: Components = { keyOf: uri => uri, membersOf: uri => [uri], without: () => apart, joined: () => apart }
 
 /**
  * A prepared batch that accepts every pair, for the one caller that wants a `LINK` row written with
@@ -623,11 +632,7 @@ export const acceptEveryPair: GuardsFactory = async () => ({
   sameAs: () => ({ ok: true }),
   partOf: () => ({ ok: true }),
   profileOf: unknownProfile,
-  components: {
-    keyOf: uri => uri,
-    membersOf: uri => [uri],
-    without: () => ({ keyOf: uri => uri, membersOf: uri => [uri] }),
-  },
+  components: apart,
 })
 
 type Facts = {
@@ -929,12 +934,14 @@ const sameAsVerdict = (subject: SameAsSubject, facts: Facts): SameAsVerdict => {
         // AniList's row for Re:ZERO Season 4 names MyAnimeList 61316, on the season's side, so Kitsu's
         // claim from the Break Time short is the one refused. A space only one side holds says nothing
         // against the other: MyAnimeList's one row for both Attack on Titan specials names an AniZip id
-        // that only Part 1 has (8.6).
-        const own = (facts.ownClaims.get(target.uri) ?? []).filter(row =>
+        // that only Part 1 has (8.6). Its own id counts too: `mal:61469` is on the side holding
+        // `offline:mal-61469`, the same id under Offline's address.
+        const own = [target.uri, ...facts.ownClaims.get(target.uri) ?? []].filter(row =>
           left.some(uri => identitySpaceOf(uri) === identitySpaceOf(row))
           && right.some(uri => identitySpaceOf(uri) === identitySpaceOf(row)))
-        const settledLeft = own.length > 0 && own.every(row => left.includes(row))
-        const settledRight = own.length > 0 && own.every(row => right.includes(row))
+        const holds = (side: string[], row: string) => side.some(uri => identityOf(uri) === identityOf(row))
+        const settledLeft = own.length > 0 && own.every(row => holds(left, row))
+        const settledRight = own.length > 0 && own.every(row => holds(right, row))
         if (ourSideIsLeft ? settledLeft : settledRight) continue
         const evidence = {
           theirs: ourSideIsLeft ? straddle[1] : straddle[0],

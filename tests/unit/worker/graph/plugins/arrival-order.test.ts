@@ -29,7 +29,9 @@
 import { beforeAll, expect, test } from 'vite-plus/test'
 
 import type { AnswerRow } from '../../../../../src/worker/graph/answers'
+import type { CatalogLookup } from '../../../../../src/tracking/identity'
 
+import { identify } from '../../../../../src/tracking/identity'
 import { enableGraph } from '../../../../../src/worker/graph'
 import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { resetPassState } from '../../../../../src/worker/graph/plugins/runner'
@@ -469,5 +471,160 @@ test('MyAnimeList\'s row for both Attack on Titan specials joins neither part', 
           .toContain(`link ${claimant} -> mal:51535 SAME_AS refused contested`)
       }
     }
+  }
+})
+
+/**
+ * Steel Ball Run, shaped on the answers recorded live on anime.fkn.app on 2026-10-16: the Fall 2026
+ * page and the first stage's own page. MyAnimeList 61469 is the first stage (AniList 190327) and 63825
+ * the second (AniList 210482). AniList's row for the second names `idMal` 61469, the first stage, and
+ * Offline's rows borrow MyAnimeList's ids, so `offline:mal-63825` IS the second stage's MyAnimeList id.
+ */
+const FALL = { type: 'ONA', season: 'FALL', seasonYear: 2026 }
+const STEEL_BALL_RUN: Rows = {
+  offline1: () => answer('media', media('offline:mal-61469', {
+    ...FALL,
+    titles: [title('en', 'Steel Ball Run: JoJo no Kimyou na Bouken', 0.2)],
+    handles: [sameAs(media('mal:61469')), sameAs(media('anilist:190327'))],
+  })),
+  offline2: () => answer('media', media('offline:mal-63825', {
+    ...FALL,
+    episodeCount: 3,
+    titles: [title('en', 'Steel Ball Run: JoJo no Kimyou na Bouken 2nd Stage', 0.2)],
+    handles: [sameAs(media('mal:63825')), sameAs(media('anilist:210482'))],
+  })),
+  mal: () => answer('media', media('mal:61469', {
+    ...FALL,
+    titles: [title('en', 'Steel Ball Run: JoJo\'s Bizarre Adventure', 0.9), title('jp-en', 'Steel Ball Run: JoJo no Kimyou na Bouken', 0.9)],
+  })),
+  anilist2: () => answer('media', media('anilist:210482', {
+    ...FALL,
+    episodeCount: 11,
+    status: 'RELEASING',
+    titles: [title('en', 'STEEL BALL RUN JoJo\'s Bizarre Adventure 2nd - 3rd STAGE', 0.8)],
+    handles: [sameAs(media('mal:61469'))],
+  })),
+  anilist1: () => answer('media', media('anilist:190327', {
+    type: 'ONA',
+    season: 'WINTER',
+    seasonYear: 2026,
+    episodeCount: 1,
+    status: 'FINISHED',
+    titles: [title('en', 'STEEL BALL RUN JoJo\'s Bizarre Adventure 1st STAGE', 0.8)],
+    handles: [sameAs(media('mal:61469'))],
+  })),
+}
+
+/** The pairs the offline database carries, which is what the trackers widen an id through. */
+const CATALOGUE = [
+  { mal: 61469, anilist: 190327, kitsu: 0, anidb: 0 },
+  { mal: 63825, anilist: 210482, kitsu: 0, anidb: 0 },
+  { mal: 63802, anilist: 108992, kitsu: 42337, anidb: 0 },
+]
+const catalog: CatalogLookup = { lookup: (origin, id) => CATALOGUE.find(row => row[origin] === id) }
+
+const trackedAs = async (uri: string): Promise<string> => {
+  const [row] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.aggUri AS aggUri', { uri })
+  const identity = identify(String(row?.aggUri), catalog)
+  return identity.kind === 'ambiguous' ? `ambiguous ${identity.candidates.join(' ')}` : identity.kind
+}
+
+/**
+ * One id per catalogue in a cluster, Offline's borrowed id counting as the id it borrows. In every
+ * order AniList's claim that its second stage is `mal:61469` is refused, the first stage keeps
+ * MyAnimeList's row and the second keeps Offline's.
+ */
+test('Steel Ball Run\'s two stages build two clusters in every arrival order', async () => {
+  const keys = Object.keys(STEEL_BALL_RUN)
+  for (const plan of [[keys], ...permutations(keys).map(order => order.map(key => [key]))]) {
+    const shape = await reZeroBuild(STEEL_BALL_RUN, plan)
+    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan)).toEqual([
+      'cluster anilist:190327 mal:61469 offline:mal-61469',
+      'cluster anilist:210482 offline:mal-63825',
+    ])
+    expect(shape.find(line => line.startsWith('link anilist:210482 -> mal:61469 SAME_AS')), JSON.stringify(plan))
+      .toMatch(/ refused /)
+  }
+})
+
+const landsBy = (first: string, second: string) => (order: string[]) => order.indexOf(first) < order.indexOf(second)
+
+/**
+ * And the trackers can read both, which needs the weld never to happen at all: a cluster's address
+ * only grows, so a pass that welds the two stages leaves both runs in it after they split. AniList's
+ * row for the second stage brings its `mal:61469` with it, and in the batch it lands in, Offline's
+ * claim into it is weighed first. The second plan is the second stage's own page with nothing of the
+ * current season's listing before it, the third the Fall 2026 page.
+ */
+test('the trackers read each stage as one run wherever Offline\'s second stage row lands no later than AniList\'s', async () => {
+  const keys = Object.keys(STEEL_BALL_RUN)
+  const plans = [
+    [keys],
+    [['offline2'], ['anilist2'], ['offline1'], ['mal'], ['anilist1']],
+    [['offline1', 'offline2'], ['anilist2'], ['mal'], ['anilist1']],
+    [['offline2', 'anilist2'], ['offline1', 'mal', 'anilist1']],
+    ...permutations(keys).filter(landsBy('offline2', 'anilist2')).map(order => order.map(key => [key])),
+  ]
+  for (const plan of plans) {
+    await reZeroBuild(STEEL_BALL_RUN, plan)
+    expect(await trackedAs('anilist:190327'), `the first stage, ${JSON.stringify(plan)}`).toBe('catalogue')
+    expect(await trackedAs('anilist:210482'), `the second stage, ${JSON.stringify(plan)}`).toBe('catalogue')
+  }
+})
+
+/**
+ * KNOWN GAP, pinned as the gap it is. AniList's second stage row landing before Offline's is all the
+ * graph knows, so its `mal:61469` is taken, and the stages split once Offline's row says otherwise,
+ * but the address keeps both runs. If this goes red, something closed it.
+ */
+test('KNOWN GAP: AniList\'s second stage row landing before Offline\'s leaves its card unreadable', async () => {
+  await reZeroBuild(STEEL_BALL_RUN, [['anilist2'], ['offline2'], ['offline1'], ['mal'], ['anilist1']])
+  expect(await trackedAs('anilist:210482')).toBe('ambiguous mal:61469 mal:63825')
+})
+
+/**
+ * Mebius Dust as answered live on 2026-10-16: Kitsu names MyAnimeList 39473, an id the offline
+ * database does not hold, while Offline's row and AniList both name 63802. Wherever Offline's row
+ * lands no later than Kitsu's, Kitsu's id is the one left out and the trackers read the card.
+ */
+const SUMMER = { type: 'TV', season: 'SUMMER', seasonYear: 2026, titles: [title('en', 'Mebius Dust')] }
+const MEBIUS_DUST: Rows = {
+  offline: () => answer('media', media('offline:mal-63802', {
+    ...SUMMER,
+    episodeCount: 12,
+    handles: [sameAs(media('mal:63802')), sameAs(media('anilist:108992')), sameAs(media('kitsu:42337'))],
+  })),
+  kitsu: () => answer('media', media('kitsu:42337', { ...SUMMER, handles: [sameAs(media('anilist:108992')), sameAs(media('mal:39473'))] })),
+  mal: () => answer('media', media('mal:63802', { ...SUMMER, episodeCount: 12 })),
+  anilist: () => answer('media', media('anilist:108992', { ...SUMMER, episodeCount: 12, handles: [sameAs(media('mal:63802'))] })),
+}
+
+test('Kitsu\'s MyAnimeList id for Mebius Dust is refused wherever Offline\'s row lands no later than Kitsu\'s', async () => {
+  const keys = Object.keys(MEBIUS_DUST)
+  for (const plan of [[keys], ...permutations(keys).filter(landsBy('offline', 'kitsu')).map(order => order.map(key => [key]))]) {
+    const shape = await reZeroBuild(MEBIUS_DUST, plan)
+    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan)).toEqual([
+      'cluster anilist:108992 kitsu:42337 mal:63802 offline:mal-63802',
+      'cluster mal:39473',
+    ])
+    expect(await trackedAs('anilist:108992'), JSON.stringify(plan)).toBe('catalogue')
+  }
+})
+
+/**
+ * THE CONTROL: one run named by its own ids in three catalogues, Offline's borrowed one included,
+ * joins, and `offline:mal-61469` beside `mal:61469` is reported as nothing (5.5).
+ */
+test('the first stage alone joins across its catalogues in every arrival order', async () => {
+  const { offline1, mal, anilist1 } = STEEL_BALL_RUN
+  const rows: Rows = { offline1: offline1!, mal: mal!, anilist1: anilist1! }
+  const keys = Object.keys(rows)
+  for (const plan of [[keys], ...permutations(keys).map(order => order.map(key => [key]))]) {
+    const shape = await reZeroBuild(rows, plan)
+    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan))
+      .toEqual(['cluster anilist:190327 mal:61469 offline:mal-61469'])
+    expect(await trackedAs('mal:61469')).toBe('catalogue')
+    const [cluster] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.anomalies AS anomalies', { uri: 'mal:61469' })
+    expect(JSON.stringify(cluster?.anomalies ?? null), JSON.stringify(plan)).not.toContain('disagreeing-ids')
   }
 })
