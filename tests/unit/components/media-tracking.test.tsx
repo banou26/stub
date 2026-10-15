@@ -24,9 +24,12 @@ const tracking = {
   }],
 }
 // every mutation the page sends, by operation name
-const sent: { operation: string, input: { trackers: string[], entry?: Record<string, unknown> } }[] = []
+const sent: { operation: string, input: { uri?: string, trackers: string[], entry?: Record<string, unknown> } }[] = []
+// a write answers once this settles, so a test can keep one in flight
+let held: Promise<unknown> = Promise.resolve()
 const mutate = (operation: string) => async ({ input }: { input: (typeof sent)[number]['input'] }) => {
   sent.push({ operation, input })
+  await held
   const outcomes = input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' }))
   return { data: { saveListEntry: outcomes, deleteListEntry: outcomes } }
 }
@@ -75,6 +78,7 @@ afterEach(() => {
   sent.length = 0
   asked.length = 0
   answered.clear()
+  held = Promise.resolve()
 })
 // `work` is what the page asks its details on, `address` the page's own, `uri` the media its details
 // answered with; `address` is `work` unless given
@@ -239,5 +243,45 @@ describe('a title opened from another title', () => {
     await show({ work: B, uri: B_GROWN })
     expect(asked).toEqual([A, B, B_GROWN])
     expect(chips(host)).toEqual(['anilist', 'stub'])
+  })
+
+  const watching = { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 }
+  const more = (host: HTMLElement) => act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="One episode more"]')!.click() })
+  // the renders of a title opened from A's row, as the page goes through them
+  const openB = async (show: (next: Shown) => Promise<void>) => {
+    await show({ work: A, address: B, uri: A })
+    await show({ work: B, uri: undefined })
+    await show({ work: B, uri: B })
+  }
+  const saves = () => sent.map(({ input: { uri, entry } }) => [uri, entry])
+
+  test('a + pressed on one title is saved to it, though another opens before the save goes', async () => {
+    vi.useFakeTimers()
+    answered.set(A, trackingFor(A, [answer('stub', A, 'LISTED', watching)], watching))
+    answered.set(B, trackingFor(B, [answer('stub', B, 'LISTED', completed)], completed))
+    const { host, show } = render({ work: A, uri: A })
+    await more(host)
+    expect(sent).toEqual([])
+    await openB(show)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(saves()).toEqual([[A, { progress: 4 }]])
+  })
+
+  test('a + waiting behind a save still in flight is saved to its own title too', async () => {
+    vi.useFakeTimers()
+    answered.set(A, trackingFor(A, [answer('stub', A, 'LISTED', watching)], watching))
+    answered.set(B, trackingFor(B, [answer('stub', B, 'LISTED', completed)], completed))
+    let land = () => {}
+    held = new Promise<void>(resolve => { land = resolve })
+    const { host, show } = render({ work: A, uri: A })
+    await more(host)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await more(host)
+    await openB(show)
+    await act(async () => {
+      land()
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(saves()).toEqual([[A, { progress: 4 }], [A, { progress: 5 }]])
   })
 })

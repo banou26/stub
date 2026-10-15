@@ -30,6 +30,8 @@ let backend = 'cloud'
 let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 let tracking: object | undefined
 const saved: object[] = []
+// a save answers once this settles, so a test can keep one in flight
+let held: Promise<unknown> = Promise.resolve()
 const stored = new Map<string, string>()
 
 vi.mock('urql', async () => {
@@ -50,6 +52,7 @@ vi.mock('urql', async () => {
     },
     useMutation: () => [{}, async ({ input }: { input: { trackers: string[] } }) => {
       saved.push(input)
+      await held
       return { data: { saveListEntry: input.trackers.map(tracker => ({ tracker, outcome: 'SAVED' })) } }
     }],
   }
@@ -137,6 +140,7 @@ afterEach(() => {
   bridge.links = []
   tracking = undefined
   saved.length = 0
+  held = Promise.resolve()
 })
 
 const settle = async () => {
@@ -674,6 +678,35 @@ test('another media gets its own tracking: what was played of the first is never
       expect.objectContaining({ uri: other, trackers: ['stub'], entry: { progress: 2, status: 'WATCHING' } }),
       expect.objectContaining({ uri: other, trackers: ['anilist'], entry: { progress: 2, status: 'WATCHING' } }),
     ])
+  } finally {
+    params = { ...params, mediaUri: first }
+  }
+})
+
+test('a save waiting behind one in flight goes to the media it was due on, though another media opens first', async () => {
+  const first = params.mediaUri
+  const other = 'ag:(anilist:9)'
+  try {
+    tracking = stubOnly
+    const { rerender } = await atTheEnd()
+    let land = () => {}
+    held = new Promise<void>(resolve => { land = resolve })
+    await report({ paused: false, time: 900 })
+    // the next episode of the same media played past the mark before the first save has answered
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+    rerender()
+    await settle()
+    await report({ paused: false, time: 900 })
+    expect(saved, 'the second waits for the first').toHaveLength(1)
+    params = { ...params, mediaUri: other }
+    media = { ...media, uri: other }
+    rerender()
+    await settle()
+    await act(async () => {
+      land()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect((saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])).toEqual([[SERIES, 2], [SERIES, 3]])
   } finally {
     params = { ...params, mediaUri: first }
   }
