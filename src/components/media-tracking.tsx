@@ -1,10 +1,11 @@
-import type { ListStatus } from '../generated/graphql'
+import type { ListStatus, MediaTrackingSubscription } from '../generated/graphql'
 import type { Fields, TrackerOutcome } from '../tracking/compact'
 
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING } from './media-tracking-query'
 import { COMPACT_PREFS_KEY, createCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
@@ -71,15 +72,36 @@ const devicePrefs = createCompactPrefs()
 
 const failed = (message?: string): TrackerOutcome[] => [{ tracker: '', outcome: 'FAILED', error: message ?? 'The write did not reach the trackers' }]
 
+type Tracking = NonNullable<MediaTrackingSubscription['tracking']>
+
+const loading = (answer: { state: string }) => answer.state === 'LOADING'
+
 /**
- * The tracking of one media, subscribed on the uri the store has grown the media to, so the trackers
- * are asked again as the media gains ids.
+ * What the row shows of the subscription's latest result: the one shown before while the latest still
+ * waits on a tracker that one drew, so no chip drops out while the media gains ids.
  */
-const MediaTracking = (
-  { uri, title, cover, episodeCount, movie, prefsStore = devicePrefs }:
-  { uri: string | undefined, title?: string | null, cover?: string | null, episodeCount?: number | null, movie?: boolean, prefsStore?: CompactPrefsStore }
-) => {
-  const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: uri! } }, pause: !uri })
+const heldOf = (shown: Tracking | undefined, latest: Tracking | null | undefined) =>
+  shown && latest?.answers.some(answer =>
+    loading(answer) && shown.answers.some(before => before.tracker.id === answer.tracker.id && !loading(before)))
+    ? shown
+    : latest ?? undefined
+
+type Props = {
+  work: string | undefined
+  address: string | undefined
+  uri: string | undefined
+  title?: string | null
+  cover?: string | null
+  episodeCount?: number | null
+  movie?: boolean
+  prefsStore?: CompactPrefsStore
+}
+
+const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs }: Props) => {
+  const asked = uri ?? work
+  const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
+  const shown = useRef<Tracking>(undefined)
+  shown.current = heldOf(shown.current, data?.tracking)
   const [, save] = useMutation(SAVE_LIST_ENTRY)
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
@@ -127,7 +149,7 @@ const MediaTracking = (
   return (
     <>
       <TrackingCompact
-        tracking={data?.tracking}
+        tracking={uri && namesSameWork(work, address) ? shown.current : undefined}
         episodeCount={episodeCount}
         movie={movie}
         onSaveFields={onSaveFields}
@@ -140,5 +162,16 @@ const MediaTracking = (
     </>
   )
 }
+
+/**
+ * The tracking of the page's work. `work` is the uri the page asks its details on, which a growth of
+ * the address keeps and a navigation to another work replaces; `uri` is the media's own once the
+ * details have answered for `work`. The trackers are asked on `work` until then, so they have answered
+ * by the time the row draws, and on `uri` from then on, so they are asked again as the media gains
+ * ids. A new `work` starts afresh, since urql keeps the last result while a new subscription starts,
+ * and nothing is drawn while `address`, the page's own, names another work than `work`: the render
+ * after a navigation, before the page has moved `work` to it.
+ */
+const MediaTracking = (props: Props) => <WorkTracking key={props.work} {...props}/>
 
 export default MediaTracking

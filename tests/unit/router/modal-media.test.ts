@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { listedMediaFor, namesSameWork } from '../../../src/router/home/modal-media'
+import { currentMedia, listedMediaFor, namesSameWork } from '../../../src/router/home/modal-media'
 import { shouldGrowAddress } from '../../../src/utils/uri'
 
 // The record's own example, read off the running home page on 2026-09-12: the card carries four
@@ -93,6 +93,34 @@ describe('the listed card a media route is showing', () => {
     // `isUri` throws on a comma in an id, and a throw in a render is permanent DOM corruption here
     expect(() => namesSameWork('not a uri, really', CARD)).not.toThrow()
     expect(namesSameWork('not a uri, really', CARD)).toBe(false)
+  })
+})
+
+describe('the details a page holds after a navigation', () => {
+  const A = { uri: 'ag:(anilist:1)' }
+  const answering = (uri: string) => ({ variables: { input: { uri } } })
+
+  test('are its media only while they answer the uri it asks on now', () => {
+    expect(currentMedia({ data: { media: A }, operation: answering('ag:(anilist:1)') }, 'ag:(anilist:1)')).toBe(A)
+    expect(currentMedia({ data: { media: A }, operation: answering('ag:(anilist:1)') }, 'ag:(anilist:2)'), "urql's kept result for the previous work").toBeUndefined()
+  })
+
+  test('whatever uri the media itself carries', () => {
+    const season = { uri: 'ag:(appletv:2-s1,jw:1-10)' }
+    expect(currentMedia({ data: { media: season }, operation: answering('ag:(jw:1)') }, 'ag:(jw:1)')).toBe(season)
+  })
+
+  test('and nothing before any answer', () => {
+    expect(currentMedia({}, 'ag:(anilist:1)')).toBeUndefined()
+    expect(currentMedia({ data: { media: A }, operation: answering('ag:(anilist:1)') }, undefined)).toBeUndefined()
+  })
+
+  // the two pages cannot load under vitest (see the top of this file), so their wiring is read
+  test.each(['home/media-modal.tsx', 'title/index.tsx'])('%s draws the tracking of its work from those details only', file => {
+    const source = readFileSync(fileURLToPath(new URL(`../../../src/router/${file}`, import.meta.url)), 'utf-8')
+    expect(source, 'the page holds no details state, so this test read nothing').toContain('const [{ data, operation }] = useSubscription(')
+    expect(source).toContain('const current = currentMedia({ data, operation }, uri)')
+    expect(source).toMatch(/<MediaTracking\s+work=\{uri\}\s+address=\{(params\.uri|routeUri)\}\s+uri=\{current\?\.uri\}/)
   })
 })
 

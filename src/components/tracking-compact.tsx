@@ -114,7 +114,7 @@ const style = css`
     .badge.amber { background: #fb923c; }
     .badge.red { background: #f87171; }
     &.off > .logo-button { opacity: 0.45; }
-    &.cannot > .logo-button { opacity: 0.35; }
+    &.cannot > .logo-button, &.loading > .logo-button { opacity: 0.35; }
     .login-button { height: 2.6rem; padding: 0 0.8rem; font-size: 1.2rem; }
   }
 
@@ -560,6 +560,7 @@ const TrackingCompact = (
         {answer.tracker.account ? <span className="account">{answer.tracker.account}</span> : undefined}
       </div>
     )
+    if (target.kind === 'loading') return head
     if (target.kind === 'login') return <>{head}<span className="why">Signed out</span>{loginButton(answer)}</>
     if (target.kind === 'cannot') return <>{head}<span className="why">{name} cannot track this media: {target.reason}</span></>
     const canWrite = writable(answer)
@@ -617,6 +618,13 @@ const TrackingCompact = (
               open: openCard === id,
               onOpen: (open: boolean) => setOpenCard(current => open ? id : current === id ? undefined : current),
               card: () => card(answer, target),
+            }
+            if (target.kind === 'loading') {
+              return (
+                <Chip key={id} {...chip} className="chip loading" busy>
+                  <span className="slot" role="img" aria-label={`${name} loading`}><LoaderCircle size={14} className="spin" aria-hidden="true"/></span>
+                </Chip>
+              )
             }
             if (target.kind === 'login') {
               return <Chip key={id} {...chip} className="chip login">{loginButton(answer, 'login-button')}</Chip>

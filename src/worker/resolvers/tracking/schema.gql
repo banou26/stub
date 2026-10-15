@@ -27,6 +27,8 @@ enum TrackerState {
   """The tracker asked to be left alone for a while, and answers again after it."""
   PAUSED
   ERROR
+  """Asked, and has not answered yet."""
+  LOADING
 }
 
 enum TrackingField {

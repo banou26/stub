@@ -3,8 +3,9 @@ import { mount, unmount } from '../components/dom'
 
 import type { DetailsMedia } from '../../../src/router/home/media-details'
 
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
+import { useState } from 'preact/hooks'
 import { Client, Provider, subscriptionExchange } from 'urql'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -12,7 +13,7 @@ import { memoryLocation } from 'wouter/memory-location'
 vi.mock('../../../src/worker', () => ({}))
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
-const { Episodes } = await import('../../../src/router/home/media-details')
+const { Episodes, useTrackingSummary } = await import('../../../src/router/home/media-details')
 
 // a real urql client whose origins subscription answers once and stays open, as the worker's does
 const client = () => new Client({
@@ -93,4 +94,43 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
   expect(rows()).toEqual(expected(13, 24))
   act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 3"]')!.click() })
   expect(rows()).toEqual(expected(25, 26))
+})
+
+describe('the tracking summary a page reads', () => {
+  const A = 'ag:(anilist:1)'
+  const A_GROWN = 'ag:(anilist:1,mal:1)'
+  const B = 'ag:(anilist:2)'
+  // a real urql client whose tracking subscription answers only for A, as a worker slow to answer B
+  const trackingClient = () => new Client({
+    url: 'http://test/graphql',
+    exchanges: [subscriptionExchange({
+      forwardSubscription: request => ({
+        subscribe: sink => {
+          if ((request.variables as { input: { uri: string } }).input.uri === A) {
+            sink.next({ data: { tracking: { _id: `tracking:${A}`, summary: { _id: `summary:${A}`, status: 'COMPLETED', progress: 12, score: null, episodeCount: 12 }, disagreements: [], answers: [] } }, hasNext: true })
+          }
+          return { unsubscribe: () => {} }
+        },
+      }),
+    })],
+  })
+
+  test("is never another work's, kept by urql while the new one has not answered", async () => {
+    let show: (uri: string) => void = () => {}
+    const Summary = () => {
+      const [uri, setUri] = useState(A)
+      show = setUri
+      return <span>{useTrackingSummary(uri)?.status ?? 'none'}</span>
+    }
+    const host = mount(<Provider value={trackingClient()}><Summary/></Provider>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+    expect(host.textContent).toBe('COMPLETED')
+
+    await act(async () => { show(A_GROWN) })
+    expect(host.textContent, 'the control: the same work at a grown uri keeps it').toBe('COMPLETED')
+
+    await act(async () => { show(B) })
+    expect(host.textContent).toBe('none')
+  })
 })

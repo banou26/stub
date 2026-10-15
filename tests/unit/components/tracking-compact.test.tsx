@@ -424,6 +424,30 @@ describe('the compact tracking row', () => {
   })
 })
 
+describe('a tracker that has not answered yet', () => {
+  test('has its chip at once, busy, with nothing to check, and the row writes to the trackers that answered', async () => {
+    vi.useFakeTimers()
+    const loading: CompactAnswer = { ...mal, state: 'LOADING' }
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, loading, stub] } })
+
+    expect(chip(host, 'mal').classList.contains('loading')).toBe(true)
+    expect(chip(host, 'mal').getAttribute('aria-busy')).toBe('true')
+    expect(named(host, 'MyAnimeList loading')).toBeTruthy()
+    expect(chip(host, 'mal').querySelector('input, .login-button')).toBeNull()
+
+    await click(named(host, 'One episode more'))
+    await settle(1000)
+    expect(onSaveFields.mock.calls.map(([targets]) => targets).flat().sort()).toEqual(['anilist', 'stub'])
+  })
+
+  test('its card names it and offers nothing to change', async () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, { ...mal, state: 'LOADING' }, stub] } })
+    const card = await hover(host, 'mal')
+    expect(card.querySelector('.head')?.textContent).toContain('MyAnimeList')
+    expect(card.querySelector('select, button, .why')).toBeNull()
+  })
+})
+
 // HOR-329: a movie is watched or not, so its row and cards carry one Watched toggle instead of a count
 describe('a movie', () => {
   const movieAnilist: CompactAnswer = { ...anilist, entry: { status: 'PLANNING', progress: 0, score: null, episodeCount: 1 } }

@@ -19,7 +19,7 @@ import ModalBackdrop from '../../components/modal-backdrop'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
-import { listedMediaFor } from './modal-media'
+import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
 import { Episodes, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
@@ -286,7 +286,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     )
   }, [params.uri])
 
-  const [{ data }] = useSubscription({
+  const [{ data, operation }] = useSubscription({
     query: GET_MEDIA_DETAILS,
     variables: {
       input: {
@@ -299,6 +299,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     pause: !uri
   })
   const media = data?.media ?? foundMedia
+  const current = currentMedia({ data, operation }, uri)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
   const tracked = useTrackingSummary(data?.media?.uri)
@@ -421,8 +422,6 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           <SourceLinks uri={data?.media?.uri} handles={media?.handles}/>
           <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>
         </div>
-        {/* on the address the store has grown to, so the trackers are asked again as the media
-            gains ids; nothing until the worker has answered for this media at all */}
         {
           isMovie && media
             ? (
@@ -437,10 +436,12 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             : undefined
         }
         <MediaTracking
-          uri={data?.media?.uri}
+          work={uri}
+          address={params.uri}
+          uri={current?.uri}
           title={title}
           cover={coverUrl}
-          episodeCount={data?.media?.episodeCount}
+          episodeCount={current?.episodeCount}
           movie={isMovie}
         />
         {

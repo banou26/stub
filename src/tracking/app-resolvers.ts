@@ -48,13 +48,17 @@ export const trackingResolvers = <E extends TrackerProvider>(entries: readonly E
           const asked = input.trackers ? entries.filter(entry => input.trackers!.includes(entry.extractor.origin)) : entries
           const collected = answerCollector(uri, asked, trackerOf)
           // listening before asking, so no answer can land ahead of the wake it should cause; a burst
-          // of answers, the first one from every tracker at once, is one yield
-          const wakes = changes(collected.subscribe, { signal: ctx.request.signal, debounceMs: 30 })
+          // of answers is one yield. The first wake is the subscription's own, so every tracker is drawn
+          // (loading) without waiting on the slowest start, with whatever answered in its first 30 ms
+          const wakes = changes(listener => {
+            const stop = collected.subscribe(listener)
+            listener()
+            return stop
+          }, { signal: ctx.request.signal, debounceMs: 30 })
           // the same fan-out the media page asks its sources through, over the trackers alone and
           // with a document of its own (see tracking-document.ts for why not the page's)
           const fanout = openFanout({ entries: asked, query: TRACKING_DOCUMENT, variables: { input: { uri } }, onResult: collected.onResult })
           try {
-            if (!asked.length) yield aggregateTracking(uri, [])
             for await (const _ of wakes) {
               yield aggregateTracking(uri, collected.answers())
             }

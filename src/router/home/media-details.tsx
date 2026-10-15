@@ -24,6 +24,7 @@ import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-da
 import { canPlay } from '../../sources/playable'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
+import { namesSameWork } from './modal-media'
 import { playTarget, type PlayLabel, type Tracked } from '../title/facts'
 
 export const GET_MEDIA_DETAILS = gql(`
@@ -214,14 +215,20 @@ const GET_MEDIA_ORIGINS = gql(`
 export type DetailsMedia = NonNullable<GetMediaDetailsSubscription['media']>
 export type DetailsEpisode = DetailsMedia['episodes'][number]
 
-/** The viewer's tracking of a media, its status and progress, once the worker has answered. */
+/**
+ * The viewer's tracking of a media, its status and progress, once the worker has answered for that
+ * work: urql keeps the last result while a new subscription starts, which after a navigation is the
+ * previous work's.
+ */
 export const useTrackingSummary = (uri: string | undefined): Tracked => {
   const [{ data }] = useSubscription({
     query: MEDIA_TRACKING,
     variables: { input: { uri: uri ?? '' } },
     pause: !uri
   })
-  return data?.tracking?.summary
+  const tracking = data?.tracking
+  // `tracking:<uri>`, tracking/aggregate.ts `trackingId`
+  return tracking && namesSameWork(tracking._id.slice('tracking:'.length), uri) ? tracking.summary : undefined
 }
 
 /** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, and the episode it opens. Nothing when that episode is not out. */

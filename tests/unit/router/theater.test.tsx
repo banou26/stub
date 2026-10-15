@@ -182,7 +182,7 @@ test('Play opens the first episode once the show\'s details answer', () => {
 test('with three episodes watched, it reads Continue and opens the fourth', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
   answer.details[uriOf('a')] = details('a', { episodes: 6 })
-  answer.tracking = { summary: { status: 'CURRENT', progress: 3 } }
+  answer.tracking = { _id: `tracking:${uriOf('a')}`, summary: { status: 'CURRENT', progress: 3 } }
   const { play } = hero([show('a')])
   expect(play()).toEqual({ label: 'Continue', href: `/watch/${uriOf('a')}/ag:(anilist:a-4)` })
 })

@@ -15,6 +15,7 @@ import MediaTracking from '../../components/media-tracking'
 import Paged from '../../components/paged'
 import { carriedSearch } from '../debug/trace'
 import { Episodes, GET_MEDIA_DETAILS, playOf, SourceLinks, useTrackingSummary } from '../home/media-details'
+import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
@@ -569,12 +570,13 @@ const TitlePage = () => {
     )
   }, [routeUri])
 
-  const [{ data }] = useSubscription({
+  const [{ data, operation }] = useSubscription({
     query: GET_MEDIA_DETAILS,
     variables: { input: { uri, details: true }, descriptionInput: { type: MediaDescriptionContentType.Html }, details: true },
     pause: !uri
   })
   const media = data?.media
+  const current = currentMedia({ data, operation }, uri)
   const tracked = useTrackingSummary(media?.uri)
   const play = media ? playOf(media, tracked) : undefined
 
@@ -674,7 +676,7 @@ const TitlePage = () => {
                   <SourceLinks uri={media.uri} handles={media.handles}/>
                 </div>
                 <div className="tracking">
-                  <MediaTracking uri={media.uri} title={title} cover={coverUrl} episodeCount={media.episodeCount} movie={isMovie}/>
+                  <MediaTracking work={uri} address={routeUri} uri={current?.uri} title={title} cover={coverUrl} episodeCount={media.episodeCount} movie={isMovie}/>
                 </div>
               </div>
             )

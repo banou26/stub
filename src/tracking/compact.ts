@@ -114,6 +114,7 @@ export type Target =
   | { kind: 'check', checked: boolean, sendable: boolean }
   | { kind: 'login' }
   | { kind: 'cannot', reason: string }
+  | { kind: 'loading' }
 
 /**
  * How one tracker's chip reads. `stored` is the viewer's own choice on this device, if they made one;
@@ -123,6 +124,7 @@ export type Target =
  */
 export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Target => {
   switch (answer.state) {
+    case 'LOADING': return { kind: 'loading' }
     case 'SIGNED_OUT': return { kind: 'login' }
     case 'NO_ID': return { kind: 'cannot', reason: 'Has no id for this media' }
     case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }

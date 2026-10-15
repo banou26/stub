@@ -60,6 +60,56 @@ const broken = providerServer('broken', {
   },
 })
 
+// a provider that answers only once the test lets it
+let release = () => {}
+const slow = providerServer('slow', {
+  Subscription: {
+    tracking: {
+      subscribe: async function* (_parent: unknown, { input }: { input: { uri: string } }) {
+        await new Promise<void>(resolve => { release = resolve })
+        yield {
+          tracking: {
+            _id: `tracking:${input.uri}`,
+            answers: [{ _id: `answer:slow:${input.uri}`, tracker: { ...OTHER, id: 'slow' }, state: 'NOT_LISTED', entry: null, candidates: [], error: null }],
+            summary: null,
+            disagreements: [],
+          },
+        }
+      },
+    },
+  },
+})
+
+// a provider with no tracking of its own answers null, as the default a provider yields
+const silent = providerServer('silent', {
+  Subscription: {
+    tracking: {
+      subscribe: async function* () { yield { tracking: null } },
+    },
+  },
+})
+
+// a provider that answers, then answers nothing once the test says so
+let retract = () => {}
+const fickle = providerServer('fickle', {
+  Subscription: {
+    tracking: {
+      subscribe: async function* (_parent: unknown, { input }: { input: { uri: string } }) {
+        yield {
+          tracking: {
+            _id: `tracking:${input.uri}`,
+            answers: [{ _id: `answer:fickle:${input.uri}`, tracker: { ...OTHER, id: 'fickle' }, state: 'NOT_LISTED', entry: null, candidates: [], error: null }],
+            summary: null,
+            disagreements: [],
+          },
+        }
+        await new Promise<void>(resolve => { retract = resolve })
+        yield { tracking: null }
+      },
+    },
+  },
+})
+
 let now = 1_700_000_000_000
 let journal: Promise<Journal> | undefined
 const stub = providerServer(
@@ -96,6 +146,12 @@ const DELETE = `
   }
 `
 
+type Answer = { tracker: { id: string }, state: string }
+const states = (answers: Answer[]) => answers.map(answer => [answer.tracker.id, answer.state])
+// every asked tracker has answered, so nothing in the result is still loading
+const settled = (count: number) => (result: any) =>
+  result.data?.tracking?.answers.length === count && result.data.tracking.answers.every((answer: Answer) => answer.state !== 'LOADING')
+
 const live: { close: () => void }[] = []
 afterEach(() => { while (live.length) live.pop()!.close() })
 
@@ -103,9 +159,8 @@ test('every provider answers alone and the page gets each answer beside the summ
   const tracking = subscribe(app, TRACKING, { input: { uri: URI } })
   live.push(tracking)
 
-  const both = (await tracking.until(result => result.data?.tracking?.answers.length === 2)).data.tracking
-  expect(both.answers.map((answer: { tracker: { id: string }, state: string }) => [answer.tracker.id, answer.state]))
-    .toEqual([['stub', 'NOT_LISTED'], ['other', 'LISTED']])
+  const both = (await tracking.until(settled(2))).data.tracking
+  expect(states(both.answers)).toEqual([['stub', 'NOT_LISTED'], ['other', 'LISTED']])
   expect(both.summary).toMatchObject({ _id: `summary:${URI}`, progress: 7, score: 90 })
 })
 
@@ -113,7 +168,7 @@ test('a save goes to the providers it names and to no other, and the page sees i
   otherWrites.length = 0
   const tracking = subscribe(app, TRACKING, { input: { uri: URI } })
   live.push(tracking)
-  await tracking.until(result => result.data?.tracking?.answers.length === 2)
+  await tracking.until(settled(2))
 
   const saved = await yogaClient(app).mutation(SAVE, { input: { uri: URI, trackers: ['stub'], entry: { status: 'WATCHING', progress: 3, score: 80 } } }).toPromise()
 
@@ -162,7 +217,48 @@ test('a provider that fails is shown as failed rather than left out', async () =
   const tracking = subscribe(withBroken, TRACKING, { input: { uri: URI } })
   live.push(tracking)
 
-  const both = await tracking.until(result => result.data?.tracking?.answers.length === 2)
+  const both = await tracking.until(settled(2))
     .catch(() => { throw new Error('the page never got an answer for the failing provider') })
   expect(both.data.tracking.answers[1]).toMatchObject({ state: 'ERROR', error: 'The list service answered 503', tracker: { id: 'broken' } })
+})
+
+test("a tracker that has not answered yet is in the page's first answer, as loading, and its own answer replaces it", async () => {
+  const withSlow = providerServer('app', trackingResolvers([entry('stub', stub), entry('slow', slow)], trackerOf))
+  const tracking = subscribe(withSlow, TRACKING, { input: { uri: URI } })
+  live.push(tracking)
+
+  const first = (await tracking.next()).data.tracking
+  expect(states(first.answers)).toEqual([['stub', 'NOT_LISTED'], ['slow', 'LOADING']])
+  expect(first.answers[1].tracker.id, 'named as its provider, so its chip can be drawn').toBe('slow')
+
+  release()
+  expect(states((await tracking.next()).data.tracking.answers)).toEqual([['stub', 'NOT_LISTED'], ['slow', 'NOT_LISTED']])
+})
+
+test('a tracker that answers nothing is left out, not loading for ever', async () => {
+  const withSilent = providerServer('app', trackingResolvers([entry('stub', stub), entry('silent', silent)], trackerOf))
+  const tracking = subscribe(withSilent, TRACKING, { input: { uri: URI } })
+  live.push(tracking)
+
+  const answers = (await tracking.until(settled(1))).data.tracking.answers
+  expect(states(answers)).toEqual([['stub', 'NOT_LISTED']])
+})
+
+test('the first answer comes before any tracker has answered, with every tracker loading', async () => {
+  const withSlow = providerServer('app', trackingResolvers([entry('slow', slow)], trackerOf))
+  const tracking = subscribe(withSlow, TRACKING, { input: { uri: URI } })
+  live.push(tracking)
+
+  expect(states((await tracking.next(1_000)).data.tracking.answers)).toEqual([['slow', 'LOADING']])
+  release()
+})
+
+test('a tracker whose latest answer is nothing is left out, even after it answered', async () => {
+  const withFickle = providerServer('app', trackingResolvers([entry('stub', stub), entry('fickle', fickle)], trackerOf))
+  const tracking = subscribe(withFickle, TRACKING, { input: { uri: URI } })
+  live.push(tracking)
+  await tracking.until(settled(2))
+
+  retract()
+  expect(states((await tracking.until(settled(1), 1_000)).data.tracking.answers)).toEqual([['stub', 'NOT_LISTED']])
 })

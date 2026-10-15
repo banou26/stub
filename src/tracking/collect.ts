@@ -15,6 +15,9 @@ export const errorAnswer = (uri: string, tracker: Tracker, error: string): Track
   error,
 })
 
+const loadingAnswer = (uri: string, tracker: Tracker): TrackerAnswer =>
+  ({ _id: answerId(tracker.id, uri), tracker, state: 'LOADING', entry: null, candidates: [], error: null })
+
 const messageOf = (error: unknown) =>
   (error as { graphQLErrors?: { message: string }[] })?.graphQLErrors?.[0]?.message
   ?? (error as { message?: string })?.message
@@ -85,25 +88,27 @@ export const rereads = (wakes: AsyncIterator<void>, wait: (ms: number) => Promis
 }
 
 /**
- * Each tracker's latest answer about one media, in the order the trackers were given.
+ * Each tracker's latest answer about one media, in the order the trackers were given, and a LOADING
+ * one for a tracker that has not answered yet, so the page can draw every tracker at once.
  *
  * `onResult` is the fan-out hook. A tracker that errors is kept as an ERROR answer rather than
  * dropped, so the page shows the tracker failed instead of showing nothing for it; a tracker that
  * answers null (the default a provider yields when it implements nothing) is left out.
  */
 export const answerCollector = <E>(uri: string, order: readonly E[], trackerOf: (entry: E) => Tracker) => {
-  const answers = new Map<E, TrackerAnswer>()
+  const answers = new Map<E, TrackerAnswer | null>()
   const listeners = new Set<() => void>()
   return {
     onResult: (entry: E, result: { data?: { tracking?: { answers?: TrackerAnswer[] } | null } | null, error?: unknown }) => {
-      const answer = result?.error
+      answers.set(entry, result?.error
         ? errorAnswer(uri, trackerOf(entry), messageOf(result.error))
-        : result?.data?.tracking?.answers?.[0]
-      if (!answer) return
-      answers.set(entry, answer)
+        : result?.data?.tracking?.answers?.[0] ?? null)
       for (const listener of listeners) listener()
     },
-    answers: () => order.flatMap(entry => answers.get(entry) ?? []),
+    answers: () => order.flatMap(entry => {
+      const answer = answers.get(entry)
+      return answer === undefined ? loadingAnswer(uri, trackerOf(entry)) : answer ?? []
+    }),
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }

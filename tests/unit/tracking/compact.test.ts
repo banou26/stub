@@ -61,6 +61,10 @@ describe('targetOf', () => {
       .toEqual({ kind: 'cannot', reason: 'Names x and y, cannot tell which' })
   })
 
+  test('a tracker that has not answered yet has nothing to check or send to', () => {
+    expect(targetOf(answer('a', 'LOADING'), true)).toEqual({ kind: 'loading' })
+  })
+
   test('paused and error are checkboxes that are not sent to', () => {
     expect(targetOf(answer('a', 'PAUSED'), undefined)).toEqual({ kind: 'check', checked: true, sendable: false })
     expect(targetOf(answer('a', 'ERROR'), undefined)).toEqual({ kind: 'check', checked: true, sendable: false })

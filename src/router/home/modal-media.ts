@@ -48,3 +48,16 @@ export const listedMediaFor = <T extends { uri: string }>(
   mediaNodes: readonly T[] | undefined
 ): T | undefined =>
   mediaNodes?.find(media => namesSameWork(media.uri, routeUri))
+
+/**
+ * The media a details subscription's state holds, when that state answers `uri`, the uri the page asks
+ * on now. urql keeps the last result while a new subscription starts, so for a beat after a navigation
+ * `data` is still the previous work's; `operation` is the one that result answered. The media's own uri
+ * can name none of `uri`'s sources (a show's page whose details are its first season), so the request
+ * is the test, not the work.
+ */
+export const currentMedia = <M>(
+  state: { data?: { media?: M | null } | null, operation?: { variables?: { input?: { uri?: string | null } } } },
+  uri: string | undefined
+): M | undefined =>
+  uri && state.operation?.variables?.input?.uri === uri ? state.data?.media ?? undefined : undefined
