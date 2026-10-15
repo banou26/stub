@@ -2,9 +2,10 @@ import type { RouteParams } from '../path'
 import type { WatchSource } from '../../components/source-selector'
 
 import { css } from '@emotion/react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
-import { useLocation, useParams } from 'wouter'
+import { Link, useLocation, useParams } from 'wouter'
 
 import { remotePicker, remotePlayer } from '../../worker'
 
@@ -23,8 +24,10 @@ import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
+import { unreleasedEpisodes } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
-import { bestSource, useAutoPick } from './auto-pick'
+import { bestSource, useAutoPick, type Ways } from './auto-pick'
+import { neighbours, sourceFor } from './neighbours'
 
 /**
  * The episode rows this episode claims to BE, unwrapped from their edges.
@@ -53,9 +56,15 @@ const GET_WATCH_MEDIA = gql(`
       titles {
         title
       }
+      status
+      nextAiringEpisode {
+        episodeNumber
+        airingAt
+      }
       episodes {
         ...EpisodeFragment
         episodeNumber
+        releaseDate
         titles {
           title
         }
@@ -73,6 +82,7 @@ const GET_WATCH_MEDIA = gql(`
             embedUrl
             mediaUri
             episodeNumber
+            releaseDate
             titles {
               title
             }
@@ -168,6 +178,13 @@ const style = css`
     box-sizing: border-box;
   }
 
+  .episode-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
   .episode-info {
     display: flex;
     flex-direction: column;
@@ -181,6 +198,34 @@ const style = css`
     .media-title {
       font-size: 1.2rem;
       opacity: 0.6;
+    }
+  }
+
+  .episode-nav {
+    display: flex;
+    gap: 0.8rem;
+
+    a {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.8rem 1.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1rem;
+      background: rgb(28, 28, 30);
+      color: #fff;
+      font-size: 1.4rem;
+      text-decoration: none;
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: rgb(34, 34, 37);
+      }
+
+      svg {
+        width: 1.8rem;
+        height: 1.8rem;
+      }
     }
   }
 `
@@ -395,22 +440,41 @@ const Watch = () => {
   }, [])
 
   const party = useParty()
-  const best = bestSource(episodeHandles, {
+  const ways: Ways = {
     builtIn: (origin, url) => canPlay(origin, url) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
     signedOut: origin => {
       const site = STATUS_SITES.get(origin)
       return site !== undefined && siteStatuses.read(site)?.state === 'signed-out'
     },
     selfPlaying: players && (origin => Boolean(players[origin])),
-  })
-  useAutoPick(best, { ...params, guest: party.status === 'joining' || (party.status === 'active' && party.role === 'guest') }, navigate)
+  }
+  useAutoPick(bestSource(episodeHandles, ways), { ...params, guest: party.status === 'joining' || (party.status === 'active' && party.role === 'guest') }, navigate)
+
+  const episodes = media?.episodes ?? []
+  const { previous, next } = neighbours(episodes, episode ? episodes.indexOf(episode) : -1, media ? unreleasedEpisodes(media) : [])
+  const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
+  const linkTo = (target: typeof episode) => target?.uri ? {
+    href: getRoutePath(Route.WATCH, {
+      mediaUri: params.mediaUri,
+      episodeUri: target.uri,
+      sourceUri: sourceFor(playableHandlesOf(target.handles), playingOrigin, ways),
+    }),
+    title: episodeLabel(target.episodeNumber, target.titles?.at(0)?.title),
+  } : undefined
+  const previousLink = linkTo(previous)
+  const nextLink = linkTo(next)
 
   return (
     <div css={style}>
       <div className="watch-container">
+        {/*
+          Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
+          place adds a step to the tab's history, and Back then moves the player rather than the page.
+        */}
         {viaPlugin && pluginPlayer
           ? (
             <PluginPlayer
+              key={pluginPlayer.release.uri}
               pluginUri={pluginPlayer.pluginUri}
               release={pluginPlayer.release}
               onUnplayable={() => setDeclined(selectedSourceUri)}
@@ -420,6 +484,7 @@ const Watch = () => {
           : embedUrl
           ? (
             <iframe
+              key={embedUrl}
               ref={embedFrame}
               src={embedUrl}
               referrerPolicy="no-referrer"
@@ -437,9 +502,19 @@ const Watch = () => {
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 
         <div className="watch-info">
-          <div className="episode-info">
-            <div className="episode-title">{episodeName ?? params.episodeUri}</div>
-            {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
+          <div className="episode-row">
+            <div className="episode-info">
+              <div className="episode-title">{episodeName ?? params.episodeUri}</div>
+              {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
+            </div>
+            {previousLink || nextLink
+              ? (
+                <nav className="episode-nav">
+                  {previousLink ? <Link href={previousLink.href} title={previousLink.title}><ChevronLeft/>Previous episode</Link> : undefined}
+                  {nextLink ? <Link href={nextLink.href} title={nextLink.title}>Next episode<ChevronRight/></Link> : undefined}
+                </nav>
+              )
+              : undefined}
           </div>
 
           <SourceSelector

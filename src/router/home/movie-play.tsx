@@ -6,7 +6,8 @@ import { Link } from 'wouter'
 import SourceSelector from '../../components/source-selector'
 import { releaseDateLabel } from '../../utils/release-date'
 import { getRoutePath, Route } from '../path'
-import { releasedAtOf, useWatchSources } from './media-details'
+import { releasedAtOf } from './episodes'
+import { useWatchSources } from './media-details'
 import { isUpcoming, movieFacts } from './movie'
 
 /**

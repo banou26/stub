@@ -4,6 +4,7 @@ import { isUpcoming } from './movie'
 import { parseReleaseDate } from '../../utils/release-date'
 
 type DatedEpisode = { episodeNumber?: number | null, releaseDate?: string | null }
+type SourcedEpisode = DatedEpisode & { handles?: readonly { node: { releaseDate?: string | null } }[] }
 
 /**
  * The smallest episode number not out yet, or undefined when nothing says one is ahead.
@@ -41,4 +42,21 @@ export const isUnreleased = (episode: DatedEpisode, first: number | undefined, n
   if (date && isUpcoming(now.toISOString(), date)) return false
   return isUpcoming(episode.releaseDate, now)
     || (first !== undefined && episode.episodeNumber != null && episode.episodeNumber >= first)
+}
+
+// The store already merges a date across the sources it folded into this row, so the handle is a
+// fallback rather than the path: it covers an episode whose date only one source knows and which
+// was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
+// catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
+export const releasedAtOf = (episode: SourcedEpisode | undefined) =>
+  episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
+
+/** Which of a media's episodes are not out yet, in the order `episodes` lists them. */
+export const unreleasedEpisodes = (
+  media: Omit<Parameters<typeof firstUnreleased>[0], 'episodes'> & { episodes: readonly SourcedEpisode[] },
+  now = new Date()
+): boolean[] => {
+  const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
+  const first = firstUnreleased({ status: media.status, nextAiringEpisode: media.nextAiringEpisode, episodes: dated }, now)
+  return dated.map(episode => isUnreleased(episode, first, now))
 }

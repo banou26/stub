@@ -4,6 +4,7 @@ import { mount, unmount } from '../../components/dom'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
+import { print } from 'graphql'
 import { memoryLocation } from 'wouter/memory-location'
 
 const navigate = vi.fn()
@@ -16,15 +17,19 @@ const allHandles = [
   handle('nyaa:a', 'nyaa', 'magnet:?xt=urn:btih:a'),
 ]
 const episode = { uri: params.episodeUri, handles: allHandles }
-const media = { uri: params.mediaUri, episodes: [episode] }
+const single = { uri: params.mediaUri, episodes: [episode] }
+let media: object = single
+let watchQuery = ''
 let origins: string[] | undefined
 let party = { status: 'idle' }
 let backend = 'cloud'
 let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 
 vi.mock('urql', () => ({
-  useSubscription: ({ variables }: { variables: { input: { uri?: string, ids?: string[] } } }) =>
-    [{ data: variables.input.uri ? { media } : origins && { originPage: { nodes: origins.filter(id => variables.input.ids?.includes(id)).map(id => ({ id, name: id })) } } }],
+  useSubscription: ({ query, variables }: { query: Parameters<typeof print>[0], variables: { input: { uri?: string, ids?: string[] } } }) => {
+    if (variables.input.uri) watchQuery = print(query)
+    return [{ data: variables.input.uri ? { media } : origins && { originPage: { nodes: origins.filter(id => variables.input.ids?.includes(id)).map(id => ({ id, name: id })) } } }]
+  },
 }))
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate] }))
 vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
@@ -32,6 +37,8 @@ vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePa
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
 vi.mock('../../../../src/party/bridge', () => ({ attachPlaybackBridge: () => ({ dispose: () => {} }) }))
+vi.mock('../../../../src/components/plugin-player', () => ({ default: () => <div className="plugin-player"/> }))
+vi.mock('../../../../src/components/party-playback', () => ({ default: () => null }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
 vi.mock('../../../../src/embed-relays', () => ({
@@ -41,6 +48,8 @@ vi.mock('../../../../src/embed-relays', () => ({
     return () => {}
   },
 }))
+// lucide-react is CommonJS and requires react under node; no behaviour here
+vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
@@ -58,6 +67,7 @@ afterEach(() => {
   statuses = { crunchyroll: 'signed-out' }
   params = { mediaUri: params.mediaUri, episodeUri: allUri }
   Object.assign(episode, { uri: allUri, handles: allHandles })
+  media = single
   relays.remembered = {}
   relays.heard = []
 })
@@ -223,4 +233,85 @@ test('the relays a show was unavailable through reach its next episode\'s player
   await settle()
   expect(src()).toContain('triedRelays=r1')
   expect(relays.heard.at(-1)).toEqual([host.querySelector('iframe'), 'cr:GX2'])
+})
+
+const row = (n: number, ...handles: ReturnType<typeof handle>[]) =>
+  ({ uri: `ag:(anilist:1-${n})`, episodeNumber: n, titles: [{ title: `Title ${n}` }], handles })
+const crunchyroll = (n: number) => handle(`cr:GX${n}`, 'cr', `https://www.crunchyroll.com/watch/GX${n}`)
+const release = (id: string) => handle(`nyaa:${id}`, 'nyaa', `magnet:?xt=urn:btih:${id}`)
+// three episodes, the address on the second; the third as given
+const series = (third: object = {}, sourceUri = 'nyaa:a') => {
+  media = {
+    uri: params.mediaUri,
+    episodes: [row(1, crunchyroll(1)), row(2, crunchyroll(2), release('a')), { ...row(3, crunchyroll(3), release('b')), ...third }],
+  }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri }
+}
+const watchPath = (n: number, sourceUri?: string) => `/watch/${params.mediaUri}/ag:(anilist:1-${n})${sourceUri ? `/${sourceUri}` : ''}`
+const episodeLinks = (host: HTMLElement) =>
+  [...host.querySelectorAll('.episode-nav a')].map(link => [link.textContent, link.getAttribute('href'), link.getAttribute('title')])
+
+test('the episodes either side are linked, the next on the release playing now, the previous where the Play pick decides', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(episodeLinks(host)).toEqual([
+    ['Previous episode', watchPath(1), 'E1 - Title 1'],
+    ['Next episode', watchPath(3, 'nyaa:b'), 'E3 - Title 3'],
+  ])
+})
+
+test('an episode not out yet is not linked as the next one', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series({ releaseDate: '2099-01-01' })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(episodeLinks(host).map(([label]) => label)).toEqual(['Previous episode'])
+})
+
+test('a film\'s one episode links nothing', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('.episode-nav')).toBeNull()
+})
+
+test('the watch query asks what decides whether an episode is out', async () => {
+  vi.useFakeTimers()
+  hosts.push(page())
+  await settle()
+  expect(watchQuery).toMatch(/episodes \{[^}]*releaseDate/)
+  expect(watchQuery).toMatch(/handles \{\s*relation\s*node \{[^}]*releaseDate/)
+  expect(watchQuery).toMatch(/\bstatus\b/)
+  expect(watchQuery).toMatch(/nextAiringEpisode \{\s*episodeNumber\s*airingAt\s*\}/)
+})
+
+// Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's
+// history, so after Next one Back moved only the player back, and the page still named the next episode
+test('another episode gets a fresh player, so Back leaves the page rather than the frame', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  for (const [origin, player] of [['cr', 'iframe'], ['nyaa', '.plugin-player']] as const) {
+    series({}, origin === 'cr' ? 'cr:GX2' : 'nyaa:a')
+    const location = memoryLocation()
+    const tree = () => <Router hook={location.hook}><Watch/></Router>
+    const host = mount(tree())
+    hosts.push(host)
+    await settle()
+    const before = host.querySelector(player)
+    expect(before, origin).not.toBeNull()
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: origin === 'cr' ? 'cr:GX3' : 'nyaa:b' }
+    act(() => { render(tree(), host) })
+    await settle()
+    expect(host.querySelector(player), origin).not.toBeNull()
+    expect(host.querySelector(player), origin).not.toBe(before)
+  }
 })

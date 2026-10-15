@@ -17,7 +17,7 @@ import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
 import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
-import { firstUnreleased, isUnreleased } from './episodes'
+import { releasedAtOf, unreleasedEpisodes } from './episodes'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
@@ -213,20 +213,6 @@ const GET_MEDIA_ORIGINS = gql(`
 
 export type DetailsMedia = NonNullable<GetMediaDetailsSubscription['media']>
 export type DetailsEpisode = DetailsMedia['episodes'][number]
-
-// The store already merges a date across the sources it folded into this row, so the handle is a
-// fallback rather than the path: it covers an episode whose date only one source knows and which
-// was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
-// catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
-export const releasedAtOf = (episode: DetailsEpisode | undefined) =>
-  episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
-
-/** Which of a media's episodes are not out yet, in the order `episodes` lists them. */
-const unreleasedEpisodes = (media: DetailsMedia): boolean[] => {
-  const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
-  const first = firstUnreleased({ status: media.status, nextAiringEpisode: media.nextAiringEpisode, episodes: dated })
-  return dated.map(episode => isUnreleased(episode, first))
-}
 
 /** The viewer's tracking of a media, its status and progress, once the worker has answered. */
 export const useTrackingSummary = (uri: string | undefined): Tracked => {

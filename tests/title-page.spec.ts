@@ -312,6 +312,33 @@ test('the watch page lists no source it has nothing to open for', async ({ page 
   await expect(list.locator('a[title="TMDB"]')).toHaveCount(0)
 })
 
+test('the watch page links the episodes either side beside the title, Back returns, and at 390 px they fit under it', async ({ page }) => {
+  await openModal(page)
+  await page.goto(`${origin}${await modal(page).locator('a.episode-link').nth(1).getAttribute('href')}`)
+  const nav = page.locator('.episode-nav')
+  const next = nav.getByRole('link', { name: 'Next episode' })
+  await expect(nav.getByRole('link', { name: 'Previous episode' })).toHaveAttribute('title', /^E1 - /, { timeout: 30_000 })
+  await expect(next).toHaveAttribute('title', /^E3 - /)
+  await next.click()
+  await expect(page.locator('.episode-title')).toHaveText(/^E3 - /)
+  await page.goBack()
+  await expect(page.locator('.episode-title')).toHaveText(/^E2 - /)
+
+  const box = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
+  const info = page.locator('.episode-info')
+  // clear of the bottom right corner, where FKN draws its toasts over the page
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  expect((await box(nav)).left - (await box(info)).right).toBeLessThan(20)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect((await box(nav)).top).toBeGreaterThanOrEqual((await box(info)).bottom)
+  const outside = () => nav.locator('a').evaluateAll(links => links.map(link => Math.max(0, link.getBoundingClientRect().right - innerWidth)))
+  expect(await outside()).toEqual([0, 0])
+  // the control: the same check reads a link pushed past the edge
+  await nav.evaluate(element => { element.style.marginLeft = '400px' })
+  expect((await outside()).every(Boolean)).toBe(true)
+})
+
 test('a theme still plays when the player\'s chunk is gone, as after a deploy', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))

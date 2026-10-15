@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
-import { firstUnreleased, isUnreleased } from '../../../src/router/home/episodes'
+import { firstUnreleased, isUnreleased, unreleasedEpisodes } from '../../../src/router/home/episodes'
 
 type Input = Parameters<typeof firstUnreleased>[0]
 
@@ -62,13 +62,20 @@ test('AniList\'s next episode outranks a status still saying the show has not st
   expect(unreleased({ status: 'NOT_YET_RELEASED', nextAiringEpisode: premiere, episodes: undated }, afterPremiere)).toEqual(range(2, 12))
 })
 
+test('a media\'s rows read its status, its schedule and, for a row with no date, the first date a source gives', () => {
+  expect(unreleasedEpisodes({ status: 'NOT_YET_RELEASED', episodes: undated }, now).every(Boolean)).toBe(true)
+  expect(unreleasedEpisodes({ nextAiringEpisode, episodes: undated }, now).map((out, i) => out && i + 1).filter(Boolean)).toEqual(range(3, 12))
+  const sourced = [{ episodeNumber: 1 }, { episodeNumber: 2, handles: [{ node: {} }, { node: { releaseDate: '2026-10-16' } }] }]
+  expect(unreleasedEpisodes({ episodes: sourced }, now)).toEqual([false, true])
+})
+
 // the rows the modal and the title page share cannot be imported here (see modal-media.test.ts), so
 // their wiring is read off the source
 const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-details.tsx', import.meta.url)), 'utf-8')
 
 test('the rows ask the schedule and dim an unreleased row, keeping a known title', () => {
   expect(modal).toMatch(/nextAiringEpisode \{\s*episodeNumber\s*airingAt\s*\}/)
-  expect(modal, 'the status reaches the rule').toContain('firstUnreleased({ status: media.status, nextAiringEpisode: media.nextAiringEpisode')
+  expect(modal, 'the rows read the shared rule').toContain('unreleasedEpisodes(media)')
   expect(modal, 'the next episode takes AniList\'s time').toContain('releasedAtOf(episode) ?? airingAt')
   expect(modal).toMatch(/airingAt=\{episode\.episodeNumber === nextAiring\?\.episodeNumber \? nextAiring\?\.airingAt : undefined\}/)
   expect(modal).toContain('<div className="title">{unreleased ? \'Unreleased episode\' : `Episode ${index + 1}`}</div>')
@@ -80,6 +87,5 @@ test('the rows ask the schedule and dim an unreleased row, keeping a known title
 test('an unreleased row draws no watch link and no source picker', () => {
   expect(modal).toMatch(/episode\.uri && !unreleased\s*\?\s*\(\s*<Link\s+className="episode-link"/)
   expect(modal).toContain('unreleased ? [] : watchSources(episode, mediaUri, origins)')
-  expect(modal).toContain('dated.map(episode => isUnreleased(episode, first))')
   expect(modal).toContain('unreleased={unreleased[index]!}')
 })
