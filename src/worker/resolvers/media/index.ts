@@ -9,8 +9,9 @@ import { findAggregatedMedia, findAllAggregatedMedia, findAggregatedEpisodesForM
 import { applyMediaSorts, isListing, pageRows, siteMedia } from '../../store/filter'
 import { fuzzyMergeMediaClusters } from '../../store/fuzzy-merge'
 import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/aggregate'
-import { askAddressOf, createMediaReader, createPageReader, episodesOf, readStore } from '../../graph'
+import { askAddressOf, createMediaReader, createPageReader, episodesOf, passSettled, readStore } from '../../graph'
 import { listen, listenIterator, listenMultipleIterator, debouncedListenIterator } from '../../store/events'
+import { createSettling } from '../../fanout'
 import { parseHTMLDescription, parseTextDescription } from '../utils'
 import { searchRelevance } from '../../../sources/utils'
 import { MediaDescriptionContentType } from '../../../generated/graphql'
@@ -37,15 +38,20 @@ export const resolvers = {
           console.warn(`media: refused '${args.input.uri}', which names no uri`)
           return
         }
-        const { subscriptions, close, askOrigins, root } = proxyRequestToExtractors(ctx, 'MEDIA')
         // THE READ STORE IS READ ONCE, at subscribe time: a flag that moved mid subscription would
         // give one generator two shapes of wake, and the flag only ever moves at boot.
         const reader = readStore() === 'graph' ? createMediaReader(requestedUri) : undefined
-        const iterator: AsyncIterableIterator<unknown> =
+        const iterator: AsyncIterableIterator<unknown> & { wake: () => void } =
           reader
             // 6.6: one event, named, so the wake test below can refuse the ones that are not ours
             ? listenIterator('view:changed', { abortSignal: ctx.request.signal })
             : listenMultipleIterator(['media:changed', 'episode:changed'], { abortSignal: ctx.request.signal })
+        // Every source asked about this media, re-asks and the similar asks made on its behalf included,
+        // and a read once the last of them has settled, which is what `settled` reports. What a READ
+        // starts is never counted itself, only the asks it leads to: a read that counted its own work
+        // would wake the next read as that work settled, and the page would never stop reading.
+        const settling = createSettling(() => iterator.wake())
+        const { subscriptions, close, askOrigins, root } = proxyRequestToExtractors(ctx, 'MEDIA', undefined, settling)
 
         /**
          * The uri the sources were asked about is the one the caller had at subscribe time, and a card
@@ -103,10 +109,19 @@ export const resolvers = {
         // a MEDIA root by construction: only this resolver runs it, so a listing never asks. The
         // consumer still reads the OLD store's cluster, which is what spec step 4 rewires; skipping
         // it here would take the `containing` asks the fold depends on down for a whole step.
-        const askSimilarRuns = (cluster: Awaited<ReturnType<typeof findMediaForPage>>) => {
-          if (cluster.length) void resolveSimilarRuns(cluster, root, { ask: askSimilar, implemented: implementsSimilarMedia })
-        }
+        // Resolves once its asks are made, not answered: the consumer makes them all in one pass
+        // (`drive` calls `deps.ask` before its first await), so the first is the last to wait for.
+        const askSimilarRuns = (cluster: Awaited<ReturnType<typeof findMediaForPage>>) =>
+          new Promise<void>(asked => {
+            if (!cluster.length) return asked()
+            const ask: typeof askSimilar = (origin, input) => {
+              asked()
+              return settling.track(askSimilar(origin, input))
+            }
+            void resolveSimilarRuns(cluster, root, { ask, implemented: implementsSimilarMedia }).then(() => asked())
+          })
 
+        /** The media, and `asking`, which resolves once the asks the read leads to have been made. */
         const read = async () => {
           if (reader) {
             // 6.2 resolves and then looks up: membership before publication, the container's
@@ -114,11 +129,15 @@ export const resolvers = {
             const media = await reader.read()
             if (!media) return undefined
             askUnasked(String(media.uri))
-            // the placeholders of the cluster this read landed on, which is the one the page draws:
-            // `resolveMedia` follows a container's `preferredRun`, so `_id` is not always the uri's
-            void askPlaceholders(String(media._id ?? ''), String(media.uri))
-            void findMediaForPage(requestedUri).then(askSimilarRuns)
-            return siteMedia(media as unknown as Media)
+            const asking = Promise.all([
+              // the placeholders of the cluster this read landed on, which is the one the page draws:
+              // `resolveMedia` follows a container's `preferredRun`, so `_id` is not always the uri's
+              askPlaceholders(String(media._id ?? ''), String(media.uri)),
+              findMediaForPage(requestedUri).then(askSimilarRuns, error => {
+                console.error(new Error('media: the similar asks failed', { cause: error }))
+              }),
+            ])
+            return { media: siteMedia(media as unknown as Media), asking }
           }
           // A show whose run is in the store is shown as that run: see `preferAttachedRun` in
           // store/db.ts, where the choice lives so it can be pinned (this module reaches urql and
@@ -127,23 +146,34 @@ export const resolvers = {
           if (!cluster.length) return undefined
           const media = aggregateMedia(cluster, location.origin)
           askUnasked(media.uri)
-          askSimilarRuns(cluster)
-          return siteMedia(media)
+          return { media: siteMedia(media), asking: askSimilarRuns(cluster) }
+        }
+
+        const answer = async () => {
+          // on the graph path the last answers' rows are a pass away from the read
+          if (reader && settling.settled()) await passSettled()
+          const found = await read()
+          if (!found?.media) return undefined
+          // after the read, which may have asked a source the cluster has only just named, and with nothing
+          // out, after the asks it makes past awaits of its own, or the page hears settled as one starts
+          if (settling.settled()) await found.asking
+          return { ...found.media, settled: settling.settled() }
         }
 
         try {
-          const first = await read()
+          const first = await answer()
           if (first) yield first
 
           for await (const detail of iterator) {
             // An empty cluster yields nothing and WAITS, on its requested uris until one resolves and
             // on its cluster id after that. Every other cluster's event is refused here rather than
-            // costing a read that answers the same row.
-            if (reader && !reader.wakes(detail as { clusters: string[], uris: string[] })) continue
-            const next = await read()
+            // costing a read that answers the same row. No detail is the sources settling.
+            if (reader && detail && !reader.wakes(detail as { clusters: string[], uris: string[] })) continue
+            const next = await answer()
             if (next) yield next
           }
         } finally {
+          settling.close()
           close()
           await Promise.allSettled(subscriptions.map(subscription => subscription.unsubscribe()))
         }

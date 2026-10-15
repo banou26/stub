@@ -35,15 +35,64 @@ export type Fanout<E extends FanoutEntry> = {
    * unstamped. Absent for a question whose input carries no `context`, which a tracker's does not.
    */
   root?: RequestContext
+  /** Counts each provider asked as one ask out until its answer ends, for a caller that waits on them all. */
+  settling?: Settling
 }
 
-// one provider must never be able to take down the fan-out: a provider that cannot start is skipped
-export const joinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) => {
-  if (fanout.joined.has(entry)) return
-  let subscription: FanoutSubscription
+/**
+ * How long one ask may stay out before it counts as settled anyway, so an ask that never ends (a plugin's
+ * stream, a request stuck in backoff) cannot hold a page forever. A live source can take longer: AniList
+ * waiting on its own Crunchyroll ask, or Crunchyroll and JustWatch waiting for the media and then
+ * searching, so their rows can land after the page was told the media settled.
+ */
+export const ASK_BOUND_MS = 30_000
+
+/**
+ * The asks of one question still out. Each `ask()` is out until the function it returns is called or
+ * `boundMs` has passed, whichever is first, and `onSettled` runs each time the last one out settles.
+ */
+export const createSettling = (onSettled: () => void, boundMs = ASK_BOUND_MS) => {
+  const out = new Map<() => void, ReturnType<typeof setTimeout>>()
+  const ask = () => {
+    const done = () => {
+      const timer = out.get(done)
+      if (timer === undefined) return
+      clearTimeout(timer)
+      out.delete(done)
+      if (!out.size) onSettled()
+    }
+    out.set(done, setTimeout(done, boundMs))
+    return done
+  }
+  return {
+    settled: () => !out.size,
+    ask,
+    /** `promise`, as one ask out until it settles. */
+    track: <T>(promise: Promise<T>): Promise<T> => {
+      const done = ask()
+      promise.then(done, done)
+      return promise
+    },
+    /** Drops every ask still out without calling `onSettled`, for the question's own teardown. */
+    close: () => {
+      for (const timer of out.values()) clearTimeout(timer)
+      out.clear()
+    },
+  }
+}
+
+export type Settling = ReturnType<typeof createSettling>
+
+/**
+ * Ask one provider the fan-out's question with `variables`, handing its results to `onResult`; nothing
+ * when it cannot start. With a `settling`, it is one ask out until its answer ends: urql ends every
+ * subscription, answered, empty or failed, on a result with `hasNext: false`.
+ */
+export const askEntry = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E, variables: Record<string, unknown>): FanoutSubscription | undefined => {
+  const done = fanout.settling?.ask()
   try {
-    const variables = fanout.root ? stamp(fanout.variables ?? {}, fanout.root) : fanout.variables ?? {}
-    subscription = entry.client.subscription(fanout.query, variables).subscribe((result) => {
+    return entry.client.subscription(fanout.query, variables).subscribe((result) => {
+      if (result?.hasNext === false) done?.()
       if (!fanout.onResult) return
       try {
         fanout.onResult(entry, result)
@@ -53,8 +102,16 @@ export const joinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) =
     })
   } catch (error) {
     console.error(new Error(`Extractor ${entry.name} failed to join the fan-out`, { cause: error }))
-    return
+    done?.()
+    return undefined
   }
+}
+
+// one provider must never be able to take down the fan-out: a provider that cannot start is skipped
+export const joinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) => {
+  if (fanout.joined.has(entry)) return
+  const subscription = askEntry(fanout, entry, fanout.root ? stamp(fanout.variables ?? {}, fanout.root) : fanout.variables ?? {})
+  if (!subscription) return
   fanout.joined.set(entry, subscription)
   fanout.subscriptions.push(subscription)
 }
@@ -77,10 +134,10 @@ export const leaveFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) 
  * servers).
  */
 export const openFanout = <E extends FanoutEntry>(
-  { entries, query, variables, root, onResult }:
-  { entries: readonly E[], query: unknown, variables: Record<string, unknown> | undefined, root?: RequestContext, onResult?: OnResult<E> }
+  { entries, query, variables, root, onResult, settling }:
+  { entries: readonly E[], query: unknown, variables: Record<string, unknown> | undefined, root?: RequestContext, onResult?: OnResult<E>, settling?: Settling }
 ): Fanout<E> => {
-  const fanout: Fanout<E> = { query, variables, root, onResult, subscriptions: [], joined: new Map() }
+  const fanout: Fanout<E> = { query, variables, root, onResult, settling, subscriptions: [], joined: new Map() }
   for (const entry of entries) joinFanout(fanout, entry)
   return fanout
 }

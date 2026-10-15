@@ -61,12 +61,12 @@ test('a movie of one episode gets the play bar and the Watched toggle, and no ep
   // JSX props are not type-checked here, so a dropped `handles` would still compile
   expect(modal, 'a film\'s offers hang off the media').toMatch(/<MoviePlay[^>]*handles=\{media\.handles\}/)
   expect(modal).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
-  expect(modal).toMatch(/\{isMovie \|\| !data\?\.media \? undefined : <Episodes [^>]*media=\{data\.media\}/)
+  expect(modal).toMatch(/\{isMovie \|\| !current \? undefined : <Episodes [^>]*media=\{current\}/)
   expect(read('router/home/media-details.tsx'), 'the series path still renders its rows').toMatch(/<Episode\s+key=/)
 })
 
 test('the title page draws no episode list for a movie either', () => {
   expect(page).toContain('const isMovie = Boolean(media && isMovieMedia(media))')
   expect(page).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
-  expect(page).toMatch(/media && !isMovie && media\.episodes\.length\s*\?\s*\(\s*<section data-episodes>\s*<h2>Episodes<\/h2>\s*<Episodes media=\{media\}/)
+  expect(page).toMatch(/media && !isMovie\s*\?\s*\(\s*<section data-episodes>\s*<h2>Episodes<\/h2>\s*\{current \? <Episodes media=\{current\}/)
 })

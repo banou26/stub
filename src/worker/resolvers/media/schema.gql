@@ -427,6 +427,12 @@ type Media {
   Null where no source lists them, and for anime.
   """
   seasons: [MediaSeasonLink!]
+  """
+  Whether every source asked about this media has settled: answered for the last time, failed, or been
+  out for 30 seconds. Set by the `media` subscription alone, and false again while a source the media
+  has just been found under is asked.
+  """
+  settled: Boolean
 }
 
 """One season of a show: its number and the uri of its own run."""

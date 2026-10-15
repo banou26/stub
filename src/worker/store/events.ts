@@ -47,11 +47,13 @@ export function listen<K extends keyof StoreEventMap>(
 
 type IteratorOptions = { abortSignal?: AbortSignal }
 
+type Wakeable = { wake: () => void }
+
 function makeAsyncIterator<T>(
   subscribe: (fire: () => void) => () => void,
   value: T,
   options?: IteratorOptions
-): AsyncIterableIterator<T> {
+): AsyncIterableIterator<T> & Wakeable {
   let resolve: ((result: IteratorResult<T>) => void) | null = null
   let pending = false
 
@@ -86,24 +88,27 @@ function makeAsyncIterator<T>(
       return { value: undefined as T, done: true as const }
     },
     [Symbol.asyncIterator]() { return this },
+    wake: fire,
   }
 }
 
+/** Each event of `type` with its detail, and a `wake` that yields `undefined` to this iterator alone. */
 export function listenIterator<K extends keyof StoreEventMap>(
   type: K,
   options?: IteratorOptions
-): AsyncIterableIterator<StoreEventMap[K]> {
-  let resolve: ((result: IteratorResult<StoreEventMap[K]>) => void) | null = null
-  const buffer: StoreEventMap[K][] = []
+): AsyncIterableIterator<StoreEventMap[K] | undefined> & Wakeable {
+  let resolve: ((result: IteratorResult<StoreEventMap[K] | undefined>) => void) | null = null
+  const buffer: (StoreEventMap[K] | undefined)[] = []
 
-  const unlisten = listen(type, (detail) => {
+  const push = (detail: StoreEventMap[K] | undefined) => {
     if (resolve) {
       resolve({ value: detail, done: false })
       resolve = null
     } else {
       buffer.push(detail)
     }
-  })
+  }
+  const unlisten = listen(type, push)
 
   if (options?.abortSignal) {
     options.abortSignal.addEventListener('abort', () => {
@@ -115,22 +120,24 @@ export function listenIterator<K extends keyof StoreEventMap>(
   return {
     async next() {
       if (buffer.length > 0) {
-        return { value: buffer.shift()!, done: false as const }
+        return { value: buffer.shift(), done: false as const }
       }
-      return new Promise<IteratorResult<StoreEventMap[K]>>(r => { resolve = r })
+      return new Promise<IteratorResult<StoreEventMap[K] | undefined>>(r => { resolve = r })
     },
     async return() {
       unlisten()
       return { value: undefined as any, done: true as const }
     },
     [Symbol.asyncIterator]() { return this },
+    wake: () => push(undefined),
   }
 }
 
+/** One wake per event of `types`, and a `wake` that fires this iterator alone. */
 export function listenMultipleIterator(
   types: (keyof StoreEventMap)[],
   options?: IteratorOptions
-): AsyncIterableIterator<void> {
+): AsyncIterableIterator<void> & Wakeable {
   return makeAsyncIterator(
     (fire) => {
       const unlisteners = types.map(type => listen(type, fire))
@@ -146,7 +153,7 @@ export function debouncedListenIterator(
   types: (keyof StoreEventMap)[],
   debounceMs: number,
   options?: IteratorOptions
-): AsyncIterableIterator<void> & { wake: () => void } {
+): AsyncIterableIterator<void> & Wakeable {
   let timeout: ReturnType<typeof setTimeout> | null = null
   let wake = () => {}
 

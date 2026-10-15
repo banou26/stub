@@ -717,11 +717,11 @@ const TitlePage = () => {
             href={uri => `${getRoutePath(Route.TITLE, { uri })}${search}`}
           />
           {
-            media && !isMovie && media.episodes.length
+            media && !isMovie
               ? (
                 <section data-episodes>
                   <h2>Episodes</h2>
-                  <Episodes media={media} start={currentEpisode(media.episodes, tracked)}/>
+                  {current ? <Episodes media={current} start={currentEpisode(current.episodes, tracked)}/> : undefined}
                 </section>
               )
               : undefined

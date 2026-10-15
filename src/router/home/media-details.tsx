@@ -159,6 +159,7 @@ export const GET_MEDIA_DETAILS = gql(`
       }
       episodeCount
       status
+      settled
       seasons {
         number
         uri
@@ -491,6 +492,20 @@ const episodesStyle = css`
     }
   }
 
+  & > .empty {
+    padding: 3rem 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.6rem;
+    text-align: center;
+  }
+
+  .episode.placeholder .title {
+    width: 20rem;
+    height: 2rem;
+    border-radius: 0.4rem;
+    background-color: rgb(45, 45, 45);
+  }
+
   @media (max-width: 768px) {
     .episode {
       display: grid;
@@ -612,13 +627,39 @@ const Episode = (
 // a cour
 const EPISODES_PAGE = 12
 
-/** A series' episode rows a page at a time, opening on the page holding episode `start`; an unreleased one dimmed and not linked. */
+/** A row's size and nothing in it, for a list whose rows have not arrived. */
+const PlaceholderEpisode = () => (
+  <div className="episode placeholder" aria-hidden="true">
+    <div className="number"/>
+    <div className="thumbnail"/>
+    <div className="content">
+      <div className="header"><div className="title"/></div>
+    </div>
+  </div>
+)
+
+/**
+ * A series' episode rows a page at a time, opening on the page holding episode `start`; an unreleased one
+ * dimmed and not linked. With no rows, rows' placeholders until every source has answered, then
+ * "No episodes found".
+ */
 export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number }) => {
   const unreleased = unreleasedEpisodes(media)
   const nextAiring = media.nextAiringEpisode
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
+  if (!media.episodes.length) {
+    return (
+      <div className="episodes" css={episodesStyle}>
+        {
+          media.settled
+            ? <div className="empty">No episodes found</div>
+            : Array.from({ length: Math.min(media.episodeCount || 3, EPISODES_PAGE) }, (_, index) => <PlaceholderEpisode key={index}/>)
+        }
+      </div>
+    )
+  }
   return (
     <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={start}>
       {(page, offset) => (

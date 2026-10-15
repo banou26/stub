@@ -152,6 +152,23 @@ test('a title opened from a relation starts fresh: what was opened on the last o
   await expect(page.getByRole('button', { name: 'Expand' }), 'its description opens clamped').toBeVisible()
 })
 
+// Spec Third carries no MyAnimeList id, so AniZip is never asked and no source names a row of it
+const THIRD = 'ag:(anilist:900002)'
+
+test('a title no source lists an episode of keeps its Episodes heading, and says so once every source has answered, in the modal too', async ({ page }) => {
+  // four sources fetch what this rig refuses and never answer, so the message waits on their 30 s bound
+  test.setTimeout(180_000)
+  await page.goto(`${origin}/title/${THIRD}`)
+  await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
+  const episodes = page.locator('[data-episodes]')
+  await expect(episodes.getByRole('heading', { name: 'Episodes' })).toBeVisible()
+  await expect(episodes.locator('.episode.placeholder').first(), 'rows held while a source is out').toBeVisible()
+  await expect(episodes.locator('.episodes')).toHaveText('No episodes found', { timeout: 45_000 })
+  await page.goto(`${origin}/media/${THIRD}`)
+  await expect(modal(page).locator('.episode.placeholder').first()).toBeVisible({ timeout: 30_000 })
+  await expect(modal(page).locator('.episodes')).toHaveText('No episodes found', { timeout: 45_000 })
+})
+
 test('a wider spelling of the same title keeps the page as it is', async ({ page }) => {
   await page.goto(`${origin}/title/${SEQUEL}`)
   await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })

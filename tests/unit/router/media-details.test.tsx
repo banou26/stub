@@ -123,6 +123,34 @@ test('a Prime Video row outside Japan plays in stub with the extension, and link
   expect(await hrefOn('cloud')).toBe(url)
 })
 
+describe('a media with no episode rows', () => {
+  const empty = (fields: Record<string, unknown>) => ({ uri: 'ag:(anilist:1)', episodes: [], ...fields }) as unknown as DetailsMedia
+  const render = (shown: DetailsMedia) => {
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={shown}/></Router></Provider>)
+    hosts.push(host)
+    return host
+  }
+
+  test('says No episodes found once every source has answered with none', () => {
+    const host = render(empty({ settled: true, episodeCount: 1 }))
+    expect(host.querySelector('.episodes')!.textContent).toBe('No episodes found')
+    expect(host.querySelectorAll('.episode')).toHaveLength(0)
+  })
+
+  test('draws placeholder rows, as many as the episode count says, while a source is still out', () => {
+    const host = render(empty({ settled: false, episodeCount: 5 }))
+    expect(host.textContent).not.toContain('No episodes found')
+    expect(host.querySelectorAll('.episode.placeholder')).toHaveLength(5)
+  })
+
+  test('the control: rows are drawn and the message never is, settled or not', () => {
+    const host = render({ ...media, settled: true } as DetailsMedia)
+    expect(host.querySelectorAll('.episode:not(.placeholder)')).toHaveLength(12)
+    expect(host.textContent).not.toContain('No episodes found')
+  })
+})
+
 describe('the tracking summary a page reads', () => {
   const A = 'ag:(anilist:1)'
   const A_GROWN = 'ag:(anilist:1,mal:1)'

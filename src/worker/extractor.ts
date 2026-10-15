@@ -20,7 +20,7 @@ import { typeDefs } from '../generated/schema/typeDefs.generated'
 import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
-import { collectUris, joinFanout, leaveFanout, openFanout, type Fanout } from './fanout'
+import { askEntry, collectUris, joinFanout, leaveFanout, openFanout, type Fanout, type Settling } from './fanout'
 import { askable } from './disabled-origins'
 import { answersForOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
@@ -788,7 +788,9 @@ const fanouts = new Set<Fanout<ExtractorEntry>>()
 export const proxyRequestToExtractors = (
   ctx: ExtractorServerContext,
   operation: RootOperation,
-  extractUris?: (result: any) => string[]
+  extractUris?: (result: any) => string[],
+  /** counts every source asked, re-asks included, until its answer ends */
+  settling?: Settling
 ) => {
   const root = openRoot(operation)
   const insertedUris = new Set<string>()
@@ -798,6 +800,7 @@ export const proxyRequestToExtractors = (
     variables: ctx.params.variables,
     root,
     onResult: extractUris ? collectUris(extractUris, insertedUris) : undefined,
+    settling,
   })
   fanouts.add(fanout)
 
@@ -837,13 +840,8 @@ export const proxyRequestToExtractors = (
       // (see plugin-sources.ts), so a third party answering from a foreign id keeps the old behaviour.
       const definition = extractor.extractor as Answerable
       if (!answersForOrigins(definition, originIds)) continue
-      try {
-        fanout.subscriptions.push(
-          extractor.client.subscription(ctx.params.query!, stamp(variables ?? {}, root)).subscribe(() => {})
-        )
-      } catch (error) {
-        console.error(new Error(`Extractor ${extractor.name} failed to re-join the fan-out`, { cause: error }))
-      }
+      const subscription = askEntry(fanout, extractor, stamp(variables ?? {}, root))
+      if (subscription) fanout.subscriptions.push(subscription)
     }
   }
 

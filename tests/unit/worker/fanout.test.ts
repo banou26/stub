@@ -1,9 +1,12 @@
 // The fan-out is shared by media sources and trackers, so both of its callers are pinned here against
 // fake entries: the media page's uri collection, and the per-provider hook the tracking aggregate is
 // built on.
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { collectUris, joinFanout, leaveFanout, openFanout, type FanoutEntry } from '../../../src/worker/fanout'
+import { Client, fetchExchange } from '@urql/core'
+import { createSchema, createYoga } from 'graphql-yoga'
+
+import { ASK_BOUND_MS, askEntry, collectUris, createSettling, joinFanout, leaveFanout, openFanout, type FanoutEntry } from '../../../src/worker/fanout'
 import { closeRoot, openRoot, resetRegistry } from '../../../src/worker/request-context'
 
 type Fake = FanoutEntry & { asked: { query: unknown, variables: any }[], emit: (result: unknown) => void, unsubscribed: number }
@@ -30,7 +33,7 @@ const fake = (name: string): Fake => {
   return entry
 }
 
-afterEach(() => { vi.restoreAllMocks(); resetRegistry() })
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); resetRegistry() })
 
 describe('openFanout', () => {
   test('asks every entry passed in, and hands each result to onResult with the entry that answered', () => {
@@ -136,5 +139,108 @@ describe('collectUris, the media page hook', () => {
     b.emit({ nodes: ['b:1', 'a:1'] })
 
     expect([...inserted].sort()).toEqual(['a:1', 'a:2', 'b:1'])
+  })
+})
+
+describe('settling, what the media page waits on before it says a media has no episodes', () => {
+  const settlingFanout = (entries: Fake[]) => {
+    const onSettled = vi.fn()
+    const settling = createSettling(onSettled)
+    const fanout = openFanout({ entries, query: 'Q', variables: {}, settling })
+    return { fanout, settling, onSettled }
+  }
+
+  test('settles once every entry asked has answered for the last time, and not before', () => {
+    const anilist = fake('anilist')
+    const anizip = fake('anizip')
+    const { settling, onSettled } = settlingFanout([anilist, anizip])
+
+    anilist.emit({ data: {}, hasNext: true })
+    anilist.emit({ data: {}, hasNext: false })
+    expect(settling.settled(), 'anizip is still out').toBe(false)
+    anizip.emit({ data: {}, hasNext: true })
+    expect(settling.settled(), 'a payload that is not the last').toBe(false)
+
+    anizip.emit({ data: {}, hasNext: false })
+    expect(settling.settled()).toBe(true)
+    expect(onSettled).toHaveBeenCalledOnce()
+  })
+
+  test('an entry that never answers counts as settled once the bound has passed', () => {
+    vi.useFakeTimers()
+    const anilist = fake('anilist')
+    const { settling, onSettled } = settlingFanout([anilist, fake('never')])
+    anilist.emit({ hasNext: false })
+
+    vi.advanceTimersByTime(ASK_BOUND_MS - 1)
+    expect(settling.settled()).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(settling.settled()).toBe(true)
+    expect(onSettled).toHaveBeenCalledOnce()
+  })
+
+  test('an entry that cannot start holds nothing', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const broken = { name: 'broken', client: { subscription: () => { throw new Error('no') } } } as unknown as Fake
+    const other = fake('other')
+    const { settling } = settlingFanout([broken, other])
+    other.emit({ hasNext: false })
+
+    expect(settling.settled()).toBe(true)
+  })
+
+  test('an entry asked again is out again until that answer ends', () => {
+    const anilist = fake('anilist')
+    const cr = fake('cr')
+    const { fanout, settling, onSettled } = settlingFanout([anilist])
+    anilist.emit({ hasNext: false })
+    expect(settling.settled(), 'the control: settled before the re-ask').toBe(true)
+
+    askEntry(fanout, cr, { input: { uri: 'ag:(anilist:1,cr:1)' } })
+    expect(settling.settled()).toBe(false)
+    cr.emit({ hasNext: false })
+    expect(settling.settled()).toBe(true)
+    expect(onSettled).toHaveBeenCalledTimes(2)
+  })
+
+  test('a tracked promise is out until it settles, a rejected one included', async () => {
+    const settling = createSettling(() => {})
+    let fail: (error: Error) => void = () => {}
+    settling.track(new Promise((_resolve, reject) => { fail = reject }))
+    expect(settling.settled()).toBe(false)
+
+    fail(new Error('the placeholder ask failed'))
+    await Promise.resolve()
+    expect(settling.settled()).toBe(true)
+  })
+
+  // the urql client every source answers through ends each subscription on a `hasNext: false` result,
+  // and the count rests on it: a stream that answered, one that answered nothing, and one that failed
+  test("a real urql client ends every source's answer on a result the count reads", async () => {
+    const server = createYoga({
+      schema: createSchema({
+        typeDefs: 'type Query { _: Int } type Subscription { answered: Int, nothing: Int, failed: Int }',
+        resolvers: {
+          Subscription: {
+            answered: { subscribe: async function* () { yield { answered: 1 } } },
+            nothing: { subscribe: async function* () { yield* [] } },
+            failed: { subscribe: async function* () { yield await Promise.reject(new Error('upstream down')) } },
+          },
+        },
+      }),
+      logging: false,
+    })
+    const client = new Client({
+      url: 'http://d/graphql',
+      exchanges: [fetchExchange],
+      fetchSubscriptions: true,
+      fetch: (input, init) => server.handleRequest(new Request(input, init), {}) as Promise<Response>,
+    })
+    for (const field of ['answered', 'nothing', 'failed']) {
+      const settled = new Promise<void>(resolve => {
+        openFanout({ entries: [{ name: field, client }], query: `subscription { ${field} }`, variables: {}, settling: createSettling(resolve) })
+      })
+      expect(await Promise.race([settled.then(() => 'settled'), new Promise(resolve => setTimeout(() => resolve('still out'), 1_000))]), field).toBe('settled')
+    }
   })
 })

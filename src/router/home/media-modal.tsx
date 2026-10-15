@@ -469,7 +469,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           currentUris={data?.media?.handles.map(handle => handle.node.uri) ?? []}
           href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
-        {isMovie || !data?.media ? undefined : <Episodes key={uri} media={data.media} start={currentEpisode(data.media.episodes, tracked)}/>}
+        {isMovie || !current ? undefined : <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/>}
       </div>
     </ModalBackdrop>
   )
