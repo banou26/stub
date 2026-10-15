@@ -30,7 +30,7 @@ export type PlaybackLink = {
 }
 
 /** The player events a change of state rides on; a heartbeat while playing covers drift between them. */
-const EVENTS = ['play', 'pause', 'seeked', 'ratechange'] as const
+const EVENTS = ['play', 'pause', 'seeked', 'ratechange', 'ended'] as const
 
 /** The media surface a link reads and drives: what a `PlayerMedia` and a `RemotePlayer` both are. */
 export type LinkableMedia = EventTarget & {

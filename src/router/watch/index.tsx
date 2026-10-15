@@ -28,6 +28,7 @@ import { unreleasedEpisodes } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
 import { neighbours, sourceFor } from './neighbours'
+import UpNext from './up-next'
 
 /**
  * The episode rows this episode claims to BE, unwrapped from their edges.
@@ -152,19 +153,10 @@ const style = css`
 
   .player-container {
     position: relative;
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
-
-    .player-loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-      font-size: 1.4rem;
-      opacity: 0.7;
-    }
   }
 
   .watch-info {
@@ -448,7 +440,8 @@ const Watch = () => {
     },
     selfPlaying: players && (origin => Boolean(players[origin])),
   }
-  useAutoPick(bestSource(episodeHandles, ways), { ...params, guest: party.status === 'joining' || (party.status === 'active' && party.role === 'guest') }, navigate)
+  const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
+  useAutoPick(bestSource(episodeHandles, ways), { ...params, guest }, navigate)
 
   const episodes = media?.episodes ?? []
   const { previous, next } = neighbours(episodes, episode ? episodes.indexOf(episode) : -1, media ? unreleasedEpisodes(media) : [])
@@ -463,6 +456,8 @@ const Watch = () => {
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
+  // a guest follows the host to the next episode, as to any page
+  const upNext = !guest && next && bestSource(playableHandlesOf(next.handles), ways) ? nextLink : undefined
 
   return (
     <div css={style}>
@@ -471,32 +466,37 @@ const Watch = () => {
           Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
           place adds a step to the tab's history, and Back then moves the player rather than the page.
         */}
-        {viaPlugin && pluginPlayer
+        {(viaPlugin && pluginPlayer) || embedUrl
           ? (
-            <PluginPlayer
-              key={pluginPlayer.release.uri}
-              pluginUri={pluginPlayer.pluginUri}
-              release={pluginPlayer.release}
-              onUnplayable={() => setDeclined(selectedSourceUri)}
-              onPlayback={setPlaybackLink}
-            />
-          )
-          : embedUrl
-          ? (
-            <iframe
-              key={embedUrl}
-              ref={embedFrame}
-              src={embedUrl}
-              referrerPolicy="no-referrer"
-              allow="encrypted-media; autoplay; fullscreen;"
-              css={css`
-                width: 100%;
-                border: none;
-                background: #000;
-                flex: 1;
-                min-height: 0;
-              `}
-            />
+            <div className="player-container">
+              {viaPlugin && pluginPlayer
+                ? (
+                  <PluginPlayer
+                    key={pluginPlayer.release.uri}
+                    pluginUri={pluginPlayer.pluginUri}
+                    release={pluginPlayer.release}
+                    onUnplayable={() => setDeclined(selectedSourceUri)}
+                    onPlayback={setPlaybackLink}
+                  />
+                )
+                : (
+                  <iframe
+                    key={embedUrl}
+                    ref={embedFrame}
+                    src={embedUrl}
+                    referrerPolicy="no-referrer"
+                    allow="encrypted-media; autoplay; fullscreen;"
+                    css={css`
+                      width: 100%;
+                      border: none;
+                      background: #000;
+                      flex: 1;
+                      min-height: 0;
+                    `}
+                  />
+                )}
+              <UpNext link={playbackLink} next={upNext}/>
+            </div>
           )
           : undefined}
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>

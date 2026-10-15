@@ -32,6 +32,19 @@ describe('linkMedia', () => {
     link.dispose()
   })
 
+  test('reports at the end, as ended', async () => {
+    const link = linkMedia(media)
+    const heard = vi.fn()
+    link.onReport(heard)
+    await flush()
+    heard.mockClear()
+    media.ended = true
+    media.dispatchEvent(new Event('ended'))
+    expect(heard).toHaveBeenCalledTimes(1)
+    expect(link.ended?.()).toBe(true)
+    link.dispose()
+  })
+
   test('a new ear is told where the player is, then every event', async () => {
     const link = linkMedia(media)
     const heard = vi.fn()

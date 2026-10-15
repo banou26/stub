@@ -36,7 +36,27 @@ vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remot
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
-vi.mock('../../../../src/party/bridge', () => ({ attachPlaybackBridge: () => ({ dispose: () => {} }) }))
+type Report = { paused: boolean, ended?: boolean }
+// each player the page attaches, which a test makes report as a person or the browser would
+const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void }[] }))
+vi.mock('../../../../src/party/bridge', () => ({
+  attachPlaybackBridge: () => {
+    const listeners = new Set<(state: object) => void>()
+    let ended = false
+    const link = {
+      apply: () => {},
+      onReport: (listener: (state: object) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+      ended: () => ended,
+      dispose: () => listeners.clear(),
+      report: ({ paused, ended: atEnd = false }: Report) => {
+        ended = atEnd
+        for (const listener of listeners) listener({ paused, time: 0, rate: 1, at: Date.now() })
+      },
+    }
+    bridge.links.push(link)
+    return link
+  },
+}))
 vi.mock('../../../../src/components/plugin-player', () => ({ default: () => <div className="plugin-player"/> }))
 vi.mock('../../../../src/components/party-playback', () => ({ default: () => null }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
@@ -54,6 +74,7 @@ vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
 const { QUIET_MS } = await import('../../../../src/router/watch/auto-pick')
+const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
@@ -70,6 +91,7 @@ afterEach(() => {
   media = single
   relays.remembered = {}
   relays.heard = []
+  bridge.links = []
 })
 
 const settle = async () => {
@@ -313,5 +335,133 @@ test('another episode gets a fresh player, so Back leaves the page rather than t
     await settle()
     expect(host.querySelector(player), origin).not.toBeNull()
     expect(host.querySelector(player), origin).not.toBe(before)
+  }
+})
+
+// the episode playing on Crunchyroll, whose next one Crunchyroll has too
+const atTheEnd = async (third: object = {}) => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series(third, 'cr:GX2')
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  return { host, rerender: () => act(() => { render(tree(), host) }) }
+}
+const report = async (...states: Report[]) => {
+  await act(async () => { for (const state of states) bridge.links.at(-1)!.report(state) })
+}
+const played = { paused: false }
+const ended = { paused: true, ended: true }
+const wait = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+
+test('at the end, the next episode opens on the same site once the countdown is out, and only once', async () => {
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E3 - Title 3')
+  await wait(UP_NEXT_MS - 1)
+  expect(navigate).not.toHaveBeenCalled()
+  await wait(1)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+  await report(ended)
+  await wait(UP_NEXT_MS * 2)
+  expect(navigate).toHaveBeenCalledTimes(1)
+})
+
+test('a scrub to the end while paused, once the episode played, counts down too', async () => {
+  const { host } = await atTheEnd()
+  await report(played, { paused: true }, ended)
+  expect(host.querySelector('.up-next')).not.toBeNull()
+})
+
+test('a source joining the next episode during the countdown keeps it, and it opens the new address', async () => {
+  const { rerender } = await atTheEnd()
+  await report(played, ended)
+  const grown = 'ag:(anilist:1-3,nyaa:b)'
+  Object.assign((media as { episodes: object[] }).episodes[2]!, { uri: grown })
+  rerender()
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${grown}/cr:GX3`)
+})
+
+test('another source picked during the countdown withdraws it', async () => {
+  const { host, rerender } = await atTheEnd()
+  await report(played, ended)
+  params = { ...params, sourceUri: 'nyaa:a' }
+  rerender()
+  await wait(UP_NEXT_MS * 2)
+  expect(host.querySelector('.up-next')).toBeNull()
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('Next episode opens it at once', async () => {
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+})
+
+test('Cancel, a seek back or leaving the page keeps the viewer where they are', async () => {
+  const { host: cancelled } = await atTheEnd()
+  await report(played, ended)
+  await act(() => { cancelled.querySelector<HTMLButtonElement>('.up-next-cancel')!.click() })
+  expect(cancelled.querySelector('.up-next')).toBeNull()
+  // the player telling its end again is not a new end
+  await report(ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate, 'Cancel').not.toHaveBeenCalled()
+
+  await report(played, ended, { paused: true })
+  await wait(UP_NEXT_MS)
+  expect(navigate, 'a seek back').not.toHaveBeenCalled()
+
+  await report(played, ended)
+  act(() => { unmount(hosts.pop()!) })
+  await wait(UP_NEXT_MS)
+  expect(navigate, 'leaving').not.toHaveBeenCalled()
+})
+
+test('an end heard with no play before it, as a new ear is told, moves nothing', async () => {
+  await atTheEnd()
+  await report(ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('nothing starts when the next episode is not out, or has nothing that plays', async () => {
+  await atTheEnd({ releaseDate: '2099-01-01' })
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate, 'not out').not.toHaveBeenCalled()
+  unmount(hosts.pop()!)
+
+  await atTheEnd({ handles: [handle('amazon:us', 'amazon', 'https://watch.amazon.com/watch?gti=us')] })
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate, 'nothing plays').not.toHaveBeenCalled()
+})
+
+test('a party guest\'s player does not move on, the host takes the party along', async () => {
+  party = { status: 'active', role: 'guest' } as typeof party
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(host.querySelector('.up-next')).toBeNull()
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('a player fullscreened in its frame is let out of fullscreen, so the countdown shows', async () => {
+  const { host } = await atTheEnd()
+  const exitFullscreen = vi.fn(async () => {})
+  Object.assign(document, { fullscreenElement: host.querySelector('iframe'), exitFullscreen })
+  try {
+    await report(played)
+    expect(exitFullscreen).not.toHaveBeenCalled()
+    await report(ended)
+    expect(exitFullscreen).toHaveBeenCalledTimes(1)
+  } finally {
+    Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
   }
 })
