@@ -1,6 +1,7 @@
 // The Boys (Prime Video), Andor (Disney+) and Saltburn (Prime Video and Max, and rent or buy in Japan)
 // as JustWatch answered stub's own NODE_QUERY on 2026-10-12, asked of apis.justwatch.com directly
-// (US, with JP as the second region), each offer kept as it came.
+// (US, with JP as the second country), each offer kept as it came. A viewer in Japan asks the other way
+// round, so they are answered with the two swapped.
 //
 // Each season's first episode carries that season's gti rather than its own (The Boys S1E1 is season
 // 1's 9ab600aa in the US and 82823414 in Japan, which is also the show's own offer). It is kept as
@@ -8,19 +9,27 @@
 import { expect, test } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
-import { resolvers, showAsContainer, viewerCountry } from '../../../../src/sources/justwatch/extractor'
+import { resolvers, showAsContainer } from '../../../../src/sources/justwatch/extractor'
 import THE_BOYS from '../../../fixtures/justwatch/the-boys.json'
 import ANDOR from '../../../fixtures/justwatch/andor.json'
 import SALTBURN from '../../../fixtures/justwatch/saltburn.json'
 import { viewerIn } from './viewer'
 
+const swapped = (value: unknown): unknown =>
+  Array.isArray(value) ? value.map(swapped)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value).map(([key, inner]) => [key === 'offers' ? 'extraOffers' : key === 'extraOffers' ? 'offers' : key, swapped(inner)]))
+    : value
+
+const asked = (answer: unknown) => async (url: string, init: { body: string }) => {
+  if (url !== 'https://apis.justwatch.com/graphql') throw new Error(`fixture has no route for ${url}`)
+  const { offerCountry, extraCountry } = JSON.parse(init.body).variables
+  if (`${offerCountry},${extraCountry}` !== 'US,JP' && `${offerCountry},${extraCountry}` !== 'JP,US') throw new Error(`no answer recorded for ${offerCountry}`)
+  return { json: async () => offerCountry === 'JP' ? swapped(answer) : answer }
+}
+
 const open = async (answer: unknown, uri: string): Promise<GQLMedia> => {
-  const context = {
-    fetch: async (url: string) => {
-      if (url !== 'https://apis.justwatch.com/graphql') throw new Error(`fixture has no route for ${url}`)
-      return { json: async () => answer }
-    },
-  }
+  const context = { fetch: asked(answer) }
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri } }, context).next()
   return value.media
@@ -33,13 +42,6 @@ const played = (media: GQLMedia) => media.episodes
 const titleLinks = (media: GQLMedia) => media.handles
   .filter(({ node }) => ['amazon', 'disney', 'hbo'].includes(node.origin))
   .map(({ relation, node }) => `${node.uri} ${relation} ${node.url}`)
-
-test('the viewer in Japan reads Japan, and anyone else the US', () => {
-  expect(viewerCountry('Asia/Tokyo')).toBe('JP')
-  expect(viewerCountry('America/New_York')).toBe('US')
-  expect(viewerCountry('Europe/London')).toBe('US')
-  expect(viewerCountry('UTC')).toBe('US')
-})
 
 test('each episode of a season plays on Prime Video or Disney+ through its own deep link', async () => {
   viewerIn('America/New_York')
@@ -63,8 +65,7 @@ test('each episode of a season plays on Prime Video or Disney+ through its own d
 test('a season that arrived with no episodes plays them too', async () => {
   viewerIn('America/New_York')
   const season = { origin: 'jw', id: '78125-104253', uri: 'jw:78125-104253', categories: ['SERIES'], titles: [], episodes: [] }
-  const context = { fetch: async () => ({ json: async () => THE_BOYS }) }
-  const episodes = await (resolvers.Media as any).episodes(season, {}, context)
+  const episodes = await (resolvers.Media as any).episodes(season, {}, { fetch: asked(THE_BOYS) })
   expect(played({ episodes } as GQLMedia)).toHaveLength(8)
   expect(played({ episodes } as GQLMedia)[1]).toBe(
     'jw:78125-104253 amazon:amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9 1x2 https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9'
@@ -95,7 +96,7 @@ test('the viewer\'s own country plays where it has the service, and the US where
   expect(titleLinks(boys)).toEqual([
     'amazon:amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f PART_OF https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f',
   ])
-  const show = await showAsContainer((THE_BOYS as any).data.node, { fetch: async () => ({ json: async () => THE_BOYS }) } as never)
+  const show = await showAsContainer((swapped(THE_BOYS) as any).data.node, { fetch: asked(THE_BOYS) } as never)
   expect(titleLinks(show!)).toEqual([
     'amazon:amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f SAME_AS https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f',
   ])
@@ -107,13 +108,13 @@ test('the viewer\'s own country plays where it has the service, and the US where
   ])
 })
 
-// Japan sells Saltburn on Amazon to buy only (`amz`, gti ed457f7e), and Apple rents it in the US (`itu`)
-test('rent and buy offers stay unmapped', async () => {
+// Japan sells Saltburn on Amazon to buy only (`amz`, gti ed457f7e), and Apple rents it in the US (`itu`).
+// The US streams it on Prime Video, which a Japanese account does not play.
+test('rent and buy offers stay unmapped, and another country\'s Prime Video is not the viewer\'s', async () => {
   viewerIn('Asia/Tokyo')
   const saltburn = await open(SALTBURN, 'jw:1349029')
   const urls = [...saltburn.handles.map(({ node }) => node.url), ...saltburn.episodes.map(episode => episode.url)]
   expect(urls.filter(url => url?.includes('ed457f7e') || url?.startsWith('https://tv.apple.com/'))).toEqual([])
-  expect(played(saltburn)[0]).toBe(
-    'jw:1349029 amazon:amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413 -x1 https://watch.amazon.com/watch?gti=amzn1.dv.gti.d6674b8e-5b88-45be-9361-63dd98818413'
-  )
+  expect(urls.filter(url => url?.includes('d6674b8e'))).toEqual([])
+  expect(played(saltburn).map(line => line.split(' ')[1]!.split(':')[0])).toEqual(['hbo'])
 })

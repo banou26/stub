@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { PLAYABLE_ORIGINS, canPlay } from '../../../src/sources/playable'
+import { viewerIn } from './justwatch/viewer'
 
 const CR = 'https://www.crunchyroll.com/watch/GX1'
 
@@ -55,20 +56,64 @@ test('the reader really does find the registry, and really does fail when it can
 test('a source turned off in Settings has no play button, and has one again when turned back on', () => {
   const stored = new Map<string, string>()
   vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null })
-  expect(canPlay('cr', CR)).toBe(true)
+  expect(canPlay('cr', CR, 'cloud')).toBe(true)
   stored.set('stub.sources.disabled', JSON.stringify(['cr']))
-  expect(canPlay('cr', CR)).toBe(false)
-  expect(canPlay('nf', 'https://www.netflix.com/watch/81'), 'only the source turned off').toBe(true)
+  expect(canPlay('cr', CR, 'cloud')).toBe(false)
+  expect(canPlay('nf', 'https://www.netflix.com/watch/81', 'cloud'), 'only the source turned off').toBe(true)
   stored.delete('stub.sources.disabled')
-  expect(canPlay('cr', CR)).toBe(true)
+  expect(canPlay('cr', CR, 'cloud')).toBe(true)
 })
 
-// the player reads amazon.co.jp alone, so a US link (every viewer outside Japan gets one) stays an outside link
-test('Prime Video plays a watch.amazon.co.jp link, and not a watch.amazon.com one', () => {
+// a Prime account plays its own country's catalogue alone, so another country's link stays an outside link
+test('with the extension, Prime Video plays the viewer\'s own country\'s site alone', () => {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null })
+  const LINKS = {
+    primevideo: 'https://app.primevideo.com/watch?gti=amzn1.dv.gti.1',
+    us: 'https://watch.amazon.com/watch?gti=amzn1.dv.gti.1',
+    uk: 'https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.1',
+    de: 'https://watch.amazon.de/watch?gti=amzn1.dv.gti.1',
+    jp: 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1',
+  }
+  const playing = () => Object.entries(LINKS).filter(([, url]) => canPlay('amazon', url, 'extension')).map(([site]) => site)
+  const cases = [
+    ['America/Toronto', ['primevideo']],
+    ['Europe/Amsterdam', ['primevideo']],
+    ['America/New_York', ['us']],
+    ['Europe/London', ['uk']],
+    ['Europe/Berlin', ['de']],
+    ['Europe/Vienna', ['de']],
+    ['Asia/Tokyo', ['jp']],
+    ['America/Puerto_Rico', ['us']],
+    ['Asia/Ho_Chi_Minh', ['primevideo']],
+  ] as const
+  for (const [zone, sites] of cases) {
+    viewerIn(zone)
+    expect(playing(), zone).toEqual(sites)
+  }
+  viewerIn('America/Toronto')
+  stored.set('stub.country', 'JP')
+  expect(playing(), 'the country picked in Settings').toEqual(['jp'])
+  expect(canPlay('amazon', 'not a url', 'extension')).toBe(false)
+  expect(canPlay('cr', null, 'extension'), 'and nothing plays without a url').toBe(false)
+})
+
+// MUTATED: drop `backend === 'extension' ||` and the US and Canada go red with the extension; drop the
+// cloud's amazon.co.jp condition and they go red on the cloud; make it refuse amazon.co.jp and Japan does.
+// A Prime Video site picks its region from the connection, which on the cloud is a relay in Prague or Hong Kong.
+test('on the cloud, Prime Video plays in stub in Japan alone, and with the extension in every country', () => {
   vi.stubGlobal('localStorage', { getItem: () => null })
-  expect(canPlay('amazon', 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1')).toBe(true)
-  expect(canPlay('amazon', 'https://watch.amazon.com/watch?gti=amzn1.dv.gti.1')).toBe(false)
-  expect(canPlay('cr', null), 'and nothing plays without a url').toBe(false)
+  const cases = [
+    ['Asia/Tokyo', 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1', true],
+    ['America/New_York', 'https://watch.amazon.com/watch?gti=amzn1.dv.gti.1', false],
+    ['America/Toronto', 'https://app.primevideo.com/watch?gti=amzn1.dv.gti.1', false],
+  ] as const
+  for (const [zone, url, onCloud] of cases) {
+    viewerIn(zone)
+    expect(canPlay('amazon', url, 'extension'), `${zone} with the extension`).toBe(true)
+    expect(canPlay('amazon', url, 'cloud'), `${zone} on the cloud`).toBe(onCloud)
+    expect(canPlay('amazon', url, undefined), `${zone} before the backend is known`).toBe(onCloud)
+  }
 })
 
 afterEach(() => { vi.unstubAllGlobals() })

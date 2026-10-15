@@ -1,0 +1,2230 @@
+{
+  "the-boys": {
+    "CA,JP": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://app.primevideo.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MTE5",
+                "packageId": 119,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprimevideo",
+                "shortName": "prv",
+                "icon": "/icon/322992749/s100/amazonprimevideo.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://app.primevideo.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "SD",
+              "standardWebURL": "https://tv.apple.com/ca/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/ca/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "prv"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "prv"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "NL,JP": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://app.primevideo.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MTE5",
+                "packageId": 119,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprimevideo",
+                "shortName": "prv",
+                "icon": "/icon/322992749/s100/amazonprimevideo.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "prv"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "prv"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "GB,JP": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.uk/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.uk/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "SD",
+              "standardWebURL": "https://tv.apple.com/gb/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/gb/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.uk/detail?gti=amzn1.dv.gti.d9a17eaa-1a66-416a-a169-610fc3ec9f17",
+              "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.d9a17eaa-1a66-416a-a169-610fc3ec9f17",
+              "package": {
+                "id": "cGF8MTA=",
+                "packageId": 10,
+                "clearName": "Amazon Video",
+                "technicalName": "amazon",
+                "shortName": "amz",
+                "icon": "/icon/340823436/s100/amazon.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.skystore.com/product/the-boys-season-1/89045f17-dd60-4012-af72-066f00203c7e",
+              "deeplinkURL": "https://www.skystore.com/product/the-boys-season-1/89045f17-dd60-4012-af72-066f00203c7e",
+              "package": {
+                "id": "cGF8MTMw",
+                "packageId": 130,
+                "clearName": "Sky Store",
+                "technicalName": "skystore",
+                "shortName": "sks",
+                "icon": "/icon/339565920/s100/skystore.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "DE,JP": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.de/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.de/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "BLURAY",
+              "standardWebURL": "https://www.amazon.de/dp/B09X5XRKFS?tag=movie0c6-21&linkCode=osi&th=1&psc=1",
+              "deeplinkURL": "https://www.amazon.de/dp/B09X5XRKFS?tag=movie0c6-21&linkCode=osi&th=1&psc=1",
+              "package": {
+                "id": "cGF8NTA=",
+                "packageId": 50,
+                "clearName": "Amazon DVD / Blu-ray",
+                "technicalName": "amazondvdbr",
+                "shortName": "adb",
+                "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.de/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "US,JP": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8NjEz",
+                "packageId": 613,
+                "clearName": "Amazon Prime Video Free with Ads",
+                "technicalName": "amazonimdbtv",
+                "shortName": "aim",
+                "icon": "/icon/327791663/s100/amazonimdbtv.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MTg5OA==",
+                "packageId": 1898,
+                "clearName": "Amazon MX Player",
+                "technicalName": "amazonminitv",
+                "shortName": "mni",
+                "icon": "/icon/324478870/s100/amazonminitv.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+              "deeplinkURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+              "package": {
+                "id": "cGF8Nw==",
+                "packageId": 7,
+                "clearName": "Fandango At Home",
+                "technicalName": "vudu",
+                "shortName": "vdu",
+                "icon": "/icon/346744144/s100/vudu.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "BLURAY",
+              "standardWebURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "deeplinkURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "package": {
+                "id": "cGF8NTA=",
+                "packageId": 50,
+                "clearName": "Amazon DVD / Blu-ray",
+                "technicalName": "amazondvdbr",
+                "shortName": "adb",
+                "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "HD",
+              "standardWebURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+              "deeplinkURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+              "package": {
+                "id": "cGF8MjA3",
+                "packageId": 207,
+                "clearName": "The Roku Channel",
+                "technicalName": "rokuchannel",
+                "shortName": "rkc",
+                "icon": "/icon/76972041/s100/rokuchannel.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "DVD",
+              "standardWebURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+              "deeplinkURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+              "package": {
+                "id": "cGF8MjU0Mg==",
+                "packageId": 2542,
+                "clearName": "Barnes & Noble",
+                "technicalName": "barnesandnoble",
+                "shortName": "bnb",
+                "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "JP,US": {
+      "data": {
+        "node": {
+          "id": "ts78125",
+          "objectId": 78125,
+          "objectType": "SHOW",
+          "content": {
+            "title": "The Boys",
+            "fullPath": "/us/tv-show/the-boys",
+            "originalReleaseYear": 2019,
+            "originalReleaseDate": "2019-07-25",
+            "shortDescription": "A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.",
+            "posterUrl": "/poster/318597086/s718/the-boys.jpg",
+            "externalIds": {
+              "imdbId": "tt1190634"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "crm",
+                "translation": "Crime"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "US"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8NjEz",
+                "packageId": 613,
+                "clearName": "Amazon Prime Video Free with Ads",
+                "technicalName": "amazonimdbtv",
+                "shortName": "aim",
+                "icon": "/icon/327791663/s100/amazonimdbtv.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "_4K",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+              "package": {
+                "id": "cGF8MTg5OA==",
+                "packageId": 1898,
+                "clearName": "Amazon MX Player",
+                "technicalName": "amazonminitv",
+                "shortName": "mni",
+                "icon": "/icon/324478870/s100/amazonminitv.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/us/show/the-boys/umc.cmc.91mn0jm4nlkzuqoueg22v3b1?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "HD",
+              "standardWebURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+              "deeplinkURL": "https://athome.fandango.com/content/browse/details/The-Boys-Season-1/1487959",
+              "package": {
+                "id": "cGF8Nw==",
+                "packageId": 7,
+                "clearName": "Fandango At Home",
+                "technicalName": "vudu",
+                "shortName": "vdu",
+                "icon": "/icon/346744144/s100/vudu.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "BLURAY",
+              "standardWebURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "deeplinkURL": "https://www.amazon.com/dp/B095GCZV75?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "package": {
+                "id": "cGF8NTA=",
+                "packageId": 50,
+                "clearName": "Amazon DVD / Blu-ray",
+                "technicalName": "amazondvdbr",
+                "shortName": "adb",
+                "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+              }
+            },
+            {
+              "monetizationType": "ADS",
+              "presentationType": "HD",
+              "standardWebURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+              "deeplinkURL": "https://therokuchannel.roku.com/details/163dff4a66248c32102feb8679c99306/the-clown-motel?source=bing",
+              "package": {
+                "id": "cGF8MjA3",
+                "packageId": 207,
+                "clearName": "The Roku Channel",
+                "technicalName": "rokuchannel",
+                "shortName": "rkc",
+                "icon": "/icon/76972041/s100/rokuchannel.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "DVD",
+              "standardWebURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+              "deeplinkURL": "https://www.barnesandnoble.com/w/dvd-the-boys-season-3-boys-season-3-3pc/40039471",
+              "package": {
+                "id": "cGF8MjU0Mg==",
+                "packageId": 2542,
+                "clearName": "Barnes & Noble",
+                "technicalName": "barnesandnoble",
+                "shortName": "bnb",
+                "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 5,
+          "seasons": [
+            {
+              "id": "tss104253",
+              "objectId": 104253,
+              "totalEpisodeCount": 8,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/the-boys/season-1",
+                "posterUrl": "/poster/139452420/{profile}/season-1.{format}",
+                "originalReleaseYear": 2019,
+                "originalReleaseDate": "2019-07-25",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse1726627",
+                  "objectId": 1726627,
+                  "content": {
+                    "title": "The Name of the Game",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "When a Supe kills the love of his life, A/V salesman Hughie Campbell teams up with Billy Butcher, a vigilante hell-bent on punishing corrupt Supes, and Hughie’s life will never be the same again.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 60
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82823414-0631-45c4-9659-24959d77b78f",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse1801675",
+                  "objectId": 1801675,
+                  "content": {
+                    "title": "Cherry",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The Boys get themselves a Superhero, Starlight gets payback, Homelander gets naughty, and a Senator gets naughtier.",
+                    "originalReleaseDate": "2019-07-25",
+                    "runtime": 59
+                  },
+                  "offers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.af8a98f3-4e50-41ee-a721-1c1a939b2283",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "frieren": {
+    "CA,JP": {
+      "data": {
+        "node": {
+          "id": "ts364792",
+          "objectId": 364792,
+          "objectType": "SHOW",
+          "content": {
+            "title": "Frieren: Beyond Journey's End",
+            "fullPath": "/us/tv-show/frieren-beyond-journeys-end",
+            "originalReleaseYear": 2023,
+            "originalReleaseDate": "2023-09-29",
+            "shortDescription": "Elf mage Frieren and her fellow adventurers have defeated the Demon King and brought peace to the land. But Frieren will long outlive the rest of her former party. How will she come to understand what life means to the people around her?",
+            "posterUrl": "/poster/308526633/s718/frieren-beyond-journeys-end.jpg",
+            "externalIds": {
+              "imdbId": "tt22248376"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "ani",
+                "translation": "Animation"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "drm",
+                "translation": "Drama"
+              },
+              {
+                "shortName": "fnt",
+                "translation": "Fantasy"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "JP"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.crunchyroll.com/watch/GE00324920PLPL",
+              "deeplinkURL": "https://www.crunchyroll.com/watch/GE00324920PLPL",
+              "package": {
+                "id": "cGF8Mjgz",
+                "packageId": 283,
+                "clearName": "Crunchyroll",
+                "technicalName": "crunchyroll",
+                "shortName": "cru",
+                "icon": "/icon/324213205/s100/crunchyroll.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "SD",
+              "standardWebURL": "https://tv.apple.com/ca/show/frieren-beyond-journeys-end/umc.cmc.5xpadyi4v82jo7w8ypikenm7u?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/ca/show/frieren-beyond-journeys-end/umc.cmc.5xpadyi4v82jo7w8ypikenm7u?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8OA==",
+                "packageId": 8,
+                "clearName": "Netflix",
+                "technicalName": "netflix",
+                "shortName": "nfx",
+                "icon": "/icon/207360008/s100/netflix.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://app.primevideo.com/detail?gti=amzn1.dv.gti.268244a6-ec4b-4464-88b3-8ea8809871cc",
+              "deeplinkURL": "https://app.primevideo.com/watch?gti=amzn1.dv.gti.268244a6-ec4b-4464-88b3-8ea8809871cc",
+              "package": {
+                "id": "cGF8MTk2OA==",
+                "packageId": 1968,
+                "clearName": "Crunchyroll Amazon Channel",
+                "technicalName": "amazoncrunchyroll",
+                "shortName": "cra",
+                "icon": "/icon/324213165/s100/amazoncrunchyroll.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8MTc5Ng==",
+                "packageId": 1796,
+                "clearName": "Netflix Standard with Ads",
+                "technicalName": "netflixbasicwithads",
+                "shortName": "nfa",
+                "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.disneyplus.com/browse/entity-63f9bbc2-857b-4bcc-8e31-8f641b4ea0f2",
+              "deeplinkURL": "https://www.disneyplus.com/play/12e9c477-4057-496b-b548-215e06f73344",
+              "package": {
+                "id": "cGF8MzM3",
+                "packageId": 337,
+                "clearName": "Disney Plus",
+                "technicalName": "disneyplus",
+                "shortName": "dnp",
+                "icon": "/icon/313118777/s100/disneyplus.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8OA==",
+                "packageId": 8,
+                "clearName": "Netflix",
+                "technicalName": "netflix",
+                "shortName": "nfx",
+                "icon": "/icon/207360008/s100/netflix.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.hulu.jp/watch/100160214",
+              "deeplinkURL": "https://www.hulu.jp/watch/100160214",
+              "package": {
+                "id": "cGF8MTU=",
+                "packageId": 15,
+                "clearName": "Hulu",
+                "technicalName": "hulu",
+                "shortName": "hlu",
+                "icon": "/icon/116305230/s100/hulu.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://video.unext.jp/episode/SID0091754/ED00479780",
+              "deeplinkURL": "https://video.unext.jp/episode/SID0091754/ED00479780",
+              "package": {
+                "id": "cGF8ODQ=",
+                "packageId": 84,
+                "clearName": "U-NEXT",
+                "technicalName": "unext",
+                "shortName": "unx",
+                "icon": "/icon/304760702/s100/unext.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8MTc5Ng==",
+                "packageId": 1796,
+                "clearName": "Netflix Standard with Ads",
+                "technicalName": "netflixbasicwithads",
+                "shortName": "nfa",
+                "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.1b750f88-2321-4ded-8080-a9124dcaffcb",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1b750f88-2321-4ded-8080-a9124dcaffcb",
+              "package": {
+                "id": "cGF8MjE4Mg==",
+                "packageId": 2182,
+                "clearName": "Anime Times Amazon Channel",
+                "technicalName": "amazonanimetimes",
+                "shortName": "aam",
+                "icon": "/icon/318290968/s100/amazonanimetimes.{format}"
+              }
+            },
+            {
+              "monetizationType": "RENT",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.abcce2df-4dc8-46f3-bd1a-932f03083328",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.abcce2df-4dc8-46f3-bd1a-932f03083328",
+              "package": {
+                "id": "cGF8MTA=",
+                "packageId": 10,
+                "clearName": "Amazon Video",
+                "technicalName": "amazon",
+                "shortName": "amz",
+                "icon": "/icon/340823436/s100/amazon.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 2,
+          "seasons": [
+            {
+              "id": "tss373583",
+              "objectId": 373583,
+              "totalEpisodeCount": 28,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/frieren-beyond-journeys-end/season-1",
+                "posterUrl": "/poster/334162594/{profile}/season-1.{format}",
+                "originalReleaseYear": 2023,
+                "originalReleaseDate": "2023-09-29",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse6870924",
+                  "objectId": 6870924,
+                  "content": {
+                    "title": "The Journey's End",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The world celebrates the Demon King's defeat at the hands of the Hero and his companions. Now that their great adventure is over, what will Frieren the mage do next?",
+                    "originalReleaseDate": "2023-09-29",
+                    "runtime": 26
+                  },
+                  "offers": [],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://www.disneyplus.com/play/12e9c477-4057-496b-b548-215e06f73344",
+                      "package": {
+                        "shortName": "dnp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse7718293",
+                  "objectId": 7718293,
+                  "content": {
+                    "title": "It Didn't Have to Be Magic...",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "Frieren instructs Fern in the use of magic while deciphering a grimoire for Heiter.",
+                    "originalReleaseDate": "2023-09-29",
+                    "runtime": 26
+                  },
+                  "offers": [],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64-c87d-4ea9-b048-f7e1e0bcd60e",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://www.disneyplus.com/play/0afe1a81-088f-4053-b582-55f24d8715ee",
+                      "package": {
+                        "shortName": "dnp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64-c87d-4ea9-b048-f7e1e0bcd60e",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "US,JP": {
+      "data": {
+        "node": {
+          "id": "ts364792",
+          "objectId": 364792,
+          "objectType": "SHOW",
+          "content": {
+            "title": "Frieren: Beyond Journey's End",
+            "fullPath": "/us/tv-show/frieren-beyond-journeys-end",
+            "originalReleaseYear": 2023,
+            "originalReleaseDate": "2023-09-29",
+            "shortDescription": "Elf mage Frieren and her fellow adventurers have defeated the Demon King and brought peace to the land. But Frieren will long outlive the rest of her former party. How will she come to understand what life means to the people around her?",
+            "posterUrl": "/poster/308526633/s718/frieren-beyond-journeys-end.jpg",
+            "externalIds": {
+              "imdbId": "tt22248376"
+            },
+            "genres": [
+              {
+                "shortName": "act",
+                "translation": "Action & Adventure"
+              },
+              {
+                "shortName": "ani",
+                "translation": "Animation"
+              },
+              {
+                "shortName": "cmy",
+                "translation": "Comedy"
+              },
+              {
+                "shortName": "drm",
+                "translation": "Drama"
+              },
+              {
+                "shortName": "fnt",
+                "translation": "Fantasy"
+              },
+              {
+                "shortName": "scf",
+                "translation": "Science-Fiction"
+              }
+            ],
+            "productionCountries": [
+              "JP"
+            ]
+          },
+          "offers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FGE00324920PLPL&subId3=justappsvod",
+              "deeplinkURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FGE00324920PLPL&subId3=justappsvod",
+              "package": {
+                "id": "cGF8Mjgz",
+                "packageId": 283,
+                "clearName": "Crunchyroll",
+                "technicalName": "crunchyroll",
+                "shortName": "cru",
+                "icon": "/icon/324213205/s100/crunchyroll.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.268244a6-ec4b-4464-88b3-8ea8809871cc",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.268244a6-ec4b-4464-88b3-8ea8809871cc",
+              "package": {
+                "id": "cGF8MTk2OA==",
+                "packageId": 1968,
+                "clearName": "Crunchyroll Amazon Channel",
+                "technicalName": "amazoncrunchyroll",
+                "shortName": "cra",
+                "icon": "/icon/324213165/s100/amazoncrunchyroll.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "SD",
+              "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.8310051c-971e-47ba-a278-3f7d0bf17de9",
+              "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.8310051c-971e-47ba-a278-3f7d0bf17de9",
+              "package": {
+                "id": "cGF8MTA=",
+                "packageId": 10,
+                "clearName": "Amazon Video",
+                "technicalName": "amazon",
+                "shortName": "amz",
+                "icon": "/icon/340823436/s100/amazon.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "SD",
+              "standardWebURL": "https://tv.apple.com/us/show/frieren-beyond-journeys-end/umc.cmc.5xpadyi4v82jo7w8ypikenm7u?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "deeplinkURL": "https://tv.apple.com/us/show/frieren-beyond-journeys-end/umc.cmc.5xpadyi4v82jo7w8ypikenm7u?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv",
+              "package": {
+                "id": "cGF8Mg==",
+                "packageId": 2,
+                "clearName": "Apple TV Store",
+                "technicalName": "itunes",
+                "shortName": "itu",
+                "icon": "/icon/338253243/s100/itunes.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8OA==",
+                "packageId": 8,
+                "clearName": "Netflix",
+                "technicalName": "netflix",
+                "shortName": "nfx",
+                "icon": "/icon/207360008/s100/netflix.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.hulu.com/watch/372fec50-3bb0-4957-9e09-08d90274da88",
+              "deeplinkURL": "https://www.hulu.com/watch/372fec50-3bb0-4957-9e09-08d90274da88",
+              "package": {
+                "id": "cGF8MTU=",
+                "packageId": 15,
+                "clearName": "Hulu",
+                "technicalName": "hulu",
+                "shortName": "hlu",
+                "icon": "/icon/116305230/s100/hulu.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8MTc5Ng==",
+                "packageId": 1796,
+                "clearName": "Netflix Standard with Ads",
+                "technicalName": "netflixbasicwithads",
+                "shortName": "nfa",
+                "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "BUY",
+              "presentationType": "DVD",
+              "standardWebURL": "https://www.amazon.com/dp/B0F3YT1RSB?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "deeplinkURL": "https://www.amazon.com/dp/B0F3YT1RSB?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+              "package": {
+                "id": "cGF8NTA=",
+                "packageId": 50,
+                "clearName": "Amazon DVD / Blu-ray",
+                "technicalName": "amazondvdbr",
+                "shortName": "adb",
+                "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+              }
+            }
+          ],
+          "extraOffers": [
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "package": {
+                "id": "cGF8OQ==",
+                "packageId": 9,
+                "clearName": "Amazon Prime Video",
+                "technicalName": "amazonprime",
+                "shortName": "amp",
+                "icon": "/icon/322992749/s100/amazonprime.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.disneyplus.com/browse/entity-63f9bbc2-857b-4bcc-8e31-8f641b4ea0f2",
+              "deeplinkURL": "https://www.disneyplus.com/play/12e9c477-4057-496b-b548-215e06f73344",
+              "package": {
+                "id": "cGF8MzM3",
+                "packageId": 337,
+                "clearName": "Disney Plus",
+                "technicalName": "disneyplus",
+                "shortName": "dnp",
+                "icon": "/icon/313118777/s100/disneyplus.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+              "package": {
+                "id": "cGF8MjEwMA==",
+                "packageId": 2100,
+                "clearName": "Amazon Prime Video with Ads",
+                "technicalName": "amazonprimevideowithads",
+                "shortName": "pva",
+                "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8OA==",
+                "packageId": 8,
+                "clearName": "Netflix",
+                "technicalName": "netflix",
+                "shortName": "nfx",
+                "icon": "/icon/207360008/s100/netflix.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.hulu.jp/watch/100160214",
+              "deeplinkURL": "https://www.hulu.jp/watch/100160214",
+              "package": {
+                "id": "cGF8MTU=",
+                "packageId": 15,
+                "clearName": "Hulu",
+                "technicalName": "hulu",
+                "shortName": "hlu",
+                "icon": "/icon/116305230/s100/hulu.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://video.unext.jp/episode/SID0091754/ED00479780",
+              "deeplinkURL": "https://video.unext.jp/episode/SID0091754/ED00479780",
+              "package": {
+                "id": "cGF8ODQ=",
+                "packageId": 84,
+                "clearName": "U-NEXT",
+                "technicalName": "unext",
+                "shortName": "unx",
+                "icon": "/icon/304760702/s100/unext.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://www.netflix.com/title/81726714",
+              "deeplinkURL": "https://www.netflix.com/watch/81726716",
+              "package": {
+                "id": "cGF8MTc5Ng==",
+                "packageId": 1796,
+                "clearName": "Netflix Standard with Ads",
+                "technicalName": "netflixbasicwithads",
+                "shortName": "nfa",
+                "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+              }
+            },
+            {
+              "monetizationType": "FLATRATE",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.1b750f88-2321-4ded-8080-a9124dcaffcb",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.1b750f88-2321-4ded-8080-a9124dcaffcb",
+              "package": {
+                "id": "cGF8MjE4Mg==",
+                "packageId": 2182,
+                "clearName": "Anime Times Amazon Channel",
+                "technicalName": "amazonanimetimes",
+                "shortName": "aam",
+                "icon": "/icon/318290968/s100/amazonanimetimes.{format}"
+              }
+            },
+            {
+              "monetizationType": "RENT",
+              "presentationType": "HD",
+              "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.abcce2df-4dc8-46f3-bd1a-932f03083328",
+              "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.abcce2df-4dc8-46f3-bd1a-932f03083328",
+              "package": {
+                "id": "cGF8MTA=",
+                "packageId": 10,
+                "clearName": "Amazon Video",
+                "technicalName": "amazon",
+                "shortName": "amz",
+                "icon": "/icon/340823436/s100/amazon.{format}"
+              }
+            }
+          ],
+          "totalSeasonCount": 2,
+          "seasons": [
+            {
+              "id": "tss373583",
+              "objectId": 373583,
+              "totalEpisodeCount": 28,
+              "content": {
+                "title": "Season 1",
+                "seasonNumber": 1,
+                "fullPath": "/us/tv-show/frieren-beyond-journeys-end/season-1",
+                "posterUrl": "/poster/334162594/{profile}/season-1.{format}",
+                "originalReleaseYear": 2023,
+                "originalReleaseDate": "2023-09-29",
+                "isReleased": true
+              },
+              "episodes": [
+                {
+                  "id": "tse6870924",
+                  "objectId": 6870924,
+                  "content": {
+                    "title": "The Journey's End",
+                    "episodeNumber": 1,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "The world celebrates the Demon King's defeat at the hands of the Hero and his companions. Now that their great adventure is over, what will Frieren the mage do next?",
+                    "originalReleaseDate": "2023-09-29",
+                    "runtime": 26
+                  },
+                  "offers": [],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://www.disneyplus.com/play/12e9c477-4057-496b-b548-215e06f73344",
+                      "package": {
+                        "shortName": "dnp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.22bb50ee-32e5-466f-af2b-dd49a9c06391",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "tse7718293",
+                  "objectId": 7718293,
+                  "content": {
+                    "title": "It Didn't Have to Be Magic...",
+                    "episodeNumber": 2,
+                    "seasonNumber": 1,
+                    "isReleased": true,
+                    "shortDescription": "Frieren instructs Fern in the use of magic while deciphering a grimoire for Heiter.",
+                    "originalReleaseDate": "2023-09-29",
+                    "runtime": 26
+                  },
+                  "offers": [],
+                  "extraOffers": [
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64-c87d-4ea9-b048-f7e1e0bcd60e",
+                      "package": {
+                        "shortName": "amp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://www.disneyplus.com/play/0afe1a81-088f-4053-b582-55f24d8715ee",
+                      "package": {
+                        "shortName": "dnp"
+                      }
+                    },
+                    {
+                      "monetizationType": "FLATRATE",
+                      "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64-c87d-4ea9-b048-f7e1e0bcd60e",
+                      "package": {
+                        "shortName": "pva"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

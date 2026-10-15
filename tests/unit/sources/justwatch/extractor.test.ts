@@ -534,7 +534,7 @@ test('both queries ask for a second licensing region', async () => {
     const { query, variables } = JSON.parse(body)
     expect(query, 'the second region is selected under its own alias').toContain('extraOffers: offers(country: $extraCountry')
     expect(variables.extraCountry, 'and a country is actually bound to it').toBeTruthy()
-    expect(variables.extraCountry).not.toBe(variables.country)
+    expect(variables.extraCountry).not.toBe(variables.offerCountry)
   }
 })
 

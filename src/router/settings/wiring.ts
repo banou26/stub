@@ -3,7 +3,8 @@ import type { AccountsProps } from './accounts'
 import { attachFrame, fetch } from '@fkn/lib'
 
 import { clearCloudCookies } from '../../sources/cloud-sign-out'
-import { PRIME_DOMAINS, PRIME_SIGN_IN_URL, primeSignedIn } from '../../sources/amazon/session'
+import { PRIME_DOMAINS, primeSignedIn, primeSignInUrl, primeSiteFor } from '../../sources/amazon/session'
+import { viewerCountry } from '../../sources/country'
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../sources/crunchyroll/session'
 import { checkCrunchyroll } from '../../sources/crunchyroll/sign-in-check'
 import { signInThroughWindow } from '../../sources/login-window'
@@ -18,9 +19,9 @@ export const crunchyroll: AccountsProps['crunchyroll'] = {
   signOut: signOutOfCrunchyroll,
 }
 
-/** What the Accounts section reaches for Prime Video: the sign-in window and the cookies a sign out removes. */
+/** What the Accounts section reaches for Prime Video: the viewer's country's sign-in window, and the cookies a sign out removes. */
 export const prime: AccountsProps['prime'] = {
-  signIn: () => signInThroughWindow({ url: PRIME_SIGN_IN_URL, domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
+  signIn: () => signInThroughWindow({ url: primeSignInUrl(primeSiteFor(viewerCountry())), domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
     .then(rememberSignIn(siteStatuses, 'prime')),
   signOut: () => clearCloudCookies(PRIME_DOMAINS).then(() => siteStatuses.record('prime', 'signed-out')),
 }

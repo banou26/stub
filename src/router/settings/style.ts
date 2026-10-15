@@ -114,6 +114,19 @@ export const sectionStyle = css`
     cursor: default;
   }
 
+  select {
+    align-self: flex-start;
+    max-width: 100%;
+    height: 3.6rem;
+    padding: 0 0.8rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgb(30, 30, 30);
+    color: #fff;
+    font: inherit;
+    font-size: 1.4rem;
+  }
+
   .confirm {
     display: flex;
     flex-direction: column;

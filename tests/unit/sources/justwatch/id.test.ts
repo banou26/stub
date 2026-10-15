@@ -111,6 +111,19 @@ describe('extractContentId, against real offer urls', () => {
       .toBe('amzn1.dv.gti.14b575f2-7d6d-6bce-4709-2cb8bb8874f4')
   })
 
+  // JustWatch's Prime Video links in Canada, the UK and Germany, 2026-10-16
+  test('prime video outside the US and Japan names the id the same way, on primevideo.com and the other Amazon sites', () => {
+    expect(extractContentId('https://app.primevideo.com/watch?gti=amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9'))
+      .toBe('amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9')
+    expect(extractContentId('https://watch.amazon.co.uk/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d'))
+      .toBe('amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d')
+    expect(extractContentId('https://watch.amazon.de/watch?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d'))
+      .toBe('amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d')
+    expect(extractContentId('https://www.primevideo.com/detail/0S1FYJ3LY9KTL9C7WFFAGA9F6F'), 'a page named by another id mints nothing').toBeUndefined()
+    // the only Prime Video package in the Netherlands, Czechia and Hong Kong
+    expect(PACKAGE_ORIGIN_MAP.prv).toBe('amazon')
+  })
+
   test('apple tv gives the umc id, never the slug, and an episode names its show', () => {
     expect(extractContentId('https://tv.apple.com/us/movie/spirited/umc.cmc.3lp7wqowerzdbej98tveildi3?at=1000l3V2'))
       .toBe('umc.cmc.3lp7wqowerzdbej98tveildi3')

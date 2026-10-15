@@ -10,6 +10,8 @@ import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
 import { createRefresh, createSiteStatuses, FRESH_MS } from '../../../src/tracking/site-status'
+import { pickCountry } from '../../../src/sources/country'
+import { viewerIn } from '../sources/justwatch/viewer'
 
 const { AccountsSection } = await import('../../../src/router/settings/accounts')
 
@@ -113,7 +115,8 @@ describe('Crunchyroll on the cloud', () => {
 
 // a cloud Prime Video sign-in sits in FKN's jar like Crunchyroll's, and this is the only way to end it
 describe('Prime Video', () => {
-  test('on the cloud, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
+  test('on the cloud in Japan, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
+    viewerIn('Asia/Tokyo')
     const { row, props } = render()
     expect(row('prime').querySelector('h3')!.textContent).toBe('Prime Video')
     await act(async () => { button(row('prime'), 'Sign out')!.click() })
@@ -137,10 +140,39 @@ describe('Prime Video', () => {
     expect(ask).not.toHaveBeenCalled()
   })
 
-  test('with the extension, links to amazon.co.jp and offers nothing to press', () => {
+  test('with the extension, links to the viewer\'s country\'s Prime Video and offers nothing to press', () => {
+    viewerIn('Asia/Tokyo')
     const extension = render({ backend: 'extension' }).row('prime')
     expect(extension.querySelector('a')!.getAttribute('href')).toBe('https://www.amazon.co.jp')
+    expect(extension.querySelector('a')!.textContent).toBe('Open amazon.co.jp')
     expect(extension.querySelectorAll('button')).toHaveLength(0)
+  })
+
+  // MUTATED: drop the row's `signsInOnCloud` condition and both offer a Sign in that lands on a relay's region
+  test('on the cloud outside Japan, links to the viewer\'s country\'s Prime Video and offers nothing to press', () => {
+    for (const [zone, host] of [['America/New_York', 'amazon.com'], ['America/Toronto', 'primevideo.com']] as const) {
+      viewerIn(zone)
+      const cloud = render().row('prime')
+      expect(cloud.querySelector('a')?.getAttribute('href'), zone).toBe(`https://www.${host}`)
+      expect(cloud.querySelector('a')!.textContent).toBe(`Open ${host}`)
+      expect(cloud.querySelectorAll('button'), zone).toHaveLength(0)
+    }
+  })
+
+  test('the Prime Video row follows the country, picked or guessed', async () => {
+    viewerIn('America/Toronto')
+    const stored = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+      removeItem: (key: string) => { stored.delete(key) },
+    })
+    const { row } = render({ backend: 'extension' })
+    expect(row('prime').querySelector('a')!.getAttribute('href')).toBe('https://www.primevideo.com')
+    await act(async () => { pickCountry('GB') })
+    expect(row('prime').querySelector('a')!.getAttribute('href')).toBe('https://www.amazon.co.uk')
+    expect(row('crunchyroll').querySelector('a')!.getAttribute('href'), 'Crunchyroll is one site everywhere').toBe('https://www.crunchyroll.com')
+    vi.unstubAllGlobals()
   })
 })
 

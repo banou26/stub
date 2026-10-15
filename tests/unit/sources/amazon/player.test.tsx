@@ -6,6 +6,7 @@ import type { Frame, GotoOptions, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
 
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { PRIME_DOMAINS } from '../../../../src/sources/amazon/session'
@@ -116,8 +117,8 @@ const amazon = (html: string, { url = DETAIL, surfaces = EPISODE_SURFACE, idle =
 }
 
 const hosts: HTMLElement[] = []
-const render = () => {
-  const host = mount(<PrimeVideoPlayer url={DEEP_LINK} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />)
+const render = (url = DEEP_LINK) => {
+  const host = mount(<PrimeVideoPlayer url={url} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />)
   hosts.push(host)
   return host
 }
@@ -192,9 +193,28 @@ describe('attaching the Prime Video frame', () => {
       const [{ domains, cookies: jar }] = lib.attachFrame.mock.calls[0]! as [{ domains: string[], cookies: string }]
       expect(jar).toBe(cookies)
       expect([...domains].sort()).toEqual([
-        'a2z.com', 'aiv-cdn.net', 'aiv-delivery.net', 'amazon.co.jp', 'amazon.com', 'media-amazon.com',
-        'prime-video.amazon.dev', 'pv-cdn.net', 'ssl-images-amazon.com', 'www.amazon.co.jp',
+        'a2z.com', 'aiv-cdn.net', 'aiv-delivery.net', 'amazon.co.jp', 'amazon.co.uk', 'amazon.com', 'amazon.de',
+        'app.primevideo.com', 'media-amazon.com', 'prime-video.amazon.dev', 'primevideo.com', 'pv-cdn.net',
+        'ssl-images-amazon.com', 'www.amazon.co.jp', 'www.amazon.co.uk', 'www.amazon.com', 'www.amazon.de',
+        'www.primevideo.com',
       ])
+    })
+  }
+
+  // FKN's card names the first domain as the site it asks for: "on amazon.co.jp" for a New York viewer read wrong
+  for (const [link, site] of [
+    [DEEP_LINK, 'amazon.co.jp'],
+    ['https://watch.amazon.com/watch?gti=amzn1.dv.gti.1', 'amazon.com'],
+    ['https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.1', 'amazon.co.uk'],
+    ['https://app.primevideo.com/watch?gti=amzn1.dv.gti.1', 'primevideo.com'],
+  ]) {
+    test(`a link on ${site} names ${site} first`, async () => {
+      lib.attachFrame.mockReturnValue(new Promise(() => {}))
+      render(link)
+      await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalledTimes(1), { timeout: 5_000 })
+      const [{ domains }] = lib.attachFrame.mock.calls[0]! as [{ domains: string[] }]
+      expect(domains[0]).toBe(site)
+      expect([...domains].sort()).toEqual([...PRIME_DOMAINS].sort())
     })
   }
 
@@ -440,4 +460,74 @@ describe('a sign-in that does not sign in', () => {
     ;(await signedOut(host)).click()
     await vi.waitFor(() => expect(host.textContent).toContain('Allow popups for this page to sign in.'))
   })
+})
+
+// www.primevideo.com's own page for The Boys, signed out, as it served it on 2026-10-15 (the navigation bar, the
+// top of the page and the footer): no shop header, its own Sign In in the account menu instead
+const PV_SIGNED_OUT = readFileSync(new URL('../../../fixtures/amazon/primevideo-signed-out.html', import.meta.url), 'utf-8')
+// the same bar with the account menu's Sign In gone, which is how a signed-in one is expected to read
+const PV_SIGNED_IN = PV_SIGNED_OUT.replace(/<li[^>]*><a data-testid="pv-nav-sign-in"[\s\S]*?<\/li>/g, '')
+const PV_GTI = 'amzn1.dv.gti.5ab600aa-5887-e35c-6326-4420b567cfb9'
+const PV_LINK = `https://app.primevideo.com/watch?gti=${PV_GTI}`
+const PV_DETAIL = 'https://www.primevideo.com/detail/0S1FYJ3LY9KTL9C7WFFAGA9F6F'
+const PV_SIGN_IN = 'https://www.primevideo.com/auth-redirect?signin=1&returnUrl=%2Fstorefront'
+
+describe('on primevideo.com, where every country but four has its Prime Video', () => {
+  test('the recording carries the bar\'s Sign In twice, and the signed-in stand-in none', () => {
+    expect(PV_SIGNED_OUT.match(/data-testid="pv-nav-sign-in"/g)).toHaveLength(2)
+    expect(PV_SIGNED_IN).not.toContain('pv-nav-sign-in')
+    expect(PV_SIGNED_IN).toContain('id="pv-nav-container"')
+    expect(PV_SIGNED_IN).toContain('id="pv-footer"')
+  })
+
+  test('a signed-out page shows the sign-in at once, with no wait for a Play that is not coming', async () => {
+    const page = amazon(PV_SIGNED_OUT, { url: PV_DETAIL })
+    lib.attachFrame.mockResolvedValue(page.frame)
+    const host = render(PV_LINK)
+    await signedOut(host)
+    expect(page.frame.goto).toHaveBeenCalledExactlyOnceWith(`https://app.primevideo.com/detail?gti=${PV_GTI}`, { waitUntil: 'commit' })
+    expect(page.handed).toEqual([])
+    expect(remembered()).toBe('signed-out')
+  })
+
+  test('on the extension, signs in through primevideo.com\'s own Sign in', async () => {
+    lib.extension = true
+    const open = vi.fn(() => ({ closed: false }))
+    vi.stubGlobal('open', open)
+    lib.attachFrame.mockResolvedValue(amazon(PV_SIGNED_OUT, { url: PV_DETAIL }).frame)
+    ;(await signedOut(render(PV_LINK))).click()
+    expect(open).toHaveBeenCalledExactlyOnceWith(PV_SIGN_IN, '_blank', 'width=500,height=700')
+  })
+
+  test('on the cloud, the FKN window opens primevideo.com\'s Sign in on the player\'s hosts, and reads its bar', async () => {
+    signIn.mockResolvedValue('authed' satisfies WindowSignIn)
+    lib.attachFrame.mockResolvedValue(amazon(PV_SIGNED_OUT, { url: PV_DETAIL }).frame)
+    ;(await signedOut(render(PV_LINK))).click()
+    const [{ url, domains, isSignedIn }] = signIn.mock.calls[0]! as [{ url: string, domains: string[], isSignedIn: (login: Frame) => Promise<boolean> }]
+    expect(url).toBe(PV_SIGN_IN)
+    expect(domains).toEqual(PRIME_DOMAINS)
+    const page = (html: string) => amazon(html, { url: PV_DETAIL }).frame as unknown as Frame
+    expect(await isSignedIn(page(PV_SIGNED_OUT))).toBe(false)
+    expect(await isSignedIn(page(PV_SIGNED_IN))).toBe(true)
+    // its Sign In is parsed 34 KB after the bar opens, so a signed-out page still streaming in has the bar alone
+    const streaming = PV_SIGNED_OUT.slice(0, PV_SIGNED_OUT.indexOf('id="pv-nav-container"') + 200)
+    expect(streaming).not.toContain('pv-nav-sign-in')
+    expect(await isSignedIn(page(streaming)), 'a page still parsing its bar').toBe(false)
+  })
+
+  // JustWatch's links in the UK, Germany and the US, each signing in on its own site; Japan's is above
+  for (const [link, site] of [
+    ['https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.1', 'amazon.co.uk'],
+    ['https://watch.amazon.de/watch?gti=amzn1.dv.gti.1', 'amazon.de'],
+    ['https://watch.amazon.com/watch?gti=amzn1.dv.gti.1', 'amazon.com'],
+  ]) {
+    test(`a link on ${site} signs in through ${site}'s own Sign in`, async () => {
+      lib.extension = true
+      const open = vi.fn(() => ({ closed: false }))
+      vi.stubGlobal('open', open)
+      lib.attachFrame.mockResolvedValue(amazon(SIGNED_OUT_PAGE, { url: `https://www.${site}/gp/video/detail/B0` }).frame)
+      ;(await signedOut(render(link))).click()
+      expect(open).toHaveBeenCalledExactlyOnceWith(`https://www.${site}/gp/video/auth-redirect?signin=1&returnUrl=%2Fgp%2Fvideo%2Fstorefront`, '_blank', 'width=500,height=700')
+    })
+  }
 })

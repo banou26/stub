@@ -494,3 +494,24 @@ test('the privacy page says what stub keeps, and its link to Sources opens that 
   await expect(panel(page)).toHaveAttribute('data-section', 'sources')
   expect(await scrollY(page)).toBe(0)
 })
+
+test.describe('in Toronto', () => {
+  test.use({ timezoneId: 'America/Toronto' })
+
+  test('Country is Automatic, naming Canada, until one is picked, which stays across a reload', async ({ page }) => {
+    await page.goto(`${origin}/settings`)
+    const country = () => page.getByRole('combobox', { name: 'Country' })
+    await expect(country().locator('option:checked')).toHaveText('Automatic (Canada)')
+    await expect(page.locator('[data-setting="country"]'), 'first, before the sign-ins').toBeVisible()
+    expect((await panel(page).locator('.rows > .row').first().getAttribute('data-setting'))).toBe('country')
+
+    await country().selectOption('JP')
+    expect((await readLocal(page))['stub.country']).toBe('JP')
+    await page.reload()
+    await expect(country().locator('option:checked')).toHaveText('Japan')
+
+    await country().selectOption('')
+    await expect(country().locator('option:checked')).toHaveText('Automatic (Canada)')
+    expect((await readLocal(page))['stub.country'], 'Automatic keeps nothing').toBeUndefined()
+  })
+})

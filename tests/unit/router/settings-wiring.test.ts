@@ -1,8 +1,9 @@
 // What the settings page's Accounts section is wired to: which window each Sign in opens, which
 // cookies each Sign out removes from FKN's jar, and what each of them and the automatic check remembers.
-import { beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { PRIME_DOMAINS, PRIME_SIGN_IN_URL, primeSignedIn } from '../../../src/sources/amazon/session'
+import { PRIME_DOMAINS, primeSignedIn } from '../../../src/sources/amazon/session'
+import { viewerIn } from '../sources/justwatch/viewer'
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../../src/sources/crunchyroll/session'
 
 const calls = vi.hoisted(() => ({
@@ -48,15 +49,29 @@ test("Crunchyroll's Sign in opens Crunchyroll's sign-in page on the same hosts",
 test("Prime Video's Sign out removes the cookies of every host its player reads from FKN's jar, and remembers it", async () => {
   await prime.signOut()
   expect(calls.clearCloudCookies.mock.calls).toEqual([[PRIME_DOMAINS]])
-  expect(PRIME_DOMAINS).toEqual(expect.arrayContaining(['www.amazon.co.jp', 'amazon.com', 'a2z.com']))
+  expect(PRIME_DOMAINS).toEqual(expect.arrayContaining(['www.amazon.co.jp', 'amazon.com', 'a2z.com', 'www.primevideo.com', 'www.amazon.co.uk', 'www.amazon.de']))
   expect(calls.record.mock.calls).toEqual([['prime', 'signed-out']])
 })
 
-test("Prime Video's Sign in opens amazon.co.jp's sign-in on the player's hosts, and remembers an authed one", async () => {
+test("Prime Video's Sign in opens the viewer's country's own Sign in on the player's hosts, and remembers an authed one", async () => {
+  viewerIn('Asia/Tokyo')
   expect(await prime.signIn()).toBe('authed')
-  expect(calls.signInThroughWindow).toHaveBeenCalledWith({ url: PRIME_SIGN_IN_URL, domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
+  expect(calls.signInThroughWindow).toHaveBeenCalledWith({ url: expect.stringMatching(/^https:\/\/www\.amazon\.co\.jp\/ap\/signin\?/), domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
+  const [{ url }] = calls.signInThroughWindow.mock.calls[0]! as [{ url: string }]
+  expect(new URL(url).searchParams.get('openid.return_to'), 'back on the storefront, the address signed in through').toBe('https://www.amazon.co.jp/gp/video/storefront')
   expect(calls.record.mock.calls).toEqual([['prime', 'signed-in']])
 })
+
+test("a viewer in Canada signs in to Prime Video on primevideo.com, and one who picked the UK on amazon.co.uk", async () => {
+  viewerIn('America/Toronto')
+  await prime.signIn()
+  expect(calls.signInThroughWindow).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://www.primevideo.com/auth-redirect?signin=1&returnUrl=%2Fstorefront' }))
+  vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'stub.country' ? 'GB' : null })
+  await prime.signIn()
+  expect(calls.signInThroughWindow).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://www.amazon.co.uk/gp/video/auth-redirect?signin=1&returnUrl=%2Fgp%2Fvideo%2Fstorefront' }))
+})
+
+afterEach(() => { vi.unstubAllGlobals() })
 
 test("a tracking site's Sign in and Sign out are that site's", async () => {
   expect(await sites.signIn('mal')).toBe('closed')

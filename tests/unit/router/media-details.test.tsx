@@ -2,6 +2,7 @@
 import { mount, unmount } from '../components/dom'
 
 import type { DetailsMedia } from '../../../src/router/home/media-details'
+import type { FknBackend } from '../../../src/utils/fkn-backend'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -10,18 +11,22 @@ import { Client, Provider, subscriptionExchange } from 'urql'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { viewerIn } from '../sources/justwatch/viewer'
+
+const fkn = vi.hoisted(() => ({ backend: 'cloud' as FknBackend }))
 vi.mock('../../../src/worker', () => ({}))
+vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => fkn.backend }))
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
 const { Episodes, useTrackingSummary } = await import('../../../src/router/home/media-details')
 
 // a real urql client whose origins subscription answers once and stays open, as the worker's does
-const client = () => new Client({
+const client = (origin = { id: 'nf', name: 'Netflix' }) => new Client({
   url: 'http://test/graphql',
   exchanges: [subscriptionExchange({
     forwardSubscription: () => ({
       subscribe: sink => {
-        sink.next({ data: { originPage: { nodes: [{ id: 'nf', name: 'Netflix', icon: null, color: null }] } }, hasNext: true })
+        sink.next({ data: { originPage: { nodes: [{ ...origin, icon: null, color: null }] } }, hasNext: true })
         return { unsubscribe: () => {} }
       },
     }),
@@ -94,6 +99,28 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
   expect(rows()).toEqual(expected(13, 24))
   act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 3"]')!.click() })
   expect(rows()).toEqual(expected(25, 26))
+})
+
+test('a Prime Video row outside Japan plays in stub with the extension, and links out to Prime Video on the cloud', async () => {
+  viewerIn('America/Toronto')
+  const url = 'https://app.primevideo.com/watch?gti=amzn1.dv.gti.1'
+  const prime = {
+    uri: 'ag:(anilist:1)',
+    episodes: [{
+      uri: 'ag:(amazon:amzn1.dv.gti.1)', episodeNumber: 1, releaseDate: '2023-09-29', titles: [{ title: 'Episode 1' }],
+      handles: [{ relation: 'SAME_AS', node: { uri: 'amazon:amzn1.dv.gti.1', origin: 'amazon', url } }],
+    }],
+  } as unknown as DetailsMedia
+  const hrefOn = async (backend: FknBackend) => {
+    fkn.backend = backend
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(<Provider value={client({ id: 'amazon', name: 'Prime Video' })}><Router hook={hook}><Episodes media={prime}/></Router></Provider>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+    return host.querySelector('.episode .src')?.getAttribute('href')
+  }
+  expect(await hrefOn('extension')).toBe('/watch/ag:(anilist:1)/ag:(amazon:amzn1.dv.gti.1)/amazon:amzn1.dv.gti.1')
+  expect(await hrefOn('cloud')).toBe(url)
 })
 
 describe('the tracking summary a page reads', () => {

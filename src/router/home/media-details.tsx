@@ -3,9 +3,10 @@
 
 import type { GetMediaDetailsSubscription, GetMediaOriginsSubscription } from '../../generated/graphql'
 import type { WatchSource } from '../../components/source-selector'
+import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
@@ -22,6 +23,7 @@ import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { canPlay } from '../../sources/playable'
+import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
@@ -258,6 +260,16 @@ const useOrigins = (ids: string[] | undefined): readonly Origin[] => {
   return data?.originPage?.nodes ?? []
 }
 
+const useBackend = () => {
+  const [backend, setBackend] = useState<FknBackend>()
+  useEffect(() => {
+    let cancelled = false
+    void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
+    return () => { cancelled = true }
+  }, [])
+  return backend
+}
+
 /**
  * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
  * `offers` are media-level handles, linked out for a streaming site the episode itself does not name,
@@ -270,10 +282,13 @@ export const useWatchSources = (
 ): WatchSource[] => {
   const links = offers.filter(handle => handle.relation === 'SAME_AS' && handle.node.url && STREAMING_ORIGINS.has(handle.node.origin))
   const origins = useOrigins(episode ? [...new Set([...episodeOriginIds(episode), ...links.map(handle => handle.node.origin)])] : undefined)
-  return episode ? watchSources(episode, mediaUri, origins, links) : []
+  const backend = useBackend()
+  return episode ? watchSources(episode, mediaUri, origins, backend, links) : []
 }
 
-const watchSources = (episode: DetailsEpisode, mediaUri: string, origins: readonly Origin[], links: readonly Offer[] = []): WatchSource[] =>
+const watchSources = (
+  episode: DetailsEpisode, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, links: readonly Offer[] = []
+): WatchSource[] =>
   origins
     .map(origin => {
       // SAME_AS only. Everything below routes into PLAYBACK: `sourceUri` is handed to the watch route
@@ -286,7 +301,7 @@ const watchSources = (episode: DetailsEpisode, mediaUri: string, origins: readon
           .map(handle => handle.node)
       const handle = handles.at(0)
       const sourceUri = handle?.uri
-      const playable = canPlay(origin.id, handle?.url)
+      const playable = canPlay(origin.id, handle?.url, backend)
       // named even for several releases: a watch address with no source opens the page's own pick
       const watchPath = episode.uri && sourceUri
         ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
@@ -524,15 +539,15 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, origins, unreleased, airingAt }:
-  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], unreleased: boolean, airingAt?: string }
+  { episode, index, mediaUri, origins, backend, unreleased, airingAt }:
+  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
   const releasedAt = releasedAtOf(episode) ?? airingAt
   const released = releaseDateDisplay(releasedAt)
-  const sources = unreleased ? [] : watchSources(episode, mediaUri, origins)
+  const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
 
   return (
     <div className={unreleased ? 'episode unreleased' : 'episode'}>
@@ -603,6 +618,7 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
   const nextAiring = media.nextAiringEpisode
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
+  const backend = useBackend()
   return (
     <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={start}>
       {(page, offset) => (
@@ -616,6 +632,7 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
                 index={index}
                 mediaUri={media.uri}
                 origins={origins}
+                backend={backend}
                 unreleased={unreleased[index]!}
                 airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
               />

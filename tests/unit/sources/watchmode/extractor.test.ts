@@ -74,24 +74,17 @@ test('every handle it mints off a series is PART_OF, never SAME_AS', async () =>
   expect([...new Set(edges.map(edge => edge.relation))]).toEqual(['PART_OF'])
 })
 
-// The weld with the widest blast radius: one handle for every Amazon title Watchmode has ever listed.
-test('an amazon deep link yields its gti, never the literal word "detail"', async () => {
+// Prime Video's ids are per country, and Watchmode lists every region's without saying whose, so its rows
+// are left to JustWatch, which asks the viewer's country
+test('a Prime Video row mints nothing, on an Amazon site or on primevideo.com', async () => {
   const handles = await handlesFor([
     source('https://watch.amazon.com/detail?gti=amzn1.dv.gti.80d4a3ed-21d5-4ed1-b3f4-054b29da3ec2'),
+    source('https://app.primevideo.com/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d'),
+    source('https://watch.amazon.de/detail?gti=amzn1.dv.gti.9ab600aa-6625-b547-cfc0-190e3ad8a27d'),
+    source('https://www.netflix.com/title/80987039'),
   ])
 
-  expect(handles.map(handle => handle.uri)).not.toContain('amazon:detail')
-  expect(handles.map(handle => handle.id)).toContain('amzn1.dv.gti.80d4a3ed-21d5-4ed1-b3f4-054b29da3ec2')
-})
-
-// Two different Amazon titles must not collapse onto one handle, which is what the old read did to
-// every single one of them.
-test('two different amazon titles do not share a handle', async () => {
-  const first = await handlesFor([source('https://watch.amazon.com/detail?gti=amzn1.dv.gti.AAA')])
-  const second = await handlesFor([source('https://watch.amazon.com/detail?gti=amzn1.dv.gti.BBB')])
-
-  const shared = first.map(h => h.uri).filter(uri => second.map(h => h.uri).includes(uri) && uri.startsWith('amazon:'))
-  expect(shared).toEqual([])
+  expect(handles.map(handle => handle.uri), 'control: the Netflix row still mints').toEqual(['nf:80987039'])
 })
 
 // A crunchyroll series url names the show, and on Crunchyroll it names the show's films too. There is
@@ -265,7 +258,7 @@ test('search asks for titles only, so no person comes back as a show', async () 
   for (const person of ['Dune Kossatz', 'Nea Dune', 'Claude Duneton', 'Ashley Dunec']) expect(names).not.toContain(person)
 })
 
-test('a recorded title\'s links come from its title page providers, every region\'s', async () => {
+test('a recorded title\'s links come from its title page providers, every region\'s but Prime Video\'s', async () => {
   const sent: string[] = []
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri: 'watchmode:03195245' } }, recorded(sent)).next()
@@ -275,7 +268,8 @@ test('a recorded title\'s links come from its title page providers, every region
   expect(media.uri).toBe('watchmode:03195245')
   expect(media.scope).toBe('CONTAINER')
   const origins = [...new Set(media.handles.map(handle => handle.node.origin))].sort()
-  expect(origins).toEqual(expect.arrayContaining(['amazon', 'hulu', 'nf']))
+  expect(origins).toEqual(expect.arrayContaining(['hulu', 'nf']))
+  expect(origins, 'its watch.amazon.com row is not the viewer\'s to know').not.toContain('amazon')
   expect([...new Set(media.handles.map(handle => handle.relation))]).toEqual(['PART_OF'])
 })
 

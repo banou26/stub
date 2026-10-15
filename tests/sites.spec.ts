@@ -172,6 +172,24 @@ test('a Popular row draws nothing while JustWatch is off, rather than the store\
   await expect(cards(page, 'Popular shows')).toHaveCount(0)
 })
 
+// The worker has no storage of its own, so the country picked in Settings reaches its JustWatch requests only
+// through the page; the fake answers The Boys as JustWatch did for the countries asked
+test.describe('in Toronto', () => {
+  test.use({ timezoneId: 'America/Toronto' })
+  const primeLink = (page: Page) => page.locator('.origins a.origin[title="Prime Video"]')
+
+  test('a title\'s Prime Video link is Canada\'s with no country picked', async ({ page }) => {
+    await page.goto(at('127.0.0.1', '/title/jw:78125-104253'))
+    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/app\.primevideo\.com\//, { timeout: 30_000 })
+  })
+
+  test('a title\'s Prime Video link is the UK\'s once the UK is picked in Settings', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('stub.country', 'GB'))
+    await page.goto(at('127.0.0.1', '/title/jw:78125-104253'))
+    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/watch\.amazon\.co\.uk\//, { timeout: 30_000 })
+  })
+})
+
 test('a Popular row is JustWatch\'s answer in its order, also on the way back Home over a full store', async ({ page }) => {
   const films = ['Backrooms', 'Obsession', 'The End of Oak Street', 'Practical Magic']
   await page.goto(at('127.0.0.1'))

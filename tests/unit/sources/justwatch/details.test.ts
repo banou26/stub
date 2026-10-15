@@ -10,6 +10,7 @@ import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
 import CHERNOBYL from '../../../fixtures/justwatch/chernobyl.json'
 import DUNE_CREDITS from '../../../fixtures/credits/jw-dune.json'
+import { viewerIn } from './viewer'
 
 const open = async (answer: unknown, uri: string, details?: boolean) => {
   const bodies: string[] = []
@@ -86,19 +87,20 @@ test('only an actor stands under a part: a director JustWatch gives a part is st
   })
 })
 
-// Taken once every offer asked for its deep link, which is what plays a film or an episode. Every
-// change here sends each JustWatch request past the relay's cache once.
+// Taken for a viewer in the US once offers were asked in the viewer's country. Every change here sends
+// each JustWatch request past the relay's cache once, and each country is its own body.
 test('the details form goes out only when asked, and the modal and listing bodies are pinned', async () => {
+  viewerIn('America/New_York')
   const modal = await open(DUNE, 'jw:1133934')
   const page = await open(DUNE, 'jw:1133934', true)
-  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('48a6136915b543bdeeeb97c3b29c77bf0a5cd6da12e9b8090101abefa9ad26f7')
+  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('063a0c76963dab4d4c1a70908e0c38cf15c67ddb690ed8972dddbbbc5ea978a1')
   expect(page.bodies[0], 'the page body').toContain('scoring {')
 
   const listing: string[] = []
   const context = { fetch: async (_: string, init: { body: string }) => (listing.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   await subscribe(undefined, { input: { search: 'Dune' } }, context).next()
-  expect(sha256(listing[0]!), 'the listing body').toBe('11218f067a2d02fad0abc567fa1ce7d92a1e25c7623e4460b186e924d2643911')
+  expect(sha256(listing[0]!), 'the listing body').toBe('1e219d8a67218e6d35c2ac4f58a6767ab8ebc0b5802ce9a94f2e0ee9cf4b1e51')
 })
 
 test('a title the page found by search asks the details form too', async () => {

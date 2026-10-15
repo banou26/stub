@@ -9,6 +9,7 @@ import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
 import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
+import { holdPickedCountry } from '../sources/country'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
@@ -57,6 +58,8 @@ export const osraResolvers = {
   },
   // the built-in sources turned off in Settings, handed over before the page's first question and again on every change
   setDisabledSources: (origins: string[]) => setDisabledOrigins(origins),
+  // the country picked in Settings, handed over the same way
+  setPickedCountry: (country: string | undefined) => holdPickedCountry(country),
   registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: { origin: string, name: string }[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
     try {
       return { ok: await registerRemoteExtractor(port, pluginUri) }

@@ -12,7 +12,7 @@ import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-b
 import { signInThroughWindow } from '../login-window'
 import PrimeMediaPlayer from './prime-media-player'
 import { findPrimeVideo, pressPrimePlay, readPrimePage } from './prime-page'
-import { PRIME_DOMAINS, PRIME_SIGN_IN_LINK, PRIME_SIGN_IN_URL, primeSignedIn } from './session'
+import { PRIME_DOMAINS, PRIME_SIGN_IN_LINK, primeSignedIn, primeSignInUrl, primeSiteOf } from './session'
 
 const PAGE: PrimePageSelectors = {
   play: '[data-testid="dp-atf-play-button"]',
@@ -160,6 +160,7 @@ const styles = css`
 `
 
 const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
+  const site = primeSiteOf(url)!
   const [mode, setMode] = useState<'detecting' | FknBackend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -191,7 +192,8 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     let cancelled = false
     attachFrame({
       iframe,
-      domains: PRIME_DOMAINS,
+      // FKN's card names the first domain as the site it asks for, so the link's own leads
+      domains: [...PRIME_DOMAINS].sort((a, b) => Number(b === site) - Number(a === site)),
       cookies: attachCookies(mode),
       permissions: [{ category: 'evaluation', reason: 'Press Play on the episode and see whether you are signed in' }],
     })
@@ -203,7 +205,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
         setLoading(false)
       })
     return () => { cancelled = true }
-  }, [iframe, mode])
+  }, [iframe, mode, site])
 
   useEffect(() => {
     if (!frame) return
@@ -266,12 +268,13 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     setAttachKey(key => key + 1)
   }, [])
 
-  // on the extension the frame runs on the browser's own session, which a popup on amazon.co.jp signs
-  // in; on the cloud only an FKN window writes the jar the frame reads
+  // through the Sign in of the site the link is on. On the extension the frame runs on the browser's own
+  // session, which a popup signs in; on the cloud only an FKN window writes the jar the frame reads.
   const signIn = useCallback(() => {
     setBlocked(false)
+    const signInUrl = primeSignInUrl(site)
     if (mode === 'extension') {
-      const popup = globalThis.open(PRIME_SIGN_IN_URL, '_blank', 'width=500,height=700')
+      const popup = globalThis.open(signInUrl, '_blank', 'width=500,height=700')
       if (!popup) return setBlocked(true)
       setSigningIn(true)
       clearInterval(popupWatch.current)
@@ -284,7 +287,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       return
     }
     // before any await: the window opens with this click's activation
-    const windowSignIn = signInThroughWindow({ url: PRIME_SIGN_IN_URL, domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
+    const windowSignIn = signInThroughWindow({ url: signInUrl, domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
     setSigningIn(true)
     windowSignIn
       .then(outcome => {
@@ -299,7 +302,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
         setError(err?.message || 'The sign-in window failed')
       })
       .finally(() => { if (mounted.current) setSigningIn(false) })
-  }, [mode, remount])
+  }, [mode, remount, site])
 
   const openOnPrime = <a className="login-button" href={detailUrl(url)} target="_blank" rel="noreferrer">Open on Prime Video</a>
 

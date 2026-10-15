@@ -4,6 +4,7 @@
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
+import { COUNTRY_KEY } from '../../sources/country'
 import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
@@ -41,6 +42,14 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: 'Until you turn them back on',
     keys: { store: 'local', names: [DISABLED_SOURCES_KEY] },
+  },
+  {
+    id: 'country',
+    title: 'Country',
+    what: 'The country you picked in Settings, which decides whose streaming links and Prime Video stub uses. On Automatic nothing is kept: stub reads the country off your device\'s time zone each time.',
+    where: LOCAL,
+    lasts: 'Until you set it back to Automatic',
+    keys: { store: 'local', names: [COUNTRY_KEY] },
   },
   {
     id: 'search-layout',

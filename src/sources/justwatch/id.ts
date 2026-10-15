@@ -71,11 +71,14 @@ export const providerContentId = (mappedOrigin: string, rawContentId: string): s
 //
 // Rent and buy are absent too: `amz` and `itu` are purchases on Amazon and Apple, not the services.
 //
+// Prime Video is `amp` where an Amazon site carries it (US, UK, Germany, Japan) and `prv` on
+// primevideo.com, which is the only Prime package in the Netherlands, Czechia and Hong Kong (2026-10-15).
+//
 // Resale channels are deliberately absent. "Crunchyroll Amazon Channel" (`cra`) outnumbers `cru`
 // itself, but its url is watch.amazon.com, so its id belongs to Amazon; mapping it to `cr` would mint
 // a Crunchyroll handle out of an Amazon id and assert an identity that no Crunchyroll call reproduces.
 export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
-  cru: 'cr', nfx: 'nf', nfa: 'nf', dnp: 'disney', amp: 'amazon', pva: 'amazon', atp: 'appletv',
+  cru: 'cr', nfx: 'nf', nfa: 'nf', dnp: 'disney', amp: 'amazon', pva: 'amazon', prv: 'amazon', atp: 'appletv',
   hlu: 'hulu', mxx: 'hbo', pcp: 'peacock', pct: 'peacock',
   ppp: 'paramount', ppe: 'paramount', fuv: 'fubo',
   hdv: 'hidive', tbv: 'tubi', rkc: 'roku', ptv: 'pluto', plx: 'plex', hop: 'hoopla',
@@ -112,10 +115,10 @@ export const extractContentId = (url: string): string | undefined => {
     }
     if (host === 'crunchyroll.com' && parts[0] === 'series') return parts[1]
 
-    // Prime Video offers now land on watch.amazon.com/detail?gti=<id> (watch.amazon.co.jp in Japan),
-    // where the id is not in the path at all. Falling back to the last path segment there would return
-    // the literal "detail".
-    if (host.startsWith('amazon.') || host.endsWith('.amazon.com') || host === 'watch.amazon.co.jp') {
+    // Prime Video offers now land on watch.amazon.com/detail?gti=<id> (watch.amazon.co.uk, .de and
+    // .co.jp in those countries, app.primevideo.com in every other), where the id is not in the path at
+    // all. Falling back to the last path segment there would return the literal "detail".
+    if (host.startsWith('amazon.') || host.startsWith('watch.amazon.') || host.endsWith('.amazon.com') || host.endsWith('primevideo.com')) {
       return parsed.searchParams.get('gti') ?? (host.startsWith('amazon.') ? parts.at(-1) : undefined)
     }
 

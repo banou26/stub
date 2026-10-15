@@ -90,6 +90,11 @@ const Privacy = () => (
       . Each third-party service receives the requests made to it and applies its own
       privacy policy, especially when you sign in to one (for example Crunchyroll) to watch.
     </p>
+    <p>
+      JustWatch is asked for the streaming links of your country: the one you picked in{' '}
+      <Link to="/settings#accounts">Settings</Link>, or else the one your device's time zone is in.
+      Only the country is sent, never the time zone.
+    </p>
 
     <h2>The optional browser extension</h2>
     <p>

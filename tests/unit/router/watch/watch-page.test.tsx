@@ -1,7 +1,7 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from '../../components/dom'
 
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { act } from 'preact/test-utils'
@@ -114,9 +114,13 @@ const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
+// the Prime Video links below are Japan's, which play in stub for a viewer in Japan alone
+beforeEach(() => { vi.stubEnv('TZ', 'Asia/Tokyo') })
+
 const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
+  vi.unstubAllEnvs()
   vi.useRealTimers()
   navigate.mockClear()
   party = { status: 'idle' }
@@ -287,7 +291,7 @@ test('a viewer last seen signed out of Prime Video gets the release first, as fo
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
 })
 
-// JustWatch hands every viewer outside Japan the US offer, whose gti plays on amazon.com alone
+// another country's Prime Video, which a Japanese account does not play
 test('a watch.amazon.com link stays a link out to Amazon, and is never picked', async () => {
   vi.useFakeTimers()
   origins = ['amazon']
@@ -301,6 +305,51 @@ test('a watch.amazon.com link stays a link out to Amazon, and is never picked', 
   const link = host.querySelector('a.source')!
   expect(link.getAttribute('href')).toBe(us)
   expect(link.getAttribute('target')).toBe('_blank')
+})
+
+// a Prime Video site picks its region from the connection, which on the cloud is a relay in Prague or Hong Kong
+const CANADA = 'amazon:amzn1.dv.gti.ca000001'
+const CANADA_LINK = 'https://app.primevideo.com/watch?gti=amzn1.dv.gti.ca000001'
+const canadianEpisode = () => {
+  vi.stubEnv('TZ', 'America/Toronto')
+  Object.assign(episode, { uri: `ag:(anilist:1-1,${CANADA})`, handles: [handle(CANADA, 'amazon', CANADA_LINK)] })
+  params = { ...params, episodeUri: episode.uri }
+}
+
+test('outside Japan, Prime Video on the cloud stays a link out, is never picked, and is not framed when named', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  canadianEpisode()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(host.querySelector('a.source')!.getAttribute('href')).toBe(CANADA_LINK)
+  expect(host.querySelector('a.source')!.getAttribute('target')).toBe('_blank')
+
+  params = { ...params, sourceUri: CANADA }
+  const named = page()
+  hosts.push(named)
+  await settle()
+  expect(named.querySelector('iframe')).toBeNull()
+})
+
+test('outside Japan, Prime Video with the extension is picked at once and framed', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  backend = 'extension'
+  canadianEpisode()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${CANADA}`, { replace: true })
+  expect(host.querySelector('a.source')!.getAttribute('target')).toBeNull()
+
+  params = { ...params, sourceUri: CANADA }
+  const named = page()
+  hosts.push(named)
+  await settle()
+  expect(new URL(named.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('url')).toBe(CANADA_LINK)
 })
 
 test('the relays a show was unavailable through reach its next episode\'s player, and never reload the one playing', async () => {

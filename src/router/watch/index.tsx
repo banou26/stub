@@ -319,6 +319,13 @@ const Watch = () => {
   const episodeNumber = episode?.episodeNumber
   const episodeName = episodeLabel(episodeNumber, episodeTitle)
 
+  const [backend, setBackend] = useState<FknBackend>()
+  useEffect(() => {
+    let cancelled = false
+    void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
+    return () => { cancelled = true }
+  }, [])
+
   // read once per source: a handles update later in the episode would otherwise change the url and reload the player
   const triedRelays = useMemo(() => selectedSourceUri ? triedRelaysParams(selectedSourceUri) : {}, [selectedSourceUri])
 
@@ -328,7 +335,7 @@ const Watch = () => {
     if (!handle) return undefined
     if (handle.embedUrl) return handle.embedUrl
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
-    if (!handle.url || !canPlay(origin, handle.url)) return undefined
+    if (!handle.url || !canPlay(origin, handle.url, backend)) return undefined
     const embedParams = new URLSearchParams({
       mediaUri: params.mediaUri,
       episodeUri: params.episodeUri,
@@ -338,7 +345,7 @@ const Watch = () => {
     })
     // the page sits beside the running build's html, which under fkn.app/app is /build/ and not the origin root
     return `${__STUB_EMBED_PAGE__}?${embedParams}`
-  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays])
+  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, backend])
 
   // a plugin source renders its own picker; which origins do is only known to the worker holding the
   // plugin connection, so it is resolved here and folded into the source list
@@ -421,7 +428,7 @@ const Watch = () => {
         // that url is a magnet, which leaves the browser entirely)
         const selfPlaying = Boolean(players?.[origin.id])
         const playableHandle = (handle: typeof handles[number]) =>
-          Boolean(handle?.embedUrl || selfPlaying || canPlay(origin.id, handle?.url))
+          Boolean(handle?.embedUrl || selfPlaying || canPlay(origin.id, handle?.url, backend))
         const pathFor = (sourceUri: string) =>
           getRoutePath(Route.WATCH, { mediaUri: params.mediaUri, episodeUri: params.episodeUri, sourceUri })
 
@@ -449,19 +456,12 @@ const Watch = () => {
           picker: pickers[origin.id] ? { pluginUri: pickers[origin.id]! } : undefined,
         }
       }).filter(source => source.href || source.releases),
-    [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players]
+    [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend]
   )
-
-  const [backend, setBackend] = useState<FknBackend>()
-  useEffect(() => {
-    let cancelled = false
-    void detectBackend().then(detected => { if (!cancelled) setBackend(detected) })
-    return () => { cancelled = true }
-  }, [])
 
   const party = useParty()
   const ways: Ways = {
-    builtIn: (origin, url) => canPlay(origin, url) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
+    builtIn: (origin, url) => canPlay(origin, url, backend) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
     signedOut: origin => {
       const site = STATUS_SITES.get(origin)
       return site !== undefined && siteStatuses.read(site)?.state === 'signed-out'

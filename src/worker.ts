@@ -10,6 +10,7 @@ import { fetch } from './utils/fetch'
 import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
 import { sessionResolvers } from './tracking/site-sessions'
 import { readDisabledSources, watchDisabledSources } from './sources/disabled-sources'
+import { readPickedCountry, watchPickedCountry } from './sources/country'
 
 const worker = new Worker()
 
@@ -45,7 +46,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -81,6 +82,8 @@ else void setGraphEnabled(flags.has('graph'))
 // Awaited for the same reason: the page's first question must not reach a source turned off in Settings.
 await setDisabledSources(readDisabledSources())
 watchDisabledSources(() => { void setDisabledSources(readDisabledSources()) })
+await setPickedCountry(readPickedCountry())
+watchPickedCountry(() => { void setPickedCountry(readPickedCountry()) })
 
 export {
   handleRequest,

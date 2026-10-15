@@ -10,6 +10,8 @@ import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount, tmdbLink } from '../utils'
 import { charactersByName, type SourceCredits } from '../credits'
+import { viewerCountry } from '../country'
+import { isViewersPrime } from '../amazon/session'
 
 const SCORE = 0.2
 // below every other source's banner (the lowest is 0.2), so a backdrop only fills a gap
@@ -27,34 +29,42 @@ export const supportedUris = ['jw']
 
 const JW_API = 'https://apis.justwatch.com/graphql'
 const JW_IMAGE_BASE = 'https://images.justwatch.com'
+// titles, posters and dates are read in the US for every viewer, so they do not move with the country
 const COUNTRY = 'US'
 const LANGUAGE = 'en'
+
+// every country JustWatch keeps a catalogue for (content/locales/state, 2026-10-16); asked any other,
+// Vietnam or Puerto Rico, it answers no offers and no error, so those viewers are asked the US's
+const JUSTWATCH_COUNTRIES = new Set((
+  'AD AE AG AL AO AR AT AU AZ BA BB BE BF BG BH BM BO BR BS BY BZ CA CD CH CI CL CM CO CR CU CV CY CZ DE '
+  + 'DK DO DZ EC EE EG ES FI FJ FR GB GF GG GH GI GQ GR GT GY HK HN HR HU ID IE IL IN IQ IS IT JM JO JP KE '
+  + 'KR KW LB LC LI LT LU LV LY MA MC MD ME MG MK ML MT MU MW MX MY MZ NE NG NI NL NO NZ OM PA PE PF PG PH '
+  + 'PK PL PS PT PY QA RO RS RU SA SC SE SG SI SK SM SN SV TC TD TH TN TR TT TW TZ UA UG US UY VA VE XK YE '
+  + 'ZA ZM ZW'
+).split(' '))
 
 // A JustWatch offer is scoped to ONE country, so a single country is a single catalogue. Anime is
 // licensed per region and the Japanese catalogue is the one that carries it: measured 2026-09-09,
 // The Elusive Samurai is `cra itu cru amz` in US and `nfx amp dnp nfa aam dan pva amz hlu fuj` in JP,
-// and Mushoku Tensei has no US Netflix offer at all while JP names `nf:80987039`. Asking US alone is
-// therefore blind to Netflix for most of this catalogue.
+// and Mushoku Tensei has no US Netflix offer at all while JP names `nf:80987039`. So the viewer's
+// country is asked with Japan beside it, and a viewer in Japan gets the US beside theirs.
 //
-// Offers from both countries are concatenated, the viewer's own first (`offersOf`), and the first offer
-// per service wins, so the other country only ever adds. A JP-only service mints nothing:
-// `extractContentId` switches on the deep link's HOST and returns undefined for one it does not know,
-// so happyon.jp or abema.tv contribute no handle. Prime Video in Japan is the exception: its
-// watch.amazon.co.jp gti mints, for every viewer, though it plays in Japan alone. Netflix is safe to
-// take from either because its host and title id are the same worldwide.
-const OFFER_COUNTRIES = { primary: COUNTRY, extra: 'JP' } as const
-
-/**
- * Which of the two countries asked is the viewer's, read off the time zone, else the US. A Prime Video
- * gti is per catalogue, and a US one sends a viewer in Japan to the amazon.com shop.
- */
-export const viewerCountry = (timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) =>
-  timeZone === 'Asia/Tokyo' ? OFFER_COUNTRIES.extra : OFFER_COUNTRIES.primary
+// The viewer's offers come first and the first offer per service wins, so the other country only ever
+// adds. A JP-only service mints nothing: `extractContentId` switches on the deep link's HOST and returns
+// undefined for one it does not know, so happyon.jp or abema.tv contribute no handle. Netflix is safe to
+// take from either because its host and title id are the same worldwide. Prime Video is not: its ids
+// differ by country (Saltburn is d6674b8e in the US, Canada and the UK, ed457f7e in Germany and France)
+// and an account plays its own country's catalogue alone, so a Prime offer off the viewer's own site is
+// dropped.
+const offerCountries = () => {
+  const viewer = viewerCountry()
+  const offerCountry = JUSTWATCH_COUNTRIES.has(viewer) ? viewer : 'US'
+  return { offerCountry, extraCountry: offerCountry === 'JP' ? 'US' : 'JP' }
+}
 
 const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: JWOffer[] }) =>
-  viewerCountry() === OFFER_COUNTRIES.extra
-    ? [...extraOffers ?? [], ...offers ?? []]
-    : [...offers ?? [], ...extraOffers ?? []]
+  [...offers ?? [], ...extraOffers ?? []].filter(offer =>
+    PACKAGE_ORIGIN_MAP[offer.package.shortName] !== 'amazon' || isViewersPrime(offer.deeplinkURL ?? offer.standardWebURL ?? ''))
 
 // Prime Video, Disney+ and Max, whose `deeplinkURL` plays the film or episode itself where
 // `standardWebURL` opens the title's page: /watch?gti=, /play/<id> and /video/watch/<id>
@@ -117,7 +127,7 @@ const jwFetch = async <T>(query: string, variables: Record<string, unknown>, ctx
 }
 
 const SEARCH_QUERY = `
-  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {
+  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {
     popularTitles(country: $country, filter: $searchTitlesFilter, first: $first, sortBy: POPULAR, sortRandomSeed: 0) {
       edges {
         node {
@@ -140,7 +150,7 @@ const SEARCH_QUERY = `
             }
             productionCountries
           }
-          offers(country: $country, platform: WEB, filter: { bestOnly: true }) {${OFFER}
+          offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
           extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
@@ -161,7 +171,7 @@ const SEARCH_QUERY = `
 `
 
 const nodeQuery = (details: string) => `
-  query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $extraCountry: Country!) {
+  query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!) {
     node(id: $nodeId) {
       ... on MovieOrShow {
         id
@@ -183,7 +193,7 @@ const nodeQuery = (details: string) => `
           }
           productionCountries${details}
         }
-        offers(country: $country, platform: WEB, filter: { bestOnly: true }) {${OFFER}
+        offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
         }
         extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
         }
@@ -214,7 +224,7 @@ const nodeQuery = (details: string) => `
                 originalReleaseDate
                 runtime
               }
-              offers(${episodeOffers('$country')}
+              offers(${episodeOffers('$offerCountry')}
               extraOffers: offers(${episodeOffers('$extraCountry')}
             }
           }
@@ -262,8 +272,7 @@ const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<
 const searchTitles = (query: string, ctx: ExtractorServerContext) =>
   deduplicatedFetch(`search:${query}`, () =>
     jwFetch<JWSearchResponse>(SEARCH_QUERY, {
-      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE,
-      country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
+      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
   )
 
@@ -272,8 +281,7 @@ const POPULAR_FIRST = 40
 const popularTitles = (objectType: 'MOVIE' | 'SHOW', ctx: ExtractorServerContext) =>
   deduplicatedFetch(`popular:${objectType}`, () =>
     jwFetch<JWSearchResponse>(SEARCH_QUERY, {
-      first: POPULAR_FIRST, searchTitlesFilter: { objectTypes: [objectType] }, language: LANGUAGE,
-      country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
+      first: POPULAR_FIRST, searchTitlesFilter: { objectTypes: [objectType] }, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
   )
 
@@ -287,7 +295,7 @@ const popularType = ({ categories, season, seasonYear, status }: MediaPageInput)
 const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
   deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, () =>
     jwFetch<JWNodeResponse>(details ? NODE_DETAILS_QUERY : NODE_QUERY, {
-      nodeId, language: LANGUAGE, country: OFFER_COUNTRIES.primary, extraCountry: OFFER_COUNTRIES.extra
+      nodeId, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
   )
 
@@ -321,7 +329,7 @@ interface JWSearchNode {
     credits?: JWCredit[] | null
   }
   offers: JWOffer[]
-  /** the same offers read on the second licensing region; see OFFER_COUNTRIES */
+  /** the same offers read on the second country; see `offerCountries` */
   extraOffers?: JWOffer[]
   /** present on a Show; the search query asks for it so a result can be expanded per season */
   seasons?: JWSeason[]

@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { siteAsks } from '../../site'
 import { ConfirmAction } from './confirm'
+import { primePlaysOnCloud, primeSiteFor } from '../../sources/amazon/session'
+import { CountryRow, useViewerCountry } from './country'
 
 export type { TrackerSite }
 
@@ -102,13 +104,16 @@ const useMounted = () => {
 }
 
 const STREAMING_SITES = ([
-  { site: 'crunchyroll', origin: 'cr', name: 'Crunchyroll', host: 'crunchyroll.com', checked: true },
-  { site: 'prime', origin: 'amazon', name: 'Prime Video', host: 'amazon.co.jp', checked: false },
-] satisfies { site: 'crunchyroll' | 'prime', origin: string, name: string, host: string, checked: boolean }[]).filter(entry => siteAsks(entry.origin))
+  { site: 'crunchyroll', origin: 'cr', name: 'Crunchyroll', hostFor: () => 'crunchyroll.com', signsInOnCloud: () => true, checked: true },
+  { site: 'prime', origin: 'amazon', name: 'Prime Video', hostFor: primeSiteFor, signsInOnCloud: primePlaysOnCloud, checked: false },
+] satisfies {
+  site: 'crunchyroll' | 'prime', origin: string, name: string, hostFor: (country: string) => string, signsInOnCloud: (host: string) => boolean, checked: boolean,
+}[]).filter(entry => siteAsks(entry.origin))
 
 type StreamingRowProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount } & Pick<AccountsProps, 'backend' | 'status'>
 
-const StreamingRow = ({ site, name, host, checked, account, backend, status }: StreamingRowProps) => {
+const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, backend, status }: StreamingRowProps) => {
+  const host = hostFor(useViewerCountry())
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
@@ -141,7 +146,7 @@ const StreamingRow = ({ site, name, host, checked, account, backend, status }: S
       on={remembered?.state === 'signed-in'}
       heading={heading}
     >
-      {backend === 'cloud'
+      {backend === 'cloud' && signsInOnCloud(host)
         ? (
           // both until stub has learned which one the session is in
           <div className="actions">
@@ -163,7 +168,7 @@ const StreamingRow = ({ site, name, host, checked, account, backend, status }: S
               )}
           </div>
         )
-        : backend === 'extension'
+        : backend
           ? (
             <div className="actions">
               <a className="link" href={`https://www.${host}`} target="_blank" rel="noreferrer">Open {host}</a>
@@ -261,9 +266,10 @@ const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
   </Row>
 )
 
-/** Every sign-in stub uses, and the way out of it where there is one. */
+/** The viewer's country, then every sign-in stub uses and the way out of it where there is one. */
 export const AccountsSection = ({ backend, sites, status, ...streaming }: AccountsProps) => (
   <div className="rows">
+    <CountryRow/>
     {STREAMING_SITES.map(entry => <StreamingRow key={entry.site} {...entry} account={streaming[entry.site]} backend={backend} status={status}/>)}
     {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status}/>)}
     <NetflixRow backend={backend}/>

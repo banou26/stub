@@ -64,12 +64,13 @@ const trpc = <T>(procedure: string, input: object, ctx: ExtractorServerContext):
 // season and an episode of its own (Planet Earth: A Celebration, 2026-10-13)
 const isFilm = (title: { slugTypeFolder?: string | null }) => title.slugTypeFolder === 'movie'
 
+// No Prime Video: its ids are per country, and a row here does not say whose (The Boys carries three
+// primevideo.com ids), so JustWatch alone hands out the viewer's own
 const STREAM_HOST_ORIGIN_MAP: { match: (host: string) => boolean, origin: string }[] = [
   { match: host => host.endsWith('crunchyroll.com'), origin: 'cr' },
   { match: host => host.endsWith('netflix.com'), origin: 'nf' },
   { match: host => host.endsWith('hulu.com'), origin: 'hulu' },
   { match: host => host.endsWith('disneyplus.com'), origin: 'disney' },
-  { match: host => host.endsWith('primevideo.com') || host.includes('amazon.'), origin: 'amazon' },
   { match: host => host.endsWith('max.com') || host.endsWith('hbomax.com'), origin: 'hbo' },
 ]
 
