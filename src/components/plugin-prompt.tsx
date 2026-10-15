@@ -40,8 +40,8 @@ const style = css`
 
   .invite {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.6rem;
     padding: 0.9rem 1.1rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.5rem;
@@ -54,14 +54,21 @@ const style = css`
   }
 
   .invite .state {
-    margin-left: auto;
     font-size: 1.2rem;
-    white-space: nowrap;
     color: rgba(255, 255, 255, 0.55);
   }
 
-  .invite .state.error {
+  .invite .failure {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .invite .error {
+    font-size: 1.2rem;
     color: #f87171;
+    overflow-wrap: anywhere;
   }
 
   .invite .dismiss {
@@ -105,11 +112,6 @@ const style = css`
   }
 `
 
-const stateLabel = (invite: PluginInvite) =>
-  invite.state === 'installing' ? 'adding…'
-  : invite.state === 'error' ? (invite.error ?? 'failed')
-  : ''
-
 export const PluginPrompt = () => {
   const [invites, setInvites] = useState<PluginInvite[]>(pluginInvites)
 
@@ -131,9 +133,12 @@ export const PluginPrompt = () => {
           {invites.map(invite => (
             <div className="invite" key={invite.uri}>
               <span className="uri">{invite.uri}</span>
-              <span className={`state${invite.state === 'error' ? ' error' : ''}`}>{stateLabel(invite)}</span>
+              {invite.state === 'installing' && <span className="state">adding…</span>}
               {invite.state === 'error' && (
-                <button type="button" className="dismiss" onClick={() => dismissInvite(invite.uri)}>Dismiss</button>
+                <div className="failure">
+                  <span className="error">{invite.error ?? 'failed'}</span>
+                  <button type="button" className="dismiss" onClick={() => dismissInvite(invite.uri)}>Dismiss</button>
+                </div>
               )}
             </div>
           ))}

@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -291,6 +291,69 @@ test('too narrow for one row, the Add button drops under the input at its full w
   expect(addBox!.y).toBeGreaterThanOrEqual(inputBox!.y + inputBox!.height - 1)
   expect(addBox!.width, 'as wide as the input').toBeGreaterThanOrEqual(inputBox!.width - 1)
   expect(addBox!.x + addBox!.width).toBeLessThanOrEqual(groupBox!.x + groupBox!.width)
+  expect(await overflowX(page)).toBeLessThanOrEqual(0)
+})
+
+/** Opens the prompt a link carrying this address raises. */
+const linkedPrompt = async (page: Page, uri: string) => {
+  await page.goto(`${origin}/settings?plugins=${uri}`)
+  return page.getByRole('dialog', { name: 'Add this source?' }).locator('.dialog')
+}
+
+const lineCount = (locator: Locator) => locator.evaluate(element => {
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size
+})
+
+/** The text of every element in the prompt that reaches past its left or right edge. */
+const pastPrompt = (prompt: Locator) => prompt.evaluate(dialog => {
+  const { left, right } = dialog.getBoundingClientRect()
+  return [...dialog.querySelectorAll('*')].filter(element => {
+    const box = element.getBoundingClientRect()
+    return box.left < left - 0.5 || box.right > right + 0.5
+  }).map(element => element.textContent)
+})
+
+for (const [width, height] of [[1920, 1080], [390, 844]] as const) {
+  test(`at ${width}x${height} a linked source that fails to boot shows its error under its address, inside the prompt`, async ({ page }) => {
+    const DEAD = 'https:dead.spec.test'
+    await page.setViewportSize({ width, height })
+    const prompt = await linkedPrompt(page, DEAD)
+    await prompt.getByRole('button', { name: 'Add source' }).click()
+    const error = prompt.getByText(`packages.connect: '${DEAD}' failed to boot: Failed to load /index.js`, { exact: true })
+    await expect(error).toBeVisible()
+    await expect(prompt.getByRole('button', { name: 'Dismiss' })).toBeVisible()
+
+    const uri = prompt.getByText(DEAD, { exact: true })
+    expect(await lineCount(uri), 'the address keeps its width').toBe(1)
+    const [uriBox, errorBox] = [await uri.boundingBox(), await error.boundingBox()]
+    expect(errorBox!.y, 'the error is under the address').toBeGreaterThanOrEqual(uriBox!.y + uriBox!.height - 1)
+    expect(await pastPrompt(prompt), 'nothing runs past the dialog').toEqual([])
+    expect(await overflowX(page)).toBeLessThanOrEqual(0)
+  })
+
+  test(`at ${width}x${height} a linked source still connecting shows adding… under its address, which keeps its width`, async ({ page }) => {
+    const CONNECTING = 'https:still.connecting.spec.test'
+    await page.setViewportSize({ width, height })
+    const prompt = await linkedPrompt(page, CONNECTING)
+    await prompt.getByRole('button', { name: 'Add source' }).click()
+    const state = prompt.getByText('adding…', { exact: true })
+    await expect(state).toBeVisible()
+
+    const uri = prompt.getByText(CONNECTING, { exact: true })
+    expect(await lineCount(uri), 'the address keeps its width').toBe(1)
+    const [uriBox, stateBox] = [await uri.boundingBox(), await state.boundingBox()]
+    expect(stateBox!.y, 'adding… is under the address').toBeGreaterThanOrEqual(uriBox!.y + uriBox!.height - 1)
+  })
+}
+
+test('at 390x844 a source whose long host has nowhere to break keeps its error inside the prompt', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const prompt = await linkedPrompt(page, 'https:asourcewhosehostnamehasnowheretobreak.spec.test')
+  await prompt.getByRole('button', { name: 'Add source' }).click()
+  await expect(prompt.getByRole('button', { name: 'Dismiss' })).toBeVisible()
+  expect(await pastPrompt(prompt), 'nothing runs past the dialog').toEqual([])
   expect(await overflowX(page)).toBeLessThanOrEqual(0)
 })
 
