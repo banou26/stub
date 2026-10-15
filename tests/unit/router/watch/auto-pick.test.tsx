@@ -26,10 +26,11 @@ describe('bestSource', () => {
     expect(bestSource([nyaa('3'), nyaa('1'), nyaa('2')], ways())).toEqual({ uri: 'nyaa:3', now: false })
   })
 
-  test('signed out of Crunchyroll, a release wins, and Crunchyroll is still picked with nothing else', () => {
+  test('a Crunchyroll the viewer is signed out of is never picked, a signed-in one at once', () => {
     const signedOut = ways({ signedOut: origin => origin === 'cr' })
     expect(bestSource([cr, nyaa('1')], signedOut)).toEqual({ uri: 'nyaa:1', now: false })
-    expect(bestSource([cr], signedOut)).toEqual({ uri: 'cr:GX1', now: false })
+    expect(bestSource([cr], signedOut)).toBeUndefined()
+    expect(bestSource([cr], ways())).toEqual({ uri: 'cr:GX1', now: true })
   })
 
   test('before the plugin lookup answers, a release is not picked but Crunchyroll is', () => {

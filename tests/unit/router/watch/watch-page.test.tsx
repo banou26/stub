@@ -133,6 +133,23 @@ test('once the lookup answers, the release wins over the signed-out Crunchyroll,
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
 })
 
+test('signed out of Crunchyroll, Play waits for a release the episode does not hold yet', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+
+  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+})
+
 test('a member still joining a party does not pick, since it follows the host', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
@@ -463,6 +480,14 @@ test('an end heard with no play before it, as a new ear is told, moves nothing',
   await report(ended)
   await wait(UP_NEXT_MS)
   expect(navigate).not.toHaveBeenCalled()
+})
+
+test('a viewer last seen signed out who plays Crunchyroll anyway is still counted down to its next episode', async () => {
+  const { host } = await atTheEnd({ handles: [crunchyroll(3)] })
+  await report(played, ended)
+  expect(host.querySelector('.up-next')).not.toBeNull()
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
 })
 
 test('nothing starts when the next episode is not out, or has nothing that plays', async () => {

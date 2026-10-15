@@ -453,6 +453,9 @@ const Watch = () => {
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   useAutoPick(bestSource(episodeHandles, ways), { ...params, guest }, navigate)
 
+  // read at render, the sign-in state goes stale once the viewer signs in on the player, so the links to
+  // the episodes either side ignore it
+  const linkWays: Ways = { ...ways, signedOut: () => false }
   const episodes = media?.episodes ?? []
   const { previous, next } = neighbours(episodes, episode ? episodes.indexOf(episode) : -1, media ? unreleasedEpisodes(media) : [])
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
@@ -460,14 +463,14 @@ const Watch = () => {
     href: getRoutePath(Route.WATCH, {
       mediaUri: params.mediaUri,
       episodeUri: target.uri,
-      sourceUri: sourceFor(playableHandlesOf(target.handles), playingOrigin, ways),
+      sourceUri: sourceFor(playableHandlesOf(target.handles), playingOrigin, linkWays),
     }),
     title: episodeLabel(target.episodeNumber, target.titles?.at(0)?.title),
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page
-  const upNext = !guest && next && bestSource(playableHandlesOf(next.handles), ways) ? nextLink : undefined
+  const upNext = !guest && next && bestSource(playableHandlesOf(next.handles), linkWays) ? nextLink : undefined
 
   return (
     <div css={style}>

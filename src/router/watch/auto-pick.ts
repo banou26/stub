@@ -18,17 +18,17 @@ export type Ways = {
 }
 
 const rankOf = (handle: Handle, ways: Ways): number | undefined =>
-  handle.url && ways.builtIn(handle.origin, handle.url) ? (ways.signedOut(handle.origin) ? 2 : 0)
+  handle.url && ways.builtIn(handle.origin, handle.url) && !ways.signedOut(handle.origin) ? 0
   : handle.embedUrl || ways.selfPlaying?.(handle.origin) ? 1
   : undefined
 
 /**
  * What Play opens when the address names no source: a stream stub plays itself, then a release a
- * source plays itself, then a stream the viewer is signed out of, each first in the handles' order.
+ * source plays itself, each first in the handles' order. Never a stream the viewer is signed out of.
  * `now` when nothing can outrank it. Only the first rank before the plugin lookup has answered.
  */
 export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: string, now: boolean } | undefined => {
-  for (const rank of [0, 1, 2]) {
+  for (const rank of [0, 1]) {
     if (rank > 0 && !ways.selfPlaying) return undefined
     const handle = handles.find(candidate => rankOf(candidate, ways) === rank)
     if (handle) return { uri: handle.uri, now: rank === 0 }
