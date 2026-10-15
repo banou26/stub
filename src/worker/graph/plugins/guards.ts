@@ -6,10 +6,11 @@
  * the row that records it (`LINK {status: 'refused', reason}`) and, for six of the nine, the
  * containment edge the writer writes instead. A wrong CONTAINER is a missing `SAME_AS`, recoverable
  * by a later proof; a wrong `SAME_AS` is a lie about what the user is about to watch
- * (`db.ts:142-145`), so a refusal costs a button and never a badge.
+ * (`db.ts:142-145`), so a refusal costs a button and never a badge. The one refusal that costs the
+ * badge too is a claim the contested row's own claims say is wrong (guard 5).
  *
  * WHAT IS READ, AND WHEN. A batch is PREPARED once (`prepareGuards`) with every pair the writer is
- * about to weigh: five reads, then every verdict is computed in JS off that snapshot. Two of the
+ * about to weigh: a few reads, then every verdict is computed in JS off that snapshot. Two of the
  * guards say what they read in their own rule:
  * - guard 4 is evaluated against the GRAPH AS IT STANDS, never within one pass, so the snapshot is
  *   taken before the first verdict and no proposal of this pass can move it,
@@ -426,9 +427,32 @@ const chunked = <T>(values: T[], size: number): T[][] => {
 const CHUNK = 2000
 
 /**
+ * What each of `targets` claims to BE in its OWN answer, which is what settles a contest over it
+ * (guard 5). A claim another origin's answer nested under the target is that origin's word, not the
+ * row's.
+ */
+const readOwnClaims = async (query: GuardQuery, targets: string[]): Promise<Map<string, string[]>> => {
+  const own = new Map<string, string[]>()
+  for (const chunk of chunked(targets, CHUNK)) {
+    const rows = await query(
+      `UNWIND $uris AS u
+       MATCH (a:Media {uri: u})-[c:CLAIMS]->(b:Media)
+       WHERE c.kind = 'SAME_AS' AND c.provenance <> 'address'
+       RETURN DISTINCT u AS claimant, b.uri AS target, c.claimer AS claimer ORDER BY claimant, target`,
+      { uris: chunk }
+    )
+    for (const row of rows) {
+      const claimant = String(row.claimant)
+      if (String(row.claimer) === originOf(claimant)) own.set(claimant, [...own.get(claimant) ?? [], String(row.target)])
+    }
+  }
+  return own
+}
+
+/**
  * Read everything the nine guards need for `subjects`, then answer each of them without a round trip.
  *
- * Five statements, each written once and parameterized, and none of them ever runs with an empty
+ * Each statement is written once and parameterized, and none of them ever runs with an empty
  * `UNWIND` list (that dies at runtime on this engine, 2026-09-12).
  */
 export const prepareGuards = async (
@@ -572,11 +596,13 @@ export const prepareGuards = async (
     }
   }
   const sites = contestSites(claimsInto, claims, components, parentOf)
+  // (5b) only a target contested with nothing merged can be refused by guard 5, so only those are read
+  const ownClaims = await readOwnClaims(query, sites.filter(site => site.standing && endpoints.has(site.target)).map(site => site.target))
 
   return {
     profileOf,
     components,
-    sameAs: subject => sameAsVerdict(subject, { profileOf, parentOf, components, claimsInto, addressKeys, contained, sites, claims }),
+    sameAs: subject => sameAsVerdict(subject, { profileOf, parentOf, components, claimsInto, addressKeys, contained, sites, claims, ownClaims }),
     partOf: (part, whole) => partOfVerdict(part, whole, profileOf),
   }
 }
@@ -615,6 +641,8 @@ type Facts = {
   sites: ContestSite[]
   /** Every row a claimant claims to BE, the reverse of `claimsInto`. Guard 5 cuts what a pair shares. */
   claims: Map<string, Set<string>>
+  /** What a contested endpoint claims to BE in its own answer (`readOwnClaims`). */
+  ownClaims: Map<string, string[]>
 }
 
 /**
@@ -895,6 +923,19 @@ const sameAsVerdict = (subject: SameAsSubject, facts: Facts): SameAsVerdict => {
         const ourSideIsLeft = contesting.keyOf(claimants[i]!) === otherKey
         const ourSideIsRight = contesting.keyOf(claimants[j]!) === otherKey
         if (!ourSideIsLeft && !ourSideIsRight) continue
+        // THE TARGET'S OWN CLAIMS SETTLE IT, counting only a claimed row in an id space both sides
+        // hold: when every such row sits on one and the same side, that side keeps the target and the
+        // other side's claim is refused with no downgrade, since the target itself says it is wrong.
+        // AniList's row for Re:ZERO Season 4 names MyAnimeList 61316, on the season's side, so Kitsu's
+        // claim from the Break Time short is the one refused. A space only one side holds says nothing
+        // against the other: MyAnimeList's one row for both Attack on Titan specials names an AniZip id
+        // that only Part 1 has (8.6).
+        const own = (facts.ownClaims.get(target.uri) ?? []).filter(row =>
+          left.some(uri => identitySpaceOf(uri) === identitySpaceOf(row))
+          && right.some(uri => identitySpaceOf(uri) === identitySpaceOf(row)))
+        const settledLeft = own.length > 0 && own.every(row => left.includes(row))
+        const settledRight = own.length > 0 && own.every(row => right.includes(row))
+        if (ourSideIsLeft ? settledLeft : settledRight) continue
         const evidence = {
           theirs: ourSideIsLeft ? straddle[1] : straddle[0],
           ours: ourSideIsLeft ? straddle[0] : straddle[1],
@@ -904,7 +945,7 @@ const sameAsVerdict = (subject: SameAsSubject, facts: Facts): SameAsVerdict => {
           reason: 'contested',
           write: true,
           evidence,
-          downgrade: downgradeTo(target, other, 'contested', evidence),
+          downgrade: settledLeft || settledRight ? undefined : downgradeTo(target, other, 'contested', evidence),
         }
       }
     }

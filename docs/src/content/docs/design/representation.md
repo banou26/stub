@@ -937,7 +937,7 @@ is written as `LINK {status: 'refused', reason}` so it can be queried.
 | 2 | `cross-scope` | effective scopes differ: downgraded (below). **Re-evaluated for every ACTIVE link every pass**: a link whose endpoints' scopes now differ is retracted and downgraded, which is the justwatch-before-crunchyroll race of `db.ts:113-123` as a fixture rather than a comment | `db.ts:166-169`, the derivation table |
 | 3 | `address-only` | any support is an `address` claim: a pointer, whoever the claimer. Refused and NOT downgraded, because the address asserts nothing about how its uris relate; the target still routes a re-ask (7.1), its owner's own claims and the plugins decide its cluster, and an unrelated address row still renders as a badge (6.2). Decided by the owner, 2026-09-12 | **NEW**; `src/sources/utils.ts:465-471` stamps no scope in either direction |
 | 4 | `disagreeing-ids` | the union would put two ids of one IDENTITY SPACE in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, never within one pass: an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade. **The relation it measures has every row THIS PROPOSAL would contest cut out of it** (`15cdb5d`, 2026-09-14, `contestedBy`): a component that holds together only through a row the proposal would put two disagreeing claimants onto is one guard 5 is about to take apart, so a disagreement measured across it is not one the proposal adds, and refusing on it makes the verdict depend on which claimant arrived first | `anomalies.ts:18-25`, one-way at `:38` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
-| 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass. **The claimants' components are read with the TARGET EXCLUDED** (`ca48d3a`, 2026-09-14, `Components.without`): read plainly, two claimants whose claims have both been accepted share a component THROUGH the target, the guard skips them as agreeing, and the merge erases the evidence that it should never have happened | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
+| 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass. **The claimants' components are read with the TARGET EXCLUDED** (`ca48d3a`, 2026-09-14, `Components.without`): read plainly, two claimants whose claims have both been accepted share a component THROUGH the target, the guard skips them as agreeing, and the merge erases the evidence that it should never have happened. **The target's OWN claims settle a contest** (2026-10-15). A row the target claims to be in its own answer counts only in an identity space both sides hold: when every such row sits in one and the same side's component, that side's proposals pass and only the other side's are refused, with no downgrade, since the target itself says that claim is wrong. AniList's `anilist:189046` names MyAnimeList 61316, which sits on Re:ZERO Season 4's side while the Break Time short's side holds another `mal` id, so Kitsu's claim from Break Time (`kitsu:50665`) is the one refused. A space only one side holds says nothing against the other (8.6). No counted claim, or one on the other side or on neither, refuses every side as before | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
 | 6 | `contained` | an active `PART_OF` or `INCLUDES` already joins the pair (3.5): refused; the downgrade is a no-op because the containment edge already exists | the owner's rule |
 | 7 | `count-mismatch` | one side is a season row of a folding origin (`folding`) and its `countDistinct` (else `countStated`) disagrees with the other side's `runLength`. The LONGER direction downgrades always, zero tolerance (`foldVetoed`, `similar.ts:147-150`). The SHORTER direction downgrades only when the run is FINISHED: a short fetched list on a RELEASING run is not evidence (twelve sources set `episodeCount = episodes.length`, `consensus.ts:164-168`), so the Elusive Samurai row with 8 of 12 aired stays a member as shipped (`consensus.test.ts:284-288`), while BAKI's 13 against a finished 26 no longer welds through the year rule (2026-09-10) | zero tolerance on longer; rule 5's "only exactness counts" on shorter (`similar.ts`). The FINISHED gate is **NEW**; its arm is the rewired exchange-rate rig of 9.3 before it moves |
 | 8 | `no-length` | one side is a season row of a folding origin and the other side has no `runLength` at all: downgraded, never welded on a guess | "no count" is not zero (2026-09-09) |
@@ -973,16 +973,18 @@ and both are in `tests/unit/worker/graph/plugins/arrival-order.test.ts`'s header
 :::
 
 **The downgrade: the RUN versus CONTAINER exchange in one place.** A proposal refused for anything but
-`unknown-scope`, `address-only` or `contained` is written instead as `PART_OF` with `reason` set to the
-refusal, `by` set to the proposing plugin and `evidence: {theirs, ours}`: from the run or shorter side
-to the container or longer side for `cross-scope`, `count-mismatch`, `no-length` and `kind-mismatch`;
-from each claimant toward the shared row for `disagreeing-ids` and `contested`, the shared row's own
-cluster hidden from listings (6.1) and the contest named in `Cluster.anomalies`. A wrong CONTAINER is a
-missing `SAME_AS`, recoverable by a later proof; a wrong `SAME_AS` is a lie about what the user is about
-to watch (`db.ts:142-145`). So a refusal costs a button, never a badge or an offer, and never creates a
-card: the AoT Final Chapters row `mal:51535`, shared by Part 1 and Part 2, ends as two `PART_OF
-{reason: 'contested'}` badges and one hidden singleton rather than a lost row and a third card (8.6).
-Fields never cross a `PART_OF`, so neither part takes MAL's titles, count or cover.
+`unknown-scope`, `address-only`, `contained` or a contest the target's own claims settled (guard 5) is
+written instead as `PART_OF` with `reason` set to the refusal, `by` set to the proposing plugin and
+`evidence: {theirs, ours}`: from the run or shorter side to the container or longer side for
+`cross-scope`, `count-mismatch`, `no-length` and `kind-mismatch`; from each claimant toward the shared
+row for `disagreeing-ids` and `contested`, the shared row's own cluster hidden from listings (6.1) and
+the contest named in `Cluster.anomalies`. A wrong CONTAINER is a missing `SAME_AS`, recoverable by a
+later proof; a wrong `SAME_AS` is a lie about what the user is about to watch (`db.ts:142-145`). So a
+refusal costs a button, never a badge or an offer, and never creates a card: the AoT Final Chapters row
+`mal:51535`, shared by Part 1 and Part 2, ends as two `PART_OF {reason: 'contested'}` badges and one
+hidden singleton rather than a lost row and a third card (8.6). Fields never cross a `PART_OF`, so
+neither part takes MAL's titles, count or cover. The one refusal that costs the badge too is a claim the
+target's own claims say is wrong, since that badge would only point the page at another title.
 
 **The sticky rule.** An active `SAME_AS` is re-checked against guards 2 and 4 to 9 and retracted only
 when a guard now fails, which happens only because evidence changed: a disagreeing id arrived, a
@@ -2332,7 +2334,11 @@ so it is not blocked (blocking it would cost 3,184 correct merges).
 against the graph as it stands: the union would put Part 1's and Part 2's anilist ids, and their kitsu
 ids, in one component with no prefix relation. Guards 4 and 5: BOTH claims are refused as `contested`,
 Part 1's active link is retracted, and both downgrade to `PART_OF(<part>, mal:51535)` reason
-`contested` with the contest in both clusters' anomalies. Neither wins by arrival order.
+`contested` with the contest in both clusters' anomalies. Neither wins by arrival order. MyAnimeList's
+own answer (Jikan) names AniDB's and AniZip's entries for `mal:51535`, and AniZip maps its entry to
+Part 1's AniList id alone, so those rows can sit on Part 1's side; Part 2 holds no AniDB or AniZip id,
+so they say nothing against Part 2 and do not settle the contest (guard 5 counts a space both sides
+hold).
 
 **`aggregate`.** Two run clusters, neither holding the MAL row; `mal:51535` in a singleton cluster
 whose every member is a `PART_OF` target of a run cluster and which carries a per-run origin, so it is
@@ -2537,7 +2543,9 @@ line the old store runs on.
 - A `Slot` is keyed `<clusterId>#<number>` for numbered rows and `<clusterId>#s:<lowest uri>` for
   specials, accepting that a renumbering re-keys a row (the modal keys rows on the number already,
   `media-modal.tsx:826-833`).
-- Contested claims refuse and downgrade BOTH sides rather than first-in-order wins.
+- Contested claims refuse and downgrade BOTH sides rather than first-in-order wins, unless the
+  contested row's own claims, counted in the identity spaces both sides hold, all sit on one side,
+  which then keeps the row while the other side's claim is refused with no downgrade (5.2, guard 5).
 - The hide rule is store-wide, and a listing answered only by hidden rows draws the runs they hide
   behind in their place (6.1).
 - Slots exist on a container cluster only under the fence of 5.4 P5 (no run attached, every member

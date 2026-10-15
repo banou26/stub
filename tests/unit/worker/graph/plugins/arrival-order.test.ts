@@ -26,18 +26,19 @@
  * pass boundary because the scheduler wakes on a commit. So any difference in the graph they build is
  * arrival order deciding something, which is the thing G3 forbids.
  */
-import { beforeAll, expect, test } from 'vitest'
+import { beforeAll, expect, test } from 'vite-plus/test'
 
 import type { AnswerRow } from '../../../../../src/worker/graph/answers'
 
 import { enableGraph } from '../../../../../src/worker/graph'
 import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { resetPassState } from '../../../../../src/worker/graph/plugins/runner'
+import { clearReadCache, episodesOf } from '../../../../../src/worker/graph/read'
 import { graphReady, GRAPH_NODE_TABLES } from '../../../../../src/worker/graph/schema'
 import {
   DEFAULT_PLUGINS, passSettled, startScheduler, stopScheduler,
 } from '../../../../../src/worker/graph/scheduler'
-import { answer, media, rowsOf, sameAs, title } from './fixtures'
+import { answer, episode, media, rowsOf, sameAs, title } from './fixtures'
 
 beforeAll(async () => { await enableGraph(true) })
 
@@ -330,4 +331,143 @@ test('the control: a different answer set builds a different graph', async () =>
   const withoutRival = await build(await batchesFor([['claimant', 'chain', 'tail']]))
 
   expect(withoutRival).not.toEqual(withRival)
+})
+
+/**
+ * A contest the contested row's OWN claim settles, Re:ZERO Season 4 as shaped on 2026-10-15. Kitsu
+ * maps its Break Time short (`kitsu:50665`) to AniList's Season 4 id, so `anilist:189046` has two
+ * claimants that disagree. AniList's own row names MyAnimeList 61316, which only Season 4's side
+ * holds, so that side keeps the row and Break Time's claim is the one refused.
+ */
+const SEASON = { type: 'TV', episodeCount: 19, season: 'SPRING', seasonYear: 2026, titles: [title('en', 'Re:ZERO Season 4')] }
+const BREAK_TIME = { type: 'ONA', episodeCount: 19, season: 'SPRING', seasonYear: 2026, titles: [title('en', 'Re:ZERO Break Time Season 4')] }
+const OTHER = { type: 'TV', episodeCount: 12, season: 'SPRING', seasonYear: 2026, titles: [title('en', 'Something else entirely')] }
+const SHOW = media('imdb:tt5607616', { scope: 'CONTAINER' })
+
+type Rows = Record<string, () => Promise<AnswerRow>>
+
+const reZero = (ownClaims: Record<string, unknown>[], extra: Rows = {}, kitsuSays: string[] = []): Rows => ({
+  anilist: () => answer('media', media('anilist:189046', { ...SEASON, handles: ownClaims })),
+  mal: () => answer('media', media('mal:61316', {
+    ...SEASON,
+    episodes: Array.from({ length: 19 }, (_, index) => episode(`mal:61316-${index + 1}`, 'mal:61316', { episodeNumber: index + 1 })),
+  })),
+  kitsu: () => answer('media', media('kitsu:49746', {
+    ...SEASON,
+    handles: [sameAs(media('anilist:189046', { handles: kitsuSays.map(uri => sameAs(media(uri))) })), sameAs(media('mal:61316'))],
+  })),
+  breakTime: () => answer('media', media('kitsu:50665', { ...BREAK_TIME, handles: [sameAs(media('anilist:189046')), sameAs(media('mal:63830'))] })),
+  breakTimeMal: () => answer('media', media('mal:63830', BREAK_TIME)),
+  ...extra,
+})
+
+const permutations = <T>(items: T[]): T[][] =>
+  items.length <= 1 ? [items] : items.flatMap((item, index) =>
+    permutations([...items.slice(0, index), ...items.slice(index + 1)]).map(rest => [item, ...rest]))
+
+const reZeroBuild = async (rows: Rows, plan: string[][]): Promise<string[]> =>
+  build(await Promise.all(plan.map(keys => Promise.all(keys.map(key => rows[key]!())))))
+
+const episodeCountWith = async (uri: string): Promise<number> => {
+  const [row] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.id AS id', { uri })
+  clearReadCache()
+  return (await episodesOf((row?.id as string | undefined) ?? '')).length
+}
+
+test('Re:ZERO Season 4 keeps AniList\'s row with its 19 episodes in every arrival order', async () => {
+  const rows = reZero([sameAs(media('mal:61316'))])
+  const keys = Object.keys(rows)
+  const plans = [[keys], ...permutations(keys).map(order => order.map(key => [key]))]
+  let first: string[] | undefined
+  for (const plan of plans) {
+    const shape = await reZeroBuild(rows, plan)
+    first ??= shape
+    expect(shape, `${JSON.stringify(plan)} against the one-batch arm`).toEqual(first)
+    expect(await episodeCountWith('anilist:189046'), `episodes beside AniList's row, ${JSON.stringify(plan)}`).toBe(19)
+  }
+  expect(first!.filter(line => line.startsWith('cluster')), 'Break Time stays its own title').toEqual([
+    'cluster anilist:189046 kitsu:49746 mal:61316',
+    'cluster kitsu:50665 mal:63830',
+  ])
+  expect(first).toContain('link kitsu:50665 -> anilist:189046 SAME_AS refused contested')
+  expect(first!.filter(line => line.startsWith('link kitsu:50665 -> anilist:189046 PART_OF')), 'the refused claim leaves Break Time no part link to Season 4').toEqual([])
+})
+
+/**
+ * THE CONTROLS: a contested row whose own claims cannot pick a side keeps the refusal on both. It
+ * claims nothing itself (Kitsu's word about it is Kitsu's), or a row on each side, or a row neither
+ * side holds, or a row on one side beside a different title's row, or only the show, which Break
+ * Time's Kitsu row names too.
+ */
+test('a contest the row\'s own claims cannot settle refuses both claims into it', async () => {
+  const cases: { name: string, rows: Rows }[] = [
+    { name: 'no claim of its own', rows: reZero([], {}, ['mal:61316']) },
+    { name: 'a claim into each side', rows: reZero([sameAs(media('mal:61316')), sameAs(media('mal:63830'))]) },
+    {
+      name: 'a claim into neither side',
+      rows: reZero([sameAs(media('mal:99999'))], { other: () => answer('media', media('mal:99999', OTHER)) }),
+    },
+    {
+      name: 'a claim into one side and one into a different title',
+      rows: reZero([sameAs(media('mal:61316')), sameAs(media('mal:77777'))], { other: () => answer('media', media('mal:77777', OTHER)) }),
+    },
+    {
+      name: 'a claim to the show alone, which Break Time also names',
+      rows: reZero([sameAs(SHOW)], {
+        breakTime: () => answer('media', media('kitsu:50665', {
+          ...BREAK_TIME,
+          handles: [sameAs(media('anilist:189046')), sameAs(media('mal:63830')), sameAs(SHOW)],
+        })),
+        show: () => answer('media', media('imdb:tt5607616', { scope: 'CONTAINER', type: 'TV', titles: [title('en', 'Re:ZERO')] })),
+      }),
+    },
+  ]
+  for (const { name, rows } of cases) {
+    const keys = Object.keys(rows)
+    for (const plan of [[keys], keys.map(key => [key]), [...keys].reverse().map(key => [key])]) {
+      const shape = await reZeroBuild(rows, plan)
+      for (const claimant of ['kitsu:49746', 'kitsu:50665']) {
+        expect(shape, `${name}: ${claimant} refused, ${JSON.stringify(plan)}`)
+          .toContain(`link ${claimant} -> anilist:189046 SAME_AS refused contested`)
+      }
+    }
+  }
+})
+
+/**
+ * 8.6: MyAnimeList's one row for both Attack on Titan Final Chapters specials. Its own answer names
+ * AniDB's and AniZip's entries, which AniZip maps to Part 1's AniList id only, and Part 2 holds no id
+ * of either catalogue, so nothing in those claims says Part 2 is wrong and the row stays with neither
+ * part. The second arm adds Part 1's offline row naming the same AniDB entry.
+ */
+test('MyAnimeList\'s row for both Attack on Titan specials joins neither part', async () => {
+  const PART_1 = { type: 'TV', episodeCount: 1, season: 'SPRING', seasonYear: 2023, titles: [title('en', 'Attack on Titan Final Chapters Special 1')] }
+  const PART_2 = { type: 'TV', episodeCount: 1, season: 'FALL', seasonYear: 2023, titles: [title('en', 'Attack on Titan Final Chapters Special 2')] }
+  const BOTH = { type: 'TV', episodeCount: 2, season: 'SPRING', seasonYear: 2023, titles: [title('en', 'Attack on Titan Final Chapters')] }
+  const rows: Rows = {
+    part1: () => answer('media', media('anilist:146984', { ...PART_1, handles: [sameAs(media('mal:51535'))] })),
+    part2: () => answer('media', media('anilist:162314', { ...PART_2, handles: [sameAs(media('mal:51535'))] })),
+    part1Kitsu: () => answer('media', media('kitsu:46038', { ...PART_1, handles: [sameAs(media('anilist:146984')), sameAs(media('mal:51535'))] })),
+    part2Kitsu: () => answer('media', media('kitsu:47390', { ...PART_2, handles: [sameAs(media('anilist:162314')), sameAs(media('mal:51535'))] })),
+    mal: () => answer('media', media('mal:51535', {
+      ...BOTH,
+      handles: [sameAs(media('anidb:17303')), sameAs(media('anizip:17303'))],
+      episodes: [1, 2].map(number => episode(`mal:51535-${number}`, 'mal:51535', { episodeNumber: number })),
+    })),
+    anizip: () => answer('media', media('anizip:17303', { ...BOTH, handles: [sameAs(media('mal:51535')), sameAs(media('anilist:146984'))] })),
+  }
+  const offline = () => answer('media', media('offline:mal-51535', {
+    ...PART_1,
+    handles: [sameAs(media('mal:51535')), sameAs(media('anilist:146984')), sameAs(media('anidb:17303'))],
+  }))
+  for (const arm of [rows, { ...rows, offline }]) {
+    const keys = Object.keys(arm)
+    for (const plan of [[keys], keys.map(key => [key]), [...keys].reverse().map(key => [key])]) {
+      const shape = await reZeroBuild(arm, plan)
+      for (const claimant of ['anilist:146984', 'anilist:162314']) {
+        expect(shape, `${claimant} refused, ${JSON.stringify(plan)}`)
+          .toContain(`link ${claimant} -> mal:51535 SAME_AS refused contested`)
+      }
+    }
+  }
 })
