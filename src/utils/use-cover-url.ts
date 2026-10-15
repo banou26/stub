@@ -4,6 +4,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { isSameShow, standsInFor, theaterKey } from './theater'
 
 const probeResults = new Map<string, Promise<boolean>>()
+const loaded = new Set<string>()
 const FAILED_PROBE_TTL_MS = 30_000
 
 const probe = (url: string) => {
@@ -11,7 +12,10 @@ const probe = (url: string) => {
   if (existing) return existing
   const result = new Promise<boolean>(resolve => {
     const image = new Image()
-    image.onload = () => resolve(true)
+    image.onload = () => {
+      loaded.add(url)
+      resolve(true)
+    }
     image.onerror = () => {
       setTimeout(() => probeResults.delete(url), FAILED_PROBE_TTL_MS)
       resolve(false)
@@ -32,7 +36,7 @@ export type CoverOwner = Pick<TheaterCandidate, '_id' | 'uri' | 'handles'>
  * of the new owner has loaded, so a later answer with no covers, or only broken ones, never blanks it.
  * An owner continues from the same show (`isSameShow`), and with `standIn` also from the show it is a
  * season drawn in the place of (`standsInFor`), which only a listing's card is. Any other owner
- * starts from its own covers.
+ * starts from the first of its own covers already known to load, else its first cover.
  */
 export const useCoverUrl = (
   covers: ({ url: string } | null | undefined)[] | null | undefined,
@@ -60,5 +64,5 @@ export const useCoverUrl = (
     return () => { cancelled = true }
   }, [key, owner && theaterKey(owner)])
 
-  return (continues(drawn.owner) ? drawn.url : undefined) ?? urls[0]
+  return (continues(drawn.owner) ? drawn.url : undefined) ?? urls.find(url => loaded.has(url)) ?? urls[0]
 }

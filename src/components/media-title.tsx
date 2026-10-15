@@ -87,9 +87,9 @@ const style = css`
 }
 `
 
-const MediaTitle = ({ media, to, ellipsis = true, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean }) => {
+const MediaTitle = ({ media, to, ellipsis = true, standIn = false, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean, standIn?: boolean }) => {
   const title = media.titles?.at(0)?.title
-  const coverUrl = useCoverUrl(media.covers, media, { standIn: true })
+  const coverUrl = useCoverUrl(media.covers, media, { standIn })
 
   return (
     <div

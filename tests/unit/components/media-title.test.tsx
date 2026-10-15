@@ -32,7 +32,7 @@ const media = (covers: string[], { _id = 'cl:jw:1', title = 'Star Wars', handles
 
 const card = (first: object) => {
   const { hook } = memoryLocation()
-  const tree = (next: object) => <Router hook={hook}><MediaTitle media={next as never} to="/title/jw:1"/></Router>
+  const tree = (next: object) => <Router hook={hook}><MediaTitle media={next as never} to="/title/jw:1" standIn/></Router>
   const host = mount(tree(first))
   hosts.push(host)
   // the probe answers on a timer, then the card renders what it settled on

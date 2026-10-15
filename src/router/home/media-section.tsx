@@ -162,6 +162,7 @@ const CellComponent = (
       <MediaTitle
         media={media}
         to={getRoutePath(Route.MEDIA, { uri: media.uri })}
+        standIn
         style={{
           ...style,
           width: 250,

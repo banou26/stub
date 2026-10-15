@@ -369,21 +369,24 @@ const Search = () => {
 
   // The container and the item, together: they have to agree, and a mode is told apart in the DOM by
   // its container's class, which is what scripts/check-display-modes.mjs asserts against.
+  //
+  // The items have no key, so each is kept by its place in the list, as a home row's cells are: a merge
+  // gives a title a new `_id`, and a card keyed by it would be drawn again without the poster it held.
   const layout = {
     grid: {
       className: 'grid',
       item: (node: typeof nodes[number]) =>
-        <MediaTitle key={node._id} media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })} ellipsis={false}/>,
+        <MediaTitle media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })} ellipsis={false}/>,
     },
     card: {
       className: 'cards',
       item: (node: typeof nodes[number]) =>
-        <MediaCard key={node._id} media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
+        <MediaCard media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
     },
     list: {
       className: 'rows',
       item: (node: typeof nodes[number]) =>
-        <MediaRow key={node._id} media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
+        <MediaRow media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
     },
   }[displayMode]
 
