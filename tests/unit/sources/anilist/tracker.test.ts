@@ -2,16 +2,17 @@
 // own answers (./list-fixtures.ts says which were recorded), and asked the questions the app asks it.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import type { AnilistEntry } from '../../../../src/sources/anilist/list-api'
 import type { SessionRateLimit, SessionRequest, SessionResponse } from '../../../../src/sources/anilist/session-page'
 import type { CatalogLookup } from '../../../../src/tracking/identity'
 import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
 import { TIMEOUT_AFTER_429_MS } from '../../../../src/sources/anilist/pacing'
-import { anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
+import { READ_MEMORY_MS, anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
 import { RETRY_MS } from '../../../../src/tracking/collect'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
-import { FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY } from './list-fixtures'
+import { FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY, VIEWER } from './list-fixtures'
 
 const ROWS = [
   { mal: 52991, anilist: 154587, kitsu: 46474, anidb: 17617 },
@@ -23,7 +24,7 @@ const NO_LIMIT: SessionRateLimit = { limit: null, remaining: null, reset: null, 
 const response = (body: unknown, status = 200, rateLimit: Partial<SessionRateLimit> = {}): SessionResponse =>
   ({ status, body: body as SessionResponse['body'], rateLimit: { ...NO_LIMIT, ...rateLimit } })
 
-type Answer = (variables: Record<string, unknown>) => SessionResponse | 'not-connected'
+type Answer = (variables: Record<string, unknown>) => SessionResponse | 'not-connected' | Promise<SessionResponse | 'not-connected'>
 
 /** A session answering each operation from `script`, recording what it was asked. */
 const fakeSession = (script: Record<string, Answer>) => {
@@ -33,7 +34,7 @@ const fakeSession = (script: Record<string, Answer>) => {
     if (method !== 'graphql') throw new Error(`anilist.co's page serves no ${method}`)
     const operation = /(?:query|mutation) (\w+)/.exec(query)?.[1] ?? 'anonymous'
     asked.push({ operation, variables, query })
-    const answer = script[operation]?.(variables) ?? response({ errors: [{ message: `no answer scripted for ${operation}`, status: 500 }] }, 500)
+    const answer = await script[operation]?.(variables) ?? response({ errors: [{ message: `no answer scripted for ${operation}`, status: 500 }] }, 500)
     return answer === 'not-connected' ? { kind: 'not-connected' } : { kind: 'response', response: answer }
   })
   return {
@@ -64,7 +65,7 @@ const setup = (script: Record<string, Answer>, { holdWaits = false, drift = 0, c
     },
   })
   const target = providerServer('anilist', resolvers, { catalog: catalogue, session: () => fake.session })
-  return { ...fake, target, waits, now: () => at, release: () => held.shift()?.() }
+  return { ...fake, target, waits, now: () => at, advance: (ms: number) => { at += ms }, release: () => held.shift()?.() }
 }
 
 const live: { close: () => void }[] = []
@@ -314,7 +315,202 @@ describe("AniList's rate limit", () => {
   test('with 2 or fewer calls left, the next one waits a minute', async () => {
     const { target, waits } = setup({ StubTracking: () => response(LISTED_BODY, 200, { remaining: 2, limit: 30 }) })
     await watch(target, 'ag:(anilist:154587)').next()
-    await watch(target, 'ag:(anilist:154587)').until(result => answerOf(result).state === 'LISTED')
+    await watch(target, 'ag:(anilist:182255)').until(result => answerOf(result).state === 'LISTED')
     expect(waits).toEqual([60_000])
+  })
+})
+
+describe('one read of a media serves every ask for it a short while', () => {
+  // one title's address as its modal's sources answer, each growth a new subscription
+  const GROWTH = [
+    'ag:(anilist:154587)',
+    'ag:(anilist:154587,cr:GG5H5XQX4)',
+    'ag:(anilist:154587,mal:52991,cr:GG5H5XQX4)',
+    'ag:(anilist:154587,mal:52991,cr:GG5H5XQX4,anidb:17617)',
+  ]
+
+  const listed = (entry: AnilistEntry | null) => response({ data: { Viewer: VIEWER, Media: { ...FRIEREN, mediaListEntry: entry } } })
+
+  const readOnce = async (target: ReturnType<typeof setup>['target'], uri: string) => {
+    const tracking = watch(target, uri)
+    const answer = answerOf(await tracking.next())
+    tracking.close()
+    return answer
+  }
+
+  test('one modal whose address grows 3 times reads AniList once, the first growth coming while that read is on its way', async () => {
+    let answer!: () => void
+    const answered = new Promise<void>(resolve => { answer = resolve })
+    const catalogue = vi.fn(async () => catalog)
+    const { target, operations } = setup({ StubTracking: async () => { await answered; return response(LISTED_BODY) } }, { catalogue })
+
+    const first = watch(target, GROWTH[0]!)
+    await vi.waitFor(() => expect(operations()).toEqual(['StubTracking']))
+    first.close()
+    const grown = watch(target, GROWTH[1]!)
+    // the grown subscription is waiting on the first read before AniList answers it
+    await vi.waitFor(() => expect(catalogue).toHaveBeenCalledTimes(2))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    answer()
+    expect(answerOf(await grown.next())).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
+    grown.close()
+
+    for (const uri of GROWTH.slice(2)) expect(await readOnce(target, uri)).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
+    expect(operations()).toEqual(['StubTracking'])
+  })
+
+  test('a read answers for READ_MEMORY_MS, then the media is read again', async () => {
+    const { target, operations, advance } = setup({ StubTracking: () => response(LISTED_BODY) })
+
+    await readOnce(target, GROWTH[0]!)
+    advance(READ_MEMORY_MS - 1)
+    await readOnce(target, GROWTH[1]!)
+    expect(operations()).toEqual(['StubTracking'])
+
+    advance(1)
+    expect((await readOnce(target, GROWTH[2]!)).state).toBe('LISTED')
+    expect(operations()).toEqual(['StubTracking', 'StubTracking'])
+  })
+
+  test('the asks left waiting on a read that failed share the one read sent again', async () => {
+    let fail!: () => void
+    const failed = new Promise<void>(resolve => { fail = resolve })
+    const catalogue = vi.fn(async () => catalog)
+    let calls = 0
+    const { target, operations } = setup({
+      StubTracking: async () => {
+        if (++calls > 1) return response(LISTED_BODY)
+        await failed
+        throw new Error('frame.evaluate: the code did not settle within 30000ms')
+      },
+    }, { catalogue, holdWaits: true })
+
+    const first = watch(target, GROWTH[0]!)
+    await vi.waitFor(() => expect(operations()).toEqual(['StubTracking']))
+    const grown = GROWTH.slice(1, 3).map(uri => watch(target, uri))
+    await vi.waitFor(() => expect(catalogue).toHaveBeenCalledTimes(3))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    fail()
+    expect(answerOf(await first.next()).state).toBe('ERROR')
+    for (const tracking of grown) expect(answerOf(await tracking.next()).state).toBe('LISTED')
+    expect(operations()).toEqual(['StubTracking', 'StubTracking'])
+  })
+
+  test('an answer that names no viewer is not remembered', async () => {
+    let calls = 0
+    const { target, operations } = setup({
+      StubTracking: () => ++calls === 1 ? response({ data: { Viewer: null, Media: FRIEREN } }) : response(LISTED_BODY),
+    })
+
+    expect((await readOnce(target, GROWTH[0]!)).state).toBe('SIGNED_OUT')
+    expect((await readOnce(target, GROWTH[1]!)).state).toBe('LISTED')
+    expect(operations()).toEqual(['StubTracking', 'StubTracking'])
+  })
+
+  test('a read that failed is not remembered, so the next ask reads again', async () => {
+    let calls = 0
+    const { target } = setup({
+      StubTracking: () => ++calls === 1 ? response({ errors: [{ message: 'Bad Gateway', status: 502 }] }, 502) : response(LISTED_BODY),
+    }, { holdWaits: true })
+
+    expect((await readOnce(target, GROWTH[0]!)).state).toBe('ERROR')
+    expect((await readOnce(target, GROWTH[1]!)).state).toBe('LISTED')
+    expect(calls).toBe(2)
+  })
+
+  test('a save is followed by a fresh read, for the open answer and for one opened after it', async () => {
+    let entry: AnilistEntry = FRIEREN_ENTRY
+    const { target, operations } = setup({
+      StubTracking: () => listed(entry),
+      StubSaveListEntry: () => {
+        entry = { ...entry, progress: 13 }
+        return response({ data: { SaveMediaListEntry: { ...entry, media: FRIEREN } } })
+      },
+    })
+    const open = watch(target, GROWTH[0]!)
+    expect(answerOf(await open.next()).entry.progress).toBe(12)
+
+    expect((await save(target, GROWTH[0]!, { progress: 13 })).data.saveListEntry).toMatchObject([{ outcome: 'SAVED' }])
+    expect(answerOf(await open.next()).entry.progress).toBe(13)
+    expect((await readOnce(target, GROWTH[1]!)).entry.progress).toBe(13)
+    expect(operations()).toEqual(['StubTracking', 'StubSaveListEntry', 'StubTracking'])
+  })
+
+  test('a delete is followed by a fresh read', async () => {
+    let entry: AnilistEntry | null = FRIEREN_ENTRY
+    const { target } = setup({
+      StubTracking: () => listed(entry),
+      StubListEntryId: () => response({ data: { Media: { id: 154587, mediaListEntry: entry && { id: entry.id } } } }),
+      StubDeleteListEntry: () => {
+        entry = null
+        return response({ data: { DeleteMediaListEntry: { deleted: true } } })
+      },
+    })
+    expect((await readOnce(target, GROWTH[0]!)).state).toBe('LISTED')
+
+    expect((await remove(target, GROWTH[0]!)).data.deleteListEntry).toMatchObject([{ outcome: 'SAVED' }])
+    expect((await readOnce(target, GROWTH[1]!)).state).toBe('NOT_LISTED')
+  })
+
+  test('an answer opened while a save is on its way reads after it, even when the save never answered', async () => {
+    let entry: AnilistEntry = FRIEREN_ENTRY
+    let land!: () => void
+    const landed = new Promise<void>(resolve => { land = resolve })
+    const catalogue = vi.fn(async () => catalog)
+    const { target, operations } = setup({
+      StubTracking: () => listed(entry),
+      StubSaveListEntry: async () => {
+        entry = { ...entry, progress: 13 }
+        await landed
+        throw new Error("anilist.co changed while stub's call was running")
+      },
+    }, { catalogue })
+    expect((await readOnce(target, GROWTH[0]!)).entry.progress).toBe(12)
+
+    const saving = save(target, GROWTH[0]!, { progress: 13 })
+    await vi.waitFor(() => expect(operations()).toEqual(['StubTracking', 'StubSaveListEntry']))
+    const grown = watch(target, GROWTH[1]!)
+    const first = grown.next()
+    await vi.waitFor(() => expect(catalogue).toHaveBeenCalledTimes(3))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    land()
+    expect((await saving).data.saveListEntry).toMatchObject([{ outcome: 'FAILED' }])
+    expect(answerOf(await first).entry.progress).toBe(13)
+  })
+
+  test('a sign out forgets every read, with no answer open at the time', async () => {
+    const { target, script, operations, changed } = setup({ StubTracking: () => response(LISTED_BODY) })
+    expect((await readOnce(target, GROWTH[0]!)).state).toBe('LISTED')
+
+    script.StubTracking = () => 'not-connected'
+    changed()
+    expect((await readOnce(target, GROWTH[1]!)).state).toBe('SIGNED_OUT')
+    expect(operations()).toEqual(['StubTracking', 'StubTracking'])
+  })
+
+  test('a read that finds the viewer signed out forgets every other read', async () => {
+    const { target, script } = setup({ StubTracking: () => response(LISTED_BODY) })
+    expect((await readOnce(target, GROWTH[0]!)).state).toBe('LISTED')
+
+    script.StubTracking = () => response(SIGNED_OUT_BODY, 401)
+    expect((await readOnce(target, 'ag:(anilist:182255)')).state).toBe('SIGNED_OUT')
+    expect((await readOnce(target, GROWTH[1]!)).state).toBe('SIGNED_OUT')
+  })
+
+  test('a read given up before it was sent is sent again for the subscription still waiting on it', async () => {
+    let calls = 0
+    const { target, operations, release } = setup({
+      StubTracking: () => ++calls === 1 ? response({ errors: [{ message: 'Too Many Requests.', status: 429 }] }, 429) : response(LISTED_BODY),
+    }, { holdWaits: true })
+    // the 429's pause holds the next read in the pacer
+    const first = watch(target, GROWTH[0]!)
+    expect(answerOf(await first.next()).state).toBe('PAUSED')
+    const grown = watch(target, GROWTH[1]!)
+    expect(answerOf(await grown.next()).state).toBe('PAUSED')
+    first.close()
+
+    release()
+    expect(answerOf(await grown.next())).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
+    expect(operations()).toEqual(['StubTracking', 'StubTracking'])
   })
 })

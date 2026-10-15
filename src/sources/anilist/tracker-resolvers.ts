@@ -24,6 +24,11 @@ export type AnilistTrackerContext = {
   request: { signal: AbortSignal }
 }
 
+/** How long one read of a media answers every later ask for it. */
+export const READ_MEMORY_MS = 60_000
+
+type Remembered = { read: Promise<Read<TrackingData>>, at?: number }
+
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -42,6 +47,9 @@ const waitMessage = (until: number | undefined) =>
 /**
  * The viewer's own AniList list, through the anilist.co page the main thread keeps open with their
  * session. Every call goes through one pacer, and every answer names the viewer the last read found.
+ * One read of a media answers every ask for it while on its way, and READ_MEMORY_MS after when AniList
+ * answered it for a signed in viewer, unless a write, a sign in or out, or a read finding the viewer
+ * signed out came since.
  *
  * The media is keyed on the AniList id stub's own tracker keys it on (`catalogueTargetOf`). Wherever
  * that tracker answers AMBIGUOUS so does this one, and nothing is asked or written.
@@ -51,6 +59,12 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   let viewer: AnilistViewer | undefined
   // every open answer reads again after a write through this tracker
   const written = new Set<() => void>()
+  // by AniList id, the read on its way or the last one answered with data: a title's address grows a
+  // few times while its modal opens, and each growth subscribes again
+  const remembered = new Map<number, Remembered>()
+  let watching = false
+
+  const forget = () => remembered.clear()
 
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
     ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, ...extra })
@@ -70,14 +84,49 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     )
     if (result.kind === 'not-connected') return { kind: 'signed-out' }
     const read = readResponse<T>(result.response.status, result.response.body as never)
-    if (read.kind === 'signed-out') viewer = undefined
+    if (read.kind === 'signed-out') {
+      viewer = undefined
+      forget()
+    }
     return read
+  }
+
+  // one watch for the whole tracker, since what it remembers outlives every subscription
+  const watchSession = (ctx: AnilistTrackerContext) => {
+    if (watching) return
+    watching = true
+    ctx.session(ANILIST_TRACKER_ID).onChange(forget)
+  }
+
+  // forgetting before the write is queued is enough, whatever it answers: the pacer sends every read
+  // asked after it once it has settled
+  const write = <T>(ctx: AnilistTrackerContext, request: SessionRequest): Promise<Read<T>> => {
+    forget()
+    return ask<T>(ctx, request)
+  }
+
+  const trackingRead = async (ctx: AnilistTrackerContext, mediaId: number): Promise<Read<TrackingData>> => {
+    for (;;) {
+      const held = remembered.get(mediaId)
+      if (!held || (held.at !== undefined && now() - held.at >= READ_MEMORY_MS)) break
+      try {
+        return await held.read
+      } catch {
+        // failed, or given up in the pacer by the subscription that sent it: the first waiter to get here
+        // reads again, and the others wait on that read
+      }
+    }
+    const mine: Remembered = { read: ask<TrackingData>(ctx, { query: TRACKING_QUERY, variables: { mediaId } }, ctx.request.signal) }
+    remembered.set(mediaId, mine)
+    const drop = () => { if (remembered.get(mediaId) === mine) remembered.delete(mediaId) }
+    mine.read.then(result => { if (result.kind === 'data' && result.data.Viewer) mine.at = now(); else drop() }, drop)
+    return await mine.read
   }
 
   const read = async (ctx: AnilistTrackerContext, uri: string, mediaId: number): Promise<TrackerAnswer> => {
     let result: Read<TrackingData>
     try {
-      result = await ask<TrackingData>(ctx, { query: TRACKING_QUERY, variables: { mediaId } }, ctx.request.signal)
+      result = await trackingRead(ctx, mediaId)
     } catch (error) {
       return errorAnswer(uri, anilistTracker(viewer), messageOf(error))
     }
@@ -121,6 +170,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
             yield trackingOf(uri, answer(uri, 'AMBIGUOUS', { candidates: target.candidates }))
             return
           }
+          watchSession(ctx)
           const session = ctx.session(ANILIST_TRACKER_ID)
           // a sign in, or a write through this tracker, and the answer is read again
           const wakes = changes(listener => {
@@ -164,7 +214,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           if (why || target.kind !== 'id') return outcome('REFUSED', why ?? null)
           const built = saveRequest(target.id, input.entry)
           if ('error' in built) return outcome('REFUSED', built.error)
-          const result = await ask<SaveData>(ctx, built.request)
+          const result = await write<SaveData>(ctx, built.request)
           if (result.kind !== 'data') return notWritten(result)
           const saved = result.data.SaveMediaListEntry
           if (!saved) return outcome('FAILED', 'AniList answered the save with no entry')
@@ -184,7 +234,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           const id = found.data.Media?.mediaListEntry?.id
           // nothing listed is what a delete asks for
           if (id == null) return outcome('SAVED', null)
-          const deleted = await ask<DeleteData>(ctx, { query: DELETE_MUTATION, variables: { id } })
+          const deleted = await write<DeleteData>(ctx, { query: DELETE_MUTATION, variables: { id } })
           if (deleted.kind !== 'data') return notWritten(deleted)
           if (!deleted.data.DeleteMediaListEntry?.deleted) return outcome('FAILED', 'AniList did not delete the entry')
           changed()
