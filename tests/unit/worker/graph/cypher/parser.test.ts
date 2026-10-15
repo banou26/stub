@@ -20,7 +20,7 @@
  */
 import { readFileSync } from 'node:fs'
 
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import type {
   CreateNodeTable,
@@ -109,8 +109,8 @@ const CORPUS: readonly { file: string, cypher: string }[] = [
   { file: 'read.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id, c.hidden AS hidden, c.hiddenBy AS hiddenBy, c.card AS card' },
   { file: 'read.ts', cypher: 'UNWIND $ids AS hid MATCH (c:Cluster {id: hid}) WHERE coalesce(c.hidden, false) = false RETURN c.id AS id, c.card AS card' },
   { file: 'read.ts', cypher: 'UNWIND $ids AS i MATCH (c:Cluster {id: i}) RETURN c.id AS id, c.hidden AS hidden, c.hiddenBy AS hiddenBy, c.card AS card' },
-  { file: 'read.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank ORDER BY scopeRank, key LIMIT 1' },
-  { file: 'read.ts', cypher: 'UNWIND $uris AS u MATCH (c:Cluster) WHERE u IN c.published RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank ORDER BY scopeRank, key LIMIT 1' },
+  { file: 'read.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank, CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank ORDER BY scopeRank, hiddenRank, key LIMIT 1' },
+  { file: 'read.ts', cypher: 'UNWIND $uris AS u MATCH (c:Cluster) WHERE u IN c.published RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank, CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank ORDER BY scopeRank, hiddenRank, key LIMIT 1' },
   { file: 'read.ts', cypher: 'MATCH (x:Alias {id: $id}) MATCH (c:Cluster {id: x.clusterId}) RETURN c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun' },
   { file: 'read.ts', cypher: 'MATCH (c:Cluster {id: $id})<-[:MEMBER_OF]-(:Media)-[cl:CLAIMS]->(t:Media {owned: false}) RETURN DISTINCT t.uri AS uri, t.origin AS origin, cl.provenance AS provenance' },
   { file: 'read.ts', cypher: 'MATCH (c:Cluster {id: $id}) RETURN c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun' },
@@ -118,8 +118,8 @@ const CORPUS: readonly { file: string, cypher: string }[] = [
   { file: 'read.ts', cypher: 'MATCH (c:Cluster {id: $id}) RETURN c.media AS media, c.kind AS kind' },
   { file: 'read.ts', cypher: 'MATCH (c:Cluster {id: $id}) RETURN c.episodes AS episodes' },
   { file: 'read.ts', cypher: 'UNWIND $ids AS i MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster {id: i}) RETURN m.uri AS uri' },
-  { file: 'trace.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank ORDER BY scopeRank, key LIMIT 1' },
-  { file: 'trace.ts', cypher: 'UNWIND $uris AS u MATCH (c:Cluster) WHERE u IN c.published RETURN DISTINCT c.id AS id, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank ORDER BY scopeRank, key LIMIT 1' },
+  { file: 'trace.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank, CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank ORDER BY scopeRank, hiddenRank, key LIMIT 1' },
+  { file: 'trace.ts', cypher: 'UNWIND $uris AS u MATCH (c:Cluster) WHERE u IN c.published RETURN DISTINCT c.id AS id, c.key AS key, CASE WHEN c.scope = \'RUN\' THEN 0 ELSE 1 END AS scopeRank, CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank ORDER BY scopeRank, hiddenRank, key LIMIT 1' },
   { file: 'trace.ts', cypher: 'MATCH (n:Media) RETURN count(n) AS total' },
   { file: 'trace.ts', cypher: 'MATCH ()-[e:LINK]->() RETURN count(e) AS total' },
   { file: 'trace.ts', cypher: 'UNWIND $uris AS u MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster) RETURN DISTINCT c.id AS id ORDER BY id' },

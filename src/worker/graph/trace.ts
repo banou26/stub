@@ -54,10 +54,10 @@ export type TraceReason = 'no-row' | 'no-cluster' | 'graph-empty' | 'not-enabled
  * The cluster the address landed on, and the page it would draw (6.5).
  *
  * `otherClusters` is the one thing here that is about what was NOT drawn: an `ag:(a,b)` address whose
- * members sit in two clusters resolves to exactly one (RUN before CONTAINER, then lowest key), and
- * the other cluster's members are absent from `members` with nothing saying so. A split cluster is a
- * common cause of "this page shows the wrong thing", so the ids it did not pick are named. Empty for
- * the ordinary case, and for any address of one uri.
+ * members sit in two clusters resolves to exactly one (RUN before CONTAINER, then visible before
+ * hidden, then lowest key), and the other cluster's members are absent from `members` with nothing
+ * saying so. A split cluster is a common cause of "this page shows the wrong thing", so the ids it
+ * did not pick are named. Empty for the ordinary case, and for any address of one uri.
  */
 export type TraceResolved = {
   clusterId: string
@@ -365,17 +365,19 @@ const readerOf = (query: Graph['query']) => {
   return { read, spent: (): number => statements }
 }
 
-// The resolve of 6.2 statement 1, narrowed to the id: one cluster, RUN before CONTAINER, then by
-// lowest member uri. `read.ts` owns the same three lookups and keeps neither half this needs, since
-// `resolveMedia` follows a container's `preferredRun` (which hides the cluster the uri actually
-// reached) and answers undefined for a cluster whose `media` JSON was never materialized (which is
-// exactly the state a trace is opened to explain). Its pure `addressUris` IS reused; its
-// `placeholdersOf` is not, because that one reads through read.ts's own handle rather than through
-// this file's write-refusing one, and the promise at the top of this file is that EVERY statement
-// goes through the reader. The placeholder statement is re-spelled below with its member filter.
+// The resolve of 6.2 statement 1, narrowed to the id: one cluster, RUN before CONTAINER, then
+// visible before hidden, then by lowest member uri. `read.ts` owns the same three lookups and keeps
+// neither half this needs, since `resolveMedia` follows a container's `preferredRun` (which hides
+// the cluster the uri actually reached) and answers undefined for a cluster whose `media` JSON was
+// never materialized (which is exactly the state a trace is opened to explain). Its pure
+// `addressUris` IS reused; its `placeholdersOf` is not, because that one reads through read.ts's
+// own handle rather than through this file's write-refusing one, and the promise at the top of this
+// file is that EVERY statement goes through the reader. The placeholder statement is re-spelled
+// below with its member filter.
 const RESOLVE_ID = `RETURN DISTINCT c.id AS id, c.key AS key,
-       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank
-   ORDER BY scopeRank, key
+       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank,
+       CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank
+   ORDER BY scopeRank, hiddenRank, key
    LIMIT 1`
 
 const resolveClusterId = async (read: Reader, asked: string, uris: readonly string[]): Promise<string | null> => {

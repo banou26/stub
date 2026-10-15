@@ -290,11 +290,11 @@ export const listingIndexOf = (options: {
     add(runsOfContainer, attachment.to, attachment.from)
   }
 
-  // a row whose EVERY active link is a contested or disagreeing-ids downgrade is hidden whatever its
-  // origin (5.2, 6.1): `mal:51535` holds both Attack on Titan parts and is a card for neither (8.6)
+  // a row whose every active link POINTING AT IT is a contested or disagreeing-ids downgrade is hidden
+  // whatever its origin (5.2, 6.1): `mal:51535` holds both Attack on Titan parts and is a card for
+  // neither (8.6). Its own links out, a PART_OF to its show, relate it to no other run.
   const linksOn = new Map<string, ContainmentLink[]>()
   for (const link of options.links) {
-    linksOn.set(link.fromUri, [...linksOn.get(link.fromUri) ?? [], link])
     linksOn.set(link.toUri, [...linksOn.get(link.toUri) ?? [], link])
   }
 

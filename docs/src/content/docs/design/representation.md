@@ -1773,9 +1773,10 @@ container with no run keeps its card (today's behaviour for those catalogues, `d
 cluster with a per-run origin is never hidden. The transitional lend has no season row at all
 (`lendContainingSeason` returns the season's episodes re-pointed at the run with `handles: []`,
 `crunchyroll/extractor.ts:434-439`), so there is nothing of it to hide. One exception sits beside the
-rule: a row whose every link is a `contested` or `disagreeing-ids` downgrade is hidden whatever its
-origin (5.2), which is how a per-run `mal:` row two runs both claim stays off the listing while its
-badge stays on both pages. Today `hideAttachedContainers` hides a container only when a run cluster is
+rule: a row whose every link pointing at it is a `contested` or `disagreeing-ids` downgrade is hidden
+whatever its origin (5.2), which is how a per-run `mal:` row two runs both claim stays off the listing
+while its badge stays on both pages. Its own links out, such as a `PART_OF` to its show, relate it to
+no other run and do not count. Today `hideAttachedContainers` hides a container only when a run cluster is
 IN THE SAME LIST (`db.ts:391-398`) and only drops clusters with NO run member, so a season-scoped
 `nf:<id>-<n>` row that is only `PART_OF` a run survived as its own card (2026-09-10); the three
 `nf:80987039-n` rows and the three JustWatch seasons of 8.1 are exactly that shape, and opening
@@ -1826,13 +1827,14 @@ one.
 :::
 
 ```cypher
-// 1. resolve by member uri: a key lookup per uri, membership first. The rank is a projected column,
+// 1. resolve by member uri: a key lookup per uri, membership first. The ranks are projected columns,
 // since ORDER BY after a DISTINCT projection may only name what was projected
 UNWIND $uris AS u
 MATCH (m:Media {uri: u})-[:MEMBER_OF]->(c:Cluster)
 RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key,
-       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank
-ORDER BY scopeRank, key
+       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank,
+       CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank
+ORDER BY scopeRank, hiddenRank, key
 LIMIT 1
 
 // 1a. only when 1 returned nothing: a uri once published under an id whose cluster no longer holds it
@@ -1842,8 +1844,9 @@ UNWIND $uris AS u
 MATCH (c:Cluster)
 WHERE u IN c.published
 RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key,
-       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank
-ORDER BY scopeRank, key
+       CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank,
+       CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank
+ORDER BY scopeRank, hiddenRank, key
 LIMIT 1
 
 // 1b. resolve by _id: a key lookup on Cluster, then, only when that returned nothing, on Alias
@@ -1856,13 +1859,20 @@ MATCH (c:Cluster {id: $id}) RETURN c.media AS media
 
 Membership ranks above publication by construction: statement 1a runs only when statement 1 found no
 cluster holding any requested uri. Otherwise `mal:51535` (8.6), published under Part 1's id and then
-a member of its own cluster, could open Part 1's page. The caller follows `preferredRun` when the
-resolved cluster is a container (`findMediaForPage` then `preferAttachedRun`, `db.ts:349-364`: "a show
-page follows to its attached run, earliest first"). Both paths fall through the same way: a resolve
-by `_id`, or through `published`, that lands on a cluster not holding the member the route names
-(`/media/:uri/:mediaUri`) falls through to resolving that member uri by statement 1, so a client
-holding an old `_id` or an old address never silently opens a cluster its row has left. A requested
-uri is never hidden: the hide rule is a listing rule. Yielding nothing for an empty cluster and
+a member of its own cluster, could open Part 1's page. Among the clusters an address reaches, a
+visible one ranks before a hidden one, then the lowest key. A split leaves the whole old address on
+the fragment that kept the id, since `published` only grows, and that fragment holds the lowest key,
+so a card that kept its id after a split still opens itself. When that fragment is a hidden row, the
+lowest key alone opened it with none of the episodes (`anilist:189046` split off Re:ZERO Season 4,
+2026-10-15), so the visible rest of the address opens instead. Ranking by the most of the address held
+was tried and refused: it sends a visible card that kept its id to the larger fragment, another title.
+The caller follows `preferredRun` when the resolved cluster is a container (`findMediaForPage` then
+`preferAttachedRun`, `db.ts:349-364`: "a show page follows to its attached run, earliest first"). Both
+paths fall through the same way: a resolve by `_id`, or through `published`, that lands on a cluster
+not holding the member the route names (`/media/:uri/:mediaUri`) falls through to resolving that member
+uri by statement 1, so a client holding an old `_id` or an old address never silently opens a cluster
+its row has left. A requested uri is never hidden: the hide rule only ranks the clusters an address
+reaches and never drops one. Yielding nothing for an empty cluster and
 waiting for `view:changed` is kept (`media/index.ts:72,81-87`), and the subscription wakes on its
 requested uris until a cluster exists for one of them (4.5).
 

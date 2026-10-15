@@ -289,8 +289,9 @@ export const createPageReader = () => {
 
 const RESOLVE_COLUMNS =
   `RETURN DISTINCT c.id AS id, c.scope AS scope, c.preferredRun AS preferredRun, c.key AS key,
-          CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank
-   ORDER BY scopeRank, key
+          CASE WHEN c.scope = 'RUN' THEN 0 ELSE 1 END AS scopeRank,
+          CASE WHEN c.hidden THEN 1 ELSE 0 END AS hiddenRank
+   ORDER BY scopeRank, hiddenRank, key
    LIMIT 1`
 
 const clusterOf = (row: Record<string, unknown> | undefined): ResolvedCluster | undefined =>
@@ -309,6 +310,10 @@ const clusterOf = (row: Record<string, unknown> | undefined): ResolvedCluster | 
  * under one cluster's id and now a member of its own would otherwise open the other cluster's page
  * (`mal:51535`, 8.6). `published` is append-only, so the scan below is the ONLY way a departed member
  * still resolves, and it is taken on the fallthrough and never level with membership.
+ *
+ * A VISIBLE CLUSTER RANKS BEFORE A HIDDEN ONE, then the lowest key. A split leaves the whole old
+ * address on the fragment that kept the id, which holds the lowest key, so a card still opens its own
+ * cluster; when that fragment is a hidden row, the address opens the visible rest of it instead.
  */
 const resolveByUris = async (uris: readonly string[]): Promise<ResolvedCluster | undefined> => {
   if (!uris.length) return undefined
@@ -375,8 +380,8 @@ const holds = async (id: string, uris: readonly string[]): Promise<boolean> => {
  * hold it, the member is resolved on its own instead.
  *
  * A CONTAINER with a `preferredRun` follows to that run, which is "a show page follows to its
- * attached run, earliest first". A REQUESTED URI IS NEVER HIDDEN: the hide rule is a listing rule and
- * is not consulted here.
+ * attached run, earliest first". A REQUESTED URI IS NEVER HIDDEN: the hide rule only ranks the
+ * clusters an address reaches (`resolveByUris`) and never drops one.
  *
  * Returns undefined when no cluster resolves, which is what keeps the modal on its loading state
  * rather than on a null while the sources are still answering.
