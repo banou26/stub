@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { MAX_RETRIES, MAX_RETRY_DELAY_MS, RETRYABLE_STATUSES, retryDelay, withBackoff } from '../../../src/worker/backoff'
 
@@ -85,6 +85,27 @@ describe('withBackoff', () => {
     const { fetch } = noWait(fetchImpl)
     await expect(fetch('https://x')).rejects.toThrow('network error')
     expect(calls).toHaveLength(MAX_RETRIES + 1)
+  })
+
+  // A search the page has replaced stops its reads, and a refused one must not be sent again.
+  test('a request its caller stopped is not asked again', async () => {
+    const stop = new AbortController()
+    const { fetchImpl, calls } = scripted(429)
+    const fetch = withBackoff(fetchImpl, { wait: async () => { stop.abort() }, now: () => 0 })
+    await expect(fetch('https://x', { signal: stop.signal })).rejects.toThrow()
+    expect(calls).toHaveLength(1)
+  })
+
+  test('a request stopped while it is out gives up at once, with no wait', async () => {
+    const stop = new AbortController()
+    const { fetchImpl, calls } = scripted(new DOMException('stopped', 'AbortError'))
+    const { fetch, waited } = noWait(async input => {
+      stop.abort()
+      return fetchImpl(input)
+    })
+    await expect(fetch('https://x', { signal: stop.signal })).rejects.toThrow('stopped')
+    expect(calls).toHaveLength(1)
+    expect(waited).toEqual([])
   })
 
   test('backoff grows between attempts', async () => {

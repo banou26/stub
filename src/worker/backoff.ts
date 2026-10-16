@@ -65,6 +65,7 @@ export const withBackoff = (
 ): FetchLike =>
   async (input, init) => {
     for (let attempt = 0; ; attempt++) {
+      init?.signal?.throwIfAborted()
       // A rejected fetch is a dropped connection or a proxy hiccup, which is at least as transient
       // as any status this retries. Letting it through unretried made the backoff blind to the one
       // failure mode that never arrives as a Response at all.
@@ -72,7 +73,7 @@ export const withBackoff = (
       try {
         response = await fetchImpl(input, init)
       } catch (error) {
-        if (attempt >= MAX_RETRIES) throw error
+        if (attempt >= MAX_RETRIES || init?.signal?.aborted) throw error
         await wait(backoffDelay(attempt))
         continue
       }

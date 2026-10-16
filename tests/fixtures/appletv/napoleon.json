@@ -1,0 +1,33 @@
+{
+  "data": {
+    "content": {
+      "id": "umc.cmc.25k80oxl3vo69c8rimk8v81s1",
+      "type": "Movie",
+      "title": "Napoleon",
+      "url": "https://tv.apple.com/us/movie/napoleon/umc.cmc.25k80oxl3vo69c8rimk8v81s1",
+      "releaseDate": 1700611200000,
+      "images": {
+        "contentImage": {
+          "height": 3240,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/ev_xryrZVdS_VEe9RI05Pg/{w}x{h}sr.{f}",
+          "width": 4320
+        },
+        "contentImageTall": {
+          "height": 3636,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/pLNV6LiSH0TvyZKickchLw/{w}x{h}tc.{f}",
+          "width": 1680
+        },
+        "contentLogo": {
+          "height": 751,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/hjnHmCEbT3krelWLU5uYyg/{w}x{h}.{f}",
+          "width": 5750
+        },
+        "posterArt": {
+          "height": 2160,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/F2XjCFdHzcDfwEbbeX6m9g/{w}x{h}.{f}",
+          "width": 3840
+        }
+      }
+    }
+  }
+}

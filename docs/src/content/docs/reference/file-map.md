@@ -126,7 +126,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 | file | what it owns | why it lives where it does |
 |---|---|---|
 | `src/worker/resolvers/index.ts` | joins the four schema strings and the four resolver maps | |
-| `src/worker/resolvers/media/index.ts` (260L) | `Subscription.media`, `Subscription.mediaPage`, `Media.episodes`, `SEARCH_RELEVANCE_THRESHOLD = 0.7` | reaches `extractor.ts`; three of its rules were moved elsewhere so they could be tested |
+| `src/worker/resolvers/media/index.ts` (260L) | `Subscription.media`, `Subscription.mediaPage`, `Media.episodes` | reaches `extractor.ts`; three of its rules were moved elsewhere so they could be tested |
 | `src/worker/resolvers/media/schema.gql` (543L) | the wire types, including `input RequestContext` and `MediaHandleRelation` | the same generated `typeDefs` is served by the app and by all 25 private yogas |
 | `src/worker/resolvers/episode/index.ts` (55L) | episode description parsing | |
 | `src/worker/resolvers/origin/index.ts` (82L) | `Subscription.origin` and `Subscription.originPage`, which build their **own** fan-out loop with no `stamp` and no `fanouts` entry | |
@@ -138,7 +138,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 |---|---|---|
 | `src/sources/index.ts` (34L) | the barrel: 25 `export * as <name>` lines, pinned by `tests/unit/sources/index.test.ts:24` | a source is disabled by deleting one line here, which is why the test exists |
 | `src/sources/<name>/extractor.ts` (25 files) | one source each: its `origin`, `supportedUris`, `isApiOnly`, `SCORE` and its resolvers | |
-| `src/sources/utils.ts` (509L) | `sameAs`, `partOf`, `makeMedia`, `buildHandlesFromUri`, `mergeHandles`, `normalizePage`, and the frizbee/sacha title scoring | shared by every source; its one import of `worker/extractor.ts` is `import type`, so it is erased |
+| `src/sources/utils.ts` (509L) | `sameAs`, `partOf`, `makeMedia`, `buildHandlesFromUri`, `mergeHandles`, `normalizePage`, and the frizbee/sacha title scoring with `SEARCH_RELEVANCE_THRESHOLD = 0.7` | shared by every source; its one import of `worker/extractor.ts` is `import type`, so it is erased |
 | `src/sources/similar.ts` (338L) | `pickSimilarSeason`, `answerNamesOurShow`, `SHOW_TITLE_THRESHOLD` and the evidence rules | `src/sources/similar.ts:14-15`: it imports only the pure helpers *so it loads under vitest and inside every extractor alike* |
 | `src/sources/season.ts` (228L) | `parseSeasonNumber`, `isOnlySeasonLabel`, `seasonScopedId(id, n)` at `:189` | no imports |
 | `src/sources/catalogue-gate.ts` (297L) | `pickGatedCandidate`, `SEASON_DATE_WINDOW`, `CONFIDENT_TITLE_THRESHOLD`, `MAX_CATALOGUE_CANDIDATES` | imports only `./utils` and `./season` |

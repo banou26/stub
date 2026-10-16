@@ -310,6 +310,12 @@ export const searchScore = async (query: string, title: string): Promise<number>
 export const searchRelevance = async (query: string, titles: string[]): Promise<number> =>
   titles.length ? Math.max(...await Promise.all(titles.map(title => searchScore(query, title)))) : 0
 
+/**
+ * The least `searchRelevance` a search result needs to be shown. Sources match loosely, sometimes
+ * semantically, server side: Apple returns "WondLa" for "frieren".
+ */
+export const SEARCH_RELEVANCE_THRESHOLD = 0.7
+
 // A catalogue search ranks a free-text query over the WHOLE catalogue, so results[0] is whatever came
 // back, and linking it asserts identity permanently: graph.link has no inverse. Measured against 62 live
 // unOGS queries, taking results[0] unchecked welded the wrong title 14 times, among them "Demon Slayer"

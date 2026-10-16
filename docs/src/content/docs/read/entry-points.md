@@ -155,7 +155,7 @@ resolver is handed.
 That parenthesis is the argument for this whole page. `Subscription.mediaPage` is not "read the
 store": between the read and the yield it runs `fuzzyMergeMediaClusters` and re-reads,
 `hideAttachedContainers`, `aggregateMedia` per cluster, `applyMediaFilters`, a search relevance filter
-at `SEARCH_RELEVANCE_THRESHOLD = 0.7` (`index.ts:21`), and a sort loop. An exporter built on it would
+at `SEARCH_RELEVANCE_THRESHOLD = 0.7` (`sources/utils.ts`), and a sort loop. An exporter built on it would
 be exporting the page, not the store. `export.ts:12-19` states the contract from the other side:
 
 > Every run-space cluster the store holds, built from ASSERTED sameness only.

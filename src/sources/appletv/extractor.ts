@@ -1,8 +1,9 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaInput } from '../../generated/schema/types.generated'
 
+import { siteAllows } from '../../site'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, buildHandlesFromUri, waitForMedia, declaredEpisodeCount } from '../utils'
+import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, buildHandlesFromUri, waitForMedia, declaredEpisodeCount, searchRelevance, SEARCH_RELEVANCE_THRESHOLD } from '../utils'
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickGatedCandidate, searchQueries } from '../catalogue-gate'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
@@ -26,9 +27,9 @@ const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
 const STOREFRONT = '143441'
 const PARAMS = `caller=web&sf=${STOREFRONT}&v=58&pfm=web&locale=en-US&utsk=0`
 
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T> =>
+const api = <T>(path: string, ctx: ExtractorServerContext, init?: RequestInit): Promise<T> =>
   ctx
-    .fetch(`${ATV}${path}${path.includes('?') ? '&' : '?'}${PARAMS}`)
+    .fetch(`${ATV}${path}${path.includes('?') ? '&' : '?'}${PARAMS}`, init)
     .then(r => r.json() as Promise<T>)
 
 const image = (img: AppleImage | undefined, w: number, h: number): string | undefined =>
@@ -311,6 +312,51 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<Ap
 }
 
 /**
+ * How many results of one search are read in full, about the first screenful of cards. A common word
+ * keeps almost every result ("the" keeps 54 of 56), and the relay meters a viewer at a burst of 40
+ * requests, cached or not, shared with every other source the search asks.
+ */
+const SEARCH_READS = 12
+
+/**
+ * How long a search holds before its results are read, so the prefixes of a title being typed read
+ * nothing. The page searches each prefix that holds 350 ms, and a pause at a space holds "the" about
+ * 1.5 s. Measured 2026-10-17 typing "the morning show" on stub.fkn.app and series.fkn.app at 120 to
+ * 700 ms a key: with one second a run sent up to 15 reads, with two seconds none of 123 runs sent one.
+ */
+const READ_AFTER_MS = 2_000
+
+/**
+ * The first results the page keeps, by the site and by its relevance cut, in Apple's order, whose card
+ * no other source has given a poster. A search item carries only landscape art, so these are read in
+ * full for their tall poster. Without the reads, measured 2026-10-16: over 52 searches for a specific
+ * title 3 of 54 Apple TV cards had no poster, all three cards no other source joined, but for "the" 25
+ * of 25 had none on series.fkn.app and 27 of 28 on movies.fkn.app.
+ */
+const drawnFirst = async (search: string, results: AppleItem[], ctx: ExtractorServerContext): Promise<AppleItem[]> => {
+  const drawn = await Promise.all(results.map(async item =>
+    siteAllows(normalizeMedia(item).categories ?? []) && await searchRelevance(search, [item.title]) >= SEARCH_RELEVANCE_THRESHOLD
+  ))
+  const first = results.filter((_, index) => drawn[index]).slice(0, SEARCH_READS)
+  const blank = await Promise.all(first.map(async item => !(await ctx.findAggregatedMedia(normalizeMedia(item).uri))?.covers?.length))
+  return first.filter((_, index) => blank[index])
+}
+
+const contents = new Map<string, AppleItem>()
+
+/**
+ * A result's own answer, read once a session, since the prefixes of a title keep the same results. The
+ * read stops with the search that asked for it, and one that failed or stopped is asked again.
+ */
+const ownContent = async (item: AppleItem, ctx: ExtractorServerContext): Promise<AppleItem | undefined> => {
+  const path = `/${item.type === 'Movie' ? 'movies' : 'shows'}/${item.id}`
+  const content = contents.get(path)
+    ?? await api<AppleContentResponse>(path, ctx, { signal: ctx.request.signal }).then(res => res.data?.content, () => undefined)
+  if (content) contents.set(path, content)
+  return content
+}
+
+/**
  * The seasons the gate's date axis reads for one candidate, one detail request each.
  *
  * A MOVIE is the entry with no seasons to read, and it is also the one with no show-vs-season gap to
@@ -433,6 +479,11 @@ export const resolvers: Resolvers = {
         if (!search) return yield { mediaPage: { nodes: [] } }
         const results = await searchApi(search, ctx)
         yield { mediaPage: { nodes: results.map(item => normalizeMedia(item)) } }
+        await new Promise(resolve => setTimeout(resolve, READ_AFTER_MS))
+        if (ctx.request.signal.aborted) return
+        const read = await Promise.all((await drawnFirst(search, results, ctx)).map(item => ownContent(item, ctx)))
+        const nodes = read.filter(content => content !== undefined).map(content => normalizeMedia(content))
+        if (nodes.length) yield { mediaPage: { nodes } }
       }
     }
   },

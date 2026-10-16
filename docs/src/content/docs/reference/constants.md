@@ -28,7 +28,7 @@ row that arrives second wins with no record of the first. Read
 
 | constant | value | declared at | what it decides |
 | --- | --- | --- | --- |
-| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/worker/resolvers/media/index.ts:21` | whether a search result stays on the page. Sources match loosely and sometimes semantically, so Apple returns "WondLa" for "frieren" |
+| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/sources/utils.ts` | whether a search result stays on the page. Sources match loosely and sometimes semantically, so Apple returns "WondLa" for "frieren" |
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/catalogue-gate.ts:98` | whether a catalogue search hit names our franchise, for JustWatch and Apple TV |
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/crunchyroll/extractor.ts:366` | the same question on Crunchyroll's own search path, deliberately a second declaration |
 | `SIMILARITY_THRESHOLD` | `0.9` | `src/worker/store/fuzzy-merge.ts:7` | whether two clusters already in the store are one show |

@@ -13,14 +13,11 @@ import { askAddressOf, createMediaReader, createPageReader, episodesOf, passSett
 import { listen, listenIterator, listenMultipleIterator, debouncedListenIterator } from '../../store/events'
 import { createSettling } from '../../fanout'
 import { parseHTMLDescription, parseTextDescription } from '../utils'
-import { searchRelevance } from '../../../sources/utils'
+import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../../sources/utils'
 import { MediaDescriptionContentType } from '../../../generated/graphql'
 import { decodeRouteUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
 
 export const schema = _schema as string
-
-// Drop search results whose title doesn't actually match the query - sources do loose, sometimes semantic, server-side matching (e.g. Apple returns "WondLa" for "frieren").
-const SEARCH_RELEVANCE_THRESHOLD = 0.7
 
 // the app's own asks of `similarMedia`, budgeted under one caller like any source's
 const askSimilar = similarOutcomeFrom('app')

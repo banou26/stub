@@ -323,13 +323,13 @@ flowchart TD
 
 *The two bottom-right branches are the same outcome under two different names, and the names are inverted relative to what they do.*
 
-The threshold, `index.ts:20-21`:
+The threshold, `src/sources/utils.ts`:
 
-> Drop search results whose title doesn't actually match the query - sources do loose, sometimes
-> semantic, server-side matching (e.g. Apple returns "WondLa" for "frieren").
+> The least `searchRelevance` a search result needs to be shown. Sources match loosely, sometimes
+> semantically, server side: Apple returns "WondLa" for "frieren".
 
 ```ts
-const SEARCH_RELEVANCE_THRESHOLD = 0.7
+export const SEARCH_RELEVANCE_THRESHOLD = 0.7
 ```
 
 This is one of three thresholds over the same wasm matcher and they are not interchangeable: `0.7`

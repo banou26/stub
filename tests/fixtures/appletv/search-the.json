@@ -1,0 +1,1844 @@
+{
+  "data": {
+    "canvas": {
+      "shelves": [
+        {
+          "items": [
+            {
+              "id": "umc.cmc.25tn3v8ku4b39tr6ccgb8nl6m",
+              "type": "Show",
+              "title": "The Morning Show",
+              "url": "https://tv.apple.com/us/show/the-morning-show/umc.cmc.25tn3v8ku4b39tr6ccgb8nl6m",
+              "releaseDate": 1572566400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/EvRDcABkXaaZtPZhuzqbkA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hTCxkCt67vbxTbTYNXvQFw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/UXj3PtZzZXXCe7WWr9xwJQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.26o403koqo2klixc0jtqy6tmc",
+              "type": "Movie",
+              "title": "The Gorge",
+              "url": "https://tv.apple.com/us/movie/the-gorge/umc.cmc.26o403koqo2klixc0jtqy6tmc",
+              "releaseDate": 1739491200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ILiI5DusuhKGWDrqqAJqTQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/C87f9kbBZI4WQOUrh5uikQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/1yccMF-r5KnerGwioaubNA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5dkcy23fuhcdhw1zcmqn10rc5",
+              "type": "Show",
+              "title": "The Last Thing He Told Me",
+              "url": "https://tv.apple.com/us/show/the-last-thing-he-told-me/umc.cmc.5dkcy23fuhcdhw1zcmqn10rc5",
+              "releaseDate": 1681430400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/rNjkfQo5hWI0wljgs4AvjA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h8cEyM-EyljFTiNDajeTqA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/D7jPY10jdztPWqX8fx4CaQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3qvemsb6f04actuyzdporeelt",
+              "type": "Movie",
+              "title": "The Last First: Winter K2",
+              "url": "https://tv.apple.com/us/movie/the-last-first-winter-k2/umc.cmc.3qvemsb6f04actuyzdporeelt",
+              "releaseDate": 1790899200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/SnzEkoJqthBd8ZFliwIOgQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OOPKnSq7kAMlXUS6SQ13vQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hIYOO5DibU_CwdANHdd6Gg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.7518algxc4lsoobtsx30dqb52",
+              "type": "Show",
+              "title": "The Studio",
+              "url": "https://tv.apple.com/us/show/the-studio/umc.cmc.7518algxc4lsoobtsx30dqb52",
+              "releaseDate": 1742947200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5Qz4uhl7ZfeRONLyHtOGfw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h96-CBywL6mX-WabwZwCeA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5fF2vNTh4Bo1hT1Mcbmggw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1wj0ab94s7t1wy7sqv5dt6bfy",
+              "type": "Movie",
+              "title": "The Family Plan 2",
+              "url": "https://tv.apple.com/us/movie/the-family-plan-2/umc.cmc.1wj0ab94s7t1wy7sqv5dt6bfy",
+              "releaseDate": 1763683200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/8rF8s5lmPuF1fmRHAMrzKQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/oyANCa_ln3_DK75q4tteJQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/DaNMT2glniEj5ZkO5kdnYg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.6o6y3wel2lez2tkdu2cv8dzd1",
+              "type": "Movie",
+              "title": "The Family Plan",
+              "url": "https://tv.apple.com/us/movie/the-family-plan/umc.cmc.6o6y3wel2lez2tkdu2cv8dzd1",
+              "releaseDate": 1702598400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Fqhr84h1DNV30ZJQtS0cGA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/3QeIazFewU4Mox-YZ1BBhA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zOQ4Gz7BdkLtExHLasRDdg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.495pmjg441gg3j70j3x2yufx9",
+              "type": "Show",
+              "title": "The Crowded Room",
+              "url": "https://tv.apple.com/us/show/the-crowded-room/umc.cmc.495pmjg441gg3j70j3x2yufx9",
+              "releaseDate": 1686268800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7XCxS28NidesxvfvjNN38Q/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/CqYQU9sWIS9uHuvojeaTlA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ICo12JJiatLoX1grJWrrEg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4p7gv4trt1rt0kuiwzmitibiv",
+              "type": "Movie",
+              "title": "The Lost Bus",
+              "url": "https://tv.apple.com/us/movie/the-lost-bus/umc.cmc.4p7gv4trt1rt0kuiwzmitibiv",
+              "releaseDate": 1758240000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/HNwryvUxII-66e0CC_HPQg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zkPuMeYsrQDHtYnTnnErCw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/T2Lq-DpvATmeGRHs3zN-rA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.g28hcpusm23xbs9zwvnwn9re",
+              "type": "Show",
+              "title": "The Buccaneers",
+              "url": "https://tv.apple.com/us/show/the-buccaneers/umc.cmc.g28hcpusm23xbs9zwvnwn9re",
+              "releaseDate": 1699401600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Pq3bbCWfPPgi85spv8j5hw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/EaRnvelRCvt-e5J70Az5GQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ZZZV5nKCftTnIlyr8uwRCA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.54tpvwt1vapino8t6kulcf2d1",
+              "type": "Movie",
+              "title": "The Greatest Beer Run Ever",
+              "url": "https://tv.apple.com/us/movie/the-greatest-beer-run-ever/umc.cmc.54tpvwt1vapino8t6kulcf2d1",
+              "releaseDate": 1663891200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/C690_emdhtBILqcgAXRRIQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/6iZFNXIxrUomooH1S8WiFA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7kYY3qpLdf33ogKfm5YMEA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.63led2pm5a1w4wvabyn4xxxjp",
+              "type": "Show",
+              "title": "The Peanuts Classics",
+              "url": "https://tv.apple.com/us/show/the-peanuts-classics/umc.cmc.63led2pm5a1w4wvabyn4xxxjp",
+              "releaseDate": -112579200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ir_hJwmfJ4AcT2TtAYbciA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/qPrvdjPmfjSRUkAIIR38cA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/2dptTWqdAMzPFpJD7WVI6w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2f8qhsa039voq5x0iwn1eixj1",
+              "type": "Movie",
+              "title": "The Banker",
+              "url": "https://tv.apple.com/us/movie/the-banker/umc.cmc.2f8qhsa039voq5x0iwn1eixj1",
+              "releaseDate": 1584662400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bMVfIzx5kKqAsVR-NduCdA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ESpfIvubnUkHZTr5ga5BnA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vP_lfZAWbEUSMhocWkmP7A/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2j3fje2s0rh78ius1k1kil5tr",
+              "type": "Movie",
+              "title": "The Sixth Sense",
+              "url": "https://tv.apple.com/us/movie/the-sixth-sense/umc.cmc.2j3fje2s0rh78ius1k1kil5tr",
+              "releaseDate": 933897600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video113/v4/08/1f/bf/081fbff2-5367-5ecc-5a70-7a16a97a8a68/DIS_SIXTH_SENSE_THE_WW_ARTWORK_EN_3840x2160_1Y2N2U000000DO.lsr/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/0FWCRfG8I9nGq09nCE1VRw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ybLdCMxMWJ1qUpZCjXWRbw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5tugaz9vt498ajn7q64ypaqxn",
+              "type": "Movie",
+              "title": "The Dink",
+              "url": "https://tv.apple.com/us/movie/the-dink/umc.cmc.5tugaz9vt498ajn7q64ypaqxn",
+              "releaseDate": 1784851200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/koGPFMce0cxPTuuHdx325g/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7f4eeCrlpMCryATvJRlHrg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/y9rTL2LHgkvtcycXu-GanQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3xurji5y3xzb0sjj3xwc6s868",
+              "type": "Movie",
+              "title": "The Girl With the Dragon Tattoo",
+              "url": "https://tv.apple.com/us/movie/the-girl-with-the-dragon-tattoo/umc.cmc.3xurji5y3xzb0sjj3xwc6s868",
+              "releaseDate": 1324339200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video123/v4/39/40/85/39408555-6137-056c-4284-cef0efd0f13b/SPE_GWTDT_US_ARTWORK_EN-US_3840x2160_1MFL8S0000054O.png/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 1080,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bfdACqlMXmS2bCsF07DTYw/{w}x{h}.{f}",
+                  "width": 1920
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video113/v4/20/fa/1d/20fa1dd6-8785-5e1b-bbd7-5e0d412791eb/SPE_GWTDT_WIDE_US_ARTWORK_4320x3240_1MFL8S0000054P.png/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4u53f7zokr7g40tjj4gs61xbu",
+              "type": "Show",
+              "title": "The Line",
+              "url": "https://tv.apple.com/us/show/the-line/umc.cmc.4u53f7zokr7g40tjj4gs61xbu",
+              "releaseDate": 1636070400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/4q4GXQqP196TYv8kSqGkoQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/rKU6SxnMAlXnsmuWzdqjoA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Yoz3JQ43E83saREOAYzg5A/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.bj6odozsws1abio4bkiy69g5",
+              "type": "Show",
+              "title": "The Last Days of Ptolemy Grey",
+              "url": "https://tv.apple.com/us/show/the-last-days-of-ptolemy-grey/umc.cmc.bj6odozsws1abio4bkiy69g5",
+              "releaseDate": 1646956800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/axAO4k-2KDL_zngMied4MA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/6IiU7YUDuCWhuK6sFHUxFg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OwLPb31cIRGcNvKbfcBpSg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3ocr6483492qm53io2bsy2o69",
+              "type": "Movie",
+              "title": "The Instigators",
+              "url": "https://tv.apple.com/us/movie/the-instigators/umc.cmc.3ocr6483492qm53io2bsy2o69",
+              "releaseDate": 1723161600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ax4XRqoHskA4dcTT7lb8wA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/sRGlNoLMd_Y3oIgzYLhrWw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/IzskYQaIAHGnApdnP7R68w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3t6dvnnr87zwd4wmvpdx5came",
+              "type": "Movie",
+              "title": "F1 The Movie",
+              "url": "https://tv.apple.com/us/movie/f1-the-movie/umc.cmc.3t6dvnnr87zwd4wmvpdx5came",
+              "releaseDate": 1750982400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zLbkVwwHwe8I5EtuXc8wWg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/pauiRldXDsW2C3VXiCetCw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5xJYlxdYAJ_jba_RBxlbuQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "id": "umc.cmc.25tn3v8ku4b39tr6ccgb8nl6m",
+              "type": "Show",
+              "title": "The Morning Show",
+              "url": "https://tv.apple.com/us/show/the-morning-show/umc.cmc.25tn3v8ku4b39tr6ccgb8nl6m",
+              "releaseDate": 1572566400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/EvRDcABkXaaZtPZhuzqbkA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hTCxkCt67vbxTbTYNXvQFw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/UXj3PtZzZXXCe7WWr9xwJQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5dkcy23fuhcdhw1zcmqn10rc5",
+              "type": "Show",
+              "title": "The Last Thing He Told Me",
+              "url": "https://tv.apple.com/us/show/the-last-thing-he-told-me/umc.cmc.5dkcy23fuhcdhw1zcmqn10rc5",
+              "releaseDate": 1681430400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/rNjkfQo5hWI0wljgs4AvjA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h8cEyM-EyljFTiNDajeTqA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/D7jPY10jdztPWqX8fx4CaQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.7518algxc4lsoobtsx30dqb52",
+              "type": "Show",
+              "title": "The Studio",
+              "url": "https://tv.apple.com/us/show/the-studio/umc.cmc.7518algxc4lsoobtsx30dqb52",
+              "releaseDate": 1742947200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5Qz4uhl7ZfeRONLyHtOGfw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h96-CBywL6mX-WabwZwCeA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5fF2vNTh4Bo1hT1Mcbmggw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.495pmjg441gg3j70j3x2yufx9",
+              "type": "Show",
+              "title": "The Crowded Room",
+              "url": "https://tv.apple.com/us/show/the-crowded-room/umc.cmc.495pmjg441gg3j70j3x2yufx9",
+              "releaseDate": 1686268800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7XCxS28NidesxvfvjNN38Q/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/CqYQU9sWIS9uHuvojeaTlA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ICo12JJiatLoX1grJWrrEg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.g28hcpusm23xbs9zwvnwn9re",
+              "type": "Show",
+              "title": "The Buccaneers",
+              "url": "https://tv.apple.com/us/show/the-buccaneers/umc.cmc.g28hcpusm23xbs9zwvnwn9re",
+              "releaseDate": 1699401600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Pq3bbCWfPPgi85spv8j5hw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/EaRnvelRCvt-e5J70Az5GQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ZZZV5nKCftTnIlyr8uwRCA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.63led2pm5a1w4wvabyn4xxxjp",
+              "type": "Show",
+              "title": "The Peanuts Classics",
+              "url": "https://tv.apple.com/us/show/the-peanuts-classics/umc.cmc.63led2pm5a1w4wvabyn4xxxjp",
+              "releaseDate": -112579200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ir_hJwmfJ4AcT2TtAYbciA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/qPrvdjPmfjSRUkAIIR38cA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/2dptTWqdAMzPFpJD7WVI6w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4u53f7zokr7g40tjj4gs61xbu",
+              "type": "Show",
+              "title": "The Line",
+              "url": "https://tv.apple.com/us/show/the-line/umc.cmc.4u53f7zokr7g40tjj4gs61xbu",
+              "releaseDate": 1636070400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/4q4GXQqP196TYv8kSqGkoQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/rKU6SxnMAlXnsmuWzdqjoA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Yoz3JQ43E83saREOAYzg5A/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.bj6odozsws1abio4bkiy69g5",
+              "type": "Show",
+              "title": "The Last Days of Ptolemy Grey",
+              "url": "https://tv.apple.com/us/show/the-last-days-of-ptolemy-grey/umc.cmc.bj6odozsws1abio4bkiy69g5",
+              "releaseDate": 1646956800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/axAO4k-2KDL_zngMied4MA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/6IiU7YUDuCWhuK6sFHUxFg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OwLPb31cIRGcNvKbfcBpSg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5wg8cnigwrkfzbdruaufzb6b0",
+              "type": "Show",
+              "title": "The Afterparty",
+              "url": "https://tv.apple.com/us/show/the-afterparty/umc.cmc.5wg8cnigwrkfzbdruaufzb6b0",
+              "releaseDate": 1643328000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/FLf00uEZYcXeCbOqp6c3ZQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vq1ToMeljeE7vioP7YD5uQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/NoEVxVKOH7SO2NQ3FB0oHA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5iswprrvjjw6ab020a17x4ca3",
+              "type": "Show",
+              "title": "The Snoopy Show",
+              "url": "https://tv.apple.com/us/show/the-snoopy-show/umc.cmc.5iswprrvjjw6ab020a17x4ca3",
+              "releaseDate": 1612483200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OGnl4OE3xSViUgTLaMKe3Q/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/f0M-VAFY8kPzK-KPp_H35g/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/KGf5sWDSkJK3zG-o4h-d3g/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.6kmzwhcm9cj30piuuiymr4u7m",
+              "type": "Show",
+              "title": "The Last Frontier",
+              "url": "https://tv.apple.com/us/show/the-last-frontier/umc.cmc.6kmzwhcm9cj30piuuiymr4u7m",
+              "releaseDate": 1760054400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/4HIYvhgUWaSu9jDlrIvL8w/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/QaAzaHjcocbmolzdZRTR5w/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ewTmjVKfbT1AIvsqh1hzvQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4w9agfyrx2fgc5k9rls2cffho",
+              "type": "Show",
+              "title": "The Hunt",
+              "url": "https://tv.apple.com/us/show/the-hunt/umc.cmc.4w9agfyrx2fgc5k9rls2cffho",
+              "releaseDate": 1772582400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/PMa7ASOLCg3BnSMjpyhexQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Bo0d6z0kl7fXifsIB4alsg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hQJtyFzeIxKXFXeWVtlJfw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.161vwm570k49vsn7xjtzvnwex",
+              "type": "Show",
+              "title": "The Changeling",
+              "url": "https://tv.apple.com/us/show/the-changeling/umc.cmc.161vwm570k49vsn7xjtzvnwex",
+              "releaseDate": 1694131200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/wg0BQHV84mH7ufqQdPNPBQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7YNKn56llaU7uoG6V8ZN-w/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/dQhleSgVwk3cFz3AVUdH8w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2hc9ggvxaqddv779k4zupmrw",
+              "type": "Show",
+              "title": "The Sisters Grimm",
+              "url": "https://tv.apple.com/us/show/the-sisters-grimm/umc.cmc.2hc9ggvxaqddv779k4zupmrw",
+              "releaseDate": 1759449600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/_QGuj7SJg3xF4qpZG6eCVA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/35oKJzPPIU9gVH0EMYTyfw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/wrmFAp_Dqe4QMGNZq2Gd3w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1kt2wacwwoz0brw6duwve9hje",
+              "type": "Show",
+              "title": "The Charlie Brown and Snoopy Show",
+              "url": "https://tv.apple.com/us/show/the-charlie-brown-and-snoopy-show/umc.cmc.1kt2wacwwoz0brw6duwve9hje",
+              "releaseDate": 432604800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/chh93B9IuhUvxgmTYnKjmg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ZXFeCKOemew-cM33lt6bsQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/oggSOwrcBLG9WA7q_unMww/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.6m0i5dcn60uzl206qq6ibomeh",
+              "type": "Show",
+              "title": "The New Look",
+              "url": "https://tv.apple.com/us/show/the-new-look/umc.cmc.6m0i5dcn60uzl206qq6ibomeh",
+              "releaseDate": 1707868800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/0P3ktfk7ecuXDvOqvM4PCQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bYZ417BbWj6-R48rbX4-zQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/x_MKq-6KHcr0f7gJJBmwaA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.jov1gljmqnux0i15rbqsoyfk",
+              "type": "Show",
+              "title": "The Shrink Next Door",
+              "url": "https://tv.apple.com/us/show/the-shrink-next-door/umc.cmc.jov1gljmqnux0i15rbqsoyfk",
+              "releaseDate": 1636675200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/9J0nyrZArhzc_yox0MqeRg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/WLGwwc0tElgN4Lz-qrFxRw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/X5F_EcPWPKNnj_uy4THZbQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.237ur6qdup9h826huv7jg25yu",
+              "type": "Show",
+              "title": "The Reluctant Traveler with Eugene Levy",
+              "url": "https://tv.apple.com/us/show/the-reluctant-traveler-with-eugene-levy/umc.cmc.237ur6qdup9h826huv7jg25yu",
+              "releaseDate": 1677196800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/NsibK1kHSX2eYV1wgVxIMw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h7Szn4E8HSk5kR4uYtqkjA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vzw-_etn7xwdQj1KMKENkg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.33t5cskiqmmft1hxp23w9gnbw",
+              "type": "Show",
+              "title": "The Enfield Poltergeist",
+              "url": "https://tv.apple.com/us/show/the-enfield-poltergeist/umc.cmc.33t5cskiqmmft1hxp23w9gnbw",
+              "releaseDate": 1698364800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OVfVQKp1kv1hHfDzfxiICA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5jYrJdhE8OvaaBQjAS1kqQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/9LdSAQETTC3-f-H3mx8Rag/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2rjxcljdjz4h47vjdxnytcn23",
+              "type": "Show",
+              "title": "The Big Door Prize",
+              "url": "https://tv.apple.com/us/show/the-big-door-prize/umc.cmc.2rjxcljdjz4h47vjdxnytcn23",
+              "releaseDate": 1680048000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/injLBK3SWYnK4Vm335HR3Q/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/d3i_TKhOa4jOOo1eC8Fhew/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/J3VooNwcrCD9A6FmDNdDUg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5nghmxp88xe0qxhtlhfiu5r2h",
+              "type": "Show",
+              "title": "The Mosquito Coast",
+              "url": "https://tv.apple.com/us/show/the-mosquito-coast/umc.cmc.5nghmxp88xe0qxhtlhfiu5r2h",
+              "releaseDate": 1619740800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/VVQpWOnuoedKl0-q-iGgqg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Fh6J_pCAmBpt9gfUCFxXRw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Qkhk0gLz2yXBfHkIhkcSAA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.38cvggceyd4sn4sfgl3kus89b",
+              "type": "Show",
+              "title": "The Dynasty: UConn Huskies",
+              "url": "https://tv.apple.com/us/show/the-dynasty-uconn-huskies/umc.cmc.38cvggceyd4sn4sfgl3kus89b",
+              "releaseDate": 1787270400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/QMJpwl8q-3HCWcnHIOkHOA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/h4PQ2wP5jxgnteEFpmEVUw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/9R9g-nd97_sMDABe_wwamg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.67518fzfnhcjcajidzbpff8i5",
+              "type": "Show",
+              "title": "They Call Me Magic",
+              "url": "https://tv.apple.com/us/show/they-call-me-magic/umc.cmc.67518fzfnhcjcajidzbpff8i5",
+              "releaseDate": 1650585600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bYerYbFymu8vKw4tVdn8jA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/YxPSNNZskwz_vwrUplSi7w/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7RmdFtJMUfJ-1A3YroBwXw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1nv0tluok21c2f8549mdjqdnh",
+              "type": "Show",
+              "title": "Long Way Up",
+              "url": "https://tv.apple.com/us/show/long-way-up/umc.cmc.1nv0tluok21c2f8549mdjqdnh",
+              "releaseDate": 1600387200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/aDf5Q1riQZ5lEK26DzAr4A/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/56oqMu2V7XliyamoHIPjpw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/JWCgzbrhyVlu230Td8c_VA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.13c4zk3hpybm6u0cfk1x0vyi",
+              "type": "Show",
+              "title": "Long Way Round",
+              "url": "https://tv.apple.com/us/show/long-way-round/umc.cmc.13c4zk3hpybm6u0cfk1x0vyi",
+              "releaseDate": 1098946800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/04JyAIWtM1q-61kfjf6BsQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/eTRu9qr8L9QG1VfgW9_cjA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/TThpiay7tryjjkXBxu7xOg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.12l86ri6vfjlimw2m8b8dzszs",
+              "type": "Show",
+              "title": "Snoopy in Space: The Search for Life",
+              "url": "https://tv.apple.com/us/show/snoopy-in-space-the-search-for-life/umc.cmc.12l86ri6vfjlimw2m8b8dzszs",
+              "releaseDate": 1572566400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ZkDBZ9txDoKs9DeW-msBqQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/rc_LfdQxfQrFX0-DKh_Sbg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7Gh8Sl50wMxm1k-0x19AsQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5nidhx69sm3a7gtv2a4k0l0lw",
+              "type": "Show",
+              "title": "The Big Conn",
+              "url": "https://tv.apple.com/us/show/the-big-conn/umc.cmc.5nidhx69sm3a7gtv2a4k0l0lw",
+              "releaseDate": 1651795200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/gzJa12fWPdsjRofpbMrU0g/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/b2wttveDfTL9CKpPGcu8vA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/mYrRDf8V1pxhtdKdmRrxAQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1vyhx06lta7a21tshl8qitota",
+              "type": "Show",
+              "title": "The Essex Serpent",
+              "url": "https://tv.apple.com/us/show/the-essex-serpent/umc.cmc.1vyhx06lta7a21tshl8qitota",
+              "releaseDate": 1652400000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ue1kn-Dv0MOztrsaLTWalA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/WQE1OHf_sz_boIPklVTHmA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vSWyN0LFUuuHjCjFHFl42w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "id": "umc.cmc.26o403koqo2klixc0jtqy6tmc",
+              "type": "Movie",
+              "title": "The Gorge",
+              "url": "https://tv.apple.com/us/movie/the-gorge/umc.cmc.26o403koqo2klixc0jtqy6tmc",
+              "releaseDate": 1739491200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ILiI5DusuhKGWDrqqAJqTQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/C87f9kbBZI4WQOUrh5uikQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/1yccMF-r5KnerGwioaubNA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3qvemsb6f04actuyzdporeelt",
+              "type": "Movie",
+              "title": "The Last First: Winter K2",
+              "url": "https://tv.apple.com/us/movie/the-last-first-winter-k2/umc.cmc.3qvemsb6f04actuyzdporeelt",
+              "releaseDate": 1790899200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/SnzEkoJqthBd8ZFliwIOgQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OOPKnSq7kAMlXUS6SQ13vQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hIYOO5DibU_CwdANHdd6Gg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1wj0ab94s7t1wy7sqv5dt6bfy",
+              "type": "Movie",
+              "title": "The Family Plan 2",
+              "url": "https://tv.apple.com/us/movie/the-family-plan-2/umc.cmc.1wj0ab94s7t1wy7sqv5dt6bfy",
+              "releaseDate": 1763683200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/8rF8s5lmPuF1fmRHAMrzKQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/oyANCa_ln3_DK75q4tteJQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/DaNMT2glniEj5ZkO5kdnYg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.6o6y3wel2lez2tkdu2cv8dzd1",
+              "type": "Movie",
+              "title": "The Family Plan",
+              "url": "https://tv.apple.com/us/movie/the-family-plan/umc.cmc.6o6y3wel2lez2tkdu2cv8dzd1",
+              "releaseDate": 1702598400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Fqhr84h1DNV30ZJQtS0cGA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/3QeIazFewU4Mox-YZ1BBhA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zOQ4Gz7BdkLtExHLasRDdg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4p7gv4trt1rt0kuiwzmitibiv",
+              "type": "Movie",
+              "title": "The Lost Bus",
+              "url": "https://tv.apple.com/us/movie/the-lost-bus/umc.cmc.4p7gv4trt1rt0kuiwzmitibiv",
+              "releaseDate": 1758240000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/HNwryvUxII-66e0CC_HPQg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zkPuMeYsrQDHtYnTnnErCw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/T2Lq-DpvATmeGRHs3zN-rA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.54tpvwt1vapino8t6kulcf2d1",
+              "type": "Movie",
+              "title": "The Greatest Beer Run Ever",
+              "url": "https://tv.apple.com/us/movie/the-greatest-beer-run-ever/umc.cmc.54tpvwt1vapino8t6kulcf2d1",
+              "releaseDate": 1663891200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/C690_emdhtBILqcgAXRRIQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/6iZFNXIxrUomooH1S8WiFA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7kYY3qpLdf33ogKfm5YMEA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2f8qhsa039voq5x0iwn1eixj1",
+              "type": "Movie",
+              "title": "The Banker",
+              "url": "https://tv.apple.com/us/movie/the-banker/umc.cmc.2f8qhsa039voq5x0iwn1eixj1",
+              "releaseDate": 1584662400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bMVfIzx5kKqAsVR-NduCdA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ESpfIvubnUkHZTr5ga5BnA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vP_lfZAWbEUSMhocWkmP7A/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2j3fje2s0rh78ius1k1kil5tr",
+              "type": "Movie",
+              "title": "The Sixth Sense",
+              "url": "https://tv.apple.com/us/movie/the-sixth-sense/umc.cmc.2j3fje2s0rh78ius1k1kil5tr",
+              "releaseDate": 933897600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video113/v4/08/1f/bf/081fbff2-5367-5ecc-5a70-7a16a97a8a68/DIS_SIXTH_SENSE_THE_WW_ARTWORK_EN_3840x2160_1Y2N2U000000DO.lsr/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/0FWCRfG8I9nGq09nCE1VRw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/ybLdCMxMWJ1qUpZCjXWRbw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5tugaz9vt498ajn7q64ypaqxn",
+              "type": "Movie",
+              "title": "The Dink",
+              "url": "https://tv.apple.com/us/movie/the-dink/umc.cmc.5tugaz9vt498ajn7q64ypaqxn",
+              "releaseDate": 1784851200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/koGPFMce0cxPTuuHdx325g/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/7f4eeCrlpMCryATvJRlHrg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/y9rTL2LHgkvtcycXu-GanQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3xurji5y3xzb0sjj3xwc6s868",
+              "type": "Movie",
+              "title": "The Girl With the Dragon Tattoo",
+              "url": "https://tv.apple.com/us/movie/the-girl-with-the-dragon-tattoo/umc.cmc.3xurji5y3xzb0sjj3xwc6s868",
+              "releaseDate": 1324339200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video123/v4/39/40/85/39408555-6137-056c-4284-cef0efd0f13b/SPE_GWTDT_US_ARTWORK_EN-US_3840x2160_1MFL8S0000054O.png/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 1080,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bfdACqlMXmS2bCsF07DTYw/{w}x{h}.{f}",
+                  "width": 1920
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video113/v4/20/fa/1d/20fa1dd6-8785-5e1b-bbd7-5e0d412791eb/SPE_GWTDT_WIDE_US_ARTWORK_4320x3240_1MFL8S0000054P.png/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3ocr6483492qm53io2bsy2o69",
+              "type": "Movie",
+              "title": "The Instigators",
+              "url": "https://tv.apple.com/us/movie/the-instigators/umc.cmc.3ocr6483492qm53io2bsy2o69",
+              "releaseDate": 1723161600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ax4XRqoHskA4dcTT7lb8wA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/sRGlNoLMd_Y3oIgzYLhrWw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/IzskYQaIAHGnApdnP7R68w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3t6dvnnr87zwd4wmvpdx5came",
+              "type": "Movie",
+              "title": "F1 The Movie",
+              "url": "https://tv.apple.com/us/movie/f1-the-movie/umc.cmc.3t6dvnnr87zwd4wmvpdx5came",
+              "releaseDate": 1750982400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/zLbkVwwHwe8I5EtuXc8wWg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/pauiRldXDsW2C3VXiCetCw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/5xJYlxdYAJ_jba_RBxlbuQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2aenzye90tqkj7iy0131oom9x",
+              "type": "Movie",
+              "title": "The Boy, the Mole, the Fox and the Horse",
+              "url": "https://tv.apple.com/us/movie/the-boy-the-mole-the-fox-and-the-horse/umc.cmc.2aenzye90tqkj7iy0131oom9x",
+              "releaseDate": 1671926400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/jyNn4GYDLfbB6a8NRpRYCA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/MdP8MxgIx8s0Tfo2bSAqAg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/K1sgXW_skG2yXJ5y8Iyp1g/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.3fob3t7nfhehpb3ilgynzxmnu",
+              "type": "Movie",
+              "title": "The Year Earth Changed",
+              "url": "https://tv.apple.com/us/movie/the-year-earth-changed/umc.cmc.3fob3t7nfhehpb3ilgynzxmnu",
+              "releaseDate": 1618531200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Ish_cTFqnKe_5mQCJ8sXDA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Uqss61Yy5qq1Az1APbF83g/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/UMcbpOgY1iyTd9uSEUqMJA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.5waz3hfo9r1133t8arap8b6nq",
+              "type": "Movie",
+              "title": "Billie Eilish: The World’s A Little Blurry",
+              "url": "https://tv.apple.com/us/movie/billie-eilish-the-worlds-a-little-blurry/umc.cmc.5waz3hfo9r1133t8arap8b6nq",
+              "releaseDate": 1614297600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/D1SCGzM1ESBh-SIkHwcvUQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/mC6vjD1AKqU1PuWNH1JrPw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/9Mdp8h14Bn3amlNjh3g-jg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.17tiu47xvxo1p9k0tqfvhf29r",
+              "type": "Movie",
+              "title": "The Bloody Hundredth",
+              "url": "https://tv.apple.com/us/movie/the-bloody-hundredth/umc.cmc.17tiu47xvxo1p9k0tqfvhf29r",
+              "releaseDate": 1710460800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/3Qw1DOjjQ0brIoAFA4y5CA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/GzjDtd-c3uj1tpIo3K2dvQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/tVRYa4WYcHxa3gDLLOyeng/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.633pbtki99m7e8lc9ybbyab3",
+              "type": "Movie",
+              "title": "The Pigeon Tunnel",
+              "url": "https://tv.apple.com/us/movie/the-pigeon-tunnel/umc.cmc.633pbtki99m7e8lc9ybbyab3",
+              "releaseDate": 1697760000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/sk9fuckCWPHZTa-sL19XsQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/2qhb3Xyy9sIsbNxmGPedkQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/niXMzG3_6-ZLfJCOarlFtQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.69ic79cvvy80epfhz5efdgjjd",
+              "type": "Movie",
+              "title": "The Velvet Underground",
+              "url": "https://tv.apple.com/us/movie/the-velvet-underground/umc.cmc.69ic79cvvy80epfhz5efdgjjd",
+              "releaseDate": 1634256000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/cV2KgmMMMEX2gd6VYIj2YA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/TEkpF4DsquHaF1Erp0vgqQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/uQ1TCueHUrWg1h94Dc4q-Q/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.gtk0q9t2mapcjs75d31vvrs2",
+              "type": "Movie",
+              "title": "Napoleon: The Director’s Cut",
+              "url": "https://tv.apple.com/us/movie/napoleon-the-directors-cut/umc.cmc.gtk0q9t2mapcjs75d31vvrs2",
+              "releaseDate": 1724976000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/XFIOaFkh-J-d1LyO4DDvzQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Grn8wHJn7yhjFRfhLK9BlA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/64yjq0s57QKALj2IdzpsWw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.59i5501mld9dk1cle3fo8zy4d",
+              "type": "Movie",
+              "title": "The Rookie",
+              "url": "https://tv.apple.com/us/movie/the-rookie/umc.cmc.59i5501mld9dk1cle3fo8zy4d",
+              "releaseDate": 1017360000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/XaWJZ2hzSBMoXDHuZa5Hew/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 1080,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/JBAW2nGuMy_pWEyqVxv7jw/{w}x{h}.{f}",
+                  "width": 1920
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Features221/v4/35/2f/5c/352f5c39-59ec-772c-07a0-dd8822cade9c/mzl.tsqdzgrr.png/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2ifcc56qkxiso1w9k6qwv8aow",
+              "type": "Movie",
+              "title": "The Last of the Sea Women",
+              "url": "https://tv.apple.com/us/movie/the-last-of-the-sea-women/umc.cmc.2ifcc56qkxiso1w9k6qwv8aow",
+              "releaseDate": 1728604800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Nv4sbb8KtTX1NDZSCrxiwQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/GKZ2II1pYs4pp7uNcdQ6FA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/AY5R2FNm5HoB_mdB3-a-7Q/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.2nmvx85jvka8bkq435m65obfz",
+              "type": "Movie",
+              "title": "Master and Commander: The Far Side of the World",
+              "url": "https://tv.apple.com/us/movie/master-and-commander-the-far-side-of-the-world/umc.cmc.2nmvx85jvka8bkq435m65obfz",
+              "releaseDate": 1068768000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/oh5u63znox7zrRYTfpeFgQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/vkep5J1zqQv2GOBOdRD7FQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Video221/v4/da/e5/52/dae55224-73d1-0c29-872f-c5a96b2ea287/FOX_MC_ITUNES_BD_WIDE_WW_ARTWORK_4320x3240_4Y9M1L000002MH.png/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.52sgmi3vdpedurrbtz6louqqo",
+              "type": "Movie",
+              "title": "There’s No Place Like Home, Snoopy",
+              "url": "https://tv.apple.com/us/movie/theres-no-place-like-home-snoopy/umc.cmc.52sgmi3vdpedurrbtz6louqqo",
+              "releaseDate": 1785456000000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/_BbIwutYojtKG1AC7wmzLA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/nf5zn6Klg-1ShMlbNONDaA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/Y2rpxvX6aQuKs-VyTo2Gnw/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.1ybrwww83rknjtwiuuemjfbvq",
+              "type": "Movie",
+              "title": "The Elephant Queen",
+              "url": "https://tv.apple.com/us/movie/the-elephant-queen/umc.cmc.1ybrwww83rknjtwiuuemjfbvq",
+              "releaseDate": 1571356800000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/G217dBFxzFb--f-PGu6gcQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/R-kxliURscA0Nk5ryr8WVg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/B7A4IR2bY_feSEWv99SQBg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4wpfk1xmi22h3zyv4a10lj1tw",
+              "type": "Movie",
+              "title": "The Tragedy of Macbeth",
+              "url": "https://tv.apple.com/us/movie/the-tragedy-of-macbeth/umc.cmc.4wpfk1xmi22h3zyv4a10lj1tw",
+              "releaseDate": 1642118400000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/X7nJoVKXyDhfsvGmvaDUpA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/OyKpQrxjMll7rQisdWomFg/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/TEK13-S7S0ZnnWw8ucvuYQ/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.4byzgw44377yxyjsl85rhn8vq",
+              "type": "Movie",
+              "title": "The Beanie Bubble",
+              "url": "https://tv.apple.com/us/movie/the-beanie-bubble/umc.cmc.4byzgw44377yxyjsl85rhn8vq",
+              "releaseDate": 1689897600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/on78HsnsvzngQy2fpbHS0A/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/bJBq7zeR65jQ9JIx3JazBA/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/EJrNb2P0Likjn8Xqb0krQA/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.7kjdwwm5m1cnk7t080steajqz",
+              "type": "Movie",
+              "title": "The Velveteen Rabbit",
+              "url": "https://tv.apple.com/us/movie/the-velveteen-rabbit/umc.cmc.7kjdwwm5m1cnk7t080steajqz",
+              "releaseDate": 1700611200000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/tAegYhA_FY2avmtzCtlNPw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/YWHg-6GU_nYny4lfSOzfvQ/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/U9q0ijvPyf3OZr5gRaHimg/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            },
+            {
+              "id": "umc.cmc.22xahad7xeqkok7u24xk0e788",
+              "type": "Movie",
+              "title": "The Sky Is Everywhere",
+              "url": "https://tv.apple.com/us/movie/the-sky-is-everywhere/umc.cmc.22xahad7xeqkok7u24xk0e788",
+              "releaseDate": 1644537600000,
+              "images": {
+                "shelfImage": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/jEsE88u02F6k-MhLRTa62w/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "shelfImageBackground": {
+                  "height": 2160,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/jeSYe9WWiSmdJBhS8XVvFw/{w}x{h}.{f}",
+                  "width": 3840
+                },
+                "transitionImage": {
+                  "height": 3240,
+                  "url": "https://is1-ssl.mzstatic.com/image/thumb/hovfUuyX2GfLIS_ZGKeA6w/{w}x{h}sr.{f}",
+                  "width": 4320
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

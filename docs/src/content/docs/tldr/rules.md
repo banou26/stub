@@ -21,7 +21,7 @@ that argues each rule, and in full in [Constants](/reference/constants/).
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/catalogue-gate.ts:98` | whether a JustWatch or Apple TV hit names our franchise, before a detail request is spent |
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/crunchyroll/extractor.ts:366` | the same question on Crunchyroll's search path. A second declaration on purpose |
 | `TITLE_MATCH_THRESHOLD` | `0.44` | `src/sources/utils.ts` | `pickTitleMatch`, unOGS's own search path. Same scale as the 0.9s, different question |
-| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/worker/resolvers/media/index.ts:21` | whether a search hit stays on the page. A different scale: `searchScore` normalises by the QUERY length (`sources/utils.ts`) |
+| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/sources/utils.ts` | whether a search hit stays on the page. A different scale: `searchScore` normalises by the QUERY length (`sources/utils.ts`) |
 | `SEASON_DATE_WINDOW` | `45 * 24 * 60 * 60 * 1000` | `src/sources/catalogue-gate.ts:230` | widest gap between our start and a catalogue season's premiere. Applied at `catalogue-gate.ts:291` and `similar.ts:188` |
 | `MAX_CATALOGUE_CANDIDATES` / `MAX_SERIES_CANDIDATES` | `3` / `3` | `catalogue-gate.ts:109`, `crunchyroll/extractor.ts:369` | survivors worth a detail request each. Mirrored deliberately |
 | `MAX_SEARCH_QUERIES` | `4` | `catalogue-gate.ts:110`, `crunchyroll/extractor.ts:370` | query rungs, built from the PRIMARY title only, counting the title itself |

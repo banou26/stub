@@ -117,7 +117,7 @@ Everything before a source is asked anything.
 | E5 | `media/index.ts:184` | `if (!handleUris.length) return parent.episodes ?? []` | `Media.episodes` falls back to whatever the aggregate carried; the store is not walked. |
 | E6 | `media/index.ts:205` | `if (!episodeGroups.length) return parent.episodes ?? []` | same fallback, after the walk found nothing. |
 | E7 | `media/index.ts:208` | `.filter(ep => ep.episodeNumber != null)` | an unnumbered episode never reaches the page. This is why `makeMovieEpisode` keeps `episodeNumber: 1` rather than null. |
-| E8 | `media/index.ts:149` | `entry.score >= SEARCH_RELEVANCE_THRESHOLD` where the constant is `0.7` (`:21`) | a search hit whose title does not match the query is dropped: sources do loose, sometimes semantic, server-side matching. |
+| E8 | `media/index.ts:149` | `entry.score >= SEARCH_RELEVANCE_THRESHOLD` where the constant is `0.7` (`sources/utils.ts`) | a search hit whose title does not match the query is dropped: sources do loose, sometimes semantic, server-side matching. |
 | E9 | `resolvers/origin/index.ts:19` | `if (!args.input.id) return` | 204. This path has no `stamp`, so any source reading `policyFor` on it counts a context miss and gets `UNKNOWN_POLICY`. |
 | E10 | `resolvers/origin/index.ts:48` | `if (!args.input.ids \|\| args.input.ids.length === 0) return` | 204, same path, same missing stamp. |
 | E11 | `extractor.ts:747` | `if (fanout.joined.has(extractor)) return` | a source registering mid-subscription joins exactly once. |

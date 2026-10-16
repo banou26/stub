@@ -1812,7 +1812,7 @@ same-list rule would have drawn the seasons. That case is a fixture too: a query
 hidden rows must still draw cards, and they must be the runs.
 
 Then in JS, unchanged: `applyMediaFilters`, strict (`filter.ts:33-36`: an absent field never passes a
-filter), `searchRelevance` at `SEARCH_RELEVANCE_THRESHOLD = 0.7` (`media/index.ts:21`), the two sorts
+filter), `searchRelevance` at `SEARCH_RELEVANCE_THRESHOLD = 0.7` (`sources/utils.ts`), the two sorts
 with their inverted names left as they are (`media/index.ts:154-161`). `insertedUris` are mapped to
 clusters through `MEMBER_OF`, so a uri whose owner has not answered is simply absent, as today. The
 incremental re-read has a removal rule: the resolver keeps its page as a map keyed on `c.id`, a

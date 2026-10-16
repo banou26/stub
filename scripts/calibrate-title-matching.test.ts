@@ -50,7 +50,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vite-plus/test'
 
 import {
   bestTitleScore,
@@ -798,7 +798,7 @@ const gates = (): Gate[] => [
    */
   {
     name: 'search-relevance WHOLE LIST',
-    site: 'src/worker/resolvers/media/index.ts:136 SEARCH_RELEVANCE_THRESHOLD (declared :19)',
+    site: 'src/worker/resolvers/media/index.ts:230 SEARCH_RELEVANCE_THRESHOLD (declared src/sources/utils.ts:317)',
     arm: STREAMING_ARM,
     current: 0.7,
     grid: SEARCH_GRID,

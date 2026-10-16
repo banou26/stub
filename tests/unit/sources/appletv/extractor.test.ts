@@ -7,7 +7,7 @@
 // that (27.280% of its per-season episodes belong to another season), so the only evidence that can
 // place a run here is a day inside the 45 day window: a year cannot show a count-less season is not a
 // fold, so it only ever vetoes.
-import { expect, test } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/appletv/extractor'
@@ -15,20 +15,29 @@ import SEVERANCE from '../../../fixtures/appletv/severance.json'
 import SEVERANCE_S2_EPISODES from '../../../fixtures/appletv/severance-s2-episodes.json'
 import SLOW_HORSES from '../../../fixtures/appletv/slow-horses.json'
 import THE_INSTIGATORS from '../../../fixtures/appletv/the-instigators.json'
+import SEARCH_TEHRAN from '../../../fixtures/appletv/search-tehran.json'
+import TEHRAN from '../../../fixtures/appletv/tehran.json'
+import SEARCH_NAPOLEON from '../../../fixtures/appletv/search-napoleon.json'
+import NAPOLEON from '../../../fixtures/appletv/napoleon.json'
+import NAPOLEON_DIRECTORS_CUT from '../../../fixtures/appletv/napoleon-directors-cut.json'
+import SEARCH_WOLFS from '../../../fixtures/appletv/search-wolfs.json'
+import SEARCH_HOUSE from '../../../fixtures/appletv/search-house.json'
+import SEARCH_THE from '../../../fixtures/appletv/search-the.json'
 
 const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
 const PARAMS = 'caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0'
 const url = (path: string) => `${ATV}${path}${path.includes('?') ? '&' : '?'}${PARAMS}`
 
 // throws on an unlisted url, so fixture drift fails loudly instead of reading as an empty answer
-const ctxFor = (table: Record<string, unknown>, known?: unknown): ExtractorServerContext => ({
+const ctxFor = (table: Record<string, unknown>, known?: unknown, request = new Request('http://d/graphql')): ExtractorServerContext => ({
+  request,
   fetch: (async (input: string) => {
     const key = typeof input === 'string' ? input : String(input)
     if (!(key in table)) throw new Error(`unstubbed url: ${key}`)
     return { json: async () => table[key], ok: true, status: 200 }
   }) as unknown as ExtractorServerContext['fetch'],
-  // what the aggregated media already knows; the listener ends at once so a probe never waits
-  findAggregatedMedia: async () => known,
+  // what the aggregated media already knows, or per uri; the listener ends at once so a probe never waits
+  findAggregatedMedia: async (uri: string) => typeof known === 'function' ? known(uri) : known,
   listenForMediaChanges: async function* () {},
 } as unknown as ExtractorServerContext)
 
@@ -146,6 +155,211 @@ test.each([
 
   expect(urls(media?.covers)).toEqual([mzstatic(poster, '600x900tc')])
   expect(urls(media?.banners)).toEqual([mzstatic(banner, '1920x1080sr')])
+})
+
+// Recorded 2026-10-16. A search item carries only landscape art (`shelfImage`, `shelfImageBackground`,
+// `transitionImage`), and its shelves list each item twice. Tehran and Napoleon: The Director's Cut are
+// cards no other source joined on the live search page.
+type SearchNode = { uri: string, covers: { url: string }[], banners: { url: string }[] }
+type SearchAnswer = { data: { canvas: { shelves: { items: { id: string, title: string }[] }[] } } }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
+
+// a fresh module, so no search reads what another test's search remembered
+const freshSources = async () => {
+  vi.resetModules()
+  return (await import('../../../../src/sources/appletv/extractor')).resolvers.Subscription as any
+}
+
+const searchRecorded = async (term: string, table: Record<string, unknown>, sources?: any, known?: unknown) => {
+  sources ??= await freshSources()
+  const asked: string[] = []
+  const ctx = ctxFor(table, known)
+  const fetch = ctx.fetch
+  ctx.fetch = ((input: string) => {
+    asked.push(input)
+    return fetch(input)
+  }) as ExtractorServerContext['fetch']
+  const answers: { asked: number, nodes: SearchNode[] }[] = []
+  vi.useFakeTimers({ toFake: ['setTimeout'] })
+  const answering = (async () => {
+    for await (const result of sources.mediaPage.subscribe(undefined, { input: { search: term } }, ctx)) {
+      answers.push({ asked: asked.length, nodes: result.mediaPage.nodes })
+    }
+  })()
+  await vi.runAllTimersAsync()
+  await answering
+  return { asked, answers, nodes: new Map(answers.flatMap(answer => answer.nodes).map(node => [node.uri, node])) }
+}
+
+const searchTable = (term: string, answer: unknown, ...shown: Recorded[]) => ({
+  [url(`/search?searchTerm=${encodeURIComponent(term)}`)]: answer,
+  ...Object.fromEntries(shown.map(own => [url(`/${own.data.content.type === 'Movie' ? 'movies' : 'shows'}/${own.data.content.id}`), own])),
+})
+
+const readTitles = (asked: string[], answer: SearchAnswer) => {
+  const titles = new Map(answer.data.canvas.shelves.flatMap(shelf => shelf.items).map(item => [item.id, item.title]))
+  return asked.flatMap(input => input.match(/\/(?:shows|movies)\/([^/?]+)\?/)?.slice(1).map(id => titles.get(id)) ?? [])
+}
+
+test.each([
+  ['show', 'Tehran', SEARCH_TEHRAN, [TEHRAN], { [TEHRAN.data.content.id]: ['pWmm65HepO4FZvrMeL7Gxw', '4eOr8cFzDPWk0_WEn1hakA'] }],
+  ['film', 'Napoleon', SEARCH_NAPOLEON, [NAPOLEON, NAPOLEON_DIRECTORS_CUT], {
+    [NAPOLEON.data.content.id]: ['pLNV6LiSH0TvyZKickchLw', 'ev_xryrZVdS_VEe9RI05Pg'],
+    [NAPOLEON_DIRECTORS_CUT.data.content.id]: ['uB7gWiiGWqFdVmgZvaEf_w', '64yjq0s57QKALj2IdzpsWw'],
+  }],
+])('a %s search item the page keeps carries the tall poster and the banner of its own answer', async (_, term, answer, shown, art) => {
+  const { nodes } = await searchRecorded(term, searchTable(term, answer, ...shown))
+
+  for (const [id, [poster, banner]] of Object.entries(art)) {
+    expect(urls(nodes.get(`appletv:${id}`)?.covers)).toEqual([mzstatic(poster!, '600x900tc')])
+    expect(urls(nodes.get(`appletv:${id}`)?.banners)).toEqual([mzstatic(banner!, '1920x1080sr')])
+  }
+})
+
+test('a search answers every row before it reads any, then the rows it read', async () => {
+  const { answers } = await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN, TEHRAN))
+
+  expect(answers.map(answer => [answer.asked, answer.nodes.length])).toEqual([[1, 11], [2, 1]])
+})
+
+// The page keeps a result whose title scores at least 0.7 against the query, and only those are read,
+// each once although the shelves list it twice. "Wolfs" keeps Wolfwalkers (0.82) and Wolfboy (0.71) and
+// drops Five Days at Memorial (0.33); "house" keeps nothing, its best being Slow Horses (0.62).
+test.each([
+  ['Tehran', SEARCH_TEHRAN, ['Tehran']],
+  ['Napoleon', SEARCH_NAPOLEON, ['Napoleon', 'Napoleon: The Director’s Cut']],
+  ['Wolfs', SEARCH_WOLFS, ['Wolfs', 'Wolfwalkers', 'Wolfboy and the Everything Factory']],
+  ['house', SEARCH_HOUSE, []],
+])('a search for %s reads only the items the page keeps, each once', async (term, answer, read) => {
+  const { asked } = await searchRecorded(term, searchTable(term, answer))
+
+  expect(readTitles(asked, answer)).toEqual(read)
+})
+
+// "the" keeps 54 of its 56 results, so reading every one is a burst past the relay's 40 per viewer.
+test('a search for a common word reads only the first twelve items the page keeps, in the order Apple answers them', async () => {
+  const { asked } = await searchRecorded('the', searchTable('the', SEARCH_THE))
+
+  expect(readTitles(asked, SEARCH_THE)).toEqual([
+    'The Morning Show', 'The Gorge', 'The Last Thing He Told Me', 'The Last First: Winter K2', 'The Studio', 'The Family Plan 2',
+    'The Family Plan', 'The Crowded Room', 'The Lost Bus', 'The Buccaneers', 'The Greatest Beer Run Ever', 'The Peanuts Classics',
+  ])
+})
+
+// The twelve are counted before the cards another source already gives a poster are left out, so the
+// cost stays on the first cards the page draws.
+test('a search for a common word reads only the blank cards among the first twelve, none after them', async () => {
+  const ids = new Map(SEARCH_THE.data.canvas.shelves.flatMap(shelf => shelf.items).map(item => [item.title, item.id]))
+  const postered = new Set(['The Gorge', 'The Studio', 'The Lost Bus'].map(title => `appletv:${ids.get(title)}`))
+  const known = (uri: string) => postered.has(uri) ? { covers: [{ url: 'https://image.tmdb.org/t/p/w600/poster.jpg' }] } : undefined
+  const { asked } = await searchRecorded('the', searchTable('the', SEARCH_THE), undefined, known)
+
+  expect(readTitles(asked, SEARCH_THE)).toEqual([
+    'The Morning Show', 'The Last Thing He Told Me', 'The Last First: Winter K2', 'The Family Plan 2', 'The Family Plan',
+    'The Crowded Room', 'The Buccaneers', 'The Greatest Beer Run Ever', 'The Peanuts Classics',
+  ])
+})
+
+// Each site draws its own category alone, and anime.fkn.app never draws a card Apple TV answers alone.
+test.each([
+  ['series.fkn.app', [
+    'The Morning Show', 'The Last Thing He Told Me', 'The Studio', 'The Crowded Room', 'The Buccaneers', 'The Peanuts Classics',
+    'The Line', 'The Last Days of Ptolemy Grey', 'The Afterparty', 'The Snoopy Show', 'The Last Frontier', 'The Hunt',
+  ]],
+  ['movies.fkn.app', [
+    'The Gorge', 'The Last First: Winter K2', 'The Family Plan 2', 'The Family Plan', 'The Lost Bus', 'The Greatest Beer Run Ever',
+    'The Banker', 'The Sixth Sense', 'The Dink', 'The Girl With the Dragon Tattoo', 'The Instigators', 'F1 The Movie',
+  ]],
+  ['anime.fkn.app', []],
+])('on %s a search reads only the cards that site draws', async (host, read) => {
+  vi.stubGlobal('location', new URL(`https://${host}/`))
+  const { asked } = await searchRecorded('the', searchTable('the', SEARCH_THE))
+
+  expect(readTitles(asked, SEARCH_THE)).toEqual(read)
+})
+
+test('a search item whose own answer fails is still answered, with no poster, and the others keep theirs', async () => {
+  const { nodes } = await searchRecorded('Napoleon', searchTable('Napoleon', SEARCH_NAPOLEON, NAPOLEON))
+
+  expect(urls(nodes.get(`appletv:${NAPOLEON_DIRECTORS_CUT.data.content.id}`)?.covers)).toEqual([])
+  expect(urls(nodes.get(`appletv:${NAPOLEON.data.content.id}`)?.covers)).toEqual([mzstatic('pLNV6LiSH0TvyZKickchLw', '600x900tc')])
+})
+
+test('a result whose card another source already gives a poster is not read, nor answered again', async () => {
+  const { asked, answers } = await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN), undefined, { covers: [{ url: 'https://image.tmdb.org/t/p/w600/tehran.jpg' }] })
+
+  expect(readTitles(asked, SEARCH_TEHRAN)).toEqual([])
+  expect(answers).toHaveLength(1)
+})
+
+const TEHRAN_POSTER = mzstatic('pWmm65HepO4FZvrMeL7Gxw', '600x900tc')
+
+// Typing a title searches each prefix that holds for a moment, and the prefixes keep the same results.
+test('a result read once is not read again in the session, and keeps its poster', async () => {
+  const sources = await freshSources()
+  await searchRecorded('Tehra', searchTable('Tehra', SEARCH_TEHRAN, TEHRAN), sources)
+  const { asked, nodes } = await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN, TEHRAN), sources)
+
+  expect(readTitles(asked, SEARCH_TEHRAN)).toEqual([])
+  expect(urls(nodes.get(`appletv:${TEHRAN.data.content.id}`)?.covers)).toEqual([TEHRAN_POSTER])
+})
+
+test('a read that failed is asked again by the next search', async () => {
+  const sources = await freshSources()
+  await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN), sources)
+  const { asked, nodes } = await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN, TEHRAN), sources)
+
+  expect(readTitles(asked, SEARCH_TEHRAN)).toEqual(['Tehran'])
+  expect(urls(nodes.get(`appletv:${TEHRAN.data.content.id}`)?.covers)).toEqual([TEHRAN_POSTER])
+})
+
+// The page replaces its search on every prefix that holds, so a replaced search's reads would only
+// spend the relay's per-viewer burst, retries included, against the search that replaced it.
+const cancellable = async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout'] })
+  const cancel = new AbortController()
+  const ctx = ctxFor(searchTable('Tehran', SEARCH_TEHRAN), undefined, new Request('http://d/graphql', { signal: cancel.signal }))
+  const answer = ctx.fetch
+  const reads: string[] = []
+  ctx.fetch = ((input: string, init?: RequestInit) => {
+    if (input.includes('/search?')) return answer(input)
+    reads.push(input)
+    return new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal!.reason)))
+  }) as ExtractorServerContext['fetch']
+  const sources = await freshSources()
+  const search = sources.mediaPage.subscribe(undefined, { input: { search: 'Tehran' } }, ctx)
+  await search.next()
+  return { cancel, reads, rest: search.next(), sources }
+}
+
+const settled = (answer: Promise<unknown>) =>
+  Promise.race([answer, vi.advanceTimersByTimeAsync(60_000).then(() => 'still reading')])
+
+test('a search replaced before it has held for two seconds reads nothing', async () => {
+  const { cancel, reads, rest } = await cancellable()
+  await vi.advanceTimersByTimeAsync(1_900)
+  cancel.abort()
+
+  expect(await settled(rest)).toEqual({ done: true, value: undefined })
+  expect(reads).toEqual([])
+})
+
+test('a search cancelled while its reads are out stops them and answers nothing more, and the next search asks them again', async () => {
+  const { cancel, reads, rest, sources } = await cancellable()
+  await vi.advanceTimersByTimeAsync(2_000)
+  await vi.waitFor(() => expect(reads).toHaveLength(1))
+  cancel.abort()
+
+  expect(await settled(rest)).toEqual({ done: true, value: undefined })
+
+  const { asked, nodes } = await searchRecorded('Tehran', searchTable('Tehran', SEARCH_TEHRAN, TEHRAN), sources)
+
+  expect(readTitles(asked, SEARCH_TEHRAN)).toEqual(['Tehran'])
+  expect(urls(nodes.get(`appletv:${TEHRAN.data.content.id}`)?.covers)).toEqual([TEHRAN_POSTER])
 })
 
 // Each episode also names the show's lettered art as `showPosterArt`.
