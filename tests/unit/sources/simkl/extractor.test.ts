@@ -310,13 +310,15 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
 
 // A film's detail that lists no theatrical release dates it by `released` (recorded 2026-10-13: Episode I is
 // `1999-05-19`, with no `first_aired`), a show or an anime by `first_aired`. An anime film is an anime record
-// that names itself a film in `anime_type` (recorded 2026-10-15: Ghost in the Shell is `'movie'`, Tokyo
-// Revengers `'tv'`).
+// that names itself a film in `anime_type`, or that carries TMDB's movie id as `tmdbm` (recorded 2026-10-15:
+// Ghost in the Shell is `'movie'`, Tokyo Revengers `'tv'`, and Blade Runner: Black Out 2022 `'ona'` with
+// `tmdbm`).
 const DATED_HITS: Record<string, object> = {
   tv: { i13007: { id: '13007', url: '/tv/13007/star-wars-the-clone-wars', titles: { m: 'Star Wars: The Clone Wars' } } },
   anime: {
     i37585: { id: '37585', url: '/anime/37585/ghost-in-the-shell', titles: { m: 'Ghost in the Shell' } },
     i1372805: { id: '1372805', url: '/anime/1372805/tokyo-revengers', titles: { m: 'Tokyo Revengers' } },
+    i718483: { id: '718483', url: '/anime/718483/blade-runner-black-out-2022', titles: { m: 'Blade Runner: Black Out 2022' } },
   },
   movies: { i55520: { id: '55520', url: '/movies/55520/star-wars-episode-i---the-phantom-menace', titles: { m: 'Star Wars: Episode I - The Phantom Menace' } } },
 }
@@ -324,6 +326,7 @@ const DATED_DETAILS: Record<string, object> = {
   [`${API}/tv/13007?extended=full`]: { title: 'Star Wars: The Clone Wars', year: 2008, first_aired: '2008-10-03T07:00:00Z' },
   [`${API}/anime/37585?extended=full`]: { title: 'Ghost in the Shell', year: 1995, anime_type: 'movie', first_aired: '1995-11-18T14:00:00Z' },
   [`${API}/anime/1372805?extended=full`]: { title: 'Tokyo Revengers', year: 2021, anime_type: 'tv', first_aired: '2021-04-10T16:15:00Z' },
+  [`${API}/anime/718483?extended=full`]: { title: 'Blade Runner: Black Out 2022', year: 2017, anime_type: 'ona', ids: { tmdbm: '475946' }, first_aired: '2017-09-26T00:00:00Z' },
   [`${API}/movies/55520?extended=full`]: { title: 'Star Wars: Episode I - The Phantom Menace', year: 1999, released: '1999-05-19' },
 }
 const dated = {
@@ -339,6 +342,7 @@ test('only a film\'s search row is dated, an anime film\'s too, and every film i
     ['simkl:13007', undefined, ['SERIES'], undefined],
     ['simkl:37585', 'MOVIE', ['ANIME', 'MOVIE'], '1995-11-18T14:00:00Z'],
     ['simkl:1372805', undefined, ['ANIME', 'SERIES'], undefined],
+    ['simkl:718483', 'MOVIE', ['ANIME', 'MOVIE'], '2017-09-26T00:00:00Z'],
     ['simkl:55520', 'MOVIE', ['MOVIE'], '1999-05-19'],
   ])
 })

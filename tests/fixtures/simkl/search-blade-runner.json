@@ -1,0 +1,74 @@
+{
+  "search": {
+    "tv": [],
+    "anime": {
+      "i718483": {
+        "rank": 4349,
+        "year": "2017",
+        "poster": "65/65193124dba564ba9",
+        "eps": 1,
+        "type": "ONA",
+        "url": "/anime/718483/blade-runner-black-out-2022",
+        "titles": {
+          "m": "Blade Runner: Black Out 2022"
+        },
+        "show_type": "anime",
+        "id": "718483"
+      }
+    },
+    "movies": {
+      "i489468": {
+        "rank": 642,
+        "year": "2017",
+        "poster": "60/6082606aea78c488e",
+        "eps": "-",
+        "url": "/movies/489468/blade-runner-2049",
+        "titles": {
+          "a7": "Blade Runner 2049",
+          "m": "Blade Runner 2049"
+        },
+        "show_type": "mov",
+        "id": "489468"
+      }
+    }
+  },
+  "detail": {
+    "/anime/718483": {
+      "title": "Blade Runner: Black Out 2022",
+      "en_title": null,
+      "year": 2017,
+      "type": "anime",
+      "anime_type": "ona",
+      "ids": {
+        "simkl": 718483,
+        "slug": "blade-runner-black-out-2022",
+        "anidb": "13436",
+        "mal": "36308",
+        "imdb": "tt7428594",
+        "anilist": "100168",
+        "kitsu": "13811",
+        "tmdbm": "475946",
+        "letterboxd": "blade-runner-black-out-2022"
+      },
+      "poster": "65/65193124dba564ba9",
+      "first_aired": "2017-09-26T00:00:00Z"
+    },
+    "/movies/489468": {
+      "title": "Blade Runner 2049",
+      "year": 2017,
+      "type": "movie",
+      "ids": {
+        "simkl": 489468,
+        "slug": "blade-runner-2049",
+        "tmdb": "335984",
+        "imdb": "tt1856101",
+        "tvdb": "117",
+        "tvdbslug": "blade-runner-2049",
+        "traktslug": "blade-runner-2049-2017",
+        "letterboxd": "blade-runner-2049"
+      },
+      "poster": "60/6082606aea78c488e",
+      "released": "2017-10-04"
+    }
+  }
+}

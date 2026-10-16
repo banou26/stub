@@ -29,6 +29,7 @@ interface SimklIds {
   slug?: string
   imdb?: string
   tmdb?: string
+  tmdbm?: string
   mal?: string
   anilist?: string
   kitsu?: string
@@ -102,9 +103,11 @@ const detailPath = (type: SimklType): string => (type === 'tv' ? '/tv' : type ==
 const episodesPath = (type: SimklType): string => (type === 'tv' ? '/tv/episodes' : '/anime/episodes')
 const typeOfUrl = (url?: string): SimklType | undefined => url?.match(/^\/(tv|anime|movies)\//)?.[1] as SimklType | undefined
 
-// Simkl files an anime film under anime, and names it a film in `anime_type` alone (Ghost in the Shell is
-// `/anime/37585`, `anime_type: 'movie'`, recorded 2026-10-15).
-const isFilm = (type: SimklType, detail: SimklDetail): boolean => type === 'movies' || detail.anime_type === 'movie'
+// Simkl files an anime film under anime and names it a film in `anime_type` (Ghost in the Shell is `'movie'`),
+// or, typed otherwise, by TMDB's movie id in `tmdbm` (Blade Runner: Black Out 2022 is `'ona'`, `tmdbm: '475946'`,
+// and both Death Note Relight specials carry one), all recorded 2026-10-15.
+const isFilm = (type: SimklType, detail: SimklDetail): boolean =>
+  type === 'movies' || detail.anime_type === 'movie' || !!detail.ids?.tmdbm
 const categoriesFor = (type: SimklType, film: boolean): MediaCategory[] =>
   type === 'anime' ? ['ANIME', film ? 'MOVIE' : 'SERIES'] : [film ? 'MOVIE' : 'SERIES']
 

@@ -1,7 +1,7 @@
-// "tokyo revengers" and "ghost in the shell" as JustWatch, IMDb, Watchmode and Simkl answered their searches
-// through the relay on 2026-10-15, each cut to the rows of exactly that title. Stub reads a Simkl anime series
-// as ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a film by its year
-// alone, so a dated anime series would meet any film of its title and year.
+// "tokyo revengers", "ghost in the shell" and "blade runner" as JustWatch, IMDb, Watchmode and Simkl answered
+// their searches through the relay on 2026-10-15, each cut to the rows of exactly the titles tested. Stub reads
+// a Simkl anime series as ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a
+// film by its year alone, so a dated anime series would meet any film of its title and year.
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { ClusterCard } from '../../../../src/worker/graph/plugins/fields'
@@ -17,12 +17,16 @@ import { ingestAnswers } from '../../../../src/worker/graph/ingest'
 import { pageClusters } from '../../../../src/worker/graph/read'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
+import JUSTWATCH_BLADE_RUNNER from '../../../fixtures/justwatch/blade-runner-search.json'
 import JUSTWATCH_GHOST from '../../../fixtures/justwatch/ghost-in-the-shell-search.json'
 import JUSTWATCH_TOKYO from '../../../fixtures/justwatch/tokyo-revengers-search.json'
+import OMDB_BLADE_RUNNER from '../../../fixtures/omdb/search-blade-runner.json'
 import OMDB_GHOST from '../../../fixtures/omdb/search-ghost-in-the-shell.json'
 import OMDB_TOKYO from '../../../fixtures/omdb/search-tokyo-revengers.json'
+import SIMKL_BLADE_RUNNER from '../../../fixtures/simkl/search-blade-runner.json'
 import SIMKL_GHOST from '../../../fixtures/simkl/search-ghost-in-the-shell.json'
 import SIMKL_TOKYO from '../../../fixtures/simkl/search-tokyo-revengers.json'
+import WATCHMODE_BLADE_RUNNER from '../../../fixtures/watchmode/search-blade-runner.json'
 import WATCHMODE_GHOST from '../../../fixtures/watchmode/search-ghost-in-the-shell.json'
 import WATCHMODE_TOKYO from '../../../fixtures/watchmode/search-tokyo-revengers.json'
 import { answer } from './plugins/fixtures'
@@ -46,16 +50,35 @@ const search = async (source: { resolvers: unknown }, fetch: unknown, query: str
   return value.mediaPage.nodes as Row[]
 }
 
-const both = async (source: { resolvers: unknown }, tokyo: (url: string, init?: { body?: string }) => unknown, ghost: typeof tokyo) => [
-  ...await search(source, tokyo, 'tokyo revengers'),
-  ...await search(source, ghost, 'ghost in the shell'),
-]
+const searches = async (source: { resolvers: unknown }, answers: Record<string, (url: string, init?: { body?: string }) => unknown>) => {
+  const rows: Row[] = []
+  for (const [query, fetch] of Object.entries(answers)) rows.push(...await search(source, fetch, query))
+  return rows
+}
+
+const recorded = (body: unknown) => async () => respond(body)
 
 const SOURCES = {
-  justwatch: () => both(justwatch, async () => respond(JUSTWATCH_TOKYO), async () => respond(JUSTWATCH_GHOST)),
-  omdb: () => both(omdb, async () => respond(OMDB_TOKYO), async () => respond(OMDB_GHOST)),
-  watchmode: () => both(watchmode, async () => respond(WATCHMODE_TOKYO), async () => respond(WATCHMODE_GHOST)),
-  simkl: () => both(simkl, simklAnswers(SIMKL_TOKYO), simklAnswers(SIMKL_GHOST)),
+  justwatch: () => searches(justwatch, {
+    'tokyo revengers': recorded(JUSTWATCH_TOKYO),
+    'ghost in the shell': recorded(JUSTWATCH_GHOST),
+    'blade runner': recorded(JUSTWATCH_BLADE_RUNNER),
+  }),
+  omdb: () => searches(omdb, {
+    'tokyo revengers': recorded(OMDB_TOKYO),
+    'ghost in the shell': recorded(OMDB_GHOST),
+    'blade runner': recorded(OMDB_BLADE_RUNNER),
+  }),
+  watchmode: () => searches(watchmode, {
+    'tokyo revengers': recorded(WATCHMODE_TOKYO),
+    'ghost in the shell': recorded(WATCHMODE_GHOST),
+    'blade runner': recorded(WATCHMODE_BLADE_RUNNER),
+  }),
+  simkl: () => searches(simkl, {
+    'tokyo revengers': simklAnswers(SIMKL_TOKYO),
+    'ghost in the shell': simklAnswers(SIMKL_GHOST),
+    'blade runner': simklAnswers(SIMKL_BLADE_RUNNER),
+  }),
 }
 
 const ingest = async (rows: Row[]) => {
@@ -70,6 +93,7 @@ beforeAll(async () => { await enableGraph(true) })
 describe.each([
   ['together', [['justwatch', 'omdb', 'watchmode', 'simkl']]],
   ['JustWatch last', [['simkl', 'omdb', 'watchmode'], ['justwatch']]],
+  ['Simkl last', [['justwatch', 'omdb', 'watchmode'], ['simkl']]],
 ] as [string, (keyof typeof SOURCES)[][]][])('%s', (_, passes) => {
   let cards: ClusterCard[] = []
 
@@ -107,5 +131,17 @@ describe.each([
 
   test('a Simkl film joins the film of its title and release day', () => {
     expect(card('jw:196674')?.members.sort()).toEqual(['jw:196674', 'omdb:tt1219827', 'simkl:457116', 'watchmode:01147214'])
+  })
+
+  test('a Simkl anime short TMDB files as a film joins the film of its title and day, on the movie site', () => {
+    expect(card('simkl:718483')?.members.sort())
+      .toEqual(['anilist:100168', 'jw:351204', 'kitsu:13811', 'mal:36308', 'simkl:718483', 'watchmode:01673741'])
+    expect(card('simkl:718483')!.categories).toEqual(['ANIME', 'MOVIE'])
+  })
+
+  test('the feature film of the same year keeps its own card, and so does a film Watchmode lists with no year or other id', () => {
+    expect(card('jw:239091')?.members.sort()).toEqual(['jw:239091', 'omdb:tt1856101', 'simkl:489468', 'watchmode:0153801'])
+    expect(card('jw:997728')?.members).toEqual(['jw:997728'])
+    expect(card('watchmode:011106824')?.members).toEqual(['watchmode:011106824'])
   })
 })

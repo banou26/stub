@@ -1,0 +1,119 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm239091",
+            "objectId": 239091,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Blade Runner 2049",
+              "fullPath": "/us/movie/blade-runner-2049",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-10-04",
+              "posterUrl": "/poster/24702418/s718/blade-runner-2049.jpg",
+              "externalIds": {
+                "imdbId": "tt1856101"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "drm",
+                  "translation": "Drama"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "CA",
+                "GB",
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm997728",
+            "objectId": 997728,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Blade Runner: The Final Cut",
+              "fullPath": "/us/movie/blade-runner-the-final-cut-2007",
+              "originalReleaseYear": 2007,
+              "originalReleaseDate": "2007-10-05",
+              "posterUrl": "/poster/354635523/s718/blade-runner-the-final-cut-2007.jpg",
+              "externalIds": {
+                "imdbId": null
+              },
+              "genres": [
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm351204",
+            "objectId": 351204,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Blade Runner: Black Out 2022",
+              "fullPath": "/us/movie/blade-runner-black-out-2022",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-09-26",
+              "posterUrl": "/poster/39756282/s718/blade-runner-black-out-2022.jpg",
+              "externalIds": {
+                "imdbId": "tt7428594"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "trl",
+                  "translation": "Mystery & Thriller"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "JP",
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        }
+      ]
+    }
+  }
+}

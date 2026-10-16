@@ -1,0 +1,71 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "Blade Runner 2049",
+              "percentile": 199.86,
+              "type": "Movie",
+              "slug": "blade-runner-2049",
+              "slugTypeFolder": "movie",
+              "combinedID": "0153801",
+              "id": 53801,
+              "year": 2017,
+              "resultType": 1,
+              "subtext": "Movie (2017)",
+              "thumbnail": "0153801_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/0153801_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 335984,
+              "tmdbType": "movie",
+              "imdbId": "tt1856101"
+            },
+            {
+              "name": "Blade Runner: Black Out 2022",
+              "percentile": 99.048,
+              "type": "Movie",
+              "slug": "blade-runner-black-out-2022",
+              "slugTypeFolder": "movie",
+              "combinedID": "01673741",
+              "id": 673741,
+              "year": 2017,
+              "resultType": 1,
+              "subtext": "Movie (2017)",
+              "thumbnail": "01673741_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01673741_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 475946,
+              "tmdbType": "movie",
+              "imdbId": "tt7428594"
+            },
+            {
+              "name": "Blade Runner: The Final Cut",
+              "percentile": 2.766,
+              "type": "Movie",
+              "slug": "blade-runner-the-final-cut",
+              "slugTypeFolder": "movie",
+              "combinedID": "011106824",
+              "id": 1106824,
+              "year": null,
+              "resultType": 1,
+              "subtext": "Movie",
+              "thumbnail": "blank.gif",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/blank.gif",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 1642394,
+              "tmdbType": "movie",
+              "imdbId": null
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]
