@@ -3,7 +3,8 @@ import { css } from '@emotion/react'
 
 import { switchStyle } from '../../components/switch-style'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
-import { builtInSources } from '../../sources/built-in'
+import { builtInSources, iconSources } from '../../sources/built-in'
+import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
 import { readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
 import { siteAsks } from '../../site'
 
@@ -279,6 +280,29 @@ const BuiltInSources = () => {
   )
 }
 
+// every drawn icon on every site, not only the sources this site asks: Simkl and Watchmode mint `mal`, `anilist` and `cr` handles everywhere
+const Icons = () => {
+  const hidden = useHiddenIcons()
+  return (
+    <>
+      <h3 className="part">Icons</h3>
+      <ul className="built-in">
+        {iconSources.map(source => {
+          const shown = !hidden.has(source.origin)
+          return (
+            <li key={source.origin} data-icon={source.origin}>
+              <label className={shown ? undefined : 'off'}>
+                <span className="source"><span className="source-name">{source.name}</span></span>
+                <input type="checkbox" role="switch" css={switchStyle} aria-label={`${source.name} icon`} checked={shown} onChange={event => setIconShown(source.origin, (event.target as HTMLInputElement).checked)}/>
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+}
+
 /** The sources stub ships with, the sources the viewer added from npm, and the two ways to add more. */
 export const SourcesSection = () => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
@@ -313,6 +337,7 @@ export const SourcesSection = () => {
   return (
     <div css={style}>
       <BuiltInSources/>
+      <Icons/>
       <h3 className="part">Added</h3>
       {plugins.length
         ? (

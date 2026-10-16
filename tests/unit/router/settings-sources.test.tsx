@@ -233,3 +233,22 @@ test('declining FKN\'s confirm keeps the address, and an empty one asks nothing'
   await submit(host)
   expect(calls.installPlugin).not.toHaveBeenCalled()
 })
+
+test('every source whose icon stub draws has an Icons switch, and hiding one keeps the source on', async () => {
+  const { HIDDEN_ICONS_KEY } = await import('../../../src/sources/hidden-icons')
+  const { host } = render()
+  const iconSwitch = (origin: string) => host.querySelector<HTMLInputElement>(`[data-icon="${origin}"] input[role="switch"]`)
+  expect(host.querySelectorAll('[data-icon]')).toHaveLength(26)
+  expect(iconSwitch('tvdb')?.getAttribute('aria-label')).toBe('TheTVDB icon')
+  expect(isOn(iconSwitch('tvdb')!)).toBe(true)
+  expect(iconSwitch('kitsu'), 'stub never draws an api only source').toBeNull()
+  expect(iconSwitch('omdb'), 'IMDb is drawn as imdb').toBeNull()
+
+  await flip(iconSwitch('tvdb')!, false)
+  expect(JSON.parse(stored.get(HIDDEN_ICONS_KEY)!)).toEqual(['tvdb'])
+  expect(isOn(switchOf(host, 'tvdb')), 'the source itself stays on').toBe(true)
+  expect(stored.has(DISABLED_SOURCES_KEY)).toBe(false)
+
+  await flip(iconSwitch('imdb')!, false)
+  expect(JSON.parse(stored.get(HIDDEN_ICONS_KEY)!)).toEqual(['tvdb', 'imdb'])
+})

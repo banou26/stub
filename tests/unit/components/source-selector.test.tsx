@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from './dom'
 
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -9,6 +9,7 @@ import { memoryLocation } from 'wouter/memory-location'
 vi.mock('../../../src/worker', () => ({}))
 
 const { default: SourceSelector } = await import('../../../src/components/source-selector')
+const { HIDDEN_ICONS_KEY, setIconShown } = await import('../../../src/sources/hidden-icons')
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -51,4 +52,34 @@ test('picking a compact source icon is a client side navigation', () => {
   const { location, click } = selector(true)
   expect(click('a[title="Watch on Netflix"]')).toBe(true)
   expect(location.history.at(-1)).toBe('/watch/m/e/nf:81')
+})
+
+describe('a hidden source icon', () => {
+  const stored = new Map<string, string>()
+  beforeEach(() => {
+    stored.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+      removeItem: (key: string) => { stored.delete(key) },
+    })
+    // another tab's change arrives as a storage event on this page's window, and node's globalThis has no listeners
+    vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+    vi.stubGlobal('removeEventListener', window.removeEventListener.bind(window))
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  test('leaves the compact row on screen, from this tab or another, and stays in the full list', () => {
+    const compact = selector(true).host
+    const full = selector().host
+    const netflix = () => compact.querySelector('a[title="Watch on Netflix"]')
+    expect(netflix(), 'the control: shown before it is hidden').not.toBeNull()
+    act(() => setIconShown('nf', false))
+    expect(netflix()).toBeNull()
+    expect(compact.querySelector('a[title="Watch on Hulu"]')).not.toBeNull()
+    expect(full.querySelector('a[title="Netflix"]'), 'still offered where a source is picked').not.toBeNull()
+    stored.delete(HIDDEN_ICONS_KEY)
+    act(() => { window.dispatchEvent(Object.assign(new Event('storage'), { key: HIDDEN_ICONS_KEY })) })
+    expect(netflix(), 'shown again by another tab').not.toBeNull()
+  })
 })

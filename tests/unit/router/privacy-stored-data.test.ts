@@ -10,6 +10,7 @@ import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
+import { HIDDEN_ICONS_KEY } from '../../../src/sources/hidden-icons'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
@@ -25,6 +26,7 @@ describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
     expect(byId('turned-off-sources').keys).toEqual({ store: 'local', names: [DISABLED_SOURCES_KEY] })
+    expect(byId('hidden-icons').keys).toEqual({ store: 'local', names: [HIDDEN_ICONS_KEY] })
     expect(byId('search-layout').keys).toEqual({ store: 'local', names: [DISPLAY_MODE_KEY] })
     expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })

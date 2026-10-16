@@ -6,6 +6,7 @@ import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { COUNTRY_KEY } from '../../sources/country'
 import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
+import { HIDDEN_ICONS_KEY } from '../../sources/hidden-icons'
 import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
@@ -42,6 +43,14 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: 'Until you turn them back on',
     keys: { store: 'local', names: [DISABLED_SOURCES_KEY] },
+  },
+  {
+    id: 'hidden-icons',
+    title: 'Hidden source icons',
+    what: 'Which sources\' icons you hid in Settings.',
+    where: LOCAL,
+    lasts: 'Until you show them again',
+    keys: { store: 'local', names: [HIDDEN_ICONS_KEY] },
   },
   {
     id: 'country',

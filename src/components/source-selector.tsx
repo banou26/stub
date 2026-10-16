@@ -4,6 +4,7 @@ import { css } from '@emotion/react'
 import { useState } from 'preact/hooks'
 import { Link } from 'wouter'
 
+import { useHiddenIcons } from '../sources/hidden-icons'
 import SourcePopup from './source-popup'
 
 /** One concrete pick within an origin, e.g. a single release out of an indexer's several. */
@@ -360,13 +361,14 @@ export const SourceSelector = (
   { sources: WatchSource[], compact?: boolean, onPickRelease?: (uri: string) => void }
 ) => {
   const [picking, setPicking] = useState<WatchSource | null>(null)
+  const hidden = useHiddenIcons()
 
   if (!sources.length) return null
 
   if (compact) {
     return (
       <div css={compactStyle}>
-        {sources.map(source => (
+        {sources.filter(source => !hidden.has(source.id)).slice(0, 5).map(source => (
           <SourceLink
             key={source.id}
             className="src"

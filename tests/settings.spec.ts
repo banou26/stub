@@ -90,6 +90,7 @@ const seeded = async (page: Page, path = '/settings') => {
 
 const categories = (page: Page) => page.getByRole('navigation', { name: 'Settings categories' })
 const panel = (page: Page) => page.locator('[data-section]')
+const builtIn = (page: Page) => page.locator('[data-source]')
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
@@ -127,7 +128,7 @@ test('clicking Sources shows Sources and hides Accounts, and back, from the top 
   await picks(page, 'Sources')
   await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
-  await expect(page.getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(ALL)
+  await expect(builtIn(page).getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(ALL)
   await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
   await picks(page, 'Accounts')
   await expect(page.locator('[data-account="anilist"]')).toBeVisible()
@@ -144,7 +145,7 @@ test('every source stub ships with is on by default, and one turned off stays of
   // from the top of the page, not of the window: a click scrolls its target into view first
   const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top + window.scrollY)
   await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL)
+  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL)
   await expect(page.getByText(`All ${ALL} on`, { exact: true })).toBeVisible()
   const top = await firstTop()
 
@@ -156,11 +157,11 @@ test('every source stub ships with is on by default, and one turned off stays of
 
   await page.reload()
   await expect(simkl, 'kept in this browser').not.toBeChecked()
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL - 1)
+  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL - 1)
   const turnAllOn = page.getByRole('button', { name: 'Turn all on' })
   await turnAllOn.focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('switch', { checked: true })).toHaveCount(ALL)
+  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL)
   await expect(turnAllOn, 'the button stays, so the keyboard stays on it').toBeFocused()
   expect(await firstTop(), 'and turning all on moves nothing either').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBeNull()

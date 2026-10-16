@@ -123,3 +123,23 @@ test('a media-level handle to a catalogue is not offered as a place to watch', (
   const host = render(episode, [{ relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/617' } }])
   expect(host.querySelector('a[href="https://anilist.co/anime/617"]')).toBeNull()
 })
+
+test('Play stays when the source that plays has its icon hidden', async () => {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  })
+  try {
+    const { setIconShown } = await import('../../../src/sources/hidden-icons')
+    expect(render(episode).querySelector('.src'), 'the control: its icon is drawn while shown').not.toBeNull()
+    setIconShown('cr', false)
+    const host = render(episode)
+    expect(host.querySelector('.src')).toBeNull()
+    expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
+    expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})

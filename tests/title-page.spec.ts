@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import SEASONS from '../src/generated/anime-seasons'
+import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 
@@ -468,6 +469,21 @@ test('the source row links the TMDB, TheTVDB and IMDb ids AniZip names', async (
   await expect(origins.locator('a[title="TMDB"]')).toHaveAttribute('href', 'https://www.themoviedb.org/tv/209867', { timeout: 30_000 })
   await expect(origins.locator('a[title="TheTVDB"]')).toHaveAttribute('href', 'https://thetvdb.com/dereferrer/series/424536')
   await expect(origins.locator('a[title="IMDb"]')).toHaveAttribute('href', 'https://www.imdb.com/title/tt22248376')
+})
+
+test('an icon hidden in Settings leaves the row beside Play', async ({ page }) => {
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  const origins = page.locator('.actions .origins')
+  await expect(origins.locator('a[title="AnimeThemes"]'), 'the control: drawn while shown').toBeVisible({ timeout: 30_000 })
+  const title = page.url()
+
+  await page.addInitScript(key => localStorage.setItem(key, '["animethemes"]'), HIDDEN_ICONS_KEY)
+  await page.goto(title)
+  // its songs on the page are AnimeThemes' answer, so its icon would be drawn by now
+  await expect(page.locator('[data-themes] li').first()).toContainText('Yuusha', { timeout: 30_000 })
+  await expect(origins.locator('a[title="TMDB"]')).toBeVisible()
+  await expect(origins.locator('a[title="AnimeThemes"]')).toHaveCount(0)
 })
 
 test('the watch page lists no source it has nothing to open for', async ({ page }) => {

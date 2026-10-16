@@ -26,6 +26,7 @@ import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-da
 import { formatCountdown } from '../../utils/countdown'
 import { useNow } from '../../utils/use-now'
 import { canPlay } from '../../sources/playable'
+import { useHiddenIcons } from '../../sources/hidden-icons'
 import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
@@ -325,7 +326,6 @@ const watchSources = (
     })
     .filter(source => source.href)
     .sort((a, b) => Number(a.external) - Number(b.external))
-    .slice(0, 5)
 
 /**
  * The links to each site that names this media, as icons, unstyled: each view sizes them itself.
@@ -353,6 +353,7 @@ export const SourceLinks = (
     query: GET_MEDIA_ORIGINS,
     variables: { input: { ids: originIds, filters: [OriginFilter.IsNotApiOnly] } },
   })
+  const hidden = useHiddenIcons()
   return (
     <span className="origins">
       {
@@ -369,7 +370,7 @@ export const SourceLinks = (
             // while the SAME_AS `cr:<seriesId>-<seasonId>` for this very cour sat later in the list.
             const forOrigin = handles?.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
             const link = (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))?.node.url
-            if (!origin.icon) return undefined
+            if (!origin.icon || hidden.has(origin.id)) return undefined
             return (
               link
                 ? (

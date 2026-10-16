@@ -150,8 +150,9 @@ test('any other host lists all three rows under the category tabs, and a tab kee
 test('movies.fkn.app\'s settings leave out the anime catalogues and their sign-ins', async ({ page }) => {
   const animeCatalogues = ['anilist', 'mal', 'kitsu', 'livechart', 'anizip', 'offline', 'cr']
   await page.goto(at('movies.localhost', '/settings#sources'))
-  await expect(page.getByRole('switch')).toHaveCount(builtInSources.length - animeCatalogues.length)
+  await expect(page.locator('[data-source]').getByRole('switch')).toHaveCount(builtInSources.length - animeCatalogues.length)
   await expect(page.getByRole('switch', { name: 'AniList', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('switch', { name: 'AniList icon', exact: true }), 'its icon is drawn on every site').toBeVisible()
   await expect(page.getByRole('switch', { name: 'JustWatch', exact: true })).toBeVisible()
   await page.goto(at('movies.localhost', '/settings#accounts'))
   await expect(page.locator('[data-account="netflix"]')).toBeVisible()

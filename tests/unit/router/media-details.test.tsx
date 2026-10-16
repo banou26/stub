@@ -4,7 +4,7 @@ import { mount, unmount } from '../components/dom'
 import type { DetailsMedia } from '../../../src/router/home/media-details'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { useState } from 'preact/hooks'
 import { Client, Provider, subscriptionExchange } from 'urql'
@@ -19,15 +19,16 @@ vi.mock('../../../src/worker', () => ({}))
 vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => fkn.backend }))
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
-const { Episodes, useTrackingSummary } = await import('../../../src/router/home/media-details')
+const { Episodes, SourceLinks, useTrackingSummary } = await import('../../../src/router/home/media-details')
+const { setIconShown } = await import('../../../src/sources/hidden-icons')
 
 // a real urql client whose origins subscription answers once and stays open, as the worker's does
-const client = (origin = { id: 'nf', name: 'Netflix' }) => new Client({
+const client = (origins: { id: string, name: string, icon?: string }[] = [{ id: 'nf', name: 'Netflix' }]) => new Client({
   url: 'http://test/graphql',
   exchanges: [subscriptionExchange({
     forwardSubscription: () => ({
       subscribe: sink => {
-        sink.next({ data: { originPage: { nodes: [{ ...origin, icon: null, color: null }] } }, hasNext: true })
+        sink.next({ data: { originPage: { nodes: origins.map(origin => ({ icon: null, color: null, ...origin })) } }, hasNext: true })
         return { unsubscribe: () => {} }
       },
     }),
@@ -186,7 +187,7 @@ test('a Prime Video row outside Japan plays in stub with the extension, and link
   const hrefOn = async (backend: FknBackend) => {
     fkn.backend = backend
     const { hook } = memoryLocation({ path: '/' })
-    const host = mount(<Provider value={client({ id: 'amazon', name: 'Prime Video' })}><Router hook={hook}><Episodes media={prime}/></Router></Provider>)
+    const host = mount(<Provider value={client([{ id: 'amazon', name: 'Prime Video' }])}><Router hook={hook}><Episodes media={prime}/></Router></Provider>)
     hosts.push(host)
     await act(() => new Promise(resolve => setTimeout(resolve, 10)))
     return host.querySelector('.episode .src')?.getAttribute('href')
@@ -259,5 +260,57 @@ describe('the tracking summary a page reads', () => {
 
     await act(async () => { show(B) })
     expect(host.textContent).toBe('none')
+  })
+})
+
+describe('a hidden source icon', () => {
+  const stored = new Map<string, string>()
+  beforeEach(() => {
+    stored.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+      removeItem: (key: string) => { stored.delete(key) },
+    })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  test('leaves the source links', async () => {
+    const origins = [
+      { id: 'anilist', name: 'AniList', icon: 'https://anilist.co/i.png' },
+      { id: 'tvdb', name: 'TheTVDB', icon: 'https://thetvdb.com/i.png' },
+    ]
+    const handles = [
+      { relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/1' } },
+      { relation: 'SAME_AS', node: { origin: 'tvdb', url: 'https://thetvdb.com/series/1' } },
+    ]
+    const draw = async () => {
+      const host = mount(<Provider value={client(origins)}><SourceLinks uri="ag:(anilist:1,tvdb:1)" handles={handles}/></Provider>)
+      hosts.push(host)
+      await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+      return [...host.querySelectorAll('.origin')].map(origin => origin.getAttribute('title'))
+    }
+    expect(await draw(), 'the control: both drawn while shown').toEqual(['AniList', 'TheTVDB'])
+    setIconShown('tvdb', false)
+    expect(await draw()).toEqual(['AniList'])
+  })
+
+  // the five are counted after the hidden ones leave, so a hidden icon never takes one of them
+  test('leaves an episode row its five icons', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f']
+    const six = {
+      uri: 'ag:(anilist:1)',
+      episodes: [{ ...media.episodes[0], handles: ids.map(id => ({ relation: 'SAME_AS', node: { uri: `${id}:1`, origin: id, url: `https://${id}.example/1` } })) }],
+    } as unknown as DetailsMedia
+    const draw = async () => {
+      const { hook } = memoryLocation({ path: '/' })
+      const host = mount(<Provider value={client(ids.map(id => ({ id, name: id.toUpperCase() })))}><Router hook={hook}><Episodes media={six}/></Router></Provider>)
+      hosts.push(host)
+      await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+      return [...host.querySelectorAll('.episode .src')].map(src => src.getAttribute('title'))
+    }
+    expect(await draw(), 'five of the six while all are shown').toEqual(['Watch on A', 'Watch on B', 'Watch on C', 'Watch on D', 'Watch on E'])
+    setIconShown('b', false)
+    expect(await draw()).toEqual(['Watch on A', 'Watch on C', 'Watch on D', 'Watch on E', 'Watch on F'])
   })
 })

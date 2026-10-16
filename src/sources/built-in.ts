@@ -45,3 +45,11 @@ export const builtInSources: BuiltInSource[] = [
   { origin: 'ann', name: 'Anime News Network', url: 'https://www.animenewsnetwork.com' },
   { origin: 'watchmode', name: 'Watchmode', url: 'https://www.watchmode.com' },
 ]
+
+// api only sources are never drawn; IMDb is drawn as the `imdb` origin, which answers nothing and has no row above
+const NEVER_DRAWN = new Set(['anizip', 'jw', 'kitsu', 'livechart', 'offline', 'simkl', 'trakt', 'tvmaze', 'watchmode'])
+
+/** The sources whose icon stub draws, on every site, each under the origin its icon is drawn as. */
+export const iconSources: BuiltInSource[] = builtInSources
+  .filter(source => !NEVER_DRAWN.has(source.origin))
+  .map(source => source.origin === 'omdb' ? { ...source, origin: 'imdb' } : source)
