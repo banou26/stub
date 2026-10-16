@@ -57,8 +57,10 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
       ?.filter(image => image.coverType === 'Poster')
       .map(image => ({ url: image.url, score: SCORE }))
       ?? [],
+    // TheTVDB's `Banner` is a 758x140 strip, which a 16:9 header blows up 5x and cuts to its middle
+    // third; its `Fanart` is 1920x1080 (measured 2026-10-17)
     banners: media.images
-      ?.filter(image => image.coverType === 'Banner')
+      ?.filter(image => image.coverType === 'Fanart')
       .map(image => ({ url: image.url, score: SCORE }))
       ?? [],
     episodeCount: media.episodeCount,

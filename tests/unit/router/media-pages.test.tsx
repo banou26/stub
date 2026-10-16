@@ -119,6 +119,61 @@ describe('the preview', () => {
     expect(modal().querySelectorAll('.episode, .episodes')).toHaveLength(0)
     expect(modal().querySelector('.movie'), 'the control: drawn as a film').not.toBeNull()
   })
+
+  const header = () => modal().querySelector('.trailer')!.getAttribute('style') ?? ''
+  const posterOnly = { ...work(1, 'Frieren'), covers: [{ language: 'en', url: 'https://img.test/frieren-cover.jpg' }] }
+  const trailer = { uri: 'yt:a', origin: 'yt', id: 'a', url: 'https://www.youtube.com/watch?v=a' }
+  const withBanner = (url: string, trailers: typeof trailer[] = []) => ({ ...posterOnly, banners: [{ language: 'en', url }], trailers })
+  const loads = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  // the probe caches each url for the whole file, so every test names banners of its own
+  const images = (fails = (_: string) => false) => {
+    const requested: string[] = []
+    vi.stubGlobal('Image', class {
+      onload?: () => void
+      onerror?: () => void
+      set src (url: string) {
+        requested.push(url)
+        setTimeout(() => fails(url) ? this.onerror?.() : this.onload?.())
+      }
+    })
+    return requested
+  }
+
+  test('heads with the banner when the work has one', async () => {
+    const { answer } = preview(posterOnly.uri)
+    answer(withBanner('https://img.test/frieren-banner.jpg'))
+    await loads()
+    expect(header()).toContain('https://img.test/frieren-banner.jpg')
+  })
+
+  test('heads with the poster when it has none', async () => {
+    const { answer } = preview(posterOnly.uri)
+    answer(posterOnly)
+    await loads()
+    expect(header()).toContain('https://img.test/frieren-cover.jpg')
+  })
+
+  test('heads with the poster when no banner loads', async () => {
+    images(url => url.includes('broken'))
+    const { answer } = preview(posterOnly.uri)
+    answer(withBanner('https://img.test/frieren-broken-banner.jpg'))
+    await loads()
+    expect(header()).toContain('https://img.test/frieren-cover.jpg')
+  })
+
+  test('loads no banner while a trailer plays', async () => {
+    const requested = images()
+    const { answer } = preview(posterOnly.uri)
+    answer(withBanner('https://img.test/frieren-trailer-banner.jpg', [trailer]))
+    await loads()
+    expect(header()).not.toContain('url(')
+    expect(requested).not.toContain('https://img.test/frieren-trailer-banner.jpg')
+
+    answer(withBanner('https://img.test/frieren-trailer-banner.jpg'))
+    await loads()
+    expect(requested, 'the control: loaded once no trailer plays').toContain('https://img.test/frieren-trailer-banner.jpg')
+    expect(header()).toContain('https://img.test/frieren-trailer-banner.jpg')
+  })
 })
 
 describe('the title page', () => {

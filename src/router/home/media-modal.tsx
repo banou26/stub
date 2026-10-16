@@ -25,7 +25,7 @@ import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
 import { getRoutePath, Route } from '../path'
-import { useCoverUrl } from '../../utils/use-cover-url'
+import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
 const style = css`
@@ -359,6 +359,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     },
     [media?.trailers, bannedTrailerUris, pinnedTrailerUri]
   )
+  const headerUrl = useCoverUrl(selectedTrailer?.url ? undefined : headerImages(media), media)
 
   useEffect(() => {
     if (selectedTrailer?.uri && selectedTrailer.uri !== pinnedTrailerUri) setPinnedTrailerUri(selectedTrailer.uri)
@@ -409,7 +410,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party
        has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
     <ModalBackdrop data-party-scroll css={style} onClose={() => onOpenChange(false)}>
-      <div className="trailer" style={!selectedTrailer?.url && coverUrl ? { backgroundImage: `url(${coverUrl})` } : {}}>
+      <div className="trailer" style={!selectedTrailer?.url && headerUrl ? { backgroundImage: `url(${headerUrl})` } : {}}>
         {
           selectedTrailer?.url
             ? (

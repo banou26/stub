@@ -87,3 +87,9 @@ test('an episode AniZip has not dated yet has no date', async () => {
   expect(dates[27]).toBe('2024-03-15T14:00:00Z')
   expect(dates[28]).toBeUndefined()
 })
+
+test('a work\'s banner is its 16:9 TheTVDB fanart, never the thin TheTVDB banner strip', async () => {
+  expect((await normalized(FRIEREN)).banners).toEqual([
+    { url: 'https://artworks.thetvdb.com/banners/v4/series/424536/backgrounds/64e6cbe29d9c0.jpg', score: 0.9 },
+  ])
+})

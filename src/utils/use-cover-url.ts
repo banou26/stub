@@ -36,6 +36,12 @@ const sharpness = (url: string, box: Box) => {
 const keeps = (held: string, candidate: string, box: Box) =>
   sharpness(held, box) >= (globalThis.devicePixelRatio || 1) || sharpness(candidate, box) < 1.25 * sharpness(held, box)
 
+type Images = ({ url: string } | null | undefined)[] | null | undefined
+
+/** The images a wide header draws for `media`: its banners, then its covers when none of those loads. */
+export const headerImages = (media: { banners?: Images, covers?: Images } | null | undefined) =>
+  [...media?.banners ?? [], ...media?.covers ?? []]
+
 /** The media a cover is drawn for. */
 export type CoverOwner = Pick<TheaterCandidate, '_id' | 'uri' | 'handles'>
 
@@ -56,7 +62,7 @@ export type CoverOwner = Pick<TheaterCandidate, '_id' | 'uri' | 'handles'>
  * `devicePixelRatio`.
  */
 export const useCoverUrl = (
-  covers: ({ url: string } | null | undefined)[] | null | undefined,
+  covers: Images,
   owner: CoverOwner | null | undefined,
   { standIn = false, box }: { standIn?: boolean, box?: Box } = {}
 ) => {

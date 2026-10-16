@@ -12,7 +12,7 @@ import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
-import { useCoverUrl } from '../../utils/use-cover-url'
+import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { onPluginsChange, pluginStatuses } from '../../plugins'
 import { getRouterRoutePath, Route } from '../path'
 import { GET_MEDIA_DETAILS, usePlay } from './media-details'
@@ -219,7 +219,7 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     ? undefined
     : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal
-  const backdrop = useCoverUrl(trailer?.url ? undefined : media?.banners?.length ? media.banners : media?.covers, media)
+  const backdrop = useCoverUrl(trailer?.url ? undefined : headerImages(media), media)
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
