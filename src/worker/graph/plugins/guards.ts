@@ -651,32 +651,6 @@ type Facts = {
 }
 
 /**
- * The rows THIS PROPOSAL would put two disagreeing claimants onto.
- *
- * GUARD 4 MUST NOT WEIGH THROUGH ONE, or it decides by arrival order. Guard 4 refuses a proposal that
- * would ADD a disagreement to a component; a row two disagreeing claimants both claim to BE puts all
- * of them in one component, so a row arriving afterwards is measured against a membership guard 5 is
- * going to retract, and whichever of the two arrived first wins. The whole point of guard 5 is that
- * neither should (5.2).
- *
- * IT IS PER PROPOSAL AND IT ASKS A COUNTERFACTUAL, and both halves are load bearing. Two simpler
- * definitions were built and measured first, and each fails in its own direction:
- *
- * - "a disagreement is visible at this target" is EMPTY when guard 4 asks, because the disagreement is
- *   usually contingent on the very link being weighed. It leaves `arrival-order.test.ts` red.
- * - "the target is the only thing holding its claimants together" is structural with no disagreement
- *   in it, so it marks every ordinary agreeing join hub and switches guard 4 off through it for good.
- *   Measured on the 249 case corpus, 2026-09-14: 490 of 6,261 guard batches carried a non-empty set,
- *   only 10 held a pair that actually straddles, and 268 of 269 marked targets were rows guard 5 would
- *   never act on. It welds two different `mal` runs as soon as one agreeing third row exists, and it
- *   tore a correct cluster on the recorded page.
- *
- * So the question is neither "do they disagree now" nor "are they joined only here", it is **would
- * accepting THIS link make this hub's claimants disagree**. The view is the relation with the target
- * cut out and the proposal's own two components joined, which is exactly the graph the write would
- * leave behind.
- */
-/**
  * The rows to cut when weighing two claimants of one target against each other.
  *
  * EVERY ROW THEY BOTH CLAIM, not only the target in hand. Two claimants that both claim two rows stay
@@ -735,6 +709,32 @@ export const contestSites = (
   return sites
 }
 
+/**
+ * The rows THIS PROPOSAL would put two disagreeing claimants onto.
+ *
+ * GUARD 4 MUST NOT WEIGH THROUGH ONE, or it decides by arrival order. Guard 4 refuses a proposal that
+ * would ADD a disagreement to a component; a row two disagreeing claimants both claim to BE puts all
+ * of them in one component, so a row arriving afterwards is measured against a membership guard 5 is
+ * going to retract, and whichever of the two arrived first wins. The whole point of guard 5 is that
+ * neither should (5.2).
+ *
+ * IT IS PER PROPOSAL AND IT ASKS A COUNTERFACTUAL, and both halves are load bearing. Two simpler
+ * definitions were built and measured first, and each fails in its own direction:
+ *
+ * - "a disagreement is visible at this target" is EMPTY when guard 4 asks, because the disagreement is
+ *   usually contingent on the very link being weighed. It leaves `arrival-order.test.ts` red.
+ * - "the target is the only thing holding its claimants together" is structural with no disagreement
+ *   in it, so it marks every ordinary agreeing join hub and switches guard 4 off through it for good.
+ *   Measured on the 249 case corpus, 2026-09-14: 490 of 6,261 guard batches carried a non-empty set,
+ *   only 10 held a pair that actually straddles, and 268 of 269 marked targets were rows guard 5 would
+ *   never act on. It welds two different `mal` runs as soon as one agreeing third row exists, and it
+ *   tore a correct cluster on the recorded page.
+ *
+ * So the question is neither "do they disagree now" nor "are they joined only here", it is **would
+ * accepting THIS link make this hub's claimants disagree**. The view is the relation with the target
+ * cut out and the proposal's own two components joined, which is exactly the graph the write would
+ * leave behind.
+ */
 export const contestedBy = (
   a: string,
   b: string,
