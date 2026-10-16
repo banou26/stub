@@ -11,6 +11,7 @@ import { formatCountdown } from '../utils/countdown'
 import { useCoverUrl } from '../utils/use-cover-url'
 import { useNow } from '../utils/use-now'
 import MediaScore from './media-score'
+import { CARD_BOX } from './media-title'
 
 const style = css`
   display: grid;
@@ -142,7 +143,7 @@ const style = css`
  */
 const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const now = useNow()
-  const coverUrl = useCoverUrl(media.covers, media)
+  const coverUrl = useCoverUrl(media.covers, media, { box: CARD_BOX })
   const accent = media.covers?.find(cover => cover.color)?.color
 
   const countdown = formatCountdown(airsIn(media, now) ?? 0)

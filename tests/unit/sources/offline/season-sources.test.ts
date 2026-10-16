@@ -1,7 +1,8 @@
 // The bundled seasons take every season source stub reads live, so the first paint holds every show
-// with the count and the title the page settles on: those of the highest scored source that lists it
-// this season. For the count MyAnimeList (0.9), then AniList (0.8), then Kitsu (0.3); for the title
-// MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4), then Kitsu's (0.3).
+// with the count, the cover and the title the page settles on: those of the highest scored source that
+// lists it this season. For the count and the cover MyAnimeList (0.9), then AniList (0.8), then Kitsu
+// (0.3); for the title MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4),
+// then Kitsu's (0.3).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
@@ -469,4 +470,23 @@ test('the season running now is asked first, and past the time budget no source 
   expect(of('anilist')).toEqual(['anilist 2026-FALL 1', 'anilist 2026-FALL 2', 'anilist 2026-FALL 3'])
   expect(of('kitsu')).toEqual(seasonPageNumbers().map(page => `kitsu 2026-FALL ${page}`))
   expect(laid.reads.kitsu.failed.get('2026-SUMMER')?.message).toBe('not asked after 0 s')
+})
+
+test('a bundled record takes the cover of the highest scored source that lists it this season', async () => {
+  const { get } = sources({ mal: { '2026/summer': malPage('mal-season-summer-2026.html') }, anilist: { '2026-SUMMER': anilistSummer }, kitsu: { '2026-SUMMER': kitsuSummer } })
+  const seasons = { '2026-SUMMER': [
+    { ...record('Mushoku Tensei III', { ml: 59193, al: 178789 }), p: '1000/100000.jpg' },
+    { ...record('Youjo Senki II', { ml: 49233, al: 135865 }), p: '1000/100001.jpg' },
+    { ...record('Shin Keroro Gunsou Movie', { ku: 48693 }), p: '1000/100002.jpg' },
+    { ...record('Nobody lists it', { ml: 1 }), p: '1000/100003.jpg' },
+  ] }
+  const malCover = (await malSeason('2026-SUMMER', async () => new Response(malPage('mal-season-summer-2026.html')), 0)).get(59193)!.cover!
+
+  const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
+  const cover = (catalogue: 'ml' | 'ku', id: number) => laid.seasons['2026-SUMMER'].find(entry => entry[catalogue] === id)?.p
+
+  expect(cover('ml', 59193), 'MyAnimeList, AniList and Kitsu list it').toBe(malCover.replace('https://cdn.myanimelist.net/images/anime/', ''))
+  expect(cover('ml', 49233), 'AniList and Kitsu list it').toBe('https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx135865-T7XIPMAbqcxN.png')
+  expect(cover('ku', 48693), 'only Kitsu lists it').toBe('https://media.kitsu.app/anime/48693/poster_image/1c76ba671262bed223765b8cb719b49a.jpg')
+  expect(cover('ml', 1), 'the control: no source lists it').toBe('1000/100003.jpg')
 })

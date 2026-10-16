@@ -9,12 +9,15 @@ import { memoryLocation } from 'wouter/memory-location'
 
 const { default: MediaTitle } = await import('../../../src/components/media-title')
 
-// linkedom has no Image, which the cover probe (utils/use-cover-url.ts) loads each cover with
+// linkedom has no Image, which the cover probe (utils/use-cover-url.ts) loads each cover with; this
+// one loads each at the size of JustWatch's s718 posters, sharp enough for a card on a 1x screen
 const broken = new Set<string>()
 beforeEach(() => {
   vi.stubGlobal('Image', class {
     onload?: () => void
     onerror?: () => void
+    naturalWidth = 718
+    naturalHeight = 1024
     set src (url: string) { setTimeout(() => broken.has(url) ? this.onerror?.() : this.onload?.()) }
   })
 })
@@ -74,14 +77,14 @@ test('a card keeps its poster when a later answer for the same title carries non
   expect(style()).toContain(`url(${poster('kept')})`)
 })
 
-test('a card keeps its poster until another one for the same title has loaded', async () => {
+test('a card keeps a poster sharp enough for it through a broken one and another one for the same title', async () => {
   broken.add(poster('broken'))
   const { style, settle, update } = card(media([poster('first')]))
   await settle()
   await update(media([poster('broken')]))
   expect(style()).toContain(`url(${poster('first')})`)
   await update(media([poster('second')]))
-  expect(style()).toContain(`url(${poster('second')})`)
+  expect(style()).toContain(`url(${poster('first')})`)
 })
 
 // Measured live on series.fkn.app, 2026-10-13: JustWatch's show was hidden 6.8 s in by its Apple TV

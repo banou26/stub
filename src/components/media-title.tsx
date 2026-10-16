@@ -8,6 +8,12 @@ import { Link } from 'wouter'
 import TextEllipsis from './text-ellipsis'
 import { useCoverUrl } from '../utils/use-cover-url'
 
+/**
+ * The size of the grid's card in CSS px (25rem x 35rem at the 62.5% root font size), the largest image
+ * of the listing's three layouts, which every listing card judges a cover's sharpness by.
+ */
+export const CARD_BOX = { width: 250, height: 350 }
+
 const style = css`
 &.card {
   background-color: #191919;
@@ -89,7 +95,7 @@ const style = css`
 
 const MediaTitle = ({ media, to, ellipsis = true, standIn = false, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean, standIn?: boolean }) => {
   const title = media.titles?.at(0)?.title
-  const coverUrl = useCoverUrl(media.covers, media, { standIn })
+  const coverUrl = useCoverUrl(media.covers, media, { standIn, box: CARD_BOX })
 
   return (
     <div
