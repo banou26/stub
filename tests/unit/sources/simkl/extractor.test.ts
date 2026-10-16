@@ -217,7 +217,7 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
 
   // the film 523278 is listed too, and dropped: its detail answered 412
   expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278'])
-  expect(rows[0]!.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
+  expect(rows[0]!.titles.map(title => title.title)).toEqual(["Frieren: Beyond Journey's End", 'Sousou no Frieren'])
   expect(rows[0]!.covers[0]!.url).toBe('https://simkl.in/posters/14/14625673bbdc6b52ea_m.jpg')
   const posted = sent.filter(request => request.url === `${SITE}/ajax/full/search.php`)
   expect(posted.map(request => new URLSearchParams(request.body).get('type') ?? '').sort((a, b) => a.localeCompare(b))).toEqual(['anime', 'movies', 'tv'])
@@ -245,7 +245,7 @@ test('search sends the fields and headers simkl.com\'s own search sends', async 
   }
 })
 
-test('a recorded anime reads with no client id: its ids, its decoded English title and its episodes', async () => {
+test('a recorded anime reads with no client id: its ids, its decoded English title first and its episodes', async () => {
   const sent: Sent[] = []
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri: 'simkl:1990194' } }, recorded(sent)).next()
@@ -253,7 +253,7 @@ test('a recorded anime reads with no client id: its ids, its decoded English tit
 
   expect(media.uri).toBe('simkl:1990194')
   expect(media.scope).toBe('RUN')
-  expect(media.titles.map(title => title.title)).toEqual(['Sousou no Frieren', "Frieren: Beyond Journey's End"])
+  expect(media.titles.map(title => title.title)).toEqual(["Frieren: Beyond Journey's End", 'Sousou no Frieren'])
   expect(media.handles.map(handle => handle.node.uri).sort()).toEqual(['anilist:154587', 'imdb:tt22248376', 'kitsu:46474', 'mal:52991'])
   expect(media.episodes).toHaveLength(3)
   expect(media.episodes![0]!.releaseDate).toBe('2023-09-29T14:00:00.000Z')
@@ -309,16 +309,21 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
 })
 
 // A film's detail that lists no theatrical release dates it by `released` (recorded 2026-10-13: Episode I is
-// `1999-05-19`, with no `first_aired`), a show or an anime by `first_aired`. An anime film is still an anime
-// record (recorded 2026-10-15: Ghost in the Shell is `anime_type: 'movie'`).
+// `1999-05-19`, with no `first_aired`), a show or an anime by `first_aired`. An anime film is an anime record
+// that names itself a film in `anime_type` (recorded 2026-10-15: Ghost in the Shell is `'movie'`, Tokyo
+// Revengers `'tv'`).
 const DATED_HITS: Record<string, object> = {
   tv: { i13007: { id: '13007', url: '/tv/13007/star-wars-the-clone-wars', titles: { m: 'Star Wars: The Clone Wars' } } },
-  anime: { i37585: { id: '37585', url: '/anime/37585/ghost-in-the-shell', titles: { m: 'Ghost in the Shell' } } },
+  anime: {
+    i37585: { id: '37585', url: '/anime/37585/ghost-in-the-shell', titles: { m: 'Ghost in the Shell' } },
+    i1372805: { id: '1372805', url: '/anime/1372805/tokyo-revengers', titles: { m: 'Tokyo Revengers' } },
+  },
   movies: { i55520: { id: '55520', url: '/movies/55520/star-wars-episode-i---the-phantom-menace', titles: { m: 'Star Wars: Episode I - The Phantom Menace' } } },
 }
 const DATED_DETAILS: Record<string, object> = {
   [`${API}/tv/13007?extended=full`]: { title: 'Star Wars: The Clone Wars', year: 2008, first_aired: '2008-10-03T07:00:00Z' },
   [`${API}/anime/37585?extended=full`]: { title: 'Ghost in the Shell', year: 1995, anime_type: 'movie', first_aired: '1995-11-18T14:00:00Z' },
+  [`${API}/anime/1372805?extended=full`]: { title: 'Tokyo Revengers', year: 2021, anime_type: 'tv', first_aired: '2021-04-10T16:15:00Z' },
   [`${API}/movies/55520?extended=full`]: { title: 'Star Wars: Episode I - The Phantom Menace', year: 1999, released: '1999-05-19' },
 }
 const dated = {
@@ -327,10 +332,15 @@ const dated = {
   }),
 } as never
 
-test('only a film\'s search row is dated, by its release day', async () => {
-  const rows = await searchFor(dated) as (Row & { startDate?: string })[]
+test('only a film\'s search row is dated, an anime film\'s too, and every film is typed MOVIE', async () => {
+  const rows = await searchFor(dated) as (Row & { categories?: string[], startDate?: string })[]
 
-  expect(rows.map(row => [row.uri, row.startDate])).toEqual([['simkl:13007', undefined], ['simkl:37585', undefined], ['simkl:55520', '1999-05-19']])
+  expect(rows.map(row => [row.uri, row.type, row.categories, row.startDate])).toEqual([
+    ['simkl:13007', undefined, ['SERIES'], undefined],
+    ['simkl:37585', 'MOVIE', ['ANIME', 'MOVIE'], '1995-11-18T14:00:00Z'],
+    ['simkl:1372805', undefined, ['ANIME', 'SERIES'], undefined],
+    ['simkl:55520', 'MOVIE', ['MOVIE'], '1999-05-19'],
+  ])
 })
 
 test('an opened film carries its release day', async () => {
@@ -363,6 +373,12 @@ test('a film is dated by its first theatrical release, a limited one too, and no
     (await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: `simkl:${id}` } }, context).next()).value.media.startDate
 
   expect([await opened('61342'), await opened('65784')]).toEqual(['1994-06-15', '2004-10-28'])
+})
+
+test('an opened anime film is a film, with the one episode a film has', async () => {
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'simkl:37585' } }, dated).next()
+
+  expect([value.media.type, value.media.categories, value.media.episodeCount]).toEqual(['MOVIE', ['ANIME', 'MOVIE'], 1])
 })
 
 test('a row whose detail does not read is dropped, and the search still answers', async () => {

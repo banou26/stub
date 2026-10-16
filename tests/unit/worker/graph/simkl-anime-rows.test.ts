@@ -1,7 +1,7 @@
 // "tokyo revengers" and "ghost in the shell" as JustWatch, IMDb, Watchmode and Simkl answered their searches
-// through the relay on 2026-10-15, each cut to the rows of exactly that title. Stub files a Simkl anime record
-// ANIME and SERIES, films included, and IMDb and Watchmode date a film by its year alone, so a dated anime row
-// meets any film of its title and year.
+// through the relay on 2026-10-15, each cut to the rows of exactly that title. Stub reads a Simkl anime series
+// as ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a film by its year
+// alone, so a dated anime series would meet any film of its title and year.
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { ClusterCard } from '../../../../src/worker/graph/plugins/fields'
@@ -93,6 +93,16 @@ describe.each([
 
   test('an anime film keeps its card on the movie site', () => {
     expect(siteAllows(card('jw:9668')!.categories, 'movie')).toBe(true)
+  })
+
+  test('a Simkl anime film joins the film of its title and day, on the movie site', () => {
+    expect(card('simkl:37585')?.members.sort())
+      .toEqual(['anilist:43', 'jw:9668', 'kitsu:25', 'mal:43', 'simkl:37585', 'watchmode:01147215'])
+    expect(siteAllows(card('simkl:37585')!.categories, 'movie')).toBe(true)
+  })
+
+  test('a Simkl anime film leads with its English title, which tells Ghost in the Shell 2.0 from the 1995 film', () => {
+    expect(card('simkl:39956')!.titles[0]).toMatchObject({ title: 'Ghost in the Shell 2.0' })
   })
 
   test('a Simkl film joins the film of its title and release day', () => {

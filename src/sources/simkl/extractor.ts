@@ -57,6 +57,7 @@ interface SimklDetail {
   released?: string
   /** A film's releases per country, as TMDB types them: 1 premiere, 2 limited theatrical, 3 theatrical, 4 digital, 5 physical, 6 tv. */
   release_dates?: { results?: { type?: number, release_date?: string }[] }[]
+  anime_type?: string
   ratings?: SimklRatings
 }
 interface SimklEpisode {
@@ -100,7 +101,12 @@ const still = (path?: string): string | undefined => (path ? `${IMG}/episodes/${
 const detailPath = (type: SimklType): string => (type === 'tv' ? '/tv' : type === 'anime' ? '/anime' : '/movies')
 const episodesPath = (type: SimklType): string => (type === 'tv' ? '/tv/episodes' : '/anime/episodes')
 const typeOfUrl = (url?: string): SimklType | undefined => url?.match(/^\/(tv|anime|movies)\//)?.[1] as SimklType | undefined
-const categoriesForType = (type: SimklType): MediaCategory[] => (type === 'movies' ? ['MOVIE'] : type === 'anime' ? ['ANIME', 'SERIES'] : ['SERIES'])
+
+// Simkl files an anime film under anime, and names it a film in `anime_type` alone (Ghost in the Shell is
+// `/anime/37585`, `anime_type: 'movie'`, recorded 2026-10-15).
+const isFilm = (type: SimklType, detail: SimklDetail): boolean => type === 'movies' || detail.anime_type === 'movie'
+const categoriesFor = (type: SimklType, film: boolean): MediaCategory[] =>
+  type === 'anime' ? ['ANIME', film ? 'MOVIE' : 'SERIES'] : [film ? 'MOVIE' : 'SERIES']
 
 // A tv record is one show with every season under it (its episodes carry a season field), so it is a
 // CONTAINER. An anime record is one run, the reason this source is worth reading: Mushoku Tensei is
@@ -108,8 +114,9 @@ const categoriesForType = (type: SimklType): MediaCategory[] => (type === 'movie
 const scopeForType = (type: SimklType): MediaScope => (type === 'tv' ? 'CONTAINER' : 'RUN')
 
 // The imdb id on a tv or anime record is the SHOW's, identical across every run (all five Mushoku
-// Tensei records carry tt13303712), so it is CONTAINER unless the record is a film, whose imdb id
-// names the film itself. mal, anilist and kitsu number per run and stay RUN.
+// Tensei records carry tt13303712), so it is CONTAINER unless the record is a movies one, whose imdb id
+// names the film itself. An anime film's can still be a show's: Koro-sensei Quest!, `anime_type: 'movie'`,
+// carries the series tt6050174 (recorded 2026-10-15). mal, anilist and kitsu number per run and stay RUN.
 const imdbScopeForType = (type: SimklType): MediaScope => (type === 'movies' ? 'RUN' : 'CONTAINER')
 
 /**
@@ -176,10 +183,10 @@ const startDate = (detail: SimklDetail): string | undefined =>
 const rating = (ratings?: SimklRatings): number | undefined =>
   ratings?.simkl?.rating ?? ratings?.imdb?.rating ?? ratings?.mal?.rating
 
-const buildTitles = (title?: string, enTitle?: string | null) => {
+const buildTitles = (english?: string | null, main?: string) => {
   const titles: { language: string, title: string, score: number }[] = []
   const seen = new Set<string>()
-  for (const raw of [title, enTitle ?? undefined]) {
+  for (const raw of [english, main]) {
     const t = raw && decodeEntities(raw)
     if (t && !seen.has(t)) { seen.add(t); titles.push({ language: 'en', title: t, score: SCORE }) }
   }
@@ -199,39 +206,40 @@ const siteRow = (hit: SimklSiteHit): SiteRow | undefined => {
 // 2026-10-10 search walk) is dropped: it could not join its run, and its card would open on that same
 // unreadable detail.
 //
-// Only a film row is dated, so a title match can join it to its film. `categoriesForType` files an anime
-// record ANIME and SERIES even when Simkl's detail names it a film, so a dated anime row turns an anime
-// film's card into a series, or joins a live-action film of the same title and year.
-const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia | undefined =>
-  detail?.title
-    ? makeMedia({
-      origin,
-      id,
-      url: `https://simkl.com/${type}/${id}`,
-      scope: scopeForType(type),
-      handles: buildHandles(detail.ids, type),
-      type: type === 'movies' ? 'MOVIE' : undefined,
-      categories: categoriesForType(type),
-      score: SCORE,
-      titles: buildTitles(hit.titles?.m, hit.titles?.a7),
-      covers: img(poster(hit.poster), SCORE),
-      startDate: type === 'movies' ? startDate(detail) : undefined,
-      averageScore: percentScore(rating(detail.ratings), 10),
-    })
-    : undefined
-
-const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLMedia | undefined => {
-  if (!detail.title) return undefined
+// Only a film row is dated, so a title match can join it to its film. An anime series names no type, so
+// a dated one joins a live-action film of the same title and year.
+const normalizeSearch = ({ id, type, hit }: SiteRow, detail: SimklDetail | undefined): GQLMedia | undefined => {
+  if (!detail?.title) return undefined
+  const film = isFilm(type, detail)
   return makeMedia({
     origin,
     id,
     url: `https://simkl.com/${type}/${id}`,
     scope: scopeForType(type),
     handles: buildHandles(detail.ids, type),
-    type: type === 'movies' ? 'MOVIE' : undefined,
-    categories: categoriesForType(type),
+    type: film ? 'MOVIE' : undefined,
+    categories: categoriesFor(type, film),
     score: SCORE,
-    titles: buildTitles(detail.title, detail.en_title),
+    titles: buildTitles(hit.titles?.a7, hit.titles?.m),
+    covers: img(poster(hit.poster), SCORE),
+    startDate: film ? startDate(detail) : undefined,
+    averageScore: percentScore(rating(detail.ratings), 10),
+  })
+}
+
+const normalizeDetail = (detail: SimklDetail, id: string, type: SimklType): GQLMedia | undefined => {
+  if (!detail.title) return undefined
+  const film = isFilm(type, detail)
+  return makeMedia({
+    origin,
+    id,
+    url: `https://simkl.com/${type}/${id}`,
+    scope: scopeForType(type),
+    handles: buildHandles(detail.ids, type),
+    type: film ? 'MOVIE' : undefined,
+    categories: categoriesFor(type, film),
+    score: SCORE,
+    titles: buildTitles(detail.en_title, detail.title),
     ...desc(detail.overview, SCORE),
     covers: img(poster(detail.poster), SCORE),
     banners: img(fanart(detail.fanart), SCORE),

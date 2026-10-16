@@ -120,19 +120,19 @@ flowchart TD
   classDef refuse fill:#a3a4aa,stroke:#74757c,color:#17181b
 ```
 
-*Every lane asks the same question in its own file, and the rose outcome is the one that cannot be taken back. The conditions are, in order: `src/sources/simkl/extractor.ts:108`, `src/sources/crunchyroll/extractor.ts:174`, `src/sources/unogs/extractor.ts:342`, `src/sources/justwatch/extractor.ts:470`, and `src/worker/store/db.ts:42`.*
+*Every lane asks the same question in its own file, and the rose outcome is the one that cannot be taken back. The conditions are, in order: `src/sources/simkl/extractor.ts:114`, `src/sources/crunchyroll/extractor.ts:174`, `src/sources/unogs/extractor.ts:342`, `src/sources/justwatch/extractor.ts:470`, and `src/worker/store/db.ts:42`.*
 
 Each lane, with the measurement behind it.
 
 **anilist, mal, kitsu, simkl anime records.** The record already is one cour, so its bare id is a
-run and needs no scoping. `src/sources/simkl/extractor.ts:105-107`:
+run and needs no scoping. `src/sources/simkl/extractor.ts:111-113`:
 
 > A tv record is one show with every season under it (its episodes carry a season field), so it is a
 > CONTAINER. An anime record is one run, the reason this source is worth reading: Mushoku Tensei is
 > five records here, each with its own mal, anilist and kitsu id.
 
-Note what `simkl` does with its own imdb id at `:89-92`: `imdbScopeForType` stamps CONTAINER on
-everything but a film, because *all five Mushoku Tensei records carry tt13303712*.
+Note what `simkl` does with its own imdb id at `:116-120`: `imdbScopeForType` stamps CONTAINER on
+everything but a movies record, because *all five Mushoku Tensei records carry tt13303712*.
 
 **crunchyroll.** One season of 23 plus a special, against AniList's 11 and 12. The id shape is
 `crunchyrollId(seriesId, seasonId, episodeId)`, joined on `-`
