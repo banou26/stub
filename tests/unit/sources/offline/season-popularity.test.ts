@@ -208,6 +208,26 @@ test('a show MyAnimeList lists for a season that its bucket lacks is added from 
   expect([media?.season, media?.seasonYear, media?.popularity]).toEqual(['SUMMER', 2026, 247_199])
 })
 
+// Measured 2026-10-16 on the Fall 2026 page: asked in English (`en`, `en-US`) its cards carry 89 English
+// titles, asked as node's fetch asks (`Accept-Language: *`) or in Japanese none, and nothing else on a
+// card changes. The live source leads with that English title (score 0.9), above the bundle's (0.2).
+const english = fixture('mal-season-fall-2026-english.html')
+const inEnglishOnly = async (_url: string, init?: RequestInit) => new Response(new Headers(init?.headers).get('accept-language')?.startsWith('en')
+  ? english
+  : english.replace(/<h3 class="h3_anime_subtitle">[^<]*<\/h3>/g, ''))
+
+test('a record takes the English title its MyAnimeList card shows, and keeps its own where the card shows none', async () => {
+  const seasons = { '2026-FALL': [record('Black Clover (2026)', { ml: 61967 }), record('Cyberpunk Edgerunners (2026)', { ml: 61990 })] }
+
+  const laid = await malSeasonData(seasons, [], { now: '2026-FALL', get: inEnglishOnly, pauseMs: 0 })
+
+  expect(laid.seasons['2026-FALL'].map(entry => [entry.ml, entry.t])).toEqual([
+    [61469, 'Steel Ball Run: JoJo\'s Bizarre Adventure'],
+    [61967, 'Black Clover Season 2'],
+    [61990, 'Cyberpunk Edgerunners (2026)'],
+  ])
+})
+
 // Measured 2026-10-16: MyAnimeList lists Steel Ball Run on both the Summer and the Fall 2026 page, as the
 // live source then answers it for both.
 test('a show MyAnimeList lists in two seasons is in both buckets', async () => {

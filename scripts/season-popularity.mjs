@@ -49,7 +49,8 @@ export const malSeason = async (key, get = fetch, pauseMs = PAUSE_MS) => {
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     if (attempt > 1) await new Promise(resolve => setTimeout(resolve, pauseMs))
     try {
-      const response = await get(url, { redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS) })
+      // a card carries its English title only on a page asked for in English, and node's fetch asks for `*`
+      const response = await get(url, { redirect: 'manual', headers: { 'accept-language': 'en' }, signal: AbortSignal.timeout(TIMEOUT_MS) })
       // a season with no page yet answers 303 to /anime/season, the season running now, whose shows
       // would otherwise all be filed under this one
       if (response.status >= 300 && response.status < 400) return new Map()
@@ -200,13 +201,13 @@ const cardRecord = (id, card, anilist) => ({
 
 /**
  * The bundled seasons with MyAnimeList's pages laid over them, each bucket in the order the listing
- * paints, so the first paint is the order the live `mal` source settles it into.
+ * paints, so the first paint is the order and the titles the live `mal` source settles it into.
  *
- * A record takes the member count MyAnimeList shows for it on any season's page: the offline database
- * and MyAnimeList file some shows a season apart. A show a season's page lists that its bucket lacks
- * is added from its card, also when another bucket holds it, as the live source answers it for every
- * season whose page lists it. An R18+ title is in no season. Synopses go only to the season running
- * now (`now`), the one the home page's hero reads.
+ * A record takes the member count and the English title MyAnimeList shows for it on any season's
+ * page: the offline database and MyAnimeList file some shows a season apart. A show a season's page
+ * lists that its bucket lacks is added from its card, also when another bucket holds it, as the live
+ * source answers it for every season whose page lists it. An R18+ title is in no season. Synopses go
+ * only to the season running now (`now`), the one the home page's hero reads.
  *
  * A bundled record keeps its own ids. An added show carries the AniList id `anilistOf` pairs with its
  * mal id (see `anilistPairs`), so a show in two buckets names the same shows in both.
@@ -224,6 +225,7 @@ export const withMalSeasons = (seasons, pages, now, anilistOf = new Map()) => {
         const card = cards.get(record.ml)
         return {
           ...record,
+          ...card?.englishTitle && { t: card.englishTitle },
           ...card?.members && { pop: card.members },
           ...key === now && card?.synopsis && { sy: card.synopsis },
         }
