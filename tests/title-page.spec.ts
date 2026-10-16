@@ -624,6 +624,9 @@ test('paging a list that is all on screen to its short last page leaves the cont
     const numbers = episodes.locator('.episode .number')
     const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
     await expect(numbers).toHaveCount(12, { timeout: 30_000 })
+    // AniList answers last, drawing the relations above the list: a click on a control still moving is retried by
+    // Playwright with the control scrolled to the screen's middle, which is the scroll this would then measure
+    await expect(page.locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
     const first = await place(pages)
     const scrolled = await page.evaluate(() => scrollY)
     await pages.getByRole('button', { name: 'Page 92' }).click()
