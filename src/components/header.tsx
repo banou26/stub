@@ -333,7 +333,7 @@ const SiteLinks = ({ className }: { className?: string }) => (
  */
 const Wordmark = () => {
   const [open, setOpen] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const press = useRef<{ at: number, timer: ReturnType<typeof setTimeout> }>(undefined)
   // Escape hands focus back to whichever of the arrow and the wordmark opened the menu
   const opener = useRef<HTMLElement | null>(null)
   const { refs, floatingStyles, context } = useFloating({
@@ -351,7 +351,10 @@ const Wordmark = () => {
     opener.current = element
     setOpen(true)
   }
-  const release = () => clearTimeout(timer.current)
+  const release = () => {
+    clearTimeout(press.current?.timer)
+    press.current = undefined
+  }
   const hasMenu = siteLinks.length > 0
 
   const wordmark = (
@@ -365,9 +368,19 @@ const Wordmark = () => {
           onPointerDown: (event: PointerEvent) => {
             if (event.button !== 0) return
             const target = event.currentTarget as HTMLElement
-            timer.current = setTimeout(() => openFrom(target), LONG_PRESS)
+            const timer = setTimeout(() => {
+              // ends the press, so a menu closed while it is still held does not open again on its release
+              press.current = undefined
+              openFrom(target)
+            }, LONG_PRESS)
+            press.current = { at: event.timeStamp, timer }
           },
-          onPointerUp: release,
+          // a busy page can handle the release before the timer; the events' own stamps still say how long
+          // the press was held, where the time they were handled would not
+          onPointerUp: (event: PointerEvent) => {
+            if (press.current && event.timeStamp - press.current.at >= LONG_PRESS) openFrom(event.currentTarget as HTMLElement)
+            release()
+          },
           onPointerLeave: release,
           onPointerCancel: release,
           onContextMenu: (event: MouseEvent) => {

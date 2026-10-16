@@ -326,8 +326,6 @@ const pressWordmark = async (page: Page) => {
   await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
   await page.mouse.down()
 }
-// a busy page can handle a fixed hold's release before the press's timer, which the release clears, so a press
-// meant to open the menu holds until it opens
 const longPress = async (page: Page) => {
   await pressWordmark(page)
   await expect(siteMenu(page)).toBeVisible()
@@ -376,6 +374,18 @@ test('a short tap on the wordmark still goes home', async ({ page }) => {
   await expect(siteMenu(page), 'the tap\'s own timer is cleared').toHaveCount(0)
 })
 
+test('a menu closed while its long press is still held stays closed on the release', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movies.localhost', '/settings'))
+  await pressWordmark(page)
+  await expect(siteMenu(page)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(siteMenu(page)).toHaveCount(0)
+  await page.mouse.up()
+  await page.evaluate(() => new Promise(requestAnimationFrame))
+  await expect(siteMenu(page)).toHaveCount(0)
+})
+
 test('a press that leaves the wordmark early opens nothing, and one released off it leaves Enter going home', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('movies.localhost', '/settings'))
@@ -393,6 +403,28 @@ test('a press that leaves the wordmark early opens nothing, and one released off
   await expect(page.locator('header .logo')).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(at('movies.localhost'))
+})
+
+// the page stays busy 900 ms from the press, so Chrome handles the mouse release, its input, before the press's
+// timer, and handles it at the same time whether it came at 50 ms or 600 ms
+const busyPress = async (page: Page, hold: number) => {
+  await pressWordmark(page)
+  await page.evaluate(() => setTimeout(() => { for (const end = performance.now() + 900; performance.now() < end;); }))
+  await page.waitForTimeout(hold)
+  await page.mouse.up()
+}
+
+test('on a busy page a long press opens the menu on release, and a short tap still goes home', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(at('movies.localhost', '/settings'))
+  await expect(page.locator('header .logo')).toBeVisible()
+  await busyPress(page, 600)
+  await expect(siteMenu(page)).toBeVisible()
+  await expect(page).toHaveURL(/\/settings/)
+  await page.keyboard.press('Escape')
+  await busyPress(page, 50)
+  await expect(page).toHaveURL(at('movies.localhost'))
+  await expect(siteMenu(page)).toHaveCount(0)
 })
 
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
