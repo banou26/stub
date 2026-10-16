@@ -1,0 +1,336 @@
+{
+  "data": {
+    "episodes": [
+      {
+        "id": "umc.cmc.2p44dud00b3x466a7i98sogw3",
+        "title": "The Grim Barbarity Of Optics and Design",
+        "seasonNumber": 1,
+        "episodeNumber": 5,
+        "url": "https://tv.apple.com/us/episode/the-grim-barbarity-of-optics-and-design/umc.cmc.2p44dud00b3x466a7i98sogw3?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1646956800000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/O6uni5z7w8Q4FYixISz0tQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/O6uni5z7w8Q4FYixISz0tQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/O6uni5z7w8Q4FYixISz0tQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.qt72g1q6z8l5pq5dxe3fp879",
+        "title": "Hide and Seek",
+        "seasonNumber": 1,
+        "episodeNumber": 6,
+        "url": "https://tv.apple.com/us/episode/hide-and-seek/umc.cmc.qt72g1q6z8l5pq5dxe3fp879?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1647561600000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/o8bGSURob7b5GuD8xVMAXA/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/o8bGSURob7b5GuD8xVMAXA/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/o8bGSURob7b5GuD8xVMAXA/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.18x6l3djbw7lajdvor7ku60dp",
+        "title": "Defiant Jazz",
+        "seasonNumber": 1,
+        "episodeNumber": 7,
+        "url": "https://tv.apple.com/us/episode/defiant-jazz/umc.cmc.18x6l3djbw7lajdvor7ku60dp?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1648166400000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/YuX84SwkbfvWj32F0hy3nQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/YuX84SwkbfvWj32F0hy3nQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/YuX84SwkbfvWj32F0hy3nQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.66apkliyg6426teojr78q3o4t",
+        "title": "What’s for Dinner?",
+        "seasonNumber": 1,
+        "episodeNumber": 8,
+        "url": "https://tv.apple.com/us/episode/whats-for-dinner/umc.cmc.66apkliyg6426teojr78q3o4t?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1648771200000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/h8K0uc1ivCCpN4lytyNV4g/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/h8K0uc1ivCCpN4lytyNV4g/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/h8K0uc1ivCCpN4lytyNV4g/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.5d8khnxea17tjwm0yxhyw1s0f",
+        "title": "The We We Are",
+        "seasonNumber": 1,
+        "episodeNumber": 9,
+        "url": "https://tv.apple.com/us/episode/the-we-we-are/umc.cmc.5d8khnxea17tjwm0yxhyw1s0f?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1649376000000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Up9kc4LYVsXAtzXHDUwbew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Up9kc4LYVsXAtzXHDUwbew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Up9kc4LYVsXAtzXHDUwbew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.1xkk4g9qkusfdsjezvqznch8b",
+        "title": "Hello, Ms. Cobel",
+        "seasonNumber": 2,
+        "episodeNumber": 1,
+        "url": "https://tv.apple.com/us/episode/hello-ms-cobel/umc.cmc.1xkk4g9qkusfdsjezvqznch8b?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1737072000000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/H8ApKzved8NUkSOA-0Wmlg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/H8ApKzved8NUkSOA-0Wmlg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/H8ApKzved8NUkSOA-0Wmlg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.6sye1rbpj966p9952s1svo9m3",
+        "title": "Goodbye, Mrs. Selvig",
+        "seasonNumber": 2,
+        "episodeNumber": 2,
+        "url": "https://tv.apple.com/us/episode/goodbye-mrs-selvig/umc.cmc.6sye1rbpj966p9952s1svo9m3?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1737676800000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/8hSoEZuR695MkM1iy-p7-w/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/8hSoEZuR695MkM1iy-p7-w/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/8hSoEZuR695MkM1iy-p7-w/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.79rpwoeby6u8jkh55q98ov841",
+        "title": "Who Is Alive?",
+        "seasonNumber": 2,
+        "episodeNumber": 3,
+        "url": "https://tv.apple.com/us/episode/who-is-alive/umc.cmc.79rpwoeby6u8jkh55q98ov841?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1738281600000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/9SMCasTEGL-y4nF4gtUMew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/9SMCasTEGL-y4nF4gtUMew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/9SMCasTEGL-y4nF4gtUMew/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.39o64vs9jfwkrt6zr653oe0dx",
+        "title": "Woe’s Hollow",
+        "seasonNumber": 2,
+        "episodeNumber": 4,
+        "url": "https://tv.apple.com/us/episode/woes-hollow/umc.cmc.39o64vs9jfwkrt6zr653oe0dx?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1738886400000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/b3K0ifmQXbyogK6W7kppTg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/b3K0ifmQXbyogK6W7kppTg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/b3K0ifmQXbyogK6W7kppTg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.6ldzfti7e7raek9ltyeken27o",
+        "title": "Trojan’s Horse",
+        "seasonNumber": 2,
+        "episodeNumber": 5,
+        "url": "https://tv.apple.com/us/episode/trojans-horse/umc.cmc.6ldzfti7e7raek9ltyeken27o?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1739491200000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/zQDsSwFG7XVFxR24ZuYTfg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/zQDsSwFG7XVFxR24ZuYTfg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/zQDsSwFG7XVFxR24ZuYTfg/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      },
+      {
+        "id": "umc.cmc.46bnjem9rqb55vg2q3reumsvw",
+        "title": "Attila",
+        "seasonNumber": 2,
+        "episodeNumber": 6,
+        "url": "https://tv.apple.com/us/episode/attila/umc.cmc.46bnjem9rqb55vg2q3reumsvw?showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "releaseDate": 1740096000000,
+        "images": {
+          "contentImage": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Wgb1NPDkunT1lWimTR0jaQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "contentImageTall": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Wgb1NPDkunT1lWimTR0jaQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "posterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/Wgb1NPDkunT1lWimTR0jaQ/{w}x{h}.{f}",
+            "width": 3840
+          },
+          "showPosterArt": {
+            "height": 2160,
+            "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+            "width": 3840
+          }
+        }
+      }
+    ]
+  }
+}

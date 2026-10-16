@@ -258,7 +258,7 @@ receives `meta.title`, `meta.posterUrl` and `meta.shortDescription` (`:320-322`)
   catalogue here offers.
 - **episodeCount**: the length of the fetched episode list (`:258`), 1 for a film (`:252`).
 - **status / genres / tags / season / seasonYear / averageScore / popularity / endDate / type**: none.
-- **covers**: `coverArt` at 600x900 (`:90,112`). **banners**: `coverArt16X9` at 1920x1080 (`:91,113`).
+- **covers**: `contentImageTall` at 600x900 (`:102`). **banners**: `contentImage` at 1920x1080 (`:103`).
 - **relations / franchise**: none.
 - **offers**: the media `url` is `content.url` on tv.apple.com (`:108`) and each episode carries
   `episode.url` (`:124`). No player is registered for `appletv` (`players.ts:11-14`).
@@ -502,7 +502,7 @@ the media row, or through the `Media.episodes` field resolver.
 | crunchyroll | `ep.episode_number` (`crunchyroll/extractor.ts:206`) | `ep.sequence_number` (`:207`) | yes (`:205`) | one, `en` (`:202`) | **yes**: `episode_air_date` as ISO (`:208`) | yes (`:204`) | none | both: inside the media row for a season-scoped id (`:272-275`), and through `Media.episodes` (`:591-597`) |
 | unogs | **positional index `i + 1`**, not an upstream number (`unogs/extractor.ts:294,500`) | none | `episode.seasnum` (`:194`) | one, `en`, decoded (`:191`) | **NONE.** `UnogsEpisode` is `epid, seasnum, synopsis, title, img` (`:98-104`) and no air date exists at any level (`:281-284`) | yes (`:193`) | none | both (`:293-296`, `:492-503`) |
 | justwatch | `ep.content.episodeNumber` (`justwatch/extractor.ts:560`) | none | yes (`:559`) | one, `en` (`:557`) | **none** (`:551-562`) | none | **yes**, `ep.content.runtime` (`:561`) | both. `NODE_QUERY` asks `episodes(limit: 50)` per season (`:195`) and filters on `isReleased` (`:489`) |
-| appletv | `episode.episodeNumber` (`appletv/extractor.ts:130`) | none | yes (`:129`) | one, `en` (`:126`) | **yes**, epoch ms converted to ISO (`:131-134`) | yes, `previewFrame` or `coverArt16X9` (`:128`) | none | both (`:257`, `:426-435`). **Caveat: 27.280% of the episodes Apple answers for a season belong to another season** (`:137-155`), so the list is filtered and deduped by id (`:175-183`) |
+| appletv | `episode.episodeNumber` (`appletv/extractor.ts:130`) | none | yes (`:129`) | one, `en` (`:126`) | **yes**, epoch ms converted to ISO (`:131-134`) | yes, the episode's own `contentImage` at 1280x720 (`:141`) | none | both (`:257`, `:426-435`). **Caveat: 27.280% of the episodes Apple answers for a season belong to another season** (`:137-155`), so the list is filtered and deduped by id (`:175-183`) |
 | paramount | `episode_num` (`paramount/extractor.ts:48`) | none | `season_num` (`:47`) | one, `en` (`:45`) | none | yes (`:46`) | none | both, but the media row only keeps them when every episode is one season (`:66-72`) |
 | tmdb | `episode.number` (`tmdb/extractor.ts:135`) | none | yes (`:134`) | one, `en` (`:131`) | **none** (`:125-136`) | yes, the still (`:133`) | none | both (`:191`, `:222-232`) |
 | tvmaze | `episode.number` (`tvmaze/extractor.ts:116`) | none | `episode.season` (`:115`) | one, `en` (`:112`) | **none emitted**, although `TvmazeEpisode.airdate` is fetched (`:54`) and used to compute the season premiere (`:119-128`) | yes (`:114`) | none | both (`:153`, `:222-231`) |

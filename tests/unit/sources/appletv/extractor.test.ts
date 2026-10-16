@@ -11,6 +11,8 @@ import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/appletv/extractor'
+import SEVERANCE from '../../../fixtures/appletv/severance.json'
+import SEVERANCE_S2_EPISODES from '../../../fixtures/appletv/severance-s2-episodes.json'
 import SLOW_HORSES from '../../../fixtures/appletv/slow-horses.json'
 import THE_INSTIGATORS from '../../../fixtures/appletv/the-instigators.json'
 
@@ -121,8 +123,9 @@ test('a movie resolved by id names one run', async () => {
   expect(media?.episodeCount).toBe(1)
 })
 
-// Recorded 2026-10-16 through the relay with the reader's own `/shows/<id>` and `/movies/<id>` requests.
-// Each keeps every image its answer carries, so the test shows which one is read as the poster.
+// Recorded 2026-10-16 through the relay with the reader's own `/shows/<id>`, `/movies/<id>` and
+// `/shows/<id>/episodes` requests. Each keeps every image its answer carries, so the test shows which
+// one is read. A show's `posterArt` is its wide image with the title and Apple's logo lettered on it.
 type Recorded = { data: { content: { id: string, type: string } } }
 
 const recordedRoutes = (answer: Recorded) => {
@@ -132,13 +135,31 @@ const recordedRoutes = (answer: Recorded) => {
     : { [url(`/shows/${id}`)]: answer }
 }
 
+const mzstatic = (image: string, size: string) => `https://is1-ssl.mzstatic.com/image/thumb/${image}/${size}.jpg`
+const urls = (images?: { url: string }[]) => images?.map(image => image.url)
+
 test.each([
-  ['show', SLOW_HORSES, 'gaxT8-02hxIwn62aKXvgkA'],
-  ['film', THE_INSTIGATORS, 'C0GzyIYIV0BPygvI8YWSAA'],
-])('a recorded %s answer takes its tall image as a 2:3 poster', async (_, answer: Recorded, image) => {
+  ['show', SLOW_HORSES, 'gaxT8-02hxIwn62aKXvgkA', 'EJo0K6ENwDN0rmv0m5br2g'],
+  ['film', THE_INSTIGATORS, 'C0GzyIYIV0BPygvI8YWSAA', 'IzskYQaIAHGnApdnP7R68w'],
+])('a recorded %s answer takes its tall image as a 2:3 poster and its unlettered wide one as a banner', async (_, answer: Recorded, poster, banner) => {
   const media = await resolveMedia(`appletv:${answer.data.content.id}`, recordedRoutes(answer))
 
-  expect(media?.covers?.map((cover: { url: string }) => cover.url)).toEqual([`https://is1-ssl.mzstatic.com/image/thumb/${image}/600x900tc.jpg`])
+  expect(urls(media?.covers)).toEqual([mzstatic(poster, '600x900tc')])
+  expect(urls(media?.banners)).toEqual([mzstatic(banner, '1920x1080sr')])
+})
+
+// Each episode also names the show's lettered art as `showPosterArt`.
+test('a recorded season answer gives each of its episodes its own still', async () => {
+  const { id } = SEVERANCE.data.content
+  const media = await resolveMedia(`appletv:${id}-s2`, {
+    [url(`/shows/${id}`)]: SEVERANCE,
+    [url(`/shows/${id}/episodes?selectedSeasonId=umc.cmc.uhm560ns0yg3a5fy454bb967`)]: SEVERANCE_S2_EPISODES,
+  })
+
+  expect(media?.episodes?.map((episode: { thumbnails: { url: string }[] }) => urls(episode.thumbnails))).toEqual(
+    ['H8ApKzved8NUkSOA-0Wmlg', '8hSoEZuR695MkM1iy-p7-w', '9SMCasTEGL-y4nF4gtUMew', 'b3K0ifmQXbyogK6W7kppTg', 'zQDsSwFG7XVFxR24ZuYTfg', 'Wgb1NPDkunT1lWimTR0jaQ']
+      .map(still => [mzstatic(still, '1280x720')])
+  )
 })
 
 // THE MEDIA PATH picks its season through the shared picker, off what the aggregated media knows.

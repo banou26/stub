@@ -45,8 +45,13 @@ interface AppleImages {
    * and film answers measured 2026-10-16 carries `coverArt`.
    */
   contentImageTall?: AppleImage
-  coverArt16X9?: AppleImage
-  previewFrame?: AppleImage
+  /**
+   * A show's or film's 4:3 key art with no lettering, its crop in the template (`{w}x{h}sr.{f}`), so
+   * 1920x1080 is a 16:9 banner; `posterArt` is the same art with the title lettered on. On an episode it
+   * is that episode's own 16:9 still. Measured 2026-10-16: none of 177 show and film answers carries
+   * `coverArt16X9`, and none of 1470 episodes over 270 seasons `previewFrame`.
+   */
+  contentImage?: AppleImage
 }
 interface AppleItem {
   id: string
@@ -95,7 +100,7 @@ interface AppleEpisodesResponse { data?: { episodes?: AppleEpisode[] } }
  */
 const normalizeMedia = (content: AppleItem, season?: AppleSeason): GQLMedia => {
   const cover = image(content.images?.contentImageTall, 600, 900)
-  const banner = image(content.images?.coverArt16X9, 1920, 1080)
+  const banner = image(content.images?.contentImage, 1920, 1080)
   const scoped = season?.seasonNumber != null
   // A SEASON-scoped media may never carry the SHOW's date. It is not merely inaccurate, it welds
   // seasons together: profileCluster derives its `years` set from every member's startDate and
@@ -133,7 +138,7 @@ const normalizeEpisode = (episode: AppleEpisode, mediaUri: string): GQLEpisode =
     score: SCORE,
     titles: [{ language: 'en', title: episode.title, score: SCORE }],
     ...desc(episode.description, SCORE),
-    thumbnails: img(image(episode.images?.previewFrame ?? episode.images?.coverArt16X9, 1280, 720), SCORE),
+    thumbnails: img(image(episode.images?.contentImage, 1280, 720), SCORE),
     seasonNumber: episode.seasonNumber,
     episodeNumber: episode.episodeNumber,
     // Epoch MILLISECONDS, converted here rather than at the reader: the units are established in

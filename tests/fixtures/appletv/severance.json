@@ -1,0 +1,45 @@
+{
+  "data": {
+    "content": {
+      "id": "umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+      "type": "Show",
+      "title": "Severance",
+      "url": "https://tv.apple.com/us/show/severance/umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+      "releaseDate": 1645142400000,
+      "images": {
+        "contentImage": {
+          "height": 3240,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/sWbO9RKGr81f6-iTFF9d4g/{w}x{h}sr.{f}",
+          "width": 4320
+        },
+        "contentImageTall": {
+          "height": 3636,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/_705uGqVmFkkNIXfLCXHRw/{w}x{h}tc.{f}",
+          "width": 1680
+        },
+        "contentLogo": {
+          "height": 1176,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/EoWjlf9EmMs5QpTaeSw0lQ/{w}x{h}.{f}",
+          "width": 7095
+        },
+        "posterArt": {
+          "height": 2160,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/yLaIuyo68a7gtcjngkHQiQ/{w}x{h}.{f}",
+          "width": 3840
+        }
+      }
+    },
+    "seasons": {
+      "umc.cmc.vhs3hc5o2mfl9vbyxf2y5tiy": {
+        "id": "umc.cmc.vhs3hc5o2mfl9vbyxf2y5tiy",
+        "seasonNumber": 1,
+        "releaseDate": 1645142400000
+      },
+      "umc.cmc.uhm560ns0yg3a5fy454bb967": {
+        "id": "umc.cmc.uhm560ns0yg3a5fy454bb967",
+        "seasonNumber": 2,
+        "releaseDate": 1737072000000
+      }
+    }
+  }
+}
