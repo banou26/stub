@@ -322,7 +322,7 @@ origin or the id shape.
 | `fuzzy-merge.ts:285`, `:659` | `cluster.every(media => media.scope === 'CONTAINER')`, then `a.scope !== b.scope` | which link function a decided match is allowed to call |
 | `similar-consumer.ts:144` | `cluster.filter(media => media.scope !== 'CONTAINER')` | which uri a similarMedia ask is made on behalf of |
 | `similar-consumer.ts:239` | `media.origin === ask.origin && media.scope !== 'CONTAINER'` | whether this origin's run is already in the cluster, so a second one is refused |
-| `export.ts:62` | `!publishedMembers.some(member => member.scope !== 'CONTAINER')` | a cluster with no published run in it is not exported |
+| `export.ts:49` | `!members.some(member => member.scope !== 'CONTAINER')` | a cluster with no run in it is not exported |
 
 One reader deliberately does not trust the stamp. `isRunAnswerFrom` (`src/sources/similar.ts:125-129`)
 tests the scope **and** the id:

@@ -114,10 +114,8 @@ export const COERCING_ORIGINS = new Set(['jw', 'omdb', 'tmdb', 'tvdb', 'nf', 'cr
  * wrong entry costs a real claim, so an origin goes in only with the line that builds the handle.
  *
  * DELIBERATELY ABSENT, each for its own reason rather than by omission:
- * - `offline`: the seed's identity handles are an export of a real cluster and can name ANY origin
- *   (`sources/offline/seed.ts:108`), so it has no bounded id space to test against. Its SAME_AS is
- *   `seed` before the fallback is reached anyway, and `offline/extractor.ts:163-166` is the narrower
- *   of its two paths, not the whole of it.
+ * - `offline`: its SAME_AS is `seed` before the fallback is reached, so no claim of its ever reaches
+ *   the lookup.
  * - `imdb`, `anidb`, `amazon`, `disney`, `hbo`, `hulu`, `peacock`, `fubo`, `paramount`, and the link-only
  *   origins JustWatch's offers name (`hidive`, `tubi`, `roku`, `pluto`, `plex`, `hoopla`, `starz`,
  *   `amcplus`, `philo`): read, and each builds no handle at all, so no claim of theirs ever reaches the lookup.

@@ -4,7 +4,6 @@ import type { Media as GQLMedia, Episode as GQLEpisode, MediaHandle as GQLMediaH
 import initFrizbee, { Matcher } from 'frizbee'
 import initSacha, { parse as parseMediaName } from 'sacha'
 import { fromAggregatedUri, toUri } from '../utils/uri'
-import { extendsId } from './offline/seed-gate'
 import { SEASON_MARKER } from './season'
 
 /**
@@ -517,7 +516,7 @@ export const buildHandlesFromUri = (aggregatedUri: string, excludeOrigin: string
     // minting both makes this source assert it. The JustWatch season jw:531130-580247 stamped SAME_AS
     // to mal:64683 and mal:63225 at once that way on the recorded season corpus, one of the three
     // manifest addresses carrying two mal ids (2026-09-12).
-    const [id, ...rest] = [...new Set(ids)].filter(id => !ids.some(other => extendsId(other, id) && other.startsWith(`${id}-`)))
+    const [id, ...rest] = [...new Set(ids)].filter(id => !ids.some(other => other.startsWith(`${id}-`)))
     if (!id || rest.length) continue
     handles.push({ ...sameAs(makeMedia({ origin, id })), provenance: 'address' })
   }

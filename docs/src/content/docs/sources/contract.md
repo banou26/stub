@@ -118,7 +118,7 @@ and passed `OriginFilter.IsNotApiOnly` by all three consumers
 | export | declared by | read by | what it decides |
 | --- | --- | --- | --- |
 | `origin` | 25 of 25 | `normalizeOrigin` as `id`; `implementsSimilarMedia`; `answersForOrigins`; `enforcePluginOrigin`; the plugin collision check | The uri prefix on every row and handle the source mints. See the aside below. |
-| `originUrl` | 25 of 25 | `normalizeOrigin` as `url` | Nothing on screen. `src/sources/offline/extractor.ts:33` records that it "is never rendered anywhere". |
+| `originUrl` | 25 of 25 | `normalizeOrigin` as `url` | Nothing on screen. `src/sources/offline/extractor.ts:30` records that it "is never rendered anywhere". |
 | `name` | 25 of 25 | `normalizeOrigin`; every console line the worker prints about the source | The label in a source row, and how a failure is attributed. |
 | `icon` | 22 of 25 | `normalizeOrigin` | A row with no icon is skipped outright: `src/router/home/media-modal.tsx:781` is `if (!origin.icon) return undefined`. anizip, offline and livechart omit it, and all three are `isApiOnly = true`, so that check is never reached for them. |
 | `color` | 18 of 25 | `normalizeOrigin` | Row accent. jikan, anilist, anizip, crunchyroll, unogs, justwatch and livechart declare none. |
@@ -163,7 +163,7 @@ extractor restates its categories per media inside `makeMedia({ categories: [...
 
 The comment that says this plainly is the right one:
 
-`src/sources/offline/extractor.ts:30-31`
+`src/sources/offline/extractor.ts:27-28`
 
 > `metadataOnly` gates nothing at all, for anybody: `normalizeOrigin` drops it, it is not in the
 > GraphQL schema, and the one value read of it feeds a field nothing consumes.
@@ -468,10 +468,10 @@ them. Two do not, and they are the two that had this problem:
 | source | `origin` | `supportedUris` |
 | --- | --- | --- |
 | anizip | `anizip` | `['anidb', 'mal']` (`src/sources/anizip/extractor.ts:13`) |
-| offline | `offline` | `['offline', ...INDEXED_ORIGINS]` (`src/sources/offline/extractor.ts:48`) |
+| offline | `offline` | `['offline', ...INDEXED_ORIGINS]` (`src/sources/offline/extractor.ts:45`) |
 
 :::caution[A second comment the code has overtaken]
-`src/sources/offline/extractor.ts:45-47` says of its `supportedUris`: "Note this export is
+`src/sources/offline/extractor.ts:42-44` says of its `supportedUris`: "Note this export is
 declarative only: nothing in the worker reads it, so what actually decides is the resolver below."
 
 That was true when it was written and is not true now. `askOrigins` reads it, through the

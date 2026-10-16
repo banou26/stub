@@ -87,10 +87,9 @@ Every column on the right reads "none", and that is the page.
 
 Some of those absences are honest. An episode has no scope, so there is nothing to ratchet. The
 shadow record has nothing to answer either: `exportStore` reaches an episode through `HAS_EPISODE`
-off each cluster member and filters it by its own origin, `if (excluded.has(originOf(episodeUri)) ||
-!published(episodeUri)) continue` at `src/worker/store/export.ts:85`, so it never has to ask what an
-episode component would look like with a member removed. Three of the absences do have observable
-consequences.
+off each cluster member and filters it by its own origin, `excluded.has(originOf(episodeUri))` at
+`src/worker/store/export.ts:71`, so it never has to ask what an episode component would look like
+with a member removed. Three of the absences do have observable consequences.
 
 ```mermaid
 flowchart LR
@@ -335,10 +334,10 @@ occupies:
 > How far another source's numbering sits from this run's, read off the DATES they share.
 >
 > A catalogue may number a season continuing from the previous one where everyone else restarts at 1.
-> The Elusive Samurai season 2, in the shipped seed: anizip, kitsu, MAL and AniList all publish
-> episodes 1 to 12, and Crunchyroll publishes the same broadcast as 13 to 20, with the SAME AIR DATES
-> to the day. `mergeByEpisodeNumber` keys on the number alone, so the page drew twenty rows for a
-> twelve episode run and put every Crunchyroll source on rows 13 to 20, where nothing else was.
+> The Elusive Samurai season 2, in the dist-seed snapshot of 2026-09-09: anizip, kitsu, MAL and AniList
+> all publish episodes 1 to 12, and Crunchyroll publishes the same broadcast as 13 to 20, with the SAME
+> AIR DATES to the day. `mergeByEpisodeNumber` keys on the number alone, so the page drew twenty rows
+> for a twelve episode run and put every Crunchyroll source on rows 13 to 20, where nothing else was.
 
 That is what `alignRunEpisodes` and `runEpisodes` exist for, applied above this by `findRunEpisodes`
 (`db.ts:424-430`) before the resolver ever sees the groups.
@@ -367,7 +366,7 @@ happening entirely in the read.
 - The inventory's guard table lists the scope ratchet and the asserted shadow record as absences.
   Neither was ever available to be absent. The store `Episode` type
   (`src/worker/store/types.ts:134-151`) has no `scope` field, and `exportStore` reads episodes off
-  `HAS_EPISODE` per member rather than through any episode union (`export.ts:82-90`), so it never
+  `HAS_EPISODE` per member rather than through any episode union (`export.ts:69-76`), so it never
   needs the adjacency that `ASSERTED_LABELS` exists to give the media side.
 - The store comment at `db.ts:460` says nothing mints `EPISODE_SAME_AS` *between two metadata
   sources*. Reading the sources, no built-in source mints an episode handle at all: every

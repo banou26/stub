@@ -1,24 +1,18 @@
 // The bundle answers SIX season buckets, not one, and the key it was found under is the only place
-// either half of this source states a row's season. Two things are pinned here: that the key reaches
-// every row it built, and that a request for a season this build does not hold answers NOTHING. The
-// second is the load-bearing one. The store's filter is strict on season so a substituted bucket
+// this source states a row's season. Two things are pinned here: that the key reaches every row it
+// built, and that a request for a season this build does not hold answers NOTHING. The second is the
+// load-bearing one. The store's filter is strict on season so a substituted bucket
 // would be dropped anyway, but it costs an upstream call and leaks on every axis that filter cannot
 // see.
-import { gzipSync } from 'node:zlib'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
-import type { SeedHandle, SeedIndex, SeedRun } from '../../../../src/sources/offline/seed'
 
 import { animeSeasonOf } from '../../../../src/sources/season'
-import { SEED_INDEX_ASSET, seedAssetUrl } from '../../../../src/sources/offline/seed'
-import { checkSeedSchema } from '../../../../src/sources/offline/seed-gate'
 import { parseSeasonKey, seasonKey, seasonMedia, seasonPage, type ManamiRecord } from '../../../../src/sources/offline/normalize'
-import { resetSeedCache, seedMedia, seedSeasonPage } from '../../../../src/sources/offline/seed-source'
 import { resolvers } from '../../../../src/sources/offline/extractor'
 
 const CURRENT_SEASON = seasonKey(animeSeasonOf())
-const indexUrl = seedAssetUrl(SEED_INDEX_ASSET)
 
 const record = (overrides: Partial<ManamiRecord> = {}): ManamiRecord => ({
   t: 'Some Show',
@@ -51,62 +45,29 @@ const subscribeTo = (field: 'media' | 'mediaPage'): Subscribe =>
 
 type Page = { mediaPage: { nodes: GQLMedia[] } }
 
-/** The seed half is not what these assert, so it is answered with a 404 and stays out of the way. */
-const noSeed = { fetch: (async () => new Response('Not Found', { status: 404 })) as unknown as typeof globalThis.fetch }
+// Every test shares one recording ctx and is checked after it, because a loader that caches its
+// first answer is asked only once per file: a ctx local to one test can come too late to see it.
+const asked: unknown[] = []
+const ctx = {
+  fetch: async (input: unknown) => {
+    asked.push(input)
+    return new Response('Not Found', { status: 404 })
+  },
+}
 
-const pagesFor = async (input: Record<string, unknown>, ctx: unknown = noSeed) => {
+const pagesFor = async (input: Record<string, unknown>) => {
   const yielded: Page[] = []
   for await (const value of subscribeTo('mediaPage')(undefined, { input }, ctx)) yielded.push(value as Page)
   return yielded
 }
 
-const handle = (uri: string): SeedHandle => ({
-  uri,
-  origin: uri.slice(0, uri.indexOf(':')),
-  id: uri.slice(uri.indexOf(':') + 1),
-  scope: 'RUN',
-})
-
-// an id far outside every catalogue, so the bundled half knows nothing about it and a yield carrying
-// it can only have come from the seed
-const RUN_KEY = 'mal-99999901'
-
-const seedRun = (overrides: Partial<SeedRun> = {}): SeedRun => ({
-  key: RUN_KEY,
-  season: CURRENT_SEASON,
-  popularity: null,
-  identity: [handle('mal:99999901')],
-  containers: [],
-  titles: [{ language: 'en', title: 'Seeded title' }],
-  covers: [],
-  banners: [],
-  type: 'TV',
-  categories: ['ANIME', 'SERIES'],
-  episodeCount: 12,
-  averageScore: 60,
-  isAdult: false,
-  ...overrides,
-})
-
-const seedIndex = (season: string): SeedIndex => ({
-  version: 1,
-  generatedAt: '2026-09-05T04:17:00.000Z',
-  commit: 'a1b2c3d',
-  appVersion: '0.0.17',
-  walkedOrigin: 'http://localhost:4599',
-  seasons: { [season]: [RUN_KEY] },
-  runs: [seedRun({ season })],
-})
-
-const gzipped = (value: unknown) => new Response(gzipSync(Buffer.from(JSON.stringify(value))), { status: 200 })
-
 beforeEach(() => {
-  resetSeedCache()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
+  expect(asked.splice(0), 'the offline source asked the network').toEqual([])
 })
 
 test('parseSeasonKey reads back what seasonKey wrote, for every season', () => {
@@ -203,37 +164,21 @@ test('status RELEASING with no season named still answers the clock season', asy
   expect(yielded[0]!.mediaPage.nodes[0]?.season).toBe(parseSeasonKey(CURRENT_SEASON)!.season)
 })
 
+test('the offline source answers from the bundle alone, in one yield', async () => {
+  const key = await otherHeldSeason()
+  const { season, year } = parseSeasonKey(key)!
+  const first = seasonPage((await bundle()).seasons[key]!, key)[0]!
+
+  expect(await pagesFor({ season, seasonYear: year })).toHaveLength(1)
+  expect(await pagesFor({ status: 'RELEASING' })).toHaveLength(1)
+  const media: unknown[] = []
+  for await (const value of subscribeTo('media')(undefined, { input: { uri: first.uri } }, ctx)) media.push(value)
+  expect(media).toHaveLength(1)
+})
+
 test('a search, and anything that is neither a season nor RELEASING, is still unanswered', async () => {
   expect((await pagesFor({ search: 'mushoku' }))[0]!.mediaPage.nodes).toEqual([])
   expect((await pagesFor({ status: 'FINISHED' }))[0]!.mediaPage.nodes).toEqual([])
-})
-
-// The seeded half takes the same key. Its index carries the current and the next season only, so a
-// request for the season the walk listed has to reach it rather than the clock's.
-test('the seeded half is asked for the season the input named', async () => {
-  const key = await otherHeldSeason()
-  const { season, year } = parseSeasonKey(key)!
-  const index = seedIndex(key)
-  expect(checkSeedSchema(index), 'control: the fixture has to be what the gate calls an index').toEqual([])
-
-  const yielded = await pagesFor({ season, seasonYear: year }, {
-    fetch: (async () => gzipped(index)) as unknown as typeof globalThis.fetch,
-  })
-
-  expect(yielded).toHaveLength(2)
-  expect(yielded[1]!.mediaPage.nodes.map(node => node.uri)).toEqual([`offline:${RUN_KEY}`])
-})
-
-test('a seeded run carries the season it was walked under, and none when it was a side effect', () => {
-  const media = seedMedia(seedRun({ season: '2027-WINTER' }))
-  expect(media.season).toBe('WINTER')
-  expect(media.seasonYear).toBe(2027)
-
-  const side = seedMedia(seedRun({ season: null }))
-  expect(side.season).toBeNull()
-  expect(side.seasonYear).toBeNull()
-
-  expect(seedSeasonPage(seedIndex('2027-WINTER'), '2027-WINTER')[0]?.season).toBe('WINTER')
 })
 
 // The seasonal half is walked by key so the row a media ask resolves to states its season too. Read
@@ -244,7 +189,7 @@ test('a media resolved out of the bundle carries the season of the bucket it was
   const first = seasonPage(seasons[key]!, key)[0]!
 
   const yielded: { media: GQLMedia | null }[] = []
-  for await (const value of subscribeTo('media')(undefined, { input: { uri: first.uri } }, noSeed)) {
+  for await (const value of subscribeTo('media')(undefined, { input: { uri: first.uri } }, ctx)) {
     yielded.push(value as { media: GQLMedia | null })
   }
 

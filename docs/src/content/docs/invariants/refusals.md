@@ -155,7 +155,7 @@ above the merged default every source falls back to:
 
 That sentence is repeated, in its own words, above six source resolvers: `crunchyroll/extractor.ts:563-564`,
 `tvmaze/extractor.ts:191`, `unogs/extractor.ts:472`, `appletv/extractor.ts:404`,
-`justwatch/extractor.ts:749`, `anizip/extractor.ts:119`. `offline/extractor.ts:231-232` states the
+`justwatch/extractor.ts:749`, `anizip/extractor.ts:119`. `offline/extractor.ts:208-209` states the
 distinction that matters:
 
 > Always yield at least once. A subscription generator that completes without yielding makes
@@ -175,12 +175,6 @@ Here it is correct: there is nothing to wait for, so closing the stream is the h
 `console.warn` above it exists precisely because 204 and "still working" look the same from the page.
 `Subscription.origin` (`origin/index.ts:19`) and `Subscription.originPage` (`origin/index.ts:48`) do
 the same on an empty id list, and neither logs.
-
-A `return` **after** a yield is not this. `offline/extractor.ts:238` and `:240` both return early with
-no seed index and no matching run, and `offline/extractor.ts:226-227` records why that is safe:
-
-> point: the seed exists to make a cold page fast, so it must never delay the first paint. Every
-> early return below leaves the bundled yield standing.
 
 ### 4. `yield` a null payload, which is a delivered refusal
 
@@ -400,26 +394,6 @@ return result.outcome === 'answered' ? result.media : undefined
 That is the contract `ctx.similarMedia` hands a source, and it is the right reduction there: a source
 asking another source has nothing to do with a `ceiling` that it did not cause.
 
-## One refusal that is an HTTP status
-
-Worth naming because it is the only place a status code is chosen as a refusal shape.
-`src/worker.ts:14-19`:
-
-> 404, never 503: `fetchWithBackoff` retries a 503 three times, and this refusal is the same shape
-> as the asset simply not being published yet, which the loader already answers undefined to.
-
-```ts
-refusesSeedAsset(location.href, input)
-  ? new Response(null, { status: 404, statusText: 'the season seed is switched off for this page' })
-  : fetch(input, init)
-```
-
-`503` is in `RETRYABLE_STATUSES` (`src/worker/backoff.ts:13`, which is `{408, 429, 502, 503, 504, 522, 524}`),
-so answering one here would spend all four attempts (`MAX_RETRIES = 3`) on the backoff ladder saying no
-to itself. Picking the status that means "this is not here" rather than the one that
-means "try later" is the same judgement as picking a delivered null over an ended generator: match the
-mechanism to what the caller should do next. See [fetching, and backing off](/request/fetch-and-backoff/).
-
 ## Every site named on this page
 
 | kind | site | condition | the caller |
@@ -447,7 +421,6 @@ mechanism to what the caller should do next. See [fetching, and backing off](/re
 | `throw` | `utils/uri.ts:77` | `parts[1]?.includes(',')` | a GraphQL error, not a refusal |
 | `throw` | `worker/extractor.ts:679`, `:703` | origin collision, no source registered | the plugin connection fails, as data |
 | declined / refused | `worker/extractor.ts:314-397` | the eight rows in the table above | retry, or never with this evidence |
-| HTTP 404 | `worker.ts:17-18` | `refusesSeedAsset(location.href, input)` | the seed loader answers `undefined` |
 
 The complete list, including the refusals of subsystems this page only touches, is at
 [every refusal](/reference/refusal-index/). The policy behind them, which is the same policy in eleven

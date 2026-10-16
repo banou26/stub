@@ -21,7 +21,6 @@ flowchart TD
     B["useSubscription<br/>GET_MEDIA_MODAL"]
     C["one urql Client<br/>url http://d/graphql"]
     D["fetch: handleRequest"]
-    S{"is the season seed switched off?<br/><small>refusesSeedAsset(location.href, input)</small>"}
     E["cloud.fetch, the only real network call"]
   end
   subgraph worker["worker"]
@@ -36,7 +35,6 @@ flowchart TD
     N["read(): findMediaForPage + aggregateMedia"]
   end
   R(["refused: 204 No Content, no payload, no source asked"])
-  T(["refused: 404 'the season seed is switched off for this page'"])
   A --> B --> C --> D
   D -->|"osra key 'yoga'"| F
   F --> G
@@ -44,9 +42,7 @@ flowchart TD
   G -->|"names a uri"| H
   H --> I --> J
   J --> K
-  K -->|"osra key 'fetch'"| S
-  S -->|"a seed asset, and the page carries ?seed=off"| T
-  S -->|"anything else"| E
+  K -->|"osra key 'fetch'"| E
   J -.->|"the answer does not come back this way"| L
   L --> M
   M -->|"media:changed"| N
@@ -57,7 +53,7 @@ flowchart TD
   classDef refuse fill:#74757c22,stroke:#74757c,stroke-width:1.5px,stroke-dasharray:4 3
   class L,M irrev
   class N view
-  class R,T refuse
+  class R refuse
 ```
 
 *Two dashed arrows, and they are the two that matter: the fan-out's answer goes sideways into the store, and the page learns about it only because a store event re-runs the read.*
@@ -78,8 +74,8 @@ and `Episode` are keyed by `_id` and every edge type answers null:
 > Omitting these compiles, because `satisfies KeyingConfig` does not force exhaustiveness, and shows
 > up only as a dev-console warning while the cache invents keys for unkeyable objects.
 
-**The worker boundary is osra, two keys, two directions.** `src/worker.ts:32-38` takes
-`handleRequest` off key `'yoga'`, which `src/worker/yoga.ts:69-75` exposes; `src/worker.ts:24-30`
+**The worker boundary is osra, two keys, two directions.** `src/worker.ts:41-47` takes
+`handleRequest` off key `'yoga'`, which `src/worker/yoga.ts:112-118` exposes; `src/worker.ts:24-30`
 exposes the page's own `fetch` back to the worker under key `'fetch'`, which
 `src/worker/fetch.ts:7-18` picks up. So a source's upstream request leaves the worker, crosses back
 into the page, and only there becomes a network call.
@@ -141,31 +137,6 @@ claim between two runs becomes `graph.link(mediaUri, handleUri, sameAsLabelFor(m
 A page that opens is a page that writes. See [upsertMedia](/write/upsert-media/) and
 [the graph](/write/graph/).
 :::
-
-### The one refusal on the way out
-
-`src/worker.ts:16-19` is the only resolver the page exposes to the worker, and it is a gate:
-
-> `src/worker.ts:14-15`
->
-> 404, never 503: `fetchWithBackoff` retries a 503 three times, and this refusal is the same shape
-> as the asset simply not being published yet, which the loader already answers undefined to.
-
-`refusesSeedAsset` is `readNoSeedFlag(pageUrl) && isSeedAssetUrl(requestUrlOf(request))`
-(`src/utils/export-flag.ts:50-51`), where the flag is exactly `?seed=off` and never mere presence
-(`:28-34`). It lives on the page rather than in the worker for a reason worth reading whole:
-
-> `src/utils/export-flag.ts:39-49`
->
-> Whether the page must refuse a worker fetch of the published season seed.
->
-> A walk drives the app with `?seed=off` so it never reads its own previous output. Without that a
-> seeded id is stored, joins the cluster's aggregated uri, and the next live source to read that uri
-> re-asserts SAME_AS across the whole membership (`mergeHandles` in sources/utils.ts), so the next
-> export publishes the id as though a source had checked it, permanently and with no inverse.
->
-> It lives on the PAGE because a worker cannot see the page's url and an announcement over the port
-> would race the first resolver, and because the page already owns every byte the worker fetches.
 
 ## The three documents, and the one consequence
 
@@ -402,11 +373,10 @@ the top left instead of from a bad link.
 | --- | --- |
 | the page's one urql client | `src/urql.ts:19-50` |
 | graphcache key resolvers | `src/urql-keys.ts:16-44` |
-| page side of the osra boundary, and the seed refusal | `src/worker.ts:13-38` |
-| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:26-75` |
+| page side of the osra boundary | `src/worker.ts:14-47` |
+| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:25-118` |
 | the fan-out driver, and the uri gate | `src/worker/resolvers/media/index.ts:30-93` |
 | one yoga and one urql client per source | `src/worker/extractor.ts:411-549` |
 | the fan-out itself | `src/worker/extractor.ts:777-851` |
 | the origin resolvers, and their own fan-out | `src/worker/resolvers/origin/index.ts:12-73` |
 | `shouldRewriteAddress` and `decodeRouteUri` | `src/utils/uri.ts:130-175` |
-| the `?seed=off` flag | `src/utils/export-flag.ts:19-51` |

@@ -25,7 +25,7 @@ Four readers, through those two entry points:
 | --- | --- |
 | `src/worker/store/aggregate.ts:386` | the published `Media.episodeCount`, `runLength(medias) ?? merged.episodeCount ?? null` |
 | `src/worker/store/consensus.ts:158` | the length `runEpisodes` windows a foreign source's episode list to |
-| `src/worker/store/anomalies.ts:61` | the bar `overLength` reports a cluster against |
+| `src/worker/store/anomalies.ts:60` | the bar `overLength` reports a cluster against |
 | `src/worker/similar-consumer.ts:174` | `runEvidence.episodeCount`, the number a source is asked against |
 
 ## The rule

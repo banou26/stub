@@ -41,7 +41,6 @@
     "data:build": "node scripts/build-anime-data.mjs",
     "data:build-offline": "node scripts/build-anime-data.mjs --offline",
     "icons:render": "sh scripts/render-icons.sh",
-    "seed:export": "node scripts/export-season-seed.mjs",
     "corpus:walk": "node scripts/walk-season-answers.mjs",
     "corpus:label": "node scripts/label-corpus.mjs",
     "corpus:replay": "node scripts/replay-answers.mjs",

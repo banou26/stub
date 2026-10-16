@@ -1,5 +1,4 @@
 import type { Resolvers as WorkerResolvers } from './worker/yoga'
-import type { FetchInit } from './worker/backoff'
 
 import { expose }  from 'osra'
 import { relayWorker } from '@fkn/lib'
@@ -7,7 +6,7 @@ import { relayWorker } from '@fkn/lib'
 // @ts-expect-error
 import Worker from './worker/index?worker'
 import { fetch } from './utils/fetch'
-import { readsLegacyStore, refusesSeedAsset } from './utils/export-flag'
+import { readsLegacyStore } from './utils/export-flag'
 import { sessionResolvers } from './tracking/site-sessions'
 import { readDisabledSources, watchDisabledSources } from './sources/disabled-sources'
 import { readPickedCountry, watchPickedCountry } from './sources/country'
@@ -18,14 +17,7 @@ const worker = new Worker()
 // to are then one realm's, which is what keeps a check's calls in one account (tracking/account-link.ts)
 relayWorker(worker).catch(error => console.warn('tracking: FKN relay', error))
 
-const resolvers = {
-  // 404, never 503: `fetchWithBackoff` retries a 503 three times, and this refusal is the same shape
-  // as the asset simply not being published yet, which the loader already answers undefined to.
-  fetch: (input: RequestInfo | URL, init?: FetchInit) =>
-    refusesSeedAsset(location.href, input)
-      ? new Response(null, { status: 404, statusText: 'the season seed is switched off for this page' })
-      : fetch(input, init)
-}
+const resolvers = { fetch }
 
 export type Resolvers = typeof resolvers
 

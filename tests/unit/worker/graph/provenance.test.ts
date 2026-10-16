@@ -10,7 +10,7 @@
  * Against the REAL engine, like every other graph suite, because a claim is a column in a statement
  * the binder either takes or refuses. The last case replays the recorded page and reports the table.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -188,13 +188,11 @@ test('an origin nobody read is trusted', async () => {
   expect(await claimsFrom('nyaa:9900704')).toEqual(['anilist:9900704 SAME_AS source'])
 })
 
-// THE SEED RULE IS READ FIRST and is unchanged: its identity handles are `seed`, its container
-// handles claim containment rather than identity and stay `source` (`offline/seed-source.ts:206-207`).
-// The seed is also the one origin the table deliberately omits, since a seeded identity is an export
-// of a real cluster and can name any origin at all.
+// THE SEED RULE IS READ FIRST and is unchanged: the offline source's identity handles are `seed`, and
+// a container handle claims containment rather than identity and stays `source`.
 // Mutation: swap the first two rules in `provenanceOf` and the stamped identity below reads
 // `address`, taking a seeded row out of the closure. The second stamped handle is there for exactly
-// that: the seed builds its own handles and stamps none today, so nothing else would fix the order.
+// that: the offline source stamps none of its handles, so nothing else would fix the order.
 test('the seed keeps its own provenance, before either address rule', async () => {
   await ingestAnswers([
     await answer('media', media('offline:9900705', {

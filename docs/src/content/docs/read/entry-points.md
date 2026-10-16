@@ -14,7 +14,7 @@ no code, and two of them differ by one line that changes which show a page draws
 | 2 | `Subscription.mediaPage` | `index.ts:94` | filters, search, sorts | a stream of `Media[]` | none, it always yields |
 | 3 | `Media.episodes` | `index.ts:180` | a resolved `Media` | `Episode[]` | `parent.episodes ?? []` |
 | 4 | `findAggregatedMediaForContext` | `src/worker/extractor.ts:81` | one uri, from a **source** | one `Media` or `undefined` | `undefined` |
-| 5 | `exportStore` | `src/worker/store/export.ts:31` | exclusion lists | a whole `StoreExport` | a seed is skipped, never the walk |
+| 5 | `exportStore` | `src/worker/store/export.ts:24` | an exclusion list | a whole `StoreExport` | a seed is skipped, never the walk |
 
 Reads 1, 2, 3 and 5 answer something outside the worker. Read 4 answers a **source**: it is handed to
 every extractor as `ctx.findAggregatedMedia` at `extractor.ts:535`, which is how a source asks the
@@ -71,7 +71,7 @@ flowchart LR
 Read the two store cylinders as the real split. `graph.cluster` answers "what is this the same as",
 and it cannot tell you which of those unions a source actually asserted and which the fuzzy pass
 made, because both carry the same label. `exportStore` needs exactly that distinction, so it walks
-`ASSERTED_LABELS` with its own queue (`export.ts:50-59`) and never touches a union-find at all.
+`ASSERTED_LABELS` with its own queue (`export.ts:39-48`) and never touches a union-find at all.
 
 ### 1. `Subscription.media` refuses before it does anything else
 
@@ -156,14 +156,15 @@ That parenthesis is the argument for this whole page. `Subscription.mediaPage` i
 store": between the read and the yield it runs `fuzzyMergeMediaClusters` and re-reads,
 `hideAttachedContainers`, `aggregateMedia` per cluster, `applyMediaFilters`, a search relevance filter
 at `SEARCH_RELEVANCE_THRESHOLD = 0.7` (`index.ts:21`), and a sort loop. An exporter built on it would
-be exporting the page, not the store. `export.ts:12-18` states the contract from the other side:
+be exporting the page, not the store. `export.ts:12-19` states the contract from the other side:
 
 > Every run-space cluster the store holds, built from ASSERTED sameness only.
 >
 > Promises: it reads, and never writes. It walks only pairs a source claimed through a handle
-> (`ASSERTED_LABELS` in ./db.ts), never a union the fuzzy pass made. It emits nothing whose published
-> members are all CONTAINER: a show with no run is not a run. Output is sorted throughout, so two
-> calls against one store are byte-identical.
+> (`ASSERTED_LABELS` in ./db.ts), never a union the fuzzy pass made. It refuses to walk THROUGH an
+> excluded origin, so a bridge only an excluded source supplied splits rather than surviving. It
+> emits nothing whose members are all CONTAINER: a show with no run is not a run. Output is sorted
+> throughout, so two calls against one store are byte-identical.
 
 ## Two reads that look like the same function
 

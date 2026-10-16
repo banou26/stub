@@ -77,7 +77,7 @@ The uri was captured at subscribe time and `Subscription.media` is yield-once wi
 | --- | --- | --- |
 | 2 asks | 23 of 25 | one opening ask, plus one for its own origin |
 | 4 asks | anizip | `supportedUris = ['anidb', 'mal']` (anizip/extractor.ts:13) |
-| 6 asks | offline | `['offline', ...INDEXED_ORIGINS]`, mal, anilist, kitsu, anidb (offline/extractor.ts:48, index-lookup.ts:20) |
+| 6 asks | offline | `['offline', ...INDEXED_ORIGINS]`, mal, anilist, kitsu, anidb (offline/extractor.ts:45, index-lookup.ts:20) |
 
 `askedOrigins` is a ratchet and the `add` happens **before** `askOrigins` runs (media/index.ts:58-65), so an origin counts as asked whether the subscription started, the upstream answered, or the source threw. `supportedUris` decides who gets a second question, never what comes back: anizip declares `anidb` but its resolver reads only a mal handle (:120-126), so an anidb-only cluster spends a subscription and refuses. The re-ask is targeted rather than a blanket re-fan because nothing caches this: `useResponseCache` sits at ttl 15 minutes (worker/extractor.ts:470) and never fires, since @envelop/response-cache exposes `onExecute` only and all five call sites here are `.subscription(...)`. Derivation in [the re-ask](/request/re-ask/).
 
@@ -89,28 +89,17 @@ flowchart LR
   CTX["ExtractorServerContext.fetch<br/><small>declared worker/extractor.ts:35, bound worker/extractor.ts:533</small>"]
   WB["fetchWithBackoff = withBackoff(fetch)<br/><small>worker/fetch.ts:18</small>"]
   OSRA["osra hop, key 'fetch'<br/><small>worker/fetch.ts:7-16, worker.ts:24-30</small>"]
-  GATE{"is this the season seed on a page that switched it off?<br/><small>refusesSeedAsset(location.href, input)</small>"}
-  R404["new Response with status 404<br/><small>'the season seed is switched off for this page'</small>"]
   CLOUD["cloud.fetch(input, init)<br/><small>utils/fetch.ts:5-6, through an FKN node</small>"]
   NET[("the upstream<br/><small>graphql.anilist.co, myanimelist.net, ...</small>")]
 
   SRC --> CTX
   CTX --> WB
   WB -->|"attempt 0, and attempts 1 to 3 if it comes to that"| OSRA
-  OSRA --> GATE
-  GATE -->|"readNoSeedFlag and isSeedAssetUrl both true: refused on the page, never asked"| R404
-  GATE -->|"any other request, which is all of them on a normal page load"| CLOUD
+  OSRA --> CLOUD
   CLOUD --> NET
-  R404 -. travels back up as an ordinary Response .-> WB
-
-  classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
-  classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
-  classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff
-  classDef refuse fill:#46464b,stroke:#8b8c93,color:#f2f2f4
-  class R404 refuse
 ```
 
-*The request leaves the worker and only becomes a network call back on the page, so the seed refusal answers 404, never 503.*
+*The request leaves the worker and only becomes a network call back on the page.*
 
 `MAX_RETRIES` is 3 (backoff.ts:17), so four attempts, and `backoffDelay` adds 1s, 2s and 4s of latency with no `console` call anywhere in the module (:37-38). Which statuses buy a retry, and which deliberately do not, is at [/tldr/rules/](/tldr/rules/).
 

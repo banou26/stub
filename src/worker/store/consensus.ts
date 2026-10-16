@@ -91,14 +91,14 @@ const dayOf = (episode: { releaseDate?: string | null }): number | undefined => 
  * How far another source's numbering sits from this run's, read off the DATES they share.
  *
  * A catalogue may number a season continuing from the previous one where everyone else restarts at 1.
- * The Elusive Samurai season 2, in the shipped seed: anizip, kitsu, MAL and AniList all publish
- * episodes 1 to 12, and Crunchyroll publishes the same broadcast as 13 to 20, with the SAME AIR DATES
- * to the day. `mergeByEpisodeNumber` keys on the number alone, so the page drew twenty rows for a
- * twelve episode run and put every Crunchyroll source on rows 13 to 20, where nothing else was.
+ * The Elusive Samurai season 2, in the dist-seed snapshot of 2026-09-09: anizip, kitsu, MAL and AniList
+ * all publish episodes 1 to 12, and Crunchyroll publishes the same broadcast as 13 to 20, with the SAME
+ * AIR DATES to the day. `mergeByEpisodeNumber` keys on the number alone, so the page drew twenty rows
+ * for a twelve episode run and put every Crunchyroll source on rows 13 to 20, where nothing else was.
  *
  * The dates are the anchor because they are the one thing both sides measure the same way. A date is
  * not compared to a start date, which is a claim that drifts (the highest-scored start date in this
- * store is three days off Crunchyroll's own episode 1 for at least one show in the seed): it is
+ * store is three days off Crunchyroll's own episode 1 for at least one show in that snapshot): it is
  * compared to ANOTHER EPISODE'S date from the same broadcast, which either matches to the day or does
  * not.
  *

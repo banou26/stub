@@ -298,7 +298,7 @@ session adds nothing after the first ask.
 
 ## Who depends on this on purpose
 
-Two subsystems are built on the wait rather than merely tolerating it.
+One subsystem is built on the wait rather than merely tolerating it.
 
 **`resolveSimilarRuns` calls `upsertMedia` with no rows at all.** `src/worker/similar-consumer.ts:255`:
 
@@ -317,32 +317,6 @@ defers. That is the design:
 > answer's episodes reach the store. The container edge is never touched.
 
 The consumer never polls and never retries. The row landing **is** the retry.
-
-**The offline seed is built to be a placeholder, so every seeded handle waits.** Its handle nodes
-carry identity and nothing else, deliberately:
-
-`src/sources/offline/seed-source.ts:136-146`
-
-> Identity and nothing else, which makes every seeded handle a PLACEHOLDER.
->
-> Deliberate, and the whole reason the seed cannot damage a store. A placeholder is not stored
-> (`IDENTITY_FIELDS` in store/db.ts), so its claim waits under `pendingClaims` and lands the moment
-> the owning source describes that uri. Three things follow: the seed can win no field in either
-> arrival order, because it writes no field; a url minted here would be the one scalar it could
-> write, and scalars are last-write-wins, so a walk up to a day old would overwrite the live url; and
-> a seeded id no live source knows never enters the cluster at all, so it never reaches an aggregated
-> uri for the next source to re-assert SAME_AS across.
-
-The same argument runs through the asset format itself (`src/sources/offline/seed.ts:64-72`, *Identity
-and scope, and NO url*) and through the container claim, which refuses to use `partOf` because the
-CONTAINER stamp would make the node describable and therefore stored
-(`src/sources/offline/seed-source.ts:150-157`).
-
-Read those two together and the mechanism stops being a guard and becomes a feature: **a claim that
-waits lets a component assert a pair without also claiming to know what either end of it is.** The
-seed knows that `anilist:108465` and `kitsu:42323` are the same run, the pair
-`arrival-order.test.ts:76-87` walks. It does not know what either of them is, it says so by carrying
-no field, and the store holds the claim until something that does know arrives.
 
 ## What it does not cover
 

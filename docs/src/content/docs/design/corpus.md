@@ -138,7 +138,7 @@ so nothing has to remember to check.
 | `corpus:label` (`scripts/label-corpus.mjs`) | serves the dump read only: the run listing, a run compacted to what a judge reads, a case skeleton, `POST /api/cases/:slug` to validate and write a case, and the review queue | `--port N` (default 4570), `--season NAME`, `--dir PATH`, `--out PATH`, `--cases PATH`, `--review PATH` |
 | `corpus:replay` (`scripts/replay-answers.mjs`) | replays recorded answers through `ingestAnswers`, the same function the live hook calls, and prints what the ingest made of them, then a second pass that must report nothing | `--file PATH`, `--limit N` |
 
-The walk carries its own control (`scripts/walk-season-answers.mjs:43-52`): the first page must yield
+The walk carries its own control (`scripts/walk-season-answers.mjs:42-51`): the first page must yield
 rows about the WORK from at least three distinct origins, or the walk stops and says the recording path
 is not working. Counting rows by origin alone is not enough, because every source writes one row
 describing itself: on one page 24 origins wrote a row and 8 of them said anything about the work.

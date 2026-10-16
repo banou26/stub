@@ -24,7 +24,7 @@ inside 25 separate GraphQL servers. Twenty-five is the built-in count, not a rou
 Open `ag:(anilist:166873)` and Crunchyroll, Netflix, Apple TV, Disney, HBO and nineteen others are all
 asked about it. Exactly two are addressable by that uri at all: anilist, whose own origin is named, and
 offline, whose `supportedUris` is `['offline', ...INDEXED_ORIGINS]` and so covers `anilist`
-(`src/sources/offline/extractor.ts:48`, `src/sources/offline/index-lookup.ts:20`). The other twenty-three
+(`src/sources/offline/extractor.ts:45`, `src/sources/offline/index-lookup.ts:20`). The other twenty-three
 find nothing in it they could recognise and yield `media: null`. That is not waste to be optimised
 away: it is the only mechanism by which a source that *does* recognise itself gets to answer, and the
 cost of asking a source that refuses is one generator that yields once and ends.
@@ -219,7 +219,7 @@ reusable sentence on this page. `src/worker/extractor.ts:459-462`:
 That timeout is `SIMILAR_MEDIA_TIMEOUT_MS = 30_000` (`src/worker/extractor.ts:198`). Twenty-three sources
 that cannot answer, each held for thirty seconds, is the outcome the yield avoids. The rule is
 independently restated inside a source, which is a good sign it is real rather than folklore;
-`src/sources/offline/extractor.ts:231-232`:
+`src/sources/offline/extractor.ts:208-209`:
 
 > Always yield at least once. A subscription generator that completes without yielding makes yoga
 > answer 204 No Content, which is not the same thing as "this source knows nothing".

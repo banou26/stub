@@ -13,7 +13,7 @@ A read is a **view**. `aggregateMedia`, `alignRunEpisodes` and `runEpisodes` run
 | `Subscription.mediaPage` (`media/index.ts:94`) | listings, search, season pages | `findAllAggregatedMedia`, over the whole store until a source answers |
 | `Media.episodes` (`media/index.ts:180`) | the episode rows under a media | `findRunEpisodes`, off the first SAME_AS handle that resolves |
 | `ctx.findAggregatedMedia` (`worker/extractor.ts:81`) | a source asking what the store already holds | first non-empty handle cluster, never `preferAttachedRun` |
-| `exportStore` (`store/export.ts:31`) | seed dumps | asserted adjacency, never `graph.cluster` |
+| `exportStore` (`store/export.ts:24`) | the season walk | asserted adjacency, never `graph.cluster` |
 
 The first four mint an id: `clusterId` calls `graph.componentId`, which writes a `crypto.randomUUID()` into `componentIds` for a never-aggregated component (`store/graph.ts:234-244`), removable only by `graph.clear`. Only `exportStore` marks nothing, so the [read/write line](/invariants/view-or-write/) is not where the names put it.
 
@@ -118,6 +118,6 @@ Six of seven axes get rows from sources that never heard the question (search 14
 
 ## Export
 
-`exportStore` never calls `graph.cluster`: it walks `ASSERTED_LABELS`, an adjacency-only record of every pair a source claimed through a handle (`db.ts:56-64`), because one identity label carries both handle and fuzzy unions, and a union-find cannot say what a component would be with a node removed. So a fuzzy union is invisible to the published seed. The two refusals differ: `excludeOrigins` is not walked through, so a bridge only that origin supplied splits, while `passThroughOrigins` is walked through and left out (spelling `offline` as the first left a median identity of 2 where the store held 4 or 5, 2026-09-05). `exportedAt` is a fresh `toISOString()` (`export.ts:102`), so a whole-payload diff always reports a change while `clusters` is byte-identical: [export](/read/export/).
+`exportStore` never calls `graph.cluster`: it walks `ASSERTED_LABELS`, an adjacency-only record of every pair a source claimed through a handle (`db.ts:56-64`), because one identity label carries both handle and fuzzy unions, and a union-find cannot say what a component would be with a node removed. So a fuzzy union is invisible to the export. An origin in `excludeOrigins` is not walked through, so a bridge only that origin supplied splits. `exportedAt` is a fresh `toISOString()` (`export.ts:86`), so a whole-payload diff always reports a change while `clusters` is byte-identical: [export](/read/export/).
 
 The one write hiding in that read is the fuzzy pass, and what it is allowed to weld is [the merge](/tldr/merge/).

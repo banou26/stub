@@ -168,9 +168,9 @@ type Batch = {
   handlesWithNoNode: number
 }
 
-// The offline seed's origin, spelled here rather than imported from `src/sources/offline/normalize.ts`
-// so the ingest reaches no part of the source tree: that module pulls in the generated graphql
-// module, and this one has to load under a bare node for a replay.
+// The offline source's origin, spelled here rather than imported from
+// `src/sources/offline/normalize.ts` so the ingest reaches no part of the source tree: that module
+// pulls in the generated graphql module, and this one has to load under a bare node for a replay.
 const SEED_ORIGIN = 'offline'
 
 // `readPluginHandles`'s cap, for the same reason: it bounds a self-referencing payload
@@ -204,8 +204,8 @@ const addressOf = (value: Record<string, unknown>): { uri: string, origin: strin
 const scopeStampOf = (value: Record<string, unknown>): string | null =>
   typeof value.scope === 'string' && value.scope ? value.scope : null
 
-// The seed's IDENTITY handles, and only those: its container handles claim containment rather than
-// identity, assert nothing the export could ratify, and stay `source` (`offline/seed-source.ts:206-207`).
+// The offline source's IDENTITY handles, and only those: a container handle claims containment rather
+// than identity, and stays `source`.
 const isSeedIdentity = (claimer: string, kind: string): boolean => claimer === SEED_ORIGIN && kind === 'SAME_AS'
 
 /**
@@ -213,7 +213,8 @@ const isSeedIdentity = (claimer: string, kind: string): boolean => claimer === S
  *
  * THREE RULES, applied in this order.
  *
- * 1. `seed`, unchanged, so the seed's placeholders keep the class the precedence order gives them.
+ * 1. `seed`, unchanged, so the offline source's identity handles keep the class the precedence order
+ *    gives them.
  * 2. `address` from the handle's OWN STAMP. `buildHandlesFromUri` writes it on every handle it mints
  *    (`sources/utils.ts`): the address names WHICH sources to ask and asserts nothing about how their
  *    rows relate, so the claim is a pointer. `plugin:direct` returns nothing for it and guard 3

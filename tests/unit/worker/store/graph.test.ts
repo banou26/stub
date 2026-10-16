@@ -1,7 +1,4 @@
-// The seed's whole safety argument rests on `lastWriteLongestArray`: a seed handle node carries no
-// arrays and no scalars beyond identity and url, so it can never win a field against a live row. That
-// function was unpinned until this file.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { createGraph, lastWriteLongestArray } from '../../../../src/worker/store/graph'
 

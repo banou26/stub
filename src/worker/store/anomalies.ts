@@ -1,5 +1,4 @@
 import type { Media } from './types'
-import { extendsId } from '../../sources/offline/seed-gate'
 import { runLength } from './consensus'
 
 /**
@@ -21,7 +20,7 @@ export type Anomaly = { rule: string, detail: string }
  * One source names one thing once. Two of its ids in a cluster means a union happened that the source
  * itself would refuse, and `graph.link` has no inverse, so it is permanent for the session. The
  * precision case is real and must not be reported: `cr:G24H1N3MP` beside `cr:G24H1N3MP-GS00374452` is
- * a series id and one of its seasons, which is `extendsId`'s whole job.
+ * a series id and one of its seasons, `<a>` against `<a>-<something>`.
  */
 const disagreeingIds = (cluster: readonly Media[]): Anomaly[] => {
   const byOrigin = new Map<string, string[]>()
@@ -33,9 +32,9 @@ const disagreeingIds = (cluster: readonly Media[]): Anomaly[] => {
   const found: Anomaly[] = []
   for (const [origin, ids] of [...byOrigin].sort()) {
     if (ids.length < 2) continue
-    // one-way, like findSeedWelds: dropping both sides lets a shared parent hide the disagreement it
-    // sits between, so `[A, A-1, A-2]` would report nothing at all
-    const specific = [...new Set(ids)].filter(id => !ids.some(other => extendsId(other, id) && other !== id && other.startsWith(`${id}-`))).sort()
+    // one-way: dropping both sides lets a shared parent hide the disagreement it sits between, so
+    // `[A, A-1, A-2]` would report nothing at all
+    const specific = [...new Set(ids)].filter(id => !ids.some(other => other.startsWith(`${id}-`))).sort()
     if (specific.length > 1) {
       found.push({
         rule: 'two ids of one origin',

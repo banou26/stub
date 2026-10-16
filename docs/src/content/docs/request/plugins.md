@@ -451,7 +451,7 @@ defaults, the fan-out join, the DataLoaders, the store, is shared.*
 | handle shape | edges, as the schema declares | bare rows accepted, `readPluginHandles`, media depth 4, episode depth 1 |
 | identity | whatever the module exports | `/^[a-z0-9][a-z0-9-]{0,31}$/`, and must not collide |
 | teardown | never | `closed`, `unregisterRemoteSource`, splice plus `leaveFanout` |
-| store export | included | force-excluded worker-side (`src/worker/yoga.ts:51-61`) |
+| store export | included | force-excluded worker-side (`src/worker/yoga.ts:71-79`) |
 
 ### The re-ask matches a plugin on its origin alone
 
@@ -488,7 +488,7 @@ after it is disabled and after the page is reloaded.
 
 ### The export exclusion is decided in the worker
 
-`src/worker/yoga.ts:51-61`:
+`src/worker/yoga.ts:71-79`:
 
 > the plugin origins are derived HERE rather than taken from the caller, so a caller cannot decline
 > to exclude them: a plugin's rows are that user's, never the product's.
@@ -501,19 +501,15 @@ excludeOrigins: [
 ```
 
 `exportStore` takes `excludeOrigins` to mean more than "leave these rows out". Its header
-(`src/worker/store/export.ts:20-26`) separates the two kinds of refusal, and the distinction is why
-plugin origins get this one rather than the other:
+(`src/worker/store/export.ts:16-17`) says so:
 
-> TWO KINDS OF REFUSAL, and they were one until a measurement separated them (2026-09-05).
-> `excludeOrigins` is for an origin whose word is not trusted, a plugin: it is not walked THROUGH, so
-> a bridge only it supplied splits rather than surviving. `passThroughOrigins` is for one that is
-> trusted to bridge but must not be published, the bundled offline row: it is walked through and then
-> left out of the output.
+> It refuses to walk THROUGH an excluded origin, so a bridge only an excluded source supplied splits
+> rather than surviving.
 
 So an export does not merely omit a plugin's rows; it refuses to *traverse* them, and a cluster held
 together only by a plugin's handle comes out of the export as two clusters. Note what that does and
-does not achieve: it keeps a plugin's claims out of the published artifact, and it changes nothing
-about the live store, where the union already happened. See [exporting](/read/export/).
+does not achieve: it keeps a plugin's claims out of the export, and it changes nothing about the live
+store, where the union already happened. See [exporting](/read/export/).
 
 ## What is not reduced
 

@@ -255,10 +255,10 @@ const heldRuns = async (runUri: string): Promise<{ uri: string, origin: string }
  * first of any member when nothing is named.
  *
  * A MEMBER NOBODY HAS DESCRIBED IS NOT AN ANCHOR, and a title is how that is read here: the old
- * store makes a row out of every uri a claim names, so the seed's `anidb:14758` handle is a member
- * with no titles, no dates and no counts, and it sorts ahead of `anilist:108465`. The graph makes the
- * same uri a PLACEHOLDER and clusters nothing onto it (4.3), so anchoring an ask there costs two
- * things, both measured on `ag:(anilist:108465)` on 2026-09-13:
+ * store makes a row out of every uri a claim names, so the offline source's `anidb:14758` handle is
+ * a member with no titles, no dates and no counts, and it sorts ahead of `anilist:108465`. The graph
+ * makes the same uri a PLACEHOLDER and clusters nothing onto it (4.3), so anchoring an ask there costs
+ * two things, both measured on `ag:(anilist:108465)` on 2026-09-13:
  *
  * - `clusterRunsOf` answers NOTHING for a uri that is in no cluster, so the gate that stops a second
  *   run of one origin joining reads "this cluster holds no run of any origin" and every container

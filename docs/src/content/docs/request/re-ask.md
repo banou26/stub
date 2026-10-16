@@ -237,7 +237,7 @@ flowchart LR
   D{"does this source understand any of them?<br/><small>origins.includes(source.origin) || (source.supportedUris ?? []).some(origin => origins.includes(origin))</small>"}
   SELF["23 of the 25: origin === its only supportedUri<br/>kitsu is origin 'kitsu', supportedUris ['kitsu']"]
   AZ["anizip: origin 'anizip', supportedUris ['anidb','mal']<br/><small>src/sources/anizip/extractor.ts:7 and :13</small>"]
-  OFF["offline: origin 'offline',<br/>supportedUris ['offline','mal','anilist','kitsu','anidb']<br/><small>src/sources/offline/extractor.ts:48</small>"]
+  OFF["offline: origin 'offline',<br/>supportedUris ['offline','mal','anilist','kitsu','anidb']<br/><small>src/sources/offline/extractor.ts:45</small>"]
   PLUG["a plugin source: PluginSourceMeta declares no supportedUris,<br/>so ?? [] applies and it is matched on origin alone"]
   DEAD["matched on ORIGIN ALONE:<br/>anizip's name cannot enter the cluster until it has answered,<br/>so it is never asked and never answers. Deadlock."]
   ASK["a fresh subscription with the wider uri"]
@@ -348,7 +348,7 @@ Capping a source at one re-ask would terminate too, and would be wrong.
 - anizip, `origin 'anizip'` plus `['anidb', 'mal']`, three distinct origins: **4** questions. The
   `extractor.ts` formula is right and its worked number, three, counts only the re-asks.
 - offline, `origin 'offline'` plus `['offline', 'mal', 'anilist', 'kitsu', 'anidb']`, five distinct
-  origins (`src/sources/offline/extractor.ts:41` and `:48`,
+  origins (`src/sources/offline/extractor.ts:38` and `:45`,
   `src/sources/offline/index-lookup.ts:20`): **6** questions. It, not anizip, is the widest source in
   the tree.
 
@@ -382,7 +382,7 @@ Four, all of them stale references rather than wrong behaviour. Recorded here an
 | `src/worker/resolvers/media/index.ts:45` | cites `sources/anilist/extractor.ts:320 against :295` | the split is `:367` (mapper handles) against `:397` (none) |
 
 One more, owned by another file but read on this path.
-`src/sources/offline/extractor.ts:45-47` says of `supportedUris`:
+`src/sources/offline/extractor.ts:43-44` says of `supportedUris`:
 
 > Note this export is declarative only: nothing in the worker reads it, so what actually decides is
 > the resolver below.

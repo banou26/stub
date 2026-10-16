@@ -203,8 +203,8 @@ CREATE REL TABLE HAS_EPISODE(FROM Media TO Episode,
   claimer STRING, answerSeq INT64, seq INT64)
 
 // an episode identity a source asserted. The schema allows it (episode/schema.gql:16; makeEpisode coerces a
-// bare node to episodeSameAs, src/sources/utils.ts:90); no first-party source emits one today, the seed's
-// episodes included (offline/seed-source.ts:170-182). Consumed by plugin:range (5.4 P4)
+// bare node to episodeSameAs, src/sources/utils.ts:90); no first-party source emits one today. Consumed
+// by plugin:range (5.4 P4)
 CREATE REL TABLE EPISODE_CLAIMS(FROM Episode TO Episode,
   key STRING, kind STRING, provenance STRING, claimer STRING, node JSON, answerSeq INT64, seq INT64)
 
@@ -364,10 +364,10 @@ reading is `plugin:profile`'s (5.4 P0).
 | kind | table | direction | meaning | asserted by a source | minted by a plugin |
 | --- | --- | --- | --- | --- | --- |
 | `SAME_AS` | `CLAIMS`, `LINK` | source: claimer to claimed; plugin: lower uri to higher uri | the two uris name one run, or one container, at the same scope | yes: anilist `mal`, kitsu `mal` and `anilist`, anizip, simkl, offline, jikan `anidb` and `anizip`, film links from kitsu, watchmode and justwatch under the `nf:title` / `nf:watch` allowlist (`kitsu/stream-id.ts:82,114`) | `plugin:direct` (from a claim), `plugin:title` |
-| `PART_OF` | `CLAIMS`, `LINK` | part to whole | X is one of Y's parts: a run of a show, a film of a collection (`cr:GQWH0M1GG` on fifteen Kitsu films), a cour of a folded season, a catalogue season of a longer run | yes: kitsu `partOf`, justwatch show container and show-level offers, watchmode `imdb` and `tmdb`, the seed's containers | `plugin:direct` (cross-scope derivation, prefix ids, an asserted `INCLUDES`), the writer's downgrade of a refused `SAME_AS` (5.2), `plugin:title` (run against container), `plugin:containment` (`span`) |
+| `PART_OF` | `CLAIMS`, `LINK` | part to whole | X is one of Y's parts: a run of a show, a film of a collection (`cr:GQWH0M1GG` on fifteen Kitsu films), a cour of a folded season, a catalogue season of a longer run | yes: kitsu `partOf`, justwatch show container and show-level offers, watchmode `imdb` and `tmdb` | `plugin:direct` (cross-scope derivation, prefix ids, an asserted `INCLUDES`), the writer's downgrade of a refused `SAME_AS` (5.2), `plugin:title` (run against container), `plugin:containment` (`span`) |
 | `INCLUDES` | `CLAIMS` (fenced), `LINK` (ranged) | whole to part | as a source claim: a show row names the season rows of its OWN origin. As a plugin edge: Y's episode list holds X's episodes at Y positions `fromStart..fromEnd`, which are X positions `toStart..toEnd`; `aligned/total` says how much of Y is proven, `contiguous` whether the proven pairs are unbroken | yes, fenced: accepted only from a show row to season rows of the same origin whose ids extend the show's (`idParent`), else refused with reason `foreign-includes`. The owner's call, section 11 | `plugin:range` only, and always with a range |
 | `HAS_EPISODE` | `HAS_EPISODE` | media to episode | the claimer hung this episode row on this media uri | yes, every episode-emitting source | never |
-| `SAME_AS` (episode) | `EPISODE_CLAIMS`, `EPISODE_LINK` | as above | two episode rows are one broadcast episode | the schema allows it (`episode/schema.gql:16`; `makeEpisode` coerces a bare node to `episodeSameAs`, `src/sources/utils.ts:90`), and no first-party source emits one today: the seed's episodes carry no handles (`offline/seed-source.ts:170-182`). A plugin source may | `plugin:range` (by date, by title, and reason `asserted` from an `EPISODE_CLAIMS` row whose two rows sit inside one cluster or across an attached season, 5.4 P4), `plugin:aggregate` (by number inside one cluster, as `FILLS` onto one slot) |
+| `SAME_AS` (episode) | `EPISODE_CLAIMS`, `EPISODE_LINK` | as above | two episode rows are one broadcast episode | the schema allows it (`episode/schema.gql:16`; `makeEpisode` coerces a bare node to `episodeSameAs`, `src/sources/utils.ts:90`), and no first-party source emits one today. A plugin source may | `plugin:range` (by date, by title, and reason `asserted` from an `EPISODE_CLAIMS` row whose two rows sit inside one cluster or across an attached season, 5.4 P4), `plugin:aggregate` (by number inside one cluster, as `FILLS` onto one slot) |
 | `RELATED` | `RELATED` | as the source stated | PREQUEL, SEQUEL, ADAPTATION and the rest of AniList's `relationType(version: 2)` vocabulary | anilist only | never, and never walked by any merge (CHARACTER edges reached 10 foreign franchises from one show, 2026-09-08) |
 
 **Containment established with no correspondence is `PART_OF`**, with a `reason` that names the
@@ -412,8 +412,7 @@ Not added, deliberately:
 - `ask`: a `similarMedia` answer the app's consumer wrote as a claim (`src/worker/similar-consumer.ts:255`
   writes it as `SAME_AS`; a `containing` answer writes `PART_OF`, 4.4). Consumed like `source`; the
   answer's own row lands through the answering extractor as today.
-- `seed`: the offline seed's identity handles. Consumed like `source`; the seed's handle nodes are
-  placeholders and never write a row (`offline/seed-source.ts:136-148`).
+- `seed`: the offline source's identity handles. Consumed like `source`.
 - `address` (**NEW**, decided by the owner 2026-09-12): a handle rebuilt from the address bar by
   `buildHandlesFromUri` (`src/sources/utils.ts:465-471`). **The address names WHICH sources to ask
   and asserts nothing about how they relate.** An `address` claim is a POINTER: it routes re-asks
@@ -732,13 +731,12 @@ and guard 2 then re-evaluates any link that touched it (5.2). The pending set is
 `MATCH (m:Media {owned: false})`, with no map to leak.
 
 **Field merge, for an owner answering about one uri more than once.** Kept from
-`lastWriteLongestArray` (`graph.ts:388-399`), whose rule `store/graph.test.ts:1-3` says must be
-restated wherever field merging lands: per top-level field, the incoming value is taken when it is
-non-null and, for an array, non-empty and not strictly shorter than the current one; otherwise the
-current value survives; a key absent from the incoming row survives. Two differences from today: the
-loser is not destroyed, it is in its `Answer` row; and `fieldSeq[field]` records which answer supplied
-the value, so the search-row-after-media-page degradation is both prevented and, if it ever recurs
-through a rule change, visible.
+`lastWriteLongestArray` (`graph.ts:388-399`), whose rule `store/graph.test.ts:5-26` pins: per
+top-level field, the incoming value is taken when it is non-null and, for an array, non-empty and not
+strictly shorter than the current one; otherwise the current value survives; a key absent from the
+incoming row survives. Two differences from today: the loser is not destroyed, it is in its `Answer`
+row; and `fieldSeq[field]` records which answer supplied the value, so the search-row-after-media-page
+degradation is both prevented and, if it ever recurs through a rule change, visible.
 
 **Re-fetch of the same uri: keep every answer, and one merged row.** Replace would lose fields the
 earlier answer carried (the listing row after the modal row). Version-only would make every read
@@ -939,7 +937,7 @@ is written as `LINK {status: 'refused', reason}` so it can be queried.
 | 1 | `unknown-scope` | either endpoint's effective scope is NULL: the proposal waits for the next pass; nothing is written | `db.ts:113-123`, the claim that took the RUN default before its row landed |
 | 2 | `cross-scope` | effective scopes differ: downgraded (below). **Re-evaluated for every ACTIVE link every pass**: a link whose endpoints' scopes now differ is retracted and downgraded, which is the justwatch-before-crunchyroll race of `db.ts:113-123` as a fixture rather than a comment | `db.ts:166-169`, the derivation table |
 | 3 | `address-only` | any support is an `address` claim: a pointer, whoever the claimer. Refused and NOT downgraded, because the address asserts nothing about how its uris relate; the target still routes a re-ask (7.1), its owner's own claims and the plugins decide its cluster, and an unrelated address row still renders as a badge (6.2). Decided by the owner, 2026-09-12 | **NEW**; `src/sources/utils.ts:465-471` stamps no scope in either direction |
-| 4 | `disagreeing-ids` | the union would put two ids of one IDENTITY SPACE in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, and once more with the same batch's Offline claims joined in (below): an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade. **The relation it measures has every row THIS PROPOSAL would contest cut out of it** (`15cdb5d`, 2026-09-14, `contestedBy`): a component that holds together only through a row the proposal would put two disagreeing claimants onto is one guard 5 is about to take apart, so a disagreement measured across it is not one the proposal adds, and refusing on it makes the verdict depend on which claimant arrived first | `anomalies.ts:18-25`, one-way at `:38` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
+| 4 | `disagreeing-ids` | the union would put two ids of one IDENTITY SPACE in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, and once more with the same batch's Offline claims joined in (below): an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade. **The relation it measures has every row THIS PROPOSAL would contest cut out of it** (`15cdb5d`, 2026-09-14, `contestedBy`): a component that holds together only through a row the proposal would put two disagreeing claimants onto is one guard 5 is about to take apart, so a disagreement measured across it is not one the proposal adds, and refusing on it makes the verdict depend on which claimant arrived first | `anomalies.ts:17-24`, one-way at `:37` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
 | 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass. **The claimants' components are read with the TARGET EXCLUDED** (`ca48d3a`, 2026-09-14, `Components.without`): read plainly, two claimants whose claims have both been accepted share a component THROUGH the target, the guard skips them as agreeing, and the merge erases the evidence that it should never have happened. **The target's OWN claims settle a contest** (2026-10-15). A row the target claims to be in its own answer counts only in an identity space both sides hold: when every such row sits in one and the same side's component, that side's proposals pass and only the other side's are refused, with no downgrade, since the target itself says that claim is wrong. AniList's `anilist:189046` names MyAnimeList 61316, which sits on Re:ZERO Season 4's side while the Break Time short's side holds another `mal` id, so Kitsu's claim from Break Time (`kitsu:50665`) is the one refused. The target's own id counts the same way (2026-10-16): Steel Ball Run's `mal:61469` sits on the first stage's side as `offline:mal-61469`, while the second stage's side holds `offline:mal-63825`, so AniList's `anilist:210482`, whose `idMal` names the first stage, is the one refused. A space only one side holds says nothing against the other (8.6). No counted claim, or one on the other side or on neither, refuses every side as before | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
 | 6 | `contained` | an active `PART_OF` or `INCLUDES` already joins the pair (3.5): refused; the downgrade is a no-op because the containment edge already exists | the owner's rule |
 | 7 | `count-mismatch` | one side is a season row of a folding origin (`folding`) and its `countDistinct` (else `countStated`) disagrees with the other side's `runLength`. The LONGER direction downgrades always, zero tolerance (`foldVetoed`, `similar.ts:147-150`). The SHORTER direction downgrades only when the run is FINISHED: a short fetched list on a RELEASING run is not evidence (twelve sources set `episodeCount = episodes.length`, `consensus.ts:164-168`), so the Elusive Samurai row with 8 of 12 aired stays a member as shipped (`consensus.test.ts:284-288`), while BAKI's 13 against a finished 26 no longer welds through the year rule (2026-09-10) | zero tolerance on longer; rule 5's "only exactness counts" on shorter (`similar.ts`). The FINISHED gate is **NEW**; its arm is the rewired exchange-rate rig of 9.3 before it moves |
@@ -1104,7 +1102,7 @@ clusters can see one at the new pass and one at the old for the length of a pass
 `view:changed` re-read repairs. `exportStore` and the cross-cluster questions of the trace panel run
 as jobs queued behind the pass in flight (the scheduler is JS and a pass is a chain of awaits, so
 "between passes" is a queue position), which is what makes two export calls on one store
-byte-identical (`export.ts:12-30`).
+byte-identical (`export.ts:12-23`).
 
 **A plugin that throws** keeps its previous output (never an empty desired set, which would retract
 everything it ever wrote), the pass continues with the plugins after it, `view:changed` fires for what
@@ -1390,8 +1388,8 @@ ORDER BY year
   no `SAME_AS` between media. `after: [aggregate, containment]`. Scope: the run clusters in
   `delta.clusters` and the pairs it recomputed.
 - **Evidence**: on our side, dated and titled episodes from anizip (`airDateUtc ?? airdate`, `en` and
-  `ja` titles), the offline seed, and any member with dates (crunchyroll, appletv); on the catalogue
-  side, crunchyroll (dates and titles), appletv (dates), tvmaze (dates, once the extractor emits them),
+  `ja` titles) and any member with dates (crunchyroll, appletv); on the catalogue side, crunchyroll
+  (dates and titles), appletv (dates), tvmaze (dates, once the extractor emits them),
   justwatch (titles), unogs (titles only, Netflix's own translation, no date at any level), kitsu
   (numbers only). Counts exist on every side and are the only universal axis, which is precisely why
   the fold defeats them.
@@ -1721,15 +1719,15 @@ retranslated title cannot produce a pair: it can only fail to become an anchor.
 
 Rules that need no expected answer, evaluated over the whole graph after every pass, written to
 `Cluster.anomalies` with `anomalyCount`, and reported by the trace panel (7.5). Today two of them exist
-and run only in a fixture test (`anomalies.ts:71`, called from `merge-fixtures.test.ts:167`). Every
+and run only in a fixture test (`anomalies.ts:70`, called from `merge-fixtures.test.ts:167`). Every
 rule ships with a control fixture that must report zero, so a rule that cannot fire in its failure
 state is caught by its own test.
 
 | rule | detail | record |
 | --- | --- | --- |
-| `disagreeing-ids` | two ids of one origin among a cluster's members' claims that are not one id at different precision; reads the refused links of that reason | `anomalies.ts:18-25` |
+| `disagreeing-ids` | two ids of one origin among a cluster's members' claims that are not one id at different precision; reads the refused links of that reason | `anomalies.ts:17-24` |
 | `contested` | a target refused to two components under guard 5, both claimants named | `nf:81091393-3`, 2026-09-04 |
-| `over-length` | slots exceed `runLength`; the detail line recounts the witnesses (`${listed} listed against a length of ${length} that ${witnesses} of its sources agree on`) | `anomalies.ts:49-59` |
+| `over-length` | slots exceed `runLength`; the detail line recounts the witnesses (`${listed} listed against a length of ${length} that ${witnesses} of its sources agree on`) | `anomalies.ts:48-58` |
 | `count-disagrees` | `countStated` differs from `countDistinct` on a row with a list | netflixid 80198505 season 3 |
 | `kind-disagrees` | one uri whose answers disagree about MOVIE against SERIES | `tmdb:550` |
 | `constant-id` | one target uri claimed `SAME_AS` by three or more distinct CLAIMANTS before membership is considered (**NEW** threshold 3: two claimants is a contest, three is never right; `hbo:watch` on 25 titles and `anidb:animedb.pl` on every record with a missing `aid`, 2026-09-04). Counted over claimants, not clusters, because a constant that welded its claimants leaves one cluster and a cluster count is silent exactly then | f096e7d, a4eea19 |
@@ -2407,7 +2405,7 @@ the store and the two policies that ran inside reads.
 | `Anomaly`, `clusterAnomalies` | `Cluster.anomalies`, evaluated every pass (5.5) |
 | `normalizeToStoreMedia` | gone: rows are kept as returned. Its two invariants survive elsewhere: "absence is null, never undefined" is the projection query's contract; "scope defaults to RUN" becomes `MediaProfile.scope` from evidence (5.4 P0) |
 | `MediaPageFilters`, `applyMediaFilters` | kept verbatim over `Cluster.card` |
-| `ExportedCluster`, `StoreExport`, `ExportOptions`, `exportStore` | kept as an envelope. The walk becomes a query over `LINK {kind: 'SAME_AS', status: 'active', by: 'plugin:direct'}` whose `supports` name a `source` or `ask` claim: never `seed` (the seed cannot ratify itself, 2026-09-05), never `address` (justwatch's `mergeHandles` restating the whole aggregated uri was the ratification path), never a title link, never a plugin source's rows (`yoga.ts:51-61`). That is the exact successor of `ASSERTED_LABELS.RUN` (`db.ts:189-195`), which is written only for a claim DERIVED as same-scope sameness; a raw `CLAIMS` walk would re-admit every cross-scope claim as sameness. `excludeOrigins` not walked through, `passThroughOrigins` walked and dropped, the cluster drop rule (no published member outside CONTAINER) and the total ordering kept (`export.ts:12-30`) |
+| `ExportedCluster`, `StoreExport`, `ExportOptions`, `exportStore` | kept as an envelope. The walk becomes a query over `LINK {kind: 'SAME_AS', status: 'active', by: 'plugin:direct'}` whose `supports` name a `source` or `ask` claim: never `seed` (the seed cannot ratify itself, 2026-09-05), never `address` (justwatch's `mergeHandles` restating the whole aggregated uri was the ratification path), never a title link, never a plugin source's rows (`yoga.ts:71-79`). That is the exact successor of `ASSERTED_LABELS.RUN` (`db.ts:189-195`), which is written only for a claim DERIVED as same-scope sameness; a raw `CLAIMS` walk would re-admit every cross-scope claim as sameness. `excludeOrigins` not walked through, the cluster drop rule (no member outside CONTAINER) and the total ordering kept (`export.ts:12-23`) |
 | `emit`, `listen`, `listenIterator`, `listenMultipleIterator`, `debouncedListenIterator` | kept; the event set becomes `graph:changed`, `row:changed`, `view:changed`, `origin:changed`, every payload populated (4.5) |
 | `profileCluster`, `fuzzyMergeMediaClusters` | `plugin:profile` (per row) and `plugin:title` |
 

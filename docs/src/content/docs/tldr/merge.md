@@ -94,6 +94,6 @@ A weighted sum was written first, measured wrong three ways on 2026-09-09 and id
 
 ## What survives
 
-Two anomaly rules: two ids of one origin, and a run listing more episodes than its sources agree it is long (src/worker/store/anomalies.ts:70-72). The `extendsId` filter is one-way on purpose, since read symmetrically `[A, A-1, A-2]` reports nothing about a cluster that welded two seasons (:36-38). Neither runs in production: `clusterAnomalies` is imported once, by tests/unit/worker/store/merge-fixtures.test.ts:15. Its production twin gates rather than reports: a weld `findSeedWelds` names, or a dropped share above SEED_MAX_WELD_SHARE = 0.02, fails the publish (src/sources/offline/seed-gate.ts:77, :35, :449).
+Two anomaly rules: two ids of one origin, and a run listing more episodes than its sources agree it is long (src/worker/store/anomalies.ts:69-71). The precision filter is one-way on purpose, since read symmetrically `[A, A-1, A-2]` reports nothing about a cluster that welded two seasons (:35-37). Neither runs in production: `clusterAnomalies` is imported only by tests, tests/unit/worker/store/merge-fixtures.test.ts:15 and tests/unit/worker/store/anomalies.test.ts.
 
 A container the fuzzy pass leaves alone still has to be resolved to one of its runs, and that question is put to the origin that owns it: [similarMedia](/tldr/similar/).

@@ -206,7 +206,7 @@ The test file opens by saying it plainly (`filter.test.ts:1-4`):
 
 Counted against the tree today, the figure is **four**, not three. `mediaPage` reads a filter axis in
 `anilist` (`extractor.ts:690-727`, every axis), `jikan` (`extractor.ts:383`, season, seasonYear,
-status), `kitsu` (`extractor.ts:304-306`, the same three) and `offline` (`extractor.ts:249`, the same
+status), `kitsu` (`extractor.ts:304-306`, the same three) and `offline` (`extractor.ts:217`, the same
 three). Take the sentence's point rather than its arithmetic, because the point gets sharper the more
 precisely you count:
 

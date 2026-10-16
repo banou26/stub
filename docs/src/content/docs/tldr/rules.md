@@ -93,8 +93,6 @@ that argues each rule, and in full in [Constants](/reference/constants/).
 | `useResponseCache` ttl | `15 * 60 * 1000` | `worker/extractor.ts:470` | **nothing.** It hooks `onExecute` and every operation on this path is a subscription |
 | `CONNECT_TIMEOUT_MS` | `45_000` | `src/plugins.ts:56` | the deadline on both halves of a plugin handshake, the connect and the registration |
 | `RECONNECT_DELAY_MS` / `RECONNECT_MAX_MS` | `3_000` / `30_000` | `plugins.ts:9`, `:66` | `Math.min(RECONNECT_DELAY_MS * attempt, RECONNECT_MAX_MS)`, computed at `:72` |
-| `SEED_INDEX_TIMEOUT_MS` / `SEED_EPISODES_TIMEOUT_MS` | `10_000` / `15_000` | `src/sources/offline/seed-source.ts:26`, `:27` | both outlived by a 503 with a generous `retry-after`. A race, never an `AbortSignal` |
-| `SEED_MAX_WELD_SHARE` | `0.02` | `src/sources/offline/seed-gate.ts:35` | the welded-run share above which `gateSeed` refuses the publish outright |
 | built-in sources | `25` | `src/sources/index.ts`, pinned by `expect(names).toHaveLength(25)` at `tests/unit/sources/index.test.ts:24` | the live list is `Object.values(extractorDefinitions)` (`worker/extractor.ts:551`), so the barrel IS what runs and a source is disabled by deleting one line |
 | playback origins | `2` | `src/sources/players.ts:12-13` | `cr` and `nf`. Playback is a lookup keyed by origin, not a flag on the module |
 | `OFFER_COUNTRIES` | `{ primary: COUNTRY, extra: 'JP' }`, `COUNTRY = 'US'` | `src/sources/justwatch/extractor.ts:40`, `:26` | which catalogues are read. Mushoku Tensei has no US Netflix offer, so US alone is blind to Netflix for most of this catalogue |
@@ -130,7 +128,6 @@ them with the condition verbatim. Bold in the last column means the caller or th
 | C5 / C6 | `consensus.ts:150`, `:153` | `support < MIN_ALIGNED`; `ranked[1][1] === support` | `alignmentOffset` answers `undefined` in every ambiguous case. Nothing is renumbered |
 | C8 | `consensus.ts:234` | `if (backing.length < 2) return episodes.filter(...)` | the loan is declined whole rather than sliced on a single witness |
 | R8 | `store/aggregate.ts:104` | `(handles ?? []).filter(handle => handle.relation === 'SAME_AS')` | **`sameAsHandleUris`, the filter that has to be applied anywhere sameness is assumed.** A PART_OF node is a SHOW |
-| E1 | `src/worker.ts:17` | `refusesSeedAsset(location.href, input)` | `404`, never 503. A 503 there would be retried three times inside the backoff loop |
 
 ## What will surprise you
 

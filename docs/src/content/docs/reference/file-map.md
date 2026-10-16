@@ -103,7 +103,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 
 | file | what it owns | why it lives where it does |
 |---|---|---|
-| `src/worker.ts` (49L) | the osra `expose` on the page side, and one resolver back to the worker: `fetch`, with the seed refusal | `src/worker.ts:14-15` states the refusal shape: 404, never 503 |
+| `src/worker.ts` (49L) | the osra `expose` on the page side, and one resolver back to the worker: `fetch` | `cloud.fetch` runs on the page, so every source request crosses back to it |
 | `src/worker/index.ts` (3L) | the worker entry: `./polyfills`, `./yoga`, `./store` | three imports, in that order |
 | `src/worker/yoga.ts` (75L) | the app-level yoga, `maskedErrors: false`, and the osra resolver surface (`registerRemoteSource`, `exportStore`, ...) | reaches `extractor.ts`, so it cannot be tested |
 | `src/worker/fetch.ts` (18L) | `fetch` and `fetchWithBackoff`, over osra | calls `expose()` at module scope, which needs a transport that does not exist under node |
@@ -145,7 +145,7 @@ Grouped by what a file does, not by where it sits. Line counts are the working t
 | `src/sources/justwatch/id.ts` (144L) | `jwId`, `splitJwId`, `providerContentId`, `PACKAGE_ORIGIN_MAP`, `extractContentId` | every host branch in `extractContentId` is measured, and the failure mode is silent |
 | `src/sources/aired-date.ts`, `average-score.ts`, `mal-image.ts` | small shared field helpers | each import-free or type-only, each with the reason in its header |
 | `src/sources/anilist/frontend.ts`, `jikan/season-scrape.ts`, `kitsu/season-paging.ts`, `kitsu/stream-id.ts` | one fallback or paging rule each, per source | same pattern: no runtime imports |
-| `src/sources/offline/seed.ts`, `seed-gate.ts`, `seed-build.ts`, `seed-source.ts`, `index-lookup.ts` | the season seed's shape, its publish gate, its builder and the generated id index | `seed.ts` and `seed-gate.ts` must load **in node directly**, through type stripping, which is a stricter rule than the rest of this page |
+| `src/sources/offline/index-lookup.ts` | the generated id index | no imports |
 | `src/sources/entities.ts` (8L) | `decodeEntities`, the one HTML character reference reader for tmdb, tvmaze and simkl | no imports |
 
 ### The store: writing
@@ -184,7 +184,7 @@ else on the write path.
 | `src/worker/store/fuzzy-merge.ts` (670L) | `fuzzyMergeMediaClusters`, `SIMILARITY_THRESHOLD = 0.9`, `MAX_TITLES_PER_CLUSTER = 6`, the five gates | a read that writes unions, which is why it is drawn dashed everywhere |
 | `src/worker/store/filter.ts` (80L) | `applyMediaFilters` and `MediaPageFilters` | kept out of `resolvers/media/index.ts` so it can be tested |
 | `src/worker/store/export.ts` (109L) | `exportStore`: asserted adjacency only, never the unions | it reads and never writes, and says so |
-| `src/worker/store/anomalies.ts` (72L) | ways a cluster can be visibly wrong about itself, with no expected answer needed | so the rules can be swept over a whole corpus |
+| `src/worker/store/anomalies.ts` (71L) | ways a cluster can be visibly wrong about itself, with no expected answer needed | so the rules can be swept over a whole corpus |
 | `src/worker/store/index.ts` (5L) | the barrel: types, events, db, aggregate, export | |
 
 ### Shared
@@ -193,7 +193,7 @@ else on the write path.
 |---|---|---|
 | `src/utils/uri.ts` (281L) | the grammar: `toUri`, `isUri`, `isAggregatedUri`, `isRoutableUri`, `fromAggregatedUri`, `originsOfUri`, `mostSpecific`, `extractAggregatedUriOrigin`, `decodeRouteUri`, `shouldRewriteAddress` | one import, `./group-by` |
 | `src/utils/merge.ts` | the deep merge `makeExtractor` builds each source's resolver map with | `mergeArrays: true, uniqueArrayItems: true, allowUndefinedOverrides: true` |
-| `src/utils/export-flag.ts` | `readExportFlag`, `readNoSeedFlag`, `refusesSeedAsset` | read on both sides of the worker boundary |
+| `src/utils/export-flag.ts` | `readExportFlag`, `readAnswersExportFlag`, `readQueryProbeFlag`, `readsLegacyStore`, `readTraceFlag` | read on the page, which owns the url |
 | `src/utils/settled-order.ts`, `src/utils/theater.ts` | a listing's stable order, and which media the hero can be built from | both split out with **no app imports** so a test can reach them |
 | `src/generated/schema/` | `typeDefs.generated.ts` and `types.generated.ts` | the same generated schema the app serves and every private yoga is built from |
 

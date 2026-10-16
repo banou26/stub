@@ -312,7 +312,7 @@ modal is written against exactly that, at `src/router/home/media-modal.tsx:772-7
 
 Two smaller consumers worth knowing about, both driven by the same constants:
 
-- `anomalies.ts:60-68` reports `lists more episodes than it is long` when a run's listed episode count
+- `anomalies.ts:59-67` reports `lists more episodes than it is long` when a run's listed episode count
   exceeds `runLength(cluster)`, and prints how many of its sources agree on that length. The rule is
   pure and reports; it changes nothing.
 - `runEvidence` (`similar-consumer.ts:166-176`) orders the cluster by score before reading
@@ -330,7 +330,7 @@ files:
   (`src/sources/offline/normalize.ts:31`) and is a bundled static dump, not a catalogue. The
   subsystem report's source table lists it as having no score, which is wrong in the other direction:
   it is applied at the media level at `offline/normalize.ts:164` and again at
-  `offline/extractor.ts:172`.
+  `offline/extractor.ts:153`.
 - The inventory says the score decides four things. There are five readers of a stored `score` in
   `src/`: `aggregate.ts` (twice, on two different sentinels), `consensus.ts`, `fuzzy-merge.ts` and
   `similar-consumer.ts`. The fifth is the one that leaves the process, since it shapes the evidence a

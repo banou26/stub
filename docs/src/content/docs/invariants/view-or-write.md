@@ -33,7 +33,7 @@ reached only from `resetStore` (`db.ts:509`), which is tests only and is not eve
 no per-source layer and no provenance, so the previous value of a field is simply gone and no reader
 can ask what a given origin said.
 
-`src/worker/store/anomalies.ts:20-23`:
+`src/worker/store/anomalies.ts:19-22`:
 
 > One source names one thing once. Two of its ids in a cluster means a union happened that the source
 > itself would refuse, and `graph.link` has no inverse, so it is permanent for the session.
@@ -116,7 +116,7 @@ unbounded and with no expiry.
 `tieredConsensus` (`consensus.ts:36`), `runLength` (`consensus.ts:62`), `alignmentOffset`
 (`consensus.ts:113`), `runEpisodes` (`consensus.ts:157`), `alignRunEpisodes` (`consensus.ts:256`),
 `aggregateEpisode` (`aggregate.ts:401`), `applyMediaFilters` (`filter.ts:54`) and `exportStore`
-(`export.ts:31`). Only one of them says so out loud, `export.ts:16`:
+(`export.ts:24`). Only one of them says so out loud, `export.ts:15`:
 
 > Promises: it reads, and never writes.
 

@@ -364,14 +364,11 @@ than failing. They are the loudest group and the least urgent.
 | `:197` | error | `MyAnimeList <season> <year> failed` |
 | `:228` | error | `MyAnimeList search failed` |
 | `src/sources/kitsu/extractor.ts:242` | error | `Kitsu season page <page> failed` |
-| `src/sources/offline/extractor.ts:97` | error | `offline: the bundled season data could not be loaded` |
-| `:105` | error | `offline: the bundled id index could not be loaded` |
-| `:126` | warn | `offline: no bundled data for <key>; the dump (<tag>) holds <seasons, or nothing>` |
-| `src/sources/offline/seed-source.ts:60` | warn | `offline: <what> could not be read, the bundled data still answers` |
-| `:82` | warn | `offline: <asset> is not a seed index, the bundled data still answers` |
-| `:98` | warn | `offline: <asset> does not belong to this index, the index still answers` |
+| `src/sources/offline/extractor.ts:85` | error | `offline: the bundled season data could not be loaded` |
+| `:106` | warn | `offline: no bundled data for <key>; the dump (<tag>) holds <seasons, or nothing>` |
+| `src/sources/offline/catalog.ts:20` | error | `offline: the bundled id index could not be loaded` |
 
-Two of these are worth reading as pairs with the comment above them.
+One of these is worth reading as a pair with the comment above it.
 
 `src/sources/utils.ts:133-136`, on why one bad record prints instead of throwing:
 
@@ -379,12 +376,6 @@ Two of these are worth reading as pairs with the comment above them.
 > as soon as one record is malformed, so the source yields nothing and one bad entry costs the
 > whole page. That is what turns a single odd upstream record into an empty feed, and it defeats
 > the point of having several sources, since the surviving source goes dark too.
-
-`src/sources/offline/seed-source.ts:73-75`, on why the seed lines all end the same way:
-
-> Promises exactly one thing: it never rejects and never makes the page worse. A timeout, a 404, a
-> body that is not gzip, and a payload the gate refuses all resolve to undefined, logged once, and
-> the bundled half of this source keeps answering what it answers today.
 
 `jikan:186` is the one line in this group that reports a *silent* wrong answer rather than a missing
 one: with no section headings, MAL's carried-over long-runners cannot be told from the season, and the

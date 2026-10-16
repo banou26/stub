@@ -20,8 +20,7 @@ The module says why it is its own file, at `src/worker/backoff.ts:1-3`:
 
 ## Where the wrapper sits
 
-The request leaves the worker and crosses back to the page before it reaches the network, and the
-page has a refusal branch of its own on the way past.
+The request leaves the worker and crosses back to the page before it reaches the network.
 
 ```mermaid
 flowchart LR
@@ -29,40 +28,17 @@ flowchart LR
   CTX["ExtractorServerContext.fetch<br/><small>declared extractor.ts:35, bound extractor.ts:533</small>"]
   WB["fetchWithBackoff = withBackoff(fetch)<br/><small>worker/fetch.ts:18</small>"]
   OSRA["osra hop, key 'fetch'<br/><small>worker/fetch.ts:7-16, worker.ts:24-30</small>"]
-  GATE{"is this the season seed on a page that switched it off?<br/><small>refusesSeedAsset(location.href, input)</small>"}
-  R404["new Response with status 404<br/><small>'the season seed is switched off for this page'</small>"]
   CLOUD["cloud.fetch(input, init)<br/><small>utils/fetch.ts:5-6, through an FKN node</small>"]
   NET[("the upstream<br/><small>graphql.anilist.co, myanimelist.net, ...</small>")]
 
   SRC --> CTX
   CTX --> WB
   WB -->|"attempt 0, and attempts 1 to 3 if it comes to that"| OSRA
-  OSRA --> GATE
-  GATE -->|"readNoSeedFlag and isSeedAssetUrl both true: refused on the page, never asked"| R404
-  GATE -->|"any other request, which is all of them on a normal page load"| CLOUD
+  OSRA --> CLOUD
   CLOUD --> NET
-  R404 -.travels back up as an ordinary Response.-> WB
-
-  classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
-  classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
-  classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff
-  classDef refuse fill:#46464b,stroke:#8b8c93,color:#f2f2f4
-  class R404 refuse
 ```
 
-*The backoff sits above the osra hop, so the page-side refusal is inside the retry loop and gets a
-status chosen with that in mind.*
-
-The status on that refusal is the clearest evidence anywhere that this loop is load bearing.
-`src/worker.ts:14-15`:
-
-> 404, never 503: `fetchWithBackoff` retries a 503 three times, and this refusal is the same shape
-> as the asset simply not being published yet, which the loader already answers undefined to.
-
-A 503 there would have cost four round trips and seven seconds of waiting to arrive at a decision the
-page had already made before the first one. `refusesSeedAsset` is `readNoSeedFlag(pageUrl) &&
-isSeedAssetUrl(requestUrlOf(request))` (`src/utils/export-flag.ts:50-51`), and the flag is exactly
-`?seed=off`, not mere presence of the parameter (`src/utils/export-flag.ts:28-34`).
+*The backoff sits above the osra hop, so every attempt crosses to the page and back.*
 
 ## `withBackoff`, the loop
 
@@ -105,9 +81,8 @@ status that never recovers returns the failing response. A source has to handle 
 
 Read the asymmetry off the figure, because it is the single thing about this module a caller gets
 wrong. Four 503s in a row end at `return response` with `response.status === 503` and the body
-intact; four `TypeError`s in a row end at `throw error`. So `if (!response.ok) throw ...`, which is
-what the seed loader does at `src/sources/offline/seed-source.ts:50`, is not defensive
-programming here, it is the only thing standing between a 503 body and `JSON.parse`.
+intact; four `TypeError`s in a row end at `throw error`. So `if (!response.ok) throw ...` is not
+defensive programming here, it is the only thing standing between a 503 body and `JSON.parse`.
 
 The rejection branch was added after the fact, and its comment says what it fixed
 (`src/worker/backoff.ts:64-66`):
@@ -139,16 +114,6 @@ The waits are `1_000`, `2_000`, `4_000`, in that order, pinned by
 added latency on a dead upstream is therefore **7 seconds and four requests**, unless the upstream
 sends `retry-after`, in which case it is up to **45 seconds** (three waits capped at 15 each).
 
-That matters against the budgets racing it. The offline seed loader gives its index 10 seconds
-(`SEED_INDEX_TIMEOUT_MS = 10_000`, `src/sources/offline/seed-source.ts:26`) and its episodes 15
-(`SEED_EPISODES_TIMEOUT_MS = 15_000`, `:27`). A seed asset answering 503 with a generous `retry-after`
-will outlive both budgets, and the loader answers `undefined` while the retries keep going, which its
-docblock states as the intended outcome (`src/sources/offline/seed-source.ts:21-23`):
-
-> A race, never an `AbortSignal` in the init: `ctx.fetch` crosses an osra port to the relay and a
-> signal is not structured-cloneable, which is why no source in the tree passes one. On expiry the
-> loader answers undefined and the abandoned request is ignored.
-
 One dead branch worth knowing about before you tune anything: **the cap inside `backoffDelay` is
 currently unreachable.** The largest attempt that ever waits is 2, so the largest value it computes is
 `4_000`, and `Math.min(..., 15_000)` first binds at attempt 4, which needs `MAX_RETRIES` raised to 5
@@ -174,7 +139,7 @@ flowchart LR
     direction TB
     B500["500<br/><small>as often a deterministic upstream bug as a blip</small>"]
     B403["401, 403<br/><small>a key problem: a fourth ask cannot fix it</small>"]
-    B404["404, 410<br/><small>the seed refusal is deliberately this shape</small>"]
+    B404["404, 410"]
     B200["200, 204, 301, 400, 501<br/><small>pinned by backoff.test.ts:39</small>"]
   end
 
@@ -353,6 +318,4 @@ Two small corrections, recorded here rather than silently applied:
   decoration: cancelling a stream that has already errored gives a rejected promise, and a rejection
   inside a `void` expression has nothing to handle it.
 - The inventory lists `src/utils/fetch.ts` as one of the three files behind this page. It is six lines
-  and contains no policy at all: `cloud.fetch(input, init)`. The third file that actually decides
-  something is `src/worker.ts:13-20`, the page-side seed refusal, which is drawn in the first figure
-  above.
+  and contains no policy at all: `cloud.fetch(input, init)`.

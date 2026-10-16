@@ -76,11 +76,11 @@ re-applies the scope refusal before it touches a label.
 | `container:same_as` | union-find, plus an adjacency | `db.ts:193` (CONTAINER x CONTAINER), `db.ts:235` (fuzzy) | `db.ts:263`, `:282`, `:379`; `aggregate.ts:294` |
 | `episode:same_as` | union-find, plus an adjacency | `db.ts:410` | `db.ts:449`; `aggregate.ts:294` |
 | `media:part_of` | directed edge | `db.ts:190`, `:196`, `:251` | `db.ts:281` forwards, `db.ts:307` backwards |
-| `has_episode` | directed edge | `db.ts:406` | `db.ts:436`; `export.ts:83` |
+| `has_episode` | directed edge | `db.ts:406` | `db.ts:436`; `export.ts:70` |
 | `episode:part_of` | directed edge | `db.ts:411` | nothing, anywhere |
-| `asserted:media_same_as` | undirected adjacency | `db.ts:192` | `export.ts:54` |
-| `asserted:container_same_as` | undirected adjacency | `db.ts:192` | `export.ts:75` |
-| `asserted:media_part_of` | directed edge | `db.ts:189`, `:195` | `export.ts:67` |
+| `asserted:media_same_as` | undirected adjacency | `db.ts:192` | `export.ts:43` |
+| `asserted:container_same_as` | undirected adjacency | `db.ts:192` | `export.ts:62` |
+| `asserted:media_part_of` | directed edge | `db.ts:189`, `:195` | `export.ts:54` |
 
 Three things in that table are worth saying out loud.
 
@@ -231,22 +231,20 @@ flowchart TD
   ADJ --> BFS["exportStore walks neighbours, never a cluster<br/><small>graph.neighbours(uri, ASSERTED_LABELS.RUN)</small>"]
   BFS --> D1{"may the walk pass through this node?<br/><small>medias.has(uri) && !excluded.has(originOf(uri))</small>"}
   D1 -->|"excluded: the bridge is cut"| SPLIT["two clusters in the output<br/><small>a plugin is not trusted to bridge</small>"]
-  D1 -->|"usable"| D2{"may it be published?<br/><small>!passThrough.has(originOf(uri))</small>"}
-  D2 -->|"pass-through: walked, not published"| WALK["not a member, still in walked<br/><small>the bundled offline row</small>"]
-  D2 -->|"published"| OUT["a member of the exported cluster"]
+  D1 -->|"usable"| OUT["a member of the exported cluster"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
   classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
   classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff
   classDef refuse fill:#46464b,stroke:#8b8c93,color:#f2f2f4
   class UF irrev
-  class BFS,SPLIT,WALK,OUT view
+  class BFS,SPLIT,OUT view
 ```
 
 *The export is a view over the asserted tracks, and the reason it cannot be a view over the identity tracks is that the identity tracks threw away the two facts it needs.*
 
-`exportStore` is at `export.ts:31-109`. The walk is the BFS at `export.ts:50-59`, the two predicates
-are one line each at `export.ts:36-37`, and the container hop reads
-`graph.neighbours(uri, ASSERTED_LABELS.CONTAINER)` at `export.ts:75`, which is the second identity
+`exportStore` is at `export.ts:24-90`. The walk is the BFS at `export.ts:39-48`, the predicate is
+one line at `export.ts:28`, and the container hop reads
+`graph.neighbours(uri, ASSERTED_LABELS.CONTAINER)` at `export.ts:62`, which is the second identity
 space's mirror doing the same job for shows. Its promise is in the file header:
 
 `src/worker/store/export.ts:13-16`

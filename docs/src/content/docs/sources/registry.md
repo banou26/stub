@@ -97,7 +97,7 @@ survived: nothing downstream can tell that refusal apart from "this source knows
 
 ### The offline comment that time made wrong
 
-`src/sources/offline/extractor.ts:45-47` says of its own `supportedUris`:
+`src/sources/offline/extractor.ts:42-44` says of its own `supportedUris`:
 
 > Answers about other catalogues' uris, not only its own, which is the anizip pattern. Note this
 > export is declarative only: nothing in the worker reads it, so what actually decides is the
@@ -106,7 +106,7 @@ survived: nothing downstream can tell that refusal apart from "this source knows
 The second sentence is no longer true, and the code is the authority: `answersForOrigins` reads it
 through the cast above, so those four extra origins are exactly what gets offline re-asked. The first
 sentence and the resolver behaviour are both still correct, and `offline`'s `getMedia`
-(`src/sources/offline/extractor.ts:197-215`) really does accept a foreign uri.
+(`src/sources/offline/extractor.ts:179-203`) really does accept a foreign uri.
 
 ## Who answers what
 
@@ -239,7 +239,7 @@ if (filters?.length) {
 All three `originPage` consumers pass `OriginFilter.IsNotApiOnly`
 (`src/router/home/media-modal.tsx:484` and `:644`, `src/router/watch/index.tsx:221`), so a source with
 `isApiOnly = true` never reaches the client at all and the `if (!origin.icon) return undefined` guard
-at `src/router/home/media-modal.tsx:781` never sees it. `src/sources/offline/extractor.ts:23-28` spells
+at `src/router/home/media-modal.tsx:781` never sees it. `src/sources/offline/extractor.ts:19-25` spells
 this out and warns against reading it backwards:
 
 > But know what actually keeps this out of the UI, because it is NOT the missing icon.
@@ -357,14 +357,14 @@ Two entries in that table are worth reading twice.
 banner and episode it mints is stamped `SCORE`. So it wins fields at the top of the scale and the row
 itself sits at the bottom.
 
-**offline's score is 0.2**, at `src/sources/offline/normalize.ts:31`, applied at `:164` and again in
-`seedMedia` at `src/sources/offline/seed-source.ts:203`. That tie is deliberate:
+**offline's score is 0.2**, at `src/sources/offline/normalize.ts:31`, applied at `:164`. It is low on
+purpose:
 
-`src/sources/offline/seed-source.ts:188-191`
+`src/sources/offline/normalize.ts:16-29`
 
-> `status`, `startDate`, `endDate` and `popularity` are absent for the reason ./normalize.ts withholds
-> them from the bundle, plus one this half adds: several live sources score exactly this SCORE,
-> `aggregateMedia` breaks a tie by arrival order, and the seed exists to arrive first.
+> The media-level score decides which source wins `status`, `startDate`, `episodeCount`, `type` and
+> `averageScore`. This data is a static dump that can be weeks old, so on every one of those fields
+> it is by construction staler than a live API and should lose.
 
 **tmdb and tvdb are `isApiOnly = false`** so the source row draws the links two enrichers mint as
 `PART_OF`: anizip's `tmdb:<id>` (never on a film, whose id is often the series'), `tvdb:<id>` and
@@ -428,7 +428,7 @@ They are all declared 25 times and they look like configuration. Two of them are
 | `metadataOnly` | nothing effective | nothing. `false` on crunchyroll only; `true` on the other 24 |
 | `categories` (module level) | nothing | nothing. Every source restates its categories per row inside `makeMedia({ categories: [...] })`, and that per-row list is what `store/filter.ts:65` and `store/aggregate.ts` read |
 
-`src/sources/offline/extractor.ts:30-31` is the measured account of the middle row:
+`src/sources/offline/extractor.ts:27-28` is the measured account of the middle row:
 
 > `metadataOnly` gates nothing at all, for anybody: `normalizeOrigin` drops it, it is not in the
 > GraphQL schema, and the one value read of it feeds a field nothing consumes.
@@ -454,9 +454,9 @@ wins and the comment is quoted anyway, because the reasoning in it is usually st
 | --- | --- | --- |
 | "36 sources" | `docs/astro.config.mjs:17` | 25 modules. 36 counts JustWatch's 13 package keys as sources |
 | jikan mints an imdb handle | `src/sources/imdb/extractor.ts:5-6` | it mints `anidb` and `anizip` only. Seven sources mint imdb: omdb, simkl, trakt, watchmode, tvmaze, tvdb, anizip |
-| `supportedUris` on offline is read by nothing | `src/sources/offline/extractor.ts:46-47` | `answersForOrigins` reads it through the `Answerable` cast at `extractor.ts:829` |
-| the icon guard is at `media-modal.tsx:662` | `src/sources/offline/extractor.ts:25` | it is at `:781`. The argument around it is unchanged |
-| the origin filter resolves at `db.ts:144-146` | `src/sources/offline/extractor.ts:27` | it resolves at `db.ts:539-542` |
+| `supportedUris` on offline is read by nothing | `src/sources/offline/extractor.ts:42-44` | `answersForOrigins` reads it through the `Answerable` cast at `extractor.ts:829` |
+| the icon guard is at `media-modal.tsx:662` | `src/sources/offline/extractor.ts:20` | it is at `:781`. The argument around it is unchanged |
+| the origin filter resolves at `db.ts:144-146` | `src/sources/offline/extractor.ts:23` | it resolves at `db.ts:539-542` |
 | `metadataOnly` keeps imdb out of the playback paths | `src/sources/imdb/extractor.ts:17` | `src/sources/players.ts` decides that, by mapping only `cr` and `nf` |
 | 14 sources implement `Media.episodes` | the subsystem report | 13 do. `anizip` returns episodes inside its media row rather than through the field resolver |
 | offline has no score | the subsystem report table | `SCORE = 0.2`, `src/sources/offline/normalize.ts:31` |

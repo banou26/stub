@@ -26,14 +26,13 @@
  *                   reading (see THE CONTROL).
  *
  * `corpus/` is gitignored. A full season is 200 to 500 MB raw (about 800 rows of 2.5 kB per run, 223 runs
- * in summer 2026), tens once compressed, and belongs in a release asset the way the offline
- * seed ships `dist-seed`; this script only leaves the layout ready for one.
+ * in summer 2026), tens once compressed, and belongs in a release asset; this script only leaves the
+ * layout ready for one.
  *
  * HOW THE SEASON IS ENUMERATED, reusing what already knows:
  *
- *   current season   the LIVE home listing, opened with `?export=store` and settled, exactly as
- *                    scripts/export-season-seed.mjs enumerates its work list. Every cluster is one
- *                    run, ordered by popularity (`rankByPopularity`), and its aggregated uri is built
+ *   current season   the LIVE home listing, opened with `?export=store` and settled. Every cluster is
+ *                    one run, ordered by its most popular member, and its aggregated uri is built
  *                    from its members the way `buildAggregatedIdentity` does (worker/store/aggregate.ts).
  *   another season   the bundled catalogue, `src/generated/anime-seasons.ts`, which is what the
  *                    offline source ships. The listing only ever shows the season the clock is in
@@ -78,10 +77,9 @@ import { chromium } from 'playwright'
 // Every value import from src/ carries an explicit .ts extension: node's type stripping refuses a
 // bare './a' specifier with ERR_MODULE_NOT_FOUND. Only modules whose own imports obey that rule can
 // be reached from here, which is why the two uri helpers below are inlined rather than imported from
-// src/utils/uri.ts (it imports './group-by' with no extension).
+// src/utils/uri.ts (it imports './group-by' with no extension), and the season key and record id
+// rather than imported from src/sources/offline/normalize.ts (it imports '../utils').
 import seasonBundle from '../src/generated/anime-seasons.ts'
-import { rankByPopularity } from '../src/sources/offline/seed-build.ts'
-import { runKeyOf, seasonKeyOf } from '../src/sources/offline/seed.ts'
 import { ANIME_SEASONS, animeSeasonOf } from '../src/sources/season.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -106,10 +104,9 @@ const FRESH = has('fresh')
 
 /**
  * SETTLE: the fan-out has stopped when the row count has not moved for `quiet`, and never before
- * `floor`. The floor is not decoration. scripts/export-season-seed.mjs measured a walk whose whole
- * season settled at a median of 5264 ms with zero runs capped, because sources answer in bursts with
- * gaps longer than a short quiet window, and it shipped a median identity of one. The same sources
- * answer these pages.
+ * `floor`. The floor is not decoration. A season walk on 2026-09-05 settled at a median of 5264 ms
+ * with zero runs capped, because sources answer in bursts with gaps longer than a short quiet window,
+ * and it recorded a median identity of one. The same sources answer these pages.
  */
 const QUIET_MS = Number(flag('quiet-ms', 5_000))
 const FLOOR_MS = Number(flag('floor-ms', 12_000))
@@ -117,7 +114,7 @@ const CAP_MS = Number(flag('cap-ms', 45_000))
 const POLL_MS = Number(flag('poll-ms', 1_000))
 const HOOK_TIMEOUT_MS = 20_000
 const PACE_MS = 3_000
-// the listing is enumeration, not corpus, so it gets the seed walk's own numbers rather than these
+// the listing is enumeration, not corpus, so it gets a shorter quiet and cap than these
 const LISTING_QUIET_MS = 3_000
 const LISTING_FLOOR_MS = 12_000
 const LISTING_CAP_MS = 30_000
@@ -136,6 +133,7 @@ const parseSeason = raw => {
 
 const CURRENT = animeSeasonOf()
 const SEASON = flag('season', undefined) === undefined ? CURRENT : parseSeason(flag('season'))
+const seasonKeyOf = ({ season, year }) => `${year}-${season.toUpperCase()}`
 const SEASON_KEY = seasonKeyOf(SEASON)
 const SEASON_DIR = `${SEASON.season}-${SEASON.year}`
 const IS_CURRENT = SEASON_KEY === seasonKeyOf(CURRENT)
@@ -218,7 +216,7 @@ const serveBuild = async () => {
 }
 
 /* --------------------------------------------------------------------------------------------- */
-/* browser hygiene, the same census scripts/export-season-seed.mjs measured                        */
+/* browser hygiene                                                                                 */
 /* --------------------------------------------------------------------------------------------- */
 
 const BLOCKED_TYPES = new Set(['image', 'media', 'font'])
@@ -336,9 +334,10 @@ const enumerateFromListing = async (browser, origin, appHost) => {
       die(`CONTROL FAILED: the listing exported ${clusters.length} clusters, under ${MIN_LISTING_CLUSTERS}. It never answered, so there is no season to walk.`)
     }
 
+    const popularity = cluster => cluster.members.reduce((highest, member) => Math.max(highest, member.popularity ?? -1), -1)
     const items = []
     const seen = new Set()
-    for (const cluster of rankByPopularity(clusters, clusters.length)) {
+    for (const cluster of [...clusters].sort((a, b) => popularity(b) - popularity(a))) {
       const members = cluster.members.map(member => member.uri).sort()
       const uri = aggregatedUriOf(members)
       if (!uri || seen.has(uri)) continue
@@ -375,7 +374,7 @@ const enumerateFromBundle = async (browser, origin, appHost) => {
     if (row.al) members.push(`anilist:${row.al}`)
     if (row.ku) members.push(`kitsu:${row.ku}`)
     if (row.ml) members.push(`mal:${row.ml}`)
-    const key = runKeyOf(members)
+    const key = row.ml ? `mal-${row.ml}` : row.al ? `anilist-${row.al}` : row.ku ? `kitsu-${row.ku}` : undefined
     if (key) members.push(`offline:${key}`)
     const uri = aggregatedUriOf(members)
     if (!uri || seen.has(uri)) continue
@@ -400,8 +399,7 @@ const walkRun = async (context, origin, item, aborted) => {
     errors.push(message.text())
   })
   try {
-    // RAW uri, never encodeURIComponent: a percent-encoded segment blinded three probes on 2026-09-05
-    // (scripts/export-season-seed.mjs).
+    // RAW uri, never encodeURIComponent: a percent-encoded segment blinded three probes on 2026-09-05.
     await page.goto(`${origin}/media/${item.uri}?graph=1&export=answers`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
     const installed = await page
       .waitForFunction(() => typeof window.__stubExportAnswers === 'function', { timeout: HOOK_TIMEOUT_MS })

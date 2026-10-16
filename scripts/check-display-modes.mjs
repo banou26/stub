@@ -101,7 +101,7 @@ const run = async () => {
   console.log('\nevery mode renders the same results')
   // Measured back to back, NEVER against the count taken before the first switch. Results keep
   // ARRIVING while a mode is being read: on production the page settles at 92 from the bundled season
-  // seed and reaches 95 once the live sources answer, so a baseline captured early fails all three
+  // data and reaches 95 once the live sources answer, so a baseline captured early fails all three
   // modes for a reason that has nothing to do with any of them.
   const again = {}
   for (const [mode, spec] of Object.entries(MODES)) {
@@ -130,7 +130,7 @@ const run = async () => {
 
   console.log('\nthe fields only these modes read actually arrive')
   // Waiting on the ROW COUNT is not enough and reported a false failure on production: the bundled
-  // season seed fills the rows in one go, so the count settles BEFORE AniList answers, and AniList is
+  // season data fills the rows in one go, so the count settles BEFORE AniList answers, and AniList is
   // the only source that publishes a schedule. Both fields are waited on where they render.
   await page.goto(`${ORIGIN}/search?season=${season}&year=${year}`, { waitUntil: 'domcontentloaded' })
   await settled(page, MODES.list.items)

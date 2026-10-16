@@ -44,12 +44,12 @@ flowchart TD
 | # | where | the claim | what the code does | verdict |
 | --- | --- | --- | --- | --- |
 | 1 | `resolvers/media/index.ts:56` | "each source is asked at most twice" | true for 23 of the 25; anizip bounds at four questions, offline at six | formula current, numbers stale |
-| 2 | `offline/extractor.ts:45-47` | `supportedUris` is "declarative only: nothing in the worker reads it" | `answersForOrigins` reads it at `supported.ts:29`, called from `extractor.ts:830` | was true, is not |
+| 2 | `offline/extractor.ts:42-45` | `supportedUris` is "declarative only: nothing in the worker reads it" | `answersForOrigins` reads it at `supported.ts:29`, called from `extractor.ts:830` | was true, is not |
 | 3 | `anizip/extractor.ts:13` | `supportedUris = ['anidb', 'mal']` | the resolver reads only `mal` (`:123-124`); an `anidb`-only cluster buys a re-ask that is guaranteed to refuse | declaration wider than the resolver |
 | 4 | `resolvers/media/index.ts:156-159` | `POPULARITY` and `POPULARITY_DESC` | `POPULARITY` sorted descending and `POPULARITY_DESC` ascending: the names were swapped | FIXED 2026-09-12 on `redesign-representation`: `applyMediaSorts` in `store/filter.ts` reads `POPULARITY` as ascending and `POPULARITY_DESC` as descending, an unranked media sorts last both ways, and the home row and the search page now ask for `POPULARITY_DESC`. The figure below shows the code as it was |
 | 5 | `extractor.ts:470` | a 15 minute response cache on every source yoga | `useResponseCache` exposes `onExecute` only, and every operation sent to a source yoga is a subscription | installed and inert |
 | 6 | `extractor.ts:499-503` | `maskedErrors.maskError` | logs the error and re-wraps the same message; nothing is masked | the name, not the behaviour |
-| 7 | `plugin-api.ts:17`, `imdb/extractor.ts:17` | `metadataOnly` "keeps it out of the playback paths" | no reader anywhere in `src`; `offline/extractor.ts:30` says so and is right | two comments disagree, offline's is current |
+| 7 | `plugin-api.ts:17`, `imdb/extractor.ts:17` | `metadataOnly` "keeps it out of the playback paths" | no reader anywhere in `src`; `offline/extractor.ts:27` says so and is right | two comments disagree, offline's is current |
 | 8 | `db.ts:46`, `sources/utils.ts:44` | episode containment: `EPISODE_PART_OF` and `episodePartOf` | the label is written at `db.ts:411` and read nowhere; the constructor is called nowhere | declared, written, dead |
 | 9 | `schema.gql:471-489` | `MediaPage` has five cursors and four counts | the resolver returns `{ nodes: parent }` and nothing else; all nine resolve null | schema surface with no producer |
 | 10 | `similar-consumer.ts:276` | the re-ask "is how the answer's episodes reach the store" | since 2026-09-10 the ask's own document selects `episodes`, which is the route that works when a source has no usable `media` path | both routes exist, the doc names the weaker one |
@@ -113,7 +113,7 @@ is therefore the number of distinct origins it matches.
   bound at two questions. `index.ts:56` is right about those.
 - **anizip** declares `['anidb', 'mal']` (`src/sources/anizip/extractor.ts:13`) and publishes under
   `anizip`, so it matches three origins: the opening ask plus three re-asks, four questions.
-- **offline** declares `['offline', ...INDEXED_ORIGINS]` (`src/sources/offline/extractor.ts:48`)
+- **offline** declares `['offline', ...INDEXED_ORIGINS]` (`src/sources/offline/extractor.ts:45`)
   where `INDEXED_ORIGINS = ['mal', 'anilist', 'kitsu', 'anidb']`
   (`src/sources/offline/index-lookup.ts:20`), so it matches five origins: six questions. It, and not
   anizip, is the widest source in the tree.
@@ -133,7 +133,7 @@ independently.
 
 ## 2. `supportedUris` was declarative and is not
 
-`src/sources/offline/extractor.ts:45-47`
+`src/sources/offline/extractor.ts:42-44`
 
 > Answers about other catalogues' uris, not only its own, which is the anizip pattern. Note this
 > export is declarative only: nothing in the worker reads it, so what actually decides is the
@@ -316,7 +316,7 @@ The interesting part is that the tree contains both accounts of `metadataOnly`.
 > `metadataOnly` keeps it out of the playback paths; `isApiOnly` false is what lets `originPage`'s
 > IsNotApiOnly filter return it, which is the whole point of the file.
 
-`src/sources/offline/extractor.ts:30-31`
+`src/sources/offline/extractor.ts:27-28`
 
 > `metadataOnly` gates nothing at all, for anybody: `normalizeOrigin` drops it, it is not in the
 > GraphQL schema, and the one value read of it feeds a field nothing consumes.
@@ -500,8 +500,8 @@ whole index, with the argument left where it was made.
 | `justwatch/extractor.ts:305` cited from the request-context header | names the cross-source call site | that line is `jwCandidates` today; the call is `resolveEpisodeToSeriesId` at `:375` | [the request context](/request/request-context/) |
 | `extractor.ts:801` | cites `crunchyroll/extractor.ts:247-252` for the yield-once generator | the resolver is at `src/sources/crunchyroll/extractor.ts:571-579` | [the re-ask](/request/re-ask/) |
 | `resolvers/media/index.ts:45` | cites `sources/anilist/extractor.ts:320 against :295` | the split is `:367` against `:397` | [the re-ask](/request/re-ask/) |
-| `offline/extractor.ts:26` | the `IsNotApiOnly` filter resolves at `db.ts:144-146` | it is at `src/worker/store/db.ts:539-543`; `db.ts:144-146` today is the scope ratchet | [what a source is](/sources/contract/) |
-| `offline/extractor.ts:24` | the media modal's icon guard is at `media-modal.tsx:662` | `media-modal.tsx:781` today | [the 25, and what each answers](/sources/registry/) |
+| `offline/extractor.ts:23` | the `IsNotApiOnly` filter resolves at `db.ts:144-146` | it is at `src/worker/store/db.ts:539-543`; `db.ts:144-146` today is the scope ratchet | [what a source is](/sources/contract/) |
+| `offline/extractor.ts:20` | the media modal's icon guard is at `media-modal.tsx:662` | `media-modal.tsx:781` today | [the 25, and what each answers](/sources/registry/) |
 | the page inventory | the aggregate override pass runs `removeDuplicatesByField` after `byScore` for titles **and** trailers | only `titles` is sorted first; `aggregate.ts:397` dedupes `merged.trailers` raw | [aggregating a media](/read/aggregate-media/) |
 
 ---

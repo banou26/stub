@@ -375,6 +375,6 @@ row behind.
   that puts an aligned Crunchyroll row next to the anizip row it now shares a number with.
 - [Lending a season](/similar/lending/) is how a containing season's episodes reach a run that holds
   no row for it.
-- [Anomalies](/merge/anomalies/) closes the loop: `overLength` at `src/worker/store/anomalies.ts:60-68`
+- [Anomalies](/merge/anomalies/) closes the loop: `overLength` at `src/worker/store/anomalies.ts:59-67`
   counts what the page would actually draw after alignment and windowing, and reports a cluster that
   still lists more episodes than its sources agree it is long.

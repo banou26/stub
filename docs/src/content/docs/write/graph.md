@@ -150,13 +150,13 @@ pair the adjacency has never seen: `connect` answers `true`, `rootA === rootB` s
 `media:changed` fires, and every subscribed page re-reads a cluster that did not grow.
 
 That is the conservative direction and it is the right one: something new really was recorded, and it
-is the adjacency that `exportStore` walks (`export.ts:54` and `:75`), so a pass that only added an
+is the adjacency that `exportStore` walks (`export.ts:43` and `:62`), so a pass that only added an
 assertion still changed what an export would produce. The cost is one extra read cycle. The opposite
 error, staying silent on a real change, is what
 `tests/unit/worker/store/edge-idempotence.test.ts` exists to keep from happening in the other
 direction.
 
-`tests/unit/worker/store/graph.test.ts:39-51` pins the difference between the two primitives with a
+`tests/unit/worker/store/graph.test.ts:36-48` pins the difference between the two primitives with a
 control in the test itself: after `connect('a', 'b', 'L')` the cluster of `a` is `['a']`, and after
 `link('a', 'b', 'L')` on the same pair it is `['a', 'b']`.
 
@@ -253,7 +253,7 @@ the union-find cannot answer has somewhere else to go:
 > the store sees these labels at all.
 
 `exportStore` is the reader: it BFS-walks `graph.neighbours(uri, ASSERTED_LABELS.RUN)`
-(`export.ts:54`) rather than calling `graph.cluster`, which is the only way to reconstruct what a
+(`export.ts:43`) rather than calling `graph.cluster`, which is the only way to reconstruct what a
 cluster would be without a given origin in it.
 :::
 
@@ -347,11 +347,11 @@ Read the four branches as rules:
 
 1. **A scalar is monotonic toward "something".** `result[key] = val ?? existing[key]`
    (`graph.ts:396`). An incoming `null` never erases a stored value, so a source that wants to correct
-   `episodeCount: 13` back to unknown cannot. Pinned at `graph.test.ts:21-24` for both `null` and
+   `episodeCount: 13` back to unknown cannot. Pinned at `graph.test.ts:18-21` for both `null` and
    `undefined`.
 2. **An array is replaced unless the stored one is strictly longer.** `ex.length > val.length ? ex : val`
    (`graph.ts:394`), so **a tie goes to the incoming array** and a shorter, corrected list is
-   discarded whole. `graph.test.ts:9-19` pins all three cases, including the one that matters:
+   discarded whole. `graph.test.ts:6-16` pins all three cases, including the one that matters:
    *"equal non-zero lengths take the incoming"*.
 3. **A plain object falls in the scalar branch**, because only `Array.isArray` is tested. So
    `nextAiringEpisode` and `franchise` are replaced whole, never merged field by field.
@@ -359,13 +359,7 @@ Read the four branches as rules:
    That is safe only because `normalizeToStoreMedia` emits every key on every row. A partial row fed
    in from anywhere else would silently keep stale fields alive.
 
-The reason this function is pinned at all is on the first line of its test file:
-
-`tests/unit/worker/store/graph.test.ts:1-3`
-
-> The seed's whole safety argument rests on `lastWriteLongestArray`: a seed handle node carries no
-> arrays and no scalars beyond identity and url, so it can never win a field against a live row. That
-> function was unpinned until this file.
+It is pinned in `tests/unit/worker/store/graph.test.ts`.
 
 :::danger
 **Rule 2 has already cost real data, and the measurement is in the code.** A handle node is written
@@ -423,8 +417,8 @@ The rest of the read surface is thin and each function has exactly one interesti
 
 | primitive | `graph.ts` | who reads it, and for what |
 | --- | --- | --- |
-| `labeled(label)` | `:213-215` | `db.ts:261` refuses a uri that is not a media row; `export.ts:34-35` seeds the export |
-| `neighbours(key, label)` | `:275-277` | `export.ts:54` and `:75`, walking the asserted adjacency instead of the cluster |
+| `labeled(label)` | `:213-215` | `db.ts:261` refuses a uri that is not a media row; `export.ts:26-27` seeds the export |
+| `neighbours(key, label)` | `:275-277` | `export.ts:43` and `:62`, walking the asserted adjacency instead of the cluster |
 | `targets(key, label)` | `:308-310` | `db.ts:281` for `PART_OF`, `db.ts:436` for `HAS_EPISODE` |
 | `sources(key, label)` | `:312-314` | `db.ts:307`, the reverse index, which is the only reason `findRunsOfContainer` can exist |
 | `resolve(key)` | `:227` | `db.ts:258`, turning a client's `_id` back into a uri |

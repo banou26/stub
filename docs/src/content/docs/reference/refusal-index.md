@@ -111,7 +111,6 @@ Everything before a source is asked anything.
 
 | id | site | condition (verbatim) | outcome |
 | --- | --- | --- | --- |
-| E1 | `src/worker.ts:17` | `refusesSeedAsset(location.href, input)` | `404`, never 503. Same shape as the asset not being published yet, which the loader already answers `undefined` to; a 503 would be retried three times by `fetchWithBackoff`. |
 | E2 | `src/worker/resolvers/media/index.ts:34` | `!requestedUri \|\| !(isUri(requestedUri) \|\| isAggregatedUri(requestedUri))` | `console.warn` at `:36`, then `return` at `:37`: the generator ends without yielding, yoga answers 204, the page sits empty. **The only refusal in the system that logs.** |
 | E3 | `media/index.ts:72` | `if (!cluster.length) return undefined` | `read()` answers nothing, so nothing is yielded this round. The page waits for the next `media:changed`. |
 | E4 | `media/index.ts:61` | `if (!unasked.length) return` | no re-ask: every origin the widened uri names has been asked already. `askedOrigins` only ever grows. |
@@ -294,7 +293,7 @@ stated once, at `:163-172`:
 | W10 | `db.ts:234` | see `F15` | the container space holds containers only. |
 | W11 | `db.ts:250` | see `F16` | RUN then CONTAINER in that order, unflipped, or nothing. |
 | W12 | `db.ts:400-415` | **no condition** | `upsertEpisodes` has no placeholder gate, no scope ratchet, no description gate, no cross-scope demotion, no `changed` tracking and an unconditional `emit('episode:changed', {})` at `:414`. Every guard in this table is absent on that path, deliberately listed here as the one place with nothing to list. |
-| W13 | `yoga.ts:53-60` | `excludeOrigins: [...(options?.excludeOrigins ?? []), ...extractors.filter(entry => entry.pluginUri).map(entry => entry.extractor.origin)]` | plugin origins are derived worker-side so a caller **cannot decline to exclude them**. A plugin's rows are that user's, never the product's. |
+| W13 | `yoga.ts:75-78` | `excludeOrigins: [...(options?.excludeOrigins ?? []), ...extractors.filter(entry => entry.pluginUri).map(entry => entry.extractor.origin)]` | plugin origins are derived worker-side so a caller **cannot decline to exclude them**. A plugin's rows are that user's, never the product's. |
 | W14 | `graph.ts:167` | `if (mergeFns.length > 1) throw new Error(...)` | the whole `graph.set` call throws, which fails one DataLoader batch of up to 250 medias. |
 | W15 | `graph.ts:85` | `if (rootA === rootB) return false` | already one component, so `graph.link` reports no change and `changed` stays false. This is what keeps an idempotent re-assert from putting every listener back in the re-read loop. |
 
@@ -315,9 +314,9 @@ Nothing here is permanent. A refusal on this side hides a row for one render.
 | R9 | `store/aggregate.ts:254` | `if (!edge?.node?.uri \|\| inside.has(edge.node.uri)) continue` | a relation pointing inside the cluster is not a relation to draw. |
 | R10 | `store/aggregate.ts:60` | `if (!label \|\| seen.has(key)) continue` | label dedupe, case insensitive. |
 | R11 | `store/filter.ts:65-77` | `if (categories.length && !(media.categories ?? []).some(...)) return false`, and the same shape for format, status, season, seasonYear, genres, tags | the card is not on the page. This is what keeps the whole-store fallback in `mediaPage` honest: a stale row survives only if it genuinely matches what is being asked for now. |
-| R12 | `store/export.ts:45`, `:55` | `if (seen.has(seed) \|\| !usableMedia(seed)) continue` | an excluded origin is not walked **through**, so a bridge only it supplied splits rather than surviving. |
-| R13 | `store/export.ts:62` | `if (!publishedMembers.some(member => member.scope !== 'CONTAINER')) continue` | a show with no run is not a run, and is not exported as a cluster. |
-| R14 | `store/export.ts:85` | `if (excluded.has(originOf(episodeUri)) \|\| !published(episodeUri)) continue` | a pass-through origin is walked through and then left out of the output. Spelling that as an exclusion cost a walk its identity. |
+| R12 | `store/export.ts:34`, `:44` | `if (seen.has(seed) \|\| !usableMedia(seed)) continue` | an excluded origin is not walked **through**, so a bridge only it supplied splits rather than surviving. |
+| R13 | `store/export.ts:49` | `if (!members.some(member => member.scope !== 'CONTAINER')) continue` | a show with no run is not a run, and is not exported as a cluster. |
+| R14 | `store/export.ts:71` | `if (episodeSeen.has(episodeUri) \|\| !episodeRows.has(episodeUri) \|\| excluded.has(originOf(episodeUri))) continue` | an episode of an excluded origin is left out even when a usable member points at it. |
 
 ## C. Consensus and windowing
 
@@ -375,10 +374,10 @@ mint as SAME_AS could still be welded here by a title match.
 
 | id | site | condition (verbatim) | outcome |
 | --- | --- | --- | --- |
-| A1 | `anomalies.ts:29` | `if (!media.origin \|\| !media.id) continue` | the row is skipped. |
-| A2 | `anomalies.ts:35` | `if (ids.length < 2) continue` | one id is never a contradiction. |
-| A3 | `anomalies.ts:38-39` | ``const specific = [...new Set(ids)].filter(id => !ids.some(other => extendsId(other, id) && other !== id && other.startsWith(`${id}-`))).sort()``, then `if (specific.length > 1)` | precision pairs are not reported: `cr:G24H1N3MP` beside `cr:G24H1N3MP-GS00374452` is a series id and one of its seasons. The filter is one-way on purpose, so `[A, A-1, A-2]` still reports. |
-| A4 | `anomalies.ts:62` | `if (length == null \|\| listed == null \|\| listed <= length) return []` | only a strictly over-long list is a contradiction. |
+| A1 | `anomalies.ts:28` | `if (!media.origin \|\| !media.id) continue` | the row is skipped. |
+| A2 | `anomalies.ts:34` | `if (ids.length < 2) continue` | one id is never a contradiction. |
+| A3 | `anomalies.ts:37-38` | ``const specific = [...new Set(ids)].filter(id => !ids.some(other => other.startsWith(`${id}-`))).sort()``, then `if (specific.length > 1)` | precision pairs are not reported: `cr:G24H1N3MP` beside `cr:G24H1N3MP-GS00374452` is a series id and one of its seasons. The filter is one-way on purpose, so `[A, A-1, A-2]` still reports. |
+| A4 | `anomalies.ts:61` | `if (length == null \|\| listed == null \|\| listed <= length) return []` | only a strictly over-long list is a contradiction. |
 
 ## What is not a refusal
 

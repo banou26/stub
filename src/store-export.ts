@@ -9,7 +9,7 @@ import { exportStore } from './worker'
 
 declare global {
   interface Window {
-    __stubExportStore?: (options?: { excludeOrigins?: string[], passThroughOrigins?: string[], uris?: string[] }) => Promise<unknown>
+    __stubExportStore?: (options?: { excludeOrigins?: string[] }) => Promise<unknown>
   }
 }
 

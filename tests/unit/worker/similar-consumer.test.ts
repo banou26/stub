@@ -3,7 +3,7 @@
 // run once its title names our show, while the container edge stays. Fixtures in the shape of
 // container-page.test.ts; the ask is recorded so the exact input the answering source would read can
 // be asserted.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { SimilarOutcome } from '../../../src/sources/similar'
 
@@ -112,17 +112,17 @@ test('a run page asks each answering container origin once, with the cluster\'s 
 })
 
 // THE ANCHOR of every ask and every claim this consumer writes. The old store makes a row out of any
-// uri a claim names, so a cluster routinely carries a member no source has described: the seed's
-// `anidb:14758` handle on `ag:(anilist:108465)`, which sorts ahead of `anilist:108465` and carries no
-// title, no date and no count. The graph calls the same uri a placeholder and clusters nothing onto
-// it, so an ask anchored there claims into nothing.
+// uri a claim names, so a cluster routinely carries a member no source has described: the offline
+// source's `anidb:14758` handle on `ag:(anilist:108465)`, which sorts ahead of `anilist:108465` and
+// carries no title, no date and no count. The graph calls the same uri a placeholder and clusters
+// nothing onto it, so an ask anchored there claims into nothing.
 //
 // Mutation: go back to `cluster.filter(...).map(media => media.uri).sort()[0]` and both assertions
 // redden, the ask on `anidb:0` and the claim with it.
 test('an ask is anchored on a member a source has described, never on a bare claimed uri', async () => {
-  // `anidb:0` is the shape the seed's `anidb:14758` handle has on the live page: a row carrying a url
-  // and nothing else, which is enough to store (a row of pure identity is refused as a placeholder)
-  // and nothing a rule can read
+  // `anidb:0` is the shape the offline source's `anidb:14758` handle has on the live page: a row
+  // carrying a url and nothing else, which is enough to store (a row of pure identity is refused as a
+  // placeholder) and nothing a rule can read
   await upsertMedia(
     [
       { ...media('anidb:0', 'RUN', { titles: [] }), url: 'https://anidb.net/anime/0' } as any,
