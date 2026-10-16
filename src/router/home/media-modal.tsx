@@ -228,7 +228,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       font-size: 1.6rem;
     }
 
-    & > .seasons, & > .episode-list {
+    & > .relations, & > .seasons, & > .episode-list {
       margin-top: 4rem;
     }
   }
@@ -286,7 +286,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
-      & > .seasons, & > .episode-list {
+      & > .relations, & > .seasons, & > .episode-list {
         margin-top: 2.5rem;
       }
     }
@@ -489,6 +489,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             : current?.settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
         }
         <MediaRelations
+          key={uri}
           relations={media && 'relations' in media ? media.relations ?? [] : []}
           action={
             <MediaFranchise

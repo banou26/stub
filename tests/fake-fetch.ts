@@ -35,6 +35,20 @@ const SEQUEL_RELATIONS = [
   { relationType: 'SEQUEL', node: THIRD },
   ...many(3, number => ({ relationType: 'SIDE_STORY', node: { id: 900002 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Side Story ${number}` } } })),
 ]
+// The Apothecary Diaries season 3's relations as AniList names them, 2026-10-17: a prequel, a sequel and three more that
+// play, and the novel and manga it adapts, which do not; and One Piece's 61 related works that play
+const APOTHECARY = { id: 900020, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'The Apothecary Diaries Season 3' } }
+const APOTHECARY_RELATIONS = ([
+  ['ADAPTATION', 'NOVEL', 'The Apothecary Diaries'],
+  ['PREQUEL', 'TV', 'The Apothecary Diaries Season 2'],
+  ['SEQUEL', 'TV', 'Kusuriya no Hitorigoto 3rd Season Part 2'],
+  ['SIDE_STORY', 'MOVIE', 'The Apothecary Diaries: The Late Lady’s Treasure'],
+  ['ALTERNATIVE', 'MANGA', 'The Apothecary Diaries'],
+  ['OTHER', 'MUSIC', 'AIYOU'],
+  ['OTHER', 'MUSIC', 'Beyond the Clouds, Only Me Downwind'],
+] as const).map(([relationType, format, english], index) => ({ relationType, node: { id: 900021 + index, type: 'ANIME', format, status: 'FINISHED', title: { english } } }))
+const ONE_PIECE = { id: 900030, type: 'ANIME', format: 'TV', status: 'RELEASING', title: { english: 'One Piece' } }
+const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
 const SEQUEL_THEMES = {
   data: {
     findAnimeByExternalSite: [{
@@ -76,6 +90,7 @@ const TMDB: Record<string, string> = {
 // else of its first record, so a film stays a film and a work stays in the season the home page lists, and
 // answers Spec Late (anilist:900010, mal:900010) five seconds late, so its page draws AniZip's episodes first;
 // AniZip names Spec Late's AniList id, as api.ani.zip names a work's, so its MAL address reaches AniList too.
+// AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -110,6 +125,9 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const credits = query.includes('characters(') ? { characters, staff, studios } : {}
   if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
+  for (const [media, edges] of [[APOTHECARY, APOTHECARY_RELATIONS], [ONE_PIECE, ONE_PIECE_RELATIONS]] as const) {
+    if (variables.id === media.id) return Response.json({ data: { Media: { ...media, ...credits, relations: { edges } } } })
+  }
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
   if (variables.id === LATE.id) {
     await new Promise(resolve => setTimeout(resolve, 5_000))

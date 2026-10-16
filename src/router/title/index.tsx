@@ -8,7 +8,7 @@ import { Link, useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
-import { RelationCard } from '../../components/media-relations'
+import MediaRelations from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
 import MediaSeasons from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
@@ -21,13 +21,11 @@ import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
-import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { secondTitle, titleChips, titleFacts } from './facts'
 
-const RELATIONS_ROW = 3
 // even, so a full page fills the credits' two columns
 const PAGE = 12
 
@@ -301,29 +299,6 @@ const style = css`
       gap: 1.5rem;
       margin: 0 0 1.5rem;
       font-size: 2rem;
-    }
-  }
-
-  & > .body > .main > .relations {
-    .grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 1.2rem;
-
-      @media (min-width: 768px) {
-        grid-template-columns: repeat(${RELATIONS_ROW}, minmax(0, 1fr));
-      }
-    }
-
-    /* as tall as the heading's series graph button, over one card as tall as its cover */
-    & > h2 > .pending {
-      width: 16rem;
-      height: 2.8rem;
-    }
-
-    & > .grid > .pending {
-      height: 9rem;
-      border-radius: 0.6rem;
     }
   }
 
@@ -652,7 +627,6 @@ const TitlePage = () => {
   const title = media?.titles.at(0)?.title
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
-  const relations = sortRelations(watchableRelations(media?.relations ?? []))
   // AniList alone names relations, and it joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
   const facts = media ? titleFacts(media) : []
@@ -756,30 +730,12 @@ const TitlePage = () => {
             : undefined
         }
         <div key={uri} className="main">
-          {
-            relations.length
-              ? (
-                <section className="relations" data-relations>
-                  <h2>
-                    <span>Relations</span>
-                    <MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>
-                  </h2>
-                  <Paged items={relations} size={RELATIONS_ROW} label="Relations">
-                    {page => (
-                      <div className="grid">
-                        {page.map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={Route.TITLE}/>)}
-                      </div>
-                    )}
-                  </Paged>
-                </section>
-              )
-              : current?.settled || !anime ? undefined : (
-                <section className="relations placeholder" aria-hidden="true">
-                  <h2><Placeholder className="pending"/></h2>
-                  <div className="grid"><Placeholder className="pending"/></div>
-                </section>
-              )
-          }
+          <MediaRelations
+            relations={media?.relations ?? []}
+            action={<MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>}
+            route={Route.TITLE}
+            pending={anime && !current?.settled}
+          />
           <MediaSeasons
             seasons={media?.seasons}
             currentUris={media?.handles.map(handle => handle.node.uri) ?? []}

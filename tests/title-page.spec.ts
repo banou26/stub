@@ -276,24 +276,25 @@ test('390 px wide, the title page holds two lines for its title, and its buttons
   expect(await overflowX(page)).toBe(0)
 })
 
-test('in the preview, the episode list sits 4rem under what is above it, 2.5rem on a phone, held rows and drawn ones alike', async ({ page }) => {
-  // from the block above the list to the list, rows or the rows held while a source is out
-  const gap = () => page.locator('.modal > .content').evaluate(content => {
-    const list = content.querySelector('.episodes')!
-    const root = [...content.children].find(child => child.contains(list))!
+test('in the preview, Relations and the episode list sit 4rem under what is above them, 2.5rem on a phone, held rows and drawn ones alike', async ({ page }) => {
+  // from the block above to what `selector` names, the episode rows or the rows held while a source is out
+  const gap = (selector: string) => page.locator('.modal > .content').evaluate((content, selector) => {
+    const target = content.querySelector(selector)!
+    const root = [...content.children].find(child => child.contains(target))!
     let above = root.previousElementSibling
     while (above && !above.getBoundingClientRect().height) above = above.previousElementSibling
-    return { gap: Math.round(list.getBoundingClientRect().top - above!.getBoundingClientRect().bottom), relations: above!.hasAttribute('data-relations') }
-  })
+    return { gap: Math.round(target.getBoundingClientRect().top - above!.getBoundingClientRect().bottom), relations: above!.hasAttribute('data-relations') }
+  }, selector)
   for (const [width, height, expected] of [[1440, 900, 40], [390, 844, 25]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${THIRD}`)
     await expect(modal(page).locator('.episode.placeholder').first()).toBeVisible({ timeout: 30_000 })
-    expect((await gap()).gap, `${width} px, held`).toBe(expected)
+    expect((await gap('.episodes')).gap, `${width} px, held`).toBe(expected)
     await openModal(page)
     await expect(modal(page).locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
     await expect(modal(page).locator('.episode:not(.placeholder)').first()).toBeVisible({ timeout: 30_000 })
-    expect(await gap(), `${width} px, drawn under Relations`).toEqual({ gap: expected, relations: true })
+    expect((await gap('[data-relations]')).gap, `${width} px, Relations`).toBe(expected)
+    expect(await gap('.episodes'), `${width} px, drawn under Relations`).toEqual({ gap: expected, relations: true })
   }
 })
 
@@ -335,6 +336,41 @@ test('in the modal, a relation card and a series graph node still open the modal
   await expect(modal(page).locator('a.relation-card')).toHaveAttribute('href', `/media/${SEQUEL}`)
   await modal(page).locator('[data-franchise-open]').click()
   await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/media/${SEQUEL}`)
+})
+
+// The Apothecary Diaries season 3's relations, five that play, and One Piece's 61 (tests/fake-fetch.ts)
+const RELATED = [['ag:(anilist:900020)', 2], ['ag:(anilist:900030)', 21]] as const
+
+test('in the modal, Relations are even rows of three a page, one card a row on a phone', async ({ page }) => {
+  test.setTimeout(120_000)
+  for (const [width, height, columns] of [[1440, 900, 3], [390, 844, 1]] as const) {
+    await page.setViewportSize({ width, height })
+    for (const [uri, pages] of RELATED) {
+      await page.goto(`${origin}/media/${uri}`)
+      const relations = modal(page).locator('[data-relations]')
+      const cards = relations.locator('a.relation-card')
+      await expect(cards).toHaveCount(3, { timeout: 30_000 })
+      // each card from the grid's top left corner
+      const boxes = () => relations.evaluate(section => {
+        const grid = section.querySelector('.grid')!.getBoundingClientRect()
+        const cards = [...section.querySelectorAll('a.relation-card')].map(card => card.getBoundingClientRect())
+        return { width: grid.width, cards: cards.map(card => ({ left: card.left - grid.left, top: card.top - grid.top, width: card.width })) }
+      })
+      const first = await boxes()
+      const column = (first.width - (columns - 1) * 12) / columns
+      first.cards.forEach((card, index) => {
+        const where = `${width} px, ${uri}, card ${index + 1}`
+        expect(card.width, where).toBeCloseTo(column, 0)
+        expect(card.left, where).toBeCloseTo((index % columns) * (column + 12), 0)
+        if (index % columns) expect(card.top, `${where}: beside the one before`).toBeCloseTo(first.cards[index - 1]!.top, 0)
+        else if (index) expect(card.top, `${where}: under the one before`).toBeGreaterThan(first.cards[index - 1]!.top)
+      })
+      await relations.getByRole('navigation', { name: 'Relations pages' }).getByRole('button', { name: `Page ${pages}` }).click()
+      await expect(relations.getByRole('button', { name: `Page ${pages}` })).toHaveAttribute('aria-current', 'page')
+      const last = await boxes()
+      for (const card of last.cards) expect(card.width, `${width} px, ${uri}, the last page`).toBeCloseTo(column, 0)
+    }
+  }
 })
 
 test('390 px wide, the page stacks with no sideways scroll', async ({ page }) => {

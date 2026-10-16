@@ -277,3 +277,62 @@ describe('the url after a split', () => {
     })
   }
 })
+
+describe('Relations', () => {
+  const related = (relation: string, format: string, id: number, title: string) =>
+    ({ relation, format, node: { _id: `anilist:${id}`, uri: `anilist:${id}`, titles: [{ title }], covers: [] } })
+  // The Apothecary Diaries season 3's relations as AniList names them, 2026-10-17: a prequel, a sequel and three more
+  // that play, and the novel and manga it adapts, which do not
+  const apothecary = [
+    related('ADAPTATION', 'NOVEL', 99026, 'The Apothecary Diaries'),
+    related('PREQUEL', 'TV', 176301, 'The Apothecary Diaries Season 2'),
+    related('SEQUEL', 'TV', 200927, 'Kusuriya no Hitorigoto 3rd Season Part 2'),
+    related('SIDE_STORY', 'MOVIE', 200929, 'The Apothecary Diaries: The Late Lady’s Treasure'),
+    related('ALTERNATIVE', 'MANGA', 99022, 'The Apothecary Diaries'),
+    related('OTHER', 'MUSIC', 218387, 'AIYOU'),
+    related('OTHER', 'MUSIC', 218390, 'Beyond the Clouds, Only Me Downwind'),
+  ]
+  // One Piece's 61 related works that play
+  const onePiece = Array.from({ length: 61 }, (_, index) =>
+    related(index % 4 ? 'SIDE_STORY' : 'SUMMARY', 'SPECIAL', 1_000 + index, `One Piece Special ${index + 1}`))
+
+  const titles = (root: Element) => [...root.querySelectorAll('[data-relations] .relation-card .title')].map(title => title.textContent)
+  const pageButtons = (root: Element) =>
+    [...root.querySelectorAll('[data-relations] nav[aria-label="Relations pages"] button[aria-label^="Page "]')].map(button => button.textContent)
+  const current = (root: Element) => root.querySelector('[data-relations] nav button[aria-current="page"]')?.textContent
+
+  for (const [name, relations, pages] of [['The Apothecary Diaries season 3', apothecary, ['1', '2']], ['One Piece', onePiece, ['1', '2', '3', '4', '5', '…', '21']]] as const) {
+    test(`the preview draws ${name}'s as the title page does: a page of three in its order, and page buttons`, () => {
+      const media = { ...work(1, name), relations }
+      const { host, answer } = titlePage(media.uri)
+      answer(media)
+      expect(titles(host), 'the control: the title page draws a page of three').toHaveLength(3)
+      expect(pageButtons(host)).toEqual(pages)
+
+      preview(media.uri).answer(media)
+      expect(titles(modal())).toEqual(titles(host))
+      expect(pageButtons(modal())).toEqual(pages)
+    })
+  }
+
+  test('ranked by what the relation is, a sequel beside the prequel, and only works that play', () => {
+    // out of rank order, under the novel linked as the source, which ranks first and does not play
+    const relations = [...apothecary.slice(1), related('SOURCE', 'NOVEL', 99026, 'The Apothecary Diaries')].reverse()
+    const media = { ...work(1, 'The Apothecary Diaries Season 3'), relations }
+    preview(media.uri).answer(media)
+    expect(titles(modal())).toEqual(['The Apothecary Diaries Season 2', 'Kusuriya no Hitorigoto 3rd Season Part 2', 'The Apothecary Diaries: The Late Lady’s Treasure'])
+  })
+
+  test('another work opened in the preview starts its relations on their first page', () => {
+    const first = { ...work(1, 'One Piece'), relations: onePiece }
+    const next = { ...work(2, 'One Piece Film'), relations: onePiece }
+    const { answer, navigate } = preview(first.uri)
+    answer(first)
+    act(() => { modal().querySelector<HTMLButtonElement>('[data-relations] button[aria-label="Next page"]')!.click() })
+    expect(current(modal()), 'the control: paged').toBe('2')
+
+    navigate(`/media/${next.uri}`)
+    answer(next)
+    expect(current(modal())).toBe('1')
+  })
+})

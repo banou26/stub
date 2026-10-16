@@ -3,77 +3,51 @@ import type { ComponentChildren } from 'preact'
 import { css } from '@emotion/react'
 import { Link, useSearch } from 'wouter'
 
+import Paged from './paged'
+import Placeholder from './placeholder'
 import { getRoutePath, Route } from '../router/path'
 import { carriedSearch } from '../router/debug/trace'
 import { asAggregatedUri } from '../utils/uri'
-import { relationLanes, watchableRelations, type RelationEdge } from '../utils/relation-lanes'
+import { sortRelations, watchableRelations, type RelationEdge } from '../utils/relations'
 import { relationLabel, workFormatLabel } from '../utils/relation-labels'
 import { statusLabel } from '../router/search/params'
 import { useCoverUrl } from '../utils/use-cover-url'
 
-/**
- * The works a media is related to as a story, as a row of cards.
- *
- * A GRID rather than the home page's carousel. A relation set is small (a handful of entries, not a
- * season's worth), so there is nothing to virtualize, and the carousel drags in `Draggable`, which
- * binds mousedown, mousemove and mouseup on `globalThis` and calls `preventDefault`. Inside a modal
- * that already locks the body and hosts a watch party's scroll box, that is a real cost for a row
- * that fits on screen anyway.
- */
+const ROW = 3
 
 const style = css`
-  margin-top: 4rem;
-
-  & > .heading {
+  & > h2 {
     display: flex;
     align-items: center;
     /* the graph button sits beside the word, not across the modal, so the two read as one control */
     gap: 1.5rem;
+    margin: 0 0 1.5rem;
     font-size: 1.8rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 1.5rem;
   }
 
-  & > .grid {
-    display: flex;
-    flex-wrap: wrap;
+  & .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.2rem;
-    /* each lane as tall as its own cards: stretched, a lone prequel beside two stacked cards in the
-       middle lane grew to twice its height */
-    align-items: flex-start;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(${ROW}, minmax(0, 1fr));
+    }
   }
 
-  /* The two outer lanes take an EQUAL share of the free space, which is what centres the middle one
-     on the modal rather than on whatever is left over beside a sequel. An empty lane still takes its
-     share, so a row with no prequel keeps its side story centred instead of sliding left. */
-  & > .grid > .lane {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.2rem;
+  /* as tall as the heading's series graph button, over one card as tall as its cover */
+  & > h2 > .pending {
+    width: 16rem;
+    height: 2.8rem;
   }
 
-  & > .grid > .before { flex: 1 1 0; justify-content: flex-start; }
-  & > .grid > .middle { flex: 0 1 auto; justify-content: center; }
-  & > .grid > .after { flex: 1 1 0; justify-content: flex-end; }
-
-  /* Below this the lanes cannot sit side by side (measured at a 500px viewport, where the row is 458px
-     and three 28rem cards cannot share it), so the cards read in order on one line that scrolls
-     sideways, small: stacked a card a line, they took 570px above the episode list on a phone. */
-  @media (max-width: 768px) {
-    & > .grid { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-    & > .grid > .lane { display: contents; }
-    & .relation-card { flex: 0 0 22rem; }
-    & .relation-card > .cover { width: 4rem; }
-    & .relation-card .title { -webkit-line-clamp: 1; }
+  & > .grid > .pending {
+    height: 9rem;
+    border-radius: 0.6rem;
   }
 `
 
 const cardStyle = css`
-  /* A card sized itself off the grid track until the lanes replaced it, so it needs its own basis
-     now. 28rem is the track's old minimum, and shrinking is left on so a narrow modal wraps rather
-     than overflows. */
-  flex: 0 1 28rem;
   display: flex;
   align-items: stretch;
   gap: 1.2rem;
@@ -132,14 +106,7 @@ const cardStyle = css`
   }
 `
 
-/**
- * One related work as a card that opens it; `search` is the session's flags, from `carriedSearch`, and
- * `route` is where it opens: the modal by default, the title page from a title page.
- */
-export const RelationCard = (
-  { edge, search, route = Route.MEDIA }:
-  { edge: RelationEdge, search: string, route?: Route.MEDIA | Route.TITLE }
-) => {
+const RelationCard = ({ edge, search, route }: { edge: RelationEdge, search: string, route: Route.MEDIA | Route.TITLE }) => {
   const cover = useCoverUrl(edge.node.covers, edge.node)
   const title = edge.node.titles?.at(0)?.title
   // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
@@ -158,37 +125,49 @@ export const RelationCard = (
   )
 }
 
+/**
+ * A work's relations, on the title page and in the preview alike: the related works this app can play, ranked by what
+ * the relation is, three a row (one on a phone) a page at a time. `action` sits beside the heading, a card opens on
+ * `route`, and `pending` holds the section's place while a source that names relations has yet to answer.
+ */
 const MediaRelations = (
-  { relations, action }:
-  { relations: readonly RelationEdge[], action?: ComponentChildren }
+  { relations, action, route = Route.MEDIA, pending = false }:
+  { relations: readonly RelationEdge[], action?: ComponentChildren, route?: Route.MEDIA | Route.TITLE, pending?: boolean }
 ) => {
   // THE SESSION'S ENGINE FLAGS RIDE ALONG. Read above the early return, because a hook is, and once
-  // per row rather than once per card. A click here is a client-side navigation, so the worker and
+  // per list rather than once per card. A click here is a client-side navigation, so the worker and
   // its engine survive it either way; what the query buys is an ADDRESS that reproduces this page
   // when it is reloaded or pasted (`carriedSearch`).
   const search = carriedSearch(useSearch())
   // Nothing at all rather than an empty heading: only some sources name relations, so most media have
   // none and a "Relations" heading over blank space reads as a page that failed to load. The action
   // goes with it: whatever it opens is built from the same source that named these.
-  const watchable = watchableRelations(relations)
-  if (!watchable.length) return null
-  const lanes = relationLanes(watchable)
+  const shown = sortRelations(watchableRelations(relations))
+  if (!shown.length) {
+    return pending
+      ? (
+        <section className="relations placeholder" css={style} aria-hidden="true">
+          <h2><Placeholder className="pending"/></h2>
+          <div className="grid"><Placeholder className="pending"/></div>
+        </section>
+      )
+      : null
+  }
 
   return (
-    <div css={style} data-relations>
-      <div className="heading">
+    <section className="relations" css={style} data-relations>
+      <h2>
         <span>Relations</span>
         {action}
-      </div>
-      <div className="grid">
-        {/* rendered even when empty: an empty lane is what holds the middle in the centre */}
-        {(['before', 'middle', 'after'] as const).map(lane => (
-          <div className={`lane ${lane}`} key={lane}>
-            {lanes[lane].map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search}/>)}
+      </h2>
+      <Paged items={shown} size={ROW} label="Relations">
+        {page => (
+          <div className="grid">
+            {page.map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={route}/>)}
           </div>
-        ))}
-      </div>
-    </div>
+        )}
+      </Paged>
+    </section>
   )
 }
 
