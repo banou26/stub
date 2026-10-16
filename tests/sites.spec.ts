@@ -221,10 +221,13 @@ const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(
 ]))
 
 test('the header links the four sites in order, marks the current one, and a link lands on that site', async ({ page }) => {
+  test.slow()
   const grey = 'rgb(119, 119, 119)'
   const white = 'rgb(255, 255, 255)'
+  // a site draws nothing, its header included, until its worker has booted (src/worker.ts awaits it):
+  // 0.3 s idle, up to 3 s at a load average of 67, and over 5 s once in a local gate
   await page.goto(at('movies.localhost'))
-  await expect(siteLinks(page)).toHaveCount(4)
+  await expect(siteLinks(page)).toHaveCount(4, { timeout: 30_000 })
   expect(await linkList(page)).toEqual([
     ['Movies', at('movies.localhost'), 'page', white],
     ['Series', at('series.localhost'), null, grey],
@@ -233,7 +236,7 @@ test('the header links the four sites in order, marks the current one, and a lin
   ])
   await siteLinks(page).getByText('Series', { exact: true }).click()
   await expect(page).toHaveURL(at('series.localhost'))
-  await expect(row(page, 'Popular shows')).toBeVisible()
+  await expect(row(page, 'Popular shows')).toBeVisible({ timeout: 30_000 })
   await expect(siteLinks(page).getByText('Series', { exact: true })).toHaveAttribute('aria-current', 'page')
 })
 

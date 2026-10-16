@@ -52,6 +52,7 @@ const row = async (nodes: object[]) => {
   const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
   await settle()
   return {
+    title: () => host.querySelector('.title:not(.hidden)')?.textContent,
     held: () => host.querySelectorAll('.list-container > .pending > [aria-hidden]').length,
     posters: () => [...host.querySelectorAll<HTMLElement>('.category-item')]
       .map(card => [card.textContent, card.getAttribute('style')?.match(/url\(([^)]*)\)/)?.[1]]),
@@ -62,9 +63,10 @@ const row = async (nodes: object[]) => {
   }
 }
 
-test('an empty row holds cards\' places until its first cards land in them', async () => {
-  const { held, posters, update } = await row([])
+test('an empty row holds cards\' places until its first cards land in them, under its title', async () => {
+  const { title, held, posters, update } = await row([])
   expect(held()).toBe(8)
+  expect(title()).toBe('Popular shows')
   expect(posters()).toEqual([])
 
   await update([show('cl:jw:224087', 'Ted Lasso')])
