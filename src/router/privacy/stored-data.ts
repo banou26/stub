@@ -12,6 +12,7 @@ import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { AUTOPLAY_KEY } from '../../utils/autoplay'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
+import { WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
 import { DISPLAY_MODE_KEY } from '../search/display'
 
 export type StoredItem = {
@@ -136,6 +137,14 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: "Until you clear this site's data in your browser",
     keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },
+  },
+  {
+    id: 'positions',
+    title: 'Where you stopped',
+    what: 'The point you stopped at in each episode you have not finished, with the source it played on and its length, for your 200 most recent.',
+    where: LOCAL,
+    lasts: "Until you finish the episode, 200 newer ones replace it, or you clear this site's data in your browser",
+    keys: { store: 'local', names: [WATCH_POSITIONS_KEY] },
   },
   {
     id: 'autoplay',

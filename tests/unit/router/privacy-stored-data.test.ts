@@ -14,6 +14,7 @@ import { HIDDEN_ICONS_KEY } from '../../../src/sources/hidden-icons'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
+import { WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
 
 const byId = (id: string) => {
@@ -33,6 +34,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
     expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
     expect(byId('autoplay').keys).toEqual({ store: 'local', names: [AUTOPLAY_KEY] })
+    expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
   })

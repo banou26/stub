@@ -13,6 +13,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { releaseDateLabel } from '../../../src/utils/release-date'
+import { WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { viewerIn } from '../sources/justwatch/viewer'
 
 const fkn = vi.hoisted(() => ({ backend: 'cloud' as FknBackend }))
@@ -77,6 +78,13 @@ test('the list opens on the page holding the episode after the viewer\'s progres
 })
 
 describe('the bar on an episode\'s thumbnail', () => {
+  const stored = new Map<string, string>()
+  beforeEach(() => {
+    stored.clear()
+    vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
   const render = (shown: DetailsMedia, tracked?: Tracked) => {
     const { hook } = memoryLocation({ path: '/' })
     const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={shown} tracked={tracked}/></Router></Provider>)
@@ -116,6 +124,33 @@ describe('the bar on an episode\'s thumbnail', () => {
     const host = render(airing, { status: 'COMPLETED', progress: 3 })
     expect(host.querySelectorAll('.episode.unreleased'), 'the control: the third is not out').toHaveLength(1)
     expect(bars(host)).toEqual([...full(2), null])
+  })
+
+  test('is as far as the newest point kept for any of the row\'s sources, and wins over the full one', () => {
+    const shared = {
+      ...media,
+      episodes: media.episodes.map(episode => ({
+        ...episode,
+        handles: [...episode.handles!, { relation: 'SAME_AS', node: { uri: `cr:${episode.episodeNumber}`, origin: 'cr', url: `https://www.crunchyroll.com/watch/${episode.episodeNumber}` } }],
+      })),
+    } as DetailsMedia
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nf:3', 700, 1400], ['cr:4', 300, 1200], ['nf:4', 600, 1200], ['cr:1', 350, 1400], ['nf:9', 0, 0]]))
+    const host = render(shared, { status: 'WATCHING', progress: 2 })
+    expect(bars(host)).toEqual(['25%', '100%', '50%', '50%', null, null, null, null, null, null, null, null])
+    expect(host.querySelectorAll('.episode .thumbnail > .bar')[2]!.getAttribute('aria-valuenow')).toBe('50')
+  })
+
+  test('reads the sources that play the episode, not a release it is only part of', () => {
+    const withRelease = (relation: string) => ({
+      ...media,
+      episodes: media.episodes.map(episode => ({
+        ...episode,
+        handles: [...episode.handles!, { relation, node: { uri: 'nyaa:season', origin: 'nyaa', url: 'magnet:?xt=urn:btih:season' } }],
+      })),
+    }) as DetailsMedia
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nyaa:season', 700, 1400]]))
+    expect(bars(render(withRelease('SAME_AS'))), 'the control: a source of every row').toEqual(Array.from({ length: 12 }, () => '50%'))
+    expect(bars(render(withRelease('PART_OF')))).toEqual(none(12))
   })
 })
 

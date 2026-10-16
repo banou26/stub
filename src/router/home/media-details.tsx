@@ -32,6 +32,7 @@ import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
 import { currentEpisode, playTarget, watchedEpisode, type PlayLabel, type Tracked } from '../title/facts'
+import { newestPosition, readPositions } from '../../utils/watch-positions'
 
 export const GET_MEDIA_DETAILS = gql(`
   subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
@@ -578,10 +579,10 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, origins, backend, unreleased, airingAt, now, watched }:
+  { episode, index, mediaUri, origins, backend, unreleased, airingAt, now, watched, progress }:
   {
     episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string
-    now: number, watched: boolean
+    now: number, watched: boolean, progress?: number
   }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
@@ -591,6 +592,7 @@ const Episode = (
   const airsIn = unreleased && airingAt ? formatCountdown(Date.parse(airingAt) - now) : undefined
   const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt)
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
+  const bar = unreleased ? undefined : progress ?? (watched ? 1 : undefined)
 
   return (
     <div className={unreleased ? 'episode unreleased' : 'episode'}>
@@ -607,7 +609,10 @@ const Episode = (
       <div className="number">{episode.episodeNumber}</div>
       <div className="thumbnail">
         {thumbnail ? <img src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}/> : undefined}
-        {watched && !unreleased ? <div className="bar" role="progressbar" aria-label="Watched" aria-valuenow={100} style={{ width: '100%' }}/> : undefined}
+        {
+          bar === undefined ? undefined
+            : <div className="bar" role="progressbar" aria-label="Watched" aria-valuenow={Math.round(bar * 100)} style={{ width: `${bar * 100}%` }}/>
+        }
       </div>
       <div className="content">
         <div className="header">
@@ -642,6 +647,10 @@ const Episode = (
 // a cour
 const EPISODES_PAGE = 12
 
+// SAME_AS only, the sources that play this episode, as in `watchSources`
+const playableUris = (episode: DetailsEpisode) =>
+  (episode.handles ?? []).filter(handle => handle.relation === 'SAME_AS').map(handle => handle.node.uri)
+
 /** `count` rows' placeholders, for a list whose rows have not arrived. */
 export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
   <div className="episodes" css={episodesStyle}>
@@ -659,8 +668,9 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
 
 /**
  * A series' episode rows a page at a time, opening on the page holding the viewer's next episode by
- * `tracked`; an unreleased one dimmed and not linked, a watched one with a full bar on its thumbnail.
- * With no rows, rows' placeholders until every source has answered, then "No episodes found".
+ * `tracked`; an unreleased one dimmed and not linked. Each thumbnail carries a bar for how far the viewer
+ * got: the share where they last stopped in any of the episode's sources, else full once `tracked` says
+ * it is watched. With no rows, rows' placeholders until every source has answered, then "No episodes found".
  */
 export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
   const now = useNow()
@@ -674,12 +684,14 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
       ? <div className="episodes" css={episodesStyle}><div className="empty">No episodes found</div></div>
       : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
+  const positions = readPositions()
   return (
     <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={currentEpisode(media.episodes, tracked)}>
       {(page, offset) => (
         <div className="episodes" css={episodesStyle}>
           {page.map((episode, at) => {
             const index = offset + at
+            const saved = newestPosition(playableUris(episode), positions)
             return (
               <Episode
                 key={episode.episodeNumber ?? episode.uri ?? index}
@@ -692,6 +704,7 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
                 airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
                 now={now}
                 watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
+                progress={saved?.[2] ? saved[1] / saved[2] : undefined}
               />
             )
           })}

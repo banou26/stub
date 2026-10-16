@@ -1,6 +1,8 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from '../../components/dom'
 
+import type { Mock } from 'vite-plus/test'
+
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
@@ -63,20 +65,27 @@ vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePa
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
 type Report = { paused: boolean, ended?: boolean, time?: number }
-// each player the page attaches, which a test makes report as a person or the browser would
-const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void }[] }))
+// each player the page attaches, which a test makes report as a person or the browser would; with
+// `greets`, a new listener hears the last report at once, after dispose too, as the real link does
+const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, apply: Mock<(state: { time: number }) => void> }[], greets: false }))
 vi.mock('../../../../src/party/bridge', () => ({
   attachPlaybackBridge: () => {
     const listeners = new Set<(state: object) => void>()
+    let last = { paused: true, time: 0 }
     let ended = false
     const link = {
-      apply: () => {},
-      onReport: (listener: (state: object) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+      apply: vi.fn<(state: { time: number }) => void>(),
+      onReport: (listener: (state: object) => void) => {
+        listeners.add(listener)
+        if (bridge.greets) queueMicrotask(() => listener({ ...last, rate: 1, at: Date.now() }))
+        return () => { listeners.delete(listener) }
+      },
       ended: () => ended,
       duration: () => 1000,
       dispose: () => listeners.clear(),
       report: ({ paused, ended: atEnd = false, time = 0 }: Report) => {
         ended = atEnd
+        last = { paused, time }
         for (const listener of listeners) listener({ paused, time, rate: 1, at: Date.now() })
       },
     }
@@ -84,13 +93,21 @@ vi.mock('../../../../src/party/bridge', () => ({
     return link
   },
 }))
-// the nyaa plugin's play(): it declines a release with no magnet
-vi.mock('../../../../src/components/plugin-player', () => ({
-  default: ({ release, onUnplayable }: { release: { url?: string }, onUnplayable: () => void }) => {
-    useEffect(() => { if (!release.url?.startsWith('magnet:')) onUnplayable() }, [release.url])
-    return <div className="plugin-player" data-url={release.url}/>
-  },
-}))
+// the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise
+vi.mock('../../../../src/components/plugin-player', async () => {
+  const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
+  return {
+    default: ({ release, onUnplayable, onPlayback }: { release: { url?: string }, onUnplayable: () => void, onPlayback: (link?: object) => void }) => {
+      useEffect(() => {
+        if (!release.url?.startsWith('magnet:')) return onUnplayable()
+        const link = attachPlaybackBridge(document.createElement('iframe'))
+        onPlayback(link)
+        return () => { link.dispose(); onPlayback(undefined) }
+      }, [release.url])
+      return <div className="plugin-player" data-url={release.url}/>
+    },
+  }
+})
 vi.mock('../../../../src/components/party-playback', () => ({ default: () => null }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
@@ -114,6 +131,7 @@ const { default: Watch } = await import('../../../../src/router/watch/index')
 const { QUIET_MS } = await import('../../../../src/router/watch/auto-pick')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
+const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
@@ -138,6 +156,7 @@ afterEach(() => {
   relays.remembered = {}
   relays.heard = []
   bridge.links = []
+  bridge.greets = false
   tracking = undefined
   saved.length = 0
   held = Promise.resolve()
@@ -478,7 +497,16 @@ const atTheEnd = async (third: object = {}) => {
   const host = mount(tree())
   hosts.push(host)
   await settle()
-  return { host, rerender: () => act(() => { render(tree(), host) }) }
+  return {
+    host,
+    rerender: () => act(() => { render(tree(), host) }),
+    // outside act, effects run when a browser would run them, not before render() returns
+    rerenderLive: async () => {
+      render(tree(), host)
+      await vi.advanceTimersByTimeAsync(500)
+      await settle()
+    },
+  }
 }
 const report = async (...states: Report[]) => {
   await act(async () => { for (const state of states) bridge.links.at(-1)!.report(state) })
@@ -645,6 +673,29 @@ test('the save carries the media as the page has it, and its count makes the epi
   expect(watchQuery).toMatch(/\bepisodeCount\b/)
 })
 
+test('Next episode while the last one plays past 85% counts the last one only', async () => {
+  bridge.greets = true
+  tracking = stubOnly
+  const { rerenderLive } = await atTheEnd()
+  await report({ paused: false, time: 900 })
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  await rerenderLive()
+  expect(bridge.links).toHaveLength(2)
+  expect((saved as { entry: { progress: number } }[]).map(({ entry }) => entry.progress)).toEqual([2])
+})
+
+test('a torrent\'s player is heard as the page\'s own', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  tracking = stubOnly
+  series({}, 'nyaa:a')
+  hosts.push(page())
+  await settle()
+  expect(bridge.links, 'the control: the plugin handed its player over').toHaveLength(1)
+  await report({ paused: false, time: 900 })
+  expect(saved).toEqual([expect.objectContaining({ entry: { progress: 2, status: 'WATCHING' } })])
+})
+
 test('a film watched is Completed', async () => {
   vi.useFakeTimers()
   origins = ['cr']
@@ -657,6 +708,46 @@ test('a film watched is Completed', async () => {
   expect(saved).toEqual([expect.objectContaining({ entry: { status: 'COMPLETED', progress: 1 } })])
   expect(watchQuery).toMatch(/\btype\b/)
   expect(watchQuery).toMatch(/\bcategories\b/)
+})
+
+test('the page\'s player resumes where the viewer stopped on any source of the episode, a guest\'s never, and each keeps where it is', async () => {
+  for (const [member, seeks] of [[{ status: 'idle' }, [600]], [{ status: 'active', role: 'guest' }, []]] as const) {
+    vi.useFakeTimers()
+    party = member as typeof party
+    origins = ['cr', 'nf']
+    params = { ...params, sourceUri: 'cr:GX1' }
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nf:81', 600, 1000]]))
+    hosts.push(page())
+    await settle()
+    await report({ paused: false, time: 2 })
+    expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time), member.status).toEqual(seeks)
+    await report({ paused: false, time: 700 })
+    expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!), member.status).toEqual([['nf:81', 600, 1000], ['cr:GX1', 700, 1000]])
+    unmount(hosts.pop()!)
+  }
+})
+
+test('Next episode keeps no point of the last one for the next one, and seeks nowhere', async () => {
+  bridge.greets = true
+  const { rerenderLive } = await atTheEnd()
+  await report({ paused: false, time: 700 })
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  await rerenderLive()
+  expect(bridge.links).toHaveLength(2)
+  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX2', 700, 1000]])
+  expect(bridge.links.at(-1)!.apply).not.toHaveBeenCalled()
+})
+
+test('Next episode once the last one ended keeps the next one\'s own point, and resumes there', async () => {
+  bridge.greets = true
+  stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['cr:GX3', 600, 1000]]))
+  const { rerenderLive } = await atTheEnd()
+  await report(played, { ...ended, time: 1000 })
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  await rerenderLive()
+  expect(bridge.links).toHaveLength(2)
+  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX3', 600, 1000]])
+  expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
 })
 
 test('another media gets its own tracking: what was played of the first is never written to the second', async () => {

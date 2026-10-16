@@ -31,6 +31,7 @@ import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
+import { useResume } from './resume'
 import TrackWatched from './track-watched'
 import UpNext from './up-next'
 
@@ -267,8 +268,8 @@ const Watch = () => {
   }
   const [, navigate] = useLocation()
   const embedFrame = useRef<HTMLIFrameElement>(null)
-  // the player the page can hear and move, from whichever of the two below is up
-  const [playbackLink, setPlaybackLink] = useState<PlaybackLink | undefined>(undefined)
+  // the player the page can hear and move, from whichever of the two below is up, and the source it plays
+  const [playback, setPlayback] = useState<{ link: PlaybackLink, sourceUri?: string }>()
   const [tracksLink, setTracksLink] = useState<TracksLink | undefined>(undefined)
 
   const [{ data }] = useSubscription({
@@ -295,6 +296,9 @@ const Watch = () => {
   )
 
   const selectedSourceUri = params.sourceUri
+  // Handed out on its own source only: on the render naming the next one, the last player is still up
+  // until its effect closes it, and a link tells each new listener where its player is.
+  const playbackLink = playback?.sourceUri === selectedSourceUri ? playback?.link : undefined
   const episodeHandles = useMemo(() => {
     const own = playableHandlesOf(episode?.handles)
     if (!selectedSourceUri || episode?.handles?.some(h => h.node.uri === selectedSourceUri)) return own
@@ -406,12 +410,12 @@ const Watch = () => {
     if (viaPlugin || !embedUrl || !iframe) return
     const link = attachPlaybackBridge(iframe)
     const tracks = embedTracks(iframe)
-    setPlaybackLink(link)
+    setPlayback({ link, sourceUri: selectedSourceUri })
     setTracksLink(tracks)
     return () => {
       link.dispose()
       tracks.dispose()
-      setPlaybackLink(undefined)
+      setPlayback(undefined)
       setTracksLink(undefined)
     }
   }, [viaPlugin, embedUrl])
@@ -479,6 +483,7 @@ const Watch = () => {
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   useAutoPick(bestSource(episodeHandles, ways), { ...params, guest }, navigate)
+  useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest)
 
   // read at render, the sign-in state goes stale once the viewer signs in on the player, so the links to
   // the episodes either side ignore it
@@ -521,7 +526,7 @@ const Watch = () => {
                     pluginUri={pluginPlayer.pluginUri}
                     release={pluginPlayer.release}
                     onUnplayable={() => setDeclined(selectedSourceUri)}
-                    onPlayback={setPlaybackLink}
+                    onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
                   />
                 )
                 : (
