@@ -16,7 +16,7 @@
  * The mutation that makes each case fail is named above it, and the ones that were actually run are
  * marked MUTATED.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
