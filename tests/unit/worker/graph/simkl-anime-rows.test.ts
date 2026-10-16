@@ -1,7 +1,8 @@
-// "tokyo revengers", "ghost in the shell" and "blade runner" as JustWatch, IMDb, Watchmode and Simkl answered
-// their searches through the relay on 2026-10-15, each cut to the rows of exactly the titles tested. Stub reads
-// a Simkl anime series as ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a
-// film by its year alone, so a dated anime series would meet any film of its title and year.
+// "tokyo revengers", "ghost in the shell", "blade runner" and "gintama" as JustWatch, IMDb, Watchmode and Simkl
+// answered their searches through the relay on 2026-10-15, and "star wars" as Simkl answered it then and TVmaze
+// directly on 2026-10-16, each cut to the rows of exactly the titles tested. Stub reads a Simkl anime series as
+// ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a film by its year alone,
+// so a dated anime series would meet any film of its title and year.
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { ClusterCard } from '../../../../src/worker/graph/plugins/fields'
@@ -10,6 +11,7 @@ import { siteAllows } from '../../../../src/site'
 import * as justwatch from '../../../../src/sources/justwatch/extractor'
 import * as omdb from '../../../../src/sources/omdb/extractor'
 import * as simkl from '../../../../src/sources/simkl/extractor'
+import * as tvmaze from '../../../../src/sources/tvmaze/extractor'
 import * as watchmode from '../../../../src/sources/watchmode/extractor'
 import { enableGraph } from '../../../../src/worker/graph'
 import { closeGraph } from '../../../../src/worker/graph/engine'
@@ -19,15 +21,21 @@ import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import JUSTWATCH_BLADE_RUNNER from '../../../fixtures/justwatch/blade-runner-search.json'
 import JUSTWATCH_GHOST from '../../../fixtures/justwatch/ghost-in-the-shell-search.json'
+import JUSTWATCH_GINTAMA from '../../../fixtures/justwatch/gintama-search.json'
 import JUSTWATCH_TOKYO from '../../../fixtures/justwatch/tokyo-revengers-search.json'
 import OMDB_BLADE_RUNNER from '../../../fixtures/omdb/search-blade-runner.json'
 import OMDB_GHOST from '../../../fixtures/omdb/search-ghost-in-the-shell.json'
+import OMDB_GINTAMA from '../../../fixtures/omdb/search-gintama.json'
 import OMDB_TOKYO from '../../../fixtures/omdb/search-tokyo-revengers.json'
 import SIMKL_BLADE_RUNNER from '../../../fixtures/simkl/search-blade-runner.json'
 import SIMKL_GHOST from '../../../fixtures/simkl/search-ghost-in-the-shell.json'
+import SIMKL_GINTAMA from '../../../fixtures/simkl/search-gintama.json'
+import SIMKL_VISIONS from '../../../fixtures/simkl/search-star-wars-visions.json'
 import SIMKL_TOKYO from '../../../fixtures/simkl/search-tokyo-revengers.json'
+import TVMAZE_VISIONS from '../../../fixtures/tvmaze/search-star-wars-visions.json'
 import WATCHMODE_BLADE_RUNNER from '../../../fixtures/watchmode/search-blade-runner.json'
 import WATCHMODE_GHOST from '../../../fixtures/watchmode/search-ghost-in-the-shell.json'
+import WATCHMODE_GINTAMA from '../../../fixtures/watchmode/search-gintama.json'
 import WATCHMODE_TOKYO from '../../../fixtures/watchmode/search-tokyo-revengers.json'
 import { answer } from './plugins/fixtures'
 
@@ -63,22 +71,28 @@ const SOURCES = {
     'tokyo revengers': recorded(JUSTWATCH_TOKYO),
     'ghost in the shell': recorded(JUSTWATCH_GHOST),
     'blade runner': recorded(JUSTWATCH_BLADE_RUNNER),
+    gintama: recorded(JUSTWATCH_GINTAMA),
   }),
   omdb: () => searches(omdb, {
     'tokyo revengers': recorded(OMDB_TOKYO),
     'ghost in the shell': recorded(OMDB_GHOST),
     'blade runner': recorded(OMDB_BLADE_RUNNER),
+    gintama: recorded(OMDB_GINTAMA),
   }),
   watchmode: () => searches(watchmode, {
     'tokyo revengers': recorded(WATCHMODE_TOKYO),
     'ghost in the shell': recorded(WATCHMODE_GHOST),
     'blade runner': recorded(WATCHMODE_BLADE_RUNNER),
+    gintama: recorded(WATCHMODE_GINTAMA),
   }),
   simkl: () => searches(simkl, {
     'tokyo revengers': simklAnswers(SIMKL_TOKYO),
     'ghost in the shell': simklAnswers(SIMKL_GHOST),
     'blade runner': simklAnswers(SIMKL_BLADE_RUNNER),
+    gintama: simklAnswers(SIMKL_GINTAMA),
+    'star wars': simklAnswers(SIMKL_VISIONS),
   }),
+  tvmaze: () => searches(tvmaze, { 'star wars': recorded(TVMAZE_VISIONS) }),
 }
 
 const ingest = async (rows: Row[]) => {
@@ -91,9 +105,9 @@ const ingest = async (rows: Row[]) => {
 beforeAll(async () => { await enableGraph(true) })
 
 describe.each([
-  ['together', [['justwatch', 'omdb', 'watchmode', 'simkl']]],
-  ['JustWatch last', [['simkl', 'omdb', 'watchmode'], ['justwatch']]],
-  ['Simkl last', [['justwatch', 'omdb', 'watchmode'], ['simkl']]],
+  ['together', [['justwatch', 'omdb', 'watchmode', 'simkl', 'tvmaze']]],
+  ['JustWatch last', [['simkl', 'omdb', 'watchmode', 'tvmaze'], ['justwatch']]],
+  ['Simkl last', [['justwatch', 'omdb', 'watchmode', 'tvmaze'], ['simkl']]],
 ] as [string, (keyof typeof SOURCES)[][]][])('%s', (_, passes) => {
   let cards: ClusterCard[] = []
 
@@ -143,5 +157,24 @@ describe.each([
     expect(card('jw:239091')?.members.sort()).toEqual(['jw:239091', 'omdb:tt1856101', 'simkl:489468', 'watchmode:0153801'])
     expect(card('jw:997728')?.members).toEqual(['jw:997728'])
     expect(card('watchmode:011106824')?.members).toEqual(['watchmode:011106824'])
+  })
+
+  // JustWatch lists the live-action Gintama (2017) as Japanese animation, under the animated film's IMDb id
+  test('a live-action film Simkl files outside anime is not anime, though JustWatch calls it animation', () => {
+    expect(card('simkl:1634342')?.members.sort()).toEqual(['jw:309774', 'simkl:1634342', 'watchmode:01147918'])
+    expect(card('simkl:1634342')!.categories).toEqual(['MOVIE'])
+  })
+
+  test('the anime films of its title stay anime and apart from it, one JustWatch alone calls animation too', () => {
+    expect(card('simkl:1053503')?.members.sort())
+      .toEqual(['anilist:114129', 'jw:922663', 'kitsu:43683', 'mal:39486', 'omdb:tt10766468', 'simkl:1053503', 'watchmode:01621194'])
+    expect(card('simkl:1053503')!.categories).toEqual(['ANIME', 'MOVIE'])
+    expect(card('jw:93161')?.members.sort()).toEqual(['jw:93161', 'omdb:tt1636780', 'watchmode:01147921'])
+    expect(card('jw:93161')!.categories).toEqual(['ANIME', 'MOVIE'])
+  })
+
+  test('a series Simkl files under tv stays anime when another source tags it anime', () => {
+    expect(card('simkl:2726684')?.members.sort()).toEqual(['imdb:tt13622982', 'simkl:2726684', 'tvmaze:52340'])
+    expect(card('simkl:2726684')!.categories).toEqual(['ANIME', 'SERIES'])
   })
 })

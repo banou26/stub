@@ -1,0 +1,128 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm309774",
+            "objectId": 309774,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Gintama",
+              "fullPath": "/us/movie/gintama",
+              "originalReleaseYear": 2017,
+              "originalReleaseDate": "2017-07-14",
+              "posterUrl": "/poster/47337822/s718/gintama.jpg",
+              "externalIds": {
+                "imdbId": "tt10766468"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "fnt",
+                  "translation": "Fantasy"
+                },
+                {
+                  "shortName": "hst",
+                  "translation": "History"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm922663",
+            "objectId": 922663,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Gintama: The Very Final",
+              "fullPath": "/us/movie/gintama-the-very-final",
+              "originalReleaseYear": 2021,
+              "originalReleaseDate": "2021-01-08",
+              "posterUrl": "/poster/247329619/s718/gintama-the-very-final.jpg",
+              "externalIds": {
+                "imdbId": null
+              },
+              "genres": [
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        },
+        {
+          "node": {
+            "id": "tm93161",
+            "objectId": 93161,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Gintama: The Movie",
+              "fullPath": "/us/movie/gekijouban-gintama-shinyaku-benizakura-hen",
+              "originalReleaseYear": 2010,
+              "originalReleaseDate": "2010-04-24",
+              "posterUrl": "/poster/150679095/s718/gekijouban-gintama-shinyaku-benizakura-hen.jpg",
+              "externalIds": {
+                "imdbId": "tt1636780"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "hst",
+                  "translation": "History"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        }
+      ]
+    }
+  }
+}

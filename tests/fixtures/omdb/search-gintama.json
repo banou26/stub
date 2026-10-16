@@ -1,0 +1,53 @@
+{
+  "data": {
+    "mainSearch": {
+      "edges": [
+        {
+          "node": {
+            "entity": {
+              "id": "tt10766468",
+              "titleText": {
+                "text": "Gintama: The Final"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 2021
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BMmNmMDA5MWEtZWY1Zi00NzQ2LWJjYTEtYmZlYzkxYjRiMGQ3XkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "entity": {
+              "id": "tt1636780",
+              "titleText": {
+                "text": "Gintama: The Movie"
+              },
+              "titleType": {
+                "id": "movie"
+              },
+              "releaseYear": {
+                "year": 2010
+              },
+              "primaryImage": {
+                "url": "https://m.media-amazon.com/images/M/MV5BMjEyZjQ0MGUtZTlmOS00NTE4LTljM2ItZjM2MjRhOGQ5YTAzXkEyXkFqcGc@._V1_.jpg"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "disclaimer": "Public, commercial, and/or non-private use of the IMDb data provided by this API is not allowed. For limited non-commercial use of IMDb data and the associated requirements see https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX#",
+    "experimentalFields": {
+      "search": [],
+      "janet": []
+    }
+  }
+}

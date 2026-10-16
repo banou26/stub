@@ -1,0 +1,40 @@
+{
+  "search": {
+    "tv": {
+      "i2726684": {
+        "rank": 7511,
+        "year": "2021 - Now",
+        "poster": "17/17339328da80e5722d",
+        "eps": 27,
+        "url": "/tv/2726684/star-wars-visions",
+        "titles": {
+          "a7": "Star Wars: Visions",
+          "m": "Star Wars: Visions"
+        },
+        "show_type": "tv",
+        "id": "2726684",
+        "ongoing": true
+      }
+    },
+    "anime": [],
+    "movies": []
+  },
+  "detail": {
+    "/tv/2726684": {
+      "title": "Star Wars: Visions",
+      "year": 2021,
+      "type": "show",
+      "ids": {
+        "simkl": 2726684,
+        "slug": "star-wars-visions",
+        "tvdb": "393190",
+        "imdb": "tt13622982",
+        "tmdb": "114478",
+        "tvdbslug": "star-wars-visions",
+        "traktslug": "star-wars-visions"
+      },
+      "poster": "17/17339328da80e5722d",
+      "first_aired": "2021-09-22T07:00:00Z"
+    }
+  }
+}

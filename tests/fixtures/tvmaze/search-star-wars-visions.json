@@ -1,0 +1,59 @@
+[
+  {
+    "score": 1.0021055,
+    "show": {
+      "id": 52340,
+      "url": "https://www.tvmaze.com/shows/52340/star-wars-visions",
+      "name": "Star Wars: Visions",
+      "type": "Animation",
+      "language": null,
+      "genres": [
+        "Action",
+        "Anime",
+        "Science-Fiction"
+      ],
+      "status": "To Be Determined",
+      "runtime": null,
+      "averageRuntime": 18,
+      "premiered": "2021-09-22",
+      "ended": null,
+      "officialSite": "https://www.disneyplus.com/browse/entity-38cebadb-e808-47aa-8223-181fc1416ec1",
+      "schedule": {
+        "time": "",
+        "days": []
+      },
+      "rating": {
+        "average": 7.4
+      },
+      "weight": 98,
+      "network": null,
+      "webChannel": {
+        "id": 287,
+        "name": "Disney+",
+        "country": null,
+        "officialSite": "https://www.disneyplus.com/"
+      },
+      "dvdCountry": null,
+      "externals": {
+        "tvrage": null,
+        "thetvdb": 393190,
+        "imdb": "tt13622982"
+      },
+      "image": {
+        "medium": "https://static.tvmaze.com/uploads/images/medium_portrait/595/1487926.jpg",
+        "original": "https://static.tvmaze.com/uploads/images/original_untouched/595/1487926.jpg"
+      },
+      "summary": "<p><b>Star Wars: Visions</b>, an Original Series of animated short films, celebrates the Star Wars galaxy through the lens of the world's best Japanese anime creators. </p>",
+      "updated": 1777230228,
+      "_links": {
+        "self": {
+          "href": "https://api.tvmaze.com/shows/52340"
+        },
+        "previousepisode": {
+          "href": "https://api.tvmaze.com/episodes/3213301",
+          "name": "BLACK"
+        }
+      }
+    }
+  }
+]

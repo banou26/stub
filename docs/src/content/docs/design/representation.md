@@ -1914,7 +1914,7 @@ and the migration names what that changes (10, step 3).
 | scalars: `url`, `type`, `status`, `averageScore`, `popularity`, `startDate`, `endDate`, `isAdult`, `nextAiringEpisode` | first non-null in score order, ties by uri (`aggregate.ts:328-337`). anizip's unscored row sorts last for these, at parity; per-field confidence is not in this design | `{field, uri, answerSeq: fieldSeq[field], rule: 'first-non-null'}` |
 | `episodeCount` | `Cluster.runLength` | `{uris: runLengthFrom, tier, witnesses, rule: 'tiered'}` |
 | `season`, `seasonYear` | the pair from the highest-scored member naming a season; a cluster naming none takes the highest non-null `seasonYear` (`aggregate.ts:34-53`: `SUMMER` and `2026` only mean anything together) | `{uri, rule: 'season-pair'}` |
-| `categories` | ANIME if present plus exactly one of MOVIE / SERIES, first in score order (`aggregate.ts:8-15`) | `{uri}` |
+| `categories` | ANIME if present plus exactly one of MOVIE / SERIES, first in score order (`aggregate.ts:10-16`). The graph alone also drops ANIME when a Simkl member is a film Simkl files under movies rather than anime (`nonAnimeFilm`, `graph/plugins/fields.ts`) | `{uri}` |
 | `genres`, `tags` | case-insensitive dedupe keeping the best-scored spelling (`aggregate.ts:55-65`) | per value |
 | `titles` | concatenated in score order, a show name plus a bare year moved behind the rest when a title names the season (`seasonNamesFirst`, `src/sources/season.ts`), deduped on the exact string | per title, via its `score` and the member uri |
 | `descriptions`, `shortDescriptions`, `covers`, `banners` | sorted by score, not deduped | per item |

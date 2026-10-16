@@ -1,0 +1,78 @@
+{
+  "search": {
+    "tv": [],
+    "anime": {
+      "i1053503": {
+        "rank": 9,
+        "year": "2021",
+        "poster": "11/115465744d5c1a94f3",
+        "eps": 1,
+        "type": "Movie",
+        "url": "/anime/1053503/gintama-the-final",
+        "titles": {
+          "a7": "Gintama: The Very Final",
+          "m": "Gintama: The Final"
+        },
+        "show_type": "anime",
+        "id": "1053503"
+      }
+    },
+    "movies": {
+      "i1634342": {
+        "rank": 26997,
+        "year": "2017",
+        "poster": "11/11353740d12d4562cb",
+        "eps": "-",
+        "url": "/movies/1634342/gintama",
+        "titles": {
+          "m": "Gintama"
+        },
+        "show_type": "mov",
+        "id": "1634342"
+      }
+    }
+  },
+  "detail": {
+    "/anime/1053503": {
+      "title": "Gintama: The Final",
+      "en_title": "Gintama: The Very Final",
+      "year": 2021,
+      "type": "anime",
+      "anime_type": "movie",
+      "ids": {
+        "simkl": 1053503,
+        "slug": "gintama-the-final",
+        "anidb": "14719",
+        "mal": "39486",
+        "imdb": "tt10766468",
+        "anilist": "114129",
+        "kitsu": "43683",
+        "tmdb": "732203",
+        "tvdb": "143303",
+        "tvdbslug": "gintama-the-final",
+        "traktslug": "gintama-the-very-final-2021",
+        "letterboxd": "gintama-the-very-final"
+      },
+      "poster": "11/115465744d5c1a94f3",
+      "first_aired": "2021-01-08T00:00:00Z"
+    },
+    "/movies/1634342": {
+      "title": "Gintama",
+      "year": 2017,
+      "type": "movie",
+      "ids": {
+        "simkl": 1634342,
+        "slug": "gintama",
+        "tmdb": "432985",
+        "imdb": "tt5805470",
+        "mdlslug": "19042-gintama",
+        "tvdb": "27712",
+        "tvdbslug": "gintama",
+        "traktslug": "gintama-2017",
+        "letterboxd": "gintama"
+      },
+      "poster": "11/11353740d12d4562cb",
+      "released": "2017-07-14"
+    }
+  }
+}

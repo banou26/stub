@@ -1,0 +1,71 @@
+[
+  {
+    "result": {
+      "data": {
+        "json": {
+          "results": [
+            {
+              "name": "Gintama",
+              "percentile": 244.5025,
+              "type": "Movie",
+              "slug": "gintama-2017",
+              "slugTypeFolder": "movie",
+              "combinedID": "01147918",
+              "id": 147918,
+              "year": 2017,
+              "resultType": 1,
+              "subtext": "Movie (2017)",
+              "thumbnail": "01147918_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01147918_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 432985,
+              "tmdbType": "movie",
+              "imdbId": "tt5805470"
+            },
+            {
+              "name": "Gintama: The Final",
+              "percentile": 128.1969,
+              "type": "Movie",
+              "slug": "gintama-the-final",
+              "slugTypeFolder": "movie",
+              "combinedID": "01621194",
+              "id": 621194,
+              "year": 2021,
+              "resultType": 1,
+              "subtext": "Movie (2021)",
+              "thumbnail": "01621194_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01621194_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 732203,
+              "tmdbType": "movie",
+              "imdbId": "tt10766468"
+            },
+            {
+              "name": "Gintama: The Movie",
+              "percentile": 97.556,
+              "type": "Movie",
+              "slug": "gintama-the-movie",
+              "slugTypeFolder": "movie",
+              "combinedID": "01147921",
+              "id": 147921,
+              "year": 2010,
+              "resultType": 1,
+              "subtext": "Movie (2010)",
+              "thumbnail": "01147921_poster_w185.jpg",
+              "thumbnailURL": "https://cdn.watchmode.com/posters/01147921_poster_w185.jpg",
+              "headshot": "",
+              "dir": "",
+              "tmdbId": 71172,
+              "tmdbType": "movie",
+              "imdbId": "tt1636780"
+            }
+          ],
+          "success": true,
+          "errorMessage": ""
+        }
+      }
+    }
+  }
+]
