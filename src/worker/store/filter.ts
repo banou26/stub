@@ -118,6 +118,19 @@ export const inAnswerOrder = <T extends { uri: string, handles?: { relation: str
   return [...rows].sort((a, b) => place(a) - place(b))
 }
 
+type Hit = Pick<GQLMedia, 'seasonYear' | 'startDate' | 'covers' | 'banners' | 'handles'>
+
+const isThin = (media: Hit): boolean =>
+  !media.seasonYear && !media.startDate && !media.covers.length && !media.banners.length &&
+  new Set(media.handles.map(handle => handle.node.origin)).size < 2
+
+/**
+ * Search hits in the order given, those with no year, no picture and no handle naming a second source moved after
+ * every other, never dropped, as one can be the title sought.
+ */
+export const thinLast = <T extends Hit>(medias: readonly T[]): T[] =>
+  [...medias.filter(media => !isThin(media)), ...medias.filter(isThin)]
+
 /** The rows a page keeps, a listing's in the order its sources answered them. */
 export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'>>(
   rows: readonly T[],

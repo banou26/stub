@@ -171,6 +171,14 @@ test('search offers Category on stub alone, and Season and Format on anime and s
   expect(await filters('movies.localhost')).toEqual(['Search', 'Genres & Tags', 'Year'])
 })
 
+// Watchmode's seven hits for it: two match less closely than the film, and none carries a popularity
+test('a search lists a hit with no year, no picture and no other source\'s id after every other hit', async ({ page }) => {
+  await page.goto(at('127.0.0.1', '/search?q=breaking%20bad'))
+  const hits = () => page.locator('.grid a.title-text').evaluateAll(links => links.map(link => link.getAttribute('href')))
+  await expect.poll(async () => (await hits()).map(href => href?.includes('watchmode:011104498')))
+    .toEqual([false, false, false, false, false, false, true])
+})
+
 test('a Popular row draws nothing while JustWatch is off, rather than the store\'s films and shows', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('stub.sources.disabled', '["jw"]'))
   await page.goto(at('127.0.0.1'))

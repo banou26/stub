@@ -6,7 +6,7 @@ import _schema from './schema.gql?raw'
 import { implementsSimilarMedia, proxyRequestToExtractors, similarOutcomeFrom } from '../../extractor'
 import { resolveSimilarRuns } from '../../similar-consumer'
 import { findAggregatedMedia, findAllAggregatedMedia, findAggregatedEpisodesForMedia, findMediaForPage, findRunEpisodes, hideAttachedContainers } from '../../store/db'
-import { applyMediaSorts, isListing, pageRows, siteMedia } from '../../store/filter'
+import { applyMediaSorts, isListing, pageRows, siteMedia, thinLast } from '../../store/filter'
 import { fuzzyMergeMediaClusters } from '../../store/fuzzy-merge'
 import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/aggregate'
 import { askAddressOf, createMediaReader, createPageReader, episodesOf, passSettled, readStore } from '../../graph'
@@ -228,11 +228,12 @@ export const resolvers = {
                 score: await searchRelevance(search, (media.titles ?? []).map(title => title.title))
               }))
             )
-            aggregated =
+            aggregated = thinLast(
               scored
                 .filter(entry => entry.score >= SEARCH_RELEVANCE_THRESHOLD)
                 .sort((a, b) => b.score - a.score || (b.media.popularity ?? 0) - (a.media.popularity ?? 0))
                 .map(entry => entry.media)
+            )
           }
 
           // `POPULARITY` is ascending and `POPULARITY_DESC` descending, the reading the `_DESC` suffix

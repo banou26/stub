@@ -17,6 +17,7 @@ import SQUID_GAME_SEASONS from './fixtures/tmdb/seasons-squid-game.html?raw'
 import FRIEREN_SHOW from './fixtures/tmdb/show-frieren.html?raw'
 import SQUID_GAME_SHOW from './fixtures/tmdb/show-squid-game.html?raw'
 import BEBOP_MAL from './unit/sources/jikan/__fixtures__/mal-anime-1.html?raw'
+import WATCHMODE_BREAKING_BAD from './unit/sources/watchmode/__fixtures__/quick-search-breaking-bad.json'
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
@@ -68,8 +69,9 @@ const TMDB: Record<string, string> = {
 // its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
 // alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
 // Squid Game's first two, which list one episode each, JustWatch with its four most popular films or shows
-// when asked for either and with The Boys as it answered the countries asked (prime-countries.json), and
-// MyAnimeList with Cowboy Bebop's title and credits pages for mal:1; every other request goes where it
+// when asked for either and with The Boys as it answered the countries asked (prime-countries.json),
+// MyAnimeList with Cowboy Bebop's title and credits pages for mal:1, and Watchmode with its quick search for
+// "breaking bad" as recorded 2026-10-13; every other request goes where it
 // always went. AniList gives a bundled work the format and season of its record in the current season, or
 // else of its first record, so a film stays a film and a work stays in the season the home page lists, and
 // answers Spec Late (anilist:900010, mal:900010) five seconds late, so its page draws AniZip's episodes first;
@@ -92,6 +94,10 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     if (objectType === 'SHOW') return Response.json(POPULAR_SHOWS)
     const theBoys = PRIME_COUNTRIES['the-boys'] as Record<string, unknown>
     if (variables?.nodeId === 'ts78125') return Response.json(theBoys[`${variables.offerCountry},${variables.extraCountry}`] ?? { data: { node: null } })
+  }
+  if (typeof input === 'string' && input.startsWith('https://gateway.watchmode.com/trpc/gateway.quickSearch?')
+    && JSON.parse(new URL(input).searchParams.get('input') ?? '{}')[0]?.json?.q === 'breaking bad') {
+    return Response.json([WATCHMODE_BREAKING_BAD])
   }
   if (typeof input === 'string' && input.startsWith('https://www.themoviedb.org/')) return new Response(TMDB[new URL(input).pathname] ?? '')
   if (input === 'https://caching.graphql.imdb.com/' && typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === 'tt0903747') {
