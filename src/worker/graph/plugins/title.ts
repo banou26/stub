@@ -32,10 +32,11 @@
  * and retracted only when a guard now fails... Profile drift never retracts: a title link whose pair
  * no longer clears 0.9 after a member's titles changed stays active" (5.2, the sticky rule).
  *
- * THE 2C HOOK. `delta` is not built yet, so both scans run over EVERY cluster rather than over the
- * dirty set and its bucket mates. The statements are the anchored ones of 5.4 P3 with `$clusters`
- * being every id, which is the form the spec states for the full pass: a key lookup per cluster
- * rather than a list scan per row.
+ * THE DELTA. A run decides only the pairs a cluster is in whose profile moved since the last run, and
+ * keeps every other pair's verdict from that run (`lastRun`). A verdict reads its two profiles and
+ * nothing else, so a pair whose two profiles stand has the verdict it had. The output is still the
+ * whole desired set, every match decided or kept, so the scope stays full and the writer's diff is
+ * unchanged. The exact scan is the anchored one of 5.4 P3 with `$clusters` being the moved ids.
  *
  * THE SECOND CANDIDATE AXIS, and the only thing here that does not go through a year bucket. A
  * catalogue's show row carries the SHOW's title and the SHOW's date, and a show's date is its FIRST
@@ -109,22 +110,6 @@ export const containerKeyOf = (key: string): string | undefined => {
   return stripped
 }
 
-/**
- * The bound on the decision cache, and the one thing about it that is new (5.4 P3).
- *
- * The figure is the fuzzy pass's own (`fuzzy-merge.ts:13`). What changes is what happens at it: that
- * pass CLEARS the whole map, which throws away every entry still worth keeping and re-pays the wasm
- * loop for all of them on the next pass. This one evicts the least recently used entry and nothing
- * else.
- *
- * MEASURED on the 800 row corpus replay, 2026-09-12: 298 clusters over 56 year buckets is 23,664
- * pairs and 24,359 cache entries, so ONE recorded page fills half the bound. The count is quadratic
- * in the biggest bucket rather than in the graph (that page's 2026 bucket is almost all of it), so a
- * session-sized graph passes the limit and the eviction rule starts to matter, which is the whole
- * reason it is an eviction rather than a wipe.
- */
-export const MAX_CACHED_DECISIONS = 50_000
-
 /** One title key of one member, as `plugin:profile` wrote it into the JSON `titleKeys` (2.2). */
 type TitleKeyEntry = { key: string, score: number | null, class: string }
 
@@ -181,9 +166,15 @@ export type ClusterTitleProfile = {
    * and the only thing that makes a container's date incomparable rather than merely distant.
    */
   laterRun: boolean
-  /** The five fields the gates read plus the cluster's identity: the decision cache's key half. */
-  cacheKey: string
 }
+
+/**
+ * What a verdict or a pairing reads off one cluster, which is the whole profile, every set in one order
+ * whatever order the members filled it in: two runs that see the same fingerprints for both clusters
+ * of a pair reach the same verdict about it (`lastRun`).
+ */
+export const fingerprintOf = (profile: ClusterTitleProfile): string =>
+  JSON.stringify(profile, (_, value: unknown) => (value instanceof Set ? [...value].map(String).sort() : value))
 
 /** The four gates 2.2 keeps on the row, in the order 5.4 P3 lists them. */
 export type TitleGates = { format: Gate, season: Gate, date: Gate, companion: Gate }
@@ -207,7 +198,7 @@ export type TitleMatch = {
   via?: 'title' | 'ordinal'
 }
 
-/** One pair's verdict, exactly as it is cached and as it is emitted. */
+/** One pair's verdict, exactly as it is kept and as it is emitted. */
 export type TitleDecision = {
   gates: TitleGates
   refusedBy: TitleGateName | null
@@ -337,15 +328,6 @@ export const profileClusters = (rows: TitleMemberRow[]): Map<string, ClusterTitl
       companion,
       containerKeys,
       laterRun: [...seasons].some(season => season >= LATER_RUN_ORDINAL),
-      // the same five fields and the same joins as `fuzzy-merge.ts:344-360`: the key has to identify
-      // the SET the verdict depends on, so one logical cluster keeps one entry however its members
-      // arrived. A separator can never appear inside a key, because a key is letters, numbers and
-      // single spaces and nothing else (`stripTitle`). The SCOPE joined at the head is this file's
-      // own addition: gate 3 and the ordinal axis both read it, so a cluster that flips CONTAINER
-      // while holding its id would otherwise be answered from a verdict about its other shape
-      cacheKey: `${id}#${scope}#${[...titles].sort(compare).join(',')}#${[...formats].sort(compare).join(',')}#${
-        [...seasons].sort((a, b) => a - b).join(',')}#${[...days].sort((a, b) => a - b).join(',')}#${
-        [...workKinds].sort(compare).join(',')}`,
     })
   }
   return profiles
@@ -519,57 +501,16 @@ const daysApart = (a: ClusterTitleProfile, b: ClusterTitleProfile): number | nul
 }
 
 /**
- * A bounded cache that evicts ONE entry, never all of them (5.4 P3, **NEW**).
+ * One pair's verdict: the four gates, the title, and the two numbers the evidence carries.
  *
- * A `Map` iterates in insertion order, so re-inserting on a hit is what moves an entry to the young
- * end and `keys().next()` is the old end. What this replaces is `pairDecisions.clear()` at the limit
- * (`fuzzy-merge.ts:611`), which on the pass after a merge threw away every verdict the next pass was
- * about to ask for again.
+ * It reads the two profiles and the shared scorers and nothing else, which is what lets a run keep
+ * the verdict of a pair whose two fingerprints did not move instead of deciding it again.
  */
-export type DecisionCache = {
-  get: (key: string) => TitleDecision | undefined
-  set: (key: string, value: TitleDecision) => void
-  readonly size: number
-}
-
-export const createDecisionCache = (limit: number): DecisionCache => {
-  const entries = new Map<string, TitleDecision>()
-  return {
-    get: key => {
-      const value = entries.get(key)
-      if (value === undefined) return undefined
-      entries.delete(key)
-      entries.set(key, value)
-      return value
-    },
-    set: (key, value) => {
-      entries.delete(key)
-      entries.set(key, value)
-      while (entries.size > limit) {
-        const oldest = entries.keys().next()
-        if (oldest.done) break
-        entries.delete(oldest.value)
-      }
-    },
-    get size() {
-      return entries.size
-    },
-  }
-}
-
-/** The pass's own cache, kept across passes because a verdict about unmoved clusters cannot move. */
-export const titleDecisions = createDecisionCache(MAX_CACHED_DECISIONS)
-
-/** One pair's verdict: the four gates, the title, and the two numbers the evidence carries. */
 export const decide = async (
   first: ClusterTitleProfile,
   second: ClusterTitleProfile,
-  ctx: Pick<PluginContext, 'titleSimilarity' | 'maxPossibleSimilarity'>,
-  cache: DecisionCache = titleDecisions
+  ctx: Pick<PluginContext, 'titleSimilarity' | 'maxPossibleSimilarity'>
 ): Promise<TitleDecision> => {
-  const key = `${first.cacheKey}|${second.cacheKey}`
-  const cached = cache.get(key)
-  if (cached) return cached
   const gates = gatesFor(first, second)
   // EVERY gate is evaluated even once one has refused, because all four are recorded and they are set
   // operations on sets this pass already holds. The title is evaluated too, and that is the one place
@@ -577,15 +518,13 @@ export const decide = async (
   // titles never matched refused NOTHING, and writing it as a refusal would fill the table with pairs
   // that share a year and nothing else. Only the pairs a veto actually saved are written, and the two
   // skips above keep the wasm call for the few whose titles could reach 0.9 anyway.
-  const decision: TitleDecision = {
+  return {
     gates,
     refusedBy: GATE_ORDER.find(gate => gates[gate] === 'refused') ?? null,
     match: await titleMatch(first, second, ctx),
     year: sharedYear(first, second),
     daysDelta: daysApart(first, second),
   }
-  cache.set(key, decision)
-  return decision
 }
 
 /** One proposal as 5.4 P3 emits it: the evidence, the gates, the confidence and the two keys. */
@@ -631,7 +570,7 @@ export const MEMBER_SCAN =
  *
  * One join through one `TitleKey` node rather than a pairwise loop, which is what `TitleKey` and
  * `HAS_KEY` exist for (2.2). Anchored on `$clusters` rather than self-joined over every `HAS_KEY`,
- * so with `delta` it becomes a key lookup per dirty cluster and nothing about the statement changes.
+ * so it is a key lookup per moved cluster.
  *
  * The date subject is spelled out rather than fixed to `run` for the reason `profileClusters` gives:
  * the two forms have to agree about which members carry a cluster's year, or the exact scan and the
@@ -660,6 +599,19 @@ const CARRY_SCAN =
 const pairKey = (a: string, b: string): string => (compare(a, b) <= 0 ? `${a} ${b}` : `${b} ${a}`)
 
 /**
+ * What the last run saw and found: every cluster's fingerprint, and every pair whose titles matched.
+ *
+ * Whether two clusters are a pair at all (a shared year, or a run naming a container) is read off the
+ * same two profiles as the verdict, so a pair whose two fingerprints are the ones held here was a pair
+ * last run and has the verdict held here. A pair that matched nothing proposes nothing, so only the
+ * matches are kept: a few hundred on a season page that holds 55,000 to 83,000 pairs.
+ */
+let lastRun = {
+  fingerprints: new Map<string, string>(),
+  matches: new Map<string, { a: string, b: string, decision: TitleDecision }>(),
+}
+
+/**
  * `plugin:title`, P3 of 5.4.
  *
  * Consumes `Cluster`, `MEMBER_OF`, `MediaProfile`, `TitleKey` and `HAS_KEY`; produces `LINK` of kind
@@ -675,6 +627,12 @@ export const titlePlugin: Plugin = {
   version: TITLE_VERSION,
   run: async (ctx: PluginContext): Promise<PluginOutput> => {
     const profiles = profileClusters(await ctx.query<TitleMemberRow>(MEMBER_SCAN))
+
+    // THE DELTA, read off the profiles rather than off `ctx.delta`: that names what the iteration
+    // before applied, and misses what `plugin:profile` and `plugin:aggregate` wrote earlier in this one
+    const fingerprints = new Map([...profiles].map(([id, profile]) => [id, fingerprintOf(profile)]))
+    const moved = new Set([...fingerprints.keys()].filter(id => lastRun.fingerprints.get(id) !== fingerprints.get(id)))
+    const touches = (a: string, b: string) => moved.has(a) || moved.has(b)
 
     // THE YEAR BUCKETS of gate 0, built from the profiles this pass already holds rather than by
     // asking the engine for the same rows a second time. A cluster with no title is skipped, and a
@@ -708,7 +666,9 @@ export const titlePlugin: Plugin = {
     for (const year of [...buckets.keys()].sort((a, b) => a - b)) {
       const bucket = [...buckets.get(year)!].sort(compare)
       for (let i = 0; i < bucket.length; i += 1) {
-        for (let j = i + 1; j < bucket.length; j += 1) pairs.set(pairKey(bucket[i]!, bucket[j]!), [bucket[i]!, bucket[j]!])
+        for (let j = i + 1; j < bucket.length; j += 1) {
+          if (touches(bucket[i]!, bucket[j]!)) pairs.set(pairKey(bucket[i]!, bucket[j]!), [bucket[i]!, bucket[j]!])
+        }
       }
     }
 
@@ -716,8 +676,10 @@ export const titlePlugin: Plugin = {
     // the very container it names, and a count including those would price the axis at pairs the
     // shipped pass was already making. It is also the only auditable number the axis has, because a
     // run against a container is guard 2's `cross-scope` every time and the downgrade replaces the
-    // proposal's evidence with the guard's, so `via: 'ordinal'` never reaches the link table
-    let ordinalPairs = 0
+    // proposal's evidence with the guard's, so `via: 'ordinal'` never reaches the link table. Counted
+    // over every cluster rather than off `pairs`, which holds only the pairs a moved cluster is in: a
+    // pair the buckets make is two clusters that share a year
+    const ordinalPairs = new Set<string>()
     for (const id of [...profiles.keys()].sort(compare)) {
       const profile = profiles.get(id)!
       if (!profile.containerKeys.size) continue
@@ -725,19 +687,19 @@ export const titlePlugin: Plugin = {
         for (const container of containerByKey.get(key) ?? []) {
           if (container === profile.id) continue
           const pair = pairKey(profile.id, container)
-          if (!pairs.has(pair)) ordinalPairs += 1
-          pairs.set(pair, [profile.id, container])
+          if (![...profile.years].some(year => profiles.get(container)!.years.has(year))) ordinalPairs.add(pair)
+          if (touches(profile.id, container)) pairs.set(pair, [profile.id, container])
         }
       }
     }
 
-    // SCAN A, the exact shortcut. On the full pass it is a strict subset of the buckets above, and it
-    // is run anyway for two reasons: it is the anchor an incremental pass keeps (5.4 P3), and the
-    // cap has to be applied to it in JS or the exact path would be a WIDER arm than the one that was
-    // measured, since the shipped shortcut reads the capped six (`fuzzy-merge.ts:215-219`)
-    const clusters = [...profiles.keys()].sort(compare)
+    // SCAN A, the exact shortcut. It is a strict subset of the buckets above, and it is run anyway for
+    // two reasons: it is the anchor an incremental pass keeps (5.4 P3), and the cap has to be applied
+    // to it in JS or the exact path would be a WIDER arm than the one that was measured, since the
+    // shipped shortcut reads the capped six (`fuzzy-merge.ts:215-219`)
+    const clusters = [...moved].sort(compare)
     let exactPairs = 0
-    // an empty `UNWIND` list dies at runtime on this engine, so an empty graph asks nothing
+    // an empty `UNWIND` list dies at runtime on this engine, so a run with nothing moved asks nothing
     const exact = clusters.length
       ? await ctx.query<{ fromCluster: string, toCluster: string, shared: string }>(EXACT_SCAN, { clusters })
       : []
@@ -751,14 +713,24 @@ export const titlePlugin: Plugin = {
       pairs.set(pairKey(a.id, b.id), [a.id, b.id])
     }
 
+    const matches: typeof lastRun.matches = new Map()
+    for (const [key, match] of lastRun.matches) {
+      if (profiles.has(match.a) && profiles.has(match.b) && !touches(match.a, match.b)) matches.set(key, match)
+    }
+    for (const [key, [a, b]] of pairs) {
+      const [first, second] = orderPair(profiles.get(a)!, profiles.get(b)!)
+      const decision = await decide(first, second, ctx)
+      if (decision.match) matches.set(key, { a, b, decision })
+    }
+    lastRun = { fingerprints, matches }
+
     const links: LinkProposal[] = []
     const proposed = new Set<string>()
     let refusals = 0
-    for (const [a, b] of [...pairs.keys()].sort(compare).map(key => pairs.get(key)!)) {
+    for (const key of [...matches.keys()].sort(compare)) {
+      const { a, b, decision } = matches.get(key)!
       const [first, second] = orderPair(profiles.get(a)!, profiles.get(b)!)
-      const decision = await decide(first, second, ctx)
-      const proposal = proposalFor(first, second, decision)
-      if (!proposal) continue
+      const proposal = proposalFor(first, second, decision)!
       if (decision.refusedBy) refusals += 1
       proposed.add(pairKey(proposal.fromUri, proposal.toUri))
       links.push(proposal)
@@ -789,11 +761,11 @@ export const titlePlugin: Plugin = {
     ctx.log({
       level: 'info',
       rule: 'title-scan',
-      detail: `${profiles.size} clusters, ${buckets.size} year buckets, ${pairs.size} pairs (${exactPairs} through the exact key, ${ordinalPairs} through the ordinal axis), ${links.length - carried} proposals of which ${refusals} refused by a gate, ${carried} carried, cache ${titleDecisions.size}`,
+      detail: `${profiles.size} clusters of which ${moved.size} moved, ${buckets.size} year buckets, ${pairs.size} pairs decided (${exactPairs} through the exact key), ${ordinalPairs.size} through the ordinal axis, ${links.length - carried} proposals of which ${refusals} refused by a gate, ${carried} carried`,
     })
 
-    // THE 2C HOOK: with no `delta` the scan is every cluster, so the scope is every row this plugin
-    // owns and the diff is over the whole of its output
+    // every match is in the output, decided or kept, so the scope is every row this plugin owns
+    // and the diff is over the whole of its output
     return { scope: { full: true }, nodes: [], edges: [], links, episodeLinks: [] }
   },
 }

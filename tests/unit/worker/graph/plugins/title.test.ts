@@ -5,8 +5,8 @@
  * `season-separation.test.ts` ported onto seeded graphs, one for one, because the point of moving the
  * pass is that it decides the same things: a case here that disagrees with its twin there is a
  * regression whichever file is right. The rest are what the move ADDS and the old pass could not
- * have: the four gate outcomes as a row, the exact-key join, the cap read off the profile, an LRU
- * that evicts one entry, and a whole recorded page through all four plugins.
+ * have: the four gate outcomes as a row, the exact-key join, the cap read off the profile, a run that
+ * decides only the pairs whose clusters moved, and a whole recorded page through all four plugins.
  *
  * EVERY FIXTURE HAS ITS OWN YEAR, and that is load bearing rather than tidy. The scan is over the
  * WHOLE graph, so two fixtures sharing a year are compared with each other and a case would then be
@@ -21,6 +21,7 @@ import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 import { existsSync, readFileSync } from 'node:fs'
 
 import type { AnswerRow } from '../../../../../src/worker/graph/answers'
+import type { LinkProposal, PluginContext } from '../../../../../src/worker/graph/plugins/contract'
 import type { TitleMemberRow } from '../../../../../src/worker/graph/plugins/title'
 
 import { enableGraph } from '../../../../../src/worker/graph'
@@ -32,8 +33,8 @@ import { profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
 import { directPlugin } from '../../../../../src/worker/graph/plugins/direct'
 import { aggregatePlugin } from '../../../../../src/worker/graph/plugins/aggregate'
 import {
-  containerKeyOf, createDecisionCache, decide, EXACT_SCAN, MEMBER_SCAN, orderPair, profileClusters,
-  proposalFor, titleDecisions, titlePlugin,
+  containerKeyOf, decide, EXACT_SCAN, fingerprintOf, MEMBER_SCAN, orderPair, profileClusters, proposalFor,
+  titlePlugin,
 } from '../../../../../src/worker/graph/plugins/title'
 import { checkInvariants } from '../../../../../src/worker/graph/plugins/invariants'
 import { parseSeasonNumber } from '../../../../../src/sources/season'
@@ -543,7 +544,7 @@ test('the profile of a cluster is a function of its titles, not of their order',
   for (let permutation = 0; permutation < 50; permutation += 1) {
     const profile = profileClusters(shuffle(rows.filter(row => row.cluster === cluster), random)).get(cluster)!
     expect(profile.titles).toEqual(expected.titles)
-    expect(profile.cacheKey).toEqual(expected.cacheKey)
+    expect(fingerprintOf(profile)).toEqual(fingerprintOf(expected))
   }
 
   // and the six keep the SHORT name of each script, which is the name a catalogue lists the show
@@ -792,7 +793,7 @@ test('an ordinal match proposes reason ordinal at confidence 1', async () => {
   const second = profiles.get(String(container!.id))!
   const decision = await decide(first, second, {
     titleSimilarity: async () => 0, maxPossibleSimilarity: () => 0,
-  }, createDecisionCache(8))
+  })
   expect(decision.match).toEqual({
     titleA: 'ordinal probe season 2', titleB: 'ordinal probe', similarity: 1, exact: false, via: 'ordinal',
   })
@@ -882,24 +883,114 @@ test('KNOWN GAP: a year-only silent side still welds to a part-2 cluster', async
   expect(link!.gates).toEqual({ format: 'passed', season: 'silent', date: 'silent', companion: 'passed' })
 })
 
-// THE LRU, which is the one thing here that is NEW rather than moved (5.4 P3): the old cache CLEARED
-// itself at 50,000, which threw away every verdict the next pass was about to ask for again.
-// MUTATED: replace the eviction with `entries.clear()` and the two survivors below are gone.
-test('the decision cache evicts one entry and never the whole map', () => {
-  const cache = createDecisionCache(3)
-  const decision = (year: number) => ({ gates: { format: 'silent', season: 'silent', date: 'silent', companion: 'silent' }, refusedBy: null, match: undefined, year, daysDelta: null } as const)
-  cache.set('a', decision(1))
-  cache.set('b', decision(2))
-  cache.set('c', decision(3))
-  // a hit on the oldest makes it the youngest, so the next eviction takes 'b' rather than 'a'
-  expect(cache.get('a')?.year).toBe(1)
-  cache.set('d', decision(4))
+// THE DELTA: a run decides only the pairs a moved cluster is in, and keeps every other verdict.
+// A bounded cache cannot do it on a season page: Summer 2026 after its first modal holds 55,000 to
+// 83,000 title pairs, and a scan in a fixed order over more pairs than an LRU holds evicts every
+// verdict before it is asked again, so at 50,000 every run decided every pair, 91 to 93% of the
+// merge's time (2026-10-17). 330 clusters in one year are 54,285 pairs, past that size.
+// The scorer counts the decisions, since every pair here that is not an exact title asks it once.
+// MUTATED: treat every cluster as moved and the second run scores 54,284 pairs; keep a verdict
+// whose cluster moved and the fourth run keeps two links to a title it no longer holds; leave any of
+// scope, linkUri, titles, years, days, formats, workKinds, seasons or companion out of the
+// fingerprint, or sort the six in it, and the cluster that changed it is not decided again; leave
+// its sets unsorted and the last run decides a cluster whose members only came in another order.
+test('a run decides only the pairs whose clusters moved, and keeps every other verdict', async () => {
+  const name = (index: number) => `delta ${String.fromCharCode(97 + Math.floor(index / 26), 97 + index % 26)}`
+  const titleKeys = (...titles: [string, number][]) =>
+    JSON.stringify(titles.map(([key, score]) => ({ key, score, class: 'MAIN' })))
+  const member = (index: number, key: string, fields: Partial<TitleMemberRow> = {}): TitleMemberRow => ({
+    cluster: `delta:${String(index).padStart(3, '0')}`, clusterScope: 'RUN', uri: `anilist:${90_000 + index}`,
+    memberScope: 'RUN', dateSubject: 'run', titleKeys: titleKeys([key, 0.9]), year: 2031, startDay: 22_400,
+    format: 'SERIES', workKind: 'TV', seasonOrdinal: null, partOrdinal: null, companion: false, ...fields,
+  })
+  const rows = Array.from({ length: 330 }, (_, index) => member(index, index < 2 ? 'delta probe' : name(index)))
+  const scored: string[][] = []
+  const ctx = {
+    id: 'plugin:title',
+    query: async (cypher: string) => (cypher === MEMBER_SCAN ? rows : []),
+    titleSimilarity: async (a: string, b: string) => {
+      scored.push([a, b])
+      return 0
+    },
+    maxPossibleSimilarity: () => 1,
+    log: () => {},
+  } as unknown as PluginContext
+  let links: LinkProposal[] = []
+  const run = async () => {
+    scored.length = 0
+    links = (await titlePlugin.run(ctx)).links
+    return links.map(link => `${link.fromUri} ${link.toUri} ${link.status ?? 'active'} ${link.reason}`)
+  }
+  const move = (index: number, key: string, fields?: Partial<TitleMemberRow>) => {
+    rows[index] = member(index, key, fields)
+  }
 
-  expect(cache.size).toBe(3)
-  expect(cache.get('b'), 'the least recently used entry, and the only one evicted').toBeUndefined()
-  expect(cache.get('a')?.year).toBe(1)
-  expect(cache.get('c')?.year).toBe(3)
-  expect(cache.get('d')?.year).toBe(4)
+  const first = await run()
+  expect(first).toEqual(['anilist:90000 anilist:90001 active exact'])
+  expect(scored.length, 'every pair but the exact one').toBe(330 * 329 / 2 - 1)
+
+  expect(await run(), 'the same graph again').toEqual(first)
+  expect(scored.length, 'and not one pair decided again').toBe(0)
+
+  move(2, 'delta probe')
+  expect(await run()).toEqual([
+    'anilist:90000 anilist:90001 active exact',
+    'anilist:90000 anilist:90002 active exact',
+    'anilist:90001 anilist:90002 active exact',
+  ])
+  expect(scored.length, 'the moved cluster against the 327 it shares no title with').toBe(327)
+  expect(scored.every(pair => pair.includes('delta probe'))).toBe(true)
+
+  move(1, 'delta moved')
+  expect(await run(), 'a kept verdict leaves with its cluster').toEqual(['anilist:90000 anilist:90002 active exact'])
+  expect(scored.length).toBe(329)
+  expect(scored.every(pair => pair.includes('delta moved'))).toBe(true)
+
+  move(2, 'delta probe', { startDay: 22_600 })
+  expect(await run(), 'a cluster moves on its dates as well as on its titles')
+    .toEqual(['anilist:90000 anilist:90002 refused date'])
+  expect(scored.length).toBe(328)
+
+  // and on the fields that keep it in its bucket, the member a link goes through included, one at a time
+  for (const change of [{ format: 'MOVIE' }, { workKind: 'OVA' }, { seasonOrdinal: 1 }, { companion: true }, { uri: 'anilist:89999' }]) {
+    rows[3] = { ...rows[3]!, ...change }
+    await run()
+    expect(scored.length, JSON.stringify(change)).toBe(329)
+  }
+
+  // and on its year with no start day, which only moves it to another bucket; on its scope when it is
+  // dateless, so no date changes with it; and on the order of its six, since the title loop returns
+  // the first pair that agrees
+  const titleA = () => (links.find(link => link.fromUri === 'anilist:90006')!.evidence as { titleA: string }).titleA
+  const both = titleKeys(['delta first', 0.9], ['delta second', 0.8])
+  move(4, 'delta year', { startDay: null })
+  move(5, 'delta show season 2')
+  move(6, 'delta first', { titleKeys: both })
+  move(7, 'delta first', { titleKeys: both })
+  rows.push(
+    member(330, 'delta year', { year: 2032, startDay: null }),
+    member(331, 'delta show', { year: null, startDay: null }),
+  )
+  expect(await run()).toEqual(['anilist:90000 anilist:90002 refused date', 'anilist:90006 anilist:90007 active exact'])
+  expect(titleA()).toBe('delta first')
+
+  rows[4] = { ...rows[4]!, year: 2032 }
+  rows[331] = { ...rows[331]!, clusterScope: 'CONTAINER' }
+  rows[6] = { ...rows[6]!, titleKeys: titleKeys(['delta first', 0.8], ['delta second', 0.9]) }
+  expect(await run()).toEqual([
+    'anilist:90000 anilist:90002 refused date',
+    'anilist:90004 anilist:90330 active exact',
+    'anilist:90005 anilist:90331 active ordinal',
+    'anilist:90006 anilist:90007 active exact',
+  ])
+  expect(titleA()).toBe('delta second')
+
+  // and not on the order its members come in, which says nothing about what they hold
+  rows.push({ ...rows[8]!, uri: 'anilist:90008b', startDay: 22_401 })
+  await run()
+  rows.push(...rows.splice(8, 1))
+  await run()
+  expect(scored.length).toBe(0)
 })
 
 // IDEMPOTENCE, which is the contract rather than the plugin's discipline. It is sharper here than for
@@ -932,7 +1023,6 @@ test('the first 800 corpus rows replay through profile, direct, aggregate and ti
 
   // the fixtures above are already in the graph, so every number below is reported as a DELTA
   const baseline = await histogramOf()
-  const cacheBefore = titleDecisions.size
 
   const ingested = await replayAnswers(rows)
   expect(ingested.quarantined).toEqual([])
@@ -953,7 +1043,6 @@ test('the first 800 corpus rows replay through profile, direct, aggregate and ti
     clusters: Number(clusters!.total),
     links: [...histogram].map(([key, total]) => `${key}: ${total - (baseline.get(key) ?? 0)} of ${total}`),
     scan: pass.logs.filter(event => event.rule === 'title-scan').map(event => event.detail),
-    cache: `${cacheBefore} entries before, ${titleDecisions.size} after`,
     titleMs: pass.runs.filter(run => run.id === 'plugin:title').map(run => run.ms),
     iterations: pass.iterations,
     passMs,

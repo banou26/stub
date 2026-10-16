@@ -1374,9 +1374,11 @@ ORDER BY year
   unreachable (two Vanguard seasons scoring 1.0 on `divinez`, 2026-08-11) cannot recur.
   `titleKeysFolded` is read only when `foldDiacritics` is on, and it is off.
 - **Emits** `LINK` with `evidence: {titleA, titleB, similarity, year, daysDelta}`, `gates`,
-  `confidence: similarity`, `supports: [the two HAS_KEY keys]`. The decision cache is keyed on both
-  sides' profile cache keys and bounded as an LRU (**NEW**, replacing the total wipe at
-  `MAX_CACHED_DECISIONS = 50_000`, `fuzzy-merge.ts:13,607`; its size is a step 2 measurement).
+  `confidence: similarity`, `supports: [the two HAS_KEY keys]`. A run decides only the pairs a
+  cluster whose profile moved since the last run is in, and keeps every other pair's verdict, since a
+  verdict reads its two profiles and nothing else (**NEW**, replacing the total wipe at
+  `MAX_CACHED_DECISIONS = 50_000`, `fuzzy-merge.ts:13,607`: an LRU of that size held no hit on the
+  Summer 2026 page, 55,000 to 83,000 pairs after a modal, 2026-10-17).
 - **Failure mode.** The known gap survives: `86` and `86 Part 2` weld on a shared label when one side
   is silent, pinned as KNOWN GAP in `season-separation.test.ts`. The broadcast-quarter veto that would
   reach 583 of 1,095 such pairs is unmeasured for cost and is not proposed.
