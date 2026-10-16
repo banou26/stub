@@ -26,12 +26,13 @@ const MoviePlay = (
   }
 ) => {
   const sources = useWatchSources(episode, mediaUri, handles)
-  const released = releasedAtOf(episode) ?? startDate
+  // the film's own day before its episode's air time, which falls on another day in some zones
+  const released = releaseDay(startDate) ?? releasedAtOf(episode)
   const upcoming = isUpcoming(released)
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined
-  const day = releaseDateLabel(releasedAtOf(episode) ?? releaseDay(startDate))
+  const day = releaseDateLabel(released)
   return (
     <div className="movie">
       <div className="facts">{movieFacts({ released, runtime: episode?.runtime, genres }).join(' · ')}</div>

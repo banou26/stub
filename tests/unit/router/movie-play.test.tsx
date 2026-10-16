@@ -3,6 +3,8 @@ import { mount, unmount } from '../components/dom'
 
 import type { DetailsEpisode } from '../../../src/router/home/media-details'
 
+import { render as rerender } from 'preact'
+import { act } from 'preact/test-utils'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -25,16 +27,30 @@ const episode = {
 } as unknown as DetailsEpisode
 
 const hosts: HTMLElement[] = []
+const TZ = process.env.TZ
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   origin = 'cr'
+  vi.useRealTimers()
+  if (TZ === undefined) delete process.env.TZ
+  else process.env.TZ = TZ
 })
 
-const render = (movie: DetailsEpisode, handles: Parameters<typeof MoviePlay>[0]['handles'] = []) => {
+const tree = (movie: DetailsEpisode | undefined, handles: Parameters<typeof MoviePlay>[0]['handles'] = [], startDate: string | null = '2020-01-01') => {
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Router hook={hook}><MoviePlay episode={movie} mediaUri="ag:(anilist:9)" handles={handles} startDate="2020-01-01"/></Router>)
+  return <Router hook={hook}><MoviePlay episode={movie} mediaUri="ag:(anilist:9)" handles={handles} startDate={startDate}/></Router>
+}
+
+const render = (...props: Parameters<typeof tree>) => {
+  const host = mount(tree(...props))
   hosts.push(host)
   return host
+}
+
+const seenAt = (now: string, zone: string, movie: DetailsEpisode | undefined, startDate: string | null = null) => {
+  vi.useFakeTimers({ now: new Date(now), toFake: ['Date'] })
+  process.env.TZ = zone
+  return render(movie, [], startDate)
 }
 
 test('Play opens the watch page naming no source, even when Crunchyroll plays', () => {
@@ -66,38 +82,39 @@ test('a media-level offer the episode does not name links out from the play bar'
 // Simkl's `first_aired` for Blade Runner: Black Out 2022 (tests/fixtures/simkl/search-blade-runner.json),
 // seen before it was out, from the two sides of Greenwich
 test('a film not out yet names its release day, the same day for every viewer', () => {
-  const TZ = process.env.TZ
-  vi.useFakeTimers({ now: new Date('2017-09-01T12:00:00Z'), toFake: ['Date'] })
-  try {
-    for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
-      process.env.TZ = zone
-      const { hook } = memoryLocation({ path: '/' })
-      const host = mount(<Router hook={hook}><MoviePlay episode={episode} mediaUri="ag:(anilist:9)" startDate="2017-09-26T00:00:00Z"/></Router>)
-      hosts.push(host)
-      expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2017-09-26')}`)
-    }
-  } finally {
-    vi.useRealTimers()
-    if (TZ === undefined) delete process.env.TZ
-    else process.env.TZ = TZ
+  for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+    const host = seenAt('2017-09-01T12:00:00Z', zone, episode, '2017-09-26T00:00:00Z')
+    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2017-09-26')}`)
   }
 })
 
-// anizip's `airDateUtc` for Jujutsu Kaisen 0 (anilist 131573), 00:30 JST on Dec 24
-test('a film episode that airs at a set time keeps it, so Tokyo reads its own day', () => {
-  const TZ = process.env.TZ
-  vi.useFakeTimers({ now: new Date('2021-12-01T12:00:00Z'), toFake: ['Date'] })
-  try {
-    process.env.TZ = 'Asia/Tokyo'
-    const aired = { ...episode, releaseDate: '2021-12-23T15:30:00Z' } as DetailsEpisode
-    const { hook } = memoryLocation({ path: '/' })
-    const host = mount(<Router hook={hook}><MoviePlay episode={aired} mediaUri="ag:(anilist:131573)" startDate="2021-12-24T00:00:00Z"/></Router>)
-    hosts.push(host)
-    expect(host.querySelector('.when')?.textContent).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
-  } finally {
-    vi.useRealTimers()
-    if (TZ === undefined) delete process.env.TZ
-    else process.env.TZ = TZ
+// anizip's `airDateUtc` for Jujutsu Kaisen 0 (anilist 131573): 00:30 JST on Dec 24, still Dec 23 in UTC and Los Angeles
+const jujutsuKaisen0 = { ...episode, releaseDate: '2021-12-23T15:30:00Z' } as DetailsEpisode
+
+test('a film\'s own release day stays put when its episode\'s air time arrives, the same day for every viewer', () => {
+  for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+    const host = seenAt('2021-12-01T12:00:00Z', zone, undefined, '2021-12-24T00:00:00Z')
+    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+    act(() => { rerender(tree(jujutsuKaisen0, [], '2021-12-24T00:00:00Z'), host) })
+    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+  }
+})
+
+test('a film\'s year is its own release day\'s, whatever year its episode airs', () => {
+  const host = render({ ...episode, releaseDate: '2021-12-31T15:30:00Z' } as DetailsEpisode, [], '2022-01-01T00:00:00Z')
+  expect(host.querySelector('.facts')?.textContent).toBe('Movie · 2022')
+})
+
+test('a film stays upcoming until its own release day, whatever day its episode airs', () => {
+  const host = seenAt('2021-12-23T12:00:00Z', 'America/Los_Angeles', jujutsuKaisen0, '2021-12-24T00:00:00Z')
+  expect(host.querySelector('.when')?.textContent).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+  expect(host.querySelector('.play')).toBeNull()
+})
+
+test('a film with no release day of its own names its episode\'s air time, where the viewer is', () => {
+  for (const [zone, day] of [['America/Los_Angeles', '2021-12-23'], ['Asia/Tokyo', '2021-12-24']] as const) {
+    const host = seenAt('2021-12-01T12:00:00Z', zone, jujutsuKaisen0)
+    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel(day)}`)
   }
 })
 
