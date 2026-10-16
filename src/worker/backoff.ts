@@ -1,6 +1,8 @@
-// Retry policy for every upstream request an extractor makes, split out of fetch.ts with NO imports
-// so it can be tested: fetch.ts calls osra's expose() at module scope, which needs a transport that
-// does not exist outside the worker. Same reason src/sources/season.ts is its own module.
+// Retry policy for every upstream request an extractor makes, split out of fetch.ts with no imports
+// beyond types so it can be tested: fetch.ts calls osra's expose() at module scope, which needs a
+// transport that does not exist outside the worker. Same reason src/sources/season.ts is its own module.
+
+import type { RelayChoice } from '@fkn/lib'
 
 // Every status here means "ask again", never "this request was wrong". 502/504 and Cloudflare's
 // 522/524 are a gateway failing to reach the thing behind it, which is the shape almost every
@@ -46,8 +48,10 @@ export const backoffDelay = (attempt: number): number =>
  * `x-ratelimit-limit: 30` a minute per address (scripts/measure-start-date-window.mjs), shared by
  * every user behind one node. An upstream that ties anything to the address a session was opened
  * from stays on the one node.
+ *
+ * `relay` is `cloud.fetch`'s own choice of relays.
  */
-export type FetchInit = RequestInit & { spread?: boolean }
+export type FetchInit = RequestInit & { spread?: boolean, relay?: RelayChoice }
 export type FetchLike = (input: RequestInfo | URL, init?: FetchInit) => Promise<Response>
 
 /**

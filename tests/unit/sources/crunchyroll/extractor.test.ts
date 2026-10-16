@@ -7,7 +7,7 @@
 // The bare handle reached that cluster from Kitsu, which publishes the show's Crunchyroll link on
 // every season record. That half is pinned in tests/unit/sources/kitsu/stream-id.test.ts. This file pins the other
 // half: even handed a show-level id, this source must not hand back a show's worth of episodes.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { getMedia, resetCrunchyrollCaches, resolvers, cdnImageUrl } from '../../../../src/sources/crunchyroll/extractor'
 
@@ -74,10 +74,10 @@ const series = (id: string, seasons: Season[]) => ({
 const context = (routes: Record<string, unknown>) => ({
   fetch: async (url: string) => {
     if (url === 'https://www.crunchyroll.com/auth/v1/token') {
-      return { json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
+      return { headers: new Headers(), json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
     }
     if (!(url in routes)) throw new Error(`fixture has no route for ${url}`)
-    return { json: async () => routes[url] }
+    return { headers: new Headers(), json: async () => routes[url] }
   }
 }) as never
 
@@ -514,7 +514,7 @@ const degradedOnce = (routes: Record<string, unknown>, urls: string[]) => {
   const pending = new Set(urls)
   const inner = context(routes) as { fetch: (url: string) => Promise<unknown> }
   return {
-    fetch: async (url: string) => pending.delete(url) ? { status: 429, json: async () => RATE_LIMITED } : inner.fetch(url)
+    fetch: async (url: string) => pending.delete(url) ? { status: 429, headers: new Headers(), json: async () => RATE_LIMITED } : inner.fetch(url)
   } as never
 }
 const EPISODES_URLS = ['GSSEASON1', 'GSSEASON2', 'GS00374452'].map(id => `${CMS}/seasons/${id}/episodes?preferred_audio_language=ja-JP&locale=en-US`)

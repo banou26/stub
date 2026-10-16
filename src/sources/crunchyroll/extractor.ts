@@ -1,5 +1,8 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaInput } from '../../generated/schema/types.generated'
+
+import { RELAY_HEADER } from '@fkn/lib/contract'
+
 import { extractAggregatedUriOrigin, fromAggregatedUri, isAggregatedUri, isUri } from '../../utils/uri'
 import { SEASON_DATE_WINDOW } from '../catalogue-gate'
 import { isOnlySeasonLabel } from '../season'
@@ -25,9 +28,12 @@ export const supportedUris = ['cr']
 
 const TOKEN_URL = 'https://www.crunchyroll.com/auth/v1/token'
 
-type Token = { access_token: string, expiresAt: number }
+type Token = { access_token: string, expiresAt: number, relay?: string }
 let _token: Token | undefined
 let _tokenPromise: Promise<Token> | undefined
+
+// what `relayOf` reads, without loading the whole lib into the worker
+const servedBy = (response: Response) => response.headers.get(RELAY_HEADER) ?? undefined
 
 // The JWT's own `exp`, since the relay's cache can answer with a token minted up to an hour before it
 // arrives. Receipt plus `expires_in` when `exp` cannot be read.
@@ -39,8 +45,12 @@ const expiryOf = (accessToken: string, expiresIn: number): number => {
   return Date.now() + expiresIn * 1000
 }
 
-const fetchToken = async (url: string, ctx: ExtractorServerContext): Promise<Token> => {
-  const res = await ctx.fetch(url, {
+// `relay` names the request and sends it through that relay alone; Crunchyroll ignores `fkn_relay`
+const fetchToken = async (ctx: ExtractorServerContext, relay?: string, expired?: number): Promise<Token> => {
+  const url = new URL(TOKEN_URL)
+  if (relay) url.searchParams.set('fkn_relay', relay)
+  if (expired) url.searchParams.set('_', String(expired))
+  const response = await ctx.fetch(url.href, {
     headers: {
       accept: 'application/json, text/plain, */*',
       authorization: `Basic ${btoa('cr_web:')}`,
@@ -49,20 +59,27 @@ const fetchToken = async (url: string, ctx: ExtractorServerContext): Promise<Tok
     body: 'grant_type=client_id',
     method: 'POST',
     mode: 'cors',
-    credentials: 'include'
-  }).then(r => r.json())
+    credentials: 'include',
+    ...relay ? { relay: { id: relay } } : {}
+  })
+  const res = await response.json()
   if (!res.access_token) throw new Error(`Crunchyroll token fetch failed: ${JSON.stringify(res)}`)
-  return { access_token: res.access_token, expiresAt: expiryOf(res.access_token, res.expires_in) }
+  return { access_token: res.access_token, expiresAt: expiryOf(res.access_token, res.expires_in), relay: servedBy(response) }
 }
 
+// Crunchyroll lists the catalogue of the country the token was minted from, and the cache every relay
+// shares answers a request with the token of whichever relay sent it first (Prague's CZ token came back
+// through Hong Kong, 2026-10-13). So the shared request only tells which relay serves this viewer, and the
+// token comes from the request naming that relay: one token per relay, shared by all of its viewers.
 const getToken = async (ctx: ExtractorServerContext): Promise<Token> => {
   if (_token && Date.now() < _token.expiresAt) return _token
   if (_tokenPromise) return _tokenPromise
   _tokenPromise = (async () => {
-    const token = await fetchToken(TOKEN_URL, ctx)
-    // Every viewer shares the plain request through the relay's cache. Only an answer cached past its
-    // token's life asks again with a request of its own, named by that exp so its viewers share it too.
-    return (_token = Date.now() < token.expiresAt ? token : await fetchToken(`${TOKEN_URL}?_=${token.expiresAt}`, ctx))
+    const shared = await fetchToken(ctx)
+    const token = shared.relay ? await fetchToken(ctx, shared.relay) : shared
+    // Only an answer cached past its token's life asks again with a request of its own, named by that exp
+    // so its viewers share it too.
+    return (_token = Date.now() < token.expiresAt ? token : await fetchToken(ctx, token.relay, token.expiresAt))
   })().finally(() => { _tokenPromise = undefined })
   return _tokenPromise
 }
@@ -72,16 +89,19 @@ const _inflight = new Map<string, Promise<unknown>>()
 const api = async <T>(url: string, ctx: ExtractorServerContext): Promise<T> => {
   const existing = _inflight.get(url)
   if (existing) return existing as Promise<T>
-  const promise = getToken(ctx).then(token =>
-    ctx.fetch(url, {
+  const promise = getToken(ctx).then(async token => {
+    const response = await ctx.fetch(url, {
       headers: {
         accept: 'application/json, text/plain, */*',
         authorization: `Bearer ${token.access_token}`
       },
       mode: 'cors',
       credentials: 'include'
-    }).then(r => r.json() as T)
-  )
+    })
+    // the viewer's relay changed: the next call gets a token of the new one
+    if (_token === token && servedBy(response) !== token.relay) _token = undefined
+    return response.json() as T
+  })
   _inflight.set(url, promise)
   // `.finally` mints a second promise that rejects when this one does, and nobody awaits it: a failed
   // request surfaced as an unhandled rejection on top of the one the caller got (2026-09-05)

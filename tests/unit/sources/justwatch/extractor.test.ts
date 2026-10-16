@@ -75,12 +75,12 @@ const context = (which: typeof node | typeof film = node) => ({
   fetch: async (url: string) => {
     if (url === JW_API) return { json: async () => ({ data: { node: which } }) }
     if (url === 'https://www.crunchyroll.com/auth/v1/token') {
-      return { json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
+      return { headers: new Headers(), json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
     }
     // the episode the show-level offer links to. It belongs to ONE season, GSEASON2, whichever season
     // media is being built.
     if (url.startsWith(`${CMS}/objects/GEPISODE1`)) {
-      return { json: async () => ({ data: [{ episode_metadata: { series_id: 'GSERIES', season_id: 'GSEASON2' } }] }) }
+      return { headers: new Headers(), json: async () => ({ data: [{ episode_metadata: { series_id: 'GSERIES', season_id: 'GSEASON2' } }] }) }
     }
     throw new Error(`fixture has no route for ${url}`)
   },
@@ -518,10 +518,10 @@ test('both queries ask for a second licensing region', async () => {
         return { json: async () => ({ data: { node } }) }
       }
       if (url === 'https://www.crunchyroll.com/auth/v1/token') {
-        return { json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
+        return { headers: new Headers(), json: async () => ({ access_token: 'test-token', expires_in: 3600 }) }
       }
       if (url.startsWith(`${CMS}/objects/GEPISODE1`)) {
-        return { json: async () => ({ data: [{ episode_metadata: { series_id: 'GSERIES', season_id: 'GSEASON2' } }] }) }
+        return { headers: new Headers(), json: async () => ({ data: [{ episode_metadata: { series_id: 'GSERIES', season_id: 'GSEASON2' } }] }) }
       }
       throw new Error(`fixture has no route for ${url}`)
     },
