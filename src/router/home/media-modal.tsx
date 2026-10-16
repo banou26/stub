@@ -229,7 +229,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       font-size: 1.6rem;
     }
 
-    & > .seasons {
+    & > .seasons, & > .episode-list {
       margin-top: 4rem;
     }
   }
@@ -287,7 +287,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
-      & > .seasons {
+      & > .seasons, & > .episode-list {
         margin-top: 2.5rem;
       }
     }
@@ -503,9 +503,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
         {
-          isMovie || !data?.media ? undefined
-            : current ? <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/>
-            : <EpisodesPlaceholder/>
+          isMovie || !data?.media ? undefined : (
+            <div className="episode-list">
+              {current ? <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/> : <EpisodesPlaceholder/>}
+            </div>
+          )
         }
       </div>
     </ModalBackdrop>

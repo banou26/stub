@@ -275,21 +275,25 @@ test('390 px wide, the title page holds two lines for its title, and its buttons
   expect(await overflowX(page)).toBe(0)
 })
 
-test('in the preview, held episode rows start where rows do, right under what is above them', async ({ page }) => {
+test('in the preview, the episode list sits 4rem under what is above it, 2.5rem on a phone, held rows and drawn ones alike', async ({ page }) => {
   // from the block above the list to the list, rows or the rows held while a source is out
   const gap = () => page.locator('.modal > .content').evaluate(content => {
     const list = content.querySelector('.episodes')!
     const root = [...content.children].find(child => child.contains(list))!
     let above = root.previousElementSibling
     while (above && !above.getBoundingClientRect().height) above = above.previousElementSibling
-    return Math.round(list.getBoundingClientRect().top - above!.getBoundingClientRect().bottom)
+    return { gap: Math.round(list.getBoundingClientRect().top - above!.getBoundingClientRect().bottom), relations: above!.hasAttribute('data-relations') }
   })
-  await page.goto(`${origin}/media/${THIRD}`)
-  await expect(modal(page).locator('.episode.placeholder').first()).toBeVisible({ timeout: 30_000 })
-  const held = await gap()
-  await openModal(page)
-  await expect(modal(page).locator('.episode:not(.placeholder)').first()).toBeVisible({ timeout: 30_000 })
-  expect(await gap()).toBe(held)
+  for (const [width, height, expected] of [[1440, 900, 40], [390, 844, 25]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/media/${THIRD}`)
+    await expect(modal(page).locator('.episode.placeholder').first()).toBeVisible({ timeout: 30_000 })
+    expect((await gap()).gap, `${width} px, held`).toBe(expected)
+    await openModal(page)
+    await expect(modal(page).locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
+    await expect(modal(page).locator('.episode:not(.placeholder)').first()).toBeVisible({ timeout: 30_000 })
+    expect(await gap(), `${width} px, drawn under Relations`).toEqual({ gap: expected, relations: true })
+  }
 })
 
 test('390 px wide, an episode row is as tall with its source icons and description as without them, and holds them all', async ({ page }) => {
