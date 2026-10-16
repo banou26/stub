@@ -28,6 +28,19 @@
         },
         "show_type": "mov",
         "id": "625300"
+      },
+      "i65784": {
+        "rank": 14515,
+        "year": "2004",
+        "poster": "14/147535251589d5ef40",
+        "eps": "-",
+        "url": "/movies/65784/the-lion-king-1%C2%BD",
+        "titles": {
+          "a7": "The Lion King 1½",
+          "m": "The Lion King 1½"
+        },
+        "show_type": "mov",
+        "id": "65784"
       }
     }
   },
@@ -65,6 +78,43 @@
       },
       "poster": "75/7501096f665264745",
       "released": "2019-07-12"
+    },
+    "/movies/65784": {
+      "title": "The Lion King 1½",
+      "year": 2004,
+      "type": "movie",
+      "ids": {
+        "simkl": 65784,
+        "slug": "the-lion-king-1%C2%BD",
+        "tmdb": "11430",
+        "imdb": "tt0318403",
+        "tvdb": "1346",
+        "tvdbslug": "the-lion-king-1",
+        "traktslug": "the-lion-king-1-2004",
+        "letterboxd": "the-lion-king-3-hakuna-matata"
+      },
+      "poster": "14/147535251589d5ef40",
+      "released": "2004-02-10",
+      "release_dates": [
+        {
+          "iso_3166_1": "BR",
+          "results": [
+            {
+              "type": 3,
+              "release_date": "2004-10-28"
+            }
+          ]
+        },
+        {
+          "iso_3166_1": "US",
+          "results": [
+            {
+              "type": 5,
+              "release_date": "2004-02-10"
+            }
+          ]
+        }
+      ]
     }
   }
 }

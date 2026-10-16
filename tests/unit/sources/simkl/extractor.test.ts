@@ -308,9 +308,9 @@ test('a search row carries the ids its detail names, as the keyed search\'s rows
   for (const request of reads) expect(Object.keys(request.headers), request.url).toEqual([])
 })
 
-// A film's detail dates it by `released` alone (recorded 2026-10-13: Episode I is `1999-05-19`, with no
-// `first_aired`), a show or an anime by `first_aired`. An anime film is still an anime record (recorded
-// 2026-10-15: Ghost in the Shell is `anime_type: 'movie'`).
+// A film's detail that lists no theatrical release dates it by `released` (recorded 2026-10-13: Episode I is
+// `1999-05-19`, with no `first_aired`), a show or an anime by `first_aired`. An anime film is still an anime
+// record (recorded 2026-10-15: Ghost in the Shell is `anime_type: 'movie'`).
 const DATED_HITS: Record<string, object> = {
   tv: { i13007: { id: '13007', url: '/tv/13007/star-wars-the-clone-wars', titles: { m: 'Star Wars: The Clone Wars' } } },
   anime: { i37585: { id: '37585', url: '/anime/37585/ghost-in-the-shell', titles: { m: 'Ghost in the Shell' } } },
@@ -337,6 +337,32 @@ test('an opened film carries its release day', async () => {
   const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'simkl:55520' } }, dated).next()
 
   expect(value.media.startDate).toBe('1999-05-19')
+})
+
+// recorded 2026-10-15, cut to the releases that decide: The Lion King premiered on 1994-06-11 and opened in
+// a few theaters on 06-15, wide on 06-24; The Lion King 1½ went to video in the US and to theaters in Brazil
+const RELEASES: Record<string, object> = {
+  [`${API}/movies/61342?extended=full`]: {
+    title: 'The Lion King',
+    released: '1994-06-15',
+    release_dates: [{ iso_3166_1: 'US', results: [{ type: 3, release_date: '1994-06-24' }, { type: 1, release_date: '1994-06-11' }, { type: 2, release_date: '1994-06-15' }] }],
+  },
+  [`${API}/movies/65784?extended=full`]: {
+    title: 'The Lion King 1½',
+    released: '2004-02-10',
+    release_dates: [
+      { iso_3166_1: 'BR', results: [{ type: 3, release_date: '2004-10-28' }] },
+      { iso_3166_1: 'US', results: [{ type: 5, release_date: '2004-02-10' }] },
+    ],
+  },
+}
+
+test('a film is dated by its first theatrical release, a limited one too, and not by its premiere or its video', async () => {
+  const context = { fetch: async (url: string) => ({ json: async () => RELEASES[url] }) }
+  const opened = async (id: string) =>
+    (await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: `simkl:${id}` } }, context).next()).value.media.startDate
+
+  expect([await opened('61342'), await opened('65784')]).toEqual(['1994-06-15', '2004-10-28'])
 })
 
 test('a row whose detail does not read is dropped, and the search still answers', async () => {

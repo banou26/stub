@@ -55,6 +55,8 @@ interface SimklDetail {
   overview?: string
   first_aired?: string
   released?: string
+  /** A film's releases per country, as TMDB types them: 1 premiere, 2 limited theatrical, 3 theatrical, 4 digital, 5 physical, 6 tv. */
+  release_dates?: { results?: { type?: number, release_date?: string }[] }[]
   ratings?: SimklRatings
 }
 interface SimklEpisode {
@@ -158,8 +160,18 @@ const airedAt = (value?: string | null): string | undefined => {
   return Number.isNaN(at.getTime()) ? undefined : at.toISOString()
 }
 
-// A show or an anime dates itself by `first_aired`, a film by `released` alone.
-const startDate = (detail: SimklDetail): string | undefined => detail.first_aired || detail.released || undefined
+// A film's `released` can be a video release: The Lion King 1½ is 2004-02-10, its US video, where its one
+// theatrical release, and JustWatch's day, is 2004-10-28. In the 16 other recorded films that list a
+// theatrical release, `released` is the first one (recorded 2026-10-15).
+const firstTheatrical = (detail: SimklDetail): string | undefined =>
+  detail.release_dates
+    ?.flatMap(({ results = [] }) => results)
+    .flatMap(({ type, release_date }) => (release_date && (type === 2 || type === 3) ? [release_date] : []))
+    .sort()[0]
+
+// A show or an anime dates itself by `first_aired`, a film by its first theatrical release, else `released`.
+const startDate = (detail: SimklDetail): string | undefined =>
+  detail.first_aired || firstTheatrical(detail) || detail.released || undefined
 
 const rating = (ratings?: SimklRatings): number | undefined =>
   ratings?.simkl?.rating ?? ratings?.imdb?.rating ?? ratings?.mal?.rating

@@ -1,7 +1,9 @@
 // "star wars" and "the lion king" as JustWatch and Simkl answered their searches through the relay on
-// 2026-10-13, trimmed to the films (and JustWatch's offers dropped). Simkl's search rows are built from
-// each film's detail, whose `released` day is JustWatch's own for all eight films. Simkl answers last,
-// since its rows wait on those detail reads.
+// 2026-10-13, and The Lion King 1½ on 2026-10-15, trimmed to the films (and JustWatch's offers dropped).
+// Simkl's search rows are built from each film's detail, whose `released` day is JustWatch's own for eight
+// of the nine films. The Lion King 1½ is 2004-02-10 on Simkl, its US video release, and 2004-10-28 on
+// JustWatch, its one theatrical release, so its release dates are kept, cut to those two. Simkl answers
+// last, since its rows wait on those detail reads.
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import * as justwatch from '../../../../src/sources/justwatch/extractor'
@@ -76,4 +78,8 @@ test('each Star Wars film Simkl lists is one card with JustWatch\'s', async () =
 test('a remake keeps its own card: each The Lion King joins the Simkl film of its own year', async () => {
   expect(await members('jw:113629')).toEqual(['jw:113629', 'simkl:61342'])
   expect(await members('jw:309655')).toEqual(['jw:309655', 'simkl:625300'])
+})
+
+test('a film Simkl dates by its video release joins its film by its theatrical one', async () => {
+  expect(await members('jw:87748')).toEqual(['jw:87748', 'simkl:65784'])
 })

@@ -338,6 +338,10 @@ beforeAll(async () => {
       ['Neg Control Windo', 0.8], ['Totally Other Show Season 2', 0.8],
     ], dated(1940, 7, 6))),
 
+    // 1941, two films of one title six months apart: an anime film and a live-action one
+    await answer('media', show('anilist:9410', [['Film Probe', 0.8]], dated(1941, 1, 6), { type: 'MOVIE', categories: ['ANIME', 'MOVIE'] })),
+    await answer('media', show('jw:filmprobe', [['Film Probe', 0.2]], dated(1941, 7, 6), { type: 'MOVIE', categories: ['MOVIE'] })),
+
     // 1950 and up, one year per permutation so no two permutations can ever be compared with each
     // other: the same component and the same JustWatch row, assembled in 24 different orders
     ...await Promise.all(Array.from({ length: PERMUTATIONS }, (_, permutation) => permutation).flatMap(permutation => {
@@ -699,6 +703,12 @@ test('a first run against its show still meets the 45 day window', async () => {
   expect(links[0]!.gates!.date).toBe('refused')
   expect(links[0]!.evidence).toMatchObject({ daysDelta: 181 })
   expect((await profileOf('anilist:8350')).laterRun, 'it declares no ordinal').toBe(false)
+})
+
+test('two films of one title and year months apart stay two', async () => {
+  expect(await welded('anilist:9410', 'jw:filmprobe')).toBe(false)
+  const [link] = await titleLinks('anilist:9410')
+  expect(link).toMatchObject({ status: 'refused', reason: 'date', evidence: { daysDelta: 181 } })
 })
 
 // WHAT THE AXIS IS WORTH is a number that has to mean pairs NOTHING ELSE WAS MAKING, because a run

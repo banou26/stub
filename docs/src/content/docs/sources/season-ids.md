@@ -282,7 +282,7 @@ bug as the specification.
 
 :::caution[The refusal belongs at the source that cannot make an honest id]
 Not at the origin. Simkl mints no `tmdb` handle at all for exactly this reason, and
-`src/sources/simkl/extractor.ts:131-134` says why the fix is not `SHOW_LEVEL_ORIGINS`:
+`src/sources/simkl/extractor.ts:133-136` says why the fix is not `SHOW_LEVEL_ORIGINS`:
 
 > `tmdb` deliberately does NOT go in `SHOW_LEVEL_ORIGINS` for this. Unlike imdb, tmdb CAN be scoped,
 > and `tmdb/extractor.ts` mints a real `<id>-s<n>` through `seasonScopedId`. Exempting the origin

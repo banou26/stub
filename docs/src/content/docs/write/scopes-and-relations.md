@@ -311,7 +311,7 @@ scope: 'RUN',
 | trakt | always CONTAINER, and both handles it mints (imdb, tmdb) too | `trakt/extractor.ts:95`, `:82`, `:83` |
 | tvdb | always CONTAINER, for search rows, series rows and remote-id handles alike | `tvdb/extractor.ts:76`, `:60` |
 | omdb | `film ? 'RUN' : 'CONTAINER'`, applied to the row and to its imdb handle | `omdb/extractor.ts:79`, `:86`, `:87` |
-| simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'` | `simkl/extractor.ts:106`, `:111` |
+| simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'` | `simkl/extractor.ts:108`, `:113` |
 | watchmode | `film ? 'RUN' : 'CONTAINER'`, where `film` is the title's own `slugTypeFolder === 'movie'`, never its id | `watchmode/extractor.ts:175`, `:65` |
 | anilist | RUN by default; its `similarMedia` answer is re-minted preserving `answer.scope` | `anilist/extractor.ts:250` |
 | jikan, anizip, kitsu, offline | never set `scope`, so RUN by `makeMedia`'s default | `sources/utils.ts:65` |
@@ -324,7 +324,7 @@ Three of those carry their reasoning, and the reasoning is the same argument eac
 > Watchmode has no season concept, so a series record is the whole show: one id for every run of it.
 > That is a CONTAINER, and only a film, which is its own single run, is a RUN.
 
-`src/sources/simkl/extractor.ts:103-105`
+`src/sources/simkl/extractor.ts:105-107`
 
 > A tv record is one show with every season under it (its episodes carry a season field), so it is a
 > CONTAINER. An anime record is one run, the reason this source is worth reading: Mushoku Tensei is
