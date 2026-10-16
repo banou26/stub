@@ -239,10 +239,13 @@ const stringsOf = (value: unknown): string[] => listOf(value).filter((entry): en
 // Simkl files every anime film under anime, so a film it files under movies outvotes JustWatch, which lists the
 // live-action Gintama (2017) as Japanese animation (recorded 2026-10-15). Its tv filing is no such signal: Star
 // Wars: Visions is under tv, and TVmaze and TMDB tag it anime (2026-10-16).
+// It never outvotes an anime catalogue on the same card: that member lists only anime.
 const nonAnimeFilm = (member: MemberRow): boolean => {
   const categories = stringsOf(member.raw.categories)
   return member.origin === 'simkl' && categories.includes('MOVIE') && !categories.includes('ANIME')
 }
+
+const ANIME_CATALOGUES = new Set(['anilist', 'mal', 'kitsu', 'anidb', 'offline'])
 
 /** The parenthesized member list an `ag:(...)` address carries, and the address itself. */
 export const aggregatedIdentity = (uris: readonly string[]): { uri: string, id: string } => {
@@ -385,7 +388,8 @@ export const aggregateFields = (options: {
   if (named || yearOnly) provenance.push({ field: 'season', uri: (named ?? yearOnly)!.uri, rule: 'season-pair' })
 
   const categories = owned.flatMap(member => stringsOf(member.raw.categories))
-  row.categories = reconcileCategories(owned.some(nonAnimeFilm) ? categories.filter(category => category !== 'ANIME') : categories)
+  const liveAction = owned.some(nonAnimeFilm) && !owned.some(member => ANIME_CATALOGUES.has(member.origin))
+  row.categories = reconcileCategories(liveAction ? categories.filter(category => category !== 'ANIME') : categories)
   if (owned.length) provenance.push({ field: 'categories', uri: owned[0]!.uri, rule: 'first-non-null' })
 
   for (const field of ['genres', 'tags', 'studios'] as const) {
