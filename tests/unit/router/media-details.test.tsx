@@ -2,6 +2,7 @@
 import { mount, unmount } from '../components/dom'
 
 import type { DetailsMedia } from '../../../src/router/home/media-details'
+import type { Tracked } from '../../../src/router/title/facts'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -67,12 +68,55 @@ test('every page of episodes gets its rows\' source icons, once the first page h
   expect(rows().map(row => row.querySelector('.number')!.textContent)).toEqual(['25', '26'])
 })
 
-test('the list opens on the page holding episode start', () => {
+test('the list opens on the page holding the episode after the viewer\'s progress', () => {
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={media} start={13}/></Router></Provider>)
+  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={media} tracked={{ status: 'WATCHING', progress: 12 }}/></Router></Provider>)
   hosts.push(host)
   expect(host.querySelector('.episode .number')!.textContent).toBe('13')
   expect(host.querySelector('button[aria-current="page"]')!.textContent).toBe('2')
+})
+
+describe('the bar on an episode\'s thumbnail', () => {
+  const render = (shown: DetailsMedia, tracked?: Tracked) => {
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={shown} tracked={tracked}/></Router></Provider>)
+    hosts.push(host)
+    return host
+  }
+  // each row's bar, by its width, null for a row with none
+  const bars = (host: HTMLElement) => [...host.querySelectorAll('.episode')].map(row => row.querySelector<HTMLElement>('.thumbnail > .bar')?.style.width ?? null)
+  const full = (count: number) => Array.from({ length: count }, () => '100%')
+  const none = (count: number) => Array.from({ length: count }, () => null)
+
+  test('is full on each episode the tracking says is watched, and on no other', () => {
+    expect(bars(render(media)), 'the control: no tracking').toEqual(none(12))
+    expect(bars(render(media, { status: 'WATCHING', progress: 2 }))).toEqual([...full(2), ...none(10)])
+    expect(bars(render(media, { status: 'COMPLETED', progress: 5 }))).toEqual(full(12))
+  })
+
+  test('is labelled Watched and says how far, with no text shown', () => {
+    const host = render(media, { status: 'WATCHING', progress: 1 })
+    const bar = host.querySelector('.episode .thumbnail > .bar')!
+    expect([bar.getAttribute('role'), bar.getAttribute('aria-label'), bar.getAttribute('aria-valuenow')]).toEqual(['progressbar', 'Watched', '100'])
+    expect(bar.textContent).toBe('')
+  })
+
+  test('is on no row when the tracking counts the media in other episodes than the page', () => {
+    const counted = { ...media, episodeCount: 12 } as DetailsMedia
+    expect(bars(render(counted, { status: 'WATCHING', progress: 2, episodeCount: 12 })), 'the control: the same count').toEqual([...full(2), ...none(10)])
+    expect(bars(render(counted, { status: 'WATCHING', progress: 2, episodeCount: 24 }))).toEqual(none(12))
+  })
+
+  test('is on no unreleased row, Completed or not', () => {
+    const airing = {
+      uri: 'ag:(anilist:1)',
+      status: 'RELEASING',
+      episodes: media.episodes.slice(0, 3).map(episode => ({ ...episode, releaseDate: episode.episodeNumber! < 3 ? '2023-09-29' : '2099-01-01' })),
+    } as unknown as DetailsMedia
+    const host = render(airing, { status: 'COMPLETED', progress: 3 })
+    expect(host.querySelectorAll('.episode.unreleased'), 'the control: the third is not out').toHaveLength(1)
+    expect(bars(host)).toEqual([...full(2), null])
+  })
 })
 
 test('a later page keeps its own rows\' release: unreleased ones dimmed and not linked, released ones named by their number', () => {

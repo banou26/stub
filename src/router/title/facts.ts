@@ -77,7 +77,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}):
 
 export type PlayLabel = 'Play' | 'Continue' | 'Rewatch'
 
-export type Tracked = { status?: string | null, progress?: number | null } | null | undefined
+export type Tracked = { status?: string | null, progress?: number | null, episodeCount?: number | null } | null | undefined
 type Playable = { episodeNumber?: number | null, uri?: string | null, unreleased: boolean }
 
 /** What the Play button says: Rewatch once completed, Continue once an episode is watched, Play otherwise. */
@@ -105,3 +105,13 @@ export const playTarget = (episodes: readonly Playable[], summary: Tracked): { l
 export const currentEpisode = (episodes: readonly { episodeNumber?: number | null }[], summary: Tracked): number =>
   playLabel(summary) !== 'Continue' ? 0
   : Math.max(0, episodes.findLastIndex(({ episodeNumber }) => episodeNumber != null && episodeNumber <= (summary?.progress ?? 0) + 1))
+
+/**
+ * Whether the viewer watched episode `episodeNumber`: the show is Completed, or the episode is at or under
+ * the progress, as Continue reads it. Never when the tracking counts the media in other episodes than
+ * the page's `episodeCount`, where its progress means something else.
+ */
+export const watchedEpisode = (episodeNumber: number | null | undefined, summary: Tracked, episodeCount?: number | null): boolean =>
+  !!summary
+  && !(summary.episodeCount != null && episodeCount != null && summary.episodeCount !== episodeCount)
+  && (summary.status === 'COMPLETED' || (episodeNumber != null && episodeNumber > 0 && episodeNumber <= (summary.progress ?? 0)))

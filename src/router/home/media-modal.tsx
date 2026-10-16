@@ -25,7 +25,6 @@ import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
 import { getRoutePath, Route } from '../path'
-import { currentEpisode } from '../title/facts'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -505,7 +504,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         {
           isMovie || !data?.media ? undefined : (
             <div className="episode-list">
-              {current ? <Episodes key={uri} media={current} start={currentEpisode(current.episodes, tracked)}/> : <EpisodesPlaceholder/>}
+              {current ? <Episodes key={uri} media={current} tracked={tracked}/> : <EpisodesPlaceholder/>}
             </div>
           )
         }

@@ -31,7 +31,7 @@ import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
-import { playTarget, type PlayLabel, type Tracked } from '../title/facts'
+import { currentEpisode, playTarget, watchedEpisode, type PlayLabel, type Tracked } from '../title/facts'
 
 export const GET_MEDIA_DETAILS = gql(`
   subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
@@ -429,16 +429,32 @@ const episodesStyle = css`
     }
 
     .thumbnail {
+      position: relative;
+      overflow: hidden;
       flex-shrink: 0;
       margin: auto 0;
       height: 7.5rem;
       aspect-ratio: 16 / 9;
-      object-fit: cover;
       background-color: rgb(35, 35, 35);
       border-radius: .5rem;
       margin-right: 2.5rem;
       /* decorative only, let the row link under it take hovers and clicks */
       pointer-events: none;
+
+      & > img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      & > .bar {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 0.4rem;
+        background-color: rgb(229, 9, 20);
+      }
     }
 
     .content {
@@ -562,8 +578,11 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, origins, backend, unreleased, airingAt, now }:
-  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string, now: number }
+  { episode, index, mediaUri, origins, backend, unreleased, airingAt, now, watched }:
+  {
+    episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string
+    now: number, watched: boolean
+  }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
@@ -586,11 +605,10 @@ const Episode = (
           : undefined
       }
       <div className="number">{episode.episodeNumber}</div>
-      {
-        thumbnail
-          ? <img className="thumbnail" src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}></img>
-          : <div className="thumbnail"></div>
-      }
+      <div className="thumbnail">
+        {thumbnail ? <img src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}/> : undefined}
+        {watched && !unreleased ? <div className="bar" role="progressbar" aria-label="Watched" aria-valuenow={100} style={{ width: '100%' }}/> : undefined}
+      </div>
       <div className="content">
         <div className="header">
           <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? 'Unreleased episode' : `Episode ${index + 1}`)}</div>
@@ -640,11 +658,11 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
 )
 
 /**
- * A series' episode rows a page at a time, opening on the page holding episode `start`; an unreleased one
- * dimmed and not linked. With no rows, rows' placeholders until every source has answered, then
- * "No episodes found".
+ * A series' episode rows a page at a time, opening on the page holding the viewer's next episode by
+ * `tracked`; an unreleased one dimmed and not linked, a watched one with a full bar on its thumbnail.
+ * With no rows, rows' placeholders until every source has answered, then "No episodes found".
  */
-export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number }) => {
+export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
   const now = useNow()
   const unreleased = unreleasedEpisodes(media, new Date(now))
   const nextAiring = media.nextAiringEpisode
@@ -657,7 +675,7 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
       : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
   return (
-    <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={start}>
+    <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={currentEpisode(media.episodes, tracked)}>
       {(page, offset) => (
         <div className="episodes" css={episodesStyle}>
           {page.map((episode, at) => {
@@ -673,6 +691,7 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
                 unreleased={unreleased[index]!}
                 airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
                 now={now}
+                watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
               />
             )
           })}

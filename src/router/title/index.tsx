@@ -24,7 +24,7 @@ import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, shouldGrowAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
-import { currentEpisode, secondTitle, titleChips, titleFacts } from './facts'
+import { secondTitle, titleChips, titleFacts } from './facts'
 
 const RELATIONS_ROW = 3
 // even, so a full page fills the credits' two columns
@@ -769,7 +769,7 @@ const TitlePage = () => {
               ? (
                 <section data-episodes>
                   <h2>Episodes</h2>
-                  {current ? <Episodes media={current} start={currentEpisode(current.episodes, tracked)}/> : <EpisodesPlaceholder/>}
+                  {current ? <Episodes media={current} tracked={tracked}/> : <EpisodesPlaceholder/>}
                 </section>
               )
               : undefined
