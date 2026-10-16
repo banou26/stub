@@ -1,76 +1,217 @@
 // The page script's half, as it runs inside a page at www.crunchyroll.com: what it asks Crunchyroll for
-// one season, against a fake fetch answering as ./watched-fixtures.ts says.
-import { expect, test } from 'vite-plus/test'
+// one season and what it writes there, against a fake fetch answering as ./watched-fixtures.ts says.
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { readWatched } from '../../../../src/sources/crunchyroll/session-page'
-import { ACCESS_TOKEN, ACCOUNT_ID, PLAYHEADS, SEASON_EPISODES, SEASON_ID, SERIES_ID, SIGNED_OUT, WATCHED, fakeCrunchyroll } from './watched-fixtures'
+import type { Asked } from './watched-fixtures'
+
+import { readWatched, saveWatched } from '../../../../src/sources/crunchyroll/session-page'
+import {
+  ACCESS_TOKEN, ACCOUNT_ID, PLAYHEADS, SEASON_EPISODES, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, throughRelay,
+} from './watched-fixtures'
 
 const SEASON = { seriesId: SERIES_ID, seasonId: SEASON_ID }
+const BASE = 'https://www.crunchyroll.com'
 
-test("finds the season in its series as the source does, then reads its episodes and their playheads with the viewer's own token", async () => {
-  const { send, asked } = fakeCrunchyroll()
-  const answer = await readWatched(SEASON, send)
+const pathOf = ({ url }: Asked) => new URL(url).pathname
+const heads = (...watched: string[]) => ({ ...PLAYHEADS, data: watched.map(content_id => ({ playhead: 1420, content_id, fully_watched: true })) })
 
-  expect(answer).toEqual({ status: 200, body: null, episodes: WATCHED })
-  const [token, seasons, episodes, playheads] = asked
-  expect(new URL(token!.url).pathname).toBe('/auth/v1/token')
-  expect(seasons!.url).toBe(`https://www.crunchyroll.com/content/v2/cms/series/${SERIES_ID}/seasons?force_locale=&preferred_audio_language=ja-JP&locale=en-US`)
-  // the `cr:` id drops the JAJP the API needs: asked by that id, the season answers an empty list
-  expect(episodes!.url).toBe(`https://www.crunchyroll.com/content/v2/cms/seasons/${SEASON_ID}JAJP/episodes?preferred_audio_language=ja-JP&locale=en-US`)
-  for (const read of [seasons!, episodes!, playheads!]) expect((read.init.headers as Record<string, string>).authorization).toBe(`Bearer ${ACCESS_TOKEN}`)
-  const playheadsUrl = new URL(playheads!.url)
-  expect(playheadsUrl.pathname).toBe(`/content/v2/${ACCOUNT_ID}/playheads`)
-  // every audio version: an episode watched in the dub is watched
-  expect(playheadsUrl.searchParams.get('content_ids')!.split(',').sort()).toEqual([
-    'GDUBEP001', 'GDUBEP002', 'GDUBEP003', 'GDUBEP004', 'GJAEP0001', 'GJAEP0002', 'GJAEP0003', 'GJAEP0004', 'GJAEPRECAP',
-  ])
-  expect(asked).toHaveLength(4)
-})
+describe('a read', () => {
+  test("finds the season in its series as the source does, then reads its episodes and their playheads, the series' stars and Watchlist, with the viewer's own token", async () => {
+    const { send, asked } = fakeCrunchyroll()
+    const answer = await readWatched(SEASON, send)
 
-test('the token and the account it names never leave the page that asked', async () => {
-  const answer = await readWatched(SEASON, fakeCrunchyroll().send)
-  expect(JSON.stringify(answer)).not.toContain(ACCESS_TOKEN)
-  expect(JSON.stringify(answer)).not.toContain(ACCOUNT_ID)
-})
-
-test('signed out it reads nothing more, and answers what the token call said', async () => {
-  const { send, asked } = fakeCrunchyroll({ signedIn: false })
-  expect(await readWatched(SEASON, send)).toEqual({ status: 400, body: SIGNED_OUT })
-  expect(asked).toHaveLength(1)
-})
-
-// Crunchyroll's error bodies carry no `data`, which read as an empty list would say nothing was watched
-test('a read answering anything but a list is a failure, never a season with nothing watched', async () => {
-  await expect(readWatched(SEASON, fakeCrunchyroll({ playheads: { __class__: 'error', code: 'rate_limited' } }).send))
-    .rejects.toThrow('Crunchyroll answered with no list')
-  const missing = fakeCrunchyroll()
-  const refusing = async (url: string, init: RequestInit) =>
-    url.includes('/playheads') ? { status: 403, ok: false, json: async () => ({}) } : missing.send(url, init)
-  await expect(readWatched(SEASON, refusing)).rejects.toThrow('Crunchyroll answered 403')
-})
-
-test('a season its series no longer lists is a failure, never a season with nothing watched', async () => {
-  const { send } = fakeCrunchyroll({ seasons: { total: 0, data: [], meta: {} } })
-  await expect(readWatched(SEASON, send)).rejects.toThrow('Crunchyroll lists no such season')
-})
-
-test('a long season asks its playheads a part at a time, and an episode in a later part still counts', async () => {
-  const numbers = Array.from({ length: 30 }, (_, at) => at + 1)
-  const episode = (number: number) => ({
-    id: `GJA${number}`,
-    episode_number: number,
-    versions: [{ audio_locale: 'ja-JP', guid: `GJA${number}`, original: true }, { audio_locale: 'en-US', guid: `GDUB${number}`, original: false }],
-  })
-  const { send, asked } = fakeCrunchyroll({
-    episodes: { ...SEASON_EPISODES, data: numbers.map(episode) },
-    playheads: { ...PLAYHEADS, data: [{ playhead: 1420, content_id: 'GDUB30', fully_watched: true, last_modified: '2026-10-12T12:00:00Z' }] },
+    expect(answer).toEqual({ status: 200, body: null, held: { progress: 2, stars: null, watchlisted: false } })
+    const byPath = (path: string) => asked.find(request => pathOf(request) === path)!
+    expect(pathOf(asked[0]!)).toBe('/auth/v1/token')
+    expect(byPath(`/content/v2/cms/series/${SERIES_ID}/seasons`).url).toBe(`${BASE}/content/v2/cms/series/${SERIES_ID}/seasons?force_locale=&preferred_audio_language=ja-JP&locale=en-US`)
+    // the `cr:` id drops the JAJP the API needs: asked by that id, the season answers an empty list
+    expect(byPath(`/content/v2/cms/seasons/${SEASON_ID}JAJP/episodes`).url).toBe(`${BASE}/content/v2/cms/seasons/${SEASON_ID}JAJP/episodes?preferred_audio_language=ja-JP&locale=en-US`)
+    expect(byPath(`/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`).url).toBe(`${BASE}/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`)
+    expect(byPath(`/content/v2/${ACCOUNT_ID}/watchlist`).url).toBe(`${BASE}/content/v2/${ACCOUNT_ID}/watchlist?content_ids=${SERIES_ID}`)
+    const playheads = new URL(byPath(`/content/v2/${ACCOUNT_ID}/playheads`).url)
+    // every audio version: an episode watched in the dub is watched
+    expect(playheads.searchParams.get('content_ids')!.split(',').sort()).toEqual([
+      'GDUBEP001', 'GDUBEP002', 'GDUBEP003', 'GDUBEP004', 'GJAEP0001', 'GJAEP0002', 'GJAEP0003', 'GJAEP0004', 'GJAEPRECAP',
+    ])
+    for (const request of asked.slice(1)) expect(request.authorization).toBe(`Bearer ${ACCESS_TOKEN}`)
+    expect(asked).toHaveLength(6)
   })
 
-  const answer = await readWatched(SEASON, send)
+  test('progress is the last episode fully watched, counted in the season, wherever Crunchyroll numbers it from', async () => {
+    const episode = (number: number) => ({ id: `GJA${number}`, episode_number: number, versions: null })
+    const { send } = fakeCrunchyroll({ episodes: { ...SEASON_EPISODES, data: [25, 26, 27, 28, 29].map(episode) }, playheads: heads('GJA25', 'GJA27') })
+    expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 3 })
+  })
 
-  const parts = asked.filter(({ url }) => url.includes('/playheads')).map(({ url }) => new URL(url).searchParams.get('content_ids')!.split(','))
-  expect(parts.length).toBeGreaterThan(1)
-  for (const part of parts) expect(part.length).toBeLessThanOrEqual(50)
-  expect(parts.flat().sort()).toEqual(numbers.flatMap(number => [`GJA${number}`, `GDUB${number}`]).sort())
-  expect(answer.episodes!.filter(({ watched }) => watched)).toEqual([{ number: 30, watched: true }])
+  test("the series' stars and its place on the Watchlist", async () => {
+    const { send } = fakeCrunchyroll({ stars: '4s', watchlisted: true, playheads: heads() })
+    expect((await readWatched(SEASON, send)).held).toEqual({ progress: 0, stars: 4, watchlisted: true })
+  })
+
+  test('a series its rating read answers 404 for is unrated, and the episodes still read', async () => {
+    const site = fakeCrunchyroll()
+    const answering = (status: number) => async (url: string, init: RequestInit) => url.includes('/content-reviews/')
+      ? { status, ok: false, json: async () => { throw new SyntaxError('Unexpected token < in JSON') } }
+      : site.send(url, init)
+    expect((await readWatched(SEASON, answering(404))).held).toEqual({ progress: 2, stars: null, watchlisted: false })
+    await expect(readWatched(SEASON, answering(500)), 'the control: any other refusal').rejects.toThrow('Crunchyroll answered 500')
+  })
+
+  test('the token and the account it names never leave the page that asked', async () => {
+    for (const answer of [await readWatched(SEASON, fakeCrunchyroll().send), await saveWatched({ ...SEASON, progress: 4, stars: 2, watchlist: true }, fakeCrunchyroll().send)]) {
+      expect(JSON.stringify(answer)).not.toContain(ACCESS_TOKEN)
+      expect(JSON.stringify(answer)).not.toContain(ACCOUNT_ID)
+    }
+  })
+
+  test('signed out it reads nothing more, and answers what the token call said', async () => {
+    const { send, asked } = fakeCrunchyroll({ signedIn: false })
+    expect(await readWatched(SEASON, send)).toEqual({ status: 400, body: SIGNED_OUT })
+    expect(asked).toHaveLength(1)
+  })
+
+  // Crunchyroll's error bodies carry no `data`, which read as an empty list would say nothing was watched
+  test('a read answering anything but a list is a failure, never a season with nothing watched', async () => {
+    await expect(readWatched(SEASON, fakeCrunchyroll({ playheads: { __class__: 'error', code: 'rate_limited' } }).send))
+      .rejects.toThrow('Crunchyroll answered with no list')
+    const missing = fakeCrunchyroll()
+    const refusing = async (url: string, init: RequestInit) =>
+      url.includes('/playheads') ? { status: 403, ok: false, json: async () => ({}) } : missing.send(url, init)
+    await expect(readWatched(SEASON, refusing)).rejects.toThrow('Crunchyroll answered 403')
+  })
+
+  test('a season its series no longer lists is a failure, never a season with nothing watched', async () => {
+    const { send } = fakeCrunchyroll({ seasons: { total: 0, data: [], meta: {} } })
+    await expect(readWatched(SEASON, send)).rejects.toThrow('Crunchyroll lists no such season')
+  })
+
+  test('a long season asks its playheads a part at a time, and an episode in a later part still counts', async () => {
+    const numbers = Array.from({ length: 30 }, (_, at) => at + 1)
+    const episode = (number: number) => ({
+      id: `GJA${number}`,
+      episode_number: number,
+      versions: [{ audio_locale: 'ja-JP', guid: `GJA${number}`, original: true }, { audio_locale: 'en-US', guid: `GDUB${number}`, original: false }],
+    })
+    const { send, asked } = fakeCrunchyroll({ episodes: { ...SEASON_EPISODES, data: numbers.map(episode) }, playheads: heads('GDUB30') })
+
+    const answer = await readWatched(SEASON, send)
+
+    const parts = asked.filter(({ url }) => url.includes('/playheads')).map(({ url }) => new URL(url).searchParams.get('content_ids')!.split(','))
+    expect(parts.length).toBeGreaterThan(1)
+    for (const part of parts) expect(part.length).toBeLessThanOrEqual(50)
+    expect(parts.flat().sort()).toEqual(numbers.flatMap(number => [`GJA${number}`, `GDUB${number}`]).sort())
+    expect(answer.held!.progress).toBe(30)
+  })
+})
+
+describe('a save', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  const marked = (writes: Asked[]) => writes.map(request => {
+    expect(request).toMatchObject({ method: 'POST', authorization: `Bearer ${ACCESS_TOKEN}` })
+    expect(request.init.body).toBeUndefined()
+    return pathOf(request)
+  })
+  const markOf = (id: string) => `/content/v2/discover/${ACCOUNT_ID}/mark_as_watched/${id}`
+
+  test('raising progress marks each numbered episode up to it that no audio version has watched, the Japanese one, one per call', async () => {
+    // watched: 1 in Japanese and 2 in the dub, so 3 and 4 are left; the recap has no number
+    const { send, writes } = fakeCrunchyroll()
+    expect(await saveWatched({ ...SEASON, progress: 4 }, send)).toEqual({ status: 200, body: null })
+    expect(marked(writes())).toEqual([markOf('GJAEP0003'), markOf('GJAEP0004')])
+  })
+
+  test('an episode skipped before the new progress is marked too, and one past it is not', async () => {
+    const { send, writes } = fakeCrunchyroll({ playheads: heads('GDUBEP002') })
+    await saveWatched({ ...SEASON, progress: 3 }, send)
+    expect(marked(writes())).toEqual([markOf('GJAEP0001'), markOf('GJAEP0003')])
+  })
+
+  test('the progress it already holds marks nothing', async () => {
+    const { send, writes } = fakeCrunchyroll()
+    expect(await saveWatched({ ...SEASON, progress: 2 }, send)).toEqual({ status: 200, body: null })
+    expect(writes()).toEqual([])
+  })
+
+  test('a progress past the numbered episodes writes nothing and says how many there are', async () => {
+    const { send, writes } = fakeCrunchyroll()
+    expect(await saveWatched({ ...SEASON, progress: 5, stars: 3, watchlist: true }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll lists 4 episodes of this season' })
+    expect(writes()).toEqual([])
+  })
+
+  test('a lower progress writes nothing, since Crunchyroll has no unmark, and says so', async () => {
+    const { send, writes } = fakeCrunchyroll()
+    expect(await saveWatched({ ...SEASON, progress: 1, stars: 3 }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll cannot unmark an episode' })
+    expect(writes()).toEqual([])
+  })
+
+  test('a mark Crunchyroll refuses stops there and fails the save; one it already holds (409) counts as done', async () => {
+    const failing = fakeCrunchyroll({ playheads: heads(), marks: id => id === 'GJAEP0002' ? 500 : 200 })
+    await expect(saveWatched({ ...SEASON, progress: 4 }, failing.send)).rejects.toThrow('Crunchyroll answered 500')
+    expect(failing.writes().map(pathOf)).toEqual([markOf('GJAEP0001'), markOf('GJAEP0002')])
+
+    const held = fakeCrunchyroll({ playheads: heads(), marks: id => id === 'GJAEP0002' ? 409 : 200 })
+    await saveWatched({ ...SEASON, progress: 3 }, held.send)
+    expect(held.writes().map(pathOf)).toEqual([markOf('GJAEP0001'), markOf('GJAEP0002'), markOf('GJAEP0003')])
+  })
+
+  test("stars rate the series, 1s to 5s, as the site's own star sends them, and clearing them deletes the rating", async () => {
+    const rating = `/content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`
+
+    const rated = fakeCrunchyroll()
+    await saveWatched({ ...SEASON, stars: 4 }, rated.send)
+    expect(rated.writes()).toMatchObject([{ method: 'PUT', url: `${BASE}${rating}`, authorization: `Bearer ${ACCESS_TOKEN}`, body: { rating: '4s' } }])
+
+    const cleared = fakeCrunchyroll({ stars: '4s' })
+    await saveWatched({ ...SEASON, stars: null }, cleared.send)
+    expect(cleared.writes()).toMatchObject([{ method: 'DELETE', url: `${BASE}${rating}` }])
+    expect(cleared.writes()[0]!.init.body).toBeUndefined()
+
+    for (const [stars, held] of [[4, '4s'], [null, '']] as const) {
+      const same = fakeCrunchyroll({ stars: held })
+      await saveWatched({ ...SEASON, stars }, same.send)
+      expect(same.writes(), `${stars} on ${held || 'no rating'}`).toEqual([])
+    }
+  })
+
+  test('the Watchlist takes the series on and off as its own button does, and only when it changes', async () => {
+    const added = fakeCrunchyroll()
+    await saveWatched({ ...SEASON, watchlist: true }, added.send)
+    expect(added.writes()).toMatchObject([{ method: 'POST', url: `${BASE}/content/v2/${ACCOUNT_ID}/watchlist`, body: { content_id: SERIES_ID } }])
+
+    const removed = fakeCrunchyroll({ watchlisted: true })
+    await saveWatched({ ...SEASON, watchlist: false }, removed.send)
+    expect(removed.writes()).toMatchObject([{ method: 'DELETE', url: `${BASE}/content/v2/${ACCOUNT_ID}/watchlist/${SERIES_ID}` }])
+
+    for (const watchlist of [true, false]) {
+      const same = fakeCrunchyroll({ watchlisted: watchlist })
+      await saveWatched({ ...SEASON, watchlist }, same.send)
+      expect(same.writes(), String(watchlist)).toEqual([])
+    }
+  })
+
+  test('signed out it writes nothing, and answers what the token call said', async () => {
+    const { send, asked } = fakeCrunchyroll({ signedIn: false })
+    expect(await saveWatched({ ...SEASON, progress: 4, stars: 5, watchlist: true }, send)).toEqual({ status: 400, body: SIGNED_OUT })
+    expect(asked).toHaveLength(1)
+  })
+
+  test('every save reaches Crunchyroll through the relay, the same one sent twice included, since each asks its own token', async () => {
+    // in a page at the site, as on the cloud, every token call carries the site's own device id
+    vi.stubGlobal('location', { origin: 'https://www.crunchyroll.com' })
+    vi.stubGlobal('document', { cookie: 'device_id=the-sites-own-device' })
+    const site = fakeCrunchyroll({ freshTokens: true, watchlisted: false })
+    const relay = throughRelay(site.send)
+    for (let at = 0; at < 2; at++) await saveWatched({ ...SEASON, stars: 4, watchlist: true }, relay)
+    expect(site.writes().map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual([
+      `PUT /content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`,
+      `POST /content/v2/${ACCOUNT_ID}/watchlist`,
+      `PUT /content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`,
+      `POST /content/v2/${ACCOUNT_ID}/watchlist`,
+    ])
+    // and the read after each save is Crunchyroll's own answer, not the one cached before it
+    const before = site.asked.length
+    await readWatched(SEASON, relay)
+    await readWatched(SEASON, relay)
+    expect(site.asked.length - before).toBe(12)
+  })
 })

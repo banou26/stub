@@ -13,7 +13,7 @@ import type { MalPageApi } from '../../src/sources/mal/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
 import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
-import { SEASON_ID, SERIES_ID, WATCHED, fakeCrunchyroll } from './sources/crunchyroll/watched-fixtures'
+import { ACCOUNT_ID, SEASON_ID, SERIES_ID, fakeCrunchyroll } from './sources/crunchyroll/watched-fixtures'
 
 const STATE = Symbol.for(SESSION_INSTALL)
 
@@ -87,7 +87,7 @@ test('ships the MyAnimeList page script the same way, serving whoami and reading
   expect(compiled({ kind: 'viewer' }), 'signed out').toBe(false)
 })
 
-test("ships the Crunchyroll page script the same way, reading the season's progress on the site's own device id", async () => {
+test("ships the Crunchyroll page script the same way, reading the season's progress and saving it on the site's own device id", async () => {
   const source = await buildPageScript(resolve(__dirname, '../../src/sources/crunchyroll/session-page.ts'))
 
   const window = new EventTarget()
@@ -105,8 +105,11 @@ test("ships the Crunchyroll page script the same way, reading the season's progr
   window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://anime.fkn.app', ports: [port2] }))
   const page = await expose<CrunchyrollPageApi>({}, { transport: port1 })
   const answer = await page.watched({ seriesId: SERIES_ID, seasonId: SEASON_ID })
+  const saved = await page.save({ seriesId: SERIES_ID, seasonId: SEASON_ID, progress: 3 })
   port1.close()
 
-  expect(answer).toEqual({ status: 200, body: null, episodes: WATCHED })
+  expect(answer).toEqual({ status: 200, body: null, held: { progress: 2, stars: null, watchlisted: false } })
+  expect(saved).toEqual({ status: 200, body: null })
+  expect(site.writes().map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual([`POST /content/v2/discover/${ACCOUNT_ID}/mark_as_watched/GJAEP0003`])
   expect(new URLSearchParams(site.asked[0]!.init.body as string).get('device_id'), 'no new device on the account').toBe('the-sites-own-device')
 })

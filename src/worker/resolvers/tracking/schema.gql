@@ -41,7 +41,7 @@ enum WriteState {
   SAVED
   """Accepted and sent later."""
   QUEUED
-  """Never attempted: the tracker cannot take this write (no id, ambiguous, read only, signed out)."""
+  """Nothing written: the tracker cannot take this write (no id, ambiguous, signed out, a progress it cannot lower)."""
   REFUSED
   """Attempted and failed."""
   FAILED
@@ -71,10 +71,12 @@ type Tracker {
   account: String
   canWrite: Boolean!
   """
-  Never written to: the tracker only shows how far the viewer got on a site of its own (Crunchyroll's
-  watch history). Absent means false.
+  The statuses it keeps, when it keeps only some: Crunchyroll keeps Plan to watch alone, as its
+  Watchlist. Such a tracker keeps each field on its own, so a change reaches it as only the fields it
+  carries, never filled in from the row, and its status and score, a whole series' there, never make
+  the summary's. Absent means every status.
   """
-  readOnly: Boolean
+  statuses: [ListStatus!]
   """The scale the viewer scores in on this tracker. Scores on the wire are always 0 to 100."""
   scoreScale: String!
 }

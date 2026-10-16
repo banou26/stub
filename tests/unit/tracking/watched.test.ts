@@ -86,13 +86,12 @@ describe('watchedPatches', () => {
   })
 
   // a paused or failing one is in, for the page to say it was not saved; only a writable one is sent it
-  test('only to the trackers checked in the row: not one unchecked, signed out or read only', () => {
+  test('only to the trackers checked in the row: not one unchecked or signed out', () => {
     expect(watchedPatches(at(5), tracking(
       answer('anilist', 'NOT_LISTED'),
       answer('mal', 'SIGNED_OUT'),
       answer('kitsu', 'PAUSED'),
       answer('annict', 'ERROR'),
-      answer('simkl', 'NOT_LISTED', null, { tracker: { id: 'simkl', name: 'simkl', canWrite: false, readOnly: true } }),
       answer('stub', 'NOT_LISTED'),
     ), { anilist: false }, 12)).toEqual({
       kitsu: { progress: 5, status: 'WATCHING' },
@@ -101,22 +100,18 @@ describe('watchedPatches', () => {
     })
   })
 
-  // Crunchyroll's own history: its progress shows in the row and never changes the others by itself
-  test('never to a read-only tracker, behind, listing nothing or failing, and the others go by their own entries', () => {
-    const readOnly = (state: string, entry?: CompactAnswer['entry'], error?: string) =>
-      answer('cr', state, entry, { error, tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true } })
+  // Crunchyroll keeps only Plan to watch as a status, so the Watching beside the episode is dropped there
+  test('to Crunchyroll as to any checked tracker, on its own entry, and its progress ahead raises nobody', () => {
+    const crunchyroll = (state: string, entry?: CompactAnswer['entry'], error?: string) =>
+      answer('cr', state, entry, { error, tracker: { id: 'cr', name: 'Crunchyroll', canWrite: state !== 'ERROR', statuses: ['PLANNING'] } })
     const others = [answer('anilist', 'LISTED', { status: 'WATCHING', progress: 3, episodeCount: 12 }), answer('stub', 'NOT_LISTED')]
-    for (const cr of [readOnly('LISTED', { progress: 2 }), readOnly('NOT_LISTED'), readOnly('ERROR', null, 'Crunchyroll answered 503')]) {
-      expect(watchedPatches(at(5), tracking(...others, cr), { cr: true }, 12), cr.state).toEqual({
-        anilist: { progress: 5 },
-        stub: { progress: 5, status: 'WATCHING' },
-      })
+    const theirs = { anilist: { progress: 5 }, stub: { progress: 5, status: 'WATCHING' } }
+    for (const cr of [crunchyroll('LISTED', { progress: 2 }), crunchyroll('NOT_LISTED'), crunchyroll('LISTED', { status: 'PLANNING', progress: 0 }), crunchyroll('ERROR', null, 'Crunchyroll answered 503')]) {
+      expect(watchedPatches(at(5), tracking(...others, cr), {}, 12), cr.state).toEqual({ ...theirs, cr: { progress: 5, status: 'WATCHING' } })
     }
-    const ahead = { summary: { status: 'WATCHING', progress: 8, episodeCount: 12 }, disagreements: ['PROGRESS'], answers: [...others, readOnly('LISTED', { progress: 8 })] }
-    expect(watchedPatches(at(5), ahead, {}, 12), 'its progress ahead of the others raises nothing').toEqual({
-      anilist: { progress: 5 },
-      stub: { progress: 5, status: 'WATCHING' },
-    })
+    expect(watchedPatches(at(5), tracking(...others, crunchyroll('LISTED', { progress: 2 })), { cr: false }, 12), 'unchecked').toEqual(theirs)
+    const ahead = { summary: { status: 'WATCHING', progress: 8, episodeCount: 12 }, disagreements: ['PROGRESS'], answers: [...others, crunchyroll('LISTED', { progress: 8 })] }
+    expect(watchedPatches(at(5), ahead, {}, 12), 'its progress ahead of the others raises nothing').toEqual(theirs)
   })
 
   test('not to a tracker that has not answered yet, nor to one with no id for the media', () => {

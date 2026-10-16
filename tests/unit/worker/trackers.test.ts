@@ -7,9 +7,9 @@ vi.mock('../../../src/worker/site-sessions', () => ({ siteSession: () => ({}) })
 
 const { trackerOf, trackers } = await import('../../../src/worker/trackers')
 
-test('names Crunchyroll read only, and every tracker the viewer writes to not', () => {
+test('names Crunchyroll as keeping Plan to watch alone, on 5 stars, and every other tracker as keeping every status', () => {
   const named = Object.fromEntries(trackers.map(entry => [entry.extractor.origin, trackerOf(entry)]))
   expect(Object.keys(named).sort()).toEqual(['anilist', 'cr', 'mal', 'stub'])
-  expect(named.cr).toMatchObject({ id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true })
-  for (const id of ['anilist', 'mal', 'stub']) expect(named[id]!.readOnly, id).toBe(false)
+  expect(named.cr).toMatchObject({ id: 'cr', name: 'Crunchyroll', canWrite: false, statuses: ['PLANNING'], scoreScale: 'POINT_5' })
+  for (const id of ['anilist', 'mal', 'stub']) expect(named[id]!.statuses, id).toBeNull()
 })

@@ -10,7 +10,7 @@ import type { CompactPrefs } from '../tracking/compact-prefs'
 import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
 
 import {
-  STATUS_LABELS, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, targetOf, unsettled, whyNot, writable,
+  STATUS_LABELS, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import SaveProblems from './save-problems'
@@ -110,7 +110,6 @@ const style = css`
     /* the check takes the chip's free area, the gap and the padding beside it included */
     > label { display: flex; align-items: center; align-self: stretch; margin: 0 -0.6rem; padding: 0 0.6rem; cursor: pointer; }
     .slot { display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; }
-    .seen { width: auto; min-width: 1.6rem; font-size: 1.2rem; font-weight: 600; }
     .check { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #4ade80; color: #000; display: flex; align-items: center; justify-content: center; }
     .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 0.15rem solid rgba(255, 255, 255, 0.45); }
     .spin { animation: tracking-spin 1s linear infinite; }
@@ -197,12 +196,14 @@ const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) 
  * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false }:
+  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false, statuses }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
     /** A movie: one Watched toggle instead of an episode count. */
     movie?: boolean
+    /** The statuses offered, when the tracker keeps only some. */
+    statuses?: readonly string[] | null
     shown: Row
     scale: string
     mixed: boolean
@@ -258,7 +259,9 @@ const Controls = (
         }}
       >
         {shown.status ? undefined : <option value="" disabled>Add to list</option>}
-        {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        {Object.entries(STATUS_LABELS)
+          .filter(([value]) => !statuses || statuses.includes(value))
+          .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         {removable ? <option value={REMOVE}>Remove from list</option> : undefined}
       </select>
       {dots.STATUS}
@@ -311,7 +314,7 @@ const Controls = (
         </button>
       </span>
         )}
-      {!movie && !disabled && total && shown.progress === total && shown.status !== 'COMPLETED'
+      {!movie && !disabled && total && shown.progress === total && shown.status !== 'COMPLETED' && (!statuses || statuses.includes('COMPLETED'))
         ? <button type="button" onClick={() => onChange({ status: 'COMPLETED' }, true)}>Mark completed</button>
         : undefined}
       {!movie && !disabled && total && shown.status === 'COMPLETED' && shown.progress < total
@@ -566,10 +569,6 @@ const TrackingCompact = (
     if (target.kind === 'loading') return head
     if (target.kind === 'login') return <>{head}<span className="why">Signed out</span>{loginButton(answer)}</>
     if (target.kind === 'cannot') return <>{head}<span className="why">{name} cannot track this media: {target.reason}</span></>
-    if (target.kind === 'read') {
-      const { progress, total } = rowOfEntry(answer, row.total)
-      return <>{head}<span className="why">{problemOf(answer) ?? `Watched ${progress}${total ? ` / ${total}` : ''}`}</span></>
-    }
     const canWrite = writable(answer)
     const entry = rowOfEntry(answer, row.total)
     const scale = pickerScale([answer.tracker.scoreScale])!
@@ -579,12 +578,13 @@ const TrackingCompact = (
         <Controls
           name={`card-${id}`}
           movie={movie}
+          statuses={answer.tracker.statuses}
           shown={shownOf(entry, overrides[id])}
           scale={scale.scale}
           mixed={false}
           disabled={!canWrite}
           listed={answer.state === 'LISTED'}
-          removable={canWrite && answer.state === 'LISTED'}
+          removable={canWrite && canRemove(answer)}
           onChange={(fields, immediate) => changeOne(answer, fields, immediate)}
         />
         {canWrite ? undefined : <span className="why">{whyNot(answer)}</span>}
@@ -608,7 +608,7 @@ const TrackingCompact = (
           mixed={picker?.mixed ?? false}
           disabled={disabled}
           listed={answers.some(answer => answer.state === 'LISTED')}
-          removable={sendable.some(answer => answer.state === 'LISTED')}
+          removable={sendable.some(canRemove)}
           onChange={change}
           dots={{
             SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(answer.entry.score, answer.tracker.scoreScale) : undefined),
@@ -645,16 +645,6 @@ const TrackingCompact = (
               return (
                 <Chip key={id} {...chip} className="chip cannot">
                   <span className="slot" role="img" aria-label={`${name} cannot track this media: ${target.reason}`}><Minus size={14} aria-hidden="true"/></span>
-                </Chip>
-              )
-            }
-            if (target.kind === 'read') {
-              const problem = problemOf(answer)
-              const seen = answer.entry?.progress ?? 0
-              return (
-                <Chip key={id} {...chip} className="chip read">
-                  <span className="slot seen" role="img" aria-label={`${name}: ${problem ?? `${seen} watched`}`}>{problem ? undefined : seen}</span>
-                  <Badge answer={answer}/>
                 </Chip>
               )
             }

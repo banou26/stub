@@ -77,12 +77,14 @@ const disagreementsOf = (listed: Listed[]): TrackingField[] => {
 
 /**
  * Every answer, unchanged and in the order given, with the summary and the disagreements beside them.
- * Only LISTED answers are summarised: an AMBIGUOUS, NO_ID or ERROR answer is shown as itself.
+ * Only LISTED answers are summarised: an AMBIGUOUS, NO_ID or ERROR answer is shown as itself. Of a
+ * tracker that keeps only some statuses, only the progress is: its status and score are a whole
+ * series' (Crunchyroll's Watchlist and stars), so they say nothing of this media.
  */
 export const aggregateTracking = (uri: string, answers: TrackerAnswer[]): Tracking => {
   const listed = answers
     .filter(answer => answer.state === 'LISTED' && answer.entry)
-    .map(answer => ({ entry: answer.entry!, scale: answer.tracker.scoreScale }))
+    .map(answer => ({ entry: answer.tracker.statuses ? { ...answer.entry!, status: null, score: null } : answer.entry!, scale: answer.tracker.scoreScale }))
   const { kept, episodeCount } = comparable(listed)
   return {
     _id: trackingId(uri),

@@ -17,7 +17,7 @@ export type TrackerEntry = (typeof trackers)[number]
 
 /** The provider a tracker entry is, as an answer names it when the tracker itself could not. */
 export const trackerOf = (entry: TrackerEntry): Tracker => {
-  const definition = entry.extractor as TrackerEntry['extractor'] & { scoreScale?: string, readOnly?: boolean }
+  const definition = entry.extractor as TrackerEntry['extractor'] & { scoreScale?: string, statuses?: Tracker['statuses'] }
   return {
     id: definition.origin,
     name: definition.name,
@@ -26,7 +26,7 @@ export const trackerOf = (entry: TrackerEntry): Tracker => {
     signedIn: false,
     account: null,
     canWrite: false,
-    readOnly: definition.readOnly ?? false,
+    statuses: definition.statuses ?? null,
     scoreScale: definition.scoreScale ?? 'POINT_100',
   }
 }

@@ -9,7 +9,7 @@ import { expose } from 'osra'
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL } from '../../../src/sources/crunchyroll/session'
 import { SESSION_PORT_MESSAGE } from '../../../src/tracking/session-frames'
 
-const CRUNCHYROLL_REASON = 'Read what you watched on Crunchyroll with your own crunchyroll.com session'
+const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session'
 const SEASON = { seriesId: 'GT00399001', seasonId: 'GS00399002' }
 
 const attach = vi.hoisted(() => vi.fn())
@@ -151,7 +151,7 @@ describe("Crunchyroll's session on this device", () => {
     expect(attach).not.toHaveBeenCalled()
 
     stored.set('stub.sessions', JSON.stringify(['cr']))
-    const read = { status: 200, body: null, episodes: [{ number: 1, watched: true }] }
+    const read = { status: 200, body: null, held: { progress: 1, stars: null, watchlisted: false } }
     const page = hiddenFrame({ watched: async () => read })
     attach.mockResolvedValueOnce(page.frame)
 
@@ -201,6 +201,28 @@ describe("Crunchyroll's session on this device", () => {
     expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'not-connected' })
     expect(stored.has('stub.site-status')).toBe(false)
   })
+})
+
+// @fkn/lib refuses a permission reason over MAX_REASON_LENGTH with a TypeError, and that refusal fails
+// the attach itself: the sign in, and every read and save through the frame
+test("every site's sign in and hidden frame give FKN a reason it takes", async () => {
+  const { MAX_REASON_LENGTH } = await vi.importActual<typeof import('@fkn/lib')>('@fkn/lib')
+  const { sessionResolvers, trackerSignIns } = await load()
+  const sites = ['anilist', 'mal', 'cr'] as const
+  for (const site of sites) {
+    attach.mockResolvedValueOnce(closedWindow().login)
+    await trackerSignIns[site]!()
+  }
+  stored.set('stub.sessions', JSON.stringify(sites))
+  for (const site of sites) {
+    attach.mockResolvedValueOnce(hiddenFrame().frame)
+    await sessionResolvers.call(site, 'whoami', {})
+  }
+
+  const reasons = attach.mock.calls.flatMap(([options]) => (options as { permissions?: { reason: string }[] }).permissions ?? []).map(({ reason }) => reason)
+  expect(reasons).toHaveLength(sites.length * 2)
+  // counted as FKN counts it, in code points of the trimmed reason
+  for (const reason of reasons) expect(Array.from(reason.trim()).length, reason).toBeLessThanOrEqual(MAX_REASON_LENGTH)
 })
 
 // Since @fkn/lib 0.9.42 the jar picks the backend, so the sign-in and the frame that reads its session

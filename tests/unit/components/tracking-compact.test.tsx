@@ -439,24 +439,73 @@ describe('a tracker with no id for the media', () => {
   })
 })
 
-describe("a read-only tracker, Crunchyroll's own history", () => {
-  const cr = (state: string, entry: CompactAnswer['entry'] = null, extra: Partial<CompactAnswer> = {}): CompactAnswer =>
-    ({ state, candidates: [], tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true, scoreScale: 'POINT_100' }, entry, ...extra })
+describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to watch as its Watchlist', () => {
+  const cr = (state: string, entry: CompactAnswer['entry'] = null, extra: Partial<CompactAnswer> = {}): CompactAnswer => ({
+    state,
+    candidates: [],
+    tracker: { id: 'cr', name: 'Crunchyroll', canWrite: state === 'LISTED' || state === 'NOT_LISTED', statuses: ['PLANNING'], scoreScale: 'POINT_5' },
+    entry,
+    ...extra,
+  })
+  const crWrites = (onSaveFields: ReturnType<typeof render>['onSaveFields']) =>
+    onSaveFields.mock.calls.filter(([targets]) => targets.includes('cr')).map(([, fields]) => fields)
 
-  test("its chip shows how far the viewer got there, with nothing to check, and so does its card, on the row's count", async () => {
-    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 8 })] } })
+  test('its chip is a check, checked from the start, and its card has the episode field, the + and a star on 5, with Plan to watch the one status', async () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 8, score: 80 })] } })
 
-    expect(named(host, 'Crunchyroll: 8 watched').textContent).toBe('8')
-    expect(chip(host, 'cr').querySelector('input, .login-button')).toBeNull()
+    expect(named(host, 'Save to Crunchyroll')).toBeTruthy()
+    expect(chip(host, 'cr').querySelector('.slot .check'), 'checked').toBeTruthy()
     const card = await hover(host, 'cr')
-    expect(card.textContent).toContain('Watched 8 / 14')
-    expect(card.querySelector('select, input, .star')).toBeNull()
-    expect(card.textContent).not.toContain('cannot track')
+    expect(q<HTMLInputElement>(card, '#card-cr-progress').value).toBe('8')
+    expect(named(card, 'One episode more')).toBeTruthy()
+    expect(named(card, 'Score, 4 out of 5')).toBeTruthy()
+    expect([...card.querySelectorAll('select option')].map(option => option.textContent)).toEqual(['Add to list', 'Plan to watch'])
   })
 
-  test('nothing watched there reads 0', () => {
-    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('NOT_LISTED')] } })
-    expect(named(host, 'Crunchyroll: 0 watched').textContent).toBe('0')
+  // a removal there takes the series off the Watchlist, and the episodes and stars can never come off
+  test('Remove from list reaches it only while it holds Plan to watch, on the row and on its card', async () => {
+    const options = (host: HTMLElement) => [...host.querySelectorAll('select option')].map(option => option.textContent)
+    const unlisted = [{ ...anilist, state: 'NOT_LISTED', entry: null }, mal, stub]
+
+    const watched = render({ tracking: { summary: { progress: 3 }, disagreements: [], answers: [...unlisted, cr('LISTED', { progress: 3, score: 80 })] } })
+    expect(options(watched.host), 'the row').not.toContain('Remove from list')
+    expect(options(await hover(watched.host, 'cr')), 'its card').not.toContain('Remove from list')
+
+    const planned = render({ tracking: { summary: { progress: 0 }, disagreements: [], answers: [...unlisted, cr('LISTED', { status: 'PLANNING', progress: 0 })] } })
+    expect(options(await hover(planned.host, 'cr')), 'its card').toContain('Remove from list')
+    await pickStatus(planned.host, 'REMOVE')
+    expect(planned.onRemove.mock.calls).toEqual([[['cr']]])
+  })
+
+  test('its card offers no Mark completed at the total, a status it keeps no place for', async () => {
+    const { host } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, progress: 14 } }, mal, stub, cr('LISTED', { progress: 14 })] } })
+    expect(button(await hover(host, 'cr'), 'Mark completed')).toBeFalsy()
+    expect(button(await hover(host, 'anilist'), 'Mark completed'), 'the control: AniList at its total').toBeTruthy()
+  })
+
+  test('a + on the row, or on its card, reaches it', async () => {
+    vi.useFakeTimers()
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 8 })] } })
+
+    await click(named(host, 'One episode more'))
+    await settle(1000)
+    expect(crWrites(onSaveFields)).toEqual([{ progress: 14 }])
+
+    await click(named(await hover(host, 'cr'), 'One episode more'))
+    await settle(1000)
+    expect(crWrites(onSaveFields)).toEqual([{ progress: 14 }, { progress: 9 }])
+  })
+
+  test("a score or a status on the row sends it only what it keeps, never the row's episodes, whether it lists the show or not", async () => {
+    for (const answer of [cr('NOT_LISTED'), cr('LISTED', { progress: 8 })]) {
+      const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, answer] } })
+      await click(q(host, '.star'))
+      await click(named(host, '3 out of 5'))
+      await pickStatus(host, 'WATCHING')
+      await pickStatus(host, 'PLANNING')
+      expect(crWrites(onSaveFields), answer.state).toEqual([{ score: 60 }, { status: 'PLANNING' }])
+      expect(onSaveFields, `the control: ${answer.state}`).toHaveBeenCalledWith(['stub'], { status: 'WATCHING', progress: 13, score: 60 })
+    }
   })
 
   test('the row marks where its progress differs from the others, naming each', () => {
@@ -470,19 +519,22 @@ describe("a read-only tracker, Crunchyroll's own history", () => {
     expect(chip(host, 'cr').classList.contains('login')).toBe(true)
   })
 
-  test('a change on the row never goes to it, and a failing read shows its badge and reason with no save problem', async () => {
+  test("a refusal, a lower progress there, says why with Dismiss while the others save", async () => {
     vi.useFakeTimers()
-    const failing = cr('ERROR', null, { error: 'Crunchyroll answered 503' })
-    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, failing] } })
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 13 })] } })
+    onSaveFields.mockImplementation(async targets => targets.map(tracker => tracker === 'cr'
+      ? { tracker, outcome: 'REFUSED', error: 'Crunchyroll cannot unmark an episode' }
+      : { tracker, outcome: 'SAVED' }))
 
-    await pickStatus(host, 'COMPLETED')
-    await click(named(host, 'One episode more'))
+    const input = q<HTMLInputElement>(host, '#compact-progress')
+    await fire(Object.assign(input, { value: '10' }), 'input')
+    await fire(input, 'blur')
     await settle(1000)
-    expect(onSaveFields.mock.calls.flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'anilist', 'stub', 'stub'])
-    expect(host.querySelector('[data-note="cr"]')).toBeNull()
-    expect(host.querySelector('[data-chip="cr"] [data-badge="red"]')).toBeTruthy()
-    expect(named(host, 'Crunchyroll: Crunchyroll answered 503')).toBeTruthy()
-    expect((await hover(host, 'cr')).textContent).toContain('Crunchyroll answered 503')
+
+    expect(onSaveFields.mock.calls.flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'cr', 'stub'])
+    expect(q(host, '[data-note="cr"]').textContent).toContain('Crunchyroll did not save: Crunchyroll cannot unmark an episode')
+    expect(button(q(host, '[data-note="cr"]'), 'Dismiss')).toBeTruthy()
+    expect(host.querySelector('[data-note="anilist"]')).toBeNull()
   })
 })
 

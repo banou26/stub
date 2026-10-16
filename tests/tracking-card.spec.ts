@@ -169,19 +169,29 @@ test("with room below, the row's score menu opens under the star", async ({ page
   expect(menu.y).toBeGreaterThanOrEqual(star.y + star.height)
 })
 
-test("Crunchyroll's read-only chip shows how far the viewer got there, and the row writes to every tracker but it", async ({ page }) => {
+test("Crunchyroll's chip is a check, its card offers the episodes, 5 stars and Plan to watch alone, and the row's + reaches it", async ({ page }) => {
   await page.goto(`${ORIGIN}/?top=100&cr`)
   const chip = page.locator('[data-chip="cr"]')
-  await expect(chip.getByRole('img', { name: 'Crunchyroll: 4 watched' })).toHaveText('4')
-  await expect(chip.locator('input')).toHaveCount(0)
+  await expect(chip.locator('input[type="checkbox"]')).toBeChecked()
   await expect(page.locator('[data-differs="PROGRESS"]')).toHaveAttribute('title', 'AniList 3, Crunchyroll 4')
 
   await chip.hover()
-  await expect(card(page, 'cr')).toContainText('Watched 4 / 24')
+  const own = card(page, 'cr')
+  await expect(own.locator('input[type="number"]')).toHaveValue('4')
+  await expect(own.locator('select option')).toHaveText(['Add to list', 'Plan to watch'])
+  await own.locator('.star').click()
+  await expect(own.getByRole('dialog', { name: 'Score' }).locator('.grid button')).toHaveCount(5)
+  await page.keyboard.press('Escape')
+
   await page.mouse.move(0, 0)
   await page.locator('.row > .edit .more').click()
-  await expect.poll(() => writes(page)).toHaveLength(2)
-  expect((await writes(page) as [string[]][]).flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'stub'])
+  await expect.poll(() => writes(page)).toHaveLength(3)
+  const sent = (await writes(page) as [string[], unknown][]).map(([targets, fields]) => [targets[0]!, fields] as const)
+  expect(sent.sort(([a], [b]) => a.localeCompare(b))).toEqual([
+    ['anilist', { progress: 5 }],
+    ['cr', { progress: 5 }],
+    ['stub', { status: 'WATCHING', progress: 5, score: 70 }],
+  ])
 })
 
 test.describe('on a phone', () => {

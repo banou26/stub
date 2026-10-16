@@ -27,7 +27,7 @@ import { rememberSignIn, siteStatuses } from './site-status'
 
 const ANILIST_REASON = 'Read and update your AniList list with your own anilist.co session'
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
-const CRUNCHYROLL_REASON = 'Read what you watched on Crunchyroll with your own crunchyroll.com session'
+const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session'
 
 const frames = createSessionFrames<PageApi>(
   [{

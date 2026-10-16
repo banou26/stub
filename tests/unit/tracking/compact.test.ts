@@ -70,19 +70,18 @@ describe('targetOf', () => {
   })
 
   // MyAnimeList and AniList answer a failed read without write access until they read the account
-  test('paused and error from a tracker without write access are still the problem chip, never read only', () => {
+  test('paused and error from a tracker without write access are still the problem chip', () => {
     const unread = { tracker: { id: 'a', name: 'a', canWrite: false, scoreScale: 'POINT_100' } }
     expect(targetOf(answer('a', 'PAUSED', null, unread), undefined)).toEqual({ kind: 'check', checked: true, sendable: false })
     expect(targetOf(answer('a', 'ERROR', null, { ...unread, error: 'a answered 502' }), true)).toEqual({ kind: 'check', checked: true, sendable: false })
   })
 
-  test('a read-only tracker is never a target, whatever it answered and whatever the viewer stored', () => {
-    const readOnly = { tracker: { id: 'cr', name: 'Crunchyroll', canWrite: false, readOnly: true, scoreScale: 'POINT_100' } }
-    for (const state of ['LISTED', 'NOT_LISTED', 'ERROR', 'PAUSED']) {
-      expect(targetOf(answer('cr', state, null, readOnly), true), state).toEqual({ kind: 'read' })
+  test('Crunchyroll, which keeps only some statuses, is a check like any tracker that can write', () => {
+    const crunchyroll = { tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5' } }
+    for (const state of ['LISTED', 'NOT_LISTED']) {
+      expect(targetOf(answer('cr', state, null, crunchyroll), undefined), state).toEqual({ kind: 'check', checked: true, sendable: true })
     }
-    expect(targetOf(answer('cr', 'SIGNED_OUT', null, readOnly), undefined), 'signed out still offers its sign in').toEqual({ kind: 'login' })
-    expect(targetOf(answer('cr', 'LOADING', null, readOnly), undefined)).toEqual({ kind: 'loading' })
+    expect(targetOf(answer('cr', 'LISTED', null, crunchyroll), false)).toEqual({ kind: 'check', checked: false, sendable: false })
   })
 })
 
@@ -120,6 +119,44 @@ describe('patchFor', () => {
   test('progress is clamped to the total, and a null score stays an explicit null', () => {
     expect(patchFor(answer('a', 'LISTED', {}), { progress: 99 }, row)).toEqual({ progress: 14 })
     expect(patchFor(answer('a', 'LISTED', {}), { score: null }, row)).toEqual({ score: null })
+  })
+
+  // Crunchyroll: an episode marked watched there cannot be taken back, so only a change that carries
+  // progress may mark one
+  describe('to a tracker that keeps only some statuses', () => {
+    const crunchyroll = (state: string, entry: CompactAnswer['entry'] = null) =>
+      answer('cr', state, entry, { tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5' } })
+
+    test('a change goes as only its own fields, listed or not: the row is never filled in', () => {
+      for (const cr of [crunchyroll('NOT_LISTED'), crunchyroll('LISTED', { progress: 2 })]) {
+        expect(patchFor(cr, { score: 60 }, row), cr.state).toEqual({ score: 60 })
+        expect(patchFor(cr, { score: null }, row), cr.state).toEqual({ score: null })
+        expect(patchFor(cr, { progress: 14 }, row), cr.state).toEqual({ progress: 14 })
+        expect(patchFor(cr, { status: 'PLANNING' }, row), cr.state).toEqual({ status: 'PLANNING' })
+      }
+      expect(patchFor(answer('a', 'NOT_LISTED'), { score: 60 }, row), 'the control: any other tracker gets the row').toEqual({ status: 'WATCHING', progress: 13, score: 60 })
+    })
+
+    test('a status it keeps no place for is left out, and a change of nothing else is no write', () => {
+      expect(patchFor(crunchyroll('LISTED', { progress: 2 }), { status: 'WATCHING' }, row)).toBeUndefined()
+      expect(patchFor(crunchyroll('NOT_LISTED'), { status: 'COMPLETED', progress: 14 }, row)).toEqual({ progress: 14 })
+      expect(patchFor(crunchyroll('NOT_LISTED'), { progress: 99 }, row), 'still clamped to the total').toEqual({ progress: 14 })
+    })
+
+    // a removal there takes the series off the Watchlist, and nothing else can come off
+    test('a removal goes to it only while it holds Plan to watch', () => {
+      expect(patchFor(crunchyroll('LISTED', { status: 'PLANNING' }), { remove: true }, row)).toEqual({ remove: true })
+      expect(patchFor(crunchyroll('LISTED', { progress: 3, score: 80 }), { remove: true }, row), 'listed by episodes and stars alone').toBeUndefined()
+      expect(patchFor(crunchyroll('NOT_LISTED'), { remove: true }, row)).toBeUndefined()
+      expect(patchFor(answer('a', 'LISTED', { progress: 3 }), { remove: true }, row), 'the control: any other tracker listing it with no status').toEqual({ remove: true })
+    })
+
+    test("a new entry on another tracker never takes its Watchlist or stars, which are the whole series'", () => {
+      const cr = { ...crunchyroll('LISTED'), _id: 'cr', entry: { _id: 'cr:1', status: 'PLANNING', progress: 0, score: 100 } } as unknown as TrackerAnswer
+      const shown = rowOf(aggregateTracking('m', [cr]), 12)
+      expect(shown).toMatchObject({ status: null, progress: 0, score: null })
+      expect(patchFor(answer('anilist', 'NOT_LISTED'), { progress: 1 }, { ...shown, progress: 1 })).toEqual({ status: 'WATCHING', progress: 1 })
+    })
   })
 })
 

@@ -79,6 +79,27 @@ describe('the summary', () => {
   })
 })
 
+describe('a tracker that keeps only some statuses', () => {
+  // Crunchyroll: its Watchlist and its stars are the whole series', whichever season the media is
+  const crunchyroll = (entry: Partial<ListEntry>): TrackerAnswer =>
+    ({ ...listed('cr', entry, 'POINT_5'), tracker: { ...tracker('cr', 'POINT_5'), statuses: ['PLANNING'] } })
+
+  test('gives the summary its progress alone, never its status or score, and they differ from nothing', () => {
+    const tracking = aggregateTracking(URI, [
+      listed('anilist', { status: 'WATCHING', progress: 2, score: 60, updatedAt: at(1) }),
+      crunchyroll({ status: 'PLANNING', progress: 3, score: 100, updatedAt: at(2) }),
+    ])
+    expect(tracking.summary).toMatchObject({ status: 'WATCHING', progress: 3, score: 60 })
+    expect(tracking.disagreements).toEqual(['PROGRESS'])
+    expect(tracking.answers[1]!.entry, 'its own answer keeps them').toMatchObject({ status: 'PLANNING', score: 100 })
+
+    expect(aggregateTracking(URI, [crunchyroll({ status: 'PLANNING', progress: 0, score: 100 })]).summary)
+      .toMatchObject({ status: null, progress: 0, score: null })
+    expect(aggregateTracking(URI, [listed('cr', { status: 'PLANNING', progress: 0, score: 100 }, 'POINT_5')]).summary, 'the control: any other tracker')
+      .toMatchObject({ status: 'PLANNING', progress: 0, score: 100 })
+  })
+})
+
 describe('answers that are not listed', () => {
   test('an AMBIGUOUS answer is shown as itself and summarised with nothing', () => {
     const ambiguous: TrackerAnswer = {

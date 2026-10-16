@@ -1,12 +1,13 @@
 // The Crunchyroll tracker's resolvers over whatever session they are handed, so a test serves them over
 // recorded answers; ./tracker.ts hands them the worker's.
 
-import type { Resolvers, Tracker, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
+import type { ListEntryInput, ListStatus, Resolvers, Tracker, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
 import type { PageApi, SiteSession } from '../../tracking/site-session'
-import type { CrunchyrollPageApi, WatchedEpisode } from './session-page'
+import type { CrunchyrollPageApi, Held, SaveRequest } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
+import { isScored, nativeScore } from '../../tracking/score-scale'
 import { extractAggregatedUriOrigin } from '../../utils/uri'
 import { CRUNCHYROLL_ICON, CRUNCHYROLL_TRACKER_ID } from './session'
 import { crunchyrollSignInState } from './sign-in-check'
@@ -17,6 +18,12 @@ export type CrunchyrollTrackerContext = {
   session: <Api extends PageApi>(site: string) => SiteSession<Api>
   request: { signal: AbortSignal }
 }
+
+/** Crunchyroll's 1 to 5 stars. */
+export const SCORE_SCALE = 'POINT_5'
+
+/** The one status Crunchyroll keeps a place for: its Watchlist. */
+export const STATUSES: ListStatus[] = ['PLANNING']
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
@@ -29,15 +36,16 @@ const crunchyrollTracker = (signedIn: boolean): Tracker => ({
   color: null,
   signedIn,
   account: null,
-  canWrite: false,
-  readOnly: true,
-  scoreScale: 'POINT_100',
+  canWrite: signedIn,
+  statuses: STATUSES,
+  scoreScale: SCORE_SCALE,
 })
 
 const trackingOf = (uri: string, answer: TrackerAnswer): { tracking: Tracking } =>
   ({ tracking: { _id: trackingId(uri), answers: [answer], summary: null, disagreements: [] } })
 
-const refused = (): WriteOutcome[] => [{ tracker: CRUNCHYROLL_TRACKER_ID, outcome: 'REFUSED', entry: null, error: 'Crunchyroll is read only' }]
+const outcome = (state: WriteOutcome['outcome'], error: string | null = null): WriteOutcome[] =>
+  [{ tracker: CRUNCHYROLL_TRACKER_ID, outcome: state, entry: null, error }]
 
 type Season = { id: string, seriesId: string, seasonId: string }
 
@@ -52,37 +60,66 @@ const seasonOf = (uri: string): Season | undefined => {
 }
 
 /**
- * How far the viewer got: the place among the season's numbered episodes of the last one fully
- * watched, since Crunchyroll may number a season on from the one before it.
+ * What a save writes on Crunchyroll: progress, the score as stars (none for a cleared one), and Plan to
+ * watch as the Watchlist. Any other status has no place there, so Completed sends the episodes alone.
  */
-const progressOf = (episodes: readonly WatchedEpisode[]) => {
-  const watched = episodes.filter(episode => episode.watched).map(episode => episode.number)
-  const last = Math.max(...watched)
-  return watched.length ? new Set(episodes.map(episode => episode.number).filter(number => number <= last)).size : 0
-}
+const saveOf = ({ status, progress, score }: ListEntryInput): Omit<SaveRequest, 'seriesId' | 'seasonId'> => ({
+  ...progress != null ? { progress } : {},
+  ...score !== undefined ? { stars: isScored(score) ? nativeScore(score, SCORE_SCALE) : null } : {},
+  ...status === 'PLANNING' ? { watchlist: true } : {},
+})
 
 /**
- * How far the viewer got on Crunchyroll, read off Crunchyroll's own playheads through the session frame
- * at www.crunchyroll.com, again after every sign in. LISTED once an episode is fully watched there,
- * NOT_LISTED before. Read only: every write is refused, and nothing is kept.
+ * The viewer's own Crunchyroll through the session frame at www.crunchyroll.com: how far they got in
+ * the season, read off Crunchyroll's playheads, the series' stars as the score, and the Watchlist as
+ * Plan to watch while nothing of the season is watched (a watched show on it is one being followed).
+ * Read again after every sign in and every write, and nothing is kept. LISTED once any of those is
+ * there, NOT_LISTED before.
+ *
+ * A save reads what Crunchyroll holds and writes what changes, in the page, once: a write cut short is
+ * never sent again, and the read after it is the confirmation. Progress only rises (Crunchyroll has no
+ * unmark). A removal takes the series off the Watchlist and leaves the episodes and the stars.
  *
  * It answers no episode count: Crunchyroll lists only the episodes aired so far, and a count short of
  * the run's would become the row's total and change what is written to the other trackers.
  */
 export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: number) => Promise<void> } = {}) => {
+  // every open answer reads again after a write through this tracker
+  const written = new Set<() => void>()
+
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
     ({ _id: answerId(CRUNCHYROLL_TRACKER_ID, uri), tracker: crunchyrollTracker(state === 'LISTED' || state === 'NOT_LISTED'), state, entry: null, candidates: [], error: null, ...extra })
 
-  const read = async (ctx: CrunchyrollTrackerContext, uri: string, { id, seriesId, seasonId }: Season): Promise<TrackerAnswer> => {
+  const listed = (uri: string, { id }: Season, { progress, stars, watchlisted }: Held): TrackerAnswer => {
+    if (!progress && !stars && !watchlisted) return answer(uri, 'NOT_LISTED')
+    const entryId = `${CRUNCHYROLL_TRACKER_ID}:${id}`
+    const status = watchlisted && !progress ? 'PLANNING' : null
+    return answer(uri, 'LISTED', { entry: { _id: entryId, tracker: CRUNCHYROLL_TRACKER_ID, mediaUri: entryId, status, progress, score: stars && stars * 20 } })
+  }
+
+  const read = async (ctx: CrunchyrollTrackerContext, uri: string, season: Season): Promise<TrackerAnswer> => {
     try {
-      const result = await ctx.session<CrunchyrollPageApi>(CRUNCHYROLL_TRACKER_ID).call('watched', { seriesId, seasonId })
+      const result = await ctx.session<CrunchyrollPageApi>(CRUNCHYROLL_TRACKER_ID).call('watched', { seriesId: season.seriesId, seasonId: season.seasonId })
       if (result.kind === 'not-connected' || crunchyrollSignInState(result.response) === 'signed-out') return answer(uri, 'SIGNED_OUT')
-      const progress = progressOf(result.response.episodes ?? [])
-      if (!progress) return answer(uri, 'NOT_LISTED')
-      const entryId = `${CRUNCHYROLL_TRACKER_ID}:${id}`
-      return answer(uri, 'LISTED', { entry: { _id: entryId, tracker: CRUNCHYROLL_TRACKER_ID, mediaUri: entryId, status: null, progress, score: null } })
+      return listed(uri, season, result.response.held!)
     } catch (error) {
       return errorAnswer(uri, crunchyrollTracker(false), messageOf(error))
+    }
+  }
+
+  const write = async (ctx: CrunchyrollTrackerContext, uri: string, fields: Omit<SaveRequest, 'seriesId' | 'seasonId'>): Promise<WriteOutcome[]> => {
+    const season = seasonOf(uri)
+    if (!season) return outcome('REFUSED', 'This media names no Crunchyroll season')
+    if (!Object.keys(fields).length) return outcome('SAVED')
+    try {
+      const result = await ctx.session<CrunchyrollPageApi>(CRUNCHYROLL_TRACKER_ID)
+        .call('save', { seriesId: season.seriesId, seasonId: season.seasonId, ...fields }, { once: true })
+      if (result.kind === 'not-connected' || crunchyrollSignInState(result.response) === 'signed-out') return outcome('REFUSED', 'Sign in to Crunchyroll to save to it')
+      return result.response.refused ? outcome('REFUSED', result.response.refused) : outcome('SAVED')
+    } catch (error) {
+      return outcome('FAILED', messageOf(error))
+    } finally {
+      for (const listener of written) listener()
     }
   }
 
@@ -96,7 +133,13 @@ export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: numb
             yield trackingOf(uri, answer(uri, 'NO_ID'))
             return
           }
-          const wakes = changes(listener => ctx.session(CRUNCHYROLL_TRACKER_ID).onChange(listener), { signal: ctx.request.signal })
+          const session = ctx.session(CRUNCHYROLL_TRACKER_ID)
+          // a sign in, or a write through this tracker, and the answer is read again
+          const wakes = changes(listener => {
+            const stop = session.onChange(listener)
+            written.add(listener)
+            return () => { stop(); written.delete(listener) }
+          }, { signal: ctx.request.signal })
           const next = rereads(wakes, wait)
           try {
             for (;;) {
@@ -111,8 +154,10 @@ export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: numb
       },
     },
     Mutation: {
-      saveListEntry: refused,
-      deleteListEntry: refused,
+      saveListEntry: (_parent: unknown, { input }: { input: { uri: string, entry: ListEntryInput } }, ctx: CrunchyrollTrackerContext) =>
+        write(ctx, input.uri, saveOf(input.entry)),
+      deleteListEntry: (_parent: unknown, { input }: { input: { uri: string } }, ctx: CrunchyrollTrackerContext) =>
+        write(ctx, input.uri, { watchlist: false }),
     },
   } satisfies Resolvers
 }

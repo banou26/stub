@@ -20,7 +20,8 @@ export type CompactAnswer = {
     id: string
     name: string
     canWrite: boolean
-    readOnly?: boolean | null
+    /** The statuses it keeps, when it keeps only some (Crunchyroll's Plan to watch). */
+    statuses?: readonly string[] | null
     scoreScale?: string | null
     icon?: string | null
     color?: string | null
@@ -116,7 +117,6 @@ export const unsettled = (mine: Fields, row: Row): Fields => {
 
 export type Target =
   | { kind: 'check', checked: boolean, sendable: boolean }
-  | { kind: 'read' }
   | { kind: 'login' }
   | { kind: 'cannot', reason: string }
   | { kind: 'loading' }
@@ -125,8 +125,7 @@ export type Target =
  * How one tracker's chip reads. `stored` is the viewer's own choice on this device, if they made one;
  * without it every tracker that can write starts checked. PAUSED and ERROR are about one read, not the
  * tracker, so they are a check that is not sent to whatever `canWrite` says: a tracker answers them
- * without write access until it has read the viewer's account. A read-only tracker is never a check,
- * whatever it answered.
+ * without write access until it has read the viewer's account.
  */
 export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Target => {
   switch (answer.state) {
@@ -134,7 +133,6 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
     case 'SIGNED_OUT': return { kind: 'login' }
     case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }
   }
-  if (answer.tracker.readOnly) return { kind: 'read' }
   const checked = stored ?? true
   return { kind: 'check', checked, sendable: checked && writable(answer) }
 }
@@ -150,18 +148,27 @@ export const countDiffers = (answer: CompactAnswer, total: number | null) => {
 }
 
 /**
+ * Whether a removal reaches a tracker: it lists the media, and when it keeps only some statuses, holds
+ * one of them (Crunchyroll's Plan to watch, its Watchlist), since nothing else there can be removed.
+ */
+export const canRemove = (answer: CompactAnswer) => answer.state === 'LISTED' && (!answer.tracker.statuses || !!answer.entry?.status)
+
+/**
  * What a change writes to one tracker.
  *
  * A listed tracker gets exactly the fields changed, so a + never overwrites a score or a status that
  * tracker holds differently. A tracker that lists nothing gets the whole row as shown, since a new
  * entry overwrites nothing, with Watching when the row has no status (MyAnimeList refuses an add with
- * none). Progress is held back from a tracker that counts other episodes. A removal goes only to a
- * tracker that lists the media.
+ * none). A tracker that keeps only some statuses gets exactly the fields changed too, listed or not,
+ * less a status it keeps no place for: its fields stand alone, and filling in the row's progress would
+ * mark episodes Crunchyroll can never unmark. Progress is held back from a tracker that counts other
+ * episodes. A removal goes only where `canRemove` says.
  */
 export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Fields | undefined => {
-  if (change.remove) return answer.state === 'LISTED' ? { remove: true } : undefined
+  if (change.remove) return canRemove(answer) ? { remove: true } : undefined
+  const { statuses } = answer.tracker
   const score = 'score' in change ? change.score : row.score
-  const fields: Fields = answer.state === 'LISTED'
+  const fields: Fields = answer.state === 'LISTED' || statuses
     ? { ...change }
     : {
       status: change.status ?? row.status ?? 'WATCHING',
@@ -169,6 +176,7 @@ export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Field
       // nothing to clear on an entry that does not exist yet
       ...(isScored(score) ? { score } : {}),
     }
+  if (fields.status !== undefined && statuses && !statuses.includes(fields.status)) delete fields.status
   if (fields.progress !== undefined) {
     if (countDiffers(answer, row.total)) delete fields.progress
     else fields.progress = Math.max(0, Math.min(row.total ?? Infinity, fields.progress))

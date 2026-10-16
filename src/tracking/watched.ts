@@ -28,10 +28,10 @@ export const watchedFields = ({ played, episode, movie }: Watched, entry: Pick<R
 /**
  * What an episode watched writes, by tracker id, to each tracker checked in `stored` (the row's
  * choices), on that tracker's own entry. Left out: a tracker that has not answered yet, one with no id
- * for the media (the row draws no chip for it), a read-only one, one that counts the media in other
- * episodes than the page, whose numbers mean something else, and every tracker while the row reads
- * Completed, since that is a rewatch. A checked tracker that cannot write now (paused, failing) is in
- * it too, for the page to say it was not saved; only a writable one is sent anything.
+ * for the media (the row draws no chip for it), one that counts the media in other episodes than the
+ * page, whose numbers mean something else, and every tracker while the row reads Completed, since that
+ * is a rewatch. A checked tracker that cannot write now (paused, failing) is in it too, for the page to
+ * say it was not saved; only a writable one is sent anything.
  */
 export const watchedPatches = (
   watched: Watched,
