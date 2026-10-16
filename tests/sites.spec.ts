@@ -312,11 +312,16 @@ test('below 1024 px the bar is one row with no visible site links', async ({ pag
 })
 
 const siteMenu = (page: Page) => page.getByRole('menu')
-const longPress = async (page: Page) => {
+const pressWordmark = async (page: Page) => {
   const logo = (await page.locator('header .logo').boundingBox())!
   await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
   await page.mouse.down()
-  await page.waitForTimeout(600)
+}
+// a busy page can handle a fixed hold's release before the press's timer, which the release clears, so a press
+// meant to open the menu holds until it opens
+const longPress = async (page: Page) => {
+  await pressWordmark(page)
+  await expect(siteMenu(page)).toBeVisible()
   await page.mouse.up()
 }
 
@@ -365,16 +370,13 @@ test('a short tap on the wordmark still goes home', async ({ page }) => {
 test('a press that leaves the wordmark early opens nothing, and one released off it leaves Enter going home', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('movies.localhost', '/settings'))
-  const logo = (await page.locator('header .logo').boundingBox())!
-  await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
-  await page.mouse.down()
+  await pressWordmark(page)
   await page.mouse.move(200, 600)
   await page.waitForTimeout(800)
   await page.mouse.up()
   await expect(siteMenu(page)).toHaveCount(0)
-  await page.mouse.move(logo.x + logo.width / 2, logo.y + logo.height / 2)
-  await page.mouse.down()
-  await page.waitForTimeout(600)
+  await pressWordmark(page)
+  await expect(siteMenu(page)).toBeVisible()
   await page.mouse.move(200, 600)
   await page.mouse.up()
   await expect(siteMenu(page), 'the control: a long press opens the menu').toBeVisible()
@@ -426,7 +428,9 @@ test('any other host opens no menu on a long press', async ({ page }) => {
   await page.goto(at('127.0.0.1'))
   await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
   await expect(page.locator('header .logo')).not.toHaveCSS('user-select', 'none')
-  await longPress(page)
+  await pressWordmark(page)
+  await page.waitForTimeout(600)
+  await page.mouse.up()
   await page.waitForTimeout(500)
   await expect(siteMenu(page)).toHaveCount(0)
 })
