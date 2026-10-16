@@ -8,6 +8,10 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
+import SEASONS from '../src/generated/anime-seasons'
+import { recordId, seasonKey } from '../src/sources/offline/normalize'
+import { mediaSeasonNow } from '../src/sources/season'
+
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
 // AniList answers each of them with Cowboy Bebop's credits and one sequel, Spec Sequel, AniZip with 26
@@ -821,4 +825,16 @@ test('a season\'s last episode links the first of the next season, which links b
   await expect(next, 'the third season lists no episode').toHaveCount(0)
   await page.goBack()
   await expect(page.locator('.episode-title')).toHaveText('E1 - Red Light, Green Light')
+})
+
+// The bundle answers a work by id with the first season that lists it, so AniList's season is what keeps it in this one
+test('a work the bundle lists in this season and an earlier one shows this season once AniList answers it', async ({ page }) => {
+  const now = mediaSeasonNow()
+  const keys = Object.keys(SEASONS.seasons)
+  const earlier = new Set(keys.slice(0, keys.indexOf(seasonKey(now))).flatMap(key => SEASONS.seasons[key]!.map(record => record.al)))
+  const work = SEASONS.seasons[seasonKey(now)]?.find(record => record.al && earlier.has(record.al))
+  expect(work, 'the control: the bundle lists a work of this season in an earlier one too').toBeDefined()
+  await page.goto(`${origin}/title/ag:(offline:${recordId(work!)})`)
+  const season = page.locator('.facts > div', { has: page.getByText('Season', { exact: true }) }).locator('dd')
+  await expect(season).toHaveText(new RegExp(`^${now.season} ${now.year}$`, 'i'), { timeout: 30_000 })
 })

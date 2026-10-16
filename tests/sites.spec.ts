@@ -483,3 +483,21 @@ test('from 480 px the field shows as before, with no search button', async ({ pa
     await expect(searchButton(page), `${width}`).toBeHidden()
   }
 })
+
+// The hero's Play asks AniList about the show it holds, and a film answered as a series leaves the Movies listing,
+// so the hero picks again. Live, a category click changed the hero at most once in 40 clicks (2026-10-16)
+test('a Movies click on stub changes the hero at most once', async ({ page }) => {
+  test.slow()
+  const hero = page.locator('.theater .information > .title')
+  await page.goto(at('stub.localhost'))
+  await expect(hero).not.toBeEmpty({ timeout: 30_000 })
+  await expect(row(page, 'Popular shows')).toBeVisible()
+  const shown = [(await hero.textContent())!]
+  await tab(page, 'Movies').click()
+  await expect(row(page, 'Popular shows'), 'the control: the click took').toHaveCount(0)
+  for (const end = Date.now() + 10_000; Date.now() < end; await page.waitForTimeout(100)) {
+    const title = await hero.textContent()
+    if (title && title !== shown.at(-1)) shown.push(title)
+  }
+  expect(shown.length - 1, shown.join(' > ')).toBeLessThanOrEqual(1)
+})

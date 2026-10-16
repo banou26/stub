@@ -2,6 +2,9 @@ import type { FetchInit } from '../src/worker/backoff'
 
 import { cloud } from '@fkn/lib'
 
+import { parseSeasonKey } from '../src/sources/offline/normalize'
+import { mediaSeasonNow } from '../src/sources/season'
+
 import BEBOP from './fixtures/credits/anilist-bebop.json'
 import BREAKING_BAD from './fixtures/credits/imdb-breaking-bad.json'
 import BEBOP_MAL_CREDITS from './fixtures/credits/mal-bebop.html?raw'
@@ -66,7 +69,8 @@ const TMDB: Record<string, string> = {
 // Squid Game's first two, which list one episode each, JustWatch with its four most popular films or shows
 // when asked for either and with The Boys as it answered the countries asked (prime-countries.json), and
 // MyAnimeList with Cowboy Bebop's title and credits pages for mal:1; every other request goes where it
-// always went.
+// always went. AniList gives a bundled work the format and season of its record in the current season, or
+// else of its first record, so a film stays a film and a work stays in the season the home page lists.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -97,5 +101,10 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
-  return Response.json({ data: { Media: { id: variables.id, relations, ...credits } } })
+  const now = mediaSeasonNow()
+  const { seasons } = (await import('../src/generated/anime-seasons')).default
+  const listed = Object.entries(seasons).flatMap(([key, records]) =>
+    records.filter(record => record.al === variables.id).map(record => ({ format: record.ty, ...parseSeasonKey(key) })))
+  const bundled = listed.find(({ season, year }) => season === now.season && year === now.year) ?? listed[0]
+  return Response.json({ data: { Media: { id: variables.id, format: bundled?.format, season: bundled?.season, seasonYear: bundled?.year, relations, ...credits } } })
 }
