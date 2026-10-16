@@ -7,8 +7,8 @@ import { act } from 'preact/test-utils'
 
 const { useCoverUrl } = await import('../../../src/utils/use-cover-url')
 
-// Natural sizes measured live on anime.fkn.app/search?season=FALL&year=2026, 2026-10-16, and of
-// JustWatch's s718 posters, 2026-10-17
+// Natural sizes measured live on anime.fkn.app/search?season=FALL&year=2026, 2026-10-16 and 2026-10-17,
+// and of JustWatch's s718 posters, 2026-10-17
 const SIZES: Record<string, [number, number]> = {
   'mal-old.webp': [424, 600],
   'mal-new.webp': [425, 600],
@@ -19,7 +19,9 @@ const SIZES: Record<string, [number, number]> = {
   'kitsu-small.jpeg': [284, 402],
   'kitsu-original.jpg': [1371, 2160],
   'mal-moved.webp': [425, 600],
-  'anilist-moved.jpg': [460, 650],
+  'livechart-moved.jpg': [350, 500],
+  'mal-first.webp': [425, 600],
+  'livechart-first.jpg': [350, 500],
   'jw-show.jpg': [718, 1024],
   'jw-season.jpg': [718, 1024],
 }
@@ -129,9 +131,17 @@ test('the control: another show at the same place takes its own cover', async ()
   expect(cover()).toBe('anilist-medium.jpg')
 })
 
-test('the control: another show at the same place takes its top cover, though another of its covers had loaded first', async () => {
-  await card(show(['mal-moved.webp'], 58516))
+// as the season page moves a show to another place: its LiveChart cover had loaded at the place it
+// left, and MyAnimeList's, ranked first, loads after it arrives
+test('a card that gets another show keeps the cover it drew for it while that one is sharp enough', async () => {
+  await card(show(['livechart-moved.jpg'], 58516))
   const { cover, update } = await card(show(['anisearch-600.webp']))
-  await update(show(['anilist-moved.jpg', 'mal-moved.webp'], 58516))
-  expect(cover()).toBe('anilist-moved.jpg')
+  await update(show(['mal-moved.webp', 'livechart-moved.jpg'], 58516))
+  expect(cover()).toBe('livechart-moved.jpg')
+})
+
+test('a card keeps the cover it first drew, one already loaded, when a less sharp one ranked first loads after', async () => {
+  await card(show(['mal-first.webp'], 58517))
+  const { cover } = await card(show(['livechart-first.jpg', 'mal-first.webp'], 58517))
+  expect(cover()).toBe('mal-first.webp')
 })

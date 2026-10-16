@@ -46,13 +46,15 @@ export const headerImages = (media: { banners?: Images, covers?: Images } | null
 export type CoverOwner = Pick<TheaterCandidate, '_id' | 'uri' | 'handles'>
 
 /**
- * The url of the first of `covers` that loads, for `owner`.
+ * The url of the cover to draw for `owner`: the first of `covers` that loads, unless `box` keeps the
+ * one drawn.
  *
  * The cover drawn stays while each new owner continues from the one it was drawn for, until a cover
  * of the new owner has loaded, so a later answer with no covers, or only broken ones, never blanks it.
  * An owner continues from the same show (`isSameShow`), and with `standIn` also from the show it is a
- * season drawn in the place of (`standsInFor`), which only a listing's card is. Any other owner
- * starts from the first of its own covers already known to load, else its first cover.
+ * season drawn in the place of (`standsInFor`), which only a listing's card is. Any other owner, and
+ * an owner that has no cover drawn yet, starts from the first of its own covers already known to load,
+ * else its first cover, and that is the cover drawn for it.
  *
  * With `box`, the size the cover is drawn at in CSS px, a cover drawn for the same show also stays when
  * another of `covers` loads, unless it is not sharp enough for this screen and the one that loads is
@@ -71,10 +73,11 @@ export const useCoverUrl = (
   const [drawn, setDrawn] = useState<{ owner: typeof owner, url?: string }>({ owner })
   const sameShow = (held: typeof owner) => !!owner && !!held && isSameShow(owner, held)
   const continues = (held: typeof owner) => sameShow(held) || (standIn && !!owner && !!held && standsInFor(owner, held))
+  const url = (continues(drawn.owner) ? drawn.url : undefined) ?? urls.find(candidate => loaded.has(candidate)) ?? urls[0]
 
   useEffect(() => {
     let cancelled = false
-    setDrawn(drawn => continues(drawn.owner) ? drawn : { owner })
+    setDrawn(drawn => continues(drawn.owner) ? { ...drawn, url: drawn.url ?? url } : { owner, url })
     ;(async () => {
       for (const candidate of urls) {
         const loaded = await probe(candidate)
@@ -88,5 +91,5 @@ export const useCoverUrl = (
     return () => { cancelled = true }
   }, [key, owner && theaterKey(owner)])
 
-  return (continues(drawn.owner) ? drawn.url : undefined) ?? urls.find(url => loaded.has(url)) ?? urls[0]
+  return url
 }
