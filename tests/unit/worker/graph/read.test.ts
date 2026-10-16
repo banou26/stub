@@ -525,6 +525,26 @@ test('and a page seeded on a hidden row follows that row to its new run', async 
   await dropClusters('cl:other-run')
 })
 
+// Mutation: leave the runs `withHiddenRuns` answers out of the fresh cards, and a card whose member
+// went to the run a named row now hides behind stays on the page beside that run.
+test('and a card whose member went to that run leaves the page', async () => {
+  const { query } = await graphReady()
+  const page = createPageReader()
+  await writeCluster('cl:stale', ['tvdb:9003'])
+  expect((await page.read([])).map(card => card._id)).toContain('cl:stale')
+
+  await dropClusters('cl:stale')
+  await writeCluster('cl:other-run', ['tvdb:9003'])
+  await query('MATCH (c:Cluster {id: $id}) SET c.hiddenBy = $by', { id: SEASON_ID, by: ['cl:other-run'] })
+
+  const after = (await page.apply([SEASON_ID], [])).map(card => card._id)
+  expect(after, 'the control: the run is drawn').toContain('cl:other-run')
+  expect(after).not.toContain('cl:stale')
+
+  await query('MATCH (c:Cluster {id: $id}) SET c.hiddenBy = $by', { id: SEASON_ID, by: [RUN_ID] })
+  await dropClusters('cl:other-run')
+})
+
 // ---------------------------------------------------------------------------------------------
 // 6.2, the detail resolve.
 

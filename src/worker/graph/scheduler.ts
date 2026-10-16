@@ -30,6 +30,7 @@ import type { PassReport, PassTrigger } from './plugins/runner'
 import type { WriterChange } from './plugins/writer'
 
 import { emit, listen } from '../store/events'
+import { inTurn } from './engine'
 import { aggregatePlugin } from './plugins/aggregate'
 import { containmentPlugin } from './plugins/containment'
 import { directPlugin } from './plugins/direct'
@@ -200,7 +201,7 @@ const drain = async (): Promise<void> => {
         ...wake.claimKeys.size ? { claims: [...wake.claimKeys].sort() } : {},
       }
       try {
-        const report = await runPlugins(plugins, trigger, { audit })
+        const report = await inTurn(() => runPlugins(plugins, trigger, { audit }))
         last = report
         counters.totalMs += report.ms
         counters.longestMs = Math.max(counters.longestMs, report.ms)

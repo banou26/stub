@@ -31,6 +31,7 @@ import {
   type AggregatedUri, type Uri,
 } from '../../utils/uri'
 import { listen } from '../store/events'
+import { inTurn } from './engine'
 import { aggregateFields } from './plugins/fields'
 import { graphReady } from './schema'
 
@@ -235,6 +236,8 @@ const withHiddenRuns = async (
  * Admitting a cluster the page never asked for is the mirror mistake, so a named cluster enters the
  * map only when the page is the whole store, or when the map already holds it, or when it holds one
  * of the uris the fan-out has answered.
+ *
+ * Each read is a turn of its own (`inTurn`), so a page only ever reads a pass's fixed point.
  */
 export const createPageReader = () => {
   const cards = new Map<string, ClusterCard>()
@@ -244,43 +247,56 @@ export const createPageReader = () => {
 
   return {
     /** The seed read, which replaces the map. */
-    read: async (uris: readonly string[]): Promise<ClusterCard[]> => {
+    read: (uris: readonly string[]): Promise<ClusterCard[]> => inTurn(async () => {
       cards.clear()
       for (const card of await pageClusters(uris.length ? uris : undefined)) cards.set(card._id, card)
       return [...cards.values()]
-    },
+    }),
     /** One `view:changed` applied: the named clusters re-read, the removal rule run over them. */
     apply: async (ids: readonly string[], uris: readonly string[]): Promise<ClusterCard[]> => {
       if (!ids.length) return [...cards.values()]
-      const { query } = await graphReady()
-      const rows = (await query(
-        `UNWIND $ids AS i MATCH (c:Cluster {id: i})
-         RETURN c.id AS id, c.hidden AS hidden, c.hiddenBy AS hiddenBy, c.card AS card`,
-        { ids: [...ids] }
-      )).map(pageRowOf)
+      return inTurn(async () => {
+        const { query } = await graphReady()
+        const rows = (await query(
+          `UNWIND $ids AS i MATCH (c:Cluster {id: i})
+           RETURN c.id AS id, c.hidden AS hidden, c.hiddenBy AS hiddenBy, c.card AS card`,
+          { ids: [...ids] }
+        )).map(pageRowOf)
 
-      const seen = new Set(rows.map(row => row.id))
-      // absent: retired into another cluster, or never existed. Either way it is not on the page.
-      for (const id of ids) if (!seen.has(id)) cards.delete(id)
+        const seen = new Set(rows.map(row => row.id))
+        // absent: retired into another cluster, or never existed. Either way it is not on the page.
+        for (const id of ids) if (!seen.has(id)) cards.delete(id)
 
-      // WHICH HIDDEN ROWS ARE THIS PAGE'S, read before the removal loop takes them out of the map.
-      // A row the page was drawing, or one whose members meet the uris this fan-out answered: the
-      // two ways the seed read would have returned it. An event names every cluster that MOVED,
-      // store-wide, so any other hidden row is a fold somewhere else entirely, and following its
-      // `hiddenBy` would put a card on this page that no state justifies and that nothing will ever
-      // name again.
-      const displaced = rows.filter(row =>
-        row.hidden && (cards.has(row.id) || (row.card !== null && admits(row.card, uris))))
+        // WHICH HIDDEN ROWS ARE THIS PAGE'S, read before the removal loop takes them out of the map.
+        // A row the page was drawing, or one whose members meet the uris this fan-out answered: the
+        // two ways the seed read would have returned it. An event names every cluster that MOVED,
+        // store-wide, so any other hidden row is a fold somewhere else entirely, and following its
+        // `hiddenBy` would put a card on this page that no state justifies and that nothing will ever
+        // name again.
+        const displaced = rows.filter(row =>
+          row.hidden && (cards.has(row.id) || (row.card !== null && admits(row.card, uris))))
 
-      for (const row of rows) {
-        if (row.hidden || !row.card) cards.delete(row.id)
-        else if (admits(row.card, uris)) cards.set(row.id, row.card)
-      }
-      // a row that JUST became hidden takes its run's place, so the run is drawn here exactly as the
-      // seed read draws it. Every card this hop answers is the `hiddenBy` target of a displaced row,
-      // so `displaced` IS the admission test and there is nothing left for a second one to say.
-      for (const card of await withHiddenRuns(displaced, query)) cards.set(card._id, card)
-      return [...cards.values()]
+        for (const row of rows) {
+          if (row.hidden || !row.card) cards.delete(row.id)
+          else if (admits(row.card, uris)) cards.set(row.id, row.card)
+        }
+        // a row that JUST became hidden takes its run's place, so the run is drawn here exactly as the
+        // seed read draws it. Every card this hop answers is the `hiddenBy` target of a displaced row,
+        // so `displaced` IS the admission test and there is nothing left for a second one to say.
+        const runs = await withHiddenRuns(displaced, query)
+        for (const card of runs) cards.set(card._id, card)
+
+        // THE NAMES CAN PREDATE THE PASS this read waited for, whose event has not named what it moved
+        // yet. Membership is a partition at a fixed point, so a card this read did not touch that holds
+        // a member of one it did is stale, and drawing it would draw that member twice.
+        const fresh = [...rows.flatMap(row => row.card ?? []), ...runs]
+        const freshIds = new Set(fresh.map(card => card._id))
+        const held = new Set(fresh.flatMap(card => card.members))
+        for (const [id, card] of cards) {
+          if (!freshIds.has(id) && card.members.some(member => held.has(member))) cards.delete(id)
+        }
+        return [...cards.values()]
+      })
     },
     /** The page as it stands, for a caller that wants it without a read. */
     cards: (): ClusterCard[] => [...cards.values()],

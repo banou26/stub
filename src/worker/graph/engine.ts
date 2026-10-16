@@ -58,6 +58,29 @@ const announceWrite = (cypher: string): void => {
   for (const listener of writeListeners) listener()
 }
 
+let turn: Promise<unknown> = Promise.resolve()
+
+/**
+ * Run `work` once every turn asked for before it has ended, and alone until it ends.
+ *
+ * The scheduler runs each pass in a turn and the page reader each read, so a page reads a pass's fixed
+ * point and never the graph between two of its iterations, where a row the next iteration joins is
+ * still a cluster of its own with a card of its own. Measured on the Summer 2026 search page,
+ * 2026-10-16: MyAnimeList's answer gave 82 of its rows a cluster of their own in iteration 1 and
+ * joined each to the Offline row borrowing its id in iteration 2, and a page read landing in between
+ * drew all 82 twice.
+ *
+ * The cost is that a read waits for the pass in flight: up to one whole pass, about 0.5 to 2.5 s when
+ * a second source's batch starts a pass right after the first (a replay of that page's answers).
+ *
+ * A turn that waits on another turn never ends, since that turn queues behind it.
+ */
+export const inTurn = <T>(work: () => Promise<T>): Promise<T> => {
+  const result = turn.then(work)
+  turn = result.catch(() => undefined)
+  return result
+}
+
 let opening: Promise<Graph> | undefined
 let store: CypherStore | undefined
 
