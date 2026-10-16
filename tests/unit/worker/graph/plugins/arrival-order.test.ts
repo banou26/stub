@@ -437,6 +437,193 @@ test('a contest the row\'s own claims cannot settle refuses both claims into it'
 })
 
 /**
+ * The same five rows with the catalogues turned round, so the contested row (`mal:189046`) sorts
+ * AFTER the rows it is weighed against instead of before them. The keys are the Re:Zero rows' roles.
+ */
+const TURNED: Record<string, string> = {
+  'anilist:189046': 'mal:189046',
+  'mal:61316': 'kitsu:61316',
+  'mal:63830': 'kitsu:63830',
+  'kitsu:49746': 'anilist:49746',
+  'kitsu:50665': 'anilist:50665',
+}
+const turnedRound: Rows = {
+  anilist: () => answer('media', media('mal:189046', { ...SEASON, handles: [sameAs(media('kitsu:61316')), sameAs(media('kitsu:63830'))] })),
+  mal: () => answer('media', media('kitsu:61316', {
+    ...SEASON,
+    episodes: Array.from({ length: 19 }, (_, index) => episode(`kitsu:61316-${index + 1}`, 'kitsu:61316', { episodeNumber: index + 1 })),
+  })),
+  kitsu: () => answer('media', media('anilist:49746', { ...SEASON, handles: [sameAs(media('mal:189046')), sameAs(media('kitsu:61316'))] })),
+  breakTime: () => answer('media', media('anilist:50665', { ...BREAK_TIME, handles: [sameAs(media('mal:189046')), sameAs(media('kitsu:63830'))] })),
+  breakTimeMal: () => answer('media', media('kitsu:63830', BREAK_TIME)),
+}
+
+/**
+ * KNOWN GAP, skipped rather than pinned because these plans each build a different graph. A contested
+ * row whose own answer claims a row on EACH side is refused to both, but over those rows guard 5 reads
+ * its side from its links, and its links are that contest's own verdicts. Its side moves with every
+ * verdict, the contests over those rows read it, the pass never settles, and the iteration cap keeps
+ * whichever graph arrival order reached: on the Re:ZERO rows these five plans build five graphs, the
+ * third welding both runs.
+ *
+ * NO RULE INSIDE GUARD 5 HAS CLOSED IT (2026-10-16). Read the row's sides from what its claimants CLAIM
+ * and they cannot move, but a claim another contest refuses still counts, and an id a side holds only
+ * through another row's claim does not: weighing the row alone there welds two titles or hands a
+ * disputed id to one side (the controls below), or leaves this shape as it is. Read them from LINKS,
+ * or sever the row's verdict links for every guard, and the rule waits on the verdicts it decides,
+ * which keeps the order dependence. Closing it needs guard 5 to settle such a row without reading the
+ * links it is deciding.
+ */
+test.skip('KNOWN GAP: a contested row claiming a row on each side builds one graph in every arrival order', async () => {
+  const graph = [
+    'cluster anilist:189046',
+    'cluster kitsu:49746 mal:61316',
+    'cluster kitsu:50665 mal:63830',
+    'link anilist:189046 -> mal:61316 SAME_AS refused contested',
+    'link anilist:189046 -> mal:63830 SAME_AS refused contested',
+    'link kitsu:49746 -> anilist:189046 PART_OF active contested',
+    'link kitsu:49746 -> anilist:189046 SAME_AS refused contested',
+    'link kitsu:49746 -> mal:61316 SAME_AS active asserted',
+    'link kitsu:50665 -> anilist:189046 PART_OF active contested',
+    'link kitsu:50665 -> anilist:189046 SAME_AS refused contested',
+    'link kitsu:50665 -> mal:63830 SAME_AS active asserted',
+    'link mal:61316 -> anilist:189046 INCLUDES refused no-reference',
+    'link mal:61316 -> anilist:189046 PART_OF active contested',
+    'link mal:63830 -> anilist:189046 PART_OF active contested',
+  ]
+  const plans = [
+    [['anilist', 'mal', 'kitsu', 'breakTime', 'breakTimeMal']],
+    [['mal', 'kitsu', 'breakTime', 'breakTimeMal'], ['anilist']],
+    [['anilist', 'kitsu', 'breakTime', 'breakTimeMal'], ['mal']],
+    [['anilist', 'mal', 'kitsu'], ['breakTime', 'breakTimeMal']],
+    [['anilist', 'mal', 'breakTime', 'breakTimeMal'], ['kitsu']],
+  ]
+  const both = reZero([sameAs(media('mal:61316')), sameAs(media('mal:63830'))])
+  const offline = () => answer('media', media('offline:mal-61316', { ...SEASON, handles: [sameAs(media('mal:61316'))] }))
+  const fixtures: { name: string, rows: Rows, expected: string[], lead?: string }[] = [
+    { name: 'Re:ZERO', rows: both, expected: graph },
+    { name: 'turned round', rows: turnedRound, expected: graph.map(line => line.replace(/[a-z]+:\d+/g, uri => TURNED[uri] ?? uri)) },
+    {
+      name: 'with Offline\'s Season 4 row',
+      rows: { ...both, offline },
+      expected: [
+        ...graph.map(line => (line === 'cluster kitsu:49746 mal:61316' ? `${line} offline:mal-61316` : line)),
+        'link offline:mal-61316 -> mal:61316 SAME_AS active asserted',
+      ],
+      lead: 'offline',
+    },
+  ]
+  for (const { name, rows, expected, lead } of fixtures) {
+    for (const plan of plans) {
+      const batches = lead ? [[lead, ...plan[0]!], ...plan.slice(1)] : plan
+      expect((await reZeroBuild(rows, batches)).sort(), `${name}, ${JSON.stringify(batches)}`).toEqual([...expected].sort())
+    }
+  }
+})
+
+/**
+ * THE CONTROLS a fix for that gap has to keep: shapes around it where a rule tried for it welded two
+ * titles, handed a disputed id to one side or moved a contested downgrade, and where this store does
+ * none of that in any order measured. AniList's row settled on Season 4's side, refused to both sides
+ * or naming a MyAnimeList id on each side, beside a third show or Break Time's Kitsu row naming
+ * `anidb:5`; Season 4's own AniDB id kept apart from the `anidb:5` Break Time's Kitsu row and a fourth
+ * show name, where that show disagrees with Season 4's Kitsu row or only with Break Time's; and a third
+ * show claiming Season 4's MyAnimeList row beside an id that disagrees with one AniList's row holds.
+ */
+test('the controls: a contested row\'s own claims weld nothing in any order', async () => {
+  const refused = (link: string) => `link ${link} SAME_AS refused contested`
+  const row = (uri: string, fields: Record<string, unknown>, handles: string[] = []): Rows[string] =>
+    () => answer('media', media(uri, { ...fields, handles: handles.map(handle => sameAs(media(handle))) }))
+  const own = (uris: string[]) => uris.map(uri => sameAs(media(uri)))
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const episodes = Array.from({ length: 19 }, (_, index) => episode(`mal:61316-${index + 1}`, 'mal:61316', { episodeNumber: index + 1 }))
+  const ownKitsu: Rows = { other: row('kitsu:12345', OTHER) }
+  const seasonAnidb = (breakTime: string[], extra: Rows): Rows => reZero(own(['mal:61316', 'anidb:5']), {
+    kitsu: row('kitsu:49746', SEASON, ['anilist:189046', 'mal:61316', 'anidb:4']),
+    breakTime: row('kitsu:50665', BREAK_TIME, ['anilist:189046', 'mal:63830', 'anidb:5', ...breakTime]),
+    ...extra,
+  })
+  const anizipOwn = own(['mal:61316', 'mal:63830', 'anizip:777'])
+  const cases: { name: string, rows: Rows, holds?: string[], apart?: [string, string] }[] = [
+    {
+      name: 'settled on Season 4\'s side',
+      rows: reZero(own(['mal:61316', 'anidb:5']), { stray: row('mal:300', THIRD, ['anidb:5']) }),
+      holds: [refused('anilist:189046 -> anidb:5'), refused('mal:300 -> anidb:5')],
+    },
+    {
+      name: 'refused to both sides, joined to its own Kitsu id',
+      rows: reZero(own(['kitsu:12345', 'anidb:5']), { ...ownKitsu, stray: row('kitsu:999', THIRD, ['anidb:5']) }),
+      holds: [refused('anilist:189046 -> anidb:5'), refused('kitsu:999 -> anidb:5')],
+    },
+    {
+      name: 'a MyAnimeList id on each side and one of its own',
+      rows: reZero(own(['mal:61316', 'mal:63830', 'mal:100', 'anidb:5']), {
+        own: row('mal:100', { ...OTHER, titles: [title('en', 'A fourth show')] }),
+        stray: row('mal:300', THIRD, ['anidb:5']),
+      }),
+      holds: [refused('anilist:189046 -> anidb:5'), refused('mal:300 -> anidb:5')],
+    },
+    {
+      name: 'Season 4\'s MyAnimeList id beside another title\'s Kitsu id',
+      rows: reZero(own(['mal:61316', 'kitsu:12345']), ownKitsu),
+      holds: [refused('kitsu:49746 -> mal:61316')],
+    },
+    {
+      name: 'settled on Season 4\'s side, naming a row Break Time\'s Kitsu row names too',
+      rows: reZero(own(['mal:61316', 'anidb:5']), { breakTime: row('kitsu:50665', BREAK_TIME, ['anilist:189046', 'mal:63830', 'anidb:5']) }),
+      holds: [refused('anilist:189046 -> anidb:5'), refused('kitsu:50665 -> anidb:5')],
+    },
+    {
+      name: 'a fourth show disagreeing with Season 4\'s Kitsu row',
+      rows: seasonAnidb([], { w: row('kitsu:77777', THIRD, ['anidb:5']), anidb: row('anidb:5', THIRD, ['kitsu:77777']) }),
+      apart: ['anidb:4', 'anidb:5'],
+    },
+    {
+      name: 'the same with no answer of anidb:5\'s own',
+      rows: seasonAnidb([], { w: row('kitsu:77777', THIRD, ['anidb:5']) }),
+      apart: ['anidb:4', 'anidb:5'],
+    },
+    {
+      name: 'a fourth show disagreeing with Break Time\'s Kitsu row only',
+      rows: seasonAnidb(['livechart:1'], { w: row('livechart:2', THIRD, ['anidb:5']), anidb: row('anidb:5', THIRD, ['livechart:2']) }),
+      apart: ['anidb:4', 'anidb:5'],
+    },
+    {
+      name: 'a third show claiming Season 4\'s MyAnimeList row',
+      rows: reZero(anizipOwn, { stray: row('anizip:888', THIRD, ['mal:61316']) }),
+      holds: [refused('anizip:888 -> mal:61316')],
+    },
+    {
+      name: 'the same with an AniDB id on each side of it',
+      rows: reZero(anizipOwn, {
+        mal: row('mal:61316', { ...SEASON, episodes }, ['anidb:5']),
+        stray: row('anizip:999', THIRD, ['mal:61316', 'anidb:6']),
+      }),
+      holds: [refused('anizip:999 -> mal:61316')],
+    },
+    {
+      name: 'a third show claiming AniList\'s row and Season 4\'s MyAnimeList row',
+      rows: reZero(anizipOwn, {
+        mal: row('mal:61316', { ...SEASON, episodes }, ['kitsu:49746']),
+        stray: row('anizip:999', THIRD, ['anilist:189046', 'mal:61316', 'kitsu:888']),
+      }),
+      holds: ['link anilist:189046 -> mal:61316 PART_OF active contested', 'link anizip:999 -> mal:61316 PART_OF active contested'],
+    },
+  ]
+  for (const { name, rows, holds = [], apart } of cases) {
+    const keys = Object.keys(rows)
+    for (const plan of [[keys], keys.map(key => [key]), [...keys].reverse().map(key => [key])]) {
+      const shape = await reZeroBuild(rows, plan)
+      for (const line of holds) expect(shape, `${name}, ${JSON.stringify(plan)}`).toContain(line)
+      if (apart) {
+        expect(shape.filter(line => line.startsWith('cluster ') && apart.every(uri => line.split(' ').includes(uri))), `${name}, ${JSON.stringify(plan)}`)
+          .toEqual([])
+      }
+    }
+  }
+})
+
+/**
  * 8.6: MyAnimeList's one row for both Attack on Titan Final Chapters specials. Its own answer names
  * AniDB's and AniZip's entries, which AniZip maps to Part 1's AniList id only, and Part 2 holds no id
  * of either catalogue, so nothing in those claims says Part 2 is wrong and the row stays with neither
