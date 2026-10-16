@@ -25,9 +25,9 @@ export type Held = { progress: number, stars: number | null, watchlisted: boolea
 export type WatchedAnswer = TokenAnswer & { held?: Held }
 
 /**
- * What a save sets, each field left as it is when absent: progress only ever rises, `stars` null asks
- * for no rating, which Crunchyroll cannot take off once given, and `watchlist` puts the series on the
- * Watchlist or takes it off.
+ * What a save sets, each field left as it is when absent: progress only ever rises, marking the one
+ * episode at it, `stars` null asks for no rating, which Crunchyroll cannot take off once given, and
+ * `watchlist` puts the series on the Watchlist or takes it off.
  */
 export type SaveRequest = WatchedRequest & { progress?: number, stars?: number | null, watchlist?: boolean }
 
@@ -117,8 +117,9 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
     }
     // the site's star never takes a rating off, and its thumbs' DELETE, sent with no body, answered 409 on stars
     if (stars === null && now.stars) return 'Crunchyroll cannot remove a rating'
-    // one at a time, as every client marks; 409 is an episode Crunchyroll already counts as watched
-    for (const episode of now.episodes.slice(0, progress ?? 0).filter(episode => !episode.watched)) {
+    // never the earlier ones the account left unmarked; 409 is an episode Crunchyroll already counts as watched
+    const episode = progress ? now.episodes[progress - 1] : undefined
+    if (episode && !episode.watched) {
       await ask(`/content/v2/discover/${accountId}/mark_as_watched/${encodeURIComponent(episode.id)}`, { method: 'POST', done: [409] })
     }
     if (stars && stars !== now.stars) {
@@ -150,12 +151,12 @@ export const readWatched = async (request: WatchedRequest, send: PageFetch): Pro
 }
 
 /**
- * Writes a save to the account, after reading what it holds, so only what changes is sent: each
- * numbered episode up to `progress` that no audio version has watched is marked watched, its Japanese
- * version, one at a time. Refused with nothing written when `progress` is past the season's numbered
- * episodes, or under how far the account got, since Crunchyroll has no unmark, and when `stars` is null
- * on a rated series, since it has no way to take a rating off. A write Crunchyroll does not take
- * rejects, with what was sent before it kept.
+ * Writes a save to the account, after reading what it holds, so only what changes is sent: the numbered
+ * episode at `progress` alone is marked watched, its Japanese version, unless an audio version of it
+ * already is; the episodes before it stay as the account holds them. Refused with nothing written when
+ * `progress` is past the season's numbered episodes, or under how far the account got, since Crunchyroll
+ * has no unmark, and when `stars` is null on a rated series, since it has no way to take a rating off. A
+ * write Crunchyroll does not take rejects, with what was sent before it kept.
  */
 export const saveWatched = async (request: SaveRequest, send: PageFetch): Promise<SaveAnswer> => {
   const { read, ...answer } = await askForToken(TOKEN_REQUEST, send, grant => account(grant, send).save(request))

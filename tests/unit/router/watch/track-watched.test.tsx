@@ -183,6 +183,22 @@ test('a save that does not land shows as the tracking row shows it, and Retry se
   expect(host.querySelector('[data-note="anilist"]')).toBeNull()
 })
 
+// a save there marks the one episode it names, so the next episode's save alone would leave 5 unmarked
+test('on Crunchyroll, a mark that failed goes again on its own before the next episode watched', async () => {
+  const cr = { ...answer('cr', 'Crunchyroll', 'LISTED', { progress: 4 }), tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'] } }
+  tracking = { summary: null, disagreements: [], answers: [cr] }
+  outcome = { outcome: 'FAILED', error: 'Crunchyroll answered 503' }
+  const { host, link, rerender } = page()
+  await link.report(playing(900))
+  expect(host.querySelector('[data-note="cr"]')?.textContent).toContain('Crunchyroll did not save the status and episode 5')
+  outcome = { outcome: 'SAVED' }
+  const next = fakeLink(1000)
+  rerender({ link: next, episode: 6 })
+  await next.report(playing(900))
+  expect(sent.map(({ entry }) => entry.progress)).toEqual([5, 5, 6])
+  expect(host.querySelector('[data-note="cr"]')).toBeNull()
+})
+
 test('an earlier episode watched before the trackers re-read the last save writes nothing', async () => {
   tracking = { summary: null, disagreements: [], answers: [listedAt(4)] }
   const { link, rerender } = page({ episode: 7 })

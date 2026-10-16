@@ -510,6 +510,21 @@ describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to wat
     expect(crWrites(onSaveFields)).toEqual([{ progress: 14 }, { progress: 9 }])
   })
 
+  // a save there marks the one episode it names, so two + folded into one save would skip the first
+  test('two quick + on its card mark both episodes, a save each, while AniList folds them into one', async () => {
+    vi.useFakeTimers()
+    const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, progress: 8 } }, mal, stub, cr('LISTED', { progress: 8 })] } })
+    for (const id of ['cr', 'anilist']) {
+      const card = await hover(host, id)
+      await click(named(card, 'One episode more'))
+      await settle(300)
+      await click(named(card, 'One episode more'))
+      await settle(1000)
+    }
+    expect(crWrites(onSaveFields)).toEqual([{ progress: 9 }, { progress: 10 }])
+    expect(onSaveFields.mock.calls.filter(([targets]) => targets.includes('anilist')).map(([, fields]) => fields), 'the control').toEqual([{ progress: 10 }])
+  })
+
   test("a score or a status on the row sends it only what it keeps, never the row's episodes, whether it lists the show or not", async () => {
     for (const answer of [cr('NOT_LISTED'), cr('LISTED', { progress: 8 })]) {
       const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, answer] } })

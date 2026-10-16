@@ -10,7 +10,7 @@ import type { CompactPrefs } from '../tracking/compact-prefs'
 import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
 
 import {
-  STATUS_LABELS, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, targetOf, unsettled, whyNot, writable,
+  STATUS_LABELS, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import SaveProblems from './save-problems'
@@ -438,6 +438,7 @@ const TrackingCompact = (
       const answer = tracking?.answers.find(candidate => candidate.tracker.id === tracker)
       return answer && patchFor(answer, fields, { ...rowOf(tracking, episodeCount), ...fields })
     },
+    steps: tracker => stepsProgress(latest.current.tracking, tracker),
     onChange: (settled?: Settled) => {
       setTick(tick => tick + 1)
       if (!settled) return

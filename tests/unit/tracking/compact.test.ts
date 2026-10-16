@@ -178,11 +178,11 @@ describe('pickerScale', () => {
 })
 
 describe('the save queue', () => {
-  const setup = () => {
+  const setup = (steps?: (tracker: string) => boolean) => {
     vi.useFakeTimers()
     const pending: { tracker: string, fields: Fields, resolve: (outcome: Outcome) => void }[] = []
     const send = vi.fn((tracker: string, fields: Fields) => new Promise<Outcome>(resolve => { pending.push({ tracker, fields, resolve }) }))
-    const queue = createSaveQueue({ send })
+    const queue = createSaveQueue({ send, steps })
     const settle = async (index: number, outcome: Outcome) => { pending[index]!.resolve(outcome); await vi.advanceTimersByTimeAsync(0) }
     return { send, queue, pending, settle }
   }
@@ -196,6 +196,39 @@ describe('the save queue', () => {
     expect(send).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1000)
     expect(send.mock.calls).toEqual([['a', { progress: 16 }], ['b', { progress: 16 }]])
+    vi.useRealTimers()
+  })
+
+  // Crunchyroll, where a save marks the one episode it names: folding 19 and 20 into 20 would skip 19
+  test('a tracker that steps takes each raise of progress as a save of its own, in order, while the others fold', async () => {
+    const { send, queue, settle } = setup(tracker => tracker === 'cr')
+    for (const progress of [19, 20, 21]) {
+      queue.stage({ cr: { progress }, anilist: { progress } }, false)
+      await vi.advanceTimersByTimeAsync(300)
+    }
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(send.mock.calls).toEqual([['cr', { progress: 19 }], ['anilist', { progress: 21 }]])
+    await settle(0, { outcome: 'SAVED' })
+    await settle(2, { outcome: 'SAVED' })
+    expect(send.mock.calls.filter(([tracker]) => tracker === 'cr')).toEqual([['cr', { progress: 19 }], ['cr', { progress: 20 }], ['cr', { progress: 21 }]])
+    vi.useRealTimers()
+  })
+
+  test('on a tracker that steps, a failed raise keeps those behind it, and Retry or the next change sends it first', async () => {
+    const { send, queue, settle } = setup(() => true)
+    queue.stage({ cr: { progress: 19 } }, true)
+    queue.stage({ cr: { progress: 20 } }, true)
+    await settle(0, { outcome: 'FAILED', error: 'Crunchyroll answered 503' })
+    expect(send, 'nothing goes past the failed one').toHaveBeenCalledTimes(1)
+    expect(queue.state('cr').failed).toEqual({ fields: { progress: 19 }, error: 'Crunchyroll answered 503' })
+    queue.retry('cr')
+    await settle(1, { outcome: 'SAVED' })
+    await settle(2, { outcome: 'FAILED', error: 'Crunchyroll answered 503' })
+    queue.stage({ cr: { progress: 21 } }, true)
+    await settle(3, { outcome: 'SAVED' })
+    await settle(4, { outcome: 'SAVED' })
+    expect(send.mock.calls.map(([, { progress }]) => progress)).toEqual([19, 19, 20, 20, 21])
+    expect(queue.state('cr').failed).toBeUndefined()
     vi.useRealTimers()
   })
 

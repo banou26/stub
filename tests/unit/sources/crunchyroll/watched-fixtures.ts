@@ -87,6 +87,18 @@ export const PLAYHEADS = {
   meta: {},
 }
 
+/** A season of episodes 1 to `count` in the shape of SEASON_EPISODES: `GJA<n>` in Japanese, `GDUB<n>` dubbed. */
+export const numberedSeason = (count: number) => ({
+  ...SEASON_EPISODES,
+  total: count,
+  data: Array.from({ length: count }, (_, at) => ({
+    id: `GJA${at + 1}`, episode_number: at + 1, sequence_number: at + 1, season_id: API_SEASON_ID, versions: versions(`GJA${at + 1}`, `GDUB${at + 1}`),
+  })),
+})
+
+/** Playheads in the shape of PLAYHEADS with each of `ids` fully watched. */
+export const fullyWatched = (...ids: string[]) => ({ ...PLAYHEADS, data: ids.map(content_id => ({ playhead: 1420, content_id, fully_watched: true })) })
+
 /** `GET /content-reviews/v3/user/{account}/rating/series/GT00399001`: unrated, as crunchyroll-rs reads an empty `rating`. */
 export const RATING = {
   '1s': { displayed: '1.1', unit: 'K', percentage: 2 },
@@ -113,8 +125,9 @@ export type Asked = { url: string, method: string, authorization?: string, body?
  * the token call with the measured 400. Any other season's episodes are an empty list, as measured for
  * a season id without its `JAJP`, and a list of playheads holds only the ids asked for. `state` is what
  * the series holds, its stars and its place on the Watchlist, which the writes change and a test may
- * change as crunchyroll.com itself would; `marks` answers a mark of an episode by its id. Every grant is
- * ACCESS_TOKEN: nothing says Crunchyroll grants a new token each time, so nothing may rely on one.
+ * change as crunchyroll.com itself would; `marks` answers a mark of an episode by its id, and an
+ * episode marked is fully watched in the playheads read after it. Every grant is ACCESS_TOKEN: nothing
+ * says Crunchyroll grants a new token each time, so nothing may rely on one.
  */
 export const fakeCrunchyroll = (
   {
@@ -124,6 +137,7 @@ export const fakeCrunchyroll = (
 ) => {
   const asked: Asked[] = []
   const state = { stars, watchlisted }
+  const marked: string[] = []
   const send = async (url: string, init: RequestInit): Promise<Answer> => {
     const method = init.method ?? 'GET'
     const headers = (init.headers ?? {}) as Record<string, string>
@@ -144,7 +158,8 @@ export const fakeCrunchyroll = (
       if (pathname === `/content/v2/${ACCOUNT_ID}/playheads`) {
         const ids = new Set(searchParams.get('content_ids')!.split(','))
         const { data } = playheads as { data?: unknown }
-        return answer(200, Array.isArray(data) ? { ...playheads as object, data: data.filter(head => ids.has(head.content_id)) } : playheads)
+        const held = Array.isArray(data) ? [...data, ...fullyWatched(...marked).data] : undefined
+        return answer(200, held ? { ...playheads as object, data: held.filter(head => ids.has(head.content_id)) } : playheads)
       }
       if (pathname === `/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`) return answer(200, { ...RATING, rating: state.stars })
       if (pathname === `/content/v2/${ACCOUNT_ID}/watchlist` && searchParams.get('content_ids') === SERIES_ID) {
@@ -154,7 +169,12 @@ export const fakeCrunchyroll = (
     }
     if (!signed) return answer(401, { code: 'unauthorized' })
     const mark = new RegExp(`^/content/v2/discover/${ACCOUNT_ID}/mark_as_watched/([^/]+)$`).exec(pathname)
-    if (method === 'POST' && mark) return answer(marks(decodeURIComponent(mark[1]!)), null)
+    if (method === 'POST' && mark) {
+      const id = decodeURIComponent(mark[1]!)
+      const status = marks(id)
+      if (status < 300) marked.push(id)
+      return answer(status, null)
+    }
     const rating = `/content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`
     if (method === 'PUT' && pathname === rating) {
       state.stars = (body as { rating: string }).rating

@@ -73,7 +73,8 @@ type Tracker {
   """
   The statuses it keeps, when it keeps only some: Crunchyroll keeps Plan to watch alone, as its
   Watchlist. Such a tracker keeps each field on its own, so a change reaches it as only the fields it
-  carries, never filled in from the row, and its status and score, a whole series' there, never make
+  carries, never filled in from the row, each raise of progress as a save of its own, since a save
+  there marks the one episode it names, and its status and score, a whole series' there, never make
   the summary's. Absent means every status.
   """
   statuses: [ListStatus!]

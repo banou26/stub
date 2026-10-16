@@ -7,7 +7,7 @@ import { useSubscription } from 'urql'
 
 import { MEDIA_TRACKING, useSaveEntry } from '../../components/media-tracking-query'
 import SaveProblems from '../../components/save-problems'
-import { createSaveQueue, whyNot, writable } from '../../tracking/compact'
+import { createSaveQueue, stepsProgress, whyNot, writable } from '../../tracking/compact'
 import { devicePrefs } from '../../tracking/compact-prefs'
 import { watchedPatches } from '../../tracking/watched'
 
@@ -41,14 +41,16 @@ const TrackWatched = (
   const [, setTick] = useState(0)
   // the progress each tracker was last sent, so a re-read that has not come back yet never lowers it
   const sent = useRef(new Map<string, number>())
-  const latest = useRef(saveEntry)
-  latest.current = saveEntry
+  const tracking = data?.tracking
+  const latest = useRef({ saveEntry, tracking })
+  latest.current = { saveEntry, tracking }
 
   const queue = useMemo(() => createSaveQueue({
     send: async (tracker, fields) => {
-      const outcomes = await latest.current([tracker], fields)
+      const outcomes = await latest.current.saveEntry([tracker], fields)
       return outcomes.find(outcome => outcome.tracker === tracker) ?? outcomes[0] ?? { outcome: 'FAILED' }
     },
+    steps: tracker => stepsProgress(latest.current.tracking, tracker),
     onChange: () => setTick(tick => tick + 1),
   }), [])
 
@@ -65,7 +67,6 @@ const TrackWatched = (
     })
   }, [link, episode])
 
-  const tracking = data?.tracking
   const answers = tracking?.answers ?? []
   const patches = tracking ? watchedPatches({ played: played.share, episode: played.episode, movie }, tracking, prefs.read().targets, episodeCount) : {}
   const due = answers.filter(({ tracker: { id } }) => patches[id] && patches[id].progress! > (sent.current.get(id) ?? 0))

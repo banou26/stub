@@ -7,7 +7,7 @@ import type { SaveAnswer, SaveRequest, WatchedAnswer } from '../../../../src/sou
 import type { TrackerAnswer } from '../../../../src/generated/schema/types.generated'
 import type { CallOptions, SiteSessionResult } from '../../../../src/tracking/site-session'
 
-import { readWatched } from '../../../../src/sources/crunchyroll/session-page'
+import { readWatched, saveWatched } from '../../../../src/sources/crunchyroll/session-page'
 import { crunchyrollTrackerResolvers } from '../../../../src/sources/crunchyroll/tracker-resolvers'
 import { aggregateTracking } from '../../../../src/tracking/aggregate'
 import { RETRY_MS } from '../../../../src/tracking/collect'
@@ -15,7 +15,7 @@ import { CallInterrupted } from '../../../../src/tracking/session-frames'
 import { watchedPatches } from '../../../../src/tracking/watched'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
-import { SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll } from './watched-fixtures'
+import { ACCOUNT_ID, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, fullyWatched, numberedSeason } from './watched-fixtures'
 
 // the show-level id beside the season's, as a cluster holds them
 const URI = `ag:(anilist:154587,cr:${SERIES_ID},cr:${SERIES_ID}-${SEASON_ID})`
@@ -246,5 +246,21 @@ describe('beside the trackers the viewer writes to', () => {
       stub: { progress: 11, status: 'WATCHING' },
       cr: { progress: 11, status: 'WATCHING' },
     })
+  })
+
+  test('watching episode 5 marks episode 5 on Crunchyroll alone, never the ones before it the account left unmarked', async () => {
+    const site = fakeCrunchyroll({ episodes: numberedSeason(12), playheads: fullyWatched('GJA1', 'GJA2') })
+    const page = {
+      call: async (method: string, arg: SaveRequest) =>
+        ({ kind: 'response', response: method === 'save' ? await saveWatched(arg, site.send) : await readWatched(arg, site.send) }),
+      onChange: () => () => {},
+    }
+    const target = providerServer('cr', crunchyrollTrackerResolvers({ wait: () => new Promise(() => {}) }), { session: () => page })
+    const tracking = aggregateTracking(URI, [answerOf(await watch(target).next())])
+
+    const { cr } = watchedPatches({ played: 0.9, episode: 5 }, tracking, {}, 12)
+    expect(cr).toEqual({ progress: 5, status: 'WATCHING' })
+    expect(await save(target, cr!)).toMatchObject([{ tracker: 'cr', outcome: 'SAVED' }])
+    expect(site.writes().map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual([`POST /content/v2/discover/${ACCOUNT_ID}/mark_as_watched/GJA5`])
   })
 })

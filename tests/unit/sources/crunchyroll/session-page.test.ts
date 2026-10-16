@@ -6,7 +6,7 @@ import type { Asked } from './watched-fixtures'
 
 import { readWatched, saveWatched } from '../../../../src/sources/crunchyroll/session-page'
 import {
-  ACCESS_TOKEN, ACCOUNT_ID, PLAYHEADS, SEASON_EPISODES, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, throughRelay,
+  ACCESS_TOKEN, ACCOUNT_ID, SEASON_EPISODES, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, fullyWatched, numberedSeason, throughRelay,
 } from './watched-fixtures'
 
 const SEASON = { seriesId: SERIES_ID, seasonId: SEASON_ID }
@@ -15,7 +15,6 @@ const BASE = 'https://www.crunchyroll.com'
 const pathOf = ({ url }: Asked) => new URL(url).pathname
 // every request ends in its own `_=<nonce>`
 const bare = (url: string) => url.replace(/[?&]_=[^&]+$/, '')
-const heads = (...watched: string[]) => ({ ...PLAYHEADS, data: watched.map(content_id => ({ playhead: 1420, content_id, fully_watched: true })) })
 
 describe('a read', () => {
   test("finds the season in its series as the source does, then reads its episodes and their playheads, the series' stars and Watchlist, with the viewer's own token", async () => {
@@ -42,12 +41,12 @@ describe('a read', () => {
 
   test('progress is the last episode fully watched, counted in the season, wherever Crunchyroll numbers it from', async () => {
     const episode = (number: number) => ({ id: `GJA${number}`, episode_number: number, versions: null })
-    const { send } = fakeCrunchyroll({ episodes: { ...SEASON_EPISODES, data: [25, 26, 27, 28, 29].map(episode) }, playheads: heads('GJA25', 'GJA27') })
+    const { send } = fakeCrunchyroll({ episodes: { ...SEASON_EPISODES, data: [25, 26, 27, 28, 29].map(episode) }, playheads: fullyWatched('GJA25', 'GJA27') })
     expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 3 })
   })
 
   test("the series' stars and its place on the Watchlist", async () => {
-    const { send } = fakeCrunchyroll({ stars: '4s', watchlisted: true, playheads: heads() })
+    const { send } = fakeCrunchyroll({ stars: '4s', watchlisted: true, playheads: fullyWatched() })
     expect((await readWatched(SEASON, send)).held).toEqual({ progress: 0, stars: 4, watchlisted: true })
   })
 
@@ -90,12 +89,7 @@ describe('a read', () => {
 
   test('a long season asks its playheads a part at a time, and an episode in a later part still counts', async () => {
     const numbers = Array.from({ length: 30 }, (_, at) => at + 1)
-    const episode = (number: number) => ({
-      id: `GJA${number}`,
-      episode_number: number,
-      versions: [{ audio_locale: 'ja-JP', guid: `GJA${number}`, original: true }, { audio_locale: 'en-US', guid: `GDUB${number}`, original: false }],
-    })
-    const { send, asked } = fakeCrunchyroll({ episodes: { ...SEASON_EPISODES, data: numbers.map(episode) }, playheads: heads('GDUB30') })
+    const { send, asked } = fakeCrunchyroll({ episodes: numberedSeason(30), playheads: fullyWatched('GDUB30') })
 
     const answer = await readWatched(SEASON, send)
 
@@ -115,17 +109,19 @@ describe('a save', () => {
   })
   const markOf = (id: string) => `/content/v2/discover/${ACCOUNT_ID}/mark_as_watched/${id}`
 
-  test('raising progress marks each numbered episode up to it that no audio version has watched, the Japanese one, one per call', async () => {
-    // watched: 1 in Japanese and 2 in the dub, so 3 and 4 are left; the recap has no number
-    const { send, writes } = fakeCrunchyroll()
-    expect(await saveWatched({ ...SEASON, progress: 4 }, send)).toEqual({ status: 200, body: null })
-    expect(marked(writes())).toEqual([markOf('GJAEP0003'), markOf('GJAEP0004')])
+  // Re:Zero season 4 as the owner's Crunchyroll held it on 2026-10-17: episode 18 watched, 1 to 17 never marked
+  test('+ marks the next episode alone, its Japanese version, and leaves the earlier ones the account never marked', async () => {
+    const { send, writes } = fakeCrunchyroll({ episodes: numberedSeason(19), playheads: fullyWatched('GDUB18') })
+    expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 18 })
+    expect(await saveWatched({ ...SEASON, progress: 19 }, send)).toEqual({ status: 200, body: null })
+    expect(marked(writes())).toEqual([markOf('GJA19')])
+    expect((await readWatched(SEASON, send)).held, 'the card reads the episode just marked').toMatchObject({ progress: 19 })
   })
 
-  test('an episode skipped before the new progress is marked too, and one past it is not', async () => {
-    const { send, writes } = fakeCrunchyroll({ playheads: heads('GDUBEP002') })
-    await saveWatched({ ...SEASON, progress: 3 }, send)
-    expect(marked(writes())).toEqual([markOf('GJAEP0001'), markOf('GJAEP0003')])
+  test('a number set past the next marks that episode alone, never the ones between', async () => {
+    const { send, writes } = fakeCrunchyroll({ episodes: numberedSeason(24), playheads: fullyWatched(...Array.from({ length: 12 }, (_, at) => `GJA${at + 1}`)) })
+    expect(await saveWatched({ ...SEASON, progress: 15 }, send)).toEqual({ status: 200, body: null })
+    expect(marked(writes())).toEqual([markOf('GJA15')])
   })
 
   test('the progress it already holds marks nothing', async () => {
@@ -146,14 +142,14 @@ describe('a save', () => {
     expect(writes()).toEqual([])
   })
 
-  test('a mark Crunchyroll refuses stops there and fails the save; one it already holds (409) counts as done', async () => {
-    const failing = fakeCrunchyroll({ playheads: heads(), marks: id => id === 'GJAEP0002' ? 500 : 200 })
-    await expect(saveWatched({ ...SEASON, progress: 4 }, failing.send)).rejects.toThrow('Crunchyroll answered 500')
-    expect(failing.writes().map(pathOf)).toEqual([markOf('GJAEP0001'), markOf('GJAEP0002')])
+  test('a mark Crunchyroll refuses fails the save; one it already holds (409) counts as done', async () => {
+    const failing = fakeCrunchyroll({ marks: () => 503 })
+    await expect(saveWatched({ ...SEASON, progress: 3 }, failing.send)).rejects.toThrow('Crunchyroll answered 503')
+    expect(failing.writes().map(pathOf)).toEqual([markOf('GJAEP0003')])
 
-    const held = fakeCrunchyroll({ playheads: heads(), marks: id => id === 'GJAEP0002' ? 409 : 200 })
-    await saveWatched({ ...SEASON, progress: 3 }, held.send)
-    expect(held.writes().map(pathOf)).toEqual([markOf('GJAEP0001'), markOf('GJAEP0002'), markOf('GJAEP0003')])
+    const held = fakeCrunchyroll({ marks: () => 409 })
+    expect(await saveWatched({ ...SEASON, progress: 3 }, held.send)).toEqual({ status: 200, body: null })
+    expect(held.writes().map(pathOf)).toEqual([markOf('GJAEP0003')])
   })
 
   test("stars rate the series, 1s to 5s, with the one PUT the site's own star sends to set them and to change them", async () => {

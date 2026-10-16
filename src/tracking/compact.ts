@@ -186,6 +186,13 @@ export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Field
   return Object.keys(fields).length ? fields : undefined
 }
 
+/**
+ * Whether a tracker takes each raise of progress as a save of its own (`createSaveQueue`'s `steps`): one
+ * that keeps each field on its own, Crunchyroll, where a save marks the one episode it names.
+ */
+export const stepsProgress = (tracking: Pick<CompactTracking, 'answers'> | null | undefined, tracker: string) =>
+  !!tracking?.answers.find(answer => answer.tracker.id === tracker)?.tracker.statuses
+
 /** The scores a scale's menu offers, on 0 to 100, as each lands on its face (tracking/score-scale.ts). */
 export const PICKS: Record<string, number[]> = {
   POINT_3: [30, 50, 85],
@@ -225,20 +232,24 @@ const merge = (earlier: Fields | undefined, later: Fields | undefined): Fields =
  * The saves of one row, paced PER TRACKER.
  *
  * `stage` merges a change into each tracker's waiting fields (later fields win, and a removal and a
- * change replace each other). An immediate stage sends at once; any other waits for `delay` of quiet,
+ * change replace each other), but on a tracker that `steps` a higher progress waits as a save of its
+ * own behind the one before: there a save marks the one episode it names (Crunchyroll), so folding 19
+ * and 20 into 20 would skip 19. An immediate stage sends at once; any other waits for `delay` of quiet,
  * which is what folds rapid + clicks into one save. At most one save is in flight per tracker, and a
  * change made meanwhile goes when it settles. Trackers never wait on each other: stub's own tracker
  * answers at once, MyAnimeList reads, writes and reads back.
  *
- * FAILED keeps its fields for `retry` and for the next change, since every write sets absolute values.
- * REFUSED drops them: the same write would be refused again. What `fail` keeps are the row's own fields,
- * which `shape` turns into that tracker's (`patchFor`) when they go, since only then has it answered.
+ * FAILED keeps its fields for `retry` and for the next change, since every write sets absolute values;
+ * on a tracker that steps, with the saves that waited behind it. REFUSED drops them: the same write
+ * would be refused again. What `fail` keeps are the row's own fields, which `shape` turns into that
+ * tracker's (`patchFor`) when they go, since only then has it answered.
  */
 export const createSaveQueue = (
   {
     send,
     onChange = () => {},
     shape = (_tracker, fields) => fields,
+    steps = () => false,
     delay = 1000,
     timers = { set: (run, ms) => setTimeout(run, ms), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
   }:
@@ -246,38 +257,53 @@ export const createSaveQueue = (
     send: (tracker: string, fields: Fields) => Promise<Outcome>
     onChange?: (settled?: Settled) => void
     shape?: (tracker: string, fields: Fields) => Fields | undefined
+    steps?: (tracker: string) => boolean
     delay?: number
     timers?: Timers
   }
 ) => {
-  const waiting = new Map<string, Fields>()
-  const fromCards = new Map<string, Fields>()
+  // each tracker's saves, in the order they go
+  const waiting = new Map<string, Fields[]>()
+  const fromCards = new Map<string, Fields[]>()
   const released = new Set<string>()
   const flying = new Map<string, Fields>()
-  const failed = new Map<string, { fields: Fields, error: string, unsent?: true }>()
+  const failed = new Map<string, { saves: Fields[], error: string, unsent?: true }>()
   const refused = new Map<string, string>()
   let timer: unknown
 
+  const line = (tracker: string, ...changes: (Fields | undefined)[]) => changes.reduce<Fields[]>((saves, fields) => {
+    const last = saves.at(-1)
+    if (!fields) return saves
+    return steps(tracker) && last?.progress !== undefined && fields.progress !== undefined && fields.progress > last.progress
+      ? [...saves, fields]
+      : [...saves.slice(0, -1), merge(last, fields)]
+  }, [])
+
   const kept = (tracker: string) => {
     const failure = failed.get(tracker)
-    return failure?.unsent ? shape(tracker, failure.fields) : failure?.fields
+    return failure?.unsent ? failure.saves.map(fields => shape(tracker, fields)) : failure?.saves ?? []
   }
 
   const next = (tracker: string) => {
-    const fields = waiting.get(tracker)
+    const [fields, ...rest] = waiting.get(tracker) ?? []
     if (!fields || !released.has(tracker) || flying.has(tracker)) return
-    waiting.delete(tracker)
-    fromCards.delete(tracker)
-    released.delete(tracker)
+    if (rest.length) waiting.set(tracker, rest)
+    else {
+      waiting.delete(tracker)
+      fromCards.delete(tracker)
+      released.delete(tracker)
+    }
     flying.set(tracker, fields)
     const settle = (outcome: string, error?: string | null) => {
       flying.delete(tracker)
       if (outcome === 'SAVED' || outcome === 'QUEUED') failed.delete(tracker)
       else if (outcome === 'REFUSED') refused.set(tracker, error ?? 'Refused')
       else {
-        failed.set(tracker, { fields, error: error ?? 'Did not save' })
+        const behind = steps(tracker) ? waiting.get(tracker) ?? [] : []
+        if (behind.length) waiting.delete(tracker)
+        failed.set(tracker, { saves: [fields, ...behind], error: error ?? 'Did not save' })
         const later = waiting.get(tracker)
-        if (later) waiting.set(tracker, merge(fields, later))
+        if (later) waiting.set(tracker, line(tracker, fields, ...later))
       }
       onChange({ tracker, outcome, fields, error })
       next(tracker)
@@ -302,8 +328,8 @@ export const createSaveQueue = (
         const carried = kept(tracker)
         failed.delete(tracker)
         refused.delete(tracker)
-        waiting.set(tracker, merge(merge(carried, waiting.get(tracker)), fields))
-        if (fromCard) fromCards.set(tracker, merge(fromCards.get(tracker), fields))
+        waiting.set(tracker, line(tracker, ...carried, ...waiting.get(tracker) ?? [], fields))
+        if (fromCard) fromCards.set(tracker, line(tracker, ...fromCards.get(tracker) ?? [], fields))
       }
       if (immediate) flush()
       else {
@@ -315,15 +341,15 @@ export const createSaveQueue = (
     flush,
     /** Records fields that could not go at all, a paused or failing tracker, as a failed save. */
     fail: (tracker: string, fields: Fields, error: string) => {
-      failed.set(tracker, { fields: merge(failed.get(tracker)?.fields, fields), error, unsent: true })
+      failed.set(tracker, { saves: line(tracker, ...failed.get(tracker)?.saves ?? [], fields), error, unsent: true })
       onChange({ tracker, outcome: 'FAILED', fields, error })
     },
     retry: (tracker: string) => {
       if (!failed.has(tracker)) return
-      const fields = kept(tracker)
+      const saves = line(tracker, ...kept(tracker), ...waiting.get(tracker) ?? [])
       failed.delete(tracker)
-      if (fields) {
-        waiting.set(tracker, merge(fields, waiting.get(tracker)))
+      if (saves.length) {
+        waiting.set(tracker, saves)
         released.add(tracker)
         next(tracker)
       }
@@ -348,11 +374,14 @@ export const createSaveQueue = (
       refused.delete(tracker)
       onChange()
     },
-    state: (tracker: string): QueueState => ({
-      busy: flying.has(tracker) || waiting.has(tracker),
-      failed: failed.get(tracker),
-      refused: refused.get(tracker),
-    }),
+    state: (tracker: string): QueueState => {
+      const failure = failed.get(tracker)
+      return {
+        busy: flying.has(tracker) || waiting.has(tracker),
+        failed: failure && { fields: failure.saves[0]!, error: failure.error },
+        refused: refused.get(tracker),
+      }
+    },
     idle: () => !flying.size && !waiting.size,
   }
 }
