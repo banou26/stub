@@ -79,7 +79,7 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
   const airing = {
     uri: 'ag:(anilist:1)',
     status: 'RELEASING',
-    nextAiringEpisode: { episodeNumber: 20, airingAt: Math.floor(Date.UTC(2099, 0, 1) / 1000) },
+    nextAiringEpisode: { episodeNumber: 20, airingAt: new Date(Date.UTC(2099, 0, 1)).toUTCString() },
     episodes: media.episodes.map(episode => ({ ...episode, titles: [], releaseDate: episode.episodeNumber! < 20 ? '2023-09-29' : '2099-01-01' })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
@@ -100,6 +100,59 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
   expect(rows()).toEqual(expected(13, 24))
   act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 3"]')!.click() })
   expect(rows()).toEqual(expected(25, 26))
+})
+
+test('the next episode reads how long until it airs while dimmed and turns on once it has aired, and a row already out reads its date', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  try {
+    vi.setSystemTime(Date.parse('2026-10-16T09:30:00Z'))
+    // weekly at 14:00 UTC from October 2, or from the day before
+    const third = (early = 0) => {
+      const airing = {
+        uri: 'ag:(anilist:195516)',
+        status: 'RELEASING',
+        nextAiringEpisode: { episodeNumber: 3, airingAt: 'Fri, 16 Oct 2026 14:00:00 GMT' },
+        episodes: media.episodes.slice(0, 4).map(episode => ({ ...episode, releaseDate: new Date(Date.UTC(2026, 9, 2 - early + 7 * (episode.episodeNumber! - 1), 14)).toISOString() })),
+      } as unknown as DetailsMedia
+      const { hook } = memoryLocation({ path: '/' })
+      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={airing}/></Router></Provider>)
+      hosts.push(host)
+      return () => {
+        const row = host.querySelectorAll('.episode')[2]!
+        return { unreleased: row.classList.contains('unreleased'), date: row.querySelector('time')?.textContent }
+      }
+    }
+    expect(third(1)(), 'a source dates it yesterday while AniList still names it next').toEqual({ unreleased: false, date: 'yesterday' })
+    const onTime = third()
+    expect(onTime()).toEqual({ unreleased: true, date: 'in 4 hours, 30 mins' })
+    await act(() => { vi.setSystemTime(Date.parse('2026-10-16T14:00:10Z')); vi.advanceTimersByTime(30_000) })
+    expect(onTime()).toEqual({ unreleased: false, date: 'today' })
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('a released row with no title is named by its number and keeps its synopsis and source icons', async () => {
+  const untitled = {
+    uri: 'ag:(anilist:1)',
+    episodes: media.episodes.slice(0, 2).map((episode, index) => ({
+      ...episode,
+      titles: index ? [] : episode.titles,
+      shortDescriptions: [{ shortDescription: `Synopsis ${index + 1}.` }],
+    })),
+  } as unknown as DetailsMedia
+  const { hook } = memoryLocation({ path: '/' })
+  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={untitled}/></Router></Provider>)
+  hosts.push(host)
+  await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  expect([...host.querySelectorAll('.episode')].map(row => ({
+    title: row.querySelector('.title')!.textContent,
+    description: row.querySelector('.description')?.textContent,
+    icons: row.querySelectorAll('.src').length,
+  }))).toEqual([
+    { title: 'Episode 1', description: 'Synopsis 1.', icons: 1 },
+    { title: 'Episode 2', description: 'Synopsis 2.', icons: 1 },
+  ])
 })
 
 // an anime episode airing at 09:00 in Tokyo is 00:00 UTC: an instant, unlike a film's release day

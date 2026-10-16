@@ -684,3 +684,17 @@ test('when no candidate matches a season, the held container is returned', async
   expect(value?.media?.scope).toBe('CONTAINER')
   expect(idFor((value?.media?.handles ?? []).map((h: any) => h.node), 'nf')).toEqual(['80123456'])
 })
+
+// JustWatch flags an episode released for its whole air day and writes one of these where it has no
+// synopsis, so read as a description they called an episode airing later today out
+test('a JustWatch placeholder synopsis is no description, and a real one stays', async () => {
+  const episodes = [
+    { objectId: 1, content: { title: 'Pan ga Nakereba', episodeNumber: 3, seasonNumber: 2, isReleased: true, shortDescription: 'Watch the new episode now.\n', originalReleaseDate: '2026-10-16', runtime: 24 } },
+    { objectId: 2, content: { title: 'Akogare', episodeNumber: 2, seasonNumber: 2, isReleased: true, shortDescription: 'Watch the episode now.', originalReleaseDate: null, runtime: 24 } },
+    { objectId: 3, content: { title: 'Locusts', episodeNumber: 1, seasonNumber: 2, isReleased: true, shortDescription: 'A locust plague is looming.', originalReleaseDate: '2026-10-02', runtime: 24 } },
+  ]
+  const listed = { ...node, seasons: [{ ...season(111, 2), episodes }, season(222, 3)] }
+  const media = await mediaFor('jw:12345-111', listed as unknown as typeof node)
+  const jw = (media.episodes ?? []).filter(episode => episode?.origin === 'jw')
+  expect(jw.map(episode => episode?.shortDescriptions?.at(0)?.shortDescription)).toEqual([undefined, undefined, 'A locust plague is looming.'])
+})

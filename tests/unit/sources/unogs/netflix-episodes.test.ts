@@ -9,7 +9,7 @@
 // an unknown variable is ignored in SILENCE, so a loop written against `after` reads page one forever.
 // Its artwork is not always an episode frame. And its persisted query id is Netflix's, hardcoded, so
 // the day they edit it every call must fail loudly rather than as a season with no episodes.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
@@ -461,6 +461,18 @@ test('a name unOGS has is not replaced by a number Netflix has', async () => {
   const titles = media?.episodes?.map(episode => episode.titles?.[0]?.title)
   expect(titles?.[3], 'Netflix calls this one "Episode 12"; unOGS names it').toBe('Inheritance')
   expect(titles?.[0], 'and a name Netflix does have is its own').toBe('Rage, Mad Dog')
+})
+
+// Netflix numbers an episode across the whole show ("Episode 52" for a second season's fourth), so a
+// numbered title with no real name behind it is no title, and the row falls back to its own
+test('a number Netflix has and unOGS has no name for is no title', async () => {
+  const routes = unogsRoutes('80987039', 82941638)
+  const [listed] = routes[`${UNOGS}/title/episodes?netflixid=80987039`] as { episodes: { title: string }[] }[]
+  listed!.episodes[3]!.title = 'Episode 12'
+  const { ctx } = rig({ ...routes, [`${SEASON}:`]: RECORDED_SEASON })
+  const media = await getMedia('80987039', ctx, 3, true)
+
+  expect(media?.episodes?.map(episode => episode.titles?.[0]?.title)).toEqual(['Rage, Mad Dog', 'Howl, Mad Dog', 'Turning Point 4', undefined])
 })
 
 // The floor. Netflix failing must leave exactly what this source published before it existed, because

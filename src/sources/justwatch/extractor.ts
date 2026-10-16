@@ -720,6 +720,9 @@ const normalizeMedia = async (
   return media
 }
 
+// what JustWatch writes for an episode it has no synopsis for (2026-10-16)
+const PLACEHOLDER_SYNOPSIS = /^Watch the (new )?episode now\.$/
+
 const normalizeEpisode = (ep: JWEpisode, mediaUri: string): GQLEpisode =>
   makeEpisode({
     origin,
@@ -727,7 +730,7 @@ const normalizeEpisode = (ep: JWEpisode, mediaUri: string): GQLEpisode =>
     mediaUri,
     score: SCORE,
     titles: [{ language: 'en', title: ep.content.title, score: SCORE }],
-    ...desc(ep.content.shortDescription, SCORE),
+    ...desc(PLACEHOLDER_SYNOPSIS.test(ep.content.shortDescription?.trim() ?? '') ? undefined : ep.content.shortDescription, SCORE),
     // the day this episode aired, which is what `plugin:range` pairs a folded packaging's rows on.
     // JustWatch carries it on the episode list this query already fetches: 155 of the 180 episodes
     // behind the recorded season carry one (2026-09-12), and none of them reached us before today.

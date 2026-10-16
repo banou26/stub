@@ -23,6 +23,8 @@ import { releasedAtOf, unreleasedEpisodes } from './episodes'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
+import { formatCountdown } from '../../utils/countdown'
+import { useNow } from '../../utils/use-now'
 import { canPlay } from '../../sources/playable'
 import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
@@ -559,14 +561,15 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, origins, backend, unreleased, airingAt }:
-  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string }
+  { episode, index, mediaUri, origins, backend, unreleased, airingAt, now }:
+  { episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string, now: number }
 ) => {
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
   const releasedAt = releasedAtOf(episode) ?? airingAt
-  const released = releaseDateDisplay(releasedAt)
+  const airsIn = unreleased && airingAt ? formatCountdown(Date.parse(airingAt) - now) : undefined
+  const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt)
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
 
   return (
@@ -587,37 +590,25 @@ const Episode = (
           ? <img className="thumbnail" src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}></img>
           : <div className="thumbnail"></div>
       }
-      {
-        episode.titles?.length
-          ? (
-            <div className="content">
-              <div className="header">
-                <div className="title">{episode.titles.at(0)?.title}</div>
-                <span className="origins">
-                  <SourceSelector compact sources={sources} />
-                </span>
+      <div className="content">
+        <div className="header">
+          <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? 'Unreleased episode' : `Episode ${index + 1}`)}</div>
+          <span className="origins">
+            <SourceSelector compact sources={sources} />
+          </span>
+        </div>
+        {
+          episode.shortDescriptions?.at(0)
+            ? (
+              <div className="description">
+                <TextEllipsis className="ellipsis">
+                  {episode.shortDescriptions?.at(0)?.shortDescription}
+                </TextEllipsis>
               </div>
-              {
-                episode.shortDescriptions?.at(0)
-                  ? (
-                    <div className="description">
-                      <TextEllipsis className="ellipsis">
-                        {episode.shortDescriptions?.at(0)?.shortDescription}
-                      </TextEllipsis>
-                    </div>
-                  )
-                  : undefined
-              }
-            </div>
-          )
-          : (
-            <div className="content">
-              <div className="header">
-                <div className="title">{unreleased ? 'Unreleased episode' : `Episode ${index + 1}`}</div>
-              </div>
-            </div>
-          )
-      }
+            )
+            : undefined
+        }
+      </div>
       <div className="side">
         {
           released
@@ -653,7 +644,8 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
  * "No episodes found".
  */
 export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number }) => {
-  const unreleased = unreleasedEpisodes(media)
+  const now = useNow()
+  const unreleased = unreleasedEpisodes(media, new Date(now))
   const nextAiring = media.nextAiringEpisode
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
@@ -679,6 +671,7 @@ export const Episodes = ({ media, start }: { media: DetailsMedia, start?: number
                 backend={backend}
                 unreleased={unreleased[index]!}
                 airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
+                now={now}
               />
             )
           })}

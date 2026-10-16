@@ -655,7 +655,7 @@ const normalizeEpisode = (episode: UnogsEpisode, mediaUri: string, episodeNumber
     mediaUri,
     url: `https://www.netflix.com/watch/${episode.epid}`,
     score: SCORE,
-    titles: [{ language: 'en', title: decode(episode.title), score: SCORE }],
+    titles: PLACEHOLDER_EPISODE_TITLE.test(episode.title) ? [] : [{ language: 'en', title: decode(episode.title), score: SCORE }],
     ...desc(decodedSynopsis, SCORE),
     thumbnails: episode.img ? img(httpsUrl(episode.img), SCORE) : [],
     // the schema's `runtime` is MINUTES and Netflix publishes seconds: 1422 s is a 24 minute episode
