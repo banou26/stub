@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 
-import { expect, test } from '@playwright/test'
+import { expect as baseExpect, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -15,6 +15,12 @@ import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
 // series.fkn.app: `*.localhost` stands in for fkn.app, and 127.0.0.1 is any other host, which shows
 // everything. Built and served the way tests/title-page.spec.ts does, so JustWatch answers its four most
 // popular films and shows (tests/fake-fetch.ts) and every request that leaves the server is refused.
+
+// A site draws nothing, its header included, until its worker has booted (src/worker.ts awaits it): 0.3 s idle,
+// up to 3 s at a load average of 67, 13 to 17 s with the browser held to 10% of a CPU. So every check gets 30 s,
+// and every test enough for six cold loads, the most one test makes
+const expect = baseExpect.configure({ timeout: 30_000 })
+test.describe.configure({ timeout: 180_000 })
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -79,7 +85,7 @@ const titles = (page: Page, title: string) =>
 test('anime.fkn.app lists the current season alone, with no category tabs', async ({ page }) => {
   await page.goto(at('anime.localhost'))
   await expect(row(page, 'Current season')).toBeVisible()
-  await expect(page.locator('a[href^="/media/"]').first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('a[href^="/media/"]').first()).toBeVisible()
   await expect(row(page, 'Popular movies')).toHaveCount(0)
   await expect(row(page, 'Popular shows')).toHaveCount(0)
   await expect(tab(page, 'Movies')).toHaveCount(0)
@@ -89,7 +95,7 @@ test('anime.fkn.app lists the current season alone, with no category tabs', asyn
 test('movies.fkn.app lists JustWatch\'s popular films alone, with no category tabs', async ({ page }) => {
   await page.goto(at('movies.localhost'))
   await expect(row(page, 'Popular movies')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Practical Magic' }).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('link', { name: 'Practical Magic' }).first()).toBeVisible()
   await expect(row(page, 'Current season')).toHaveCount(0)
   await expect(row(page, 'Popular shows')).toHaveCount(0)
   await expect(tab(page, 'Movies')).toHaveCount(0)
@@ -99,21 +105,22 @@ test('movies.fkn.app lists JustWatch\'s popular films alone, with no category ta
 test('movies.fkn.app draws each popular film\'s poster, and the hero shows one of them', async ({ page }) => {
   const films = ['Backrooms', 'Obsession', 'The End of Oak Street', 'Practical Magic']
   await page.goto(at('movies.localhost'))
-  await expect.poll(() => page.locator('.category-item').evaluateAll(cards => cards.map(card => card.style.backgroundImage)), { timeout: 30_000 })
+  await expect.poll(() => page.locator('.category-item').evaluateAll(cards => cards.map(card => card.style.backgroundImage)))
     .toEqual([
       'url("https://images.justwatch.com/poster/347350367/s718/backrooms.jpg")',
       'url("https://images.justwatch.com/poster/346817191/s718/obsession-2026.jpg")',
       'url("https://images.justwatch.com/poster/347475607/s718/flowervale-street.jpg")',
       'url("https://images.justwatch.com/poster/11005490/s718/practical-magic.jpg")',
     ])
-  await expect(page.locator('.theater .information > .title')).toHaveText(new RegExp(`^(${films.join('|')})$`), { timeout: 30_000 })
+  await expect(page.locator('.theater .information > .title'), 'the hero holds THEATER_WAIT_MS for a source above JustWatch')
+    .toHaveText(new RegExp(`^(${films.join('|')})$`))
   await expect(page.locator('.theater .player-wrapper')).toHaveAttribute('style', /images\.justwatch\.com\/poster\//)
 })
 
 test('series.fkn.app lists JustWatch\'s popular shows, each a card of its own', async ({ page }) => {
   await page.goto(at('series.localhost'))
   await expect(row(page, 'Popular shows')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Ted Lasso' }).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('link', { name: 'Ted Lasso' }).first()).toBeVisible()
   await expect(row(page, 'Current season')).toHaveCount(0)
   await expect(row(page, 'Popular movies')).toHaveCount(0)
 })
@@ -123,7 +130,7 @@ test.describe('on the store screenshots\' desktop page', () => {
   for (const host of ['anime.localhost', 'movies.localhost', 'series.localhost']) {
     test(`${host} shows the first row's card titles whole`, async ({ page }) => {
       await page.goto(at(host))
-      await expect(page.locator('.category-item .title-text').first()).toBeVisible({ timeout: 30_000 })
+      await expect(page.locator('.category-item .title-text').first()).toBeVisible()
       const { across, inView } = await page.evaluate(firstRowTitles)
       expect(across).toBeGreaterThan(0)
       expect(inView).toBe(across)
@@ -134,7 +141,7 @@ test.describe('on the store screenshots\' desktop page', () => {
 test('any other host lists all three rows under the category tabs, and a tab keeps its own row', async ({ page }) => {
   await page.goto(at('127.0.0.1'))
   for (const title of ['Current season', 'Popular movies', 'Popular shows']) await expect(row(page, title)).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Practical Magic' }).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('link', { name: 'Practical Magic' }).first()).toBeVisible()
   await tab(page, 'Series').click()
   await expect(row(page, 'Popular shows')).toBeVisible()
   await expect(row(page, 'Popular movies')).toHaveCount(0)
@@ -166,7 +173,7 @@ test('search offers Category on stub alone, and Season and Format on anime and s
 test('a Popular row draws nothing while JustWatch is off, rather than the store\'s films and shows', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('stub.sources.disabled', '["jw"]'))
   await page.goto(at('127.0.0.1'))
-  await expect(cards(page, 'Current season').first(), 'the control: the season row fills from the other sources').toBeVisible({ timeout: 30_000 })
+  await expect(cards(page, 'Current season').first(), 'the control: the season row fills from the other sources').toBeVisible()
   await page.waitForTimeout(8_000)
   await expect(cards(page, 'Popular movies')).toHaveCount(0)
   await expect(cards(page, 'Popular shows')).toHaveCount(0)
@@ -180,24 +187,24 @@ test.describe('in Toronto', () => {
 
   test('a title\'s Prime Video link is Canada\'s with no country picked', async ({ page }) => {
     await page.goto(at('127.0.0.1', '/title/jw:78125-104253'))
-    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/app\.primevideo\.com\//, { timeout: 30_000 })
+    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/app\.primevideo\.com\//)
   })
 
   test('a title\'s Prime Video link is the UK\'s once the UK is picked in Settings', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('stub.country', 'GB'))
     await page.goto(at('127.0.0.1', '/title/jw:78125-104253'))
-    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/watch\.amazon\.co\.uk\//, { timeout: 30_000 })
+    await expect(primeLink(page)).toHaveAttribute('href', /^https:\/\/watch\.amazon\.co\.uk\//)
   })
 })
 
 test('a Popular row is JustWatch\'s answer in its order, also on the way back Home over a full store', async ({ page }) => {
   const films = ['Backrooms', 'Obsession', 'The End of Oak Street', 'Practical Magic']
   await page.goto(at('127.0.0.1'))
-  await expect.poll(() => titles(page, 'Popular movies'), { timeout: 30_000 }).toEqual(films)
+  await expect.poll(() => titles(page, 'Popular movies')).toEqual(films)
   await row(page, 'Current season').click()
   await expect(page).toHaveURL(/\/search\?/)
   await page.goBack()
-  await expect(cards(page, 'Popular movies').first()).toBeVisible({ timeout: 30_000 })
+  await expect(cards(page, 'Popular movies').first()).toBeVisible()
   await page.waitForTimeout(8_000)
   expect(await titles(page, 'Popular movies')).toEqual(films)
 })
@@ -205,10 +212,11 @@ test('a Popular row is JustWatch\'s answer in its order, also on the way back Ho
 test('a title\'s address answers only on a site that keeps it', async ({ page }) => {
   const frieren = page.getByRole('heading', { level: 1, name: 'Frieren: Beyond Journey\'s End' })
   await page.goto(at('127.0.0.1', '/title/tmdb:209867-s1'))
-  await expect(frieren, 'the control: stub keeps every title').toBeVisible({ timeout: 30_000 })
+  await expect(frieren, 'the control: stub keeps every title').toBeVisible()
   await page.goto(at('series.localhost', '/title/tmdb:93405-s1'))
-  await expect(page.getByRole('heading', { level: 1, name: 'Squid Game' }), 'and series keeps a live-action show').toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { level: 1, name: 'Squid Game' }), 'and series keeps a live-action show').toBeVisible()
   await page.goto(at('series.localhost', '/title/tmdb:209867-s1'))
+  await expect(page.getByRole('textbox', { name: 'Search' }), 'the wait starts once series has drawn').toBeVisible()
   await page.waitForTimeout(8_000)
   await expect(frieren).toHaveCount(0)
 })
@@ -221,13 +229,10 @@ const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(
 ]))
 
 test('the header links the four sites in order, marks the current one, and a link lands on that site', async ({ page }) => {
-  test.slow()
   const grey = 'rgb(119, 119, 119)'
   const white = 'rgb(255, 255, 255)'
-  // a site draws nothing, its header included, until its worker has booted (src/worker.ts awaits it):
-  // 0.3 s idle, up to 3 s at a load average of 67, and over 5 s once in a local gate
   await page.goto(at('movies.localhost'))
-  await expect(siteLinks(page)).toHaveCount(4, { timeout: 30_000 })
+  await expect(siteLinks(page)).toHaveCount(4)
   expect(await linkList(page)).toEqual([
     ['Movies', at('movies.localhost'), 'page', white],
     ['Series', at('series.localhost'), null, grey],
@@ -236,7 +241,7 @@ test('the header links the four sites in order, marks the current one, and a lin
   ])
   await siteLinks(page).getByText('Series', { exact: true }).click()
   await expect(page).toHaveURL(at('series.localhost'))
-  await expect(row(page, 'Popular shows')).toBeVisible({ timeout: 30_000 })
+  await expect(row(page, 'Popular shows')).toBeVisible()
   await expect(siteLinks(page).getByText('Series', { exact: true })).toHaveAttribute('aria-current', 'page')
 })
 
@@ -465,7 +470,7 @@ test('the phone search closes on its own button or a tap away, and is open on th
   await searchField(page).fill('dune')
   await expect(page).toHaveURL(/\/search\?/)
   await page.reload()
-  await expect(searchField(page), 'the search page opens with the field shown').toHaveValue('dune', { timeout: 15_000 })
+  await expect(searchField(page), 'the search page opens with the field shown').toHaveValue('dune')
   await searchField(page).press('Escape')
   await expect(searchField(page), 'Escape closes it with a query typed').toBeHidden()
   await searchButton(page).click()
@@ -487,10 +492,9 @@ test('from 480 px the field shows as before, with no search button', async ({ pa
 // The hero's Play asks AniList about the show it holds, and a film answered as a series leaves the Movies listing,
 // so the hero picks again. Live, a category click changed the hero at most once in 40 clicks (2026-10-16)
 test('a Movies click on stub changes the hero at most once', async ({ page }) => {
-  test.slow()
   const hero = page.locator('.theater .information > .title')
   await page.goto(at('stub.localhost'))
-  await expect(hero).not.toBeEmpty({ timeout: 30_000 })
+  await expect(hero).not.toBeEmpty()
   await expect(row(page, 'Popular shows')).toBeVisible()
   const shown = [(await hero.textContent())!]
   await tab(page, 'Movies').click()
