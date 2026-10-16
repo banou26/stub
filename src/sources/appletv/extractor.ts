@@ -40,7 +40,11 @@ const image = (img: AppleImage | undefined, w: number, h: number): string | unde
 
 interface AppleImage { url: string }
 interface AppleImages {
-  coverArt?: AppleImage
+  /**
+   * 1680x3636, its crop in the template (`{w}x{h}tc.{f}`), so 600x900 is a 2:3 poster. None of 44 show
+   * and film answers measured 2026-10-16 carries `coverArt`.
+   */
+  contentImageTall?: AppleImage
   coverArt16X9?: AppleImage
   previewFrame?: AppleImage
 }
@@ -90,7 +94,7 @@ interface AppleEpisodesResponse { data?: { episodes?: AppleEpisode[] } }
  * no seasons to be confused between, and its own release date IS the work's date.
  */
 const normalizeMedia = (content: AppleItem, season?: AppleSeason): GQLMedia => {
-  const cover = image(content.images?.coverArt, 600, 900)
+  const cover = image(content.images?.contentImageTall, 600, 900)
   const banner = image(content.images?.coverArt16X9, 1920, 1080)
   const scoped = season?.seasonNumber != null
   // A SEASON-scoped media may never carry the SHOW's date. It is not merely inaccurate, it welds

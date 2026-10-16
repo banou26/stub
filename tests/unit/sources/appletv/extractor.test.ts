@@ -11,6 +11,8 @@ import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/appletv/extractor'
+import SLOW_HORSES from '../../../fixtures/appletv/slow-horses.json'
+import THE_INSTIGATORS from '../../../fixtures/appletv/the-instigators.json'
 
 const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
 const PARAMS = 'caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0'
@@ -117,6 +119,26 @@ test('a movie resolved by id names one run', async () => {
   expect(media?.uri).toBe('appletv:umc.cmc.film')
   expect(media?.scope).toBe('RUN')
   expect(media?.episodeCount).toBe(1)
+})
+
+// Recorded 2026-10-16 through the relay with the reader's own `/shows/<id>` and `/movies/<id>` requests.
+// Each keeps every image its answer carries, so the test shows which one is read as the poster.
+type Recorded = { data: { content: { id: string, type: string } } }
+
+const recordedRoutes = (answer: Recorded) => {
+  const { id, type } = answer.data.content
+  return type === 'Movie'
+    ? { [url(`/shows/${id}`)]: { code: 404, title: 'NotFound', message: 'show not found' }, [url(`/movies/${id}`)]: answer }
+    : { [url(`/shows/${id}`)]: answer }
+}
+
+test.each([
+  ['show', SLOW_HORSES, 'gaxT8-02hxIwn62aKXvgkA'],
+  ['film', THE_INSTIGATORS, 'C0GzyIYIV0BPygvI8YWSAA'],
+])('a recorded %s answer takes its tall image as a 2:3 poster', async (_, answer: Recorded, image) => {
+  const media = await resolveMedia(`appletv:${answer.data.content.id}`, recordedRoutes(answer))
+
+  expect(media?.covers?.map((cover: { url: string }) => cover.url)).toEqual([`https://is1-ssl.mzstatic.com/image/thumb/${image}/600x900tc.jpg`])
 })
 
 // THE MEDIA PATH picks its season through the shared picker, off what the aggregated media knows.

@@ -1,0 +1,65 @@
+{
+  "data": {
+    "content": {
+      "id": "umc.cmc.2szz3fdt71tl1ulnbp8utgq5o",
+      "type": "Show",
+      "title": "Slow Horses",
+      "url": "https://tv.apple.com/us/show/slow-horses/umc.cmc.2szz3fdt71tl1ulnbp8utgq5o",
+      "releaseDate": 1648771200000,
+      "images": {
+        "contentImage": {
+          "height": 3240,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/EJo0K6ENwDN0rmv0m5br2g/{w}x{h}sr.{f}",
+          "width": 4320
+        },
+        "contentImageTall": {
+          "height": 3636,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/gaxT8-02hxIwn62aKXvgkA/{w}x{h}tc.{f}",
+          "width": 1680
+        },
+        "contentLogo": {
+          "height": 1497,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/Lx-iUKOsVZvA5unqZB4A0Q/{w}x{h}.{f}",
+          "width": 7626
+        },
+        "posterArt": {
+          "height": 2160,
+          "url": "https://is1-ssl.mzstatic.com/image/thumb/x5JjmiSD75wN12-HmmZRcg/{w}x{h}.{f}",
+          "width": 3840
+        }
+      }
+    },
+    "seasons": {
+      "umc.cmc.4rg0xvf3cn5p9pw37npvvl0z": {
+        "id": "umc.cmc.4rg0xvf3cn5p9pw37npvvl0z",
+        "seasonNumber": 2,
+        "releaseDate": 1669939200000
+      },
+      "umc.cmc.4tiimnqbpbq9jm0d6ej8fsk7s": {
+        "id": "umc.cmc.4tiimnqbpbq9jm0d6ej8fsk7s",
+        "seasonNumber": 5,
+        "releaseDate": 1758672000000
+      },
+      "umc.cmc.8chycsga6s185j5t8z3zufy9": {
+        "id": "umc.cmc.8chycsga6s185j5t8z3zufy9",
+        "seasonNumber": 6,
+        "releaseDate": 1789516800000
+      },
+      "umc.cmc.6k2yackya3sqmdiq4s408b962": {
+        "id": "umc.cmc.6k2yackya3sqmdiq4s408b962",
+        "seasonNumber": 4,
+        "releaseDate": 1725408000000
+      },
+      "umc.cmc.4scrf2unpzclrl1rowacww6d9": {
+        "id": "umc.cmc.4scrf2unpzclrl1rowacww6d9",
+        "seasonNumber": 1,
+        "releaseDate": 1648771200000
+      },
+      "umc.cmc.60ak1l93xe6gijv8yoi5dedo9": {
+        "id": "umc.cmc.60ak1l93xe6gijv8yoi5dedo9",
+        "seasonNumber": 3,
+        "releaseDate": 1701216000000
+      }
+    }
+  }
+}
