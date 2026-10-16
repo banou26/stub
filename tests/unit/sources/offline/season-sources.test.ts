@@ -1,6 +1,7 @@
 // The bundled seasons take every season source stub reads live, so the first paint holds every show
-// with the count the page settles on. A show's count is the one the live page keeps: the highest
-// scored source that lists it this season, MyAnimeList (0.9), then AniList (0.8), then Kitsu (0.3).
+// with the count and the title the page settles on: those of the highest scored source that lists it
+// this season. For the count MyAnimeList (0.9), then AniList (0.8), then Kitsu (0.3); for the title
+// MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4), then Kitsu's (0.3).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
@@ -20,9 +21,9 @@ const anilistFall = JSON.parse(read('../anilist/__fixtures__/anilist-season-fall
 const kitsuSummer = JSON.parse(read('../kitsu/__fixtures__/kitsu-season-summer-2026.json'))
 
 const record = (t: string, over: { ml?: number, al?: number, ku?: number, pop?: number } = {}) => ({ t, ty: 'TV', p: '', ...over })
-// A Kitsu season page of `[id, title, { [externalSite]: externalId }]`, each counted 50
-const kitsuPage = (...shows: [number, string, Record<string, string>][]) => ({
-  data: shows.map(([id, canonicalTitle, mappings]) => ({ id: String(id), type: 'anime', attributes: { canonicalTitle, subtype: 'TV', userCount: 50 },
+// A Kitsu season page of `[id, title, { [externalSite]: externalId }, English title]`, each counted 50
+const kitsuPage = (...shows: [number, string, Record<string, string>, string?][]) => ({
+  data: shows.map(([id, canonicalTitle, mappings, en]) => ({ id: String(id), type: 'anime', attributes: { canonicalTitle, titles: { en }, subtype: 'TV', userCount: 50 },
     relationships: { mappings: { data: Object.keys(mappings).map(site => ({ id: `${id} ${site}` })) } } })),
   included: shows.flatMap(([id, , mappings]) => Object.entries(mappings).map(([externalSite, externalId]) =>
     ({ id: `${id} ${externalSite}`, type: 'mappings', attributes: { externalSite, externalId } }))),
@@ -79,7 +80,7 @@ test('AniList\'s season is read as the live source asks it, its 150 most popular
   expect(bodies.map(body => body.variables)).toEqual([1, 2, 3].map(page => ({ season: 'SUMMER', seasonYear: 2026, page })))
   expect(bodies[0]!.query.replace(/\s+/g, ' ')).toContain('media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC])')
   expect(rows[0]).toEqual({
-    t: 'Mushoku Tensei III: Isekai Ittara Honki Dasu',
+    t: 'Mushoku Tensei: Jobless Reincarnation Season 3',
     ty: 'TV',
     p: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx178789-hNXjKFzUq7mk.jpg',
     ep: 14,
@@ -100,6 +101,20 @@ test('a season AniList says ends on its first page is read in one request', asyn
   expect([asked, rows.map(row => row.al)]).toEqual([1, [214068]])
 })
 
+// Real rows of 2026-10-16: Delivery Kitten Unyan in AniList's Fall 2026 browse, a Detective Conan special in
+// its Summer 2026 one
+const anilistPage = (...media: unknown[]) => [{ data: { Page: { pageInfo: { hasNextPage: false }, media } } }]
+const unyan = { id: 207217, idMal: 65079, isAdult: false, format: 'ONA', episodes: 3, popularity: 148, averageScore: null,
+  title: { romaji: 'Koneko no Haitatsuin Uunyan (2026)', english: 'Delivery Kitten Unyan (2026)' }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/b207217-IxKfwpEZZzLh.png' } }
+const conan = { id: 217126, idMal: 64913, isAdult: false, format: 'SPECIAL', episodes: 1, popularity: 772, averageScore: 64,
+  title: { romaji: 'Meitantei Conan: 30-Gou Satsujin Jiken', english: null }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx217126-HRn0NsNpeUBb.jpg' } }
+
+test('an AniList show is named by its English title, else its romaji one, as the live source names it', async () => {
+  const rows = await anilistSeason('2026-FALL', async () => Response.json(anilistPage(unyan, conan)[0]))
+
+  expect(rows.map(row => row.t)).toEqual(['Delivery Kitten Unyan (2026)', 'Meitantei Conan: 30-Gou Satsujin Jiken'])
+})
+
 test('a season AniList cannot answer is a failed read, never an empty season', async () => {
   await expect(anilistSeason('2026-SUMMER', async () => new Response('', { status: 429 })))
     .rejects.toThrow('AniList 2026-SUMMER page 1 answered HTTP 429')
@@ -118,7 +133,7 @@ test('Kitsu\'s season is read off the eight pages the live source asks, with the
 
   expect(asked).toEqual(seasonPageNumbers().map(page => `https://kitsu.io/api/edge${seasonQuery({ season: 'summer', year: 2026, page })}`))
   expect(rows.find(row => row.ku === 49002)).toEqual({
-    t: 'Mushoku Tensei: Isekai Ittara Honki Dasu 3rd Season',
+    t: 'Mushoku Tensei: Jobless Reincarnation Season 3',
     ty: 'TV',
     p: 'https://media.kitsu.app/anime/49002/poster_image/6d09b03ffdd5c49802ad21c160b72cb2.jpg',
     ep: 14,
@@ -136,6 +151,14 @@ test('Kitsu\'s season is read off the eight pages the live source asks, with the
     [48693, undefined, undefined, 'MOVIE'],
     [50931, 64522, undefined, 'ONA'],
   ])
+  expect(rows.find(row => row.ku === 48693)?.t, 'with no English title, the canonical one').toBe('Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!')
+})
+
+test('an empty English title is passed over, as the live sources pass it over', async () => {
+  const anilist = await anilistSeason('2026-FALL', async () => Response.json(anilistPage({ ...conan, title: { ...conan.title, english: '' } })[0]))
+  const kitsu = await kitsuSeason('2026-FALL', async () => Response.json(kitsuPage([50999, 'Meitantei Conan: 30-gou Satsujin Jiken', {}, ''])))
+
+  expect([anilist[0]?.t, kitsu[0]?.t]).toEqual(['Meitantei Conan: 30-Gou Satsujin Jiken', 'Meitantei Conan: 30-gou Satsujin Jiken'])
 })
 
 test('a Kitsu show mapped to two MyAnimeList entries claims neither', async () => {
@@ -159,23 +182,24 @@ test('a Kitsu season with a page that fails is a failed read, so a season is nev
   await expect(kitsuSeason('2026-SUMMER', get)).rejects.toThrow('answered HTTP 503')
 })
 
-test('every season source\'s shows are in the bundled season, each with the count the settled page shows', async () => {
+test('every season source\'s shows are in the bundled season, each with the count and the title the settled page shows', async () => {
   const { get } = sources({ mal: { '2026/summer': malPage('mal-season-summer-2026.html') }, anilist: { '2026-SUMMER': anilistSummer }, kitsu: { '2026-SUMMER': kitsuSummer } })
   const seasons = { '2026-SUMMER': [record('Mushoku Tensei III', { ml: 59193, al: 178789 }), record('Youjo Senki II', { ml: 49233, al: 135865 })] }
 
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
 
   expect(titlesAndCounts(laid.seasons['2026-SUMMER'])).toEqual([
-    ['Mushoku Tensei III', 367_295],
+    // this page was read with no English titles, so the page settles on AniList's
+    ['Mushoku Tensei: Jobless Reincarnation Season 3', 367_295],
     ['Steel Ball Run: JoJo no Kimyou na Bouken', 247_199],
-    // MyAnimeList's Summer page does not list it, so the page settles on AniList's count
-    ['Youjo Senki II', 97_874],
-    ['Moshi, Korekara Umarerunonara', 345],
-    ['BAKI-DOU Part 2', 195],
+    // MyAnimeList's Summer page does not list it, so the page settles on AniList's count and title, not Kitsu's
+    ['Saga of Tanya the Evil Season 2', 97_874],
+    ['Echo', 345],
+    ['BAKI-DOU: The Invincible Samurai Part 2', 195],
     ['Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!', 28],
     ['FBKingdom Story', 9],
   ])
-  const added = laid.seasons['2026-SUMMER'].find(entry => entry.t === 'BAKI-DOU Part 2')!
+  const added = laid.seasons['2026-SUMMER'].find(entry => entry.ku === 50635)!
   expect(seasonMedia(added, '2026-SUMMER')?.handles.map(handle => handle.node.uri), 'the ids Kitsu\'s answer joins on').toEqual(['anilist:210032', 'kitsu:50635'])
 })
 
@@ -222,7 +246,7 @@ test('an added show never names an id the trackers\' index pairs with another sh
   const laid = await seasonData({ '2026-FALL': [] }, [], { now: '2026-FALL', rows: steelBallRunRows, get, pauseMs: 0 })
 
   expect(laid.seasons['2026-FALL'].map(entry => [entry.t, entry.al, entry.ml, entry.pop])).toEqual([
-    ['JoJo no Kimyou na Bouken: Steel Ball Run - 2nd & 3rd STAGE', 210482, undefined, 42_444],
+    ['STEEL BALL RUN JoJo\'s Bizarre Adventure 2nd - 3rd STAGE', 210482, undefined, 42_444],
   ])
   for (const entry of laid.seasons['2026-FALL']) expect(identify(cardUri(entry, '2026-FALL'), lookup).kind).not.toBe('ambiguous')
   expect(identify(cardUri(record('welded', { al: 210482, ml: 61469 }), '2026-FALL'), lookup).kind, 'the control: the pair AniList gives').toBe('ambiguous')
@@ -243,9 +267,43 @@ test('a show joins the bundled record its own id names, never the one its claime
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
 
   expect(laid.seasons['2026-FALL'].map(entry => [entry.t, entry.ml, entry.al, entry.pop])).toEqual([
-    ['Steel Ball Run 2nd Stage', 63825, 210482, 42_444],
+    ['STEEL BALL RUN JoJo\'s Bizarre Adventure 2nd - 3rd STAGE', 63825, 210482, 42_444],
     ['Steel Ball Run', 61469, 190327, undefined],
   ])
+})
+
+// Measured 2026-10-16: the live Summer page shows both by MyAnimeList's English title. The live Fall page,
+// which MyAnimeList's Fall page does not answer for either, shows AniList's English title for the first and
+// Kitsu's for the second, whatever title another season's MyAnimeList card gives the record.
+test('a show in two seasons carries in each the title that season\'s page settles on', async () => {
+  const { get } = sources({
+    mal: { '2026/summer': malPage('mal-season-summer-2026-english.html') },
+    anilist: { '2026-SUMMER': anilistPage(conan), '2026-FALL': anilistPage(unyan) },
+    kitsu: { '2026-FALL': [kitsuPage([50999, 'Meitantei Conan: 30-gou Satsujin Jiken', { 'myanimelist/anime': '64913' }, 'Detective Conan: The Counterfeit Case of Ultra 30'])] },
+  })
+  const seasons = {
+    '2026-SUMMER': [record('Koneko no Haitatsuin Uunyan (2026)', { ml: 65079, al: 207217 }), record('Meitantei Conan: 30-gou Satsujin Jiken', { ml: 64913, al: 217126, ku: 50999 })],
+    '2026-FALL': [record('Koneko no Haitatsuin Uunyan (2026)', { ml: 65079, al: 207217 })],
+  }
+
+  const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
+  const titles = (key: string) => [64913, 65079].map(ml => laid.seasons[key].find(entry => entry.ml === ml)?.t)
+
+  expect(titles('2026-SUMMER')).toEqual(['Detective Conan: The Counterfeit Case of Ultra 30', 'Delivery Kitten Unyan'])
+  expect(titles('2026-FALL')).toEqual(['Detective Conan: The Counterfeit Case of Ultra 30', 'Delivery Kitten Unyan (2026)'])
+})
+
+// Measured 2026-10-16: MyAnimeList's Summer card shows this show in romaji only and AniList does not list
+// it, so the live page settles on that romaji title (0.4) over the bundle's own (0.2). The Kitsu row is
+// made up, to place Kitsu's title (0.3) below it.
+test('a show AniList does not list takes MyAnimeList\'s romaji title over Kitsu\'s and its own', async () => {
+  const kitsu = { '2026-SUMMER': [kitsuPage([51100, 'Bao Ke Meng Donghua Tujian 5', { 'myanimelist/anime': '65178' }])] }
+  const seasons = { '2026-SUMMER': [record('Bao Ke Meng Donghua Tujian: Bu Qi Er Yu', { ml: 65178 })] }
+  const title = async (mal: Record<string, string>) =>
+    (await seasonData(seasons, [], { now: '2026-FALL', get: sources({ mal, kitsu }).get, pauseMs: 0 })).seasons['2026-SUMMER'].find(entry => entry.ml === 65178)?.t
+
+  expect(await title({ '2026/summer': malPage('mal-season-summer-2026-english.html') })).toBe('Bao Ke Meng Donghua Tujian: Buqi Eryu')
+  expect(await title({}), 'the control: with no MyAnimeList card, Kitsu\'s').toBe('Bao Ke Meng Donghua Tujian 5')
 })
 
 // AniList 11 is mal 1 in the bundle, and the index pairs mal 1 with Kitsu 101: a Kitsu 202 claiming

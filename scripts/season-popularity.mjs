@@ -115,8 +115,9 @@ const ANILIST_QUERY = `query ($season: MediaSeason, $seasonYear: Int, $page: Int
 const outOfTen = score => Math.round(Number(score) * 10) / 100
 
 /**
- * AniList's season (`2026-SUMMER`) as bundle records keyed by their AniList id, the titles AniList
- * marks adult left out. Throws, saying why, when a page cannot be read.
+ * AniList's season (`2026-SUMMER`) as bundle records keyed by their AniList id, each named by its
+ * English title first as the live source names it, the titles AniList marks adult left out. Throws,
+ * saying why, when a page cannot be read.
  */
 export const anilistSeason = async (key, get = fetch) => {
   const [year, season] = key.split('-')
@@ -138,7 +139,7 @@ export const anilistSeason = async (key, get = fetch) => {
   return media
     .filter(entry => !entry.isAdult)
     .map(entry => ({
-      t: entry.title.romaji ?? entry.title.english,
+      t: entry.title.english || entry.title.romaji,
       ty: entry.format ?? 'UNKNOWN',
       p: entry.coverImage?.extraLarge ?? '',
       ...entry.episodes && { ep: entry.episodes },
@@ -154,8 +155,9 @@ const onlyId = ids => ids.length === 1 ? Number(ids[0]) || undefined : undefined
 
 /**
  * Kitsu's season (`2026-SUMMER`) as bundle records keyed by their Kitsu id, off the pages the live
- * `kitsu` source asks, with the MyAnimeList and AniList ids its mappings name. Throws, saying why, when
- * a page cannot be read, so a season is never counted in part.
+ * `kitsu` source asks, with the MyAnimeList and AniList ids its mappings name, each named by its English
+ * title first as the live source names it. Throws, saying why, when a page cannot be read, so a season
+ * is never counted in part.
  */
 export const kitsuSeason = async (key, get = fetch) => {
   const [year, season] = key.split('-')
@@ -175,7 +177,7 @@ export const kitsuSeason = async (key, get = fetch) => {
         .map(mapping => mapping.externalId))
       const [ml, al] = [linked('myanimelist/anime'), linked('anilist/anime')]
       return {
-        t: anime.canonicalTitle,
+        t: anime.titles?.en || anime.canonicalTitle,
         ty: anime.subtype?.toUpperCase() ?? 'UNKNOWN',
         p: anime.posterImage?.original ?? anime.posterImage?.large ?? anime.posterImage?.medium ?? '',
         ...anime.episodeCount && { ep: anime.episodeCount },
@@ -203,11 +205,11 @@ const cardRecord = (id, card, anilist) => ({
  * The bundled seasons with MyAnimeList's pages laid over them, each bucket in the order the listing
  * paints, so the first paint is the order and the titles the live `mal` source settles it into.
  *
- * A record takes the member count and the English title MyAnimeList shows for it on any season's
- * page: the offline database and MyAnimeList file some shows a season apart. A show a season's page
- * lists that its bucket lacks is added from its card, also when another bucket holds it, as the live
- * source answers it for every season whose page lists it. An R18+ title is in no season. Synopses go
- * only to the season running now (`now`), the one the home page's hero reads.
+ * A record takes the member count and the title MyAnimeList shows for it on any season's page, its
+ * English one first: the offline database and MyAnimeList file some shows a season apart. A show a
+ * season's page lists that its bucket lacks is added from its card, also when another bucket holds it,
+ * as the live source answers it for every season whose page lists it. An R18+ title is in no season.
+ * Synopses go only to the season running now (`now`), the one the home page's hero reads.
  *
  * A bundled record keeps its own ids. An added show carries the AniList id `anilistOf` pairs with its
  * mal id (see `anilistPairs`), so a show in two buckets names the same shows in both.
@@ -225,7 +227,7 @@ export const withMalSeasons = (seasons, pages, now, anilistOf = new Map()) => {
         const card = cards.get(record.ml)
         return {
           ...record,
-          ...card?.englishTitle && { t: card.englishTitle },
+          ...card && { t: card.englishTitle ?? card.title },
           ...card?.members && { pop: card.members },
           ...key === now && card?.synopsis && { sy: card.synopsis },
         }
@@ -298,17 +300,17 @@ const pairing = (index, seasons) => {
 }
 
 /**
- * The seasons `withMalSeasons` laid, with the other sources' records laid over them: `answers` is each
- * source's `{ own, pages }`, in the order the live page scores them, `own` the catalogue its records
- * are keyed by and `pages` its records by season. `index` is the trackers' index, as
- * `{ mal, anilist, kitsu }` rows.
+ * The seasons `withMalSeasons` laid, with AniList's and Kitsu's records laid over them: `answers` is
+ * each source's `{ own, pages }`, `own` the catalogue its records are keyed by (`al`, `ku`) and `pages`
+ * its records by season. `index` is the trackers' index, as `{ mal, anilist, kitsu }` rows.
  *
- * A record takes the count the live page settles on: MyAnimeList's when this season's page lists it,
- * else that of the first source listing it this season, else the one it already carries. A source's
- * record joins the bundled record of its season that names one of its ids, and is added when none
- * does. It keeps its own id and only the ids it claims that agree with every other show's (see
- * `pairing`). A show MyAnimeList marks R18+ is in no season, also when a source names it by another
- * catalogue's id only.
+ * A record takes the count and the title the live page settles on, from the highest scored source
+ * giving one this season: for the count MyAnimeList (0.9), AniList (0.8), Kitsu (0.3), else its own;
+ * for the title MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4),
+ * Kitsu's (0.3), else its own (0.2). A source's record joins the bundled record of its season that
+ * names one of its ids, and is added when none does. It keeps its own id and only the ids it claims
+ * that agree with every other show's (see `pairing`). A show MyAnimeList marks R18+ is in no season,
+ * also when a source names it by another catalogue's id only.
  */
 const withSeasonSources = (seasons, malPages, answers, index = []) => {
   const { add, showOf } = pairing(index, seasons)
@@ -316,10 +318,7 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
   const laid = {}
   for (const [key, bucket] of Object.entries(seasons)) {
     const records = [...bucket]
-    const counted = new Map(records.flatMap(record => {
-      const members = malPages.get(key)?.get(record.ml)?.members
-      return members ? [[record, members]] : []
-    }))
+    const listed = new Map()
     for (const { own, pages } of answers) {
       for (const row of pages.get(key) ?? []) {
         const ids = CATALOGUES.reduce((named, catalogue) =>
@@ -332,10 +331,15 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
           records.push(record)
           add(record)
         }
-        if (row.pop && !counted.has(record)) counted.set(record, row.pop)
+        listed.set(record, { [own]: row, ...listed.get(record) })
       }
     }
-    laid[key] = orderSeasonBucket(records.map(record => counted.has(record) ? { ...record, pop: counted.get(record) } : record))
+    laid[key] = orderSeasonBucket(records.map(record => {
+      const card = malPages.get(key)?.get(record.ml)
+      const { al, ku } = listed.get(record) ?? {}
+      const pop = card?.members || al?.pop || ku?.pop || record.pop
+      return { ...record, t: card?.englishTitle ?? al?.t ?? card?.title ?? ku?.t ?? record.t, ...pop && { pop } }
+    }))
   }
   return laid
 }

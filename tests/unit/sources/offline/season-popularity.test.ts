@@ -210,13 +210,14 @@ test('a show MyAnimeList lists for a season that its bucket lacks is added from 
 
 // Measured 2026-10-16 on the Fall 2026 page: asked in English (`en`, `en-US`) its cards carry 89 English
 // titles, asked as node's fetch asks (`Accept-Language: *`) or in Japanese none, and nothing else on a
-// card changes. The live source leads with that English title (score 0.9), above the bundle's (0.2).
+// card changes. The live source leads with that English title (score 0.9), and its romaji one (0.4) is
+// still above the bundle's (0.2).
 const english = fixture('mal-season-fall-2026-english.html')
 const inEnglishOnly = async (_url: string, init?: RequestInit) => new Response(new Headers(init?.headers).get('accept-language')?.startsWith('en')
   ? english
   : english.replace(/<h3 class="h3_anime_subtitle">[^<]*<\/h3>/g, ''))
 
-test('a record takes the English title its MyAnimeList card shows, and keeps its own where the card shows none', async () => {
+test('a record takes the title its MyAnimeList card shows, its English one first', async () => {
   const seasons = { '2026-FALL': [record('Black Clover (2026)', { ml: 61967 }), record('Cyberpunk Edgerunners (2026)', { ml: 61990 })] }
 
   const laid = await malSeasonData(seasons, [], { now: '2026-FALL', get: inEnglishOnly, pauseMs: 0 })
@@ -224,7 +225,7 @@ test('a record takes the English title its MyAnimeList card shows, and keeps its
   expect(laid.seasons['2026-FALL'].map(entry => [entry.ml, entry.t])).toEqual([
     [61469, 'Steel Ball Run: JoJo\'s Bizarre Adventure'],
     [61967, 'Black Clover Season 2'],
-    [61990, 'Cyberpunk Edgerunners (2026)'],
+    [61990, 'Cyberpunk: Edgerunners 2'],
   ])
 })
 
@@ -312,7 +313,7 @@ test('a record MyAnimeList lists under its own id keeps it, whichever show arm t
   const laid = withMalSeasons(seasons, await summerPages(), '2026-FALL', new Map([[61469, 166873]]))
 
   expect(laid['2026-SUMMER'].map(entry => [entry.t, entry.ml])).toEqual([
-    ['Mushoku Tensei III', 59193],
+    ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 59193],
     ['Steel Ball Run: JoJo no Kimyou na Bouken', 61469],
   ])
 })
