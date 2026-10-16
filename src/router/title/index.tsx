@@ -2,7 +2,7 @@ import type { RouteParams } from '../path'
 
 import { css } from '@emotion/react'
 import { Check, Clapperboard, LucidePlay, Share2, Square } from 'lucide-react'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
 
@@ -624,7 +624,10 @@ const TitlePage = () => {
   const tracked = useTrackingSummary(media?.uri)
   const play = media ? playOf(media, tracked) : undefined
 
-  useEffect(() => {
+  // a layout effect, run as the answer is drawn: a plain one waits a frame, and a Back taken in that frame renders this
+  // page again before the router moves on, which runs the waiting effect first, and it would grow the address over the
+  // entry Back landed on
+  useLayoutEffect(() => {
     if (shouldGrowAddress(media?.uri, routeUri)) {
       navigate(`${getRoutePath(Route.TITLE, { uri: media!.uri })}${location.search}`, { replace: true })
     }

@@ -122,6 +122,31 @@ test('More details opens the page, and Back returns to the modal', async ({ page
   await expect(modal(page).locator('.header > span.title')).toHaveText(title)
 })
 
+/**
+ * Presses Back from inside the page in the very moment it first draws each text of `drawn` in its selector on an address
+ * holding `path`, before that drawing's effects have run, and resolves to the address once the frame after the Back has
+ * run its own.
+ */
+const backOnDraw = (page: Page, path: string, drawn: Record<string, string>) =>
+  page.evaluate(({ path, drawn }) => new Promise<string>(resolve => {
+    new MutationObserver((_, observer) => {
+      const shown = Object.entries(drawn).every(([selector, text]) => document.querySelector(selector)?.textContent?.includes(text))
+      if (!location.pathname.includes(path) || !shown) return
+      observer.disconnect()
+      addEventListener('popstate', () => requestAnimationFrame(() => setTimeout(() => resolve(location.pathname))), { once: true })
+      history.back()
+    }).observe(document.body, { childList: true, subtree: true })
+  }), { path, drawn })
+
+test('Back pressed as the page draws the answer that grows its address returns to the modal', async ({ page }) => {
+  const title = await openModal(page)
+  // AnimeThemes answers the page and not the modal, so its songs and the address they grow come in one drawing
+  const back = backOnDraw(page, '/title/', { '[data-themes]': 'Yuusha' })
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  expect(await back).toMatch(/^\/media\//)
+  await expect(modal(page).locator('.header > span.title')).toHaveText(title)
+})
+
 const SEQUEL = 'ag:(anilist:900001)'
 
 test('on the page, a relation card and a series graph node open the work\'s page with the flags carried', async ({ page }) => {
@@ -150,6 +175,16 @@ test('a title opened from a relation starts fresh: what was opened on the last o
   await page.locator('[data-relations] a.relation-card').filter({ hasText: 'Spec Third' }).click()
   await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Expand' }), 'its description opens clamped').toBeVisible()
+})
+
+test('Back pressed as another title opened in the page draws the answer that grows its address returns to the first', async ({ page }) => {
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  // Spec Third's songs are AnimeThemes' answer, which grows its address; Spec Sequel shows the same songs until it is gone
+  const back = backOnDraw(page, 'anilist:900002', { h1: 'Spec Third', '[data-themes]': 'Yuusha' })
+  await page.locator('[data-relations] a.relation-card').filter({ hasText: 'Spec Third' }).click()
+  expect(await back).toContain('anilist:900001')
+  await expect(heading(page)).toHaveText('Spec Sequel')
 })
 
 // Spec Third carries no MyAnimeList id, so AniZip is never asked and no source names a row of it
