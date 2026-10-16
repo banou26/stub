@@ -34,7 +34,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { currentMedia, listedMediaFor, namesSameWork } from '../../../src/router/home/modal-media'
-import { shouldGrowAddress } from '../../../src/utils/uri'
+import { shouldRewriteAddress } from '../../../src/utils/uri'
 
 // The record's own example, read off the running home page on 2026-09-12: the card carries four
 // sources, the address the store grew to carries eight, and a link copied from that address is what
@@ -157,18 +157,18 @@ describe('what the modal does with that answer', () => {
 
 describe('the address the modal leaves behind', () => {
   /**
-   * FORWARD ONLY. The modal rewrites its address as the store folds more sources into the cluster,
-   * and a shared link that already names more than the page has must be left exactly as it is:
+   * A SHARED LINK IS NEVER NARROWED. The modal rewrites its address as the store folds more sources
+   * into the cluster, and a shared link that already names more than the page has must be left as it is:
    * rewriting it to the card's four sources would hand the next person a narrower link than the one
    * they were given, and the address is the shareable route the watch party syncs between viewers.
    */
   test('a link wider than the listing is not rewritten to the listing', () => {
-    expect(shouldGrowAddress(CARD, SHARED_LINK)).toBe(false)
+    expect(shouldRewriteAddress(CARD, SHARED_LINK)).toBe(false)
   })
 
   // CONTROL: the same pair the other way round, which is the growth this rule exists to allow.
   test('and one narrower than the work in hand still grows', () => {
-    expect(shouldGrowAddress(SHARED_LINK, CARD)).toBe(true)
+    expect(shouldRewriteAddress(SHARED_LINK, CARD)).toBe(true)
   })
 
   test('the modal rewrites the address only through that rule', () => {
@@ -177,7 +177,7 @@ describe('the address the modal leaves behind', () => {
     // CONTROL: the rewrite is there to be guarded, and it goes to the media route.
     expect(navigations, 'no navigation was found, so this test read nothing').toHaveLength(1)
     expect(navigations[0]).toContain('Route.MEDIA')
-    expect(source).toContain('if (shouldGrowAddress(media?.uri, params.uri)) {')
+    expect(source).toContain('if (shouldRewriteAddress(media?.uri, params.uri, written.current)) {')
   })
 })
 

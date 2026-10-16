@@ -129,20 +129,25 @@ export const asAggregatedUri = (uri: string): string => {
 
 /**
  * Whether a page showing `mediaUri` should rewrite its address to it, given the address says
- * `paramsUri`.
+ * `paramsUri` and the page itself last wrote `written` there.
  *
  * The address grows as the store folds more sources into a cluster, so a page opened knowing one
  * source ends up naming all of them. Two conditions, and the second is the one that is easy to miss:
  * the cluster in hand must be BIGGER, and it must be the SAME WORK.
+ *
+ * An address the page wrote itself also follows the cluster down: a split takes rows out of the
+ * cluster's address, and a url still naming them opens the other card on a reload. A link the reader
+ * opened is never narrowed.
  *
  * Without the identity check a navigation eats itself. The address changes first and the page still
  * holds the previous work for a beat, so a link to a work known through one source is judged against
  * the old cluster's eight handles, read as a shrinking address, and replaced with the page being left.
  * Every relation and every graph node did nothing at all when clicked (measured 2026-09-09).
  */
-export const shouldGrowAddress = (mediaUri: string | undefined, paramsUri: string | undefined): boolean => {
-  if (!mediaUri || !paramsUri || !isAggregatedUri(mediaUri) || !isAggregatedUri(paramsUri)) return false
+export const shouldRewriteAddress = (mediaUri: string | undefined, paramsUri: string | undefined, written?: string): boolean => {
+  if (!mediaUri || !paramsUri || mediaUri === paramsUri || !isAggregatedUri(mediaUri) || !isAggregatedUri(paramsUri)) return false
   if (!matchAggregatedUris(mediaUri, paramsUri)) return false
+  if (paramsUri === written) return true
   const inHand = fromAggregatedUri(mediaUri)?.handleUris ?? []
   const named = fromAggregatedUri(paramsUri)?.handleUris ?? []
   return inHand.length > named.length

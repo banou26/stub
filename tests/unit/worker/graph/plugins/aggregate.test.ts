@@ -30,6 +30,7 @@ import {
   aggregatePlugin, alignedFillsOf, carryIds, containerMayMintSlots, runLengthOf, trimsRow,
 } from '../../../../../src/worker/graph/plugins/aggregate'
 import { aggregateFields } from '../../../../../src/worker/graph/plugins/fields'
+import { clearReadCache, resolveMedia } from '../../../../../src/worker/graph/read'
 import { resolvers as annResolvers } from '../../../../../src/sources/ann/extractor'
 import { checkInvariants } from '../../../../../src/worker/graph/plugins/invariants'
 import { runEpisodes, runLength } from '../../../../../src/worker/store/consensus'
@@ -799,11 +800,11 @@ test("a merge keeps the larger cluster's id and retires the other into an Alias"
   expect(alias.map(row => row.clusterId), 'a retired id is a key lookup, not a scan').toEqual(['cl:anilist:700'])
 })
 
-// A SPLIT KEEPS THE ID ON THE FRAGMENT HOLDING THE OLD KEY, and the address does not shrink with it:
-// `published` is append-only, so the departed member keeps resolving (6.2 statement 1a).
-// Mutation: rebuild `published` from the current members and a bookmark naming the old address opens
-// nothing; give the id to the larger fragment instead and a split moves the page the app cached.
-test('a split keeps the id with the old key, and the address only grows', async () => {
+// A SPLIT KEEPS THE ID ON THE FRAGMENT HOLDING THE OLD KEY, and each fragment's address names the rows
+// it holds, while the old address opens the fragment holding the lowest key, here the one that kept it.
+// Mutation: build the address from `published` and the kept fragment's address still names the rows
+// that left; give the id to the larger fragment instead and a split moves the page the app cached.
+test('a split keeps the id with the old key, and the address drops the rows that left', async () => {
   const { query } = await graphReady()
   // the SAME_AS row is retracted directly, and only the aggregate runs after it: `plugin:direct`
   // re-proposes from the claim every pass, which is the sticky rule doing its job (5.2)
@@ -816,12 +817,15 @@ test('a split keeps the id with the old key, and the address only grows', async 
   // one member against two, so only the KEY can hand the id to this side
   const kept = await clusterOf('anilist:700')
   expect(kept!.id, 'the fragment holding the previous key').toBe('cl:anilist:700')
+  expect(kept!.aggUri).toBe('ag:(anilist:700)')
   expect(kept!.published, 'append only: the departed members are still published under this id').toEqual(
     ['anilist:700', 'kitsu:700', 'mal:700']
   )
   const departed = await clusterOf('mal:700')
   expect(departed!.id, 'the other fragment is new').toBe('cl:kitsu:700')
-  expect(departed!.published).toEqual(['kitsu:700', 'mal:700'])
+  expect(departed!.aggUri).toBe('ag:(kitsu:700,mal:700)')
+  clearReadCache()
+  expect((await resolveMedia('ag:(anilist:700,kitsu:700,mal:700)'))?._id, 'the old address').toBe('cl:anilist:700')
 })
 
 // THE TWO CARRY RULES AS RULES, which the graph cannot show once they have decided: a cluster that

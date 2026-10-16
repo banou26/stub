@@ -305,14 +305,15 @@ the twelve API-only sources off the source rows.
 
 The modal is opened at whatever uri the caller had. A card on the home page links to a narrow one,
 often a single origin, and the store then folds more sources into that cluster. The address is
-rewritten to keep up, and the guard on that rewrite has four conditions because three of them were
-not enough.
+rewritten to keep up, and an address the page wrote itself follows the cluster back down after a
+split.
 
 ```mermaid
 flowchart TD
   A["a store event re-runs read()<br/>media.uri grows from ag:(anilist:166873) to ag:(anilist:166873,cr:G24H1N3MP-GS00374452,mal:52991)"]
-  B{"are both sides aggregated uris?<br/><small>!mediaUri || !paramsUri || !isAggregatedUri(mediaUri) || !isAggregatedUri(paramsUri)</small>"}
+  B{"are both sides aggregated uris, and different?<br/><small>!mediaUri || !paramsUri || mediaUri === paramsUri || !isAggregatedUri(mediaUri) || !isAggregatedUri(paramsUri)</small>"}
   C{"is it the same work?<br/><small>!matchAggregatedUris(mediaUri, paramsUri)</small>"}
+  W{"did this page write the address?<br/><small>paramsUri === written</small>"}
   D{"is the cluster in hand bigger than the one named?<br/><small>inHand.length &gt; named.length</small>"}
   E["navigate(getRoutePath(Route.MEDIA, uri), replace: true)"]
   F(["refused: the address is left exactly as it is"])
@@ -321,7 +322,9 @@ flowchart TD
   B -->|"either side is bare, a relation or a graph node link"| F
   B -->|"both aggregated"| C
   C -->|"a different work: the page is mid-navigation"| F
-  C -->|"the same work"| D
+  C -->|"the same work"| W
+  W -->|"yes: it follows the card, down too after a split"| E
+  W -->|"no: a link the reader opened"| D
   D -->|"the address already names as many"| F
   D -->|"the address is behind"| E
   E --> G
@@ -333,19 +336,23 @@ flowchart TD
   class G view
 ```
 
-*Three of the four branches leave the address alone. The identity check in the middle is the one that was added after the fact, and it is the reason clicking a relation works at all.*
+*Three of the five branches leave the address alone. The identity check in the middle is the one that was added after the fact, and it is the reason clicking a relation works at all.*
 
-`shouldGrowAddress` is `src/utils/uri.ts:143-149`, called from the effect at
-`src/router/home/media-modal.tsx:707-711`. The identity check is not defensive coding:
+`shouldRewriteAddress` is `src/utils/uri.ts:147-154`, called from the effect at
+`src/router/home/media-modal.tsx:395-407`. The identity check is not defensive coding:
 
-> `src/utils/uri.ts:130-142`
+> `src/utils/uri.ts:130-146`
 >
 > Whether a page showing `mediaUri` should rewrite its address to it, given the address says
-> `paramsUri`.
+> `paramsUri` and the page itself last wrote `written` there.
 >
 > The address grows as the store folds more sources into a cluster, so a page opened knowing one
 > source ends up naming all of them. Two conditions, and the second is the one that is easy to miss:
 > the cluster in hand must be BIGGER, and it must be the SAME WORK.
+>
+> An address the page wrote itself also follows the cluster down: a split takes rows out of the
+> cluster's address, and a url still naming them opens the other card on a reload. A link the reader
+> opened is never narrowed.
 >
 > Without the identity check a navigation eats itself. The address changes first and the page still
 > holds the previous work for a beat, so a link to a work known through one source is judged against
@@ -401,5 +408,5 @@ the top left instead of from a bad link.
 | one yoga and one urql client per source | `src/worker/extractor.ts:411-549` |
 | the fan-out itself | `src/worker/extractor.ts:777-851` |
 | the origin resolvers, and their own fan-out | `src/worker/resolvers/origin/index.ts:12-73` |
-| `shouldGrowAddress` and `decodeRouteUri` | `src/utils/uri.ts:130-170` |
+| `shouldRewriteAddress` and `decodeRouteUri` | `src/utils/uri.ts:130-175` |
 | the `?seed=off` flag | `src/utils/export-flag.ts:19-51` |

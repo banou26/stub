@@ -19,7 +19,7 @@
  *
  * Every case names the mutation that reddens it.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -175,7 +175,7 @@ beforeAll(async () => {
   //
   // `clusterId` comes out of `toAggregatedUri` over the consumer's own member list, PLACEHOLDERS
   // INCLUDED (`similar-consumer.ts`), and that address is not `Cluster.aggUri`: `aggUri` is built
-  // from `published`, so the two differ by exactly `anidb:14758`. This fixture wrote a bare `cl:` id
+  // from the members, so the two differ by exactly `anidb:14758`. This fixture wrote a bare `cl:` id
   // until 2026-09-13, a spelling no live caller ever produces, so it asserted a row it had planted
   // in a dialect the app does not speak while the panel printed "nothing was asked of any origin"
   // over two real refused asks. A rig that cannot express the live failure is not a rig.
@@ -466,7 +466,7 @@ test('an ask the app wrote is matched to its cluster, address against address', 
   // THE PREMISE FIRST, because the bug is entirely in these three lines: the ask's address and the
   // cluster's differ, by exactly the placeholder, so no equality between them can ever hold.
   expect(ASK_CLUSTER_ID, "the consumer's address carries the placeholder").toContain('anidb:14758')
-  expect(AGG_URI, "the cluster's does not, it is built from `published`").not.toContain('anidb:14758')
+  expect(AGG_URI, "the cluster's does not, it is built from the members").not.toContain('anidb:14758')
   expect(ASK_CLUSTER_ID).not.toBe(AGG_URI)
   expect(ASK_CLUSTER_ID).not.toBe(RUN_ID)
 

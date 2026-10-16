@@ -17,8 +17,9 @@
  *   `graph.ts:246-263`, executed in a pass instead of during a read): on a merge the larger keeps its
  *   id, ties to the lexicographically smaller `key`, and the loser becomes an `Alias` row; on a split
  *   the id stays with the fragment holding the previous `key`.
- * - `Cluster.published` only ever GROWS, so `ag:(...)` never shrinks and an address the app already
- *   handed out keeps resolving.
+ * - `ag:(...)` names the routable members the cluster holds NOW, so a split takes the rows that left
+ *   out of its address. `Cluster.published` only ever grows, so an address the app already handed
+ *   out keeps resolving, to whichever cluster it reaches has the lowest key now (`read.ts`, 6.2).
  *
  * WHAT IT REFUSES TO DO. It proposes no link and reads no title: membership is whatever the links
  * already say. A row it cannot scope has no cluster, which is the same silence `plugin:direct` keeps
@@ -50,7 +51,7 @@ import { aggregateEpisodeFields, aggregateFields, byScoreThenUri, cardOf } from 
 import { readComponents } from './guards'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const AGGREGATE_VERSION = 8
+export const AGGREGATE_VERSION = 9
 
 /** The id every minted cluster carries, so an id is readable as one at a glance in a trace. */
 const ID_PREFIX = 'cl:'
@@ -870,18 +871,21 @@ export const aggregatePlugin: Plugin = {
       const scope = facts.scope
       const previousCluster = previous.clusters.get(id)
 
-      // APPEND ONLY, so `ag:(...)` never shrinks and a departed member keeps resolving (6.2)
+      // the ADDRESS names the rows held now: a row a split took away would leave its run in it, which
+      // the trackers read as two titles. `published` keeps every uri an address ever named, so an old
+      // link still resolves here (6.2)
+      const routable = sortedUnique(members.map(member => member.uri).filter(isRoutableUri))
       const published = sortedUnique([
         ...previousCluster?.published ?? [],
         ...entry.retired.flatMap(retired => previous.clusters.get(retired)?.published ?? []),
-        ...members.map(member => member.uri).filter(isRoutableUri),
+        ...routable,
       ])
       const aliases = sortedUnique([
         ...previousCluster?.aliases ?? [],
         ...entry.retired,
         ...entry.retired.flatMap(retired => previous.clusters.get(retired)?.aliases ?? []),
       ])
-      const aggUri = `ag:(${published.join(',')})`
+      const aggUri = `ag:(${routable.join(',')})`
       const run = runLengths.get(component.key) ?? null
       const length = {
         runLength: run?.length ?? null,

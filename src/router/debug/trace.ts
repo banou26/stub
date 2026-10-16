@@ -340,8 +340,8 @@ const searchParams = (search: string): URLSearchParams =>
 // The query string THIS TAB WAS OPENED WITH, read once.
 //
 // A session flag cannot be read off the current route, because the app rewrites media urls without
-// their query: the modal replaces the path as the cluster's address grows (`shouldGrowAddress`), and
-// every in-app link to a media page is built from the path alone. Measured 2026-09-13 on a real
+// their query: the modal replaces the path as the cluster's address changes (`shouldRewriteAddress`),
+// and every in-app link to a media page is built from the path alone. Measured 2026-09-13 on a real
 // build, a page opened at `/media/ag:(anilist:108465)?graph=1&trace=1` had `location.search === ''`
 // eight seconds later, so a link that read `useSearch()` was never drawn at all.
 //

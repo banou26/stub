@@ -191,7 +191,7 @@ else on the write path.
 
 | file | what it owns | why it lives where it does |
 |---|---|---|
-| `src/utils/uri.ts` (281L) | the grammar: `toUri`, `isUri`, `isAggregatedUri`, `isRoutableUri`, `fromAggregatedUri`, `originsOfUri`, `mostSpecific`, `extractAggregatedUriOrigin`, `decodeRouteUri`, `shouldGrowAddress` | one import, `./group-by` |
+| `src/utils/uri.ts` (281L) | the grammar: `toUri`, `isUri`, `isAggregatedUri`, `isRoutableUri`, `fromAggregatedUri`, `originsOfUri`, `mostSpecific`, `extractAggregatedUriOrigin`, `decodeRouteUri`, `shouldRewriteAddress` | one import, `./group-by` |
 | `src/utils/merge.ts` | the deep merge `makeExtractor` builds each source's resolver map with | `mergeArrays: true, uniqueArrayItems: true, allowUndefinedOverrides: true` |
 | `src/utils/export-flag.ts` | `readExportFlag`, `readNoSeedFlag`, `refusesSeedAsset` | read on both sides of the worker boundary |
 | `src/utils/settled-order.ts`, `src/utils/theater.ts` | a listing's stable order, and which media the hero can be built from | both split out with **no app imports** so a test can reach them |

@@ -595,9 +595,9 @@ export const prepareGuards = async (query: GuardQuery, subjects: SameAsSubject[]
   // OFFLINE'S PAIRS ARE WEIGHED FIRST: every pair is weighed again with this batch's Offline claims
   // joined in, and that second weighing only ever refuses. They are the pairs the trackers read a card
   // through (`src/tracking/identity.ts`), and against the graph as it stands a claim contradicting one
-  // that lands beside it is welded first and split a pass later, which leaves both runs in the address
-  // for good (`Cluster.published` only grows). Steel Ball Run's second stage, 2026-10-16: AniList's row
-  // lands with Offline's claim into it, and its own `idMal` names the first stage.
+  // that lands beside it is welded first and split a pass later, and until then one card holds both
+  // runs. Steel Ball Run's second stage, 2026-10-16: AniList's row lands with Offline's claim into it,
+  // and its own `idMal` names the first stage.
   const offline = subjects
     .filter(subject => subject.joins && originOf(subject.fromUri) === 'offline')
     .map((subject): [string, string] => [subject.fromUri, subject.toUri])

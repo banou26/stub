@@ -689,7 +689,7 @@ export const traceGraph = async (uri: string): Promise<TraceBundle> => {
   //
   // `Ask.clusterId` is written as `toAggregatedUri(cluster.map(m => m.uri))` over the consumer's own
   // member list (`similar-consumer.ts`), which INCLUDES the placeholders; `Cluster.aggUri` is built
-  // from `published`, which does not. The two therefore differ by exactly the placeholders this
+  // from the members, which do not. The two therefore differ by exactly the placeholders this
   // bundle draws, and a `k.clusterId = $aggUri` test missed 2 of 2 refused Netflix asks on a page
   // whose panel then printed "nothing was asked of any origin" (measured 2026-09-13). That is a false
   // negative on 7.5's headline question, and it points a reader at the consumer instead of at the

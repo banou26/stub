@@ -62,9 +62,12 @@ Everything in sections 2 to 7 is derived from these.
   last, after the cluster's slots, fills and memberships (5.3): a reader sees a cluster's previous
   fixed point or its next, never half of one. The guarantee is per cluster; a listing can straddle a
   pass across two clusters for the length of the pass, and the `view:changed` re-read repairs it.
-- **G4, ids are stable while a cluster grows, and an address never shrinks.** `Media._id` is the urql
-  graphcache key (`src/urql-keys.ts:17`); the aggregated uri is a shared route and a party-synced path
-  (`src/party/protocol.ts:28`) that `shouldGrowAddress` follows only forward (`src/utils/uri.ts:143-149`).
+- **G4, ids are stable while a cluster grows, and an address handed out keeps resolving.** `Media._id`
+  is the urql graphcache key (`src/urql-keys.ts:17`); the aggregated uri is a shared route and a
+  party-synced path (`src/party/protocol.ts:28`) that a page follows forward, and back down after a
+  split only where the page wrote it (`shouldRewriteAddress`, `src/utils/uri.ts:147-154`). A
+  cluster's address names the members it holds, so a split takes the rows that left out of it, and
+  the old address still resolves (6.2).
 - **G5, a page is one or two queries, never a recursion per row.** A component over `SAME_AS` by
   recursion costs 6.8 ms against 1.7 ms by a materialized cluster id, and 1,033 ms on a dense graph
   (measured 2026-09-11 on `@ladybugdb/wasm-core` 0.20.4 under stub's Vite).
@@ -264,7 +267,7 @@ CREATE NODE TABLE Cluster(
   scope STRING,                  // 'RUN' | 'CONTAINER'
   key STRING,                    // lowest member uri
   published STRING[],            // every routable member uri ever published under this id: append-only
-  aggUri STRING,                 // 'ag:(' + sorted published uris + ')'
+  aggUri STRING,                 // 'ag:(' + sorted routable member uris + ')'
   aliases STRING[],              // ids retired into this cluster
   hidden BOOLEAN,                // the listing hide rule (6.1), evaluated store-wide; written false explicitly, never left unset, since the listing filters NOT c.hidden
   hiddenBy STRING[],             // the run cluster ids the hide rule found, so a listing answered only by hidden rows can draw their runs (6.1)
@@ -975,17 +978,17 @@ everything is accepted, and guard 4 cannot retract a standing weld by design. Bo
 and both are in `tests/unit/worker/graph/plugins/arrival-order.test.ts`'s header.
 
 **Offline's pairs are weighed first within one batch** (2026-10-16). A weld a later pass splits is not
-harmless: `Cluster.published` only grows, so the address keeps both runs and the trackers refuse the
-card for good (`src/tracking/identity.ts`). So every pair is weighed a second time with the batch's
-Offline claims joined in, and that second weighing only ever refuses. Offline's pairs are the ones the
+harmless: until the split one card holds both runs, and the trackers refuse it
+(`src/tracking/identity.ts`). So every pair is weighed a second time with the batch's Offline claims
+joined in, and that second weighing only ever refuses. Offline's pairs are the ones the
 trackers read a card through, so where another catalogue's claim contradicts one in the same batch,
 that claim is refused: Steel Ball Run's second stage, whose AniList row lands beside Offline's claim
 into it and names the first stage's `mal:61469`, and Mebius Dust, whose Kitsu row names a MyAnimeList
 id the offline database does not hold. Two limits stay open. A claim landing in an EARLIER batch than
-the Offline pair it contradicts is all the graph knows and is taken, and the address keeps it after
-the split. And two claims of other catalogues contradicting each other in one batch still weld, which
-5.5 reports: weighing those against each other refuses both, and refused the right half of the season
-pair in `tests/unit/worker/graph/show-seasons-weld.test.ts`.
+the Offline pair it contradicts is all the graph knows and is taken until the split, which takes it
+out of the card's address again. And two claims of other catalogues contradicting each other in one
+batch still weld, which 5.5 reports: weighing those against each other refuses both, and refused the
+right half of the season pair in `tests/unit/worker/graph/show-seasons-weld.test.ts`.
 :::
 
 **The downgrade: the RUN versus CONTAINER exchange in one place.** A proposal refused for anything but
@@ -1642,11 +1645,12 @@ retranslated title cannot produce a pair: it can only fail to become an anchor.
   `key`, and the other id becomes an `Alias` row pointing at the survivor and joins `aliases`
   (`carryComponentId`'s rule, `graph.ts:246-263`, executed in a pass instead of during a read). When a
   cluster splits (a link was retracted), the id stays with the fragment holding the previous `key`;
-  the other fragment is new. `Cluster.published` is append-only per id: a member that leaves stays in
-  it, so `aggUri` never shrinks and `shouldGrowAddress` (`src/utils/uri.ts:143-149`) keeps following
-  the address forward; the resolve of 6.2 accepts any published uri. Under the sticky rule of 5.2 a
-  split is rare, and when one happens the address keeps naming the departed member while the view
-  answers with the cluster that holds the requested row.
+  the other fragment is new. `aggUri` names the routable members the cluster holds, so a member that
+  leaves leaves the address too: kept there, it put another run in the address and the trackers
+  refused the card (Steel Ball Run, 2026-10-16). `Cluster.published` is append-only per id, so the
+  resolve of 6.2 still accepts any uri an address ever named. A page follows its card's address up,
+  and back down after a split where the url is one the page wrote, so a reload opens the same card; a
+  link the reader opened is never narrowed (`shouldRewriteAddress`, `src/utils/uri.ts:147-154`).
 - **Run length.** Tiered consensus over member profiles with provenance classes first: a `declared`
   count beats any number of `listLength` counts; within a class, the best score present decides the
   tier, the value most of that tier claim wins, ties go to the larger value ("over-estimating costs a
@@ -1878,12 +1882,14 @@ MATCH (c:Cluster {id: $id}) RETURN c.media AS media
 Membership ranks above publication by construction: statement 1a runs only when statement 1 found no
 cluster holding any requested uri. Otherwise `mal:51535` (8.6), published under Part 1's id and then
 a member of its own cluster, could open Part 1's page. Among the clusters an address reaches, a
-visible one ranks before a hidden one, then the lowest key. A split leaves the whole old address on
-the fragment that kept the id, since `published` only grows, and that fragment holds the lowest key,
-so a card that kept its id after a split still opens itself. When that fragment is a hidden row, the
-lowest key alone opened it with none of the episodes (`anilist:189046` split off Re:ZERO Season 4,
-2026-10-15), so the visible rest of the address opens instead. Ranking by the most of the address held
-was tried and refused: it sends a visible card that kept its id to the larger fragment, another title.
+visible one ranks before a hidden one, then the lowest key as it stands now. Right after a split that
+is the fragment that kept the id, since it kept the old key, but a fragment that later takes in a
+lower uri takes the old address with it. In one Steel Ball Run arrival order the welded
+`ag:(anilist:210482,mal:61469,offline:mal-61469)` opens the second stage, which kept the id, until
+the first stage's `anilist:190327` lands. When the lowest is a hidden row, the lowest key alone
+opened it with none of the episodes (`anilist:189046` split off Re:ZERO Season 4, 2026-10-15), so
+the visible rest of the address opens instead. Ranking by the most of the address held was tried and
+refused: it sends a visible card that kept its id to the larger fragment, another title.
 The caller follows `preferredRun` when the resolved cluster is a container (`findMediaForPage` then
 `preferAttachedRun`, `db.ts:349-364`: "a show page follows to its attached run, earliest first"). Both
 paths fall through the same way: a resolve by `_id`, or through `published`, that lands on a cluster
@@ -1908,7 +1914,7 @@ and the migration names what that changes (10, step 3).
 | field | rule | provenance recorded |
 | --- | --- | --- |
 | `_id` | `Cluster.id` | |
-| `uri`, `id`, `origin`, `url` | `Cluster.aggUri`, its parenthesized list, `'ag'`, the app's media route (`aggregate.ts:296-304`, routable uris only). Because `published` is append-only (5.4 P5), the address can name a departed member; the modal unions the address's origins with the handles' origins for its badge list (`media-modal.tsx:629-640`) and draws an origin with no handle as an unlinked icon (`:781-793`), which for a departed member is honest: it was asked, and it is no longer a member. In nearly every case it keeps a `PART_OF` badge through its downgrade anyway (5.2) | |
+| `uri`, `id`, `origin`, `url` | `Cluster.aggUri`, its parenthesized list, `'ag'`, the app's media route (`aggregate.ts:296-304`, routable member uris only), so a departed member leaves the address (5.4 P5) | |
 | `scope`, `kind` | `Cluster.scope`; `kind` (**NEW** field): `RUN`, `CONTAINER`, or `FOLD` when the cluster's members are `INCLUDES` sources or count-shaped `PART_OF` targets of a run cluster | |
 | `handles` | members as `SAME_AS` in score order then uri; containers as `PART_OF` with `node.url` from the container's own `raw` or, for a placeholder, the best-scored claimer's `node.url`; parts and proven ranges as `INCLUDES` (**NEW** output-only value of `MediaHandleRelation`, the owner's call; the badge reader takes "SAME_AS first then anything", `media-modal.tsx:761-796`, playback takes SAME_AS only, `watch/index.tsx:29-30`, so it renders as a link and never as a button). A handle node's `_id` is the member's own uri and a relation node's `_id` is the target's uri, as today (`aggregate.ts:154-156`, `:202`): never `Cluster.id`, which is the parent's key under `Media: media._id` (`urql-keys.ts:17`) and would let a five-field node overwrite the parent's cache row. `stable-id.test.ts` pins it | each handle carries `via` and `by` |
 | scalars: `url`, `type`, `status`, `averageScore`, `popularity`, `startDate`, `endDate`, `isAdult`, `nextAiringEpisode` | first non-null in score order, ties by uri (`aggregate.ts:328-337`). anizip's unscored row sorts last for these, at parity; per-field confidence is not in this design | `{field, uri, answerSeq: fieldSeq[field], rule: 'first-non-null'}` |

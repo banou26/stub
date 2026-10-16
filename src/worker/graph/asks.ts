@@ -46,7 +46,7 @@ export type Ask = {
    * (5.4 P5) and this column takes them when they do.
    *
    * IT IS NOT A `Cluster.aggUri`. The consumer builds it over its own member list, placeholders
-   * included, where `aggUri` is built from `published`, which excludes them, so the two spellings of
+   * included, where `aggUri` is built from the members, which excludes them, so the two spellings of
    * one cluster differ by exactly its placeholders. A reader matching asks to a cluster has to
    * INTERSECT the two addresses rather than compare them (`./trace.ts` does, after a string equality
    * missed 2 of 2 rows on a live page, 2026-09-13).

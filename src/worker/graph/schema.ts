@@ -144,7 +144,7 @@ export const PLUGIN_NODE_TABLES = [
     scope STRING,                  // 'RUN' | 'CONTAINER'
     key STRING,                    // lowest member uri
     published STRING[],            // every routable member uri ever published under this id: append-only
-    aggUri STRING,                 // 'ag:(' + sorted published uris + ')'
+    aggUri STRING,                 // 'ag:(' + sorted routable member uris + ')'
     aliases STRING[],              // ids retired into this cluster
     hidden BOOLEAN,                // the listing hide rule (6.1), written false explicitly, never left unset
     hiddenBy STRING[],             // the run cluster ids the hide rule found

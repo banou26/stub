@@ -2,7 +2,7 @@ import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import type { RouteParams } from '../path'
 
 import { css } from '@emotion/react'
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
@@ -19,7 +19,7 @@ import ModalBackdrop from '../../components/modal-backdrop'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
-import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldGrowAddress } from '../../utils/uri'
+import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
@@ -383,7 +383,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const [playerVolume, setPlayerVolume] = useState(0.25)
 
   // The address grows as the store folds more sources into the cluster, so a page opened knowing one
-  // source ends up at the uri naming all of them.
+  // source ends up at the uri naming all of them; an address the page wrote also follows a split down.
   //
   // ONLY WHEN THE MEDIA IN HAND IS THE WORK THE ADDRESS NAMES, which the length comparison alone does
   // not establish. On a navigation the address changes first and `media` is still the PREVIOUS work
@@ -392,8 +392,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // page you were leaving. Clicking a relation or a graph node did nothing at all, twice out of twice
   // (measured 2026-09-09); before these linked to a bare source uri the guard above happened to hide
   // it, since a bare uri is not aggregated and the effect returned early.
+  const written = useRef<string | undefined>(undefined)
   useEffect(() => {
-    if (shouldGrowAddress(media?.uri, params.uri)) {
+    if (shouldRewriteAddress(media?.uri, params.uri, written.current)) {
+      written.current = media!.uri
       // THE QUERY STRING COMES ALONG. This replace is the reason a media url loses its flags: opened
       // at `/media/...?graph=1&trace=1`, the address grows a beat later and the url it is replaced
       // with carried the path alone, so `location.search` was empty for the rest of the session and

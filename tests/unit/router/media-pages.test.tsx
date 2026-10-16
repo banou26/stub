@@ -72,13 +72,14 @@ afterEach(() => {
 })
 
 const open = (path: string, page: () => preact.JSX.Element) => {
-  const { hook, searchHook, navigate } = memoryLocation({ path })
+  const { hook, searchHook, navigate, history } = memoryLocation({ path, record: true })
   const tree = () => <Router hook={hook} searchHook={searchHook}><Route path={path.replace(/ag:\(.*\)$/, ':uri')} component={page}/></Router>
   const host = mount(tree())
   hosts.push(host)
   return {
     host,
-    answer: (media: { uri: string, settled?: boolean }) => act(() => { answers.byUri[media.uri] = media; render(tree(), host) }),
+    history: history!,
+    answer: (media: { uri: string, settled?: boolean }, asked = media.uri) => act(() => { answers.byUri[asked] = media; render(tree(), host) }),
     navigate: (to: string) => act(() => { navigate(to) }),
   }
 }
@@ -248,4 +249,31 @@ describe('after a navigation, before the next work has answered', () => {
     expect(host.textContent).not.toContain('No episodes found')
     expect(pending(host), 'its rows held').toContain('episode.placeholder')
   })
+})
+
+// Steel Ball Run's second stage, welded to the first stage's rows for a pass and split apart by the next
+describe('the url after a split', () => {
+  const opened = 'ag:(anilist:210482)'
+  const welded = 'ag:(anilist:210482,mal:61469,offline:mal-61469)'
+  const split = 'ag:(anilist:210482,offline:mal-63825)'
+  const stage = (uri: string) => ({ ...work(210482, 'Steel Ball Run'), uri })
+  // the pages carry the query string across a rewrite, read off the window
+  beforeEach(() => { vi.stubGlobal('location', { search: '' }) })
+
+  for (const [page, route] of [[preview, 'media'], [titlePage, 'title']] as const) {
+    test(`/${route}: an address the page grew follows its card back down, so a reload opens that card`, () => {
+      const { answer, history } = page(opened)
+      answer(stage(welded), opened)
+      expect(history, 'the control: grown to the welded card').toEqual([`/${route}/${welded}`])
+
+      answer(stage(split), opened)
+      expect(history).toEqual([`/${route}/${split}`])
+    })
+
+    test(`/${route}: a link the reader opened is left as it is`, () => {
+      const { answer, history } = page(welded)
+      answer(stage(split), welded)
+      expect(history).toEqual([`/${route}/${welded}`])
+    })
+  }
 })

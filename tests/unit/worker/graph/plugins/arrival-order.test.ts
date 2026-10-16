@@ -35,7 +35,7 @@ import { identify } from '../../../../../src/tracking/identity'
 import { enableGraph } from '../../../../../src/worker/graph'
 import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { resetPassState } from '../../../../../src/worker/graph/plugins/runner'
-import { clearReadCache, episodesOf } from '../../../../../src/worker/graph/read'
+import { clearReadCache, episodesOf, resolveMedia } from '../../../../../src/worker/graph/read'
 import { graphReady, GRAPH_NODE_TABLES } from '../../../../../src/worker/graph/schema'
 import {
   DEFAULT_PLUGINS, passSettled, startScheduler, stopScheduler,
@@ -710,9 +710,13 @@ const CATALOGUE = [
 ]
 const catalog: CatalogLookup = { lookup: (origin, id) => CATALOGUE.find(row => row[origin] === id) }
 
-const trackedAs = async (uri: string): Promise<string> => {
+const addressOf = async (uri: string): Promise<string> => {
   const [row] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.aggUri AS aggUri', { uri })
-  const identity = identify(String(row?.aggUri), catalog)
+  return String(row?.aggUri)
+}
+
+const trackedAs = async (uri: string): Promise<string> => {
+  const identity = identify(await addressOf(uri), catalog)
   return identity.kind === 'ambiguous' ? `ambiguous ${identity.candidates.join(' ')}` : identity.kind
 }
 
@@ -737,36 +741,48 @@ test('Steel Ball Run\'s two stages build two clusters in every arrival order', a
 const landsBy = (first: string, second: string) => (order: string[]) => order.indexOf(first) < order.indexOf(second)
 
 /**
- * And the trackers can read both, which needs the weld never to happen at all: a cluster's address
- * only grows, so a pass that welds the two stages leaves both runs in it after they split. AniList's
- * row for the second stage brings its `mal:61469` with it, and in the batch it lands in, Offline's
- * claim into it is weighed first. The second plan is the second stage's own page with nothing of the
- * current season's listing before it, the third the Fall 2026 page.
+ * And the trackers can read both, in every order. Where AniList's second stage row lands before
+ * Offline's, its `mal:61469` is all the graph knows and is taken, and the stages split a pass later:
+ * a card's address names the rows it holds, so the split leaves no run in the other's address. The
+ * second plan is the second stage's own page with nothing of the current season's listing before it,
+ * the third the Fall 2026 page.
  */
-test('the trackers read each stage as one run wherever Offline\'s second stage row lands no later than AniList\'s', async () => {
+test('each stage\'s address names its own run only, so the trackers read both, in every arrival order', async () => {
   const keys = Object.keys(STEEL_BALL_RUN)
   const plans = [
     [keys],
     [['offline2'], ['anilist2'], ['offline1'], ['mal'], ['anilist1']],
     [['offline1', 'offline2'], ['anilist2'], ['mal'], ['anilist1']],
     [['offline2', 'anilist2'], ['offline1', 'mal', 'anilist1']],
-    ...permutations(keys).filter(landsBy('offline2', 'anilist2')).map(order => order.map(key => [key])),
+    ...permutations(keys).map(order => order.map(key => [key])),
   ]
   for (const plan of plans) {
     await reZeroBuild(STEEL_BALL_RUN, plan)
+    expect(await addressOf('anilist:190327'), `the first stage, ${JSON.stringify(plan)}`).toBe('ag:(anilist:190327,mal:61469,offline:mal-61469)')
+    expect(await addressOf('anilist:210482'), `the second stage, ${JSON.stringify(plan)}`).toBe('ag:(anilist:210482,offline:mal-63825)')
     expect(await trackedAs('anilist:190327'), `the first stage, ${JSON.stringify(plan)}`).toBe('catalogue')
     expect(await trackedAs('anilist:210482'), `the second stage, ${JSON.stringify(plan)}`).toBe('catalogue')
   }
 })
 
 /**
- * KNOWN GAP, pinned as the gap it is. AniList's second stage row landing before Offline's is all the
- * graph knows, so its `mal:61469` is taken, and the stages split once Offline's row says otherwise,
- * but the address keeps both runs. If this goes red, something closed it.
+ * A link saved while the stages were one card names both, and keeps opening the first stage, the
+ * lowest key it reaches. The card's own address opens that card again, so a page that takes it on
+ * stays there.
  */
-test('KNOWN GAP: AniList\'s second stage row landing before Offline\'s leaves its card unreadable', async () => {
-  await reZeroBuild(STEEL_BALL_RUN, [['anilist2'], ['offline2'], ['offline1'], ['mal'], ['anilist1']])
-  expect(await trackedAs('anilist:210482')).toBe('ambiguous mal:61469 mal:63825')
+test('a link naming both stages opens the first stage in every arrival order', async () => {
+  const saved = 'ag:(anilist:190327,anilist:210482,anizip:19287,mal:61469,offline:mal-61469)'
+  for (const order of permutations(Object.keys(STEEL_BALL_RUN))) {
+    const plan = order.map(key => [key])
+    await reZeroBuild(STEEL_BALL_RUN, plan)
+    const [first] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.id AS id', { uri: 'anilist:190327' })
+    clearReadCache()
+    const opened = await resolveMedia(saved)
+    expect(opened?._id, JSON.stringify(plan)).toBe(first?.id)
+    expect(opened?.uri, JSON.stringify(plan)).toBe('ag:(anilist:190327,mal:61469,offline:mal-61469)')
+    const again = await resolveMedia(opened!.uri)
+    expect([again?._id, again?.uri], JSON.stringify(plan)).toEqual([opened!._id, opened!.uri])
+  }
 })
 
 /**

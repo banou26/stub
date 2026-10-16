@@ -1,9 +1,9 @@
 // A relation names a work by the ONE source that mentioned it. Linking straight to that source opens a
 // page pinned to it, where the store has a single row and never asks anyone else, so the work shows
 // whatever AniList alone knew and nothing more. Wrapping it as a cluster is what starts the fan out.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { asAggregatedUri, isAggregatedUri, matchAggregatedUris, shouldGrowAddress } from '../../../src/utils/uri'
+import { asAggregatedUri, isAggregatedUri, matchAggregatedUris, shouldRewriteAddress } from '../../../src/utils/uri'
 
 describe('asAggregatedUri', () => {
   test('a single source becomes a cluster of one, which is a routable form', () => {
@@ -36,39 +36,60 @@ describe('asAggregatedUri', () => {
   })
 })
 
-describe('shouldGrowAddress', () => {
+describe('shouldRewriteAddress', () => {
   const known = 'ag:(anilist:108465)'
   const full = 'ag:(anidb:14758,anilist:108465,kitsu:42323,mal:39535)'
   const other = 'ag:(anilist:178789,kitsu:49002,mal:59193)'
 
   test('grows once the store has folded more sources into the same work', () => {
-    expect(shouldGrowAddress(full, known)).toBe(true)
+    expect(shouldRewriteAddress(full, known)).toBe(true)
   })
 
   test('and stops once the address already names them all', () => {
-    expect(shouldGrowAddress(full, full)).toBe(false)
+    expect(shouldRewriteAddress(full, full)).toBe(false)
   })
 
   test('NEVER rewrites the address to a different work, however much bigger it is', () => {
     // the bug: on a navigation the address changes first and the page still holds the previous work,
     // so its eight handles beat the new address's one and the click was replaced with the page it
     // came from. Every relation and every graph node did nothing when clicked.
-    expect(shouldGrowAddress(other, known)).toBe(false)
+    expect(shouldRewriteAddress(other, known)).toBe(false)
   })
 
   test('nor when the work in hand knows FEWER sources than the address names', () => {
-    expect(shouldGrowAddress(known, full)).toBe(false)
+    expect(shouldRewriteAddress(known, full)).toBe(false)
   })
 
   test('a bare source uri on either side is left alone', () => {
-    expect(shouldGrowAddress('anilist:108465', known)).toBe(false)
-    expect(shouldGrowAddress(full, 'anilist:108465')).toBe(false)
+    expect(shouldRewriteAddress('anilist:108465', known)).toBe(false)
+    expect(shouldRewriteAddress(full, 'anilist:108465')).toBe(false)
+  })
+
+  // Steel Ball Run's second stage, welded to the first stage's rows for a pass and split by the next
+  const welded = 'ag:(anilist:210482,mal:61469,offline:mal-61469)'
+  const split = 'ag:(anilist:210482,offline:mal-63825)'
+
+  test('an address the page wrote follows its work down after a split', () => {
+    expect(shouldRewriteAddress(split, welded, welded)).toBe(true)
+  })
+
+  test('a link the reader opened does not', () => {
+    expect(shouldRewriteAddress(split, welded)).toBe(false)
+    expect(shouldRewriteAddress(split, welded, known)).toBe(false)
+  })
+
+  test('and even an address the page wrote never goes to a different work', () => {
+    expect(shouldRewriteAddress(other, full, full)).toBe(false)
+  })
+
+  test('nor is rewritten to itself', () => {
+    expect(shouldRewriteAddress(welded, welded, welded)).toBe(false)
   })
 
   test('and a missing uri is not an address to grow', () => {
-    expect(shouldGrowAddress(undefined, known)).toBe(false)
-    expect(shouldGrowAddress(full, undefined)).toBe(false)
-    expect(shouldGrowAddress(undefined, undefined)).toBe(false)
+    expect(shouldRewriteAddress(undefined, known)).toBe(false)
+    expect(shouldRewriteAddress(full, undefined)).toBe(false)
+    expect(shouldRewriteAddress(undefined, undefined)).toBe(false)
   })
 })
 

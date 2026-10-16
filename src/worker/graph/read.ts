@@ -327,9 +327,10 @@ const clusterOf = (row: Record<string, unknown> | undefined): ResolvedCluster | 
  * (`mal:51535`, 8.6). `published` is append-only, so the scan below is the ONLY way a departed member
  * still resolves, and it is taken on the fallthrough and never level with membership.
  *
- * A VISIBLE CLUSTER RANKS BEFORE A HIDDEN ONE, then the lowest key. A split leaves the whole old
- * address on the fragment that kept the id, which holds the lowest key, so a card still opens its own
- * cluster; when that fragment is a hidden row, the address opens the visible rest of it instead.
+ * A VISIBLE CLUSTER RANKS BEFORE A HIDDEN ONE, then the lowest key as it stands now. Right after a
+ * split that is the fragment that kept the id, since it kept the old key, but a fragment that later
+ * takes in a lower uri takes the old address with it. When the lowest is a hidden row, the address
+ * opens the visible rest instead.
  */
 const resolveByUris = async (uris: readonly string[]): Promise<ResolvedCluster | undefined> => {
   if (!uris.length) return undefined

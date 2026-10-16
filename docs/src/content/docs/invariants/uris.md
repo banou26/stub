@@ -257,11 +257,13 @@ That is why the season-scoped ids above all join on a hyphen and none of them co
 
 ## Growing the address
 
-A page opened knowing one source ends up naming all of them, because the store keeps folding sources into the cluster and the aggregate's `uri` grows with it. `shouldGrowAddress` (`uri.ts:143-149`) decides when the modal rewrites its own address, and it has two conditions rather than one:
+A page opened knowing one source ends up naming all of them, because the store keeps folding sources into the cluster and the aggregate's `uri` grows with it. `shouldRewriteAddress` (`uri.ts:147-154`) decides when a page rewrites its own address, and it has two conditions rather than one:
 
-`src/utils/uri.ts:134-141`
+`src/utils/uri.ts:134-145`
 
 > The address grows as the store folds more sources into a cluster, so a page opened knowing one source ends up naming all of them. Two conditions, and the second is the one that is easy to miss: the cluster in hand must be BIGGER, and it must be the SAME WORK.
+>
+> An address the page wrote itself also follows the cluster down: a split takes rows out of the cluster's address, and a url still naming them opens the other card on a reload. A link the reader opened is never narrowed.
 >
 > Without the identity check a navigation eats itself. The address changes first and the page still holds the previous work for a beat, so a link to a work known through one source is judged against the old cluster's eight handles, read as a shrinking address, and replaced with the page being left. Every relation and every graph node did nothing at all when clicked (measured 2026-09-09).
 

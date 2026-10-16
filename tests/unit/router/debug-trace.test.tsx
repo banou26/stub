@@ -883,7 +883,7 @@ describe('the way into this page from the app', () => {
   test('survives the media view rewriting its own url', () => {
     for (const [file, end] of [['home/media-modal.tsx', 'if (!open) return'], ['title/index.tsx', 'const bannerUrl']] as const) {
       const source = readFileSync(fileURLToPath(new URL(`../../../src/router/${file}`, import.meta.url)), 'utf-8')
-      const grow = source.slice(source.indexOf('shouldGrowAddress(media?.uri'), source.indexOf(end))
+      const grow = source.slice(source.indexOf('shouldRewriteAddress(media?.uri'), source.indexOf(end))
       expect(grow, `${file}: the address grow keeps the query string`).toContain('${location.search}')
       expect(grow, `${file}: the control: it is this navigate and not another`).toContain('replace: true')
     }

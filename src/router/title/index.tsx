@@ -22,7 +22,7 @@ import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
 import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
-import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldGrowAddress } from '../../utils/uri'
+import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { secondTitle, titleChips, titleFacts } from './facts'
@@ -639,8 +639,10 @@ const TitlePage = () => {
   // a layout effect, run as the answer is drawn: a plain one waits a frame, and a Back taken in that frame renders this
   // page again before the router moves on, which runs the waiting effect first, and it would grow the address over the
   // entry Back landed on
+  const written = useRef<string | undefined>(undefined)
   useLayoutEffect(() => {
-    if (shouldGrowAddress(media?.uri, routeUri)) {
+    if (shouldRewriteAddress(media?.uri, routeUri, written.current)) {
+      written.current = media!.uri
       navigate(`${getRoutePath(Route.TITLE, { uri: media!.uri })}${location.search}`, { replace: true })
     }
   }, [media?.uri, routeUri])
