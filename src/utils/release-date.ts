@@ -49,6 +49,14 @@ export const parseReleaseDate = (value: string | null | undefined): Date | undef
 }
 
 /**
+ * A media's start, end or film release as the day it names, `YYYY-MM-DD`. AniList, Jikan, Apple TV and
+ * Simkl's anime records write that day as UTC midnight with a time attached, so it is read in UTC, never
+ * where the viewer is. An episode's airing is an instant and does not go through here.
+ */
+export const releaseDay = (value: string | null | undefined): string | undefined =>
+  parseReleaseDate(value)?.toISOString().slice(0, 10)
+
+/**
  * The date to show beside an episode, or `undefined` to show nothing.
  *
  * Deliberately a DAY and not a time. An episode's airing is a day in the viewer's head, the sources

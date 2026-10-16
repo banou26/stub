@@ -4,7 +4,7 @@ import { LucidePlay } from 'lucide-react'
 import { Link } from 'wouter'
 
 import SourceSelector from '../../components/source-selector'
-import { releaseDateLabel } from '../../utils/release-date'
+import { releaseDateLabel, releaseDay } from '../../utils/release-date'
 import { getRoutePath, Route } from '../path'
 import { releasedAtOf } from './episodes'
 import { useWatchSources } from './media-details'
@@ -31,7 +31,7 @@ const MoviePlay = (
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined
-  const day = releaseDateLabel(released)
+  const day = releaseDateLabel(releasedAtOf(episode) ?? releaseDay(startDate))
   return (
     <div className="movie">
       <div className="facts">{movieFacts({ released, runtime: episode?.runtime, genres }).join(' · ')}</div>

@@ -7,6 +7,8 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { releaseDateLabel } from '../../../src/utils/release-date'
+
 let origin = 'cr'
 vi.mock('urql', () => ({
   useSubscription: ({ variables }: { variables: { input: { ids: string[] } } }) =>
@@ -59,6 +61,44 @@ test('a media-level offer the episode does not name links out from the play bar'
   const link = host.querySelector('a[href="https://www.hidive.com/interstitial/715215"]')
   expect(link?.getAttribute('target')).toBe('_blank')
   expect(host.querySelector('.play')).toBeNull()
+})
+
+// Simkl's `first_aired` for Blade Runner: Black Out 2022 (tests/fixtures/simkl/search-blade-runner.json),
+// seen before it was out, from the two sides of Greenwich
+test('a film not out yet names its release day, the same day for every viewer', () => {
+  const TZ = process.env.TZ
+  vi.useFakeTimers({ now: new Date('2017-09-01T12:00:00Z'), toFake: ['Date'] })
+  try {
+    for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+      process.env.TZ = zone
+      const { hook } = memoryLocation({ path: '/' })
+      const host = mount(<Router hook={hook}><MoviePlay episode={episode} mediaUri="ag:(anilist:9)" startDate="2017-09-26T00:00:00Z"/></Router>)
+      hosts.push(host)
+      expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2017-09-26')}`)
+    }
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+// anizip's `airDateUtc` for Jujutsu Kaisen 0 (anilist 131573), 00:30 JST on Dec 24
+test('a film episode that airs at a set time keeps it, so Tokyo reads its own day', () => {
+  const TZ = process.env.TZ
+  vi.useFakeTimers({ now: new Date('2021-12-01T12:00:00Z'), toFake: ['Date'] })
+  try {
+    process.env.TZ = 'Asia/Tokyo'
+    const aired = { ...episode, releaseDate: '2021-12-23T15:30:00Z' } as DetailsEpisode
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(<Router hook={hook}><MoviePlay episode={aired} mediaUri="ag:(anilist:131573)" startDate="2021-12-24T00:00:00Z"/></Router>)
+    hosts.push(host)
+    expect(host.querySelector('.when')?.textContent).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
 })
 
 test('a media-level handle to a catalogue is not offered as a place to watch', () => {

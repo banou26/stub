@@ -6,7 +6,7 @@ import type { ReleaseDateOptions } from '../../utils/release-date'
 
 import { MediaStatus, MediaType } from '../../generated/graphql'
 import { formatLabel, seasonLabel, statusLabel } from '../search/params'
-import { parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
+import { releaseDateLabel, releaseDay } from '../../utils/release-date'
 
 export type TitleMedia = {
   titles?: readonly { title: string, language?: string | null }[] | null
@@ -26,9 +26,6 @@ export type TitleMedia = {
 }
 
 export type Fact = { label: string, value: string }
-
-// A media's start and end are days, which AniList and Jikan write as UTC midnight with a time attached
-const day = (value: string | null | undefined) => parseReleaseDate(value)?.toISOString().slice(0, 10)
 
 const episodesLabel = (count: number | null | undefined) =>
   count ? `${count} ${count === 1 ? 'Episode' : 'Episodes'}` : undefined
@@ -56,10 +53,10 @@ export const titleChips = (media: TitleMedia): string[] =>
 
 /** The labelled facts, in reading order. A fact no source gave is left out rather than shown empty. */
 export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}): Fact[] => {
-  const start = releaseDateLabel(day(media.startDate), options)
+  const start = releaseDateLabel(releaseDay(media.startDate), options)
   // while it airs, a source's end is the last scheduled airing
   const airing = media.status === MediaStatus.Releasing || media.status === MediaStatus.NotYetReleased
-  const end = airing ? undefined : releaseDateLabel(day(media.endDate), options)
+  const end = airing ? undefined : releaseDateLabel(releaseDay(media.endDate), options)
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
   return [

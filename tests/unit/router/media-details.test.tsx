@@ -11,6 +11,7 @@ import { Client, Provider, subscriptionExchange } from 'urql'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { releaseDateLabel } from '../../../src/utils/release-date'
 import { viewerIn } from '../sources/justwatch/viewer'
 
 const fkn = vi.hoisted(() => ({ backend: 'cloud' as FknBackend }))
@@ -99,6 +100,24 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
   expect(rows()).toEqual(expected(13, 24))
   act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 3"]')!.click() })
   expect(rows()).toEqual(expected(25, 26))
+})
+
+// an anime episode airing at 09:00 in Tokyo is 00:00 UTC: an instant, unlike a film's release day
+test('an episode airing at midnight UTC shows the day it aired where the viewer is', () => {
+  const TZ = process.env.TZ
+  const dawn = { uri: 'ag:(anilist:1)', episodes: [{ ...media.episodes[0], releaseDate: '2024-01-07T00:00:00Z' }] } as unknown as DetailsMedia
+  try {
+    for (const [zone, day] of [['America/Los_Angeles', '2024-01-06'], ['Asia/Tokyo', '2024-01-07']] as const) {
+      process.env.TZ = zone
+      const { hook } = memoryLocation({ path: '/' })
+      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={dawn}/></Router></Provider>)
+      hosts.push(host)
+      expect(host.querySelector('.episode time')?.textContent, zone).toBe(releaseDateLabel(day))
+    }
+  } finally {
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
 })
 
 test('a Prime Video row outside Japan plays in stub with the extension, and links out to Prime Video on the cloud', async () => {
