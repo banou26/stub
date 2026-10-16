@@ -341,6 +341,116 @@ test('a proposal that joins the two disagreeing claimants un-contests their targ
   expect(contestedBy('anilist:9500', 'kitsu:9500', { sites, parentOf, components, claims })).toEqual(new Set(['kitsu:9000']))
 })
 
+/**
+ * A proposal weighs only the contest sites it can reach, and answers every other one from `standing`
+ * (the cost is measured at `reachOf` in guards.ts).
+ *
+ * Mutation: walk `facts.sites` instead of the sites the proposal's two keys reach and the cut count
+ * goes from 0 to one per site per proposal.
+ */
+test('a proposal weighs only the contest sites it can reach', async () => {
+  const { query } = await graphReady()
+  const plain = await readComponents(query)
+  let cuts = 0
+  const components = { ...plain, without: (excluded: string | Iterable<string>) => { cuts += 1; return plain.without(excluded) } }
+  // forty targets, each claimed by two `mal` rows that disagree, so every site is contested
+  const claimsInto = new Map<string, { claimant: string, claimer: string }[]>()
+  const claims = new Map<string, Set<string>>()
+  for (let index = 0; index < 40; index += 1) {
+    const target = `kitsu:${9200 + index}`
+    const pair = [`mal:${9300 + index * 2}`, `mal:${9301 + index * 2}`]
+    claimsInto.set(target, pair.map(claimant => ({ claimant, claimer: 'mal' })))
+    for (const claimant of pair) claims.set(claimant, new Set([target]))
+  }
+  const parentOf = () => null
+  const sites = contestSites(claimsInto, claims, components, parentOf)
+  const facts = { sites, parentOf, components, claims }
+  const every = new Set(claimsInto.keys())
+
+  expect(sites.filter(site => site.standing).length, 'the control: forty sites, every one contested').toBe(40)
+  expect(contestedBy('anilist:9900', 'kitsu:9900', facts)).toEqual(every)
+
+  cuts = 0
+  for (let index = 0; index < 10; index += 1) {
+    expect(contestedBy(`anilist:${9901 + index}`, `kitsu:${9901 + index}`, facts)).toEqual(every)
+  }
+  expect(cuts, 'ten proposals that reach no site cut nothing').toBe(0)
+
+  // the control: a proposal that joins one site's two claimants is still weighed, and un-contests it
+  const joined = new Set(every)
+  joined.delete('kitsu:9200')
+  expect(contestedBy('mal:9300', 'mal:9301', facts)).toEqual(joined)
+})
+
+/**
+ * Which sites a proposal reaches is worked out once per set of facts, and a new set of facts is
+ * weighed afresh: the Offline weighing in `prepareGuards` keeps the batch's sites and swaps in the
+ * relation with Offline's pairs joined, and every batch of one write epoch shares one relation.
+ *
+ * The proposal reaches `kitsu:9100` only through the row that site cuts: `simkl:9450` joins the
+ * target's component in the second relation, and nowhere in the first.
+ *
+ * Mutation: remember the reach by `facts.sites` instead of by `facts` and the second weighing answers
+ * from the first relation, so the contest it makes is missed. Index the reach by the claimant keys
+ * alone, without the cut rows' own components, and it is missed the same way. Remember it by
+ * `facts.components` and a batch with no sites answers from the first batch's.
+ */
+test('a proposal is weighed afresh for every set of facts', async () => {
+  const { query } = await graphReady()
+  const components = (await readComponents(query)).joined([])
+  // two claimants that agree (their ids share no catalogue), so the site is not contested
+  const claimsInto = new Map([
+    ['kitsu:9100', [{ claimant: 'anilist:9102', claimer: 'anilist' }, { claimant: 'mal:9101', claimer: 'mal' }]],
+  ])
+  const claims = new Map([['anilist:9102', new Set(['kitsu:9100'])], ['mal:9101', new Set(['kitsu:9100'])]])
+  const parentOf = () => null
+  const sites = contestSites(claimsInto, claims, components, parentOf)
+  const facts = { sites, parentOf, components, claims }
+
+  expect(sites.map(site => site.standing), 'the control: one site, not contested with nothing merged').toEqual([false])
+  expect(contestedBy('simkl:9450', 'anilist:9103', facts), 'the control: the proposal reaches nothing yet').toEqual(new Set())
+
+  // the target's component gains `anidb:9104`, which now names it, and `mal:9101` with `simkl:9450`
+  // hanging off it: the proposal would put `anilist:9103` beside `mal:9101`, against `anilist:9102`
+  const joined = {
+    ...facts,
+    components: components.joined([['kitsu:9100', 'anidb:9104'], ['kitsu:9100', 'mal:9101'], ['mal:9101', 'simkl:9450']]),
+  }
+  expect(contestedBy('simkl:9450', 'anilist:9103', joined)).toEqual(new Set(['kitsu:9100']))
+
+  // the control: joining `anilist:9103` to `mal:9101` contests the target in this batch, and in a
+  // batch with no sites over the same relation it contests nothing
+  expect(contestedBy('mal:9101', 'anilist:9103', facts)).toEqual(new Set(['kitsu:9100']))
+  expect(contestedBy('mal:9101', 'anilist:9103', { sites: [], parentOf, components, claims: new Map() })).toEqual(new Set())
+})
+
+/**
+ * Two claimants are cut from every row they both claim, so a proposal reaches their site through any
+ * of those rows' components, not only the target's.
+ *
+ * Mutation: index the reach by the target's component alone (`const cut = site.target` in `reachOf`)
+ * and the proposal below is answered from `standing`, so `kitsu:9600` stays contested although the
+ * proposal joins its two claimants.
+ */
+test('a proposal reaches a site through every row its two claimants share', async () => {
+  const { query } = await graphReady()
+  // each `mal` row hangs off a different shared row, and the proposal joins what hangs off them
+  const components = (await readComponents(query)).joined([
+    ['anidb:9620', 'mal:9601'], ['mal:9601', 'simkl:9607'],
+    ['anidb:9630', 'mal:9602'], ['mal:9602', 'tvdb:9603'],
+  ])
+  const shared = ['kitsu:9600', 'anidb:9620', 'anidb:9630']
+  const claimsInto = new Map(shared.map(target => [target, [{ claimant: 'mal:9601', claimer: 'mal' }, { claimant: 'mal:9602', claimer: 'mal' }]]))
+  const claims = new Map([['mal:9601', new Set(shared)], ['mal:9602', new Set(shared)]])
+  const parentOf = () => null
+  const sites = contestSites(claimsInto, claims, components, parentOf)
+  const facts = { sites, parentOf, components, claims }
+
+  expect(sites.map(site => site.standing), 'the control: three sites, every one contested').toEqual([true, true, true])
+  expect(contestedBy('anilist:9690', 'kitsu:9690', facts), 'the control: a proposal reaching none').toEqual(new Set(shared))
+  expect(contestedBy('simkl:9607', 'tvdb:9603', facts)).toEqual(new Set())
+})
+
 // (5) CONTESTED, evaluated over every CLAIM rather than over active links, so two claimants landing
 // in different flushes still meet and the verdict is the same on every later pass. This is 8.6 end to
 // end: two PART_OF badges and no card, rather than one lost row and a third card.

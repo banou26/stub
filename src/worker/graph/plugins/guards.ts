@@ -709,6 +709,44 @@ export const contestSites = (
   return sites
 }
 
+type Reach = { near: Map<string, ContestSite[]>, standing: string[] }
+
+const reaches = new WeakMap<object, Reach>()
+
+/**
+ * The sites each component key reaches, and the targets contested with nothing merged, once per set
+ * of facts.
+ *
+ * A proposal can only move a site one of its ends lands on in that site's cut relation: a claimant
+ * key the site produced, or a member of a cut row's own component, which the cut regroups. Every
+ * other site answers `standing`, so `contestedBy` weighs only the sites a proposal's two component
+ * keys find here. Without it every proposal cut the relation once per site: replaying 1,200 answers of
+ * the recorded Summer 2026 page, 302 sites per proposal, 0.6% of them reachable, 3.5 s of the 11.8 s
+ * its passes took, against 0.16 s with it (2026-10-16).
+ *
+ * KEYED ON THE FACTS OBJECT, never on its sites or its relation: `prepareGuards` weighs a batch a
+ * second time with the same sites over the relation with Offline's pairs joined, and every batch of
+ * one write epoch shares one relation (`readComponents`).
+ */
+const reachOf = (facts: Pick<Facts, 'sites' | 'components' | 'claims'>): Reach => {
+  const known = reaches.get(facts)
+  if (known) return known
+  const near = new Map<string, ContestSite[]>()
+  for (const site of facts.sites) {
+    const cut = sharedCut(site.claimants[0]!, site.claimants[1]!, site.target, facts.claims)
+    const keys = new Set(site.keys)
+    for (const uri of typeof cut === 'string' ? [cut] : cut) keys.add(facts.components.keyOf(uri))
+    for (const key of keys) {
+      const list = near.get(key)
+      if (list) list.push(site)
+      else near.set(key, [site])
+    }
+  }
+  const reach = { near, standing: facts.sites.filter(site => site.standing).map(site => site.target) }
+  reaches.set(facts, reach)
+  return reach
+}
+
 /**
  * The rows THIS PROPOSAL would put two disagreeing claimants onto.
  *
@@ -740,8 +778,11 @@ export const contestedBy = (
   b: string,
   facts: Pick<Facts, 'sites' | 'parentOf' | 'components' | 'claims'>
 ): Set<string> => {
-  const contested = new Set<string>()
-  for (const site of facts.sites) {
+  const { near, standing } = reachOf(facts)
+  const contested = new Set(standing)
+  const reached = new Set([...near.get(facts.components.keyOf(a)) ?? [], ...near.get(facts.components.keyOf(b)) ?? []])
+  for (const site of reached) {
+    contested.delete(site.target)
     const { claimants } = site
     // the cut is per PAIR (`sharedCut`), so the reachability test asks whether either end of the
     // proposal lands on any claimant key this site produced across its pairs
