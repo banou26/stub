@@ -137,7 +137,7 @@ describe('the media tracking', () => {
 
 const trackerOf = (id: string) => ({ id, name: id, canWrite: true, scoreScale: 'POINT_100' })
 const answer = (tracker: string, uri: string, state: string, entry: Record<string, unknown> | null = null) =>
-  ({ _id: `answer:${tracker}:${uri}`, state, candidates: [], tracker: trackerOf(tracker), entry: entry && { _id: `${tracker}:1`, ...entry } })
+  ({ _id: `answer:${tracker}:${uri}`, state, candidates: [] as string[], tracker: trackerOf(tracker), entry: entry && { _id: `${tracker}:1`, ...entry } })
 const trackingFor = (uri: string, answers: ReturnType<typeof answer>[], summary: Record<string, unknown> | null = null) =>
   ({ _id: `tracking:${uri}`, summary: summary && { _id: `summary:${uri}`, ...summary }, disagreements: [], answers })
 
@@ -199,6 +199,18 @@ describe('while the media gains ids', () => {
     answered.set(WIDE, trackingFor(WIDE, [answer('anilist', WIDE, 'LOADING'), answer('stub', WIDE, 'LISTED', watching)], watching))
     await show({ work: NARROW, uri: WIDE })
     expect(status(host)).toBe('WATCHING')
+  })
+
+  test('what the viewer saved stays shown across a render while the grown uri has not answered', async () => {
+    vi.useFakeTimers()
+    answered.set(NARROW, trackingFor(NARROW, [answer('stub', NARROW, 'LISTED', watching)], watching))
+    const { host, show } = render({ work: NARROW, uri: NARROW })
+    await show({ work: NARROW, uri: WIDE })
+    await more(host)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(saves()).toEqual([[WIDE, { progress: 4 }]])
+    await show({ work: NARROW, uri: WIDE })
+    expect(progress(host)).toBe('4')
   })
 
   test('follows a media that names none of the uri the page asked on, as a show whose details are its first season', async () => {
@@ -284,6 +296,65 @@ describe('while the media gains ids', () => {
       await show({ work: SHOW, uri: SEASON })
       expect(loadingRow(host)).toEqual(unanswered)
     })
+  })
+})
+
+// A link saved while Steel Ball Run's two stages were one cluster names both: AniList 210482 is the
+// 2nd Stage, MyAnimeList 61469 the 1st. The page resolves it to one cluster, whose own uri the
+// trackers are asked on once the details are in.
+describe('an old link naming two shows', () => {
+  const OLD = 'ag:(anilist:210482,mal:61469,nyaa:19287,offline:mal-61469)'
+  const FIRST_STAGE = 'ag:(anilist:190327,anizip:19287,mal:61469,offline:mal-61469)'
+  const WELDED = 'ag:(anilist:190327,anilist:210482,anizip:19287,mal:61469,nf:82116553-1,offline:mal-61469,offline:mal-63825)'
+  const TRACKERS = ['anilist', 'mal', 'stub']
+  const ambiguous = (uri: string, candidates: string[]) =>
+    trackingFor(uri, TRACKERS.map(tracker => ({ ...answer(tracker, uri, 'AMBIGUOUS'), candidates })))
+  const refusals = (host: HTMLElement) => [...host.querySelectorAll('[data-chip].cannot')].map(chip => chip.getAttribute('data-chip'))
+  beforeEach(() => { answered.set(OLD, ambiguous(OLD, ['anilist:210482', 'mal:61469'])) })
+
+  test('reads the one show the page resolved it to, never the link\'s two', async () => {
+    const { host, show } = render({ work: OLD, uri: undefined })
+    expect(chips(host)).toEqual(['anilist loading', 'mal loading', 'stub loading'])
+
+    // the details are in and the trackers have not answered for the media's own uri yet
+    await show({ work: OLD, uri: 'ag:(offline:mal-61469)' })
+    expect(refusals(host)).toEqual([])
+    expect(chips(host)).toEqual(['anilist loading', 'mal loading', 'stub loading'])
+
+    // stub's own tracker has answered for the media, the sites' have not
+    answered.set(FIRST_STAGE, trackingFor(FIRST_STAGE, [answer('anilist', FIRST_STAGE, 'LOADING'), answer('mal', FIRST_STAGE, 'LOADING'), answer('stub', FIRST_STAGE, 'NOT_LISTED')]))
+    await show({ work: OLD, uri: FIRST_STAGE })
+    expect(refusals(host)).toEqual([])
+    expect(chips(host)).toEqual(['anilist loading', 'mal loading', 'stub'])
+
+    answered.set(FIRST_STAGE, trackingFor(FIRST_STAGE, TRACKERS.map(tracker => answer(tracker, FIRST_STAGE, 'NOT_LISTED'))))
+    await show({ work: OLD, uri: FIRST_STAGE })
+    expect(chips(host)).toEqual(['anilist', 'mal', 'stub'])
+    expect(refusals(host)).toEqual([])
+  })
+
+  test('the control: a link the page resolves to a cluster naming two shows still reads them as two', async () => {
+    answered.set(WELDED, ambiguous(WELDED, ['anilist:190327', 'anilist:210482']))
+    const { host, show } = render({ work: OLD, uri: undefined })
+    await show({ work: OLD, uri: WELDED })
+    expect(refusals(host)).toEqual(TRACKERS)
+    expect(host.querySelector('[data-chip="stub"] [aria-label]:not(.logo-button)')?.getAttribute('aria-label'))
+      .toBe('stub cannot track this media: Names anilist:190327 and anilist:210482, cannot tell which')
+  })
+
+  test('what the viewer saved beside a refusing tracker stays shown across a render while the media has not answered', async () => {
+    vi.useFakeTimers()
+    const LINK = 'ag:(anilist:1,anilist:2,cr:1)'
+    const MEDIA = 'ag:(anilist:1,cr:1)'
+    const watching = { status: 'WATCHING', progress: 3, score: 80, episodeCount: 12 }
+    answered.set(LINK, trackingFor(LINK, [{ ...answer('anilist', LINK, 'AMBIGUOUS'), candidates: ['anilist:1', 'anilist:2'] }, answer('cr', LINK, 'LISTED', watching)], watching))
+    const { host, show } = render({ work: LINK, uri: undefined })
+    await show({ work: LINK, uri: MEDIA })
+    await more(host)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(saves()).toEqual([[MEDIA, { progress: 4 }]])
+    await show({ work: LINK, uri: MEDIA })
+    expect(progress(host)).toBe('4')
   })
 })
 

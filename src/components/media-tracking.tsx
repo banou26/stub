@@ -1,7 +1,7 @@
 import type { MediaTrackingSubscription } from '../generated/graphql'
 import type { TrackerOutcome } from '../tracking/compact'
 
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
@@ -9,6 +9,7 @@ import { TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
 import { COMPACT_PREFS_KEY, devicePrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
+import { trackingId } from '../tracking/aggregate'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
 import { recordTrackerAnswers, siteStatuses } from '../tracking/site-status'
@@ -64,11 +65,25 @@ const drawn = (answer: { state: string }) => !loading(answer) && answer.state !=
  * What the row shows of the subscription's latest result: the one shown before while the latest still
  * waits on a tracker that one drew, so no chip drops out while the media gains ids.
  */
-const heldOf = (shown: Tracking | undefined, latest: Tracking | null | undefined) =>
+const heldOf = (shown: Tracking | null | undefined, latest: Tracking | null | undefined) =>
   shown && latest?.answers.some(answer =>
     loading(answer) && shown.answers.some(before => before.tracker.id === answer.tracker.id && drawn(before)))
     ? shown
     : latest ?? undefined
+
+const ambiguous = (answer: { state: string }) => answer.state === TrackerState.Ambiguous
+
+/**
+ * A result as the row may show it while asking on `uri`. An answer that cannot tell which media its uri
+ * names is about that uri alone, so in a result for another (the page's address before the media's own
+ * uri is known, as an old link naming two shows) it is still loading. Any other result comes back as the
+ * same object, and the subscription's is converted once per result: the row lets go of the viewer's own
+ * values on a new object (tracking-compact.tsx).
+ */
+const askedOn = (tracking: Tracking | null | undefined, uri: string) =>
+  tracking && tracking._id !== trackingId(uri) && tracking.answers.some(ambiguous)
+    ? { ...tracking, answers: tracking.answers.map(answer => ambiguous(answer) ? { ...answer, state: TrackerState.Loading } : answer) }
+    : tracking
 
 /** Every tracker that will draw a chip as still loading, and none of the values: the row at its size, and nothing to act on. */
 const loadingOf = (tracking: Tracking | undefined): Tracking | undefined =>
@@ -93,8 +108,9 @@ type Props = {
 const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs }: Props) => {
   const asked = uri ?? work
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
+  const latest = useMemo(() => askedOn(data?.tracking, asked!), [data?.tracking, asked])
   const shown = useRef<Tracking>(undefined)
-  shown.current = heldOf(shown.current, data?.tracking)
+  shown.current = heldOf(askedOn(shown.current, asked!), latest)
   const ready = Boolean(uri && namesSameWork(work, address))
   const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount })
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
