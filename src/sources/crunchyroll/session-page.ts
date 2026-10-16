@@ -6,7 +6,7 @@ import type { ServeArg } from '../../tracking/session-frames'
 import type { SeasonIds } from './season-id'
 import type { PageFetch, TokenAnswer, TokenGrant } from './sign-in-check'
 
-import { installSessionServer } from '../../tracking/page-install'
+import { installSessionServer, randomNonce } from '../../tracking/page-install'
 import { findSeason, resolveSeasonId } from './season-id'
 import { CRUNCHYROLL_BASE_URL } from './session'
 import { askForToken, TOKEN_REQUEST } from './sign-in-check'
@@ -25,8 +25,9 @@ export type Held = { progress: number, stars: number | null, watchlisted: boolea
 export type WatchedAnswer = TokenAnswer & { held?: Held }
 
 /**
- * What a save sets, each field left as it is when absent: progress only ever rises, `stars` null takes
- * the rating away, and `watchlist` puts the series on the Watchlist or takes it off.
+ * What a save sets, each field left as it is when absent: progress only ever rises, `stars` null asks
+ * for no rating, which Crunchyroll cannot take off once given, and `watchlist` puts the series on the
+ * Watchlist or takes it off.
  */
 export type SaveRequest = WatchedRequest & { progress?: number, stars?: number | null, watchlist?: boolean }
 
@@ -55,10 +56,14 @@ const progressOf = (numbered: Numbered[]) => numbered.reduce((last, episode, at)
  * The account's half of crunchyroll.com, asked with the token just granted, the way the site's own web
  * client asks (its API table, read in its public bundle; never measured signed in). A list of ids in one
  * `content_ids` is what the site sends for playheads.
+ *
+ * Every request ends in `_=<nonce>`, as the token call does, so no cache keyed on the request (the FKN
+ * relay's is) answers it with an earlier one: the token cannot be trusted to set two reads apart, since
+ * nothing says Crunchyroll never grants the same one again.
  */
 const account = ({ access_token: token, account_id: accountId }: TokenGrant, send: PageFetch) => {
   const ask = async (path: string, { method, body, done = [] }: { method?: string, body?: object, done?: number[] } = {}) => {
-    const response = await send(`${CRUNCHYROLL_BASE_URL}${path}`, body
+    const response = await send(`${CRUNCHYROLL_BASE_URL}${path}${path.includes('?') ? '&' : '?'}_=${randomNonce()}`, body
       ? { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }
       : { method, headers: { authorization: `Bearer ${token}` } })
     if (!response.ok && !done.includes(response.status)) throw new Error(`Crunchyroll answered ${response.status}`)
@@ -110,13 +115,14 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
       if (progress > count) return `Crunchyroll lists ${count} episode${count === 1 ? '' : 's'} of this season`
       if (progress < progressOf(now.episodes)) return 'Crunchyroll cannot unmark an episode'
     }
+    // the site's star never takes a rating off, and its thumbs' DELETE, sent with no body, answered 409 on stars
+    if (stars === null && now.stars) return 'Crunchyroll cannot remove a rating'
     // one at a time, as every client marks; 409 is an episode Crunchyroll already counts as watched
     for (const episode of now.episodes.slice(0, progress ?? 0).filter(episode => !episode.watched)) {
       await ask(`/content/v2/discover/${accountId}/mark_as_watched/${encodeURIComponent(episode.id)}`, { method: 'POST', done: [409] })
     }
-    if (stars !== undefined && stars !== now.stars) {
-      const rating = `/content-reviews/v2/user/${accountId}/rating/series/${encodeURIComponent(request.seriesId)}`
-      await ask(rating, stars ? { method: 'PUT', body: { rating: `${stars}s` } } : { method: 'DELETE' })
+    if (stars && stars !== now.stars) {
+      await ask(`/content-reviews/v2/user/${accountId}/rating/series/${encodeURIComponent(request.seriesId)}`, { method: 'PUT', body: { rating: `${stars}s` } })
     }
     if (watchlist !== undefined && watchlist !== now.watchlisted) {
       await ask(
@@ -133,8 +139,7 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
 /**
  * What the account holds of one season, read with the viewer's own token: the season found in its
  * series the way the source finds it, since the `cr:` id may not be the one the API answers on, then
- * its episodes and their playheads, every audio version's, and the series' stars and Watchlist. A fresh
- * token per read keys every request apart in the relay's cache.
+ * its episodes and their playheads, every audio version's, and the series' stars and Watchlist.
  */
 export const readWatched = async (request: WatchedRequest, send: PageFetch): Promise<WatchedAnswer> => {
   const { read, ...answer } = await askForToken(TOKEN_REQUEST, send, async grant => {
@@ -148,9 +153,9 @@ export const readWatched = async (request: WatchedRequest, send: PageFetch): Pro
  * Writes a save to the account, after reading what it holds, so only what changes is sent: each
  * numbered episode up to `progress` that no audio version has watched is marked watched, its Japanese
  * version, one at a time. Refused with nothing written when `progress` is past the season's numbered
- * episodes, or under how far the account got, since Crunchyroll has no unmark. A write Crunchyroll
- * does not take rejects, with what was sent before it kept. Its own token keys every request apart
- * in the relay's cache, so a save sent twice reaches Crunchyroll twice.
+ * episodes, or under how far the account got, since Crunchyroll has no unmark, and when `stars` is null
+ * on a rated series, since it has no way to take a rating off. A write Crunchyroll does not take
+ * rejects, with what was sent before it kept.
  */
 export const saveWatched = async (request: SaveRequest, send: PageFetch): Promise<SaveAnswer> => {
   const { read, ...answer } = await askForToken(TOKEN_REQUEST, send, grant => account(grant, send).save(request))

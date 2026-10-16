@@ -126,6 +126,25 @@ describe('the media tracking', () => {
     expect(input.entry).toStrictEqual({ progress: 4 })
   })
 
+  test("a tracker that cannot clear a score, Crunchyroll, offers no No score on its card, as the page's own document reads it", async () => {
+    const cr = {
+      _id: 'answer:cr:media:1',
+      state: 'LISTED',
+      candidates: [],
+      tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5', canClearScore: false },
+      entry: { _id: 'cr:1', status: null, progress: 3, score: 80 },
+    }
+    answered.set('media:1', { ...tracking, answers: [...tracking.answers, cr] })
+    const { host } = render()
+    const scoreMenu = async (id: string) => {
+      await act(async () => { host.querySelector<HTMLButtonElement>(`[data-chip="${id}"] .logo-button`)!.click() })
+      await act(async () => { host.querySelector<HTMLButtonElement>(`[data-card="${id}"] .star`)!.click() })
+      return [...host.querySelectorAll(`[data-card="${id}"] [aria-label="Score"] button`)].map(button => button.textContent)
+    }
+    expect(await scoreMenu('cr')).toEqual(['1', '2', '3', '4', '5'])
+    expect(await scoreMenu('stub'), "the control: Stub's card").toContain('No score')
+  })
+
   test('Remove from list deletes the entry on the tracker that lists it', async () => {
     const { host } = render()
     const select = host.querySelector<HTMLSelectElement>('select[name="compact-status"]')!

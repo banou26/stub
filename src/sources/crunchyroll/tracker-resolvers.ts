@@ -39,6 +39,7 @@ const crunchyrollTracker = (signedIn: boolean): Tracker => ({
   canWrite: signedIn,
   statuses: STATUSES,
   scoreScale: SCORE_SCALE,
+  canClearScore: false,
 })
 
 const trackingOf = (uri: string, answer: TrackerAnswer): { tracking: Tracking } =>
@@ -60,8 +61,9 @@ const seasonOf = (uri: string): Season | undefined => {
 }
 
 /**
- * What a save writes on Crunchyroll: progress, the score as stars (none for a cleared one), and Plan to
- * watch as the Watchlist. Any other status has no place there, so Completed sends the episodes alone.
+ * What a save writes on Crunchyroll: progress, the score as stars (none for a cleared one, which the page
+ * refuses on a rated series), and Plan to watch as the Watchlist. Any other status has no place there,
+ * so Completed sends the episodes alone.
  */
 const saveOf = ({ status, progress, score }: ListEntryInput): Omit<SaveRequest, 'seriesId' | 'seasonId'> => ({
   ...progress != null ? { progress } : {},
@@ -78,7 +80,8 @@ const saveOf = ({ status, progress, score }: ListEntryInput): Omit<SaveRequest, 
  *
  * A save reads what Crunchyroll holds and writes what changes, in the page, once: a write cut short is
  * never sent again, and the read after it is the confirmation. Progress only rises (Crunchyroll has no
- * unmark). A removal takes the series off the Watchlist and leaves the episodes and the stars.
+ * unmark), and stars once given only change (it has no way to take a rating off). A removal takes the
+ * series off the Watchlist and leaves the episodes and the stars.
  *
  * It answers no episode count: Crunchyroll lists only the episodes aired so far, and a count short of
  * the run's would become the row's total and change what is written to the other trackers.

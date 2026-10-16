@@ -54,11 +54,12 @@ const nameOf = (score: number, scale: string) => {
 
 /**
  * The star that scores a media, and its menu of the scores `scale` can hold. A pick is written at once,
- * as the 0 to 100 value that lands on its face on that scale; "No score" clears it everywhere.
+ * as the 0 to 100 value that lands on its face on that scale; "No score" clears it everywhere, and is
+ * left out when `clearable` is false.
  */
 const ScorePicker = (
-  { score, scale, mixed, disabled, onPick }:
-  { score: number | null, scale: string, mixed: boolean, disabled: boolean, onPick: (score: number | null) => void }
+  { score, scale, mixed, disabled, clearable = true, onPick }:
+  { score: number | null, scale: string, mixed: boolean, disabled: boolean, clearable?: boolean, onPick: (score: number | null) => void }
 ) => {
   const [open, setOpen] = useState(false)
   const [exact, setExact] = useState('')
@@ -162,7 +163,7 @@ const ScorePicker = (
               )
               : undefined}
             {mixed ? <span className="caption">Out of {OUT_OF[scale]}</span> : undefined}
-            {scored ? <button type="button" onClick={() => pick(null)}>No score</button> : undefined}
+            {scored && clearable ? <button type="button" onClick={() => pick(null)}>No score</button> : undefined}
           </div>
         )
         : undefined}

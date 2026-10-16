@@ -443,7 +443,7 @@ describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to wat
   const cr = (state: string, entry: CompactAnswer['entry'] = null, extra: Partial<CompactAnswer> = {}): CompactAnswer => ({
     state,
     candidates: [],
-    tracker: { id: 'cr', name: 'Crunchyroll', canWrite: state === 'LISTED' || state === 'NOT_LISTED', statuses: ['PLANNING'], scoreScale: 'POINT_5' },
+    tracker: { id: 'cr', name: 'Crunchyroll', canWrite: state === 'LISTED' || state === 'NOT_LISTED', statuses: ['PLANNING'], scoreScale: 'POINT_5', canClearScore: false },
     entry,
     ...extra,
   })
@@ -460,6 +460,20 @@ describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to wat
     expect(named(card, 'One episode more')).toBeTruthy()
     expect(named(card, 'Score, 4 out of 5')).toBeTruthy()
     expect([...card.querySelectorAll('select option')].map(option => option.textContent)).toEqual(['Add to list', 'Plan to watch'])
+  })
+
+  test('once rated there, its card offers the 5 stars and no No score, which Crunchyroll cannot do', async () => {
+    const { host } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 8, score: 80 })] } })
+    const menuOf = async (id: string) => {
+      const card = await hover(host, id)
+      await click(q(card, '.star'))
+      return q(card, '[aria-label="Score"]')
+    }
+
+    const own = await menuOf('cr')
+    expect(own.querySelectorAll('.grid button').length).toBe(5)
+    expect(button(own, 'No score')).toBeFalsy()
+    expect(button(await menuOf('anilist'), 'No score'), "the control: AniList's card").toBeTruthy()
   })
 
   // a removal there takes the series off the Watchlist, and the episodes and stars can never come off

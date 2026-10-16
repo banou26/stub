@@ -196,7 +196,7 @@ const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) 
  * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false, statuses }:
+  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false, statuses, clearable }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
@@ -204,6 +204,8 @@ const Controls = (
     movie?: boolean
     /** The statuses offered, when the tracker keeps only some. */
     statuses?: readonly string[] | null
+    /** Whether the score can be cleared once given. */
+    clearable?: boolean
     shown: Row
     scale: string
     mixed: boolean
@@ -245,6 +247,7 @@ const Controls = (
         scale={scale}
         mixed={mixed}
         disabled={disabled || (!listed && !shown.status && !shown.progress)}
+        clearable={clearable}
         onPick={score => onChange({ score }, true)}
       />
       {dots.SCORE}
@@ -579,6 +582,7 @@ const TrackingCompact = (
           name={`card-${id}`}
           movie={movie}
           statuses={answer.tracker.statuses}
+          clearable={answer.tracker.canClearScore !== false}
           shown={shownOf(entry, overrides[id])}
           scale={scale.scale}
           mixed={false}

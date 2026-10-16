@@ -169,7 +169,7 @@ test("with room below, the row's score menu opens under the star", async ({ page
   expect(menu.y).toBeGreaterThanOrEqual(star.y + star.height)
 })
 
-test("Crunchyroll's chip is a check, its card offers the episodes, 5 stars and Plan to watch alone, and the row's + reaches it", async ({ page }) => {
+test("Crunchyroll's chip is a check, its card offers the episodes, 5 stars with no No score and Plan to watch alone, and the row's + reaches it", async ({ page }) => {
   await page.goto(`${ORIGIN}/?top=100&cr`)
   const chip = page.locator('[data-chip="cr"]')
   await expect(chip.locator('input[type="checkbox"]')).toBeChecked()
@@ -181,6 +181,7 @@ test("Crunchyroll's chip is a check, its card offers the episodes, 5 stars and P
   await expect(own.locator('select option')).toHaveText(['Add to list', 'Plan to watch'])
   await own.locator('.star').click()
   await expect(own.getByRole('dialog', { name: 'Score' }).locator('.grid button')).toHaveCount(5)
+  await expect(own.getByRole('dialog', { name: 'Score' }).getByRole('button', { name: 'No score' })).toHaveCount(0)
   await page.keyboard.press('Escape')
 
   await page.mouse.move(0, 0)

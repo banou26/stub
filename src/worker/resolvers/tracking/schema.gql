@@ -79,6 +79,11 @@ type Tracker {
   statuses: [ListStatus!]
   """The scale the viewer scores in on this tracker. Scores on the wire are always 0 to 100."""
   scoreScale: String!
+  """
+  False when a score once given can be changed but never taken off: Crunchyroll's stars, which its
+  site has no request to remove. Absent means it can.
+  """
+  canClearScore: Boolean
 }
 
 """

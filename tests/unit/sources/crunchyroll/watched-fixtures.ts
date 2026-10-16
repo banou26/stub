@@ -7,7 +7,8 @@
 // Scrobbler 0.9.4 (`src/services/crunchyroll/CrunchyrollApi.ts`). The star rating, the Watchlist and the
 // writes are synthesized from crunchyroll.com's own web client (its API table in chunk
 // `5485.1f1e0f6e53bc36aa.js`, its calls in `4470.5b49f64033a3ce25.js`, captured 2026-10-08 and 10-12) and
-// crunchyroll-rs's `Rating` (an unrated series answers `rating: ""`). Ids and values are made up.
+// crunchyroll-rs's `Rating` (an unrated series answers `rating: ""`). The 409 a series rating's DELETE
+// with no body answered was seen in the owner's browser on 2026-10-17. Ids and values are made up.
 
 /** What www.crunchyroll.com/auth/v1/token answered signed out, measured 2026-10-07. */
 export const SIGNED_OUT = {
@@ -110,18 +111,19 @@ export type Asked = { url: string, method: string, authorization?: string, body?
 /**
  * crunchyroll.com as the fixtures above answer it, recording every request. `signedIn` false answers
  * the token call with the measured 400. Any other season's episodes are an empty list, as measured for
- * a season id without its `JAJP`, and a list of playheads holds only the ids asked for. `stars` and
- * `watchlisted` are what the series holds; `marks` answers a mark of an episode by its id. With
- * `freshTokens` every grant is a new token, as Crunchyroll's are; without it every grant is ACCESS_TOKEN.
+ * a season id without its `JAJP`, and a list of playheads holds only the ids asked for. `state` is what
+ * the series holds, its stars and its place on the Watchlist, which the writes change and a test may
+ * change as crunchyroll.com itself would; `marks` answers a mark of an episode by its id. Every grant is
+ * ACCESS_TOKEN: nothing says Crunchyroll grants a new token each time, so nothing may rely on one.
  */
 export const fakeCrunchyroll = (
   {
     signedIn = true, playheads = PLAYHEADS as unknown, episodes = SEASON_EPISODES as unknown, seasons = SEASONS as unknown,
-    stars = '', watchlisted = false, marks = (_id: string): number => 200, freshTokens = false,
+    stars = '', watchlisted = false, marks = (_id: string): number => 200,
   } = {},
 ) => {
   const asked: Asked[] = []
-  let grants = 0
+  const state = { stars, watchlisted }
   const send = async (url: string, init: RequestInit): Promise<Answer> => {
     const method = init.method ?? 'GET'
     const headers = (init.headers ?? {}) as Record<string, string>
@@ -131,9 +133,9 @@ export const fakeCrunchyroll = (
     const { pathname, searchParams } = new URL(url)
     if (pathname === '/auth/v1/token') {
       if (!signedIn) return answer(400, SIGNED_OUT)
-      return answer(200, freshTokens ? { ...TOKEN_GRANTED, access_token: `${ACCESS_TOKEN}.${++grants}` } : TOKEN_GRANTED)
+      return answer(200, TOKEN_GRANTED)
     }
-    const signed = authorization?.startsWith(`Bearer ${ACCESS_TOKEN}`)
+    const signed = authorization === `Bearer ${ACCESS_TOKEN}`
     if (method === 'GET') {
       if (pathname === `/content/v2/cms/series/${SERIES_ID}/seasons`) return answer(200, seasons)
       if (pathname === `/content/v2/cms/seasons/${API_SEASON_ID}/episodes`) return answer(200, episodes)
@@ -144,9 +146,9 @@ export const fakeCrunchyroll = (
         const { data } = playheads as { data?: unknown }
         return answer(200, Array.isArray(data) ? { ...playheads as object, data: data.filter(head => ids.has(head.content_id)) } : playheads)
       }
-      if (pathname === `/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`) return answer(200, { ...RATING, rating: stars })
+      if (pathname === `/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`) return answer(200, { ...RATING, rating: state.stars })
       if (pathname === `/content/v2/${ACCOUNT_ID}/watchlist` && searchParams.get('content_ids') === SERIES_ID) {
-        return answer(200, watchlisted ? ON_WATCHLIST : { total: 0, data: [], meta: {} })
+        return answer(200, state.watchlisted ? ON_WATCHLIST : { total: 0, data: [], meta: {} })
       }
       return answer(404, { code: 'not_found' })
     }
@@ -154,24 +156,36 @@ export const fakeCrunchyroll = (
     const mark = new RegExp(`^/content/v2/discover/${ACCOUNT_ID}/mark_as_watched/([^/]+)$`).exec(pathname)
     if (method === 'POST' && mark) return answer(marks(decodeURIComponent(mark[1]!)), null)
     const rating = `/content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`
-    if (method === 'PUT' && pathname === rating) return answer(200, { ...RATING, rating: (body as { rating: string }).rating })
-    if (method === 'DELETE' && pathname === rating) return answer(204, null)
-    if (method === 'POST' && pathname === `/content/v2/${ACCOUNT_ID}/watchlist`) return answer(200, null)
-    if (method === 'DELETE' && pathname === `/content/v2/${ACCOUNT_ID}/watchlist/${SERIES_ID}`) return answer(204, null)
+    if (method === 'PUT' && pathname === rating) {
+      state.stars = (body as { rating: string }).rating
+      return answer(200, { ...RATING, rating: state.stars })
+    }
+    if (method === 'DELETE' && pathname === rating) return answer(409, { code: 'conflict' })
+    if (method === 'POST' && pathname === `/content/v2/${ACCOUNT_ID}/watchlist`) {
+      state.watchlisted = true
+      return answer(200, null)
+    }
+    if (method === 'DELETE' && pathname === `/content/v2/${ACCOUNT_ID}/watchlist/${SERIES_ID}`) {
+      state.watchlisted = false
+      return answer(204, null)
+    }
     return answer(404, { code: 'not_found' })
   }
   const writes = () => asked.filter(({ method, url }) => method !== 'GET' && !url.includes('/auth/v1/token'))
-  return { send, asked, writes }
+  return { send, asked, writes, state }
 }
 
 /**
- * The FKN relay in front of `send`, as stub sees it: every request answered from one cache keyed on the
- * whole request (url, method, headers and body), so only a request no earlier one matched reaches the site.
+ * The FKN relay in front of `send`, as stub sees it: a GET or a POST is answered from one cache keyed on
+ * the whole request (url, method, headers and body), so only one no earlier request matched reaches the
+ * site. Any other method always reaches it, as the relay caches GET and POST alone.
  */
 export const throughRelay = (send: (url: string, init: RequestInit) => Promise<Answer>) => {
   const cache = new Map<string, Promise<Answer>>()
   return (url: string, init: RequestInit) => {
-    const key = JSON.stringify([url, init.method ?? 'GET', init.headers ?? {}, init.body ?? null])
+    const method = init.method ?? 'GET'
+    if (method !== 'GET' && method !== 'POST') return send(url, init)
+    const key = JSON.stringify([url, method, init.headers ?? {}, init.body ?? null])
     if (!cache.has(key)) cache.set(key, send(url, init))
     return cache.get(key)!
   }

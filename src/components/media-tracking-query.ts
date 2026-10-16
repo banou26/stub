@@ -35,6 +35,7 @@ export const MEDIA_TRACKING = gql(`
           statuses
           account
           scoreScale
+          canClearScore
         }
         entry {
           _id

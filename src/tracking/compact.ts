@@ -23,6 +23,8 @@ export type CompactAnswer = {
     /** The statuses it keeps, when it keeps only some (Crunchyroll's Plan to watch). */
     statuses?: readonly string[] | null
     scoreScale?: string | null
+    /** False when a score given there can never be taken off (Crunchyroll's stars). */
+    canClearScore?: boolean | null
     icon?: string | null
     color?: string | null
     account?: string | null

@@ -35,6 +35,7 @@ const TRACKER = `
   canWrite
   statuses
   scoreScale
+  canClearScore
 `
 
 export const TRACKING_DOCUMENT = `

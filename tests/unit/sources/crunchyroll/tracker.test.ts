@@ -76,7 +76,7 @@ const remove = async (target: ReturnType<typeof setup>['target']) =>
 const saves = (asked: ReturnType<typeof setup>['asked']) => asked.filter(({ method }) => method === 'save')
 
 describe('what the Crunchyroll tracker answers', () => {
-  test('LISTED with how far the viewer got on the season the media plays on Crunchyroll, a tracker written to on 5 stars with Plan to watch alone, and no count of its own', async () => {
+  test('LISTED with how far the viewer got on the season the media plays on Crunchyroll, a tracker written to on 5 stars it cannot clear with Plan to watch alone, and no count of its own', async () => {
     const { target, asked } = setup([await watchedRead()])
 
     const answer = answerOf(await watch(target).next())
@@ -85,7 +85,7 @@ describe('what the Crunchyroll tracker answers', () => {
     expect(answer).toMatchObject({
       state: 'LISTED',
       episodeCount: null,
-      tracker: { id: 'cr', name: 'Crunchyroll', signedIn: true, account: null, canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5' },
+      tracker: { id: 'cr', name: 'Crunchyroll', signedIn: true, account: null, canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5', canClearScore: false },
       entry: { _id: `cr:${SERIES_ID}-${SEASON_ID}`, tracker: 'cr', mediaUri: `cr:${SERIES_ID}-${SEASON_ID}`, status: null, progress: 2, score: null, episodeCount: null },
     })
   })
