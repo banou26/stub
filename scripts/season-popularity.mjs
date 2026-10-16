@@ -307,10 +307,12 @@ const pairing = (index, seasons) => {
  * A record takes the count and the title the live page settles on, from the highest scored source
  * giving one this season: for the count MyAnimeList (0.9), AniList (0.8), Kitsu (0.3), else its own;
  * for the title MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4),
- * Kitsu's (0.3), else its own (0.2). A source's record joins the bundled record of its season that
- * names one of its ids, and is added when none does. It keeps its own id and only the ids it claims
- * that agree with every other show's (see `pairing`). A show MyAnimeList marks R18+ is in no season,
- * also when a source names it by another catalogue's id only.
+ * Kitsu's (0.3), else its own (0.2). A source's record keeps its own id and only the ids it claims that
+ * agree with every other show's (see `pairing`). It joins the bundled records of its season those ids
+ * name, which become one record when there are several (the offline database holds some shows as two
+ * records with no id in common): the first in the bucket's order, keeping its fields and taking the
+ * others' where it has none. A source's record whose ids name none is added. A show MyAnimeList marks
+ * R18+ is in no season, also when a source names it by another catalogue's id only.
  */
 const withSeasonSources = (seasons, malPages, answers, index = []) => {
   const { add, showOf } = pairing(index, seasons)
@@ -325,10 +327,16 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
           catalogue !== own && row[catalogue] && showOf({ ...named, [catalogue]: row[catalogue] }) ? { ...named, [catalogue]: row[catalogue] } : named,
         { [own]: row[own] })
         if (adult.has(row.ml) || adult.has(showOf(ids)?.ml)) continue
-        let record = records.find(candidate => CATALOGUES.some(catalogue => ids[catalogue] && candidate[catalogue] === ids[catalogue]))
-        if (!record) {
-          record = { ...Object.fromEntries(Object.entries(row).filter(([field]) => !CATALOGUES.includes(field))), ...ids }
+        const [found, ...others] = records.filter(candidate => CATALOGUES.some(catalogue => ids[catalogue] && candidate[catalogue] === ids[catalogue]))
+        const record = found ?? { ...Object.fromEntries(Object.entries(row).filter(([field]) => !CATALOGUES.includes(field))), ...ids }
+        if (!found) {
           records.push(record)
+          add(record)
+        }
+        for (const other of others) {
+          records.splice(records.indexOf(other), 1)
+          Object.assign(record, { ...other, ...record })
+          listed.set(record, { ...listed.get(other), ...listed.get(record) })
           add(record)
         }
         listed.set(record, { [own]: row, ...listed.get(record) })

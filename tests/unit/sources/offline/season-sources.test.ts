@@ -306,6 +306,67 @@ test('a show AniList does not list takes MyAnimeList\'s romaji title over Kitsu\
   expect(await title({}), 'the control: with no MyAnimeList card, Kitsu\'s').toBe('Bao Ke Meng Donghua Tujian 5')
 })
 
+// Real rows and records of 2026-10-16, Summer 2026: the offline database holds each of the two shorts as
+// two records with no id in common, and AniList's row or Kitsu's names both.
+const kamui = { id: 207674, idMal: 63468, isAdult: false, format: 'TV_SHORT', episodes: 12, popularity: 21883, averageScore: 58,
+  title: { romaji: 'Ushiro no Shoumen Kamui-san', english: 'KAMUI ---He\'s behind you' }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx207674-BT8lFAwH1WrL.jpg' } }
+const kamuiMini = { id: 213831, idMal: 64543, isAdult: false, format: 'TV_SHORT', episodes: 12, popularity: 1299, averageScore: 53,
+  title: { romaji: 'Snack HAZAMA', english: 'Snack Hazama' }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx213831-jrH7JR6feW1q.png' } }
+const henchmen = { id: 213506, idMal: 64378, isAdult: false, format: 'TV_SHORT', episodes: null, popularity: 350, averageScore: null,
+  title: { romaji: 'Hokuto no Ken: Kenou-gun Zako-tachi no Banka Part 2', english: null }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx213506-vr9kwJjMvXV8.jpg' } }
+const kamuiMiniKitsu = (mappings: Record<string, string>) => kitsuPage([50954, 'Ushiro no Shoumen Kamui-san Mini Anime Gekijou', mappings])
+const kamuiSeasons = () => ({ '2026-SUMMER': [
+  record('Ushiro no Shoumen Kamui-san', { ml: 63468, al: 207674 }),
+  record('Ushiro no Shoumen Kamui-san Mini Anime', { ml: 64543, al: 213831 }),
+  { ...record('Ushiro no Shoumen Kamui-san Mini Anime Gekijou', { ku: 50954 }), ty: 'ONA' },
+] })
+
+test('a show the offline database holds as two records is one record once a source\'s row names both, the first one\'s', async () => {
+  const { get } = sources({
+    anilist: { '2026-SUMMER': anilistPage(kamuiMini, henchmen) },
+    kitsu: { '2026-SUMMER': [kamuiMiniKitsu({ 'myanimelist/anime': '64543', 'anilist/anime': '213831' })] },
+  })
+  const [, mini, gekijou] = kamuiSeasons()['2026-SUMMER']
+  const seasons = { '2026-SUMMER': [
+    gekijou!,
+    mini!,
+    record('Hokuto no Ken: Kenougun Zako-tachi no Banka Part 2', { ml: 64378 }),
+    { ...record('Elegy for the Henchmen: Fist of the North Star - Part II', { al: 213506, ku: 50803 }), ty: 'SPECIAL' },
+  ] }
+
+  const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
+
+  expect(laid.seasons['2026-SUMMER'].map(entry => [entry.t, entry.ty, entry.ml, entry.al, entry.ku, entry.pop])).toEqual([
+    ['Snack Hazama', 'ONA', 64543, 213831, 50954, 1299],
+    ['Hokuto no Ken: Kenou-gun Zako-tachi no Banka Part 2', 'TV', 64378, 213506, 50803, 350],
+  ])
+})
+
+// AniList 11 pairs Bridge's two records, then Kitsu 202 maps Other's mal id beside AniList 11.
+test('two records joined into one hold every id of both against a later row\'s claims', async () => {
+  const { get } = sources({
+    anilist: { '2026-SUMMER': anilistPage({ ...henchmen, id: 11, idMal: 1 }) },
+    kitsu: { '2026-SUMMER': [kitsuPage([202, 'Other', { 'myanimelist/anime': '2', 'anilist/anime': '11' }])] },
+  })
+  const seasons = { '2026-SUMMER': [record('Bridge', { ml: 1 }), record('Bridge', { al: 11 }), record('Other', { ml: 2 })] }
+
+  const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
+
+  expect(laid.seasons['2026-SUMMER'].map(entry => [entry.ml, entry.al, entry.ku])).toEqual([[1, 11, undefined], [2, undefined, undefined]])
+})
+
+// The show is R18+ on MyAnimeList, which plays no part here: no MyAnimeList page is read.
+test('a show and its short stay two, also when a source names the short by the show\'s id', async () => {
+  const shows = async (mappings: Record<string, string>) => {
+    const { get } = sources({ anilist: { '2026-SUMMER': anilistPage(kamui, kamuiMini) }, kitsu: { '2026-SUMMER': [kamuiMiniKitsu(mappings)] } })
+    const laid = await seasonData(kamuiSeasons(), [], { now: '2026-FALL', get, pauseMs: 0 })
+    return laid.seasons['2026-SUMMER'].filter(entry => entry.ml).map(entry => [entry.ml, entry.al])
+  }
+
+  expect(await shows({ 'myanimelist/anime': '64543', 'anilist/anime': '213831' })).toEqual([[63468, 207674], [64543, 213831]])
+  expect(await shows({ 'myanimelist/anime': '64543', 'anilist/anime': '207674' }), 'the short named by the show\'s AniList id').toEqual([[63468, 207674], [64543, 213831]])
+})
+
 // AniList 11 is mal 1 in the bundle, and the index pairs mal 1 with Kitsu 101: a Kitsu 202 claiming
 // AniList 11 is another show, though no single row names both 202 and 11.
 test('a claimed id is refused when another show holds it through a chain of pairs', async () => {
