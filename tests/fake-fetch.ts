@@ -21,6 +21,7 @@ import BEBOP_MAL from './unit/sources/jikan/__fixtures__/mal-anime-1.html?raw'
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
 const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(100) }
+const LATE = { id: 900010, idMal: 900010, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Late' } }
 const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
 
 const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))
@@ -70,13 +71,16 @@ const TMDB: Record<string, string> = {
 // when asked for either and with The Boys as it answered the countries asked (prime-countries.json), and
 // MyAnimeList with Cowboy Bebop's title and credits pages for mal:1; every other request goes where it
 // always went. AniList gives a bundled work the format and season of its record in the current season, or
-// else of its first record, so a film stays a film and a work stays in the season the home page lists.
+// else of its first record, so a film stays a film and a work stays in the season the home page lists, and
+// answers Spec Late (anilist:900010, mal:900010) five seconds late, so its page draws AniZip's episodes first;
+// AniZip names Spec Late's AniList id, as api.ani.zip names a work's, so its MAL address reaches AniList too.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
     const count = malId === '21' ? 1100 : 26
     const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
-    return Response.json({ titles: {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), type: 'TV', ...FRIEREN_IDS } })
+    const anilist = malId === String(LATE.idMal) ? { anilist_id: LATE.id } : {}
+    return Response.json({ titles: {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), ...anilist, type: 'TV', ...FRIEREN_IDS } })
   }
   if (input === 'https://graphql.animethemes.moe/') return Response.json(typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === SEQUEL.id ? SEQUEL_THEMES : THEMES)
   if (input === 'https://myanimelist.net/anime/1') return new Response(BEBOP_MAL)
@@ -101,6 +105,10 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
+  if (variables.id === LATE.id) {
+    await new Promise(resolve => setTimeout(resolve, 5_000))
+    return Response.json({ data: { Media: { ...LATE, ...credits, relations } } })
+  }
   const now = mediaSeasonNow()
   const { seasons } = (await import('../src/generated/anime-seasons')).default
   const listed = Object.entries(seasons).flatMap(([key, records]) =>

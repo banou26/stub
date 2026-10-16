@@ -61,6 +61,7 @@ const work = (id: number, title: string) => ({
 // the first source's answer: a title and a count, and nothing yet of the rest
 const partial = (id: number) => ({ ...work(id, ''), titles: [], descriptions: [], type: null, status: null, season: null, seasonYear: null, episodeCount: null, episodes: [] })
 const film = (id: number) => ({ ...work(id, 'Spirited Away'), type: 'MOVIE', categories: ['ANIME', 'MOVIE'], episodes: [] })
+const sequel = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:9', uri: 'anilist:9', titles: [{ title: 'Frieren 2' }], covers: [] } }
 
 beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
 const hosts: HTMLElement[] = []
@@ -177,23 +178,40 @@ describe('the preview', () => {
 })
 
 describe('the title page', () => {
-  test('holds its season, title, chips, description and play button until the worker answers, then draws them', () => {
-    const { host, answer } = titlePage(work(1, 'Frieren').uri)
-    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'play-pending'])
+  test('holds its season, title, chips, description, play button and relations until the worker answers, then draws them', () => {
+    const frieren = { ...work(1, 'Frieren'), relations: [sequel] }
+    const { host, answer } = titlePage(frieren.uri)
+    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'play-pending', 'relations.placeholder'])
     expect(host.querySelector('[data-episodes]'), 'no Episodes heading before the work is known not to be a film').toBeNull()
 
-    answer(work(1, 'Frieren'))
+    answer(frieren)
     expect(pending(host)).toEqual([])
     expect(host.querySelector('h1')!.textContent).toBe('Frieren')
     expect(host.querySelectorAll('[data-episodes] .episode')).toHaveLength(2)
+    expect(host.querySelector('[data-relations] .relation-card')!.textContent).toContain('Frieren 2')
   })
 
   test('holds each until its own field arrives, or every source has answered without it', () => {
     const { host, answer } = titlePage(work(1, 'Frieren').uri)
     answer(partial(1))
-    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
+    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'relations.placeholder', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
 
     answer({ ...partial(1), settled: true })
+    expect(pending(host)).toEqual([])
+  })
+
+  test('holds a place for relations on an address naming any anime catalogue, as AniList joins one later', () => {
+    const { host } = titlePage('ag:(mal:21)')
+    expect(pending(host)).toContain('relations.placeholder')
+  })
+
+  test('holds no place for relations on an address naming no anime catalogue, as AniList, the one source naming them, describes none', () => {
+    const show = { ...work(4, 'The Boys'), uri: 'ag:(jw:ts78125)' }
+    const { host, answer } = titlePage(show.uri)
+    expect(pending(host), 'the control: the rest held').toEqual(['pending', 'pending', 'pending', 'description', 'play-pending'])
+
+    answer(show)
+    expect(host.querySelector('h1')!.textContent, 'the control: answered, with sources still out').toBe('The Boys')
     expect(pending(host)).toEqual([])
   })
 

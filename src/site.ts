@@ -48,7 +48,8 @@ export const siteAllows = (categories: readonly string[], current: Site = site):
   : current === 'series' ? categories.includes('SERIES') && !categories.includes('ANIME')
   : true
 
-const ANIME_CATALOGUES = ['anilist', 'mal', 'kitsu', 'livechart', 'anizip', 'offline', 'cr']
+/** The sources that catalogue anime alone: movie and series never ask them. */
+export const ANIME_CATALOGUES = ['anilist', 'mal', 'kitsu', 'livechart', 'anizip', 'offline', 'cr']
 
 /** Whether a site asks a built-in source anything: movie and series never ask the anime catalogues. */
 export const siteAsks = (origin: string, current: Site = site): boolean =>

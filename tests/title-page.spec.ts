@@ -648,8 +648,8 @@ test('paging a list that is all on screen to its short last page leaves the cont
     const numbers = episodes.locator('.episode .number')
     const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
     await expect(numbers).toHaveCount(12, { timeout: 30_000 })
-    // AniList answers last, drawing the relations above the list: a click on a control still moving is retried by
-    // Playwright with the control scrolled to the screen's middle, which is the scroll this would then measure
+    // AniList answers last, with the relations, and fills in the facts above the list at 390 px: a click on a control
+    // still moving is retried by Playwright with the control scrolled to the screen's middle, which this would then measure
     await expect(page.locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
     const first = await place(pages)
     const scrolled = await page.evaluate(() => scrollY)
@@ -658,6 +658,37 @@ test('paging a list that is all on screen to its short last page leaves the cont
     expect(await place(pages), `${width}: the controls stay put`).toEqual(first)
     expect(await page.evaluate(() => scrollY), `${width}: and the page did not scroll`).toBe(scrolled)
   }
+})
+
+// from the top of the lists, under the title and facts AniList's answer fills in too
+const inLists = (locator: Locator) => locator.evaluate(element => Math.round(element.getBoundingClientRect().top - element.closest('.main')!.getBoundingClientRect().top))
+
+// AniList answers anilist:900010 five seconds late, after AniZip's 26 episodes for mal:900010, and AniZip names
+// that AniList id, so the MAL address reaches AniList through it (tests/fake-fetch.ts)
+for (const late of ['ag:(anilist:900010,mal:900010)', 'ag:(mal:900010)']) {
+  test(`390 px wide, Relations keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`${origin}/title/${late}`)
+    const pages = page.locator('[data-episodes]').getByRole('navigation', { name: 'Episodes pages' })
+    await expect(pages).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('[data-relations]'), 'the control: AniList has not answered yet').toHaveCount(0)
+    const held = await inLists(pages)
+    await expect(page.locator('[data-relations] a.relation-card')).toHaveCount(1, { timeout: 30_000 })
+    expect(await inLists(pages)).toBe(held)
+  })
+}
+
+test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
+  // four sources fetch what this rig refuses and never answer, so it waits on their 30 s bound
+  test.setTimeout(180_000)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}/title/${THIRD}`)
+  await expect(heading(page)).toHaveText('Spec Third', { timeout: 30_000 })
+  const held = page.locator('.relations.placeholder')
+  await expect(held, 'held while a source is out').toBeVisible()
+  await expect(held).toHaveCount(0, { timeout: 45_000 })
+  await expect(page.locator('[data-relations]')).toHaveCount(0)
+  await expect(page.locator('[data-episodes] .episodes'), 'the control: every source has answered').toHaveText('No episodes found')
 })
 
 test('the episode list opens on the page of the viewer\'s next episode, and stays where it is paged to', async ({ page }) => {

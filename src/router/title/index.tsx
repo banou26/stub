@@ -20,8 +20,9 @@ import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
+import { ANIME_CATALOGUES } from '../../site'
 import { sortRelations, watchableRelations } from '../../utils/relation-lanes'
-import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, shouldGrowAddress } from '../../utils/uri'
+import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldGrowAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { secondTitle, titleChips, titleFacts } from './facts'
@@ -312,6 +313,17 @@ const style = css`
       @media (min-width: 768px) {
         grid-template-columns: repeat(${RELATIONS_ROW}, minmax(0, 1fr));
       }
+    }
+
+    /* as tall as the heading's series graph button, over one card as tall as its cover */
+    & > h2 > .pending {
+      width: 16rem;
+      height: 2.8rem;
+    }
+
+    & > .grid > .pending {
+      height: 9rem;
+      border-radius: 0.6rem;
     }
   }
 
@@ -639,6 +651,8 @@ const TitlePage = () => {
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
   const relations = sortRelations(watchableRelations(media?.relations ?? []))
+  // AniList alone names relations, and it joins an anime work's sources whichever catalogue the address names
+  const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
   const facts = media ? titleFacts(media) : []
   const chips = media ? titleChips(media) : []
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
@@ -757,7 +771,12 @@ const TitlePage = () => {
                   </Paged>
                 </section>
               )
-              : undefined
+              : current?.settled || !anime ? undefined : (
+                <section className="relations placeholder" aria-hidden="true">
+                  <h2><Placeholder className="pending"/></h2>
+                  <div className="grid"><Placeholder className="pending"/></div>
+                </section>
+              )
           }
           <MediaSeasons
             seasons={media?.seasons}
