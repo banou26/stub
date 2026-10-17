@@ -303,6 +303,23 @@ test('an input naming nothing this source can browse yields nothing and asks not
   expect(requests).toEqual([])
 })
 
+// The bundled season leaves these out (scripts/season-popularity.mjs), so a live season that kept them
+// added them 1 to 5 s after its first paint: AniList marks 11 of the 16 cards Fall 2026 added late as
+// adult (2026-10-17).
+test('a season leaves out what AniList marks adult, and a search or a listing with no season keeps it', async () => {
+  const shows = [{ ...PAGE_MEDIA, id: 1, isAdult: false }, { ...PAGE_MEDIA, id: 2, isAdult: true }]
+  const { ctx, requests } = browseContext({ lastPage: 3 }, shows)
+  const uris = (nodes: { uri: string }[]) => nodes.map(node => node.uri)
+
+  const { value } = await openMediaPage(ctx, { season: 'FALL', seasonYear: 2026 })
+
+  expect(requests[0]!.query, 'AniList answers only the fields asked for').toMatch(/\bisAdult\b/)
+  expect(uris(value.mediaPage.nodes), 'one show from each of the 3 pages').toEqual(['anilist:1', 'anilist:1', 'anilist:1'])
+  expect(uris(await browsedNodes(shows, { search: 'a show', season: 'FALL', seasonYear: 2026 }))).toEqual(['anilist:1', 'anilist:2'])
+  expect(uris(await browsedNodes(shows, { genres: ['Romance'] }))).toEqual(['anilist:1', 'anilist:2'])
+  expect(uris(await browsedNodes(shows, { seasonYear: 2026 }))).toEqual(['anilist:1', 'anilist:2'])
+})
+
 // Three fields the search page's card and list modes lead with, all of them already inside the query
 // AniList was answering, all of them dropped on the floor by the normalizer until 2026-09-06.
 describe('what the card and list modes read', () => {
@@ -427,7 +444,7 @@ const sha256 = (body: string) => createHash('sha256').update(body).digest('hex')
 
 // The relay caches on the whole request body, so the modal's and the listing's bodies must stay byte
 // for byte what they were before credits existed. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY
-// plus the `nextAiringEpisode` field.
+// plus the `nextAiringEpisode` field, and the listing's `isAdult`.
 test('the details query goes out only when asked, and the modal and listing bodies are unchanged', async () => {
   const { ctx, bodies } = creditsContext()
   await openBebop(ctx)
@@ -440,5 +457,5 @@ test('the details query goes out only when asked, and the modal and listing bodi
 
   const browse = browseContext({ lastPage: 1 })
   await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
-  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('a95713a9e2d8a139971a01431eacfccb97771c5f12fc2293810eaf896ce44cc4')
+  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('86179607bc94ddb693bb4f83eeab1757c4f9c54cdc1dd62baa092fd0c0620110')
 })

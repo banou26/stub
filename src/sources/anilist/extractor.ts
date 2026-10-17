@@ -132,6 +132,7 @@ const BROWSE_QUERY = `
         tag_in: $tag_in
         sort: $sort
       ) {
+        isAdult
         ${MEDIA_FIELDS.split('\n').join('\n      ')}
       }
     }
@@ -441,6 +442,9 @@ const fetchBrowsePage = (variables: BrowseVariables, page: number, context: Extr
  * of it would starve every other call in the same minute. So a filtered browse takes 3 pages, which
  * `sort` makes the 150 most popular rather than an arbitrary slice, and a search takes 1, since its
  * own ranking already puts the answer on the first page.
+ *
+ * A season listed without a search leaves out what AniList marks adult, after the read, as the bundled
+ * season does with the same 150 (scripts/season-popularity.mjs).
  */
 const browse = async (variables: BrowseVariables, context: ExtractorServerContext) => {
   const data = await fetchBrowsePage(variables, 1, context)
@@ -456,7 +460,7 @@ const browse = async (variables: BrowseVariables, context: ExtractorServerContex
             .map((_, i) => fetchBrowsePage(variables, i + 2, context).then(data => data?.Page?.media ?? []))
         )).flat()
         : []
-    ],
+    ].filter(media => !(variables.season && !variables.search && media?.isAdult)),
     media => normalizeMedia(media as Media),
     'AniList browse'
   )
