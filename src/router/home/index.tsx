@@ -100,7 +100,7 @@ const useRow = (input: MediaPageInput, row: Row) => {
   // looked settled at 2.0 s. The Popular rows keep the order JustWatch answered, which never moves, and
   // holding a partial first draw still would put the cards that arrive later at the end.
   const resolved = data?.mediaPage?.nodes
-  const placed = useRef<string[]>([])
+  const placed = useRef<string[][]>([])
   return useMemo(() => {
     if (!resolved?.length || row !== 'season') return resolved || []
     const ordered = settledOrder(resolved, placed.current)

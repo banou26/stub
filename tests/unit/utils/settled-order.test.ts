@@ -6,7 +6,7 @@ const media = (id: string, popularity?: number) => ({ _id: id, uri: `anilist:${i
 
 // the season row's loop in src/router/home/index.tsx: each answer is ordered against what the last one held
 const shown = (...answers: Orderable[][]) => {
-  let placed: string[] = []
+  let placed: string[][] = []
   let ordered: Orderable[] = []
   for (const answer of answers) {
     ordered = settledOrder(answer, placed)
@@ -62,3 +62,21 @@ test('placement falls back to the uri when a node carries no cluster id', () => 
   expect(settledOrder([{ uri: 'mal:2', popularity: 9 }, { uri: 'mal:1', popularity: 2 }], placed).map(node => node.uri))
     .toEqual(['mal:1', 'mal:2'])
 })
+
+// measured 2026-10-17: a home page reload gave Steel Ball Run a new cluster id after its first draw, and it went
+// from place 1 to about place 130, behind every card held by its old id
+test('a card that gets a new cluster id keeps its place by the ids its address names', () => {
+  const sbr = (id: string, popularity: number) => ({ _id: id, uri: 'ag:(anilist:190327,mal:61469)', popularity })
+  const first = [sbr('cl:1', 900), media('b', 800), media('c', 700)]
+  const later = [media('b', 800), media('c', 700), sbr('cl:9', 900)]
+
+  expect(shown(first, later)).toEqual(['cl:9', 'b', 'c'])
+})
+
+test('a card that gains an id keeps its place by the ones it had', () => {
+  const first = [{ _id: 'cl:1', uri: 'ag:(mal:61469)', popularity: 900 }, media('b', 800)]
+  const later = [media('b', 800), { _id: 'cl:7', uri: 'ag:(anilist:190327,mal:61469)', popularity: 900 }]
+
+  expect(shown(first, later)).toEqual(['cl:7', 'b'])
+})
+

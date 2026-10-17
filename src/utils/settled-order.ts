@@ -4,7 +4,11 @@
 /** Only the part of a media this reads. Structural, so any listing can use it. */
 export type Orderable = { _id?: string | null, uri?: string | null, popularity?: number | null }
 
-const keyOf = (media: Orderable): string => media._id ?? media.uri ?? ''
+// a card's cluster `_id`, and each id its address names, which it keeps when a merge or a reload gives it a new `_id`
+const namesOf = (media: Orderable): string[] => {
+  const uri = media.uri ?? ''
+  return [media._id ?? '', ...uri.match(/^ag:\((.*)\)$/)?.[1]?.split(',') ?? [uri]].filter(Boolean)
+}
 
 /**
  * The listing in a stable order: every held card keeps its place, everything else follows in the
@@ -16,20 +20,22 @@ const keyOf = (media: Orderable): string => media._id ?? media.uri ?? ''
  * restates its count. The owner's words: "the top10 list keeps changing for like freaking 10-15
  * seconds, I don't want that".
  *
- * Placement is remembered by cluster `_id`, which rides the union-find root and survives a cluster
- * gaining members, so a merge keeps a card where it was rather than moving it. A card whose `_id`
- * changed is simply new and appends.
+ * Placement is remembered by cluster `_id` and by every id the card's address names, so a card keeps its
+ * place when a merge or a reload gives it a new `_id`. Remembered by `_id` alone, such a card appended:
+ * measured 2026-10-17, 3 of 12 home page reloads moved Steel Ball Run from place 1 to about place 130.
  *
  * This does not slow anything down or hide anything: every field still updates in place, the titles
  * and covers still sharpen as sources answer, and a genuinely new show still appears. It only refuses
  * to move a card the user has already seen in the place its count gave it.
  */
-export const settledOrder = <T extends Orderable>(nodes: readonly T[], placed: readonly string[]): T[] => {
-  const rank = new Map(placed.map((key, at) => [key, at]))
+export const settledOrder = <T extends Orderable>(nodes: readonly T[], placed: readonly (readonly string[])[]): T[] => {
+  const rank = new Map<string, number>()
+  placed.forEach((names, at) => { for (const name of names) if (!rank.has(name)) rank.set(name, at) })
+  const placeOf = (node: T) => Math.min(...namesOf(node).map(name => rank.get(name) ?? Infinity))
   const known: T[] = []
   const fresh: T[] = []
-  for (const node of nodes) (rank.has(keyOf(node)) ? known : fresh).push(node)
-  known.sort((a, b) => rank.get(keyOf(a))! - rank.get(keyOf(b))!)
+  for (const node of nodes) (placeOf(node) < Infinity ? known : fresh).push(node)
+  known.sort((a, b) => placeOf(a) - placeOf(b))
   return [...known, ...fresh]
 }
 
@@ -39,5 +45,5 @@ export const settledOrder = <T extends Orderable>(nodes: readonly T[], placed: r
  * place when its count lands. Measured 2026-10-13 on anime.fkn.app: the bundle carried no count for
  * the new season, all 158 cards of the first draw had none, and holding them kept that order for good.
  */
-export const orderKeys = (nodes: readonly Orderable[]): string[] =>
-  nodes.filter(node => node.popularity != null).map(keyOf).filter(Boolean)
+export const orderKeys = (nodes: readonly Orderable[]): string[][] =>
+  nodes.filter(node => node.popularity != null).map(namesOf).filter(names => names.length)
