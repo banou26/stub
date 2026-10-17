@@ -23,12 +23,16 @@
  * measured), rather than here where a seconds-for-milliseconds mixup would be a silent 1970.
  */
 
+const DAY_MS = 86_400_000
+
 /** `YYYY`, `YYYY-MM` or `YYYY-MM-DD`: a year, a month or a day rather than an instant. */
 const DATE_ONLY = /^\d{4}(-\d{2}){0,2}$/
 
+/** Whether a value names a year, a month or a day (`2027`, `2027-03`, `2027-03-05`) rather than an instant. */
+export const isDateOnly = (value: string | null | undefined): boolean => Boolean(value && DATE_ONLY.test(value))
+
 /** Whether a value names only a year or a month (`2027`, `2027-03`), which a day or an instant outranks. */
-export const isPartialDate = (value: string | null | undefined): boolean =>
-  Boolean(value && DATE_ONLY.test(value) && value.length < 10)
+export const isPartialDate = (value: string | null | undefined): boolean => isDateOnly(value) && value!.length < 10
 
 /**
  * A year no episode aired in, so a parsed `0000-01-01` is refused rather than rendered as "Jan 1, 0".
@@ -55,12 +59,13 @@ export const parseReleaseDate = (value: string | null | undefined): Date | undef
 /**
  * A media's start, end or film release as the day it names, `YYYY-MM-DD`, or as the year or month alone
  * when that is all its source knows. AniList, Jikan, Apple TV and Simkl's anime records write the day as
- * UTC midnight with a time attached, so it is read in UTC, never where the viewer is. An episode's airing
- * is an instant and does not go through here.
+ * UTC midnight with a time attached, so it is read in UTC, never where the viewer is. Any other time is
+ * an air time (AniList takes a start it knows only to its month from its first airing) and stays one.
  */
 export const releaseDay = (value: string | null | undefined): string | undefined => {
   const date = parseReleaseDate(value)
-  return date && isPartialDate(value) ? value! : date?.toISOString().slice(0, 10)
+  if (!date) return undefined
+  return isPartialDate(value) || date.getTime() % DAY_MS ? value! : date.toISOString().slice(0, 10)
 }
 
 /** Whether `value` names a day, a month or an instant inside the year or month `partial` names (`2027`, `2027-10`). */
@@ -89,7 +94,7 @@ export const releaseDateLabel = (
       year: 'numeric',
       ...!isPartialDate(value) ? { month: 'short', day: 'numeric' } : value!.length > 4 ? { month: 'short' } : {},
       // the whole point: a named day is shown as that day, everywhere
-      ...DATE_ONLY.test(value!) ? { timeZone: 'UTC' } : {},
+      ...isDateOnly(value) ? { timeZone: 'UTC' } : {},
     }).format(date)
   } catch {
     // an unusable locale must not take a row down over a date
@@ -120,8 +125,6 @@ const civilDay = (date: Date, utc: boolean): number =>
     ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
     : Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
 
-const DAY_MS = 86_400_000
-
 /**
  * What to show beside an episode: how long ago it landed while that is still short enough to mean
  * something, and the date itself once it is not.
@@ -136,7 +139,7 @@ export const releaseDateDisplay = (
 ): string | undefined => {
   const date = parseReleaseDate(value)
   if (!date) return undefined
-  const days = Math.round((civilDay(now, false) - civilDay(date, DATE_ONLY.test(value!))) / DAY_MS)
+  const days = Math.round((civilDay(now, false) - civilDay(date, isDateOnly(value))) / DAY_MS)
   if (days === 0) return 'today'
   if (days === 1) return 'yesterday'
   if (days > 1 && days < RELATIVE_WITHIN_DAYS) return `${days} days ago`
@@ -152,5 +155,5 @@ export const releaseDateDisplay = (
 export const releaseDateAttribute = (value: string | null | undefined): string | undefined => {
   const date = parseReleaseDate(value)
   if (!date) return undefined
-  return DATE_ONLY.test(value!) ? value! : date.toISOString()
+  return isDateOnly(value) ? value! : date.toISOString()
 }

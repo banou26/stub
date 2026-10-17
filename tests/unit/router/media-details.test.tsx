@@ -184,6 +184,9 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
 
 test('the next episode reads how long until it airs while dimmed and turns on once it has aired, and a row already out reads its date', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  // "yesterday" is the viewer's calendar, so the zone is pinned: at UTC+14 or UTC-11 the source's day is today
+  const TZ = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
   try {
     vi.setSystemTime(Date.parse('2026-10-16T09:30:00Z'))
     // weekly at 14:00 UTC from October 2, or from the day before
@@ -209,6 +212,63 @@ test('the next episode reads how long until it airs while dimmed and turns on on
     expect(onTime()).toEqual({ unreleased: false, date: 'today' })
   } finally {
     vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+const ZONES = ['UTC', 'Asia/Tokyo', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']
+
+// episode 3 of a weekly show, AniList scheduling it at `airingAt` and the sources dating 1 to 3 by `dates`
+const thirdOf = (airingAt: string, dates: string[]) => {
+  const weekly = {
+    uri: 'ag:(anilist:195516)',
+    status: 'RELEASING',
+    nextAiringEpisode: { episodeNumber: 3, airingAt },
+    episodes: media.episodes.slice(0, 3).map((episode, index) => ({ ...episode, releaseDate: dates[index] })),
+  } as unknown as DetailsMedia
+  const { hook } = memoryLocation({ path: '/' })
+  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={weekly}/></Router></Provider>)
+  hosts.push(host)
+  return () => {
+    const row = host.querySelectorAll('.episode')[2]!
+    return { unreleased: row.classList.contains('unreleased'), date: row.querySelector('time')?.textContent }
+  }
+}
+
+// a break week AniList has not caught up with: it still names Friday's slot while a source has the next Friday
+test('the next episode a source dates a day or more after AniList\'s time reads that date rather than counting down to AniList\'s', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  const TZ = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
+  try {
+    vi.setSystemTime(Date.parse('2026-10-16T09:30:00Z'))
+    const third = thirdOf('Fri, 16 Oct 2026 14:00:00 GMT', ['2026-10-02T14:00:00Z', '2026-10-09T14:00:00Z', '2026-10-23T14:00:00Z'])
+    expect(third()).toEqual({ unreleased: true, date: 'Oct 23, 2026' })
+    await act(() => { vi.setSystemTime(Date.parse('2026-10-16T14:00:10Z')); vi.advanceTimersByTime(30_000) })
+    expect(third(), 'and stays dim past AniList\'s time').toEqual({ unreleased: true, date: 'Oct 23, 2026' })
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+// a Sunday 09:00 JST broadcast, 00:00 UTC, that Apple TV stamps as the Saturday's midnight UTC
+test('the next episode reads today once AniList\'s time has come, though a source stamps the day before, in every zone', () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  const TZ = process.env.TZ
+  try {
+    for (const zone of ZONES) {
+      process.env.TZ = zone
+      vi.setSystemTime(Date.parse('2026-10-18T00:00:10Z'))
+      const third = thirdOf('Sun, 18 Oct 2026 00:00:00 GMT', ['2026-10-03T00:00:00.000Z', '2026-10-10T00:00:00.000Z', '2026-10-17T00:00:00.000Z'])
+      expect(third(), zone).toEqual({ unreleased: false, date: 'today' })
+    }
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
   }
 })
 

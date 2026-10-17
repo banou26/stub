@@ -114,6 +114,13 @@ test('Aired is the day the source named, west of Greenwich too', () => {
   }
 })
 
+// AniList knowing only December 2021 for Jujutsu Kaisen 0, so `airedDate` gives its schedule's first airing, 00:30 JST on Dec 24
+test('Aired names an air time\'s day where the viewer is, as the modal\'s Releases line does', () => {
+  const startDate = 'Thu, 23 Dec 2021 15:30:00 GMT'
+  expect(inZone('Asia/Tokyo', () => aired({ type: MediaType.Movie, startDate }))).toBe('Dec 24, 2021')
+  expect(inZone('America/Los_Angeles', () => aired({ type: MediaType.Movie, startDate }))).toBe('Dec 23, 2021')
+})
+
 test('Aired names a year or a month alone as just that', () => {
   expect(aired({ startDate: '2027', status: MediaStatus.NotYetReleased })).toBe('2027')
   expect(aired({ startDate: '2026-04', endDate: '2027' })).toBe('Apr 2026 to 2027')

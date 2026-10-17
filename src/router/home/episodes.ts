@@ -1,6 +1,6 @@
 // Which of a series' episodes are not out yet. No app imports, for the reason ./movie.ts gives.
 
-import { isUpcoming } from './movie'
+import { isUpcoming, releaseSide } from './movie'
 import { parseReleaseDate } from '../../utils/release-date'
 
 type DatedEpisode = { episodeNumber?: number | null, releaseDate?: string | null }
@@ -33,15 +33,14 @@ export const firstUnreleased = (
 }
 
 /**
- * An episode a source dated before today is released, so a stale schedule cannot dim it. One dated
- * ahead is unreleased. The rest, dated today (it may air later today) or undated, are unreleased from
- * `first` onward.
+ * An episode a source dates as out (its air time passed, or a day before today) is released, so a stale
+ * schedule cannot dim it. One dated ahead is unreleased. The rest, dated today with no time (it may air
+ * later today) or undated, are unreleased from `first` onward.
  */
-export const isUnreleased = (episode: DatedEpisode, first: number | undefined, now = new Date()): boolean => {
-  const date = parseReleaseDate(episode.releaseDate)
-  if (date && isUpcoming(now.toISOString(), date)) return false
-  return isUpcoming(episode.releaseDate, now)
-    || (first !== undefined && episode.episodeNumber != null && episode.episodeNumber >= first)
+const isUnreleased = (episode: DatedEpisode, first: number | undefined, now = new Date()): boolean => {
+  const side = releaseSide(episode.releaseDate, now)
+  return side === 1
+    || (side !== -1 && first !== undefined && episode.episodeNumber != null && episode.episodeNumber >= first)
 }
 
 // The store already merges a date across the sources it folded into this row, so the handle is a
@@ -51,12 +50,40 @@ export const isUnreleased = (episode: DatedEpisode, first: number | undefined, n
 export const releasedAtOf = (episode: SourcedEpisode | undefined) =>
   episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
 
+const DAY_MS = 86_400_000
+
+/**
+ * Whether `airingAt`, an instant, falls within a day of what `sourced` names, or `sourced` names nothing.
+ * A value at midnight UTC may name a day rather than an hour, so it spans that whole day. A day is the
+ * margin because AniZip's air times were 10 minutes to 4 hours early or 5 minutes to 1.5 hours late
+ * against AniList's for 5 of the 21 shows both timed that week (2026-10-17).
+ */
+export const withinADay = (sourced: string | null | undefined, airingAt: string) => {
+  const start = parseReleaseDate(sourced)?.getTime()
+  if (start === undefined) return true
+  const at = Date.parse(airingAt)
+  const end = start % DAY_MS ? start : start + DAY_MS
+  return end > at - DAY_MS && start < at + DAY_MS
+}
+
+/**
+ * AniList's time for the episode it schedules next, which decides when that episode is out unless a
+ * source dates it a day or more either side of that: a schedule gone stale, or a delay it does not have
+ * yet. Undefined for any other episode.
+ */
+export const scheduledAt = (
+  episode: SourcedEpisode,
+  next: { episodeNumber: number, airingAt: string } | null | undefined
+): string | undefined =>
+  next && episode.episodeNumber === next.episodeNumber && withinADay(releasedAtOf(episode), next.airingAt) ? next.airingAt : undefined
+
 /** Which of a media's episodes are not out yet, in the order `episodes` lists them. */
 export const unreleasedEpisodes = (
   media: Omit<Parameters<typeof firstUnreleased>[0], 'episodes'> & { episodes: readonly SourcedEpisode[] },
   now = new Date()
 ): boolean[] => {
-  const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) }))
-  const first = firstUnreleased({ status: media.status, nextAiringEpisode: media.nextAiringEpisode, episodes: dated }, now)
+  const next = media.nextAiringEpisode
+  const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: scheduledAt(episode, next) ?? releasedAtOf(episode) }))
+  const first = firstUnreleased({ status: media.status, nextAiringEpisode: next, episodes: dated }, now)
   return dated.map(episode => isUnreleased(episode, first, now))
 }

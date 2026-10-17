@@ -2,7 +2,7 @@
 // may still be ahead. No app imports, so the rules are tested without rendering the modal (which
 // cannot load under vitest, see tests/unit/router/modal-media.test.ts).
 
-import { parseReleaseDate } from '../../utils/release-date'
+import { isDateOnly, parseReleaseDate } from '../../utils/release-date'
 
 /** "1h 52m" for 112 minutes, "45m" under an hour, undefined for none. */
 export const runtimeText = (minutes: number | null | undefined): string | undefined => {
@@ -16,7 +16,9 @@ export const runtimeText = (minutes: number | null | undefined): string | undefi
 export const movieFacts = (
   { released, runtime, genres }: { released?: string | null, runtime?: number | null, genres?: readonly string[] | null }
 ): string[] => {
-  const year = parseReleaseDate(released)?.getUTCFullYear()
+  const date = parseReleaseDate(released)
+  // an air time's year is where the viewer is, as its day is
+  const year = date && (isDateOnly(released) ? date.getUTCFullYear() : date.getFullYear())
   return [
     'Movie',
     year ? String(year) : undefined,
@@ -30,10 +32,25 @@ export const isMovieMedia = (
   { type, categories }: { type?: string | null, categories?: readonly string[] | null }
 ): boolean => type ? type === 'MOVIE' : Boolean(categories?.includes('MOVIE'))
 
-/** Whether a release day is still ahead of `now`, read as a whole day in UTC. */
-export const isUpcoming = (released: string | null | undefined, now = new Date()): boolean => {
+/**
+ * Where a release stands at `now`: 1 still ahead, -1 out, 0 within the day, month or year a value with no
+ * time names, where it may still come out later. That period begins and ends where the viewer is, so it
+ * agrees with the day its label names; a value carrying a time is an instant and is never 0. Undefined
+ * for no date.
+ */
+export const releaseSide = (released: string | null | undefined, now = new Date()): -1 | 0 | 1 | undefined => {
   const date = parseReleaseDate(released)
-  if (!date) return false
-  const day = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-  return day > Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  if (!date) return undefined
+  if (!isDateOnly(released)) return date.getTime() > now.getTime() ? 1 : -1
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const start = date.getTime()
+  const year = date.getUTCFullYear()
+  const end = released!.length === 4 ? Date.UTC(year + 1, 0)
+    : released!.length === 7 ? Date.UTC(year, date.getUTCMonth() + 1)
+    : start + 86_400_000
+  return today < start ? 1 : today < end ? 0 : -1
 }
+
+/** Whether a release is still ahead of `now`, by its instant or by its day where the viewer is. */
+export const isUpcoming = (released: string | null | undefined, now = new Date()): boolean =>
+  releaseSide(released, now) === 1

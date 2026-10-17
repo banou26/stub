@@ -465,6 +465,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                 mediaUri={media.uri}
                 handles={media.handles}
                 startDate={'startDate' in media ? media.startDate : undefined}
+                status={'status' in media ? media.status : undefined}
                 genres={'genres' in media ? media.genres : undefined}
               />
             )

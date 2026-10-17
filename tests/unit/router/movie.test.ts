@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
 import { MediaCategory, MediaType } from '../../../src/generated/graphql'
-import { isMovieMedia, isUpcoming, movieFacts, runtimeText } from '../../../src/router/home/movie'
+import { isMovieMedia, isUpcoming, movieFacts, releaseSide, runtimeText } from '../../../src/router/home/movie'
 
 test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   expect(runtimeText(112)).toBe('1h 52m')
@@ -24,14 +24,56 @@ test('a fact a source did not give is left out rather than shown empty', () => {
   expect(movieFacts({ released: '2024-07-26T15:00:00.000Z' })).toEqual(['Movie', '2024'])
 })
 
-test('a release is upcoming only while its day is still ahead, whatever the hour', () => {
-  const now = new Date('2026-10-11T23:30:00Z')
-  expect(isUpcoming('2026-12-11', now)).toBe(true)
-  expect(isUpcoming('2026-10-12', now)).toBe(true)
-  expect(isUpcoming('2026-10-11', now), 'the day itself is out').toBe(false)
-  expect(isUpcoming('2026-10-01', now)).toBe(false)
-  expect(isUpcoming(undefined, now)).toBe(false)
-  expect(isUpcoming('garbage', now)).toBe(false)
+const TZ = process.env.TZ
+const inZone = <T>(zone: string, read: () => T): T => {
+  process.env.TZ = zone
+  try { return read() } finally { if (TZ === undefined) delete process.env.TZ; else process.env.TZ = TZ }
+}
+// the first moment of 2021-12-24 in each zone
+const MIDNIGHT = { 'America/Los_Angeles': '2021-12-24T08:00:00Z', 'Asia/Tokyo': '2021-12-23T15:00:00Z' } as const
+const before = (iso: string) => new Date(Date.parse(iso) - 1000)
+
+test('a day with no time is out from the start of that day where the viewer is, whatever the hour', () => {
+  for (const [zone, midnight] of Object.entries(MIDNIGHT)) {
+    expect(inZone(zone, () => isUpcoming('2021-12-24', before(midnight))), zone).toBe(true)
+    expect(inZone(zone, () => isUpcoming('2021-12-24', new Date(midnight))), `${zone}: the day itself is out`).toBe(false)
+    expect(inZone(zone, () => isUpcoming('2021-12-01', new Date(midnight))), zone).toBe(false)
+  }
+})
+
+// AniList's Hina (anilist 164194) is dated 2026 and not out on 2026-10-17, while TMDB dates every film by its year
+test('a year or a month alone is ahead before it begins, maybe out during it, and out once it is over, where the viewer is', () => {
+  for (const zone of Object.keys(MIDNIGHT)) {
+    expect(inZone(zone, () => releaseSide('2026', new Date(2025, 11, 31, 23, 59))), zone).toBe(1)
+    expect(inZone(zone, () => releaseSide('2026', new Date(2026, 0, 1))), zone).toBe(0)
+    expect(inZone(zone, () => releaseSide('2026', new Date(2026, 11, 31, 23, 59))), zone).toBe(0)
+    expect(inZone(zone, () => releaseSide('2026', new Date(2027, 0, 1))), zone).toBe(-1)
+    expect(inZone(zone, () => releaseSide('2026-12', new Date(2026, 10, 30, 23, 59))), zone).toBe(1)
+    expect(inZone(zone, () => releaseSide('2026-12', new Date(2026, 11, 31, 12))), zone).toBe(0)
+    expect(inZone(zone, () => releaseSide('2026-12', new Date(2027, 0, 1))), zone).toBe(-1)
+    expect(inZone(zone, () => releaseSide('2027-03', new Date(2027, 1, 28, 12))), zone).toBe(1)
+  }
+})
+
+// AniList's schedule airing a film at 00:30 JST on New Year's Day 2027
+test('a film\'s year is the one its air time falls in where the viewer is, and a day\'s own year everywhere', () => {
+  expect(inZone('Asia/Tokyo', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', '2027'])
+  expect(inZone('America/Los_Angeles', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', '2026'])
+  expect(inZone('America/Los_Angeles', () => movieFacts({ released: '2027-01-01' })), 'the control: a day').toEqual(['Movie', '2027'])
+})
+
+// anizip's `airDateUtc` for Jujutsu Kaisen 0: 00:30 JST on Dec 24
+test('an exact air time is out from that instant, in every zone', () => {
+  for (const zone of Object.keys(MIDNIGHT)) {
+    expect(inZone(zone, () => isUpcoming('2021-12-23T15:30:00Z', before('2021-12-23T15:30:00Z'))), zone).toBe(true)
+    expect(inZone(zone, () => isUpcoming('2021-12-23T15:30:00Z', new Date('2021-12-23T15:30:00Z'))), zone).toBe(false)
+    expect(inZone(zone, () => isUpcoming('Thu, 23 Dec 2021 15:30:00 GMT', before('2021-12-23T15:30:00Z'))), `${zone}: AniList's shape`).toBe(true)
+  }
+})
+
+test('nothing is upcoming without a date', () => {
+  expect(isUpcoming(undefined)).toBe(false)
+  expect(isUpcoming('garbage')).toBe(false)
 })
 
 test('a film draws as a film by its format, and a series of one episode stays a series', () => {

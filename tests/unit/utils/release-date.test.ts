@@ -98,6 +98,11 @@ describe('releaseDay', () => {
     expect(releaseDay('2017-09-26T00:00:00Z')).toBe('2017-09-26')
   })
 
+  test('an air time stays one, to be read where the viewer is', () => {
+    expect(releaseDay('Thu, 23 Dec 2021 15:30:00 GMT')).toBe('Thu, 23 Dec 2021 15:30:00 GMT')
+    expect(releaseDay('2021-12-23T15:30:00Z')).toBe('2021-12-23T15:30:00Z')
+  })
+
   test('and a year or a month alone stays as precise as its source', () => {
     expect(releaseDay('2027')).toBe('2027')
     expect(releaseDay('2027-03')).toBe('2027-03')

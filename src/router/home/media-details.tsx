@@ -20,7 +20,7 @@ import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
 import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
-import { releasedAtOf, unreleasedEpisodes } from './episodes'
+import { releasedAtOf, scheduledAt, unreleasedEpisodes } from './episodes'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
@@ -592,7 +592,7 @@ const Episode = (
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
-  const releasedAt = releasedAtOf(episode) ?? airingAt
+  const releasedAt = airingAt ?? releasedAtOf(episode)
   const airsIn = unreleased && airingAt ? formatCountdown(Date.parse(airingAt) - now) : undefined
   const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt)
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
@@ -679,7 +679,6 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
 export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
   const now = useNow()
   const unreleased = unreleasedEpisodes(media, new Date(now))
-  const nextAiring = media.nextAiringEpisode
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
@@ -705,7 +704,7 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
                 origins={origins}
                 backend={backend}
                 unreleased={unreleased[index]!}
-                airingAt={episode.episodeNumber === nextAiring?.episodeNumber ? nextAiring?.airingAt : undefined}
+                airingAt={scheduledAt(episode, media.nextAiringEpisode)}
                 now={now}
                 watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
                 progress={saved?.[2] ? saved[1] / saved[2] : undefined}
