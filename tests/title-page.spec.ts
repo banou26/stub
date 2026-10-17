@@ -726,8 +726,8 @@ test('paging a list that is all on screen to its short last page leaves the cont
     const numbers = episodes.locator('.episode .number')
     const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
     await expect(numbers).toHaveCount(12, { timeout: 30_000 })
-    // AniList answers last, and Relations above the list at 390 px settle to its one relation: a click on a control still
-    // moving is retried by Playwright with the control scrolled to the screen's middle, which this would then measure
+    // AniList answers last, with one relation, so the page of them held above the list at 390 px settles: a click on a
+    // control still moving is retried by Playwright with the control scrolled to the screen's middle, which this would then measure
     await expect(page.locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
     const first = await place(pages)
     const scrolled = await page.evaluate(() => scrollY)
@@ -756,10 +756,10 @@ const everyFrame = async (page: Page, selector: string) => {
 }
 
 // AniList answers anilist:900010 five seconds late, after AniZip's title and 26 episodes for mal:900010, with its
-// description and facts, and AniZip names that AniList id, so the MAL address reaches AniList through it
-// (tests/fake-fetch.ts)
+// description, facts and four relations, and AniZip names that AniList id, so the MAL address reaches AniList through
+// it (tests/fake-fetch.ts)
 for (const late of ['ag:(anilist:900010,mal:900010)', 'ag:(mal:900010)']) {
-  test(`390 px wide, the description and facts keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
+  test(`390 px wide, the description, facts and Relations keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(`${origin}/title/${late}`)
     const pages = page.locator('[data-episodes]').getByRole('navigation', { name: 'Episodes pages' })
@@ -767,7 +767,7 @@ for (const late of ['ag:(anilist:900010,mal:900010)', 'ag:(mal:900010)']) {
     await expect(page.locator('[data-relations]'), 'the control: AniList has not answered yet').toHaveCount(0)
     const held = await onPage(pages)
     const tops = await everyFrame(page, '[data-episodes] nav')
-    await expect(page.locator('[data-relations] a.relation-card')).toHaveCount(1, { timeout: 30_000 })
+    await expect(page.locator('[data-relations] a.relation-card')).toHaveCount(3, { timeout: 30_000 })
     await expect(page.locator('.facts'), 'the control: with its facts').toContainText('Spec Tag 30')
     await expect(page.getByRole('button', { name: 'Expand' }), 'and its description').toBeVisible()
     expect(await tops()).toEqual([held])
@@ -781,6 +781,18 @@ for (const late of ['ag:(anilist:900010,mal:900010)', 'ag:(mal:900010)']) {
     expect(await overflowX(page)).toBe(0)
   })
 }
+
+test('1440 px wide, the Relations held are a row of cards as tall as the row drawn, with no page buttons, which a row seldom needs', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/title/ag:(anilist:900010,mal:900010)`)
+  const held = page.locator('.relations.placeholder')
+  await expect(held).toBeVisible({ timeout: 30_000 })
+  const row = await height(held)
+  const relations = page.locator('[data-relations]')
+  await expect(relations.locator('a.relation-card')).toHaveCount(3, { timeout: 30_000 })
+  // from the heading's top to the cards' bottom, above the page buttons four relations need
+  expect(await relations.evaluate(section => Math.round(section.querySelector('.grid')!.getBoundingClientRect().bottom - section.getBoundingClientRect().top))).toBe(row)
+})
 
 test('a fact is one line where the facts sit above the lists, at a tablet\'s 800 px too, and wraps beside them at 1440 px', async ({ page }) => {
   const line = (label: string) => page.locator('.facts > div').filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })

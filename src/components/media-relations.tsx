@@ -35,15 +35,33 @@ const style = css`
     }
   }
 
-  /* as tall as the heading's series graph button, over one card as tall as its cover */
+  /* every card at least as tall as one with a two-line title, so the page held for them is as tall as theirs whatever
+     their titles */
+  & .relation-card, & > .grid > .pending {
+    min-height: 9.7rem;
+  }
+
+  /* as tall as the heading's series graph button */
   & > h2 > .pending {
     width: 16rem;
     height: 2.8rem;
   }
 
   & > .grid > .pending {
-    height: 9rem;
     border-radius: 0.6rem;
+  }
+
+  /* the page buttons under a phone's page of three; a wider screen's page is a row, which most titles fill without a
+     second page */
+  & > .pages {
+    width: 24rem;
+    height: 4rem;
+    margin-top: 1.2rem;
+    border-radius: 0.6rem;
+
+    @media (min-width: 768px) {
+      display: none;
+    }
   }
 `
 
@@ -128,7 +146,7 @@ const RelationCard = ({ edge, search, route }: { edge: RelationEdge, search: str
 /**
  * A work's relations, on the title page and in the preview alike: the related works this app can play, ranked by what
  * the relation is, three a row (one on a phone) a page at a time. `action` sits beside the heading, a card opens on
- * `route`, and `pending` holds the section's place while a source that names relations has yet to answer.
+ * `route`, and `pending` holds a full page's place while a source that names relations has yet to answer.
  */
 const MediaRelations = (
   { relations, action, route = Route.MEDIA, pending = false }:
@@ -148,7 +166,8 @@ const MediaRelations = (
       ? (
         <section className="relations placeholder" css={style} aria-hidden="true">
           <h2><Placeholder className="pending"/></h2>
-          <div className="grid"><Placeholder className="pending"/></div>
+          <div className="grid">{Array.from({ length: ROW }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>
+          <Placeholder className="pages"/>
         </section>
       )
       : null

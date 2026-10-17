@@ -54,6 +54,8 @@ const APOTHECARY_RELATIONS = ([
 ] as const).map(([relationType, format, english], index) => ({ relationType, node: { id: 900021 + index, type: 'ANIME', format, status: 'FINISHED', title: { english } } }))
 const ONE_PIECE = { id: 900030, type: 'ANIME', format: 'TV', status: 'RELEASING', title: { english: 'One Piece' } }
 const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
+// a page of relations and more, each title two lines on a card, as most are
+const LATE_RELATIONS = many(4, number => ({ relationType: 'SIDE_STORY', node: { id: 900010 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Late Side Story ${number}: The Long Way Round` } } }))
 const SEQUEL_THEMES = {
   data: {
     findAnimeByExternalSite: [{
@@ -93,9 +95,9 @@ const TMDB: Record<string, string> = {
 // "breaking bad" as recorded 2026-10-13; every other request goes where it
 // always went. AniList gives a bundled work the format and season of its record in the current season, or
 // else of its first record, so a film stays a film and a work stays in the season the home page lists, and
-// answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description and facts, so its page
-// draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a work's, so
-// its MAL address reaches AniList too.
+// answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description, facts and four relations,
+// so its page draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a
+// work's, so its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
@@ -137,7 +139,7 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
   if (variables.id === LATE.id) {
     await new Promise(resolve => setTimeout(resolve, 5_000))
-    return Response.json({ data: { Media: { ...LATE, ...credits, relations } } })
+    return Response.json({ data: { Media: { ...LATE, ...credits, relations: { edges: LATE_RELATIONS } } } })
   }
   const now = mediaSeasonNow()
   const { seasons } = (await import('../src/generated/anime-seasons')).default

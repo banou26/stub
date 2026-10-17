@@ -226,6 +226,12 @@ describe('the title page', () => {
     expect(facts(host)).toEqual(['Format: TV Show', 'Genres: Fantasy'])
   })
 
+  test('holds a full page of relations: three cards and the page buttons under them', () => {
+    const { host } = titlePage(work(1, 'Frieren').uri)
+    expect(host.querySelectorAll('.relations.placeholder > .grid > *')).toHaveLength(3)
+    expect(host.querySelector('.relations.placeholder > .grid + .pages')).not.toBeNull()
+  })
+
   test('holds a place for relations on an address naming any anime catalogue, as AniList joins one later', () => {
     const { host } = titlePage('ag:(mal:21)')
     expect(pending(host)).toContain('relations.placeholder')
