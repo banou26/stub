@@ -4,7 +4,7 @@ import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'preact/compat'
 import { LucidePause, LucidePlay } from 'lucide-react'
 import { useSubscription } from 'urql'
-import { Link, useRoute } from 'wouter'
+import { useRoute } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
@@ -15,7 +15,7 @@ import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, slow
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { onPluginsChange, pluginStatuses } from '../../plugins'
 import { getRouterRoutePath, Route } from '../path'
-import { GET_MEDIA_DETAILS, usePlay } from './media-details'
+import { GET_MEDIA_DETAILS, MediaPlay } from './media-details'
 
 const style = css`
 height: 70vh;
@@ -174,10 +174,7 @@ const TheaterPlay = ({ uri }: { uri: string }) => {
     query: GET_MEDIA_DETAILS,
     variables: { input: { uri }, descriptionInput: { type: MediaDescriptionContentType.Html } },
   })
-  const play = usePlay(data?.media)
-  return play
-    ? <Link className="play" href={play.href}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{play.label}</Link>
-    : null
+  return <MediaPlay media={data?.media}/>
 }
 
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {

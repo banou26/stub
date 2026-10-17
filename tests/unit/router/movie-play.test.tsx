@@ -111,6 +111,19 @@ test('a film stays upcoming until its own release day, whatever day its episode 
   expect(host.querySelector('.play')).toBeNull()
 })
 
+// only the clock is faked, so nothing but its tick draws the bar again
+test('Play appears on the clock\'s next tick once the film\'s release day has started', () => {
+  vi.useFakeTimers({ now: Date.parse('2026-10-16T23:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+  const host = render(episode, [], '2026-10-17')
+  expect(host.querySelector('.when')?.textContent, 'the control: not out yet').toBe(`Releases ${releaseDateLabel('2026-10-17')}`)
+  expect(host.querySelector('.play')).toBeNull()
+
+  act(() => { vi.advanceTimersByTime(30_000) })
+  expect(render(episode, [], '2026-10-17').querySelector('.play'), 'the control: a bar drawn now has Play').not.toBeNull()
+  expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
+  expect(host.querySelector('.when')).toBeNull()
+})
+
 test('a film with no release day of its own names its episode\'s air time, where the viewer is', () => {
   for (const [zone, day] of [['America/Los_Angeles', '2021-12-23'], ['Asia/Tokyo', '2021-12-24']] as const) {
     const host = seenAt('2021-12-01T12:00:00Z', zone, jujutsuKaisen0)

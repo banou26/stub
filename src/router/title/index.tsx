@@ -4,7 +4,7 @@ import { css } from '@emotion/react'
 import { Check, Clapperboard, LucidePlay, Share2, Square } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
-import { Link, useLocation, useParams, useSearch } from 'wouter'
+import { useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
@@ -15,7 +15,7 @@ import MediaTracking from '../../components/media-tracking'
 import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, playOf, SourceLinks, useTrackingSummary } from '../home/media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useTrackingSummary } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
@@ -668,7 +668,6 @@ const TitlePage = () => {
   const media = data?.media
   const current = currentMedia({ data, operation }, uri)
   const tracked = useTrackingSummary(media?.uri)
-  const play = media ? playOf(media, tracked) : undefined
 
   // a layout effect, run as the answer is drawn: a plain one waits a frame, and a Back taken in that frame renders this
   // page again before the router moves on, which runs the waiting effect first, and it would grow the address over the
@@ -761,15 +760,7 @@ const TitlePage = () => {
             media
               ? (
                 <div className="buttons">
-                  {
-                    play
-                      ? (
-                        <Link className="play" href={play.href}>
-                          <LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{play.label}
-                        </Link>
-                      )
-                      : undefined
-                  }
+                  <MediaPlay media={media}/>
                   <button type="button" className="icon" onClick={share} aria-label={copied ? 'Copied' : 'Share'} title={copied ? 'Copied' : 'Share'}>
                     {copied ? <Check size={20}/> : <Share2 size={20}/>}
                   </button>

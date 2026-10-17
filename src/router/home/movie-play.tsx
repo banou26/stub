@@ -5,6 +5,7 @@ import { Link } from 'wouter'
 
 import SourceSelector from '../../components/source-selector'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
+import { useNow } from '../../utils/use-now'
 import { getRoutePath, Route } from '../path'
 import { releasedAtOf } from './episodes'
 import { useWatchSources } from './media-details'
@@ -28,7 +29,8 @@ const MoviePlay = (
   const sources = useWatchSources(episode, mediaUri, handles)
   // the film's own day before its episode's air time, which falls on another day in some zones
   const released = releaseDay(startDate) ?? releasedAtOf(episode)
-  const upcoming = isUpcoming(released)
+  const now = useNow()
+  const upcoming = isUpcoming(released, new Date(now))
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined

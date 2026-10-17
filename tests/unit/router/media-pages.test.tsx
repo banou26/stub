@@ -76,6 +76,7 @@ afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   answers.byUri = {}
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 const open = (path: string, page: () => preact.JSX.Element) => {
@@ -245,6 +246,20 @@ describe('the title page', () => {
     answer(show)
     expect(host.querySelector('h1')!.textContent, 'the control: answered, with sources still out').toBe('The Boys')
     expect(pending(host)).toEqual([])
+  })
+
+  // only the clock is faked, so nothing but its tick draws the page again
+  test('draws Play on the clock\'s next tick once the first episode has aired', () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+    const airing = { ...work(1, 'Frieren'), status: 'RELEASING', nextAiringEpisode: { episodeNumber: 1, airingAt: '2026-10-16T14:00:00Z' } }
+    const { host, answer } = titlePage(airing.uri)
+    answer(airing)
+    expect(host.querySelector('.episode.unreleased .number')?.textContent, 'the control: the first is not out yet').toBe('1')
+    expect(host.querySelector('.play')).toBeNull()
+
+    act(() => { vi.advanceTimersByTime(30_000) })
+    expect(host.querySelector('.episode.unreleased .number')?.textContent, 'the control: its row lit up').toBe('2')
+    expect(host.querySelector('.play')?.getAttribute('href')).toBe(`/watch/${airing.uri}/ag:(anilist:1-1)`)
   })
 
   test('draws no Episodes section for a film, before or after the worker answers', () => {

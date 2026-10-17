@@ -6,6 +6,7 @@ import type { WatchSource } from '../../components/source-selector'
 import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
+import { LucidePlay } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
@@ -31,7 +32,7 @@ import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
-import { currentEpisode, playTarget, watchedEpisode, type PlayLabel, type Tracked } from '../title/facts'
+import { currentEpisode, playTarget, watchedEpisode, type Tracked } from '../title/facts'
 import { newestPosition, readPositions } from '../../utils/watch-positions'
 
 export const GET_MEDIA_DETAILS = gql(`
@@ -239,17 +240,20 @@ export const useTrackingSummary = (uri: string | undefined): Tracked => {
   return tracking && namesSameWork(tracking._id.slice('tracking:'.length), uri) ? tracking.summary : undefined
 }
 
-/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, and the episode it opens. Nothing when that episode is not out. */
-export const playOf = (media: DetailsMedia, tracked: Tracked): { label: PlayLabel, href: string } | undefined => {
-  const unreleased = unreleasedEpisodes(media)
-  const target = playTarget(media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })), tracked)
-  return target && { label: target.label, href: getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri }) }
-}
-
-/** `playOf` on the viewer's tracking, subscribed here. */
-export const usePlay = (media: DetailsMedia | null | undefined) => {
+/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, opening that episode. Nothing while it is not out at `useNow`'s time. */
+export const MediaPlay = ({ media }: { media: DetailsMedia | null | undefined }) => {
   const tracked = useTrackingSummary(media?.uri)
-  return media ? playOf(media, tracked) : undefined
+  const now = useNow()
+  if (!media) return null
+  const unreleased = unreleasedEpisodes(media, new Date(now))
+  const target = playTarget(media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })), tracked)
+  return target
+    ? (
+      <Link className="play" href={getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri })}>
+        <LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{target.label}
+      </Link>
+    )
+    : null
 }
 
 const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))

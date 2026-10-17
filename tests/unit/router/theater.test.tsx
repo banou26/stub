@@ -241,6 +241,19 @@ test('with three episodes watched, it reads Continue and opens the fourth', () =
   expect(play()).toEqual({ label: 'Continue', href: `/watch/${uriOf('a')}/ag:(anilist:a-4)` })
 })
 
+// only the clock is faked, so the hero's own waits draw nothing over the tick
+test('Continue appears on the clock\'s next tick once the next episode has aired', () => {
+  vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.details[uriOf('a')] = { ...details('a', { episodes: 4, aired: 2 }), nextAiringEpisode: { episodeNumber: 3, airingAt: '2026-10-16T14:00:00Z' } }
+  answer.tracking = { _id: `tracking:${uriOf('a')}`, summary: { status: 'CURRENT', progress: 2 } }
+  const { play } = hero([show('a')])
+  expect(play(), 'the control: the third is not out yet').toBeNull()
+
+  act(() => { vi.advanceTimersByTime(30_000) })
+  expect(play()).toEqual({ label: 'Continue', href: `/watch/${uriOf('a')}/ag:(anilist:a-3)` })
+})
+
 test('with nothing aired there is no Play, and its row is there from the first render', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
   const { actions, play, update } = hero([show('a', { score: 0.3 })])

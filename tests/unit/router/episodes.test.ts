@@ -76,7 +76,7 @@ const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media
 
 test('the rows ask the schedule and dim an unreleased row, keeping a known title', () => {
   expect(modal).toMatch(/nextAiringEpisode \{\s*episodeNumber\s*airingAt\s*\}/)
-  expect(modal, 'the rows read the shared rule').toContain('unreleasedEpisodes(media)')
+  expect(modal, 'the rows read the shared rule').toContain('unreleasedEpisodes(media, new Date(now))')
   expect(modal, 'the next episode takes AniList\'s time').toContain('releasedAtOf(episode) ?? airingAt')
   expect(modal).toMatch(/airingAt=\{episode\.episodeNumber === nextAiring\?\.episodeNumber \? nextAiring\?\.airingAt : undefined\}/)
   expect(modal, 'a known title is drawn as it was').toContain('<div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? \'Unreleased episode\' : `Episode ${index + 1}`)}</div>')
