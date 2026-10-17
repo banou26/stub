@@ -228,7 +228,7 @@ into the identity structure is one by construction.
 
 **Sources**: appletv, unogs, justwatch (all call `buildHandlesFromUri`).
 
-**Concrete**: `buildHandlesFromUri` (`src/sources/utils.ts`, `:465-471` per
+**Concrete**: `buildHandlesFromUri` (`src/sources/utils.ts`, per
 `R "JustWatch folds cours too..." (2026-09-10)`) "filters only the CALLER's origin, so appletv, unogs
 and justwatch all rebroadcast whatever handles the url carries. A stale pre-fix bookmark therefore
 re-injects a show-level `cr:` handle and it is linked again" (`R "OPEN: an aggregated uri is user
@@ -1327,7 +1327,7 @@ identity, and traversals declare which axis they follow.
 #### 51. Episode containment is declared, written, and read by nothing
 
 **Concrete**: `EPISODE_SAME_AS` and `EPISODE_PART_OF` at `src/worker/store/db.ts:45-46`;
-`EPISODE_PART_OF` "has one writer and no reader", `episodePartOf` at `src/sources/utils.ts:44` is
+`EPISODE_PART_OF` "has one writer and no reader", `episodePartOf` in `src/sources/utils.ts` is
 called nowhere, and `makeEpisode` coerces a bare handle to `episodeSameAs` (`D reference/divergences.md`
 entry 8). Also: the `graph.link(episodeUri, handleUri, EPISODE_SAME_AS)` at `db.ts:410` "runs with
 none of `upsertMedia`'s guards, and it accepts a uri that was never `set`, because `find` calls

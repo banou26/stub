@@ -256,7 +256,7 @@ flowchart LR
 
 *The rose branch is permanent and the grey one is silent, which is why the third exists. `partOf` is the only branch that keeps the url and asserts nothing, and the only one whose mistake a later slice can still correct.*
 
-`src/sources/utils.ts:29-40`, the whole thing, because it is the argument this page exists to make:
+`src/sources/utils.ts`, above `partOf`, the whole thing, because it is the argument this page exists to make:
 
 > This media is one PART of what the handle names: a run of that show, a film published under that
 > series. Carries the url without claiming to be it, and never unions.

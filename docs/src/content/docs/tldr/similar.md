@@ -26,7 +26,7 @@ A catalogue's show-level url is true as containment and false as identity, and m
 | `null` | the yielded refusal every implementing resolver sends rather than ending; a generator that ends without yielding settles nothing (worker/extractor.ts:277) and costs the full 30s |
 | `answered` | a run id, handed to the consumer |
 
-The consumer adds three more: `refused-by-origin` when the cluster gained that origin's run mid-flight, `refused-by-title` when `answerNamesOurShow` scores under `SHOW_TITLE_THRESHOLD` 0.9 (:303) with season markers stripped from both sides by `franchiseTitle` (src/sources/utils.ts:335-345), and `claimed`.
+The consumer adds three more: `refused-by-origin` when the cluster gained that origin's run mid-flight, `refused-by-title` when `answerNamesOurShow` scores under `SHOW_TITLE_THRESHOLD` 0.9 (:303) with season markers stripped from both sides by `franchiseTitle` (`bestTitleScore` in src/sources/utils.ts), and `claimed`.
 
 ## The rules
 

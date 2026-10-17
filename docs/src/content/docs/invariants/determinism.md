@@ -338,7 +338,7 @@ The chain, verified against the working tree at `883aec9`:
 - The reduce concatenates `titles` in that order (`aggregate.ts:341`), and `byScore`
   (`aggregate.ts:18-20`) re-sorts by each title's own score with another stable sort, so a tie inside
   a title score tier still reads member order.
-- `getFirstTitle` is `media?.titles?.[0]?.title` (`src/sources/utils.ts:173-174`), and Crunchyroll's
+- `getFirstTitle` is `media?.titles?.[0]?.title` (`src/sources/utils.ts`), and Crunchyroll's
   search path builds its query rungs from it: `const primary = knownTitles[0]`
   (`crunchyroll/extractor.ts:467`), capped at `MAX_SEARCH_QUERIES = 4` (`:370`).
 

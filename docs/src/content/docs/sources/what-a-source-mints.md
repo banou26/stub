@@ -8,13 +8,13 @@ comes out of one 509 line module, `src/sources/utils.ts`. Two of its exports are
 the difference between them is the difference between a link that can be undone and a weld that
 cannot:
 
-`src/sources/utils.ts:27`
+`src/sources/utils.ts`, `sameAs`
 
 ```ts
 export const sameAs = (node: GQLMedia): GQLMediaHandle => ({ node, relation: 'SAME_AS' })
 ```
 
-`src/sources/utils.ts:40`
+`src/sources/utils.ts`, `partOf`
 
 ```ts
 export const partOf = (node: GQLMedia): GQLMediaHandle => ({ node: { ...node, scope: 'CONTAINER' }, relation: 'PART_OF' })
@@ -60,12 +60,12 @@ as a table in the comment at `db.ts:166-169`, and the sentence under it is the w
 
 Read the two doc comments next to each other, because they are the same sentence from two directions.
 
-`src/sources/utils.ts:23-26`
+`src/sources/utils.ts`, above `sameAs`
 
 > This handle names THIS run. Unions the cluster, permanently, with no inverse. The default, and the
 > only relation any producer asserted before 2026-09-04.
 
-`src/sources/utils.ts:29-39`
+`src/sources/utils.ts`, above `partOf`
 
 > This media is one PART of what the handle names: a run of that show, a film published under that
 > series. Carries the url without claiming to be it, and never unions.
@@ -191,13 +191,13 @@ flowchart TD
 
 *Two defaults decide something permanent, and both are the quiet branch: a source that says nothing about scope has claimed a RUN, and a handle handed over bare has claimed sameness.*
 
-`makeMedia` is `utils.ts:59-81`. `isMediaHandle` at `utils.ts:20` is the whole test, and it is
-structural: `'node' in handle`. So the coercion at `utils.ts:66` cannot tell a producer that meant
+`makeMedia` is in `utils.ts`. `isMediaHandle` is the whole test, and it is
+structural: `'node' in handle`. So the coercion in `makeMedia` cannot tell a producer that meant
 SAME_AS from one that forgot to say anything, and it resolves that in favour of the union. The comment
 above the type says why that is the right way round, and it is an argument about migration rather than
 about correctness:
 
-`src/sources/utils.ts:9-16`
+`src/sources/utils.ts`, above `MediaHandleInput`
 
 > A handle, or the media to make a SAME_AS handle out of.
 >
@@ -208,17 +208,17 @@ about correctness:
 
 Three more things the figure is compressing:
 
-- **The field spread is last** (`utils.ts:80`), so every default above it is overridable. `origin`,
+- **The field spread is last** (`...fields` in `makeMedia`), so every default above it is overridable. `origin`,
   `id` and `handles` are destructured out of `fields`, so those three alone are out of its reach; `uri`
   and `_id` are not, and are simply never passed by anything in the tree.
-- **`relations` is a different axis and starts empty.** `utils.ts:67-68`: *Narrative edges, and empty
+- **`relations` is a different axis and starts empty.** In `makeMedia`: *Narrative edges, and empty
   unless a source names some. Separate from `handles` on purpose: see `MediaRelation` in
   worker/resolvers/media/schema.gql for why the two axes never mix.* The schema is blunter, at
   `schema.gql:114-120`: *Nothing here may ever union a cluster. A sequel is a DIFFERENT work, and
   treating one as the same row is the mistake that merged three Mushoku Tensei seasons when it was
   made with SAME_AS.*
-- **The episode forms are the same shape with one asymmetry.** `makeEpisode` (`utils.ts:83-96`) runs
-  the same coercion through `episodeSameAs` at `:90`. But `episodePartOf` (`utils.ts:44`) stamps no
+- **The episode forms are the same shape with one asymmetry.** `makeEpisode` (`utils.ts`) runs
+  the same coercion through `episodeSameAs`. But `episodePartOf` (`utils.ts`) stamps no
   scope, and cannot: an Episode has no `scope` field. The two episode constructors are therefore a
   relation and nothing else.
 
@@ -256,7 +256,7 @@ flowchart TD
 
 The refusal at the top is total and silent: `fromAggregatedUri` (`src/utils/uri.ts:212-230`) returns
 `undefined` for a non-string and for anything `SCANNARR_REGEX` (`uri.ts:97`) does not match, and
-`buildHandlesFromUri` answers `[]` (`utils.ts:467`). `ag:()` is a legal aggregate with no siblings and
+`buildHandlesFromUri` answers `[]` (`utils.ts`). `ag:()` is a legal aggregate with no siblings and
 also comes back as `[]`, because `handleUrisValues` filters out entries with no origin or no id
 (`uri.ts:218`). Nothing here throws.
 
@@ -267,7 +267,7 @@ CONTAINER scope.
 The comment on the function is the most honest paragraph in the module, and it is the one to read
 before touching this path:
 
-`src/sources/utils.ts:444-464`
+`src/sources/utils.ts`, above `buildHandlesFromUri`
 
 > Every handle an aggregated uri names, as SAME_AS, minus the caller's own origin.
 >
@@ -310,10 +310,10 @@ it is not.
 
 ### `mergeHandles` dedupes on the relation too
 
-`mergeHandles` (`utils.ts:480-487`) mutates its argument in place and adds only what is missing. The
+`mergeHandles` (`utils.ts`) mutates its argument in place and adds only what is missing. The
 key is the pair, not the origin:
 
-`src/sources/utils.ts:473-479`
+`src/sources/utils.ts`, above `mergeHandles`
 
 > Add the handles an aggregated uri names to a media, for origins it does not already carry.
 >
@@ -321,8 +321,8 @@ key is the pair, not the origin:
 > same thing; it is not now. A media already carrying `partOf(imdb:tt123)` would otherwise block the
 > uri from contributing a SAME_AS for imdb, or the reverse, depending only on which arrived first.
 
-One reading worth having in front of you: the filter at `utils.ts:485` tests each new handle against
-`existing`, which is built once from `media.handles` at `:482` and never updated. The extras are not
+One reading worth having in front of you: the filter in `mergeHandles` tests each new handle against
+`existing`, which is built once from `media.handles` and never updated. The extras are not
 deduped against each other. An aggregated uri naming two ids of one origin, such as
 `ag:(cr:G24H1N3MP,cr:G24H1N3MP-GS00374452)`, therefore contributes both as SAME_AS. That is a real
 shape (it is the exact pair `mostSpecific` at `src/utils/uri.ts:34-41` exists to choose between) and
@@ -348,10 +348,10 @@ flowchart LR
 
 *The only refusal on this page that is per item rather than per claim, and the only one that logs.*
 
-`normalizePage` is `utils.ts:138-150`. `Promise.allSettled` at `:143` is the whole mechanism, and the
+`normalizePage` is in `utils.ts`. `Promise.allSettled` is the whole mechanism, and the
 comment above it is an argument about what a page resolver is for:
 
-`src/sources/utils.ts:130-137`
+`src/sources/utils.ts`, above `normalizePage`
 
 > Normalize a page of upstream records, dropping only the ones that fail.
 >
@@ -361,14 +361,14 @@ comment above it is an argument about what a page resolver is for:
 > the point of having several sources, since the surviving source goes dark too.
 
 The log line is `console.error(\`${label}: dropped a record that failed to normalize\`, result.reason)`
-at `utils.ts:147`, and `label` is what tells you which source it was.
+in `normalizePage`, and `label` is what tells you which source it was.
 
 ## The rest of the module
 
-**`handleNodes` and `sameAsNodes`** (`utils.ts:47` and `:56-57`) are the reading side of the same
+**`handleNodes` and `sameAsNodes`** (`utils.ts`) are the reading side of the same
 distinction, and the comment on the second is the rule every consumer has to obey:
 
-`src/sources/utils.ts:49-55`
+`src/sources/utils.ts`, above `sameAsNodes`
 
 > Only the nodes this media claims to BE.
 >
@@ -387,23 +387,23 @@ node and recurses only through SAME_AS. That figure belongs to
 [from an answer to a row](/write/answer-to-row/); what matters here is that the comment above these
 two unused exports is where the rule is written down.
 
-**`stripTitle`** (`utils.ts:178-183`) is the normaliser under every title comparison in the module,
+**`stripTitle`** (`utils.ts`) is the normaliser under every title comparison in the module,
 and its comment is a measurement:
 
-`src/sources/utils.ts:176-177`
+`src/sources/utils.ts`, above `stripTitle`
 
 > keeps letters of every script. Stripping to `[a-z0-9]` erased a japanese title down to its ascii
 > digits, so ani.zip's "転生したらスライムだった件 (2026)" was the literal string "2026" and was equal to
 > every other 2026 show.
 
-It is read by `titleSimilarity` and `searchScore` in this file (`utils.ts:252-253`, `:268-269`), by
+It is read by `titleSimilarity` and `searchScore` in this file, by
 `isGenericEpisodeTitle` and the episode-title rule in `src/sources/similar.ts:109` and `:203`, and by
 `src/worker/store/fuzzy-merge.ts:122`.
 
-**`makeMovieEpisode`** (`utils.ts:109-125`) exists because a film has to reach the same playback path
+**`makeMovieEpisode`** (`utils.ts`) exists because a film has to reach the same playback path
 an episode does, and it carries one constraint that reads as arbitrary and is not:
 
-`src/sources/utils.ts:99-108`
+`src/sources/utils.ts`, above `makeMovieEpisode`
 
 > A movie is modelled as a one episode series so it can reuse the episode keyed
 > playback path, which is the only path the watch route and the source selector
@@ -415,9 +415,9 @@ an episode does, and it carries one constraint that reads as arbitrary and is no
 > which is what merges one movie's per-source episodes into a single row.
 
 That resolver is `src/worker/resolvers/media/index.ts:208`, `.filter(ep => ep.episodeNumber != null)`,
-and the grouping it feeds is `:211-212`. `episodeNumber: 1` is set at `utils.ts:123`, after the field
+and the grouping it feeds is `:211-212`. `episodeNumber: 1` is set in `makeMovieEpisode`, after the field
 copies and before `...overrides`, so an override can still remove it. The same rule is stated twice in
-the file, once as a line comment at `utils.ts:98` and once in the doc block below it.
+the file, once as a line comment at `utils.ts:107` and once in the doc block below it.
 
 ## Where the code disagrees with the brief
 

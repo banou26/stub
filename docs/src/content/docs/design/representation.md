@@ -193,7 +193,7 @@ CREATE REL TABLE CLAIMS(FROM Media TO Media,
   kind STRING,               // 'SAME_AS' | 'PART_OF' | 'INCLUDES'   (MediaHandleRelation, section 3.1)
   provenance STRING,         // 'source' | 'ask' | 'seed' | 'address'   (section 3.3)
   claimer STRING,            // the origin whose resolver returned the handle
-  targetScope STRING,        // the scope stamped on the nested node, or NULL (partOf() stamps CONTAINER, src/sources/utils.ts:40)
+  targetScope STRING,        // the scope stamped on the nested node, or NULL (partOf() stamps CONTAINER, src/sources/utils.ts)
   node JSON,                 // the nested node as returned: the claimer's DESCRIPTION of the target (url, titles), field-merged across the claimer's answers
   hash STRING,               // content hash of node, re-checked by the audit (5.3)
   answerSeq INT64, seq INT64)   // seq advances on every write to the row, a re-assert included, so the audit window never holds a row the ingest is still moving
@@ -203,7 +203,7 @@ CREATE REL TABLE HAS_EPISODE(FROM Media TO Episode,
   claimer STRING, answerSeq INT64, seq INT64)
 
 // an episode identity a source asserted. The schema allows it (episode/schema.gql:16; makeEpisode coerces a
-// bare node to episodeSameAs, src/sources/utils.ts:90); no first-party source emits one today. Consumed
+// bare node to episodeSameAs, src/sources/utils.ts); no first-party source emits one today. Consumed
 // by plugin:range (5.4 P4)
 CREATE REL TABLE EPISODE_CLAIMS(FROM Episode TO Episode,
   key STRING, kind STRING, provenance STRING, claimer STRING, node JSON, answerSeq INT64, seq INT64)
@@ -367,7 +367,7 @@ reading is `plugin:profile`'s (5.4 P0).
 | `PART_OF` | `CLAIMS`, `LINK` | part to whole | X is one of Y's parts: a run of a show, a film of a collection (`cr:GQWH0M1GG` on fifteen Kitsu films), a cour of a folded season, a catalogue season of a longer run | yes: kitsu `partOf`, justwatch show container and show-level offers, watchmode `imdb` and `tmdb` | `plugin:direct` (cross-scope derivation, prefix ids, an asserted `INCLUDES`), the writer's downgrade of a refused `SAME_AS` (5.2), `plugin:title` (run against container), `plugin:containment` (`span`) |
 | `INCLUDES` | `CLAIMS` (fenced), `LINK` (ranged) | whole to part | as a source claim: a show row names the season rows of its OWN origin. As a plugin edge: Y's episode list holds X's episodes at Y positions `fromStart..fromEnd`, which are X positions `toStart..toEnd`; `aligned/total` says how much of Y is proven, `contiguous` whether the proven pairs are unbroken | yes, fenced: accepted only from a show row to season rows of the same origin whose ids extend the show's (`idParent`), else refused with reason `foreign-includes`. The owner's call, section 11 | `plugin:range` only, and always with a range |
 | `HAS_EPISODE` | `HAS_EPISODE` | media to episode | the claimer hung this episode row on this media uri | yes, every episode-emitting source | never |
-| `SAME_AS` (episode) | `EPISODE_CLAIMS`, `EPISODE_LINK` | as above | two episode rows are one broadcast episode | the schema allows it (`episode/schema.gql:16`; `makeEpisode` coerces a bare node to `episodeSameAs`, `src/sources/utils.ts:90`), and no first-party source emits one today. A plugin source may | `plugin:range` (by date, by title, and reason `asserted` from an `EPISODE_CLAIMS` row whose two rows sit inside one cluster or across an attached season, 5.4 P4), `plugin:aggregate` (by number inside one cluster, as `FILLS` onto one slot) |
+| `SAME_AS` (episode) | `EPISODE_CLAIMS`, `EPISODE_LINK` | as above | two episode rows are one broadcast episode | the schema allows it (`episode/schema.gql:16`; `makeEpisode` coerces a bare node to `episodeSameAs`, `src/sources/utils.ts`), and no first-party source emits one today. A plugin source may | `plugin:range` (by date, by title, and reason `asserted` from an `EPISODE_CLAIMS` row whose two rows sit inside one cluster or across an attached season, 5.4 P4), `plugin:aggregate` (by number inside one cluster, as `FILLS` onto one slot) |
 | `RELATED` | `RELATED` | as the source stated | PREQUEL, SEQUEL, ADAPTATION and the rest of AniList's `relationType(version: 2)` vocabulary | anilist only | never, and never walked by any merge (CHARACTER edges reached 10 foreign franchises from one show, 2026-09-08) |
 
 **Containment established with no correspondence is `PART_OF`**, with a `reason` that names the
@@ -379,8 +379,8 @@ which of its rows are which of the run's.
 
 Not added, deliberately:
 
-- `EPISODE_PART_OF`: declared, written and read by nothing today (`db.ts:45-46`; `episodePartOf` at
-  `src/sources/utils.ts:44` is called nowhere). The fold is `INCLUDES` with a range plus per-episode
+- `EPISODE_PART_OF`: declared, written and read by nothing today (`db.ts:45-46`; `episodePartOf` in
+  `src/sources/utils.ts` is called nowhere). The fold is `INCLUDES` with a range plus per-episode
   `SAME_AS`, which is what the fold, the loan, the renumbering and the mid-season insert need.
 - A stored reverse of `PART_OF`: storing both directions lets them disagree, the argument that rejected
   a second `links` field in favour of an edge type ("a second field fails silently, an edge type fails
@@ -414,7 +414,7 @@ Not added, deliberately:
   answer's own row lands through the answering extractor as today.
 - `seed`: the offline source's identity handles. Consumed like `source`.
 - `address` (**NEW**, decided by the owner 2026-09-12): a handle rebuilt from the address bar by
-  `buildHandlesFromUri` (`src/sources/utils.ts:465-471`). **The address names WHICH sources to ask
+  `buildHandlesFromUri` (`src/sources/utils.ts`). **The address names WHICH sources to ask
   and asserts nothing about how they relate.** An `address` claim is a POINTER: it routes re-asks
   (7.1) and never enters the closure, whatever the claimer. Every relation between the rows an address
   names is re-derived at runtime from what the sources answer (their own claims, the `ask` answers,
@@ -591,7 +591,7 @@ carry different `anilist`, `mal` and `kitsu` ids and sit about 91 days apart (`f
 - The fan-out that discards payloads (`extractor.ts:750-759`, `:833`): the graph stays the only join
   point.
 - `ctx.findAggregatedMedia` and `ctx.listenForMediaChanges` for the seven `waitForMedia` callers that
-  block on the store mid-resolve with 15 s or 30 s deadlines (`src/sources/utils.ts:488-508`): both are
+  block on the store mid-resolve with 15 s or 30 s deadlines (`src/sources/utils.ts`): both are
   answered from the read path of section 6 and woken by the events of 4.5.
 
 ### 4.2 The ingest queue
@@ -784,7 +784,7 @@ exchange.
 | --- | --- | --- | --- |
 | `graph:changed` | `{seq, uris}` | per commit, when a new row, a new claim, a new `HAS_EPISODE` or a change in a projected column landed | the plugin scheduler only (one pass, coalesced). Nothing that reads the store wakes here: what it would read is written by the pass this event starts |
 | `row:changed` | `{uris}` | per commit, when only unprojected `raw` fields changed, or a claim's `node` was re-asserted | `plugin:aggregate`'s re-materialization of the touched clusters' JSON (no guards, no links), which ends in a `view:changed` naming them |
-| `view:changed` | `{clusters, uris}` | after a pass or a re-materialization, naming the clusters whose membership, slots, attachments, run length, anomalies or JSON moved, and every member uri of those clusters | `Subscription.media`: by any of its requested uris until a cluster has resolved for it (a requested uri has no cluster before its owner answers, and a subscription with nothing to filter on would otherwise never wake, `media/index.ts:81-87`), then by its cluster id or an alias; `mediaPage` with the 100 ms trailing debounce (`media/index.ts:108`), re-reading only the named clusters; `ctx.listenForMediaChanges` and the seven `waitForMedia` callers (unogs, appletv, tmdb, crunchyroll, justwatch, tvmaze; `src/sources/utils.ts:500`) for any uri they wait on |
+| `view:changed` | `{clusters, uris}` | after a pass or a re-materialization, naming the clusters whose membership, slots, attachments, run length, anomalies or JSON moved, and every member uri of those clusters | `Subscription.media`: by any of its requested uris until a cluster has resolved for it (a requested uri has no cluster before its owner answers, and a subscription with nothing to filter on would otherwise never wake, `media/index.ts:81-87`), then by its cluster id or an alias; `mediaPage` with the 100 ms trailing debounce (`media/index.ts:108`), re-reading only the named clusters; `ctx.listenForMediaChanges` and the seven `waitForMedia` callers (unogs, appletv, tmdb, crunchyroll, justwatch, tvmaze; `src/sources/utils.ts`) for any uri they wait on |
 | `origin:changed` | `{ids}` | only when an `Origin` row changed | `Subscription.origin`, `originPage` |
 
 Today every emit passes `{}` (`db.ts:200,222,237,253,414,520`), which is why `mediaPage` re-reads the
@@ -792,7 +792,7 @@ whole store on every event. The seven `waitForMedia` callers read `ctx.findAggre
 the resolve of 6.2 and `Cluster.media`, a row the PASS writes; so they are woken by `view:changed`,
 after that row exists, and never by the commit that precedes it, where they would re-read the
 previous view and then wait out a 15 s or 30 s deadline on the answer that had just landed. That is
-the check `events.ts` and `src/sources/utils.ts:500` require of any replacement, and it covers both
+the check `events.ts` and `waitForMedia` (`src/sources/utils.ts`) require of any replacement, and it covers both
 shapes a source waits on: a field arriving inside an existing row (a raw-only change re-materializes
 the cluster and ends in the same event) and a structural change publishing the handle or count it
 waits for. The terminal answer of a burst has no commit after it, which is why the wake has to come
@@ -874,7 +874,7 @@ export type PluginContext = {
   previous: PluginOutputIndex
   /**
    * The shared scorers, so every plugin scores exactly as the record measured. `titleSimilarity` is
-   * src/sources/utils.ts:253-270: frizbee, each direction divided by that side's own self score, the
+   * the one in src/sources/utils.ts: frizbee, each direction divided by that side's own self score, the
    * weaker direction taken. Never the nyaa matcher's min(self(alias), self(candidate)).
    */
   titleSimilarity: (a: string, b: string) => Promise<number>
@@ -936,7 +936,7 @@ is written as `LINK {status: 'refused', reason}` so it can be queried.
 | --- | --- | --- | --- |
 | 1 | `unknown-scope` | either endpoint's effective scope is NULL: the proposal waits for the next pass; nothing is written | `db.ts:113-123`, the claim that took the RUN default before its row landed |
 | 2 | `cross-scope` | effective scopes differ: downgraded (below). **Re-evaluated for every ACTIVE link every pass**: a link whose endpoints' scopes now differ is retracted and downgraded, which is the justwatch-before-crunchyroll race of `db.ts:113-123` as a fixture rather than a comment | `db.ts:166-169`, the derivation table |
-| 3 | `address-only` | any support is an `address` claim: a pointer, whoever the claimer. Refused and NOT downgraded, because the address asserts nothing about how its uris relate; the target still routes a re-ask (7.1), its owner's own claims and the plugins decide its cluster, and an unrelated address row still renders as a badge (6.2). Decided by the owner, 2026-09-12 | **NEW**; `src/sources/utils.ts:465-471` stamps no scope in either direction |
+| 3 | `address-only` | any support is an `address` claim: a pointer, whoever the claimer. Refused and NOT downgraded, because the address asserts nothing about how its uris relate; the target still routes a re-ask (7.1), its owner's own claims and the plugins decide its cluster, and an unrelated address row still renders as a badge (6.2). Decided by the owner, 2026-09-12 | **NEW**; `buildHandlesFromUri` (`src/sources/utils.ts`) stamps no scope in either direction |
 | 4 | `disagreeing-ids` | the union would put two ids of one IDENTITY SPACE in one component that are not prefix related (`A-1` beside `A-2`; `A` beside `A-1` is precision, `src/utils/uri.ts:23-34`): downgraded from each claimant toward the shared row. Evaluated against the GRAPH as it stands, and once more with the same batch's Offline claims joined in (below): an active `SAME_AS` into the target from a component that disagrees with the new claimant retracts BOTH, and both downgrade. **The relation it measures has every row THIS PROPOSAL would contest cut out of it** (`15cdb5d`, 2026-09-14, `contestedBy`): a component that holds together only through a row the proposal would put two disagreeing claimants onto is one guard 5 is about to take apart, so a disagreement measured across it is not one the proposal adds, and refusing on it makes the verdict depend on which claimant arrived first | `anomalies.ts:17-24`, one-way at `:37` so `[A, A-1, A-2]` reports; `similar-consumer.ts:239-245` |
 | 5 | `contested` | two or more components hold consumed `SAME_AS` claims into one target and disagree with each other by guard 4: every such proposal is refused and downgraded, and an active link among them is retracted, so neither wins by order. Evaluated over every CLAIM in the graph rather than over active links, so two claimants landing in different flushes still meet and the verdict is the same on every later pass. **The claimants' components are read with the TARGET EXCLUDED** (`ca48d3a`, 2026-09-14, `Components.without`): read plainly, two claimants whose claims have both been accepted share a component THROUGH the target, the guard skips them as agreeing, and the merge erases the evidence that it should never have happened. **The target's OWN claims settle a contest** (2026-10-15). A row the target claims to be in its own answer counts only in an identity space both sides hold: when every such row sits in one and the same side's component, that side's proposals pass and only the other side's are refused, with no downgrade, since the target itself says that claim is wrong. AniList's `anilist:189046` names MyAnimeList 61316, which sits on Re:ZERO Season 4's side while the Break Time short's side holds another `mal` id, so Kitsu's claim from Break Time (`kitsu:50665`) is the one refused. The target's own id counts the same way (2026-10-16): Steel Ball Run's `mal:61469` sits on the first stage's side as `offline:mal-61469`, while the second stage's side holds `offline:mal-63825`, so AniList's `anilist:210482`, whose `idMal` names the first stage, is the one refused. A space only one side holds says nothing against the other (8.6). No counted claim, or one on the other side or on neither, refuses every side as before | **NEW** as a store rule; the residue it prices is 11 welds of 105 runs over 33 multi-season Netflix shows (`season.ts:154-161`, `:170-173`), and `nf:81091393-3` holding two Demon Slayer runs of eleven episodes each (2026-09-04) |
 | 6 | `contained` | an active `PART_OF` or `INCLUDES` already joins the pair (3.5): refused; the downgrade is a no-op because the containment edge already exists | the owner's rule |
@@ -1176,7 +1176,7 @@ RETURN m.uri AS uri, count(DISTINCT e.uri) AS ownEpisodes
 | `scope` | `CONTAINER` if any answer about this uri said CONTAINER, or any `source` or `ask` claim stamped `targetScope: CONTAINER`, or `showLevelOrigin`; else `RUN` if the row is owned or any claim stamped RUN; else NULL. A `seed` or `address` stamp never counts. Computed from the `Answer` log, so a later RUN never flips it and nothing is overwritten: the ratchet as a view | `db.ts:142-146`; `db.ts:99-103` ("a CONTAINER stamp counts as a description") |
 | `dateSubject` | a declared `startDateSubject` first; else `run` when the effective scope is RUN and `container` otherwise. Year buckets and day sets are built from rows whose subject is `run`, so a container row's `2021-01-01` never buckets a year. What this does NOT see, stated plainly: a show premiere stamped on a RUN-scoped season row (`tvmaze:556-s3` carrying `show.premiered`, tmdb's one scraped year, the weld of Bungou Stray Dogs season 3 under 2016 and 2019, 2026-08-29) is a run-subject date to the profile, and its protection is source-side today, where 912227f fixed both extractors (`season-separation.test.ts`). The declared field is what moves that protection into the store, which is why tvmaze and tmdb are first for it (4.6) | 2026-08-29, 912227f |
 | `showLevelOrigin` | `imdb` (`db.ts:42`), and the origins whose own rows are always CONTAINER: `trakt` (`trakt/extractor.ts:95`), `tvdb` (`tvdb/extractor.ts:76`), `paramount` (`paramount/extractor.ts:54`). Not omdb and not watchmode, which mint RUN for a film (`omdb/extractor.ts:79`, `watchmode/extractor.ts:174-175`) | |
-| `titleKeys` | each `raw.titles[]` of class MAIN (the only class any extractor emits today): `stripTitle` keeping `[\p{L}\p{N}\s]`, lower case, spaces collapsed (`src/sources/utils.ts:176-183`); dropped when it carries no letter (1,321 of 1,430 wrong pairs merged on a key with no letter, 2026-08-11) or is only a season label (`isOnlySeasonLabel`, `season.ts:113-129`). Each key carries its `score`, `language`, `class`. Only `titles`, never a synonym field (`minna no uta` on 23 unrelated shows, 2026-08-29) | 7a4b586; `carriesIdentity`, `fuzzy-merge.ts:132` |
+| `titleKeys` | each `raw.titles[]` of class MAIN (the only class any extractor emits today): `stripTitle` keeping `[\p{L}\p{N}\s]`, lower case, spaces collapsed (`src/sources/utils.ts`); dropped when it carries no letter (1,321 of 1,430 wrong pairs merged on a key with no letter, 2026-08-11) or is only a season label (`isOnlySeasonLabel`, `season.ts:113-129`). Each key carries its `score`, `language`, `class`. Only `titles`, never a synonym field (`minna no uta` on 23 unrelated shows, 2026-08-29) | 7a4b586; `carriesIdentity`, `fuzzy-merge.ts:132` |
 | `TitleKey`, `HAS_KEY` | one node per distinct key across the store and one edge per (media, key) with the key's score, language and class, so exact agreement is a join | |
 | `titleKeysFolded` | the same keys after NFD with combining marks removed (`jôzu` to `jozu`); produced now, consumed only behind `foldDiacritics`, which is off until the 150-season arm runs | `CONFIDENT_TITLE_THRESHOLD`'s documented regression, 2026-09-09 |
 | `seasonOrdinal`, `partOrdinal` | `parseSeasonNumber` over the RAW titles (`normalizeTitle` folds `Season 4` and `Season 40` closer together, `fuzzy-merge.ts:324-325`); NULL when no title names one: silence, never zero (284 of 4,159 titles end in a bare number and most name no season, 2026-08-11) | `season.ts` |
@@ -2483,7 +2483,7 @@ and `uri-aggregated.test.ts` gains the single-source spelling (10, step 3).
   for a raw-only change AND for a structural change that publishes the handle or count they wait on,
   in both cases after the pass has written `Cluster.media` (4.5); the control is an unrelated cluster's
   `view:changed`, which must not wake them. A `Subscription.media` opened before its uri has a cluster
-  must wake when that cluster is first materialized. So the check `src/sources/utils.ts:500` demands of
+  must wake when that cluster is first materialized. So the check `waitForMedia` (`src/sources/utils.ts`) demands of
   any replacement is a test rather than a note, and it is stated the way round the callers need.
 - **The listing fixtures.** Opening Mushoku must add no season card to the listing (the six hidden
   singletons of 8.1); a search answered only by hidden rows must still draw cards, and they must be the
@@ -2580,7 +2580,7 @@ Each changes the schema or the plugin contract. Everything else in this document
 
 | question | recommendation | cost of the alternative |
 | --- | --- | --- |
-| **1. What an address-bar handle may assert** (`buildHandlesFromUri`, `src/sources/utils.ts:465-471`) | **DECIDED 2026-09-12 by the owner: nothing.** The address includes as many sources as it can and never defines how they relate; an `address` claim is a pointer that routes re-asks, every relation is re-derived at runtime from the sources' own answers, and a row the graph cannot relate still renders as a badge (3.3, 5.2 guard 3, 6.2) | no longer open |
+| **1. What an address-bar handle may assert** (`buildHandlesFromUri`, `src/sources/utils.ts`) | **DECIDED 2026-09-12 by the owner: nothing.** The address includes as many sources as it can and never defines how they relate; an `address` claim is a pointer that routes re-asks, every relation is re-derived at runtime from the sources' own answers, and a row the graph cannot relate still renders as a badge (3.3, 5.2 guard 3, 6.2) | no longer open |
 | **2. `similarMedia` returns `{ media, containing }`** | yes; Crunchyroll first, since it already has the lend | the lend hack stays permanently in one extractor, and the fold is never visible for Netflix or JustWatch |
 | **3. `MediaHandleRelation` gains `INCLUDES`**, as an output value (a run's page lists the seasons that hold it, a split run lists its seasons, a container page lists its seasons) and as a source claim fenced to one id space | both. The badge reader takes "SAME_AS first then anything" and playback takes SAME_AS only, so no button can come from it; the case in `episode-origins.test.ts` pins that | without the output value the split direction has no rendering; without the fenced claim unogs's seasons never enter the graph for a refused ask and the container page cannot list seasons |
 | **4. The optional evidence fields** on the source schema (`startDatePrecision`, `startDateSubject`, `startDateDerivation`, `episodeCountKind`, `episodeNumberSpace`, `MediaTitle.class`, `MediaHandle.provenance`) and on `PluginSourceMeta` (`countKind`, `folding`, `retranslates`, `showLevel`) | yes, all optional; kitsu and jikan first for precision (their `YYYY-MM-01` is the measured 30.65 day error), tvmaze and tmdb first for the subject (the two that stamped a show premiere on a season row, 912227f) | every per-origin table inside the profile plugin stays a constant standing in for a per-claim property, a genuine January 1 premiere stays invisible (0.52% of correct merges), and a show date on a season row stays a source-side fix the store cannot see (5.4 P0) |

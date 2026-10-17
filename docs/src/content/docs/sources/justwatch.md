@@ -21,7 +21,7 @@ That makes it the source with the most to lose. A handle is an identity claim, a
 becomes a union.
 
 :::danger[Every SAME_AS handle on this page is permanent]
-`sameAs(node)` at `src/sources/utils.ts:27` reaches the store as
+`sameAs(node)` in `src/sources/utils.ts` reaches the store as
 `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` at `src/worker/store/db.ts:193`, a
 union-find union. There is no unlink and no inverse. The two media are one component for the rest of
 the session, and the merged component goes on to weld a third.
@@ -31,7 +31,7 @@ url is the literal string `watch`, which gave 22 unrelated titles the identical 
 (`src/sources/justwatch/id.ts:91-93`), and a Crunchyroll `/series/` id read off a film gave four
 Demon Slayer films and fifteen Dragon Ball Z films one id each (`id.ts:52-54`).
 
-`partOf(node)` at `src/sources/utils.ts:40` is the other half of this page and is not permanent in
+`partOf(node)` in `src/sources/utils.ts` is the other half of this page and is not permanent in
 the same way: it writes a directed `graph.edge`, which is deletable, and it stamps the node
 `scope: 'CONTAINER'` on the way out. That stamp is itself one-way in the store, so it is a ratchet
 rather than a weld.
@@ -182,7 +182,7 @@ flowchart TD
   G --> D9
   D9{"which relation did the branch leave?<br/><small>relation === 'PART_OF' ? partOf(node) : sameAs(node)</small>"}
   D9 -->|"SAME_AS: a film's own id, or the season a cr episode resolved to"| SA["sameAs(node)<br/><small>:400</small>"]
-  D9 -->|"PART_OF: an id read off a SHOW"| PO["partOf(node): the node is copied scope 'CONTAINER'<br/><small>:400, sources/utils.ts:40</small>"]
+  D9 -->|"PART_OF: an id read off a SHOW"| PO["partOf(node): the node is copied scope 'CONTAINER'<br/><small>:400, sources/utils.ts</small>"]
   SA --> LINK["graph.link in the run space<br/><small>db.ts:193, a union with no inverse</small>"]
   PO --> EDGE["graph.edge MEDIA_PART_OF<br/><small>db.ts:187-190, directed and deletable</small>"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
@@ -475,9 +475,9 @@ returns `null`, because a uri that already carries a `jw:` id has no search to f
 > carries `nf:<title id>`. So the show comes back as a container instead.
 
 :::caution[The container must never be mergeHandles'd]
-`mergeHandles(media, aggregatedUri)` at `src/sources/utils.ts:480` calls `buildHandlesFromUri`, which
-mints one `sameAs(makeMedia({ origin, id }))` per sibling origin named in the uri
-(`src/sources/utils.ts:465-479`). Doing that to a show container asserts that the show IS every run
+`mergeHandles(media, aggregatedUri)` in `src/sources/utils.ts` calls `buildHandlesFromUri`, which
+mints one `sameAs(makeMedia({ origin, id }))` per sibling origin named in the uri.
+Doing that to a show container asserts that the show IS every run
 in the asking cluster.
 
 `src/sources/justwatch/extractor.ts:421-426`

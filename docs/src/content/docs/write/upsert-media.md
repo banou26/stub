@@ -156,7 +156,7 @@ Both clauses do work.
 
 The first, `media.scope !== 'CONTAINER'`, short-circuits the whole test: **a row carrying nothing but
 `scope: 'CONTAINER'` is not a placeholder and is stored.** That is not an oversight. `partOf`
-(`src/sources/utils.ts:40`) stamps `CONTAINER` on its copy of the node, so the stamp is a claim the
+(`src/sources/utils.ts`) stamps `CONTAINER` on its copy of the node, so the stamp is a claim the
 minting source made about the id, and it is exactly the claim the store needs in order to keep that
 uri out of a run's identity space. Pinned at `tests/unit/worker/store/arrival-order.test.ts:108-117`,
 whose name is the rule: *a bare CONTAINER stamp is a description*.
@@ -170,7 +170,7 @@ the batch of up to 250 still lands. A claim naming the skipped uri falls into `p
 phase 3 and stays there.
 
 Where the placeholders come from: every source answering a media page rebuilds the aggregated uri's
-siblings with `buildHandlesFromUri` (`src/sources/utils.ts:465-471`), which mints
+siblings with `buildHandlesFromUri` (`src/sources/utils.ts`), which mints
 `sameAs(makeMedia({ origin, id }))` per sibling, and `makeMedia` defaults `url: undefined`,
 `scope: 'RUN'`, and every list to `[]`. Open `ag:(anilist:108465,cr:G24H1N3MP)` and the anilist source
 hands over a bare `cr:G24H1N3MP` node. It is not stored, and

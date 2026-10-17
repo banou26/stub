@@ -50,7 +50,7 @@ flowchart TD
 | 5 | `extractor.ts:470` | a 15 minute response cache on every source yoga | `useResponseCache` exposes `onExecute` only, and every operation sent to a source yoga is a subscription | installed and inert |
 | 6 | `extractor.ts:499-503` | `maskedErrors.maskError` | logs the error and re-wraps the same message; nothing is masked | the name, not the behaviour |
 | 7 | `plugin-api.ts:17`, `imdb/extractor.ts:17` | `metadataOnly` "keeps it out of the playback paths" | no reader anywhere in `src`; `offline/extractor.ts:27` says so and is right | two comments disagree, offline's is current |
-| 8 | `db.ts:46`, `sources/utils.ts:44` | episode containment: `EPISODE_PART_OF` and `episodePartOf` | the label is written at `db.ts:411` and read nowhere; the constructor is called nowhere | declared, written, dead |
+| 8 | `db.ts:46`, `sources/utils.ts` | episode containment: `EPISODE_PART_OF` and `episodePartOf` | the label is written at `db.ts:411` and read nowhere; the constructor is called nowhere | declared, written, dead |
 | 9 | `schema.gql:471-489` | `MediaPage` has five cursors and four counts | the resolver returns `{ nodes: parent }` and nothing else; all nine resolve null | schema surface with no producer |
 | 10 | `similar-consumer.ts:276` | the re-ask "is how the answer's episodes reach the store" | since 2026-09-10 the ask's own document selects `episodes`, which is the route that works when a source has no usable `media` path | both routes exist, the doc names the weaker one |
 | 11 | `extractor.ts:230` | "each of the 23 sources" | 25, pinned at `tests/unit/sources/index.test.ts:19-24` | stale count |
@@ -364,8 +364,8 @@ returns exactly two lines: the declaration and the write.
 
 So an episode handle with `relation: 'PART_OF'` is accepted, an edge is stored, and the edge is
 invisible to every read on the site. Nothing is lost today, because the whole chain is dead end to
-end: the constructor that would mint one, `episodePartOf` at `src/sources/utils.ts:44`, is exported
-and called by nothing, and `makeEpisode` coerces a bare handle to `episodeSameAs` (`utils.ts:90`),
+end: the constructor that would mint one, `episodePartOf` in `src/sources/utils.ts`, is exported
+and called by nothing, and `makeEpisode` coerces a bare handle to `episodeSameAs`,
 never to it. Three declarations, one write, no reader anywhere.
 
 ```sh

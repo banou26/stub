@@ -23,9 +23,9 @@ The registry is pinned at 24 by `tests/unit/sources/index.test.ts:19-25`
 
 `scope` is `MediaScope` from `src/worker/resolvers/media/schema.gql:106-111`: `RUN` is one broadcast
 run (a cour, a film), `CONTAINER` is a show or a series page. `makeMedia` defaults `scope: 'RUN'`
-(`src/sources/utils.ts:65`), and the schema reads an absent value as RUN
+(`src/sources/utils.ts`), and the schema reads an absent value as RUN
 (`src/worker/resolvers/media/schema.gql:266`). `partOf()` restamps the node it wraps as `CONTAINER`
-whatever it said (`src/sources/utils.ts:40`).
+whatever it said (`src/sources/utils.ts`).
 
 `seasonScopedId(id, n)` is `` `${id}-s${n}` `` (`src/sources/season.ts:189`). JustWatch and unOGS use
 different shapes, listed per row.
@@ -60,13 +60,13 @@ different shapes, listed per row.
 ### Scope facts a plugin must not re-derive
 
 - A `partOf(node)` handle **always** arrives with the node restamped CONTAINER, whatever the producer
-  set (`src/sources/utils.ts:36-40`).
+  set (`src/sources/utils.ts`).
 - The store makes scope sticky toward CONTAINER and forces imdb there
   (`src/worker/store/db.ts:92`), so a `sameAs` imdb handle from tvmaze, tvdb, trakt, omdb or simkl
   unions in the CONTAINER space, not the run space (`src/worker/store/db.ts:94`).
 - A row carrying only `uri`, `origin`, `id`, `scope` is a **placeholder** and is not stored at all
   (`IDENTITY_FIELDS`, `src/worker/store/db.ts:104-108`). Every node minted by
-  `buildHandlesFromUri` (`src/sources/utils.ts:465-471`) and every seed handle
+  `buildHandlesFromUri` (`src/sources/utils.ts`) and every seed handle
   (`offline/seed-source.ts:147-148`) is exactly that.
 
 ---
@@ -74,7 +74,7 @@ different shapes, listed per row.
 ## 2. What each source supplies for a MEDIA
 
 Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `descriptions` and
-`shortDescriptions` with the same `en` string (`src/sources/utils.ts:152-166`), so wherever
+`shortDescriptions` with the same `en` string (`src/sources/utils.ts`), so wherever
 "description" appears both fields carry it.
 
 ### jikan (`mal`), SCORE 0.9 (`jikan/extractor.ts:26`)
@@ -153,7 +153,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
   `coverType === 'Banner'` (`:48-51`).
 - **relations / franchise / offers**: none.
 - **handles it hands over**: `mal:<mal_id>` and `anilist:<anilist_id>`, both SAME_AS via the
-  `makeMedia` default (`:21-32,34-39`, `utils.ts:66`). The mappings payload also carries kitsu, anidb,
+  `makeMedia` default (`:21-32,34-39`, `utils.ts`). The mappings payload also carries kitsu, anidb,
   thetvdb, imdb and themoviedb ids (`:174-187`) and **none of those is minted**.
 - **addressability**: `supportedUris = ['anidb', 'mal']` (`:13`) but the resolver reads only the `mal`
   id out of the aggregated uri (`:120-127`). A cluster holding an anidb id and no mal id gets a
@@ -178,7 +178,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
   is `https://www.crunchyroll.com/watch/<episodeId>` (`:200`), and `cr` is one of the two origins with
   a registered player (`src/sources/players.ts:11-14`).
 - **handles it hands over**: none of its own. On the search path it rebuilds SAME_AS handles for every
-  origin already in the aggregated uri (`buildHandlesFromUri`, `:527`, `utils.ts:465-471`) - those are
+  origin already in the aggregated uri (`buildHandlesFromUri`, `:527`, `utils.ts`) - those are
   placeholders that the store does not persist. The container-lending path deliberately returns
   `handles: []` (`:434-439`).
 
@@ -513,7 +513,7 @@ the media row, or through the `Media.episodes` field resolver.
 | tvdb | `episode.number` (`tvdb/extractor.ts:138`) | none | `episode.seasonNumber` (`:137`) | one, `en` (`:134`) | **none emitted**, although `EpisodeRecord.aired` is in the type (`:50`) | yes (`:136`) | none | both, paged up to 50 pages (`:141-152`), and only kept on the media row when one season (`:169-174`) |
 | offline (seed) | `episode.number` (`offline/seed-source.ts:175`) | `absoluteEpisodeNumber` (`:180`) | `seasonNumber` (`:179`) | **multi-language**, each carrying its own `language` (`:176`) | **yes** (`:178`) | yes, with language (`:177`) | **yes** (`:181`) | inside the seeded media row (`:219`), only after the episodes asset has been read (`offline/extractor.ts:243-244`) |
 | offline (bundled) | none | none | none | none | none | none | none | the bundled half supplies no episodes (`offline/normalize.ts:160-194`) |
-| watchmode | 1 (a film's synthetic episode only) | none | none | inherited from the media (`utils.ts:119`) | none | inherited from the media's covers (`utils.ts:122`) | none | a series gets `[]` (`watchmode/extractor.ts:271`) |
+| watchmode | 1 (a film's synthetic episode only) | none | none | inherited from the media (`makeMovieEpisode`, `utils.ts`) | none | inherited from the media's covers (`makeMovieEpisode`, `utils.ts`) | none | a series gets `[]` (`watchmode/extractor.ts:271`) |
 | disney, amazon, hulu, peacock, hbo, fubo, imdb | none | none | none | none | none | none | none | never |
 
 ### Episode facts worth pulling out
@@ -530,7 +530,7 @@ the media row, or through the `Media.episodes` field resolver.
 - **Only anizip, justwatch and the offline seed emit `runtime`.**
 - A movie is modelled as a one-episode series through `makeMovieEpisode`, which copies the media's
   titles, descriptions and covers and pins `episodeNumber: 1`, because the media episodes resolver
-  drops every episode with a null `episodeNumber` (`src/sources/utils.ts:98-125`).
+  drops every episode with a null `episodeNumber` (`src/sources/utils.ts`).
 - `anizip`'s `episodeNumber` is deliberately the map KEY, not the upstream `episodeNumber`: anidb 18104
   (Mushoku Tensei season 2 part 2) has twelve episodes keyed 1 to 12 carrying `episodeNumber` 13 to 24,
   and every other source numbers that run 1 to 12 (`anizip/extractor.ts:78-96`, measured 2026-09-09).
@@ -547,7 +547,7 @@ the media row, or through the `Media.episodes` field resolver.
 | anilist | yes, `BROWSE_QUERY` with `search` and `sort: SEARCH_MATCH` (`anilist/extractor.ts:712-727`), 1 page for a search (`:373-381`) | none | no |
 | anizip | **no** `mediaPage` resolver at all (`anizip/extractor.ts:116-129`); it takes the merged default | n/a | no |
 | crunchyroll | yes (`:581-589`) | **its own, strictest gate**: `CONFIDENT_TITLE_THRESHOLD = 0.9` on `bestTitleScore` over EVERY title the cluster knows with season markers stripped by sacha, capped at `MAX_SERIES_CANDIDATES = 3` over `MAX_SEARCH_QUERIES = 4` rungs (`:366-370,470-484`); then the SEASON is decided by `pickSimilarSeason` (`:487-522`); then a containment fallback that lends a longer season's episodes without claiming identity (`:378-440`) | **yes** (`:563-570`) |
-| unogs | yes, but **films only** (`:240-243`): "`vtype` is OPTIONAL on the search payload where the detail payload requires it, so anything that is not exactly 'movie' is read as a series and refused" (`:236-239`) | `pickTitleMatch` at `TITLE_MATCH_THRESHOLD = 0.44` with a category veto (`:424-434`, `utils.ts:324,351-370`). The 0.44 was re-measured 2026-08-29 against the whole manami database, 243194 correct-match pairs against 139507 wrong-match pairs (`utils.ts:285-323`) | **yes** (`:471-477`) |
+| unogs | yes, but **films only** (`:240-243`): "`vtype` is OPTIONAL on the search payload where the detail payload requires it, so anything that is not exactly 'movie' is read as a series and refused" (`:236-239`) | `pickTitleMatch` at `TITLE_MATCH_THRESHOLD = 0.44` with a category veto (`:424-434`, `utils.ts`). The 0.44 was re-measured 2026-08-29 against the whole manami database, 243194 correct-match pairs against 139507 wrong-match pairs (`utils.ts`, above `TITLE_MATCH_THRESHOLD`) | **yes** (`:471-477`) |
 | justwatch | yes (`:761-774`), but the search query does not fetch seasons so `normalizeMedia` declines every series result and only movies come through (`:768`) | the **shared** `catalogue-gate.ts`: `rankByTitle` at `CONFIDENT_TITLE_THRESHOLD = 0.9` (`catalogue-gate.ts:98,141-156`) plus `datedLikeThisMedia`, which is `yearAppearsInShow` read at SEASON level (`:611-615`, `catalogue-gate.ts:194-201`); then `pickSimilarSeason`; a refusal falls back to `showAsContainer` (`:694-719`) | **yes** (`:748-754`) |
 | appletv | yes (`:417-424`) | the **shared** gate, plus the finer DATE axis: `pickGatedCandidate` = `rankByTitle` at 0.9 then `closestSeasonByAirDate` inside `SEASON_DATE_WINDOW = 45 days` (`catalogue-gate.ts:230,243-295`; `appletv/extractor.ts:363-382`). Measured 2026-08-30 against the real UTS endpoint: 0 of 150 anime TV titles and 0 of 120 anime films produced any candidate clearing 0.90, while a positive control ("Severance") is admitted at 1.0000 (`catalogue-gate.ts:54-63`) | **yes** (`:403-409`) |
 | paramount | **no**, `mediaPage` always yields `{ nodes: [] }` (`:86`) | n/a | no |
@@ -795,10 +795,10 @@ Reading the five tables above together:
   (`src/sources/key-configs.ts:11-47`). Each returns `undefined` from its `api` helper when the key is
   absent, so those five contribute nothing by default.
 - **Title comparison is `frizbee` with `maxTypos: Infinity`**, which turns it from a filter into a
-  scorer, taking the weaker direction of a symmetric 0..1 similarity (`utils.ts:203-260`). Season
-  markers come off through sacha's `franchiseTitle` (`utils.ts:390-411`). `stripTitle` keeps letters
+  scorer, taking the weaker direction of a symmetric 0..1 similarity (`titleSimilarity`, `utils.ts`). Season
+  markers come off through sacha's `franchiseTitle` (`utils.ts`). `stripTitle` keeps letters
   of every script, because stripping to `[a-z0-9]` reduced a Japanese title to its ASCII digits
-  (`utils.ts:176-183`).
+  (`utils.ts`).
 - **`namesADay` is the coerced-date guard** (`season.ts:197-228`): seven extractors build a date out of
   a bare year and template it as January 1 (justwatch, omdb, tmdb, tvdb, unogs twice, crunchyroll's
   show-level media), and kitsu and jikan answer `YYYY-MM-01` for a month-only date.

@@ -180,7 +180,7 @@ cluster ids too", `db.ts:259-260`), then returns `graph.cluster` in the identity
 uri's own scope (`db.ts:263`).
 Callers: `src/worker/extractor.ts:25,82,86` (through `findAggregatedMediaForContext`, which is handed
 to every extractor as `ctx.findAggregatedMedia`, `src/worker/extractor.ts:535`, and reached from
-`src/sources/utils.ts:495,501` in `waitForMedia`), `src/worker/resolvers/media/index.ts:8,199`,
+`waitForMedia` in `src/sources/utils.ts`), `src/worker/resolvers/media/index.ts:8,199`,
 `src/worker/similar-consumer.ts:18,239`, `fuzzy-merge.ts:5,648-649`, plus twelve test files and
 `scripts/measure-*.probe.ts`.
 
@@ -588,7 +588,7 @@ episode batch wakes every subscriber whether or not anything moved.
 Listeners and what they re-read:
 - `Subscription.media` (`src/worker/resolvers/media/index.ts:40,84-87`): `listenMultipleIterator(['media:changed','episode:changed'])`, then `findMediaForPage` + `aggregateMedia` on every tick.
 - `Subscription.mediaPage` (`src/worker/resolvers/media/index.ts:108,167-169`): `debouncedListenIterator(['media:changed'], 100)`, then the whole `getPage`, which itself calls `fuzzyMergeMediaClusters`, which can emit again through `linkSame*Pairs` (`db.ts:222,237,253`). It terminates because a union that already exists returns false.
-- `listenForMediaChangesForContext` (`src/worker/extractor.ts:94-104`), handed to every extractor as `ctx.listenForMediaChanges` (`src/worker/extractor.ts:536`) and consumed by `waitForMedia` (`src/sources/utils.ts:500`).
+- `listenForMediaChangesForContext` (`src/worker/extractor.ts:94-104`), handed to every extractor as `ctx.listenForMediaChanges` (`src/worker/extractor.ts:536`) and consumed by `waitForMedia` (`src/sources/utils.ts`).
 - `Subscription.origin` / `origins` (`src/worker/resolvers/origin/index.ts:31,61`).
 
 The `mediaPage` re-read has a load-bearing fallback (`src/worker/resolvers/media/index.ts:112-125`): with
@@ -753,7 +753,7 @@ an edge, never a union: the edge can be deleted, a union cannot."
 | 5 | title match | `fuzzy-merge.ts:566-573` | exact normalized equality -> accept; `differOnlyByTrailingNumber` -> skip the pair; `maxPossibleSimilarity < SIMILARITY_THRESHOLD (0.9)` -> skip; else `titleSimilarity >= 0.9` -> accept |
 
 `SIMILARITY_THRESHOLD = 0.9` (`fuzzy-merge.ts:7`). `titleSimilarity` is the frizbee wasm aligner,
-normalized by the longer string in both directions (`src/sources/utils.ts:251-260`).
+normalized by the longer string in both directions (`src/sources/utils.ts`).
 `maxPossibleSimilarity` (`fuzzy-merge.ts:365-377`) is an exact multiset upper bound that skips the wasm
 call. `differOnlyByTrailingNumber` (`fuzzy-merge.ts:389-393`) compares a trailing number as a value:
 "'yami shibai 16' and 'yami shibai 17' are two different shows and score 0.8849, while 'onii-chan!' and
@@ -817,7 +817,7 @@ row. Two invariants: every nullable field becomes `null`, never `undefined`; and
 `franchise` node-by-node.
 
 `stripTitle` / `normalizeTitle` are the other normalization, used only by the fuzzy pass
-(`src/sources/utils.ts:178-183`, `fuzzy-merge.ts:121`). `dedupeLabels` (`aggregate.ts:55-65`) normalizes
+(`src/sources/utils.ts`, `fuzzy-merge.ts:121`). `dedupeLabels` (`aggregate.ts:55-65`) normalizes
 genre and tag case at read time, keeping the highest-scored source's spelling.
 
 ---
@@ -979,7 +979,7 @@ downstream may treat it as a row this store holds" (`aggregate.ts:194-195`).
   (`:139-152`), then sorted by `popularity` when asked (`:154-161`).
 - `src/worker/extractor.ts:91`: `findAggregatedMediaForContext`, handed to every extractor as
   `ctx.findAggregatedMedia` (`src/worker/extractor.ts:535`) and polled by `waitForMedia`
-  (`src/sources/utils.ts:495,501`). Extractors read handles off it to find their own id.
+  (`src/sources/utils.ts`). Extractors read handles off it to find their own id.
 - `Media.episodes` reads `parent.handles` (`src/worker/resolvers/media/index.ts:183`), so the handle list
   the aggregate publishes is what decides which episodes are walked.
 

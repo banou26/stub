@@ -37,9 +37,9 @@ flowchart LR
 
 *Amber is a one-way door. What each claim then becomes is decided by the scopes, at [the write](/tldr/write/).*
 
-- **`sameAs`** (src/sources/utils.ts:27) is the one claim that can reach `graph.link` (src/worker/store/db.ts:193), the write with no inverse, so media welded by a wrong handle stay welded for the life of the worker.
-- **`partOf`** (src/sources/utils.ts:40) copies the node with `scope: 'CONTAINER'`, making `mediaScope !== handleScope` true, which routes the claim to a deletable edge whatever was claimed. The stamp is then sticky (src/worker/store/db.ts:142-146). It spends the recoverable failure, a missing SAME_AS, to avoid the permanent one.
-- **A bare media in `handles` becomes `sameAs`.** `isMediaHandle` is the structural test `'node' in handle` (src/sources/utils.ts:20, applied at :66), so meaning SAME_AS and forgetting to say anything are indistinguishable. The quiet default claims identity.
+- **`sameAs`** (src/sources/utils.ts) is the one claim that can reach `graph.link` (src/worker/store/db.ts:193), the write with no inverse, so media welded by a wrong handle stay welded for the life of the worker.
+- **`partOf`** (src/sources/utils.ts) copies the node with `scope: 'CONTAINER'`, making `mediaScope !== handleScope` true, which routes the claim to a deletable edge whatever was claimed. The stamp is then sticky (src/worker/store/db.ts:142-146). It spends the recoverable failure, a missing SAME_AS, to avoid the permanent one.
+- **A bare media in `handles` becomes `sameAs`.** `isMediaHandle` is the structural test `'node' in handle` (src/sources/utils.ts, applied in `makeMedia`), so meaning SAME_AS and forgetting to say anything are indistinguishable. The quiet default claims identity.
 
 Never mint a show-level id as SAME_AS. `SHOW_LEVEL_ORIGINS` is one entry, `imdb` (src/worker/store/db.ts:42), forced to CONTAINER at :92 whatever row it arrives in.
 

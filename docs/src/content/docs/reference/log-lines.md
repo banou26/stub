@@ -348,7 +348,7 @@ than failing. They are the loudest group and the least urgent.
 
 | file:line | level | template |
 | --- | --- | --- |
-| `src/sources/utils.ts:147` | error | `<label>: dropped a record that failed to normalize` plus the reason |
+| `normalizePage` in `src/sources/utils.ts` | error | `<label>: dropped a record that failed to normalize` plus the reason |
 | `src/sources/anilist/extractor.ts:304` | error | `AniList request failed (HTTP <status>): <reason>` |
 | `:307` | error | `AniList returned no data (HTTP <status>)` |
 | `:361` | error | `anilist mapper for siteId <siteId> failed:` |
@@ -370,7 +370,7 @@ than failing. They are the loudest group and the least urgent.
 
 One of these is worth reading as a pair with the comment above it.
 
-`src/sources/utils.ts:133-136`, on why one bad record prints instead of throwing:
+`src/sources/utils.ts`, above `normalizePage`, on why one bad record prints instead of throwing:
 
 > A page resolver is all-or-nothing by default: a plain `.map` throws and a `Promise.all` rejects
 > as soon as one record is malformed, so the source yields nothing and one bad entry costs the

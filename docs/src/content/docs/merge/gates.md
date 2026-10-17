@@ -516,7 +516,7 @@ bound against ani.zip's short "mushoku tensei" measures 0.389, 0.359 and 0.326 a
 runs. Which six titles survive the slice therefore decides whether JustWatch attaches at all.
 
 **The bar is one constant used twice.** `SIMILARITY_THRESHOLD = 0.9` at `:7`, read at `:570` as the
-prefilter cutoff and at `:571` as the accept bar. `titleSimilarity` (`src/sources/utils.ts:251-260`)
+prefilter cutoff and at `:571` as the accept bar. `titleSimilarity` (`src/sources/utils.ts`)
 is symmetric by construction: it takes the `Math.min` of the two directional alignment ratios, so
 `sameShow(a, b)` and `sameShow(b, a)` cannot disagree through it.
 

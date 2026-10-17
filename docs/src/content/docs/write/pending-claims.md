@@ -88,7 +88,7 @@ Three details in that paragraph decide the shape of the mechanism.
 
 **Every source rebuilds the siblings, so every source makes this claim.** Open
 `ag:(cr:G24H1N3MP,tvmaze:52279)` and each source that answers calls `buildHandlesFromUri`
-(`src/sources/utils.ts:465-471`), which mints `sameAs(makeMedia({ origin, id }))` for every sibling
+(`src/sources/utils.ts`), which mints `sameAs(makeMedia({ origin, id }))` for every sibling
 except its own. Those nodes carry an origin, an id and nothing else, so the placeholder gate at
 `db.ts:140` refuses to store them. The claim they ride on is therefore about a uri with no row, by
 construction, on every cold load of every aggregated uri.
@@ -145,7 +145,7 @@ code is narrower. `pendingClaims` closes the window where a claim names a uri wi
 id that names a show, because a described row lands immediately and the claim is applied at once. What
 stops that on the JustWatch path today is upstream, in the source: `providerContentId` refuses a
 crunchyroll id outright and the offer is demoted (`src/sources/justwatch/extractor.ts:386-391`), and
-`partOf` (`src/sources/utils.ts:40`) stamps `scope: 'CONTAINER'` on the node it copies, which turns the
+`partOf` (`src/sources/utils.ts`) stamps `scope: 'CONTAINER'` on the node it copies, which turns the
 claim into a cross-scope pair and therefore an edge. The wait and the stamp are two different guards
 against the same weld, and the source-side one is what covers a described row.
 

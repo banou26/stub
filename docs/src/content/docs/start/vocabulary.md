@@ -206,7 +206,7 @@ relation was this one."*
 :::
 
 `PART_OF` is the honest alternative when a source has only a show-level id. `partOf`
-(`src/sources/utils.ts:40`) is one line and it does two things: it wraps the node in a `PART_OF` handle
+(`src/sources/utils.ts`) is one line and it does two things: it wraps the node in a `PART_OF` handle
 **and** it stamps the copy `scope: 'CONTAINER'`, which is the next word.
 
 ## scope, run, container

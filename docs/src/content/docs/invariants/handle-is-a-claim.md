@@ -44,18 +44,18 @@ There are exactly two, `src/worker/resolvers/media/schema.gql:79-97`, and a sour
 with two one-line constructors in `src/sources/utils.ts`:
 
 ```ts
-export const sameAs = (node: GQLMedia): GQLMediaHandle => ({ node, relation: 'SAME_AS' })                                    // :27
-export const partOf = (node: GQLMedia): GQLMediaHandle => ({ node: { ...node, scope: 'CONTAINER' }, relation: 'PART_OF' })   // :40
+export const sameAs = (node: GQLMedia): GQLMediaHandle => ({ node, relation: 'SAME_AS' })
+export const partOf = (node: GQLMedia): GQLMediaHandle => ({ node: { ...node, scope: 'CONTAINER' }, relation: 'PART_OF' })
 ```
 
-`sameAs` is the default, and `src/sources/utils.ts:10-16` says why the default is the dangerous one:
+`sameAs` is the default, and `src/sources/utils.ts`, above `MediaHandleInput`, says why the default is the dangerous one:
 
 > `makeMedia({ handles: [media] })` still means what it always meant, because SAME_AS is what all 49
 > producer sites were already asserting. Only a producer that means something else has to say so, with
 > `partOf(...)`. The BREAKING half of this refactor is deliberately on the reading side, where a
 > missed site shows nothing rather than throwing.
 
-`partOf` does two things at once, and the second is easy to miss. `src/sources/utils.ts:35-38`:
+`partOf` does two things at once, and the second is easy to miss. `src/sources/utils.ts`, above `partOf`:
 
 > THIS IS THE SCOPE STAMP. A PART_OF target is by definition a container of this run, so the node goes
 > out as a copy scoped CONTAINER whatever it said, and the store then keeps it out of every run's
@@ -68,8 +68,8 @@ CONTAINER can never enter a run's identity space again, from any source, for the
 
 ```mermaid
 flowchart TD
-  A["a source builds a handle<br/><small>sameAs(node), sources/utils.ts:27</small>"] --> C
-  B["or partOf(node), sources/utils.ts:40<br/><small>a copy of the node stamped scope: 'CONTAINER'</small>"] --> C
+  A["a source builds a handle<br/><small>sameAs(node), sources/utils.ts</small>"] --> C
+  B["or partOf(node), sources/utils.ts<br/><small>a copy of the node stamped scope: 'CONTAINER'</small>"] --> C
   C["the resolver returns a Media carrying handles"] --> D{"what did this field return?<br/><small>getNamedType(info.returnType).name === 'Media'</small>"}
   D -->|"not a Media, an Episode or an Origin, or falsy: nothing is stored"| X["no write, nothing thrown"]
   D -->|"a Media, or an array of them"| E["mediaInserter.load / loadMany<br/><small>batched at 250 rows, flushed on a 50ms timer</small>"]
@@ -102,7 +102,7 @@ flowchart TD
 
 Hop by hop, with the file behind each:
 
-1. **The mint.** `sameAs` or `partOf` in `src/sources/utils.ts:27` and `:40`, or a bare media in a
+1. **The mint.** `sameAs` or `partOf` in `src/sources/utils.ts`, or a bare media in a
    handle list, which `makeMedia` silently promotes to SAME_AS.
 2. **`useOnResolve`.** `src/worker/extractor.ts:473-495`. It fires on the resolver's **return value**,
    not on the selection set: `getNamedType(info.returnType).name === 'Media'` decides, and a falsy

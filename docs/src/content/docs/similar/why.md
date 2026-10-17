@@ -74,8 +74,7 @@ The second decision is the argument. `src/sources/kitsu/extractor.ts:76-93`:
 > DROPPED never. An id this source cannot read is not a pointer at all (see `streamPointers`), and
 > every pointer is at least a link to the show the run is part of.
 
-`partOf` is where the scope stamp goes on. `src/sources/utils.ts:36-38`, above the one-line function
-at `:40`:
+`partOf` is where the scope stamp goes on. `src/sources/utils.ts`, above the one-line function:
 
 > THIS IS THE SCOPE STAMP. A PART_OF target is by definition a container of this run, so the node goes
 > out as a copy scoped CONTAINER whatever it said, and the store then keeps it out of every run's

@@ -195,7 +195,7 @@ constructed `:529-539`):
   immediately then on every `media:changed` or `episode:changed` (`src/worker/extractor.ts:94-104`).
 - `similarMedia(origin, input)` bound to the calling source (`src/worker/extractor.ts:537`).
 
-The read-back pair is used by `waitForMedia` (`src/sources/utils.ts:488-508`), whose callers are
+The read-back pair is used by `waitForMedia` (`src/sources/utils.ts`), whose callers are
 unogs (`src/sources/unogs/extractor.ts:350`, `:463`), appletv (`:230`, `:334`), tmdb (`:158`),
 crunchyroll (`:457`), justwatch (`:571`, `:637`) and tvmaze (`:168`). A source therefore BLOCKS on the
 store answering, with a 15s or 30s deadline. Any replacement must keep a read that can be awaited from
@@ -441,7 +441,7 @@ What breaks if the timing changes:
 - **`upsertEpisodes` emitting unconditionally** is a known asymmetry (`db.ts:414`): it wakes
   `Subscription.media` and every source's `listenForMediaChanges` on every episode batch, changed or
   not. A replacement that fixes this MUST check that `waitForMedia`'s seven callers still get woken
-  (`src/sources/utils.ts:500`).
+  (`src/sources/utils.ts`).
 - **Ordering between the two media events matters to `askUnasked`.** The re-ask fires from inside
   `read()` (`media/index.ts:74`), so a source whose id lands in a batch must see a `media:changed`
   AFTER that batch, not merged into one that preceded it.
@@ -692,6 +692,6 @@ Named because a redesign will break them and they are easy to miss:
 7. `media:changed` fires only when something was actually new; `episode:changed` and `origin:changed`
    fire unconditionally today (`db.ts:200`, `:414`, `:520`).
 8. The fan-out discards source payloads; the store is the only join (`extractor.ts:750-759`, `:833`).
-9. Sources can read the store back mid-resolve and block on it (`src/sources/utils.ts:488-508`).
+9. Sources can read the store back mid-resolve and block on it (`waitForMedia`, `src/sources/utils.ts`).
 10. `exportStore` publishes ASSERTED pairs only, never a fuzzy union, and never a plugin's rows
     (`export.ts:12-30`, `yoga.ts:52-62`).

@@ -167,12 +167,12 @@ page. The reason is the best paragraph in the resolver:
 
 The two mint nodes are the whole point of the ask, and they are two different promises:
 
-> `src/sources/utils.ts:24-25`
+> `src/sources/utils.ts`, above `sameAs`
 >
 > This handle names THIS run. Unions the cluster, permanently, with no inverse. The default, and the
 > only relation any producer asserted before 2026-09-04.
 
-> `src/sources/utils.ts:36-38`
+> `src/sources/utils.ts`, above `partOf`
 >
 > THIS IS THE SCOPE STAMP. A PART_OF target is by definition a container of this run, so the node goes
 > out as a copy scoped CONTAINER whatever it said, and the store then keeps it out of every run's

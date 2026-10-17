@@ -194,7 +194,7 @@ flowchart LR
 
 Eight sites, in the order the figure walks them.
 
-1. **`makeMedia`'s default**, `src/sources/utils.ts:65`: `scope: 'RUN',`. It sits above the `...fields`
+1. **`makeMedia`'s default**, `src/sources/utils.ts`: `scope: 'RUN',`. It sits above the `...fields`
    spread, so a source that says nothing is naming a run. That is what every source meant before the
    enum existed.
 2. **A source's own stamp**, one rule per module. Crunchyroll's is the clearest and is on the figure,
@@ -211,11 +211,11 @@ Eight sites, in the order the figure walks them.
 
    The full fourteen-row table of which source decides how is on
    [scopes and relations](/write/scopes-and-relations/#which-source-answers-with-which-scope).
-3. **`partOf`**, `src/sources/utils.ts:40`, which is a stamp and not only a relation:
+3. **`partOf`**, `src/sources/utils.ts`, which is a stamp and not only a relation:
    ```ts
    export const partOf = (node: GQLMedia): GQLMediaHandle => ({ node: { ...node, scope: 'CONTAINER' }, relation: 'PART_OF' })
    ```
-   `src/sources/utils.ts:36-38`:
+   `src/sources/utils.ts`, above `partOf`:
 
    > THIS IS THE SCOPE STAMP. A PART_OF target is by definition a container of this run, so the node
    > goes out as a copy scoped CONTAINER whatever it said, and the store then keeps it out of every
@@ -280,7 +280,7 @@ code and both are load bearing, so the figure above draws eight.
 Two places could stamp a scope, have an obvious value to stamp, and refuse to.
 
 **`buildHandlesFromUri`** rebuilds one bare node per sibling named in an aggregated uri and gives none
-of them a scope, `src/sources/utils.ts:458-463`:
+of them a scope, `src/sources/utils.ts`, above `buildHandlesFromUri`:
 
 > A rebuilt sibling is a BARE node, and carries no scope of the caller's. The caller has read nothing
 > about those ids, so a stamp here was a claim about rows it never saw, written onto them: a CONTAINER
@@ -293,7 +293,7 @@ Both halves of that failure are on this page already: the CONTAINER half is the 
 nobody read, and the RUN half is the race that `pendingClaims` exists for. See
 [claims that wait](/write/pending-claims/).
 
-**`episodePartOf`** (`src/sources/utils.ts:44`) is the episode form of `partOf` and stamps nothing,
+**`episodePartOf`** (`src/sources/utils.ts`) is the episode form of `partOf` and stamps nothing,
 because an `Episode` has no `scope` field. There is one episode identity space, not two, which is why
 the asymmetries on [upsertEpisodes](/write/upsert-episodes/) read the way they do.
 

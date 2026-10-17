@@ -252,7 +252,7 @@ Both constants carry their measurement.
 `EPISODE_TITLE_COVERAGE = 0.6` (`:67`) and `MIN_EPISODE_TITLE_MATCHES = 3` (`:69`). The denominator is
 `theirs.length`, the candidate's real title count, which is what makes the rule detect a fold with no
 episode count anywhere in the evidence. Every title on both sides goes through `stripTitle`
-(`src/sources/utils.ts:178-183`), which lowercases and drops punctuation while keeping letters of every
+(`src/sources/utils.ts`), which lowercases and drops punctuation while keeping letters of every
 script, and through `realTitles` (`:160-161`), which drops anything `isGenericEpisodeTitle` accepts
 (`:104-111`):
 

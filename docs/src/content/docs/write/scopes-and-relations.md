@@ -293,7 +293,7 @@ CONTAINER positively, so a uri with no row fails both.
 ## Which source answers with which scope
 
 Every row in the store carries a scope because some source decided one, or because `makeMedia`
-defaulted it. `src/sources/utils.ts:65` is that default:
+defaulted it. `src/sources/utils.ts`, in `makeMedia`, is that default:
 
 ```ts
 scope: 'RUN',
@@ -314,7 +314,7 @@ scope: 'RUN',
 | simkl | `scopeForType = type === 'tv' ? 'CONTAINER' : 'RUN'`; `imdbScopeForType = type === 'movies' ? 'RUN' : 'CONTAINER'`, so an anime film's imdb handle stays CONTAINER | `simkl/extractor.ts:117`, `:123` |
 | watchmode | `film ? 'RUN' : 'CONTAINER'`, where `film` is the title's own `slugTypeFolder === 'movie'`, never its id | `watchmode/extractor.ts:175`, `:65` |
 | anilist | RUN by default; its `similarMedia` answer is re-minted preserving `answer.scope` | `anilist/extractor.ts:250` |
-| jikan, anizip, kitsu, offline | never set `scope`, so RUN by `makeMedia`'s default | `sources/utils.ts:65` |
+| jikan, anizip, kitsu, offline | never set `scope`, so RUN by `makeMedia`'s default | `sources/utils.ts` |
 | disney, amazon, hulu, peacock, hbo, fubo, imdb | never build a media at all | |
 
 Three of those carry their reasoning, and the reasoning is the same argument each time:
@@ -357,7 +357,7 @@ threw away a container's claim about another container; scoping it routes that c
 it unions in `container:same_as` and no run sees it.
 
 The stamp `partOf` puts on its copy is the fourth producer, and it is what makes a `PART_OF` handle
-unable to reach a union by any route, `src/sources/utils.ts:36-38`:
+unable to reach a union by any route, `src/sources/utils.ts`, above `partOf`:
 
 > THIS IS THE SCOPE STAMP. A PART_OF target is by definition a container of this run, so the node goes
 > out as a copy scoped CONTAINER whatever it said, and the store then keeps it out of every run's

@@ -34,12 +34,12 @@ row that arrives second wins with no record of the first. Read
 | `SIMILARITY_THRESHOLD` | `0.9` | `src/worker/store/fuzzy-merge.ts:7` | whether two clusters already in the store are one show |
 | `SHOW_TITLE_THRESHOLD` | `0.9` | `src/sources/similar.ts:303` | whether a `similarMedia` answer names the show we asked about |
 | `EPISODE_TITLE_COVERAGE` | `0.6` | `src/sources/similar.ts:67` | the share of a candidate season's real episode titles our run must carry to be that season |
-| `TITLE_MATCH_THRESHOLD` | `0.44` | `src/sources/utils.ts:324` | whether a catalogue hit names this media at all, in `pickTitleMatch` |
+| `TITLE_MATCH_THRESHOLD` | `0.44` | `src/sources/utils.ts` | whether a catalogue hit names this media at all, in `pickTitleMatch` |
 
 `0.9` and `0.44` are on the same scale and answer different questions with it. `0.7` is on a
 different scale entirely: `searchRelevance` normalises by the QUERY length so containment saturates,
 which is why a threshold that would be permissive for identity is strict for ranking
-(`src/sources/utils.ts:262-266`).
+(`searchScore` in `src/sources/utils.ts`).
 
 ### The four 0.9s are four questions, not one
 
@@ -106,7 +106,7 @@ The other two are different questions over different inputs, which is what makes
 
 For why `0.9` and not `0.5`, and what the 4.002% floor is that no similarity number can refuse, see
 [the search gate](/sources/search-gate/). For why `0.44` survived its own justification failing, see
-[scores](/sources/scores/) and `src/sources/utils.ts:305-322`.
+[scores](/sources/scores/) and the comment above `TITLE_MATCH_THRESHOLD` in `src/sources/utils.ts`.
 
 ## Windows
 
@@ -169,7 +169,7 @@ Every window in the tree:
 | `SEASON_CANDIDATES_TTL_MS` | `10 * 60 * 1000` | `src/sources/crunchyroll/extractor.ts:319` | how long one series' season walk is reused. A currently airing season grows by one episode roughly weekly |
 | `useResponseCache` ttl | `15 * 60 * 1000` | `src/worker/extractor.ts:470` | installed on every source yoga. It hooks `onExecute` and skips subscriptions, so it is inert on this path: see [known divergences](/reference/divergences/) |
 | `SIMILAR_MEDIA_TIMEOUT_MS` | `30_000` | `src/worker/extractor.ts:198` | a backstop against a source that never yields, not a latency budget |
-| `waitForMedia` default | `timeoutMs = 15_000` | `src/sources/utils.ts:493` | how long a source waits for another source to describe the cluster |
+| `waitForMedia` default | `timeoutMs = 15_000` | `src/sources/utils.ts` | how long a source waits for another source to describe the cluster |
 | `waitForMedia` override | `30_000` | `src/sources/crunchyroll/extractor.ts:461`, `src/sources/unogs/extractor.ts:463` | the search paths wait longer, and Crunchyroll waits for a start DATE rather than a title |
 | `CONNECT_TIMEOUT_MS` | `45_000` | `src/plugins.ts:56` | the deadline on both halves of a plugin handshake, the connect and the registration |
 | `RECONNECT_DELAY_MS` | `3_000` | `src/plugins.ts:9` | multiplied by the attempt number |
@@ -326,7 +326,7 @@ Two more sets that decide things and are one entry long today:
 
 - `SHOW_LEVEL_ORIGINS` (`src/worker/store/db.ts:42`), `new Set(['imdb'])`: the origins whose ids are
   always a whole show, so `scopeOf` answers CONTAINER before any stored row is consulted.
-- `MATCH_CONFIG` (`src/sources/utils.ts:211`), `{ maxTypos: Infinity, casing: 'ignore', unicode: 'always' }`.
+- `MATCH_CONFIG` (`src/sources/utils.ts`), `{ maxTypos: Infinity, casing: 'ignore', unicode: 'always' }`.
   `maxTypos: Infinity` is what turns the matcher from a FILTER into a SCORER: at its default of 0,
   every non-containment pair collapses to zero and no threshold can be placed anywhere.
 

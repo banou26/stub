@@ -486,7 +486,7 @@ can reach and whose span still contains it.
 ## `waitForMedia`, and the two traps it sets
 
 The search path cannot run until some other source has described the cluster, because its evidence is
-that description. `waitForMedia` (`src/sources/utils.ts:489-509`) is how it waits.
+that description. `waitForMedia` (`src/sources/utils.ts`) is how it waits.
 
 ```mermaid
 sequenceDiagram

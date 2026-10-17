@@ -239,7 +239,7 @@ flowchart LR
 ```
 
 *Four walls, and the first branch is the one that makes the rest survivable: a type import is erased,
-so `src/sources/utils.ts:1` can name `ExtractorServerContext` from a module no test can open.*
+so `src/sources/utils.ts` can name `ExtractorServerContext` from a module no test can open.*
 
 The `import type` branch is not a technicality. It is why 19 test files under `tests/unit/sources/`
 value-import a real extractor and drive it: `tests/unit/sources/unogs/extractor.test.ts:12` and

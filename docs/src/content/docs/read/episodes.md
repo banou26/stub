@@ -200,7 +200,7 @@ lend arrives through the `EPISODE_SAME_AS` expansion at `db.ts:449`, and that ex
 reach an episode the `HAS_EPISODE` walk never asked for. It is not what happens: **no built-in source
 mints an episode handle at all**. Nothing under
 `src/sources/` passes `handles` to `makeEpisode`, and `episodeSameAs` and `EpisodeHandleInput`
-(`src/sources/utils.ts:83-96`) are referenced nowhere else in `src/`. So `upsertEpisodes`' handle loop
+(`src/sources/utils.ts`) are referenced nowhere else in `src/`. So `upsertEpisodes`' handle loop
 (`db.ts:409-412`) never runs on a built-in path, `graph.link(..., EPISODE_SAME_AS)` is never called,
 and `graph.cluster` falls through to its singleton branch at `graph.ts:325-327` for every episode. The
 expansion is a pass-through, and the lend arrives entirely by the other road: `episode.mediaUri`
@@ -250,13 +250,13 @@ is drawn, sorted first.
 
 This is also why one field on a synthetic movie episode is not free to be null:
 
-`src/sources/utils.ts:105-107`
+`src/sources/utils.ts`, above `makeMovieEpisode`
 
 > episodeNumber must stay 1 rather than null: the media episodes resolver drops
 > every episode with a null episodeNumber, and groups the rest by that number,
 > which is what merges one movie's per-source episodes into a single row.
 
-`makeMovieEpisode` (`src/sources/utils.ts:109-125`) sets `episodeNumber: 1` for that reason alone. A
+`makeMovieEpisode` (`src/sources/utils.ts`) sets `episodeNumber: 1` for that reason alone. A
 film is one episode because the watch route only understands episode-keyed playback, and the one
 number it carries is what lets five sources' versions of that film aggregate into one row here.
 

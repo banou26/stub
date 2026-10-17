@@ -337,7 +337,7 @@ here, `0.44` for the source-side search gate (`src/sources/utils.ts`), and `SIMI
 0.9` for the fuzzy merge (`src/worker/store/fuzzy-merge.ts:7`). This one is the cheapest of the three
 to get wrong, because it only hides a card. The 0.9 one welds two shows together forever.
 
-`searchRelevance` (`src/sources/utils.ts:282-283`) is one line:
+`searchRelevance` (`src/sources/utils.ts`) is one line:
 
 ```ts
 titles.length ? Math.max(...await Promise.all(titles.map(title => searchScore(query, title)))) : 0
@@ -348,7 +348,7 @@ against every title the aggregate carries, not the primary one, which is what le
 query find a row an English source described.
 
 `searchScore` measures containment rather than similarity, which is a different question from the one
-`titleSimilarity` answers (`utils.ts:262-266`):
+`titleSimilarity` answers (`utils.ts`, above `searchScore`):
 
 > Normalized by the QUERY length, unlike titleSimilarity which normalizes by the longer string, so this
 > measures containment and saturates: every title holding the query scores 1 and popularity breaks the tie.
@@ -356,7 +356,7 @@ query find a row an English source described.
 > letter "a", which then scored 1.0 against 841 of 903 shows, while 587 of them could not be found by their
 > own native title at all.
 
-And the saturation is asserted rather than left to the matcher (`utils.ts:272-275`):
+And the saturation is asserted rather than left to the matcher (`utils.ts`, in `searchScore`):
 
 > Containment saturates, which is the property the ranking is built on: every title holding the
 > query scores 1 so popularity breaks the tie rather than title length. It needs asserting

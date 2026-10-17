@@ -20,14 +20,14 @@ that argues each rule, and in full in [Constants](/reference/constants/).
 | --- | --- | --- | --- |
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/catalogue-gate.ts:98` | whether a JustWatch or Apple TV hit names our franchise, before a detail request is spent |
 | `CONFIDENT_TITLE_THRESHOLD` | `0.9` | `src/sources/crunchyroll/extractor.ts:366` | the same question on Crunchyroll's search path. A second declaration on purpose |
-| `TITLE_MATCH_THRESHOLD` | `0.44` | `src/sources/utils.ts:324` | `pickTitleMatch`, unOGS's own search path. Same scale as the 0.9s, different question |
-| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/worker/resolvers/media/index.ts:21` | whether a search hit stays on the page. A different scale: `searchScore` normalises by the QUERY length (`sources/utils.ts:262-266`) |
+| `TITLE_MATCH_THRESHOLD` | `0.44` | `src/sources/utils.ts` | `pickTitleMatch`, unOGS's own search path. Same scale as the 0.9s, different question |
+| `SEARCH_RELEVANCE_THRESHOLD` | `0.7` | `src/worker/resolvers/media/index.ts:21` | whether a search hit stays on the page. A different scale: `searchScore` normalises by the QUERY length (`sources/utils.ts`) |
 | `SEASON_DATE_WINDOW` | `45 * 24 * 60 * 60 * 1000` | `src/sources/catalogue-gate.ts:230` | widest gap between our start and a catalogue season's premiere. Applied at `catalogue-gate.ts:291` and `similar.ts:188` |
 | `MAX_CATALOGUE_CANDIDATES` / `MAX_SERIES_CANDIDATES` | `3` / `3` | `catalogue-gate.ts:109`, `crunchyroll/extractor.ts:369` | survivors worth a detail request each. Mirrored deliberately |
 | `MAX_SEARCH_QUERIES` | `4` | `catalogue-gate.ts:110`, `crunchyroll/extractor.ts:370` | query rungs, built from the PRIMARY title only, counting the title itself |
-| `MATCH_CONFIG` | `{ maxTypos: Infinity, casing: 'ignore', unicode: 'always' }` | `src/sources/utils.ts:211` | `maxTypos: Infinity` turns the wasm matcher from a FILTER into a SCORER. At its default of 0 every non-containment pair collapses to zero |
+| `MATCH_CONFIG` | `{ maxTypos: Infinity, casing: 'ignore', unicode: 'always' }` | `src/sources/utils.ts` | `maxTypos: Infinity` turns the wasm matcher from a FILTER into a SCORER. At its default of 0 every non-containment pair collapses to zero |
 | `SEASON_CANDIDATES_TTL_MS` | `10 * 60 * 1000` | `crunchyroll/extractor.ts:319` | how long one series' season walk is reused |
-| `waitForMedia` timeout | `15_000` default, `30_000` at every search gate | `sources/utils.ts:493`; `crunchyroll:461`, `unogs:463`, `appletv:342`, `justwatch:645` | how long a source waits for another to describe the cluster. Crunchyroll, Apple TV and JustWatch wait on a title AND a start date; unogs on a title alone |
+| `waitForMedia` timeout | `15_000` default, `30_000` at every search gate | `sources/utils.ts`; `crunchyroll:461`, `unogs:463`, `appletv:342`, `justwatch:645` | how long a source waits for another to describe the cluster. Crunchyroll, Apple TV and JustWatch wait on a title AND a start date; unogs on a title alone |
 | `SEASON_PATTERNS` | over 4159 titles: `Season N` 176, `Nth Season` 81, `第N季` 62, `第N期` 43, `Part N` 31, `S<N>` 27, `シーズンN` 11, `Cour N` 6, `N기` 1 | `src/sources/season.ts:77-80`, patterns at `:88-95` | the pattern list and its order, ordinal form first. `SEASON_MARKER` (`:108-111`) is narrower and leaves `\bS\d\b` out |
 
 ### The write path
@@ -111,7 +111,7 @@ them with the condition verbatim. Bold in the last column means the caller or th
 | K7 | `worker/extractor.ts:382` | `delivered.kind === 'timeout'` | **`declined / timeout` after 30 s**, holding one of 8 per-caller and one of 32 global slots the whole time |
 | K19 | `similar-consumer.ts:207-210` | `record.asks >= MAX_ASKS_PER_PAIR` | `settled (cap 4 reached)`: that pair is done for the session |
 | K22 vs K21 | `similar-consumer.ts:231-234`, `:227` | `result.outcome === 'refused'` against `'declined'` | **recorded differently, not merely logged differently.** `refused` adds the fingerprint so `isAsked` is true for that evidence; `declined` touches nothing and retries |
-| S21 | `sources/utils.ts:508` | falls out of the `for await` | `waitForMedia` returns `undefined` after 15 s, 30 s at the search gates. The probe must be SYNCHRONOUS |
+| S21 | `waitForMedia` in `sources/utils.ts` | falls out of the `for await` | `waitForMedia` returns `undefined` after 15 s, 30 s at the search gates. The probe must be SYNCHRONOUS |
 | S22 | `catalogue-gate.ts:286` | `if (!known.startDate) return undefined` | no date axis, no link. Refusing the whole gate rather than running it on one axis |
 | S41 | `crunchyroll/extractor.ts:111` | `if (!Array.isArray(data)) throw new Error(...)` | **one batch, up to 250 medias.** A 429 body carries no `data`; read as an empty list it is an ANSWER about the show |
 | P1 / P3 | `similar.ts:190`, `:208` | `within.length !== 1 \|\| foldVetoed(...)`; `foldVetoed(...) \|\| yearVetoed(...)` | **the pick is refused, never replaced.** A fall-through is how season 1 reached Netflix season 3 once season 1 was excluded |
@@ -138,7 +138,7 @@ Ranked by how much time getting it wrong costs. More at [known divergences](/ref
 | The 45 day sweep's ratio improves MONOTONICALLY as the window widens, so optimising it picks 180 days, which ALLOWS the entire population the rule was built for (season 1 in months 1 to 4 against season 2 in months 7 to 10) | `fuzzy-merge.ts:28-40` | picking on the ratio disables the check while making it look better |
 | An undecoded route parameter is not an error anywhere: both validators refuse `ag%3A(...)`, so the media subscription returns before asking a single source and the shell renders over nothing | `src/utils/uri.ts:152-160` | a session of measurement against pages that were never subscribed. A link built with `encodeURIComponent` is enough |
 | An error body read as an empty list WAS an answer about the show. An empty `data` is a real answer; a missing one is not | `crunchyroll/extractor.ts:104-111` | 2026-09-05: three bodies described three seasons of zero episodes, the walk refused, the cache served it for ten minutes |
-| `waitForMedia`'s probe must be SYNCHRONOUS, since a promise is always truthy | `sources/utils.ts:489-509` | an async probe never refuses and the wait always looks satisfied. Three sources carry the warning verbatim above their own probes |
+| `waitForMedia`'s probe must be SYNCHRONOUS, since a promise is always truthy | `sources/utils.ts` | an async probe never refuses and the wait always looks satisfied. Three sources carry the warning verbatim above their own probes |
 | `worker/extractor.ts:351` looks like a refusal in a diff and is not: a repeat of a question already in flight JOINS it and shares its promise | `worker/extractor.ts:345-351` | refusing it cost a real record its Crunchyroll handle, since the answer was seconds away |
 | `countOf` maps ZERO to `undefined` with `\|\|`, not `??`, on purpose: JustWatch lists a season as `0` until it airs and Apple offers no counts | `similar.ts:137` | read as a real length it defeats the FOLD veto, which is zero tolerance |
 | `null <= 11` is `true` in JavaScript, so a null-numbered episode survives the window whether or not the guard exists | `tests/unit/worker/store/consensus.test.ts:182`, the test at `:185` | a green test that passes identically with the fix deleted |

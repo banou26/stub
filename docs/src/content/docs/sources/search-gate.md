@@ -165,8 +165,8 @@ flowchart TD
 *The two date shapes are not two opinions about the same question: a year can only answer yes or no, which is why JustWatch takes the first survivor and Apple TV ranks them.*
 
 **The title axis reads every title the cluster knows, on both sides stripped of its season.**
-`bestTitleScore` (`src/sources/utils.ts:335-346`) runs `franchiseTitle` over the candidate once and
-over each known title, then takes the max. `franchiseTitle` (`src/sources/utils.ts:401-411`) is sacha's
+`bestTitleScore` (`src/sources/utils.ts`) runs `franchiseTitle` over the candidate once and
+over each known title, then takes the max. `franchiseTitle` (`src/sources/utils.ts`) is sacha's
 name parser, wrapped in a try/catch because "the parser throws rather than declining on input it
 cannot read, and a title it chokes on must cost that one comparison its season stripping, never the
 whole match".
@@ -400,7 +400,7 @@ title itself, because `searchQueries` puts it at the head of the set before slic
 (`:122-123`). So at most **three** simplified rungs are ever tried, and a title with nothing to strip
 is its own only query (`tests/unit/sources/catalogue-gate.test.ts:213-215`).
 
-The rungs come from `simplifyTitle` (`src/sources/utils.ts:431-442`), which applies four cumulative
+The rungs come from `simplifyTitle` (`src/sources/utils.ts`), which applies four cumulative
 steps in order: the decorated suffix, the season marker, the articles, everything before a colon. Each
 rung is strictly shorter than the one above it, and a rung under three characters or already seen is
 skipped. Its own comment names the two links it recovers, measured over 68 live unOGS queries with no

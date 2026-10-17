@@ -98,8 +98,8 @@ flowchart TD
 
 *Nine decisions, one rose node, and the only path that reaches it is a film's own id or a season the provider itself named.*
 
-The offer loop is `src/sources/justwatch/extractor.ts:328-400`, the scope stamp on `partOf` is
-`src/sources/utils.ts:40`, the unwrap cut is `src/worker/store/aggregate.ts:145`, and the three-way
+The offer loop is `src/sources/justwatch/extractor.ts:328-400`, the scope stamp on `partOf` is in
+`src/sources/utils.ts`, the unwrap cut is `src/worker/store/aggregate.ts:145`, and the three-way
 routing at the bottom is `src/worker/store/db.ts:187-198`. This is the whole page in one figure: every
 table below is a family of gates like these, and the tables are the reference.
 
@@ -164,9 +164,9 @@ Everything before a source is asked anything.
 | S16 | `justwatch/extractor.ts:372` | `if (!rawContentId && mappedOrigin === 'cr' && url && meta.seasonNumber == null && !meta.showContainer && policy.crossSource)` | five gates on the one cross-source call in the tree. When it does not fire the offer keeps its url and loses only the identity claim. |
 | S17 | `justwatch/extractor.ts:395` | `if (!contentId) continue` | no id, no handle: the offer is dropped entirely rather than minted without one. |
 | S18 | `justwatch/id.ts:57` | `mappedOrigin === 'cr' ? undefined : rawContentId` | Crunchyroll is refused outright, because `extractContentId` reads a cr id from `/series/` urls only, and a series id holds every run of the show and its films. The extractor demotes it to `PART_OF` itself. |
-| S19 | `sources/utils.ts:467` | `if (!parsed) return []` | `buildHandlesFromUri` on a uri that does not parse contributes no siblings. |
-| S20 | `sources/utils.ts:145` | `if (result.status === 'fulfilled') ... else console.error(...)` | `normalizePage` drops only the records that failed. A `.map` that throws, or a `Promise.all` that rejects, would cost the whole page and turn one odd upstream record into an empty feed. |
-| S21 | `sources/utils.ts:508` | falls out of the `for await` and returns `undefined` | `waitForMedia` gave up: 15 s by default, 30 s at every search-gate call site. The probe must be **synchronous**, since a promise is always truthy. |
+| S19 | `buildHandlesFromUri` in `sources/utils.ts` | `if (!parsed) return []` | `buildHandlesFromUri` on a uri that does not parse contributes no siblings. |
+| S20 | `normalizePage` in `sources/utils.ts` | `if (result.status === 'fulfilled') ... else console.error(...)` | `normalizePage` drops only the records that failed. A `.map` that throws, or a `Promise.all` that rejects, would cost the whole page and turn one odd upstream record into an empty feed. |
+| S21 | `waitForMedia` in `sources/utils.ts` | falls out of the `for await` and returns `undefined` | `waitForMedia` gave up: 15 s by default, 30 s at every search-gate call site. The probe must be **synchronous**, since a promise is always truthy. |
 
 ### The search gate
 
@@ -182,10 +182,10 @@ Every number here is measured; the calibration lives on [the search gate](/sourc
 | S27 | `catalogue-gate.ts:253` | `if (!aired) continue` | a season carrying no date cannot be the nearest one. |
 | S28 | `catalogue-gate.ts:199` | `if (year === undefined) return false` | `yearAppearsInShow` refuses an unparsable date. Anything missing is a refusal: no start date, no season years, or every season year null. |
 | S29 | `catalogue-gate.ts:159` | `if (value === null \|\| value === undefined \|\| value === '') return undefined`, then `isNaN(date.getTime())` | `parseDate` is the single place a date is admitted, and both halves refuse. |
-| S30 | `sources/utils.ts:364` | `categories?.length && candidate.categories?.length && !categories.some(category => candidate.categories!.includes(category))` | only a **disagreement** blocks: an absent category is unknown, not a veto. This is what separates "One Piece Film: Red" from a series cluster at 0.500. |
-| S31 | `sources/utils.ts:366` | `if (score < TITLE_MATCH_THRESHOLD) continue` where the constant is `0.44` (`:324`) | unOGS's own search path, a different threshold from `CONFIDENT_TITLE_THRESHOLD` and calibrated separately. |
-| S32 | `sources/utils.ts:254`, `:258`, `:270`, `:278` | `if (!normalA \|\| !normalB) return 0`, `if (!ceilingA \|\| !ceilingB) return 0`, `if (!q \|\| !t) return 0`, `if (!ceiling) return 0` | an empty string scores zero rather than matching everything. |
-| S33 | `sources/utils.ts:437` | `if (current.length < 3 \|\| seen.has(current)) continue` | a `simplifyTitle` rung that is too short or already tried is not a query. |
+| S30 | `pickTitleMatch` in `sources/utils.ts` | `categories?.length && candidate.categories?.length && !categories.some(category => candidate.categories!.includes(category))` | only a **disagreement** blocks: an absent category is unknown, not a veto. This is what separates "One Piece Film: Red" from a series cluster at 0.500. |
+| S31 | `pickTitleMatch` in `sources/utils.ts` | `if (score < TITLE_MATCH_THRESHOLD) continue` where the constant is `0.44` | unOGS's own search path, a different threshold from `CONFIDENT_TITLE_THRESHOLD` and calibrated separately. |
+| S32 | `titleSimilarity` and `searchScore` in `sources/utils.ts` | `if (!normalA \|\| !normalB) return 0`, `if (!ceilingA \|\| !ceilingB) return 0`, `if (!q \|\| !t) return 0`, `if (!ceiling) return 0` | an empty string scores zero rather than matching everything. |
+| S33 | `simplifyTitle` in `sources/utils.ts` | `if (current.length < 3 \|\| seen.has(current)) continue` | a `simplifyTitle` rung that is too short or already tried is not a query. |
 | S34 | `crunchyroll/extractor.ts:463`, `:464` | `if (!known?.startDate) return undefined`, `if (isNaN(new Date(known.startDate).getTime())) return undefined` | crunchyroll's own copy of S22, and the reason `waitForMedia` waits for the **date** and not just a title. |
 | S35 | `crunchyroll/extractor.ts:468` | `if (!primary) return undefined` | no title to build a query rung from. |
 | S36 | `crunchyroll/extractor.ts:475`, `:485`, `:519`, `:526` | `if (!items.length) continue`, `if (!scored.length) continue`, `if (!verdict) continue`, `if (!media) continue` | this rung or this candidate is out and the loop moves to the next. The first verdict wins. |

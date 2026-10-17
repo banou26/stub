@@ -114,7 +114,7 @@ is no retry inside it, which is why `askOrigins` (`src/worker/extractor.ts:825-8
 subscription rather than poking the old one.
 
 :::danger[Answer 4 is irreversible]
-`buildHandlesFromUri` (`src/sources/utils.ts:465-471`) returns one `sameAs(...)` handle per sibling
+`buildHandlesFromUri` (`src/sources/utils.ts`) returns one `sameAs(...)` handle per sibling
 the aggregated uri names. Every `SAME_AS` handle whose two ends share a scope becomes
 `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` at `src/worker/store/db.ts:193`, and
 `graph.link` (`src/worker/store/graph.ts:279-291`) is a union-find union. **There is no inverse.**
@@ -124,7 +124,7 @@ connect, neighbours, root, componentId, edge, targets, sources, cluster, cluster
 Crunchyroll search hit welds two runs together for the rest of the session.
 
 That is exactly what the gate on answer 4 is defending, and the comment on `buildHandlesFromUri`
-says the trade out loud (`src/sources/utils.ts:447-451`):
+says the trade out loud (`src/sources/utils.ts`):
 
 > SAME_AS PRESERVES TODAY'S BEHAVIOUR and is not an endorsement of it. The uri is user input: a stale
 > bookmark re-injects whatever claims it carries, and `graph.link` has no inverse. What makes that

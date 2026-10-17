@@ -240,7 +240,7 @@ in front of its own union. `upsertEpisodes` also emits `episode:changed` uncondi
 `db.ts:414`, where `upsertMedia` guards its emit on `changed` (`db.ts:200`) precisely to stay out of
 the re-read loop `tests/unit/worker/store/edge-idempotence.test.ts` exists to pin.
 
-**Nothing mints one today.** `episodeSameAs` and `episodePartOf` exist at `src/sources/utils.ts:43-44`
+**Nothing mints one today.** `episodeSameAs` and `episodePartOf` exist in `src/sources/utils.ts`
 and neither has a caller anywhere in the tree, and no `makeEpisode` call passes a `handles` list, so
 `EPISODE_SAME_AS` is a live union with no producer. The read side was built around exactly that
 absence. `db.ts:458-463`:

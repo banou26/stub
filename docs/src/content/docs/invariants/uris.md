@@ -253,7 +253,7 @@ export const fromUriEpisodeId = (uri: Uri) => ({
 })
 ```
 
-That is why the season-scoped ids above all join on a hyphen and none of them contain one internally: `cr:G24H1N3MP-GS00374452-GEVUZ8DP` has to split back to a media of `cr:G24H1N3MP-GS00374452` and an episode of `GEVUZ8DP`, and a last-hyphen split is the only rule that gets there. Sources honour the same convention when they mint a movie's single episode, at `src/sources/utils.ts:98` and `:103`.
+That is why the season-scoped ids above all join on a hyphen and none of them contain one internally: `cr:G24H1N3MP-GS00374452-GEVUZ8DP` has to split back to a media of `cr:G24H1N3MP-GS00374452` and an episode of `GEVUZ8DP`, and a last-hyphen split is the only rule that gets there. Sources honour the same convention when they mint a movie's single episode, in `makeMovieEpisode` (`src/sources/utils.ts`).
 
 ## Growing the address
 
@@ -272,9 +272,9 @@ The identity half is `matchAggregatedUris` (`uri.ts:266-275`), and it is **any s
 ## The uri is user input, and it reaches graph.link
 
 :::danger
-**A uri does not merely address rows, it asserts sameness about them.** `buildHandlesFromUri` (`src/sources/utils.ts:465-471`) turns every handle in an aggregated uri into a `SAME_AS` claim on a bare node, and a `SAME_AS` claim within one scope is a `graph.link`, which is a union-find union with **no inverse anywhere in the repo**. Four source modules call it or `mergeHandles` on the uri they were handed, across seven call sites: unogs (`extractor.ts:439`, `:457`), appletv (`:380`, `:393`), crunchyroll (`:527`) and justwatch (`:711`, `:738`). So a hand-edited address, a stale bookmark or a shared link is a write path into the store.
+**A uri does not merely address rows, it asserts sameness about them.** `buildHandlesFromUri` (`src/sources/utils.ts`) turns every handle in an aggregated uri into a `SAME_AS` claim on a bare node, and a `SAME_AS` claim within one scope is a `graph.link`, which is a union-find union with **no inverse anywhere in the repo**. Four source modules call it or `mergeHandles` on the uri they were handed, across seven call sites: unogs (`extractor.ts:439`, `:457`), appletv (`:380`, `:393`), crunchyroll (`:527`) and justwatch (`:711`, `:738`). So a hand-edited address, a stale bookmark or a shared link is a write path into the store.
 
-`src/sources/utils.ts:445-450`
+`src/sources/utils.ts`, above `buildHandlesFromUri`
 
 > Every handle an aggregated uri names, as SAME_AS, minus the caller's own origin.
 >
@@ -284,7 +284,7 @@ The only reset is `resetStore()` (`src/worker/store/db.ts:509-513`), which empti
 :::
 
 :::caution
-**The rebuilt siblings carry no scope, and that is deliberate.** A rebuilt handle is a bare node, so a `CONTAINER` caller does not stamp every sibling `CONTAINER` for good, and a `RUN` caller does not mint a `RUN` row for a show whose own row is still in flight. Scope is sticky toward `CONTAINER` in the store, so a stamp written here would be a one-way door pushed by a caller that read none of those rows (`src/sources/utils.ts:458-463`).
+**The rebuilt siblings carry no scope, and that is deliberate.** A rebuilt handle is a bare node, so a `CONTAINER` caller does not stamp every sibling `CONTAINER` for good, and a `RUN` caller does not mint a `RUN` row for a show whose own row is still in flight. Scope is sticky toward `CONTAINER` in the store, so a stamp written here would be a one-way door pushed by a caller that read none of those rows (`src/sources/utils.ts`, above `buildHandlesFromUri`).
 :::
 
 ## Where the code disagrees with the brief

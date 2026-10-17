@@ -172,7 +172,7 @@ and `episode` register one, so a uri written by both `upsertMedia` and `upsertEp
 down every source's rows in that batch. Nothing in the tree mints such a collision, because an
 episode uri suffixes its media's: `toUriEpisodeId` is
 `` `${uri}-${episodeId}` `` (`src/utils/uri.ts:277`) and `makeEpisode` follows the same convention
-(`src/sources/utils.ts:98`). The guard is still real, and it is batch-wide.
+(above `makeMovieEpisode` in `src/sources/utils.ts`). The guard is still real, and it is batch-wide.
 :::
 
 ### `EPISODE_PART_OF` is written and never read
@@ -186,7 +186,7 @@ gets an edge that nothing can observe.
 ## Nothing built-in mints an episode handle
 
 The handles loop at `db.ts:409-412` is, today, dead for every first-party source. `makeEpisode`
-(`src/sources/utils.ts:83-96`) defaults `handles` to `[]` and coerces a bare node at `:90`:
+(`src/sources/utils.ts`) defaults `handles` to `[]` and coerces a bare node:
 
 ```ts
 handles: (handles ?? []).map(handle => isEpisodeHandle(handle) ? handle : episodeSameAs(handle)),

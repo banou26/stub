@@ -288,7 +288,7 @@ Product-first 4.1 to 4.4 with:
 Product-first 5.1 to 5.4 with:
 
 - 5.1: `PluginOutput` gains `scope` (G2). The contract's idempotency sentence is "same graph, same
-  scope, same output". `PluginContext.titleSimilarity` is documented as `src/sources/utils.ts:251-260`
+  scope, same output". `PluginContext.titleSimilarity` is documented as `titleSimilarity` in `src/sources/utils.ts`
   (normalized by the longer string in both directions, weaker direction taken), never the nyaa
   matcher's (`01 case 32`).
 - 5.2: the guards in this order: `unknown-scope`, `cross-scope` (re-evaluated for active links every

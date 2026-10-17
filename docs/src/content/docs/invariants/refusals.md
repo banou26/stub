@@ -34,7 +34,7 @@ flowchart TD
   R --> K3{"3. end the generator<br/><small>!requestedUri || !(isUri(requestedUri) || isAggregatedUri(requestedUri))</small>"}
   R --> K4{"4. deliver a null payload<br/><small>!uri || !isAggregatedUri(uri)</small>"}
   R --> K5{"5. throw<br/><small>if (!Array.isArray(data)) throw new Error(...)</small>"}
-  K1 -->|"no candidate cleared both axes"| O1["the caller tests the value and carries on<br/><small>catalogue-gate.ts:286 no start date, utils.ts:508 waitForMedia timed out</small>"]
+  K1 -->|"no candidate cleared both axes"| O1["the caller tests the value and carries on<br/><small>catalogue-gate.ts:286 no start date, waitForMedia in utils.ts timed out</small>"]
   K1 -->|"a candidate: the caller uses it"| GO["the value continues"]
   K2 -->|"this row names but describes nothing"| O2["the batch survives, the other rows still land<br/><small>db.ts:140 a placeholder row, justwatch/extractor.ts:395 an offer with no content id</small>"]
   K2 -->|"a described row: it is stored"| GO
@@ -70,9 +70,9 @@ if (!known.startDate) return undefined
 ```
 
 The caller of `pickGatedCandidate` gets `undefined`, mints nothing, and the media simply never gains
-an Apple TV handle. `waitForMedia` (`src/sources/utils.ts:489-509`) refuses the same way after its
+an Apple TV handle. `waitForMedia` (`src/sources/utils.ts`) refuses the same way after its
 timeout, defaulting to 15 s and overridden to 30 s at every search-gate call site: the `for await`
-ends when the abort fires and `:508` returns `undefined`.
+ends when the abort fires and it returns `undefined`.
 
 The store uses it too. `src/worker/resolvers/media/index.ts:72`, inside `read()`:
 
@@ -126,8 +126,8 @@ series id. The other offers on that title still become handles.
 > the whole family because one entry is wrong would make a package strictly more fragile than the
 > same sources shipped separately, which is backwards.
 
-The rule generalises across three layers that never call each other. `src/sources/utils.ts:143-149`
-does it for upstream records with `Promise.allSettled` rather than a loop, and `utils.ts:131-137` is
+The rule generalises across three layers that never call each other. `normalizePage` in `src/sources/utils.ts`
+does it for upstream records with `Promise.allSettled` rather than a loop, and the comment above it is
 the same sentence again:
 
 > A page resolver is all-or-nothing by default: a plain `.map` throws and a `Promise.all` rejects
@@ -400,7 +400,7 @@ asking another source has nothing to do with a `ceiling` that it did not cause.
 |---|---|---|---|
 | `return undefined` | `sources/catalogue-gate.ts:286` | `if (!known.startDate) return undefined` | mints no handle |
 | `return undefined` | `sources/catalogue-gate.ts:249` | `if (!target) return undefined` | no nearest season, so no link |
-| `return undefined` | `sources/utils.ts:508` | the abort fired before any probe was truthy | the search path gives up |
+| `return undefined` | `waitForMedia` in `sources/utils.ts` | the abort fired before any probe was truthy | the search path gives up |
 | `return undefined` | `sources/crunchyroll/extractor.ts:231`, `:235` | `if (!seriesId)`, `if (!series)` | the resolver at `:575` coalesces it to `media: null` |
 | `return undefined` | `worker/resolvers/media/index.ts:72` | `if (!cluster.length)` | the generator yields nothing and waits |
 | `continue` | `worker/store/db.ts:140` | `if (isPlaceholder(media)) continue` | the other rows in the batch land |

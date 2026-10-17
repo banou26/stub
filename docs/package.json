@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "npm run build && npm run check-diagrams",
-    "check-diagrams": "node scripts/check-diagrams.mjs"
+    "check-diagrams": "node scripts/check-diagrams.mjs",
+    "check-citations": "node scripts/check-citations.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.1",
