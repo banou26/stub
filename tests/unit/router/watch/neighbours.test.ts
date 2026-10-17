@@ -38,10 +38,11 @@ test('before a run\'s first episode, previous is the last of the run before', ()
 const seasons = [{ number: 1, uri: 'tmdb:9-s1' }, { number: 2, uri: 'tmdb:9-s2' }, { number: 3, uri: 'tmdb:9-s3' }]
 const answersTo = (...uris: string[]) => uris.map(uri => ({ node: { uri } }))
 
-test('a show\'s run beside this one is the season beside it in its list', () => {
+// a bare `tmdb:9-s3` is answered by TMDB alone, so its episodes would carry none of the other sources' handles
+test('a show\'s run beside this one is the season beside it in its list, as a cluster', () => {
   const second = { handles: answersTo('tvdb:5', 'tmdb:9-s2'), seasons }
-  expect(adjacentRun(second, 1)).toBe('tmdb:9-s3')
-  expect(adjacentRun(second, -1)).toBe('tmdb:9-s1')
+  expect(adjacentRun(second, 1)).toBe('ag:(tmdb:9-s3)')
+  expect(adjacentRun(second, -1)).toBe('ag:(tmdb:9-s1)')
   const last = { handles: answersTo('tmdb:9-s3'), seasons, relations: [{ relation: 'SEQUEL', format: 'TV', node: { uri: 'anilist:7' } }] }
   expect(adjacentRun(last, 1), 'the last season has none, whatever else is listed').toBeUndefined()
   expect(adjacentRun({ handles: answersTo('tmdb:9-s1'), seasons }, -1)).toBeUndefined()

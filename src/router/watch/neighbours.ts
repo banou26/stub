@@ -5,6 +5,7 @@ import { bestSource, type Ways } from './auto-pick'
 import { unreleasedEpisodes } from '../home/episodes'
 import { isMovieMedia } from '../home/movie'
 import { isVideoFormat } from '../../utils/franchise-layout'
+import { asAggregatedUri } from '../../utils/uri'
 
 type Dated = Parameters<typeof unreleasedEpisodes>[0]
 
@@ -12,10 +13,10 @@ type Dated = Parameters<typeof unreleasedEpisodes>[0]
 type Run<T extends Dated['episodes'][number]> = Omit<Dated, 'episodes'> & { uri: string, episodes: readonly T[] }
 
 /**
- * The run after this one (`1`) or before it (`-1`): a show's next or previous season, else an anime's
- * sequel or prequel that plays, one of its own format first, so a TV season goes on to the next TV
- * season rather than to a recap special or a film listed beside it. Undefined for a film, and when
- * there is none.
+ * The run after this one (`1`) or before it (`-1`): a show's next or previous season as a cluster,
+ * else an anime's sequel or prequel that plays, one of its own format first, so a TV season goes on
+ * to the next TV season rather than to a recap special or a film listed beside it. Undefined for a
+ * film, and when there is none.
  */
 export const adjacentRun = (
   media: {
@@ -31,7 +32,10 @@ export const adjacentRun = (
   if (isMovieMedia(media)) return undefined
   const { handles, seasons, relations, type } = media
   const at = seasons?.findIndex(season => handles.some(handle => handle.node.uri === season.uri)) ?? -1
-  if (seasons && at >= 0) return seasons[at + step]?.uri
+  if (seasons && at >= 0) {
+    const season = seasons[at + step]
+    return season && asAggregatedUri(season.uri)
+  }
   const relation = step > 0 ? 'SEQUEL' : 'PREQUEL'
   // listed in uri order, which says nothing about which came first
   const runs = relations?.filter(edge => edge.relation === relation && isVideoFormat(edge.format)) ?? []

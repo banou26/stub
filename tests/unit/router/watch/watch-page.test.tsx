@@ -876,9 +876,10 @@ test('the last episode of a show\'s season links the first of the next season', 
     handles: [{ relation: 'SAME_AS', node: { uri: 'tmdb:9-s1' } }],
     seasons: [{ number: 1, uri: 'tmdb:9-s1' }, { number: 2, uri: 'tmdb:9-s2' }],
   }, 'cr:GX3')
-  nextRun('tmdb:9-s2')
+  nextRun('ag:(tmdb:9-s2)')
   const host = await open()
   expect(episodeLinks(host).at(-1)).toEqual(['Next episode', `${NEXT_SEASON}/cr:GY1`, 'E1 - Second season'])
+  expect(asked).toEqual(['ag:(tmdb:9-s2)'])
 })
 
 test('with no next season, or one whose first episode is not out, there is no next episode', async () => {

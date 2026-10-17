@@ -1,6 +1,8 @@
 import { css } from '@emotion/react'
 import { Link, Redirect } from 'wouter'
 
+import { asAggregatedUri } from '../utils/uri'
+
 const style = css`
   & > h2 {
     margin: 0 0 1.2rem;
@@ -33,7 +35,7 @@ const style = css`
 `
 
 /**
- * A show's seasons, each linking its own run, the one on screen marked. Nothing for one season or none.
+ * A show's seasons, each linking its own run as a cluster, the one on screen marked. Nothing for one season or none.
  * On the show's own page, where no season is on screen, it replaces the address with the first season.
  */
 const MediaSeasons = ({ seasons, currentUris, href }: {
@@ -43,13 +45,13 @@ const MediaSeasons = ({ seasons, currentUris, href }: {
   href: (uri: string) => string
 }) =>
   !seasons || seasons.length < 2 ? null
-  : !seasons.some(season => currentUris.includes(season.uri)) ? <Redirect to={href(seasons[0]!.uri)} replace/>
+  : !seasons.some(season => currentUris.includes(season.uri)) ? <Redirect to={href(asAggregatedUri(seasons[0]!.uri))} replace/>
   : (
     <section className="seasons" css={style} data-seasons>
       <h2>Seasons</h2>
       <nav>
         {seasons.map(season => (
-          <Link key={season.uri} href={href(season.uri)} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
+          <Link key={season.uri} href={href(asAggregatedUri(season.uri))} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
             Season {season.number}
           </Link>
         ))}
