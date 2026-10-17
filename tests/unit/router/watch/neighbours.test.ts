@@ -19,6 +19,12 @@ test('previous is the row before, next the row after only once it is out', () =>
   expect(names(neighbours([undefined, run('s1', undefined, undefined, undefined), undefined], 2)), 'the last row').toEqual({ previous: ['s1', 's1 E2'], next: undefined })
 })
 
+test('next is out by the time it is given, not the time it is read', () => {
+  const airing = { ...run('s1', undefined, undefined, undefined), nextAiringEpisode: { episodeNumber: 3, airingAt: '2099-01-01T14:00:00Z' } }
+  expect(names(neighbours([undefined, airing, undefined], 1, new Date('2099-01-01T13:59:30Z'))).next).toBeUndefined()
+  expect(names(neighbours([undefined, airing, undefined], 1, new Date('2099-01-01T14:00:30Z'))).next).toEqual(['s1', 's1 E3'])
+})
+
 test('an episode missing from the list has neither', () => {
   expect(names(neighbours([run('s0', undefined), three, run('s2', undefined)], -1))).toEqual({ previous: undefined, next: undefined })
 })

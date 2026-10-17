@@ -452,6 +452,24 @@ test('an episode not out yet is not linked as the next one', async () => {
   expect(episodeLinks(host).map(([label]) => label)).toEqual(['Previous episode'])
 })
 
+// only the clock is faked, so nothing but its tick draws the page again; settle has already moved it QUIET_MS
+test('the next episode is linked on the clock\'s next tick once it has aired', async () => {
+  vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+  origins = ['cr', 'nyaa']
+  series()
+  media = { ...media, nextAiringEpisode: { episodeNumber: 3, airingAt: '2026-10-16T14:00:00Z' } }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(episodeLinks(host).map(([label]) => label), 'the control: the third is not out yet').toEqual(['Previous episode'])
+
+  act(() => { vi.advanceTimersByTime(30_000 - QUIET_MS) })
+  const drawnNow = page()
+  hosts.push(drawnNow)
+  expect(episodeLinks(drawnNow).map(([label]) => label), 'the control: a page drawn now links it').toEqual(['Previous episode', 'Next episode'])
+  expect(episodeLinks(host).at(-1)).toEqual(['Next episode', watchPath(3, 'nyaa:b'), 'E3 - Title 3'])
+})
+
 test('a film\'s one episode links nothing', async () => {
   vi.useFakeTimers()
   origins = ['cr']

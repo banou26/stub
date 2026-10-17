@@ -43,17 +43,19 @@ export const adjacentRun = (
 }
 
 /**
- * The episode before the one at `index` of `run`, and the one after it once it is out, each with the
- * uri of the run it is in. Rows are in episode order, so a gap in the numbering is stepped over, and
- * past either end of `run` the neighbour is the last episode of `before` or the first of `after`.
+ * The episode before the one at `index` of `run`, and the one after it once it is out at `now`, each
+ * with the uri of the run it is in. Rows are in episode order, so a gap in the numbering is stepped
+ * over, and past either end of `run` the neighbour is the last episode of `before` or the first of
+ * `after`.
  */
 export const neighbours = <T extends Dated['episodes'][number]>(
   [before, run, after]: readonly [Run<T> | undefined, Run<T> | undefined, Run<T> | undefined],
   index: number,
+  now = new Date(),
 ) => {
   const runs = [before, run, after].filter(each => each !== undefined)
   const rows = runs.flatMap(({ uri, episodes }) => episodes.map(episode => ({ episode, mediaUri: uri })))
-  const unreleased = runs.flatMap(each => unreleasedEpisodes(each))
+  const unreleased = runs.flatMap(each => unreleasedEpisodes(each, now))
   const at = index < 0 ? -1 : index + (before?.episodes.length ?? 0)
   return {
     previous: at > 0 ? rows[at - 1] : undefined,

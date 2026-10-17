@@ -25,6 +25,7 @@ import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
+import { useNow } from '../../utils/use-now'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
@@ -500,8 +501,9 @@ const Watch = () => {
   // only a run's first or last episode has a neighbour in another run, so only there is it asked for
   const before = useRun(media && index === 0 ? adjacentRun(media, -1) : undefined)
   const after = useRun(media && index >= 0 && index === episodes.length - 1 ? adjacentRun(media, 1) : undefined)
+  const now = useNow()
   // the address's own spelling of this run, so a link inside it keeps the page's subscription
-  const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index)
+  const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index, new Date(now))
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
   const linkTo = (target: typeof next) => target?.episode.uri ? {
     href: getRoutePath(Route.WATCH, {
