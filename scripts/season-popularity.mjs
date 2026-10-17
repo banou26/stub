@@ -208,8 +208,9 @@ const cardRecord = (id, card, anilist) => ({
  * A record takes the member count, the cover and the title MyAnimeList shows for it on any season's
  * page, its English title first: the offline database and MyAnimeList file some shows a season apart.
  * A show a season's page lists that its bucket lacks is added from its card, also when another bucket
- * holds it, as the live source answers it for every season whose page lists it. An R18+ title is in
- * no season. Synopses go only to the season running now (`now`), the one the home page's hero reads.
+ * holds it, as the live source answers it for every season whose page lists it. A show MyAnimeList marks
+ * R18+ is left out, as the live source leaves it out. Synopses go only to the season running now
+ * (`now`), the one the home page's hero reads.
  *
  * A bundled record keeps its own ids. An added show carries the AniList id `anilistOf` pairs with its
  * mal id (see `anilistPairs`), so a show in two buckets names the same shows in both.
@@ -313,12 +314,12 @@ const pairing = (index, seasons) => {
  * with every other show's (see `pairing`). It joins the bundled records of its season those ids
  * name, which become one record when there are several (the offline database holds some shows as two
  * records with no id in common): the first in the bucket's order, keeping its fields and taking the
- * others' where it has none. A source's record whose ids name none is added. A show MyAnimeList marks
- * R18+ is in no season, also when a source names it by another catalogue's id only.
+ * others' where it has none. A source's record whose ids name none is added. A MyAnimeList card marked
+ * R18+ lends nothing, as the live source leaves it out, so such a show is in a season as AniList or
+ * Kitsu list it there.
  */
 const withSeasonSources = (seasons, malPages, answers, index = []) => {
   const { add, showOf } = pairing(index, seasons)
-  const adult = new Set([...malPages.values()].flatMap(page => [...page].filter(([, card]) => card.adult).map(([id]) => id)))
   const laid = {}
   for (const [key, bucket] of Object.entries(seasons)) {
     const records = [...bucket]
@@ -328,7 +329,6 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
         const ids = CATALOGUES.reduce((named, catalogue) =>
           catalogue !== own && row[catalogue] && showOf({ ...named, [catalogue]: row[catalogue] }) ? { ...named, [catalogue]: row[catalogue] } : named,
         { [own]: row[own] })
-        if (adult.has(row.ml) || adult.has(showOf(ids)?.ml)) continue
         const [found, ...others] = records.filter(candidate => CATALOGUES.some(catalogue => ids[catalogue] && candidate[catalogue] === ids[catalogue]))
         const record = found ?? { ...Object.fromEntries(Object.entries(row).filter(([field]) => !CATALOGUES.includes(field))), ...ids }
         if (!found) {
@@ -345,7 +345,8 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
       }
     }
     laid[key] = orderSeasonBucket(records.map(record => {
-      const card = malPages.get(key)?.get(record.ml)
+      const listedCard = malPages.get(key)?.get(record.ml)
+      const card = listedCard?.adult ? undefined : listedCard
       const { al, ku } = listed.get(record) ?? {}
       const pop = card?.members || al?.pop || ku?.pop || record.pop
       const p = card?.cover?.replace(COVER_PREFIX, '') || al?.p || ku?.p || record.p

@@ -332,7 +332,7 @@ test('a show in two buckets names the same shows in both', async () => {
   expect(named('2026-FALL')).toEqual(named('2026-SUMMER'))
 })
 
-test('an R18+ title is in no season, whether the offline database or MyAnimeList brings it', async () => {
+test('MyAnimeList lays no R18+ title, whether the offline database or its page brings it', async () => {
   const laid = withMalSeasons({ '2026-SUMMER': [record('Ushiro no Shoumen Kamui-san', { ml: 63468 })] }, await summerPages(), '2026-FALL')
   const listed = laid['2026-SUMMER'].map(entry => entry.ml)
 
@@ -387,7 +387,7 @@ test('the bundled seasons credit arm as well as the offline database', async () 
   expect(sources.map(source => source.name)).toEqual([expect.stringContaining('anime-offline-database'), '@kawaiioverflow/arm'])
 })
 
-test('the season data marks MyAnimeList R18+ cards, so the build leaves them out of the season', async () => {
+test('the season data marks MyAnimeList R18+ cards, so the build takes nothing from them', async () => {
   const counts = await malSeason('2026-FALL', async () => new Response(fall), 0)
 
   expect(counts.get(64131)?.adult, 'Kanojo no Tomodachi, marked R18+').toBe(true)

@@ -195,6 +195,8 @@ test('every season source\'s shows are in the bundled season, each with the coun
     ['Steel Ball Run: JoJo no Kimyou na Bouken', 247_199],
     // MyAnimeList's Summer page does not list it, so the page settles on AniList's count and title, not Kitsu's
     ['Saga of Tanya the Evil Season 2', 97_874],
+    // R18+ on MyAnimeList, ordinary on AniList
+    ['KAMUI ---He\'s behind you', 21_883],
     ['Echo', 345],
     ['BAKI-DOU: The Invincible Samurai Part 2', 195],
     ['Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!', 28],
@@ -392,36 +394,47 @@ test('a show added to one season and claimed in another names the same AniList i
   expect(laid.seasons['2026-FALL'].map(entry => [entry.ku, entry.ml, entry.al])).toEqual([[5, 63739, undefined]])
 })
 
-test('an R18+ show is in no season, whichever source brings it', async () => {
-  const { get } = sources({ mal: { '2026/summer': malPage('mal-season-summer-2026.html') }, anilist: { '2026-SUMMER': anilistSummer } })
+// Measured 2026-10-17: MyAnimeList marks these R18+ and its live source leaves them out, while AniList or
+// Kitsu list them as ordinary, so the live page shows them at AniList's count, else Kitsu's. The offline
+// database bundles some with their Kitsu id alone (I'm Dating a Dark Summoner, Kitsu 50990), and Kitsu
+// names some by their AniList id alone.
+const kanojo = { id: 211877, idMal: 64131, isAdult: false, format: 'TV_SHORT', episodes: 12, popularity: 11386, averageScore: 49,
+  title: { romaji: 'Kanojo no Tomodachi', english: 'My Girlfriend\'s Friend' }, coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx211877-yWQ2r7XmWvG6.jpg' } }
 
-  const laid = await seasonData({ '2026-SUMMER': [] }, [], { now: '2026-FALL', get, pauseMs: 0 })
-  const listed = laid.seasons['2026-SUMMER'].map(entry => entry.al ?? entry.ml)
+test('a show MyAnimeList marks R18+ is in the season at AniList\'s count, else Kitsu\'s, when either lists it', async () => {
+  const mal = { '2026/summer': malPage('mal-season-summer-2026.html'), '2026/fall': malPage('mal-season-fall-2026.html') }
+  const kitsu = { '2026-FALL': [kitsuPage([50752, 'Kanojo no Tomodachi', { 'anilist/anime': '211877' }, 'My Girlfriend\'s Friend'])] }
+  const seasons = () => ({ '2026-SUMMER': [record('Ushiro no Shoumen Kamui-san', { ml: 63468, al: 207674 })], '2026-FALL': [record('Kanojo no Tomodachi', { ku: 50752 })] })
+  const laid = async (anilist: Answers) =>
+    (await seasonData(seasons(), [], { now: '2026-FALL', rows: [[64131, 211877, 50752]], get: sources({ mal, anilist, kitsu }).get, pauseMs: 0 })).seasons
+  const kanojoIn = (fall: { ml?: number, al?: number, ku?: number, pop?: number }[]) =>
+    fall.filter(entry => entry.ku === 50752 || entry.al === 211877).map(entry => [entry.ku, entry.al, entry.ml, entry.pop])
 
-  expect(listed, 'Ushiro no Shoumen Kamui-san, R18+ on MyAnimeList and not on AniList').not.toContain(207674)
-  expect(listed, 'Onaji Zemi no Someya-san, adult on AniList').not.toContain(208685)
-  expect(listed).toContain(214068)
+  const both = await laid({ '2026-SUMMER': anilistSummer, '2026-FALL': anilistPage(kanojo) })
+  const kitsuAlone = await laid({})
+
+  expect(both['2026-SUMMER'].filter(entry => entry.al === 207674).map(entry => [entry.ml, entry.pop]), 'Kamui-san, ordinary on AniList').toEqual([[63468, 21_883]])
+  expect(kanojoIn(both['2026-FALL']), 'Kanojo no Tomodachi, its bundled Kitsu record joined to AniList\'s').toEqual([[50752, 211877, 64131, 11_386]])
+  expect(kanojoIn(kitsuAlone['2026-FALL']), 'Kanojo no Tomodachi, with Kitsu alone listing it').toEqual([[50752, undefined, undefined, 50]])
+  expect(both['2026-SUMMER'].map(entry => entry.ml), 'Shoujo Ramune, R18+ and listed by no other source').not.toContain(32587)
+  expect(both['2026-SUMMER'].map(entry => entry.al), 'Onaji Zemi no Someya-san, adult on AniList').not.toContain(208685)
 })
 
-// Kitsu often maps a show to AniList and not to MyAnimeList: Kanojo no Tomodachi (Kitsu 50752) names
-// only AniList 211877, which the trackers' index pairs with R18+ mal 64131 (Fall 2026, 2026-10-16).
-test('a show MyAnimeList marks R18+ is in no season when a source names it only by another id', async () => {
-  const kitsu = { '2026-SUMMER': [kitsuPage([301, 'Ushiro no Shoumen Kamui-san', { 'anilist/anime': '207674' }])] }
-  const mal = { '2026/summer': malPage('mal-season-summer-2026.html') }
-  const listed = async (rows: number[][]) =>
-    (await seasonData({ '2026-SUMMER': [] }, [], { now: '2026-FALL', rows, get: sources({ mal, kitsu }).get, pauseMs: 0 })).seasons['2026-SUMMER'].map(entry => entry.ku)
+test('a MyAnimeList card marked R18+ lends a record no count, title or cover', async () => {
+  const mal = { '2026/summer': malPage('mal-season-summer-2026.html'), '2026/fall': malPage('mal-season-fall-2026.html') }
+  const { get } = sources({ mal, anilist: { '2026-SUMMER': anilistSummer }, kitsu: { '2026-FALL': [kitsuPage([50752, 'Kanojo no Tomodachi', { 'myanimelist/anime': '64131' }, 'My Girlfriend\'s Friend'])] } })
+  const card = async (page: keyof typeof mal, id: number) => {
+    const { title, members, cover } = (await malSeason('2026-FALL', async () => new Response(mal[page]), 0)).get(id)!
+    return [title, members, cover?.replace('https://cdn.myanimelist.net/images/anime/', '')]
+  }
 
-  expect(await listed([[63468, 207674]]), 'the index pairs AniList 207674 with R18+ mal 63468').not.toContain(301)
-  expect(await listed([]), 'the control: no pair names its mal id').toContain(301)
-})
+  const laid = await seasonData({ '2026-SUMMER': [], '2026-FALL': [] }, [], { now: '2026-FALL', get, pauseMs: 0 })
+  const shown = (key: string, id: number) => laid.seasons[key].filter(entry => entry.ml === id).map(entry => [entry.t, entry.pop, entry.p])
 
-test('a show one season\'s page marks R18+ is in no other season either', async () => {
-  const kitsu = { '2026-FALL': [kitsuPage([302, 'Ushiro no Shoumen Kamui-san', { 'myanimelist/anime': '63468' }])] }
-  const listed = async (mal: Record<string, string>) =>
-    (await seasonData({ '2026-SUMMER': [], '2026-FALL': [] }, [], { now: '2026-FALL', get: sources({ mal, kitsu }).get, pauseMs: 0 })).seasons['2026-FALL'].map(entry => entry.ku)
-
-  expect(await listed({ '2026/summer': malPage('mal-season-summer-2026.html') })).toEqual([])
-  expect(await listed({}), 'the control: no page marks it').toEqual([302])
+  expect(shown('2026-FALL', 64131), 'Kitsu\'s').toEqual([['My Girlfriend\'s Friend', 50, '']])
+  expect(shown('2026-SUMMER', 63468), 'AniList\'s').toEqual([['KAMUI ---He\'s behind you', 21_883, 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx207674-BT8lFAwH1WrL.jpg']])
+  expect(await card('2026/fall', 64131), 'the control: the card\'s own').toEqual(['Kanojo no Tomodachi', 8068, '1413/159862l.webp'])
+  expect(await card('2026/summer', 63468), 'the control: the card\'s own').toEqual(['Ushiro no Shoumen Kamui-san', 21_060, '1071/158366l.webp'])
 })
 
 test('a season source that is down leaves the seasons as MyAnimeList alone lays them, and is asked nothing more', async () => {
