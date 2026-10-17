@@ -1,7 +1,7 @@
 // Which of a series' episodes are not out yet. No app imports, for the reason ./movie.ts gives.
 
 import { isUpcoming, releaseSide } from './movie'
-import { parseReleaseDate } from '../../utils/release-date'
+import { isDateOnly, isPartialDate, parseReleaseDate, releaseDay } from '../../utils/release-date'
 
 type DatedEpisode = { episodeNumber?: number | null, releaseDate?: string | null }
 type SourcedEpisode = DatedEpisode & { handles?: readonly { node: { releaseDate?: string | null } }[] }
@@ -86,4 +86,21 @@ export const unreleasedEpisodes = (
   const dated = media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: scheduledAt(episode, next) ?? releasedAtOf(episode) }))
   const first = firstUnreleased({ status: media.status, nextAiringEpisode: next, episodes: dated }, now)
   return dated.map(episode => isUnreleased(episode, first, now))
+}
+
+/**
+ * A film's release, the one rule the modal, the title page and the hero go by: `released` is its own day before
+ * its episode's air time, which falls on another day in some zones, but its year or month alone after it. It is
+ * out when that episode airs if that is within a day of its own day, and a year or month alone that has begun is
+ * out unless the film is known not to be.
+ */
+export const filmRelease = (
+  { startDate, status, episode }: { startDate?: string | null, status?: string | null, episode?: SourcedEpisode },
+  now = new Date()
+): { released: string | undefined, upcoming: boolean } => {
+  const own = releaseDay(startDate)
+  const airs = releasedAtOf(episode) ?? undefined
+  const released = (isPartialDate(own) ? undefined : own) ?? airs ?? own
+  const side = releaseSide(airs && !isDateOnly(airs) && withinADay(released, airs) ? airs : released, now)
+  return { released, upcoming: side === 1 || (side === 0 && isPartialDate(released) && status === 'NOT_YET_RELEASED') }
 }

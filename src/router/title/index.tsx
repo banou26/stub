@@ -18,6 +18,7 @@ import { carriedSearch } from '../debug/trace'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useTrackingSummary } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
+import { filmRelease } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
@@ -688,7 +689,9 @@ const TitlePage = () => {
   // the anime catalogues name the second title and the facts every anime has, AniList alone names relations, and
   // AniList joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
-  const facts = titleFacts(media ?? {}, {}, anime && !current?.settled)
+  // the clock at draw time: the label only turns at the release, and Play follows the tick
+  const upcoming = isMovie && filmRelease({ startDate: media!.startDate, status: media!.status, episode: media!.episodes.at(0) }).upcoming
+  const facts = titleFacts(media ?? {}, {}, anime && !current?.settled, upcoming)
   const chips = media ? titleChips(media) : []
   const ratings = ratingChips(media ?? {})
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined

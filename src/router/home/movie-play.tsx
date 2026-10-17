@@ -4,12 +4,12 @@ import { LucidePlay } from 'lucide-react'
 import { Link } from 'wouter'
 
 import SourceSelector from '../../components/source-selector'
-import { isDateOnly, isPartialDate, releaseDateLabel, releaseDay } from '../../utils/release-date'
+import { releaseDateLabel } from '../../utils/release-date'
 import { useNow } from '../../utils/use-now'
 import { getRoutePath, Route } from '../path'
-import { releasedAtOf, withinADay } from './episodes'
+import { filmRelease } from './episodes'
 import { useWatchSources } from './media-details'
-import { movieFacts, releaseSide } from './movie'
+import { movieFacts } from './movie'
 
 /**
  * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens the
@@ -28,16 +28,8 @@ const MoviePlay = (
   }
 ) => {
   const sources = useWatchSources(episode, mediaUri, handles)
-  const own = releaseDay(startDate)
-  const airs = releasedAtOf(episode)
-  // the film's own day before its episode's air time, which falls on another day in some zones, but its
-  // year or month alone after it
-  const released = (isPartialDate(own) ? undefined : own) ?? airs ?? own
   const now = useNow()
-  // out when its episode airs if that is within a day of its own day, as the title page has it
-  const side = releaseSide(airs && !isDateOnly(airs) && withinADay(released, airs) ? airs : released, new Date(now))
-  // a year or a month alone that has begun is out, unless the film is known not to be
-  const upcoming = side === 1 || (side === 0 && isPartialDate(released) && status === 'NOT_YET_RELEASED')
+  const { released, upcoming } = filmRelease({ startDate, status, episode }, new Date(now))
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined

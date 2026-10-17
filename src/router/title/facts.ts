@@ -57,9 +57,10 @@ export const ratingChips = (media: TitleMedia): string[] => media.ratings?.map(r
 
 /**
  * The labelled facts, in reading order. A fact no source gave is left out rather than shown empty, unless `held`
- * (an anime's sources still answering), where it stays with no value, its line kept.
+ * (an anime's sources still answering), where it stays with no value, its line kept. An `upcoming` start reads
+ * Releases rather than Aired.
  */
-export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, held = false): Fact[] => {
+export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, held = false, upcoming = false): Fact[] => {
   const start = releaseDateLabel(releaseDay(media.startDate), options)
   // while it airs, a source's end is the last scheduled airing
   const airing = media.status === MediaStatus.Releasing || media.status === MediaStatus.NotYetReleased
@@ -71,7 +72,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     { label: 'Episodes', value: media.episodeCount ? String(media.episodeCount) : undefined },
     { label: media.type === MediaType.Movie ? 'Length' : 'Episode length', value: media.duration ? `${media.duration} min` : undefined },
     { label: 'Status', value: statusLabel(media.status) },
-    { label: 'Aired', value: start && end && end !== start ? `${start} to ${end}` : start },
+    { label: upcoming ? 'Releases' : 'Aired', value: start && end && end !== start ? `${start} to ${end}` : start },
     { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
     { label: 'Studios', value: media.studios?.join(', ') },
     { label: 'Source', value: sourceLabel(media.sourceMaterial) },

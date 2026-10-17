@@ -20,7 +20,8 @@ import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
 import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
-import { releasedAtOf, scheduledAt, unreleasedEpisodes } from './episodes'
+import { filmRelease, releasedAtOf, scheduledAt, unreleasedEpisodes } from './episodes'
+import { isMovieMedia } from './movie'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
@@ -240,12 +241,14 @@ export const useTrackingSummary = (uri: string | undefined): Tracked => {
   return tracking && namesSameWork(tracking._id.slice('tracking:'.length), uri) ? tracking.summary : undefined
 }
 
-/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, opening that episode. Nothing while it is not out at `useNow`'s time. */
+/** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, opening that episode. Nothing while it is not out at `useNow`'s time, a film by the modal's rule. */
 export const MediaPlay = ({ media }: { media: DetailsMedia | null | undefined }) => {
   const tracked = useTrackingSummary(media?.uri)
   const now = useNow()
   if (!media) return null
-  const unreleased = unreleasedEpisodes(media, new Date(now))
+  // a film is out by the modal's rule, its own day before its episode's air time
+  const film = isMovieMedia(media) && filmRelease({ startDate: media.startDate, status: media.status, episode: media.episodes.at(0) }, new Date(now))
+  const unreleased = film ? media.episodes.map(() => film.upcoming) : unreleasedEpisodes(media, new Date(now))
   const target = playTarget(media.episodes.map((episode, index) => ({ ...episode, unreleased: unreleased[index]! })), tracked)
   return target
     ? (

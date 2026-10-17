@@ -262,6 +262,37 @@ describe('the title page', () => {
     expect(host.querySelector('.play')?.getAttribute('href')).toBe(`/watch/${airing.uri}/ag:(anilist:1-1)`)
   })
 
+  // a film with its one episode, dated as given
+  const dated = (startDate: string, releaseDate?: string) => ({
+    ...film(3),
+    startDate,
+    episodes: [{ _id: 'ep:3-1', uri: 'ag:(anilist:3-1)', origin: 'ag', id: '3-1', episodeNumber: 1, titles: [], handles: [], releaseDate }],
+  })
+
+  test('a film not out yet reads Releases and draws no Play, as the modal does', () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-17T03:00:00Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+    const out = titlePage(dated('2001-07-20').uri)
+    out.answer(dated('2001-07-20'))
+    expect(facts(out.host), 'the control: a film out reads Aired').toContain('Aired: Jul 20, 2001')
+    expect(out.host.querySelector('.play'), 'the control: and draws Play').not.toBeNull()
+    unmount(hosts.pop()!)
+
+    const { host, answer } = titlePage(dated('2027-03-05').uri)
+    answer(dated('2027-03-05'))
+    expect(facts(host)).toContain('Releases: Mar 5, 2027')
+    expect(facts(host).some(fact => fact.startsWith('Aired'))).toBe(false)
+    expect(host.querySelector('.play')).toBeNull()
+  })
+
+  test('a film whose episode is dated days from its own day is out by its own day', () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-17T03:00:00Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
+    // its own day ahead, its episode's time weeks behind it (a screening)
+    const { host, answer } = titlePage(dated('2026-12-24', '2026-10-01T12:00:00Z').uri)
+    answer(dated('2026-12-24', '2026-10-01T12:00:00Z'))
+    expect(host.querySelector('h1')!.textContent, 'the control: answered').toBe('Spirited Away')
+    expect(host.querySelector('.play')).toBeNull()
+  })
+
   test('draws no Episodes section for a film, before or after the worker answers', () => {
     const { host, answer } = titlePage(film(3).uri)
     expect(host.querySelector('[data-episodes]')).toBeNull()
