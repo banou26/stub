@@ -21,7 +21,7 @@ import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
 import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-backend'
 import { mountHiddenFrame } from '../utils/hidden-frame'
-import { createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
+import { CONNECTED_KEY, connectedSites, createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
 import { createSessionFrames } from './session-frames'
 import { rememberSignIn, siteStatuses } from './site-status'
 
@@ -71,6 +71,15 @@ const frames = createSessionFrames<PageApi>(
 const connections = createConnections(() => localStorage)
 
 export const sessionResolvers = siteSessionResolvers(frames, connections)
+
+// a site connected or disconnected in another document of this browser is read again here: the player
+// runs in the embed's own document, and its sign in connects Crunchyroll from there
+globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => {
+  if (key !== CONNECTED_KEY) return
+  const before = connectedSites(oldValue)
+  const after = connectedSites(newValue)
+  for (const site of [...before, ...after]) if (before.includes(site) !== after.includes(site)) frames.reload(site)
+})
 
 /** Opens anilist.co's sign-in page in an FKN window. Call it directly in the click handler. */
 export const signInToAniList = (): Promise<WindowSignIn> =>

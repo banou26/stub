@@ -4,13 +4,13 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { PRIME_DOMAINS, primeSignedIn } from '../../../src/sources/amazon/session'
 import { viewerIn } from '../sources/justwatch/viewer'
-import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../../src/sources/crunchyroll/session'
 
 const calls = vi.hoisted(() => ({
   clearCloudCookies: vi.fn(async (_domains: string[]) => {}),
   signInThroughWindow: vi.fn(async (_options: unknown) => 'authed' as const),
   signOutOfSite: vi.fn(async (_site: string, _backend: string) => {}),
   signOutOfCrunchyroll: vi.fn(async () => {}),
+  signInToCrunchyroll: vi.fn(async () => 'authed' as const),
   signInToMal: vi.fn(async () => 'closed' as const),
   checkCrunchyroll: vi.fn(async (_backend: string, _deps: Record<string, unknown>) => 'signed-in' as const),
   record: vi.fn((_site: string, _state: string, _now?: number) => {}),
@@ -28,6 +28,7 @@ vi.mock('../../../src/tracking/site-sessions', () => ({
   trackerSignIns: { mal: calls.signInToMal },
   signOutOfSite: calls.signOutOfSite,
   signOutOfCrunchyroll: calls.signOutOfCrunchyroll,
+  signInToCrunchyroll: calls.signInToCrunchyroll,
 }))
 
 const { attachFrame, fetch } = await import('@fkn/lib')
@@ -41,9 +42,11 @@ test("Crunchyroll's Sign out is the one that also stops its tracker reaching it"
   expect(calls.signOutOfCrunchyroll).toHaveBeenCalledTimes(1)
 })
 
-test("Crunchyroll's Sign in opens Crunchyroll's sign-in page on the same hosts", async () => {
+// its window, the tracking it turns on and what it remembers are tests/unit/tracking/site-sessions.test.ts's
+test("Crunchyroll's Sign in is the Log in of its tracker's chip, so it turns its tracking on too", async () => {
   expect(await crunchyroll.signIn()).toBe('authed')
-  expect(calls.signInThroughWindow).toHaveBeenCalledWith({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn })
+  expect(calls.signInToCrunchyroll).toHaveBeenCalledTimes(1)
+  expect(calls.signInThroughWindow).not.toHaveBeenCalled()
 })
 
 test("Prime Video's Sign out removes the cookies of every host its player reads from FKN's jar, and remembers it", async () => {
@@ -78,16 +81,6 @@ test("a tracking site's Sign in and Sign out are that site's", async () => {
   expect(calls.signInToMal).toHaveBeenCalledTimes(1)
   await sites.signOut('anilist', 'cloud')
   expect(calls.signOutOfSite).toHaveBeenCalledWith('anilist', 'cloud')
-})
-
-test('a Crunchyroll sign-in is remembered as signed in once it says authed, and not before', async () => {
-  await crunchyroll.signIn()
-  expect(calls.record.mock.calls).toEqual([['crunchyroll', 'signed-in']])
-
-  calls.record.mockClear()
-  calls.signInThroughWindow.mockResolvedValueOnce('closed' as never)
-  await crunchyroll.signIn()
-  expect(calls.record).not.toHaveBeenCalled()
 })
 
 const settled = () => new Promise(resolve => setTimeout(resolve, 0))

@@ -5,17 +5,15 @@ import { attachFrame, fetch } from '@fkn/lib'
 import { clearCloudCookies } from '../../sources/cloud-sign-out'
 import { PRIME_DOMAINS, primeSignedIn, primeSignInUrl, primeSiteFor } from '../../sources/amazon/session'
 import { viewerCountry } from '../../sources/country'
-import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL, crunchyrollSignedIn } from '../../sources/crunchyroll/session'
 import { checkCrunchyroll } from '../../sources/crunchyroll/sign-in-check'
 import { signInThroughWindow } from '../../sources/login-window'
-import { isSiteConnected, signOutOfCrunchyroll, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
+import { isSiteConnected, signInToCrunchyroll, signOutOfCrunchyroll, signOutOfSite, trackerSignIns, watchSite } from '../../tracking/site-sessions'
 import { createRefresh, rememberSignIn, siteStatuses } from '../../tracking/site-status'
 import { mountHiddenFrame } from '../../utils/hidden-frame'
 
-/** What the Accounts section reaches for Crunchyroll: the sign-in window and the cookies a sign out removes. */
+/** What the Accounts section reaches for Crunchyroll: the Log in of its tracker's chip, which turns its tracking on, and its sign out. */
 export const crunchyroll: AccountsProps['crunchyroll'] = {
-  signIn: () => signInThroughWindow({ url: CRUNCHYROLL_LOGIN_URL, domains: CRUNCHYROLL_DOMAINS, isSignedIn: crunchyrollSignedIn })
-    .then(rememberSignIn(siteStatuses, 'crunchyroll')),
+  signIn: signInToCrunchyroll,
   signOut: signOutOfCrunchyroll,
 }
 

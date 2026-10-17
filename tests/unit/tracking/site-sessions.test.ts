@@ -167,7 +167,7 @@ describe("Crunchyroll's session on this device", () => {
     expect(page.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: SESSION_PORT_MESSAGE }), 'https://www.crunchyroll.com', expect.any(Array))
   })
 
-  test('a sign in from its player or the Accounts section connects nothing: only Log in on its chip does', async () => {
+  test('a sign in stub only remembers connects nothing: one made before signing in to watch turned tracking on still asks for Log in', async () => {
     const { sessionResolvers } = await load()
     stored.set('stub.site-status', JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: 1 } }))
 
@@ -201,6 +201,31 @@ describe("Crunchyroll's session on this device", () => {
     expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'not-connected' })
     expect(stored.has('stub.site-status')).toBe(false)
   })
+})
+
+test("a site connected or disconnected in another document of this browser, as by a sign in in the player's own, is read again here, and no other site is", async () => {
+  const page = new EventTarget()
+  vi.stubGlobal('addEventListener', page.addEventListener.bind(page))
+  const { sessionResolvers } = await load()
+  const heard = { anilist: vi.fn(), mal: vi.fn(), cr: vi.fn() }
+  for (const [site, listener] of Object.entries(heard)) sessionResolvers.watch(site, listener)
+  const written = (key: string, oldValue: string | null, newValue: string) => {
+    stored.set(key, newValue)
+    page.dispatchEvent(Object.assign(new Event('storage'), { key, oldValue, newValue }))
+  }
+
+  written('stub.sessions', JSON.stringify(['anilist']), JSON.stringify(['anilist', 'cr']))
+  expect(heard.cr).toHaveBeenCalledTimes(1)
+  expect(heard.anilist).not.toHaveBeenCalled()
+
+  written('stub.sessions', JSON.stringify(['anilist', 'cr']), JSON.stringify(['cr']))
+  expect(heard.anilist).toHaveBeenCalledTimes(1)
+  expect(heard.cr).toHaveBeenCalledTimes(1)
+
+  // turning off AniList's media source, in another tab
+  written('stub.sources.disabled', JSON.stringify([]), JSON.stringify(['anilist']))
+  expect(heard.anilist).toHaveBeenCalledTimes(1)
+  expect(heard.mal).not.toHaveBeenCalled()
 })
 
 // @fkn/lib refuses a permission reason over MAX_REASON_LENGTH with a TypeError, and that refusal fails

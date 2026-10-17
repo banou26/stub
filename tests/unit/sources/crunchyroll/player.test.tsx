@@ -92,6 +92,9 @@ const signedOut = async (host: HTMLElement, label: string) => {
 
 let frame: ReturnType<typeof makeFrame>
 let open: ReturnType<typeof vi.fn>
+const stored = new Map<string, string>()
+// the trackers connected in this browser, which the app's page reads (tracking/connections.ts)
+const connected = () => JSON.parse(stored.get('stub.sessions') ?? '[]')
 
 beforeEach(() => {
   Object.defineProperty(document, 'readyState', { configurable: true, get: () => 'complete' })
@@ -102,6 +105,8 @@ beforeEach(() => {
   // the extension's plain popup, which a cloud sign-in must never reach for
   open = vi.fn(() => ({ closed: false }))
   vi.stubGlobal('open', open)
+  stored.clear()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -212,6 +217,28 @@ describe('cloud backend', () => {
     expect(frame.goto).toHaveBeenLastCalledWith(EPISODE, { waitUntil: 'commit' })
   })
 
+  // 'closed' too: a window that signed in can close before its read says so
+  for (const outcome of ['authed', 'closed', 'unsupported'] as const) {
+    test(`a sign in through the window that ends ${outcome} turns Crunchyroll's tracking on in this browser, as Log in on its chip does`, async () => {
+      const ended = Promise.withResolvers<WindowSignIn>()
+      signIn.mockReturnValue(ended.promise)
+      const host = await render()
+      ;(await signedOut(host, 'Sign in to Crunchyroll')).click()
+      expect(connected(), 'not while the window is open').toEqual([])
+
+      ended.resolve(outcome)
+      await vi.waitFor(() => expect(connected()).toEqual(['cr']))
+    })
+  }
+
+  test('a window the browser blocked turns nothing on', async () => {
+    signIn.mockResolvedValue('blocked' satisfies WindowSignIn)
+    const host = await render()
+    ;(await signedOut(host, 'Sign in to Crunchyroll')).click()
+    await vi.waitFor(() => expect(host.textContent).toContain('The login popup was blocked'))
+    expect(connected()).toEqual([])
+  })
+
   test('a window closed without signing in comes back to the sign-in button', async () => {
     signIn.mockResolvedValue('closed' satisfies WindowSignIn)
     const host = await render()
@@ -263,6 +290,27 @@ describe('extension backend', () => {
     expect(open).toHaveBeenCalledTimes(1)
     expect(open.mock.calls[0]).toEqual([expect.stringContaining('https://sso.crunchyroll.com/authorize?'), '_blank', 'width=500,height=700'])
     expect(signIn).not.toHaveBeenCalled()
+  })
+
+  test("closing the sign-in popup turns Crunchyroll's tracking on in this browser, as Log in on its chip does", async () => {
+    lib.extension = true
+    const popup = { closed: false }
+    open.mockReturnValue(popup)
+    const host = await render()
+    ;(await signedOut(host, 'Open Crunchyroll Login Page')).click()
+    expect(connected(), 'not while the popup is open').toEqual([])
+
+    popup.closed = true
+    await vi.waitFor(() => expect(connected()).toEqual(['cr']), { timeout: 2_000 })
+  })
+
+  test('a popup the browser blocked turns nothing on', async () => {
+    lib.extension = true
+    open.mockReturnValue(null)
+    const host = await render()
+    ;(await signedOut(host, 'Open Crunchyroll Login Page')).click()
+    await vi.waitFor(() => expect(host.textContent).toContain('The login popup was blocked'))
+    expect(connected()).toEqual([])
   })
 })
 

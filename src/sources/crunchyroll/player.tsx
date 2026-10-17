@@ -12,17 +12,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { tellTriedRelay } from '../../embed-relays'
 import { serveEmbedTracks } from '../../embed-tracks'
+import { createConnections } from '../../tracking/connections'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 import { checkIsLoggedIn } from './login-state'
-import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, crunchyrollSignedIn } from './session'
+import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, CRUNCHYROLL_TRACKER_ID, crunchyrollSignedIn } from './session'
 import { useCrunchyrollPictureInPicture } from './picture-in-picture'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
 import { waitForUnavailablePage } from './unavailable-page'
+
+// signing in to watch turns Crunchyroll's tracking on as Log in on its chip does (tracking/connections.ts).
+// The player runs in the embed's own document, so the app's page hears it as a storage event (tracking/site-sessions.ts)
+const connections = createConnections(() => localStorage)
 
 // leave the scrubber (`.timeline-slider`) layout-measurable so the Bitmovin-seek adapter can drive it
 const CRUNCHYROLL_OUTER_CSS = `
@@ -464,6 +469,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
     const interval = setInterval(() => {
       if (!popup.closed) return
       clearInterval(interval)
+      connections.connect(CRUNCHYROLL_TRACKER_ID)
       if (popupInterval.current === interval) popupInterval.current = null
       if (popupRef.current === popup) popupRef.current = null
       setPopupOpen(false)
@@ -486,6 +492,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
     setWindowOpen(true)
     signingIn
       .then(outcome => {
+        if (outcome !== 'blocked') connections.connect(CRUNCHYROLL_TRACKER_ID)
         if (!mounted.current) return
         if (outcome === 'blocked') {
           setPopupBlocked(true)

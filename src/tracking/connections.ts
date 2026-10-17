@@ -15,6 +15,16 @@ export type Connections = {
   disconnect: (site: string) => void
 }
 
+/** The sites a `CONNECTED_KEY` value names. */
+export const connectedSites = (raw: string | null): string[] => {
+  try {
+    const value: unknown = JSON.parse(raw ?? '[]')
+    return Array.isArray(value) ? value.filter((site): site is string => typeof site === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 /**
  * A site is CONNECTED on this device once the viewer signed in to it through stub. Until then no frame
  * is attached and nothing is sent, so a viewer who never uses the site gets no consent card for it and
@@ -29,8 +39,7 @@ export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setI
   const dropped = new Set<string>()
   const stored = (): string[] => {
     try {
-      const value: unknown = JSON.parse(storage().getItem(CONNECTED_KEY) ?? '[]')
-      return Array.isArray(value) ? value.filter((site): site is string => typeof site === 'string') : []
+      return connectedSites(storage().getItem(CONNECTED_KEY))
     } catch {
       return []
     }

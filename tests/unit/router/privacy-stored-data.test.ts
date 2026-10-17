@@ -99,6 +99,12 @@ describe('what stub keeps per viewer', () => {
     expect(byId('added-sources').what).toContain('Sources added while signed out join the list of the next FKN account signed in on this browser.')
   })
 
+  // with the extension stub offers no Crunchyroll sign out, so a sign out is not the only way it goes
+  test('names every site a sign in through stub connects, Crunchyroll included, and how its entry goes without a sign out', () => {
+    expect(byId('connected-sites').what).toContain('AniList, MyAnimeList and Crunchyroll')
+    expect(byId('connected-sites').lasts).toContain("or clear this site's data in your browser")
+  })
+
   test('the sign-in states keep no account name', () => {
     expect(byId('site-status').what).toContain('Never your name there')
   })

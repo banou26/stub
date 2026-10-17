@@ -80,9 +80,9 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'connected-sites',
     title: 'Connected tracking sites',
-    what: 'Which of AniList and MyAnimeList you signed in to through stub on this device, so stub reaches only those.',
+    what: 'Which of AniList, MyAnimeList and Crunchyroll you signed in to through stub on this device, so stub reaches only those.',
     where: LOCAL,
-    lasts: 'Until you sign out of them',
+    lasts: "Until you sign out of them, or clear this site's data in your browser",
     keys: { store: 'local', names: [CONNECTED_KEY] },
   },
   {
