@@ -1,4 +1,4 @@
-/** Where the volume and mute the viewer last left an episode player at are kept, in localStorage. */
+/** Where the volume and mute the viewer last left a player at are kept, in localStorage. */
 export const PLAYER_VOLUME_KEY = 'stub.player.volume'
 
 export type PlayerVolume = { volume: number, muted: boolean }
@@ -26,6 +26,24 @@ export const readPlayerVolume = (): PlayerVolume | undefined => {
   } catch {
     return undefined
   }
+}
+
+const writePlayerVolume = (kept: PlayerVolume) => {
+  try {
+    globalThis.localStorage.setItem(PLAYER_VOLUME_KEY, JSON.stringify(kept))
+  } catch {}
+}
+
+/**
+ * Puts the kept volume and mute on a video stub owns, and keeps every change to it until the returned function is
+ * called. No other page can reach such a video, so every change is the viewer's and none is put back.
+ */
+export const keepVideoVolume = (video: HTMLMediaElement) => {
+  const kept = readPlayerVolume()
+  if (kept) Object.assign(video, kept)
+  const keep = () => writePlayerVolume({ volume: video.volume, muted: video.muted })
+  video.addEventListener('volumechange', keep)
+  return () => video.removeEventListener('volumechange', keep)
 }
 
 export type RememberedVolume<M> = {
@@ -63,9 +81,7 @@ export const rememberPlayerVolume = <M extends VolumeMedia>(media: M): Remembere
         if (!Reflect.set(target, prop, value)) return false
         if (prop === 'volume' || prop === 'muted') {
           held = { ...(held ?? { volume: target.volume, muted: target.muted }), [prop]: value }
-          try {
-            globalThis.localStorage.setItem(PLAYER_VOLUME_KEY, JSON.stringify(held))
-          } catch {}
+          writePlayerVolume(held)
         }
         return true
       },

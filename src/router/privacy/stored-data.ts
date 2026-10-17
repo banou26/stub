@@ -133,7 +133,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'player',
     title: 'Player volume',
-    what: 'The volume you last left the episode player at, and whether it was muted, so the next episode starts the same. Speed and captions are not kept.',
+    what: 'The volume you last left a player at, and whether it was muted, so the next episode or theme starts the same. Speed and captions are not kept.',
     where: LOCAL,
     lasts: "Until you clear this site's data in your browser",
     keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },

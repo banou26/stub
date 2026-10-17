@@ -6,7 +6,7 @@ import type { FunctionComponent } from 'preact'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { PLAYER_VOLUME_KEY, readPlayerVolume, rememberPlayerVolume } from '../../../src/utils/player-volume'
+import { PLAYER_VOLUME_KEY, keepVideoVolume, readPlayerVolume, rememberPlayerVolume } from '../../../src/utils/player-volume'
 import { makeRemoteVideo, settle } from './remote-video'
 
 // Both of stub's episode players, mounted for real over a fake remote video: stub's own videojs skin
@@ -208,6 +208,40 @@ describe('rememberPlayerVolume', () => {
   })
 })
 
+// a video stub owns behaves as the handle's does here: a write lands, and `volumechange` follows as a later task
+const ownVideo = () => {
+  const { remote, video } = makeRemoteVideo()
+  return { element: remote as unknown as HTMLMediaElement, video }
+}
+
+describe('keepVideoVolume', () => {
+  test('starts a video at the kept volume and mute, and keeps every change to it until stopped', async () => {
+    storage.values.set(PLAYER_VOLUME_KEY, JSON.stringify({ volume: 0.3, muted: true }))
+    const { element, video } = ownVideo()
+    const stop = keepVideoVolume(element)
+    await settle()
+    expect(video).toEqual({ volume: 0.3, muted: true })
+
+    element.muted = false
+    await settle()
+    expect(kept()).toEqual({ volume: 0.3, muted: false })
+
+    stop()
+    element.volume = 0.8
+    await settle()
+    expect(kept()).toEqual({ volume: 0.3, muted: false })
+  })
+
+  test('plays at its defaults when the browser blocks site data', async () => {
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new DOMException('blocked', 'SecurityError') } })
+    const { element, video } = ownVideo()
+    keepVideoVolume(element)
+    element.muted = true
+    await settle()
+    expect(video).toEqual({ volume: 1, muted: true })
+  })
+})
+
 describe('a kept volume', () => {
   test.each([
     ['above 1', JSON.stringify({ volume: 1.5, muted: false })],
@@ -225,6 +259,10 @@ describe('a kept volume', () => {
     rememberPlayerVolume(remote).hold()()
     expect(remote.volume).toBe(1)
     expect(remote.muted).toBe(false)
+    const own = ownVideo()
+    keepVideoVolume(own.element)()
+    expect(own.element.volume).toBe(1)
+    expect(own.element.muted).toBe(false)
   })
 
   test('at either end of the range is used', () => {

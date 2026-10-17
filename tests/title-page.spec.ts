@@ -10,6 +10,7 @@ import { build } from 'vite-plus'
 
 import SEASONS from '../src/generated/anime-seasons'
 import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
+import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 
@@ -496,6 +497,25 @@ test('Themes lists each song, plays one at a time in the media player under its 
   expect(await overflowX(page)).toBe(0)
   await rows.nth(1).getByRole('button', { name: 'Stop' }).click()
   await expect(videos).toHaveCount(0)
+})
+
+test('a theme starts at the volume and mute last left in a player, and the next one at what was picked in it', async ({ page }) => {
+  await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
+  await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  await page.evaluate(([key, kept]) => localStorage.setItem(key!, kept!), [PLAYER_VOLUME_KEY, JSON.stringify({ volume: 0.3, muted: true })])
+  const rows = page.locator('[data-themes] li')
+  const sound = (row: Locator) => () => row.locator('video').evaluate(video => ({ volume: (video as HTMLVideoElement).volume, muted: (video as HTMLVideoElement).muted }))
+
+  await rows.nth(0).getByRole('button', { name: 'Play' }).click({ timeout: 30_000 })
+  await expect.poll(sound(rows.nth(0))).toEqual({ volume: 0.3, muted: true })
+  const mute = rows.nth(0).getByRole('button', { name: 'Mute' })
+  await expect(mute).toHaveAttribute('aria-pressed', 'true')
+
+  await mute.click()
+  await expect(mute).toHaveAttribute('aria-pressed', 'false')
+  await rows.nth(1).getByRole('button', { name: 'Play' }).click()
+  await expect.poll(sound(rows.nth(1))).toEqual({ volume: 0.3, muted: false })
 })
 
 test('the source row links the TMDB, TheTVDB and IMDb ids AniZip names', async ({ page }) => {
