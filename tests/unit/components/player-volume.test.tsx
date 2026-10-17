@@ -232,6 +232,12 @@ describe('keepVideoVolume', () => {
     expect(kept()).toEqual({ volume: 0.3, muted: false })
   })
 
+  test('keeps nothing until the video changes, so a theme never stands for a pick on an episode', async () => {
+    keepVideoVolume(ownVideo().element)
+    await settle()
+    expect(storage.values.has(PLAYER_VOLUME_KEY)).toBe(false)
+  })
+
   test('plays at its defaults when the browser blocks site data', async () => {
     Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new DOMException('blocked', 'SecurityError') } })
     const { element, video } = ownVideo()

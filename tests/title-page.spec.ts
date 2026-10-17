@@ -497,6 +497,7 @@ test('Themes lists each song, plays one at a time in the media player under its 
   expect(await overflowX(page)).toBe(0)
   await rows.nth(1).getByRole('button', { name: 'Stop' }).click()
   await expect(videos).toHaveCount(0)
+  expect(await page.evaluate(key => localStorage.getItem(key), PLAYER_VOLUME_KEY), 'nothing kept for a viewer who changed nothing').toBeNull()
 })
 
 test('a theme starts at the volume and mute last left in a player, and the next one at what was picked in it', async ({ page }) => {
