@@ -89,9 +89,9 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
 /**
  * The player inside stub's own embed iframe, as a link.
  *
- * The embed renders `<MediaPlayer expose>` (see sources/crunchyroll/cr-videojs-player.tsx and the
- * Netflix one), which serves the player to this page and nobody else; `mediaPlayer` is the other
- * half. Same origin, so the origin is this page's own.
+ * The embed serves its player with `exposePlayer` (see sources/crunchyroll/cr-videojs-player.tsx and
+ * the Netflix one), to this page and nobody else; `mediaPlayer` is the other half. Same origin, so the
+ * origin is this page's own.
  */
 export const attachPlaybackBridge = (iframe: HTMLIFrameElement): PlaybackLink => {
   const player: MediaPlayerHandle = mediaPlayer(iframe, { origin: location.origin })

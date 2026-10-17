@@ -2,6 +2,7 @@ import type { RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren, FunctionComponent } from 'preact'
 
 import { MediaPlayer } from '@banou/media-player'
+import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
 import { rememberPlayerVolume } from '../../utils/player-volume'
@@ -17,10 +18,11 @@ type Props = {
 const PrimeMediaPlayer = ({ title, remote, children }: Props) => {
   const volume = useMemo(() => (remote ? rememberPlayerVolume(remote) : null), [remote])
   useEffect(() => volume?.hold(), [volume])
+  useEffect(() => (volume ? exposePlayer(volume.served(volume.media)) : undefined), [volume])
 
   return (
     // `media` is passed even as null: its presence is what makes the player drive a media it does not own
-    <MediaPlayer expose media={volume?.media ?? null} title={title}>
+    <MediaPlayer media={volume?.media ?? null} title={title}>
       {children}
     </MediaPlayer>
   )

@@ -35,9 +35,8 @@ const MediaAttach = ({ remote, frame, adapter }: {
     const releaseVolume = volume.hold()
     setMedia(binding.media)
     // served to the page that frames this embed, stub's own watch page, and nobody else: the party's
-    // playback sync reads and moves the player through it. This is stub's videojs player rather than
-    // @banou/media-player's, so the prop that does it there is a call here.
-    const stop = exposePlayer(binding.media as unknown as Parameters<typeof exposePlayer>[0])
+    // playback sync reads and moves the player through it
+    const stop = exposePlayer(volume.served(binding.media) as unknown as Parameters<typeof exposePlayer>[0])
     return () => {
       stop()
       releaseVolume()

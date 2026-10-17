@@ -10,10 +10,10 @@ import { PLAYER_VOLUME_KEY, keepVideoVolume, readPlayerVolume, rememberPlayerVol
 import { makeRemoteVideo, settle } from './remote-video'
 
 // Both of stub's episode players, mounted for real over a fake remote video: stub's own videojs skin
-// (Netflix, bare and with its seek adapter) and @banou/media-player (Crunchyroll). Each must start an
-// episode at the volume and mute the viewer last left a player at, hold it against the page behind
-// the video, keep only what the viewer changes, and play exactly as before when storage is blocked or
-// holds junk.
+// (Netflix, bare and with its seek adapter) and @banou/media-player (Crunchyroll, Prime Video). Each
+// must start an episode at the volume and mute the viewer last left a player at, hold it against the
+// page behind the video, keep only what the viewer changes (never what the watch party writes), and
+// play exactly as before when storage is blocked or holds junk.
 
 // @banou/media-player's two CommonJS dependencies cannot reach the react alias under node (see
 // vitest.config.ts), and neither draws anything this test reads
@@ -23,9 +23,21 @@ vi.mock('lucide-react', () => Object.fromEntries(
 ))
 vi.mock('react-tooltip', () => ({ Tooltip: () => null }))
 
+// What each player serves to the watch page that frames it, whose playback sync drives it through
+// this channel. Also the module `<MediaPlayer expose>` loads, so it catches what that prop serves.
+type Served = { volume: number, muted: boolean, currentTime: number }
+const party = vi.hoisted(() => ({ served: null as Served | null }))
+vi.mock('@banou/media-player/remote', () => ({
+  exposePlayer: (media: Served) => {
+    party.served = media
+    return () => { if (party.served === media) party.served = null }
+  },
+}))
+
 const { default: Player } = await import('../../../src/components/player')
 const { default: NetflixVideoJSPlayer } = await import('../../../src/sources/unogs/nf-videojs-player')
 const { default: CrunchyrollVideoJSPlayer } = await import('../../../src/sources/crunchyroll/cr-videojs-player')
+const { default: PrimeMediaPlayer } = await import('../../../src/sources/amazon/prime-media-player')
 
 const frame = { locator: () => ({ fill: async () => {} }) } as unknown as Frame
 
@@ -60,6 +72,12 @@ const PLAYERS: PlayerUnderTest[] = [
     muteControl: mediaPlayerMute,
     showsMuted: host => mediaPlayerMute(host)?.getAttribute('aria-pressed') === 'true',
   },
+  {
+    name: '@banou/media-player (Prime Video)',
+    Component: PrimeMediaPlayer,
+    muteControl: mediaPlayerMute,
+    showsMuted: host => mediaPlayerMute(host)?.getAttribute('aria-pressed') === 'true',
+  },
 ]
 
 const memoryStorage = () => {
@@ -73,8 +91,8 @@ const memoryStorage = () => {
 }
 
 const hosts: HTMLElement[] = []
-const play = (Component: FunctionComponent<{ remote: RemoteVideoElement | null, frame: Frame | null }>, remote: RemoteVideoElement) => {
-  const host = mount(<Component remote={remote} frame={frame}/>)
+const play = (Component: FunctionComponent<{ remote: RemoteVideoElement | null, frame: Frame | null }>, remote: RemoteVideoElement, inFrame = frame) => {
+  const host = mount(<Component remote={remote} frame={inFrame}/>)
   hosts.push(host)
   return host
 }
@@ -85,6 +103,7 @@ const kept = () => JSON.parse(storage.values.get(PLAYER_VOLUME_KEY) ?? 'null')
 beforeEach(() => {
   storage = memoryStorage()
   vi.stubGlobal('localStorage', storage)
+  party.served = null
 })
 afterEach(() => {
   close()
@@ -133,6 +152,42 @@ for (const { name, Component, muteControl, showsMuted } of PLAYERS) {
       await vi.waitFor(() => expect(showsMuted(nextHost)).toBe(true))
     })
 
+    test('holds a volume and mute the watch party writes for the episode, and keeps none of it', async () => {
+      storage.values.set(PLAYER_VOLUME_KEY, JSON.stringify({ volume: 0.5, muted: false }))
+      const { remote, video } = makeRemoteVideo()
+      const host = play(Component, remote)
+      await vi.waitFor(() => expect(party.served, 'the player is served to the watch page').toBeTruthy())
+      await vi.waitFor(() => expect(video.volume, 'the kept volume reached the video').toBe(0.5))
+
+      party.served!.volume = 0.2
+      // the party's autoplay, for a follower whose browser refuses to start the sound
+      party.served!.muted = true
+      await settle()
+
+      expect(video, 'the follower plays as the party set it, and the kept volume does not undo it').toEqual({ volume: 0.2, muted: true })
+      expect(kept(), 'the next episode starts as the viewer left it').toEqual({ volume: 0.5, muted: false })
+      await vi.waitFor(() => expect(showsMuted(host)).toBe(true))
+    })
+
+    test('keeps the viewer\'s own mute made after the watch party wrote one', async () => {
+      const { remote, video } = makeRemoteVideo()
+      const host = play(Component, remote)
+      await vi.waitFor(() => expect(party.served).toBeTruthy())
+      party.served!.muted = true
+      await settle()
+      expect(kept()).toBeNull()
+      await vi.waitFor(() => expect(showsMuted(host)).toBe(true))
+
+      muteControl(host)!.click()
+      await settle()
+      expect(kept(), 'the viewer\'s unmute').toEqual({ volume: 1, muted: false })
+      muteControl(host)!.click()
+      await settle()
+
+      expect(video.muted).toBe(true)
+      expect(kept(), 'the viewer\'s mute').toEqual({ volume: 1, muted: true })
+    })
+
     test('stops holding and keeping once the episode is closed', async () => {
       const { remote, video, setByPage } = makeRemoteVideo()
       const host = play(Component, remote)
@@ -169,6 +224,31 @@ for (const { name, Component, muteControl, showsMuted } of PLAYERS) {
     })
   })
 }
+
+describe('a seek the watch party writes', () => {
+  test('moves Crunchyroll\'s own scrubber, as its controls do', async () => {
+    const { remote } = makeRemoteVideo()
+    const evaluate = vi.fn(async () => {})
+    play(CrunchyrollVideoJSPlayer, remote, { ...frame, evaluate } as unknown as Frame)
+    await vi.waitFor(() => expect(party.served).toBeTruthy())
+
+    party.served!.currentTime = 100
+
+    expect(evaluate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ time: 100 }))
+    expect(remote.currentTime).toBe(100)
+  })
+
+  test('goes through Netflix\'s timeline rather than a write on its video, as its controls do', async () => {
+    const { remote } = makeRemoteVideo()
+    play(NetflixVideoJSPlayer, remote)
+    await vi.waitFor(() => expect(party.served).toBeTruthy())
+
+    party.served!.currentTime = 100
+
+    expect(party.served!.currentTime, 'the seek is taken').toBe(100)
+    expect(remote.currentTime).toBe(0)
+  })
+})
 
 describe('rememberPlayerVolume', () => {
   test('keeps a volume written through its media, and puts it back over the page\'s', async () => {

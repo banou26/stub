@@ -49,18 +49,25 @@ export const keepVideoVolume = (video: HTMLMediaElement) => {
 export type RememberedVolume<M> = {
   /** The media for the player's controls to drive: a volume or mute written through it is the viewer's, and is kept. */
   media: M
-  /** Puts the kept volume and mute on the media, and puts what the viewer picked back whenever anything else changes it, until the returned function is called. */
+  /**
+   * `driven`, which is `media` or a wrapper around it, for the page that frames the player to drive through
+   * `exposePlayer`: a volume or mute written through it is held for the episode, and never kept.
+   */
+  served: <D extends object>(driven: D) => D
+  /** Puts the kept volume and mute on the media, and puts what is held back whenever anything else changes it, until the returned function is called. */
   hold: () => () => void
 }
 
 /**
  * The volume and mute the viewer picks, held on `media` for the whole episode and kept for the next.
  *
- * Only a write through the returned `media` is the viewer's. The page behind a remote video can change
- * the volume on its own after stub restored the kept one, as Crunchyroll's player does, and the
- * `volumechange` that brings it here looks like any other, so a change that does not match what the
- * viewer picked is put back rather than kept. With storage blocked or empty, nothing is held until the
- * viewer picks something, and the media keeps its own defaults.
+ * Only a write through the returned `media` is the viewer's. One through `served` is the watch party's,
+ * such as the mute it falls back to when a follower's browser refuses to start the sound, and is held
+ * like the viewer's without being kept. The page behind a remote video can change the volume on its own
+ * after stub restored the kept one, as Crunchyroll's player does, and the `volumechange` that brings it
+ * here looks like any other, so a change that does not match what is held is put back rather than kept.
+ * With storage blocked or empty, nothing is held until the viewer picks something, and the media keeps
+ * its own defaults.
  *
  * Video.js v10 keeps no preference itself (videojs/v10#944) and its "Remember user preferences" guide
  * leaves storage to the app. This works on the media rather than on a player store so one function
@@ -70,6 +77,7 @@ export type RememberedVolume<M> = {
  */
 export const rememberPlayerVolume = <M extends VolumeMedia>(media: M): RememberedVolume<M> => {
   let held: PlayerVolume | undefined
+  let byViewer = true
   const restore = () => {
     if (!held) return
     if (media.volume !== held.volume) media.volume = held.volume
@@ -81,9 +89,20 @@ export const rememberPlayerVolume = <M extends VolumeMedia>(media: M): Remembere
         if (!Reflect.set(target, prop, value)) return false
         if (prop === 'volume' || prop === 'muted') {
           held = { ...(held ?? { volume: target.volume, muted: target.muted }), [prop]: value }
-          writePlayerVolume(held)
+          if (byViewer) writePlayerVolume(held)
         }
         return true
+      },
+    }),
+    // a write through any wrapper reaches the trap above synchronously, so the flag covers that write alone
+    served: driven => new Proxy(driven, {
+      set: (target, prop, value) => {
+        byViewer = false
+        try {
+          return Reflect.set(target, prop, value)
+        } finally {
+          byViewer = true
+        }
       },
     }),
     hold: () => {

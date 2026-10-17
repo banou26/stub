@@ -3,6 +3,7 @@ import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren, FunctionComponent } from 'preact'
 
 import { MediaPlayer } from '@banou/media-player'
+import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
 import { rememberPlayerVolume } from '../../utils/player-volume'
@@ -32,12 +33,12 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
     () => (volume && frame ? withTimelineSeek(volume.media, frame) : null),
     [volume, frame],
   )
+  // served to the page that frames this embed, which is stub's own watch page: the party's playback
+  // sync reads and moves the player through it, and a document nobody frames serves nobody
+  useEffect(() => (volume && media ? exposePlayer(volume.served(media)) : undefined), [volume, media])
 
   return (
     <MediaPlayer
-      // served to the page that frames this embed, which is stub's own watch page: the party's playback
-      // sync reads and moves the player through it, and a document nobody frames serves nobody
-      expose
       // Always pass the key, even as null. Its PRESENCE is what selects the arm that drives a media
       // it does not own; spreading it conditionally would fall through to the local arm, which draws
       // an idle <video> over the Crunchyroll frame below.
