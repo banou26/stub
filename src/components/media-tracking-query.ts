@@ -7,7 +7,7 @@ import { useMutation } from 'urql'
 import { gql } from '../generated'
 import { namesSameWork } from '../router/home/modal-media'
 
-/** One media's tracking. Its own module, so media-details.tsx and the watch page read it without loading the tracking panel. */
+/** One media's tracking. Its own module, so media-details.tsx reads it without loading the tracking panel. */
 export const MEDIA_TRACKING = gql(`
   subscription MediaTracking($input: TrackingInput!) {
     tracking(input: $input) {

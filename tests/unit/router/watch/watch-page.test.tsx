@@ -31,6 +31,7 @@ let party = { status: 'idle' }
 let backend = 'cloud'
 let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
 let tracking: object | undefined
+let storage: object | undefined
 const saved: object[] = []
 // a save answers once this settles, so a test can keep one in flight
 let held: Promise<unknown> = Promise.resolve()
@@ -39,12 +40,13 @@ const stored = new Map<string, string>()
 vi.mock('urql', async () => {
   const { useRef } = await import('preact/hooks')
   return {
-    useSubscription: ({ query, variables, pause }: { query: Parameters<typeof print>[0], variables: { input: { uri?: string, ids?: string[] } }, pause?: boolean }) => {
+    useSubscription: ({ query, variables, pause }: { query: Parameters<typeof print>[0], variables?: { input: { uri?: string, ids?: string[] } }, pause?: boolean }) => {
       // as urql does, the last answer stays while paused, or while a new uri has none yet
       const last = useRef<object>({})
       const printed = print(query)
       if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking } }]
-      const { uri, ids } = variables.input
+      if (printed.includes('subscription StubTrackerStorage')) return [{ data: !pause && storage ? { stubTrackerStorage: storage } : undefined }]
+      const { uri, ids } = variables!.input
       if (uri === undefined) return [{ data: origins && { originPage: { nodes: origins.filter(id => ids?.includes(id)).map(id => ({ id, name: id })) } } }]
       if (uri === params.mediaUri) watchQuery = printed
       else if (!pause && !asked.includes(uri)) asked.push(uri)
@@ -63,7 +65,9 @@ vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParam
 vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
 vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
-vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } } }))
+vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } }, recordTrackerAnswers: () => {} }))
+vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
+vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
 type Report = { paused: boolean, ended?: boolean, time?: number }
 // each player the page attaches, which a test makes report as a person or the browser would; with
 // `greets`, a new listener hears the last report at once, after dispose too, as the real link does
@@ -119,7 +123,8 @@ vi.mock('../../../../src/embed-relays', () => ({
   },
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Check', 'ChevronLeft', 'ChevronRight', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,
@@ -128,6 +133,7 @@ vi.stubGlobal('localStorage', {
 })
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
+const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
 const { QUIET_MS } = await import('../../../../src/router/watch/auto-pick')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
@@ -158,6 +164,7 @@ afterEach(() => {
   bridge.links = []
   bridge.greets = false
   tracking = undefined
+  storage = undefined
   saved.length = 0
   held = Promise.resolve()
 })
@@ -833,6 +840,344 @@ test('a save waiting behind one in flight goes to the media it was due on, thoug
 test('the control: one waiting while the media gains ids goes to the grown uri', async () => {
   const GROWN = 'ag:(anilist:1,mal:1,tvdb:1)'
   expect(await moveWhileSaving(GROWN)).toEqual([[SERIES, 2], [GROWN, 3]])
+})
+
+const listedAt = (progress: number) => ({
+  summary: { status: 'WATCHING', progress },
+  disagreements: [],
+  answers: [{ state: 'LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true }, entry: { status: 'WATCHING', progress } }],
+})
+const more = async (host: HTMLElement) => {
+  await act(async () => { host.querySelector<HTMLButtonElement>('.watch-info button[aria-label="One episode more"]')!.click() })
+}
+const type = async (host: HTMLElement, value: string) => {
+  const input = host.querySelector<HTMLInputElement>('.watch-info #compact-progress')!
+  await act(async () => { Object.assign(input, { value }).dispatchEvent(new Event('input', { bubbles: true })) })
+  await wait(1000)
+}
+const progresses = () => (saved as { entry: { progress: number } }[]).map(({ entry }) => entry.progress)
+
+test('the tracking row sits with the episode\'s title, under the player, and saves to the media playing', async () => {
+  tracking = listedAt(1)
+  const { host } = await atTheEnd()
+  const info = host.querySelector('.watch-info')!
+  expect(info.querySelector('.episode-row .tracking-compact')).not.toBeNull()
+  expect(host.querySelector('.player-container .tracking-compact')).toBeNull()
+  await more(host)
+  await wait(1000)
+  expect(saved).toEqual([expect.objectContaining({ uri: SERIES, trackers: ['stub'], entry: { progress: 2 } })])
+})
+
+test('a + on the row and the automatic update at 85% on the same episode send one save, waiting or in flight', async () => {
+  tracking = listedAt(1)
+  const { host } = await atTheEnd()
+  await more(host)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(saved, 'the + still waiting').toEqual([expect.objectContaining({ entry: { progress: 2 } })])
+
+  unmount(hosts.pop()!)
+  saved.length = 0
+  bridge.links = []
+  const second = await atTheEnd()
+  let land = () => {}
+  held = new Promise<void>(resolve => { land = resolve })
+  await more(second.host)
+  await wait(1000)
+  await report({ paused: false, time: 900 })
+  await act(async () => {
+    land()
+    await vi.advanceTimersByTimeAsync(1000)
+  })
+  expect(saved, 'the + in flight').toEqual([expect.objectContaining({ entry: { progress: 2 } })])
+})
+
+test('on a move to another media, the row waits for its details rather than offering the one before', async () => {
+  const first = params.mediaUri
+  try {
+    tracking = listedAt(1)
+    const { host, rerender } = await atTheEnd()
+    const plus = () => host.querySelector<HTMLButtonElement>('.watch-info button[aria-label="One episode more"]')!
+    expect(plus().disabled, 'the control').toBe(false)
+    // the subscription still holds the media before, as urql keeps it until the new one answers
+    params = { ...params, mediaUri: 'ag:(anilist:9)' }
+    media = undefined as unknown as object
+    rerender()
+    await settle()
+    expect(plus().disabled).toBe(true)
+  } finally {
+    params = { ...params, mediaUri: first }
+  }
+})
+
+test('a number typed on the row while the automatic save is in flight goes once that one has landed', async () => {
+  tracking = listedAt(1)
+  const { host } = await atTheEnd()
+  let land = () => {}
+  held = new Promise<void>(resolve => { land = resolve })
+  await report({ paused: false, time: 900 })
+  const input = host.querySelector<HTMLInputElement>('.watch-info #compact-progress')!
+  await act(async () => { Object.assign(input, { value: '5' }).dispatchEvent(new Event('input', { bubbles: true })) })
+  await act(async () => { input.dispatchEvent(new Event('blur')) })
+  await wait(1000)
+  expect(progresses()).toEqual([2])
+  await act(async () => {
+    land()
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  expect(progresses()).toEqual([2, 5])
+})
+
+test('a progress corrected down still lets the episode count at 85%, and one lowered after it counted stays lowered', async () => {
+  tracking = listedAt(1)
+  const { host, rerender } = await atTheEnd()
+  const reread = async (progress: number) => {
+    tracking = listedAt(progress)
+    rerender()
+    await settle()
+  }
+  await type(host, '3')
+  await reread(3)
+  await type(host, '1')
+  await reread(1)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(progresses()).toEqual([3, 1, 2])
+  await reread(2)
+  await type(host, '1')
+  await reread(1)
+  await report({ paused: false, time: 950 })
+  await wait(1000)
+  expect(progresses()).toEqual([3, 1, 2, 1])
+})
+
+test('a film marked Watched and unmarked is still Completed once watched, and unmarked after that stays so', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  media = { ...single, type: 'MOVIE' }
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const film = (status: string, progress: number) => ({
+    summary: { status, progress },
+    disagreements: [],
+    answers: [{ state: 'LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true }, entry: { status, progress } }],
+  })
+  tracking = film('PLANNING', 0)
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  const toggle = async () => {
+    await act(async () => { host.querySelector<HTMLButtonElement>('.watch-info button.watched')!.click() })
+    await wait(0)
+  }
+  const reread = async (status: string, progress: number) => {
+    tracking = film(status, progress)
+    act(() => { render(tree(), host) })
+    await settle()
+  }
+  await toggle()
+  await reread('COMPLETED', 1)
+  await toggle()
+  await reread('PLANNING', 0)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  const entries = () => (saved as { entry: object }[]).map(({ entry }) => entry)
+  expect(entries()).toEqual([{ progress: 1, status: 'COMPLETED' }, { progress: 0, status: 'PLANNING' }, { status: 'COMPLETED', progress: 1 }])
+  await reread('COMPLETED', 1)
+  await toggle()
+  await reread('PLANNING', 0)
+  await report({ paused: false, time: 950 })
+  await wait(1000)
+  expect(entries().slice(3)).toEqual([{ progress: 0, status: 'PLANNING' }])
+})
+
+test('a + early in the episode, the episode watched, then lowered, stays lowered', async () => {
+  tracking = listedAt(1)
+  const { host, rerender } = await atTheEnd()
+  const reread = async (progress: number) => {
+    tracking = listedAt(progress)
+    rerender()
+    await settle()
+  }
+  await more(host)
+  await wait(1000)
+  await reread(2)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(progresses(), 'the control: the + alone').toEqual([2])
+  await type(host, '1')
+  await reread(1)
+  await wait(1000)
+  expect(progresses()).toEqual([2, 1])
+})
+
+test('a film marked Watched at the start, watched, then unmarked, stays unmarked', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  media = { ...single, type: 'MOVIE' }
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const film = (status: string, progress: number) => ({
+    summary: { status, progress },
+    disagreements: [],
+    answers: [{ state: 'LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true }, entry: { status, progress } }],
+  })
+  tracking = film('PLANNING', 0)
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  const toggle = async () => {
+    await act(async () => { host.querySelector<HTMLButtonElement>('.watch-info button.watched')!.click() })
+    await wait(0)
+  }
+  const reread = async (status: string, progress: number) => {
+    tracking = film(status, progress)
+    act(() => { render(tree(), host) })
+    await settle()
+  }
+  await toggle()
+  await reread('COMPLETED', 1)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  await toggle()
+  await reread('PLANNING', 0)
+  await wait(1000)
+  expect((saved as { entry: object }[]).map(({ entry }) => entry)).toEqual([{ progress: 1, status: 'COMPLETED' }, { progress: 0, status: 'PLANNING' }])
+})
+
+const goTo = async (rerender: () => void, n: number) => {
+  params = { ...params, episodeUri: `ag:(anilist:1-${n})`, sourceUri: `cr:GX${n}` }
+  rerender()
+  await settle()
+}
+
+test('episodes counted, lowered, then watched again, count again', async () => {
+  tracking = listedAt(1)
+  const { host, rerender } = await atTheEnd()
+  const reread = async (progress: number) => {
+    tracking = listedAt(progress)
+    rerender()
+    await settle()
+  }
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  await reread(2)
+  await goTo(rerender, 3)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  await reread(3)
+  await type(host, '1')
+  await reread(1)
+  await goTo(rerender, 2)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  await reread(2)
+  await goTo(rerender, 3)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(progresses()).toEqual([2, 3, 1, 2, 3])
+})
+
+test('a + taken off a tracker by unchecking it, then checked again, still gets the episode watched', async () => {
+  tracking = {
+    summary: { status: 'WATCHING', progress: 1 },
+    disagreements: [],
+    answers: [
+      { state: 'LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true }, entry: { status: 'WATCHING', progress: 1 } },
+      { state: 'LISTED', candidates: [], tracker: { id: 'anilist', name: 'AniList', canWrite: true }, entry: { status: 'WATCHING', progress: 1 } },
+    ],
+  }
+  const { host } = await atTheEnd()
+  const check = () => host.querySelector<HTMLInputElement>('.watch-info input[name="compact-target-anilist"]')!
+  const flip = async (on: boolean) => {
+    await act(async () => {
+      check().checked = on
+      check().dispatchEvent(new Event('change', { bubbles: true }))
+    })
+  }
+  await more(host)
+  await flip(false)
+  await wait(1000)
+  const trackers = () => (saved as { trackers: string[] }[]).map(({ trackers }) => trackers)
+  expect(trackers(), 'the control: the + went to Stub alone').toEqual([['stub']])
+  await flip(true)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(trackers()).toEqual([['stub'], ['anilist']])
+})
+
+test('Completed picked on the row, then 85% before the trackers re-read, writes no progress after it', async () => {
+  tracking = listedAt(1)
+  const { host } = await atTheEnd()
+  const select = host.querySelector<HTMLSelectElement>('.watch-info select[name="compact-status"]')!
+  Object.defineProperty(select, 'value', { value: 'COMPLETED', configurable: true })
+  await act(async () => { select.dispatchEvent(new Event('change', { bubbles: true })) })
+  await wait(0)
+  const entries = () => (saved as { entry: object }[]).map(({ entry }) => entry)
+  expect(entries(), 'the control').toEqual([{ status: 'COMPLETED' }])
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(entries()).toEqual([{ status: 'COMPLETED' }])
+})
+
+const crunchyrollAt = (progress: number) => ({
+  summary: { status: null, progress },
+  disagreements: [],
+  answers: [{ state: 'LISTED', candidates: [], tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'] }, entry: { status: null, progress } }],
+})
+
+test('on Crunchyroll, + + then 85% on the episode they reach is two saves in order, and + then 85% on a later one the + then the episode', async () => {
+  tracking = crunchyrollAt(1)
+  const { host, rerender } = await atTheEnd()
+  await goTo(rerender, 3)
+  await more(host)
+  await more(host)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(progresses()).toEqual([2, 3])
+  unmount(hosts.pop()!)
+  saved.length = 0
+  bridge.links = []
+  tracking = crunchyrollAt(1)
+  const second = await atTheEnd()
+  await goTo(second.rerender, 3)
+  await more(second.host)
+  await report({ paused: false, time: 900 })
+  await wait(1000)
+  expect(progresses()).toEqual([2, 3])
+})
+
+test('on Crunchyroll, + + while the 85% update is in flight are each a save of their own after it, in order', async () => {
+  tracking = crunchyrollAt(1)
+  const { host, rerender } = await atTheEnd()
+  await goTo(rerender, 3)
+  let land = () => {}
+  held = new Promise<void>(resolve => { land = resolve })
+  await report({ paused: false, time: 900 })
+  await more(host)
+  await more(host)
+  await wait(1000)
+  expect(progresses(), 'the update in flight').toEqual([3])
+  await act(async () => {
+    land()
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  await wait(0)
+  await wait(0)
+  expect(progresses()).toEqual([3, 2, 3])
+})
+
+test('the watch page\'s row brings no line about stub\'s own list', async () => {
+  storage = { location: 'ACCOUNT', signedIn: true, locked: false, waiting: true, held: 0 }
+  tracking = listedAt(1)
+  const { host } = await atTheEnd()
+  expect(host.querySelector('.watch-info .tracking-compact'), 'the control: the row is drawn').not.toBeNull()
+  expect(host.querySelector('.stub-list-notice')).toBeNull()
+  const elsewhere = mount(<MediaTracking work={SERIES} address={SERIES} uri={SERIES}/>)
+  hosts.push(elsewhere)
+  expect(elsewhere.querySelector('.stub-list-notice')?.textContent, 'the control: the same row elsewhere has it').toBe('Stub: some changes have not reached your FKN account yet.')
 })
 
 const SEQUEL = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:2', uri: 'anilist:2' } }

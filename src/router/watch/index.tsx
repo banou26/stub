@@ -17,7 +17,7 @@ import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
-import { useMediaKey } from '../../components/media-tracking-query'
+import MediaTracking from '../../components/media-tracking'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { siteStatuses, type StatusSite } from '../../tracking/site-status'
@@ -32,7 +32,6 @@ import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import { useResume } from './resume'
-import TrackWatched from './track-watched'
 import UpNext from './up-next'
 
 /**
@@ -228,6 +227,15 @@ const style = css`
     }
   }
 
+  .tracking {
+    flex: 1 1 36rem;
+    min-width: 0;
+
+    .tracking-compact {
+      margin-top: 0;
+    }
+  }
+
   .episode-nav {
     display: flex;
     gap: 0.8rem;
@@ -272,14 +280,13 @@ const Watch = () => {
   const [playback, setPlayback] = useState<{ link: PlaybackLink, sourceUri?: string }>()
   const [tracksLink, setTracksLink] = useState<TracksLink | undefined>(undefined)
 
-  const [{ data }] = useSubscription({
+  const [watchMedia] = useSubscription({
     query: GET_WATCH_MEDIA,
     variables: { input: { uri: params.mediaUri } },
     pause: !params.mediaUri
   })
 
-  const media = data?.media
-  const tracked = useMediaKey(media?.uri)
+  const media = watchMedia.data?.media
   const episode = useMemo(
     () =>
       media?.episodes?.find(ep =>
@@ -565,21 +572,21 @@ const Watch = () => {
                 </nav>
               )
               : undefined}
-          </div>
-          {media?.uri
-            ? (
-              <TrackWatched
-                key={tracked}
-                link={playbackLink}
-                uri={media.uri}
-                episode={episodeNumber}
-                movie={isMovieMedia(media)}
+            <div className="tracking">
+              <MediaTracking
+                work={params.mediaUri}
+                address={params.mediaUri}
+                uri={currentMedia(watchMedia, params.mediaUri)?.uri}
                 title={mediaTitle}
-                cover={media.covers?.at(0)?.url}
-                episodeCount={media.episodeCount}
+                cover={media?.covers?.at(0)?.url}
+                episodeCount={media?.episodeCount}
+                movie={media ? isMovieMedia(media) : false}
+                notice={false}
+                link={playbackLink}
+                episode={episodeNumber}
               />
-            )
-            : undefined}
+            </div>
+          </div>
 
           <SourceSelector
             sources={sources}

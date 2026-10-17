@@ -25,7 +25,7 @@ afterEach(() => {
 })
 
 type Report = { paused?: boolean, time: number, ended?: boolean, duration?: number }
-// a player as the watch page hears it, as in track-watched.test.tsx; `duration` only where the player says how long it is
+// a player as the watch page hears it, as in components/media-tracking-watched.test.tsx; `duration` only where the player says how long it is
 const fakeLink = (duration?: number) => {
   const listeners = new Set<(state: PlaybackState) => void>()
   let ended = false

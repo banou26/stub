@@ -598,6 +598,27 @@ test('the watch page links the episodes either side beside the title, Back retur
   expect((await outside()).every(Boolean)).toBe(true)
 })
 
+// the page is as tall as the window and the player takes what the rest leaves, so a line of its own
+// would come off the player
+test('the watch page\'s tracking row sits on the title\'s line at 1920 px, and under it at 390 px', async ({ page }) => {
+  await openModal(page)
+  await page.goto(`${origin}${await modal(page).locator('a.episode-link').nth(1).getAttribute('href')}`)
+  const row = page.locator('.watch-info .tracking-compact')
+  const info = page.locator('.episode-info')
+  const nav = page.locator('.episode-nav')
+  await expect(row).toBeVisible({ timeout: 30_000 })
+  await expect(nav.getByRole('link', { name: 'Next episode' })).toBeVisible({ timeout: 30_000 })
+  const box = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
+
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  expect((await box(row)).top).toBeLessThan((await box(info)).bottom)
+  expect((await box(row)).left).toBeGreaterThanOrEqual((await box(nav)).right)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect((await box(row)).top).toBeGreaterThanOrEqual((await box(nav)).bottom)
+  expect(await overflowX(page)).toBe(0)
+})
+
 test('a theme still plays when the player\'s chunk is gone, as after a deploy', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))

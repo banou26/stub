@@ -1,12 +1,12 @@
-// FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../../components/dom'
+// FIRST: ./dom installs the document @emotion/react reads at module scope.
+import { mount, unmount } from './dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 
-import type { CompactTracking } from '../../../../src/tracking/compact'
-import type { PlaybackState } from '../../../../src/party/protocol'
+import type { CompactTracking } from '../../../src/tracking/compact'
+import type { PlaybackState } from '../../../src/party/protocol'
 
 const answer = (id: string, name: string, state: string, entry?: object) =>
   ({ _id: `answer:${id}`, state, candidates: [], error: null, episodeCount: 12, tracker: { id, name, canWrite: true }, entry: entry ?? null })
@@ -23,8 +23,15 @@ vi.mock('urql', () => ({
   }],
 }))
 
-const { default: TrackWatched } = await import('../../../../src/router/watch/track-watched')
-const { createCompactPrefs } = await import('../../../../src/tracking/compact-prefs')
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
+vi.mock('../../../src/tracking/site-status', () => ({ recordTrackerAnswers: () => {}, siteStatuses: {} }))
+vi.mock('../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
+vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
+
+const { default: MediaTracking } = await import('../../../src/components/media-tracking')
+const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')
 
 // the saves the last render started come back
 const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
@@ -55,6 +62,7 @@ const memory = (targets: Record<string, boolean> = {}) => {
   const values = new Map([['stub.tracking.compact', JSON.stringify({ targets })]])
   return createCompactPrefs({ getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) } })
 }
+const notes = (host: HTMLElement) => [...host.querySelectorAll('[data-note]')].map(note => note.textContent)
 
 const hosts: HTMLElement[] = []
 afterEach(() => {
@@ -63,12 +71,26 @@ afterEach(() => {
   outcome = { outcome: 'SAVED' }
 })
 
+// the watch page's row, whose player comes up once the row is drawn
 const page = ({ link = fakeLink(1000), episode = 5, prefs = memory(), movie = false } = {}) => {
-  const tree = (props: { link: ReturnType<typeof fakeLink>, episode: number }) =>
-    <TrackWatched uri="ag:(anilist:1)" title="A show" cover="https://img.test/a.jpg" episodeCount={12} movie={movie} prefs={prefs} {...props}/>
-  const host = mount(tree({ link, episode }))
+  const tree = (props: { link?: ReturnType<typeof fakeLink>, episode: number }) => (
+    <MediaTracking
+      work="ag:(anilist:1)"
+      address="ag:(anilist:1)"
+      uri="ag:(anilist:1)"
+      title="A show"
+      cover="https://img.test/a.jpg"
+      episodeCount={12}
+      movie={movie}
+      prefsStore={prefs}
+      {...props}
+    />
+  )
+  const host = mount(tree({ episode }))
   hosts.push(host)
-  return { host, link, rerender: (props = { link, episode }) => act(() => { render(tree(props), host) }) }
+  const rerender = (props: { link?: ReturnType<typeof fakeLink>, episode: number } = { link, episode }) => act(() => { render(tree(props), host) })
+  rerender()
+  return { host, link, rerender }
 }
 const playing = (time: number) => ({ paused: false, time })
 const paused = (time: number) => ({ paused: true, time })
@@ -133,7 +155,7 @@ test('a tracker still loading at the mark shows no line and is written once it a
   const { host, link, rerender } = page()
   await link.report(playing(900))
   expect(sent).toEqual([])
-  expect(host.textContent).toBe('')
+  expect(notes(host)).toEqual([])
   tracking = { summary: null, disagreements: [], answers: [listedAt(4), noId] }
   rerender()
   await settle()
@@ -145,12 +167,25 @@ test('a tracker still loading at the mark shows no line and is written once it a
   rerender()
   await settle()
   expect(sent.map(({ trackers, entry }) => [trackers, entry])).toEqual([[['anilist'], { progress: 5 }]])
-  expect(host.textContent).toBe('')
+  expect(notes(host)).toEqual([])
 })
 
 test('a tracker the viewer unchecked in the tracking row is not written', async () => {
   tracking = { summary: null, disagreements: [], answers: [listedAt(4), answer('stub', 'Stub', 'NOT_LISTED')] }
   const { link } = page({ prefs: memory({ anilist: false }) })
+  await link.report(playing(900))
+  expect(sent.map(({ trackers }) => trackers)).toEqual([['stub']])
+})
+
+test('a tracker unchecked on the row\'s chip is not written, where storage is blocked too', async () => {
+  tracking = { summary: null, disagreements: [], answers: [listedAt(4), answer('stub', 'Stub', 'NOT_LISTED')] }
+  const blocked = createCompactPrefs({ getItem: () => { throw new Error('blocked') }, setItem: () => { throw new Error('blocked') } })
+  const { host, link } = page({ prefs: blocked })
+  const check = host.querySelector<HTMLInputElement>('input[name="compact-target-anilist"]')!
+  await act(async () => {
+    check.checked = false
+    check.dispatchEvent(new Event('change', { bubbles: true }))
+  })
   await link.report(playing(900))
   expect(sent.map(({ trackers }) => trackers)).toEqual([['stub']])
 })
@@ -172,7 +207,7 @@ test('a save that does not land shows as the tracking row shows it, and Retry se
   tracking = { summary: null, disagreements: [], answers: [listedAt(4)] }
   outcome = { outcome: 'FAILED', error: 'AniList answered 502' }
   const { host, link } = page()
-  expect(host.textContent).toBe('')
+  expect(notes(host)).toEqual([])
   await link.report(playing(900))
   const note = host.querySelector<HTMLElement>('[data-note="anilist"]')!
   expect(note.textContent).toBe('AniList did not save episode 5: AniList answered 502Retry')

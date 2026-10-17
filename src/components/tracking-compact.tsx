@@ -8,11 +8,13 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { WindowSignIn } from '../sources/login-window'
 import type { CompactPrefs } from '../tracking/compact-prefs'
 import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
+import type { Watched } from '../tracking/watched'
 
 import {
   STATUS_LABELS, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
+import { WATCHED_AT, watchedPatches } from '../tracking/watched'
 import SaveProblems from './save-problems'
 import ScorePicker from './score-picker'
 
@@ -401,14 +403,23 @@ const Chip = (
  * paused, failing, or cannot tell which media this is. A change on a card goes to its tracker alone,
  * checked or not, through the same queue. With no `tracking` yet the row holds its place, one loading
  * chip and nothing to act on; a tracking with no tracker in it draws nothing.
+ *
+ * Once `watched` passes 85% of an episode (tracking/watched.ts), each checked tracker that can write
+ * decides on that episode once, and again only after deciding on another: it is raised to the episode
+ * through the same queue if that is above the progress last staged to it. So a + and the update on the
+ * same episode make one save, and a progress the viewer lowers stays where they put it. Nothing is
+ * raised while the row reads Completed, the viewer's own pick included. A checked tracker that cannot
+ * write shows the save it missed, and is written once it can.
  */
 const TrackingCompact = (
-  { tracking, episodeCount, movie = false, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
+  { tracking, episodeCount, movie = false, watched, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
   {
     tracking: CompactTracking | null | undefined
     episodeCount?: number | null
     /** A movie: a Watched toggle in place of the episode count, in the row and in every card. */
     movie?: boolean
+    /** What the watch page's player has played of the episode. */
+    watched?: Omit<Watched, 'movie'>
     onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
     onRemove: (targets: string[]) => Promise<TrackerOutcome[]>
     signIns?: SignIns
@@ -449,6 +460,13 @@ const TrackingCompact = (
       if (!saved && queue.idle()) setOverrides({})
     },
   }), [])
+  // the progress last staged to each tracker, and the episode each one last decided on
+  const staged = useRef(new Map<string, number>())
+  const counted = useRef(new Map<string, number | null | undefined>())
+  const stage = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
+    for (const [id, { progress }] of Object.entries(patches)) if (progress !== undefined) staged.current.set(id, progress)
+    queue.stage(patches, immediate, fromCard)
+  }
 
   useEffect(() => {
     const hidden = () => { if (document.visibilityState === 'hidden') queue.flush() }
@@ -474,11 +492,25 @@ const TrackingCompact = (
       })))
   }, [tracking])
 
+  const shown = shownOf(row, overrides[ROW])
+  const auto = watched && tracking && shown.status !== 'COMPLETED' ? watchedPatches({ ...watched, movie }, tracking, prefs.targets, episodeCount) : {}
+  const decided = (id: string) => counted.current.has(id) && counted.current.get(id) === watched?.episode
+  const due = tracking?.answers.filter(({ tracker: { id } }) => auto[id] && !decided(id) && auto[id].progress! > (staged.current.get(id) ?? 0)) ?? []
+  useEffect(() => {
+    const ready = due.filter(writable)
+    if (watched && tracking && watched.played >= WATCHED_AT) {
+      for (const answer of tracking.answers) {
+        const target = targetOf(answer, prefs.targets[answer.tracker.id])
+        if (target.kind === 'check' && target.sendable) counted.current.set(answer.tracker.id, watched.episode)
+      }
+    }
+    if (ready.length) stage(Object.fromEntries(ready.map(({ tracker: { id } }) => [id, auto[id]!])), true)
+  }, [watched, tracking, prefs])
+
   // a tracker with no id for the media can never track it, so it is left out rather than shown greyed
   const answers = tracking?.answers.filter(answer => answer.state !== 'NO_ID') ?? []
   if (tracking !== undefined && !answers.length) return null
 
-  const shown = shownOf(row, overrides[ROW])
   const targets = answers.map(answer => ({ answer, target: targetOf(answer, prefs.targets[answer.tracker.id]) }))
   const sendable = targets.filter(({ target }) => target.kind === 'check' && target.sendable).map(({ answer }) => answer)
   const disabled = !sendable.length
@@ -502,7 +534,7 @@ const TrackingCompact = (
       const patch = patchFor(answer, fields, next)
       if (patch) patches[id] = patch
     }
-    queue.stage(patches, immediate)
+    stage(patches, immediate)
   }
 
   // one tracker's card, on that tracker's own entry and count
@@ -511,17 +543,21 @@ const TrackingCompact = (
     const values = shownOf(rowOfEntry(answer, row.total), overrides[id])
     remember(id, fields)
     const patch = patchFor(answer, fields, { ...values, ...fields })
-    if (patch) queue.stage({ [id]: patch }, immediate, true)
+    if (patch) stage({ [id]: patch }, immediate, true)
   }
 
-  // a removal that could not go is moot once its tracker answers that it lists nothing
   const stateOf = (answer: CompactAnswer) => {
     const state = queue.state(answer.tracker.id)
-    return state.failed?.fields.remove && answer.state === 'NOT_LISTED' ? { ...state, failed: undefined } : state
+    // a removal that could not go is moot once its tracker answers that it lists nothing
+    if (state.failed?.fields.remove && answer.state === 'NOT_LISTED') return { ...state, failed: undefined }
+    // an episode watched that a checked tracker cannot write yet: the line goes once it can, as the write then goes by itself
+    if (!state.failed && due.includes(answer) && !writable(answer)) return { ...state, failed: { fields: auto[answer.tracker.id]!, error: whyNot(answer) } }
+    return state
   }
 
   const setChecked = (id: string, on: boolean) => {
     if (!on) queue.drop(id)
+    if (!on && !queue.state(id).busy) staged.current.delete(id)
     onPrefs({ ...prefs, targets: { ...prefs.targets, [id]: on } })
   }
 

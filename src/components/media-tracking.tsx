@@ -1,4 +1,5 @@
 import type { MediaTrackingSubscription } from '../generated/graphql'
+import type { PlaybackLink } from '../party/bridge'
 import type { TrackerOutcome } from '../tracking/compact'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -103,9 +104,34 @@ type Props = {
   episodeCount?: number | null
   movie?: boolean
   prefsStore?: CompactPrefsStore
+  /** Whether the lines about stub's own list (StubListNotice) show under the row. */
+  notice?: boolean
+  /** The watch page's player, and the number of the episode it plays: watching it raises the trackers. */
+  link?: PlaybackLink
+  episode?: number | null
 }
 
-const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs }: Props) => {
+/**
+ * How much of `episode` the player has played, from 0 to 1. It counts only while playing, so a seek
+ * past the mark while paused is not watching it; a player that does not say its length counts at its
+ * end, if it played.
+ */
+const usePlayed = (link: PlaybackLink | undefined, episode: number | null | undefined) => {
+  const [played, setPlayed] = useState({ episode, played: 0 })
+  useEffect(() => {
+    if (!link) return
+    let playing = false
+    return link.onReport(({ paused, time }) => {
+      playing ||= !paused
+      const length = link.duration?.() ?? 0
+      const share = length > 0 ? (paused ? 0 : time / length) : link.ended?.() ? Number(playing) : 0
+      setPlayed(previous => previous.episode !== episode || share > previous.played ? { episode, played: share } : previous)
+    })
+  }, [link, episode])
+  return played
+}
+
+const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs, notice = true, link, episode }: Props) => {
   const asked = uri ?? work
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
   const latest = useMemo(() => askedOn(data?.tracking, asked!), [data?.tracking, asked])
@@ -114,9 +140,10 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   const ready = Boolean(uri && namesSameWork(work, address))
   const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount })
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
-  const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE })
+  const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE, pause: !notice })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
   const [prefs, setPrefs] = useState(prefsStore.read)
+  const watched = usePlayed(link, episode)
 
   const answers = data?.tracking?.answers
   useEffect(() => { if (answers) recordTrackerAnswers(answers, siteStatuses, isSiteConnected) }, [answers])
@@ -147,6 +174,7 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
         tracking={ready ? shown.current : loadingOf(shown.current)}
         episodeCount={ready ? episodeCount : undefined}
         movie={movie}
+        watched={watched}
         onSaveFields={onSaveFields}
         onRemove={onRemove}
         signIns={trackerSignIns}
@@ -168,7 +196,8 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
  * to it and urql's last result, kept while a new subscription starts, is never drawn under another.
  * Until the details have answered, and while `address`, the page's own, names another work than `work`
  * (the render after a navigation, before the page has moved `work` to it), the row is drawn with every
- * tracker loading and none of its values.
+ * tracker loading and none of its values. On the watch page, an episode `link` plays raises the
+ * trackers once watched (TrackingCompact's `watched`), on the media the row is drawn for.
  */
 const MediaTracking = (props: Props) => {
   const media = useMediaKey(props.uri ?? props.work)
