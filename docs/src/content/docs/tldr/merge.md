@@ -3,7 +3,7 @@ title: The merge
 description: "How two rows from two catalogues are judged the same thing, which refusals are free, and which wrong answer is permanent."
 ---
 
-Two rows are the same thing when a title match survives four vetoes inside a shared start year. `fuzzyMergeMediaClusters` (src/worker/store/fuzzy-merge.ts:594) is the only permanent weld a page READ can create: `Subscription.mediaPage` runs it on every `media:changed`, debounced at 100ms (src/worker/resolvers/media/index.ts:108, :127), and `graph.link` (src/worker/store/graph.ts:279) has no inverse anywhere in the repo. Everything after it is a view.
+Two rows are the same thing when a title match survives four vetoes inside a shared start year. `fuzzyMergeMediaClusters` (src/worker/store/fuzzy-merge.ts) is the only permanent weld a page READ can create: `Subscription.mediaPage` runs it on every `media:changed`, debounced at 100ms (src/worker/resolvers/media/index.ts:193, :276), and `graph.link` (src/worker/store/graph.ts:279) has no inverse anywhere in the repo. Everything after it is a view.
 
 A cluster joins one bucket per distinct year any member claims (:597-605); one with no dated member joins none and cannot merge; one with no identity-bearing title is skipped before any pair forms (:599). `years` keeps a January 1 date and `days` throws it away off the same string (:292, :298, `startDay` :173): seven sites across six modules template `${year}-01-01`, and believing it destroys 14992 of 17946 streaming attaches, dropping it none (:150-156).
 

@@ -33,7 +33,7 @@ different shapes, listed per row.
 | module | origin | id shape (example) | scope it mints, and when | season scoped or show scoped | folds cours into seasons |
 | --- | --- | --- | --- | --- | --- |
 | jikan | `mal` | MAL numeric id, `mal:52991` (`jikan/extractor.ts:132,142`) | no `scope` key set at all (object literal `jikan/extractor.ts:130-191`), so RUN by schema default | SEASON scoped: MAL issues one entry per broadcast run | no |
-| anilist | `anilist` | AniList numeric id, `anilist:108465` (`anilist/extractor.ts:597-599`) | no `scope` passed to `makeMedia` (`anilist/extractor.ts:595-663`), so RUN by default | SEASON scoped: one entry per run | no |
+| anilist | `anilist` | AniList numeric id, `anilist:108465` (`anilist/extractor.ts:597-599`) | no `scope` passed to `makeMedia` (`normalizeMedia`, `anilist/extractor.ts`), so RUN by default | SEASON scoped: one entry per run | no |
 | anizip | `anizip` | the **AniDB** id, `anizip:18104` (`anizip/extractor.ts:18-19,80-86`) | no `scope`, RUN by default | SEASON scoped: "AniDB models one entry per RUN for anime" (`jikan/extractor.ts:144-145`) | no. It numbers within its own entry, `anizip/extractor.ts:78-96` |
 | crunchyroll | `cr` | `crunchyrollId(seriesId, seasonId)` -> `` `${seriesId}-${seasonId}` `` (`crunchyroll/extractor.ts:151-152`); bare series id `cr:G24H1N3MP` is the show (`crunchyroll/extractor.ts:171-174`) | BOTH: `scopeOf` returns CONTAINER when `id === series.id`, RUN otherwise (`crunchyroll/extractor.ts:174`). Search mints the bare series id (`:587`) | SEASON scoped when a season segment is present, otherwise SHOW | **yes**. "Crunchyroll models a split cour as one season" (`crunchyroll/extractor.ts:379-384`) |
 | unogs | `nf` | bare Netflix title id `nf:80987039`, or season-scoped `` `${id}-${seasonNumber}` `` -> `nf:80987039-3` (`unogs/extractor.ts:154,268-270,332`). Note: **no `-s` prefix**, unlike `seasonScopedId` | BOTH: `titleScope` gives RUN for `vtype === 'movie'`, CONTAINER otherwise (`unogs/extractor.ts:136`); a season rewrite forces RUN (`:270`) | SEASON scoped only when a season is established; otherwise the bare id is every season at once (`unogs/extractor.ts:134-136`) | **yes**. Netflix "folds Mushoku Tensei's five runs into three" and "splits Fullmetal Alchemist's single 64 episode run into five seasons" (`unogs/extractor.ts:337-340`) |
@@ -51,9 +51,9 @@ different shapes, listed per row.
 | kitsu | `kitsu` | Kitsu numeric id, `kitsu:45950` (`kitsu/extractor.ts:134`, examples `:87-89`) | no `scope` passed (`kitsu/extractor.ts:132-171`), so RUN by default | SEASON scoped: kitsu:45950, 47694, 49002 are three different runs of Mushoku Tensei (`kitsu/extractor.ts:87-89`) | no |
 | omdb | `omdb` | the **IMDb** id, `omdb:tt13303712` (`omdb/extractor.ts:43,51`) | BOTH: `result.Type === 'movie' ? 'RUN' : 'CONTAINER'` (`omdb/extractor.ts:47`) | SHOW scoped for a series ("the row is keyed by an IMDb id and IMDb models no seasons", `omdb/extractor.ts:40-41`) | n/a |
 | trakt | `trakt` | trakt slug, else the numeric trakt id (`trakt/extractor.ts:74`), `trakt:mushoku-tensei-jobless-reincarnation` | CONTAINER always (`trakt/extractor.ts:95`, reason at `:76-79`) | SHOW scoped | n/a |
-| simkl | `simkl` | simkl numeric id, `simkl:<id>` (`simkl/extractor.ts:143,148`) | BOTH: `scopeForType` gives CONTAINER for a `tv` record, RUN for `anime` and `movies` (`simkl/extractor.ts:87`) | **anime records are SEASON scoped**: "Mushoku Tensei is five records here, each with its own mal, anilist and kitsu id" (`simkl/extractor.ts:85-86`). `tv` records are show scoped | no, for `anime` records |
+| simkl | `simkl` | simkl numeric id, `simkl:<id>` (`simkl/extractor.ts:143,148`) | BOTH: `scopeForType` gives CONTAINER for a `tv` record, RUN for `anime` and `movies` (`simkl/extractor.ts`) | **anime records are SEASON scoped**: "Mushoku Tensei is five records here, each with its own mal, anilist and kitsu id" (`simkl/extractor.ts:85-86`). `tv` records are show scoped | no, for `anime` records |
 | tvdb | `tvdb` | TheTVDB series id, `tvdb:<id>` (`tvdb/extractor.ts:92,108-110`) | CONTAINER always (`tvdb/extractor.ts:96,113`, reason at `:32-34`) | SHOW scoped | n/a |
-| offline | `offline` | borrowed catalogue id: `` `mal-${ml}` `` else `` `anilist-${al}` `` else `` `kitsu-${ku}` `` (`offline/normalize.ts:107-111`), e.g. `offline:mal-52991`. The seed half uses `run.key` (`offline/seed-source.ts:202`) | no `scope` passed (`offline/normalize.ts:160-194`, `offline/seed-source.ts:200-220`), so RUN by default | SEASON scoped: manami is per-run and identity is borrowed from per-run catalogue ids | no |
+| offline | `offline` | borrowed catalogue id: `` `mal-${ml}` `` else `` `anilist-${al}` `` else `` `kitsu-${ku}` `` (`offline/normalize.ts:107-111`), e.g. `offline:mal-52991`. The seed half uses `run.key` (`offline/seed-source.ts`, the seed job, removed in HOR-577) | no `scope` passed (`seasonMedia`, `offline/normalize.ts`; `offline/seed-source.ts`), so RUN by default | SEASON scoped: manami is per-run and identity is borrowed from per-run catalogue ids | no |
 | watchmode | `watchmode` | watchmode numeric id, `watchmode:<id>` (`watchmode/extractor.ts:189,205`) | BOTH: `scopeForType` gives RUN for a film, CONTAINER otherwise (`watchmode/extractor.ts:181-184`) | SHOW scoped. "Watchmode has no season concept anywhere in this file" (`watchmode/extractor.ts:90-92`) | n/a |
 | imdb | `imdb` | never mints a media; the origin exists so an `imdb:tt...` handle has something to render against (`imdb/extractor.ts:3-18`) | n/a | SHOW scoped by definition; `SHOW_LEVEL_ORIGINS = new Set(['imdb'])` forces every imdb uri to CONTAINER in the store (`src/worker/store/db.ts:42,92`) | n/a |
 
@@ -67,7 +67,7 @@ different shapes, listed per row.
 - A row carrying only `uri`, `origin`, `id`, `scope` is a **placeholder** and is not stored at all
   (`IDENTITY_FIELDS`, `src/worker/store/db.ts:104-108`). Every node minted by
   `buildHandlesFromUri` (`src/sources/utils.ts`) and every seed handle
-  (`offline/seed-source.ts:147-148`) is exactly that.
+  (`offline/seed-source.ts`, the seed job, removed in HOR-577) is exactly that.
 
 ---
 
@@ -91,7 +91,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
 - **covers**: one, language `en`, `malLargeImage(images.webp.large_image_url)` (`:165-169`).
   **banners: `[]`** (`:170`).
 - **scores**: `averageScore = percentScore(data.score, 10)` (`:151`), i.e. a 0-10 rating scaled to
-  0-100 (`average-score.ts:136-141`).
+  0-100 (`average-score.ts`).
 - **popularity**: `data.members` (`:173`), the MAL member count.
 - **genres**: `genres + themes + demographics` concatenated, deduplicated case-insensitively
   (`:63-73,174`). `explicit_genres` deliberately excluded (`:62`). **tags: `[]`** (`:175-176`).
@@ -112,7 +112,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
 - **descriptions**: `en`, score 0.8 (`:623-630`).
 - **dates**: `startDate` and `endDate` through `airedDate` (`:592-593,650-651`), which prefers a
   complete `FuzzyDate`, falls back to the airing schedule's episode 1 timestamp, and only then coerces
-  a bare year to January 1 (`aired-date.ts:64-85`). `season` (`:604`, guarded against an unknown
+  a bare year to January 1 (`aired-date.ts`). `season` (`:604`, guarded against an unknown
   spelling at `:411-414`), `seasonYear` (`:605`).
 - **episodeCount**: `media.episodes` (`:641`).
 - **status**: the full five-member map including CANCELLED and HIATUS (`:643-649`).
@@ -121,7 +121,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
 - **scores**: `averageScore = percentScore(media.averageScore, 100)` (`:621`).
 - **popularity**: `media.popularity` (`:642`).
 - **genres**: `media.genres` (`:602`). **tags**: AniList's own vocabulary, spoiler-flagged tags dropped
-  (`:406-409,603`). AniList is the only source of `tags` (`src/worker/resolvers/media/schema.gql:311-318`).
+  (`:406-409,603`). AniList is the only source of `tags` (`src/worker/resolvers/media/schema.gql`).
 - **relations (narrative)**: the only source that supplies them. AniList's `relationType(version: 2)`
   vocabulary, unknown values carried as `OTHER` (`:416-472,618`). Non-anime relations are kept and
   carry their kind on the edge's `format` string (`:436-439`).
@@ -130,7 +130,7 @@ Legend: a dash means the extractor never sets the field. `desc(x, s)` fills `des
   SUMMARY, COMPILATION, CONTAINS), with CHARACTER and OTHER reported but never traversed
   (`:474-544`). Returns `undefined` for a graph of one node (`:541-542`).
 - **nextAiringEpisode**: from the airing schedule, by earliest future timestamp (`:622`,
-  `next-airing.ts:105-118`).
+  `next-airing.ts`, since removed).
 - **trailers**: YouTube only (`:652-662`).
 - **offers**: none.
 - **handles it hands over**:
@@ -261,7 +261,7 @@ receives `meta.title`, `meta.posterUrl` and `meta.shortDescription` (`:320-322`)
 - **covers**: `contentImageTall` at 600x900 (`:102`). **banners**: `contentImage` at 1920x1080 (`:103`).
 - **relations / franchise**: none.
 - **offers**: the media `url` is `content.url` on tv.apple.com (`:108`) and each episode carries
-  `episode.url` (`:124`). No player is registered for `appletv` (`players.ts:11-14`).
+  `episode.url` (`:124`). No player is registered for `appletv` (`players.ts`).
 - **handles it hands over**: none of its own; `buildHandlesFromUri` on the aggregated paths
   (`:380,393`).
 
@@ -310,7 +310,7 @@ Reads TMDB's server-rendered HTML, not the API (`:9`).
 - **covers**: `image.original` falling back to `medium` (`:88`). **banners**: none.
 - **scores**: `averageScore = show.rating.average` (`:103`), passed through **unconverted**. TVmaze
   rates 0 to 10 while `Media.averageScore` is documented as a 0 to 100 percentage
-  (`average-score.ts:124-135`), so this source emits a value on the wrong scale.
+  (`percentScore`, `average-score.ts`), so this source emits a value on the wrong scale.
 - **relations / franchise / offers**: none.
 - **handles it hands over**: `imdb:<externals.imdb>`, stamped `scope: 'CONTAINER'`, relation
   **SAME_AS** by the `makeMedia` default (`:60-64,75,151`). The store demotes it into the CONTAINER
@@ -424,7 +424,7 @@ Reads TMDB's server-rendered HTML, not the API (`:9`).
 Two halves. The BUNDLED half is compiled in; the SEEDED half is a release asset fetched at runtime
 (`offline/extractor.ts:53-79`).
 
-Bundled season rows (`offline/normalize.ts:154-195`):
+Bundled season rows (`seasonMedia`, `offline/normalize.ts`):
 
 - **titles**: one, `en` (`:169`).
 - **descriptions**: `en`, only for the current season, from MyAnimeList's synopsis fetched at build
@@ -445,7 +445,7 @@ Bundled season rows (`offline/normalize.ts:154-195`):
   `anidb` and requires at least TWO handles before returning anything, since "a single handle links
   nothing to anything" (`offline/extractor.ts:158-173`).
 
-Seeded rows (`offline/seed-source.ts:198-221`) additionally carry multi-language `titles`, `covers`
+Seeded rows (`offline/seed-source.ts`, the seed job, removed in HOR-577) additionally carry multi-language `titles`, `covers`
 and `banners` with their own language codes (`:210-212`), `type`, `categories`, `episodeCount`,
 `averageScore`, `popularity`, `isAdult` and `season` (`:213-219`), plus:
 
@@ -497,7 +497,7 @@ the media row, or through the `Media.episodes` field resolver.
 | source | episodeNumber | absolute | seasonNumber | titles | release date | thumbnails | runtime | arrives |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | jikan | none | none | none | none | none | none | none | `episodes: []` (`jikan/extractor.ts:171`). **Supplies no episodes at all.** |
-| anilist | none | none | none | none | none | none | none | **No episodes.** No `episodes` key in `normalizeMedia` (`anilist/extractor.ts:595-663`), no `Media.episodes` resolver (`:730-754`) |
+| anilist | none | none | none | none | none | none | none | **No episodes.** No `episodes` key in `normalizeMedia` (`anilist/extractor.ts`), no `Media.episodes` resolver (`:730-754`) |
 | anizip | **the KEY of the episodes map**, not `episode.episodeNumber` (`anizip/extractor.ts:78-96`) | `absoluteEpisodeNumber` (`:97`) | yes (`:77`) | `en` and `ja` (`:64-67`) | **yes**: `airDateUtc ?? airdate` (`:99`). `airDateUtc` is an instant with seconds precision, `airdate` names a day; measured over 132 episodes, `airdate` on 132 and `airDateUtc` on 94 (`:145-157`) | yes (`:76`) | `runtime ?? length` (`:98`) | **inside the media row** (`:53-101`) |
 | crunchyroll | `ep.episode_number` (`crunchyroll/extractor.ts:206`) | `ep.sequence_number` (`:207`) | yes (`:205`) | one, `en` (`:202`) | **yes**: `episode_air_date` as ISO (`:208`) | yes (`:204`) | none | both: inside the media row for a season-scoped id (`:272-275`), and through `Media.episodes` (`:591-597`) |
 | unogs | **positional index `i + 1`**, not an upstream number (`unogs/extractor.ts:294,500`) | none | `episode.seasnum` (`:194`) | one, `en`, decoded (`:191`) | **NONE.** `UnogsEpisode` is `epid, seasnum, synopsis, title, img` (`:98-104`) and no air date exists at any level (`:281-284`) | yes (`:193`) | none | both (`:293-296`, `:492-503`) |
@@ -510,10 +510,10 @@ the media row, or through the `Media.episodes` field resolver.
 | omdb | `Number(episode.Episode)` (`omdb/extractor.ts:72`) | none | yes (`:71`) | one, `en` (`:70`) | none | none | none | both, one request per season, and only for a single-season show on the media row (`:75-83,102-106`) |
 | trakt | `episode.number` (`trakt/extractor.ts:116`) | none | yes (`:115`) | one, `en` (`:113`) | **none emitted**, although `TraktEpisode.first_aired` is in the type (`:49`) | none | none | both (`:143-148`, `:176-182`) |
 | simkl | `episode.episode` (`simkl/extractor.ts:191`) | none | `episode.season` (`:190`) | one, `en` (`:187`) | **none emitted**, although `SimklEpisode.date` is in the type (`:66`) | yes (`:189`) | none | both (`:214`, `:259-266`) |
-| tvdb | `episode.number` (`tvdb/extractor.ts:138`) | none | `episode.seasonNumber` (`:137`) | one, `en` (`:134`) | **none emitted**, although `EpisodeRecord.aired` is in the type (`:50`) | yes (`:136`) | none | both, paged up to 50 pages (`:141-152`), and only kept on the media row when one season (`:169-174`) |
-| offline (seed) | `episode.number` (`offline/seed-source.ts:175`) | `absoluteEpisodeNumber` (`:180`) | `seasonNumber` (`:179`) | **multi-language**, each carrying its own `language` (`:176`) | **yes** (`:178`) | yes, with language (`:177`) | **yes** (`:181`) | inside the seeded media row (`:219`), only after the episodes asset has been read (`offline/extractor.ts:243-244`) |
-| offline (bundled) | none | none | none | none | none | none | none | the bundled half supplies no episodes (`offline/normalize.ts:160-194`) |
-| watchmode | 1 (a film's synthetic episode only) | none | none | inherited from the media (`makeMovieEpisode`, `utils.ts`) | none | inherited from the media's covers (`makeMovieEpisode`, `utils.ts`) | none | a series gets `[]` (`watchmode/extractor.ts:271`) |
+| tvdb | `episode.number` (`tvdb/extractor.ts`, which no longer lists episodes) | none | `episode.seasonNumber` (`:137`) | one, `en` (`:134`) | **none emitted**, although `EpisodeRecord.aired` is in the type (`:50`) | yes (`:136`) | none | both, paged up to 50 pages (`:141-152`), and only kept on the media row when one season (`:169-174`) |
+| offline (seed) | `episode.number` (`offline/seed-source.ts`, the seed job, removed in HOR-577) | `absoluteEpisodeNumber` (`:180`) | `seasonNumber` (`:179`) | **multi-language**, each carrying its own `language` (`:176`) | **yes** (`:178`) | yes, with language (`:177`) | **yes** (`:181`) | inside the seeded media row (`:219`), only after the episodes asset has been read (`loadSeedEpisodes`, removed with it) |
+| offline (bundled) | none | none | none | none | none | none | none | the bundled half supplies no episodes (`seasonMedia`, `offline/normalize.ts`) |
+| watchmode | 1 (a film's synthetic episode only) | none | none | inherited from the media (`makeMovieEpisode`, `utils.ts`) | none | inherited from the media's covers (`makeMovieEpisode`, `utils.ts`) | none | a series gets `[]` (`watchmode/extractor.ts:249`) |
 | disney, amazon, hulu, peacock, hbo, fubo, imdb | none | none | none | none | none | none | none | never |
 
 ### Episode facts worth pulling out
@@ -559,7 +559,7 @@ the media row, or through the `Media.episodes` field resolver.
 | trakt | yes, `/search/show?query=` (`:152-157,168-174`) | none | no |
 | simkl | yes, three parallel searches (tv, anime, movie), limit 10 each, deduplicated by id (`:223-240,251-257`) | none | no |
 | tvdb | yes, `/search?query=&type=series` (`:178-183,194-200`) | none | no |
-| offline | **no, deliberately** (`offline/extractor.ts:256-262`): "a partial catalogue is worse than none in a ranked result set". Season listings only (`:249-278`) | n/a | no |
+| offline | **no, deliberately** (`offline/extractor.ts:224-230`): "a partial catalogue is worse than none in a ranked result set". Season listings only (`Subscription.mediaPage`) | n/a | no |
 | watchmode | yes, `/search/?search_field=name` (`:240-248,259-265`) | none | no |
 
 ### The five `similarMedia` answerers and what each can read
@@ -792,7 +792,7 @@ Reading the five tables above together:
   crunchyroll 0.5, tmdb/tvmaze/kitsu/omdb/trakt/simkl/tvdb 0.3, watchmode 0.25,
   unogs/justwatch/appletv/paramount/offline 0.2.
 - **Five sources need a user-supplied key**: omdb, trakt, simkl, tvdb, watchmode
-  (`src/sources/key-configs.ts:11-47`). Each returns `undefined` from its `api` helper when the key is
+  (`src/sources/key-configs.ts`, removed with the API keys). Each returns `undefined` from its `api` helper when the key is
   absent, so those five contribute nothing by default.
 - **Title comparison is `frizbee` with `maxTypos: Infinity`**, which turns it from a filter into a
   scorer, taking the weaker direction of a symmetric 0..1 similarity (`titleSimilarity`, `utils.ts`). Season

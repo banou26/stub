@@ -39,7 +39,7 @@ void resolveSimilarRuns(cluster, root, { ask: askSimilar, implemented: implement
 Three things are decided by that line. It is `void`, so the page's yield never waits on an ask that
 may take up to `SIMILAR_MEDIA_TIMEOUT_MS`, 30 seconds. It is handed the whole cluster, not the
 aggregate, because the evidence is assembled across members. And `askSimilar` is
-`similarOutcomeFrom('app')` (`media/index.ts:24`), so the app's own asks are budgeted under one
+`similarOutcomeFrom('app')` (`askSimilar` in `media/index.ts`), so the app's own asks are budgeted under one
 caller exactly like a source's; that funnel is [the next page](/similar/funnel/).
 
 ## `resolveSimilarRuns`, every exit
@@ -141,7 +141,7 @@ flowchart TD
 
 *Three of the four filters are `continue`, so one unaskable container never costs the others their ask. The first is a `return []`, because a cluster with no run has no `runUri` to put on any of them.*
 
-`implemented` is `implementsSimilarMedia` (`src/worker/extractor.ts:292-295`), which reads the
+`implemented` is `implementsSimilarMedia` (`src/worker/extractor.ts`), which reads the
 **definition's** resolvers rather than the merged schema, so `makeExtractor`'s yield-null default
 counts as not implemented. Five sources implement the field: crunchyroll
 (`crunchyroll/extractor.ts:563`), unogs (`unogs/extractor.ts:471`), justwatch
@@ -173,7 +173,7 @@ put a second run of one origin into the same cluster. The code wins.
 | field | how | refusals folded in |
 | --- | --- | --- |
 | `titles` | every title of every member, deduped, in score order | `isOnlySeasonLabel` drops anything that is empty once season markers come off (`src/sources/season.ts:128-129`) |
-| `startDate` | `bestRunStartDate` (`similar.ts:118-119`): the first date that names a DAY, else the first non-empty one | a `YYYY-01-01` from a higher-scored member loses to a day-precise date from a lower-scored one |
+| `startDate` | `bestRunStartDate` (`similar.ts`): the first date that names a DAY, else the first non-empty one | a `YYYY-01-01` from a higher-scored member loses to a day-precise date from a lower-scored one |
 | `episodeCount` | `runLength(cluster)` (`store/consensus.ts:62-63`), the tiered consensus, never a local max | nothing states a count, so the field is absent |
 | `episodeTitles` | deduped, `slice(0, 200)` | the walk is `findAggregatedEpisodesForMedia`, the unwindowed one, so a lent season's titles can be in here |
 
@@ -333,7 +333,7 @@ question is asked a second time, the same answer is checked again and this time 
 after a refusal-by-title do not ask again, because *more evidence about the SEASON cannot change the
 show the answer names* (`:258-276`).
 
-The check itself is `answerNamesOurShow` (`src/sources/similar.ts:305-320`), the best pair over our
+The check itself is `answerNamesOurShow` (`src/sources/similar.ts`), the best pair over our
 titles and theirs after `franchiseTitle` strips season markers from both sides, against
 `SHOW_TITLE_THRESHOLD = 0.9` (`similar.ts:299-303`, the value crunchyroll's search gate measured:
 correct pairs 1.000, the nearest wrong pair 0.8135, a spin-off). Either side empty is a refusal and
@@ -430,7 +430,7 @@ the cluster is `['anilist:1', 'cr:X-S3', 'kitsu:2']` and `findPartOfMedia` still
 **The claim itself is still defended.** `upsertMedia` derives the relation from both scopes rather
 than believing the one on the claim (`db.ts:162-171`), so an answer that somehow carried CONTAINER
 scope degrades to a `PART_OF` edge instead of welding. The funnel already refuses that case with
-`isRunAnswerFrom` (`similar.ts:125-129`), which makes this the second of two independent gates on the
+`isRunAnswerFrom` (`similar.ts`), which makes this the second of two independent gates on the
 same mistake. See [scopes and relations](/write/scopes-and-relations/).
 
 **The episodes arrive on the next read, not with the claim.** The union emits `media:changed`, the

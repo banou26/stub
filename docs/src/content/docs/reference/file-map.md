@@ -316,7 +316,7 @@ Two of those moves carry their reasoning in the file, and both are worth reading
 > SAME_AS ONLY. See `sameAsHandleUris`, which carries the reasoning and the test: this module
 > cannot be imported under vitest, so the rule lives where it can be pinned.
 
-And the same pattern for `preferAttachedRun`, `src/worker/resolvers/media/index.ts:68-70`:
+And the same pattern for `preferAttachedRun`, `src/worker/resolvers/media/index.ts:142-144`:
 
 > A show whose run is in the store is shown as that run: see `preferAttachedRun` in
 > store/db.ts, where the choice lives so it can be pinned (this module reaches urql and
@@ -371,12 +371,11 @@ imported under vitest**. `src/sources/catalogue-gate.ts:26-29` is the fullest ve
 > `getMedia` against a stubbed `ctx.fetch`.
 
 Three checks confirm it against the current tree. `src/sources/players.ts` is the only module under
-`src/sources/` that imports a `.tsx`, and it is imported by exactly three page-side files
-(`src/embed.tsx:2`, `src/router/watch/index.tsx:13`, `src/router/home/media-modal.tsx:28`) and by no
-extractor. `src/sources/crunchyroll/extractor.ts:1` reaches `worker/extractor.ts` only as an
-`import type`. And `tests/unit/sources/index.test.ts:6` value-imports the whole barrel,
+`src/sources/` that imports a `.tsx`, and it is imported by exactly one page-side file
+(`src/embed.tsx:7`) and by no extractor. `src/sources/crunchyroll/extractor.ts:1` reaches
+`worker/extractor.ts` only as an `import type`. And `tests/unit/sources/index.test.ts:6` value-imports the whole barrel,
 `import * as sources from '../../../src/sources/index'`, then asserts
-`expect(names).toHaveLength(24)` on it, which cannot happen if the barrel does not load.
+`expect(names).toHaveLength(36)` on it, which cannot happen if the barrel does not load.
 
 So the source-side modules are still worth having: an import-free `season.ts` is easier to reason
 about and faster to test than a 600-line extractor. The reason written next to them is simply no

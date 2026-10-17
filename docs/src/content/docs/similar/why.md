@@ -187,7 +187,7 @@ count is deliberately the aggregate's own, `:172-173`:
 > the same number the aggregate publishes, so a source is asked against what the page shows
 > rather than a second opinion assembled here (store/consensus.ts)
 
-The filter drawn as `C3` is `planSimilarAsks` at `similar-consumer.ts:154`. It reads `origins`, built
+The filter drawn as `C3` is `planSimilarAsks` at `similar-consumer.ts:315`. It reads `origins`, built
 at `:147` from **every** cluster member rather than only the runs collected at `:144`.
 
 Right side, `src/sources/crunchyroll/extractor.ts:552-559`. `seasonForShow` fetches the season list,
@@ -198,7 +198,7 @@ rest are on [the rules](/similar/rules/). The contract it works under, `crunchyr
 > Null is the expected answer for most shows and is never an error. Answering with the SERIES would
 > put back exactly the show-level handle the caller came here to avoid minting.
 
-The rhombus on the way back is `answerNamesOurShow`, `src/sources/similar.ts:310-320`, applied at
+The rhombus on the way back is `answerNamesOurShow`, `src/sources/similar.ts`, applied at
 `similar-consumer.ts:248`. `SHOW_TITLE_THRESHOLD` is `0.9` at `similar.ts:303`, and `similar.ts:299-302`
 says where the number came from:
 

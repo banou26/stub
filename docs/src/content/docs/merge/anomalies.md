@@ -235,7 +235,7 @@ const listedEpisodes = async (uri: string): Promise<number> => {
 }
 ```
 
-`findRunEpisodes` (`src/worker/store/db.ts:424-430`) is alignment then windowing: it calls
+`findRunEpisodes` (`src/worker/store/db.ts`) is alignment then windowing: it calls
 `alignRunEpisodes` over the flattened list and then `runEpisodes` per group. So the number this rule
 tests is the number a reader would count on the page after both of those ran, which makes `overLength`
 an audit of their combined output rather than of the store. If alignment moves Crunchyroll's 13 to 20

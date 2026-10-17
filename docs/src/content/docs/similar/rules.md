@@ -28,7 +28,7 @@ page.
 season-scoped uri, the answer travels back through the funnel, and the consumer claims it as
 `SAME_AS` of the run (`src/worker/similar-consumer.ts:255`). That claim reaches
 `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` at `src/worker/store/db.ts:193`, which is
-a union-find union. There is no unlink anywhere in the repo, and the only reset is `resetStore()` at `db.ts:509-513`,
+a union-find union. There is no unlink anywhere in the repo, and the only reset is `resetStore()` in `db.ts`,
 which empties the whole store and is tests only.
 
 So a wrong verdict is not a wrong row that the next pass corrects. It is two runs of one show welded
@@ -207,7 +207,7 @@ constant the catalogue search gate uses. The comment on the rule is `similar.ts:
 > Rule 1, DATE: a premiere within the window of a day-precise start. Zero within means the
 > catalogues disagree about when this run started; two within is two parts released together.
 
-`namesADay` (`src/sources/season.ts:223-228`) is what keeps a fabricated date out of the window: it
+`namesADay` (`src/sources/season.ts`) is what keeps a fabricated date out of the window: it
 returns false for any date whose `getUTCDate()` is 1, because seven extractors build a date out of a
 bare year and template it as January 1.
 

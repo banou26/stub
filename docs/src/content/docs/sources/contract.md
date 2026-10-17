@@ -109,18 +109,18 @@ flowchart LR
 *Three exports lead to a dim terminal, and that is not a drawing convenience: nothing in `src/` reads them.*
 
 The three decisions above are the only places a declared field changes what happens. The origin
-filter is `src/worker/store/db.ts:539-543`, reached from `src/worker/resolvers/origin/index.ts:57`
+filter is in `findOrigins` (`src/worker/store/db.ts`), reached from `src/worker/resolvers/origin/index.ts:57`
 and passed `OriginFilter.IsNotApiOnly` by all three consumers
-(`src/router/home/media-modal.tsx:484` and `:644`, `src/router/watch/index.tsx:221`).
+(`useOrigins` and `SourceLinks` in `src/router/home/media-details.tsx`, `src/router/watch/index.tsx:334`).
 `answersForOrigins` is `src/sources/supported.ts:27-29`, called from `askOrigins` at
-`src/worker/extractor.ts:830`. `implementsSimilarMedia` is `src/worker/extractor.ts:292-295`.
+`src/worker/extractor.ts:842`. `implementsSimilarMedia` is in `src/worker/extractor.ts`.
 
 | export | declared by | read by | what it decides |
 | --- | --- | --- | --- |
 | `origin` | 25 of 25 | `normalizeOrigin` as `id`; `implementsSimilarMedia`; `answersForOrigins`; `enforcePluginOrigin`; the plugin collision check | The uri prefix on every row and handle the source mints. See the aside below. |
 | `originUrl` | 25 of 25 | `normalizeOrigin` as `url` | Nothing on screen. `src/sources/offline/extractor.ts:30` records that it "is never rendered anywhere". |
 | `name` | 25 of 25 | `normalizeOrigin`; every console line the worker prints about the source | The label in a source row, and how a failure is attributed. |
-| `icon` | 22 of 25 | `normalizeOrigin` | A row with no icon is skipped outright: `src/router/home/media-modal.tsx:781` is `if (!origin.icon) return undefined`. anizip, offline and livechart omit it, and all three are `isApiOnly = true`, so that check is never reached for them. |
+| `icon` | 22 of 25 | `normalizeOrigin` | A row with no icon is skipped outright: `SourceLinks` in `src/router/home/media-details.tsx` has `if (!origin.icon || hidden.has(origin.id)) return undefined`. anizip, offline and livechart omit it, and all three are `isApiOnly = true`, so that check is never reached for them. |
 | `color` | 18 of 25 | `normalizeOrigin` | Row accent. jikan, anilist, anizip, crunchyroll, unogs, justwatch and livechart declare none. |
 | `isApiOnly` | 25 of 25 | `normalizeOrigin` to `Origin.isApiOnly`, then the `OriginFilter` branch | Whether the origin appears in the source rows at all. |
 | `resolvers` | 25 of 25 | `makeExtractor`, merged over the defaults; and `implementsSimilarMedia`, read off the definition rather than the merged schema | Everything the source can answer. |
@@ -248,8 +248,8 @@ The schema declares five subscription fields in total, across
 `src/worker/resolvers/origin/schema.gql:54-57`: `media`, `mediaPage`, `similarMedia`, `origin` and
 `originPage`. The last two are the exception to everything above, because their defaults are not
 refusals but **the answer**. `makeExtractor` builds `originData` once from the definition's own
-`origin`, `originUrl`, `name`, `icon`, `color` and `isApiOnly` (`src/worker/extractor.ts:412`) and
-serves it from both (`:449-456`), so no source declares them and none should: a source overriding
+`origin`, `originUrl`, `name`, `icon`, `color` and `isApiOnly` (`src/worker/extractor.ts:509`) and
+serves it from both (`defaultResolvers` in `src/worker/extractor-defaults.ts`), so no source declares them and none should: a source overriding
 `Subscription.origin` would be answering a question about itself that the registry already answered.
 
 Two things are **not** per-source resolvers, and looking for them is a common wrong turn.

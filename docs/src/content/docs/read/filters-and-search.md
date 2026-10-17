@@ -145,7 +145,7 @@ The whole function is `filter.ts:54-80`, sixteen lines. The axes:
 | status | `status: MediaStatus` | equality | `!==` | dropped |
 | season | `season: MediaSeason` | equality | `!==` | dropped |
 | seasonYear | `seasonYear: Int` | equality | `!==` | dropped |
-| genres | `genres: [String!]` | ALL | both sides lowercased by `labelSet` (`filter.ts:27-28`) | dropped |
+| genres | `genres: [String!]` | ALL | both sides lowercased by `labelSet` (`filter.ts`) | dropped |
 | tags | `tags: [String!]` | ALL | both sides lowercased | dropped |
 
 That last column is one decision, taken once, and it is the one that surprises people

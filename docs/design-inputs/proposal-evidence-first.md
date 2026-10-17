@@ -678,7 +678,7 @@ an id mapping is a source's first party join key and the record prices refusing 
 suspect (R8) while true pairs disagree on dates 5 times in 102 for SPECIAL (01 case 36); an id claim is
 instead caught by the structural rules and by membership's contradiction check.
 
-**`fold`** (I6, 01 case 9, `foldVetoed` at `src/sources/similar.ts:147-150`, zero tolerance): a season
+**`fold`** (I6, 01 case 9, `foldVetoed` in `src/sources/similar.ts`, zero tolerance): a season
 modelling row holding MORE episodes than the run's length is never the run.
 
 ```cypher

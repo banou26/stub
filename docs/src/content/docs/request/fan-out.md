@@ -244,7 +244,7 @@ fan-out matters precisely because a blanket re-fan would hit every upstream agai
 **`maskError` does not mask.** `src/worker/extractor.ts:499-504` logs
 `Server Extractor <name> GQLError occurred:` and returns `new GraphQLError((error as Error).message)`,
 so the upstream message survives to the client side of that source's own urql client, where
-`errorExchange` (`src/worker/extractor.ts:507-523`) logs it a second time under one of two shapes,
+`errorExchange` (`src/worker/extractor.ts`) logs it a second time under one of two shapes,
 `Client Extractor <name> Network error on <operation>` or `... GraphQL error on ...`. It never swallows
 and never retries; retrying lives in [`fetchWithBackoff`](/request/fetch-and-backoff/).
 
@@ -323,7 +323,7 @@ the next page open builds a fresh `Fanout` and asks it again.
 (`src/worker/extractor.ts:551`) is built once at module load, and plugin registration mutates it in
 place: `extractors.push(entry)` at `:683`, `extractors.splice(index, 1)` at `:719`. So "every
 registered source" means *every source registered at the instant the loop runs*, and the set can differ
-between two fan-outs opened seconds apart. `close()` (`src/worker/extractor.ts:849`) removes the fan-out
+between two fan-outs opened seconds apart. `close()` (`src/worker/extractor.ts:856`) removes the fan-out
 from `fanouts` so no further late joiners arrive, and deliberately does not unsubscribe: the caller
 still tears down what it holds.
 :::

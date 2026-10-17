@@ -447,7 +447,7 @@ count of policy reads in JustWatch is two, at `:593` and `:766`, and only `:766`
 **`SIMILAR_MEDIA` is never opened as a root.** `openRoot` has exactly one call site in `src/`
 (`src/worker/extractor.ts:782`, inside `proxyRequestToExtractors`), and its two callers pass `'MEDIA'`
 (`src/worker/resolvers/media/index.ts:39`) and `'MEDIA_PAGE'` (`:100`). A `similarMedia` hop does not
-open a root: `similarOutcomeFrom` calls `descend(parent, caller)` (`src/worker/extractor.ts:323-324`),
+open a root: `similarOutcomeFrom` calls `descend(parent, caller)` (`src/worker/extractor.ts:400-401`),
 which keeps the parent's `operation`. So a `similarMedia` ask made from a detail view carries
 `operation: 'MEDIA'`, and the third row of `POLICY` is reachable today only from
 `tests/unit/worker/request-context.test.ts:27`. The row is not dead code so much as a declared
@@ -460,7 +460,7 @@ ask rather than by looking at the stack (`src/worker/extractor.ts:336-350`). It 
 for a reader that does not exist yet.
 
 **`justwatch/extractor.ts:305` in the module header has drifted.** That line is now `jwCandidates`. The
-call the comment is pointing at is `resolveEpisodeToSeriesId` at `src/sources/justwatch/extractor.ts:375`,
+call the comment is pointing at is `resolveEpisodeToSeriesId` at `src/sources/justwatch/extractor.ts:531`,
 defined at `src/sources/crunchyroll/extractor.ts:133-142`. The claim is still exactly right; only the
 line moved.
 

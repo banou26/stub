@@ -105,7 +105,7 @@ matters (none of them unions anything) and loose about the storage.
 `UnionFind` surface is `has`, `find`, `union`, `component` and `allComponents` (`graph.ts:10-16`).
 There is no split and no unlink anywhere in the repo, and `union` ends with
 `components.delete(oldRoot)` at `graph.ts:103`, which destroys the record of which members arrived
-from which side. `resetStore()` (`db.ts:509-513`) empties the entire store and is tests only. The
+from which side. `resetStore()` (`db.ts`) empties the entire store and is tests only. The
 three rose tracks above are the three places a mistake cannot be walked back.
 :::
 

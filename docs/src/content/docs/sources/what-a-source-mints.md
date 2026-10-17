@@ -4,7 +4,7 @@ description: "src/sources/utils.ts is where an identity claim and a containment 
 ---
 
 A source never writes to the store. It builds objects and hands them back, and every object it builds
-comes out of one 509 line module, `src/sources/utils.ts`. Two of its exports are one line each, and
+comes out of one 567 line module, `src/sources/utils.ts`. Two of its exports are one line each, and
 the difference between them is the difference between a link that can be undone and a weld that
 cannot:
 
@@ -291,7 +291,7 @@ before touching this path:
 
 That last sentence is the bottom of the figure, and it is implemented in two places rather than here.
 `IDENTITY_FIELDS = new Set(['uri', 'origin', 'id', 'scope'])` at `db.ts:104`, `isPlaceholder` at
-`db.ts:105-108`, and the `continue` at `db.ts:140` keep a bare rebuilt row out of the store entirely;
+`db.ts:105-108`, and the `continue` at `db.ts:142` keep a bare rebuilt row out of the store entirely;
 the claims loop then finds no row for it (`db.ts:179-183`) and defers. The store's own comment names
 this function as the thing it is defending against:
 
@@ -379,7 +379,7 @@ distinction, and the comment on the second is the rule every consumer has to obe
 The rule is enforced. The helpers are not the thing enforcing it: a grep of the whole tree, tests
 included, finds no caller of either function outside its own definition. Every site that needs the
 filter open-codes it instead, at `src/worker/store/aggregate.ts:104`,
-`src/router/watch/index.tsx:30`, `src/router/home/media-modal.tsx:496` and
+`src/router/watch/index.tsx:47`, `src/router/home/media-details.tsx:310` and
 `src/router/home/episode-origins.ts:19`. The heaviest enforcement is a different shape again: the store
 does not filter PART_OF handles out, it cuts the subtree under them, at
 `src/worker/store/aggregate.ts:145`, which returns `[{ ...handle.node, handles: [] }]` for a PART_OF

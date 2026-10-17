@@ -171,7 +171,7 @@ effective labels include two with merge functions crashes the whole DataLoader b
 and `episode` register one, so a uri written by both `upsertMedia` and `upsertEpisodes` would take
 down every source's rows in that batch. Nothing in the tree mints such a collision, because an
 episode uri suffixes its media's: `toUriEpisodeId` is
-`` `${uri}-${episodeId}` `` (`src/utils/uri.ts:277`) and `makeEpisode` follows the same convention
+`` `${uri}-${episodeId}` `` (`src/utils/uri.ts`) and `makeEpisode` follows the same convention
 (above `makeMovieEpisode` in `src/sources/utils.ts`). The guard is still real, and it is batch-wide.
 :::
 

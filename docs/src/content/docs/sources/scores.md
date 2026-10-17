@@ -133,7 +133,7 @@ sixth is a union-find union with no inverse.*
 :::danger[The sixth branch is permanent]
 `selectTitles` decides which six normalized titles a cluster is compared on. Those six are the only
 thing `sameShow` reads about the titles, and a match there reaches
-`linkSameMediaPairs([[uriA, uriB]])` at `src/worker/store/fuzzy-merge.ts:664`, which is a
+`linkSameMediaPairs([[uriA, uriB]])` at `src/worker/store/fuzzy-merge.ts:686`, which is a
 `graph.link`: a union-find union, per label, with **no inverse**. Two clusters welded by a title that
 made the cut stay welded for the session, and no later evidence unwelds them.
 
@@ -154,7 +154,7 @@ and the five sites do not agree.
 | the cluster sort, `aggregate.ts:319` | `0` | an unscored row ties with a `0`-scored one and sorts below `0.2` |
 | `tieredConsensus`, `consensus.ts:44-45` | `0` | an unscored row is a claim at the bottom, and it wins outright when nobody else states a number |
 | `selectTitles`, `fuzzy-merge.ts:262` | `-1` | an unscored title is its own tier under `0.2`, so it is dropped first when six is not enough |
-| `runEvidence`, `similar-consumer.ts:160-163` | sorts last, explicitly | written as a comparator rather than a sentinel, so an unscored row can never sort above a `0`-scored one |
+| `runEvidence`, `similar-consumer.ts` | sorts last, explicitly | written as a comparator rather than a sentinel, so an unscored row can never sort above a `0`-scored one |
 
 The two that matter are `?? 0` in `consensus.ts` and `?? -1` in `fuzzy-merge.ts`, and the code says
 so at the site rather than leaving it to be inferred.
@@ -304,7 +304,7 @@ bundle has (`fromGoodSource`, `src/utils/theater.ts`).
 
 What the page does read is the ORDER the score produced. `handles` on an aggregate is
 `sorted.map(...)` (`aggregate.ts:365`), so the handle list arrives score-descending, and the media
-modal is written against exactly that, at `src/router/home/media-modal.tsx:772-775`:
+modal is written against exactly that, in `SourceLinks` (`src/router/home/media-details.tsx`):
 
 > SAME_AS FIRST, then anything. `handles` is ordered by score, which says nothing about relation, so
 > a plain `find` could hand the Crunchyroll icon a PART_OF `cr:<seriesId>` while the SAME_AS
@@ -315,9 +315,9 @@ Two smaller consumers worth knowing about, both driven by the same constants:
 - `anomalies.ts:59-67` reports `lists more episodes than it is long` when a run's listed episode count
   exceeds `runLength(cluster)`, and prints how many of its sources agree on that length. The rule is
   pure and reports; it changes nothing.
-- `runEvidence` (`similar-consumer.ts:166-176`) orders the cluster by score before reading
+- `runEvidence` (`similar-consumer.ts`) orders the cluster by score before reading
   `bestRunStartDate` off it, so the score decides which member's start date is handed to an answering
-  source. It is only a tiebreak: `bestRunStartDate` (`src/sources/similar.ts:113-119`) prefers any
+  source. It is only a tiebreak: `bestRunStartDate` (`src/sources/similar.ts`) prefers any
   day-precise date over a higher-scored `YYYY-01-01`, because "only a day can be measured against a
   45 day window".
 

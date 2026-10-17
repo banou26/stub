@@ -158,7 +158,7 @@ whole design: a package is only a shipping container.*
 
 The figure spans two functions. Everything down to `META` is `readPluginSources`, which is pure and has
 no idea what else is registered; the collision check and the empty-result throw are
-`registerRemoteExtractor` (`src/worker/extractor.ts:678-680` and `:701-704`), which is the only half
+`registerRemoteExtractor` (`src/worker/extractor.ts:735-737` and `:758-761`), which is the only half
 that can see the rest of the registry. They are drawn together because a plugin author experiences them
 as one list of reasons a source did not appear.
 
@@ -443,7 +443,7 @@ defaults, the fan-out join, the DataLoaders, the store, is shared.*
 
 | axis | a built-in | a plugin |
 | --- | --- | --- |
-| definition | a module namespace in `src/sources/index.ts` | `PluginSourceMeta` plus `makeDelegatingResolvers`, `src/worker/extractor.ts:681` |
+| definition | a module namespace in `src/sources/index.ts` | `PluginSourceMeta` plus `makeDelegatingResolvers`, `src/worker/extractor.ts` |
 | `supportedUris` | declared, read by `answersForOrigins` | absent from `PluginSourceMeta` (`src/worker/plugin-sources.ts:18-26`), so the re-ask matches on origin alone |
 | where resolvers run | in the worker | in the package's own frame, reached over the port |
 | context | four members (`src/worker/extractor.ts:39-48`) | one, `{ similarMedia: similarMediaFrom(origin) }` |
@@ -471,7 +471,7 @@ fan-out still asks it unconditionally, like everyone else; see [the fan-out](/re
 
 ### Teardown removes the entry, not the rows
 
-`unregisterRemoteExtractor` (`src/worker/extractor.ts:709-722`) drops the plugin's pickers and players,
+`unregisterRemoteExtractor` (`src/worker/extractor.ts`) drops the plugin's pickers and players,
 walks `extractors` from the end so the splices do not shift indices under the loop, and calls
 `leaveFanout` for every fan-out still open, which unsubscribes and removes the subscription from both
 `joined` and `subscriptions` (`:768-775`). The discriminator inside that loop is

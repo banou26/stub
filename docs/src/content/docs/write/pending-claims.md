@@ -270,7 +270,7 @@ call happens to land the row next, which may be a completely different page's in
 different source's answer.
 
 It is unbounded. There is no cap on buckets, no cap on claims per bucket, no timestamp on an entry and
-no sweep. The only thing that empties it is `resetStore` at `db.ts:509-513`, and that function is
+no sweep. The only thing that empties it is `resetStore` in `db.ts`, and that function is
 tests only, for a stated reason:
 
 `src/worker/store/db.ts:496-508`

@@ -111,7 +111,7 @@ flowchart TD
 
 *Two lanes out of one payload. The left one cannot be switched off by a document; the right one is nothing but a document.*
 
-Both branches are `useOnResolve` at `src/worker/extractor.ts:473-495`, installed by `makeExtractor`
+Both branches are `useOnResolve` in `src/worker/extractor.ts`, installed by `makeExtractor`
 into every source's yoga. The three type tests are at `:475`, `:481` and `:487`, and the value each
 inspects is `result`, the resolver's return value. `mediaInserter` is `extractor.ts:106-134` and calls
 `upsertMedia(allUnwrapped.map(normalizeToStoreMedia), handlePairs)` at `:127`.

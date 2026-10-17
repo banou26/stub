@@ -351,7 +351,7 @@ two reference sets is not read as an inconsistency.
 ## What this does not do
 
 - **It does not regroup.** `mergeByEpisodeNumber` runs at the bottom of
-  `findAggregatedEpisodesForMedia` (`db.ts:454`), which is **before** the alignment, so its groups are
+  `findAggregatedEpisodesForMedia` (`db.ts:466`), which is **before** the alignment, so its groups are
   keyed on numbers that have since moved. What actually merges Crunchyroll's 13 into everyone else's
   1 is the resolver's second grouping, on the post-alignment number, at
   `src/worker/resolvers/media/index.ts:209-213`. The [episodes read](/read/episodes/) draws that

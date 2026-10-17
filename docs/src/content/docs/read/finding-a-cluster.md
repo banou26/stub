@@ -19,7 +19,7 @@ one part of the store that can be re-read as often as you like; the writes that 
 read are on [upsertMedia](/write/upsert-media/) and [the fuzzy merge](/merge/fuzzy-merge/). And
 **none of them is really asynchronous**: `findAggregatedMedia` and `findMediaForPage` are declared
 `async` and contain no `await` of any I/O, because the store is a set of in-memory `Map`s
-(`src/worker/store/graph.ts:124-140`). The `await` at `src/worker/resolvers/media/index.ts:71` costs a
+(`src/worker/store/graph.ts:124-140`). The `await` at `src/worker/resolvers/media/index.ts:145` costs a
 microtask and nothing else.
 
 ## `findAggregatedMedia`: resolve, then the label gate, then one space
@@ -104,7 +104,7 @@ stored row (`graph.ts:322-323`), which is the same tolerance the write side has:
 component, and `graph.link` has no inverse anywhere in the repo: no unlink, no disunion, and
 `union` ends with `components.delete(oldRoot)` at `graph.ts:103`, which destroys the record of which
 members came from which side. A wrong SAME_AS therefore shows up here as a cluster that reads
-perfectly and cannot be argued with. The only reset is `resetStore()` at `db.ts:509-513`, which empties
+perfectly and cannot be argued with. The only reset is `resetStore()` in `db.ts`, which empties
 the whole store and is tests only. See [the graph](/write/graph/).
 :::
 
@@ -220,11 +220,11 @@ condition at `db.ts:308`:
 > cluster once. Only a RUN row counts as a source: a container pointing at another container is a
 > PART_OF claimed between two shows, never a run of one.
 
-Deduping is on `keyOf(run)` (`db.ts:310-312`), the lexicographically smallest member uri of the
+Deduping is on `keyOf(run)` (`db.ts`), the lexicographically smallest member uri of the
 expanded cluster, not on the seed uri: a container with three edges into one run cluster yields that
 cluster once.
 
-**Reading the sort is worth thirty seconds.** `startOf` (`db.ts:319-323`) is `Math.min` over the
+**Reading the sort is worth thirty seconds.** `startOf` (`db.ts`) is `Math.min` over the
 cluster's parsed start dates with an unparseable or absent date mapped to `Infinity`, so an undated
 cluster sorts last against any dated one. Two undated clusters produce `Infinity - Infinity`, which is
 `NaN`, and `NaN` is falsy, so the `||` falls through to `compareStrings(keyOf(a), keyOf(b))` and the
@@ -315,7 +315,7 @@ figure. A target with no stored row reads `'RUN'` by default, is looked up in `m
 has no component, and contributes nothing rather than contributing a bare node.
 
 Two readers depend on this shape. `aggregateMedia` turns the result into the PART_OF half of a media's
-`handles` (`src/worker/store/aggregate.ts:315` and `:366`), which is how a run card carries a show's
+`handles` (`src/worker/store/aggregate.ts:316` and `:367`), which is how a run card carries a show's
 IMDb, TVmaze and Crunchyroll links without ever asserting sameness with them. And
 `hideAttachedContainers` (`db.ts:391-398`) uses it to decide which container cards a listing drops, a
 decision scoped to the list rather than to the store; that one is on

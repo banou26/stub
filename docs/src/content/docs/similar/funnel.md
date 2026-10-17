@@ -73,7 +73,7 @@ Read against the file: the evidence gate is `extractor.ts:316`, the hop is `:323
 `:365-366`, and the payload branch `:367-388`. The subscription itself is `firstSimilarMedia`
 (`:252-285`), drawn in full [below](#firstsimilarmedia-the-first-payload-wins).
 
-`hasEvidence` (`src/sources/similar.ts:83-87`) is the loosest gate on the page and deliberately so:
+`hasEvidence` (`src/sources/similar.ts`) is the loosest gate on the page and deliberately so:
 
 ```ts
 Boolean(startDate && !Number.isNaN(Date.parse(startDate)))
@@ -273,7 +273,7 @@ Three mechanical details the figure implies and the code pins:
 
 :::caution
 **A join hands the second caller the first caller's answer, so the key has to carry everything the
-rules read.** `similarAskKey` (`src/sources/similar.ts:331-338`) is `origin`, `showId`, the day, the
+rules read.** `similarAskKey` (`src/sources/similar.ts`) is `origin`, `showId`, the day, the
 count, the season ordinals the titles agree on, whether any title names a part, and the deduped real
 episode titles, joined on a NUL separator. Its doc says exactly what the last field is doing there
 (`similar.ts:326-329`):
@@ -375,7 +375,7 @@ is fixed because a script parses it:
 
 Two details for anyone grepping these. **`asked` and `joined` say `by '<caller>'`; `declined`,
 `refused` and `answered` say `to '<caller>'`.** And the evidence blob on the `asked` line is
-`describeEvidence` (`src/sources/similar.ts:284-288`), which prints what the rules read rather than
+`describeEvidence` (`src/sources/similar.ts`), which prints what the rules read rather than
 what was sent: `{day:2026-07-04, count:14, ordinals:3, parts:no, titles:5, episodeTitles:12}`. The
 two lengths are of the raw lists, so the reader can see a run that sent five titles carrying one
 ordinal.
@@ -430,9 +430,9 @@ for a reason that belongs on [the document](/similar/document/):
 **An `answered` is the last checkpoint before something with no inverse.** The consumer's claim goes
 through `upsertMedia`, and a RUN against a RUN with `SAME_AS` reaches `graph.link` at
 `src/worker/store/db.ts:193`, which is a union-find union. There is no unlink anywhere in the repo:
-the only reset is `resetStore()` at `db.ts:509-513`, which empties the whole store and is tests only.
+the only reset is `resetStore()` in `db.ts`, which empties the whole store and is tests only.
 Two of the ten exits above exist purely to keep a wrong pair away from that call.
-`isRunAnswerFrom` (`src/sources/similar.ts:125-129`) is the one inside the funnel:
+`isRunAnswerFrom` (`src/sources/similar.ts`) is the one inside the funnel:
 
 > Whether an answer is a RUN of the asked origin, and never the show itself. A source answering with
 > its bare show id is refused whatever scope it stamped, because that id is every season at once.

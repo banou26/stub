@@ -254,9 +254,9 @@ in `src/sources/supported.ts:18-23`:
 ## A third shape: jikan cannot see an aggregate at all
 
 Read the code and there is a third shape, on a source that matters. jikan publishes under origin
-`mal` (`src/sources/jikan/extractor.ts:13`) at `SCORE = 0.9` (`:26`), tied with anizip for the
+`mal` at `SCORE = 0.9` (`src/sources/jikan/extractor.ts`), tied with anizip for the
 highest score any source carries. It refuses on the *opposite* test to AniZip's
-(`src/sources/jikan/extractor.ts:373-380`):
+(`Subscription.media` in `src/sources/jikan/extractor.ts`):
 
 ```ts
 subscribe: async function*(_, { input: { uri } }, ctx: ExtractorServerContext) {

@@ -283,11 +283,11 @@ reading a number and deleting text carry different risks.
 Three of the values a reader looks for on this page are collections rather than patterns, and the
 difference decides how they are matched.
 
-`RETRYABLE_STATUSES` (`src/worker/backoff.ts:13`) is a `ReadonlySet<number>`:
+`RETRYABLE_STATUSES` (`src/worker/backoff.ts`) is a `ReadonlySet<number>`:
 `{408, 429, 502, 503, 504, 522, 524}`. Membership, not a pattern. Its absences are the interesting
 part:
 
-`src/worker/backoff.ts:5-12`
+`src/worker/backoff.ts:7-14`
 
 > Every status here means "ask again", never "this request was wrong". 502/504 and Cloudflare's
 > 522/524 are a gateway failing to reach the thing behind it, which is the shape almost every
@@ -298,12 +298,12 @@ part:
 > 500 is deliberately absent: it is as often a deterministic upstream bug as a blip, and retrying
 > one costs three requests to reach the same answer.
 
-`COMPANION_MARKERS` (`src/worker/store/fuzzy-merge.ts:92-95`) is an array of ten literal strings,
+`COMPANION_MARKERS` (`src/worker/store/fuzzy-merge.ts`) is an array of ten literal strings,
 matched as a trailing suffix with a leading space (`namesCompanionContent`,
-`fuzzy-merge.ts:189-199`), never as a regex:
+`fuzzy-merge.ts`), never as a regex:
 
 ```js
-const COMPANION_MARKERS = [
+export const COMPANION_MARKERS = [
   'specials', 'special', 'picture drama', 'recap', 'ova', 'ona', 'bonus', 'mini anime',
   'episode 0', 'trailer',
 ]
@@ -315,10 +315,10 @@ Fifteen more were swept and dropped for refusing none, and the comment is carefu
 does and does not claim: "They cost nothing either, so this is not a claim that they never occur,
 only that this corpus cannot say they earn their place."
 
-`WORK_KINDS` (`src/worker/store/fuzzy-merge.ts:58`) is
+`WORK_KINDS` (`src/worker/store/fuzzy-merge.ts`) is
 `new Set<MediaType>(['TV', 'MOVIE', 'SPECIAL', 'OVA', 'ONA'])`. `ANIME` and `LIVE_ACTION` are absent
 because they answer a different question and would make two clusters disagree for saying the same
-thing. `TV_SHORT` is absent for a subtler reason, and is folded to `TV` at `fuzzy-merge.ts:74`
+thing. `TV_SHORT` is absent for a subtler reason, and is folded to `TV` by `mergeType` (`fuzzy-merge.ts`)
 instead, because adding it to the set would make an AniList-typed short veto a jikan-typed `TV` for
 the same show.
 

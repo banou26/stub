@@ -83,7 +83,7 @@ every pair inside a tier, and `Array.prototype.sort` is stable.
 > maxPossibleSimilarity measures 0.389, 0.359 and 0.326 against them and refuses the pair before the
 > matcher even runs.
 
-The fix is one line, `orderWithinTier` at `fuzzy-merge.ts:234`, and the choice of ordering was
+The fix is one line, `orderWithinTier` in `fuzzy-merge.ts`, and the choice of ordering was
 measured rather than argued. Over the manami database, 41537 records:
 
 | ordering | A: two shows welded by a junk label (lower is better) | B: one show split, keeping a title in common (higher) | C: a one-title streaming cluster attaching (higher) |
@@ -112,7 +112,7 @@ whichever copy the sort left first, and inside a tier that is again arrival orde
 
 ### 2. The decision cache key
 
-`decide` (`fuzzy-merge.ts:585-592`) memoises `sameShow` on `pairKey`, which is the two profiles'
+`decide` (`fuzzy-merge.ts`) memoises `sameShow` on `pairKey`, which is the two profiles'
 `cacheKey` sorted against each other (`fuzzy-merge.ts:577-578`). The key itself sorts each of its
 five segments (`fuzzy-merge.ts:360`).
 
@@ -256,7 +256,7 @@ which side, and there is no `split`, `unlink` or `unmerge` anywhere in the repo.
 (`graph.ts:155-191`) is last-write-wins on scalars and longest-wins on arrays, with no per-source
 layer and no way to ask what a given origin said. So an arrival order that produces a wrong weld does
 not produce a wrong weld *this load*: it produces one for the life of the worker, and a reload that
-would have got it right cannot undo it. Only `resetStore` (`db.ts:509`) clears any of it, and that is
+would have got it right cannot undo it. Only `resetStore` (`db.ts`) clears any of it, and that is
 tests only.
 :::
 

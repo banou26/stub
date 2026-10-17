@@ -42,8 +42,8 @@ classDiagram
 
 The maps are declared at `graph.ts:124-141` and the union-find's three at `graph.ts:57-59`. Only three
 labels ever get a `UnionFind`, because only three labels are ever passed to `link`: `media:same_as`
-and `container:same_as` from `upsertMedia` (`db.ts:193`, through `sameAsLabelFor`) and
-`episode:same_as` from `upsertEpisodes` (`db.ts:410`). Four labels reach `directed` (`media:part_of`,
+and `container:same_as` from `upsertMedia` (`db.ts:199`, through `sameAsLabelFor`) and
+`episode:same_as` from `upsertEpisodes` (`db.ts:422`). Four labels reach `directed` (`media:part_of`,
 `episode:part_of`, `has_episode`, `asserted:media_part_of`), five reach `undirected` (the three
 same-as labels, plus `asserted:media_same_as` and `asserted:container_same_as` written by `connect`),
 and exactly two node labels are ever registered: `media` and `episode`.
@@ -231,7 +231,7 @@ The whole `UnionFind` surface is declared at `graph.ts:10-16`: `has`, `find`, `u
 `allComponents`. Five functions, and the returned object at `graph.ts:120` is exactly those five.
 There is no split, no unlink, no disunion, no undo, anywhere in the repo. Once `link` runs on a pair,
 the two clusters are one for the life of the worker, and the only reset is `graph.clear()`
-(`graph.ts:363-375`) through `resetStore` (`db.ts:509-513`), which empties everything and is tests
+(`graph.ts:363-375`) through `resetStore` (`db.ts`), which empties everything and is tests
 only:
 
 `src/worker/store/db.ts:506-507`
@@ -419,7 +419,7 @@ The rest of the read surface is thin and each function has exactly one interesti
 | --- | --- | --- |
 | `labeled(label)` | `:213-215` | `db.ts:261` refuses a uri that is not a media row; `export.ts:26-27` seeds the export |
 | `neighbours(key, label)` | `:275-277` | `export.ts:43` and `:62`, walking the asserted adjacency instead of the cluster |
-| `targets(key, label)` | `:308-310` | `db.ts:281` for `PART_OF`, `db.ts:436` for `HAS_EPISODE` |
+| `targets(key, label)` | `:308-310` | `db.ts:287` for `PART_OF`, `db.ts:448` for `HAS_EPISODE` |
 | `sources(key, label)` | `:312-314` | `db.ts:307`, the reverse index, which is the only reason `findRunsOfContainer` can exist |
 | `resolve(key)` | `:227` | `db.ts:258`, turning a client's `_id` back into a uri |
 

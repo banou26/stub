@@ -14,7 +14,7 @@ part two aired. Neither part carries any Crunchyroll at all, which is
 > it belongs to premiered with part one nine months earlier. Both parts then carry no Crunchyroll at
 > all, which is the state the site was in on 2026-09-09.
 
-`lendContainingSeason` (`src/sources/crunchyroll/extractor.ts:402-440`) is the answer to that, and it
+`lendContainingSeason` (`src/sources/crunchyroll/extractor.ts`) is the answer to that, and it
 is a strange-looking one: it returns a media the caller must **not** treat as itself. The season is
 one thing, the run is another, and what crosses over is the episode list alone.
 
@@ -54,7 +54,7 @@ flowchart TD
 *Two runs of one show, refused by the same rule for opposite reasons: one found a season and it was too big, the other found no season at all. Both refusals are correct, and together they are a hole.*
 
 `SEASON_DATE_WINDOW` is `45 * 24 * 60 * 60 * 1000`, 45 days, at
-`src/sources/catalogue-gate.ts:230`. `foldVetoed` is `src/sources/similar.ts:147-150`, and its comment
+`src/sources/catalogue-gate.ts:230`. `foldVetoed` is in `src/sources/similar.ts`, and its comment
 at `:139-146` says why the search path needs it exported at all:
 
 > A season holding MORE episodes than the run holds other runs too (Netflix season 2 = 25 over 13 and
@@ -208,10 +208,10 @@ again at `:711` for the spanning case.
 behind `Subscription.similarMedia` (`extractor.ts:566-569`).
 
 That is structural rather than incidental. The funnel's gate is
-`isRunAnswerFrom` (`src/sources/similar.ts:124-129`): `answer.origin === origin && answer.scope !==
+`isRunAnswerFrom` (`src/sources/similar.ts`): `answer.origin === origin && answer.scope !==
 'CONTAINER' && answer.id !== showId`. A lent season passes all three, because
 `scopeOf` at `extractor.ts:174` stamps `RUN` on anything whose id is not the bare series id. The
-consumer would then claim it `SAME_AS` at `src/worker/similar-consumer.ts:255`, which is precisely the
+consumer would then claim it `SAME_AS` at `src/worker/similar-consumer.ts:467`, which is precisely the
 weld the lend exists to avoid. A lend is a media answer that carries no identity, and only the `media`
 path can express that: `similarMedia`'s whole contract is that its answer **is** the caller's run.
 
@@ -266,7 +266,7 @@ flowchart LR
 
 *Everything from `alignRunEpisodes` rightwards is blue, which means it is recomputed on every read and persists nothing. The one grey node is the branch the inventory for this page does not mention: an uncorroborated length does not window the loan, it declines it.*
 
-The wiring is `findRunEpisodes` (`src/worker/store/db.ts:424-430`), three lines: walk, align, window.
+The wiring is `findRunEpisodes` (`src/worker/store/db.ts`), three lines: walk, align, window.
 `Media.episodes` calls it rather than the bare walk (`src/worker/resolvers/media/index.ts:202-204`),
 and the comment above that line names this page's subject directly:
 

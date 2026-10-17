@@ -7,12 +7,12 @@ One uri becomes 25 concurrent GraphQL subscriptions, one per registered source, 
 
 ## The gate
 
-wouter hands a route segment through undecoded, so every uri passes `decodeRouteUri` (src/utils/uri.ts:162-170) at the router (media-modal.tsx:599, watch/index.tsx:177-182) and again in the worker (src/worker/resolvers/media/index.ts:33). It must then satisfy `isUri(uri) || isAggregatedUri(uri)`; anything else logs `media: refused '<uri>', which names no uri` and returns **without yielding** (:34-37): yoga answers 204 No Content and the page holds `data === undefined` forever, no error anywhere. Inside a source the rule inverts: a refusal is a `yield` of null and never a return (defaults at src/worker/extractor.ts:457-463), or a `similarMedia` generator ending silently would hold its caller for `SIMILAR_MEDIA_TIMEOUT_MS = 30_000` (:198).
+wouter hands a route segment through undecoded, so every uri passes `decodeRouteUri` (src/utils/uri.ts) at the router (media-modal.tsx:300, watch/index.tsx:272-277) and again in the worker (src/worker/resolvers/media/index.ts:35). It must then satisfy `isUri(uri) || isAggregatedUri(uri)`; anything else logs `media: refused '<uri>', which names no uri` and returns **without yielding** (:36-40): yoga answers 204 No Content and the page holds `data === undefined` forever, no error anywhere. Inside a source the rule inverts: a refusal is a `yield` of null and never a return (defaults at src/worker/extractor.ts:457-463), or a `similarMedia` generator ending silently would hold its caller for `SIMILAR_MEDIA_TIMEOUT_MS = 30_000` (:198).
 
 | | `Subscription.media` | `Subscription.mediaPage` |
 | --- | --- | --- |
-| uri gate | `decodeRouteUri` then `isUri \|\| isAggregatedUri` (media/index.ts:33) | none |
-| root operation | `MEDIA` (media/index.ts:39) | `MEDIA_PAGE` (media/index.ts:100) |
+| uri gate | `decodeRouteUri` then `isUri \|\| isAggregatedUri` (media/index.ts:35) | none |
+| root operation | `MEDIA` (media/index.ts:54) | `MEDIA_PAGE` (media/index.ts:198) |
 | reads the fan-out payload | no | yes, via `extractUris` on `mediaPage.nodes` |
 | re-ask | `askOrigins` on every newly named origin | none |
 | re-read trigger | `media:changed`, `episode:changed` | `media:changed`, debounced 100ms |
@@ -54,7 +54,7 @@ flowchart TD
 
 *Crunchyroll answers one uri four ways, and only answer 4 mints a permanent SAME_AS claim.*
 
-Three of the four are the same bytes, `{ media: null }`, so a refusal on shape and a source that found nothing upstream are indistinguishable. jikan is asked every time and refuses every aggregated uri: its gate is `!uri || !isUri(uri)` (jikan/extractor.ts:374) and `isUri` demands exactly two colon-separated parts (uri.ts:71-80), which no aggregate has. On a detail page its rows arrive through `mediaPage`. More at [self-selection](/request/self-selection/).
+Three of the four are the same bytes, `{ media: null }`, so a refusal on shape and a source that found nothing upstream are indistinguishable. jikan is asked every time and refuses every aggregated uri: its gate is `!uri || !isUri(uri)` (`Subscription.media` in jikan/extractor.ts) and `isUri` demands exactly two colon-separated parts (uri.ts:71-80), which no aggregate has. On a detail page its rows arrive through `mediaPage`. More at [self-selection](/request/self-selection/).
 
 ## What a source is allowed to spend
 

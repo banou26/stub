@@ -7,7 +7,7 @@ The data flow of stub, as a diagram-heavy Starlight site. Same stack as fkn.dev:
 npm install
 npm run dev          # localhost:4321
 npm run build
-npm run check        # build, then check every diagram in a real browser
+npm run check        # build, check every diagram in a real browser, then every citation
 npm run check-citations  # every src/, tests/ and scripts/ citation points inside its file
 ```
 

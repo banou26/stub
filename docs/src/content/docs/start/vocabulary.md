@@ -339,8 +339,8 @@ cleanest statement of it is `alignRunEpisodes` explaining why it will not write 
 > is a VIEW, and a view is what this returns.
 
 Views on the read path: `aggregateMedia`, `aggregateEpisode` (`aggregate.ts:306`, `:401`),
-`mergeByEpisodeNumber` (`db.ts:475`), `alignRunEpisodes` and `runEpisodes` (`consensus.ts`),
-`findPartOfMedia` (`db.ts:276`), `applyMediaFilters`, `exportStore`. Not views, whatever they look
+`mergeByEpisodeNumber` (`db.ts`), `alignRunEpisodes` and `runEpisodes` (`consensus.ts`),
+`findPartOfMedia` (`db.ts`), `applyMediaFilters`, `exportStore`. Not views, whatever they look
 like: `graph.link`, `graph.set`, the scope ratchet, `graph.componentId`, and
 `fuzzyMergeMediaClusters` running inside a page read.
 

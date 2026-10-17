@@ -87,9 +87,9 @@ does not name. `MediaHandle.node` is `Media!` at
 The branch keys on the named type and on nothing else, so a narrative relation's other end reaches
 `mediaInserter` the same way an identity handle's does.
 
-It is selected in practice: `GET_MEDIA_MODAL` asks for `relations { relation format node { ... } }` at
-`src/router/home/media-modal.tsx:381-400`, and the fan-out replays the caller's document verbatim at
-every source (`query: ctx.params.query!`, `extractor.ts:784`). The other end therefore lands as its own
+It is selected in practice: `GET_MEDIA_DETAILS` asks for `relations { relation format node { ... } }` at
+`src/router/home/media-details.tsx:93-113`, and the fan-out replays the caller's document verbatim at
+every source (`query: ctx.params.query!`, `extractor.ts:799`). The other end therefore lands as its own
 row, with the fields the modal selected.
 
 It unions nothing, which is the part the design cares about: the relation node's own `handles` are not
@@ -268,7 +268,7 @@ declared at `graph.ts:10-16` is `has`, `find`, `union`, `component`, `allCompone
 split, no unlink and no disunion anywhere in the repo. `union` ends with
 `components.delete(oldRoot)` at `graph.ts:103`, which destroys the record of which members came from
 which side, so nothing afterwards can ask what the component would hold with one node removed. The
-only reset is `resetStore()` at `src/worker/store/db.ts:509-513`, which empties the whole store and
+only reset is `resetStore()` in `src/worker/store/db.ts`, which empties the whole store and
 exists for tests.
 
 A handle that reaches `upsertMedia` as `SAME_AS` between two rows of one scope is a permanent

@@ -20,7 +20,7 @@ if (await fuzzyMergeMediaClusters(clusters)) {
 ```
 
 That is a read. The generator around it re-runs on every debounced `media:changed`
-(`debouncedListenIterator(['media:changed'], 100)` at `media/index.ts:108`), so the pass runs again
+(`debouncedListenIterator(['media:changed'], 100)` at `media/index.ts:193`), so the pass runs again
 each time the store moves, at most ten times a second while a fan-out is landing, over whatever
 clusters the page is showing.
 
@@ -75,7 +75,7 @@ Three properties of the bucketing are worth reading off the code rather than off
   title is the literal string `Season 3` lands here, and that is deliberate: see `carriesIdentity`
   below.
 
-The cache is a module-level `Map` (`fuzzy-merge.ts:580`) that lives for the life of the worker. It is
+The cache is a module-level `Map` (`pairDecisions`, `fuzzy-merge.ts`) that lives for the life of the worker. It is
 never cleared per request. The only thing that empties it is the size check at `:607`, and the check
 is strict and total:
 

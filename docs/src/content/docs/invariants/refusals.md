@@ -267,7 +267,7 @@ One throw is reachable from a bare url. `src/utils/uri.ts:77`:
 if (parts[1]?.includes(',')) throw new Error(`Invalid uri: ${uri}, contains "," character in id`)
 ```
 
-and `decodeRouteUri` calls `isUri(raw)` at `uri.ts:163`, **outside** its own `try`. So `foo:a,b` in the
+and `decodeRouteUri` calls `isUri(raw)` at `uri.ts:168`, **outside** its own `try`. So `foo:a,b` in the
 address bar surfaces as a GraphQL error rather than as the tidy refusal waiting one line later at
 `media/index.ts:34`. See [the uri grammar](/invariants/uris/).
 
@@ -296,10 +296,10 @@ flowchart LR
 
 *Three different mechanisms, one screen. The distinction that survives to the reader is not which refusal fired, it is whether the stream is still open, and only the first of the three closes it.*
 
-On the page, all three are `data === undefined`. `src/router/watch/index.tsx:194` is
-`const media = data?.media`, and `src/router/home/media-modal.tsx:624` is
+On the page, all three are `data === undefined`. `src/router/watch/index.tsx:290` is
+`const media = watchMedia.data?.media`, and `src/router/home/media-modal.tsx:333` is
 `const media = data?.media ?? foundMedia`. Nothing distinguishes them there, which is why the
-`console.warn` at `media/index.ts:36` exists at all: *a refused page and a slow one are
+`console.warn` at `media/index.ts:38` exists at all: *a refused page and a slow one are
 indistinguishable from outside the worker without this*.
 
 What separates them is recoverability.
@@ -359,7 +359,7 @@ export type SimilarOutcome<M extends SimilarAnswerMedia = SimilarAnswerMedia> =
 **The difference is recorded, not just logged.** In `src/worker/similar-consumer.ts:227-235`, a
 `declined` outcome returns without touching the record, so the next read asks the identical question
 again. A `refused` outcome calls `record.fingerprints.add(question.fingerprint)` first, which makes
-`isAsked` (`similar-consumer.ts:136-137`) true for that exact evidence for as long as the record lives. Getting the two the
+`isAsked` (`similar-consumer.ts`) true for that exact evidence for as long as the record lives. Getting the two the
 wrong way round either loops on a question the source has already answered, or drops a question that
 was never actually asked.
 :::

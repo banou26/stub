@@ -103,11 +103,11 @@ Its branch is the interesting half. `[...(routable.length ? routable : uris)]` a
 Three differences between the lanes, in order of how much they cost:
 
 1. **The routability filter.** `asAggregatedUri` refuses and returns the input untouched. `buildAggregatedIdentity` drops unroutable members, and drops the filter entirely when that would leave nothing.
-2. **The encoding.** `toAggregatedId` calls itself once with `sort = false`, which is the `encodeURI(...)` at `uri.ts:192`. `buildAggregatedIdentity` never encodes. But `encodeURI` escapes **none** of the characters that break a route: measured in node, `encodeURI('cr:a,b/c(d) e')` returns `cr:a,b/c(d)%20e`. It escapes the space and leaves `,` `/` `(` `)` `:` alone. So the encoding difference shows up only for a space or a non-ASCII character in an id, and percent-encoding is never what makes a uri routable.
+2. **The encoding.** `toAggregatedId` calls itself once with `sort = false`, which is the `encodeURI(...)` at `uri.ts:197`. `buildAggregatedIdentity` never encodes. But `encodeURI` escapes **none** of the characters that break a route: measured in node, `encodeURI('cr:a,b/c(d) e')` returns `cr:a,b/c(d)%20e`. It escapes the space and leaves `,` `/` `(` `)` `:` alone. So the encoding difference shows up only for a space or a non-ASCII character in an id, and percent-encoding is never what makes a uri routable.
 3. **The sort.** `toAggregatedId` sorts by `id.localeCompare` and then by `origin.localeCompare` (`uri.ts:186-187`). `buildAggregatedIdentity` does a plain `[...].sort()` of the whole `origin:id` string (`aggregate.ts:299`). The two agree whenever each origin contributes at most one handle, because the colon terminates the origin comparison before any id character is reached. They disagree on case: `['cr:G24','cr:g24'].sort()` gives `G24` first, while `['G24','g24'].sort((a, b) => a.localeCompare(b))` gives `g24` first. Both measured in node against the tree at `883aec9`.
 
 :::note
-**The third difference cannot fire today, and the page brief says it can.** `toAggregatedUri` has exactly one live call site in the repo, `asAggregatedUri` at `uri.ts:127`, and it passes a **single member** array, so its sort orders one element. The other caller, `mergeAggregatedUris` (`uri.ts:246-264`), is exported and called by nothing: a repo-wide grep for it over `*.ts` and `*.tsx` outside `node_modules` returns only its own definition. The two encodings are live. The two orderings are latent, and would become real the moment `mergeAggregatedUris` acquires a caller.
+**The third difference cannot fire today, and the page brief says it can.** `toAggregatedUri` has exactly one live call site in the repo, `asAggregatedUri` at `uri.ts:127`, and it passes a **single member** array, so its sort orders one element. The other caller, `mergeAggregatedUris` (`uri.ts`), is exported and called by nothing: a repo-wide grep for it over `*.ts` and `*.tsx` outside `node_modules` returns only its own definition. The two encodings are live. The two orderings are latent, and would become real the moment `mergeAggregatedUris` acquires a caller.
 :::
 
 ## One validator throws, and it is called before the try
@@ -124,7 +124,7 @@ export const isUri = (uri: string): uri is Uri => {                      // uri.
 
 `isUri` is the only function in the file that throws (`uri.ts:77`), and it is permissive about everything else. `filter(part => part.length)` drops empty segments, so `foo::bar` reads as two parts and passes. `https://example.test/x` splits to `['https', '//example.test/x']`, which is two parts, so it passes too. Well formed is not routable, and the comment quoted above says exactly that.
 
-`isAggregatedUri` (`uri.ts:99-105`) never throws and has one exit worth knowing: `!uris` at `:104` is true when the match group is empty, so **`ag:()` is a valid aggregated uri**. Downstream it parses to `handleUris: []`, the fallback loop in `findMediaForPage` at `src/worker/store/db.ts:353` runs zero times, the cluster comes back empty, and the media subscription stays open yielding nothing. It is a well formed request for no work at all.
+`isAggregatedUri` (`uri.ts:99-105`) never throws and has one exit worth knowing: `!uris` at `:104` is true when the match group is empty, so **`ag:()` is a valid aggregated uri**. Downstream it parses to `handleUris: []`, the fallback loop in `findMediaForPage` at `src/worker/store/db.ts:359` runs zero times, the cluster comes back empty, and the media subscription stays open yielding nothing. It is a well formed request for no work at all.
 
 `decodeRouteUri` (`uri.ts:162-170`) is the gate every route parameter passes through first, and it exists because of a page that rendered and then did nothing:
 
@@ -136,7 +136,7 @@ export const isUri = (uri: string): uri is Uri => {                      // uri.
 
 ```mermaid
 flowchart TD
-  RAW["a route segment, as wouter hands it over<br/><small>rawParams.uri, media-modal.tsx:598</small>"] --> G1{"is there a segment at all?<br/><small>!raw</small>"}
+  RAW["a route segment, as wouter hands it over<br/><small>rawParams.uri, media-modal.tsx</small>"] --> G1{"is there a segment at all?<br/><small>!raw</small>"}
   G1 -->|"exit 1: undefined or empty, returned as it came"| X1["raw, unchanged"]
   G1 -->|"a non-empty string"| G2{"is it already a uri?<br/><small>isUri(raw) || isAggregatedUri(raw)</small>"}
   G2 -->|"exit 2: already a uri, so no decode is attempted"| X2["raw, unchanged"]
@@ -232,7 +232,7 @@ A run wins outright and breaks the loop (`db.ts:356-359`); a container is kept o
 >
 > TWO ids of one origin in one cluster is itself a defect and this does not fix it, it only stops the defect choosing the worst of them. When neither extends the other the first still wins, which is arbitrary but stable, and stability is what keeps a source answering the same way twice.
 
-The three id builders it names all join on a hyphen, and all three are one line: `crunchyrollId` at `src/sources/crunchyroll/extractor.ts:151-152`, `jwId` at `src/sources/justwatch/id.ts:20`, `seasonScopedId` at `src/sources/season.ts:189`. That shared shape is not a coincidence, it is the contract `mostSpecific` reads.
+The three id builders it names all join on a hyphen, and all three are one line: `crunchyrollId` in `src/sources/crunchyroll/season-id.ts`, `jwId` in `src/sources/justwatch/id.ts`, `seasonScopedId` in `src/sources/season.ts`. That shared shape is not a coincidence, it is the contract `mostSpecific` reads.
 
 The ordering claim it rests on is checkable, and it holds: `'G24H1N3MP'.localeCompare('G24H1N3MP-GS00374452')` returns `-1`, so a prefix always precedes what extends it and one forward pass is enough (`uri.ts:36`). The two tests that pin both halves are `tests/unit/utils/uri.test.ts:71-72` for the win, and `:89-92` for the control that a merely longer id does **not** win: `ag:(cr:AAAA,cr:ZZZZZZZZZZZZ)` resolves to `AAAA`.
 
@@ -244,7 +244,7 @@ The `typeof uri !== 'string'` guard on `uri.ts:213` has a story of its own, and 
 
 ## The episode tail
 
-`toUriEpisodeId` (`uri.ts:277`) is `` `${uri}-${episodeId}` ``, and it is read back two ways. `fromAggregatedUri` returns it as `episodeId` from `match[2]` (`uri.ts:228`), which splits at the last `)`. `fromUriEpisodeId` (`uri.ts:278-281`) splits at the last **hyphen**, by reversing the string, splitting, and reversing back:
+`toUriEpisodeId` (`uri.ts`) is `` `${uri}-${episodeId}` ``, and it is read back two ways. `fromAggregatedUri` returns it as `episodeId` from `match[2]` (`uri.ts:233`), which splits at the last `)`. `fromUriEpisodeId` (`uri.ts`) splits at the last **hyphen**, by reversing the string, splitting, and reversing back:
 
 ```ts
 export const fromUriEpisodeId = (uri: Uri) => ({
@@ -280,7 +280,7 @@ The identity half is `matchAggregatedUris` (`uri.ts:266-275`), and it is **any s
 >
 > SAME_AS PRESERVES TODAY'S BEHAVIOUR and is not an endorsement of it. The uri is user input: a stale bookmark re-injects whatever claims it carries, and `graph.link` has no inverse. What makes that worth keeping for now is the shared-link case, where the uri is the only evidence those siblings exist until their own sources answer.
 
-The only reset is `resetStore()` (`src/worker/store/db.ts:509-513`), which empties the whole store and is tests only. See [the graph](/write/graph/) for what a union destroys on the way through.
+The only reset is `resetStore()` (`src/worker/store/db.ts`), which empties the whole store and is tests only. See [the graph](/write/graph/) for what a union destroys on the way through.
 :::
 
 :::caution

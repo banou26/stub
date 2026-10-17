@@ -35,7 +35,7 @@ call.
 
 The union is `union()` at `src/worker/store/graph.ts:81-104`, and the line that makes it permanent is
 `components.delete(oldRoot)` at `:103`: after it, nothing can ask which members came from which side.
-`resetStore` is `src/worker/store/db.ts:509-513`, and its own comment on `graph.clear` reads *Tests
+`resetStore` is in `src/worker/store/db.ts`, and its own comment on `graph.clear` reads *Tests
 only*.
 
 ## The map, in four figures
@@ -153,7 +153,7 @@ The two gate constants are real and are on the figure: `CONFIDENT_TITLE_THRESHOL
 refuses before it starts when there is no date at all, `if (!known.startDate) return undefined`
 (`:286`), because a gate on one axis is measurably not a gate.
 
-The re-ask lane (`askOrigins`, `src/worker/extractor.ts:825`) is entered from the read, not from the
+The re-ask lane (`askOrigins`, `src/worker/extractor.ts`) is entered from the read, not from the
 page. The reason is the best paragraph in the resolver:
 
 > `src/worker/resolvers/media/index.ts:43-48`
@@ -234,7 +234,7 @@ flowchart TD
 
 *The claimed relation is only consulted in the same-scope cells. Cross-scope, both directions, the store writes an edge and ignores what the source asked for.*
 
-`useOnResolve` (`src/worker/extractor.ts:473-495`) fires on a resolver's **return value**, keyed on
+`useOnResolve` (`src/worker/extractor.ts`) fires on a resolver's **return value**, keyed on
 that field's named type, which is why a row lands whole even where a field is not selected, and why
 an unselected `episodes` means `episodeInserter` never fires at all. The 2x2 the store derives is
 written out in the code above the loop, `src/worker/store/db.ts:166-169`, and the union is
@@ -441,7 +441,7 @@ lane as figure 2's:
 > re-ask of the newly named origin is how the answer's episodes reach the store. The container edge is
 > never touched.
 
-The run check is `isRunAnswerFrom` at `src/sources/similar.ts:125-129`, the title check is
+The run check is `isRunAnswerFrom` in `src/sources/similar.ts`, the title check is
 `answerNamesOurShow` at `:310-320` against `SHOW_TITLE_THRESHOLD = 0.9` (`:303`), and the scope pair
 is `db.ts:187`. The threshold has a measurement behind it, not a taste: *correct pairs 1.000, the
 nearest wrong pair 0.8135, a spin-off* (`similar.ts:300-301`).

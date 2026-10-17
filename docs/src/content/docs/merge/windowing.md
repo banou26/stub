@@ -30,7 +30,7 @@ catalogue that packages this run inside a longer season publishes that whole sea
 > be wrong about. That last case is the reason this cannot be written as "drop what exceeds the
 > count": most of the store has no count.
 
-The rule it mirrors is `foldVetoed` at `src/sources/similar.ts:147`, which a source applies when it is
+The rule it mirrors is `foldVetoed` in `src/sources/similar.ts`, which a source applies when it is
 choosing which season to hand back. `runEpisodes` is the same test applied one layer later, at the
 point the choice is drawn.
 
@@ -54,7 +54,7 @@ containing season's page, and it comes back the moment the counts change.
 
 ## Where it runs, and on what
 
-The only production caller is `findRunEpisodes` at `src/worker/store/db.ts:424-430`.
+The only production caller is `findRunEpisodes` in `src/worker/store/db.ts`.
 
 `src/worker/store/db.ts:417-422`
 

@@ -21,7 +21,7 @@ Which means the export line **is** the on switch, and the test file says so befo
 
 The count is pinned by name and by length at `tests/unit/sources/index.test.ts:19-24`, ending in
 `expect(names).toHaveLength(25)`. If you have seen the figure 36 anywhere, that is JustWatch's
-provider mapping table, not this: `PACKAGE_ORIGIN_MAP` (`src/sources/justwatch/id.ts:75-79`) has 13
+provider mapping table, not this: `PACKAGE_ORIGIN_MAP` (`src/sources/justwatch/id.ts`) has 13
 package keys pointing at 9 origins, and none of those 13 is a source module.
 
 One trap before the tables. **The module name is not the origin.** Four of the 25 publish under a
@@ -131,8 +131,8 @@ flowchart TD
   DS -->|"5 of 25 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>extractor.ts:330</small>"]
   DS -->|"the other 20 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>extractor.ts:331-334</small>"]
   NUL --> DR{"then why is the module registered at all?<br/><small>isApiOnly === false, so an IS_NOT_API_ONLY filter keeps the origin</small>"}
-  DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>media-modal.tsx:777-781</small>"]
-  DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>media-modal.tsx:789-792</small>"]
+  DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>SourceLinks, media-details.tsx</small>"]
+  DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>SourceLinks, media-details.tsx</small>"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
   classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
   classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff
@@ -175,7 +175,7 @@ so JustWatch has an origin to mint a handle into.
 
 > Hulu - no anonymous API. For now: metadata/episodes via TMDB, deep link via JustWatch.
 
-`PACKAGE_ORIGIN_MAP` at `src/sources/justwatch/id.ts:75-79` is the mapping that needs them:
+`PACKAGE_ORIGIN_MAP` in `src/sources/justwatch/id.ts` is the mapping that needs them:
 
 ```ts
 export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
@@ -214,19 +214,18 @@ The sources that actually mint an `imdb:` handle are seven, not five: `omdb` (`:
 `trakt` (`:120`), `watchmode` (`:153`), `tvmaze` (`:68`), `tvdb` (`:60`) and `anizip` (`:38`), each in its own
 `src/sources/<module>/extractor.ts`.
 
-The row-rendering branch the figure ends on is `src/router/home/media-modal.tsx:767-775`, and it is
-the reason a `PART_OF` handle is enough:
+The row-rendering branch the figure ends on is in `SourceLinks` (`src/router/home/media-details.tsx`),
+and it is the reason a `PART_OF` handle is enough:
 
-> BOTH RELATIONS, deliberately, and this row is the whole point of the refactor. It wants a url and an
-> origin and nothing else: no sameness is assumed and nothing is merged across it. A PART_OF handle is
-> exactly as good here as a SAME_AS one, which is why IMDb can finally render as a link rather than
-> the dead grey icon in the branch below.
+> BOTH RELATIONS, deliberately. This row wants a url and an origin and nothing else: no sameness is
+> assumed and nothing is merged across it. A PART_OF handle is exactly as good here as a SAME_AS one,
+> which is why IMDb can render as a link rather than the dead grey icon in the branch below.
 > SAME_AS FIRST, then anything. `handles` is ordered by score, which says nothing about relation, so a
 > plain `find` could hand the Crunchyroll icon a PART_OF `cr:<seriesId>` while the SAME_AS
 > `cr:<seriesId>-<seasonId>` for this very cour sat later in the list.
 
 Two filters gate that row, and only one of them is reachable. `isApiOnly` is applied worker-side in
-`findOrigins` (`src/worker/store/db.ts:539-542`):
+`findOrigins` (`src/worker/store/db.ts`):
 
 ```ts
 if (filters?.length) {
@@ -237,20 +236,21 @@ if (filters?.length) {
 ```
 
 All three `originPage` consumers pass `OriginFilter.IsNotApiOnly`
-(`src/router/home/media-modal.tsx:484` and `:644`, `src/router/watch/index.tsx:221`), so a source with
-`isApiOnly = true` never reaches the client at all and the `if (!origin.icon) return undefined` guard
-at `src/router/home/media-modal.tsx:781` never sees it. `src/sources/offline/extractor.ts:19-25` spells
-this out and warns against reading it backwards:
+(`useOrigins` and `SourceLinks` in `src/router/home/media-details.tsx`, `src/router/watch/index.tsx:334`),
+so a source with `isApiOnly = true` never reaches the client at all and the `!origin.icon` guard in
+`SourceLinks` never sees it. `src/sources/offline/extractor.ts:19-25` spells this out and warns
+against reading it backwards:
 
 > But know what actually keeps this out of the UI, because it is NOT the missing icon.
-> `media-modal.tsx:662` really does render the origin row as `if (!origin.icon) return undefined`,
-> and that check is real, but it is unreachable from here: `isApiOnly` below is true, and all three
-> `originPage` consumers pass `OriginFilter.IsNotApiOnly`, which `db.ts:144-146` resolves to keeping
-> only `!isApiOnly`. Kitsu is `isApiOnly = true` too, so it is absent from that row as well. So the
-> icon is dead weight rather than a hazard, and nobody should later treat its absence as the guard.
+> `SourceLinks` in `src/router/home/media-details.tsx` really does render the origin row as
+> `if (!origin.icon) return undefined`, and that check is real, but it is unreachable from here:
+> `isApiOnly` below is true, and all three `originPage` consumers pass `OriginFilter.IsNotApiOnly`,
+> which `db.ts:144-146` resolves to keeping only `!isApiOnly`. Kitsu is `isApiOnly = true` too, so it
+> is absent from that row as well. So the icon is dead weight rather than a hazard, and nobody should
+> later treat its absence as the guard.
 
-The reasoning is exactly right and both line references have drifted: the icon guard is at
-`media-modal.tsx:781` today, and the filter resolves at `db.ts:539-542`, not `db.ts:144-146`.
+The reasoning is exactly right and one line reference has drifted: the filter resolves in
+`findOrigins`, not at `db.ts:144-146`.
 
 ## Watchmode's demotion
 
@@ -308,7 +308,7 @@ show hanging off itself, and series.fkn.app listed it as a second, thinner card 
 
 :::danger[A SAME_AS handle is not reversible]
 Every `sameAs` handle becomes `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` in
-`upsertMedia` (`src/worker/store/db.ts:193`), and `graph.link` is a union-find union, as
+`upsertMedia` (`src/worker/store/db.ts:199`), and `graph.link` is a union-find union, as
 `src/worker/store/db.ts:12` puts it: *`graph.link` is a union-find with no inverse*. Two media welded by a
 wrong handle stay welded for the whole session, and no later, better-informed answer can split them.
 That asymmetry is the entire reason watchmode was unplugged rather than left to be corrected later,
@@ -452,11 +452,10 @@ wins and the comment is quoted anyway, because the reasoning in it is usually st
 
 | claim | where it says so | what the code does |
 | --- | --- | --- |
-| "36 sources" | `docs/astro.config.mjs:17` | 25 modules. 36 counts JustWatch's 13 package keys as sources |
+| "36 sources" | `docs/astro.config.mjs:16` | 25 modules. 36 counts JustWatch's 13 package keys as sources |
 | jikan mints an imdb handle | `src/sources/imdb/extractor.ts:5-6` | it mints `anidb` and `anizip` only. Seven sources mint imdb: omdb, simkl, trakt, watchmode, tvmaze, tvdb, anizip |
 | `supportedUris` on offline is read by nothing | `src/sources/offline/extractor.ts:42-44` | `answersForOrigins` reads it through the `Answerable` cast at `extractor.ts:829` |
-| the icon guard is at `media-modal.tsx:662` | `src/sources/offline/extractor.ts:20` | it is at `:781`. The argument around it is unchanged |
-| the origin filter resolves at `db.ts:144-146` | `src/sources/offline/extractor.ts:23` | it resolves at `db.ts:539-542` |
+| the origin filter resolves at `db.ts:144-146` | `src/sources/offline/extractor.ts:23` | it resolves in `findOrigins` |
 | `metadataOnly` keeps imdb out of the playback paths | `src/sources/imdb/extractor.ts:17` | `src/sources/players.ts` decides that, by mapping only `cr` and `nf` |
 | 14 sources implement `Media.episodes` | the subsystem report | 13 do. `anizip` returns episodes inside its media row rather than through the field resolver |
 | offline has no score | the subsystem report table | `SCORE = 0.2`, `src/sources/offline/normalize.ts:31` |

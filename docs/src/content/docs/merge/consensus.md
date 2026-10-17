@@ -314,11 +314,11 @@ return theirs != null && evidence.episodeCount != null && theirs > evidence.epis
 
 A length read too high refuses fewer candidates. A candidate that survives the veto and then clears
 `answerNamesOurShow` at `SHOW_TITLE_THRESHOLD = 0.9` (`src/sources/similar.ts:303`) is claimed as
-`SAME_AS` at `similar-consumer.ts:255`, through `upsertMedia`, whose RUN x RUN SAME_AS branch is
+`SAME_AS` at `similar-consumer.ts:467`, through `upsertMedia`, whose RUN x RUN SAME_AS branch is
 `graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))` at `src/worker/store/db.ts:193`.
 `graph.link` (`src/worker/store/graph.ts:279-291`) unions two components in a union-find and **there is
 no inverse**: no `unlink`, no split, nothing in the tree that puts two welded components back. The
-only thing that undoes it is throwing the whole store away, `resetStore` (`db.ts:509`) over
+only thing that undoes it is throwing the whole store away, `resetStore` (`db.ts`) over
 `graph.clear` (`graph.ts:363`).
 
 So the tie rule's preference for the larger value is free in the three view readers and is spent in

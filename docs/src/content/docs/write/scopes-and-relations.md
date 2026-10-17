@@ -72,7 +72,7 @@ union-find union: it reads both roots, and when they differ it calls `uf.union(a
 side. The whole `UnionFind` surface is `has`, `find`, `union`, `component` and `allComponents`
 (`graph.ts:10-16`). There is no split, no unlink, no disunion anywhere in the repo, so once cell 1 or
 cell 4 runs on a pair, those two clusters are one cluster for the life of the worker. The only reset is
-`resetStore()` at `db.ts:509-513`, which empties the whole store and is tests only.
+`resetStore()` in `db.ts`, which empties the whole store and is tests only.
 
 The schema says the same thing to the source that is about to mint the relation,
 `src/worker/resolvers/media/schema.gql:80-85`:
@@ -366,7 +366,7 @@ unable to reach a union by any route, `src/sources/utils.ts`, above `partOf`:
 ## The scope is read again on the way out
 
 Nothing on this page ends at the write. `scopeOf` is what a read uses to pick which identity space to
-walk: `findAggregatedMedia` clusters through `sameAsLabelFor(scopeOf(resolved))` (`db.ts:263`),
+walk: `findAggregatedMedia` clusters through `sameAsLabelFor(scopeOf(resolved))` (`db.ts:269`),
 `findPartOfMedia` does the same for each target (`db.ts:282`), and `findRunsOfContainer` refuses a
 member that is not a run, `if (!graph.has(runUri) || scopeOf(runUri) !== 'RUN') continue` (`db.ts:308`).
 

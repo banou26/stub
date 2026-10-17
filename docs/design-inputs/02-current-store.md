@@ -8,7 +8,7 @@ The store is a **module singleton, entirely in memory, with no persistence layer
 one `graph` at module load and `db.ts:83` one `originMap`. Nothing in `src/worker/` writes to
 IndexedDB, `localStorage`, or any file (grep over `src/worker/` for `indexedDB|localStorage|persist`
 returns only two unrelated GraphQL doc comments). A reload rebuilds the whole graph by re-asking every
-source. `resetStore` (`db.ts:509`) exists for tests only and its doc says so: "Not exported through
+source. `resetStore` (`db.ts`) exists for tests only and its doc says so: "Not exported through
 ./index.ts, and never called by the app: a live reset would drop every cluster mid-session with no way
 to rebuild them short of re-asking every source."
 
@@ -140,7 +140,7 @@ Callers: `src/worker/extractor.ts:25,127` (the `mediaInserter` DataLoader),
 `tests/store.ts:9,11,25,35,46,61,168,188`,
 `tests/unit/worker/store/arrival-order.test.ts:15,35`,
 `tests/unit/worker/store/merge-fixtures.test.ts:12,68`,
-`tests/unit/sources/offline/seed-source.test.ts:22,138`,
+`tests/unit/sources/offline/seed-source.test.ts` (the seed job, removed in HOR-577),
 `tests/unit/worker/store/container-page.test.ts:9,26,36,76,88,107`,
 `tests/unit/worker/store/stable-id.test.ts:10,29,32,36,43,45,52,53,64,90,96,111`,
 `tests/unit/worker/store/part-of.test.ts:12`,
@@ -200,7 +200,7 @@ Callers: `db.ts:336` (`preferAttachedRun`), `tests/unit/worker/store/container-p
 
 **`preferAttachedRun(cluster: Media[]): Media[]`** (`db.ts:334`)
 If any member is a run, returns the cluster unchanged. Otherwise returns the container's first attached
-run, ordered by earliest parseable `startDate` then by `keyOf` (`db.ts:319-323,338`). "a show page with
+run, ordered by earliest parseable `startDate` then by `keyOf` (`preferAttachedRun`, `db.ts`). "a show page with
 no episode and no offer is what splitting the spaces cost until this" (`db.ts:329-330`).
 Callers: `db.ts:363`, `tests/unit/worker/store/container-page.test.ts:9,72`.
 
@@ -229,7 +229,7 @@ Callers: `src/worker/resolvers/media/index.ts:8,130`, `season-weld.test.ts:13,88
 Stores every episode, writes `has_episode` from `episode.mediaUri`, then links `episode:same_as` for
 SAME_AS handles and writes an `episode:part_of` edge otherwise. **Emits `episode:changed`
 unconditionally** (`db.ts:414`), with no `changed` guard, unlike `upsertMedia`.
-Callers: `src/worker/extractor.ts:25,145`, `tests/store.ts:168,189`, `seed-source.test.ts:22,140`,
+Callers: `src/worker/extractor.ts:25,145`, `tests/store.ts:168,189`, `seed-source.test.ts` (the seed job, removed in HOR-577),
 `similar-consumer.test.ts:12,55,61`, `merge-fixtures.test.ts:12,73`, `stable-id.test.ts:10,154,164`,
 `episode-merge.test.ts:3,103`, `export.test.ts:9,87`.
 
@@ -244,7 +244,7 @@ Callers: `src/worker/resolvers/media/index.ts:8,203`, `merge-fixtures.test.ts:12
 Collects every `has_episode` target of every uri (deduped), groups them by `episode:same_as` component,
 then runs `mergeByEpisodeNumber`. **No windowing, no alignment.**
 Callers: `src/worker/resolvers/media/index.ts:8,204` (the fallback branch),
-`src/worker/similar-consumer.ts:18,284`, `tests/store.ts:168,194`, `seed-source.test.ts:160`,
+`src/worker/similar-consumer.ts:18,284`, `tests/store.ts:168,194`, `seed-source.test.ts` (the seed job, removed in HOR-577),
 `episode-merge.test.ts:3,111`.
 
 **`mergeByEpisodeNumber(groups: Episode[][]): Episode[][]`** (`db.ts:475`)
@@ -294,17 +294,17 @@ with `{...node, handles: []}` (`aggregate.ts:145-146`). Memoized in a `WeakMap` 
 A handle with no node is warned about and skipped (`aggregate.ts:141-143`). The reason is the two-season
 weld through a shared container id, written out as a worked example at `aggregate.ts:115-133`.
 Callers: `src/worker/extractor.ts:26,107`, `arrival-order.test.ts:14,31`, `export.test.ts:8,36`,
-`seed-source.test.ts:20,134`, `part-of-subtree.test.ts:10,28,37,53,67,76,92`.
+`seed-source.test.ts` (the seed job, removed in HOR-577), `part-of-subtree.test.ts:10,28,37,53,67,76,92`.
 
 **`aggregateMedia(medias: Media[], locationOrigin: string): GQLMedia`** (`aggregate.ts:306`)
 Throws on an empty cluster. See section 4 for the field-by-field contract.
 Callers: `src/worker/extractor.ts:26,91`, `src/worker/resolvers/media/index.ts:11,73,131`,
-`seed-source.test.ts:20,322,349,369`, `stable-id.test.ts:8,27,60,138,139`, `part-of.test.ts:11,28`,
+`seed-source.test.ts` (the seed job, removed in HOR-577), `stable-id.test.ts:8,27,60,138,139`, `part-of.test.ts:11,28`,
 `normalize.test.ts:5,63-78`, `aggregate-fields.test.ts:8,37-161`.
 
 **`aggregateEpisode(episodes: Episode[], locationOrigin: string): GQLEpisode`** (`aggregate.ts:401`)
 Same shape for episodes. Callers: `src/worker/resolvers/media/index.ts:11,216`,
-`seed-source.test.ts:20,167`, `stable-id.test.ts:8,155,165`.
+`seed-source.test.ts` (the seed job, removed in HOR-577), `stable-id.test.ts:8,155,165`.
 
 Non-exported helpers whose behaviour is observable through `aggregateMedia`:
 `reconcileCategories` (`aggregate.ts:9`), `byScore` (`aggregate.ts:18`), `seasonOf` (`aggregate.ts:47`),
@@ -353,7 +353,7 @@ Pure, and outside ../extractor.ts on purpose: that module reaches urql and canno
 a field dropped here would go unpinned" (`normalize.ts:5-12`). Flattens `relations` from handle-shaped edges, dropping any edge
 with no `node.uri` (`normalize.ts:42-58`), and copies `franchise` shallowly (`normalize.ts:59-77`).
 Callers: `src/worker/extractor.ts:27,127`, `arrival-order.test.ts:16,35`, `export.test.ts:11,40`,
-`seed-source.test.ts:24,138`, `normalize.test.ts:7,27,31-86`.
+`seed-source.test.ts` (the seed job, removed in HOR-577), `normalize.test.ts:7,27,31-86`.
 (The episode counterpart, `normalizeToStoreEpisode`, lives in `src/worker/extractor.ts:~50-70`, not in
 the store.)
 
@@ -383,7 +383,7 @@ caller cannot decline to exclude them", `src/worker/yoga.ts:52-53`), reaching th
 ### `events.ts`
 
 **`emit<K>(type, detail): void`** (`events.ts:9`) dispatches a `CustomEvent` on a module-level
-`EventTarget` (`events.ts:7`). Callers: `db.ts:3,200,222,237,253,414,520`. No caller outside `store/`.
+`EventTarget` (`eventBus` in `events.ts`). Callers: `db.ts:3,200,222,237,253,414,520`. No caller outside `store/`.
 
 **`listen<K>(type, callback): () => void`** (`events.ts:19`) "Exported so a test can COUNT emissions:
 `media:changed` re-runs the fuzzy merge and every subscribed page, so an upsert that reports a change it
@@ -503,7 +503,7 @@ that is. A CONTAINER stamp counts as a description, since it is a source's own r
 
 A claim naming any uri with no stored row is deferred **for every such uri** (`db.ts:179-182`) and
 replayed when a row for it lands new (`db.ts:154-160`). Only genuinely new, non-placeholder rows enter
-`landed` (`db.ts:140,148-151`), so a placeholder arriving for a deferred uri does not release its claims.
+`landed` (`upsertMedia`, `db.ts`), so a placeholder arriving for a deferred uri does not release its claims.
 
 Reason (`db.ts:113-123`), verbatim in part: "The relation is derived from BOTH scopes, and a uri with no
 row has none. It used to read as RUN, which let a run union with a show whose own row was still in
@@ -572,7 +572,7 @@ report a row that was never stored.
 
 ### 2.7 The emit and re-read loop
 
-`upsertMedia` emits `media:changed` once, and only when `changed` (`db.ts:200`). `changed` is set by a
+`upsertMedia` emits `media:changed` once, and only when `changed` (`db.ts:206`). `changed` is set by a
 new row (`db.ts:148-150`), a new `MEDIA_PART_OF` edge (`db.ts:190,196`) or a new union (`db.ts:193`).
 The `ASSERTED_LABELS` writes' return values are **discarded on purpose** (`db.ts:173-176`): "Feeding it
 an asserted write would put every listener back in the re-read loop
@@ -582,7 +582,7 @@ different times."
 `link` and `edge` both return "is this pair NEW" (`graph.ts:290,305`), which is what makes a re-asserted
 handle free. The failure it fixed is recorded at `graph.ts:293-296`.
 
-`upsertEpisodes` (`db.ts:414`) and `upsertOrigins` (`db.ts:520`) emit **unconditionally**, so every
+`upsertEpisodes` (`db.ts:426`) and `upsertOrigins` (`db.ts:532`) emit **unconditionally**, so every
 episode batch wakes every subscriber whether or not anything moved.
 
 Listeners and what they re-read:
@@ -754,12 +754,12 @@ an edge, never a union: the edge can be deleted, a union cannot."
 
 `SIMILARITY_THRESHOLD = 0.9` (`fuzzy-merge.ts:7`). `titleSimilarity` is the frizbee wasm aligner,
 normalized by the longer string in both directions (`src/sources/utils.ts`).
-`maxPossibleSimilarity` (`fuzzy-merge.ts:365-377`) is an exact multiset upper bound that skips the wasm
-call. `differOnlyByTrailingNumber` (`fuzzy-merge.ts:389-393`) compares a trailing number as a value:
+`maxPossibleSimilarity` (`fuzzy-merge.ts`) is an exact multiset upper bound that skips the wasm
+call. `differOnlyByTrailingNumber` (`fuzzy-merge.ts`) compares a trailing number as a value:
 "'yami shibai 16' and 'yami shibai 17' are two different shows and score 0.8849, while 'onii-chan!' and
 'oniichan' are one show and score 1.0000, so no threshold tells them apart" (`fuzzy-merge.ts:384-388`).
 
-`COMPANION_MARKERS` (`fuzzy-merge.ts:92-95`), ten kept out of twenty-five swept, with the sweep counts
+`COMPANION_MARKERS` (`fuzzy-merge.ts`), ten kept out of twenty-five swept, with the sweep counts
 recorded (`fuzzy-merge.ts:80-82`): `specials 19, special 8, ova 7, ona 4, episode 0 3, bonus 2, mini anime 2,
 picture drama 1, recap 1, trailer 1`.
 
@@ -796,7 +796,7 @@ reduce to 'divinez' and score a perfect 1" (`fuzzy-merge.ts:119-120`). `carriesI
 `tests/unit/worker/store/merge-fixtures.test.ts:167`**.
 
 - `disagreeingIds` (`anomalies.ts:26-47`): two ids of one origin in one cluster that are not one id at
-  different precision. Precision is `extendsId` (`src/sources/offline/seed-gate.ts:63`,
+  different precision. Precision is `extendsId` (`src/sources/offline/seed-gate.ts`, the seed job, removed in HOR-577,
   `a.startsWith(b + '-') || b.startsWith(a + '-')`), applied **one way** on purpose: "dropping both sides
   lets a shared parent hide the disagreement it sits between, so `[A, A-1, A-2]` would report nothing at
   all" (`anomalies.ts:36-37`). Reason: "One source names one thing once. Two of its ids in a cluster means
@@ -1003,7 +1003,7 @@ Caller: `src/worker/resolvers/media/index.ts:216`, one per `episodeNumber` group
 
 Returns groups of stored episode rows. Steps: every `has_episode` target of every uri, deduped by uri
 and skipping uris with no row (`db.ts:435-443`); grouped by `episode:same_as` component
-(`db.ts:445-452`); folded by `mergeByEpisodeNumber` (`db.ts:454`). **No windowing, no alignment, no
+(`db.ts:457-464`); folded by `mergeByEpisodeNumber` (`db.ts:466`). **No windowing, no alignment, no
 sorting.** Group order is the order episodes were first reached, which is the `has_episode` adjacency
 insertion order.
 
@@ -1088,7 +1088,7 @@ Caller: `src/worker/resolvers/media/index.ts:137`, after `hideAttachedContainers
 
 ### 4.8 `exportStore({excludeOrigins, passThroughOrigins, uris})`
 
-`export.ts:31-108`. Promises, from its own doc (`export.ts:12-29`): "it reads, and never writes. It walks
+`exportStore` in `export.ts`, whose `passThroughOrigins` and `uris` went with the seed job in HOR-577. Promises, from its own doc (`export.ts:12-29`): "it reads, and never writes. It walks
 only pairs a source claimed through a handle (`ASSERTED_LABELS` in ./db.ts), never a union the fuzzy pass
 made. It emits nothing whose published members are all CONTAINER: a show with no run is not a run. Output
 is sorted throughout, so two calls against one store are byte-identical."
@@ -1106,7 +1106,7 @@ Algorithm:
 7. `uris` filters on `walked`, not on `members`, "so asking by a pass-through uri still answers"
    (`export.ts:40-41,105`).
 8. `members`, `partOf`, `episodes` each sorted by uri; clusters sorted by `members[0].uri`
-   (`export.ts:94-96,106`).
+   (`export.ts:79-81,88`).
 
 The two refusals are different on purpose (`export.ts:20-27`): `excludeOrigins` "is not walked THROUGH,
 so a bridge only it supplied splits rather than surviving"; `passThroughOrigins` "is walked through and
@@ -1155,7 +1155,7 @@ so as long as a value survives on its own row it is attributable. Everything abo
   source claimed a pair, never **which** source object or when, and `linkPartOfPairs` writes no asserted
   record at all (`db.ts:251`), so a fuzzy containment has no record.
 - **A fuzzy union carries no reason.** Nothing stores which titles matched, at what similarity, in which
-  year bucket. `pairDecisions` (`fuzzy-merge.ts:580`) is a boolean cache, wiped wholesale at 50,000
+  year bucket. `pairDecisions` (`fuzzy-merge.ts`) is a boolean cache, wiped wholesale at 50,000
   entries (`fuzzy-merge.ts:607`).
 
 ### 5.2 Reversibility

@@ -51,7 +51,7 @@ Eighteen modules keep a module-level `const SCORE` hand-threaded into every `mak
 
 Tiers are lexicographic, never additive (src/worker/store/consensus.ts:36): the best score present decides which claims are read, agreement breaks ties among equals, nothing beneath is consulted. The sum that was tried first, and what it published, is at [the merge](/tldr/merge/).
 
-Nothing normalises an absent score on the way in (`media.score ?? null`, src/worker/store/normalize.ts:18) and the readers disagree: -1 in `byScore` and `selectTitles`, 0 in `tieredConsensus` (consensus.ts:44-45) and the cluster sort. anizip stamps 0.9 per field and passes NO score to `makeMedia`, so it is top tier per field and bottom tier per row at once. Most readings recompute per read; the one that does not, `selectTitles` feeding `sameShow` into `linkSameMediaPairs` (src/worker/store/fuzzy-merge.ts:664), is a union with no inverse ([sources/scores](/sources/scores/)).
+Nothing normalises an absent score on the way in (`media.score ?? null`, src/worker/store/normalize.ts:18) and the readers disagree: -1 in `byScore` and `selectTitles`, 0 in `tieredConsensus` (consensus.ts:44-45) and the cluster sort. anizip stamps 0.9 per field and passes NO score to `makeMedia`, so it is top tier per field and bottom tier per row at once. Most readings recompute per read; the one that does not, `selectTitles` feeding `sameShow` into `linkSameMediaPairs` (src/worker/store/fuzzy-merge.ts:686), is a union with no inverse ([sources/scores](/sources/scores/)).
 
 ## The search gate
 
@@ -124,8 +124,8 @@ flowchart TD
   DS -->|"5 of 25 declare the field: crunchyroll unogs justwatch appletv tvmaze"| SIM["the subscription is spent<br/><small>worker/extractor.ts:330</small>"]
   DS -->|"the other 20 never declare it, so the round trip is skipped"| SKIP["declined: not-implemented<br/><small>worker/extractor.ts:331-334</small>"]
   NUL --> DR{"then why is the module registered at all?<br/><small>isApiOnly === false, so an IS_NOT_API_ONLY filter keeps the origin</small>"}
-  DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>media-modal.tsx:783-787</small>"]
-  DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>media-modal.tsx:789-792</small>"]
+  DR -->|"a handle of this origin carries a url"| LINK["the source row renders as a link<br/><small>SourceLinks, media-details.tsx</small>"]
+  DR -->|"nothing has minted a handle for it yet"| GREY["the row renders, as a dead grey icon<br/><small>SourceLinks, media-details.tsx</small>"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
   classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
   classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff

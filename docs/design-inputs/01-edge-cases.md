@@ -24,7 +24,7 @@ titles, E is dates, F is id spaces, G is source and store mechanics that shape t
 The single fact the whole design rests on: `R "Two identity spaces: a run and a show are different
 kinds of thing" (2026-09-05)` and `D start/run-and-show.md`. Stub's unit is a RUN (one cour, one
 film). Almost every catalogue upstream models a SHOW and hands back one id for the whole of it.
-`MediaScope` has exactly two values, `RUN` and `CONTAINER` (`src/worker/resolvers/media/schema.gql:106-111`,
+`MediaScope` has exactly two values, `RUN` and `CONTAINER` (`src/worker/resolvers/media/schema.gql`,
 cited by `D start/run-and-show.md`).
 
 ---
@@ -160,7 +160,7 @@ handle wins" (2026-09-01, fc36ffc)`: "Specificity is PREFIX EXTENSION, not lengt
 
 **Outcome**: SHIPPED and works; the anomaly rule has NO production caller (`clusterAnomalies` is
 imported only by `tests/unit/worker/store/merge-fixtures.test.ts:15`, `D merge/anomalies.md`), its
-production twin being `findSeedWelds` at `src/sources/offline/seed-gate.ts:77-95`.
+production twin being `findSeedWelds` in `src/sources/offline/seed-gate.ts` (the seed job, removed in HOR-577).
 
 **Must express**: ids that stand in a part-of relation to each other inside one origin, so that
 `A` beside `A-1` is precision and `A-1` beside `A-2` is a contradiction, checkable without a human
@@ -203,7 +203,7 @@ passed, so four silent short-circuits do not read as four passes.
 
 #### 7. A second writer into the same union-find with none of the guards
 
-**Sources**: internal. `linkSameMediaPairs` (`src/worker/store/db.ts:216`), called only by
+**Sources**: internal. `linkSameMediaPairs` (`src/worker/store/db.ts`), called only by
 `fuzzyMergeMediaClusters`.
 
 **Concrete**: "Every refusal the handle refactor added lives inside `upsertMedia`'s loop; this
@@ -286,7 +286,7 @@ dates in the shape the run needs, and its titles are its OWN translation (case 1
 real per-season `objectId` and a season YEAR only, never a day (`namesADay` refuses a `YYYY-01-01`
 date by design, `R "The cost, measured" (2026-09-04)`).
 
-**Current code**: `foldVetoed` at `src/sources/similar.ts:147-150`: a candidate season holding MORE
+**Current code**: `foldVetoed` in `src/sources/similar.ts`: a candidate season holding MORE
 episodes than the run is never the answer, zero tolerance. `pickSimilarSeason` at
 `src/sources/similar.ts:173` runs five rules in order and refuses on ambiguity rather than falling
 through. `showAsContainer` in `src/sources/justwatch/extractor.ts` returns the show as a CONTAINER
@@ -355,8 +355,8 @@ catalogue season", evaluated where both claimants are visible, not at the mint s
 **Concrete**: "Crunchyroll models a split cour as one season, so neither part matches: part one is
 refused by the fold veto for being longer than it, and part two never comes near, because the season
 it belongs to premiered with part one nine months earlier. Both parts carried no Crunchyroll at all."
-Shape that works, `lendContainingSeason` at `src/sources/crunchyroll/extractor.ts:402` (called at
-`:531`): find the season whose broadcast SPAN covers the run's start and which is longer than the run
+Shape that works, `lendContainingSeason` in `src/sources/crunchyroll/extractor.ts` (called at
+`:579`): find the season whose broadcast SPAN covers the run's start and which is longer than the run
 (exactly one may qualify); return it with `handles: []`, claiming NO identity; re-point its EPISODES
 at the asking run so a `HAS_EPISODE` edge exists; the episodes keep CRUNCHYROLL'S OWN NUMBERING
 because that node is shared and `graph.set` is last-write-wins, and the run applies its own view at
@@ -390,7 +390,7 @@ so the page drew twenty rows for a twelve episode run
 cluster pinned at `tests/unit/worker/store/consensus.test.ts:284-288`).
 
 Three chances to catch it and only the third can: the fold veto compares counts and 8 is not more than
-12; `mergeByEpisodeNumber` (`src/worker/store/db.ts:475`) compares numbers and 13 shares nothing with
+12; `mergeByEpisodeNumber` (`src/worker/store/db.ts`) compares numbers and 13 shares nothing with
 1; only the DATES are identical.
 
 **Current code**: `alignmentOffset` (`src/worker/store/consensus.ts:113`) votes an offset off the days
@@ -560,7 +560,7 @@ anizip." Two causes, and fixing either alone changes nothing: the numbering-spac
 two metadata sources" (`R "Two sources describing one run drew two full episode lists" (2026-09-09)`).
 
 **Current code**: `findAggregatedEpisodesForMedia` now also merges groups sharing an episode number
-(`mergeByEpisodeNumber`, `src/worker/store/db.ts:475`). "Safe ONLY because its input is one media
+(`mergeByEpisodeNumber`, `src/worker/store/db.ts`). "Safe ONLY because its input is one media
 cluster, which is its SAME_AS set by construction and numbers its episodes once; the constraint is
 written above the function, because two runs of a show both have an episode 1 and that is the mistake
 this codebase pays most for." Keyed on the number alone, not on the season too, and only on a positive
@@ -603,7 +603,7 @@ the row it came from, and a contaminated field is visible as such.
 **Sources**: Netflix via unOGS.
 
 **Concrete**: "11 of that season's 25 rows are `Episode 13`..`Episode 24` placeholders, excluded by
-`isGenericEpisodeTitle` (`similar.ts:108`) as they must be. Season 1 is 24 of 24 positional, so it
+`isGenericEpisodeTitle` (`similar.ts`) as they must be. Season 1 is 24 of 24 positional, so it
 offers nothing at all" (`R "The per-episode title join does not work..." (2026-09-10)`).
 `GENERIC_EPISODE = /^(?:episode|ep|e|part|chapter|第)?\s*\d+\s*(?:話|集|화)?$/` at
 `src/sources/similar.ts:104`.
@@ -676,7 +676,7 @@ normalising to `"a"` matched 841 of 903 (`R "The same strip made search worse th
 (2026-08-11, d15e0a3)`). Mean result set 19.6 to 1.6 after the fix.
 
 **Current code**: shared `stripTitle` in `src/sources/utils.ts` keeping `[^\p{L}\p{N}\s]`, plus a
-`HAS_LETTER` filter on the profile (`carriesIdentity` at `src/worker/store/fuzzy-merge.ts:132`).
+`HAS_LETTER` filter on the profile (`carriesIdentity` in `src/worker/store/fuzzy-merge.ts`).
 
 **Outcome**: SHIPPED and works. Also fixed: seal-wasm scores per CODE POINT while `String.length`
 counts utf-16 units, so `𠮷野家` scored 0.5 against itself; both scorers now divide by
@@ -882,7 +882,7 @@ normaliser applied symmetrically to both sides.
 
 **Concrete**: over 29722 AniList entries, 27367 carry a real day, **1344 of them (4.91%) are the 1st**
 against a mean of 904 for days 2 to 28; a further 2355 (7.9%) carry NO day.
-`startDay` in `src/worker/store/fuzzy-merge.ts:173` discards ANY first-of-month date before the window
+`startDay` in `src/worker/store/fuzzy-merge.ts` discards ANY first-of-month date before the window
 compares two clusters. The sweep (`scripts/measure-start-date-window.probe.ts`, window 45):
 
 ```
@@ -1227,8 +1227,8 @@ says it in capitals: "THE CLUSTER IS NOT WRONG ABOUT WHO IT CONTAINS, which is w
 The detail line "recounts the witnesses rather than trusting the reader to":
 `` `${listed} episodes listed against a length of ${length} that ${cluster.filter(...).length} of its sources agree on` ``.
 
-**Outcome**: SHIPPED, tests only; the production twin is the seed gate (`findSeedWelds` at
-`src/sources/offline/seed-gate.ts:77-95`, `SEED_MAX_WELD_SHARE = 0.02` at `:35`, measured floor 1 in
+**Outcome**: SHIPPED, tests only; the production twin is the seed gate (`findSeedWelds` in
+`src/sources/offline/seed-gate.ts`, the seed job, removed in HOR-577, `SEED_MAX_WELD_SHARE = 0.02`, measured floor 1 in
 359 on the first real walk of 358 runs, 2026-09-05).
 
 **Must express**: rules that need no expected answer, evaluable over the whole graph at once, which
@@ -1281,7 +1281,7 @@ outcome depends on HTTP arrival order.
 
 #### 49. A container cluster that has no run on the page
 
-**Concrete**: `hideAttachedContainers` (`src/worker/store/db.ts:391`) "only drops clusters with NO run
+**Concrete**: `hideAttachedContainers` (`src/worker/store/db.ts`) "only drops clusters with NO run
 member". A listing shows runs; "a container cluster attached by PART_OF to a run cluster on the same
 page is hidden, because that run's card already represents the show; a container with no run on the
 page still gets a card, which is today's behaviour for live-action catalogues"
@@ -1686,7 +1686,7 @@ number minted "`tmdb:<id>-s0`: a well-formed, precise, entirely invented id"
 ### I6. Folded cours
 
 - A catalogue season may CONTAIN two or more of our runs (case 9). The one-directional fold veto
-  (`foldVetoed`, `src/sources/similar.ts:147-150`) is the rule: "A season holding MORE episodes than
+  (`foldVetoed`, `src/sources/similar.ts`) is the rule: "A season holding MORE episodes than
   the run holds other runs too (Netflix season 2 = 25 over 13 and 12). Zero tolerance."
 - "Exported because a picker that answers on its own axes still needs it: Crunchyroll's search path
   matches on title and premiere, and **a catalogue that folds two cours into one season premieres on

@@ -91,7 +91,7 @@ and the page's urql subscription sits there with nothing to render. The `console
 trace, and the comment above it says why it is not optional.
 
 One input never reaches that gate. `isUri` throws rather than returning false when an id carries a
-comma (`src/utils/uri.ts:77`), and `decodeRouteUri` calls `isUri(raw)` at `uri.ts:163`, **outside** its
+comma (`src/utils/uri.ts:77`), and `decodeRouteUri` calls `isUri(raw)` at `uri.ts:168`, **outside** its
 own try/catch, which wraps only the `decodeURIComponent` on the next line. So `foo:a,b` throws out of
 line 33 and surfaces as a GraphQL error, not as the refusal one line below it.
 
@@ -168,7 +168,7 @@ be exporting the page, not the store. `export.ts:12-19` states the contract from
 
 ## Two reads that look like the same function
 
-`findMediaForPage` (`src/worker/store/db.ts:349`) and `findAggregatedMediaForContext`
+`findMediaForPage` (`src/worker/store/db.ts`) and `findAggregatedMediaForContext`
 (`src/worker/extractor.ts:81`) open identically: read the uri, and if that answered nothing and the
 uri is aggregated, walk its handles. Then they diverge twice, and both divergences change the answer.
 
@@ -255,7 +255,7 @@ Ask the same uri through `ctx.findAggregatedMedia` from inside a source and you 
 containers, because that path never calls `preferAttachedRun`. That is the right answer for a source
 about to mint a season-scoped id, and the wrong one for a page.
 
-`startOf` (`db.ts:318-323`) maps an absent or unparseable `startDate` to `Infinity`, so an undated run
+`startOf` (`db.ts`) maps an absent or unparseable `startDate` to `Infinity`, so an undated run
 sorts last, and ties break on `keyOf`, the lexicographically smallest member uri. Two calls against
 one store therefore pick the same run.
 
@@ -347,7 +347,7 @@ without a given origin, which a union-find cannot.
 The five above are the reads of the **graph**. There are two further store entry points, and they are
 easy to miss because they read a different structure: `Subscription.origin`
 (`src/worker/resolvers/origin/index.ts:16`) and `Subscription.originPage` (`origin/index.ts:45`), which
-call `findOrigin` and `findOrigins` (`src/worker/store/db.ts:523` and `:527`). Those read `originMap`,
+call `findOrigin` and `findOrigins` (`src/worker/store/db.ts`). Those read `originMap`,
 a plain `Map<string, Origin>` at `db.ts:83`, not the graph, not a union-find, and nothing on either
 path can union anything. They are also the two subscriptions that build their own fan-out inline
 (`origin/index.ts:21-26` and `:50-55`) rather than going through `proxyRequestToExtractors`, so they

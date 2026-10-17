@@ -101,7 +101,7 @@ There is no split, no unlink and no disunion anywhere in the repo.
 
 So a scope decision is not a display preference. It decides whether a claim reaches `db.ts:193`, and
 once it has, those two clusters are one cluster for the life of the worker. The only reset is
-`resetStore()` (`db.ts:509-513`), which empties the whole store and is tests only.
+`resetStore()` (`db.ts`), which empties the whole store and is tests only.
 :::
 
 ## The ratchet
@@ -271,7 +271,7 @@ code and both are load bearing, so the figure above draws eight.
 - `normalizeToStoreMedia` (`normalize.ts:39`) is the site that turns an absent graphql `scope` into a
   stored `'RUN'`. `makeMedia`'s default only covers a row a source built with `makeMedia`; a row that
   reached the worker any other way, including a plugin's payload, is defaulted here.
-- `profileCluster` (`fuzzy-merge.ts:285`) re-implements `scopeOfCluster` rather than importing it. The
+- `profileCluster` (`fuzzy-merge.ts`) re-implements `scopeOfCluster` rather than importing it. The
   two agree today, character for character in effect, and nothing pins that they must. If one is ever
   changed, change both.
 
@@ -324,7 +324,7 @@ origin or the id shape.
 | `similar-consumer.ts:239` | `media.origin === ask.origin && media.scope !== 'CONTAINER'` | whether this origin's run is already in the cluster, so a second one is refused |
 | `export.ts:49` | `!members.some(member => member.scope !== 'CONTAINER')` | a cluster with no run in it is not exported |
 
-One reader deliberately does not trust the stamp. `isRunAnswerFrom` (`src/sources/similar.ts:125-129`)
+One reader deliberately does not trust the stamp. `isRunAnswerFrom` (`src/sources/similar.ts`)
 tests the scope **and** the id:
 
 ```ts

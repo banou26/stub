@@ -18,7 +18,7 @@ gets wrong. The arrow that carries the answer is not the arrow the question trav
 flowchart TD
   subgraph page["page, main thread"]
     A["route param<br/>ag:(anilist:166873)"]
-    B["useSubscription<br/>GET_MEDIA_MODAL"]
+    B["useSubscription<br/>GET_MEDIA_DETAILS"]
     C["one urql Client<br/>url http://d/graphql"]
     D["fetch: handleRequest"]
     E["cloud.fetch, the only real network call"]
@@ -114,7 +114,7 @@ worker while its resolver functions stay remote and run inside the plugin's own 
 can count more. See [plugin sources](/request/plugins/).
 
 **The answer arrives through the store.** `joinFanout`'s subscribe callback ignores its result unless
-the fan-out was given an `extractUris` (`src/worker/extractor.ts:750-759`), and only
+the fan-out was given an `extractUris` (`src/worker/fanout.ts`), and only
 `Subscription.mediaPage` passes one. What actually lands is written by an envelop `useOnResolve` hook
 inside every source's yoga (`src/worker/extractor.ts:473-495`), which keys on the resolved field's
 named type and feeds three DataLoaders. The app resolver then re-reads on `media:changed` /
@@ -142,7 +142,7 @@ A page that opens is a page that writes. See [upsertMedia](/write/upsert-media/)
 
 ```mermaid
 flowchart LR
-  subgraph modal["GET_MEDIA_MODAL<br/>media-modal.tsx:334-456"]
+  subgraph modal["GET_MEDIA_DETAILS<br/>media-details.tsx"]
     A1["episodes, with episode handles"]
     A2["handles.node.handles.node<br/>two hops of media handles"]
     A3["franchise, relations, categories, trailers"]
@@ -177,7 +177,7 @@ flowchart LR
 
 | document | file | media handles | episodes | notable |
 | --- | --- | --- | --- | --- |
-| `GET_MEDIA_MODAL` | `src/router/home/media-modal.tsx:334-456` | two hops | yes, with handles | `franchise`, `relations`, `categories`, `descriptions` |
+| `GET_MEDIA_DETAILS` | `src/router/home/media-details.tsx` | two hops | yes, with handles | `franchise`, `relations`, `categories`, `descriptions` |
 | `GET_WATCH_MEDIA` | `src/router/watch/index.tsx:32-93` | two hops | yes, with handles | selects `embedUrl` on the episode handle node, which the modal does not |
 | `GET_RELEASING_MEDIA_PAGE` | `src/router/home/index.tsx:18-53` | one hop, from the fragment | no | the `mediaPage` root, so the only fan-out that reads its results |
 
@@ -215,14 +215,14 @@ There are seven `useSubscription` call sites across four files, four of them car
 
 ```mermaid
 flowchart LR
-  M["media modal<br/>media-modal.tsx:612"] --> MD{"is there a uri to ask about?<br/><small>pause: !uri</small>"}
+  M["media modal<br/>media-modal.tsx"] --> MD{"is there a uri to ask about?<br/><small>pause: !uri</small>"}
   MD -->|"held: nothing is sent"| MR(["media = foundMedia, the listing's own row"])
   W["watch page<br/>watch/index.tsx:188"] --> WD{"did the route carry a media uri?<br/><small>pause: !params.mediaUri</small>"}
   WD -->|"held: nothing is sent"| WR(["media is undefined, no episode list, no player"])
   S["search listing<br/>search/index.tsx:269"] --> SD{"do the filters name a question?<br/><small>pause: !asked</small>"}
   SD -->|"held: nothing is sent"| SR(["the page says pick something to browse"])
   H["home listing<br/>home/index.tsx:73"] --> HN(["no pause at all: it subscribes on mount, every time"])
-  O["origin rows<br/>media-modal.tsx:482 and :642"] --> OD{"is there an id list?<br/><small>pause: !originIds</small>"}
+  O["origin rows<br/>useOrigins and SourceLinks, media-details.tsx"] --> OD{"is there an id list?<br/><small>pause: !originIds</small>"}
   OD -->|"never held: originIds is an array literal"| OW["the worker refuses instead<br/>origin/index.ts:48"]
   V["watch origins<br/>watch/index.tsx:219"] --> OD
   OD -->|"held, on this one call site only"| OR(["origins is undefined until an episode is picked"])
@@ -238,7 +238,7 @@ flowchart LR
 Two of these deserve the detail.
 
 **`pause: !asked` on the search page** is the only pause with a copy consequence attached to it.
-`asked` is `namesAQuery(filters)` (`src/router/search/index.tsx:243`), which counts a query, a status,
+`asked` is `namesAQuery(filters)` (`src/router/search/index.tsx:254`), which counts a query, a status,
 a season, a year, a format, a genre or a tag, and deliberately does not count a category
 (`src/router/search/params.ts:299-303`):
 
@@ -253,8 +253,8 @@ a season, a year, a format, a genre or a tag, and deliberately does not count a 
 
 **`pause: !originIds` cannot hold at two of its three call sites, and the code disagrees with any
 reading that says it can.** In the modal, `originIds` is built as `[...new Set([...])]`
-(`src/router/home/media-modal.tsx:636-641`), and in an episode row it is `episodeOriginIds(episode)`
-(`:481`), which returns `[...new Set(...)]` unconditionally
+(`SourceLinks` in `src/router/home/media-details.tsx`), and in an episode row it is `episodeOriginIds(episode)`
+(`Episodes`), which returns `[...new Set(...)]` unconditionally
 (`src/router/home/episode-origins.ts:17-21`). An array literal is always truthy, empty or not, so
 `!originIds` is always `false` and the subscription always fires, sometimes with `ids: []`. The
 refusal happens one hop later instead, in the worker: `if (!args.input.ids || args.input.ids.length === 0) return`
@@ -288,7 +288,7 @@ flowchart TD
   D{"is the cluster in hand bigger than the one named?<br/><small>inHand.length &gt; named.length</small>"}
   E["navigate(getRoutePath(Route.MEDIA, uri), replace: true)"]
   F(["refused: the address is left exactly as it is"])
-  G["the subscription is NOT restarted<br/>media-modal.tsx:604-610 keeps the old uri while the two match"]
+  G["the subscription is NOT restarted<br/>media-modal.tsx keeps the old uri while the two match"]
   A --> B
   B -->|"either side is bare, a relation or a graph node link"| F
   B -->|"both aggregated"| C
@@ -332,7 +332,7 @@ flowchart TD
 
 The call site's own comment adds what the fix did not cover before the links changed shape:
 
-> `src/router/home/media-modal.tsx:700-706`
+> `src/router/home/media-modal.tsx:388-394`
 >
 > ONLY WHEN THE MEDIA IN HAND IS THE WORK THE ADDRESS NAMES, which the length comparison alone does
 > not establish. On a navigation the address changes first and `media` is still the PREVIOUS work
@@ -344,13 +344,13 @@ The call site's own comment adds what the fix did not cover before the links cha
 
 The rewrite deliberately does **not** restart the subscription. `uri` is held in component state and
 replaced only when the two aggregated uris fail to match
-(`src/router/home/media-modal.tsx:603-610`), so a cluster that grows under an open modal keeps its
+(`src/router/home/media-modal.tsx:308-319`), so a cluster that grows under an open modal keeps its
 one fan-out instead of tearing it down and asking 25 sources again.
 
 ### One more decoding step, before any of it
 
 wouter hands a path segment through undecoded, so every route param on these pages is passed through
-`decodeRouteUri` first: the modal at `src/router/home/media-modal.tsx:599`, the watch page for all
+`decodeRouteUri` first: the modal at `src/router/home/media-modal.tsx:300`, the watch page for all
 three of its params at `src/router/watch/index.tsx:177-182`, and the worker again for the incoming
 `args.input.uri` at `src/worker/resolvers/media/index.ts:33`.
 

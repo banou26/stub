@@ -23,7 +23,7 @@ The rule they all serve is stated in one line at `src/worker/store/db.ts:171`:
 **The reason this page is long is that one operation has no inverse.** `graph.link` is a union-find
 union (`src/worker/store/graph.ts:82-104`), and `union` ends by destroying the record of which members
 came from which side. There is no split, no unlink and no disunion in the repo; the only reset is
-`resetStore()` (`db.ts:509-513`), which empties the whole store and is tests only. Every refusal in the
+`resetStore()` (`db.ts`), which empties the whole store and is tests only. Every refusal in the
 `S`, `K`, `P`, `W` and `F` families below is a step taken to keep the wrong pair away from that call.
 `graph.set` is the other one worth knowing: scalars are last-write-wins, so a row that lands later
 overwrites what an earlier one said, which is why the scope ratchet at `db.ts:146` exists at all.
@@ -133,7 +133,7 @@ Everything before a source is asked anything.
 | E21 | `plugin-sources.ts:91`, `:94`, `:99` | `if (!isObject(value)) return undefined`, `if (!isObject(handle.node)) return undefined` | a plugin row or handle that is not an object is dropped at the boundary rather than reaching the store. |
 | E22 | `backoff.ts:75` | `if (!RETRYABLE_STATUSES.has(response.status) \|\| attempt >= MAX_RETRIES) return response` | the response is handed back unretried. `RETRYABLE_STATUSES = new Set([408, 429, 502, 503, 504, 522, 524])` (`:13`), `MAX_RETRIES = 3` (`:17`), so 4 attempts. **500 is deliberately absent.** |
 | E23 | `backoff.ts:71` | `if (attempt >= MAX_RETRIES) throw error` | a rejected fetch, retried three times, finally rethrown to the source. |
-| E24 | `router/home/media-modal.tsx:622`, `:485`, `:645`; `router/watch/index.tsx:191`, `:222`; `router/search/index.tsx:272` | `pause: !uri`, `pause: !originIds`, `pause: !params.mediaUri`, `pause: !asked` | urql never opens the subscription, so the worker is never asked. The home page has no pause, which is why it fans out on load. |
+| E24 | `router/home/media-modal.tsx:331`; `router/home/media-details.tsx:268`; `router/watch/index.tsx:287`, `:335`; `router/search/index.tsx:286` | `pause: !uri`, `pause: !ids`, `pause: !params.mediaUri`, `pause: !originIds`, `pause: !namesAQuery(fetched)` | urql never opens the subscription, so the worker is never asked. The home page has no pause, which is why it fans out on load. |
 
 ## S. A source deciding it is not the one to answer
 
@@ -250,7 +250,7 @@ no reason, since the answer was seconds away.
 
 ## P. The picker rules
 
-`pickSimilarSeason` (`src/sources/similar.ts:173`) is five rules in order. The scope of a veto is
+`pickSimilarSeason` (`src/sources/similar.ts`) is five rules in order. The scope of a veto is
 stated once, at `:163-172`:
 
 `src/sources/similar.ts:163-172`

@@ -40,7 +40,7 @@ Three sources import from it and none of them import the same thing. Apple TV ta
 composition (`pickGatedCandidate, searchQueries`, `src/sources/appletv/extractor.ts:7`). JustWatch
 takes the pieces and composes them itself (`rankByTitle, searchQueries, yearAppearsInShow`,
 `src/sources/justwatch/extractor.ts:9`). Crunchyroll takes one constant
-(`SEASON_DATE_WINDOW`, `src/sources/crunchyroll/extractor.ts:4`) and keeps its own copy of everything
+(`SEASON_DATE_WINDOW`, `src/sources/crunchyroll/extractor.ts`) and keeps its own copy of everything
 else. The module is deliberately small so it can be tested at all:
 
 `src/sources/catalogue-gate.ts:26-29`
@@ -215,7 +215,7 @@ JustWatch's own date function is the one that has to resist that, and it does, w
 > into: its own release year IS the work's year, so the show-level field is the right one there and
 > only there. A SERIES with no season years is a refusal, never a fallback to the show's year.
 
-That is `datedLikeThisMedia` at `src/sources/justwatch/extractor.ts:611-615`, and the movie exemption
+That is `datedLikeThisMedia` in `src/sources/justwatch/extractor.ts`, and the movie exemption
 is the `!showRequiresSeason(node.objectType)` half of its last line, where `showRequiresSeason` is
 `objectType !== 'MOVIE'` (`src/sources/justwatch/id.ts:35`).
 
@@ -468,7 +468,7 @@ together look like.
 "Same shape, same constants and the same threshold as crunchyroll/extractor.ts, because it is the same
 scale computed by the same function and this whole calibration exists because one threshold drifted
 out of step with another at a different call site" (`src/sources/catalogue-gate.ts:34-36`). In the code
-Crunchyroll imports only `SEASON_DATE_WINDOW` (`src/sources/crunchyroll/extractor.ts:4`) and declares
+Crunchyroll imports only `SEASON_DATE_WINDOW` (`src/sources/crunchyroll/extractor.ts`) and declares
 its own `CONFIDENT_TITLE_THRESHOLD = 0.9` at `:366`, `MAX_SERIES_CANDIDATES = 3` at `:369` and
 `MAX_SEARCH_QUERIES = 4` at `:370`, and re-implements the filter, sort and slice inline at `:482-484`.
 The three numbers agree today. Nothing makes them agree tomorrow, which is exactly the drift the

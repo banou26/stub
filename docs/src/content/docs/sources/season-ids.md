@@ -79,8 +79,8 @@ are `src/sources/justwatch/extractor.ts:474` and `src/sources/appletv/extractor.
 | shape | function | mints for | example |
 | --- | --- | --- | --- |
 | `<objectId>-<seasonObjectId>` | `jwId`, `src/sources/justwatch/id.ts:20` | justwatch | `jw:222366-490814` |
-| `<seriesId>-<seasonId>[-<episodeId>]` | `crunchyrollId`, `src/sources/crunchyroll/extractor.ts:151-152` | crunchyroll | `cr:G24H1N3MP-GRDQCGX5E` |
-| `<id>-s<n>` | `seasonScopedId`, `src/sources/season.ts:189` | tmdb, tvmaze, appletv | `tmdb:94664-s3` |
+| `<seriesId>-<seasonId>[-<episodeId>]` | `crunchyrollId`, `src/sources/crunchyroll/season-id.ts` | crunchyroll | `cr:G24H1N3MP-GRDQCGX5E` |
+| `<id>-s<n>` | `seasonScopedId`, `src/sources/season.ts` | tmdb, tvmaze, appletv | `tmdb:94664-s3` |
 | `<id>-<n>` | written inline, `src/sources/unogs/extractor.ts:269` | unogs | `nf:80987039-3` |
 
 ### The suffix is an id, or it is a position
@@ -101,10 +101,10 @@ JustWatch's is an id, and the file says why in the sentence that decided it.
 episodes; the season's own id does not.
 
 Crunchyroll's suffix is an id too, and it is not the raw one off the payload.
-`resolveSeasonId` at `src/sources/crunchyroll/extractor.ts:146-149` prefers the guid of the `ja-JP`
+`resolveSeasonId` in `src/sources/crunchyroll/season-id.ts` prefers the guid of the `ja-JP`
 audio version, then the one marked `original`, then falls back to `stripLocale(season.id)`, and
 `crunchyrollId` runs `stripLocale` over whatever it is handed
-(`src/sources/crunchyroll/extractor.ts:144`, `.replace(/JAJP$/, '')`). One season therefore has one
+(`src/sources/crunchyroll/season-id.ts:7`, `.replace(/JAJP$/, '')`). One season therefore has one
 suffix whichever locale's row was read, which is the same reproducibility property by a different
 route.
 

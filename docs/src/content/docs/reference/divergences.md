@@ -54,7 +54,7 @@ flowchart TD
 | 9 | `schema.gql:471-489` | `MediaPage` has five cursors and four counts | the resolver returns `{ nodes: parent }` and nothing else; all nine resolve null | schema surface with no producer |
 | 10 | `similar-consumer.ts:276` | the re-ask "is how the answer's episodes reach the store" | since 2026-09-10 the ask's own document selects `episodes`, which is the route that works when a source has no usable `media` path | both routes exist, the doc names the weaker one |
 | 11 | `extractor.ts:230` | "each of the 23 sources" | 25, pinned at `tests/unit/sources/index.test.ts:19-24` | stale count |
-| 12 | `docs/astro.config.mjs:17` | "the flow crosses ~36 sources" | 25 source modules; 36 counts JustWatch's provider mappings | stale count, owned by [reading these diagrams](/start/reading-the-diagrams/) |
+| 12 | `docs/astro.config.mjs:16` | "the flow crosses ~36 sources" | 25 source modules; 36 counts JustWatch's provider mappings | stale count, owned by [reading these diagrams](/start/reading-the-diagrams/) |
 
 ---
 
@@ -101,10 +101,10 @@ flowchart TD
   class STOP,SKIP refuse
 ```
 
-*A source is re-asked once per BATCH that names something it understands, and `askOrigins` at `src/worker/extractor.ts:825-836` keeps no memory of its own. The only bound is `askedOrigins` in the caller, which is keyed on origin and not on source.*
+*A source is re-asked once per BATCH that names something it understands, and `askOrigins` in `src/worker/extractor.ts` keeps no memory of its own. The only bound is `askedOrigins` in the caller, which is keyed on origin and not on source.*
 
-The arithmetic. `askedOrigins` (`resolvers/media/index.ts:58`) is seeded from the uri the page was
-opened with, and `askUnasked` (`:59-65`) adds every newly named origin to it before handing that
+The arithmetic. `askedOrigins` (`resolvers/media/index.ts`) is seeded from the uri the page was
+opened with, and `askUnasked` adds every newly named origin to it before handing that
 batch to `askOrigins`. So each origin is handed over exactly once for the life of the subscription,
 and a source can be re-subscribed once per batch in which any origin it matches appears. Its ceiling
 is therefore the number of distinct origins it matches.
@@ -305,7 +305,7 @@ by nothing in `src`.
 
 | export | declared | in `ExtractorDefinition`? | reader |
 | --- | --- | --- | --- |
-| `metadataOnly` | most sources; `plugin-api.ts:17` asks plugin authors for it | yes, `extractor.ts:171` | `plugin-sources.ts:77` copies it onto `meta`, which reaches `makeExtractor`. Nothing reads it after that. `normalizeOrigin` (`extractor.ts:72-79`) does not take it, `StoreOrigin` (`store/types.ts:153-160`) has no such field, and it is not in `schema.gql`. |
+| `metadataOnly` | most sources; `plugin-api.ts:17` asks plugin authors for it | yes, `extractor.ts:171` | `plugin-sources.ts:77` copies it onto `meta`, which reaches `makeExtractor`. Nothing reads it after that. `normalizeOrigin` (`extractor.ts`) does not take it, `StoreOrigin` (`Origin` in `store/types.ts`) has no such field, and it is not in `schema.gql`. |
 | `official` | every source | no | none anywhere in `src` |
 | `categories` (module level) | most sources | no | none. Each source re-states categories **per media**, inside `makeMedia({ categories: [...] })`, and that per-row field is very much alive: `store/filter.ts:65`, `aggregate.ts:388`, `fuzzy-merge.ts:312`. |
 
@@ -480,7 +480,7 @@ There are 25, pinned by name and by length at `tests/unit/sources/index.test.ts:
 (`expect(names).toHaveLength(25)`). The comment predates watchmode being re-enabled on 2026-09-05.
 The rule it states is unaffected.
 
-**`docs/astro.config.mjs:17`**, this site's own config, says the diagrams cross "~36 sources". Also
+**`docs/astro.config.mjs:16`**, this site's own config, says the diagrams cross "~36 sources". Also
 24. The 36 figure counts JustWatch's provider mappings rather than source modules. Owned by
 [reading these diagrams](/start/reading-the-diagrams/), which carries the correction in full, and
 repeated here because this is the page a reader checks a number against.
@@ -500,8 +500,7 @@ whole index, with the argument left where it was made.
 | `justwatch/extractor.ts:305` cited from the request-context header | names the cross-source call site | that line is `jwCandidates` today; the call is `resolveEpisodeToSeriesId` at `:375` | [the request context](/request/request-context/) |
 | `extractor.ts:801` | cites `crunchyroll/extractor.ts:247-252` for the yield-once generator | the resolver is at `src/sources/crunchyroll/extractor.ts:571-579` | [the re-ask](/request/re-ask/) |
 | `resolvers/media/index.ts:45` | cites `sources/anilist/extractor.ts:320 against :295` | the split is `:367` against `:397` | [the re-ask](/request/re-ask/) |
-| `offline/extractor.ts:23` | the `IsNotApiOnly` filter resolves at `db.ts:144-146` | it is at `src/worker/store/db.ts:539-543`; `db.ts:144-146` today is the scope ratchet | [what a source is](/sources/contract/) |
-| `offline/extractor.ts:20` | the media modal's icon guard is at `media-modal.tsx:662` | `media-modal.tsx:781` today | [the 25, and what each answers](/sources/registry/) |
+| `offline/extractor.ts:23` | the `IsNotApiOnly` filter resolves at `db.ts:144-146` | it is in `findOrigins` (`src/worker/store/db.ts`); `db.ts:144-146` today is the scope ratchet | [what a source is](/sources/contract/) |
 | the page inventory | the aggregate override pass runs `removeDuplicatesByField` after `byScore` for titles **and** trailers | only `titles` is sorted first; `aggregate.ts:397` dedupes `merged.trailers` raw | [aggregating a media](/read/aggregate-media/) |
 
 ---

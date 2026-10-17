@@ -110,7 +110,7 @@ flowchart TD
 *The claim attaches the run. The re-ask is what makes that origin answer for itself, against the page's own document instead of the ask's narrow one, and that is the only reason a card gained this way ever carries more than the seven fields the ask selected.*
 
 **Effect 1 is bounded by the fingerprint, not by the membership.** A cluster gaining a member is not
-automatically a new question. `similarAskKey` (`src/sources/similar.ts:331-338`) normalises the
+automatically a new question. `similarAskKey` (`src/sources/similar.ts`) normalises the
 evidence down to the origin, the show id, the day, the count, the season ordinals the titles agree
 on, a part marker, and the real episode titles. A fourth row that repeats what three rows already
 said produces the identical key, `isAsked` is true, and `drive` returns at
@@ -258,7 +258,7 @@ undebounced (`resolvers/media/index.ts:40`):
 const iterator = listenMultipleIterator(['media:changed', 'episode:changed'], { abortSignal: ctx.request.signal })
 ```
 
-and `upsertEpisodes` ends with a bare `emit('episode:changed', {})` at `db.ts:414`, with no
+and `upsertEpisodes` ends with a bare `emit('episode:changed', {})` at `db.ts:426`, with no
 `changed` flag and no gate, for every batch including an empty one. So the page read, `askUnasked`
 and `resolveSimilarRuns` all run again on every episode insertion whether or not it changed anything.
 The six ask brakes are what make that cheap; brake 7 is not what is protecting it. The asymmetry is
@@ -269,7 +269,7 @@ have to be complete rather than merely helpful.
 
 Three things in the loop are monotone, and the argument is only those three.
 
-**Origins enter a set and never leave it.** `askedOrigins` in `resolvers/media/index.ts:58` is seeded
+**Origins enter a set and never leave it.** `askedOrigins` in `resolvers/media/index.ts` is seeded
 from the requested uri and only ever grows (`:62`). So a source can be re-joined at most once per
 origin it is addressable by.
 
@@ -290,7 +290,7 @@ irreversible, read as a termination argument instead of a hazard. It is why brak
 
 **Every record's bookkeeping only ratchets.** `record.asks` only increases, `record.settled` only
 goes false to true, and `fingerprints` and `refusedTitles` only gain entries. Nothing in the file
-clears any of them; the one function that does is `resetSimilarAsks()` at `similar-consumer.ts:305-306`,
+clears any of them; the one function that does is `resetSimilarAsks()` in `similar-consumer.ts`,
 whose own doc says `TESTS ONLY`.
 
 So the number of asks in a session is bounded by 4 per (run cluster, container) pair, and the number

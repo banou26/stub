@@ -49,7 +49,7 @@ kind of comment this site exists to surface:
 Line one is the question in English. Line two is the condition as it is written in the file, in
 `<small>`. That is the whole convention, and it is why the site's config turns HTML labels on:
 
-`docs/astro.config.mjs:17-19`
+`docs/astro.config.mjs:16-18`
 
 > The diagrams here are wide: the flow crosses ~36 sources, a worker, three id spaces and a
 > read pipeline. `htmlLabels` is what lets a node carry a second line in a smaller face, which
@@ -132,7 +132,7 @@ flowchart LR
 Read left to right: a scope is decided once and does not come back (`db.ts:146`), then a claim is
 routed by the two scopes and the claimed relation. The cross-scope edge is `db.ts:190`, the union is
 `db.ts:193`, the `PART_OF` edge is `db.ts:196`, and whatever the routing decides, the page you see is
-recomputed from the cluster by `aggregateMedia` (`src/worker/store/aggregate.ts:306`).
+recomputed from the cluster by `aggregateMedia` (`src/worker/store/aggregate.ts`).
 The 2x2 that `D1` and `D2` implement is written out in full at `db.ts:166-169`, and the sentence under
 it is the design:
 
@@ -147,7 +147,7 @@ is a union-find union, and the whole `UnionFind` surface is `has`, `find`, `unio
 unlink, no disunion anywhere in the repo. `union` ends with `components.delete(oldRoot)` at
 `graph.ts:103`, which destroys the record of which
 members came from which side, so nothing afterwards can ask what this component would hold with one
-node removed. The only reset is `resetStore()` at `db.ts:509-513`, which empties the whole store and is
+node removed. The only reset is `resetStore()` in `db.ts`, which empties the whole store and is
 tests only.
 :::
 

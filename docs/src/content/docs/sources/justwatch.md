@@ -507,7 +507,7 @@ from the other direction:
 > union `jw:<objectId>` with `cr:<series>` and `tvmaze:<show>` on a title, so a run PART_OF any one of
 > them reaches JustWatch's offers.
 
-That is literal: `planSimilarAsks` at `src/worker/similar-consumer.ts:143-155` iterates the run's
+That is literal: `planSimilarAsks` in `src/worker/similar-consumer.ts` iterates the run's
 containers and asks one question per container origin, passing `showId: container.id`. Without the
 handle pushed at `:509-518`, no `jw:` container hangs off the run and JustWatch is never asked.
 
@@ -544,7 +544,7 @@ Two of those deserve a sentence each.
 > rather than as a season shorter than every run.
 
 That year is templated into a start date at `:535` as `` `${seasonYear}-01-01` ``, which is why
-`namesADay` (`src/sources/season.ts:223`) exists and why a JustWatch date is a veto rather than a
+`namesADay` (`src/sources/season.ts`) exists and why a JustWatch date is a veto rather than a
 match downstream.
 
 ## Where the code disagrees with its comments

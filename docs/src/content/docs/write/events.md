@@ -7,7 +7,7 @@ Nothing in this system returns an answer to the caller that asked for it. A sour
 store, the store says something moved, and every subscribed page reads again. That is the entire
 delivery mechanism, and it is 147 lines in `src/worker/store/events.ts`.
 
-The bus is one `EventTarget` (`events.ts:7`) and three event types (`events.ts:1-5`):
+The bus is one `EventTarget` (`eventBus` in `events.ts`) and three event types (`StoreEventMap`):
 
 ```ts
 type StoreEventMap = {
@@ -17,7 +17,7 @@ type StoreEventMap = {
 }
 ```
 
-`emit` is a bare `dispatchEvent` (`events.ts:9-14`), synchronous, with no queue in front of it. So
+`emit` is a bare `dispatchEvent` (`events.ts`), synchronous, with no queue in front of it. So
 `upsertMedia` has already woken every listener by the time it returns, whether or not the caller
 awaits it.
 
@@ -120,7 +120,7 @@ which is what covers this, and nothing in the code depends on that being true.
 
 ## The four iterators
 
-`listen` (`events.ts:19-26`) is the raw subscription and is used directly by exactly one caller: the
+`listen` (`events.ts`) is the raw subscription and is used directly by exactly one caller: the
 test above. Everything in the app goes through one of three iterator builders, two of which share an
 implementation.
 
@@ -148,11 +148,11 @@ flowchart TD
 
 *The difference between the two families is one line: `pending = true` against `buffer.push(detail)`. A boolean saturates and an array does not.*
 
-`makeAsyncIterator` (`events.ts:30-70`) is the coalescing one. Its `fire` (`events.ts:38-45`) either
+`makeAsyncIterator` (`events.ts`) is the coalescing one. Its `fire` either
 resolves a parked `next()` or sets `pending = true`, and `pending` is a boolean. Fifty events fired
 while a read is in flight leave the flag exactly as raised as one event does, so the consumer runs
-one extra iteration and reads the store once. Both `listenMultipleIterator` (`events.ts:110-122`) and
-`debouncedListenIterator` (`events.ts:124-147`) are thin wrappers over it, and both yield `void`:
+one extra iteration and reads the store once. Both `listenMultipleIterator` and
+`debouncedListenIterator` (`events.ts`) are thin wrappers over it, and both yield `void`:
 there is nothing to carry, because the detail is `{}` everywhere.
 
 `listenIterator` (`events.ts:72-108`) does not share that implementation. It keeps
@@ -169,7 +169,7 @@ origin page. The lists are small and the reads are `Map` lookups (`db.ts:83`, `o
 both axes at once, guard and queue.
 
 The debounce is trailing-edge and unconditional about it: every event calls `clearTimeout` and starts
-a fresh `setTimeout(fire, debounceMs)` (`events.ts:133-138`). A stream of `media:changed` arriving
+a fresh `setTimeout(fire, debounceMs)` (`events.ts:162-165`). A stream of `media:changed` arriving
 faster than every 100ms **never fires it at all** until the stream stops. On a cold media page, where
 25 sources are answering into a 50ms DataLoader flush, that is the normal condition for the first
 second or two.
@@ -256,8 +256,8 @@ six emit sites above.
 
 :::danger
 **A read on this loop performs an irreversible write.** `Subscription.mediaPage` calls
-`fuzzyMergeMediaClusters` at `media/index.ts:127`, inside `getPage`, and that pass ends in
-`linkSameMediaPairs` or `linkSameContainerPairs` (`fuzzy-merge.ts:663-664`), which call `graph.link`.
+`fuzzyMergeMediaClusters` inside `getPage` (`media/index.ts`), and that pass ends in
+`linkSameMediaPairs` or `linkSameContainerPairs` (`fuzzy-merge.ts:685-686`), which call `graph.link`.
 `graph.link` (`graph.ts:279-291`) is a union-find union and there is no inverse anywhere in the repo:
 `union` ends with `components.delete(oldRoot)` (`graph.ts:103`), which destroys the record of which
 members came from which side. So the loop above is not a cache being refreshed. Each turn of it can

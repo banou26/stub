@@ -43,7 +43,7 @@ All three return `boolean` (whether anything was new) and emit `media:changed` w
 (`db.ts:222`, `db.ts:237`, `db.ts:253`). Their only caller is `fuzzyMergeMediaClusters`
 (`src/worker/store/fuzzy-merge.ts:661`, `:663`, `:664`).
 
-`resetStore()` (`src/worker/store/db.ts:509-513`) is TESTS ONLY and is deliberately not exported
+`resetStore()` (`src/worker/store/db.ts`) is TESTS ONLY and is deliberately not exported
 through `src/worker/store/index.ts` (which re-exports types, events, db, aggregate, export).
 
 ### 1.2 Trigger A: the `useOnResolve` hook, keyed on the NAMED TYPE of the resolved field
@@ -85,7 +85,7 @@ and for plugins `src/worker/extractor.ts:681`).
 - `episodeInserter` (`src/worker/extractor.ts:136-152`): handle pairs are NOT deduped here (`:137-143`),
   then `upsertEpisodes(episodes.map(normalizeToStoreEpisode), handlePairs)` (`:145`). Same loader
   options, `maxBatchSize: 250`, 50ms schedule (`:147-152`).
-- `originInserter` (`src/worker/extractor.ts:154-162`): `maxBatchSize: 50`, 50ms schedule.
+- `originInserter` (`src/worker/extractor.ts`): `maxBatchSize: 50`, 50ms schedule.
 
 The 50ms flush timer is load bearing in a way the redesign must know about: the fuzzy pass awaits the
 wasm matcher hundreds of times, and a DataLoader flush during that window can grow a component that has
@@ -126,7 +126,7 @@ Row shapes on the way in:
 every source to the app's own document and returns `{subscriptions, insertedUris, askOrigins, root, close}`.
 
 - `joinFanout` subscribes with a callback that returns immediately unless an `extractUris` was supplied:
-  `subscribe((result) => { if (!fanout.extractUris) return; ... })` (`src/worker/extractor.ts:750-759`).
+  `subscribe((result) => { if (!fanout.extractUris) return; ... })` (now `askEntry` in `src/worker/fanout.ts`).
   So on the `media` path (`src/worker/resolvers/media/index.ts:39`, no third argument) EVERY source
   result is thrown away by the caller. The data reaches the app only because `useOnResolve` wrote it to
   the store and the resolver re-reads on `media:changed`.
@@ -324,11 +324,11 @@ Fragments (the identity floor every document pulls in):
 | consumer | document | fields it needs | what it does with them |
 | --- | --- | --- | --- |
 | home row | `GetReleasingMediaPage`, `src/router/home/index.tsx:18-53` | MediaFragment, score, episodeCount, titles, shortDescriptions(count 1), covers, banners, trailers, popularity | cards; input names `season` + `seasonYear` + `sorts: [POPULARITY]` (`:78-87`) |
-| home hero | `GET_THEATHER_MEDIA`, `src/router/home/theater.tsx:129-158` | MediaFragment, titles, shortDescriptions, covers, banners, trailers, popularity | picks one candidate and re-subscribes `media` by ITS uri (`:174-183`); the pick is HELD by key so a growing cluster does not reroll it (`:166-172`) |
+| home hero | `GET_THEATHER_MEDIA`, since removed from `src/router/home/theater.tsx` | MediaFragment, titles, shortDescriptions, covers, banners, trailers, popularity | picks one candidate and re-subscribes `media` by ITS uri (`:174-183`); the pick is HELD by key so a growing cluster does not reroll it (`:166-172`) |
 | search page | `SearchMediaPage`, `src/router/search/index.tsx:24-70` | the home set plus genres, tags, averageScore, status, type, season, seasonYear, nextAiringEpisode { episodeNumber airingAt }, covers.color | card / row / title layouts (`:360-373`), all three keyed on `node._id` |
-| media modal | `GetMediaModal`, `src/router/home/media-modal.tsx:332-445` | MediaFragment, titles(language/title/score), descriptions(input), covers, banners, trailers, popularity, categories, franchise { nodes{uri format status episodeCount startDate titles{title}} edges{from to relation} }, relations { relation format node{...} }, episodes { EpisodeFragment, episodeNumber, releaseDate, titles, shortDescriptions, thumbnails, handles{relation node{...}} }, handles two levels deep with the inner nodes' episodes, episodeCount | see below |
+| media modal | `GetMediaModal`, now `GetMediaDetails` in `src/router/home/media-details.tsx` | MediaFragment, titles(language/title/score), descriptions(input), covers, banners, trailers, popularity, categories, franchise { nodes{uri format status episodeCount startDate titles{title}} edges{from to relation} }, relations { relation format node{...} }, episodes { EpisodeFragment, episodeNumber, releaseDate, titles, shortDescriptions, thumbnails, handles{relation node{...}} }, handles two levels deep with the inner nodes' episodes, episodeCount | see below |
 | watch page | `GetWatchMedia`, `src/router/watch/index.tsx:32-90` | `_id uri origin id`, titles, episodes { EpisodeFragment, episodeNumber, titles, thumbnails, handles{relation node{... url embedUrl mediaUri episodeNumber titles shortDescriptions}} }, handles two levels deep | picks the episode by `matchAggregatedUris` (`:196-203`), derives origins from the EPISODE's aggregated uri (`:205-210`), dedupes them because one origin can contribute several handles and `findOrigins` maps positionally (`:213-216`), then builds one release per SAME_AS handle (`:299-320`) |
-| episode row origins | `GetMediaModalOrigins`, `src/router/home/media-modal.tsx:447-456` | OriginFragment | icons; ids come from `episodeOriginIds(episode)`, SAME_AS only (`src/router/home/episode-origins.ts:15-21`) |
+| episode row origins | `GetMediaModalOrigins`, now `GetMediaOrigins` in `src/router/home/media-details.tsx` | OriginFragment | icons; ids come from `episodeOriginIds(episode)`, SAME_AS only (`src/router/home/episode-origins.ts:15-21`) |
 
 Field-by-field, what breaks if it changes:
 
@@ -339,17 +339,17 @@ Field-by-field, what breaks if it changes:
   `EpisodeHandle` (`src/urql-keys.ts:22-30`). `MediaTrailer` keys on `uri` (`:37`).
 - **`uri`**: the route. `/media/:uri` and `/media/:uri/:mediaUri` (`src/router/path.ts:18-19`,
   `:42-43`). The modal rewrites its own address as the cluster grows, guarded by `shouldGrowAddress`
-  (`media-modal.tsx:707-711`, `src/utils/uri.ts:143-149`), and the whole party feature syncs a PATH
+  (now `shouldRewriteAddress`; `media-modal.tsx:395-407`, `src/utils/uri.ts`), and the whole party feature syncs a PATH
   between viewers (`src/party/protocol.ts:28`, `:32`, validated by `isAppPath` at `:111-115`), so an
   aggregated uri is a shared, pasteable address, not an internal id.
 - **`handles`**: four separate readers. Origin badges take BOTH relations, SAME_AS first then anything,
-  and read `node.url` (`media-modal.tsx:761-796`). The franchise graph takes `handle.node.uri` for every
-  handle to mark the current node (`media-modal.tsx:814-816`). The origin id set is the UNION of the
-  aggregated uri's origins and `handles[].node.origin` (`media-modal.tsx:629-640`). Playback takes
+  and read `node.url` (`SourceLinks`, `media-details.tsx`). The franchise graph takes `handle.node.uri` for every
+  handle to mark the current node (`media-modal.tsx:497-499`). The origin id set is the UNION of the
+  aggregated uri's origins and `handles[].node.origin` (`SourceLinks`, `media-details.tsx`). Playback takes
   SAME_AS ONLY, on both media and episode (`src/router/watch/index.tsx:29-30`,
   `media-modal.tsx:491-497`, `src/router/home/episode-origins.ts:18-20`).
 - **`episodes`**: rows in the modal keyed on `episode.episodeNumber ?? episode.uri ?? index`
-  (`media-modal.tsx:826-833`), each row rendering number, thumbnail (with per-source fallback on error,
+  (`Episodes`, `media-details.tsx`), each row rendering number, thumbnail (with per-source fallback on error,
   `:472-474`), title, shortDescription, a release date that falls back to a handle's
   (`:479`), and up to five sources sorted internal-first (`:488-523`).
 - **`relations`**: `MediaRelations` draws a grid of cards and navigates to `asAggregatedUri(node.uri)`
@@ -374,8 +374,8 @@ Field-by-field, what breaks if it changes:
 
 `findPartOfMedia` (`db.ts:276-296`), `findRunsOfContainer` (`db.ts:303-317`), `preferAttachedRun`
 (`db.ts:334-339`), `hideAttachedContainers` (`db.ts:391-398`), `mergeByEpisodeNumber`
-(`db.ts:475-494`), `clusterAnomalies` (`src/worker/store/anomalies.ts:71-72`). The last one has no
-runtime caller in `src/` (it is imported by `tests/unit/worker/store/merge-fixtures.test.ts:696`), and
+(`db.ts:475-494`), `clusterAnomalies` (`src/worker/store/anomalies.ts`). The last one has no
+runtime caller in `src/` (it is imported by `tests/unit/worker/store/anomalies.test.ts:5`), and
 is the only place that states what a cluster contradicting ITSELF looks like: two ids of one origin that
 are not the same id at different precision (`anomalies.ts:18-46`), and a run listing more episodes than
 its sources agree it is long (`anomalies.ts:48-67`).
@@ -391,7 +391,7 @@ type StoreEventMap = {
   'origin:changed': { ids?: string[] }
 }
 ```
-`src/worker/store/events.ts:1-5`. A single module-level `EventTarget` (`events.ts:7`).
+`src/worker/store/events.ts:1-5`. A single module-level `EventTarget` (`eventBus`).
 
 **The payload is always empty.** Every emit site passes `{}`: `db.ts:200`, `:222`, `:237`, `:253`,
 `:414`, `:520`. The `uris` and `ids` fields are declared and never populated, and no listener reads
@@ -443,7 +443,7 @@ What breaks if the timing changes:
   not. A replacement that fixes this MUST check that `waitForMedia`'s seven callers still get woken
   (`src/sources/utils.ts`).
 - **Ordering between the two media events matters to `askUnasked`.** The re-ask fires from inside
-  `read()` (`media/index.ts:74`), so a source whose id lands in a batch must see a `media:changed`
+  `read()` (`media/index.ts:148`), so a source whose id lands in a batch must see a `media:changed`
   AFTER that batch, not merged into one that preceded it.
 
 ---
@@ -452,8 +452,8 @@ What breaks if the timing changes:
 
 ### 4.1 Registration
 
-`registerRemoteExtractor(port, pluginUri)` (`src/worker/extractor.ts:664-707`), reached from the app
-through osra as `registerRemoteSource` (`src/worker/yoga.ts:44-50`, re-exported
+`registerRemoteExtractor(port, pluginUri)` (`src/worker/extractor.ts`), reached from the app
+through osra as `registerRemoteSource` (`src/worker/yoga.ts`, re-exported
 `src/worker.ts:32-49`, driven by `src/plugins.ts:5`). Flow:
 
 1. `attach(port)` from `@fkn/lib/packages` gives the payload (`extractor.ts:668`).

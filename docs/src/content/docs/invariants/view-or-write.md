@@ -25,7 +25,7 @@ at `graph.ts:103` with `components.delete(oldRoot)`. That line destroys the reco
 came from which side, so nothing afterwards can be asked what the component would hold with one node
 removed. Grep the tree for an inverse and there is none: no `unlink`, no `split`, no `unmerge`
 anywhere under `src/`. The only thing that undoes a union is `graph.clear()` (`graph.ts:363-375`),
-reached only from `resetStore` (`db.ts:509`), which is tests only and is not even exported through
+reached only from `resetStore` (`db.ts`), which is tests only and is not even exported through
 `./index.ts`.
 
 `graph.set` is irreversible in the other direction. Its merge function
@@ -109,14 +109,12 @@ the row it waits for lands (`db.ts:158`); an entry whose row never arrives stays
 unbounded and with no expiry.
 
 **Views.** Eighteen named functions read the store and write nothing at all:
-`findAggregatedMedia` (`db.ts:257`), `findPartOfMedia` (`db.ts:276`), `findRunsOfContainer`
-(`db.ts:303`), `preferAttachedRun` (`db.ts:334`), `findMediaForPage` (`db.ts:349`),
-`findAllAggregatedMedia` (`db.ts:374`), `hideAttachedContainers` (`db.ts:391`), `findRunEpisodes`
-(`db.ts:424`), `findAggregatedEpisodesForMedia` (`db.ts:432`), `mergeByEpisodeNumber` (`db.ts:475`),
-`tieredConsensus` (`consensus.ts:36`), `runLength` (`consensus.ts:62`), `alignmentOffset`
-(`consensus.ts:113`), `runEpisodes` (`consensus.ts:157`), `alignRunEpisodes` (`consensus.ts:256`),
-`aggregateEpisode` (`aggregate.ts:401`), `applyMediaFilters` (`filter.ts:54`) and `exportStore`
-(`export.ts:24`). Only one of them says so out loud, `export.ts:15`:
+`findAggregatedMedia`, `findPartOfMedia`, `findRunsOfContainer`, `preferAttachedRun`,
+`findMediaForPage`, `findAllAggregatedMedia`, `hideAttachedContainers`, `findRunEpisodes`,
+`findAggregatedEpisodesForMedia` and `mergeByEpisodeNumber` (`db.ts`), `tieredConsensus`, `runLength`,
+`alignmentOffset`, `runEpisodes` and `alignRunEpisodes` (`consensus.ts`), `aggregateEpisode`
+(`aggregate.ts`), `applyMediaFilters` (`filter.ts`) and `exportStore` (`export.ts`). Only one of
+them says so out loud, `export.ts:15`:
 
 > Promises: it reads, and never writes.
 
@@ -237,7 +235,7 @@ for (const { episodeUri, handleUri, relation } of handles) {
 
 No placeholder gate, no `pendingClaims`, no scope pair, none of the five defences `upsertMedia` puts
 in front of its own union. `upsertEpisodes` also emits `episode:changed` unconditionally at
-`db.ts:414`, where `upsertMedia` guards its emit on `changed` (`db.ts:200`) precisely to stay out of
+`db.ts:426`, where `upsertMedia` guards its emit on `changed` (`db.ts:206`) precisely to stay out of
 the re-read loop `tests/unit/worker/store/edge-idempotence.test.ts` exists to pin.
 
 **Nothing mints one today.** `episodeSameAs` and `episodePartOf` exist in `src/sources/utils.ts`
@@ -272,7 +270,7 @@ plus `[anizip:x-1]` (a view match on the number) coming out as one group of thre
 ## Where the line actually is
 
 Eighteen lines in the whole tree call a mutating method on the graph. Two of them run once at module
-load (`db.ts:85-86`, registering the merge functions) and one is `resetStore` (`db.ts:510`). Of the
+load (`db.ts:85-86`, registering the merge functions) and one is `resetStore` (`db.ts`). Of the
 fifteen that remain, **fourteen are in `db.ts` and one, `aggregate.ts:294`, runs on a read.**
 
 | line | call | band |
@@ -291,7 +289,7 @@ fifteen that remain, **fourteen are in `db.ts` and one, `aggregate.ts:294`, runs
 
 Two members of `Graph` have no caller outside `graph.ts` at all: `setLabel` (`graph.ts:202`) and
 `alias` (`graph.ts:225`), the second of which is only ever reached through `componentId` and
-`carryComponentId`. `findOrigin` and `findOrigins` (`db.ts:523`, `db.ts:527`) are views too, left out
+`carryComponentId`. `findOrigin` and `findOrigins` (`db.ts`) are views too, left out
 of the count above because they read `originMap` rather than the graph.
 
 So the audit is small enough to do by hand, and that is the point of putting every gate inside

@@ -69,7 +69,7 @@ flowchart TD
 Two facts are worth taking out of that figure before the sections that zoom into it.
 
 **The grouping happens twice, and it has to.** `mergeByEpisodeNumber` runs at the bottom of
-`findAggregatedEpisodesForMedia` (`db.ts:454`), before anything is aligned. `alignRunEpisodes` then
+`findAggregatedEpisodesForMedia` (`db.ts:466`), before anything is aligned. `alignRunEpisodes` then
 changes the numbers on the copies it returns. So the groups that come out of the walk are keyed on
 numbers that may since have moved, and the resolver regroups the flattened result at
 `index.ts:209-213` on the post-alignment number. That second pass is what actually merges Crunchyroll's
@@ -335,7 +335,7 @@ first member is whichever the walk happened to reach first.
 
 :::danger[The union this read walks has no inverse]
 `graph.cluster(ep.uri, EPISODE_SAME_AS)` at `db.ts:449` reads a union-find, and the union behind it is
-written by `upsertEpisodes` at `db.ts:410` with no gate whatsoever in front of it. `graph.link` has no
+written by `upsertEpisodes` at `db.ts:422` with no gate whatsoever in front of it. `graph.link` has no
 inverse: two episodes joined that way are one episode for the life of the session, and only
 `resetStore` separates them. Nothing on this page can undo such a join, and `mergeByEpisodeNumber`
 extends it rather than checking it (`db.ts:485-486` pushes into the existing group).
