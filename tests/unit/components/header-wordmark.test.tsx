@@ -59,6 +59,40 @@ test('a long press whose timer has not run by the release, as on a busy page, op
   expect(history).toEqual(['/settings'])
 })
 
+test('a short tap whose timer ran before its release, as on a busy touch screen, closes the menu it opened and goes home', () => {
+  const { history, fire, wait } = open()
+  const pressed = Date.now()
+  fire('pointerdown')
+  wait(500)
+  expect(menu()).not.toBeNull()
+  vi.setSystemTime(pressed + 50)
+  fire('pointerup')
+  fire('click')
+  expect(menu()).toBeNull()
+  expect(history).toEqual(['/settings', '/'])
+})
+
+test('a short tap on the wordmark leaves a menu the arrow opened alone', () => {
+  const { history, fire } = open()
+  act(() => { document.querySelector<HTMLElement>('.sites-toggle')!.click() })
+  expect(menu()).not.toBeNull()
+  fire('pointerdown')
+  fire('pointerup')
+  fire('click')
+  expect(menu()).not.toBeNull()
+  expect(history).toEqual(['/settings'])
+})
+
+test('a second press before the first is released ends it, so its timer opens nothing', () => {
+  const { history, fire, wait } = open()
+  fire('pointerdown')
+  fire('pointerdown')
+  fire('pointercancel')
+  wait(600)
+  expect(menu()).toBeNull()
+  expect(history).toEqual(['/settings'])
+})
+
 test('a menu closed while the long press that opened it is still held stays closed on its release', () => {
   const { fire, wait } = open()
   fire('pointerdown')

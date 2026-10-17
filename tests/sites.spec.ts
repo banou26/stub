@@ -427,6 +427,26 @@ test('on a busy page a long press opens the menu on release, and a short tap sti
   await expect(siteMenu(page)).toHaveCount(0)
 })
 
+test.describe('on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+  test.skip(({ browserName }) => browserName !== 'chromium')
+
+  // page.touchscreen has only a whole tap, so the touch goes through Chrome's own input. Its release comes once the
+  // press's timer has opened the menu, stamped 50 ms after the press: the order Chrome can give a short tap on a
+  // busy page, from one tap in four to none in sixty four depending on load
+  test('a short tap whose release comes after its timer, as on a busy page, closes the menu and goes home', async ({ page }) => {
+    await page.goto(at('movies.localhost', '/settings'))
+    const logo = (await page.locator('header .logo').boundingBox())!
+    const touch = await page.context().newCDPSession(page)
+    const pressed = Date.now() / 1000
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: logo.x + logo.width / 2, y: logo.y + logo.height / 2 }], timestamp: pressed })
+    await siteMenu(page).waitFor()
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [], timestamp: pressed + 0.05 })
+    await expect(page).toHaveURL(at('movies.localhost'))
+    await expect(siteMenu(page)).toHaveCount(0)
+  })
+})
+
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
 
 test('below 1024 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
