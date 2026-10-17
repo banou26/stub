@@ -208,8 +208,8 @@ test('a CJK title yields a key, and a synonym, a bare number and a season label 
   expect(await rowsOf('MATCH (t:TitleKey {key: $key}) RETURN t.by AS by', { key: 'frieren' })).toEqual([{ by: 'plugin:profile' }])
 })
 
-// (d) THE DATE, derived from the PARSED value and never from the string shape, because AniList emits
-// `toUTCString()` for its year-only coercion too (`aired-date.ts:33,44,50`). Keeping January 1 as a
+// (d) THE DATE, derived from the PARSED value and never from the string shape, because AniList and MAL
+// write a year alone as `YYYY`, which parses to January 1 too. Keeping January 1 as a
 // day would destroy 14,992 of 17,946 streaming attaches (`fuzzy-merge.ts:150-156`).
 // Mutation: test the string for `-01-01` instead of reading `getUTCDate()` and every origin that
 // emits an ISO instant or a `toUTCString` reads `day`; drop the declared override and a real New

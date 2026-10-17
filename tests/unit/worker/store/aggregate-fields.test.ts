@@ -3,7 +3,7 @@
 // highest-scored source wins it or the cluster unions it. Missing any one is silent for a nullable
 // field: no type error, no thrown read, just a page that filters to nothing because every row lost the
 // season it was filtered on.
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, test } from 'vite-plus/test'
 
 import { aggregateMedia } from '../../../../src/worker/store/aggregate'
 import { resetStore } from '../../../../src/worker/store/db'
@@ -160,4 +160,24 @@ test('and agreement decides among equals', () => {
 test('a single source is its own answer', () => {
   expect(aggregateMedia([row('anizip:1', { score: null, episodeCount: 11 })], 'https://stub.moe').episodeCount)
     .toBe(11)
+})
+
+// the old store, still read on `?store=legacy`, takes the same day the graph does (graph/plugins/partial-dates.test.ts)
+test('a day a lower-scored source names wins over a year or month it falls in, and kitsu\'s last of the month does not', () => {
+  const mal = row('mal:1', { score: 0.9, startDate: '2027-10', endDate: '2027' })
+  const anilist = row('anilist:1', { score: 0.8, startDate: 'Fri, 15 Oct 2027 00:00:00 GMT', endDate: 'Fri, 17 Dec 2027 00:00:00 GMT' })
+  const kitsu = row('kitsu:1', { score: 0.3, startDate: '2027-10-31', endDate: '2027-12-31' })
+  const aggregated = aggregateMedia([kitsu, anilist, mal], 'https://stub.moe')
+  expect([aggregated.startDate, aggregated.endDate]).toEqual(['Fri, 15 Oct 2027 00:00:00 GMT', 'Fri, 17 Dec 2027 00:00:00 GMT'])
+  const placeholders = aggregateMedia([kitsu, mal], 'https://stub.moe')
+  expect([placeholders.startDate, placeholders.endDate]).toEqual(['2027-10', '2027'])
+  const kitsuDay = aggregateMedia([row('kitsu:1', { score: 0.3, startDate: '2027-10-15' }), mal], 'https://stub.moe')
+  expect(kitsuDay.startDate, 'nor kitsu\'s mid-month day').toBe('2027-10')
+})
+
+test('the old store takes AniList\'s first of a month, and a month inside a year, as the graph does', () => {
+  const mal = row('mal:1', { score: 0.9, startDate: '2027-10', endDate: '2027' })
+  const anilist = row('anilist:1', { score: 0.8, startDate: 'Fri, 01 Oct 2027 00:00:00 GMT', endDate: '2027-12' })
+  const aggregated = aggregateMedia([anilist, mal], 'https://stub.moe')
+  expect([aggregated.startDate, aggregated.endDate]).toEqual(['Fri, 01 Oct 2027 00:00:00 GMT', '2027-12'])
 })

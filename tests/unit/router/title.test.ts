@@ -114,6 +114,11 @@ test('Aired is the day the source named, west of Greenwich too', () => {
   }
 })
 
+test('Aired names a year or a month alone as just that', () => {
+  expect(aired({ startDate: '2027', status: MediaStatus.NotYetReleased })).toBe('2027')
+  expect(aired({ startDate: '2026-04', endDate: '2027' })).toBe('Apr 2026 to 2027')
+})
+
 test('Aired names one day when the run started and ended on it, and no end while it airs', () => {
   expect(aired({ startDate: '2024-08-30', endDate: '2024-08-30' })).toBe('Aug 30, 2024')
   for (const status of [MediaStatus.Releasing, MediaStatus.NotYetReleased]) {

@@ -172,10 +172,10 @@ const maxPossibleSimilarity = (a, b) => {
 }
 
 // airedDate() from src/sources/aired-date.ts, with no airingSchedule in this corpus: a complete
-// FuzzyDate is what that function returns outright, and an incomplete one is coerced by its last line
+// FuzzyDate is what that function returns outright, and an incomplete one goes out as its year or month
 const airedDate = fuzzy => {
   if (fuzzy?.year && fuzzy.month && fuzzy.day) return new Date(Date.UTC(fuzzy.year, fuzzy.month - 1, fuzzy.day)).toUTCString()
-  if (fuzzy?.year) return new Date(Date.UTC(fuzzy.year, (fuzzy.month ?? 1) - 1, fuzzy.day ?? 1)).toUTCString()
+  if (fuzzy?.year) return fuzzy.month ? `${fuzzy.year}-${String(fuzzy.month).padStart(2, '0')}` : String(fuzzy.year)
   return null
 }
 

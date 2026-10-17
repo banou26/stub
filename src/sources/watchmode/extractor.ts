@@ -189,7 +189,7 @@ const normalizeHit = (hit: WatchmodeHit): GQLMedia | undefined => {
     titles: hit.name ? [{ language: 'en', title: hit.name, score: SCORE }] : [],
     // a title with no poster names `posters/blank.gif`
     covers: img(hit.thumbnailURL?.endsWith('/blank.gif') ? undefined : hit.thumbnailURL, SCORE),
-    startDate: hit.year ? `${hit.year}-01-01` : undefined,
+    startDate: hit.year ? String(hit.year) : undefined,
   })
 }
 

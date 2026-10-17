@@ -68,7 +68,7 @@ describe('parseMalAnime', () => {
       title: 'Sousou no Frieren: Ougonkyou-hen',
       englishTitle: 'Frieren: Beyond Journey\'s End - Golden Land Arc',
       status: 'Not yet aired',
-      startDate: '2027-10-01',
+      startDate: '2027-10',
       endDate: undefined,
       season: 'fall',
       year: 2027,
@@ -98,11 +98,13 @@ describe('airedDates', () => {
     expect(airedDates('Jul 20, 2001')).toEqual({ startDate: '2001-07-20', endDate: undefined })
   })
 
-  // the title page writes `Oct 2027`, the search answer `Oct ??, 2027`; both are the first of the month
-  test('a month or a year alone is its first day, and an open end is no date', () => {
-    expect(airedDates('Oct 2027 to ?')).toEqual({ startDate: '2027-10-01', endDate: undefined })
-    expect(airedDates('Oct ??, 2027 to ?')).toEqual({ startDate: '2027-10-01', endDate: undefined })
-    expect(airedDates('2027')).toEqual({ startDate: '2027-01-01', endDate: undefined })
+  // the title page writes `Oct 2027`, the search answer `Oct ??, 2027`; ONE PIECE FILM: GOD VALLEY (mal:64858)
+  // reads `2027`, and MAL outranks AniList's own year (2026-10-17)
+  test('a month or a year alone keeps its precision, and an open end is no date', () => {
+    expect(airedDates('Oct 2027 to ?')).toEqual({ startDate: '2027-10', endDate: undefined })
+    expect(airedDates('Oct ??, 2027 to ?')).toEqual({ startDate: '2027-10', endDate: undefined })
+    expect(airedDates('2027')).toEqual({ startDate: '2027', endDate: undefined })
+    expect(new Date(airedDates('Oct 2027').startDate!).toISOString(), 'still the first of it to whatever parses it').toBe('2027-10-01T00:00:00.000Z')
   })
 
   test('anything else is no date', () => {

@@ -221,11 +221,10 @@ export const splitSeasonScopedId = (id: string): { showId: string, seasonNumber?
 /**
  * Whether a start date is precise enough to pick a RUN with, as opposed to naming a year.
  *
- * Seven extractors BUILD a date out of a bare year and template it as January 1: justwatch, omdb,
- * tmdb, tvdb, unogs (twice) and crunchyroll's own show-level media all do it, and nothing downstream
- * can tell one of those from a show that really did premiere on New Year's Day. kitsu and jikan do
- * the softer version, answering `YYYY-MM-01` whenever only the month is known, which is up to 30 days
- * out while reading as exact.
+ * A year alone parses to January 1 (the catalogues write it as `YYYY`, and templated `YYYY-01-01` until
+ * 2026-10-17), and nothing downstream can tell one of those from a show that really did premiere on New
+ * Year's Day. kitsu does the softer version, answering `YYYY-MM-01` whenever only the month is known,
+ * which is up to 30 days out while reading as exact.
  *
  * Against a 45 day window that is not a rounding error, it is the difference between naming a cour
  * and naming a year, so a coerced date has to be refused rather than matched. Refusing costs a source

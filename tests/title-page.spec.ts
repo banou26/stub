@@ -969,6 +969,15 @@ test('the modal opens with focus on its box, unringed, not on More details', asy
   expect(await modal(page).evaluate(box => getComputedStyle(box).outlineStyle), 'and the box draws no ring').toBe('none')
 })
 
+// MAL outranks AniList on a start date, so its page has to keep the year alone too
+test('a film AniList and MAL date by its year alone reads Releases and the year, not a January 1', async ({ page }) => {
+  await page.goto(`${origin}/media/ag:(anilist:900100,mal:900100)`)
+  await expect(modal(page).locator('.description'), 'the control: MAL\'s page is in').toContainText('MyAnimeList describes', { timeout: 30_000 })
+  const movie = modal(page).locator('.movie')
+  await expect(movie.locator('.when')).toHaveText('Releases 2099')
+  await expect(movie.locator('.facts')).toHaveText(/^Movie · 2099\b/)
+})
+
 test('a long title wraps beside the modal\'s links rather than pushing them under it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openModal(page)

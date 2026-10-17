@@ -48,9 +48,9 @@ enum MediaStatus {
 """
 The broadcast season a run aired in.
 
-Named by the SOURCE, never derived from `startDate` here. Seven extractors coerce a bare year into
-January 1 and two answer YYYY-MM-01 for a month-only date (see `namesADay` in sources/season.ts), so
-deriving a season from a start date would file every year-only row under WINTER.
+Named by the SOURCE, never derived from `startDate` here. A bare year parses to January 1 and kitsu
+answers YYYY-MM-01 for a month-only date (see `namesADay` in sources/season.ts), so deriving a season
+from a start date would file every year-only row under WINTER.
 """
 enum MediaSeason {
   WINTER

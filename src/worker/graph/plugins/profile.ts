@@ -268,9 +268,9 @@ export type DateReading = {
  * The date reading of 5.4 P0, derived from the PARSED value and never from the string shape.
  *
  * A parsed `startDate` whose UTC day-of-month is 1 is `month-or-year` for every origin until that
- * origin declares `startDatePrecision`: AniList emits `toUTCString()` for every branch including its
- * year-only coercion (`aired-date.ts:33,44,50`) and jikan an offset-bearing ISO string, so a shape
- * test would admit both coerced dates to the 45 day veto. This is the shipped `startDay` rule
+ * origin declares `startDatePrecision`: kitsu spells a coerced date as a full day, and so do the rows the
+ * catalogues stored before they wrote `YYYY`, so a shape test would admit it to the 45 day veto. This is
+ * the shipped `startDay` rule
  * (`fuzzy-merge.ts:163-179`): 83 refused for 81 lost, ratio 1.02, and keeping January 1 as a day
  * would destroy 14,992 of 17,946 streaming attaches (`:150-156`, 2026-08-31). A declared precision
  * overrides, which is how a genuine January 1 premiere (4.91% of AniList's dated entries, 0.52% of

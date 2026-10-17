@@ -23,8 +23,12 @@
  * measured), rather than here where a seconds-for-milliseconds mixup would be a silent 1970.
  */
 
-/** `YYYY-MM-DD`, the one shape whose day means a day rather than an instant. */
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+/** `YYYY`, `YYYY-MM` or `YYYY-MM-DD`: a year, a month or a day rather than an instant. */
+const DATE_ONLY = /^\d{4}(-\d{2}){0,2}$/
+
+/** Whether a value names only a year or a month (`2027`, `2027-03`), which a day or an instant outranks. */
+export const isPartialDate = (value: string | null | undefined): boolean =>
+  Boolean(value && DATE_ONLY.test(value) && value.length < 10)
 
 /**
  * A year no episode aired in, so a parsed `0000-01-01` is refused rather than rendered as "Jan 1, 0".
@@ -49,18 +53,30 @@ export const parseReleaseDate = (value: string | null | undefined): Date | undef
 }
 
 /**
- * A media's start, end or film release as the day it names, `YYYY-MM-DD`. AniList, Jikan, Apple TV and
- * Simkl's anime records write that day as UTC midnight with a time attached, so it is read in UTC, never
- * where the viewer is. An episode's airing is an instant and does not go through here.
+ * A media's start, end or film release as the day it names, `YYYY-MM-DD`, or as the year or month alone
+ * when that is all its source knows. AniList, Jikan, Apple TV and Simkl's anime records write the day as
+ * UTC midnight with a time attached, so it is read in UTC, never where the viewer is. An episode's airing
+ * is an instant and does not go through here.
  */
-export const releaseDay = (value: string | null | undefined): string | undefined =>
-  parseReleaseDate(value)?.toISOString().slice(0, 10)
+export const releaseDay = (value: string | null | undefined): string | undefined => {
+  const date = parseReleaseDate(value)
+  return date && isPartialDate(value) ? value! : date?.toISOString().slice(0, 10)
+}
+
+/** Whether `value` names a day, a month or an instant inside the year or month `partial` names (`2027`, `2027-10`). */
+export const refinesDate = (partial: string | null | undefined, value: string | null | undefined): boolean => {
+  const date = parseReleaseDate(value)
+  if (!date || !isPartialDate(partial)) return false
+  if (isPartialDate(value)) return value!.length > partial!.length && value!.startsWith(partial!)
+  return date.toISOString().startsWith(partial!)
+}
 
 /**
  * The date to show beside an episode, or `undefined` to show nothing.
  *
  * Deliberately a DAY and not a time. An episode's airing is a day in the viewer's head, the sources
- * disagree about the hour by whole timezones, and a broadcast minute in a listing is noise.
+ * disagree about the hour by whole timezones, and a broadcast minute in a listing is noise. A year or a
+ * month alone shows as just that ("2027", "Mar 2027").
  */
 export const releaseDateLabel = (
   value: string | null | undefined,
@@ -71,8 +87,7 @@ export const releaseDateLabel = (
   try {
     return new Intl.DateTimeFormat(locale as string | string[] | undefined, {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      ...!isPartialDate(value) ? { month: 'short', day: 'numeric' } : value!.length > 4 ? { month: 'short' } : {},
       // the whole point: a named day is shown as that day, everywhere
       ...DATE_ONLY.test(value!) ? { timeZone: 'UTC' } : {},
     }).format(date)

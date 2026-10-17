@@ -7,7 +7,7 @@
 // every season's episodes, and let the caller link the cluster's handles to it. Two runs of one show
 // that both failed to resolve then carried the identical uri and union-find welded them, with no
 // inverse. Measured over 33 multi-season Netflix series and 105 runs, that path was 30 of 41 welds.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
@@ -89,7 +89,7 @@ test('without requireSeason the show-level media is still returned, for a direct
   expect(media?.uri).toBe('nf:70000004')
 })
 
-// A SEASON-scoped media may never carry the SHOW's year. `normalizeTitle` stamps `${title.year}-01-01`,
+// A SEASON-scoped media may never carry the SHOW's year. `normalizeTitle` stamps `title.year`,
 // Netflix's year for the whole title, and until 2026-09-05 the season rewrite touched only the id.
 //
 // The damage is not inaccuracy, it is a WELD by a route that looks nothing like a date problem:
@@ -112,7 +112,7 @@ test('the show-level media still carries the show year', async () => {
   const show = await getMedia('70000006', ctxFor(table), undefined, false)
 
   expect(show?.uri).toBe('nf:70000006')
-  expect(show?.startDate, 'the only media the show year is true of').toBe('2021-01-01')
+  expect(show?.startDate, 'the only media the show year is true of, and never a January 1').toBe('2021')
 })
 
 // A bare `nf:<netflixid>` is the whole Netflix TITLE. For a film that is exact, and for a series it

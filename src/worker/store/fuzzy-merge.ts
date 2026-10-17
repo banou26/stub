@@ -151,15 +151,14 @@ const yearOf = (date: string | null) => {
  *
  * TWO coercions are dropped, and which ones was MEASURED rather than reasoned about.
  *
- * JANUARY 1, because seven extractors BUILD that string out of a bare year: justwatch:387, omdb:55,
- * tmdb:120, tvdb:99, unogs:166 and :181, and crunchyroll:152 all literally template a year followed
- * by -01-01. Nothing downstream can tell one of those from a show that really did premiere on New
- * Year's Day, and the ones that mint it are the streaming catalogues, whose whole job here is to
+ * JANUARY 1, because a year alone parses to it: the streaming catalogues write a year they know as
+ * `YYYY`, and templated `YYYY-01-01` until 2026-10-17. Nothing downstream can tell one of those from
+ * a show that really did premiere on New Year's Day, and the ones that mint it are the streaming catalogues, whose whole job here is to
  * attach a one-title cluster to a fat metadata cluster. Measured: keeping January 1 as a date
  * destroys 14992 of 17946 such attaches, which is the shape of rule this file already refuses once
  * (see the season check). Dropping it destroys none of them.
  *
- * THE FIRST OF ANY MONTH, because kitsu:135 and jikan:126 emit that when the DAY is unknown, and a
+ * THE FIRST OF ANY MONTH, because kitsu:135 emits that when the DAY is unknown, and a
  * January-only guard reads it as precise while it is up to 30 days out. Measured, same anime, a kitsu
  * first-of-month against a day-precise AniList date: 198 pairs, 187 within 30 days, and one at 32
  * days that a 30 day window would have refused outright (Aikodesho, AniList Fri 02 Sep 1988 against

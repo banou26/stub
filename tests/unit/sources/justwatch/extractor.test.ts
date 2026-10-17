@@ -279,11 +279,11 @@ test('a film is typed MOVIE and a season is not typed', async () => {
   expect((await mediaFor('jw:12345-111')).type, 'the control: a season').toBeUndefined()
 })
 
-// THE DATE. `${year}-01-01` is the exact spelling the store reads as no day at all, and it was every
-// JustWatch row's date because nothing asked for the day. The day is asked for now, at season level.
+// THE DATE. A year alone was every JustWatch row's date because nothing asked for the day. The day is
+// asked for now, at season level.
 //
 // Mutation: drop `originalReleaseDate` from the NODE_QUERY season block, or make `dayOrYear` ignore its
-// day, and the first assertion goes back to 2022-01-01.
+// day, and the first assertion goes back to 2022.
 const dated = (day: string | null) => ({
   ...node,
   content: { ...node.content, originalReleaseDate: '2021-04-01' },
@@ -297,8 +297,7 @@ test('a season media takes the season\'s own day, and falls back to its year and
   expect((await mediaFor('jw:12345-111', dated('2022-07-06') as typeof node)).startDate).toBe('2022-07-06')
 
   const undated = await mediaFor('jw:12345-111', dated(null) as typeof node)
-  expect(undated.startDate, 'year precision, awaiting startDatePrecision: never the show\'s 2021-04-01')
-    .toBe('2022-01-01')
+  expect(undated.startDate, 'the year alone, never a January 1 or the show\'s 2021-04-01').toBe('2022')
 
   // the control: a film has no season, so the show-level day IS its own and is taken
   const film2026 = { ...film, content: { ...film.content, originalReleaseDate: '2020-02-26' } }

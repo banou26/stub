@@ -78,21 +78,20 @@ export const LIST_LENGTH_ORIGINS = new Set([
 export const NUMBER_SPACE_ORIGINS: Record<string, 'entry' | 'position'> = { anizip: 'entry', nf: 'position' }
 
 /**
- * Origins KNOWN to build a start date out of a bare year or a bare month, kept as the record of who
- * coerces rather than as a gate.
+ * Origins KNOWN to build a start date out of a bare year or a bare month, so their day never stands in
+ * for a year or a month another member names (`aggregateFields`, and `aggregate.ts` in the old store).
+ * kitsu writes a month it knows as its first or last day (`2027-10-01`, `2027-10-31`) and a year as
+ * `2027-01-01` or `2027-12-31` (read 2026-10-17). Every other source writes a year or a month alone as
+ * `YYYY` or `YYYY-MM`; the catalogues templated `YYYY-01-01` until 2026-10-17, and rows they stored then
+ * still do.
  *
- * The date rule of 5.4 P0 is deliberately origin-independent: a parsed `startDate` whose UTC
- * day-of-month is 1 reads as `month-or-year` for EVERY origin until that origin declares
- * `startDatePrecision`, because AniList emits `toUTCString()` for every branch including its year-only
- * coercion (`aired-date.ts:33,44,50`) and jikan a bare `YYYY-MM-DD`, so a shape test admits
- * both coerced dates to the 45 day veto. Seven extractors template a year followed by `-01-01`
- * (`justwatch:387`, `omdb:55`, `tmdb:120`, `tvdb:99`, `unogs:166` and `:181`, `crunchyroll:152`) and
- * two answer `YYYY-MM-01` when only the month is known (`kitsu:135`, `jikan/anime-page.ts:42`).
- *
- * So nothing reads this table to DECIDE anything. It is the list the profile's own test walks, so the
- * rule is proven to fire for each of them rather than for the one origin a fixture happened to use.
+ * The date rule of 5.4 P0 does not read it: a parsed `startDate` whose UTC day-of-month is 1 reads as
+ * `month-or-year` for EVERY origin until that origin declares `startDatePrecision`, because a coerced
+ * date is spelled as a full day, so a shape test would admit it to the 45 day veto. The profile's own
+ * test walks this list, so that rule is proven to fire for each of them rather than for the one origin
+ * a fixture happened to use.
  */
-export const COERCING_ORIGINS = new Set(['jw', 'omdb', 'tmdb', 'tvdb', 'nf', 'cr', 'kitsu', 'mal'])
+export const COERCING_ORIGINS = new Set(['kitsu'])
 
 /**
  * What each first-party origin's OWN payload can name, as the origins of the ids it builds handles

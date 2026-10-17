@@ -218,7 +218,7 @@ const normalizeMedia = (id: string, title: string, description: string, series: 
     banners: img(bestImage(series.images?.poster_wide), SCORE),
     // launch year is the series premiere, only valid on the series-level media, not seasons
     startDate: id === series.id && series.series_metadata?.series_launch_year
-      ? `${series.series_metadata.series_launch_year}-01-01`
+      ? String(series.series_metadata.series_launch_year)
       : undefined,
     episodeCount
   })
@@ -545,7 +545,7 @@ const searchAndLinkMedia = async (
      *
      * What comes with the picker: a refusal when TWO seasons sit inside the window, which is exactly
      * what two parts released together look like; a date rule that ignores a start date naming only a
-     * year, which seven extractors template as the first of January; the fold veto this path used to
+     * year, which parses to the first of January; the fold veto this path used to
      * apply by hand; a year veto; and four further ways to match that a date comparison cannot.
      *
      * THE SERIES IS NOW DECIDED BY TITLE ALONE rather than by whichever series held the nearest

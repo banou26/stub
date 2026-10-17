@@ -240,7 +240,7 @@ test('search asks the site\'s quick search and mints each hit under its combined
   expect(inputOf(sent[0]!)).toEqual({ q: 'inception', type: 2 })
   expect(rows.map(row => row.uri)).toEqual(['watchmode:01182444', 'watchmode:01670721', 'watchmode:01863076'])
   expect(rows[0]!.titles.map(title => title.title)).toEqual(['Inception'])
-  expect(rows[0]!.startDate).toBe('2010-01-01')
+  expect(rows[0]!.startDate, 'the year alone, never a January 1').toBe('2010')
   expect(rows[0]!.covers.map(cover => cover.url)).toEqual(['https://cdn.watchmode.com/posters/01182444_poster_w185.jpg'])
   expect(rows[2]!.covers, 'a title with no poster names blank.gif, which is no cover').toEqual([])
 })

@@ -431,11 +431,11 @@ const genresOf = (node: JWSearchNode) =>
 
 /**
  * A start date at the best precision this node has for THIS media: the day when JustWatch names one,
- * else the year as `YYYY-01-01`, else nothing.
+ * else the year as `YYYY`, else nothing.
  *
- * `${year}-01-01` is honest year precision and is also the exact spelling the store reads as no day
- * at all: a parsed date whose UTC day-of-month is 1 is `month-or-year`, so `startDay` is dropped and
- * only the year survives to bucket on (5.4 P0). Every JustWatch row was that shape until 2026-09-12,
+ * `YYYY` parses to January 1, which the store reads as no day at all: a parsed date whose UTC
+ * day-of-month is 1 is `month-or-year`, so `startDay` is dropped and only the year survives to bucket
+ * on (5.4 P0). Every JustWatch row was that shape until 2026-09-12,
  * because nothing asked for the day, so this source could never clear the 45 day window and its date
  * gate was permanently silent. The day is asked for now and 22 of 24 recorded seasons carry one.
  *
@@ -448,7 +448,7 @@ const genresOf = (node: JWSearchNode) =>
  * the show-vs-season confusion the uri scoping in ./id.ts exists to prevent, in the date field.
  */
 const dayOrYear = (day: string | null | undefined, year: number | null | undefined): string | undefined =>
-  day ?? (year ? `${year}-01-01` : undefined)
+  day ?? (year ? String(year) : undefined)
 
 /**
  * JustWatch's seasons as the shared picker reads them: a count, a year and the episode titles the node

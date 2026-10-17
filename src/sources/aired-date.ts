@@ -21,9 +21,9 @@
  * `media.startDate` is a FuzzyDate whose members are individually nullable, and it was already in the
  * query, feeding only matchSeasonByDate. A complete one wins outright. An incomplete one is worth less
  * than a real airing date, so the schedule is tried next, by EPISODE NUMBER and then by earliest time,
- * never by position. Only if both fail does the partial date go out, coerced the way every other
- * source coerces one, because a year alone still buckets correctly and is what the January 1 shape
- * means everywhere else in this codebase.
+ * never by position. Only if both fail does the partial date go out, as `YYYY` or `YYYY-MM`: every
+ * reader that parses it gets the first of that year or month, which buckets as before and reads as
+ * no day, while the page can still show "2027" rather than a January 1 nobody named.
  */
 export type FuzzyDate = { year?: number | null, month?: number | null, day?: number | null } | null | undefined
 export type AiringEdges = { edges?: ({ node?: { airingAt?: number | null, episode?: number | null } | null } | null)[] | null } | null | undefined
@@ -47,7 +47,7 @@ export const airedDate = (fuzzy: FuzzyDate, schedule: AiringEdges, end: 'first' 
     return new Date(chosen.airingAt! * 1000).toUTCString()
   }
 
-  if (fuzzy?.year) return new Date(Date.UTC(fuzzy.year, (fuzzy.month ?? 1) - 1, fuzzy.day ?? 1)).toUTCString()
+  if (fuzzy?.year) return fuzzy.month ? `${fuzzy.year}-${String(fuzzy.month).padStart(2, '0')}` : String(fuzzy.year)
   return undefined
 }
 

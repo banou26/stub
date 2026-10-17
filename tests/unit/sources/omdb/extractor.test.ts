@@ -129,6 +129,7 @@ test('search rows follow their type, a TV movie being a film', async () => {
   expect(byId['omdb:tt31076325']!.scope).toBe('RUN')
   expect(byId['omdb:tt31076325']!.handles[0]!.node.scope).toBe('RUN')
   expect(byId['omdb:tt34754926']!.scope, 'a miniseries is a series').toBe('CONTAINER')
+  expect(byId['omdb:tt22248376']!.startDate, 'a search hit knows only the year, never a January 1').toBe('2023')
 })
 
 test('a hit that is no film or series, an episode or a game, is no row', async () => {

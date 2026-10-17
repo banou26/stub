@@ -51,12 +51,13 @@ const today = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 // sources do not agree on a date format: anilist answers `Sat, 04 Jul 2026 ...` where mal answers an
-// ISO string, and slicing ten characters off the first prints `Sat, 04 Ju`. Only the display is
-// normalised here, never the value the case carries.
+// ISO string, and slicing ten characters off the first prints `Sat, 04 Ju`. A year or a month alone
+// (`2027`, `2027-10`) stays as it is rather than read as its first day. Only the display is normalised
+// here, never the value the case carries.
 const day = value => {
   if (typeof value !== 'string' || !value) return ''
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().slice(0, 10)
+  return Number.isNaN(parsed.getTime()) || /^\d{4}(-\d{2})?$/.test(value) ? value : parsed.toISOString().slice(0, 10)
 }
 
 /* --------------------------------------------------------------------------------------------- */

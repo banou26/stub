@@ -4,7 +4,7 @@ import { LucidePlay } from 'lucide-react'
 import { Link } from 'wouter'
 
 import SourceSelector from '../../components/source-selector'
-import { releaseDateLabel, releaseDay } from '../../utils/release-date'
+import { isPartialDate, releaseDateLabel, releaseDay } from '../../utils/release-date'
 import { useNow } from '../../utils/use-now'
 import { getRoutePath, Route } from '../path'
 import { releasedAtOf } from './episodes'
@@ -27,8 +27,10 @@ const MoviePlay = (
   }
 ) => {
   const sources = useWatchSources(episode, mediaUri, handles)
-  // the film's own day before its episode's air time, which falls on another day in some zones
-  const released = releaseDay(startDate) ?? releasedAtOf(episode)
+  // the film's own day before its episode's air time, which falls on another day in some zones, but its
+  // year or month alone after it
+  const own = releaseDay(startDate)
+  const released = (isPartialDate(own) ? undefined : own) ?? releasedAtOf(episode) ?? own
   const now = useNow()
   const upcoming = isUpcoming(released, new Date(now))
   const play = !upcoming && episode?.uri && sources.some(source => !source.external)

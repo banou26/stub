@@ -627,7 +627,7 @@ const normalizeTitle = (title: UnogsTitle, bgImages?: UnogsBgImages): GQLMedia =
     titles: [{ language: 'en', title: decode(title.title), score: SCORE }],
     ...desc(title.synopsis ? decode(title.synopsis) : undefined, SCORE),
     covers, banners,
-    startDate: title.year ? `${title.year}-01-01` : undefined,
+    startDate: title.year ? String(title.year) : undefined,
     averageScore: percentScore(title.imdbrating, 10)
   })
 }
@@ -642,7 +642,7 @@ const normalizeSearchResult = (result: UnogsSearchResult): GQLMedia =>
     titles: [{ language: 'en', title: decode(result.title), score: SCORE }],
     ...desc(result.synopsis ? decode(result.synopsis) : undefined, SCORE),
     covers: result.img ? img(httpsUrl(result.img), SCORE) : [],
-    startDate: result.year ? `${result.year}-01-01` : undefined
+    startDate: result.year ? String(result.year) : undefined
   })
 
 const normalizeEpisode = (episode: UnogsEpisode, mediaUri: string, episodeNumber: number): GQLEpisode => {
@@ -747,7 +747,7 @@ const assembleMedia = (
     media.scope = 'RUN'
     // A SEASON-scoped media may never carry the SHOW's year, and only the id used to be rewritten here.
     //
-    // `normalizeTitle` stamps `${title.year}-01-01`, which is Netflix's year for the whole TITLE, so
+    // `normalizeTitle` stamps `title.year`, which is Netflix's year for the whole TITLE, so
     // every season of a show carried its FIRST season's year. That is not merely inaccurate: it welds
     // seasons together by a route that looks nothing like a date problem. `profileCluster` derives its
     // `years` set from every member's startDate and `fuzzyMergeMediaClusters` buckets by year, so a

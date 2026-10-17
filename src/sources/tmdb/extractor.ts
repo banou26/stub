@@ -196,7 +196,7 @@ const normalizeMedia = (m: TmdbMedia, seasonNumber?: number): GQLMedia =>
     // that cluster's `years` set, and fuzzyMergeMediaClusters buckets by year, so the two seasons meet
     // in one bucket where a shared title welds them. Same defect as tvmaze/extractor.ts. A season is
     // dated by its own first episode instead, in getMedia.
-    startDate: seasonNumber == null && m.year ? `${m.year}-01-01` : undefined,
+    startDate: seasonNumber == null && m.year ? String(m.year) : undefined,
   })
 
 const normalizeEpisode = (episode: TmdbEpisode, season: number, tvId: string, mediaUri: string): GQLEpisode =>

@@ -4,6 +4,8 @@ import type { Media, Episode } from './types'
 import { getRoutePath, Route } from '../../router/path'
 import { findPartOfMedia, graph, IDENTITY_LABELS } from './db'
 import { isRoutableUri } from '../../utils/uri'
+import { refinesDate } from '../../utils/release-date'
+import { COERCING_ORIGINS } from '../graph/plugins/origins'
 import { seasonNamesFirst } from '../../sources/season'
 
 // keep ANIME plus exactly ONE of MOVIE/SERIES (highest-scored source's format wins), so a merged media never lands in both the Movies and the Series listing
@@ -323,6 +325,7 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
 
   const merged = sorted.reduce<Partial<GQLMedia>>((acc, media) => {
     const gql = mediaToGQL(media)
+    const dated = !COERCING_ORIGINS.has(media.origin)
     return {
       ...gql,
       ...acc,
@@ -331,8 +334,8 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
       status: acc.status ?? gql.status,
       averageScore: acc.averageScore ?? gql.averageScore,
       popularity: acc.popularity ?? gql.popularity,
-      startDate: acc.startDate ?? gql.startDate,
-      endDate: acc.endDate ?? gql.endDate,
+      startDate: dated && refinesDate(acc.startDate, gql.startDate) ? gql.startDate : acc.startDate ?? gql.startDate,
+      endDate: dated && refinesDate(acc.endDate, gql.endDate) ? gql.endDate : acc.endDate ?? gql.endDate,
       isAdult: acc.isAdult ?? gql.isAdult,
       episodeCount: acc.episodeCount ?? gql.episodeCount,
       nextAiringEpisode: acc.nextAiringEpisode ?? gql.nextAiringEpisode,

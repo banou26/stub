@@ -5,9 +5,9 @@
 // everywhere east of it, so on this machine (UTC+9) the wrong version and the right one are
 // indistinguishable, in every episode of every run. These tests pin the zone rather than trusting the
 // one they happen to run in.
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { RELATIVE_WITHIN_DAYS, parseReleaseDate, releaseDateAttribute, releaseDateDisplay, releaseDateLabel } from '../../../src/utils/release-date'
+import { RELATIVE_WITHIN_DAYS, parseReleaseDate, releaseDateAttribute, releaseDateDisplay, releaseDateLabel, releaseDay } from '../../../src/utils/release-date'
 
 const TZ = process.env.TZ
 
@@ -41,6 +41,13 @@ describe('releaseDateLabel', () => {
     expect(inZone('Asia/Tokyo', () => releaseDateLabel(value, { locale: 'en-US' }))).toBe('Jan 7, 2024')
     const late = '2024-01-07T20:00:00.000Z'
     expect(inZone('Asia/Tokyo', () => releaseDateLabel(late, { locale: 'en-US' }))).toBe('Jan 8, 2024')
+  })
+
+  test('a year or a month alone shows only what it names, in every zone', () => {
+    for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+      expect(inZone(zone, () => releaseDateLabel('2027', { locale: 'en-US' })), zone).toBe('2027')
+      expect(inZone(zone, () => releaseDateLabel('2027-03', { locale: 'en-US' })), zone).toBe('Mar 2027')
+    }
   })
 
   test('there is nothing to show for a date nobody supplied', () => {
@@ -82,6 +89,19 @@ describe('parseReleaseDate', () => {
   test('and nothing for a value that names none', () => {
     expect(parseReleaseDate(undefined)).toBeUndefined()
     expect(parseReleaseDate('nope')).toBeUndefined()
+  })
+})
+
+describe('releaseDay', () => {
+  test('a media\'s date is the day it names, read in UTC', () => {
+    expect(inZone('America/Los_Angeles', () => releaseDay('Fri, 24 Dec 2021 00:00:00 GMT'))).toBe('2021-12-24')
+    expect(releaseDay('2017-09-26T00:00:00Z')).toBe('2017-09-26')
+  })
+
+  test('and a year or a month alone stays as precise as its source', () => {
+    expect(releaseDay('2027')).toBe('2027')
+    expect(releaseDay('2027-03')).toBe('2027-03')
+    expect(releaseDay('0001')).toBeUndefined()
   })
 })
 

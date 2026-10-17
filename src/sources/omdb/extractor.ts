@@ -101,7 +101,7 @@ const normalizeMedia = (title: Title): GQLMedia | undefined => {
     ...desc(title.plot?.plotText?.plainText, SCORE),
     covers: img(title.primaryImage?.url, SCORE),
     averageScore: percentScore(title.ratingsSummary?.aggregateRating, 10),
-    startDate: dayOf(title.releaseDate) ?? (year ? `${year}-01-01` : undefined),
+    startDate: dayOf(title.releaseDate) ?? (year ? String(year) : undefined),
   })
 }
 

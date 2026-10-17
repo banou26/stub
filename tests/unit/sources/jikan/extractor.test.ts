@@ -87,7 +87,7 @@ test('a film is a movie with no season, and a show not yet aired keeps its parti
   expect(film.seasonYear).toBeUndefined()
 
   const { media: upcoming } = await mediaFor('mal:63816', () => html(fixture('mal-anime-63816.html')))
-  expect(upcoming).toMatchObject({ status: 'NOT_YET_RELEASED', season: 'FALL', seasonYear: 2027, startDate: '2027-10-01' })
+  expect(upcoming).toMatchObject({ status: 'NOT_YET_RELEASED', season: 'FALL', seasonYear: 2027, startDate: '2027-10' })
   expect(upcoming.averageScore).toBeUndefined()
   expect(upcoming.trailers).toEqual([])
 })
@@ -405,7 +405,7 @@ test('a search answer carries the id, title, type, status, dates, rating and lar
     covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1921/154528l.webp', score: 0.9 }],
   })
   // `Oct ??, 2027 to ?` and an `N/A` rating
-  expect(nodes[2]).toMatchObject({ status: 'NOT_YET_RELEASED', startDate: '2027-10-01' })
+  expect(nodes[2]).toMatchObject({ status: 'NOT_YET_RELEASED', startDate: '2027-10' })
   expect(nodes[2].averageScore).toBeUndefined()
   expect(nodes[3].type).toBe('ONA')
 })

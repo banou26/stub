@@ -25,7 +25,9 @@
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
 import { seasonNamesFirst } from '../../../sources/season'
+import { refinesDate } from '../../../utils/release-date'
 import { mergeCredits } from './credits'
+import { COERCING_ORIGINS } from './origins'
 
 /** Where one field's value came from, and under which rule (6.3's third column). */
 export type FieldProvenance = {
@@ -40,7 +42,7 @@ export type FieldProvenance = {
   tier?: number | null
   /** How many members backed the value, for a vote. */
   witnesses?: number
-  rule: 'first-non-null' | 'tiered' | 'season-pair' | 'best-score' | 'concat' | 'dedupe' | 'first-supplier' | 'merged'
+  rule: 'first-non-null' | 'day-in-partial' | 'tiered' | 'season-pair' | 'best-score' | 'concat' | 'dedupe' | 'first-supplier' | 'merged'
 }
 
 /**
@@ -357,12 +359,19 @@ export const aggregateFields = (options: {
     anomalies: cluster.anomalies,
   }
 
-  // the scalars: first non-null in score order, ties by uri (`aggregate.ts:328-337`)
+  // the scalars: first non-null in score order, ties by uri (`aggregate.ts:328-337`), but a start or end
+  // known only to its year or month gives way, in score order, to a month or day inside it from an
+  // origin that does not coerce one
   for (const field of SCALARS) {
-    const supplier = owned.find(member => member.raw[field] !== null && member.raw[field] !== undefined)
+    const present = owned.filter(member => member.raw[field] !== null && member.raw[field] !== undefined)
+    const first = present[0]
+    const supplier = first && (field === 'startDate' || field === 'endDate')
+      ? present.reduce((best, member) =>
+        !COERCING_ORIGINS.has(member.origin) && refinesDate(best.raw[field] as string, member.raw[field] as string) ? member : best, first)
+      : first
     row[field] = supplier ? supplier.raw[field] : null
     if (supplier) {
-      provenance.push({ field, uri: supplier.uri, answerSeq: supplier.fieldSeq[field] ?? null, rule: 'first-non-null' })
+      provenance.push({ field, uri: supplier.uri, answerSeq: supplier.fieldSeq[field] ?? null, rule: supplier === first ? 'first-non-null' : 'day-in-partial' })
     }
   }
   // the route url is the cluster's own, never a member's: the address names every member, and a

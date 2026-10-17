@@ -30,16 +30,18 @@ export type MalAnime = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-// `Apr 3, 1998`, `Oct 2027` or `2027` (title page), `Oct ??, 2027` (search). A month or a year alone is
-// its first day, which is how every other source here writes a partial date and what the merge reads
-// as imprecise; `?` and `Not available` are no date.
+// `Apr 3, 1998`, `Oct 2027` or `2027` (title page), `Oct ??, 2027` (search). A month or a year alone stays
+// `YYYY-MM` or `YYYY`, which parses to its first day, so the merge still reads it as imprecise while the
+// page shows only what MAL knows; `?` and `Not available` are no date.
 const airedDay = (raw?: string) => {
   const match = raw?.trim().match(/^(?:([A-Z][a-z]{2})\s+(?:(\d{1,2}|\?\?),\s*)?)?(\d{4})$/)
   if (!match) return undefined
   const [, month, day, year] = match
-  const monthNumber = month ? MONTHS.indexOf(month) + 1 : 1
+  if (!month) return year
+  const monthNumber = MONTHS.indexOf(month) + 1
   if (!monthNumber) return undefined
-  return `${year}-${String(monthNumber).padStart(2, '0')}-${String(Number(day) || 1).padStart(2, '0')}`
+  const yearMonth = `${year}-${String(monthNumber).padStart(2, '0')}`
+  return Number(day) ? `${yearMonth}-${day!.padStart(2, '0')}` : yearMonth
 }
 
 /** MAL's `Aired` text, `Apr 3, 1998 to Apr 24, 1999`, as the days it starts and ends. */

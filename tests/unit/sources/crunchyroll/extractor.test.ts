@@ -403,10 +403,11 @@ test('search rows are minted under the bare series id and scoped CONTAINER', asy
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   const routes = SEARCH('mushoku', [{ id: 'G24H1N3MP', title: 'Mushoku Tensei' }, { id: 'GRDV0019R', title: 'Jujutsu Kaisen' }])
   const { value } = await subscribe(undefined, { input: { search: 'mushoku' } }, context(routes)).next()
-  const nodes = value.mediaPage.nodes as { uri: string, scope?: string | null }[]
+  const nodes = value.mediaPage.nodes as { uri: string, scope?: string | null, startDate?: string }[]
 
   expect(nodes.map(node => node.uri)).toEqual(['cr:G24H1N3MP', 'cr:GRDV0019R'])
   expect(nodes.map(node => node.scope)).toEqual(['CONTAINER', 'CONTAINER'])
+  expect(nodes[0]!.startDate, 'the launch year alone, never a January 1').toBe('2021')
 })
 
 // The search-and-link path always resolves a season-scoped id, so the media it returns is a run, and

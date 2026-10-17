@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { airedDate } from '../../../src/sources/aired-date'
 
@@ -86,6 +86,14 @@ test('a month without a day takes the schedule, never the 1st of that month', ()
 test('a month without a day and no schedule falls back to the 1st, as the sentinel', () => {
   const date = airedDate({ year: 2016, month: 4, day: null }, { edges: [] }, 'first')
   expect(new Date(date!).toISOString()).toBe('2016-04-01T00:00:00.000Z')
+})
+
+// AniList knows only the year of 28 films not out yet (2026-10-16): the page shows "2027", not a January 1
+// nobody named, while every reader that parses it still gets the first of that year or month
+test('a year or a month alone keeps its precision, and still parses to the first of it', () => {
+  expect(airedDate({ year: 2027, month: null, day: null }, undefined, 'first')).toBe('2027')
+  expect(airedDate({ year: 2016, month: 4, day: null }, { edges: [] }, 'first')).toBe('2016-04')
+  expect(new Date(airedDate({ year: 2027 }, undefined, 'last')!).toISOString()).toBe('2027-01-01T00:00:00.000Z')
 })
 
 test('nothing at all is undefined, never a guess', () => {

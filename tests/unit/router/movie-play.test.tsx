@@ -131,6 +131,24 @@ test('a film with no release day of its own names its episode\'s air time, where
   }
 })
 
+// AniList's startDate for ONE PIECE FILM: GOD VALLEY (anilist 215855) is the year alone (2026-10-16)
+test('a film known only to its year names the year, and stays upcoming until that year', () => {
+  for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+    const host = seenAt('2026-11-01T12:00:00Z', zone, episode, '2027')
+    expect(host.querySelector('.when')?.textContent, zone).toBe('Releases 2027')
+    expect(host.querySelector('.facts')?.textContent, zone).toBe('Movie · 2027')
+    expect(host.querySelector('.play'), zone).toBeNull()
+  }
+})
+
+test('an episode\'s air time outranks a film\'s year or month alone', () => {
+  for (const startDate of ['2027', '2027-07']) {
+    const host = seenAt('2027-03-01T12:00:00Z', 'America/Los_Angeles', { ...episode, releaseDate: '2027-07-15T15:30:00Z' } as DetailsEpisode, startDate)
+    expect(host.querySelector('.when')?.textContent, startDate).toBe(`Releases ${releaseDateLabel('2027-07-15')}`)
+    expect(host.querySelector('.play'), startDate).toBeNull()
+  }
+})
+
 test('a media-level handle to a catalogue is not offered as a place to watch', () => {
   origin = 'anilist'
   const host = render(episode, [{ relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/617' } }])

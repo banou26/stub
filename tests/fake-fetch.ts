@@ -53,6 +53,13 @@ const APOTHECARY_RELATIONS = ([
   ['OTHER', 'MUSIC', 'Beyond the Clouds, Only Me Downwind'],
 ] as const).map(([relationType, format, english], index) => ({ relationType, node: { id: 900021 + index, type: 'ANIME', format, status: 'FINISHED', title: { english } } }))
 const ONE_PIECE = { id: 900030, type: 'ANIME', format: 'TV', status: 'RELEASING', title: { english: 'One Piece' } }
+// a film AniList and MyAnimeList date by its year alone, as they do ONE PIECE FILM: GOD VALLEY (2026-10-17)
+const YEAR_FILM = { id: 900100, idMal: 900100, type: 'ANIME', format: 'MOVIE', status: 'NOT_YET_RELEASED', title: { english: 'Spec Year Film' }, startDate: { year: 2099, month: null, day: null } }
+const YEAR_FILM_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Year Film</strong></h1>
+<p itemprop="description">A film MyAnimeList describes.</p>
+<div><span class="dark_text">Type:</span> Movie</div>
+<div><span class="dark_text">Status:</span> Not yet aired</div>
+<div><span class="dark_text">Aired:</span> 2099</div>`
 const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
 // a page of relations and more, each title two lines on a card, as most are
 const LATE_RELATIONS = many(4, number => ({ relationType: 'SIDE_STORY', node: { id: 900010 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Late Side Story ${number}: The Long Way Round` } } }))
@@ -98,10 +105,13 @@ const TMDB: Record<string, string> = {
 // answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description, facts and four relations,
 // so its page draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a
 // work's, so its MAL address reaches AniList too.
-// AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030.
+// AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
+// and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
+    // api.ani.zip's answer for an id it does not know, as for a film not out yet
+    if (malId === String(YEAR_FILM.idMal)) return Response.json('Not Found')
     const count = malId === '21' ? 1100 : 26
     const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
     const late = malId === String(LATE.idMal)
@@ -110,6 +120,7 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (input === 'https://graphql.animethemes.moe/') return Response.json(typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === SEQUEL.id ? SEQUEL_THEMES : THEMES)
   if (input === 'https://myanimelist.net/anime/1') return new Response(BEBOP_MAL)
   if (input === 'https://myanimelist.net/anime/1/_/characters') return new Response(BEBOP_MAL_CREDITS)
+  if (input === `https://myanimelist.net/anime/${YEAR_FILM.idMal}`) return new Response(YEAR_FILM_MAL)
   if (input === 'https://apis.justwatch.com/graphql' && typeof init?.body === 'string') {
     const { variables } = JSON.parse(init.body)
     const [objectType] = variables?.searchTitlesFilter?.objectTypes ?? []
@@ -127,12 +138,13 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     return Response.json(BREAKING_BAD)
   }
   if (input !== 'https://graphql.anilist.co/' || typeof init?.body !== 'string') return cloud.fetch(input, init)
-  const { query, variables } = JSON.parse(init.body) as { query: string, variables: { id?: number } }
+  const { query, variables } = JSON.parse(init.body) as { query: string, variables: { id?: number, idMal?: number } }
   if (query.includes('Page(')) return Response.json({ data: { Page: { pageInfo: { lastPage: 1 }, media: [] } } })
   const { characters, staff, studios } = BEBOP
   const credits = query.includes('characters(') ? { characters, staff, studios } : {}
   if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
+  if (variables.id === YEAR_FILM.id || variables.idMal === YEAR_FILM.idMal) return Response.json({ data: { Media: { ...YEAR_FILM, ...credits } } })
   for (const [media, edges] of [[APOTHECARY, APOTHECARY_RELATIONS], [ONE_PIECE, ONE_PIECE_RELATIONS]] as const) {
     if (variables.id === media.id) return Response.json({ data: { Media: { ...media, ...credits, relations: { edges } } } })
   }

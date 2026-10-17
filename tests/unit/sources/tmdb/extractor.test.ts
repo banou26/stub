@@ -109,6 +109,7 @@ test('a search row carries the bare show id and is a CONTAINER', async () => {
 
   expect(rows.map(row => row.uri)).toEqual(['tmdb:94664'])
   expect(rows[0]!.scope).toBe('CONTAINER')
+  expect(rows[0]!.startDate, 'the year alone, all the search reads, never a January 1').toBe('2021')
 })
 
 // getMedia hands back the bare id when the show page lists no season to pick, so the media path can

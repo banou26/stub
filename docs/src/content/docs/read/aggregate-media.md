@@ -93,7 +93,7 @@ flowchart TD
   D1 -->|"written with ?? : 11 scalars"| D2A["discipline 1<br/><small>acc.x ?? gql.x</small>"]
   D1 -->|"written as a concat: 10 lists"| D2B["discipline 2<br/><small>[...(acc.x ?? []), ...(gql.x ?? [])]</small>"]
   D1 -->|"not written at all: only season and seasonYear reach here"| D2C["discipline 3<br/><small>the bare ...acc spread</small>"]
-  D2A --> W1["the FIRST NON-NULL in score order wins<br/><small>url, type, status, averageScore, popularity, startDate, endDate, isAdult, episodeCount, nextAiringEpisode, franchise</small>"]
+  D2A --> W1["the FIRST NON-NULL in score order wins<br/><small>url, type, status, averageScore, popularity, startDate, endDate (but see below), isAdult, episodeCount, nextAiringEpisode, franchise</small>"]
   D2B --> W2["acc first, so member score order is preserved down the list<br/><small>categories, genres, tags, titles, descriptions, shortDescriptions, covers, banners, trailers, relations</small>"]
   D2C --> W3["the highest-scored member wins EVEN WHEN ITS VALUE IS NULL<br/><small>after iteration 1 the key exists on acc, null or not</small>"]
   W3 --> TRAP["unobservable today<br/><small>seasonOf overwrites both at aggregate.ts:389</small>"]
@@ -108,6 +108,9 @@ flowchart TD
 *Discipline 3 is drawn because it is a trap, not because it is a behaviour: the only two fields riding it are overwritten forty lines later, so it currently decides nothing.*
 
 Discipline 1 is a "first non-null in score order" pick, and for a **spelling** that is exactly right.
+`startDate` and `endDate` bend it: a year or a month alone (`2027`, `2027-10`) gives way to a month or
+a day inside it that a lower member names, unless that member's origin coerces a date
+(`refinesDate` in `utils/release-date.ts`, `COERCING_ORIGINS`).
 The comment on `franchise` at `aggregate.ts:348-350` is the clearest statement of why a scalar is
 taken whole rather than merged:
 
