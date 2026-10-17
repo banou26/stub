@@ -21,11 +21,16 @@ import WATCHMODE_BREAKING_BAD from './unit/sources/watchmode/__fixtures__/quick-
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
+const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))
+
 const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(100) }
-const LATE = { id: 900010, idMal: 900010, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Late' } }
+// with the description and facts only AniList gives
+const LATE = {
+  id: 900010, idMal: 900010, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Late', native: 'スペック・レイト' },
+  description: 'It comes late. '.repeat(60), duration: 24, source: 'MANGA', genres: ['Drama', 'Mystery', 'Psychological'], tags: many(30, number => ({ name: `Spec Tag ${number}` })),
+}
 const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
 
-const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))
 const SEQUEL_CREDITS = {
   characters: { edges: many(14, number => ({ role: 'SUPPORTING', node: { id: 900100 + number, name: { full: `Sequel Character ${number}` } }, voiceActors: [] })) },
   staff: { edges: many(14, number => ({ role: 'Key Animation', node: { id: 900200 + number, name: { full: `Sequel Animator ${number}` } } })) },
@@ -88,16 +93,17 @@ const TMDB: Record<string, string> = {
 // "breaking bad" as recorded 2026-10-13; every other request goes where it
 // always went. AniList gives a bundled work the format and season of its record in the current season, or
 // else of its first record, so a film stays a film and a work stays in the season the home page lists, and
-// answers Spec Late (anilist:900010, mal:900010) five seconds late, so its page draws AniZip's episodes first;
-// AniZip names Spec Late's AniList id, as api.ani.zip names a work's, so its MAL address reaches AniList too.
+// answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description and facts, so its page
+// draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a work's, so
+// its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
     const count = malId === '21' ? 1100 : 26
     const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
-    const anilist = malId === String(LATE.idMal) ? { anilist_id: LATE.id } : {}
-    return Response.json({ titles: {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), ...anilist, type: 'TV', ...FRIEREN_IDS } })
+    const late = malId === String(LATE.idMal)
+    return Response.json({ titles: late ? { en: LATE.title.english } : {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), ...late ? { anilist_id: LATE.id } : {}, type: 'TV', ...FRIEREN_IDS } })
   }
   if (input === 'https://graphql.animethemes.moe/') return Response.json(typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === SEQUEL.id ? SEQUEL_THEMES : THEMES)
   if (input === 'https://myanimelist.net/anime/1') return new Response(BEBOP_MAL)

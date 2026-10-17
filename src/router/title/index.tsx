@@ -142,8 +142,15 @@ const style = css`
 
     & > .second {
       font-size: 1.6rem;
+      /* not normal, which the fallback font of a Japanese title makes 5px taller than a romaji one */
+      line-height: 2rem;
       color: rgba(255, 255, 255, 0.6);
       overflow-wrap: anywhere;
+    }
+
+    & > .second > .pending {
+      width: 20rem;
+      height: 2rem;
     }
 
     & > .chips {
@@ -151,6 +158,16 @@ const style = css`
       flex-wrap: wrap;
       gap: 0.8rem;
       margin-top: 0.4rem;
+
+      /* one line on a phone, scrolling past the edge, so the row is one height whatever has arrived */
+      @media (max-width: 767px) {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+
+        & > * { flex-shrink: 0; }
+      }
     }
 
     .chip {
@@ -179,6 +196,11 @@ const style = css`
       overflow: hidden;
     }
 
+    /* as tall as the description drawn: its four lines, then the heading's gap and Expand */
+    & > .description[aria-hidden] {
+      height: calc(6em + 0.8rem + 1.8rem);
+    }
+
     & > .expand {
       align-self: start;
       padding: 0;
@@ -188,6 +210,7 @@ const style = css`
       font: inherit;
       font-size: 1.4rem;
       font-weight: 600;
+      line-height: 1.8rem;
       cursor: pointer;
     }
   }
@@ -283,6 +306,42 @@ const style = css`
     dd {
       margin: 0.2rem 0 0;
       overflow-wrap: anywhere;
+    }
+
+    dd > .pending {
+      display: inline-block;
+      width: 12rem;
+      height: 1em;
+      vertical-align: middle;
+    }
+
+    /* where the facts sit above the lists, a fact is one line whatever its length or whether it has arrived, so
+       they never move the lists: a long value scrolls sideways, fading at the edge */
+    @media (max-width: 1023px) {
+      gap: 1rem;
+
+      & > div {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        /* not normal, which a Japanese title's fallback font makes 2px taller */
+        line-height: 1.8rem;
+      }
+
+      dt {
+        flex: none;
+        width: 11rem;
+      }
+
+      dd {
+        flex: 1;
+        margin: 0;
+        min-width: 0;
+        white-space: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+      }
     }
   }
 
@@ -625,18 +684,22 @@ const TitlePage = () => {
   const bannerUrl = useCoverUrl(media?.banners, media)
   const coverUrl = useCoverUrl(media?.covers, media)
   const title = media?.titles.at(0)?.title
+  const second = secondTitle(media?.titles)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
-  // AniList alone names relations, and it joins an anime work's sources whichever catalogue the address names
+  // the anime catalogues name the second title and the facts every anime has, AniList alone names relations, and
+  // AniList joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
-  const facts = media ? titleFacts(media) : []
+  const facts = titleFacts(media ?? {}, {}, anime && !current?.settled)
   const chips = media ? titleChips(media) : []
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
 
   const [open, setOpen] = useState(false)
   const [clamped, setClamped] = useState(false)
   const descriptionRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  // a layout effect, so Expand is drawn in the frame the description is: a plain one waits a frame, drawing the
+  // description alone, a line shorter, and everything under it moves up and back
+  useLayoutEffect(() => {
     const element = descriptionRef.current
     if (element && !open) setClamped(element.scrollHeight > element.clientHeight + 1)
   }, [description, open])
@@ -671,7 +734,11 @@ const TitlePage = () => {
         <div className="heading">
           {season ? <div className="season">{season}</div> : current?.settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
           <h1>{title ?? (current?.settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
-          {media && secondTitle(media.titles) ? <div className="second">{secondTitle(media.titles)}</div> : undefined}
+          {
+            second
+              ? <div className="second">{second}</div>
+              : anime && !current?.settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
+          }
           {
             chips.length || media?.averageScore != null
               ? (
@@ -724,7 +791,9 @@ const TitlePage = () => {
           facts.length
             ? (
               <dl className="facts">
-                {facts.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                {facts.map(({ label, value }) => value
+                  ? <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+                  : <div key={label} className="fact placeholder" aria-hidden="true"><dt>{label}</dt><dd><Placeholder className="pending"/></dd></div>)}
               </dl>
             )
             : undefined

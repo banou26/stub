@@ -57,6 +57,23 @@ test('a fact no source gave is left out rather than shown empty', () => {
     .toEqual([{ label: 'Status', value: 'Airing' }, { label: 'Aired', value: 'Oct 2, 2026' }])
 })
 
+test('held, a fact every anime has stays in its place with no value until a source gives it', () => {
+  expect(titleFacts({ type: MediaType.Tv, genres: ['Drama'], ratings: [] }, {}, true)).toEqual([
+    { label: 'Format', value: 'TV Show' },
+    { label: 'Episodes' },
+    { label: 'Episode length' },
+    { label: 'Status' },
+    { label: 'Aired' },
+    { label: 'Season' },
+    { label: 'Studios' },
+    { label: 'Source' },
+    { label: 'Genres', value: 'Drama' },
+    { label: 'Tags' },
+    { label: 'Also known as' },
+  ])
+  expect(titleFacts(FRIEREN, { locale: 'en-US' }, true), 'the control: each given').toEqual(titleFacts(FRIEREN, { locale: 'en-US' }))
+})
+
 const TZ = process.env.TZ
 const inZone = <T>(zone: string, read: () => T): T => {
   process.env.TZ = zone

@@ -41,7 +41,7 @@ const work = (id: number, title: string) => ({
   origin: 'ag',
   id: String(id),
   handles: [],
-  titles: [{ title, language: 'en', score: 1 }, { title: `${title} (second)`, language: 'ja', score: 1 }],
+  titles: [{ title, language: 'en', score: 1 }, { title: `${title} (second)`, language: 'ja', score: 1 }, { title: `${title} (third)`, language: 'en', score: 1 }],
   descriptions: [{ language: 'en', description: `${title}, described.` }],
   covers: [],
   banners: [],
@@ -51,15 +51,22 @@ const work = (id: number, title: string) => ({
   status: 'FINISHED',
   season: 'FALL',
   seasonYear: 2023,
-  genres: [],
-  tags: [],
+  startDate: '2023-09-29',
+  duration: 24,
+  studios: ['Madhouse'],
+  sourceMaterial: 'MANGA',
+  genres: ['Fantasy'],
+  tags: ['Travel'],
   relations: [],
   episodeCount: 2,
   settled: false,
   episodes: [1, 2].map(number => ({ _id: `ep:${id}-${number}`, uri: `ag:(anilist:${id}-${number})`, origin: 'ag', id: `${id}-${number}`, episodeNumber: number, titles: [{ title: `Episode ${number}` }], handles: [] })),
 })
 // the first source's answer: a title and a count, and nothing yet of the rest
-const partial = (id: number) => ({ ...work(id, ''), titles: [], descriptions: [], type: null, status: null, season: null, seasonYear: null, episodeCount: null, episodes: [] })
+const partial = (id: number) => ({
+  ...work(id, ''), titles: [], descriptions: [], type: null, status: null, season: null, seasonYear: null, startDate: null, duration: null,
+  studios: [], sourceMaterial: null, genres: [], tags: [], episodeCount: null, episodes: [],
+})
 const film = (id: number) => ({ ...work(id, 'Spirited Away'), type: 'MOVIE', categories: ['ANIME', 'MOVIE'], episodes: [] })
 const sequel = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:9', uri: 'anilist:9', titles: [{ title: 'Frieren 2' }], covers: [] } }
 
@@ -92,6 +99,11 @@ const modal = () => document.body.querySelector('.modal')!
 const pending = (root: Element) => [...root.querySelectorAll('[aria-hidden="true"]')]
   .filter(element => !element.parentElement!.closest('[aria-hidden="true"]'))
   .map(element => element.className.split(' ').filter(name => name && !name.startsWith('css-')).join('.'))
+// the lines of facts every anime has, each held until it arrives
+const HELD_FACTS = Array<string>(11).fill('fact.placeholder')
+// each fact's label, and its value or that it is held
+const facts = (root: Element) => [...root.querySelectorAll('.facts > div')]
+  .map(line => `${line.querySelector('dt')!.textContent}: ${line.classList.contains('placeholder') ? 'held' : line.querySelector('dd')!.textContent}`)
 
 describe('the preview', () => {
   test('holds its title and description until the worker answers, then draws them', () => {
@@ -179,10 +191,10 @@ describe('the preview', () => {
 })
 
 describe('the title page', () => {
-  test('holds its season, title, chips, description, play button and relations until the worker answers, then draws them', () => {
+  test('holds its season, title, second title, chips, description, play button and relations until the worker answers, then draws them', () => {
     const frieren = { ...work(1, 'Frieren'), relations: [sequel] }
     const { host, answer } = titlePage(frieren.uri)
-    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'play-pending', 'relations.placeholder'])
+    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'pending', 'description', 'play-pending', ...HELD_FACTS, 'relations.placeholder'])
     expect(host.querySelector('[data-episodes]'), 'no Episodes heading before the work is known not to be a film').toBeNull()
 
     answer(frieren)
@@ -195,10 +207,23 @@ describe('the title page', () => {
   test('holds each until its own field arrives, or every source has answered without it', () => {
     const { host, answer } = titlePage(work(1, 'Frieren').uri)
     answer(partial(1))
-    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'description', 'relations.placeholder', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
+    expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'pending', 'description', ...HELD_FACTS, 'relations.placeholder', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
 
     answer({ ...partial(1), settled: true })
     expect(pending(host)).toEqual([])
+  })
+
+  test('holds a line for each fact every anime has in its place, until it arrives or every source has answered without it', () => {
+    const { host, answer } = titlePage(work(1, 'Frieren').uri)
+    const first = { ...partial(1), type: 'TV', genres: ['Fantasy'] }
+    answer(first)
+    expect(facts(host)).toEqual([
+      'Format: TV Show', 'Episodes: held', 'Episode length: held', 'Status: held', 'Aired: held', 'Season: held', 'Studios: held',
+      'Source: held', 'Genres: Fantasy', 'Tags: held', 'Also known as: held',
+    ])
+
+    answer({ ...first, settled: true })
+    expect(facts(host)).toEqual(['Format: TV Show', 'Genres: Fantasy'])
   })
 
   test('holds a place for relations on an address naming any anime catalogue, as AniList joins one later', () => {

@@ -277,6 +277,26 @@ test('390 px wide, the title page holds two lines for its title, and its buttons
   expect(await overflowX(page)).toBe(0)
 })
 
+test('390 px wide, the title page holds its description collapsed with Expand under it, and its chips are one row whatever its sources', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const chips = page.locator('.heading > .chips')
+  // from the description's top to the heading's bottom, under Expand once drawn
+  const description = () => page.locator('.heading').evaluate(heading => Math.round(heading.getBoundingClientRect().bottom - heading.querySelector('.description')!.getBoundingClientRect().top))
+  await page.goto(`${origin}/title/ag:(zz:1)`)
+  await expect(page.locator('h1 > [aria-hidden="true"]'), 'held').toBeVisible({ timeout: 30_000 })
+  const held = { description: await description(), chips: await height(chips) }
+
+  // Spec Sequel, whose description is long enough to collapse
+  await page.goto(`${origin}/title/${SEQUEL}`)
+  await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })
+  await expect(page.getByRole('button', { name: 'Expand' })).toBeVisible()
+  expect(await description()).toBe(held.description)
+  await chips.evaluate(row => { row.innerHTML = row.firstElementChild!.outerHTML.repeat(9) })
+  expect(await height(chips)).toBe(held.chips)
+  expect(await chips.evaluate(scrolls), 'the chips scroll past its edge').toBe(true)
+  expect(await overflowX(page)).toBe(0)
+})
+
 test('in the preview, Relations and the episode list sit 4rem under what is above them, 2.5rem on a phone, held rows and drawn ones alike', async ({ page }) => {
   // from the block above to what `selector` names, the episode rows or the rows held while a source is out
   const gap = (selector: string) => page.locator('.modal > .content').evaluate((content, selector) => {
@@ -699,14 +719,15 @@ test('a long list draws one page, and its controls move through it in place, at 
 
 test('paging a list that is all on screen to its short last page leaves the controls where they were', async ({ page }) => {
   for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 3000 })
+    // at 390 px the controls end at 3,075 px, under the facts held for the sources this rig never answers
+    await page.setViewportSize({ width, height: 3400 })
     await page.goto(`${origin}${LONG}`)
     const episodes = page.locator('[data-episodes]')
     const numbers = episodes.locator('.episode .number')
     const pages = episodes.getByRole('navigation', { name: 'Episodes pages' })
     await expect(numbers).toHaveCount(12, { timeout: 30_000 })
-    // AniList answers last, with the relations, and fills in the facts above the list at 390 px: a click on a control
-    // still moving is retried by Playwright with the control scrolled to the screen's middle, which this would then measure
+    // AniList answers last, and Relations above the list at 390 px settle to its one relation: a click on a control still
+    // moving is retried by Playwright with the control scrolled to the screen's middle, which this would then measure
     await expect(page.locator('[data-relations]')).toBeVisible({ timeout: 30_000 })
     const first = await place(pages)
     const scrolled = await page.evaluate(() => scrollY)
@@ -717,23 +738,59 @@ test('paging a list that is all on screen to its short last page leaves the cont
   }
 })
 
-// from the top of the lists, under the title and facts AniList's answer fills in too
-const inLists = (locator: Locator) => locator.evaluate(element => Math.round(element.getBoundingClientRect().top - element.closest('.main')!.getBoundingClientRect().top))
+const onPage = (locator: Locator) => locator.evaluate(element => Math.round(element.getBoundingClientRect().top + scrollY))
 
-// AniList answers anilist:900010 five seconds late, after AniZip's 26 episodes for mal:900010, and AniZip names
-// that AniList id, so the MAL address reaches AniList through it (tests/fake-fetch.ts)
+// where `selector` sits on the page in every frame drawn from now on, so a move undone a frame later is seen too
+const everyFrame = async (page: Page, selector: string) => {
+  await page.evaluate(selector => {
+    const tops = new Set<number>()
+    const record = () => {
+      const element = document.querySelector(selector)
+      if (element) tops.add(Math.round(element.getBoundingClientRect().top + scrollY))
+      requestAnimationFrame(record)
+    }
+    requestAnimationFrame(record)
+    Object.assign(window, { tops })
+  }, selector)
+  return () => page.evaluate(() => [...(window as unknown as { tops: Set<number> }).tops])
+}
+
+// AniList answers anilist:900010 five seconds late, after AniZip's title and 26 episodes for mal:900010, with its
+// description and facts, and AniZip names that AniList id, so the MAL address reaches AniList through it
+// (tests/fake-fetch.ts)
 for (const late of ['ag:(anilist:900010,mal:900010)', 'ag:(mal:900010)']) {
-  test(`390 px wide, Relations keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
+  test(`390 px wide, the description and facts keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(`${origin}/title/${late}`)
     const pages = page.locator('[data-episodes]').getByRole('navigation', { name: 'Episodes pages' })
     await expect(pages).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('[data-relations]'), 'the control: AniList has not answered yet').toHaveCount(0)
-    const held = await inLists(pages)
+    const held = await onPage(pages)
+    const tops = await everyFrame(page, '[data-episodes] nav')
     await expect(page.locator('[data-relations] a.relation-card')).toHaveCount(1, { timeout: 30_000 })
-    expect(await inLists(pages)).toBe(held)
+    await expect(page.locator('.facts'), 'the control: with its facts').toContainText('Spec Tag 30')
+    await expect(page.getByRole('button', { name: 'Expand' }), 'and its description').toBeVisible()
+    expect(await tops()).toEqual([held])
+    // a short value's box runs to the line's end, so the fade there is past its text
+    expect(await page.locator('.facts > div').first().evaluate(line => Math.round(line.getBoundingClientRect().right - line.querySelector('dd')!.getBoundingClientRect().right))).toBe(0)
+    // a Japanese title, drawn in a fallback font, keeps its line as tall as the rest
+    const line = page.locator('.facts > div').first()
+    const tall = await height(line)
+    await line.locator('dd').evaluate(value => { value.textContent = '薬屋のひとりごと' })
+    expect(await height(line)).toBe(tall)
+    expect(await overflowX(page)).toBe(0)
   })
 }
+
+test('a fact is one line where the facts sit above the lists, at a tablet\'s 800 px too, and wraps beside them at 1440 px', async ({ page }) => {
+  const line = (label: string) => page.locator('.facts > div').filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+  for (const [width, oneLine] of [[800, true], [1440, false]] as const) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`${origin}/title/ag:(anilist:900010,mal:900010)`)
+    await expect(line('Tags')).toContainText('Spec Tag 30', { timeout: 30_000 })
+    expect(await height(line('Tags')) === await height(line('Format')), `${width} px`).toBe(oneLine)
+  }
+})
 
 test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
   // four sources fetch what this rig refuses and never answer, so it waits on their 30 s bound

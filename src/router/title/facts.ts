@@ -25,7 +25,8 @@ export type TitleMedia = {
   ratings?: readonly { source: string, value: number, scale: number }[] | null
 }
 
-export type Fact = { label: string, value: string }
+/** A labelled fact; one with no value is held, its line kept for a source still to give it. */
+export type Fact = { label: string, value?: string }
 
 const episodesLabel = (count: number | null | undefined) =>
   count ? `${count} ${count === 1 ? 'Episode' : 'Episodes'}` : undefined
@@ -51,8 +52,11 @@ export const titleChips = (media: TitleMedia): string[] =>
   [episodesLabel(media.episodeCount), formatLabel(media.type), statusLabel(media.status)]
     .filter((chip): chip is string => !!chip)
 
-/** The labelled facts, in reading order. A fact no source gave is left out rather than shown empty. */
-export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}): Fact[] => {
+/**
+ * The labelled facts, in reading order. A fact no source gave is left out rather than shown empty, unless `held`
+ * (an anime's sources still answering), where each but Ratings stays with no value, its line kept.
+ */
+export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, held = false): Fact[] => {
   const start = releaseDateLabel(releaseDay(media.startDate), options)
   // while it airs, a source's end is the last scheduled airing
   const airing = media.status === MediaStatus.Releasing || media.status === MediaStatus.NotYetReleased
@@ -68,11 +72,13 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}):
     { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
     { label: 'Studios', value: media.studios?.join(', ') },
     { label: 'Source', value: sourceLabel(media.sourceMaterial) },
-    { label: 'Ratings', value: media.ratings?.map(ratingLabel).join(' · ') },
+    // JustWatch's, which 4 of 14 anime measured had none of (2026-10-17) and which can land after every source has
+    // answered, so its line is not held
+    { label: 'Ratings', value: media.ratings?.map(ratingLabel).join(' · '), late: true },
     { label: 'Genres', value: media.genres?.join(', ') },
     { label: 'Tags', value: media.tags?.join(', ') },
     { label: 'Also known as', value: others.join(', ') },
-  ].filter((fact): fact is Fact => !!fact.value)
+  ].flatMap(({ label, value, late }): Fact[] => value ? [{ label, value }] : held && !late ? [{ label }] : [])
 }
 
 export type PlayLabel = 'Play' | 'Continue' | 'Rewatch'
