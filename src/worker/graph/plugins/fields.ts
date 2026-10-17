@@ -364,6 +364,9 @@ export const aggregateFields = (options: {
   // origin that does not coerce one
   for (const field of SCALARS) {
     const present = owned.filter(member => member.raw[field] !== null && member.raw[field] !== undefined)
+    // kitsu's count is its user count, about 80 times smaller than the bundle's laid count for the same show
+    // (measured on Fall 2026, 2026-10-17), so it only stands in when no other member has a count
+    if (field === 'popularity') present.sort((a, b) => Number(a.origin === 'kitsu') - Number(b.origin === 'kitsu'))
     const first = present[0]
     const supplier = first && (field === 'startDate' || field === 'endDate')
       ? present.reduce((best, member) =>
