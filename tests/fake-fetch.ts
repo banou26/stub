@@ -63,6 +63,16 @@ const YEAR_FILM_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Year Fil
 const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
 // a page of relations and more, each title two lines on a card, as most are
 const LATE_RELATIONS = many(4, number => ({ relationType: 'SIDE_STORY', node: { id: 900010 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Late Side Story ${number}: The Long Way Round` } } }))
+const RATED = { id: 900040, idMal: 900040, type: 'ANIME', format: 'TV', status: 'FINISHED', episodes: 26, startDate: { year: 2023, month: 9, day: 29 }, averageScore: 82, title: { english: 'Spec Rated' } }
+// JustWatch's show of it, with the four ratings it gives: its first season, and a second one listed with no episodes yet
+const RATED_NODE = {
+  id: 'ts900040', objectId: 900040, objectType: 'SHOW', offers: [],
+  content: { title: 'Spec Rated', fullPath: '/us/tv-show/spec-rated', posterUrl: null, shortDescription: null, scoring: { imdbScore: 8, tmdbScore: 8.727, tomatoMeter: 92, jwRating: 0.95 } },
+  seasons: [
+    { objectId: 900041, totalEpisodeCount: 26, content: { seasonNumber: 1, isReleased: true, originalReleaseYear: 2023 }, episodes: [] },
+    { objectId: 900042, totalEpisodeCount: 0, content: { seasonNumber: 2, isReleased: false }, episodes: [] },
+  ],
+}
 const SEQUEL_THEMES = {
   data: {
     findAnimeByExternalSite: [{
@@ -107,6 +117,8 @@ const TMDB: Record<string, string> = {
 // work's, so its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
+// AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and
+// answers it five seconds later, with four ratings.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -128,6 +140,11 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     if (objectType === 'SHOW') return Response.json(POPULAR_SHOWS)
     const theBoys = PRIME_COUNTRIES['the-boys'] as Record<string, unknown>
     if (variables?.nodeId === 'ts78125') return Response.json(theBoys[`${variables.offerCountry},${variables.extraCountry}`] ?? { data: { node: null } })
+    if (variables?.searchTitlesFilter?.searchQuery === RATED.title.english) return Response.json({ data: { popularTitles: { edges: [{ node: RATED_NODE }] } } })
+    if (variables?.nodeId === RATED_NODE.id) {
+      await new Promise(resolve => setTimeout(resolve, 5_000))
+      return Response.json({ data: { node: RATED_NODE } })
+    }
   }
   if (typeof input === 'string' && input.startsWith('https://gateway.watchmode.com/trpc/gateway.quickSearch?')
     && JSON.parse(new URL(input).searchParams.get('input') ?? '{}')[0]?.json?.q === 'breaking bad') {
@@ -149,6 +166,7 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     if (variables.id === media.id) return Response.json({ data: { Media: { ...media, ...credits, relations: { edges } } } })
   }
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
+  if (variables.id === RATED.id) return Response.json({ data: { Media: { ...RATED, ...credits, relations } } })
   if (variables.id === LATE.id) {
     await new Promise(resolve => setTimeout(resolve, 5_000))
     return Response.json({ data: { Media: { ...LATE, ...credits, relations: { edges: LATE_RELATIONS } } } })

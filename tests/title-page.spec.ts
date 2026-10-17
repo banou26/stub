@@ -825,6 +825,49 @@ test('a fact is one line where the facts sit above the lists, at a tablet\'s 800
   }
 })
 
+// AniList answers Spec Rated with its score and one relation, and JustWatch, finding it by that title, five seconds
+// later with four ratings (tests/fake-fetch.ts)
+const RATED = 'ag:(anilist:900040,mal:900040)'
+const RATED_CHIPS = ['26 Episodes', 'TV Show', 'Finished', '82%', 'IMDb 8.0', 'TMDB 8.7', 'Rotten Tomatoes 92%', 'JustWatch 95%']
+
+test('390 px wide, the ratings JustWatch gives late are chips after the score, so the episode page buttons stay put', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}/title/${RATED}`)
+  const pages = page.locator('[data-episodes]').getByRole('navigation', { name: 'Episodes pages' })
+  await expect(page.locator('[data-relations]'), 'AniList has answered').toBeVisible({ timeout: 30_000 })
+  await expect(pages).toBeVisible()
+  const ratings = page.locator('.body').getByText(/IMDb 8\.0/)
+  await expect(ratings, 'the control: JustWatch has not answered yet').toHaveCount(0)
+  const held = await onPage(pages)
+  const tops = await everyFrame(page, '[data-episodes] nav')
+  await expect(ratings).toBeVisible({ timeout: 30_000 })
+  await page.evaluate(() => new Promise(requestAnimationFrame))
+  expect(await tops()).toEqual([held])
+  const row = page.locator('.heading > .chips')
+  const chips = row.locator('.chip')
+  await expect(chips).toHaveText(RATED_CHIPS)
+  expect(await overflowX(page), 'the row scrolls, not the page').toBe(0)
+  expect(await chips.evaluateAll(boxes => boxes.every(chip => chip.scrollWidth <= chip.clientWidth && chip.scrollHeight <= chip.clientHeight)), 'each chip\'s text fits it').toBe(true)
+  await row.evaluate(box => { box.scrollLeft = box.scrollWidth })
+  expect(await row.evaluate(box => Math.round(box.getBoundingClientRect().right - box.lastElementChild!.getBoundingClientRect().right)), 'scrolled to its end, the last chip is clear of the 3rem fade').toBeGreaterThanOrEqual(30)
+})
+
+test('the ratings are chips after the score, one row at 1024 px as at 1440 px, where all show, and a title JustWatch alone names shows them too', async ({ page }) => {
+  const row = page.locator('.heading > .chips')
+  const chips = row.locator('.chip')
+  for (const width of [1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`${origin}/title/${RATED}`)
+    await expect(chips).toHaveText(RATED_CHIPS, { timeout: 30_000 })
+    expect(await height(row), `${width} px: one row`).toBe(await height(chips.first()))
+  }
+  await expect(chips.last()).toBeInViewport({ ratio: 1 })
+  // its second season, listed with no episodes, so its ratings are its only chips
+  await page.goto(`${origin}/title/jw:900040-900042`)
+  await expect(heading(page)).toHaveText('Spec Rated', { timeout: 30_000 })
+  await expect(chips).toHaveText(RATED_CHIPS.slice(4))
+})
+
 test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
   // four sources fetch what this rig refuses and never answer, so it waits on their 30 s bound
   test.setTimeout(180_000)

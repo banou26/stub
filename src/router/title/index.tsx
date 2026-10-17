@@ -24,7 +24,7 @@ import { ANIME_CATALOGUES } from '../../site'
 import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
-import { secondTitle, titleChips, titleFacts } from './facts'
+import { ratingChips, secondTitle, titleChips, titleFacts } from './facts'
 
 // even, so a full page fills the credits' two columns
 const PAGE = 12
@@ -153,21 +153,20 @@ const style = css`
       height: 2rem;
     }
 
+    /*
+     * one line, scrolling past the edge, so the row is one height whatever has arrived, and padded as wide as its
+     * fade, so scrolled to its end the last chip shows whole
+     */
     & > .chips {
       display: flex;
-      flex-wrap: wrap;
       gap: 0.8rem;
       margin-top: 0.4rem;
+      padding-right: 3rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
 
-      /* one line on a phone, scrolling past the edge, so the row is one height whatever has arrived */
-      @media (max-width: 767px) {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: none;
-        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
-
-        & > * { flex-shrink: 0; }
-      }
+      & > * { flex-shrink: 0; }
     }
 
     .chip {
@@ -691,6 +690,7 @@ const TitlePage = () => {
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
   const facts = titleFacts(media ?? {}, {}, anime && !current?.settled)
   const chips = media ? titleChips(media) : []
+  const ratings = ratingChips(media ?? {})
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
 
   const [open, setOpen] = useState(false)
@@ -739,11 +739,12 @@ const TitlePage = () => {
               : anime && !current?.settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
           }
           {
-            chips.length || media?.averageScore != null
+            chips.length || media?.averageScore != null || ratings.length
               ? (
                 <div className="chips">
                   {chips.map(chip => <span className="chip" key={chip}>{chip}</span>)}
                   {media?.averageScore != null ? <span className="chip"><MediaScore percent={media.averageScore} size={16}/></span> : undefined}
+                  {ratings.map(rating => <span className="chip" key={rating}>{rating}</span>)}
                 </div>
               )
               : current?.settled ? undefined : <div className="chips"><Placeholder className="pending"/></div>

@@ -5,7 +5,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
 import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
-import { currentEpisode, playLabel, playTarget, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
+import { currentEpisode, playLabel, playTarget, ratingChips, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
 
 // Frieren as AniList and the offline catalogue name it
 const FRIEREN = {
@@ -85,19 +85,20 @@ test('a film\'s duration is its length, not an episode\'s', () => {
   expect(titleFacts({ type: MediaType.Movie, duration: 120 })).toEqual([{ label: 'Format', value: 'Movie' }, { label: 'Length', value: '120 min' }])
 })
 
-test('Ratings is one line of each site\'s score, after the source and before the genres', () => {
+test('each site\'s rating is a chip to draw after the score, and not a fact', () => {
   const ratings = [
     { source: 'IMDb', value: 8, scale: 10 },
     { source: 'TMDB', value: 8.727, scale: 10 },
     { source: 'Rotten Tomatoes', value: 92, scale: 100 },
     { source: 'JustWatch', value: 95, scale: 100 },
   ]
+  expect(ratingChips({ ratings })).toEqual(['IMDb 8.0', 'TMDB 8.7', 'Rotten Tomatoes 92%', 'JustWatch 95%'])
+  expect(ratingChips({}), 'no site, no chip').toEqual([])
+  expect(titleChips({ ...FRIEREN, ratings }), 'apart from the chips before the score').toEqual(titleChips(FRIEREN))
   expect(titleFacts({ sourceMaterial: 'MANGA', genres: ['Drama'], ratings })).toEqual([
     { label: 'Source', value: 'Manga' },
-    { label: 'Ratings', value: 'IMDb 8.0 · TMDB 8.7 · Rotten Tomatoes 92% · JustWatch 95%' },
     { label: 'Genres', value: 'Drama' },
   ])
-  expect(titleFacts({ ratings: [] }), 'no site, no line').toEqual([])
 })
 
 test('the source material reads as words', () => {

@@ -52,9 +52,12 @@ export const titleChips = (media: TitleMedia): string[] =>
   [episodesLabel(media.episodeCount), formatLabel(media.type), statusLabel(media.status)]
     .filter((chip): chip is string => !!chip)
 
+/** The chips after the score: each site's rating, IMDb 8.0 or Rotten Tomatoes 92%. */
+export const ratingChips = (media: TitleMedia): string[] => media.ratings?.map(ratingLabel) ?? []
+
 /**
  * The labelled facts, in reading order. A fact no source gave is left out rather than shown empty, unless `held`
- * (an anime's sources still answering), where each but Ratings stays with no value, its line kept.
+ * (an anime's sources still answering), where it stays with no value, its line kept.
  */
 export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, held = false): Fact[] => {
   const start = releaseDateLabel(releaseDay(media.startDate), options)
@@ -72,13 +75,10 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
     { label: 'Studios', value: media.studios?.join(', ') },
     { label: 'Source', value: sourceLabel(media.sourceMaterial) },
-    // JustWatch's, which 4 of 14 anime measured had none of (2026-10-17) and which can land after every source has
-    // answered, so its line is not held
-    { label: 'Ratings', value: media.ratings?.map(ratingLabel).join(' · '), late: true },
     { label: 'Genres', value: media.genres?.join(', ') },
     { label: 'Tags', value: media.tags?.join(', ') },
     { label: 'Also known as', value: others.join(', ') },
-  ].flatMap(({ label, value, late }): Fact[] => value ? [{ label, value }] : held && !late ? [{ label }] : [])
+  ].flatMap(({ label, value }): Fact[] => value ? [{ label, value }] : held ? [{ label }] : [])
 }
 
 export type PlayLabel = 'Play' | 'Continue' | 'Rewatch'
