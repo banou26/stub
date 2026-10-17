@@ -9,7 +9,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
 
 import { animeSeasonOf } from '../../../../src/sources/season'
-import { parseSeasonKey, seasonKey, seasonMedia, seasonPage, type ManamiRecord } from '../../../../src/sources/offline/normalize'
+import { parseSeasonKey, recordId, seasonKey, seasonMedia, seasonPage, type ManamiRecord } from '../../../../src/sources/offline/normalize'
 import { resolvers } from '../../../../src/sources/offline/extractor'
 
 const CURRENT_SEASON = seasonKey(animeSeasonOf())
@@ -182,11 +182,13 @@ test('a search, and anything that is neither a season nor RELEASING, is still un
 })
 
 // The seasonal half is walked by key so the row a media ask resolves to states its season too. Read
-// as values that key is thrown away and every one of these rows is season-less.
+// as values that key is thrown away and every one of these rows is season-less. The record is one no
+// other bucket lists, since a work bundled in several seasons is filed by the clock.
 test('a media resolved out of the bundle carries the season of the bucket it was found in', async () => {
   const key = await otherHeldSeason()
   const { seasons } = await bundle()
-  const first = seasonPage(seasons[key]!, key)[0]!
+  const elsewhere = new Set(Object.keys(seasons).filter(other => other !== key).flatMap(other => seasons[other]!.map(recordId)))
+  const first = seasonPage(seasons[key]!.filter(record => !elsewhere.has(recordId(record))), key)[0]!
 
   const yielded: { media: GQLMedia | null }[] = []
   for await (const value of subscribeTo('media')(undefined, { input: { uri: first.uri } }, ctx)) {

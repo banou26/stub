@@ -1025,7 +1025,6 @@ test('a season\'s last episode links the first of the next season, which links b
   await expect(page.locator('.episode-title')).toHaveText('E1 - Red Light, Green Light')
 })
 
-// The bundle answers a work by id with the first season that lists it, so AniList's season is what keeps it in this one
 test('a work the bundle lists in this season and an earlier one shows this season once AniList answers it', async ({ page }) => {
   const now = mediaSeasonNow()
   const keys = Object.keys(SEASONS.seasons)

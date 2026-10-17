@@ -2,8 +2,8 @@ import type { Resolvers, Media as GQLMedia } from '../../generated/schema/types.
 
 import { fromAggregatedUri, fromUri, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia } from '../utils'
-import { animeSeasonOf } from '../season'
-import { origin as sourceOrigin, SCORE, seasonKey, seasonPage, type ManamiRecord } from './normalize'
+import { MEDIA_SEASONS, animeSeasonOf } from '../season'
+import { origin as sourceOrigin, SCORE, parseSeasonKey, recordId, seasonKey, seasonPage, type ManamiRecord } from './normalize'
 import {
   INDEXED_ORIGINS,
   catalogRefs,
@@ -153,19 +153,27 @@ const handleCarrier = (row: CatalogRow): GQLMedia | undefined => {
   return makeMedia({ origin, id, handles, score: SCORE })
 }
 
+const calendarIndex = (key: string) => {
+  const season = parseSeasonKey(key)
+  return season ? season.year * 4 + MEDIA_SEASONS.indexOf(season.season) : -1
+}
+
 /**
  * The seasonal record for an id, which carries a title and a cover the index row does not.
  *
- * Walked as entries rather than values because the bucket key is the only statement of the record's
- * season anywhere in the bundle, and iterating the values throws it away.
+ * A work bundled in several seasons takes the earliest one not yet over, else the latest, so the
+ * current season keeps it and its season only moves forward with the clock. The bucket key is the
+ * only statement of a record's season, and the bundle lists its keys in the dump's order, not the
+ * calendar's.
  */
 const seasonalById = async (id: string): Promise<GQLMedia | undefined> => {
-  const data = await loadSeasons()
-  for (const [key, records] of Object.entries(data.seasons)) {
-    const media = seasonPage(records, key).find(candidate => candidate.id === id)
-    if (media) return media
-  }
-  return undefined
+  const { seasons } = await loadSeasons()
+  const now = calendarIndex(seasonKey(animeSeasonOf()))
+  const keys = Object.keys(seasons)
+    .filter(key => seasons[key]!.some(record => recordId(record) === id))
+    .sort((a, b) => calendarIndex(a) - calendarIndex(b))
+  const key = keys.find(candidate => calendarIndex(candidate) >= now) ?? keys.at(-1)
+  return key ? seasonPage(seasons[key]!, key).find(candidate => candidate.id === id) : undefined
 }
 
 /**
