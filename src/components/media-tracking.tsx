@@ -131,7 +131,10 @@ const usePlayed = (link: PlaybackLink | undefined, episode: number | null | unde
   return played
 }
 
-const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs, notice = true, link, episode }: Props) => {
+const WorkTracking = (
+  { work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs, notice = true, link, episode, sameWork, counted }:
+  Props & { sameWork: boolean, counted: Map<string, number | null | undefined> }
+) => {
   const asked = uri ?? work
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
   const latest = useMemo(() => askedOn(data?.tracking, asked!), [data?.tracking, asked])
@@ -143,7 +146,8 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE, pause: !notice })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)
   const [prefs, setPrefs] = useState(prefsStore.read)
-  const watched = usePlayed(link, episode)
+  const [begun] = useState(sameWork ? undefined : link)
+  const watched = usePlayed(link !== begun ? link : undefined, episode)
 
   const answers = data?.tracking?.answers
   useEffect(() => { if (answers) recordTrackerAnswers(answers, siteStatuses, isSiteConnected) }, [answers])
@@ -175,6 +179,7 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
         episodeCount={ready ? episodeCount : undefined}
         movie={movie}
         watched={watched}
+        counted={counted}
         onSaveFields={onSaveFields}
         onRemove={onRemove}
         signIns={trackerSignIns}
@@ -197,11 +202,18 @@ const WorkTracking = ({ work, address, uri, title, cover, episodeCount, movie, p
  * Until the details have answered, and while `address`, the page's own, names another work than `work`
  * (the render after a navigation, before the page has moved `work` to it), the row is drawn with every
  * tracker loading and none of its values. On the watch page, an episode `link` plays raises the
- * trackers once watched (TrackingCompact's `watched`), on the media the row is drawn for.
+ * trackers once watched (TrackingCompact's `watched`). Within one `work`, an episode counts once, for
+ * the media the row is on as that episode passes 85% played: a row started over on a move under the
+ * same `work` (a show's details that turn out to be its first season) hears the player already up, and
+ * shares what was counted with the row before it. A row on another `work` counts afresh, and hears only
+ * a player that comes up after it.
  */
 const MediaTracking = (props: Props) => {
   const media = useMediaKey(props.uri ?? props.work)
-  return <WorkTracking key={`${props.work} ${media}`} {...props}/>
+  const marks = useRef({ work: props.work, counted: new Map<string, number | null | undefined>() })
+  const sameWork = marks.current.work === props.work
+  if (!sameWork) marks.current = { work: props.work, counted: new Map() }
+  return <WorkTracking key={`${props.work} ${media}`} {...props} sameWork={sameWork} counted={marks.current.counted}/>
 }
 
 export default MediaTracking

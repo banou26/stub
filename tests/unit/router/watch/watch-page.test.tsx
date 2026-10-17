@@ -761,6 +761,7 @@ test('another media gets its own tracking: what was played of the first is never
   const first = params.mediaUri
   const other = 'ag:(anilist:9)'
   try {
+    bridge.greets = true
     tracking = stubOnly
     const { rerender } = await atTheEnd()
     await report({ paused: false, time: 900 })
@@ -812,6 +813,7 @@ test('a save waiting behind one in flight goes to the media it was due on, thoug
 
 // the page's media moves to `next` on the same address while a save is in flight and another waits behind it
 const moveWhileSaving = async (next: string) => {
+  bridge.greets = true
   tracking = stubOnly
   const { rerender } = await atTheEnd()
   let land = () => {}
@@ -840,6 +842,58 @@ test('a save waiting behind one in flight goes to the media it was due on, thoug
 test('the control: one waiting while the media gains ids goes to the grown uri', async () => {
   const GROWN = 'ag:(anilist:1,mal:1,tvdb:1)'
   expect(await moveWhileSaving(GROWN)).toEqual([[SERIES, 2], [GROWN, 3]])
+})
+
+test('an episode playing as the media moves to its first season counts once, on the media it is on at 85%, on any release of it', async () => {
+  const SEASON = 'ag:(tvdb:1-s1)'
+  for (const [time, before] of [[900, [[SERIES, 2]]], [100, [[SEASON, 2]]]] as const) {
+    bridge.links = []
+    bridge.greets = true
+    tracking = stubOnly
+    const { rerender } = await atTheEnd()
+    await report({ paused: false, time })
+    media = { ...media, uri: SEASON }
+    rerender()
+    await settle()
+    await report({ paused: false, time: 950 })
+    const sent = () => (saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])
+    expect(sent(), `moved at ${time}`).toEqual(before)
+    // another release of the same episode, picked after the move
+    const { episodes } = media as { episodes: { handles: object[] }[] }
+    episodes[1]!.handles.push(handle('cr:GX2b', 'cr', 'https://www.crunchyroll.com/watch/GX2b'))
+    params = { ...params, sourceUri: 'cr:GX2b' }
+    rerender()
+    await settle()
+    expect(bridge.links, 'the control: its own player').toHaveLength(2)
+    await report({ paused: false, time: 960 })
+    expect(sent(), `moved at ${time}, then another release`).toEqual(before)
+    // the control: the season's own next episode counts for the season
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+    rerender()
+    await settle()
+    await report({ paused: false, time: 900 })
+    expect(sent(), `moved at ${time}`).toEqual([...before, [SEASON, 3]])
+    unmount(hosts.pop()!)
+    saved.length = 0
+  }
+})
+
+test('an episode counted, then another release of it picked as the media moves to its first season, is not counted on the season too', async () => {
+  bridge.greets = true
+  tracking = stubOnly
+  const { rerender } = await atTheEnd()
+  await report({ paused: false, time: 900 })
+  const sent = () => (saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])
+  expect(sent()).toEqual([[SERIES, 2]])
+  const { episodes } = media as { episodes: { handles: object[] }[] }
+  episodes[1]!.handles.push(handle('cr:GX2b', 'cr', 'https://www.crunchyroll.com/watch/GX2b'))
+  params = { ...params, sourceUri: 'cr:GX2b' }
+  media = { ...media, uri: 'ag:(tvdb:1-s1)' }
+  rerender()
+  await settle()
+  expect(bridge.links, 'the control: its own player').toHaveLength(2)
+  await report({ paused: false, time: 950 })
+  expect(sent()).toEqual([[SERIES, 2]])
 })
 
 const listedAt = (progress: number) => ({

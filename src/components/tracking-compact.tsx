@@ -412,7 +412,7 @@ const Chip = (
  * write shows the save it missed, and is written once it can.
  */
 const TrackingCompact = (
-  { tracking, episodeCount, movie = false, watched, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
+  { tracking, episodeCount, movie = false, watched, counted: kept, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
   {
     tracking: CompactTracking | null | undefined
     episodeCount?: number | null
@@ -420,6 +420,8 @@ const TrackingCompact = (
     movie?: boolean
     /** What the watch page's player has played of the episode. */
     watched?: Omit<Watched, 'movie'>
+    /** The episode each tracker last decided on, kept by the caller across the rows it draws for one work. */
+    counted?: Map<string, number | null | undefined>
     onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
     onRemove: (targets: string[]) => Promise<TrackerOutcome[]>
     signIns?: SignIns
@@ -460,9 +462,9 @@ const TrackingCompact = (
       if (!saved && queue.idle()) setOverrides({})
     },
   }), [])
-  // the progress last staged to each tracker, and the episode each one last decided on
   const staged = useRef(new Map<string, number>())
-  const counted = useRef(new Map<string, number | null | undefined>())
+  const own = useRef(new Map<string, number | null | undefined>())
+  const counted = kept ?? own.current
   const stage = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
     for (const [id, { progress }] of Object.entries(patches)) if (progress !== undefined) staged.current.set(id, progress)
     queue.stage(patches, immediate, fromCard)
@@ -494,14 +496,14 @@ const TrackingCompact = (
 
   const shown = shownOf(row, overrides[ROW])
   const auto = watched && tracking && shown.status !== 'COMPLETED' ? watchedPatches({ ...watched, movie }, tracking, prefs.targets, episodeCount) : {}
-  const decided = (id: string) => counted.current.has(id) && counted.current.get(id) === watched?.episode
+  const decided = (id: string) => counted.has(id) && counted.get(id) === watched?.episode
   const due = tracking?.answers.filter(({ tracker: { id } }) => auto[id] && !decided(id) && auto[id].progress! > (staged.current.get(id) ?? 0)) ?? []
   useEffect(() => {
     const ready = due.filter(writable)
     if (watched && tracking && watched.played >= WATCHED_AT) {
       for (const answer of tracking.answers) {
         const target = targetOf(answer, prefs.targets[answer.tracker.id])
-        if (target.kind === 'check' && target.sendable) counted.current.set(answer.tracker.id, watched.episode)
+        if (target.kind === 'check' && target.sendable) counted.set(answer.tracker.id, watched.episode)
       }
     }
     if (ready.length) stage(Object.fromEntries(ready.map(({ tracker: { id } }) => [id, auto[id]!])), true)
