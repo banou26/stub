@@ -490,12 +490,14 @@ test('opening Accounts checks a Crunchyroll stub knows of once what it learned i
   await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', '', ''])
 })
 
-test('with nothing remembered no row says anything of it, a site not connected says so, and nothing is asked', async ({ page }) => {
+// HOR-755: a session stub never saw cannot be checked without a permission, which Sign in asks for
+test('with nothing remembered Crunchyroll reads signed out with Sign in alone, a site not connected says so, and nothing is asked', async ({ page }) => {
   await recordFrames(page)
   await page.goto(`${origin}/settings#accounts`)
 
   await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
-  await expect(chip(page, 'crunchyroll')).toHaveCount(0)
+  await expect(chip(page, 'crunchyroll')).toHaveText('Signed out')
+  await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Sign out of Crunchyroll' })).toHaveCount(0)
   await expect(chip(page, 'anilist')).toHaveText('Not connected')
   await page.waitForTimeout(1_000)
   expect(await mountedFrames(page), 'Crunchyroll is checked only once stub knows of it').toEqual([])

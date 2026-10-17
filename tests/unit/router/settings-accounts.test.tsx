@@ -81,6 +81,13 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
 
 const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textContent
 
+/** Stub remembers the viewer signed in to `site`, so its row offers the sign out. */
+const signedInTo = (site: StatusSite) => {
+  const remembered = fakeStatus()
+  remembered.statuses.record(site, 'signed-in', NOW)
+  return remembered.status
+}
+
 test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
   const { host } = render()
   expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account'))).toEqual(['crunchyroll', 'prime', 'anilist', 'mal', 'netflix'])
@@ -94,7 +101,7 @@ describe('Crunchyroll on the cloud', () => {
   })
 
   test('signs out only once asked twice, and the question says every fkn.app app is signed out', async () => {
-    const { row, props } = render()
+    const { row, props } = render({ status: signedInTo('crunchyroll') })
     await act(async () => { button(row('crunchyroll'), 'Sign out')!.click() })
     expect(props.crunchyroll.signOut).not.toHaveBeenCalled()
     expect(row('crunchyroll').textContent).toContain('Sign out of Crunchyroll in every fkn.app app?')
@@ -111,7 +118,7 @@ describe('Crunchyroll on the cloud', () => {
   })
 
   test('a sign out FKN refused says why', async () => {
-    const { row } = render({ crunchyroll: { signIn: async () => 'authed', signOut: async () => { throw new Error('the render proxy did not answer') } } })
+    const { row } = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: async () => 'authed', signOut: async () => { throw new Error('the render proxy did not answer') } } })
     await act(async () => { button(row('crunchyroll'), 'Sign out')!.click() })
     await act(async () => { button(row('crunchyroll'), 'Yes, sign out')!.click() })
     await flush()
@@ -123,7 +130,7 @@ describe('Crunchyroll on the cloud', () => {
 describe('Prime Video', () => {
   test('on the cloud in Japan, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
     viewerIn('Asia/Tokyo')
-    const { row, props } = render()
+    const { row, props } = render({ status: signedInTo('prime') })
     expect(row('prime').querySelector('h3')!.textContent).toBe('Prime Video')
     await act(async () => { button(row('prime'), 'Sign out')!.click() })
     expect(row('prime').textContent).toContain('Sign out of Prime Video in every fkn.app app?')
@@ -132,9 +139,10 @@ describe('Prime Video', () => {
     expect(props.prime.signOut).toHaveBeenCalledTimes(1)
     expect(props.crunchyroll.signOut).not.toHaveBeenCalled()
 
-    await act(async () => { button(row('prime'), 'Sign in')!.click() })
-    expect(props.prime.signIn).toHaveBeenCalledTimes(1)
-    expect(props.crunchyroll.signIn).not.toHaveBeenCalled()
+    const fresh = render()
+    await act(async () => { button(fresh.row('prime'), 'Sign in')!.click() })
+    expect(fresh.props.prime.signIn).toHaveBeenCalledTimes(1)
+    expect(fresh.props.crunchyroll.signIn).not.toHaveBeenCalled()
   })
 
   test('shows what the player last learned, and is never checked on its own', async () => {
@@ -257,7 +265,7 @@ test('while it is not known yet whether the extension runs, no site offers an ac
 
 describe('for a screen reader', () => {
   test('each sign out is named for its site', () => {
-    const { row } = render({ sites: fakeSites(['anilist']) })
+    const { row } = render({ sites: fakeSites(['anilist']), status: signedInTo('crunchyroll') })
     expect(button(row('crunchyroll'), 'Sign out')!.getAttribute('aria-label')).toBe('Sign out of Crunchyroll')
     expect(button(row('anilist'), 'Sign out')!.getAttribute('aria-label')).toBe('Sign out of AniList')
 
@@ -293,8 +301,9 @@ describe('the sign-in states', () => {
     expect([...host.querySelectorAll('button')].map(item => item.textContent).filter(text => /check/i.test(text ?? ''))).toEqual([])
   })
 
-  // the owner, 2026-10-10: "it shows Sign in on crunchyroll when it already says signed in"
-  test('Crunchyroll offers the sign in or the sign out its last known state calls for, and both before it knows', () => {
+  // the owner, 2026-10-10: "it shows Sign in on crunchyroll when it already says signed in"; and 2026-10-17 (HOR-755):
+  // stub cannot check a session it has never seen without a permission, so it reads signed out and Sign in asks for it
+  test('Crunchyroll and Prime Video offer the one action their last known state calls for, Sign in before stub knows', () => {
     const signedIn = fakeStatus()
     signedIn.statuses.record('crunchyroll', 'signed-in', NOW)
     expect(labels(render({ status: signedIn.status }).row('crunchyroll'))).toEqual(['Sign out'])
@@ -303,7 +312,13 @@ describe('the sign-in states', () => {
     signedOut.statuses.record('crunchyroll', 'signed-out', NOW)
     expect(labels(render({ status: signedOut.status }).row('crunchyroll'))).toEqual(['Sign in'])
 
-    expect(labels(render().row('crunchyroll'))).toEqual(['Sign in', 'Sign out'])
+    viewerIn('Asia/Tokyo')
+    const fresh = render()
+    for (const id of ['crunchyroll', 'prime']) {
+      expect(labels(fresh.row(id)), id).toEqual(['Sign in'])
+      expect(chip(fresh.row(id)), id).toBe('Signed out')
+    }
+    expect(labels(render({ status: signedInTo('prime') }).row('prime'))).toEqual(['Sign out'])
   })
 
   test('a Crunchyroll sign out that lands offers Sign in in its place, and says it signed out', async () => {
@@ -320,10 +335,10 @@ describe('the sign-in states', () => {
     expect(row('crunchyroll').querySelector('[role="status"]')!.textContent).toBe('Signed out.')
   })
 
-  test('with nothing remembered, Crunchyroll and a connected site show no state, and one not connected says so', () => {
+  test('with nothing remembered, Crunchyroll reads signed out, a connected site shows no state, and one not connected says so', () => {
     const { row } = render({ sites: fakeSites(['mal']) })
 
-    expect(chip(row('crunchyroll'))).toBeUndefined()
+    expect(chip(row('crunchyroll'))).toBe('Signed out')
     expect(chip(row('mal'))).toBeUndefined()
     expect(chip(row('anilist'))).toBe('Not connected')
   })

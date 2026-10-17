@@ -138,24 +138,23 @@ const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, b
     error => { if (mounted.current) setNote({ text: `Could not sign out of ${name}: ${messageOf(error)}. Try again.`, error: true }) },
   )
 
+  const cloud = backend === 'cloud' && signsInOnCloud(host)
+  // with nothing remembered it reads signed out: checking needs a permission, which Sign in asks for as it signs in
+  const state = remembered?.state ?? (cloud ? 'signed-out' : undefined)
+
   return (
     <Row
       id={site}
       title={name}
-      state={remembered && STATE_LABEL[remembered.state]}
-      on={remembered?.state === 'signed-in'}
+      state={state && STATE_LABEL[state]}
+      on={state === 'signed-in'}
       heading={heading}
     >
-      {backend === 'cloud' && signsInOnCloud(host)
+      {cloud
         ? (
-          // both until stub has learned which one the session is in
           <div className="actions">
-            {remembered?.state === 'signed-in'
-              ? undefined
-              : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>}
-            {remembered?.state === 'signed-out'
-              ? undefined
-              : (
+            {state === 'signed-in'
+              ? (
                 <ConfirmAction
                   label="Sign out"
                   name={`Sign out of ${name}`}
@@ -165,7 +164,8 @@ const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, b
                   question={`Sign out of ${name} in every fkn.app app?`}
                   onConfirm={signOut}
                 />
-              )}
+              )
+              : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>}
           </div>
         )
         : backend
