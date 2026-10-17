@@ -181,17 +181,18 @@ const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, b
 }
 
 const TRACKER_SITES = ([
-  { site: 'anilist', name: 'AniList' },
-  { site: 'mal', name: 'MyAnimeList' },
-] satisfies { site: TrackerSite, name: string }[]).filter(entry => siteAsks(entry.site))
+  { site: 'anilist', name: 'AniList', host: 'anilist.co' },
+  { site: 'mal', name: 'MyAnimeList', host: 'myanimelist.net' },
+] satisfies { site: TrackerSite, name: string, host: string }[]).filter(entry => siteAsks(entry.site))
 
-const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite, name: string } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
+const TrackerRow = ({ site, name, host, backend, sites, status }: (typeof TRACKER_SITES)[number] & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
   const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, site)
+  const signedIn = connected && remembered?.state !== 'signed-out'
 
   useEffect(() => {
     setConnected(sites.isConnected(site))
@@ -231,13 +232,13 @@ const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite,
       id={site}
       title={name}
       state={!connected ? 'Not connected' : remembered && STATE_LABEL[remembered.state]}
-      on={connected && remembered?.state !== 'signed-out'}
+      on={signedIn}
       heading={heading}
     >
       {backend
         ? (
           <div className="actions">
-            {connected
+            {signedIn
               ? (
                 <ConfirmAction
                   label={backend === 'cloud' ? 'Sign out' : 'Disconnect'}
@@ -249,7 +250,10 @@ const TrackerRow = ({ site, name, backend, sites, status }: { site: TrackerSite,
                   onConfirm={() => signOut(backend)}
                 />
               )
-              : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
+              : backend === 'extension' && connected
+                // Connect again would do nothing: the extension opens no sign-in window, the viewer signs in on the site
+                ? <a className="link" href={`https://${host}`} target="_blank" rel="noreferrer">Open {host}</a>
+                : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
           </div>
         )
         : undefined}

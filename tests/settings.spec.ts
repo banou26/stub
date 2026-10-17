@@ -442,6 +442,25 @@ test('Accounts shows what stub last learned of each sign-in, with no age and not
   await expect(panel(page).getByRole('button', { name: /check/i })).toHaveCount(0)
 })
 
+test('a connected tracking site stub learned is signed out offers Sign in, never Sign out', async ({ page }) => {
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(() => {
+    localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
+    localStorage.setItem('stub.site-status', JSON.stringify({
+      anilist: { state: 'signed-out', checkedAt: Date.now() },
+      mal: { state: 'signed-out', checkedAt: Date.now() },
+    }))
+  })
+  await page.goto(`${origin}/settings#accounts`)
+
+  for (const [site, title] of [['anilist', 'AniList'], ['mal', 'MyAnimeList']] as const) {
+    const row = page.locator(`[data-account="${site}"]`)
+    await expect(chip(page, site)).toHaveText('Signed out')
+    await expect(row.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+    await expect(row.getByRole('button', { name: `Sign out of ${title}` })).toHaveCount(0)
+  }
+})
+
 test('opening Accounts checks a Crunchyroll stub knows of once what it learned is stale, asks no tracker site, and keeps the state when no answer comes', async ({ page }) => {
   await recordFrames(page)
   const seed = (age: number) => page.evaluate(age => {

@@ -6,14 +6,20 @@ import { act } from 'preact/test-utils'
 import { useState } from 'preact/hooks'
 
 import type { AccountsProps, TrackerSite } from '../../../src/router/settings/accounts'
+import type { CompactAnswer } from '../../../src/tracking/compact'
 import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
-import { createRefresh, createSiteStatuses, FRESH_MS } from '../../../src/tracking/site-status'
+import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers } from '../../../src/tracking/site-status'
 import { pickCountry } from '../../../src/sources/country'
 import { viewerIn } from '../sources/justwatch/viewer'
 
+// lucide-react is CommonJS and requires react under node; the tracking row draws its icons with it
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+
 const { AccountsSection } = await import('../../../src/router/settings/accounts')
+const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 
 // The Accounts section of the settings page: every sign-in stub uses, what it is, and the way out of it
 // where one exists. On the cloud a site's session sits in FKN's jar, which a sign out empties; with the
@@ -415,5 +421,101 @@ describe('the sign-in states', () => {
     await act(async () => { statuses.record('crunchyroll', 'signed-in', NOW) })
 
     expect(chip(row('crunchyroll'))).toBe('Signed in')
+  })
+})
+
+describe('a connected tracking site whose session stub learned is signed out', () => {
+  const labels = (row: HTMLElement) => [...row.querySelectorAll('.actions button')].map(item => item.textContent)
+  const TRACKERS = [['anilist', 'AniList', 'anilist.co'], ['mal', 'MyAnimeList', 'myanimelist.net']] as const
+
+  const signedOut = (site: TrackerSite, backend: FknBackend = 'cloud') => {
+    const { status, statuses } = fakeStatus()
+    statuses.record(site, 'signed-out', NOW)
+    const sites = fakeSites([site])
+    return { ...render({ backend, status, sites }), sites, statuses }
+  }
+
+  test.each(TRACKERS)('%s offers Sign in and no Sign out', async (site, title) => {
+    const { row, sites } = signedOut(site)
+    expect(chip(row(site))).toBe('Signed out')
+    expect(labels(row(site))).toEqual(['Sign in'])
+    expect(button(row(site), `Sign out of ${title}`)).toBeFalsy()
+
+    await act(async () => { button(row(site), 'Sign in')!.click() })
+    expect(sites.signIn).toHaveBeenCalledWith(site)
+  })
+
+  test.each(TRACKERS)('%s with the extension links to the site to sign in there, and offers nothing to press', (site, _title, host) => {
+    const { row } = signedOut(site, 'extension')
+    expect(chip(row(site))).toBe('Signed out')
+    expect(labels(row(site))).toEqual([])
+    expect(row(site).querySelector('.actions a')?.getAttribute('href')).toBe(`https://${host}`)
+    expect(row(site).querySelector('.actions a')?.textContent).toBe(`Open ${host}`)
+  })
+
+  // the row's Log in and Settings' Sign in come from the same answer: the tracker's SIGNED_OUT, which
+  // the row draws and recordTrackerAnswers keeps for Settings
+  test.each(TRACKERS)('%s: the tracking row offers Log in where Settings offers Sign in, from one answer', (site, title) => {
+    const answers: CompactAnswer[] = [
+      { state: 'SIGNED_OUT', candidates: [], tracker: { id: site, name: title, canWrite: false, scoreScale: 'POINT_10' }, entry: null },
+      { state: 'NOT_LISTED', candidates: [], tracker: { id: 'stub', name: 'Stub', canWrite: true, scoreScale: 'POINT_100' }, entry: null },
+    ]
+    const { status, statuses } = fakeStatus()
+    statuses.record(site, 'signed-in', NOW - HOUR)
+    recordTrackerAnswers(answers, statuses, connected => connected === site)
+
+    const tracking = mount(
+      <TrackingCompact
+        tracking={{ summary: null, disagreements: [], answers }}
+        episodeCount={12}
+        onSaveFields={async () => []}
+        onRemove={async () => []}
+        signIns={{ [site]: async () => 'closed' }}
+        prefs={{ targets: {} }}
+        onPrefs={() => {}}
+      />,
+    )
+    hosts.push(tracking)
+    const { row } = render({ status, sites: fakeSites([site]) })
+
+    expect(tracking.querySelector(`[aria-label="Log in to ${title}"]`)?.textContent).toBe('Log in')
+    expect(chip(row(site))).toBe('Signed out')
+    expect(labels(row(site))).toEqual(['Sign in'])
+  })
+
+  // the real sign in remembers `authed` as signed in (rememberSignIn), the real sign out disconnects and
+  // remembers signed out (signOutOfSite)
+  test.each(TRACKERS)('%s: a sign in that lands offers Sign out again, and that sign out leaves it not connected', async (site, title) => {
+    const { status, statuses } = fakeStatus()
+    statuses.record(site, 'signed-out', NOW)
+    const base = fakeSites([site])
+    const sites: AccountsProps['sites'] = {
+      ...base,
+      signIn: vi.fn(async (signingIn: TrackerSite) => {
+        const outcome = await base.signIn(signingIn)
+        statuses.record(signingIn, 'signed-in', NOW)
+        return outcome
+      }),
+      signOut: vi.fn(async (signingOut: TrackerSite, backend: FknBackend) => {
+        await base.signOut(signingOut, backend)
+        statuses.record(signingOut, 'signed-out', NOW)
+      }),
+    }
+    const { row } = render({ status, sites })
+
+    await act(async () => { button(row(site), 'Sign in')!.click() })
+    await flush()
+    expect(chip(row(site))).toBe('Signed in')
+    expect(labels(row(site))).toEqual(['Sign out'])
+
+    await act(async () => { button(row(site), 'Sign out')!.click() })
+    await act(async () => { button(row(site), 'Yes, sign out')!.click() })
+    await flush()
+    expect(sites.signOut).toHaveBeenCalledWith(site, 'cloud')
+    expect(sites.isConnected(site)).toBe(false)
+    expect(statuses.read(site)?.state).toBe('signed-out')
+    expect(chip(row(site))).toBe('Not connected')
+    expect(labels(row(site))).toEqual(['Sign in'])
+    expect(button(row(site), `Sign out of ${title}`)).toBeFalsy()
   })
 })
