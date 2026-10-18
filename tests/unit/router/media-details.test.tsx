@@ -13,7 +13,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { releaseDateLabel } from '../../../src/utils/release-date'
-import { WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
+import { savePosition, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { viewerIn } from '../sources/justwatch/viewer'
 
 const fkn = vi.hoisted(() => ({ backend: 'cloud' as FknBackend }))
@@ -138,6 +138,13 @@ describe('the bar on an episode\'s thumbnail', () => {
     const host = render(shared, { status: 'WATCHING', progress: 2 })
     expect(bars(host)).toEqual(['25%', '100%', '50%', '50%', null, null, null, null, null, null, null, null])
     expect(host.querySelectorAll('.episode .thumbnail > .bar')[2]!.getAttribute('aria-valuenow')).toBe('50')
+  })
+
+  test('follows a point saved while the list is open, here, in another tab or by the account', async () => {
+    const host = render(media)
+    expect(bars(host), 'the control: nothing kept').toEqual(none(12))
+    act(() => savePosition('nf:3', { time: 700, duration: 1400 }))
+    expect(bars(host)).toEqual([null, null, '50%', ...none(9)])
   })
 
   test('reads the sources that play the episode, not a release it is only part of', () => {

@@ -17,7 +17,7 @@ import { PLAY_ORDER_KEY } from '../../../src/sources/play-order'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
-import { WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
+import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
 
 const byId = (id: string) => {
@@ -36,7 +36,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
     expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
-    expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY] })
+    expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
   })
@@ -110,7 +110,17 @@ describe('what stub keeps per viewer', () => {
 
   test('keeps the volume, the tracking sites and their sign-in states on the device, and names them apart', () => {
     for (const key of [PLAYER_VOLUME_KEY, CONNECTED_KEY, SITE_STATUS_KEY, WATCH_POSITIONS_KEY]) expect(byId('settings').keys!.names, key).not.toContain(key)
-    for (const id of ['player', 'connected-sites', 'site-status', 'positions']) expect(byId(id).where, id).not.toContain('FKN account')
+    for (const id of ['player', 'connected-sites', 'site-status']) expect(byId(id).where, id).not.toContain('FKN account')
+  })
+
+  test('says where you stopped is kept on the FKN account, encrypted in this browser, with when, and what joins it', () => {
+    const kept = byId('positions')
+    expect(kept.where).toContain("your FKN account's storage while you are signed in, encrypted in this browser before it is stored")
+    expect(kept.what).toContain('when you stopped')
+    expect(kept.what).toContain('every stub site and device you sign in on')
+    expect(kept.what).toContain('Those kept while signed out join the next FKN account signed in on this browser.')
+    expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
+    expect(kept.lasts).toContain("this browser's copy of it when you sign out")
   })
 
   test('says the sources added while signed out join the next FKN account signed in here', () => {

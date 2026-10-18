@@ -8,7 +8,7 @@ import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
-import { WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
+import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
 
 export type StoredItem = {
   id: string
@@ -104,10 +104,10 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'positions',
     title: 'Where you stopped',
-    what: 'The point you stopped at in each episode you have not finished, with the source it played on and its length, for your 200 most recent.',
-    where: LOCAL,
-    lasts: "Until you finish the episode, 200 newer ones replace it, or you clear this site's data in your browser",
-    keys: { store: 'local', names: [WATCH_POSITIONS_KEY] },
+    what: "The point you stopped at in each episode you have not finished, with the source it played on, its length and when you stopped, for your 200 most recent, and the source and time of the 200 you finished last. Signed in to FKN, they are your account's, so every stub site and device you sign in on resumes there. Those kept while signed out join the next FKN account signed in on this browser.",
+    where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
+    lasts: "Until 200 newer ones replace them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    keys: { store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] },
   },
   {
     id: 'fetched',

@@ -123,12 +123,20 @@ test('a player that never says its length resumes on its first report', async ()
   expect(seeks(link)).toEqual([600])
 })
 
-test('every report keeps where the player is, and 86% forgets it', async () => {
+test('every report keeps where the player is, and 86% marks the source finished', async () => {
   const link = page()
   await link.report({ time: 700 })
-  expect(kept()).toEqual([['nf:1', 700, 1400]])
+  expect(kept()).toEqual([['nf:1', 700, 1400, expect.any(Number)]])
   await link.report({ time: 1204 })
-  expect(kept()).toEqual([])
+  expect(kept()).toEqual([['nf:1', expect.any(Number)]])
+})
+
+test('a player that never says its length, paused at its end and then ended there, marks the source finished', async () => {
+  const link = page({ link: fakeLink(), uri: 'nyaa:a', uris: ['nyaa:a'] })
+  await link.report({ time: 1390 }, { paused: true, time: 1400 })
+  expect(kept(), 'the control: kept as a point').toEqual([['nyaa:a', 1400, 0, expect.any(Number)]])
+  await link.report({ paused: true, time: 1400, ended: true })
+  expect(kept()).toEqual([['nyaa:a', expect.any(Number)]])
 })
 
 test('a report under 30 s after the seek leaves the point kept, so a seek that lands late loses nothing', async () => {
@@ -148,9 +156,9 @@ test('a source plugin\'s player that says its length resumes once it says it, an
   await report({ time: 1, duration: 1420 })
   expect(applied).toEqual([600])
   await report({ time: 700, duration: 1420 })
-  expect(kept()).toEqual([['cr:1', 600, 1420], ['nyaa:a', 700, 1420]])
+  expect(kept()).toEqual([['cr:1', 600, 1420, 0], ['nyaa:a', 700, 1420, expect.any(Number)]])
   await report({ time: 1210, duration: 1420 })
-  expect(kept(), '85% forgets it').toEqual([['cr:1', 600, 1420]])
+  expect(kept(), '85% marks it finished').toEqual([['cr:1', 600, 1420, 0], ['nyaa:a', expect.any(Number)]])
 })
 
 test('a source plugin\'s live media, whose length is Infinity, resumes on its first report, and is kept with none', async () => {
@@ -160,7 +168,7 @@ test('a source plugin\'s live media, whose length is Infinity, resumes on its fi
   await report({ paused: true, time: 0, duration: Infinity })
   expect(applied).toEqual([600])
   await report({ time: 700, duration: Infinity })
-  expect(kept()).toEqual([['nyaa:a', 700, 0]])
+  expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
 })
 
 test('a source plugin\'s player that never says its length resumes on its first report, and is kept with none', async () => {
@@ -170,5 +178,5 @@ test('a source plugin\'s player that never says its length resumes on its first 
   await report({ paused: true, time: 0 })
   expect(applied).toEqual([600])
   await report({ time: 700 })
-  expect(kept()).toEqual([['nyaa:a', 700, 0]])
+  expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
 })

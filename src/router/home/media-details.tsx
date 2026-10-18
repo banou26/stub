@@ -34,7 +34,7 @@ import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
 import { currentEpisode, playTarget, watchedEpisode, type Tracked } from '../title/facts'
-import { newestPosition, readPositions } from '../../utils/watch-positions'
+import { newestPosition, usePositions } from '../../utils/watch-positions'
 
 export const GET_MEDIA_DETAILS = gql(`
   subscription GetMediaDetails($input: MediaInput!, $descriptionInput: MediaDescriptionInput!, $details: Boolean! = false) {
@@ -722,12 +722,12 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
+  const positions = usePositions()
   if (!media.episodes.length) {
     return media.settled
       ? <div className="episodes" css={episodesStyle}><div className="empty">No episodes found</div></div>
       : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
-  const positions = readPositions()
   return (
     <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={currentEpisode(media.episodes, tracked)}>
       {(page, offset) => (

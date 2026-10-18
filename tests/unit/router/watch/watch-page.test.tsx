@@ -782,7 +782,7 @@ test('the page\'s player resumes where the viewer stopped on any source of the e
     await report({ paused: false, time: 2 })
     expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time), member.status).toEqual(seeks)
     await report({ paused: false, time: 700 })
-    expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!), member.status).toEqual([['nf:81', 600, 1000], ['cr:GX1', 700, 1000]])
+    expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!), member.status).toEqual([['nf:81', 600, 1000, 0], ['cr:GX1', 700, 1000, expect.any(Number)]])
     unmount(hosts.pop()!)
   }
 })
@@ -794,7 +794,7 @@ test('Next episode keeps no point of the last one for the next one, and seeks no
   params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
   await rerenderLive()
   expect(bridge.links).toHaveLength(2)
-  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX2', 700, 1000]])
+  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX2', 700, 1000, expect.any(Number)]])
   expect(bridge.links.at(-1)!.apply).not.toHaveBeenCalled()
 })
 
@@ -806,7 +806,7 @@ test('Next episode once the last one ended keeps the next one\'s own point, and 
   params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
   await rerenderLive()
   expect(bridge.links).toHaveLength(2)
-  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX3', 600, 1000]])
+  expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX3', 600, 1000, 0], ['cr:GX2', expect.any(Number)]])
   expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
 })
 

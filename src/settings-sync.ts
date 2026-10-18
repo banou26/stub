@@ -1,23 +1,31 @@
 // The viewer's settings on their FKN account, so every stub site and device they sign in on has the same
 // ones: one file mapping each setting's localStorage key to the value that key holds, so each setting's
-// module keeps its own key and encoding. Import free but for the settings' keys, with FKN's storage, the
-// account notification and the lock injected, so every rule can be pinned under vitest.
+// module keeps its own key and encoding. The resume points take the same path in a file of their own.
+// Import free but for the settings' keys, with FKN's storage, the account notification and the lock
+// injected, so every rule can be pinned under vitest.
 
 import type { TrackerCloud } from './tracking/account-link'
 
 import { accountGeneration } from './tracking/account-link'
 import { parseList } from './plugin-list'
-import { ACCOUNT_SETTINGS_KEY, parseValues, type Settings, type SettingValues } from './settings-store'
+import { parseValues, type Settings, type SettingValues } from './settings-store'
 import { COUNTRY_KEY } from './sources/country'
 import { DISABLED_SOURCES_KEY } from './sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from './sources/hidden-icons'
 import { PLAY_ORDER_KEY } from './sources/play-order'
 import { COMPACT_PREFS_KEY } from './tracking/compact-prefs'
 import { AUTOPLAY_KEY } from './utils/autoplay'
+import { WATCH_POSITIONS_KEY } from './utils/watch-positions'
 import { DISPLAY_MODE_KEY } from './router/search/display'
 
 /** The account's settings: one file, a JSON object of each setting's key to its value, null for its default. */
 export const SETTINGS_PATH = 'settings/v1/settings.json'
+
+/** The account's resume points: one file, as the settings' with WATCH_POSITIONS_KEY alone. */
+export const POSITIONS_PATH = 'positions/v1/positions.json'
+
+/** While a player plays, the least time between two writes of its points to the account. */
+export const POSITIONS_PACE_MS = 30_000
 
 // JSON arrays of origins, which a fold combines: a source or icon turned off on any site stays off
 const LISTS = [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY]
@@ -45,40 +53,55 @@ const union = (a: string | null | undefined, b: string) => JSON.stringify([...ne
  * Every storage call of a step acts for the account the step began with, and a step that heard of an
  * account change, or saw the account's copy change under it, saves nothing: the step queued by that
  * change follows. At most one step waits behind the running one.
+ *
+ * A store built with a `merge` (src/settings-store.ts) has its values merged with the account's instead,
+ * this browser's own and its edits alike, and an edit stays until a read shows the file holds it, so an
+ * edit another device's write put over is written again. With `paceMs`, edits start a step at most once per
+ * `paceMs`, the last one included, and `settings.flush()` starts one at once.
  */
-export const settingsSync = ({ settings, cloud, onAccountChange, lock }: {
+export const settingsSync = ({ settings, cloud, onAccountChange, lock, path = SETTINGS_PATH, keys = SETTINGS_KEYS, paceMs }: {
   settings: Settings
   cloud: Pick<TrackerCloud, 'availability' | 'unlocked' | 'read' | 'write'>
   /** `account.onChange` of the @fkn/lib realm that `cloud` calls. */
   onAccountChange: (listener: (change?: { switched: boolean }) => void) => unknown
   /** One step at a time, across every tab of the origin. */
   lock: <T>(work: () => Promise<T>) => Promise<T>
+  /** The account's file and the keys it holds, the settings' unless given. */
+  path?: string
+  keys?: readonly string[]
+  paceMs?: number
 }) => {
-  const { raw, write, edits, tell, onEdit } = settings.internal
+  const { raw, write, edits, tell, onEdit, accountKey, merge } = settings.internal
   const account = accountGeneration()
+  const joined = (values: SettingValues, made: Iterable<[string, string | null]>) => {
+    const next = { ...values }
+    for (const [key, value] of made) next[key] = merge ? merge(next[key] ?? null, value) : value
+    return next
+  }
 
   const step = async () => {
     const { call, current } = account.begin()
-    const before = new Map(SETTINGS_KEYS.map(key => [key, settings.getItem(key)]))
-    const copyBefore = raw(ACCOUNT_SETTINGS_KEY)
+    const before = new Map(keys.map(key => [key, settings.getItem(key)]))
+    const copyBefore = raw(accountKey)
     const availability = await cloud.availability()
     if (availability === 'unknown') return
     let next: SettingValues | undefined
     if (availability === 'connected') {
       // a sealed read with no key held raises FKN's connect card, which only a click may do
       if (!await cloud.unlocked()) return
-      const read = await call(() => cloud.read(SETTINGS_PATH))
+      const read = await call(() => cloud.read(path))
       if (!('ok' in read) && !('missing' in read)) return
       const theirs = 'ok' in read ? parseValues(read.ok) : {}
-      const own = new Map(SETTINGS_KEYS.map(key => [key, raw(key)]))
+      if (merge) for (const [key, value] of edits) if (merge(theirs[key] ?? null, value) === theirs[key]) edits.delete(key)
+      const own = new Map(keys.map(key => [key, raw(key)]))
       const made = new Map(edits)
       next = { ...theirs }
       for (const [key, value] of own) {
-        if (value !== null) next[key] = LISTS.includes(key) ? union(theirs[key], value) : key in theirs ? theirs[key] ?? null : value
+        if (value !== null) next[key] = merge ? merge(theirs[key] ?? null, value) : LISTS.includes(key) ? union(theirs[key], value) : key in theirs ? theirs[key] ?? null : value
       }
-      for (const [key, value] of made) if (SETTINGS_KEYS.includes(key)) next[key] = value
-      if (!same(next, theirs) && !('ok' in await call(() => cloud.write(SETTINGS_PATH, JSON.stringify(next))))) return
-      for (const [key, value] of made) if (edits.get(key) === value) edits.delete(key)
+      next = joined(next, [...made].filter(([key]) => keys.includes(key)))
+      if (!same(next, theirs) && !('ok' in await call(() => cloud.write(path, JSON.stringify(next))))) return
+      if (!merge) for (const [key, value] of made) if (edits.get(key) === value) edits.delete(key)
       // before the account check, as src/plugin-sync.ts clears its additions: the account holds them now,
       // folded or overruled, and one another tab wrote since stays for that tab's next step
       try { for (const [key, value] of own) if (raw(key) === value) write(key, null) } catch {}
@@ -86,9 +109,9 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock }: {
       // signed out, an edit is this browser's own value, which folds as one: never over the account's
       edits.clear()
     }
-    if (!current() || raw(ACCOUNT_SETTINGS_KEY) !== copyBefore) return
-    try { write(ACCOUNT_SETTINGS_KEY, next ? JSON.stringify({ ...next, ...Object.fromEntries(edits) }) : null) } catch {}
-    for (const key of SETTINGS_KEYS) if (settings.getItem(key) !== before.get(key)) tell(key)
+    if (!current() || raw(accountKey) !== copyBefore) return
+    try { write(accountKey, next ? JSON.stringify(joined(next, edits)) : null) } catch {}
+    for (const key of keys) if (settings.getItem(key) !== before.get(key)) tell(key)
   }
 
   let queued = false
@@ -102,7 +125,19 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock }: {
     }).catch(error => console.warn('settings: account file', error))
   }
 
-  onEdit(() => { void start() })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let paced = -Infinity
+  const now = () => {
+    clearTimeout(timer)
+    timer = undefined
+    paced = Date.now()
+    return start()
+  }
+  onEdit(flush => {
+    if (flush) { if (edits.size) void now() }
+    else if (paceMs === undefined) void start()
+    else timer ??= setTimeout(now, Math.max(0, paced + paceMs - Date.now()))
+  })
   void onAccountChange(change => {
     account.moved()
     // false: the same account, its connection renewed, so an edit made here is still its own
@@ -115,3 +150,7 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock }: {
     check: start,
   }
 }
+
+/** `settingsSync` for the resume points of `positions` (src/utils/watch-positions.ts), at their pace. */
+export const positionsSync = (sync: Omit<Parameters<typeof settingsSync>[0], 'path' | 'keys' | 'paceMs'>) =>
+  settingsSync({ ...sync, path: POSITIONS_PATH, keys: [WATCH_POSITIONS_KEY], paceMs: POSITIONS_PACE_MS })
