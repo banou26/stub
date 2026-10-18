@@ -378,9 +378,12 @@ export const profileCluster = (cluster: Media[]): ClusterProfile => {
 }
 
 /**
- * The exact upper bound on `titleSimilarity`, which skips the wasm alignment for a pair that can
- * never reach the threshold. Shared with the plugin contract (`PluginContext.maxPossibleSimilarity`)
- * so every rule prices a pair the same way.
+ * A ceiling on `titleSimilarity` by character count, which skips the wasm alignment for a pair that
+ * cannot reach the threshold. It is not exact: frizbee's flat bonuses can score a pair a little above
+ * it (0.5607 against 0.56 on two Japanese titles). `npm run calibrate` counts the pairs it refuses
+ * that score at or above a threshold: none at 0.9 and 70 at 0.3 on manami 2026-27 (2026-10-18).
+ * Shared with the plugin contract (`PluginContext.maxPossibleSimilarity`) so every rule prices a pair
+ * the same way.
  */
 export const maxPossibleSimilarity = (a: string, b: string) => {
   const counts = new Map<string, number>()

@@ -235,10 +235,9 @@ const mergeProfile = (
   return value
 }
 
-// mirror of maxPossibleSimilarity, src/worker/store/fuzzy-merge.ts:94-107. The comment there calls it
-// an exact upper bound on titleSimilarity; under frizbee it is not, because it is a character count
-// ratio and cannot account for the flat prefix bonus of 12 and exact bonus of 8. The sweep below
-// reports how often that matters, which is the only way to find out whether it matters yet.
+// mirror of maxPossibleSimilarity in src/worker/store/fuzzy-merge.ts. Under frizbee it is not an exact
+// upper bound on titleSimilarity, because it is a character count ratio and cannot account for the
+// flat prefix bonus of 12 and exact bonus of 8. The sweep below reports how often that matters.
 const maxPossibleSimilarity = (a: string, b: string) => {
   const counts = new Map<string, number>()
   for (const char of a) counts.set(char, (counts.get(char) ?? 0) + 1)
@@ -2049,9 +2048,9 @@ describe('calibration', () => {
   it('reports whether the fuzzy-merge character-count prefilter discards merges', () => {
     const merge = results.find(result => result.gate.name === 'fuzzy-merge')!
     say('-'.repeat(100))
-    say('FUZZY-MERGE PREFILTER  fuzzy-merge.ts:94 calls maxPossibleSimilarity an exact upper bound on')
-    say('                       titleSimilarity. Under frizbee it is not: it is a character-count ratio')
-    say('                       and cannot account for the flat prefix bonus of 12 or exact bonus of 8.')
+    say('FUZZY-MERGE PREFILTER  maxPossibleSimilarity is not an exact upper bound on titleSimilarity')
+    say('                       under frizbee: it is a character-count ratio and cannot account for')
+    say('                       the flat prefix bonus of 12 or exact bonus of 8.')
     say('                       A pair the bound refuses is never scored and never merges.')
     say('-'.repeat(100))
     say(`  pairs frizbee scores at or above ${merge.gate.current} that the bound refuses first: ${boundViolations.length}`)

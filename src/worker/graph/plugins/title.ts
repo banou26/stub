@@ -409,8 +409,9 @@ export const gatesFor = (a: ClusterTitleProfile, b: ClusterTitleProfile): TitleG
  *
  * Two skips before the wasm call, both measured. A trailing number is compared as a VALUE, because
  * `yami shibai 16` against `17` scores 0.8849 while `onii-chan!` against `oniichan` scores 1.0 and no
- * threshold tells them apart (`fuzzy-merge.ts:388-397`). `maxPossibleSimilarity` is the exact upper
- * bound, so a pair that cannot reach 0.9 never pays for an alignment.
+ * threshold tells them apart (`differOnlyByTrailingNumber`). `maxPossibleSimilarity` is a ceiling by
+ * character count, so a pair that cannot reach 0.9 never pays for an alignment (measured, not exact:
+ * see its doc).
  *
  * The scorers come from the context rather than from an import, which is the contract's rule: every
  * plugin prices a pair the way the record measured it (`PluginContext.titleSimilarity`).
