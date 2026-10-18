@@ -65,7 +65,7 @@ export type PluginPlayerProps = {
  */
 export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: PluginPlayerProps) => {
   const slot = useRef<HTMLIFrameElement>(null)
-  const [failed, setFailed] = useState('')
+  const [failed, setFailed] = useState(false)
   // read at call time: the effect below is keyed on the release, and the page hands in new closures on every render
   const callbacks = useRef({ onUnplayable, onPlayback })
   callbacks.current = { onUnplayable, onPlayback }
@@ -76,7 +76,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
     let done = false
     let mounted: { unmount: () => void } | undefined
     let link: PlaybackLink | undefined
-    setFailed('')
+    setFailed(false)
 
     const run = async () => {
       try {
@@ -104,10 +104,11 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         if (link) callbacks.current.onPlayback?.(link)
       } catch (error) {
         if (done) return
-        setFailed(error instanceof Error ? error.message : String(error))
+        console.warn(`Source '${pluginUri}' could not start playback:`, error)
+        setFailed(true)
       }
     }
-    run()
+    void run()
 
     return () => {
       done = true
@@ -151,7 +152,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         allow="fullscreen; autoplay; encrypted-media; cross-origin-isolated"
       />
-      {failed ? <div className="failed">This source could not start playback. {failed}</div> : null}
+      {failed ? <div className="failed">This source could not start playback.</div> : null}
     </div>
   )
 }

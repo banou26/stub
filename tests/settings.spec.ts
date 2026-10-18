@@ -245,7 +245,7 @@ test('Sources lists each added source with its state, and says so once none is l
   await expect(row(connecting).locator('.pill')).toHaveText('Connecting')
   await expect(row(failed).locator('.pill')).toHaveText('Error')
   const failure = row(failed).locator('.failure')
-  await expect(failure).toHaveText("connecting to 'npm:@spec/broken-source' timed out")
+  await expect(failure).toHaveText('Could not connect to this source.')
   expect(await failure.evaluate(element => element.scrollWidth <= element.clientWidth && element.clientHeight > 0), 'the whole error shows').toBe(true)
 
   for (const uri of SPEC_SOURCES) await row(uri).getByRole('button', { name: /^Remove / }).click()
@@ -269,7 +269,7 @@ test('adding by address shows a refused address\'s error under the group, and a 
   await add.click()
   await expect(add).toHaveText('Adding...')
   await expect(add).toBeDisabled()
-  await expect(alert).toHaveText("'not a package' is not an npm package or a local address FKN can install")
+  await expect(alert).toHaveText('Could not add this source. Check the address.')
   await expect(add).toHaveText('Add')
   await expect(input).toHaveAttribute('aria-invalid', 'true')
   await expect(input).toHaveValue('not a package')
@@ -317,13 +317,15 @@ const pastPrompt = (prompt: Locator) => prompt.evaluate(dialog => {
 })
 
 for (const [width, height] of [[1920, 1080], [390, 844]] as const) {
-  test(`at ${width}x${height} a linked source that fails to boot shows its error under its address, inside the prompt`, async ({ page }) => {
+  test(`at ${width}x${height} a linked source that fails to boot says so in one line under its address, inside the prompt`, async ({ page }) => {
     const DEAD = 'https:dead.spec.test'
     await page.setViewportSize({ width, height })
     const prompt = await linkedPrompt(page, DEAD)
     await prompt.getByRole('button', { name: 'Add source' }).click()
-    const error = prompt.getByText(`packages.connect: '${DEAD}' failed to boot: Failed to load /index.js`, { exact: true })
+    const error = prompt.getByText('Could not add this source.', { exact: true })
     await expect(error).toBeVisible()
+    expect(await lineCount(error), 'one line').toBe(1)
+    await expect(prompt, 'FKN\'s own message stays out of the prompt').not.toContainText('failed to boot')
     await expect(prompt.getByRole('button', { name: 'Dismiss' })).toBeVisible()
 
     const uri = prompt.getByText(DEAD, { exact: true })

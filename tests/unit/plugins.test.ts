@@ -108,8 +108,8 @@ test("a source of the account's list FKN does not install is shown failed, and n
     account.browser.account.signIn('alice')
     await checkSources()
     await vi.waitFor(() => expect(pluginStatuses()).toEqual([
-      { uri: refused, state: 'error', error: 'FKN could not install it' },
-      { uri: declined, state: 'error', error: `FKN did not install '${declined}'` },
+      { uri: refused, state: 'error' },
+      { uri: declined, state: 'error' },
     ]))
     expect(fkn.connect).not.toHaveBeenCalled()
   } finally {

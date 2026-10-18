@@ -67,7 +67,7 @@ const FAMILY: PluginStatus = {
   rejected: [{ origin: 'd', reason: 'no catalogue' }],
 }
 const CONNECTING: PluginStatus = { uri: 'npm:@spec/slow', state: 'connecting' }
-const FAILED: PluginStatus = { uri: 'npm:@spec/broken', state: 'error', error: "connecting to 'npm:@spec/broken' timed out" }
+const FAILED: PluginStatus = { uri: 'npm:@spec/broken', state: 'error' }
 
 const switchOf = (host: HTMLElement, origin: string) => host.querySelector<HTMLInputElement>(`[data-source="${origin}"] input[role="switch"]`)!
 // linkedom implements no `checked` property, so Preact renders the attribute; once a flip has set the
@@ -132,9 +132,9 @@ test('each source shows its name, its address beneath, and its state', () => {
   expect(row(CONNECTING.uri).querySelector('.meta'), 'and its address is not said twice').toBeNull()
 })
 
-test('a source that failed shows the whole error under its row', () => {
+test('a source that failed says so in one line under its row', () => {
   const { row } = render([FAILED, CONNECTED])
-  expect(row(FAILED.uri).querySelector('.failure')!.textContent).toBe("connecting to 'npm:@spec/broken' timed out")
+  expect(row(FAILED.uri).querySelector('.failure')!.textContent).toBe('Could not connect to this source.')
   expect(row(CONNECTED.uri).querySelector('.failure')).toBeNull()
 })
 
@@ -197,7 +197,7 @@ test('while adding, the button reads Adding... and is disabled; once added, the 
   expect(input.value).toBe('')
 })
 
-test('an address FKN refuses shows its error under the group, marks the group and keeps the address', async () => {
+test('an address FKN refuses says so in one line under the group, marks the group and keeps the address', async () => {
   calls.installPlugin.mockRejectedValueOnce(new Error("'nope' is not an npm package or a local address"))
   const { host } = render()
   const input = await typeAddress(host, 'nope')
@@ -205,7 +205,7 @@ test('an address FKN refuses shows its error under the group, marks the group an
   await flush()
 
   const error = host.querySelector('[role="alert"]')!
-  expect(error.textContent).toBe("'nope' is not an npm package or a local address")
+  expect(error.textContent).toBe('Could not add this source. Check the address.')
   expect(input.getAttribute('aria-describedby')!.split(' ')).toContain(error.id)
   expect(input.getAttribute('aria-invalid')).toBe('true')
   expect(host.querySelector('.group')!.classList.contains('invalid')).toBe(true)

@@ -4,7 +4,6 @@ import { enabledPluginUris, enablePlugin, onPluginsChange } from './plugins'
 export type PluginInvite = {
   uri: string
   state: 'offered' | 'installing' | 'error'
-  error?: string
 }
 
 const invites = new Map<string, PluginInvite>()
@@ -69,7 +68,8 @@ export const acceptInvites = async (): Promise<void> => {
       if (!await enablePlugin(uri, { noConfirm: true })) declined.add(comparablePluginUri(uri))
       invites.delete(uri)
     } catch (error) {
-      invites.set(uri, { uri, state: 'error', error: error instanceof Error ? error.message : String(error) })
+      console.warn(`Source '${uri}' could not be added:`, error)
+      invites.set(uri, { uri, state: 'error' })
     }
     notify()
   }

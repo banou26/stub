@@ -17,7 +17,6 @@ export type PluginStatus = {
   sources?: { origin: string, name: string }[]
   /** sources the package declared that could not be registered; the rest still serve */
   rejected?: { origin: string, reason: string }[]
-  error?: string
 }
 
 const statuses = new Map<string, PluginStatus>()
@@ -75,9 +74,9 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
       `connecting to '${uri}' timed out`,
     )
     // wire teardown BEFORE the worker handshake: a frame death mid-registration must still recover
-    closed.then(() => {
+    void closed.then(() => {
       connected.delete(uri)
-      unregisterRemoteSource(uri)
+      void unregisterRemoteSource(uri)
       scheduleReconnect(uri, 1)
     })
     const result = await withDeadline(Promise.race([
@@ -88,9 +87,8 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
     setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected })
   } catch (error) {
     connected.delete(uri)
-    const message = error instanceof Error ? error.message : String(error)
     console.warn(`Plugin '${uri}' failed to connect:`, error)
-    setStatus(uri, { state: 'error', error: message })
+    setStatus(uri, { state: 'error' })
     // registration errors leave the frame alive, so `closed` never fires: the reconnect comes from here
     scheduleReconnect(uri, attempt + 1)
     throw error
@@ -106,7 +104,7 @@ const disconnect = (uri: string) => {
   cancelReconnect(uri)
   connected.delete(uri)
   statuses.delete(uri)
-  unregisterRemoteSource(uri)
+  void unregisterRemoteSource(uri)
 }
 
 // The list changed under this page: the account's list arrived, changed on another site, device or tab,
@@ -128,7 +126,7 @@ const follow = (before: string[], after: string[]) => {
       })
       .catch(error => {
         console.warn(`Plugin '${uri}' could not be installed:`, error)
-        setStatus(uri, { state: 'error', error: error instanceof Error ? error.message : String(error) })
+        setStatus(uri, { state: 'error' })
       })
   }
 }

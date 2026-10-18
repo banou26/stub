@@ -210,8 +210,6 @@ const style = css`
 
 const STATE_LABEL: Record<PluginStatus['state'], string> = { connected: 'Connected', connecting: 'Connecting', error: 'Error' }
 
-const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
-
 const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () => void }) => {
   const sources = plugin.sources ?? []
   const name = sources.length ? sources.map(source => source.name).join(', ') : plugin.uri.replace(/^npm:/, '')
@@ -233,7 +231,7 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
       </div>
       <span className="pill" data-state={plugin.state}><span className="dot" aria-hidden="true"/>{STATE_LABEL[plugin.state]}</span>
       <button type="button" className="secondary small" aria-label={`Remove ${name}`} onClick={onRemove}>Remove</button>
-      {plugin.state === 'error' ? <p className="failure">{plugin.error ?? 'stub could not connect to it.'}</p> : undefined}
+      {plugin.state === 'error' ? <p className="failure">Could not connect to this source.</p> : undefined}
     </li>
   )
 }
@@ -327,7 +325,10 @@ export const SourcesSection = () => {
     installPlugin(trimmed)
       // null is the viewer declining FKN's confirm, which keeps the address to try again
       .then(installed => { if (installed) setUri('') })
-      .catch(error => setAddError(messageOf(error)))
+      .catch(error => {
+        console.warn(`Source '${trimmed}' could not be added:`, error)
+        setAddError('Could not add this source. Check the address.')
+      })
       .finally(() => {
         setAdding(false)
         refresh()

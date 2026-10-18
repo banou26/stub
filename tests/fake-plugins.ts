@@ -16,13 +16,9 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   },
   'npm:@spec/slow-source': { state: 'connecting' },
   'https:still.connecting.spec.test': { state: 'connecting' },
-  'npm:@spec/broken-source': { state: 'error', error: "connecting to 'npm:@spec/broken-source' timed out" },
-  // installed, but its entry file is blocked: what FKN threw for one on 2026-10-16
-  'https:dead.spec.test': { state: 'error', error: "packages.connect: 'https:dead.spec.test' failed to boot: Failed to load /index.js" },
-  'https:asourcewhosehostnamehasnowheretobreak.spec.test': {
-    state: 'error',
-    error: "packages.connect: 'https:asourcewhosehostnamehasnowheretobreak.spec.test' failed to boot: Failed to load /index.js",
-  },
+  'npm:@spec/broken-source': { state: 'error' },
+  'https:dead.spec.test': { state: 'error' },
+  'https:asourcewhosehostnamehasnowheretobreak.spec.test': { state: 'error' },
 }
 
 const listeners = new Set<() => void>()
@@ -49,8 +45,9 @@ export const installPlugin = async (uri: string): Promise<string | null> => {
 // as src/plugins.ts does, it settles once the source connects: a failed one throws, one still connecting never settles
 export const enablePlugin = async (uri: string): Promise<string | null> => {
   const installed = await installPlugin(uri)
-  const { state, error } = SPEC_PLUGINS[uri]!
-  if (state === 'error') throw new Error(error)
+  const { state } = SPEC_PLUGINS[uri]!
+  // what FKN threw on 2026-10-16 for a source installed with its entry file blocked
+  if (state === 'error') throw new Error(`packages.connect: '${uri}' failed to boot: Failed to load /index.js`)
   if (state === 'connecting') await new Promise(() => {})
   return installed
 }

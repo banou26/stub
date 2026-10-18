@@ -93,7 +93,7 @@ export type SourcePopupProps = {
  */
 export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: SourcePopupProps) => {
   const slot = useRef<HTMLDivElement>(null)
-  const [failed, setFailed] = useState('')
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     const element = slot.current
@@ -106,7 +106,8 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
         view = await packages.show(pluginUri, { element })
       } catch (error) {
         // the frame never appeared, so nothing will answer: say so rather than leave a blank modal
-        setFailed(error instanceof Error ? error.message : String(error))
+        console.warn(`Source '${pluginUri}' could not open its picker:`, error)
+        setFailed(true)
         return
       }
       const picked = await selectRemoteRelease(origin, uris)
@@ -114,7 +115,7 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
       if (picked) onPick(picked)
       else onClose()
     }
-    run()
+    void run()
 
 
     return () => {
@@ -142,7 +143,7 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
           <button type="button" className="close" onClick={onClose}>Close</button>
         </div>
         {failed
-          ? <div className="fallback">This source could not open its picker. {failed}</div>
+          ? <div className="fallback">This source could not open its picker.</div>
           : <div className="slot" ref={slot}/>}
       </div>
     </div>

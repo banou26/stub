@@ -68,7 +68,6 @@ const style = css`
   .invite .error {
     font-size: 1.2rem;
     color: #f87171;
-    overflow-wrap: anywhere;
   }
 
   .invite .dismiss {
@@ -136,7 +135,7 @@ export const PluginPrompt = () => {
               {invite.state === 'installing' && <span className="state">adding…</span>}
               {invite.state === 'error' && (
                 <div className="failure">
-                  <span className="error">{invite.error ?? 'failed'}</span>
+                  <span className="error">Could not add this source.</span>
                   <button type="button" className="dismiss" onClick={() => dismissInvite(invite.uri)}>Dismiss</button>
                 </div>
               )}
@@ -145,7 +144,7 @@ export const PluginPrompt = () => {
         </div>
         <div className="actions">
           <button type="button" className="decline" disabled={busy} onClick={() => declineInvites()}>Not now</button>
-          <button type="button" disabled={busy} onClick={() => { acceptInvites() }}>
+          <button type="button" disabled={busy} onClick={() => { void acceptInvites() }}>
             {invites.length > 1 ? 'Add sources' : 'Add source'}
           </button>
         </div>
