@@ -4,6 +4,7 @@ import { Provider } from 'urql'
 
 import './worker.ts'
 import { checkSources } from './plugins.ts'
+import { watchAccountFiles } from './settings-account'
 import client from './urql'
 import Router from './router'
 import ErrorBoundary from './components/error-boundary'
@@ -13,12 +14,11 @@ import './store-export.ts'
 import './answers-export.ts'
 import { forgetApiKeys } from './utils/forget-api-keys'
 import { watchTrackerAccount } from './tracking/account-watch'
-import { REFRESH_MS } from './tracking/account-link'
 import { trackerCheck, trackerFocused } from './worker'
 
 forgetApiKeys()
 watchTrackerAccount({ check: trackerCheck, focused: trackerFocused })
-watchTrackerAccount({ check: checkSources, focused: checkSources, intervalMs: REFRESH_MS })
+watchAccountFiles(checkSources)
 
 const style = css`
   @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,500;1,600;1,700;1,800;1,900&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');

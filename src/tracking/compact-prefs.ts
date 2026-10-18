@@ -1,5 +1,7 @@
-// What the compact tracking row remembers, per device: the trackers the viewer chose not to write to. Not
-// per media and not per account: it is how this viewer likes to write, on this device.
+// What the compact tracking row remembers: the trackers the viewer chose not to write to, a setting that
+// follows the FKN account (src/settings-store.ts). Not per media: it is how this viewer likes to write.
+
+import { settings } from '../settings-store'
 
 export type CompactPrefs = {
   /** Only the choices the viewer made. A tracker missing here is written to when it can be. */
@@ -11,10 +13,6 @@ export const COMPACT_PREFS_KEY = 'stub.tracking.compact'
 export const DEFAULT_COMPACT_PREFS: CompactPrefs = { targets: {} }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
-
-const defaultStorage = (): StorageLike | undefined => {
-  try { return globalThis.localStorage } catch { return undefined }
-}
 
 /** A stored or hand-edited value as prefs, falling back to the defaults field by field rather than throwing. */
 export const parseCompactPrefs = (raw: string | null | undefined): CompactPrefs => {
@@ -29,10 +27,10 @@ export const parseCompactPrefs = (raw: string | null | undefined): CompactPrefs 
 }
 
 /**
- * The prefs over one storage. Reading `localStorage` THROWS when a browser blocks site data, so a
- * write that cannot be stored is kept for this page instead, as tracking/connections.ts does.
+ * The prefs over one storage. A write that cannot be stored, where a browser blocks site data, is kept
+ * for this page instead, as tracking/connections.ts does.
  */
-export const createCompactPrefs = (storage = defaultStorage()) => {
+export const createCompactPrefs = (storage: StorageLike | undefined = settings) => {
   let kept: CompactPrefs | undefined
   return {
     read: (): CompactPrefs => {
@@ -53,5 +51,8 @@ export const createCompactPrefs = (storage = defaultStorage()) => {
 
 export type CompactPrefsStore = ReturnType<typeof createCompactPrefs>
 
-/** This device's prefs, one store for every reader on the page: where storage is blocked, a choice lives in it alone. */
-export const devicePrefs = createCompactPrefs()
+/** The viewer's prefs, one store for every reader on the page: where storage is blocked, a choice lives in it alone. */
+export const viewerPrefs = createCompactPrefs()
+
+/** Calls `listener` whenever the prefs change, in this tab, in another one, or on the account. */
+export const watchCompactPrefs = (listener: () => void): () => void => settings.watch(COMPACT_PREFS_KEY, listener)

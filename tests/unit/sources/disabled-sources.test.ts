@@ -1,8 +1,9 @@
-// Which built-in sources the viewer turned off, kept in this browser: every source is on until turned
-// off, and a value stub cannot read turns nothing off.
+// Which built-in sources the viewer turned off, a setting kept in this browser's storage while no FKN
+// account's settings are in use: every source is on until turned off, and a value stub cannot read turns
+// nothing off.
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { DISABLED_SOURCES_KEY, readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../../src/sources/disabled-sources'
+import { DISABLED_SOURCES_KEY, readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../../src/sources/disabled-sources'
 
 const stored = new Map<string, string>()
 const memory = {
@@ -27,11 +28,14 @@ test('a source turned off is kept, once, and turning it on again keeps nothing',
   expect(stored.has(DISABLED_SOURCES_KEY), 'all on leaves no key behind').toBe(false)
 })
 
-test('turning all on clears every source turned off', () => {
+test('turning sources on clears those, and leaves off a source turned off that they do not name', () => {
   setSourceEnabled('simkl', false)
   setSourceEnabled('omdb', false)
-  turnAllSourcesOn()
-  expect(readDisabledSources()).toEqual([])
+  setSourceEnabled('mal', false)
+  turnSourcesOn(['simkl', 'omdb'])
+  expect(readDisabledSources()).toEqual(['mal'])
+  turnSourcesOn(['mal'])
+  expect(stored.has(DISABLED_SOURCES_KEY), 'all on leaves no key behind').toBe(false)
 })
 
 test('a kept value stub cannot read turns nothing off, and an entry that is not an origin is dropped', () => {
@@ -49,7 +53,7 @@ test('storage that throws turns nothing off and loses no listener call', () => {
   vi.stubGlobal('localStorage', { getItem: () => { throw new Error('blocked') }, setItem: () => { throw new Error('blocked') }, removeItem: () => { throw new Error('blocked') } })
   expect(readDisabledSources()).toEqual([])
   expect(() => setSourceEnabled('simkl', false)).not.toThrow()
-  expect(() => turnAllSourcesOn()).not.toThrow()
+  expect(() => turnSourcesOn(['simkl'])).not.toThrow()
   expect(listener).toHaveBeenCalledTimes(2)
   stop()
 })

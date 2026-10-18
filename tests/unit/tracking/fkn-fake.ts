@@ -67,10 +67,10 @@ export const fknWorld = () => {
     const realm = () => {
       let generation = 0
       const pinOf = new Map<number, string>()
-      const listeners = new Set<() => void>()
+      const listeners = new Set<(change: { switched: boolean }) => void>()
       realms.add(switched => {
         if (switched) generation += 1
-        for (const listener of [...listeners]) listener()
+        for (const listener of listeners) listener({ switched })
       })
 
       // a storage call: its count captured as it is made, then its pin, then the api's checks in order
@@ -118,7 +118,7 @@ export const fknWorld = () => {
       }
 
       /** `account.onChange` of @fkn/lib in this realm. */
-      const onChange = async (listener: () => void) => {
+      const onChange = async (listener: (change: { switched: boolean }) => void) => {
         listeners.add(listener)
         return () => { listeners.delete(listener) }
       }
@@ -126,7 +126,7 @@ export const fknWorld = () => {
       return { lib, onChange }
     }
 
-    const notify = (switched: boolean) => { for (const hear of [...realms]) hear(switched) }
+    const notify = (switched: boolean) => { for (const hear of realms) hear(switched) }
 
     /** The viewer's hands on FKN, and the broker's notifications of what they did. */
     const account_ = {

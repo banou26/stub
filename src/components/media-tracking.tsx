@@ -9,7 +9,7 @@ import { gql } from '../generated'
 import { TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
-import { COMPACT_PREFS_KEY, devicePrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
+import { viewerPrefs, watchCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { trackingId } from '../tracking/aggregate'
 import { unlockTracker } from '../tracking/fkn-cloud-live'
 import { isSiteConnected, trackerSignIns } from '../tracking/site-sessions'
@@ -132,7 +132,7 @@ const usePlayed = (link: PlaybackLink | undefined, episode: number | null | unde
 }
 
 const WorkTracking = (
-  { work, address, uri, title, cover, episodeCount, movie, prefsStore = devicePrefs, notice = true, link, episode, sameWork, counted }:
+  { work, address, uri, title, cover, episodeCount, movie, prefsStore = viewerPrefs, notice = true, link, episode, sameWork, counted }:
   Props & { sameWork: boolean, counted: Map<string, number | null | undefined> }
 ) => {
   const asked = uri ?? work
@@ -152,12 +152,7 @@ const WorkTracking = (
   const answers = data?.tracking?.answers
   useEffect(() => { if (answers) recordTrackerAnswers(answers, siteStatuses, isSiteConnected) }, [answers])
 
-  // another tab changed the choices
-  useEffect(() => {
-    const changed = (event: StorageEvent) => { if (event.key === COMPACT_PREFS_KEY) setPrefs(prefsStore.read()) }
-    globalThis.addEventListener?.('storage', changed)
-    return () => globalThis.removeEventListener?.('storage', changed)
-  }, [prefsStore])
+  useEffect(() => watchCompactPrefs(() => setPrefs(prefsStore.read())), [prefsStore])
 
   const onPrefs = (next: CompactPrefs) => {
     prefsStore.write(next)

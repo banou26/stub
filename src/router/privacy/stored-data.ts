@@ -1,19 +1,14 @@
-// What stub keeps per viewer, where, and for how long, as the privacy page lists it. Import free apart
-// from the key constants, each taken from the module that writes it, so the list cannot drift from what
-// is written.
+// What stub keeps per viewer, where, and for how long, as the privacy page lists it. Its keys are taken
+// from the modules that write or list them, so the list cannot drift from what is written.
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
-import { COUNTRY_KEY } from '../../sources/country'
-import { DISABLED_SOURCES_KEY } from '../../sources/disabled-sources'
-import { HIDDEN_ICONS_KEY } from '../../sources/hidden-icons'
-import { COMPACT_PREFS_KEY } from '../../tracking/compact-prefs'
+import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
+import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
-import { AUTOPLAY_KEY } from '../../utils/autoplay'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
 import { WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
-import { DISPLAY_MODE_KEY } from '../search/display'
 
 export type StoredItem = {
   id: string
@@ -38,44 +33,12 @@ export const STORED: readonly StoredItem[] = [
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
   },
   {
-    id: 'turned-off-sources',
-    title: 'Sources turned off',
-    what: 'Which of the sources stub ships with you turned off, so stub does not ask them.',
-    where: LOCAL,
-    lasts: 'Until you turn them back on',
-    keys: { store: 'local', names: [DISABLED_SOURCES_KEY] },
-  },
-  {
-    id: 'hidden-icons',
-    title: 'Hidden source icons',
-    what: 'Which sources\' icons you hid in Settings.',
-    where: LOCAL,
-    lasts: 'Until you show them again',
-    keys: { store: 'local', names: [HIDDEN_ICONS_KEY] },
-  },
-  {
-    id: 'country',
-    title: 'Country',
-    what: 'The country you picked in Settings, which decides whose streaming links and Prime Video stub uses. On Automatic nothing is kept: stub reads the country off your device\'s time zone each time.',
-    where: LOCAL,
-    lasts: 'Until you set it back to Automatic',
-    keys: { store: 'local', names: [COUNTRY_KEY] },
-  },
-  {
-    id: 'search-layout',
-    title: 'Search layout',
-    what: 'Whether search shows covers, cards or a list.',
-    where: LOCAL,
-    lasts: "Until you clear this site's data in your browser",
-    keys: { store: 'local', names: [DISPLAY_MODE_KEY] },
-  },
-  {
-    id: 'quick-tracking',
-    title: 'Quick tracking choices',
-    what: 'The trackers you chose not to save to from the tracking row.',
-    where: LOCAL,
-    lasts: "Until you clear this site's data in your browser",
-    keys: { store: 'local', names: [COMPACT_PREFS_KEY] },
+    id: 'settings',
+    title: 'Settings',
+    what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country you picked, autoplay, the search layout and the trackers you chose not to save to. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
+    where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
+    lasts: "Until you change them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    keys: { store: 'local', names: [...SETTINGS_KEYS, ACCOUNT_SETTINGS_KEY] },
   },
   {
     id: 'connected-sites',
@@ -145,14 +108,6 @@ export const STORED: readonly StoredItem[] = [
     where: LOCAL,
     lasts: "Until you finish the episode, 200 newer ones replace it, or you clear this site's data in your browser",
     keys: { store: 'local', names: [WATCH_POSITIONS_KEY] },
-  },
-  {
-    id: 'autoplay',
-    title: 'Autoplay',
-    what: 'That you turned off the next episode opening by itself when one ends.',
-    where: LOCAL,
-    lasts: "Until you turn it back on, or clear this site's data in your browser",
-    keys: { store: 'local', names: [AUTOPLAY_KEY] },
   },
   {
     id: 'fetched',

@@ -5,7 +5,7 @@ import { switchStyle } from '../../components/switch-style'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources, iconSources } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
-import { readDisabledSources, setSourceEnabled, turnAllSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
+import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
 import { siteAsks } from '../../site'
 
 const style = css`
@@ -256,7 +256,7 @@ const BuiltInSources = () => {
       <div className="part-head">
         <h3 className="part">Built in</h3>
         <span className="count">{off ? `${sources.length - off} of ${sources.length} on` : `All ${sources.length} on`}</span>
-        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnAllSourcesOn() }}>Turn all on</button>
+        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(sources.map(source => source.origin)) }}>Turn all on</button>
       </div>
       <ul className="built-in">
         {sources.map(source => {

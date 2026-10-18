@@ -1,10 +1,12 @@
-// The viewer's country: the one picked in Settings, kept in this browser, else the one this device's
-// time zone is in, worked out on each call and kept nowhere. No imports but the zone table, so the
-// settings page, src/worker.ts, the players and the sources share it.
+// The viewer's country: the one picked in Settings, a setting that follows the FKN account
+// (src/settings-store.ts), else the one this device's time zone is in, worked out on each call and kept
+// nowhere. No imports but the zone table and the settings store, so the settings page, src/worker.ts, the
+// players and the sources share it.
 
 import ZONE_COUNTRIES from './zone-countries.json'
+import { settings } from '../settings-store'
 
-/** The localStorage key holding the country picked in Settings, an ISO 3166 code. No key is Automatic. */
+/** The setting holding the country picked in Settings, an ISO 3166 code. No value is Automatic. */
 export const COUNTRY_KEY = 'stub.country'
 
 // tzdata 2026c's zone.tab, which Firefox reports by name, and for each of its zones the name ICU reports
@@ -19,37 +21,22 @@ export const COUNTRIES: readonly string[] = [...new Set(Object.values(ZONE_COUNT
 /** The country `timeZone` is in, or the US for a zone that names none (UTC) or that the table lacks. */
 export const zoneCountry = (timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) => zones[timeZone] ?? 'US'
 
-const listeners = new Set<() => void>()
-
 /** The country picked in Settings, or undefined for Automatic, a value naming no country, or no storage. */
 export const readPickedCountry = (): string | undefined => {
-  try {
-    const kept = globalThis.localStorage.getItem(COUNTRY_KEY)
-    return kept && COUNTRIES.includes(kept) ? kept : undefined
-  } catch {
-    return undefined
-  }
+  const kept = settings.getItem(COUNTRY_KEY)
+  return kept && COUNTRIES.includes(kept) ? kept : undefined
 }
 
-/** Picks `country`, or Automatic with undefined, and tells every watcher in this tab. */
+/** Picks `country`, or Automatic with undefined, and tells every watcher. */
 export const pickCountry = (country: string | undefined) => {
   try {
-    if (country) globalThis.localStorage.setItem(COUNTRY_KEY, country)
-    else globalThis.localStorage.removeItem(COUNTRY_KEY)
+    if (country) settings.setItem(COUNTRY_KEY, country)
+    else settings.removeItem(COUNTRY_KEY)
   } catch {}
-  for (const listener of listeners) listener()
 }
 
-/** Calls `listener` whenever the picked country changes, in this tab or in another one. */
-export const watchPickedCountry = (listener: () => void): () => void => {
-  const fromOtherTab = (event: StorageEvent) => { if (event.key === COUNTRY_KEY || event.key === null) listener() }
-  listeners.add(listener)
-  globalThis.addEventListener?.('storage', fromOtherTab)
-  return () => {
-    listeners.delete(listener)
-    globalThis.removeEventListener?.('storage', fromOtherTab)
-  }
-}
+/** Calls `listener` whenever the picked country changes, in this tab, in another one, or on the account. */
+export const watchPickedCountry = (listener: () => void): () => void => settings.watch(COUNTRY_KEY, listener)
 
 let held: string | undefined
 

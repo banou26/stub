@@ -104,6 +104,17 @@ test('#playback shows Playback and its one switch, autoplay, on until turned off
   expect(isOn((await open('#playback')).querySelector<HTMLInputElement>('input[role="switch"]')!), 'kept').toBe(false)
 })
 
+test('an open Playback follows autoplay turned off in another tab or on the FKN account', async () => {
+  const host = await open('#playback')
+  const autoplay = () => host.querySelector<HTMLInputElement>('input[role="switch"]')!
+  expect(isOn(autoplay())).toBe(true)
+  stored.set('stub.settings.account', JSON.stringify({ 'stub.player.autoplay': 'off' }))
+  await act(async () => {
+    for (const listener of listeners.get('storage') ?? []) (listener as (event: { key: string }) => void)({ key: 'stub.settings.account' })
+  })
+  expect(isOn(autoplay())).toBe(false)
+})
+
 for (const removed of ['#data', '#tracking']) {
   test(`${removed}, a category that is gone, shows Accounts`, async () => {
     expect(shown(await open(removed))).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })

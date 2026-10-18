@@ -1,8 +1,8 @@
 import { css } from '@emotion/react'
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 
 import { switchStyle } from '../../components/switch-style'
-import { readAutoplay, setAutoplay } from '../../utils/autoplay'
+import { readAutoplay, setAutoplay, watchAutoplay } from '../../utils/autoplay'
 
 const style = css`
   display: flex;
@@ -23,9 +23,10 @@ const style = css`
   &:hover { border-color: rgba(255, 255, 255, 0.25); }
 `
 
-/** The player's settings, kept in this browser: whether an episode's end opens the next one by itself. */
+/** The player's settings: whether an episode's end opens the next one by itself. */
 export const PlaybackSection = () => {
   const [on, setOn] = useState(readAutoplay)
+  useEffect(() => watchAutoplay(() => setOn(readAutoplay())), [])
   return (
     <label css={style}>
       Autoplay next episode

@@ -9,6 +9,8 @@ import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
+import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
+import { COUNTRY_KEY } from '../../../src/sources/country'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../../../src/sources/hidden-icons'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
@@ -26,14 +28,13 @@ const byId = (id: string) => {
 describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
-    expect(byId('turned-off-sources').keys).toEqual({ store: 'local', names: [DISABLED_SOURCES_KEY] })
-    expect(byId('hidden-icons').keys).toEqual({ store: 'local', names: [HIDDEN_ICONS_KEY] })
-    expect(byId('search-layout').keys).toEqual({ store: 'local', names: [DISPLAY_MODE_KEY] })
-    expect(byId('quick-tracking').keys).toEqual({ store: 'local', names: [COMPACT_PREFS_KEY] })
+    expect(byId('settings').keys).toEqual({
+      store: 'local',
+      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, ACCOUNT_SETTINGS_KEY],
+    })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
     expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
-    expect(byId('autoplay').keys).toEqual({ store: 'local', names: [AUTOPLAY_KEY] })
     expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
@@ -51,7 +52,8 @@ describe('what stub keeps per viewer', () => {
     expect(written.length, 'the scan finds the writes').toBeGreaterThanOrEqual(7)
 
     const named = STORED.flatMap(item => item.keys?.names ?? [])
-    for (const { at, key } of written) {
+    // the settings store writes the key a setting's module hands it, and that module's own call is scanned
+    for (const { at, key } of written.filter(write => !(write.at === 'settings-store.ts' && write.key === 'key'))) {
       const value = /^'[^']*'$/.test(key) ? key.slice(1, -1) : constants.get(key)
       expect(value, `${at} writes ${key}, which is not an exported constant`).toBeDefined()
       expect(named, `${at} writes ${key}`).toContain(value)
@@ -93,6 +95,20 @@ describe('what stub keeps per viewer', () => {
     expect(added.lasts).toContain('Until you remove them')
     expect(added.lasts).toContain("The account's copy is deleted with your FKN account")
     expect(added.lasts).toContain("this browser's copy of it when you sign out")
+  })
+
+  test('says the settings are kept on the FKN account, encrypted in this browser, until changed or the account is deleted', () => {
+    const kept = byId('settings')
+    expect(kept.where).toContain("your FKN account's storage while you are signed in, encrypted in this browser before it is stored")
+    expect(kept.lasts).toContain('Until you change them')
+    expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
+    expect(kept.lasts).toContain("this browser's copy of it when you sign out")
+    expect(kept.what).toContain('What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
+  })
+
+  test('keeps the volume, the tracking sites and their sign-in states on the device, and names them apart', () => {
+    for (const key of [PLAYER_VOLUME_KEY, CONNECTED_KEY, SITE_STATUS_KEY, WATCH_POSITIONS_KEY]) expect(byId('settings').keys!.names, key).not.toContain(key)
+    for (const id of ['player', 'connected-sites', 'site-status', 'positions']) expect(byId(id).where, id).not.toContain('FKN account')
   })
 
   test('says the sources added while signed out join the next FKN account signed in here', () => {

@@ -69,6 +69,7 @@ afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   sent.length = 0
   outcome = { outcome: 'SAVED' }
+  vi.unstubAllGlobals()
 })
 
 // the watch page's row, whose player comes up once the row is drawn
@@ -186,6 +187,23 @@ test('a tracker unchecked on the row\'s chip is not written, where storage is bl
     check.checked = false
     check.dispatchEvent(new Event('change', { bubbles: true }))
   })
+  await link.report(playing(900))
+  expect(sent.map(({ trackers }) => trackers)).toEqual([['stub']])
+})
+
+test.each([
+  ['in another tab', 'stub.tracking.compact'],
+  ['on the FKN account', 'stub.settings.account'],
+])('a tracker unchecked %s is not written by a row already open', async (_where, changed) => {
+  tracking = { summary: null, disagreements: [], answers: [listedAt(4), answer('stub', 'Stub', 'NOT_LISTED')] }
+  const values = new Map<string, string>()
+  const prefs = createCompactPrefs({ getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) } })
+  // another tab's change arrives as a storage event on this page's window, and node's globalThis has no listeners
+  vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+  vi.stubGlobal('removeEventListener', window.removeEventListener.bind(window))
+  const { link } = page({ prefs })
+  values.set('stub.tracking.compact', JSON.stringify({ targets: { anilist: false } }))
+  act(() => { window.dispatchEvent(Object.assign(new Event('storage'), { key: changed })) })
   await link.report(playing(900))
   expect(sent.map(({ trackers }) => trackers)).toEqual([['stub']])
 })
