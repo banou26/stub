@@ -22,6 +22,9 @@ vi.mock('@fkn/lib', async importOriginal => ({
 
 const told = vi.hoisted(() => vi.fn())
 vi.mock('../../../../src/embed-relays', () => ({ tellTriedRelay: told }))
+// what the watch page hears when the episode plays through no relay, so Play can move on
+const unplayable = vi.hoisted(() => vi.fn())
+vi.mock('../../../../src/embed-unplayable', () => ({ tellUnplayable: unplayable }))
 
 vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {}) }))
 vi.mock('../../../../src/embed-tracks', () => ({ serveEmbedTracks: () => () => {} }))
@@ -77,6 +80,7 @@ beforeEach(() => {
   lib.extension = false
   lib.attachFrame.mockReset()
   told.mockReset()
+  unplayable.mockReset()
   skin.remote = null
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -96,6 +100,7 @@ test('an episode on the region page through the default relay plays through anot
   expect(second).not.toBe(first)
   expect(told.mock.calls).toEqual([['r1']])
   expect(host.textContent).not.toContain(UNAVAILABLE_NOTE)
+  expect(unplayable).not.toHaveBeenCalled()
 })
 
 test('an episode on the region page through every relay says so in one line, with nothing to retry', async () => {
@@ -110,6 +115,7 @@ test('an episode on the region page through every relay says so in one line, wit
   expect(host.querySelector('.overlay')?.textContent).toBe(UNAVAILABLE_NOTE)
   expect(button(host, 'Retry')).toBeUndefined()
   expect(host.querySelector('.loading-spinner')).toBeNull()
+  expect(unplayable, 'the watch page is told, once').toHaveBeenCalledOnce()
 })
 
 test('an episode no relay plays leaves the show\'s next episode to start on the default relay', async () => {
@@ -131,6 +137,7 @@ test('on the extension, no relay served the page, so the region page ends at the
   await vi.waitFor(() => expect(host.textContent).toContain(UNAVAILABLE_NOTE), { timeout: 5_000 })
   expect(lib.attachFrame).toHaveBeenCalledTimes(1)
   expect(told).not.toHaveBeenCalled()
+  expect(unplayable).toHaveBeenCalledOnce()
 })
 
 test('a relay answered again ends the tries instead of starting them over', async () => {
@@ -139,7 +146,22 @@ test('a relay answered again ends the tries instead of starting them over', asyn
 
   await vi.waitFor(() => expect(host.textContent).toContain(UNAVAILABLE_NOTE), { timeout: 5_000 })
   expect(lib.attachFrame).toHaveBeenCalledTimes(1)
+  expect(unplayable).toHaveBeenCalledOnce()
 })
+
+const failures = [
+  ['attach', () => lib.attachFrame.mockRejectedValue(new Error('The FKN extension refused the frame.'))],
+  ['load', () => lib.attachFrame.mockResolvedValue(Object.assign(playing('r1'), { goto: async () => { throw new Error('The page did not load.') } }))],
+] as const
+for (const [step, fail] of failures) {
+  test(`a frame that fails to ${step} shows Retry, and keeps Play on it`, async () => {
+    fail()
+    const host = render()
+
+    await vi.waitFor(() => expect(button(host, 'Retry')).toBeTruthy(), { timeout: 5_000 })
+    expect(unplayable).not.toHaveBeenCalled()
+  })
+}
 
 test('the next episode of a show starts past the relays it was unavailable through', async () => {
   lib.attachFrame.mockResolvedValueOnce(regionPage('r2')).mockResolvedValueOnce(playing('r3'))

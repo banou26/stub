@@ -82,8 +82,13 @@ vi.mock('../../../../src/plugins', () => ({
 }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
 // the backend is known once `held` settles; FKN's install card answers `installs`
-const detecting = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, installs: vi.fn(async () => true) }))
-vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => { await detecting.held; return backend }, addExtension: detecting.installs }))
+// and `addable` says whether this browser can add the extension at all
+const detecting = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, installs: vi.fn(async () => true), addable: true }))
+vi.mock('../../../../src/utils/fkn-backend', () => ({
+  detectBackend: async () => { await detecting.held; return backend },
+  addExtension: detecting.installs,
+  canAddExtension: () => detecting.addable,
+}))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } }, recordTrackerAnswers: () => {} }))
 vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
 vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
@@ -141,6 +146,14 @@ vi.mock('../../../../src/embed-relays', () => ({
     return () => {}
   },
 }))
+// the embed saying its source cannot play the episode here, heard by the frame it was said in
+const unplayables = vi.hoisted(() => ({ listeners: new Map<HTMLIFrameElement, () => void>() }))
+vi.mock('../../../../src/embed-unplayable', () => ({
+  hearUnplayable: (iframe: HTMLIFrameElement, listener: () => void) => {
+    unplayables.listeners.set(iframe, listener)
+    return () => { unplayables.listeners.delete(iframe) }
+  },
+}))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
   ['Check', 'ChevronLeft', 'ChevronRight', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
@@ -192,6 +205,8 @@ afterEach(() => {
   lookups.held = Promise.resolve()
   detecting.held = Promise.resolve()
   detecting.installs.mockClear()
+  detecting.addable = true
+  unplayables.listeners.clear()
 })
 
 const settle = async () => {
@@ -1635,3 +1650,190 @@ test('a ranked package that drops and reconnects is waited for until an answer h
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
+const cannotPlay = async (host: HTMLElement) => {
+  await act(async () => { unplayables.listeners.get(host.querySelector('iframe')!)!() })
+  await settle()
+}
+const watching = (sourceUri: string) => `/watch/${params.mediaUri}/${params.episodeUri}/${sourceUri}`
+
+// the owner, 2026-10-19: "Only if their sources aren't available should it go to the next best ranked source available."
+test('Play\'s pick that cannot play the episode here moves to the next ranked source that has it, replacing the address', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf', 'nyaa']
+  const { host, rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+
+  params = { ...params, sourceUri: 'cr:GX1' }
+  await rerender()
+  expect(navigate, 'the control: Play\'s pick stays while it plays').toHaveBeenCalledOnce()
+  await cannotPlay(host)
+  expect(navigate).toHaveBeenCalledTimes(2)
+  expect(navigate).toHaveBeenLastCalledWith(watching('nf:81'), { replace: true })
+})
+
+test('a source picked by hand that cannot play the episode keeps its message', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf', 'nyaa']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const { host } = live()
+  await settle()
+  await cannotPlay(host)
+  expect(navigate).not.toHaveBeenCalled()
+  expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('sourceUri')).toBe('cr:GX1')
+})
+
+test('when every source Play could open cannot play the episode, the last one keeps its message, and nothing loops', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  primeEpisode(allHandles[0]!)
+  params = { ...params, episodeUri: episode.uri }
+  const { host, rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+
+  params = { ...params, sourceUri: 'cr:GX1' }
+  await rerender()
+  await cannotPlay(host)
+  expect(navigate).toHaveBeenLastCalledWith(watching(PRIME), { replace: true })
+
+  params = { ...params, sourceUri: PRIME }
+  await rerender()
+  await cannotPlay(host)
+  await rerender()
+  expect(navigate).toHaveBeenCalledTimes(2)
+  expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('sourceUri')).toBe(PRIME)
+})
+
+// a reason the viewer can fix keeps their favourite: here the extension, which this browser can add
+test('Play\'s pick that needs the extension this browser can add shows the install button, and Play stays on it', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf', 'nyaa']
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
+  const { host, rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('nf:81'), { replace: true })
+
+  params = { ...params, sourceUri: 'nf:81' }
+  await rerender()
+  expect(button(host, 'Install the FKN extension to play Netflix')).toBeTruthy()
+  expect(navigate).toHaveBeenCalledOnce()
+})
+
+// iOS Safari or Chrome on Android, where neither store offers the extension
+test('where the browser cannot add the extension, Play\'s Netflix pick moves to the next source, and a hand pick still offers it', async () => {
+  vi.useFakeTimers()
+  detecting.addable = false
+  origins = ['cr', 'nf', 'nyaa']
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
+  const { rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('nf:81'), { replace: true })
+
+  params = { ...params, sourceUri: 'nf:81' }
+  await rerender()
+  expect(navigate).toHaveBeenCalledTimes(2)
+  expect(navigate).toHaveBeenLastCalledWith(watching('cr:GX1'), { replace: true })
+
+  navigate.mockClear()
+  const named = page()
+  hosts.push(named)
+  await settle()
+  expect(button(named, 'Install the FKN extension to play Netflix')).toBeTruthy()
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('outside Japan where the browser cannot add the extension, Play\'s Prime Video pick moves to the release', async () => {
+  vi.useFakeTimers()
+  detecting.addable = false
+  origins = ['amazon', 'nyaa']
+  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'nyaa']))
+  canadianEpisode()
+  Object.assign(episode, { handles: [...episode.handles, allHandles[2]] })
+  const { rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching(CANADA), { replace: true })
+
+  params = { ...params, sourceUri: CANADA }
+  await rerender()
+  expect(navigate).toHaveBeenLastCalledWith(watching('nyaa:a'), { replace: true })
+})
+
+test('where the browser cannot add the extension and nothing else plays the episode, Play\'s pick keeps its install button', async () => {
+  vi.useFakeTimers()
+  detecting.addable = false
+  origins = ['nf']
+  Object.assign(episode, { uri: 'ag:(anilist:1-1,nf:81)', handles: [allHandles[1]] })
+  params = { ...params, episodeUri: episode.uri }
+  const { host, rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('nf:81'), { replace: true })
+
+  params = { ...params, sourceUri: 'nf:81' }
+  await rerender()
+  await rerender()
+  expect(navigate).toHaveBeenCalledOnce()
+  expect(button(host, 'Install the FKN extension to play Netflix')).toBeTruthy()
+})
+
+test('where the browser cannot add the extension, Netflix ranked first does not hold Play until every source answered', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
+  Object.assign(episode, { handles: [allHandles[0]] })
+  media = { ...single, settled: false }
+  hosts.push(page())
+  await settle()
+  expect(navigate, 'the control: a browser that can add it waits for Netflix').not.toHaveBeenCalled()
+
+  detecting.addable = false
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+})
+
+// as on a browser that cannot add the extension, where Netflix holds nothing and a handle of it can still come
+test('Play\'s pick that plays is not moved when a better-ranked source answers after it opened', async () => {
+  vi.useFakeTimers()
+  detecting.addable = false
+  origins = ['amazon', 'cr', 'nf']
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
+  primeEpisode(allHandles[0]!)
+  media = { ...single, settled: false }
+  params = { ...params, episodeUri: episode.uri, sourceUri: PRIME }
+  const { host, rerender } = live()
+  await settle()
+  await cannotPlay(host)
+  expect(navigate, 'a source picked by hand stays').not.toHaveBeenCalled()
+
+  // as on the next episode, when the address names no source
+  params = { ...params, sourceUri: undefined }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+  params = { ...params, sourceUri: 'cr:GX1' }
+  await rerender()
+
+  Object.assign(episode, { handles: [...episode.handles, allHandles[1]] })
+  await rerender()
+  expect(navigate).toHaveBeenCalledOnce()
+})
+
+test('where the browser cannot add the extension but has it, Netflix ranked first holds Play until it has answered', async () => {
+  vi.useFakeTimers()
+  detecting.addable = false
+  backend = 'extension'
+  origins = ['cr', 'nf']
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
+  Object.assign(episode, { handles: [] })
+  media = { ...single, settled: false }
+  const { rerender } = live()
+  await settle()
+
+  Object.assign(episode, { handles: [allHandles[0]] })
+  await rerender()
+  expect(navigate).not.toHaveBeenCalled()
+
+  media = { ...single, settled: true }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+})

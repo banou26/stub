@@ -7,6 +7,7 @@ import { css, keyframes } from '@emotion/react'
 import { attachFrame } from '@fkn/lib'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
+import { tellUnplayable } from '../../embed-unplayable'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
@@ -232,6 +233,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       if (page === 'rent') {
         setLoading(false)
         setRentOnly(true)
+        tellUnplayable()
         return
       }
       if (!page) throw new Error('Prime Video shows no Play button for this episode.')

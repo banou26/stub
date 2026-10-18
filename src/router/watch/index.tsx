@@ -15,7 +15,7 @@ import { builtInSources } from '../../sources/built-in'
 import { readDisabledSources } from '../../sources/disabled-sources'
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
 import { playOrder, readPlayOrder } from '../../sources/play-order'
-import { addExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
+import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
@@ -24,6 +24,7 @@ import MediaTracking from '../../components/media-tracking'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
+import { hearUnplayable } from '../../embed-unplayable'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
@@ -463,6 +464,13 @@ const Watch = () => {
     return hearTriedRelays(iframe, selectedSourceUri)
   }, [viaPlugin, embedUrl, selectedSourceUri])
 
+  const [unplayable, setUnplayable] = useState<readonly string[]>([])
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe || !selectedSourceUri) return
+    return hearUnplayable(iframe, () => setUnplayable(uris => [...uris, selectedSourceUri]))
+  }, [viaPlugin, embedUrl, selectedSourceUri])
+
   const sources: WatchSource[] = useMemo(
     () =>
       (originData?.originPage?.nodes ?? []).map(origin => {
@@ -509,6 +517,11 @@ const Watch = () => {
     ? builtInSources.find(source => source.origin === selected.origin)?.name
     : undefined
 
+  // a stream that needs the extension, on a browser that cannot add it, cannot play here either
+  useEffect(() => {
+    if (needsExtension && selectedSourceUri && !canAddExtension()) setUnplayable(uris => [...uris, selectedSourceUri])
+  }, [needsExtension, selectedSourceUri])
+
   // The answer on screen when each added source's package connected. A `settled` on it was reached before
   // the worker asked that source, and the worker answers again only once that source has.
   const connectedOn = useRef(new Map<string, unknown>())
@@ -518,16 +531,20 @@ const Watch = () => {
   const connecting = plugins.some(plugin => plugin.state === 'connecting')
 
   const party = useParty()
+  const addable = backend === 'extension' || canAddExtension()
   const ways: Ways = {
     // on the extension's terms: a stream that needs a sign in or the extension here is still the viewer's to open
     builtIn: (origin, url) => canPlay(origin, url, 'extension'),
     selfPlaying: players && (origin => Boolean(players[origin])),
     order: playOrder(readPlayOrder(), added),
-    possible: origin => PLAYABLE_ORIGINS.has(origin) ? !readDisabledSources().includes(origin) : connecting || added.includes(origin),
+    possible: origin => PLAYABLE_ORIGINS.has(origin)
+      ? (addable || !EXTENSION_ONLY_ORIGINS.has(origin)) && !readDisabledSources().includes(origin)
+      : connecting || added.includes(origin),
     settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
-  useAutoPick(bestSource(episodeHandles, ways), { ...params, guest }, navigate)
+  const cannotPlay = Boolean(selectedSourceUri && unplayable.includes(selectedSourceUri))
+  useAutoPick(bestSource(episodeHandles.filter(handle => !unplayable.includes(handle.uri)), ways), { ...params, guest, cannotPlay }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest)
 
   const episodes = media?.episodes ?? []

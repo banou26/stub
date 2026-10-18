@@ -105,6 +105,41 @@ describe('useAutoPick', () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:1', { replace: true })
   })
 
+  // the owner, 2026-10-19: only when their source cannot play it should Play go to the next best ranked one
+  test('Play\'s pick that cannot play the episode gives way to the next pick, replacing the address', () => {
+    const { navigate, update } = page({ ...at, best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'cr:GX1', best: { uri: 'amazon:gti1', now: true } })
+    expect(navigate, 'the control: Play\'s pick that plays stays').toHaveBeenCalledOnce()
+
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'amazon:gti1', now: true } })
+    expect(navigate).toHaveBeenCalledTimes(2)
+    expect(navigate).toHaveBeenLastCalledWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/amazon:gti1', { replace: true })
+  })
+
+  test('a source picked by hand that cannot play keeps its message', () => {
+    const { navigate } = page({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'amazon:gti1', now: true } })
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  test('Play\'s pick, left for another source and picked again by hand, keeps its message', () => {
+    const { navigate, update } = page({ ...at, best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'cr:GX1', best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'nf:81', best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'cr:GX1', best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'amazon:gti1', now: true } })
+    expect(navigate).toHaveBeenCalledOnce()
+  })
+
+  test('Play\'s pick that cannot play waits for the next pick to be now, and stays when there is none', () => {
+    const { navigate, update } = page({ ...at, best: { uri: 'cr:GX1', now: true } })
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: undefined })
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'nyaa:1', now: false } })
+    expect(navigate).toHaveBeenCalledOnce()
+
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'nyaa:1', now: true } })
+    expect(navigate).toHaveBeenLastCalledWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:1', { replace: true })
+  })
+
   test('nothing opens when the address names a source, or for a party guest', () => {
     vi.useFakeTimers()
     const named = page({ ...at, sourceUri: 'nyaa:1', best: { uri: 'cr:GX1', now: true } })

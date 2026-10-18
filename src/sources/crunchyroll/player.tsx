@@ -11,6 +11,7 @@ import { attachFrame, isRelayUnavailable, relayOf } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { tellTriedRelay } from '../../embed-relays'
+import { tellUnplayable } from '../../embed-unplayable'
 import { serveEmbedTracks } from '../../embed-tracks'
 import { CONNECTED_CHANNEL, createConnections } from '../../tracking/connections'
 import { siteStatuses } from '../../tracking/site-status'
@@ -262,7 +263,10 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
         if (cancelled) return
         setLoading(false)
         // no relay left to try
-        if (isRelayUnavailable(err)) return setUnavailable(true)
+        if (isRelayUnavailable(err)) {
+          setUnavailable(true)
+          return tellUnplayable()
+        }
         console.error('Failed to attach Crunchyroll frame', err)
         setError(err?.message || 'Failed to load player')
       })
@@ -320,6 +324,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
         }
         setLoading(false)
         setUnavailable(true)
+        tellUnplayable()
         return
       }
       setLoading(false)

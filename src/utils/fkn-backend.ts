@@ -39,3 +39,11 @@ export const attachCookies = (backend: FknBackend): AttachCookies =>
 
 /** Shows FKN's card for installing the extension: true once it is there, false when the viewer dismisses it. */
 export const addExtension = (): Promise<boolean> => promptInstall('Play it in stub')
+
+/**
+ * Whether this browser can add the FKN extension: Chromium or Firefox on a computer, the browsers its two
+ * stores serve. Not a phone or a tablet; an iPad asking for the desktop site reads as a Mac with a touch
+ * screen.
+ */
+export const canAddExtension = ({ userAgent, maxTouchPoints }: Pick<Navigator, 'userAgent' | 'maxTouchPoints'> = navigator): boolean =>
+  /Chrome\/|Firefox\//.test(userAgent) && !/Android|Mobile/.test(userAgent) && !(/Macintosh/.test(userAgent) && maxTouchPoints > 1)

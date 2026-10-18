@@ -28,6 +28,10 @@ vi.mock('@fkn/lib', async importOriginal => ({
 const signIn = vi.hoisted(() => vi.fn())
 vi.mock('../../../../src/sources/login-window', () => ({ signInThroughWindow: signIn }))
 
+// what the watch page hears of an episode the player cannot play, so Play can move on
+const unplayable = vi.hoisted(() => vi.fn())
+vi.mock('../../../../src/embed-unplayable', () => ({ tellUnplayable: unplayable }))
+
 // @banou/media-player is not under test: what is, is the media it is handed
 const skin = vi.hoisted(() => ({ media: null as RemoteVideoElement | null }))
 vi.mock('@banou/media-player', () => ({
@@ -166,6 +170,7 @@ beforeEach(() => {
   lib.extension = false
   lib.attachFrame.mockReset()
   signIn.mockReset().mockReturnValue(new Promise(() => {}))
+  unplayable.mockReset()
   skin.media = null
   values.clear()
   vi.stubGlobal('localStorage', {
@@ -248,6 +253,7 @@ describe('playing an episode', () => {
     expect(rules.get('#dv-web-player *:not(:has(video)):not(video)'), "Amazon's controls stay in, unseen").toContain('opacity: 0')
     expect(host.querySelector('.overlay')).toBeNull()
     expect(remembered()).toBe('signed-in')
+    expect(unplayable).not.toHaveBeenCalled()
   })
 
   test('waits past a surface with no data yet, for the video that plays', async () => {
@@ -264,6 +270,7 @@ describe('playing an episode', () => {
     const host = await afterWaits(amazon(SIGNED_IN_PAGE, { surfaces: '' }))
     expect(host.textContent).toContain('The episode did not load a player.')
     expect(button(host, 'Retry')).toBeTruthy()
+    expect(unplayable).not.toHaveBeenCalled()
   })
 
   // a title Prime offers with no rental has no rent form (The Boys, B0GZBFZDDB, 2026-10-13), and the
@@ -314,6 +321,7 @@ describe('playing an episode', () => {
     await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalledTimes(2), { timeout: 5_000 })
     const [first, second] = lib.attachFrame.mock.calls.map(([options]) => (options as { iframe: HTMLIFrameElement }).iframe)
     expect(second).not.toBe(first)
+    expect(unplayable).not.toHaveBeenCalled()
   })
 
   test('a seek is a currentTime write on Amazon\'s video, with no page code run for it', async () => {
@@ -358,6 +366,7 @@ describe('an episode Prime Video offers only to rent or buy', () => {
       expect(button(host, 'Retry')).toBeUndefined()
       expect(page.frame.addStyleTag).not.toHaveBeenCalled()
       expect(remembered()).toBe('signed-in')
+      expect(unplayable, 'the watch page is told, once').toHaveBeenCalledOnce()
     })
   }
 })
@@ -371,6 +380,7 @@ describe('signed out', () => {
     expect(page.handed).toEqual([])
     expect(page.frame.addStyleTag).not.toHaveBeenCalled()
     expect(remembered()).toBe('signed-out')
+    expect(unplayable, 'signing in is the viewer\'s fix, so Play stays').not.toHaveBeenCalled()
   })
 
   for (const path of ['/ap/signin?openid.mode=checkid_setup', '/ax/claim/validate', '/gp/video/auth-redirect?ref=atv']) {

@@ -1,7 +1,7 @@
 // Which source a Play opens when the address names none. Imports only preact and the route paths, so
 // it is tested without the watch page, which reaches the worker.
 
-import { useEffect } from 'preact/hooks'
+import { useEffect, useRef } from 'preact/hooks'
 
 import { getRoutePath, Route } from '../path'
 
@@ -50,15 +50,25 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
 
 /**
  * Writes `best` into the address with a replace, so Back skips it, once it is `now`. Never while the
- * address names a source, and never for a party guest, who follows the host's address.
+ * address names a source, unless it is this hook's own pick, not left for another source since, and
+ * `cannotPlay` says it cannot play the episode here: `best` must then leave that source out. Never for a
+ * party guest, who follows the host's address.
  */
 export const useAutoPick = (
   best: { uri: string, now: boolean } | undefined,
-  { mediaUri, episodeUri, sourceUri, guest }: { mediaUri: string, episodeUri: string, sourceUri?: string, guest: boolean },
+  { mediaUri, episodeUri, sourceUri, guest, cannotPlay }: { mediaUri: string, episodeUri: string, sourceUri?: string, guest: boolean, cannotPlay?: boolean },
   navigate: (to: string, options: { replace: boolean }) => void,
 ) => {
-  const armed = !sourceUri && !guest && best?.now ? best.uri : undefined
+  const picked = useRef<string | undefined>(undefined)
+  // on the address's change alone, so it runs once this hook's own replace has landed
   useEffect(() => {
-    if (armed) navigate(getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed }), { replace: true })
+    if (sourceUri && sourceUri !== picked.current) picked.current = undefined
+  }, [sourceUri])
+  const open = !sourceUri || (cannotPlay && sourceUri === picked.current)
+  const armed = open && !guest && best?.now ? best.uri : undefined
+  useEffect(() => {
+    if (!armed) return
+    picked.current = armed
+    navigate(getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed }), { replace: true })
   }, [armed, mediaUri, episodeUri])
 }

@@ -42,6 +42,10 @@ vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
   },
 }))
 
+// a reason the viewer can fix is shown in the player, and the watch page is not told it cannot play
+const unplayable = vi.hoisted(() => vi.fn())
+vi.mock('../../../../src/embed-unplayable', () => ({ tellUnplayable: unplayable }))
+
 // the channel to the watch page, captured: what the player serves and the pick it hands over
 const served = vi.hoisted(() => vi.fn((..._args: unknown[]) => () => {}))
 vi.mock('../../../../src/embed-tracks', () => ({ serveEmbedTracks: served }))
@@ -111,6 +115,7 @@ beforeEach(() => {
   lib.extension = false
   lib.attachFrame.mockReset().mockResolvedValue(frame)
   signIn.mockReset().mockReturnValue(new Promise(() => {}))
+  unplayable.mockReset()
   // the extension's plain popup, which a cloud sign-in must never reach for
   open = vi.fn(() => ({ closed: false }))
   vi.stubGlobal('open', open)
@@ -151,10 +156,11 @@ describe('while the episode loads', () => {
     held.resolve()
   })
 
-  test('a page that settles signed out swaps the spinner for the sign-in', async () => {
+  test('a page that settles signed out swaps the spinner for the sign-in, and keeps Play on it', async () => {
     const host = await render()
     await signedOut(host, 'Sign in to Crunchyroll')
     expect(host.querySelector('.loading-spinner')).toBeNull()
+    expect(unplayable).not.toHaveBeenCalled()
   })
 })
 
