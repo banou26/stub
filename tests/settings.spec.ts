@@ -412,6 +412,22 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
   await expect(page.locator('[data-account="anilist"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
 })
 
+// a sign out sent on a BroadcastChannel alone reached the other tab before its storage had it (src/tracking/connections.ts)
+test('a sign out of AniList in one tab reaches its row in another, and leaves MyAnimeList connected there', async ({ page, context }) => {
+  await seeded(page, '/settings#accounts')
+  const other = await context.newPage()
+  await other.route(url => !url.href.startsWith(origin), route => route.abort())
+  await other.goto(`${origin}/settings#accounts`)
+  await expect(other.locator('[data-account="anilist"]')).not.toContainText('Not connected')
+
+  const row = page.locator('[data-account="anilist"]')
+  await row.getByRole('button', { name: 'Sign out of AniList', exact: true }).click()
+  await row.getByRole('button', { name: 'Yes, sign out' }).click()
+
+  await expect(other.locator('[data-account="anilist"]')).toContainText('Not connected')
+  await expect(other.locator('[data-account="mal"]')).not.toContainText('Not connected')
+})
+
 const chip = (page: Page, site: string) => page.locator(`[data-account="${site}"] .head .state`)
 
 // a check asks through FKN, which this page never reaches, so what a check leaves behind is the hidden
@@ -461,6 +477,27 @@ test('a connected tracking site stub learned is signed out offers Sign in, never
     await expect(row.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
     await expect(row.getByRole('button', { name: `Sign out of ${title}` })).toHaveCount(0)
   }
+})
+
+test('an AniList stub learned is signed out reads Signed in, with Sign out, once a sign in in another tab records it', async ({ page, context }) => {
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(() => {
+    localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
+    localStorage.setItem('stub.site-status', JSON.stringify({ anilist: { state: 'signed-out', checkedAt: Date.now() } }))
+  })
+  const other = await context.newPage()
+  await other.route(url => !url.href.startsWith(origin), route => route.abort())
+  await other.goto(`${origin}/settings#accounts`)
+  const row = other.locator('[data-account="anilist"]')
+  await expect(chip(other, 'anilist')).toHaveText('Signed out')
+  // once the backend is known: its answer renders the row again, which reads the new state with no listener
+  await expect(row.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+
+  // what a sign in to a site connected already records, and all it changes in storage
+  await page.evaluate(() => localStorage.setItem('stub.site-status', JSON.stringify({ anilist: { state: 'signed-in', checkedAt: Date.now() } })))
+
+  await expect(chip(other, 'anilist')).toHaveText('Signed in')
+  await expect(row.getByRole('button', { name: 'Sign out of AniList', exact: true })).toBeVisible()
 })
 
 test('opening Accounts checks a Crunchyroll stub knows of once what it learned is stale, asks no tracker site, and keeps the state when no answer comes', async ({ page }) => {

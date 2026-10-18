@@ -55,6 +55,30 @@ test('tells the watchers of that site, and only them', () => {
   expect(mal).not.toHaveBeenCalled()
 })
 
+test('a state another document of this browser stores tells the watchers of the sites it changed here, and only them', async () => {
+  const page = new EventTarget()
+  vi.stubGlobal('addEventListener', page.addEventListener.bind(page))
+  vi.resetModules()
+  const { siteStatuses } = await import('../../../src/tracking/site-status')
+  vi.unstubAllGlobals()
+  const heard = { anilist: vi.fn(), mal: vi.fn(), crunchyroll: vi.fn() }
+  for (const [site, listener] of Object.entries(heard)) siteStatuses.watch(site as StatusSite, listener)
+  const stored = (key: string, oldValue: object | null, newValue: object | null) => page.dispatchEvent(Object.assign(new Event('storage'), {
+    key, oldValue: oldValue && JSON.stringify(oldValue), newValue: newValue && JSON.stringify(newValue),
+  }))
+  const mal = { state: 'signed-in', checkedAt: 1_000 }
+
+  stored(SITE_STATUS_KEY, { anilist: { state: 'signed-out', checkedAt: 1_000 }, mal }, { anilist: { state: 'signed-in', checkedAt: 2_000 }, mal })
+  stored('not-stub', { mal }, { mal: { ...mal, checkedAt: 2_000 } })
+  expect(heard.anilist).toHaveBeenCalledTimes(1)
+  expect(heard.mal).not.toHaveBeenCalled()
+
+  stored(SITE_STATUS_KEY, null, { crunchyroll: mal })
+  expect(heard.crunchyroll).toHaveBeenCalledTimes(1)
+  expect(heard.anilist).toHaveBeenCalledTimes(1)
+  expect(heard.mal).not.toHaveBeenCalled()
+})
+
 test('on a browser that blocks site data, keeps the state for this page and throws nothing', () => {
   const statuses = createSiteStatuses(() => { throw new Error('SecurityError') })
   expect(() => statuses.record('anilist', 'signed-in', 1_000)).not.toThrow()

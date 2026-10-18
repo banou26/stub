@@ -7,7 +7,9 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { expose } from 'osra'
 
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL } from '../../../src/sources/crunchyroll/session'
+import { CONNECTED_CHANNEL } from '../../../src/tracking/connections'
 import { SESSION_PORT_MESSAGE } from '../../../src/tracking/session-frames'
+import { fakeBroadcastChannel } from './broadcast-channel'
 
 const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session'
 const SEASON = { seriesId: 'GT00399001', seasonId: 'GS00399002' }
@@ -26,6 +28,7 @@ vi.mock('../../../src/sources/crunchyroll/session-page.ts?page-script', () => ({
 const stored = new Map<string, string>()
 vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
 vi.stubGlobal('location', { origin: 'https://anime.fkn.app' })
+vi.stubGlobal('BroadcastChannel', fakeBroadcastChannel())
 
 // imported afresh for each test, since a sign in connects its site for the rest of the module's life
 const load = async () => {
@@ -49,6 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
   vi.stubGlobal('location', { origin: 'https://anime.fkn.app' })
+  vi.stubGlobal('BroadcastChannel', fakeBroadcastChannel())
 })
 
 /**
@@ -226,6 +230,85 @@ test("a site connected or disconnected in another document of this browser, as b
   written('stub.sources.disabled', JSON.stringify([]), JSON.stringify(['anilist']))
   expect(heard.anilist).toHaveBeenCalledTimes(1)
   expect(heard.mal).not.toHaveBeenCalled()
+})
+
+test('a sign in in another document to a site already connected arrives on the channel, and reads that site again here, and no other', async () => {
+  const { sessionResolvers } = await load()
+  const heard = { anilist: vi.fn(), mal: vi.fn(), cr: vi.fn() }
+  for (const [site, listener] of Object.entries(heard)) sessionResolvers.watch(site, listener)
+
+  new BroadcastChannel(CONNECTED_CHANNEL).postMessage('cr')
+  expect(heard.cr).toHaveBeenCalledTimes(1)
+  expect(heard.anilist).not.toHaveBeenCalled()
+  expect(heard.mal).not.toHaveBeenCalled()
+})
+
+// Each tab its own module over the one localStorage and BroadcastChannel. A browser tells every other
+// document of a write that changed a value, never the writer and never of a write that changed nothing,
+// so a tab writes through a view of its own (`act`), and `hears` hands it what reached it.
+describe('two tabs', () => {
+  const twoTabs = async () => {
+    const inboxes: { key: string, oldValue: string | null, newValue: string }[][] = []
+    const open = async () => {
+      const page = new EventTarget()
+      vi.stubGlobal('addEventListener', page.addEventListener.bind(page))
+      const tab = await load()
+      const inbox: (typeof inboxes)[number] = []
+      inboxes.push(inbox)
+      const view = {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, newValue: string) => {
+          const oldValue = stored.get(key) ?? null
+          stored.set(key, newValue)
+          if (newValue !== oldValue) for (const other of inboxes) if (other !== inbox) other.push({ key, oldValue, newValue })
+        },
+      }
+      return {
+        ...tab,
+        act: <T>(run: () => T): T => { vi.stubGlobal('localStorage', view); return run() },
+        hears: () => { for (const write of inbox.splice(0)) page.dispatchEvent(Object.assign(new Event('storage'), write)) },
+      }
+    }
+    return [await open(), await open()] as const
+  }
+
+  test.each([[['anilist']], [['anilist', 'cr']]])('a Crunchyroll sign in in one, with %j connected, reads Crunchyroll again in the other and leaves an AniList save there untouched', async connected => {
+    stored.set('stub.sessions', JSON.stringify(connected))
+    const [one, other] = await twoTabs()
+    let saved!: (value: string) => void
+    const save = vi.fn(() => new Promise<string>(resolve => { saved = resolve }))
+    attach.mockResolvedValueOnce(hiddenFrame({ save }).frame)
+    const reread = { anilist: vi.fn(), cr: vi.fn() }
+    for (const [site, listener] of Object.entries(reread)) other.sessionResolvers.watch(site, listener)
+    const saving = other.sessionResolvers.call('anilist', 'save', {}, { once: true })
+    await vi.waitFor(() => expect(save).toHaveBeenCalled())
+
+    attach.mockResolvedValueOnce({ goto: async () => {}, closed: new Promise(() => {}), close: async () => {}, locator: () => ({ exists: async () => true }) })
+    expect(await one.act(() => one.trackerSignIns.cr!())).toBe('authed')
+    other.hears()
+
+    saved('saved')
+    expect(await saving).toEqual({ kind: 'response', response: 'saved' })
+    expect(reread.anilist).not.toHaveBeenCalled()
+    expect(reread.cr, 'the other tab heard the sign in').toHaveBeenCalledTimes(1)
+  })
+
+  test('an AniList sign out in one reads AniList again in the other, which stops reaching it even after its own sign in', async () => {
+    const [one, other] = await twoTabs()
+    attach.mockResolvedValueOnce(closedWindow().login)
+    await other.act(() => other.trackerSignIns.anilist!())
+    one.hears()
+    const reread = vi.fn()
+    other.sessionResolvers.watch('anilist', reread)
+
+    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
+    await one.act(() => one.signOutOfSite('anilist', 'cloud'))
+    other.hears()
+
+    expect(reread).toHaveBeenCalledTimes(1)
+    expect(other.isSiteConnected('anilist')).toBe(false)
+    expect(await other.sessionResolvers.call('anilist', 'whoami', {})).toEqual({ kind: 'not-connected' })
+  })
 })
 
 // @fkn/lib refuses a permission reason over MAX_REASON_LENGTH with a TypeError, and that refusal fails

@@ -1,6 +1,6 @@
 // Which sites the viewer connected on this device, and the worker's way into their session frames.
-// Import free apart from types, so a test drives it over fake frames and storage; ./site-sessions.ts
-// wires it to the real ones.
+// Import free apart from types, so a test drives it over fake frames, storage and channel;
+// ./site-sessions.ts wires it to the real ones.
 
 import type { WindowSignIn } from '../sources/login-window'
 import type { SessionFrames } from './session-frames'
@@ -8,6 +8,14 @@ import type { PageApi, SiteSessionResolvers } from './site-session'
 
 /** The localStorage key holding the connected sites, a JSON array of site ids. */
 export const CONNECTED_KEY = 'stub.sessions'
+
+/**
+ * The BroadcastChannel a sign in to a site already connected names that site on, to every other document
+ * of this browser: its write would change nothing, and a browser raises no storage event for that. A
+ * change to the list goes by the storage event alone, since a channel's message can reach another
+ * document before its storage has the change (measured in Chrome 155, 2026-10-19).
+ */
+export const CONNECTED_CHANNEL = 'stub.sessions'
 
 export type Connections = {
   isConnected: (site: string) => boolean
@@ -31,9 +39,13 @@ export const connectedSites = (raw: string | null): string[] => {
  * spends none of the budget the site meters per address. Through FKN's render proxy that address is
  * FKN's, so the budget is shared by every viewer rather than their own.
  *
- * Kept in `storage` when it can be, and for this page at least when it cannot.
+ * Kept in `storage` when it can be, and for this page at least when it cannot. A connect of a site
+ * `storage` already holds is posted on `channel` instead.
  */
-export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setItem'>): Connections => {
+export const createConnections = (
+  storage: () => Pick<Storage, 'getItem' | 'setItem'>,
+  channel: Pick<BroadcastChannel, 'postMessage'>,
+): Connections => {
   const here = new Set<string>()
   // disconnected on this page while the storage refused to forget them
   const dropped = new Set<string>()
@@ -47,12 +59,14 @@ export const createConnections = (storage: () => Pick<Storage, 'getItem' | 'setI
   return {
     isConnected: site => here.has(site) || (!dropped.has(site) && stored().includes(site)),
     connect: site => {
-      here.add(site)
       dropped.delete(site)
       try {
-        storage().setItem(CONNECTED_KEY, JSON.stringify([...new Set([...stored(), site])]))
+        const sites = stored()
+        if (sites.includes(site)) channel.postMessage(site)
+        else storage().setItem(CONNECTED_KEY, JSON.stringify([...sites, site]))
       } catch {
-        // kept for this page only
+        // kept for this page only, never when the storage took it: it would outlive a disconnect in another tab
+        here.add(site)
       }
     },
     disconnect: site => {
@@ -82,7 +96,7 @@ export const siteSessionResolvers = (frames: SessionFrames<PageApi>, connections
         }, options),
       }
       : { kind: 'not-connected' },
-  watch: (site, listener) => { frames.watch(site, () => { void listener() }) },
+  watch: (site, listener) => { frames.watch(site, () => { listener() }) },
 })
 
 /**

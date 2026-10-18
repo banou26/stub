@@ -1,6 +1,6 @@
 // A site is reached with the viewer's session only once they connected it on this device, and a sign in
 // is what connects it.
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import type { SessionFrames } from '../../../src/tracking/session-frames'
 import type { PageApi } from '../../../src/tracking/site-session'
@@ -16,6 +16,15 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
   }
 }
 
+// the other documents of this browser, which no test here has
+const channel = { postMessage: () => {} }
+
+/** Connections over a storage of their own, which keeps what it is given as a page's localStorage does. */
+const pageConnections = () => {
+  const storage = memoryStorage()
+  return createConnections(() => storage, channel)
+}
+
 const RESPONSE = { status: 200, body: { data: { Viewer: { id: 7 } } }, rateLimit: { limit: null, remaining: null, reset: null, retryAfter: null } }
 
 /** Frames holding one page per site, each serving the api `pages` gives it. */
@@ -29,7 +38,7 @@ const fakeFrames = (pages: Record<string, PageApi> = { anilist: { graphql: async
 describe('the sessions the worker reaches', () => {
   test('answer not-connected, and attach nothing, until the viewer connected the site here', async () => {
     const { frames, use } = fakeFrames()
-    const connections = createConnections(() => memoryStorage())
+    const connections = pageConnections()
     const resolvers = siteSessionResolvers(frames, connections)
 
     expect(await resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'not-connected' })
@@ -44,7 +53,7 @@ describe('the sessions the worker reaches', () => {
     const whoami = vi.fn(async (arg: object) => ({ answered: 'mal', arg }))
     const graphql = vi.fn(async () => RESPONSE)
     const { frames, use } = fakeFrames({ anilist: { graphql }, mal: { whoami } })
-    const connections = createConnections(() => memoryStorage())
+    const connections = pageConnections()
     connections.connect('mal')
     connections.connect('anilist')
     const resolvers = siteSessionResolvers(frames, connections)
@@ -59,16 +68,30 @@ describe('the sessions the worker reaches', () => {
 
   test('a connection is kept for the next page, and a site stays apart from another', () => {
     const storage = memoryStorage()
-    createConnections(() => storage).connect('anilist')
+    createConnections(() => storage, channel).connect('anilist')
     expect(JSON.parse(storage.values.get(CONNECTED_KEY)!)).toEqual(['anilist'])
 
-    const nextPage = createConnections(() => storage)
+    const nextPage = createConnections(() => storage, channel)
     expect(nextPage.isConnected('anilist')).toBe(true)
     expect(nextPage.isConnected('mal')).toBe(false)
   })
 
+  test('a connect of a site already connected is told on the channel, and one that changes the list is not', () => {
+    const storage = memoryStorage({ [CONNECTED_KEY]: JSON.stringify(['anilist']) })
+    const told = { postMessage: vi.fn() }
+    const connections = createConnections(() => storage, told)
+
+    connections.connect('mal')
+    connections.disconnect('mal')
+    expect(told.postMessage, 'the storage event tells the other documents').not.toHaveBeenCalled()
+
+    connections.connect('anilist')
+    expect(told.postMessage.mock.calls).toEqual([['anilist']])
+    expect(JSON.parse(storage.values.get(CONNECTED_KEY)!)).toEqual(['anilist'])
+  })
+
   test('a storage that refuses still connects for this page', () => {
-    const connections = createConnections(() => { throw new Error('SecurityError: storage is blocked') })
+    const connections = createConnections(() => { throw new Error('SecurityError: storage is blocked') }, channel)
     connections.connect('anilist')
     expect(connections.isConnected('anilist')).toBe(true)
   })
@@ -77,7 +100,7 @@ describe('the sessions the worker reaches', () => {
 describe('a sign in', () => {
   test('connects the site and loads its page afresh once the window says signed in', async () => {
     const { frames, reload } = fakeFrames()
-    const connections = createConnections(() => memoryStorage())
+    const connections = pageConnections()
 
     expect(await signInAndConnect('anilist', async () => 'authed', { frames, connections })).toBe('authed')
     expect(connections.isConnected('anilist')).toBe(true)
@@ -88,7 +111,7 @@ describe('a sign in', () => {
   // extension opens no window at all and its frame runs on the browser's own session
   test.each(['closed', 'unsupported'] as const)('connects on %s too, and the answer read next says which', async outcome => {
     const { frames, reload } = fakeFrames()
-    const connections = createConnections(() => memoryStorage())
+    const connections = pageConnections()
 
     await signInAndConnect('anilist', async () => outcome, { frames, connections })
     expect(connections.isConnected('anilist')).toBe(true)
@@ -97,7 +120,7 @@ describe('a sign in', () => {
 
   test('a window the browser refused connects nothing', async () => {
     const { frames, reload } = fakeFrames()
-    const connections = createConnections(() => memoryStorage())
+    const connections = pageConnections()
 
     expect(await signInAndConnect('anilist', async () => 'blocked', { frames, connections })).toBe('blocked')
     expect(connections.isConnected('anilist')).toBe(false)
@@ -107,7 +130,7 @@ describe('a sign in', () => {
   test('opens the window before anything is awaited, inside the click', () => {
     const { frames } = fakeFrames()
     const signIn = vi.fn(() => new Promise<'authed'>(() => {}))
-    void signInAndConnect('anilist', signIn, { frames, connections: createConnections(() => memoryStorage()) })
+    void signInAndConnect('anilist', signIn, { frames, connections: pageConnections() })
     expect(signIn).toHaveBeenCalledTimes(1)
   })
 })
@@ -117,18 +140,18 @@ describe('a sign in', () => {
 describe('a disconnect', () => {
   test('forgets the site on this device and keeps every other one', () => {
     const storage = memoryStorage({ [CONNECTED_KEY]: JSON.stringify(['anilist', 'mal']) })
-    const connections = createConnections(() => storage)
+    const connections = createConnections(() => storage, channel)
     connections.disconnect('anilist')
 
     expect(connections.isConnected('anilist')).toBe(false)
     expect(connections.isConnected('mal')).toBe(true)
     expect(JSON.parse(storage.values.get(CONNECTED_KEY)!)).toEqual(['mal'])
-    expect(createConnections(() => storage).isConnected('anilist'), 'the next page reads it gone too').toBe(false)
+    expect(createConnections(() => storage, channel).isConnected('anilist'), 'the next page reads it gone too').toBe(false)
   })
 
   test('undoes a connection made on this page, and a sign in after it connects again', () => {
     const storage = memoryStorage()
-    const connections = createConnections(() => storage)
+    const connections = createConnections(() => storage, channel)
     connections.connect('anilist')
     connections.disconnect('anilist')
     expect(connections.isConnected('anilist')).toBe(false)
@@ -143,7 +166,7 @@ describe('a disconnect', () => {
     const connections = createConnections(() => ({
       getItem: (key: string) => values.get(key) ?? null,
       setItem: () => { throw new Error('QuotaExceededError') },
-    }))
+    }), channel)
     connections.disconnect('anilist')
     expect(connections.isConnected('anilist')).toBe(false)
   })
@@ -151,7 +174,7 @@ describe('a disconnect', () => {
   test('drops the frame, so the worker hears it and asks again, and attaches nothing after', async () => {
     const { frames, use, reload } = fakeFrames()
     const storage = memoryStorage({ [CONNECTED_KEY]: JSON.stringify(['anilist']) })
-    const connections = createConnections(() => storage)
+    const connections = createConnections(() => storage, channel)
     const resolvers = siteSessionResolvers(frames, connections)
 
     disconnectAndReload('anilist', { frames, connections })

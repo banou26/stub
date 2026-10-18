@@ -11,6 +11,9 @@ import type { WindowSignIn } from '../../../../src/sources/login-window'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { CONNECTED_CHANNEL } from '../../../../src/tracking/connections'
+import { fakeBroadcastChannel } from '../../tracking/broadcast-channel'
+
 // The sign-in wiring of the Crunchyroll player, rendered for real against a fake frame. Crunchyroll
 // itself is out of reach here: what is pinned is which sign-in each backend opens, that the cloud
 // window is opened INSIDE the click, and what each outcome of that window does to the player.
@@ -50,6 +53,9 @@ vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', async importOr
   selectCrunchyrollTrack: controls.select,
 }))
 
+// the player's channel is made as it loads
+const Channel = fakeBroadcastChannel()
+vi.stubGlobal('BroadcastChannel', Channel)
 const { default: CrunchyrollPlayer } = await import('../../../../src/sources/crunchyroll/player')
 const { siteStatuses } = await import('../../../../src/tracking/site-status')
 
@@ -95,6 +101,9 @@ let open: ReturnType<typeof vi.fn>
 const stored = new Map<string, string>()
 // the trackers connected in this browser, which the app's page reads (tracking/connections.ts)
 const connected = () => JSON.parse(stored.get('stub.sessions') ?? '[]')
+// and what it hears of a sign in here with Crunchyroll connected already (tracking/site-sessions.ts)
+const told: unknown[] = []
+new Channel(CONNECTED_CHANNEL).onmessage = ({ data }) => { told.push(data) }
 
 beforeEach(() => {
   Object.defineProperty(document, 'readyState', { configurable: true, get: () => 'complete' })
@@ -106,6 +115,7 @@ beforeEach(() => {
   open = vi.fn(() => ({ closed: false }))
   vi.stubGlobal('open', open)
   stored.clear()
+  told.length = 0
   vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value) } })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -158,7 +168,7 @@ describe('cloud backend', () => {
     expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
     expect(permissions[0]!.reason).toMatch(/audio, subtitles and quality.*seek.*thumbnails/)
     // @fkn/lib refuses a reason over 100 characters, and that refusal fails the attach itself
-    expect([...permissions[0]!.reason].length).toBeLessThanOrEqual(100)
+    expect(permissions[0]!.reason.length).toBeLessThanOrEqual(100)
   })
 
   // since @fkn/lib 0.9.42 the jar picks the backend, so the cloud layout asks for the cloud's jar
@@ -302,6 +312,20 @@ describe('extension backend', () => {
 
     popup.closed = true
     await vi.waitFor(() => expect(connected()).toEqual(['cr']), { timeout: 2_000 })
+  })
+
+  // stub offers no Crunchyroll sign out with the extension, so every sign in after the first is one of these
+  test("closing the sign-in popup with Crunchyroll's tracking already on still tells the app's page", async () => {
+    lib.extension = true
+    stored.set('stub.sessions', JSON.stringify(['cr']))
+    const popup = { closed: false }
+    open.mockReturnValue(popup)
+    const host = await render()
+    ;(await signedOut(host, 'Open Crunchyroll Login Page')).click()
+
+    popup.closed = true
+    await vi.waitFor(() => expect(told).toEqual(['cr']), { timeout: 2_000 })
+    expect(connected()).toEqual(['cr'])
   })
 
   test('a popup the browser blocked turns nothing on', async () => {

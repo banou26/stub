@@ -17,14 +17,25 @@ export type SiteStatus = { state: SiteState, checkedAt: number }
 export type SiteStatuses = {
   read: (site: StatusSite) => SiteStatus | undefined
   record: (site: StatusSite, state: SiteState, now?: number) => void
-  /** Called after every `record` of the site on this page. */
+  /** Called after every `record` of the site on this page, and after every change to it `heard` is told of. */
   watch: (site: StatusSite, listener: () => void) => () => void
+  /** Tells the watchers of each site whose state differs between two values of SITE_STATUS_KEY, as a storage event carries them. */
+  heard: (oldValue: string | null, newValue: string | null) => void
 }
 
 const isStatus = (value: unknown): value is SiteStatus =>
   typeof value === 'object' && value !== null
   && ((value as SiteStatus).state === 'signed-in' || (value as SiteStatus).state === 'signed-out')
   && Number.isFinite((value as SiteStatus).checkedAt)
+
+const entries = (raw: () => string | null): Record<string, unknown> => {
+  try {
+    const value: unknown = JSON.parse(raw() ?? '{}')
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
 
 /**
  * Kept in `storage` when it can be, and for this page at least when it cannot. Read from storage on
@@ -33,14 +44,8 @@ const isStatus = (value: unknown): value is SiteStatus =>
 export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'setItem'>): SiteStatuses => {
   const unsaved = new Map<StatusSite, SiteStatus>()
   const listeners = new Map<StatusSite, Set<() => void>>()
-  const stored = (): Record<string, unknown> => {
-    try {
-      const value: unknown = JSON.parse(storage().getItem(SITE_STATUS_KEY) ?? '{}')
-      return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
-    } catch {
-      return {}
-    }
-  }
+  const stored = () => entries(() => storage().getItem(SITE_STATUS_KEY))
+  const tell = (site: string) => { for (const listener of listeners.get(site as StatusSite) ?? []) listener() }
   return {
     read: site => {
       const status = unsaved.get(site) ?? stored()[site]
@@ -54,7 +59,7 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
       } catch {
         unsaved.set(site, status)
       }
-      for (const listener of listeners.get(site) ?? []) listener()
+      tell(site)
     },
     watch: (site, listener) => {
       let set = listeners.get(site)
@@ -62,11 +67,21 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
       set.add(listener)
       return () => { set.delete(listener) }
     },
+    heard: (oldValue, newValue) => {
+      const before = entries(() => oldValue)
+      const after = entries(() => newValue)
+      for (const site of new Set([...Object.keys(before), ...Object.keys(after)])) {
+        if (JSON.stringify(before[site]) !== JSON.stringify(after[site])) tell(site)
+      }
+    },
   }
 }
 
 /** This browser's remembered states. */
 export const siteStatuses = createSiteStatuses(() => localStorage)
+
+// a state recorded in another document of this browser, as by a sign in in another tab or in the player's own
+globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => { if (key === SITE_STATUS_KEY) siteStatuses.heard(oldValue, newValue) })
 
 /** A state stub learned this recently is not asked again, and neither is a site it asked this recently. */
 export const FRESH_MS = 60_000

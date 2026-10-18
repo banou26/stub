@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { tellTriedRelay } from '../../embed-relays'
 import { serveEmbedTracks } from '../../embed-tracks'
-import { createConnections } from '../../tracking/connections'
+import { CONNECTED_CHANNEL, createConnections } from '../../tracking/connections'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
@@ -26,8 +26,9 @@ import { useCrunchyrollChapters } from './skip-events'
 import { waitForUnavailablePage } from './unavailable-page'
 
 // signing in to watch turns Crunchyroll's tracking on as Log in on its chip does (tracking/connections.ts).
-// The player runs in the embed's own document, so the app's page hears it as a storage event (tracking/site-sessions.ts)
-const connections = createConnections(() => localStorage)
+// The player runs in the embed's own document, so the app's page hears it as a storage event, or on the
+// channel when Crunchyroll was connected already (tracking/site-sessions.ts)
+const connections = createConnections(() => localStorage, new BroadcastChannel(CONNECTED_CHANNEL))
 
 // leave the scrubber (`.timeline-slider`) layout-measurable so the Bitmovin-seek adapter can drive it
 const CRUNCHYROLL_OUTER_CSS = `
@@ -231,7 +232,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
 
   useEffect(() => {
     let cancelled = false
-    detectBackend().then(detected => { if (!cancelled) setMode(detected) })
+    void detectBackend().then(detected => { if (!cancelled) setMode(detected) })
     return () => { cancelled = true }
   }, [])
 
