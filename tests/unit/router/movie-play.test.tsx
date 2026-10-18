@@ -40,13 +40,13 @@ afterEach(() => {
 
 type Offers = Parameters<typeof useWatchSources>[2]
 
-// what the modal draws for a film: its play bar and, under the description, its chips, from one list of sources
+// what the modal draws for a film: its play bar and, under the description, its sources, from one list of them
 const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEpisode | undefined, handles: Offers, startDate: string | null, status?: string, settled: boolean }) => {
   const sources = useWatchSources(movie, 'ag:(anilist:9)', handles)
   return (
     <>
       <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}/>
-      <SourceSelector chips sources={sources}/>
+      <SourceSelector film sources={sources}/>
     </>
   )
 }
@@ -71,12 +71,12 @@ const seenAt = (now: string, zone: string, movie: DetailsEpisode | undefined, st
 const ZONES = ['UTC', 'Asia/Tokyo', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']
 
 test('Play opens the watch page naming no source, even when Crunchyroll plays', () => {
-  expect(render(episode).querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
+  expect(render(episode).querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
 })
 
-test('the play bar draws no source icon, the chips name each source', () => {
+test('the play bar draws no source icon, the buttons under it name each source', () => {
   const host = render(episode)
-  expect(host.querySelector('a.chip[href="/watch/ag:(anilist:9)/ag:(cr:GX1)/cr:GX1"] .name')?.textContent).toBe('cr')
+  expect(host.querySelector('a.source[href="/watch/ag:(anilist:9)/ag:(cr:GX1)/cr:GX1"] .name')?.textContent).toBe('cr')
   expect(host.querySelector('.play-bar')?.querySelectorAll('a:not(.play)')).toHaveLength(0)
 })
 
@@ -89,14 +89,27 @@ test('a lone release a browser cannot open plays on the watch page, so Play show
   } as unknown as DetailsEpisode
   const host = render(magnet)
   expect(host.querySelector('a[href^="magnet:"]')).toBeNull()
-  const chip = host.querySelector('a.chip')
-  expect(chip?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
-  expect(chip?.getAttribute('target')).toBeNull()
-  expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)')
+  const button = host.querySelector('a.source')
+  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
+  expect(button?.getAttribute('target')).toBeNull()
+  expect(button?.querySelector('.count'), 'one release, no count').toBeNull()
+  expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)')
+})
+
+test('a source with several releases of the film shows how many, and opens the watch page on the first', () => {
+  origin = 'nyaa'
+  const two = {
+    uri: 'ag:(nyaa:a)',
+    handles: ['a', 'b'].map(id => ({ relation: 'SAME_AS', node: { uri: `nyaa:${id}`, origin: 'nyaa', url: `https://nyaa.si/view/${id}` } })),
+  } as unknown as DetailsEpisode
+  const button = render(two).querySelector('a.source')
+  expect(button?.querySelector('.count')?.textContent).toBe('2')
+  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
+  expect(button?.getAttribute('target')).toBeNull()
 })
 
 // a Canadian's Prime Video plays in stub with the extension, which the watch page asks for, so Play opens it there
-test('a film whose stream plays only with the extension shows Play, and its chip still links out', () => {
+test('a film whose stream plays only with the extension shows Play, and its button still links out', () => {
   origin = 'amazon'
   const canadian = {
     uri: 'ag:(amazon:amzn1.dv.gti.ca000001)',
@@ -106,19 +119,19 @@ test('a film whose stream plays only with the extension shows Play, and its chip
   expect(render(canadian).querySelector('.play'), 'the control: not the viewer\'s own Prime Video').toBeNull()
   process.env.TZ = 'America/Toronto'
   const host = render(canadian)
-  expect(host.querySelector('a.chip')?.getAttribute('target'), 'the control: on the cloud its chip links out').toBe('_blank')
+  expect(host.querySelector('a.source')?.getAttribute('target'), 'the control: on the cloud its button links out').toBe('_blank')
   expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(amazon:amzn1.dv.gti.ca000001)')
 })
 
 // a film's offers hang off the media, not its one episode (Ninja Scroll's HIDIVE, 2026-10-12)
-test('a media-level offer the episode does not name links out from the chips', () => {
+test('a media-level offer the episode does not name links out from its button', () => {
   origin = 'hidive'
   const host = render(episode, [
     { relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } },
   ])
-  const link = host.querySelector('a.chip[href="https://www.hidive.com/interstitial/715215"]')
+  const link = host.querySelector('a.source[href="https://www.hidive.com/interstitial/715215"]')
   expect(link?.getAttribute('target')).toBe('_blank')
-  expect(host.querySelector('.play')).toBeNull()
+  expect(host.querySelector('a.play')).toBeNull()
   expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
 })
 
@@ -134,13 +147,13 @@ test('until a source lands or the film\'s sources have all answered, the bar hol
   expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-bar')?.classList.contains('held'), 'Play has landed').toBe(false)
 })
 
-// so a film whose services all link out loses the held place as its chips land, not when the media settles
+// so a film whose services all link out loses the held place as its buttons land, not when the media settles
 test('a source that links out ends the hold, and a bar with nothing in it is not drawn, settled or not', () => {
   origin = 'hidive'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
   for (const settled of [false, true]) {
     const host = render(episode, offer, '2020-01-01', undefined, settled)
-    expect(host.querySelector('a.chip'), `the control: its chip, settled ${settled}`).not.toBeNull()
+    expect(host.querySelector('a.source'), `the control: its button, settled ${settled}`).not.toBeNull()
     expect(host.querySelector('.movie > .facts'), `and the film's line, settled ${settled}`).not.toBeNull()
     expect(host.querySelector('.play-bar'), `settled ${settled}`).toBeNull()
   }
@@ -184,8 +197,8 @@ test('a film is out when its episode airs within a day of its own release day, i
   for (const zone of ZONES) {
     const early = seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0, '2021-12-24T00:00:00Z')
     expect(early.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
-    expect(early.querySelector('.play'), zone).toBeNull()
-    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, '2021-12-24T00:00:00Z').querySelector('.play'), zone).not.toBeNull()
+    expect(early.querySelector('a.play'), zone).toBeNull()
+    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, '2021-12-24T00:00:00Z').querySelector('a.play'), zone).not.toBeNull()
   }
 })
 
@@ -197,8 +210,8 @@ test('a film whose episode names only a day, or a time further off, is out from 
     for (const [zone, midnight] of [['America/Los_Angeles', '2021-12-24T08:00:00Z'], ['Asia/Tokyo', '2021-12-23T15:00:00Z']] as const) {
       const late = seenAt(new Date(Date.parse(midnight) - 60_000).toISOString(), zone, movie, '2021-12-24T00:00:00Z', 'NOT_YET_RELEASED')
       expect(late.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
-      expect(late.querySelector('.play'), zone).toBeNull()
-      expect(seenAt(midnight, zone, movie, '2021-12-24T00:00:00Z', 'NOT_YET_RELEASED').querySelector('.play'), `${zone} ${movie.releaseDate}`).not.toBeNull()
+      expect(late.querySelector('a.play'), zone).toBeNull()
+      expect(seenAt(midnight, zone, movie, '2021-12-24T00:00:00Z', 'NOT_YET_RELEASED').querySelector('a.play'), `${zone} ${movie.releaseDate}`).not.toBeNull()
     }
   }
 })
@@ -207,8 +220,8 @@ test('a film whose episode names only a day, or a time further off, is out from 
 test('a film whose start is an air time at midnight UTC is out at that time, not from the start of its day', () => {
   const nine = { ...episode, releaseDate: '2021-12-24T00:00:00Z' } as DetailsEpisode
   for (const zone of ZONES) {
-    expect(seenAt('2021-12-23T23:59:00Z', zone, nine, 'Fri, 24 Dec 2021 00:00:00 GMT').querySelector('.play'), zone).toBeNull()
-    expect(seenAt('2021-12-24T00:00:00Z', zone, nine, 'Fri, 24 Dec 2021 00:00:00 GMT').querySelector('.play'), zone).not.toBeNull()
+    expect(seenAt('2021-12-23T23:59:00Z', zone, nine, 'Fri, 24 Dec 2021 00:00:00 GMT').querySelector('a.play'), zone).toBeNull()
+    expect(seenAt('2021-12-24T00:00:00Z', zone, nine, 'Fri, 24 Dec 2021 00:00:00 GMT').querySelector('a.play'), zone).not.toBeNull()
   }
 })
 
@@ -216,8 +229,8 @@ test('a film with no release day of its own is out at its episode\'s air time, i
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     const early = seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0)
     expect(early.querySelector('.when')?.textContent, zone).toMatch(/^Releases /)
-    expect(early.querySelector('.play'), zone).toBeNull()
-    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0).querySelector('.play'), zone).not.toBeNull()
+    expect(early.querySelector('a.play'), zone).toBeNull()
+    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0).querySelector('a.play'), zone).not.toBeNull()
   }
 })
 
@@ -228,11 +241,11 @@ test('Play appears on the clock\'s next tick once the film\'s release day has st
   vi.useFakeTimers({ now: Date.parse('2026-10-17T06:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
   const host = render(episode, [], '2026-10-17')
   expect(host.querySelector('.when')?.textContent, 'the control: not out yet').toBe(`Releases ${releaseDateLabel('2026-10-17')}`)
-  expect(host.querySelector('.play')).toBeNull()
+  expect(host.querySelector('a.play')).toBeNull()
 
   act(() => { vi.advanceTimersByTime(30_000) })
-  expect(render(episode, [], '2026-10-17').querySelector('.play'), 'the control: a bar drawn now has Play').not.toBeNull()
-  expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
+  expect(render(episode, [], '2026-10-17').querySelector('a.play'), 'the control: a bar drawn now has Play').not.toBeNull()
+  expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
   expect(host.querySelector('.when')).toBeNull()
 })
 
@@ -241,8 +254,8 @@ test('a film whose own start is an air time is out at that time, and names its d
   const startDate = 'Thu, 23 Dec 2021 15:30:00 GMT'
   for (const [zone, day] of [['America/Los_Angeles', '2021-12-23'], ['Asia/Tokyo', '2021-12-24']] as const) {
     expect(seenAt('2021-12-22T12:00:00Z', zone, episode, startDate).querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel(day)}`)
-    expect(seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0, startDate).querySelector('.play'), zone).toBeNull()
-    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, startDate).querySelector('.play'), zone).not.toBeNull()
+    expect(seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0, startDate).querySelector('a.play'), zone).toBeNull()
+    expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, startDate).querySelector('a.play'), zone).not.toBeNull()
   }
 })
 
@@ -260,7 +273,7 @@ test('a film known only to its year names the year, and a film not out yet stays
       const host = seenAt(now, zone, episode, '2027', 'NOT_YET_RELEASED')
       expect(host.querySelector('.when')?.textContent, `${zone} ${now}`).toBe('Releases 2027')
       expect(host.querySelector('.facts')?.textContent, zone).toBe('Movie · 2027')
-      expect(host.querySelector('.play'), zone).toBeNull()
+      expect(host.querySelector('a.play'), zone).toBeNull()
     }
   }
 })
@@ -271,12 +284,12 @@ test('a film dated by a year or a month that has begun is out, unless it is know
     for (const startDate of ['2026', '2026-10']) {
       for (const status of [undefined, 'FINISHED']) {
         const out = seenAt('2026-10-17T12:00:00Z', zone, episode, startDate, status)
-        expect(out.querySelector('.play'), `${zone} ${startDate} ${status}`).not.toBeNull()
+        expect(out.querySelector('a.play'), `${zone} ${startDate} ${status}`).not.toBeNull()
         expect(out.querySelector('.when'), `${zone} ${startDate} ${status}`).toBeNull()
       }
       const ahead = seenAt('2026-10-17T12:00:00Z', zone, episode, startDate, 'NOT_YET_RELEASED')
       expect(ahead.querySelector('.when')?.textContent, `${zone} ${startDate}`).toBe(`Releases ${releaseDateLabel(startDate)}`)
-      expect(ahead.querySelector('.play'), `${zone} ${startDate}`).toBeNull()
+      expect(ahead.querySelector('a.play'), `${zone} ${startDate}`).toBeNull()
     }
   }
 })
@@ -294,7 +307,7 @@ test('an episode\'s air time outranks a film\'s year or month alone', () => {
   for (const startDate of ['2027', '2027-07']) {
     const host = seenAt('2027-03-01T12:00:00Z', 'America/Los_Angeles', { ...episode, releaseDate: '2027-07-15T15:30:00Z' } as DetailsEpisode, startDate)
     expect(host.querySelector('.when')?.textContent, startDate).toBe(`Releases ${releaseDateLabel('2027-07-15')}`)
-    expect(host.querySelector('.play'), startDate).toBeNull()
+    expect(host.querySelector('a.play'), startDate).toBeNull()
   }
 })
 
@@ -313,11 +326,11 @@ test('Play stays when the source that plays has its icon hidden', async () => {
   })
   try {
     const { setIconShown } = await import('../../../src/sources/hidden-icons')
-    expect(render(episode).querySelector('.chip'), 'the control: its chip is drawn while shown').not.toBeNull()
+    expect(render(episode).querySelector('.source'), 'the control: its button is drawn while shown').not.toBeNull()
     setIconShown('cr', false)
     const host = render(episode)
-    expect(host.querySelector('.chip')).toBeNull()
-    expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
+    expect(host.querySelector('.source')).toBeNull()
+    expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
     expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
   } finally {
     vi.unstubAllGlobals()

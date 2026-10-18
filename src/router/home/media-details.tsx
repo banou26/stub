@@ -287,6 +287,16 @@ const useBackend = () => {
   return backend
 }
 
+const watchLinks = (offers: readonly Offer[]) =>
+  offers.filter(handle => handle.relation === 'SAME_AS' && handle.node.url && STREAMING_ORIGINS.has(handle.node.origin))
+
+/**
+ * The origins `useWatchSources` draws its sources from, known in the same render as the media, while the sources
+ * themselves wait on their own query.
+ */
+export const watchOriginIds = (episode: DetailsEpisode | undefined, offers: readonly Offer[] = []): string[] =>
+  episode ? [...new Set([...episodeOriginIds(episode), ...watchLinks(offers).map(handle => handle.node.origin)])] : []
+
 /**
  * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
  * `offers` are media-level handles, linked out for a streaming site the episode itself does not name,
@@ -297,10 +307,9 @@ export const useWatchSources = (
   mediaUri: string,
   offers: readonly Offer[] = []
 ): WatchSource[] => {
-  const links = offers.filter(handle => handle.relation === 'SAME_AS' && handle.node.url && STREAMING_ORIGINS.has(handle.node.origin))
-  const origins = useOrigins(episode ? [...new Set([...episodeOriginIds(episode), ...links.map(handle => handle.node.origin)])] : undefined)
+  const origins = useOrigins(episode ? watchOriginIds(episode, offers) : undefined)
   const backend = useBackend()
-  return episode ? watchSources(episode, mediaUri, origins, backend, links) : []
+  return episode ? watchSources(episode, mediaUri, origins, backend, watchLinks(offers)) : []
 }
 
 /**
@@ -345,18 +354,25 @@ const watchSources = (
           : (handle?.url ?? links.find(link => link.node.origin === origin.id)?.node.url ?? undefined),
         external: !inApp,
         active: false,
+        releases: handles.length > 1
+          ? handles.map(node => ({ uri: node.uri, label: node.titles?.at(0)?.title ?? node.uri, external: false, active: false }))
+          : undefined,
       } satisfies WatchSource
     })
     .filter(source => source.href)
     .sort((a, b) => Number(a.external) - Number(b.external))
 
 /**
- * The links to each site that names this media, as icons, unstyled: each view sizes them itself.
- * Nothing until the worker has answered for the media.
+ * The links to each site that names this media but the origins in `except`, as icons, unstyled: each view sizes them
+ * itself. Nothing until the worker has answered for the media.
  */
 export const SourceLinks = (
-  { uri, handles }:
-  { uri: string | undefined, handles: readonly { relation: string, node: { origin: string, url?: string | null } }[] | undefined }
+  { uri, handles, except = [] }:
+  {
+    uri: string | undefined
+    handles: readonly { relation: string, node: { origin: string, url?: string | null } }[] | undefined
+    except?: readonly string[]
+  }
 ) => {
   const origins = uri ? fromAggregatedUri(uri as AggregatedUri)?.handleUrisValues : undefined
   // The aggregated uri names the SAME_AS cluster and nothing else, by construction: `aggregateMedia`
@@ -393,7 +409,7 @@ export const SourceLinks = (
             // while the SAME_AS `cr:<seriesId>-<seasonId>` for this very cour sat later in the list.
             const forOrigin = handles?.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
             const link = (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))?.node.url
-            if (!origin.icon || hidden.has(origin.id)) return undefined
+            if (!origin.icon || hidden.has(origin.id) || except.includes(origin.id)) return undefined
             return (
               link
                 ? (

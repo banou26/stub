@@ -54,28 +54,49 @@ test('picking a compact source icon is a client side navigation', () => {
   expect(location.history.at(-1)).toBe('/watch/m/e/nf:81')
 })
 
-const chipNames = (host: HTMLElement) => [...host.querySelectorAll('a.chip')].map(chip => chip.querySelector('.name')?.textContent)
+const names = (host: HTMLElement) => [...host.querySelectorAll('.list > .source')].map(source => source.querySelector('.name')?.textContent)
 
-test('the chips name every source, where the compact row stops at five', () => {
+test('a film\'s buttons are the watch page\'s, with no label', () => {
+  const watch = selector().host
+  const film = selector({ film: true }).host
+  expect([...film.firstElementChild!.classList].filter(name => name !== 'film'), 'the same styles').toEqual([...watch.firstElementChild!.classList])
+  for (const name of ['Netflix', 'Hulu']) expect(film.querySelector(`a[title="${name}"]`)?.outerHTML).toBe(watch.querySelector(`a[title="${name}"]`)?.outerHTML)
+  expect(film.querySelector('a[title="Netflix"] .play')?.textContent, 'the control: plays in stub').toBe('▶')
+  expect(film.querySelector('a[title="Hulu"] .ext')?.textContent, 'the control: links out').toBe('↗')
+  expect(watch.querySelector('.label')?.textContent, 'the control: the watch page names them').toBe('Watch on')
+  expect(film.querySelector('.label')).toBeNull()
+})
+
+test('a film\'s buttons name every source, where the compact row stops at five', () => {
   const six = ['Netflix', 'Hulu', 'Tubi', 'Plex', 'Hoopla', 'HIDIVE'].map((name, index) =>
     ({ id: name.toLowerCase(), name, href: `https://${name.toLowerCase()}.example/${index}`, external: true, active: false }))
   expect(selector({ sources: six, compact: true }).host.querySelectorAll('a.src'), 'the control: compact draws five').toHaveLength(5)
-  expect(chipNames(selector({ sources: six, chips: true }).host)).toEqual(six.map(source => source.name))
+  expect(names(selector({ sources: six, film: true }).host)).toEqual(six.map(source => source.name))
 })
 
-test('a chip for a source in stub is a client side navigation, and one for a site opens it in a new tab', () => {
-  const { host, location, click } = selector({ chips: true })
-  expect(click('a.chip[href="/watch/m/e/nf:81"]')).toBe(true)
+test('a film\'s source with several releases shows how many and opens the watch page, where the watch page offers the pick', () => {
+  const { host, location, click } = selector({ film: true })
+  const nyaa = host.querySelector('a.source[href="/watch/m/e/nyaa:a"]')
+  expect(nyaa?.querySelector('.count')?.textContent).toBe('2')
+  expect(nyaa?.getAttribute('target')).toBeNull()
+  expect(host.querySelector('button'), 'no pick here').toBeNull()
+  expect(selector().host.querySelector('button[title="2 releases on Nyaa"] .count')?.textContent, 'the control: the watch page\'s pick').toBe('2')
+  expect(click('a.source[href="/watch/m/e/nyaa:a"]')).toBe(true)
+  expect(location.history.at(-1)).toBe('/watch/m/e/nyaa:a')
+})
+
+test('a film\'s button for a source in stub is a client side navigation, and one for a site opens it in a new tab', () => {
+  const { host, location, click } = selector({ film: true })
+  expect(click('a.source[href="/watch/m/e/nf:81"]')).toBe(true)
   expect(location.history.at(-1)).toBe('/watch/m/e/nf:81')
-  expect(host.querySelector('a.chip[href="https://www.hulu.com/watch/1"]')?.getAttribute('target')).toBe('_blank')
-  expect(host.querySelector('a.chip[href="/watch/m/e/nyaa:a"]')?.getAttribute('target'), 'several releases open the watch page').toBeNull()
+  expect(host.querySelector('a.source[href="https://www.hulu.com/watch/1"]')?.getAttribute('target')).toBe('_blank')
 })
 
-test('the chips hold one placeholder while sources may still land, and draw nothing once none came', () => {
-  const held = selector({ sources: [], chips: true, pending: true }).host
-  expect(held.querySelectorAll('.pending')).toHaveLength(1)
-  expect(selector({ sources: [], chips: true }).host.innerHTML).toBe('')
-  expect(selector({ chips: true, pending: true }).host.querySelector('.pending'), 'sources replace it').toBeNull()
+test('a film\'s buttons hold one placeholder while sources may still land, and draw nothing once none came', () => {
+  const held = selector({ sources: [], film: true, pending: true }).host
+  expect(held.querySelectorAll('.list > .pending')).toHaveLength(1)
+  expect(selector({ sources: [], film: true }).host.innerHTML).toBe('')
+  expect(selector({ film: true, pending: true }).host.querySelector('.pending'), 'sources replace it').toBeNull()
 })
 
 describe('a hidden source icon', () => {
@@ -107,10 +128,10 @@ describe('a hidden source icon', () => {
     expect(netflix(), 'shown again by another tab').not.toBeNull()
   })
 
-  test('draws no chip', () => {
-    const { host } = selector({ chips: true })
-    expect(chipNames(host), 'the control: drawn while shown').toEqual(['Netflix', 'Hulu', 'Nyaa'])
+  test('draws no button for a film', () => {
+    const { host } = selector({ film: true })
+    expect(names(host), 'the control: drawn while shown').toEqual(['Netflix', 'Hulu', 'Nyaa'])
     act(() => setIconShown('nf', false))
-    expect(chipNames(host)).toEqual(['Hulu', 'Nyaa'])
+    expect(names(host)).toEqual(['Hulu', 'Nyaa'])
   })
 })

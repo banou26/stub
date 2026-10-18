@@ -16,7 +16,7 @@ import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources } from '../home/media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { filmRelease } from '../home/episodes'
@@ -692,7 +692,8 @@ const TitlePage = () => {
   const second = secondTitle(media?.titles)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
-  const sources = useWatchSources(isMovie ? media!.episodes.at(0) : undefined, media?.uri ?? '', media?.handles)
+  const film = isMovie ? media!.episodes.at(0) : undefined
+  const sources = useWatchSources(film, media?.uri ?? '', media?.handles)
   // the anime catalogues name the second title and the facts every anime has, AniList alone names relations, and
   // AniList joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
@@ -765,7 +766,7 @@ const TitlePage = () => {
               : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}
-          {isMovie ? <SourceSelector chips sources={sources} pending={!settled}/> : undefined}
+          {isMovie ? <SourceSelector film sources={sources} pending={!settled}/> : undefined}
         </div>
         <div className="actions">
           {
@@ -781,7 +782,7 @@ const TitlePage = () => {
                       ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label="Trailer" title="Trailer"><Clapperboard size={20}/></a>
                       : undefined
                   }
-                  <SourceLinks uri={media.uri} handles={media.handles}/>
+                  <SourceLinks uri={media.uri} handles={media.handles} except={watchOriginIds(film, media.handles)}/>
                 </div>
               )
               : <div className="buttons"><Placeholder className="play-pending"/></div>

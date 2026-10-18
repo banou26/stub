@@ -76,7 +76,8 @@ const RATED_NODE = {
     { objectId: 900042, totalEpisodeCount: 0, content: { seasonNumber: 2, isReleased: false }, episodes: [] },
   ],
 }
-// a film, and JustWatch's node of it with seven services that link out, so its chips run past a phone's width
+// a film, and JustWatch's node of it with its TMDB id and seven services that link out, so its chips run past a phone's
+// width
 const FILM = {
   id: 900050, type: 'ANIME', format: 'MOVIE', status: 'FINISHED', title: { english: 'Spec Film' },
   description: 'A summer, a forest and a sea that should not be there. '.repeat(8), startDate: { year: 2018, month: 8, day: 17 },
@@ -92,14 +93,14 @@ const FILM_OFFERS = {
 }
 const FILM_NODE = {
   id: 'tm900050', objectId: 900050, objectType: 'MOVIE',
-  content: { title: 'Spec Film', fullPath: '/us/movie/spec-film', originalReleaseYear: 2018, posterUrl: null, shortDescription: null },
+  content: { title: 'Spec Film', fullPath: '/us/movie/spec-film', originalReleaseYear: 2018, posterUrl: null, shortDescription: null, externalIds: { tmdbId: '900050' } },
   offers: Object.entries(FILM_OFFERS).map(([shortName, standardWebURL]) => ({ monetizationType: 'FREE', standardWebURL, package: { shortName } })),
 }
 // a film JustWatch finds on Prime Video's Japanese site, which stub plays for a viewer in Japan, and on Tubi
 const PRIME_FILM = { ...FILM, id: 900070, title: { english: 'Spec Prime Film' } }
 const PRIME = 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070'
 const PRIME_FILM_NODE = {
-  ...FILM_NODE, id: 'tm900070', objectId: 900070, content: { ...FILM_NODE.content, title: PRIME_FILM.title.english, fullPath: '/us/movie/spec-prime-film' },
+  ...FILM_NODE, id: 'tm900070', objectId: 900070, content: { ...FILM_NODE.content, externalIds: null, title: PRIME_FILM.title.english, fullPath: '/us/movie/spec-prime-film' },
   offers: [
     { monetizationType: 'FLATRATE', standardWebURL: PRIME, deeplinkURL: PRIME, package: { shortName: 'amp' } },
     { monetizationType: 'FREE', standardWebURL: 'https://tubitv.com/movies/900071', package: { shortName: 'tbv' } },
@@ -108,7 +109,7 @@ const PRIME_FILM_NODE = {
 // a film only JustWatch knows a place to watch, answered after every other source's 30 s bound
 const LATE_FILM = { ...FILM, id: 900060, title: { english: 'Spec Late Film' } }
 const LATE_FILM_NODE = {
-  ...FILM_NODE, id: 'tm900060', objectId: 900060, content: { ...FILM_NODE.content, title: LATE_FILM.title.english, fullPath: '/us/movie/spec-late-film' },
+  ...FILM_NODE, id: 'tm900060', objectId: 900060, content: { ...FILM_NODE.content, externalIds: null, title: LATE_FILM.title.english, fullPath: '/us/movie/spec-late-film' },
   offers: [{ monetizationType: 'FREE', standardWebURL: 'https://tubitv.com/movies/900061', package: { shortName: 'tbv' } }],
 }
 const JUSTWATCH = [[RATED, RATED_NODE], [FILM, FILM_NODE], [PRIME_FILM, PRIME_FILM_NODE], [LATE_FILM, LATE_FILM_NODE]] as const
@@ -160,7 +161,8 @@ const TMDB: Record<string, string> = {
 // its schedule, and AniZip dates its first 3 episodes and lists 4 to 6 undated.
 // AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and
 // answers it five seconds later, with four ratings. AniList answers Spec Film (anilist:900050), a film with a description
-// and one relation, and JustWatch finds its film by that title and answers it five seconds later, with seven offers;
+// and one relation, and JustWatch finds its film by that title and answers it five seconds later, with its TMDB id and
+// seven offers;
 // Spec Prime Film (anilist:900070) the same, with Prime Video on amazon.co.jp and Tubi, and Spec Late Film
 // (anilist:900060) with Tubi alone, forty seconds later.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {

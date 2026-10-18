@@ -170,6 +170,16 @@ const style = css`
       flex-shrink: 0;
     }
 
+    .count {
+      flex-shrink: 0;
+      padding: 0.1rem 0.6rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--brand) 22%, rgba(255, 255, 255, 0.06));
+      color: var(--brand);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
     .play {
       font-size: 1rem;
       color: var(--brand);
@@ -213,6 +223,22 @@ const style = css`
     }
   }
 
+  /* a film's are as wide as what they hold, and a name wraps only in one wider than its row */
+  &.film .list > .source {
+    min-width: 0;
+
+    .name {
+      white-space: normal;
+    }
+  }
+
+  /* one source's box: its icon and padding, and its border */
+  .pending {
+    min-width: 17rem;
+    height: calc(5rem + 2px);
+    border-radius: 1rem;
+  }
+
   .source-group {
     display: flex;
     flex-direction: column;
@@ -222,16 +248,6 @@ const style = css`
       width: 100%;
       font: inherit;
       text-align: left;
-    }
-
-    .count {
-      flex-shrink: 0;
-      padding: 0.1rem 0.6rem;
-      border-radius: 1rem;
-      background: color-mix(in srgb, var(--brand) 22%, rgba(255, 255, 255, 0.06));
-      color: var(--brand);
-      font-size: 1.1rem;
-      font-weight: 700;
     }
 
     .chevron {
@@ -337,66 +353,6 @@ const compactStyle = css`
   }
 `
 
-// one line, scrolling past the edge, and padded as wide as its fade, so scrolled to its end the last chip shows whole
-const chipsStyle = css`
-  display: flex;
-  gap: 0.8rem;
-  padding-right: 3rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
-
-  & > * { flex-shrink: 0; }
-
-  & > .chip {
-    --brand: ${FALLBACK_COLOR};
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    height: 3rem;
-    padding: 0 1.2rem 0 0.5rem;
-    border-radius: 1.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    font-size: 1.4rem;
-    font-weight: 600;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background 0.12s ease;
-
-    &:hover { background: rgba(255, 255, 255, 0.16); }
-
-    .icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 2rem;
-      height: 2rem;
-      border-radius: 1rem;
-      background: color-mix(in srgb, var(--brand) 18%, rgba(255, 255, 255, 0.05));
-      color: var(--brand);
-      font-size: 1.1rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      overflow: hidden;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        padding: 0.3rem;
-        box-sizing: border-box;
-      }
-    }
-  }
-
-  & > .pending {
-    width: 12rem;
-    height: 3rem;
-    border-radius: 1.5rem;
-  }
-`
-
 const SourceIcon = ({ source }: { source: WatchSource }) => {
   const [failed, setFailed] = useState(false)
   return (
@@ -418,35 +374,19 @@ const SourceLink = (
     : <Link {...props} href={href}/>
 
 /**
- * Where an episode plays or can be watched. `compact` draws up to five icons, `chips` every source as its icon and
- * name on one line, held by a placeholder while `pending`; both leave out a source whose icon is hidden in Settings.
+ * Where an episode plays or can be watched. `compact` draws up to five icons. `film` draws a film's buttons on its own
+ * page: no label, every source a link (one with several releases opens the watch page), and a placeholder while
+ * `pending`. Both leave out a source whose icon is hidden in Settings.
  */
 export const SourceSelector = (
-  { sources, compact = false, chips = false, pending = false, onPickRelease }:
-  { sources: WatchSource[], compact?: boolean, chips?: boolean, pending?: boolean, onPickRelease?: (uri: string) => void }
+  { sources, compact = false, film = false, pending = false, onPickRelease }:
+  { sources: WatchSource[], compact?: boolean, film?: boolean, pending?: boolean, onPickRelease?: (uri: string) => void }
 ) => {
   const [picking, setPicking] = useState<WatchSource | null>(null)
   const hidden = useHiddenIcons()
+  const shown = film ? sources.filter(source => !hidden.has(source.id)) : sources
 
-  if (chips) {
-    const shown = sources.filter(source => !hidden.has(source.id))
-    return shown.length || pending
-      ? (
-        <div css={chipsStyle} className="watch">
-          {shown.length
-            ? shown.map(source => (
-              <SourceLink key={source.id} className="chip" style={{ '--brand': brandColor(source) }} href={source.href} external={source.external}>
-                <SourceIcon source={source}/>
-                <span className="name">{source.name}</span>
-              </SourceLink>
-            ))
-            : <Placeholder className="pending"/>}
-        </div>
-      )
-      : null
-  }
-
-  if (!sources.length) return null
+  if (!shown.length && !(film && pending)) return null
 
   if (compact) {
     return (
@@ -468,11 +408,12 @@ export const SourceSelector = (
   }
 
   return (
-    <div css={style}>
-      <div className="label">Watch on</div>
+    <div css={style} className={film ? 'watch film' : 'watch'}>
+      {film ? undefined : <div className="label">Watch on</div>}
       <div className="list">
-        {sources.map(source =>
-          source.releases && source.releases.length > 1
+        {shown.length ? undefined : <Placeholder className="pending"/>}
+        {shown.map(source =>
+          source.releases && source.releases.length > 1 && !film
             ? <MultiReleaseSource key={source.id} source={source} onOpenPicker={() => setPicking(source)} />
             : (
               <SourceLink
@@ -485,6 +426,7 @@ export const SourceSelector = (
               >
                 <SourceIcon source={source} />
                 <span className="name">{source.name}</span>
+                {source.releases && source.releases.length > 1 ? <span className="count">{source.releases.length}</span> : undefined}
                 {source.active
                   ? <span className="playing"><i/><i/><i/></span>
                   : source.external

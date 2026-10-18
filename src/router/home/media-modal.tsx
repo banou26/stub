@@ -503,7 +503,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             )
             : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
         }
-        {isMovie ? <SourceSelector chips sources={sources} pending={!settled}/> : undefined}
+        {isMovie ? <SourceSelector film sources={sources} pending={!settled}/> : undefined}
         <MediaRelations
           key={uri}
           relations={media && 'relations' in media ? media.relations ?? [] : []}

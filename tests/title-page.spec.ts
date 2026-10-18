@@ -881,7 +881,7 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
 })
 
 // AniList answers Spec Film, a film with a description and one relation, and JustWatch, finding it by that title, five
-// seconds later with seven services that link out (tests/fake-fetch.ts)
+// seconds later with its TMDB id and seven services that link out (tests/fake-fetch.ts)
 const FILM = 'ag:(anilist:900050)'
 const FILM_SOURCES = ['HIDIVE', 'Hoopla', 'Philo', 'Plex', 'Pluto TV', 'The Roku Channel', 'Tubi']
 const FILM_VIEWS = [
@@ -889,16 +889,52 @@ const FILM_VIEWS = [
   { path: `/title/${FILM}`, row: '.heading > .description ~ .watch', below: '.body > .actions' },
 ]
 
-test('a film lists every place to watch it as chips under its description, in the modal and on its page, and with none in stub has no play bar', async ({ page }) => {
+// what a film's button looks like: the watch page's 3.2rem icon, its name at 1.45rem weight 600, and ↗ for a site
+const look = (link: Element) => {
+  const icon = link.querySelector('.icon')!.getBoundingClientRect()
+  const name = getComputedStyle(link.querySelector('.name')!)
+  return { icon: [Math.round(icon.width), Math.round(icon.height)], name: [name.fontSize, name.fontWeight], marker: link.querySelector('.ext')?.textContent }
+}
+// how many lines a film's buttons take, how far a name falls short of its box, whether a line left room for the
+// button wrapped after it, and whether each one is inside their row
+const packing = (buttons: Locator) => buttons.evaluateAll(links => {
+  const row = links[0]!.parentElement!
+  const { left, right } = row.getBoundingClientRect()
+  const gap = parseFloat(getComputedStyle(row).columnGap)
+  const boxes = links.map(link => link.getBoundingClientRect())
+  const range = document.createRange()
+  const slack = links.map(link => {
+    const name = link.querySelector('.name')!
+    range.selectNodeContents(name)
+    return name.getBoundingClientRect().width - range.getBoundingClientRect().width
+  })
+  const wrapped = (index: number) => index > 0 && Math.round(boxes[index]!.top) > Math.round(boxes[index - 1]!.top)
+  return {
+    lines: 1 + boxes.filter((_, index) => wrapped(index)).length,
+    slack: Math.round(Math.max(...slack)),
+    roomLeft: boxes.some((box, index) => wrapped(index) && boxes[index - 1]!.right + gap + box.width <= right),
+    inside: boxes.every(box => box.left >= left && box.right <= right),
+  }
+})
+
+test('a film lists every place to watch it under its description as the watch page\'s buttons, side by side, in the modal and on its page, and with none in stub has no play bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
   for (const { path, row } of FILM_VIEWS) {
     await page.goto(`${origin}${path}`)
-    const chips = page.locator(row).locator('a.chip')
-    await expect(chips, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
-    expect((await chips.locator('.name').allTextContents()).sort(), path).toEqual(FILM_SOURCES)
-    const chip = (name: string) => chips.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
-    await expect(chip('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
-    await expect(chip('Plex')).toHaveAttribute('href', 'https://watch.plex.tv/movie/spec-film?utm_content=5d77708f594b2b001e74d1ea')
-    expect(await chips.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), `${path}: each opens its site in a new tab`).toBe(true)
+    const buttons = page.locator(row).locator('a')
+    await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    expect((await buttons.locator('.name').allTextContents()).sort(), path).toEqual(FILM_SOURCES)
+    const button = (name: string) => buttons.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await expect(button('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
+    await expect(button('Plex')).toHaveAttribute('href', 'https://watch.plex.tv/movie/spec-film?utm_content=5d77708f594b2b001e74d1ea')
+    expect(await buttons.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), `${path}: each opens its site in a new tab`).toBe(true)
+    expect(await buttons.first().evaluate(look), path).toEqual({ icon: [32, 32], name: ['14.5px', '600'], marker: '↗' })
+    await expect(page.locator(row).locator('.label'), `${path}: no label`).toHaveCount(0)
+    const { lines, slack, roomLeft, inside } = await packing(buttons)
+    expect(slack, `${path}: each as wide as what it holds`).toBe(0)
+    expect(roomLeft, `${path}: a line holds every button that fits`).toBe(false)
+    expect(lines, `${path}: side by side`).toBeLessThan(FILM_SOURCES.length)
+    expect(inside, `${path}: none past the row's edge`).toBe(true)
     if (path.startsWith('/media/')) {
       await expect(modal(page).locator('.movie > .facts'), 'the control: the film\'s line').toHaveCount(1)
       await expect(modal(page).locator('.movie .play-bar')).toHaveCount(0)
@@ -906,27 +942,77 @@ test('a film lists every place to watch it as chips under its description, in th
   }
 })
 
-// the modal's play bar holds Play's place until then, and no Play comes, so it goes as the chips land, its one move
-test('390 px wide, a film\'s chips are one row held in place until JustWatch answers, so what is under them stays put', async ({ page }) => {
+// the modal's play bar holds Play's place until then, and no Play comes, so it goes as the buttons land
+test('390 px wide, a film\'s buttons are as wide as what they hold, as many to a line as fit, the first line landing in the place held for it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   for (const { path, row, below } of FILM_VIEWS) {
     await page.goto(`${origin}${path}`)
-    const chips = page.locator(row).locator('a.chip')
+    const buttons = page.locator(row).locator('a')
     const bar = page.locator('.modal .movie .play-bar')
+    const pending = page.locator(row).locator('.pending')
     await expect(page.locator(below), path).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator(row).locator('.pending'), `${path}: the control: held while JustWatch has not answered`).toBeVisible()
+    await expect(pending, `${path}: the control: held while JustWatch has not answered`).toBeVisible()
+    const placeholder = (await pending.boundingBox())!
+    const heldRow = await height(page.locator(row))
     const held = await onPage(page.locator(below))
     const film = await page.locator('.modal .movie').evaluateAll(blocks => blocks.map(block => Math.round(block.getBoundingClientRect().height)))
     const tops = await everyFrame(page, below)
-    await expect(chips, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
     await page.evaluate(() => new Promise(requestAnimationFrame))
     await expect(bar, path).toHaveCount(0)
     const drop = film.length ? film[0]! - await height(page.locator('.modal .movie')) : 0
-    expect(await tops(), path).toEqual(film.length ? [held, held - drop] : [held])
-    expect(await height(page.locator(row)), `${path}: one row`).toBe(await height(chips.first()))
-    expect(await overflowX(page), `${path}: the row scrolls, not the page`).toBe(0)
-    expect(await page.locator(row).evaluate(scrolls), `${path}: the control: the row runs past the edge`).toBe(true)
-    expect(await page.locator(row).evaluate(box => Math.round(box.getBoundingClientRect().right - box.lastElementChild!.getBoundingClientRect().right)), `${path}: scrolled to its end, the last chip is clear of the 3rem fade`).toBeGreaterThanOrEqual(30)
+    const first = (await buttons.first().boundingBox())!
+    expect(Math.round(first.height), `${path}: a button is as tall as the place held`).toBe(Math.round(placeholder.height))
+    expect(Math.round(first.y), `${path}: and lands in it`).toBe(Math.round(placeholder.y) - drop)
+    const grow = await height(page.locator(row)) - heldRow
+    expect(await tops(), `${path}: what is under them moves by the lines past the first`).toEqual([...new Set([held, held - drop + grow])])
+    const { lines, slack, roomLeft, inside } = await packing(buttons)
+    expect(slack, `${path}: each as wide as what it holds`).toBe(0)
+    expect(roomLeft, `${path}: a line holds every button that fits`).toBe(false)
+    expect(lines, `${path}: they wrap`).toBeGreaterThan(1)
+    expect(lines, `${path}: side by side, not one column`).toBeLessThan(FILM_SOURCES.length)
+    expect(inside, `${path}: none past the row's edge`).toBe(true)
+    expect(await overflowX(page), `${path}: nothing runs past the page`).toBe(0)
+  }
+})
+
+test('390 px wide, a film\'s button with a name longer than its row wraps the name and stays inside, its marker shown', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const { path, row } of FILM_VIEWS) {
+    await page.goto(`${origin}${path}`)
+    const buttons = page.locator(row).locator('a')
+    await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    const name = buttons.first().locator('.name')
+    const tall = await height(buttons.first())
+    await name.evaluate(name => { name.textContent = 'A Streaming Service With A Very Long Name, With Ads' })
+    expect(await height(buttons.first()), `${path}: the name takes a second line`).toBeGreaterThan(tall)
+    expect(await name.evaluate(name => name.scrollWidth <= name.clientWidth), `${path}: none of the name cut off`).toBe(true)
+    expect(await buttons.first().evaluate(link => link.querySelector('.ext')!.getBoundingClientRect().right <= link.getBoundingClientRect().right), `${path}: the marker inside`).toBe(true)
+    expect((await packing(buttons)).inside, `${path}: none past the row's edge`).toBe(true)
+    expect(await overflowX(page), `${path}: nothing runs past the page`).toBe(0)
+  }
+})
+
+test('a film\'s title page keeps the catalogue sites beside Play, and none of the services its buttons name, at any point, opened again at the address it grew to', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  // every site drawn beside Play from the first frame, however briefly
+  await page.addInitScript(() => {
+    const seen = new Set<string>()
+    const record = () => {
+      for (const site of document.querySelectorAll('.body > .actions .origins > .origin')) seen.add(site.getAttribute('title')!)
+      requestAnimationFrame(record)
+    }
+    requestAnimationFrame(record)
+    Object.assign(window, { seen })
+  })
+  for (const load of ['opened', 'reloaded', 'reloaded again']) {
+    await (load === 'opened' ? page.goto(`${origin}/title/${FILM}`) : page.reload())
+    // JustWatch alone names TMDB, so the row has drawn its sites for every origin JustWatch's answer named
+    await expect(page.locator('.body > .actions .origins > [title="TMDB"]'), `${load}: JustWatch has answered`).toHaveCount(1, { timeout: 30_000 })
+    const seen = await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])
+    expect(seen, `${load}: the control: a catalogue site stays`).toContain('AniList')
+    expect(seen.filter(site => FILM_SOURCES.includes(site)), load).toEqual([])
+    await expect(page, `${load}: the control: at the address naming every service`).toHaveURL(/jw:900050/)
   }
 })
 
@@ -937,20 +1023,20 @@ const PRIME_FILM = 'ag:(anilist:900070)'
 test.describe('a viewer in Japan', () => {
   test.use({ timezoneId: 'Asia/Tokyo' })
 
-  test('a film Prime Video plays in stub has Play in the modal and its chip opens the watch page; turned off, Play goes and it links out', async ({ page }) => {
+  test('a film Prime Video plays in stub has Play in the modal and its button opens the watch page; turned off, Play goes and it links out', async ({ page }) => {
     const bar = modal(page).locator('.movie .play-bar')
-    const chip = (name: string) => modal(page).locator('.description + .watch a.chip').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    const button = (name: string) => modal(page).locator('.description + .watch a').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
     await page.goto(`${origin}/media/${PRIME_FILM}`)
     await expect(bar.locator('a.play')).toBeVisible({ timeout: 30_000 })
-    await expect(chip('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
-    expect(await chip('Prime Video').getAttribute('target')).toBeNull()
-    await expect(chip('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
+    await expect(button('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
+    expect(await button('Prime Video').getAttribute('target')).toBeNull()
+    await expect(button('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
     await expect(bar.locator('a:not(.play), img'), 'no source beside Play').toHaveCount(0)
 
     await page.addInitScript(key => localStorage.setItem(key, '["amazon"]'), DISABLED_SOURCES_KEY)
     await page.goto(`${origin}/media/${PRIME_FILM}`)
-    await expect(chip('Prime Video')).toHaveAttribute('target', '_blank', { timeout: 30_000 })
-    await expect(chip('Prime Video')).toHaveAttribute('href', 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070')
+    await expect(button('Prime Video')).toHaveAttribute('target', '_blank', { timeout: 30_000 })
+    await expect(button('Prime Video')).toHaveAttribute('href', 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070')
     await expect(bar).toHaveCount(0)
   })
 })
@@ -981,7 +1067,7 @@ test('390 px wide, a film\'s place to watch landing after its sources settled ho
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
     Object.assign(window, { seen })
   })
-  await expect(row.locator('a.chip .name')).toHaveText('Tubi', { timeout: 30_000 })
+  await expect(row.locator('a .name')).toHaveText('Tubi', { timeout: 30_000 })
   await page.evaluate(() => new Promise(requestAnimationFrame))
   expect(await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])).toEqual([])
   await expect(modal(page).locator('.movie .play-bar'), 'nothing left in the bar').toHaveCount(0)

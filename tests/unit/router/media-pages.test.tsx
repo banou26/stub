@@ -7,15 +7,17 @@ import { act } from 'preact/test-utils'
 import { Route, Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-// The preview and the title page against the details the worker has answered for each uri, and nothing
-// for every other subscription. As urql 4.2.2's `computeNextState` does, a subscription keeps its last
-// answer, and the operation it answered, while a new one starts.
-const answers = vi.hoisted(() => ({ byUri: {} as Record<string, unknown> }))
+// The preview and the title page against the details the worker has answered for each uri, the origins `origins`
+// answers for each list of ids, and nothing for every other subscription. As urql 4.2.2's `computeNextState` does, a
+// subscription keeps its last answer, and the operation it answered, while a new one starts.
+const answers = vi.hoisted(() => ({ byUri: {} as Record<string, unknown>, origins: (_: string[]): unknown[] | undefined => undefined }))
 vi.mock('urql', async () => {
   const { useRef } = await import('preact/hooks')
   return {
-    useSubscription: ({ query, variables, pause }: { query: { definitions: { name?: { value: string } }[] }, variables: { input?: { uri?: string } }, pause?: boolean }) => {
+    useSubscription: ({ query, variables, pause }: { query: { definitions: { name?: { value: string } }[] }, variables: { input?: { uri?: string, ids?: string[] } }, pause?: boolean }) => {
       const last = useRef<{ data?: unknown, operation?: unknown }>({})
+      const nodes = !pause && query.definitions[0]?.name?.value === 'GetMediaOrigins' ? answers.origins(variables.input?.ids ?? []) : undefined
+      if (nodes) return [{ data: { originPage: { nodes } } }]
       const media = !pause && query.definitions[0]?.name?.value === 'GetMediaDetails' ? answers.byUri[variables.input?.uri ?? ''] : undefined
       if (media) last.current = { data: { media }, operation: { variables } }
       return [last.current]
@@ -75,6 +77,7 @@ const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   answers.byUri = {}
+  answers.origins = () => undefined
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -327,6 +330,24 @@ describe('the title page', () => {
     answer(film(3))
     expect(host.querySelector('h1')!.textContent, 'the control: answered').toBe('Spirited Away')
     expect(host.querySelector('[data-episodes]')).toBeNull()
+  })
+
+  // the sites beside Play and the film's buttons each ask for their origins, and the sites' answer can land first
+  test('draws none of a film\'s services beside Play, though the sites there have their origins before its buttons do', () => {
+    const sites = { anilist: 'AniList', hoopla: 'Hoopla', tubi: 'Tubi' }
+    const offered = { ...dated('2001-07-20'), handles: Object.keys(sites).map(origin => ({ relation: 'SAME_AS', node: { uri: `${origin}:3`, origin, url: `https://${origin}.test/3` } })) }
+    const nodes = (ids: string[]) => Object.entries(sites).filter(([id]) => ids.includes(id)).map(([id, name]) => ({ id, name, icon: `https://${id}.test/icon.png`, color: null }))
+    answers.origins = ids => ids.includes('anilist') ? nodes(ids) : undefined
+    const { host, answer } = titlePage(offered.uri)
+    answer(offered)
+    const row = () => [...host.querySelectorAll('.actions .origins > .origin')].map(site => site.getAttribute('title'))
+    expect(host.querySelectorAll('.heading > .watch a'), 'the control: the buttons have no origins yet').toHaveLength(0)
+    expect(row()).toEqual(['AniList'])
+
+    answers.origins = nodes
+    answer(offered)
+    expect([...host.querySelectorAll('.heading > .watch a .name')].map(name => name.textContent), 'the control: the buttons name them').toEqual(['Hoopla', 'Tubi'])
+    expect(row()).toEqual(['AniList'])
   })
 })
 
