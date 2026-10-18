@@ -345,9 +345,7 @@ describe('playing an episode', () => {
     await vi.waitFor(() => expect(episode.video.muted, 'the kept mute reached the video').toBe(true))
 
     episode.setByPage('muted', false)
-    await settle()
-
-    expect(episode.video.muted).toBe(true)
+    await vi.waitFor(() => expect(episode.video.muted).toBe(true))
     expect(JSON.parse(values.get(PLAYER_VOLUME_KEY)!)).toEqual({ volume: 1, muted: true })
   })
 })

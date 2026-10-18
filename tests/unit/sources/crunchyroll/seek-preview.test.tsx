@@ -23,6 +23,7 @@ vi.mock('react-tooltip', () => ({ Tooltip: () => null }))
 const { default: CrunchyrollVideoJSPlayer } = await import('../../../../src/sources/crunchyroll/cr-videojs-player')
 
 const DURATION = 1_770
+const TITLE = 'The Journey\'s End'
 
 // the handle's listener methods are own closures, as on the real one (see timeline-seek.test.ts)
 const makeRemote = () => {
@@ -49,8 +50,12 @@ const hover = (host: HTMLElement, seconds: number) => {
   act(() => { bar.dispatchEvent(move) })
 }
 
-// the bar measures against the duration, which the store reads off the media after it attaches
-const ready = (host: HTMLElement) => vi.waitFor(() => expect(host.querySelector('.time')?.textContent).toContain('29:30'))
+// The bar measures against the duration, which the store reads off the media after it attaches. The
+// storyboard reaches the store a frame later, in the same effect pass as the title.
+const ready = (host: HTMLElement) => vi.waitFor(() => {
+  expect(host.querySelector('.time')?.textContent).toContain('29:30')
+  expect(host.querySelector('.title')?.textContent).toBe(TITLE)
+})
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -58,7 +63,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 describe('the seek preview', () => {
   test('shows the storyboard image for the hovered time, over the time readout', async () => {
     const thumbnails = createBifThumbnails(parseBif(buildBif({ timestamps: [10_000, 20_000, 30_000] })))
-    const host = mount(<CrunchyrollVideoJSPlayer remote={makeRemote()} frame={frame} thumbnails={thumbnails} />)
+    const host = mount(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} thumbnails={thumbnails} />)
     hosts.push(host)
     await ready(host)
 
@@ -75,7 +80,7 @@ describe('the seek preview', () => {
   })
 
   test('with no storyboard the preview is the time alone', async () => {
-    const host = mount(<CrunchyrollVideoJSPlayer remote={makeRemote()} frame={frame} />)
+    const host = mount(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} />)
     hosts.push(host)
     await ready(host)
 

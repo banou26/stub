@@ -63,5 +63,8 @@ export const makeRemoteVideo = () => {
   return { remote, video, setByPage }
 }
 
-/** Every hop the handle and the video above take has run, twice over. */
+/**
+ * Every hop the handle and the video above take has run twice over, on an idle machine. A busy one can
+ * resume this after the first hop alone, so a check on a state two or more hops away waits for it instead.
+ */
 export const settle = () => new Promise(resolve => setTimeout(resolve, 20))

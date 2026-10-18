@@ -128,9 +128,7 @@ for (const { name, Component, muteControl, showsMuted } of PLAYERS) {
       await vi.waitFor(() => expect(video.muted, 'the kept mute reached the video').toBe(true))
 
       setByPage('muted', false)
-      await settle()
-
-      expect(video.muted, 'the video is muted again').toBe(true)
+      await vi.waitFor(() => expect(video.muted, 'the video is muted again').toBe(true))
       expect(kept(), 'the page\'s unmute is not kept').toEqual({ volume: 1, muted: true })
       await vi.waitFor(() => expect(showsMuted(host)).toBe(true))
     })
@@ -260,8 +258,7 @@ describe('rememberPlayerVolume', () => {
     expect(kept()).toEqual({ volume: 0.4, muted: false })
 
     setByPage('volume', 1)
-    await settle()
-    expect(video.volume).toBe(0.4)
+    await vi.waitFor(() => expect(video.volume).toBe(0.4))
     expect(kept()).toEqual({ volume: 0.4, muted: false })
   })
 
@@ -283,8 +280,7 @@ describe('rememberPlayerVolume', () => {
     remembered.media.muted = true
     await settle()
     setByPage('muted', false)
-    await settle()
-    expect(video.muted).toBe(true)
+    await vi.waitFor(() => expect(video.muted).toBe(true))
   })
 })
 
@@ -303,8 +299,7 @@ describe('keepVideoVolume', () => {
     expect(video).toEqual({ volume: 0.3, muted: true })
 
     element.muted = false
-    await settle()
-    expect(kept()).toEqual({ volume: 0.3, muted: false })
+    await vi.waitFor(() => expect(kept()).toEqual({ volume: 0.3, muted: false }))
 
     stop()
     element.volume = 0.8
