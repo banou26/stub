@@ -40,8 +40,11 @@ export type StubSource = {
    * player is what every follower's player is made to match. `at` is the PLAYER's clock, whatever
    * document that player lives in, passed through untouched; stub trusts it only within a bound.
    * `ended` is true once the player reached the end, where the browser paused it by itself.
+   * `duration` is the media's length in seconds, 0 until the player knows it and Infinity for live media:
+   * with a length an episode counts as watched at 85% played and its row shows how far in it stopped;
+   * without one, only its end counts.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
 }

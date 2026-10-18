@@ -73,6 +73,30 @@ describe('pluginPlaybackLink', () => {
     expect(link.ended?.()).toBe(false)
   })
 
+  // undefined is a package from before it said the length, or live media, which the watch page reads as
+  // a player that never says it, rather than as 0, a length not known yet, which it waits on
+  test('the link says how long the package\'s player is, and nothing for a package that never says or live media', () => {
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    const heard = vi.fn()
+    link.onReport(heard)
+    report()
+    expect(link.duration?.()).toBeUndefined()
+    report({ ...STATE, duration: 0 } as typeof STATE)
+    expect(link.duration?.()).toBe(0)
+    report({ ...STATE, duration: 1420.5 } as typeof STATE)
+    expect(link.duration?.()).toBe(1420.5)
+    expect(heard).toHaveBeenLastCalledWith(STATE)
+    for (const junk of [NaN, -Infinity, -1]) {
+      report({ ...STATE, duration: junk } as typeof STATE)
+      expect(link.duration?.(), String(junk)).toBe(0)
+    }
+    for (const none of ['1420', Infinity]) {
+      report({ ...STATE, duration: none } as never)
+      expect(link.duration?.(), String(none)).toBeUndefined()
+    }
+  })
+
   test('apply crosses to the package', () => {
     const { source, applied } = fakeSource()
     pluginPlaybackLink(source)!.apply(STATE)

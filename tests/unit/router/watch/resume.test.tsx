@@ -5,8 +5,10 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 import type { PlaybackLink } from '../../../../src/party/bridge'
+import type { PlaybackSource } from '../../../../src/party/plugin-link'
 import type { PlaybackState } from '../../../../src/party/protocol'
 
+import { pluginPlaybackLink } from '../../../../src/party/plugin-link'
 import { useResume } from '../../../../src/router/watch/resume'
 import { WATCH_POSITIONS_KEY } from '../../../../src/utils/watch-positions'
 
@@ -44,6 +46,17 @@ const fakeLink = (duration?: number) => {
       }
     }),
   }
+}
+
+// a source plugin's player, through the link the watch page makes of it; `duration` only where the package says it
+const pluginLink = () => {
+  let ear: Parameters<NonNullable<PlaybackSource['onPlayback']>>[0] = () => {}
+  const applied: number[] = []
+  const link = pluginPlaybackLink({ onPlayback: async listener => { ear = listener }, applyPlayback: async ({ time }) => { applied.push(time) } })!
+  const report = (...states: Omit<Report, 'ended'>[]) => act(() => {
+    for (const { paused = false, time, duration } of states) ear({ paused, time, rate: 1, at: Date.now(), ...duration === undefined ? {} : { duration } })
+  })
+  return { link, applied, report }
 }
 
 const Resume = ({ link, uri, uris, guest }: { link: PlaybackLink, uri: string, uris: string[], guest: boolean }) => {
@@ -124,4 +137,38 @@ test('a report under 30 s after the seek leaves the point kept, so a seek that l
   await link.report({ time: 2 }, { time: 10 })
   expect(seeks(link)).toEqual([600])
   expect(kept()).toEqual([['nf:1', 600, 1400]])
+})
+
+test('a source plugin\'s player that says its length resumes once it says it, and keeps its point with it', async () => {
+  keep(['cr:1', 600, 1420])
+  const { link, applied, report } = pluginLink()
+  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a', 'cr:1']} guest={false}/>))
+  await report({ paused: true, time: 0, duration: 0 })
+  expect(applied, 'no length yet').toEqual([])
+  await report({ time: 1, duration: 1420 })
+  expect(applied).toEqual([600])
+  await report({ time: 700, duration: 1420 })
+  expect(kept()).toEqual([['cr:1', 600, 1420], ['nyaa:a', 700, 1420]])
+  await report({ time: 1210, duration: 1420 })
+  expect(kept(), '85% forgets it').toEqual([['cr:1', 600, 1420]])
+})
+
+test('a source plugin\'s live media, whose length is Infinity, resumes on its first report, and is kept with none', async () => {
+  keep(['nyaa:a', 600, 0])
+  const { link, applied, report } = pluginLink()
+  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  await report({ paused: true, time: 0, duration: Infinity })
+  expect(applied).toEqual([600])
+  await report({ time: 700, duration: Infinity })
+  expect(kept()).toEqual([['nyaa:a', 700, 0]])
+})
+
+test('a source plugin\'s player that never says its length resumes on its first report, and is kept with none', async () => {
+  keep(['nyaa:a', 600, 0])
+  const { link, applied, report } = pluginLink()
+  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  await report({ paused: true, time: 0 })
+  expect(applied).toEqual([600])
+  await report({ time: 700 })
+  expect(kept()).toEqual([['nyaa:a', 700, 0]])
 })

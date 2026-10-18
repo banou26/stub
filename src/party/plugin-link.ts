@@ -3,9 +3,16 @@ import type { PlaybackState } from './protocol'
 
 import { isPlaybackState } from './protocol'
 
+/**
+ * A package's `duration`, 0 while the player does not know it yet. Undefined, a player with no length to
+ * wait for, from a package that never says it and for Infinity, which @banou/media-player sends for live media.
+ */
+const lengthOf = (duration: unknown) =>
+  typeof duration !== 'number' || duration === Infinity ? undefined : duration > 0 ? duration : 0
+
 /** The two optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
 }
 
@@ -24,11 +31,13 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
   const listeners = new Set<(state: PlaybackState) => void>()
   let disposed = false
   let ended = false
+  let duration: number | undefined
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (report: PlaybackState & { ended?: boolean }) => {
+  const ear = (report: PlaybackState & { ended?: boolean, duration?: number }) => {
     if (disposed || !isPlaybackState(report)) return
     ended = report.ended === true
+    duration = lengthOf(report.duration)
     const { paused, time, rate, at } = report
     for (const listener of listeners) listener({ paused, time, rate, at })
   }
@@ -46,6 +55,7 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
     // touched the controls.
     onReport: listener => { listeners.add(listener); listen(); return () => { listeners.delete(listener) } },
     ended: () => ended,
+    duration: () => duration,
     dispose: () => { disposed = true; listeners.clear() },
   }
 }

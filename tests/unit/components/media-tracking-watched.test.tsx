@@ -6,7 +6,11 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 
 import type { CompactTracking } from '../../../src/tracking/compact'
+import type { PlaybackLink } from '../../../src/party/bridge'
+import type { PlaybackSource } from '../../../src/party/plugin-link'
 import type { PlaybackState } from '../../../src/party/protocol'
+
+import { pluginPlaybackLink } from '../../../src/party/plugin-link'
 
 const answer = (id: string, name: string, state: string, entry?: object) =>
   ({ _id: `answer:${id}`, state, candidates: [], error: null, episodeCount: 12, tracker: { id, name, canWrite: true }, entry: entry ?? null })
@@ -58,6 +62,21 @@ const fakeLink = (duration?: number) => {
     },
   }
 }
+type Linked = PlaybackLink & Pick<ReturnType<typeof fakeLink>, 'report'>
+// a source plugin's player that says its length, through the link the watch page makes of it
+const pluginLink = (duration: number): Linked => {
+  let ear: Parameters<NonNullable<PlaybackSource['onPlayback']>>[0] = () => {}
+  const link = pluginPlaybackLink({ onPlayback: async listener => { ear = listener }, applyPlayback: async () => {} })!
+  return {
+    ...link,
+    report: async (...states) => {
+      await act(async () => {
+        for (const { paused, time = 0, ended = false } of states) ear({ paused, time, rate: 1, at: Date.now(), ended, duration })
+      })
+      await settle()
+    },
+  }
+}
 const memory = (targets: Record<string, boolean> = {}) => {
   const values = new Map([['stub.tracking.compact', JSON.stringify({ targets })]])
   return createCompactPrefs({ getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) } })
@@ -73,8 +92,8 @@ afterEach(() => {
 })
 
 // the watch page's row, whose player comes up once the row is drawn
-const page = ({ link = fakeLink(1000), episode = 5, prefs = memory(), movie = false } = {}) => {
-  const tree = (props: { link?: ReturnType<typeof fakeLink>, episode: number }) => (
+const page = ({ link = fakeLink(1000) as Linked, episode = 5, prefs = memory(), movie = false } = {}) => {
+  const tree = (props: { link?: Linked, episode: number }) => (
     <MediaTracking
       work="ag:(anilist:1)"
       address="ag:(anilist:1)"
@@ -89,7 +108,7 @@ const page = ({ link = fakeLink(1000), episode = 5, prefs = memory(), movie = fa
   )
   const host = mount(tree({ episode }))
   hosts.push(host)
-  const rerender = (props: { link?: ReturnType<typeof fakeLink>, episode: number } = { link, episode }) => act(() => { render(tree(props), host) })
+  const rerender = (props: { link?: Linked, episode: number } = { link, episode }) => act(() => { render(tree(props), host) })
   rerender()
   return { host, link, rerender }
 }
@@ -135,6 +154,15 @@ test('a player that does not say how long it is counts at its end, once it playe
   await link.report(playing(0), playing(1300))
   expect(sent).toEqual([])
   await link.report({ paused: true, time: 1400, ended: true })
+  expect(sent.map(({ entry }) => entry)).toEqual([{ progress: 5 }])
+})
+
+test('a source plugin\'s player that says how long it is counts at 85%, before its end', async () => {
+  tracking = { summary: null, disagreements: [], answers: [listedAt(4)] }
+  const { link } = page({ link: pluginLink(1000) })
+  await link.report(playing(0), playing(840))
+  expect(sent).toEqual([])
+  await link.report(playing(850))
   expect(sent.map(({ entry }) => entry)).toEqual([{ progress: 5 }])
 })
 

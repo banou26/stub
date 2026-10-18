@@ -26,8 +26,8 @@ export type PlaybackLink = {
   onReport: (listener: (state: PlaybackState) => void) => () => void
   /** Whether the player reached the end, where the browser pauses it on its own: that pause is nobody's. */
   ended?: () => boolean
-  /** The media's length in seconds, 0 before it is known; a source plugin's player does not say. */
-  duration?: () => number
+  /** The media's length in seconds, 0 before it is known, undefined for a source plugin's player that does not say. */
+  duration?: () => number | undefined
   dispose: () => void
 }
 
