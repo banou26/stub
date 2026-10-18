@@ -7,7 +7,7 @@
  * replays a recorded page, which is the only case that meets real shapes: 24 sources, nested nodes
  * four deep, handles that name no node.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -129,6 +129,38 @@ test('a sequence of answers for one uri rebuilds exactly the row lastWriteLonges
   expect(fieldSeq.episodeCount, 'the third answer carried the count').toBe(rows[2]!.seq)
   expect(fieldSeq.titles, 'the third answer carried the surviving title list, and the fourth could not take it').toBe(rows[2]!.seq)
   expect(fieldSeq.status, 'a null never supplies a field, so the first answer still owns it').toBe(rows[0]!.seq)
+})
+
+// AniList's not-yet-aired list loses an entry every time one airs and is empty once the run ends, so
+// longest-wins would keep the first list a tab ever saw, dates AniList has since moved included.
+// Mutation: drop the `airingSchedule` exemption from either merge and the row keeps the first list.
+test('a fresh schedule replaces the stored one in both merges, though it is shorter or empty', async () => {
+  const answers = [
+    media('anilist:1195516', { airingSchedule: [
+      { episodeNumber: 4, airingAt: 'Fri, 16 Oct 2026 14:00:00 GMT' },
+      { episodeNumber: 5, airingAt: 'Fri, 23 Oct 2026 14:00:00 GMT' },
+      { episodeNumber: 6, airingAt: 'Fri, 30 Oct 2026 14:00:00 GMT' },
+    ] }),
+    media('anilist:1195516', { airingSchedule: [
+      { episodeNumber: 5, airingAt: 'Fri, 30 Oct 2026 14:00:00 GMT' },
+      { episodeNumber: 6, airingAt: 'Fri, 06 Nov 2026 14:00:00 GMT' },
+    ] }),
+    media('anilist:1195516', { status: 'RELEASING' }),
+    media('anilist:1195516', { airingSchedule: [] }),
+  ]
+  const rows: AnswerRow[] = []
+  for (const value of answers) rows.push(await answer('media', value))
+  const stored = async () => JSON.parse((await mediaRow('anilist:1195516'))!.raw as string)
+
+  await ingestAnswers(rows.slice(0, 3))
+  const rescheduled = answers.slice(0, 3).reduce((accumulator, value) => lastWriteLongestArray(value, accumulator))
+  expect(await stored()).toEqual(rescheduled)
+  expect(rescheduled.airingSchedule, 'a shorter list replaces, and an answer that never asked keeps it').toEqual(answers[1]!.airingSchedule)
+
+  await ingestAnswers(rows.slice(3))
+  const finished = lastWriteLongestArray(answers[3]!, rescheduled)
+  expect(await stored()).toEqual(finished)
+  expect(finished.airingSchedule, 'an empty list replaces once nothing is scheduled').toEqual([])
 })
 
 // (b) THE PLACEHOLDER RULE. A nested node of another origin is a description, not a row, until its

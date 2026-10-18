@@ -272,10 +272,11 @@ const episodeProvenanceOf = (claimer: string, kind: string): string =>
  *
  * Per top-level field the incoming value is taken when it is non-null and, for an array, not strictly
  * shorter than the current one; otherwise the current value survives, and a key absent from the
- * incoming row survives untouched. Two differences from the old store: the loser is not destroyed, it
- * is in its own `Answer` row, and `fieldSeq[field]` records which answer supplied what survived, so
- * the search-row-after-media-page degradation is both prevented and visible if a rule change brings
- * it back.
+ * incoming row survives untouched. `airingSchedule` is the one array always taken, since a schedule
+ * shrinks as its episodes air. Two differences from the old store: the loser is not destroyed, it is
+ * in its own `Answer` row, and `fieldSeq[field]` records which answer supplied what survived, so the
+ * search-row-after-media-page degradation is both prevented and visible if a rule change brings it
+ * back.
  *
  * It is a copy of that rule rather than a call into it: the old store is deleted at step 6c and this
  * is the survivor. `tests/unit/worker/graph/ingest.test.ts` folds the same answers through both and
@@ -292,7 +293,7 @@ const mergeFields = (
     const value = incoming[key]
     const current = merged[key]
     if (Array.isArray(value)) {
-      if (Array.isArray(current) && current.length > value.length) continue
+      if (key !== 'airingSchedule' && Array.isArray(current) && current.length > value.length) continue
       merged[key] = value
     } else {
       if (value === null || value === undefined) continue

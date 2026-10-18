@@ -236,6 +236,8 @@ node's labels at module load (`db.ts:85-86`) and applies it only when a row is a
   back to "unknown" cannot.
 - **Arrays: strictly longest wins**, and a tie goes to the incoming array
   (`ex.length > val.length ? ex : val`). A shorter, corrected `titles` list is discarded whole.
+  `airingSchedule` is the one exception and always takes the incoming list, since a schedule shrinks
+  as its episodes air.
 - **Objects that are not arrays fall in the scalar branch**, so `nextAiringEpisode` and `franchise`
   are replaced whole.
 

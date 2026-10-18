@@ -211,6 +211,17 @@ test('a title no source lists an episode of keeps its Episodes heading, and says
   await expect(modal(page).locator('.episodes')).toHaveText('No episodes found', { timeout: 45_000 })
 })
 
+const AIRING = 'ag:(anilist:900080)'
+
+test('an unreleased episode AniList schedules reads when it airs, the next counting down, on the page and in the modal', async ({ page }) => {
+  const dates = ['Sep 29, 2023', 'Sep 29, 2023', 'Sep 29, 2023', /^in (1 day|23 hours, \d+ mins)$/, 'in 8 days', 'in 15 days']
+  await page.goto(`${origin}/title/${AIRING}`)
+  await expect(heading(page)).toHaveText('Spec Airing', { timeout: 30_000 })
+  await expect(page.locator('[data-episodes] .episode .side')).toHaveText(dates, { timeout: 30_000 })
+  await page.goto(`${origin}/media/${AIRING}`)
+  await expect(modal(page).locator('.episode .side')).toHaveText(dates, { timeout: 30_000 })
+})
+
 test('the page is a screen tall before anything has answered, so the footer waits below the fold, at 1440 and 390 px', async ({ page }) => {
   // screens taller than the page's placeholders, which on a 900 px screen already reach past the fold
   for (const [width, height] of [[1440, 2000], [390, 2400]] as const) {

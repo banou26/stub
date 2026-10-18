@@ -103,9 +103,9 @@ export const releaseDateLabel = (
 }
 
 /**
- * How recent an episode still reads better as a count of days than as a date. A month, taken as 30
- * days: past that "47 days ago" is arithmetic the reader has to do, and the date itself is the more
- * useful thing.
+ * How near an episode still reads better as a count of days than as a date, either way. A month, taken
+ * as 30 days: past that "47 days ago" is arithmetic the reader has to do, and the date itself is the
+ * more useful thing.
  */
 export const RELATIVE_WITHIN_DAYS = 30
 
@@ -126,16 +126,16 @@ const civilDay = (date: Date, utc: boolean): number =>
     : Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
 
 /**
- * What to show beside an episode: how long ago it landed while that is still short enough to mean
- * something, and the date itself once it is not.
+ * What to show beside an episode: how long ago it landed, or for one not out yet (`upcoming`) how long
+ * until it airs, while that is still short enough to mean something, and the date itself once it is
+ * not. The one airing next counts down instead (`utils/countdown.ts`).
  *
- * Anything not in the recent past falls through to the date, which covers an episode that has not
- * aired yet: a countdown is a different job, and `utils/countdown.ts` already does it for the one
- * airing next.
+ * Without `upcoming` a day ahead shows as its date, so an episode that is out while a source dates it
+ * later never reads as still to come.
  */
 export const releaseDateDisplay = (
   value: string | null | undefined,
-  { locale, now = new Date() }: ReleaseDateOptions & { now?: Date } = {}
+  { locale, now = new Date(), upcoming = false }: ReleaseDateOptions & { now?: Date, upcoming?: boolean } = {}
 ): string | undefined => {
   const date = parseReleaseDate(value)
   if (!date) return undefined
@@ -143,6 +143,8 @@ export const releaseDateDisplay = (
   if (days === 0) return 'today'
   if (days === 1) return 'yesterday'
   if (days > 1 && days < RELATIVE_WITHIN_DAYS) return `${days} days ago`
+  if (upcoming && days === -1) return 'tomorrow'
+  if (upcoming && days < -1 && -days < RELATIVE_WITHIN_DAYS) return `in ${-days} days`
   return releaseDateLabel(value, { locale })
 }
 

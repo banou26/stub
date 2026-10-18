@@ -32,6 +32,7 @@ export const normalizeToStoreMedia = (media: Media): StoreMedia => ({
   isAdult: media.isAdult ?? null,
   episodeCount: media.episodeCount ?? null,
   nextAiringEpisode: media.nextAiringEpisode ?? null,
+  airingSchedule: media.airingSchedule ?? null,
   season: (media.season as StoreMedia['season']) ?? null,
   seasonYear: media.seasonYear ?? null,
   genres: media.genres ?? [],

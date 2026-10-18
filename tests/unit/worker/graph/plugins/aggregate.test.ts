@@ -703,6 +703,12 @@ test('the episode length and the source material reach the row', () => {
   expect(row.sourceMaterial).toBe('ORIGINAL')
 })
 
+// Mutation: drop `'airingSchedule'` from SCALARS and no unreleased row past the next one reads a date.
+test('AniList\'s schedule reaches the row', () => {
+  const schedule = [{ episodeNumber: 5, airingAt: 'Fri, 30 Oct 2026 14:00:00 GMT' }]
+  expect(alone({ airingSchedule: schedule }).airingSchedule).toEqual(schedule)
+})
+
 // Anime News Network is a member of the cluster for its credits and nothing else: the row with its
 // answer and the row with only its handle differ in `characters`, `staff`, the provenance naming it and
 // its own handle node. Mutation: score it above AniList, or have it name a title, and the row moves.

@@ -159,9 +159,31 @@ describe('releaseDateDisplay', () => {
     expect(RELATIVE_WITHIN_DAYS).toBe(30)
   })
 
-  test('an episode that has not aired yet shows its date rather than counting backwards', () => {
+  const ahead = (value: string, now: string) =>
+    inZone('Asia/Tokyo', () => releaseDateDisplay(value, { locale: 'en-US', now: new Date(now), upcoming: true }))
+
+  test('an episode not out yet counts the days until it airs the same way, then shows its date', () => {
+    const now = '2026-09-08T09:00:00.000Z'
+    expect(ahead('2026-09-08T12:00:00.000Z', now)).toBe('today')
+    expect(ahead('2026-09-09T09:00:00.000Z', now)).toBe('tomorrow')
+    expect(ahead('2026-09-20T09:00:00.000Z', now)).toBe('in 12 days')
+    expect(ahead('2026-10-07T09:00:00.000Z', now)).toBe('in 29 days')
+    expect(ahead('2026-10-08T09:00:00.000Z', now)).toBe('Oct 8, 2026')
+    expect(ahead('2026-09-07T09:00:00.000Z', now), 'a day gone by still reads as one').toBe('yesterday')
+  })
+
+  test('an episode already out that a source dates ahead shows that date, never a count of days to come', () => {
     expect(show('2026-09-20T09:00:00.000Z', '2026-09-08T09:00:00.000Z')).toBe('Sep 20, 2026')
     expect(show('2026-09-09T09:00:00.000Z', '2026-09-08T09:00:00.000Z')).toBe('Sep 9, 2026')
+  })
+
+  test('a named day ahead is counted from the day it names, in every zone', () => {
+    for (const zone of ['Asia/Tokyo', 'America/Los_Angeles', 'UTC', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']) {
+      const at = (value: string) => inZone(zone, () => releaseDateDisplay(value, { locale: 'en-US', now: new Date(2026, 8, 8, 12), upcoming: true }))
+      expect(at('2026-09-09'), zone).toBe('tomorrow')
+      expect(at('2026-09-20'), zone).toBe('in 12 days')
+      expect(at('2026-10-08'), zone).toBe('Oct 8, 2026')
+    }
   })
 
   test('a named day is counted from the day it names, in every zone', () => {

@@ -130,6 +130,7 @@ export type Media = {
   isAdult: boolean | null
   episodeCount: number | null
   nextAiringEpisode: AiringEpisode | null
+  airingSchedule: AiringEpisode[] | null
   season: MediaSeason | null
   seasonYear: number | null
   genres: string[]

@@ -384,14 +384,14 @@ export function createGraph<T>(): Graph<T> {
 
 const emptySet: ReadonlySet<string> = new Set()
 
-/** Merge strategy: scalars last-write-wins, arrays longest-wins. */
+/** Merge strategy: scalars last-write-wins, arrays longest-wins, `airingSchedule` the incoming (it shrinks as episodes air). */
 export function lastWriteLongestArray<T extends Record<string, unknown>>(incoming: T, existing: T): T {
   const result = { ...existing } as Record<string, unknown>
   for (const key in incoming) {
     const val = incoming[key]
     if (Array.isArray(val)) {
       const ex = existing[key as keyof T]
-      result[key] = (Array.isArray(ex) && ex.length > val.length) ? ex : val
+      result[key] = (key !== 'airingSchedule' && Array.isArray(ex) && ex.length > val.length) ? ex : val
     } else {
       result[key] = val ?? existing[key as keyof T]
     }

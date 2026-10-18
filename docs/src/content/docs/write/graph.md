@@ -352,7 +352,8 @@ Read the four branches as rules:
 2. **An array is replaced unless the stored one is strictly longer.** `ex.length > val.length ? ex : val`
    (`graph.ts:394`), so **a tie goes to the incoming array** and a shorter, corrected list is
    discarded whole. `graph.test.ts:6-16` pins all three cases, including the one that matters:
-   *"equal non-zero lengths take the incoming"*.
+   *"equal non-zero lengths take the incoming"*. `airingSchedule` always takes the incoming list,
+   since a schedule shrinks as its episodes air.
 3. **A plain object falls in the scalar branch**, because only `Array.isArray` is tested. So
    `nextAiringEpisode` and `franchise` are replaced whole, never merged field by field.
 4. **Only keys present in `incoming` are visited** (`for (const key in incoming)` at `graph.ts:390`).

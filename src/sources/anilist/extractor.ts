@@ -184,6 +184,12 @@ const mediaQuery = (credits: string) => `
   query GetMedia ($id: Int, $idMal: Int, $type: MediaType) {
     Media(idMal: $idMal, id: $id, type: $type) {
       ${MEDIA_FIELDS.split('\n').join('\n    ')}
+      upcoming: airingSchedule(notYetAired: true, perPage: 25) {
+        nodes {
+          episode
+          airingAt
+        }
+      }
       relations {
         edges {
           relationType(version: 2)
@@ -679,7 +685,7 @@ const normalizeCredits = (media: Media): SourceCredits | undefined => {
   }
 }
 
-const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
+const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, extraHandles: GQLMedia[] = []) => {
   const malHandle =
     media.idMal
       ? makeMedia({
@@ -726,6 +732,9 @@ const normalizeMedia = (media: Media, extraHandles: GQLMedia[] = []) => {
     nextAiringEpisode: media.nextAiringEpisode
       ? { episodeNumber: media.nextAiringEpisode.episode, airingAt: new Date(media.nextAiringEpisode.airingAt * 1000).toUTCString() }
       : undefined,
+    ...media.upcoming
+      ? { airingSchedule: (media.upcoming.nodes ?? []).flatMap(node => node ? [{ episodeNumber: node.episode, airingAt: new Date(node.airingAt * 1000).toUTCString() }] : []) }
+      : {},
     ...desc(media.description, SCORE),
     titles: [
       ...media.title?.english ? [{ language: 'en', title: media.title.english, score: SCORE }] : [],

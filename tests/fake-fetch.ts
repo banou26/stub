@@ -53,6 +53,9 @@ const APOTHECARY_RELATIONS = ([
   ['OTHER', 'MUSIC', 'Beyond the Clouds, Only Me Downwind'],
 ] as const).map(([relationType, format, english], index) => ({ relationType, node: { id: 900021 + index, type: 'ANIME', format, status: 'FINISHED', title: { english } } }))
 const ONE_PIECE = { id: 900030, type: 'ANIME', format: 'TV', status: 'RELEASING', title: { english: 'One Piece' } }
+// a weekly show AniList schedules from its 4th episode, a day after it is asked, and AniZip lists undated from there
+const AIRING = { id: 900080, idMal: 900080, type: 'ANIME', format: 'TV', status: 'RELEASING', title: { english: 'Spec Airing' } }
+const airsAt = (episode: number) => Math.floor(Date.now() / 1000) + ((episode - 4) * 7 + 1) * 86_400
 // a film AniList and MyAnimeList date by its year alone, as they do ONE PIECE FILM: GOD VALLEY (2026-10-17)
 const YEAR_FILM = { id: 900100, idMal: 900100, type: 'ANIME', format: 'MOVIE', status: 'NOT_YET_RELEASED', title: { english: 'Spec Year Film' }, startDate: { year: 2099, month: null, day: null } }
 const YEAR_FILM_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Year Film</strong></h1>
@@ -153,6 +156,8 @@ const TMDB: Record<string, string> = {
 // work's, so its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
+// AniList schedules Spec Airing (anilist:900080, mal:900080) from its 4th episode a day out, weekly, when asked for
+// its schedule, and AniZip dates its first 3 episodes and lists 4 to 6 undated.
 // AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and
 // answers it five seconds later, with four ratings. AniList answers Spec Film (anilist:900050), a film with a description
 // and one relation, and JustWatch finds its film by that title and answers it five seconds later, with seven offers;
@@ -163,8 +168,9 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (malId) {
     // api.ani.zip's answer for an id it does not know, as for a film not out yet
     if (malId === String(YEAR_FILM.idMal)) return Response.json('Not Found')
-    const count = malId === '21' ? 1100 : 26
-    const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: '2023-09-29' }]))
+    const airing = malId === String(AIRING.idMal)
+    const count = malId === '21' ? 1100 : airing ? 6 : 26
+    const episodes = Object.fromEntries(Array.from({ length: count }, (_, index) => [index + 1, { title: { en: `Session ${index + 1}: Misunderstandings` }, airdate: airing && index >= 3 ? '' : '2023-09-29' }]))
     const late = malId === String(LATE.idMal)
     return Response.json({ titles: late ? { en: LATE.title.english } : {}, episodes, episodeCount: count, mappings: { anidb_id: Number(malId), mal_id: Number(malId), ...late ? { anilist_id: LATE.id } : {}, type: 'TV', ...FRIEREN_IDS } })
   }
@@ -208,6 +214,10 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   }
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
   if (variables.id === RATED.id) return Response.json({ data: { Media: { ...RATED, ...credits, relations } } })
+  if (variables.id === AIRING.id) {
+    const upcoming = query.includes('notYetAired') ? { upcoming: { nodes: [4, 5, 6].map(episode => ({ episode, airingAt: airsAt(episode) })) } } : {}
+    return Response.json({ data: { Media: { ...AIRING, ...credits, ...upcoming, nextAiringEpisode: { episode: 4, airingAt: airsAt(4) }, relations } } })
+  }
   const film = [FILM, PRIME_FILM, LATE_FILM].find(({ id }) => id === variables.id)
   if (film) return Response.json({ data: { Media: { ...film, ...credits, relations } } })
   if (variables.id === LATE.id) {

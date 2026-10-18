@@ -1,6 +1,6 @@
 // Both mappers between the graphql row and the store row are hand written, so a new field is dropped
 // silently unless something pins it. `scope` is the field whose loss reopens the season weld.
-import { beforeEach, expect, test } from 'vitest'
+import { beforeEach, expect, test } from 'vite-plus/test'
 
 import { aggregateMedia } from '../../../../src/worker/store/aggregate'
 import { resetStore } from '../../../../src/worker/store/db'
@@ -80,8 +80,11 @@ test('aggregateMedia over a cluster reads every member', () => {
 
 // The third of the three edits a new field needs. The other two are pinned in aggregate-fields.test.ts;
 // this is the one that decides whether the field ever reaches the store at all.
-test('normalizeToStoreMedia carries the next airing through, and spells absence as null', () => {
+test('normalizeToStoreMedia carries the next airing and the schedule through, and spells absence as null', () => {
   const airing = { episodeNumber: 11, airingAt: 'Sun, 06 Sep 2026 15:30:00 GMT' }
-  expect(normalizeToStoreMedia(gql('anilist:1', 'RUN', { nextAiringEpisode: airing })).nextAiringEpisode).toEqual(airing)
+  const scheduled = normalizeToStoreMedia(gql('anilist:1', 'RUN', { nextAiringEpisode: airing, airingSchedule: [airing] }))
+  expect(scheduled.nextAiringEpisode).toEqual(airing)
+  expect(scheduled.airingSchedule).toEqual([airing])
   expect(normalizeToStoreMedia(gql('anilist:1', 'RUN')).nextAiringEpisode).toBeNull()
+  expect(normalizeToStoreMedia(gql('anilist:1', 'RUN')).airingSchedule).toBeNull()
 })

@@ -107,15 +107,18 @@ test('genres and tags dedupe case-insensitively, keeping the highest-scored spel
 // lead with. Only AniList publishes a schedule, and it is NOT the highest-scored source in a cluster
 // jikan also answered, so a field won by the top source alone would lose it on exactly the media that
 // have one.
-test('the next airing is carried through, from whichever source has one', () => {
+test('the next airing and the schedule are carried through, from whichever source has them', () => {
   const airing = { episodeNumber: 11, airingAt: 'Sun, 06 Sep 2026 15:30:00 GMT' }
+  const schedule = [airing, { episodeNumber: 12, airingAt: 'Sun, 13 Sep 2026 15:30:00 GMT' }]
 
-  const alone = aggregateMedia([row('anilist:1', { nextAiringEpisode: airing })], 'https://x')
+  const alone = aggregateMedia([row('anilist:1', { nextAiringEpisode: airing, airingSchedule: schedule })], 'https://x')
   expect(alone.nextAiringEpisode).toEqual(airing)
+  expect(alone.airingSchedule).toEqual(schedule)
 
-  const jikan = row('mal:1', { score: 0.9, nextAiringEpisode: null })
-  const anilist = row('anilist:1', { score: 0.8, nextAiringEpisode: airing })
+  const jikan = row('mal:1', { score: 0.9, nextAiringEpisode: null, airingSchedule: null })
+  const anilist = row('anilist:1', { score: 0.8, nextAiringEpisode: airing, airingSchedule: schedule })
   expect(aggregateMedia([jikan, anilist], 'https://x').nextAiringEpisode).toEqual(airing)
+  expect(aggregateMedia([jikan, anilist], 'https://x').airingSchedule).toEqual(schedule)
 })
 
 test('a cluster nobody scheduled anything for carries none', () => {

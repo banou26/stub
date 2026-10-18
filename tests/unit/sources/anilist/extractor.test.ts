@@ -440,18 +440,38 @@ test('length and source ride on every answer, and the credits only on a details 
   expect(media.studios).toBeUndefined()
 })
 
+// AniList's own schedule page holds a run's 25 oldest entries, all aired on a long one such as One Piece
+test('the media query asks for the episodes AniList has not aired yet, and the media carries them in order', async () => {
+  const bodies: string[] = []
+  const upcoming = { nodes: [
+    { episode: 4, airingAt: Date.parse('2026-10-23T14:00:00Z') / 1000 },
+    null,
+    { episode: 5, airingAt: Date.parse('2026-10-30T14:00:00Z') / 1000 },
+  ] }
+  const fetch = async (url: string, init?: { body?: string }) => {
+    bodies.push(init?.body ?? '')
+    return { status: 200, json: async () => ({ data: { Media: { ...MEDIA_178789, upcoming } } }) }
+  }
+  const { media } = await openMedia({ fetch, similarMedia: async () => undefined } as never)
+  expect(JSON.parse(bodies[0]!).query).toMatch(/upcoming: airingSchedule\(notYetAired: true, perPage: 25\) \{\s*nodes \{\s*episode\s*airingAt\s*\}/)
+  expect(media.airingSchedule).toEqual([
+    { episodeNumber: 4, airingAt: 'Fri, 23 Oct 2026 14:00:00 GMT' },
+    { episodeNumber: 5, airingAt: 'Fri, 30 Oct 2026 14:00:00 GMT' },
+  ])
+})
+
 const sha256 = (body: string) => createHash('sha256').update(body).digest('hex')
 
-// The relay caches on the whole request body, so the modal's and the listing's bodies must stay byte
-// for byte what they were before credits existed. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY
-// plus the `nextAiringEpisode` field, and the listing's `isAdult`.
-test('the details query goes out only when asked, and the modal and listing bodies are unchanged', async () => {
+// The relay caches on the whole request body, so a change to the modal's or the listing's body sends
+// every title's cached answer cold once. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY plus the
+// `nextAiringEpisode` field, the listing's `isAdult`, and the modal's `upcoming` schedule.
+test('the details query goes out only when asked, and the modal and listing bodies are pinned', async () => {
   const { ctx, bodies } = creditsContext()
   await openBebop(ctx)
   await openBebop(ctx, true)
   expect(bodies).toHaveLength(2)
   expect(JSON.parse(bodies[0]!).query, 'the next airing is asked, not read off the schedule').toMatch(/nextAiringEpisode \{\s*airingAt\s*episode\s*\}/)
-  expect(sha256(bodies[0]!), 'the modal body').toBe('85d61938759a1481a732f4a5adc8bb579808037d1219063a687b0010c4e760d7')
+  expect(sha256(bodies[0]!), 'the modal body').toBe('57a5f7bd279d7144bbb3fbe810422fe753e0f1f7ebfacb3855e887538f5640d1')
   expect(bodies[1], 'the page body').toContain('characters(page: 1, perPage: 25')
   expect(bodies[1]).not.toBe(bodies[0])
 

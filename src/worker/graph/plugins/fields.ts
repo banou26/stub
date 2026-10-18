@@ -292,7 +292,7 @@ const nodeOf = (member: MemberRow): Record<string, unknown> => ({
 
 const SCALARS = [
   'url', 'type', 'status', 'averageScore', 'popularity', 'startDate', 'endDate', 'isAdult', 'nextAiringEpisode',
-  'duration', 'sourceMaterial',
+  'airingSchedule', 'duration', 'sourceMaterial',
 ] as const
 
 /**

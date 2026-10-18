@@ -284,12 +284,12 @@ test('a series\' first dimmed episode counts down to its best source\'s time, an
     expect(fire()).toEqual([
       { unreleased: false, date: '7 days ago' },
       { unreleased: true, date: 'in 5 hours' },
-      { unreleased: true, date: 'Oct 28, 2026' },
+      { unreleased: true, date: 'in 7 days' },
     ])
     await act(() => { vi.setSystemTime(Date.parse('2026-10-22T01:00:10Z')); vi.advanceTimersByTime(30_000) })
     expect(fire().slice(1)).toEqual([{ unreleased: false, date: 'today' }, { unreleased: true, date: 'in 6 days, 23 hours' }])
     const stamp = '2026-10-23T00:00:00.000Z'
-    expect(rowsOf([[['appletv', stamp]]])(), 'Apple TV\'s midnight UTC names a day').toEqual([{ unreleased: true, date: releaseDateLabel(stamp) }])
+    expect(rowsOf([[['appletv', stamp]]])(), 'Apple TV\'s midnight UTC names a day').toEqual([{ unreleased: true, date: 'tomorrow' }])
   } finally {
     vi.useRealTimers()
     if (TZ === undefined) delete process.env.TZ
@@ -312,6 +312,133 @@ test('the next episode reads today once AniList\'s time has come, though a sourc
     vi.useRealTimers()
     if (TZ === undefined) delete process.env.TZ
     else process.env.TZ = TZ
+  }
+})
+
+// a weekly anime at 23:00 JST from Friday 2026-10-02, AniList scheduling `scheduled` and AniZip dating rows by `anizip`
+const weeklyAt = (episode: number) => new Date(Date.UTC(2026, 9, 2 + 7 * (episode - 1), 14)).toUTCString()
+const scheduledShow = (
+  { next, scheduled, anizip, count }:
+  { next: number, scheduled: number[], anizip: (episode: number) => string | undefined, count: number }
+) => {
+  const show = {
+    uri: 'ag:(anilist:195516)',
+    status: 'RELEASING',
+    nextAiringEpisode: { episodeNumber: next, airingAt: weeklyAt(next) },
+    airingSchedule: scheduled.map(episode => ({ episodeNumber: episode, airingAt: weeklyAt(episode) })),
+    episodes: media.episodes.slice(0, count).map(episode => ({
+      ...episode,
+      titles: [],
+      releaseDate: anizip(episode.episodeNumber!) ?? null,
+      handles: [
+        ...episode.handles,
+        { relation: 'SAME_AS', node: { uri: `anizip:${episode.episodeNumber}`, origin: 'anizip', releaseDate: anizip(episode.episodeNumber!) ?? null } },
+      ],
+    })),
+  } as unknown as DetailsMedia
+  const { hook } = memoryLocation({ path: '/' })
+  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={show}/></Router></Provider>)
+  hosts.push(host)
+  return host
+}
+const sides = (host: HTMLElement) => [...host.querySelectorAll('.episode')].map(row => row.querySelector('.side')!.textContent)
+const dimmed = (host: HTMLElement) => [...host.querySelectorAll('.episode')].map(row => row.classList.contains('unreleased'))
+
+// The Apothecary Diaries season 3 in Tokyo, 2026-10-19 02:10 JST: out to 3, AniList schedules 4 to 12, AniZip dates
+// 4 to 8 and nothing dates 9 to 12 (measured). Added: AniZip a week late on 5, and two undated rows past the schedule.
+test('an unreleased row AniList schedules reads when it airs, worded like a released one, by AniList\'s time', () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  const TZ = process.env.TZ
+  process.env.TZ = 'Asia/Tokyo'
+  try {
+    vi.setSystemTime(Date.parse('2026-10-18T17:10:00Z'))
+    const host = scheduledShow({
+      next: 4,
+      scheduled: [4, 5, 6, 7, 8, 9, 10, 11, 12],
+      anizip: episode => episode <= 8 ? new Date(weeklyAt(episode === 5 ? 6 : episode)).toISOString() : undefined,
+      count: 14,
+    })
+    expect(sides(host)).toEqual([
+      '17 days ago', '10 days ago', '3 days ago', 'in 4 days, 20 hours',
+      'in 11 days', 'in 18 days', 'in 25 days', 'Nov 20, 2026', 'Nov 27, 2026', 'Dec 4, 2026', 'Dec 11, 2026', 'Dec 18, 2026',
+    ])
+    expect(dimmed(host)).toEqual([false, false, false, ...Array(9).fill(true)])
+    act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 2"]')!.click() })
+    expect(sides(host), 'the control: a row nobody dates reads nothing').toEqual(['', ''])
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+test('once AniList\'s next episode airs, the one after counts down to AniList\'s time, though a source times it later', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  try {
+    vi.setSystemTime(Date.parse('2026-10-23T13:00:00Z'))
+    const host = scheduledShow({
+      next: 4,
+      scheduled: [4, 5, 6],
+      anizip: episode => new Date(Date.parse(weeklyAt(episode)) + (episode === 5 ? 7_200_000 : 0)).toISOString(),
+      count: 6,
+    })
+    expect(sides(host).slice(3, 5), 'the control: before it airs').toEqual(['in 1 hour', 'in 7 days'])
+    await act(() => { vi.setSystemTime(Date.parse('2026-10-23T14:00:10Z')); vi.advanceTimersByTime(30_000) })
+    expect(dimmed(host).slice(3, 5)).toEqual([false, true])
+    expect(sides(host).slice(4, 5)).toEqual(['in 6 days, 23 hours'])
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+// a page left open two weeks: AniList's next and the one after aired, and only the next is out until a refetch
+test('a dimmed row whose scheduled time has passed reads nothing, not how long ago', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  try {
+    vi.setSystemTime(Date.parse('2026-10-23T13:00:00Z'))
+    const host = scheduledShow({
+      next: 4,
+      scheduled: [4, 5, 6],
+      anizip: episode => episode < 4 ? new Date(weeklyAt(episode)).toISOString() : undefined,
+      count: 6,
+    })
+    expect(sides(host).slice(3), 'the control: before they air').toEqual(['in 1 hour', 'in 7 days', 'in 14 days'])
+    await act(() => { vi.setSystemTime(Date.parse('2026-11-06T15:00:00Z')); vi.advanceTimersByTime(30_000) })
+    expect(dimmed(host).slice(3)).toEqual([false, true, true])
+    expect(sides(host).slice(4)).toEqual(['', ''])
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+// a weekly broadcast a platform put out all at once: AniList still schedules 5 and 6, a source has every episode out
+test('AniList\'s schedule never dims or redates a row a source has out', () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  const TZ = process.env.TZ
+  process.env.TZ = 'Asia/Tokyo'
+  try {
+    vi.setSystemTime(Date.parse('2026-10-18T17:10:00Z'))
+    const host = scheduledShow({ next: 5, scheduled: [5, 6], anizip: () => '2026-10-01', count: 6 })
+    expect(dimmed(host), 'AniList\'s next stays dim, as its own time rules').toEqual([false, false, false, false, true, false])
+    expect(sides(host)[5], 'and a row out reads its own date').toBe('18 days ago')
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+// Reincarnated as a Sword season 2's 4 as AniZip once timed it: out by AniList's next, dated a week late
+test('a row that is out never reads as ahead, though its source dates it later', () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  try {
+    vi.setSystemTime(Date.parse('2026-10-24T17:10:00Z'))
+    const late = new Date(weeklyAt(5)).toISOString()
+    const host = scheduledShow({ next: 5, scheduled: [5], anizip: episode => episode === 4 ? late : new Date(weeklyAt(episode)).toISOString(), count: 5 })
+    expect(dimmed(host)).toEqual([false, false, false, false, true])
+    expect(sides(host)[3]).toBe(releaseDateLabel(late))
+  } finally {
+    vi.useRealTimers()
   }
 })
 

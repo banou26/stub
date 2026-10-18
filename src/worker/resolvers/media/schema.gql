@@ -375,6 +375,12 @@ type Media {
   and a source that publishes no schedule alike: it is not a promise that the run has ended.
   """
   nextAiringEpisode: MediaAiringEpisode
+  """
+  The episodes AniList has scheduled and not aired yet, soonest first, at most 25. Only a media query
+  asks for them, never a listing: null when no media query asked AniList, and an empty list when
+  AniList has nothing scheduled.
+  """
+  airingSchedule: [MediaAiringEpisode!]
   """The broadcast season this run aired in, as the source named it."""
   season: MediaSeason
   """
