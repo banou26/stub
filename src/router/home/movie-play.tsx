@@ -15,8 +15,8 @@ import { movieFacts } from './movie'
  * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens the
  * watch page, which picks the source, and is drawn when one of `sources` plays in stub, or would with
  * the extension, as the watch page's pick counts it; until the release it says when, and offers no
- * Play. Until a source lands or the media has `settled`, the bar holds Play's place; with nothing to
- * hold, there is no bar.
+ * Play. Until the media has `settled`, the bar holds Play's place while no source has landed, or while
+ * one stub plays still links out because its episode has not landed; with nothing to hold, there is no bar.
  */
 const MoviePlay = (
   { episode, mediaUri, sources, settled, startDate, status, genres }:
@@ -40,7 +40,7 @@ const MoviePlay = (
   const day = releaseDateLabel(released)
   const none = !upcoming && !sources.length
   const when = upcoming ? day && `Releases ${day}` : none && settled ? 'No sources yet' : undefined
-  const held = none && !settled
+  const held = !play && !upcoming && !settled && (none || sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
   return (
     <div className="movie">
       <div className="facts">{movieFacts({ released, runtime: episode?.runtime, genres }).join(' · ')}</div>

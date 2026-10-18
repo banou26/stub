@@ -9,6 +9,7 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { releaseDateLabel } from '../../../src/utils/release-date'
 
 let origin = 'cr'
@@ -157,6 +158,29 @@ test('a source that links out ends the hold, and a bar with nothing in it is not
     expect(host.querySelector('.movie > .facts'), `and the film's line, settled ${settled}`).not.toBeNull()
     expect(host.querySelector('.play-bar'), `settled ${settled}`).toBeNull()
   }
+})
+
+// JustWatch's Netflix offer can land before Netflix's own answer brings the film's episode, 0.15 to 2 s on Penguin
+// Highway (2026-10-19), and until then Netflix links out
+test('while a source stub plays still links out and the film has not settled, the bar holds Play\'s place', () => {
+  origin = 'nf'
+  const offer = [{ relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/81037598' } }]
+  const film = { uri: 'ag:(jw:403680-1)', handles: [] } as unknown as DetailsEpisode
+  const early = render(film, offer, '2018-08-17', undefined, false)
+  expect(early.querySelector('a.source')?.getAttribute('target'), 'the control: Netflix links out').toBe('_blank')
+  expect(early.querySelector('.play-bar')?.classList.contains('held')).toBe(true)
+  expect(render(film, offer, '2018-08-17').querySelector('.play-bar'), 'the control: settled, nothing to hold').toBeNull()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => key === DISABLED_SOURCES_KEY ? '["nf"]' : null })
+  try {
+    expect(render(film, offer, '2018-08-17', undefined, false).querySelector('.play-bar'), 'turned off, Netflix never plays here').toBeNull()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+  const played = {
+    uri: 'ag:(jw:403680-1,nf:81037598-1)',
+    handles: [{ relation: 'SAME_AS', node: { uri: 'nf:81037598-1', origin: 'nf', url: 'https://www.netflix.com/watch/81037598' } }],
+  } as unknown as DetailsEpisode
+  expect(render(played, offer, '2018-08-17', undefined, false).querySelector('a.play'), 'the control: its episode landed').not.toBeNull()
 })
 
 test('a film not out yet never holds the bar, so the line naming its release day does not move', () => {
