@@ -13,9 +13,9 @@
  * between a run cluster and a container cluster is proposed exactly the same way, and the WRITER
  * downgrades it to `PART_OF` reason `cross-scope` (5.2): "a title match between a run and a show is a
  * guess at containment, so it rides an edge, never a union: the edge can be deleted, a union cannot"
- * (`fuzzy-merge.ts:660-666`). Whether a proposal becomes an edge is never this file's call, which is
- * what lets the guards add what the fuzzy pass never had (disagreeing ids, the count veto, the
- * contained check).
+ * (`fuzzy-merge.ts:660-666`). Whether a proposal becomes an edge is the guards' call, which is what
+ * lets them add what the fuzzy pass never had (disagreeing ids, the count veto, the contained check),
+ * except the two refusals between two shows that `refusedJoins` writes before they are asked.
  *
  * WHAT IT PROMISES. Same graph, same scope, same output: every scan is ordered, every set the gates
  * read is a function of the cluster's members rather than of their arrival order, the six titles are
@@ -58,12 +58,13 @@ import type { Gate, LinkProposal, Plugin, PluginContext, PluginOutput } from './
 import { parseSeasonNumber, SEASON_MARKER } from '../../../sources/season'
 import { stripTitle } from '../../../sources/utils'
 import {
-  differOnlyByTrailingNumber, MAX_TITLES_PER_CLUSTER, namesCompanionContent, selectByScore,
+  differOnlyByTrailingNumber, namesCompanionContent, selectByScore,
   SIMILARITY_THRESHOLD, START_DATE_WINDOW_DAYS,
 } from '../../store/fuzzy-merge'
+import { disagree } from './guards'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const TITLE_VERSION = 2
+export const TITLE_VERSION = 3
 
 /** The ordinal at which a run stops being the one a show's own date is about. Two, and never one. */
 export const LATER_RUN_ORDINAL = 2
@@ -555,6 +556,56 @@ export const proposalFor = (
   }
 }
 
+const originOf = (uri: string): string => uri.slice(0, uri.indexOf(':'))
+const noParent = () => null
+
+/**
+ * The title matches between two SHOWS that are written refused before the guards weigh them, by pair
+ * key, with the reason. Only a match no gate refused is weighed. A title names no id, so:
+ * - `disagreeing-ids`: the two shows already hold two ids of one space that are not one id. Guard 4
+ *   cannot be left to refuse it, because its cut of a contested row excuses the very link that would
+ *   contest the row: once Watchmode tied `tmdb:90282`, title-joined to Apple TV's The Morning Show, to
+ *   IMDb tt7203552, Apple's link to tt10323334 went through and tore tt7203552's show in three.
+ * - `ambiguous`: one show matches two shows whose ids disagree. Weighed one link at a time the guards
+ *   let the arrival order pick, so it joins neither, unless one of the two is known to every
+ *   catalogue that knows the other and to at least one more, and then it joins that one. Both are
+ *   read as the clusters stand when the pass runs, and a link let through stays by the sticky rule
+ *   whatever lands after it (pinned as a gap in `tests/unit/worker/graph/morning-show.test.ts`).
+ *
+ * Never between two runs: there the guards' downgrade is what hangs a folding season under each run it
+ * holds, or a refused run on its rival, as a badge (5.2), and a refusal here would write none.
+ */
+export const refusedJoins = (
+  matches: Map<string, { a: string, b: string, decision: TitleDecision }>,
+  scopeOf: (cluster: string) => string,
+  membersOf: (cluster: string) => string[]
+): Map<string, 'disagreeing-ids' | 'ambiguous'> => {
+  const clash = (left: string, right: string) =>
+    membersOf(left).some(a => membersOf(right).some(b => disagree(a, b, noParent)))
+  const outranks = (cluster: string, rival: string) => {
+    const own = new Set(membersOf(cluster).map(originOf))
+    const theirs = new Set(membersOf(rival).map(originOf))
+    return own.size > theirs.size && [...theirs].every(origin => own.has(origin))
+  }
+  const refused = new Map<string, 'disagreeing-ids' | 'ambiguous'>()
+  const candidates = new Map<string, string[]>()
+  const joins: [string, string, string][] = []
+  for (const [key, { a, b, decision }] of matches) {
+    if (decision.refusedBy || scopeOf(a) !== 'CONTAINER' || scopeOf(b) !== 'CONTAINER') continue
+    if (clash(a, b)) {
+      refused.set(key, 'disagreeing-ids')
+      continue
+    }
+    joins.push([key, a, b])
+    candidates.set(a, [...candidates.get(a) ?? [], b])
+    candidates.set(b, [...candidates.get(b) ?? [], a])
+  }
+  const contested = (hub: string, candidate: string) => (candidates.get(hub) ?? []).some(rival =>
+    rival !== candidate && clash(candidate, rival) && !outranks(candidate, rival))
+  for (const [key, a, b] of joins) if (contested(a, b) || contested(b, a)) refused.set(key, 'ambiguous')
+  return refused
+}
+
 /** The one read of the clusters: every member, with the profile columns the gates read. */
 export const MEMBER_SCAN =
   `MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster)
@@ -626,7 +677,14 @@ export const titlePlugin: Plugin = {
   after: ['plugin:aggregate', 'plugin:containment'],
   version: TITLE_VERSION,
   run: async (ctx: PluginContext): Promise<PluginOutput> => {
-    const profiles = profileClusters(await ctx.query<TitleMemberRow>(MEMBER_SCAN))
+    const rows = await ctx.query<TitleMemberRow>(MEMBER_SCAN)
+    const profiles = profileClusters(rows)
+    const members = new Map<string, string[]>()
+    for (const row of rows) {
+      const uris = members.get(row.cluster)
+      if (uris) uris.push(row.uri)
+      else members.set(row.cluster, [row.uri])
+    }
 
     // THE DELTA, read off the profiles rather than off `ctx.delta`: that names what the iteration
     // before applied, and misses what `plugin:profile` and `plugin:aggregate` wrote earlier in this one
@@ -723,6 +781,7 @@ export const titlePlugin: Plugin = {
       if (decision.match) matches.set(key, { a, b, decision })
     }
     lastRun = { fingerprints, matches }
+    const refusedJoin = refusedJoins(matches, id => profiles.get(id)!.scope, id => members.get(id) ?? [])
 
     const links: LinkProposal[] = []
     const proposed = new Set<string>()
@@ -733,7 +792,8 @@ export const titlePlugin: Plugin = {
       const proposal = proposalFor(first, second, decision)!
       if (decision.refusedBy) refusals += 1
       proposed.add(pairKey(proposal.fromUri, proposal.toUri))
-      links.push(proposal)
+      const reason = refusedJoin.get(key)
+      links.push(reason ? { ...proposal, status: 'refused', reason } : proposal)
     }
 
     // THE STICKY HALF: an active link of this plugin's has already been spent on a merge, so its pair
@@ -761,7 +821,7 @@ export const titlePlugin: Plugin = {
     ctx.log({
       level: 'info',
       rule: 'title-scan',
-      detail: `${profiles.size} clusters of which ${moved.size} moved, ${buckets.size} year buckets, ${pairs.size} pairs decided (${exactPairs} through the exact key), ${ordinalPairs.size} through the ordinal axis, ${links.length - carried} proposals of which ${refusals} refused by a gate, ${carried} carried`,
+      detail: `${profiles.size} clusters of which ${moved.size} moved, ${buckets.size} year buckets, ${pairs.size} pairs decided (${exactPairs} through the exact key), ${ordinalPairs.size} through the ordinal axis, ${links.length - carried} proposals of which ${refusals} refused by a gate and ${refusedJoin.size} between two shows, ${carried} carried`,
     })
 
     // every match is in the output, decided or kept, so the scope is every row this plugin owns

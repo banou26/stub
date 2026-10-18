@@ -67,7 +67,8 @@ export type LinkProposal = {
   toUri: string
   /**
    * `refused` for a rule the PLUGIN owns and has already decided: `plugin:direct`'s `inverted`,
-   * `foreign-includes` and same-origin `disagreeing-ids` (5.4 P1). The guards are not asked about a
+   * `foreign-includes` and same-origin `disagreeing-ids` (5.4 P1), and `plugin:title`'s
+   * `disagreeing-ids` and `ambiguous` between two shows (5.4 P3). The guards are not asked about a
    * row that is already a refusal, and a plugin may not use this to write an ACTIVE row past them.
    * Absent means `active`, which is a proposal and meets every guard of 5.2.
    */

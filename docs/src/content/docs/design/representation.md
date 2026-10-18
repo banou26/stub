@@ -1369,6 +1369,32 @@ ORDER BY year
   The guards then add what the fuzzy pass never had: disagreeing ids (guard 4), count mismatch against
   a folding origin (guard 7), the contained check (guard 6). The pair is evaluated against the clusters
   AS THEY STAND when written, which replaces the snapshot re-check of `fuzzy-merge.ts:636-655`.
+- **Two shows a title cannot tell apart** (2026-10-18, `refusedJoins`). Between two CONTAINER clusters
+  the plugin writes two kinds of title match refused itself, before the guards. A pair whose ids
+  already disagree is `disagreeing-ids`: guard 4 would refuse it too, but its cut of a contested row
+  excuses the very link that would contest that row. A show matching two shows whose ids disagree is
+  `ambiguous` and joins neither, nothing rather than a guess, unless one of the two is known to every
+  catalogue that knows the other and to at least one more, and then it joins that one. Apple TV's The
+  Morning Show names no id and matches both 2019 IMDb shows, `tt7203552` (seven catalogues) and
+  `tt10323334` (OMDb alone). Replaying the answers series.fkn.app gave on 2026-10-17 in 94 orders, it
+  now joins `tt7203552` with the other show apart in 90, against 25 before, where the rest welded the
+  two, tore the first in three or put Apple's row with the other show; live on a local build, 12 of 12
+  searches loaded by url end apart against 12 of 12 welded, and 12 of 12 typed searches end apart on
+  both. `tests/unit/worker/graph/morning-show.test.ts` pins five of the orders. Runs are left to the
+  guards, whose downgrade is what hangs a folding season under each run it holds. Both refusals read
+  the clusters as they stand when the pass runs, and a title link one let through stays by the sticky
+  rule whatever lands after it: in the four orders left, `tt10323334`'s row and Apple's both land
+  before any row of `tt7203552`, which takes OMDb's one search answer split in two, and Apple's row
+  stays with `tt10323334` (pinned as a known gap in the same test file).
+  Beyond this case it keeps common same-year series titles from welding. Replaying the answers of ten
+  series searches in 21 to 23 orders each (2026-10-18): before, Love Island ended with 2 to 4 of its
+  versions on one card, five different ways over 22 orders, The Voice welded three TMDB rows into
+  `imdb:tt10385760` in every order, and Big Brother and MasterChef welded in some orders; now none
+  welds and each search draws one result whatever the order, while Survivor, Fallout, Shogun, House,
+  Skins and The Bachelor are unchanged. The cost is that a show's own TMDB row, which names no IMDb id,
+  can stand as its own card beside the IMDb show, as those three The Voice rows do.
+  Neither refusal fires on the 249 case corpus or on the 8,556 answers of the Summer 2026 recording,
+  which build the same 500 clusters and 134 title links as before.
 - **CJK and diacritics.** Keys keep every script, and the similarity call receives the SAME key the
   profile computed, so the double normalisation that made `titleSimilarity`'s empty-string guard
   unreachable (two Vanguard seasons scoring 1.0 on `divinez`, 2026-08-11) cannot recur.
