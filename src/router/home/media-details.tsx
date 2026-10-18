@@ -7,7 +7,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
 import { LucidePlay } from 'lucide-react'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
@@ -299,6 +299,16 @@ export const useWatchSources = (
   return episode ? watchSources(episode, mediaUri, origins, backend, links) : []
 }
 
+/**
+ * Whether the media asked for at `uri` has settled since the page asked: a source joining later turns `settled` false
+ * again, and a place held until the media settles is not held a second time.
+ */
+export const useSettledOnce = (uri: string | undefined, settled: boolean | null | undefined) => {
+  const once = useRef<string | undefined>(undefined)
+  if (settled) once.current = uri
+  return once.current !== undefined && once.current === uri
+}
+
 const watchSources = (
   episode: DetailsEpisode, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, links: readonly Offer[] = []
 ): WatchSource[] =>
@@ -319,16 +329,17 @@ const watchSources = (
       const watchPath = episode.uri && sourceUri
         ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
         : undefined
-      const multiple = handles.length > 1
+      // a browser opens no magnet, so a release off the web plays on the watch page, which hands it to its plugin
+      const inApp = handles.length > 1 || playable || (handle?.url != null && !/^https?:/.test(handle.url))
       return {
         id: origin.id,
         name: origin.name ?? origin.id,
         icon: origin.icon,
         color: origin.color,
-        href: multiple || playable
+        href: inApp
           ? watchPath
           : (handle?.url ?? links.find(link => link.node.origin === origin.id)?.node.url ?? undefined),
-        external: multiple ? false : !playable,
+        external: !inApp,
         active: false,
       } satisfies WatchSource
     })

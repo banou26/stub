@@ -335,6 +335,25 @@ test('a Prime Video row outside Japan plays in stub with the extension, and link
   expect(await hrefOn('cloud')).toBe(url)
 })
 
+// a browser opens no magnet, so a torrent plugin's lone release plays on the watch page, as a film's does
+test('an episode row\'s lone release a browser cannot open goes to the watch page, and one on the web links out', async () => {
+  const torrents = {
+    uri: 'ag:(anilist:1)',
+    episodes: [['a', 'magnet:?xt=urn:btih:a'], ['b', 'https://nyaa.si/view/b']].map(([id, url], index) => ({
+      uri: `ag:(nyaa:${id})`, episodeNumber: index + 1, releaseDate: '2023-09-29', titles: [{ title: `Episode ${index + 1}` }],
+      handles: [{ relation: 'SAME_AS', node: { uri: `nyaa:${id}`, origin: 'nyaa', url } }],
+    })),
+  } as unknown as DetailsMedia
+  const { hook } = memoryLocation({ path: '/' })
+  const host = mount(<Provider value={client([{ id: 'nyaa', name: 'Nyaa' }])}><Router hook={hook}><Episodes media={torrents}/></Router></Provider>)
+  hosts.push(host)
+  await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  expect([...host.querySelectorAll('.episode .src')].map(link => ({ href: link.getAttribute('href'), target: link.getAttribute('target') }))).toEqual([
+    { href: '/watch/ag:(anilist:1)/ag:(nyaa:a)/nyaa:a', target: null },
+    { href: 'https://nyaa.si/view/b', target: '_blank' },
+  ])
+})
+
 describe('a media with no episode rows', () => {
   const empty = (fields: Record<string, unknown>) => ({ uri: 'ag:(anilist:1)', episodes: [], ...fields }) as unknown as DetailsMedia
   const render = (shown: DetailsMedia) => {

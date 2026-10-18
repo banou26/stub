@@ -73,6 +73,42 @@ const RATED_NODE = {
     { objectId: 900042, totalEpisodeCount: 0, content: { seasonNumber: 2, isReleased: false }, episodes: [] },
   ],
 }
+// a film, and JustWatch's node of it with seven services that link out, so its chips run past a phone's width
+const FILM = {
+  id: 900050, type: 'ANIME', format: 'MOVIE', status: 'FINISHED', title: { english: 'Spec Film' },
+  description: 'A summer, a forest and a sea that should not be there. '.repeat(8), startDate: { year: 2018, month: 8, day: 17 },
+}
+const FILM_OFFERS = {
+  tbv: 'https://tubitv.com/movies/900051',
+  plx: 'https://watch.plex.tv/movie/spec-film?utm_content=5d77708f594b2b001e74d1ea',
+  hop: 'https://www.hoopladigital.com/title/900052',
+  rkc: 'https://therokuchannel.roku.com/details/900053',
+  ptv: 'https://pluto.tv/on-demand/movies/5d77708f594b2b001e74d1eb',
+  hdv: 'https://www.hidive.com/interstitial/900054',
+  phl: 'https://www.philo.com/player/show/900055',
+}
+const FILM_NODE = {
+  id: 'tm900050', objectId: 900050, objectType: 'MOVIE',
+  content: { title: 'Spec Film', fullPath: '/us/movie/spec-film', originalReleaseYear: 2018, posterUrl: null, shortDescription: null },
+  offers: Object.entries(FILM_OFFERS).map(([shortName, standardWebURL]) => ({ monetizationType: 'FREE', standardWebURL, package: { shortName } })),
+}
+// a film JustWatch finds on Prime Video's Japanese site, which stub plays for a viewer in Japan, and on Tubi
+const PRIME_FILM = { ...FILM, id: 900070, title: { english: 'Spec Prime Film' } }
+const PRIME = 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070'
+const PRIME_FILM_NODE = {
+  ...FILM_NODE, id: 'tm900070', objectId: 900070, content: { ...FILM_NODE.content, title: PRIME_FILM.title.english, fullPath: '/us/movie/spec-prime-film' },
+  offers: [
+    { monetizationType: 'FLATRATE', standardWebURL: PRIME, deeplinkURL: PRIME, package: { shortName: 'amp' } },
+    { monetizationType: 'FREE', standardWebURL: 'https://tubitv.com/movies/900071', package: { shortName: 'tbv' } },
+  ],
+}
+// a film only JustWatch knows a place to watch, answered after every other source's 30 s bound
+const LATE_FILM = { ...FILM, id: 900060, title: { english: 'Spec Late Film' } }
+const LATE_FILM_NODE = {
+  ...FILM_NODE, id: 'tm900060', objectId: 900060, content: { ...FILM_NODE.content, title: LATE_FILM.title.english, fullPath: '/us/movie/spec-late-film' },
+  offers: [{ monetizationType: 'FREE', standardWebURL: 'https://tubitv.com/movies/900061', package: { shortName: 'tbv' } }],
+}
+const JUSTWATCH = [[RATED, RATED_NODE], [FILM, FILM_NODE], [PRIME_FILM, PRIME_FILM_NODE], [LATE_FILM, LATE_FILM_NODE]] as const
 const SEQUEL_THEMES = {
   data: {
     findAnimeByExternalSite: [{
@@ -118,7 +154,10 @@ const TMDB: Record<string, string> = {
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
 // AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and
-// answers it five seconds later, with four ratings.
+// answers it five seconds later, with four ratings. AniList answers Spec Film (anilist:900050), a film with a description
+// and one relation, and JustWatch finds its film by that title and answers it five seconds later, with seven offers;
+// Spec Prime Film (anilist:900070) the same, with Prime Video on amazon.co.jp and Tubi, and Spec Late Film
+// (anilist:900060) with Tubi alone, forty seconds later.
 export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
@@ -140,10 +179,12 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     if (objectType === 'SHOW') return Response.json(POPULAR_SHOWS)
     const theBoys = PRIME_COUNTRIES['the-boys'] as Record<string, unknown>
     if (variables?.nodeId === 'ts78125') return Response.json(theBoys[`${variables.offerCountry},${variables.extraCountry}`] ?? { data: { node: null } })
-    if (variables?.searchTitlesFilter?.searchQuery === RATED.title.english) return Response.json({ data: { popularTitles: { edges: [{ node: RATED_NODE }] } } })
-    if (variables?.nodeId === RATED_NODE.id) {
-      await new Promise(resolve => setTimeout(resolve, 5_000))
-      return Response.json({ data: { node: RATED_NODE } })
+    const searched = JUSTWATCH.find(([media]) => media.title.english === variables?.searchTitlesFilter?.searchQuery)
+    if (searched) return Response.json({ data: { popularTitles: { edges: [{ node: searched[1] }] } } })
+    const node = JUSTWATCH.map(([, node]) => node).find(({ id }) => id === variables?.nodeId)
+    if (node) {
+      await new Promise(resolve => setTimeout(resolve, node === LATE_FILM_NODE ? 40_000 : 5_000))
+      return Response.json({ data: { node } })
     }
   }
   if (typeof input === 'string' && input.startsWith('https://gateway.watchmode.com/trpc/gateway.quickSearch?')
@@ -167,6 +208,8 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   }
   const relations = { edges: [{ relationType: 'SEQUEL', node: SEQUEL }] }
   if (variables.id === RATED.id) return Response.json({ data: { Media: { ...RATED, ...credits, relations } } })
+  const film = [FILM, PRIME_FILM, LATE_FILM].find(({ id }) => id === variables.id)
+  if (film) return Response.json({ data: { Media: { ...film, ...credits, relations } } })
   if (variables.id === LATE.id) {
     await new Promise(resolve => setTimeout(resolve, 5_000))
     return Response.json({ data: { Media: { ...LATE, ...credits, relations: { edges: LATE_RELATIONS } } } })

@@ -14,8 +14,9 @@ import MediaSeasons from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
 import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
+import SourceSelector from '../../components/source-selector'
 import { carriedSearch } from '../debug/trace'
-import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useTrackingSummary } from '../home/media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { filmRelease } from '../home/episodes'
@@ -170,7 +171,7 @@ const style = css`
       & > * { flex-shrink: 0; }
     }
 
-    .chip {
+    & > .chips > .chip {
       display: inline-flex;
       align-items: center;
       height: 3rem;
@@ -199,6 +200,10 @@ const style = css`
     /* as tall as the description drawn: its four lines, then the heading's gap and Expand */
     & > .description[aria-hidden] {
       height: calc(6em + 0.8rem + 1.8rem);
+    }
+
+    & > .watch {
+      margin-top: 0.4rem;
     }
 
     & > .expand {
@@ -667,6 +672,7 @@ const TitlePage = () => {
   })
   const media = data?.media
   const current = currentMedia({ data, operation }, uri)
+  const settled = useSettledOnce(uri, current?.settled)
   const tracked = useTrackingSummary(media?.uri)
 
   // a layout effect, run as the answer is drawn: a plain one waits a frame, and a Back taken in that frame renders this
@@ -686,12 +692,13 @@ const TitlePage = () => {
   const second = secondTitle(media?.titles)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
+  const sources = useWatchSources(isMovie ? media!.episodes.at(0) : undefined, media?.uri ?? '', media?.handles)
   // the anime catalogues name the second title and the facts every anime has, AniList alone names relations, and
   // AniList joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
   // the clock at draw time: the label only turns at the release, and Play follows the tick
   const upcoming = isMovie && filmRelease({ startDate: media!.startDate, status: media!.status, episode: media!.episodes.at(0) }).upcoming
-  const facts = titleFacts(media ?? {}, {}, anime && !current?.settled, upcoming)
+  const facts = titleFacts(media ?? {}, {}, anime && !settled, upcoming)
   const chips = media ? titleChips(media) : []
   const ratings = ratingChips(media ?? {})
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
@@ -734,12 +741,12 @@ const TitlePage = () => {
       <div className="body">
         {coverUrl ? <img className="cover" src={coverUrl} alt=""/> : <div className="cover"/>}
         <div className="heading">
-          {season ? <div className="season">{season}</div> : current?.settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
-          <h1>{title ?? (current?.settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
+          {season ? <div className="season">{season}</div> : settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
+          <h1>{title ?? (settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
           {
             second
               ? <div className="second">{second}</div>
-              : anime && !current?.settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
+              : anime && !settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
           }
           {
             chips.length || media?.averageScore != null || ratings.length
@@ -750,14 +757,15 @@ const TitlePage = () => {
                   {ratings.map(rating => <span className="chip" key={rating}>{rating}</span>)}
                 </div>
               )
-              : current?.settled ? undefined : <div className="chips"><Placeholder className="pending"/></div>
+              : settled ? undefined : <div className="chips"><Placeholder className="pending"/></div>
           }
           {
             description
               ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
-              : current?.settled ? undefined : <PlaceholderLines count={5} className="description"/>
+              : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}
+          {isMovie ? <SourceSelector chips sources={sources} pending={!settled}/> : undefined}
         </div>
         <div className="actions">
           {
@@ -798,7 +806,7 @@ const TitlePage = () => {
             relations={media?.relations ?? []}
             action={<MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>}
             route={Route.TITLE}
-            pending={anime && !current?.settled}
+            pending={anime && !settled}
           />
           <MediaSeasons
             seasons={media?.seasons}

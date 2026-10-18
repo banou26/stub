@@ -17,13 +17,14 @@ import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
+import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
-import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useTrackingSummary } from './media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources } from './media-details'
 import { getRoutePath, Route } from '../path'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
@@ -209,6 +210,11 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           font-size: 1.5rem;
           color: rgba(255, 255, 255, 0.8);
         }
+
+        /* Play's height, until a source lands or every source has answered */
+        &.held {
+          min-height: 4.4rem;
+        }
       }
     }
 
@@ -226,6 +232,10 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     & > .description.pending {
       height: 20rem;
       font-size: 1.6rem;
+    }
+
+    & > .watch {
+      margin-top: 1.6rem;
     }
 
     & > .relations, & > .seasons, & > .episode-list {
@@ -332,8 +342,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   })
   const media = data?.media ?? foundMedia
   const current = currentMedia({ data, operation }, uri)
+  const settled = useSettledOnce(uri, current?.settled)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
+  const film = isMovie ? data?.media?.episodes.at(0) : undefined
+  const sources = useWatchSources(film, media?.uri ?? '', media?.handles)
   const tracked = useTrackingSummary(data?.media?.uri)
   const description = useMemo(
     () =>
@@ -450,7 +463,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
       </div>
       <div className="content">
         <div className="header">
-          {title || current?.settled ? <span className="title">{title}</span> : <Placeholder className="title-pending"/>}
+          {title || settled ? <span className="title">{title}</span> : <Placeholder className="title-pending"/>}
           {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
@@ -461,9 +474,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           isMovie && media
             ? (
               <MoviePlay
-                episode={'episodes' in media ? media.episodes?.at(0) : undefined}
+                episode={film}
                 mediaUri={media.uri}
-                handles={media.handles}
+                sources={sources}
+                settled={settled}
                 startDate={'startDate' in media ? media.startDate : undefined}
                 status={'status' in media ? media.status : undefined}
                 genres={'genres' in media ? media.genres : undefined}
@@ -487,8 +501,9 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                 <div dangerouslySetInnerHTML={{ __html: description }}/>
               </Collapsible>
             )
-            : current?.settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
+            : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
         }
+        {isMovie ? <SourceSelector chips sources={sources} pending={!settled}/> : undefined}
         <MediaRelations
           key={uri}
           relations={media && 'relations' in media ? media.relations ?? [] : []}

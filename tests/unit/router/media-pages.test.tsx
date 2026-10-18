@@ -126,6 +126,21 @@ describe('the preview', () => {
     expect(pending(modal())).toEqual([])
   })
 
+  // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does
+  test('holds nothing a second time once every source has answered, though a source joins later', () => {
+    const late = { ...partial(3), type: 'MOVIE' }
+    const { answer } = preview(late.uri)
+    answer(late)
+    expect(pending(modal()), 'the control: held while a source is out').toEqual(['title-pending', 'description.pending', 'pending'])
+    expect(modal().querySelector('.play-bar.held'), 'and Play\'s place').not.toBeNull()
+
+    answer({ ...late, settled: true })
+    expect(pending(modal())).toEqual([])
+    answer({ ...late, settled: false })
+    expect(pending(modal())).toEqual([])
+    expect(modal().querySelector('.play-bar')!.textContent).toBe('No sources yet')
+  })
+
   test('draws no episode rows for a film, nor their placeholders before the worker says it is one', () => {
     const { answer } = preview(film(3).uri)
     expect(modal().querySelectorAll('.episode, .episodes')).toHaveLength(0)
@@ -211,6 +226,18 @@ describe('the title page', () => {
     expect(pending(host)).toEqual(['pending', 'pending', 'pending', 'pending', 'description', ...HELD_FACTS, 'relations.placeholder', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
 
     answer({ ...partial(1), settled: true })
+    expect(pending(host)).toEqual([])
+  })
+
+  test('holds nothing a second time once every source has answered, though a source joins later', () => {
+    const late = { ...partial(3), type: 'MOVIE' }
+    const { host, answer } = titlePage(late.uri)
+    answer(late)
+    expect(pending(host), 'the control: held while a source is out').toEqual(['pending', 'pending', 'pending', 'description', 'pending', ...HELD_FACTS.slice(1), 'relations.placeholder'])
+
+    answer({ ...late, settled: true })
+    expect(pending(host)).toEqual([])
+    answer({ ...late, settled: false })
     expect(pending(host)).toEqual([])
   })
 

@@ -20,6 +20,8 @@ vi.mock('../../../src/worker', () => ({}))
 vi.mock('lucide-react', () => ({ LucidePlay: () => null }))
 
 const { default: MoviePlay } = await import('../../../src/router/home/movie-play')
+const { useWatchSources } = await import('../../../src/router/home/media-details')
+const { default: SourceSelector } = await import('../../../src/components/source-selector')
 
 const episode = {
   uri: 'ag:(cr:GX1)',
@@ -36,9 +38,22 @@ afterEach(() => {
   else process.env.TZ = TZ
 })
 
-const tree = (movie: DetailsEpisode | undefined, handles: Parameters<typeof MoviePlay>[0]['handles'] = [], startDate: string | null = '2020-01-01', status?: string) => {
+type Offers = Parameters<typeof useWatchSources>[2]
+
+// what the modal draws for a film: its play bar and, under the description, its chips, from one list of sources
+const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEpisode | undefined, handles: Offers, startDate: string | null, status?: string, settled: boolean }) => {
+  const sources = useWatchSources(movie, 'ag:(anilist:9)', handles)
+  return (
+    <>
+      <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}/>
+      <SourceSelector chips sources={sources}/>
+    </>
+  )
+}
+
+const tree = (movie: DetailsEpisode | undefined, handles: Offers = [], startDate: string | null = '2020-01-01', status?: string, settled = true) => {
   const { hook } = memoryLocation({ path: '/' })
-  return <Router hook={hook}><MoviePlay episode={movie} mediaUri="ag:(anilist:9)" handles={handles} startDate={startDate} status={status}/></Router>
+  return <Router hook={hook}><Film movie={movie} handles={handles} startDate={startDate} status={status} settled={settled}/></Router>
 }
 
 const render = (...props: Parameters<typeof tree>) => {
@@ -59,26 +74,68 @@ test('Play opens the watch page naming no source, even when Crunchyroll plays', 
   expect(render(episode).querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
 })
 
-test('no Play when no source plays in stub', () => {
+test('the play bar draws no source icon, the chips name each source', () => {
+  const host = render(episode)
+  expect(host.querySelector('a.chip[href="/watch/ag:(anilist:9)/ag:(cr:GX1)/cr:GX1"] .name')?.textContent).toBe('cr')
+  expect(host.querySelector('.play-bar')?.querySelectorAll('a:not(.play)')).toHaveLength(0)
+})
+
+// a browser cannot open a magnet, and the watch page plays a torrent plugin's release itself
+test('a lone release a browser cannot open plays on the watch page, so Play shows', () => {
   origin = 'nyaa'
   const magnet = {
     uri: 'ag:(nyaa:a)',
     handles: [{ relation: 'SAME_AS', node: { uri: 'nyaa:a', origin: 'nyaa', url: 'magnet:?xt=urn:btih:a' } }],
   } as unknown as DetailsEpisode
   const host = render(magnet)
-  expect(host.querySelector('a[href^="magnet:"]')).not.toBeNull()
-  expect(host.querySelector('.play')).toBeNull()
+  expect(host.querySelector('a[href^="magnet:"]')).toBeNull()
+  const chip = host.querySelector('a.chip')
+  expect(chip?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
+  expect(chip?.getAttribute('target')).toBeNull()
+  expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)')
 })
 
 // a film's offers hang off the media, not its one episode (Ninja Scroll's HIDIVE, 2026-10-12)
-test('a media-level offer the episode does not name links out from the play bar', () => {
+test('a media-level offer the episode does not name links out from the chips', () => {
   origin = 'hidive'
   const host = render(episode, [
     { relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } },
   ])
-  const link = host.querySelector('a[href="https://www.hidive.com/interstitial/715215"]')
+  const link = host.querySelector('a.chip[href="https://www.hidive.com/interstitial/715215"]')
   expect(link?.getAttribute('target')).toBe('_blank')
   expect(host.querySelector('.play')).toBeNull()
+  expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
+})
+
+test('until a source lands or the film\'s sources have all answered, the bar holds Play\'s place and does not read No sources yet', () => {
+  origin = 'none'
+  const loading = render(episode, [], '2020-01-01', undefined, false)
+  expect(loading.querySelector('.play-bar')?.classList.contains('held')).toBe(true)
+  expect(loading.querySelector('.when')).toBeNull()
+  const settled = render(episode)
+  expect(settled.querySelector('.play-bar')?.classList.contains('held'), 'the control: settled, it fits what it holds').toBe(false)
+  expect(settled.querySelector('.when')?.textContent).toBe('No sources yet')
+  origin = 'cr'
+  expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-bar')?.classList.contains('held'), 'Play has landed').toBe(false)
+})
+
+// so a film whose services all link out loses the held place as its chips land, not when the media settles
+test('a source that links out ends the hold, and a bar with nothing in it is not drawn, settled or not', () => {
+  origin = 'hidive'
+  const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
+  for (const settled of [false, true]) {
+    const host = render(episode, offer, '2020-01-01', undefined, settled)
+    expect(host.querySelector('a.chip'), `the control: its chip, settled ${settled}`).not.toBeNull()
+    expect(host.querySelector('.movie > .facts'), `and the film's line, settled ${settled}`).not.toBeNull()
+    expect(host.querySelector('.play-bar'), `settled ${settled}`).toBeNull()
+  }
+})
+
+test('a film not out yet never holds the bar, so the line naming its release day does not move', () => {
+  origin = 'none'
+  const host = render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false)
+  expect(host.querySelector('.when')?.textContent, 'the control: not out yet').toBe(`Releases ${releaseDateLabel('2099-01-01')}`)
+  expect(host.querySelector('.play-bar')?.classList.contains('held')).toBe(false)
 })
 
 // Simkl's `first_aired` for Blade Runner: Black Out 2022 (tests/fixtures/simkl/search-blade-runner.json),
@@ -241,10 +298,10 @@ test('Play stays when the source that plays has its icon hidden', async () => {
   })
   try {
     const { setIconShown } = await import('../../../src/sources/hidden-icons')
-    expect(render(episode).querySelector('.src'), 'the control: its icon is drawn while shown').not.toBeNull()
+    expect(render(episode).querySelector('.chip'), 'the control: its chip is drawn while shown').not.toBeNull()
     setIconShown('cr', false)
     const host = render(episode)
-    expect(host.querySelector('.src')).toBeNull()
+    expect(host.querySelector('.chip')).toBeNull()
     expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
     expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
   } finally {

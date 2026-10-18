@@ -5,6 +5,7 @@ import { useState } from 'preact/hooks'
 import { Link } from 'wouter'
 
 import { useHiddenIcons } from '../sources/hidden-icons'
+import Placeholder from './placeholder'
 import SourcePopup from './source-popup'
 
 /** One concrete pick within an origin, e.g. a single release out of an indexer's several. */
@@ -336,6 +337,66 @@ const compactStyle = css`
   }
 `
 
+// one line, scrolling past the edge, and padded as wide as its fade, so scrolled to its end the last chip shows whole
+const chipsStyle = css`
+  display: flex;
+  gap: 0.8rem;
+  padding-right: 3rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+
+  & > * { flex-shrink: 0; }
+
+  & > .chip {
+    --brand: ${FALLBACK_COLOR};
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    height: 3rem;
+    padding: 0 1.2rem 0 0.5rem;
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 1.4rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.12s ease;
+
+    &:hover { background: rgba(255, 255, 255, 0.16); }
+
+    .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--brand) 18%, rgba(255, 255, 255, 0.05));
+      color: var(--brand);
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      overflow: hidden;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 0.3rem;
+        box-sizing: border-box;
+      }
+    }
+  }
+
+  & > .pending {
+    width: 12rem;
+    height: 3rem;
+    border-radius: 1.5rem;
+  }
+`
+
 const SourceIcon = ({ source }: { source: WatchSource }) => {
   const [failed, setFailed] = useState(false)
   return (
@@ -350,18 +411,40 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
 // a source played in stub is a client side navigation, which keeps the worker and every match it made this session
 const SourceLink = (
   { external, href, ...props }:
-  { external: boolean, href?: string, className: string, style?: Record<string, string>, title: string, children: ComponentChildren }
+  { external: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, children: ComponentChildren }
 ) =>
   external || !href
     ? <a {...props} href={href} target="_blank" rel="noreferrer"/>
     : <Link {...props} href={href}/>
 
+/**
+ * Where an episode plays or can be watched. `compact` draws up to five icons, `chips` every source as its icon and
+ * name on one line, held by a placeholder while `pending`; both leave out a source whose icon is hidden in Settings.
+ */
 export const SourceSelector = (
-  { sources, compact = false, onPickRelease }:
-  { sources: WatchSource[], compact?: boolean, onPickRelease?: (uri: string) => void }
+  { sources, compact = false, chips = false, pending = false, onPickRelease }:
+  { sources: WatchSource[], compact?: boolean, chips?: boolean, pending?: boolean, onPickRelease?: (uri: string) => void }
 ) => {
   const [picking, setPicking] = useState<WatchSource | null>(null)
   const hidden = useHiddenIcons()
+
+  if (chips) {
+    const shown = sources.filter(source => !hidden.has(source.id))
+    return shown.length || pending
+      ? (
+        <div css={chipsStyle} className="watch">
+          {shown.length
+            ? shown.map(source => (
+              <SourceLink key={source.id} className="chip" style={{ '--brand': brandColor(source) }} href={source.href} external={source.external}>
+                <SourceIcon source={source}/>
+                <span className="name">{source.name}</span>
+              </SourceLink>
+            ))
+            : <Placeholder className="pending"/>}
+        </div>
+      )
+      : null
+  }
 
   if (!sources.length) return null
 

@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import SEASONS from '../src/generated/anime-seasons'
+import { DISABLED_SOURCES_KEY } from '../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
@@ -866,6 +867,113 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
   await page.goto(`${origin}/title/jw:900040-900042`)
   await expect(heading(page)).toHaveText('Spec Rated', { timeout: 30_000 })
   await expect(chips).toHaveText(RATED_CHIPS.slice(4))
+})
+
+// AniList answers Spec Film, a film with a description and one relation, and JustWatch, finding it by that title, five
+// seconds later with seven services that link out (tests/fake-fetch.ts)
+const FILM = 'ag:(anilist:900050)'
+const FILM_SOURCES = ['HIDIVE', 'Hoopla', 'Philo', 'Plex', 'Pluto TV', 'The Roku Channel', 'Tubi']
+const FILM_VIEWS = [
+  { path: `/media/${FILM}`, row: '.modal .description + .watch', below: '.modal [data-relations]' },
+  { path: `/title/${FILM}`, row: '.heading > .description ~ .watch', below: '.body > .actions' },
+]
+
+test('a film lists every place to watch it as chips under its description, in the modal and on its page, and with none in stub has no play bar', async ({ page }) => {
+  for (const { path, row } of FILM_VIEWS) {
+    await page.goto(`${origin}${path}`)
+    const chips = page.locator(row).locator('a.chip')
+    await expect(chips, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    expect((await chips.locator('.name').allTextContents()).sort(), path).toEqual(FILM_SOURCES)
+    const chip = (name: string) => chips.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await expect(chip('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
+    await expect(chip('Plex')).toHaveAttribute('href', 'https://watch.plex.tv/movie/spec-film?utm_content=5d77708f594b2b001e74d1ea')
+    expect(await chips.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), `${path}: each opens its site in a new tab`).toBe(true)
+    if (path.startsWith('/media/')) {
+      await expect(modal(page).locator('.movie > .facts'), 'the control: the film\'s line').toHaveCount(1)
+      await expect(modal(page).locator('.movie .play-bar')).toHaveCount(0)
+    }
+  }
+})
+
+// the modal's play bar holds Play's place until then, and no Play comes, so it goes as the chips land, its one move
+test('390 px wide, a film\'s chips are one row held in place until JustWatch answers, so what is under them stays put', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const { path, row, below } of FILM_VIEWS) {
+    await page.goto(`${origin}${path}`)
+    const chips = page.locator(row).locator('a.chip')
+    const bar = page.locator('.modal .movie .play-bar')
+    await expect(page.locator(below), path).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator(row).locator('.pending'), `${path}: the control: held while JustWatch has not answered`).toBeVisible()
+    const held = await onPage(page.locator(below))
+    const film = await page.locator('.modal .movie').evaluateAll(blocks => blocks.map(block => Math.round(block.getBoundingClientRect().height)))
+    const tops = await everyFrame(page, below)
+    await expect(chips, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    await expect(bar, path).toHaveCount(0)
+    const drop = film.length ? film[0]! - await height(page.locator('.modal .movie')) : 0
+    expect(await tops(), path).toEqual(film.length ? [held, held - drop] : [held])
+    expect(await height(page.locator(row)), `${path}: one row`).toBe(await height(chips.first()))
+    expect(await overflowX(page), `${path}: the row scrolls, not the page`).toBe(0)
+    expect(await page.locator(row).evaluate(scrolls), `${path}: the control: the row runs past the edge`).toBe(true)
+    expect(await page.locator(row).evaluate(box => Math.round(box.getBoundingClientRect().right - box.lastElementChild!.getBoundingClientRect().right)), `${path}: scrolled to its end, the last chip is clear of the 3rem fade`).toBeGreaterThanOrEqual(30)
+  }
+})
+
+// AniList answers Spec Prime Film, and JustWatch, five seconds later, with Prime Video on amazon.co.jp, which stub plays
+// for a viewer in Japan, and Tubi (tests/fake-fetch.ts)
+const PRIME_FILM = 'ag:(anilist:900070)'
+
+test.describe('a viewer in Japan', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  test('a film Prime Video plays in stub has Play in the modal and its chip opens the watch page; turned off, Play goes and it links out', async ({ page }) => {
+    const bar = modal(page).locator('.movie .play-bar')
+    const chip = (name: string) => modal(page).locator('.description + .watch a.chip').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await page.goto(`${origin}/media/${PRIME_FILM}`)
+    await expect(bar.locator('a.play')).toBeVisible({ timeout: 30_000 })
+    await expect(chip('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
+    expect(await chip('Prime Video').getAttribute('target')).toBeNull()
+    await expect(chip('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
+    await expect(bar.locator('a:not(.play), img'), 'no source beside Play').toHaveCount(0)
+
+    await page.addInitScript(key => localStorage.setItem(key, '["amazon"]'), DISABLED_SOURCES_KEY)
+    await page.goto(`${origin}/media/${PRIME_FILM}`)
+    await expect(chip('Prime Video')).toHaveAttribute('target', '_blank', { timeout: 30_000 })
+    await expect(chip('Prime Video')).toHaveAttribute('href', 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070')
+    await expect(bar).toHaveCount(0)
+  })
+})
+
+// AniList answers Spec Late Film, and JustWatch, the one source naming a place to watch it, forty seconds later, after
+// the rest have settled on their 30 s bound (tests/fake-fetch.ts); its joining turns the media unsettled again
+const LATE_FILM = 'ag:(anilist:900060)'
+
+test('390 px wide, a film\'s place to watch landing after its sources settled holds no place in the modal a second time', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const row = page.locator('.modal .description + .watch')
+  await page.goto(`${origin}/media/${LATE_FILM}`)
+  await expect(row.locator('.pending'), 'the control: held while a source is out').toBeVisible({ timeout: 30_000 })
+  await expect(modal(page).locator('.movie .play-bar'), 'and Play\'s place').toHaveClass(/held/)
+  await expect(modal(page).locator('.movie .play-bar'), 'every source has answered with none').toHaveText('No sources yet', { timeout: 45_000 })
+  await expect(row).toHaveCount(0)
+  // every place held from now on, however briefly
+  await page.evaluate(() => {
+    const seen = new Set<string>()
+    new MutationObserver(records => {
+      for (const record of records) {
+        for (const node of record.type === 'attributes' ? [record.target] : [...record.addedNodes]) {
+          if (!(node instanceof Element)) continue
+          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.watch .pending, .play-bar.held')) seen.add(element.className)
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+    Object.assign(window, { seen })
+  })
+  await expect(row.locator('a.chip .name')).toHaveText('Tubi', { timeout: 30_000 })
+  await page.evaluate(() => new Promise(requestAnimationFrame))
+  expect(await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])).toEqual([])
+  await expect(modal(page).locator('.movie .play-bar'), 'nothing left in the bar').toHaveCount(0)
 })
 
 test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
