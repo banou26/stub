@@ -28,9 +28,10 @@ const SHOW = {
 const EMPTY_SHOW = { id: 99, name: 'Announced Show', premiered: null, externals: { imdb: null }, _embedded: { episodes: [] } }
 
 // One season carrying each shape tvmaze publishes: an `airdate` naming a DAY, an `airstamp` naming an
-// INSTANT beside it, and an episode with neither. The two shapes render differently on purpose
-// (utils/release-date.ts formats a bare YYYY-MM-DD in UTC and a timestamp where the viewer is), so the
-// shape tvmaze used is the shape that has to come out.
+// INSTANT beside it, an episode with neither, and one with no `airtime` whose `airstamp` is a made-up
+// noon. A day and an instant render differently on purpose (utils/release-date.ts formats a bare
+// YYYY-MM-DD in UTC and a timestamp where the viewer is), so the shape tvmaze meant is the shape that
+// has to come out.
 const DATED_SHOW = {
   id: 77,
   name: 'Dated Show',
@@ -39,9 +40,11 @@ const DATED_SHOW = {
   _embedded: {
     episodes: [
       { id: 771, name: 'a day', season: 1, number: 1, airdate: '2021-01-11' },
-      { id: 772, name: 'a day and an instant', season: 1, number: 2, airdate: '2021-01-18', airstamp: '2021-01-18T15:30:00+09:00' },
+      { id: 772, name: 'a day and an instant', season: 1, number: 2, airdate: '2021-01-18', airtime: '15:30', airstamp: '2021-01-18T15:30:00+09:00' },
       { id: 773, name: 'no date at all', season: 1, number: 3, airdate: null },
       { id: 774, name: 'TBA', season: 1, number: 4, airdate: '2021-02-01' },
+      // The Diplomat 4x1 on Netflix, measured 2026-10-18
+      { id: 775, name: 'a day with no time', season: 1, number: 5, airdate: '2026-10-15', airtime: '', airstamp: '2026-10-15T12:00:00+00:00' },
     ],
   },
 }
@@ -209,7 +212,7 @@ test('an episode carries the date tvmaze published, a day as a day and an instan
   const media = await mediaFor('tvmaze:77')
   const dates = (media.episodes as { releaseDate?: string }[]).map(episode => episode.releaseDate)
 
-  expect(dates).toEqual(['2021-01-11', '2021-01-18T06:30:00.000Z', undefined, '2021-02-01'])
+  expect(dates).toEqual(['2021-01-11', '2021-01-18T06:30:00.000Z', undefined, '2021-02-01', '2026-10-15'])
 })
 
 test('an episode tvmaze has no date for carries none', async () => {
@@ -224,7 +227,7 @@ test('an episode named TBA carries no title', async () => {
   const media = await mediaFor('tvmaze:77')
   const titles = (media.episodes as { titles: { title: string }[] }[]).map(episode => episode.titles.map(({ title }) => title))
 
-  expect(titles).toEqual([['a day'], ['a day and an instant'], ['no date at all'], []])
+  expect(titles).toEqual([['a day'], ['a day and an instant'], ['no date at all'], [], ['a day with no time']])
 })
 
 // THE NO-COUNT SITE. `aggregateMedia` always emits `episodes: []`, so reading a count off that list

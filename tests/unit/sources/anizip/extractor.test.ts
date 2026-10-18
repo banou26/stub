@@ -88,6 +88,20 @@ test('an episode AniZip has not dated yet has no date', async () => {
   expect(dates[28]).toBeUndefined()
 })
 
+// So What's Wrong with Getting Reborn as a Goblin? 3 aired Oct 12 13:30 UTC by Syoboi Calendar, and api.ani.zip
+// answered as `goblin` on 2026-10-18
+test('an episode TheTVDB times 2 or more days from AniDB\'s day goes by that day', async () => {
+  const goblin = { ...FRIEREN.episodes['28'], airDateUtc: '2026-10-19T13:00:00Z', airDate: '2026-10-19', airdate: '2026-10-12' }
+  const near = { ...FRIEREN.episodes['27'], airDateUtc: '2026-10-13T12:00:00Z', airDate: '2026-10-13', airdate: '2026-10-12' }
+  const answer = { ...FRIEREN, episodes: { ...FRIEREN.episodes, 27: near, 28: goblin } }
+  const media = await normalized(answer)
+  const dates = Object.fromEntries((media.episodes as { episodeNumber: number, releaseDate?: string }[])
+    .map(({ episodeNumber, releaseDate }) => [episodeNumber, releaseDate]))
+
+  expect(dates[27], 'a day and a half apart').toBe('2026-10-13T12:00:00Z')
+  expect(dates[28]).toBe('2026-10-12')
+})
+
 test('a work\'s banner is its 16:9 TheTVDB fanart, never the thin TheTVDB banner strip', async () => {
   expect((await normalized(FRIEREN)).banners).toEqual([
     { url: 'https://artworks.thetvdb.com/banners/v4/series/424536/backgrounds/64e6cbe29d9c0.jpg', score: 0.9 },

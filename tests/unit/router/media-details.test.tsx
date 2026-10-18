@@ -205,7 +205,7 @@ test('the next episode reads how long until it airs while dimmed and turns on on
         return { unreleased: row.classList.contains('unreleased'), date: row.querySelector('time')?.textContent }
       }
     }
-    expect(third(1)(), 'a source dates it yesterday while AniList still names it next').toEqual({ unreleased: false, date: 'yesterday' })
+    expect(third(1)(), 'a source dating it a day early does not put it out before AniList\'s time').toEqual({ unreleased: true, date: 'in 4 hours, 30 mins' })
     const onTime = third()
     expect(onTime()).toEqual({ unreleased: true, date: 'in 4 hours, 30 mins' })
     await act(() => { vi.setSystemTime(Date.parse('2026-10-16T14:00:10Z')); vi.advanceTimersByTime(30_000) })
@@ -236,17 +236,60 @@ const thirdOf = (airingAt: string, dates: string[]) => {
   }
 }
 
-// a break week AniList has not caught up with: it still names Friday's slot while a source has the next Friday
-test('the next episode a source dates a day or more after AniList\'s time reads that date rather than counting down to AniList\'s', async () => {
+// TheTVDB, through AniZip, times So What's Wrong with Getting Reborn as a Goblin? a week after AniList (2026-10-18)
+test('the next episode counts down to AniList\'s time and turns on then, though a source dates it a week later', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
   const TZ = process.env.TZ
   process.env.TZ = 'America/Los_Angeles'
   try {
     vi.setSystemTime(Date.parse('2026-10-16T09:30:00Z'))
     const third = thirdOf('Fri, 16 Oct 2026 14:00:00 GMT', ['2026-10-02T14:00:00Z', '2026-10-09T14:00:00Z', '2026-10-23T14:00:00Z'])
-    expect(third()).toEqual({ unreleased: true, date: 'Oct 23, 2026' })
+    expect(third()).toEqual({ unreleased: true, date: 'in 4 hours, 30 mins' })
     await act(() => { vi.setSystemTime(Date.parse('2026-10-16T14:00:10Z')); vi.advanceTimersByTime(30_000) })
-    expect(third(), 'and stays dim past AniList\'s time').toEqual({ unreleased: true, date: 'Oct 23, 2026' })
+    expect(third()).toEqual({ unreleased: false, date: 'today' })
+  } finally {
+    vi.useRealTimers()
+    if (TZ === undefined) delete process.env.TZ
+    else process.env.TZ = TZ
+  }
+})
+
+// Chicago Fire 15x3 airs 21:00 ET on Oct 21 by TVmaze, which TMDB names as Oct 21 (2026-10-18)
+test('a series\' first dimmed episode counts down to its best source\'s time, and a later one or a day reads its date', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+  const TZ = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
+  try {
+    vi.setSystemTime(Date.parse('2026-10-21T20:00:00Z'))
+    const rowsOf = (dates: [origin: string, releaseDate: string][][]) => {
+      const series = {
+        uri: 'ag:(tvmaze:1)',
+        status: 'RELEASING',
+        episodes: dates.map((handles, index) => ({
+          ...media.episodes[index],
+          releaseDate: handles[0]![1],
+          handles: handles.map(([origin, releaseDate]) => ({ relation: 'SAME_AS', node: { uri: `${origin}:${index + 1}`, origin, releaseDate } })),
+        })),
+      } as unknown as DetailsMedia
+      const { hook } = memoryLocation({ path: '/' })
+      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={series}/></Router></Provider>)
+      hosts.push(host)
+      return () => [...host.querySelectorAll('.episode')].map(row => ({ unreleased: row.classList.contains('unreleased'), date: row.querySelector('time')?.textContent }))
+    }
+    const fire = rowsOf([
+      [['tvmaze', '2026-10-15T01:00:00.000Z']],
+      [['tmdb', '2026-10-21'], ['tvmaze', '2026-10-22T01:00:00.000Z']],
+      [['tvmaze', '2026-10-29T01:00:00.000Z']],
+    ])
+    expect(fire()).toEqual([
+      { unreleased: false, date: '7 days ago' },
+      { unreleased: true, date: 'in 5 hours' },
+      { unreleased: true, date: 'Oct 28, 2026' },
+    ])
+    await act(() => { vi.setSystemTime(Date.parse('2026-10-22T01:00:10Z')); vi.advanceTimersByTime(30_000) })
+    expect(fire().slice(1)).toEqual([{ unreleased: false, date: 'today' }, { unreleased: true, date: 'in 6 days, 23 hours' }])
+    const stamp = '2026-10-23T00:00:00.000Z'
+    expect(rowsOf([[['appletv', stamp]]])(), 'Apple TV\'s midnight UTC names a day').toEqual([{ unreleased: true, date: releaseDateLabel(stamp) }])
   } finally {
     vi.useRealTimers()
     if (TZ === undefined) delete process.env.TZ

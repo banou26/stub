@@ -3,8 +3,9 @@
 import { isUpcoming, releaseSide } from './movie'
 import { isDateOnly, isPartialDate, parseReleaseDate, releaseDay } from '../../utils/release-date'
 
+type Dated = { origin?: string | null, releaseDate?: string | null }
 type DatedEpisode = { episodeNumber?: number | null, releaseDate?: string | null }
-type SourcedEpisode = DatedEpisode & { handles?: readonly { node: { releaseDate?: string | null } }[] }
+type SourcedEpisode = DatedEpisode & { handles?: readonly { node: Dated }[] }
 
 /**
  * The smallest episode number not out yet, or undefined when nothing says one is ahead.
@@ -33,32 +34,67 @@ export const firstUnreleased = (
 }
 
 /**
- * An episode a source dates as out (its air time passed, or a day before today) is released, so a stale
- * schedule cannot dim it. One dated ahead is unreleased. The rest, dated today with no time (it may air
- * later today) or undated, are unreleased from `first` onward.
+ * An episode below `first` is out whatever a source dates it, as `first` is AniList's while it names one and that
+ * outranks every source. From `first` on, one a source dates as out (its air time passed, or a day before today) is
+ * released, so a stale schedule cannot dim it, and the rest are unreleased. With no `first`, or no number, only one
+ * dated ahead is unreleased.
  */
-const isUnreleased = (episode: DatedEpisode, first: number | undefined, now = new Date()): boolean => {
-  const side = releaseSide(episode.releaseDate, now)
-  return side === 1
-    || (side !== -1 && first !== undefined && episode.episodeNumber != null && episode.episodeNumber >= first)
+const isUnreleased = ({ episodeNumber, releaseDate }: DatedEpisode, first: number | undefined, now = new Date()): boolean => {
+  const side = releaseSide(releaseDate, now)
+  if (first === undefined || episodeNumber == null) return side === 1
+  return episodeNumber >= first && side !== -1
 }
 
-// The store already merges a date across the sources it folded into this row, so the handle is a
-// fallback rather than the path: it covers an episode whose date only one source knows and which
-// was not the row merged into. Four sources supply one at all (anizip, Crunchyroll, the bundled
-// catalogue and Apple TV), so plenty of episodes have none and the column is simply empty there.
-export const releasedAtOf = (episode: SourcedEpisode | undefined) =>
-  episode?.releaseDate ?? episode?.handles?.find(handle => handle.node.releaseDate)?.node.releaseDate
+/**
+ * The sources an episode's date is taken from, best first, any other after them, and a time beats a day whatever its
+ * source. AniList's schedule goes before them all for the episode it names next. Measured 2026-10-18 on that week's
+ * airings, anime against Syoboi Calendar's first broadcast (152 episodes) and US series against TVmaze's own times
+ * (172), so TVmaze's place for series is assumed: within an hour, AniList 94%, TVmaze 85% on anime, AniZip 85%, Trakt
+ * 83% on anime and 76% on series, Simkl 80% on series; on the right day, IMDb 94% on series, Crunchyroll 92% on
+ * anime, TMDB 88% and JustWatch 83% on both, and Apple TV too few to measure.
+ */
+const RANKED = ['tvmaze', 'anizip', 'trakt', 'simkl', 'omdb', 'cr', 'tmdb', 'jw', 'appletv']
+
+const rankOf = ({ origin }: Dated) => {
+  const at = RANKED.indexOf(origin ?? '')
+  return at === -1 ? RANKED.length : at
+}
+
+/**
+ * The sources whose stamps name a day, as its midnight UTC: all 75 Crunchyroll dated that week, and Apple TV's. Any
+ * other midnight UTC is a time, as Trakt's 00:00 UTC for The Terminal List on Prime Video, or AniZip's for a 09:00
+ * JST broadcast.
+ */
+const DAY_STAMPS = ['cr', 'appletv']
+
+const isDay = ({ origin, releaseDate }: Dated) => Number(isDateOnly(releaseDate) || DAY_STAMPS.includes(origin ?? ''))
+
+const bestDated = (episode: SourcedEpisode | undefined) =>
+  episode?.handles?.map(handle => handle.node)
+    .filter(dated => dated.releaseDate)
+    .sort((a, b) => isDay(a) - isDay(b) || rankOf(a) - rankOf(b))
+    .at(0)
+
+/**
+ * An episode's date by the best-ranked of its sources that gives one, or its own when none does. The store's merged
+ * row takes its date from one of those sources, so ranking it among them would let its unlisted origin decide.
+ */
+export const releasedAtOf = (episode: SourcedEpisode | undefined): string | undefined =>
+  bestDated(episode)?.releaseDate ?? episode?.releaseDate ?? undefined
+
+/** The time an episode airs by the best-ranked of its sources, or undefined when that source names a day. */
+export const timedAt = (episode: SourcedEpisode): string | undefined => {
+  const dated = bestDated(episode)
+  return dated && !isDay(dated) ? dated.releaseDate! : undefined
+}
 
 const DAY_MS = 86_400_000
 
 /**
  * Whether `airingAt`, an instant, falls within a day of what `sourced` names, or `sourced` names nothing.
- * A value at midnight UTC may name a day rather than an hour, so it spans that whole day. A day is the
- * margin because AniZip's air times were 10 minutes to 4 hours early or 5 minutes to 1.5 hours late
- * against AniList's for 5 of the 21 shows both timed that week (2026-10-17).
+ * A value at midnight UTC may name a day rather than an hour, so it spans that whole day.
  */
-export const withinADay = (sourced: string | null | undefined, airingAt: string) => {
+const withinADay = (sourced: string | null | undefined, airingAt: string) => {
   const start = parseReleaseDate(sourced)?.getTime()
   if (start === undefined) return true
   const at = Date.parse(airingAt)
@@ -66,16 +102,12 @@ export const withinADay = (sourced: string | null | undefined, airingAt: string)
   return end > at - DAY_MS && start < at + DAY_MS
 }
 
-/**
- * AniList's time for the episode it schedules next, which decides when that episode is out unless a
- * source dates it a day or more either side of that: a schedule gone stale, or a delay it does not have
- * yet. Undefined for any other episode.
- */
+/** AniList's time for the episode it schedules next, which outranks every source's date for it. Undefined for any other. */
 export const scheduledAt = (
-  episode: SourcedEpisode,
+  episode: DatedEpisode,
   next: { episodeNumber: number, airingAt: string } | null | undefined
 ): string | undefined =>
-  next && episode.episodeNumber === next.episodeNumber && withinADay(releasedAtOf(episode), next.airingAt) ? next.airingAt : undefined
+  next && episode.episodeNumber === next.episodeNumber ? next.airingAt : undefined
 
 /** Which of a media's episodes are not out yet, in the order `episodes` lists them. */
 export const unreleasedEpisodes = (
@@ -99,7 +131,7 @@ export const filmRelease = (
   now = new Date()
 ): { released: string | undefined, upcoming: boolean } => {
   const own = releaseDay(startDate)
-  const airs = releasedAtOf(episode) ?? undefined
+  const airs = releasedAtOf(episode)
   const released = (isPartialDate(own) ? undefined : own) ?? airs ?? own
   const side = releaseSide(airs && !isDateOnly(airs) && withinADay(released, airs) ? airs : released, now)
   return { released, upcoming: side === 1 || (side === 0 && isPartialDate(released) && status === 'NOT_YET_RELEASED') }

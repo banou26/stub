@@ -54,6 +54,7 @@ interface TvmazeEpisode {
   season?: number
   number?: number
   airdate?: string | null
+  airtime?: string | null
   airstamp?: string | null
   summary?: string | null
   image?: TvmazeImage | null
@@ -63,9 +64,10 @@ interface TvmazeEpisode {
 // `airstamp` names an INSTANT, and utils/release-date.ts renders a bare `YYYY-MM-DD` as that calendar
 // day in UTC and a timestamped value where the viewer is. A day widened into an instant therefore
 // shows a day early everywhere west of Greenwich, so the instant goes out only when TVmaze published
-// one and the day goes out as a day.
+// one and the day goes out as a day. An episode with an empty `airtime` still has an `airstamp`, at
+// noon where its channel is, which names no time (The Diplomat 4x1 on Netflix: 12:00 UTC, 2026-10-18).
 const airedAt = (episode: TvmazeEpisode): string | undefined => {
-  const instant = episode.airstamp ? new Date(episode.airstamp) : undefined
+  const instant = episode.airtime && episode.airstamp ? new Date(episode.airstamp) : undefined
   return instant && !Number.isNaN(instant.getTime()) ? instant.toISOString() : episode.airdate || undefined
 }
 

@@ -20,7 +20,7 @@ import OriginIcon from '../../components/origin-icon'
 import SourceSelector from '../../components/source-selector'
 import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
-import { filmRelease, releasedAtOf, scheduledAt, unreleasedEpisodes } from './episodes'
+import { filmRelease, releasedAtOf, scheduledAt, timedAt, unreleasedEpisodes } from './episodes'
 import { isMovieMedia } from './movie'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
@@ -686,13 +686,15 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
 
 /**
  * A series' episode rows a page at a time, opening on the page holding the viewer's next episode by
- * `tracked`; an unreleased one dimmed and not linked. Each thumbnail carries a bar for how far the viewer
- * got: the share where they last stopped in any of the episode's sources, else full once `tracked` says
- * it is watched. With no rows, rows' placeholders until every source has answered, then "No episodes found".
+ * `tracked`; an unreleased one dimmed and not linked, the first of them counting down to its time when
+ * AniList or its best-ranked source names one. Each thumbnail carries a bar for how far the viewer got:
+ * the share where they last stopped in any of the episode's sources, else full once `tracked` says it is
+ * watched. With no rows, rows' placeholders until every source has answered, then "No episodes found".
  */
 export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
   const now = useNow()
   const unreleased = unreleasedEpisodes(media, new Date(now))
+  const next = unreleased.indexOf(true)
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
@@ -718,7 +720,7 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
                 origins={origins}
                 backend={backend}
                 unreleased={unreleased[index]!}
-                airingAt={scheduledAt(episode, media.nextAiringEpisode)}
+                airingAt={scheduledAt(episode, media.nextAiringEpisode) ?? (index === next ? timedAt(episode) : undefined)}
                 now={now}
                 watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
                 progress={saved?.[2] ? saved[1] / saved[2] : undefined}

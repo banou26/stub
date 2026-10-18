@@ -22,7 +22,19 @@ const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
   ...ja ? [{ language: 'ja', title: apostrophes(ja), score: SCORE }] : [],
 ]
 
-const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => {
+const DAY_MS = 86_400_000
+
+// An episode not dated yet carries `airdate: ''`, which as a date would hide every other source's. TheTVDB's
+// `airDateUtc` 2 or more days from AniDB's `airdate` is mostly a week late. Of 15 such episodes airing the week of
+// 2026-10-18, `airdate` was AniList's day in Japan on 14 and Syoboi Calendar's first broadcast on 10, the other 4
+// streaming on AniList's day ahead of a later TV slot. Within 2 days of `airdate`, `airDateUtc` was within an hour
+// of Syoboi's time on 70 of 73.
+const airedAt = ({ airDateUtc, airdate }: Episode) =>
+  airDateUtc && airdate && Math.abs(Date.parse(airDateUtc) - Date.parse(airdate)) >= 2 * DAY_MS
+    ? airdate
+    : airDateUtc || airdate || undefined
+
+const normalizeMedia = (media: AnimeSeries) => {
   const id = media.mappings.anidb_id.toString()
   const uri = `${origin}:${id}`
 
@@ -108,8 +120,7 @@ const normalizeMedia = (media: AnimeSeries, context: ExtractorServerContext) => 
             episodeNumber: /^\d+$/.test(episodeId) ? Number(episodeId) : episode.episodeNumber,
             absoluteEpisodeNumber: episode.absoluteEpisodeNumber,
             runtime: episode.runtime ?? episode.length,
-            // an episode not dated yet carries `airdate: ''`, which as a date would hide every other source's
-            releaseDate: episode.airDateUtc || episode.airdate || undefined,
+            releaseDate: airedAt(episode),
           })
         })
   })
@@ -122,7 +133,7 @@ const fetchAnizipJsonMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: st
 const fetchAnizipMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: string, context: ExtractorServerContext) =>
   fetchAnizipJsonMappings(providerId, id, context)
     // api.ani.zip answers unknown ids with a 200 "Not Found" string rather than an AnimeSeries
-    .then(animeData => animeData?.mappings?.anidb_id != null ? normalizeMedia(animeData, context) : null)
+    .then(animeData => animeData?.mappings?.anidb_id != null ? normalizeMedia(animeData) : null)
 
 const fetchMALMappings = (id: string, context: ExtractorServerContext) => fetchAnizipMappings('mal', id, context)
 
