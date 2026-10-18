@@ -1,0 +1,239 @@
+{
+  "titles": {
+    "x-jat": "Penguin Highway",
+    "ja": "ペンギン・ハイウェイ",
+    "en": "Penguin Highway",
+    "de": "Penguin Highway",
+    "fr": "Le mystère des pingouins",
+    "it": "Penguin Highway",
+    "es": "Penguin Highway: El misterio de los pingüinos",
+    "ru": "Тайная жизнь пингвинов",
+    "ko": "펭귄 하이웨이",
+    "pt": "Penguin Highway - O Mistério dos Pinguins",
+    "zh-Hant": "企鵝公路",
+    "zh-Hans": "企鹅公路"
+  },
+  "episodes": {
+    "1": {
+      "episode": "1",
+      "anidbEid": 199306,
+      "length": 120,
+      "airdate": "2018-08-17",
+      "rating": "8.19",
+      "title": {
+        "en": "Complete Movie"
+      },
+      "summary": "Budding genius Aoyama is only in the 4th grade, but already lives his life like a scientist. When penguins start appearing in his sleepy suburb, hundreds of miles from the sea, Aoyama vows to solve the mystery. When he discovers that the arrival of the penguins is somehow related to a mysterious young woman from his dentist’s office, they team up for an unforgettable summer adventure!\nSource: crunchyroll"
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 213702,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 1",
+        "en": "Unused Scene 1",
+        "x-jat": "Honpen Mishiyou Eizou 1"
+      }
+    },
+    "S2": {
+      "episode": "S2",
+      "anidbEid": 213703,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 2",
+        "en": "Unused Scene 2",
+        "x-jat": "Honpen Mishiyou Eizou 2"
+      }
+    },
+    "S3": {
+      "episode": "S3",
+      "anidbEid": 213704,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 3",
+        "en": "Unused Scene 3",
+        "x-jat": "Honpen Mishiyou Eizou 3"
+      }
+    },
+    "S4": {
+      "episode": "S4",
+      "anidbEid": 213705,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 4",
+        "en": "Unused Scene 4",
+        "x-jat": "Honpen Mishiyou Eizou 4"
+      }
+    },
+    "S5": {
+      "episode": "S5",
+      "anidbEid": 213706,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 5",
+        "en": "Unused Scene 5",
+        "x-jat": "Honpen Mishiyou Eizou 5"
+      }
+    },
+    "S7": {
+      "episode": "S7",
+      "anidbEid": 213707,
+      "length": 8,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "メイキング",
+        "en": "Making",
+        "x-jat": "Making"
+      }
+    },
+    "S8": {
+      "episode": "S8",
+      "anidbEid": 213708,
+      "length": 3,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "石田祐康監督過去作品紹介映像",
+        "en": "Director Ishida Hiroyasu`s Anime Introduction",
+        "x-jat": "Ishida Hiroyasu Kantoku Kako Sakuhin Shoukai Eizou"
+      }
+    },
+    "S6": {
+      "episode": "S6",
+      "anidbEid": 213709,
+      "length": 1,
+      "airdate": "2019-01-30",
+      "title": {
+        "ja": "本編未使用映像 6",
+        "en": "Unused Scene 6",
+        "x-jat": "Honpen Mishiyou Eizou 6"
+      }
+    },
+    "S9": {
+      "episode": "S9",
+      "anidbEid": 279708,
+      "length": 45,
+      "title": {
+        "en": "Anime Making Announcement"
+      }
+    },
+    "S10": {
+      "episode": "S10",
+      "anidbEid": 279709,
+      "length": 25,
+      "title": {
+        "ja": "完成披露上映会",
+        "en": "Test Screening Event"
+      }
+    },
+    "S11": {
+      "episode": "S11",
+      "anidbEid": 279710,
+      "length": 30,
+      "title": {
+        "ja": "初日舞台挨拶",
+        "en": "First Day Theater Greeting Event"
+      }
+    },
+    "S12": {
+      "episode": "S12",
+      "anidbEid": 279711,
+      "length": 30,
+      "title": {
+        "en": "Ishida Hiroyasu & Morimi Tomihiko Talk Show Event"
+      }
+    },
+    "S13": {
+      "episode": "S13",
+      "anidbEid": 279712,
+      "length": 15,
+      "title": {
+        "ja": "インタビュ: 北 香那",
+        "en": "Interview: Kita Kana"
+      }
+    },
+    "S14": {
+      "episode": "S14",
+      "anidbEid": 279713,
+      "length": 25,
+      "title": {
+        "ja": "インタビュ: 蒼井 優",
+        "en": "Interview: Aoi Yuu"
+      }
+    },
+    "S15": {
+      "episode": "S15",
+      "anidbEid": 279714,
+      "length": 15,
+      "title": {
+        "ja": "インタビュ: 西島秀俊",
+        "en": "Interview: Hidetoshi Nishijima"
+      }
+    },
+    "S16": {
+      "episode": "S16",
+      "anidbEid": 279715,
+      "length": 15,
+      "title": {
+        "ja": "インタビュ: 竹中直人",
+        "en": "Interview: Naoto Takenaka"
+      }
+    },
+    "S17": {
+      "episode": "S17",
+      "anidbEid": 279716,
+      "length": 25,
+      "title": {
+        "ja": "インタビュ: 監督：石田祐康",
+        "en": "Interview: Director Ishida Hiroyasu"
+      }
+    },
+    "S18": {
+      "episode": "S18",
+      "anidbEid": 279717,
+      "length": 15,
+      "title": {
+        "ja": "インタビュ: 原作者：森見登美彦",
+        "en": "Interview: Original Writer Morimi Tomihiko"
+      }
+    },
+    "S19": {
+      "episode": "S19",
+      "anidbEid": 279718,
+      "length": 10,
+      "title": {
+        "ja": "男おばさん!! [ペンギン・ハイウェイ] Special〈ダイジェスト版",
+        "en": "Penguin Highway Special Video"
+      }
+    },
+    "S20": {
+      "episode": "S20",
+      "anidbEid": 279719,
+      "length": 25,
+      "title": {
+        "en": "TV Special Program Digest Ver."
+      }
+    }
+  },
+  "episodeCount": 1,
+  "specialCount": 20,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "penguin-highway",
+    "kitsu_id": 41007,
+    "mal_id": 37407,
+    "type": "MOVIE",
+    "anilist_id": 101249,
+    "anisearch_id": 13420,
+    "anidb_id": 13853,
+    "notifymoe_id": null,
+    "livechart_id": 3124,
+    "thetvdb_id": null,
+    "imdb_id": "tt8076344",
+    "themoviedb_id": "508422"
+  }
+}

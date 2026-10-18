@@ -61,7 +61,7 @@ const normalizeMedia = (media: AnimeSeries) => {
   return makeMedia({
     origin,
     id,
-    categories: ['ANIME', 'SERIES'],
+    categories: ['ANIME', media.mappings.type === 'MOVIE' ? 'MOVIE' : 'SERIES'],
     url: `https://api.ani.zip/mappings?anidb_id=${id}`,
     handles,
     titles: titlesOf(media.titles),

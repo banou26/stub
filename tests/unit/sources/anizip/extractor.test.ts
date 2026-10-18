@@ -42,6 +42,12 @@ test('a film gets no TMDB link, since AniZip often gives its series\' id', async
   ])
 })
 
+// a film filed as a series sends JustWatch to the unrelated show its id also names (Penguin Highway, 2026-10-19)
+test('a film is filed as a film and a series as a series', async () => {
+  expect((await normalized(COWBOY_BEBOP_MOVIE)).categories).toEqual(['ANIME', 'MOVIE'])
+  expect((await normalized(FRIEREN)).categories, 'the control').toEqual(['ANIME', 'SERIES'])
+})
+
 test('an id AniZip does not have is no link', async () => {
   const mappings = { ...FRIEREN.mappings, themoviedb_id: null, thetvdb_id: null, imdb_id: null }
   expect(await links({ ...FRIEREN, mappings })).toEqual([
