@@ -1,6 +1,6 @@
 import type { AttachCookies } from '@fkn/lib'
 
-import { isExtensionExposed } from '@fkn/lib'
+import { isExtensionExposed, promptInstall } from '@fkn/lib'
 
 /** The FKN backend an attachment runs on: the browser extension, or the cloud render proxy. */
 export type FknBackend = 'extension' | 'cloud'
@@ -36,3 +36,6 @@ export const detectBackend = async (): Promise<FknBackend> => {
  */
 export const attachCookies = (backend: FknBackend): AttachCookies =>
   backend === 'extension' ? 'native' : 'persistent'
+
+/** Shows FKN's card for installing the extension: true once it is there, false when the viewer dismisses it. */
+export const addExtension = (): Promise<boolean> => promptInstall('Play it in stub')

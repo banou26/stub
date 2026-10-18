@@ -95,6 +95,21 @@ test('a lone release a browser cannot open plays on the watch page, so Play show
   expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)')
 })
 
+// a Canadian's Prime Video plays in stub with the extension, which the watch page asks for, so Play opens it there
+test('a film whose stream plays only with the extension shows Play, and its chip still links out', () => {
+  origin = 'amazon'
+  const canadian = {
+    uri: 'ag:(amazon:amzn1.dv.gti.ca000001)',
+    handles: [{ relation: 'SAME_AS', node: { uri: 'amazon:amzn1.dv.gti.ca000001', origin: 'amazon', url: 'https://app.primevideo.com/watch?gti=amzn1.dv.gti.ca000001' } }],
+  } as unknown as DetailsEpisode
+  process.env.TZ = 'Asia/Tokyo'
+  expect(render(canadian).querySelector('.play'), 'the control: not the viewer\'s own Prime Video').toBeNull()
+  process.env.TZ = 'America/Toronto'
+  const host = render(canadian)
+  expect(host.querySelector('a.chip')?.getAttribute('target'), 'the control: on the cloud its chip links out').toBe('_blank')
+  expect(host.querySelector('.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(amazon:amzn1.dv.gti.ca000001)')
+})
+
 // a film's offers hang off the media, not its one episode (Ninja Scroll's HIDIVE, 2026-10-12)
 test('a media-level offer the episode does not name links out from the chips', () => {
   origin = 'hidive'

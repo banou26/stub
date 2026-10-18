@@ -15,18 +15,21 @@ vi.mock('../../../src/router/settings/wiring', () => ({
   sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'authed', signOut: async () => {} },
   status: { read: () => undefined, watch: () => () => {}, check: async () => 'signed-in' },
 }))
+const plugins = vi.hoisted(() => ({ statuses: [] as object[] }))
 vi.mock('../../../src/plugins', () => ({
-  pluginStatuses: () => [],
+  pluginStatuses: () => plugins.statuses,
   onPluginsChange: () => () => {},
   addPlugins: async () => {},
   installPlugin: async () => null,
   disablePlugin: async () => {},
 }))
+// lucide-react is CommonJS and requires react under node; no behaviour here
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null }))
 
 const { default: Settings } = await import('../../../src/router/settings')
 
 const at = { hash: '' }
-const listeners = new Map<string, Set<() => void>>()
+const listeners = new Map<string, Set<(event?: object) => void>>()
 const stored = new Map<string, string>()
 beforeEach(() => {
   at.hash = ''
@@ -38,6 +41,7 @@ beforeEach(() => {
     setItem: (key: string, value: string) => { stored.set(key, value) },
     removeItem: (key: string) => { stored.delete(key) },
   })
+  plugins.statuses = []
   vi.stubGlobal('addEventListener', (type: string, listener: () => void) => {
     listeners.set(type, (listeners.get(type) ?? new Set()).add(listener))
   })
@@ -113,6 +117,74 @@ test('an open Playback follows autoplay turned off in another tab or on the FKN 
     for (const listener of listeners.get('storage') ?? []) (listener as (event: { key: string }) => void)({ key: 'stub.settings.account' })
   })
   expect(isOn(autoplay())).toBe(false)
+})
+
+const PLAY_ORDER_KEY = 'stub.sources.play-order'
+const playOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.play-order li')].map(row => row.querySelector('.name')?.textContent)
+const move = (host: HTMLElement, label: string) => host.querySelector<HTMLButtonElement>(`ol.play-order button[aria-label="${label}"]`)!
+
+test('#playback lists stub\'s three players and every added source, in the play order, the end buttons disabled', async () => {
+  plugins.statuses = [
+    { uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] },
+    { uri: 'npm:@spec/slow-source', state: 'connecting' },
+  ]
+  const host = await open('#playback')
+  expect(host.querySelector('h3')?.textContent).toBe('Play order')
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'Nyaa'])
+  expect([...host.querySelectorAll('ol.play-order button')].map(button => [button.getAttribute('aria-label'), button.getAttribute('aria-disabled')])).toEqual([
+    ['Move Crunchyroll up', 'true'], ['Move Crunchyroll down', null],
+    ['Move Prime Video up', null], ['Move Prime Video down', null],
+    ['Move Netflix up', null], ['Move Netflix down', null],
+    ['Move Nyaa up', null], ['Move Nyaa down', 'true'],
+  ])
+  await act(() => { move(host, 'Move Crunchyroll up').click() })
+  await act(() => { move(host, 'Move Nyaa down').click() })
+  expect(stored.has(PLAY_ORDER_KEY), 'an end button moves nothing').toBe(false)
+})
+
+test('a move swaps the row with the one beside it and is kept, and a reopened page reads it', async () => {
+  plugins.statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
+  const host = await open('#playback')
+  await act(() => { move(host, 'Move Nyaa up').click() })
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Nyaa', 'Netflix'])
+  await act(() => { move(host, 'Move Crunchyroll down').click() })
+  expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
+  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['amazon', 'cr', 'nyaa', 'nf'])
+  expect(move(host, 'Move Prime Video up').getAttribute('aria-disabled')).toBe('true')
+  expect(move(host, 'Move Crunchyroll up').getAttribute('aria-disabled')).toBeNull()
+  unmount(hosts.pop()!)
+  expect(playOrder(await open('#playback')), 'kept').toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
+})
+
+test('a source turned off is left out of the play order and keeps its rank against the others, and another tab\'s order is followed', async () => {
+  stored.set('stub.sources.disabled', JSON.stringify(['amazon']))
+  const host = await open('#playback')
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Netflix'])
+  await act(() => { move(host, 'Move Netflix up').click() })
+  expect(playOrder(host)).toEqual(['Netflix', 'Crunchyroll'])
+  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!), 'Prime Video still below Crunchyroll').toEqual(['nf', 'cr', 'amazon'])
+
+  await act(() => {
+    stored.set(PLAY_ORDER_KEY, JSON.stringify(['cr']))
+    for (const listener of listeners.get('storage') ?? []) listener({ key: PLAY_ORDER_KEY })
+  })
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Netflix'])
+})
+
+test('with the FKN account\'s settings in use, a move changes the account\'s order, and an open list follows the account', async () => {
+  const account = (order: string[]) => stored.set('stub.settings.account', JSON.stringify({ [PLAY_ORDER_KEY]: JSON.stringify(order) }))
+  account(['nf', 'cr', 'amazon'])
+  const host = await open('#playback')
+  expect(playOrder(host)).toEqual(['Netflix', 'Crunchyroll', 'Prime Video'])
+  await act(() => { move(host, 'Move Prime Video up').click() })
+  expect(JSON.parse(JSON.parse(stored.get('stub.settings.account')!)[PLAY_ORDER_KEY])).toEqual(['nf', 'amazon', 'cr'])
+  expect(stored.has(PLAY_ORDER_KEY), 'not this browser\'s own').toBe(false)
+
+  await act(() => {
+    account(['amazon'])
+    for (const listener of listeners.get('storage') ?? []) listener({ key: 'stub.settings.account' })
+  })
+  expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Netflix'])
 })
 
 for (const removed of ['#data', '#tracking']) {

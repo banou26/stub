@@ -11,8 +11,11 @@ import { remotePicker, remotePlayer } from '../../worker'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
-import { canPlay, EXTENSION_ONLY_ORIGINS } from '../../sources/playable'
-import { detectBackend, type FknBackend } from '../../utils/fkn-backend'
+import { builtInSources } from '../../sources/built-in'
+import { readDisabledSources } from '../../sources/disabled-sources'
+import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
+import { playOrder, readPlayOrder } from '../../sources/play-order'
+import { addExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
@@ -20,12 +23,12 @@ import Placeholder from '../../components/placeholder'
 import MediaTracking from '../../components/media-tracking'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
-import { siteStatuses, type StatusSite } from '../../tracking/site-status'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
+import { usePluginStatuses } from '../../utils/use-plugin-statuses'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
@@ -49,8 +52,6 @@ const playableHandlesOf = <T extends { relation: string, node: unknown }>(handle
 // A source the address names but this session has not matched to the episode (a shared link, or the
 // reload a click used to be) still plays when its watch url follows from its id.
 const WATCH_URLS: Record<string, (id: string) => string> = { nf: id => `https://www.netflix.com/watch/${id}` }
-
-const STATUS_SITES = new Map<string, StatusSite>([['cr', 'crunchyroll'], ['amazon', 'prime']])
 
 const GET_WATCH_MEDIA = gql(`
   subscription GetWatchMedia($input: MediaInput!) {
@@ -187,6 +188,24 @@ const style = css`
     flex-direction: column;
     flex: 1;
     min-height: 0;
+  }
+
+  .fix {
+    align-items: center;
+    justify-content: center;
+    background: #000;
+
+    button {
+      padding: 0.8rem 2rem;
+      border: none;
+      border-radius: 0.6rem;
+      background: #fff;
+      color: #000;
+      font-family: inherit;
+      font-size: 1.4rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
   }
 
   .watch-info {
@@ -356,7 +375,7 @@ const Watch = () => {
     if (!handle) return undefined
     if (handle.embedUrl) return handle.embedUrl
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
-    if (!handle.url || !canPlay(origin, handle.url, backend)) return undefined
+    if (!handle.url || !canPlay(origin, handle.url, backend) || (backend !== 'extension' && EXTENSION_ONLY_ORIGINS.has(origin))) return undefined
     const embedParams = new URLSearchParams({
       mediaUri: params.mediaUri,
       episodeUri: params.episodeUri,
@@ -368,17 +387,20 @@ const Watch = () => {
     return `${__STUB_EMBED_PAGE__}?${embedParams}`
   }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, backend])
 
-  // a plugin source renders its own picker; which origins do is only known to the worker holding the
-  // plugin connection, so it is resolved here and folded into the source list
-  const pickerOrigins = (originData?.originPage?.nodes ?? []).map(origin => origin.id).join(',')
+  const plugins = usePluginStatuses()
+  const added = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources?.map(source => source.origin) ?? [] : [])
+
+  // a plugin source renders its own picker; which added sources do is only known to the worker holding
+  // the plugin connection, so it is resolved here and folded into the source list
+  const lookupOrigins = added.join(',')
   const [pickers, setPickers] = useState<Record<string, string>>({})
   // and separately, which origins play their own releases: stub mounts the package in the player box
   // and the source renders whatever it wants there. Read together, in one pass over the same origins.
   const [players, setPlayers] = useState<Record<string, string>>()
+  const [lookedUp, setLookedUp] = useState<string>()
   useEffect(() => {
-    if (!pickerOrigins) return
     let cancelled = false
-    const ids = pickerOrigins.split(',')
+    const ids = lookupOrigins ? lookupOrigins.split(',') : []
     const collect = async (lookup: (id: string) => Promise<{ pluginUri: string } | null>) =>
       Object.fromEntries(
         (await Promise.all(ids.map(async id => [id, (await lookup(id))?.pluginUri] as const)))
@@ -389,10 +411,11 @@ const Watch = () => {
         if (cancelled) return
         setPickers(picked)
         setPlayers(played)
+        setLookedUp(lookupOrigins)
       })
-      .catch(() => {})
+      .catch(() => { if (!cancelled) setLookedUp(lookupOrigins) })
     return () => { cancelled = true }
-  }, [pickerOrigins])
+  }, [lookupOrigins])
 
   // The source's own player wins over stub's built-in ones: it is the source saying how its releases
   // are played, and a release stub cannot open any other way (a magnet) is exactly the case for it.
@@ -480,22 +503,33 @@ const Watch = () => {
     [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend]
   )
 
+  // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
+  const selected = episodeHandles.find(h => h.uri === selectedSourceUri)
+  const needsExtension = backend === 'cloud' && !embedUrl && selected?.url && canPlay(selected.origin, selected.url, 'extension')
+    ? builtInSources.find(source => source.origin === selected.origin)?.name
+    : undefined
+
+  // The answer on screen when each added source's package connected. A `settled` on it was reached before
+  // the worker asked that source, and the worker answers again only once that source has.
+  const connectedOn = useRef(new Map<string, unknown>())
+  for (const origin of connectedOn.current.keys()) if (!added.includes(origin)) connectedOn.current.delete(origin)
+  for (const origin of added) if (!connectedOn.current.has(origin)) connectedOn.current.set(origin, media)
+  const answered = Boolean(media?.settled) && lookedUp === lookupOrigins
+  const connecting = plugins.some(plugin => plugin.state === 'connecting')
+
   const party = useParty()
   const ways: Ways = {
-    builtIn: (origin, url) => canPlay(origin, url, backend) && (backend === 'extension' || !EXTENSION_ONLY_ORIGINS.has(origin)),
-    signedOut: origin => {
-      const site = STATUS_SITES.get(origin)
-      return site !== undefined && siteStatuses.read(site)?.state === 'signed-out'
-    },
+    // on the extension's terms: a stream that needs a sign in or the extension here is still the viewer's to open
+    builtIn: (origin, url) => canPlay(origin, url, 'extension'),
     selfPlaying: players && (origin => Boolean(players[origin])),
+    order: playOrder(readPlayOrder(), added),
+    possible: origin => PLAYABLE_ORIGINS.has(origin) ? !readDisabledSources().includes(origin) : connecting || added.includes(origin),
+    settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   useAutoPick(bestSource(episodeHandles, ways), { ...params, guest }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest)
 
-  // read at render, the sign-in state goes stale once the viewer signs in on the player, so the links to
-  // the episodes either side ignore it
-  const linkWays: Ways = { ...ways, signedOut: () => false }
   const episodes = media?.episodes ?? []
   const index = episode ? episodes.indexOf(episode) : -1
   // only a run's first or last episode has a neighbour in another run, so only there is it asked for
@@ -509,14 +543,14 @@ const Watch = () => {
     href: getRoutePath(Route.WATCH, {
       mediaUri: target.mediaUri,
       episodeUri: target.episode.uri,
-      sourceUri: sourceFor(playableHandlesOf(target.episode.handles), playingOrigin, linkWays),
+      sourceUri: sourceFor(playableHandlesOf(target.episode.handles), playingOrigin, ways),
     }),
     title: episodeLabel(target.episode.episodeNumber, target.episode.titles?.at(0)?.title),
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page
-  const upNext = !guest && next && bestSource(playableHandlesOf(next.episode.handles), linkWays) ? nextLink : undefined
+  const upNext = !guest && next && bestSource(playableHandlesOf(next.episode.handles), ways) ? nextLink : undefined
 
   return (
     <div css={style}>
@@ -555,6 +589,14 @@ const Watch = () => {
                   />
                 )}
               <UpNext link={playbackLink} next={upNext}/>
+            </div>
+          )
+          : needsExtension
+          ? (
+            <div className="player-container fix">
+              <button type="button" onClick={() => { void addExtension().then(installed => { if (installed) setBackend('extension') }) }}>
+                Install the FKN extension to play {needsExtension}
+              </button>
             </div>
           )
           : undefined}

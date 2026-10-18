@@ -9,50 +9,56 @@ type Handle = { uri: string, origin: string, url?: string | null, embedUrl?: str
 
 /** What the watch page knows about how each origin plays. */
 export type Ways = {
-  /** stub's own player for the origin plays the url and the viewer has not turned it off (`canPlay`). */
+  /**
+   * stub's own player for the origin has the url for this viewer and the viewer has not turned it off,
+   * though it may still need them to sign in or to add the extension, which its player or the page then asks for.
+   */
   builtIn: (origin: string, url: string) => boolean
-  /** The viewer was last seen signed out of the origin's site. */
-  signedOut: (origin: string) => boolean
   /** The origin's plugin plays its releases. Undefined until the worker has answered. */
   selfPlaying: ((origin: string) => boolean) | undefined
+  /** The viewer's play order, best first. An origin it does not name comes after every one it names. */
+  order: readonly string[]
+  /** The origin could still bring a handle: it is on, and its player or package is here. */
+  possible: (origin: string) => boolean
+  /** Every answer the origin will give for this media is in, so a handle it has not given it has none. */
+  settled: (origin: string) => boolean
 }
 
-const rankOf = (handle: Handle, ways: Ways): number | undefined =>
-  handle.url && ways.builtIn(handle.origin, handle.url) && !ways.signedOut(handle.origin) ? 0
-  : handle.embedUrl || ways.selfPlaying?.(handle.origin) ? 1
-  : undefined
+const playable = (handle: Handle, ways: Ways): boolean =>
+  Boolean(handle.url && ways.builtIn(handle.origin, handle.url))
+  || Boolean(ways.selfPlaying && (handle.embedUrl || ways.selfPlaying(handle.origin)))
 
 /**
- * What Play opens when the address names no source: a stream stub plays itself, then a release a
- * source plays itself, each first in the handles' order. Never a stream the viewer is signed out of.
- * `now` when nothing can outrank it. Only the first rank before the plugin lookup has answered.
+ * What Play opens when the address names no source: the playable handle whose origin the play order
+ * ranks highest, the first in the handles' order among its own. A stream the viewer must sign in to or
+ * add the extension for is still theirs to open, and a release only once the plugin lookup has answered.
+ * `now` once no origin ranked above it could still bring one: each has answered, or is off or not here.
  */
 export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: string, now: boolean } | undefined => {
-  for (const rank of [0, 1]) {
-    if (rank > 0 && !ways.selfPlaying) return undefined
-    const handle = handles.find(candidate => rankOf(candidate, ways) === rank)
-    if (handle) return { uri: handle.uri, now: rank === 0 }
+  const rank = (origin: string) => {
+    const at = ways.order.indexOf(origin)
+    return at < 0 ? ways.order.length : at
   }
+  let best: Handle | undefined
+  for (const handle of handles) {
+    if (playable(handle, ways) && (!best || rank(handle.origin) < rank(best.origin))) best = handle
+  }
+  if (!best) return undefined
+  const now = ways.order.slice(0, rank(best.origin)).every(origin => !ways.possible(origin) || ways.settled(origin))
+  return { uri: best.uri, now }
 }
 
-/** How long a pick that is not `now` must stay the best before it opens, so a better source answering later still wins. */
-export const QUIET_MS = 2_000
-
 /**
- * Writes `best` into the address with a replace, so Back skips it. Never while the address names a
- * source, and never for a party guest, who follows the host's address.
+ * Writes `best` into the address with a replace, so Back skips it, once it is `now`. Never while the
+ * address names a source, and never for a party guest, who follows the host's address.
  */
 export const useAutoPick = (
   best: { uri: string, now: boolean } | undefined,
   { mediaUri, episodeUri, sourceUri, guest }: { mediaUri: string, episodeUri: string, sourceUri?: string, guest: boolean },
   navigate: (to: string, options: { replace: boolean }) => void,
 ) => {
-  const armed = !sourceUri && !guest ? best : undefined
+  const armed = !sourceUri && !guest && best?.now ? best.uri : undefined
   useEffect(() => {
-    if (!armed) return
-    const go = () => navigate(getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed.uri }), { replace: true })
-    if (armed.now) return go()
-    const timer = setTimeout(go, QUIET_MS)
-    return () => clearTimeout(timer)
-  }, [armed?.uri, armed?.now, mediaUri, episodeUri])
+    if (armed) navigate(getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed }), { replace: true })
+  }, [armed, mediaUri, episodeUri])
 }

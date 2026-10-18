@@ -90,8 +90,10 @@ test('a film has no run beside it', () => {
 
 const ways: Ways = {
   builtIn: origin => origin === 'cr',
-  signedOut: () => false,
   selfPlaying: origin => origin === 'nyaa',
+  order: ['cr', 'amazon', 'nf'],
+  possible: () => true,
+  settled: () => false,
 }
 const third = [
   { uri: 'cr:GX3', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX3' },

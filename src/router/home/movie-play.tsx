@@ -4,6 +4,7 @@ import type { DetailsEpisode } from './media-details'
 import { LucidePlay } from 'lucide-react'
 import { Link } from 'wouter'
 
+import { canPlay } from '../../sources/playable'
 import { releaseDateLabel } from '../../utils/release-date'
 import { useNow } from '../../utils/use-now'
 import { getRoutePath, Route } from '../path'
@@ -12,9 +13,10 @@ import { movieFacts } from './movie'
 
 /**
  * What a movie shows in place of an episode list: a line of facts and one play bar. Play opens the
- * watch page, which picks the source, and is drawn when one of `sources` plays in stub; until the
- * release it says when, and offers no Play. Until a source lands or the media has `settled`, the bar
- * holds Play's place; with nothing to hold, there is no bar.
+ * watch page, which picks the source, and is drawn when one of `sources` plays in stub, or would with
+ * the extension, as the watch page's pick counts it; until the release it says when, and offers no
+ * Play. Until a source lands or the media has `settled`, the bar holds Play's place; with nothing to
+ * hold, there is no bar.
  */
 const MoviePlay = (
   { episode, mediaUri, sources, settled, startDate, status, genres }:
@@ -30,7 +32,9 @@ const MoviePlay = (
 ) => {
   const now = useNow()
   const { released, upcoming } = filmRelease({ startDate, status, episode }, new Date(now))
-  const play = !upcoming && episode?.uri && sources.some(source => !source.external)
+  const plays = (source: WatchSource) => !source.external || Boolean(episode?.handles?.some(({ relation, node }) =>
+    relation === 'SAME_AS' && node.origin === source.id && canPlay(node.origin, node.url, 'extension')))
+  const play = !upcoming && episode?.uri && sources.some(plays)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined
   const day = releaseDateLabel(released)

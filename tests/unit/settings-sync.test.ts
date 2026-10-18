@@ -9,6 +9,7 @@ import { SETTINGS_KEYS, SETTINGS_PATH, settingsSync } from '../../src/settings-s
 import { ACCOUNT_SETTINGS_KEY, createSettings, settings as pageSettings } from '../../src/settings-store'
 import { DISABLED_SOURCES_KEY as OFF, readDisabledSources, watchDisabledSources } from '../../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY as ICONS, readHiddenIcons } from '../../src/sources/hidden-icons'
+import { PLAY_ORDER_KEY as PLAY, readPlayOrder } from '../../src/sources/play-order'
 import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src/utils/autoplay'
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
 import { COUNTRY_KEY as COUNTRY, readPickedCountry } from '../../src/sources/country'
@@ -98,18 +99,21 @@ describe('settings on the FKN account', () => {
     expect(anime.settings.getItem(AUTOPLAY)).toBe(null)
   })
 
+  // the play order is one value too: two orders combined would rank sources neither device put there
   test('at the first sign in the switch lists combine, while a single value keeps the account\'s', async () => {
     const world = fknWorld()
-    holds(world, 'alice', { [OFF]: '["trakt","simkl"]', [ICONS]: null, [AUTOPLAY]: null })
+    holds(world, 'alice', { [OFF]: '["trakt","simkl"]', [ICONS]: null, [AUTOPLAY]: null, [PLAY]: '["nf","cr"]' })
     const browser = world.browser()
     const anime = site(browser)
     await anime.set(OFF, '["simkl","anilist"]')
     await anime.set(ICONS, '["nf"]')
     await anime.set(AUTOPLAY, 'off')
+    await anime.set(PLAY, '["nyaa"]')
     browser.account.signIn('alice')
     await anime.sync.check()
-    expect(fileOf(world, 'alice')).toEqual({ [OFF]: '["trakt","simkl","anilist"]', [ICONS]: '["nf"]', [AUTOPLAY]: null })
+    expect(fileOf(world, 'alice')).toEqual({ [OFF]: '["trakt","simkl","anilist"]', [ICONS]: '["nf"]', [AUTOPLAY]: null, [PLAY]: '["nf","cr"]' })
     expect(anime.settings.getItem(OFF)).toBe('["trakt","simkl","anilist"]')
+    expect(anime.items.has(PLAY), 'this browser\'s own order leaves').toBe(false)
   })
 
   test('a value set back to its default on one device overrules the other device\'s own value', async () => {
@@ -399,7 +403,7 @@ describe('the page\'s settings', () => {
     const world = fknWorld()
     holds(world, 'alice', {
       [OFF]: '["simkl"]', [ICONS]: '["nf"]', [COUNTRY]: 'JP', [AUTOPLAY]: 'off',
-      [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}',
+      [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}', [PLAY]: '["nyaa","cr"]',
     })
     const realm = world.browser({ account: 'alice' }).realm()
     const sync = settingsSync({ settings: pageSettings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
@@ -407,8 +411,8 @@ describe('the page\'s settings', () => {
     expect(storage.getItem(OFF), 'the control: nothing of this browser\'s own').toBe(null)
     expect({
       sources: readDisabledSources(), icons: readHiddenIcons(), country: readPickedCountry(), autoplay: readAutoplay(),
-      layout: readDisplayMode(), prefs: viewerPrefs.read(),
-    }).toEqual({ sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, layout: 'list', prefs: { targets: { anilist: false } } })
+      layout: readDisplayMode(), prefs: viewerPrefs.read(), order: readPlayOrder(),
+    }).toEqual({ sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, layout: 'list', prefs: { targets: { anilist: false } }, order: ['nyaa', 'cr'] })
   })
 
   test('the worker\'s watcher and the Autoplay switch\'s hear a change a sync step applied', async () => {

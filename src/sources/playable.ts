@@ -26,7 +26,7 @@ import { readDisabledSources } from './disabled-sources'
 
 export const PLAYABLE_ORIGINS: ReadonlySet<string> = new Set(['cr', 'nf', 'amazon'])
 
-/** Origins whose player works only with the FKN browser extension: on the cloud backend it can only ask for it. */
+/** Origins whose player works only with the FKN browser extension: on the cloud the watch page asks for it instead of framing the player. */
 export const EXTENSION_ONLY_ORIGINS: ReadonlySet<string> = new Set(['nf'])
 
 const PLAYABLE_URLS: Readonly<Record<string, (url: string, backend: FknBackend | undefined) => boolean>> = {

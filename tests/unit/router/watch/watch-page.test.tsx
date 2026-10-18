@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../../components/dom'
+import { button, mount, unmount } from '../../components/dom'
 
 import type { Mock } from 'vite-plus/test'
 
@@ -20,7 +20,7 @@ const allHandles = [
   handle('nyaa:a', 'nyaa', 'magnet:?xt=urn:btih:a'),
 ]
 const episode = { uri: params.episodeUri, handles: allHandles }
-const single = { uri: params.mediaUri, episodes: [episode] }
+const single = { uri: params.mediaUri, episodes: [episode], settled: true }
 let media: object = single
 // the other runs the page may ask for, by the uri it asks with, and every uri it asked for besides its own
 let runs: Record<string, object> = {}
@@ -62,9 +62,28 @@ vi.mock('urql', async () => {
   }
 })
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate] }))
-vi.mock('../../../../src/worker', () => ({ remotePicker: async () => null, remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null }))
+// the worker's answer to which origins play their own releases, held until `held` settles
+const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown> }))
+vi.mock('../../../../src/worker', () => ({
+  remotePicker: async () => null,
+  remotePlayer: async (id: string) => {
+    await lookups.held
+    return id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null
+  },
+}))
+// the added sources as src/plugins.ts reports them: Nyaa's package connected unless a test says otherwise
+const plugins = vi.hoisted(() => ({ statuses: [] as object[], listeners: new Set<() => void>() }))
+vi.mock('../../../../src/plugins', () => ({
+  pluginStatuses: () => plugins.statuses,
+  onPluginsChange: (listener: () => void) => {
+    plugins.listeners.add(listener)
+    return () => { plugins.listeners.delete(listener) }
+  },
+}))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => party, usePartyMessages: () => {} }))
-vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => backend }))
+// the backend is known once `held` settles; FKN's install card answers `installs`
+const detecting = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, installs: vi.fn(async () => true) }))
+vi.mock('../../../../src/utils/fkn-backend', () => ({ detectBackend: async () => { await detecting.held; return backend }, addExtension: detecting.installs }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } }, recordTrackerAnswers: () => {} }))
 vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
 vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
@@ -134,12 +153,15 @@ vi.stubGlobal('localStorage', {
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
 const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
-const { QUIET_MS } = await import('../../../../src/router/watch/auto-pick')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
+
+const NYAA_PACKAGE = 'https:stub.plugins.banou.dev'
+const connectedNyaa = { uri: NYAA_PACKAGE, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }
+beforeEach(() => { plugins.statuses = [connectedNyaa] })
 
 // the Prime Video links below are Japan's, which play in stub for a viewer in Japan alone
 beforeEach(() => { vi.stubEnv('TZ', 'Asia/Tokyo') })
@@ -167,44 +189,25 @@ afterEach(() => {
   storage = undefined
   saved.length = 0
   held = Promise.resolve()
+  lookups.held = Promise.resolve()
+  detecting.held = Promise.resolve()
+  detecting.installs.mockClear()
 })
 
 const settle = async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-  await act(async () => { await vi.advanceTimersByTimeAsync(QUIET_MS) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
 }
 
-test('a signed-out Crunchyroll is not picked before the plugin lookup has asked about any origin', async () => {
-  vi.useFakeTimers()
-  origins = undefined
-  hosts.push(page())
-  await settle()
-  expect(navigate).not.toHaveBeenCalled()
-})
-
-test('once the lookup answers, the release wins over the signed-out Crunchyroll, and over Netflix on the cloud', async () => {
+// the owner, 2026-10-19: a viewer wants their favourite source, so one they can sign in to is not skipped
+test('a Crunchyroll ranked first that the viewer was last seen signed out of opens at once, for its player to ask them to sign in', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nf', 'nyaa']
+  lookups.held = new Promise(() => {})
+  expect(statuses.crunchyroll, 'the control: signed out').toBe('signed-out')
   hosts.push(page())
   await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
-})
-
-test('signed out of Crunchyroll, Play waits for a release the episode does not hold yet', async () => {
-  vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  Object.assign(episode, { handles: [allHandles[0]] })
-  const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
-  const host = mount(tree())
-  hosts.push(host)
-  await settle()
-  expect(navigate).not.toHaveBeenCalled()
-
-  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
-  act(() => { render(tree(), host) })
-  await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
 test('a member still joining a party does not pick, since it follows the host', async () => {
@@ -216,19 +219,22 @@ test('a member still joining a party does not pick, since it follows the host', 
   expect(navigate).not.toHaveBeenCalled()
 })
 
-test('with the extension, Netflix plays in stub and is picked at once', async () => {
+// the page asks for the extension where Netflix needs it, so the backend does not decide the pick
+test('Netflix ranked first opens at once, before the backend is known', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nf', 'nyaa']
-  backend = 'extension'
+  detecting.held = new Promise(() => {})
+  stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
   hosts.push(page())
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nf:81`, { replace: true })
 })
 
-// Frieren on the cloud, 2026-10-12: the episode's Netflix match was this session's, so a reload into the address lost it
+// Frieren, 2026-10-12: the episode's Netflix match was this session's, so a reload into the address lost it
 test('a linked Netflix source the episode has not matched is listed, active and played', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nf']
+  backend = 'extension'
   Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1)', handles: allHandles.filter(({ node }) => node.origin === 'cr') })
   params = { ...params, episodeUri: episode.uri, sourceUri: 'nf:81726716' }
   const host = page()
@@ -237,6 +243,25 @@ test('a linked Netflix source the episode has not matched is listed, active and 
   expect(host.querySelector('a.source.active')?.getAttribute('title')).toBe('nf')
   expect(host.querySelector('iframe')?.getAttribute('src')).toContain(`url=${encodeURIComponent('https://www.netflix.com/watch/81726716')}`)
   expect(navigate).not.toHaveBeenCalled()
+})
+
+test('on the cloud, a Netflix episode named offers the extension and frames its player once it is added', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf']
+  params = { ...params, sourceUri: 'nf:81' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('iframe')).toBeNull()
+  detecting.installs.mockResolvedValueOnce(false)
+  await act(async () => { button(host, 'Install the FKN extension to play Netflix')!.click() })
+  await settle()
+  expect(host.querySelector('iframe'), 'the card dismissed').toBeNull()
+  await act(async () => { button(host, 'Install the FKN extension to play Netflix')!.click() })
+  await settle()
+  expect(detecting.installs).toHaveBeenCalledTimes(2)
+  expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('url')).toBe('https://www.netflix.com/watch/81')
+  expect(button(host, 'Install the FKN extension to play Netflix')).toBeUndefined()
 })
 
 test('a linked source with no watch url of its own adds no row beside the episode\'s', async () => {
@@ -310,7 +335,7 @@ test('with no source named, a Prime Video episode is picked at once, on the clou
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
 })
 
-test('a viewer last seen signed out of Prime Video gets the release first, as for Crunchyroll', async () => {
+test('a viewer last seen signed out of Prime Video still gets Prime Video before the release, as for Crunchyroll', async () => {
   vi.useFakeTimers()
   origins = ['amazon', 'nyaa']
   statuses = { prime: 'signed-out' }
@@ -318,7 +343,7 @@ test('a viewer last seen signed out of Prime Video gets the release first, as fo
   params = { ...params, episodeUri: episode.uri }
   hosts.push(page())
   await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
 })
 
 // another country's Prime Video, which a Japanese account does not play
@@ -346,22 +371,32 @@ const canadianEpisode = () => {
   params = { ...params, episodeUri: episode.uri }
 }
 
-test('outside Japan, Prime Video on the cloud stays a link out, is never picked, and is not framed when named', async () => {
+test('outside Japan on the cloud, Play opens Prime Video, which offers the extension and frames its player once it is added', async () => {
   vi.useFakeTimers()
   origins = ['amazon']
   canadianEpisode()
   const host = page()
   hosts.push(host)
   await settle()
-  expect(navigate).not.toHaveBeenCalled()
-  expect(host.querySelector('a.source')!.getAttribute('href')).toBe(CANADA_LINK)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${CANADA}`, { replace: true })
+  expect(host.querySelector('a.source')!.getAttribute('href'), 'its link still goes out to Prime Video').toBe(CANADA_LINK)
   expect(host.querySelector('a.source')!.getAttribute('target')).toBe('_blank')
+  expect(button(host, 'Install the FKN extension to play Prime Video'), 'nothing named yet').toBeUndefined()
 
   params = { ...params, sourceUri: CANADA }
   const named = page()
   hosts.push(named)
   await settle()
   expect(named.querySelector('iframe')).toBeNull()
+  detecting.installs.mockResolvedValueOnce(false)
+  await act(async () => { button(named, 'Install the FKN extension to play Prime Video')!.click() })
+  await settle()
+  expect(named.querySelector('iframe'), 'the card dismissed').toBeNull()
+  await act(async () => { button(named, 'Install the FKN extension to play Prime Video')!.click() })
+  await settle()
+  expect(detecting.installs).toHaveBeenCalledTimes(2)
+  expect(new URL(named.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('url')).toBe(CANADA_LINK)
+  expect(button(named, 'Install the FKN extension to play Prime Video')).toBeUndefined()
 })
 
 test('outside Japan, Prime Video with the extension is picked at once and framed', async () => {
@@ -452,7 +487,7 @@ test('an episode not out yet is not linked as the next one', async () => {
   expect(episodeLinks(host).map(([label]) => label)).toEqual(['Previous episode'])
 })
 
-// only the clock is faked, so nothing but its tick draws the page again; settle has already moved it QUIET_MS
+// only the clock is faked, so nothing but its tick draws the page again
 test('the next episode is linked on the clock\'s next tick once it has aired', async () => {
   vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
   origins = ['cr', 'nyaa']
@@ -463,7 +498,7 @@ test('the next episode is linked on the clock\'s next tick once it has aired', a
   await settle()
   expect(episodeLinks(host).map(([label]) => label), 'the control: the third is not out yet').toEqual(['Previous episode'])
 
-  act(() => { vi.advanceTimersByTime(30_000 - QUIET_MS) })
+  act(() => { vi.advanceTimersByTime(30_000) })
   const drawnNow = page()
   hosts.push(drawnNow)
   expect(episodeLinks(drawnNow).map(([label]) => label), 'the control: a page drawn now links it').toEqual(['Previous episode', 'Next episode'])
@@ -1396,3 +1431,207 @@ test('the episode title holds its place until the episode is known, and reads it
   act(() => { media = { uri: params.mediaUri, episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
   expect(title().textContent).toMatch(/^E3 - Plan$/)
 })
+
+const nyaaFirst = () => stored.set('stub.sources.play-order', JSON.stringify(['nyaa', 'cr', 'amazon', 'nf']))
+const pluginsChange = async (...statuses: object[]) => {
+  plugins.statuses = statuses
+  await act(async () => { for (const listener of plugins.listeners) listener() })
+  await settle()
+}
+const live = () => {
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  return { host, rerender: async () => { act(() => { render(tree(), host) }); await settle() } }
+}
+
+// Frieren from Japan, 2026-10-18: Prime Video answered before Crunchyroll and was opened in 13 of 16 fresh runs
+test('with Prime Video answering before Crunchyroll, Play still opens Crunchyroll, the first in the play order', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  media = { ...single, settled: false }
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri }
+  const { rerender } = live()
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+
+  primeEpisode(allHandles[0]!)
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
+// the order is a setting on the FKN account, kept in this browser's own key while signed out
+for (const [where, keep] of [
+  ['in this browser', nyaaFirst],
+  ['on the FKN account', () => stored.set('stub.settings.account', JSON.stringify({ 'stub.sources.play-order': '["nyaa","cr","amazon","nf"]' }))],
+] as const) {
+  test(`an order kept ${where} with Nyaa first opens its release before Crunchyroll`, async () => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    keep()
+    hosts.push(page())
+    await settle()
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  })
+}
+
+// live on Frieren, Nyaa lists its releases at 3.9 to 5.6 s and Crunchyroll shows at about 2 s, and the last of them
+// lands with `settled`; urql keeps the last origins answer until the one for the new origins comes
+test('Nyaa ranked first and answering after Crunchyroll, with settled in the same answer, opens the release and never Crunchyroll', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  nyaaFirst()
+  params = { ...params, episodeUri: 'ag:(anilist:1-1)' }
+  Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1)', handles: [allHandles[0]] })
+  media = { ...single, settled: false }
+  const { rerender } = live()
+  await settle()
+  expect(navigate, 'Crunchyroll waits for Nyaa, ranked above it').not.toHaveBeenCalled()
+
+  Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1,nyaa:a)', handles: [allHandles[0], allHandles[2]] })
+  media = { ...single, settled: true }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+})
+
+// a source that connects once the others have answered joins the worker's fan-out, but the worker answers again
+// only once that source does
+test('a ranked source connecting after a settled answer is waited for until an answer heard after it connected', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  nyaaFirst()
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const { rerender } = live()
+  await settle()
+  expect(navigate, 'its package still connecting').not.toHaveBeenCalled()
+
+  await pluginsChange(connectedNyaa)
+  expect(navigate, 'the answer on screen was settled before it was asked').not.toHaveBeenCalled()
+
+  media = { ...single }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
+test('a ranked source whose package fails to connect does not hold Play', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  nyaaFirst()
+  Object.assign(episode, { handles: [allHandles[0]] })
+  live()
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+
+  await pluginsChange({ uri: NYAA_PACKAGE, state: 'error' })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
+// a Canadian's Prime Video plays with the extension, which the viewer can add, so it is theirs to wait for
+test('outside Japan on the cloud, Prime Video ranked above a release holds it until every source answered', async () => {
+  vi.useFakeTimers()
+  vi.stubEnv('TZ', 'America/Toronto')
+  origins = ['nyaa']
+  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'nyaa']))
+  Object.assign(episode, { handles: [allHandles[2]] })
+  media = { ...single, settled: false }
+  const { rerender } = live()
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+
+  media = { ...single }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+})
+
+test('a settled answer heard while the lookup of the added sources is out does not open a source ranked below them', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  nyaaFirst()
+  let answer = () => {}
+  lookups.held = new Promise<void>(resolve => { answer = resolve })
+  const { rerender } = live()
+  await settle()
+  media = { ...single }
+  await rerender()
+  expect(navigate, 'the lookup has not said Nyaa plays its releases').not.toHaveBeenCalled()
+
+  answer()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+})
+
+test('a plugin lookup that fails does not hold a pick ranked below a player that could still answer', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri }
+  const failed = Promise.reject(new Error('the worker did not answer'))
+  failed.catch(() => {})
+  lookups.held = failed
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+test('with no source added, a pick ranked below a player opens once settled, before the origins have answered', async () => {
+  vi.useFakeTimers()
+  origins = undefined
+  plugins.statuses = []
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri }
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+test('a turned-off Crunchyroll ranked first does not hold a Prime Video pick', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon']
+  stored.set('stub.sources.disabled', JSON.stringify(['cr']))
+  primeEpisode()
+  params = { ...params, episodeUri: episode.uri }
+  media = { ...single, settled: false }
+  live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+// with Crunchyroll off, Kitsu and Watchmode still name its episodes
+test('a turned-off Crunchyroll ranked first that has the episode is skipped for Prime Video', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  stored.set('stub.sources.disabled', JSON.stringify(['cr']))
+  primeEpisode(allHandles[0]!)
+  params = { ...params, episodeUri: episode.uri }
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+test('a ranked package that drops and reconnects is waited for until an answer heard after it reconnected', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  nyaaFirst()
+  Object.assign(episode, { handles: [allHandles[0]] })
+  media = { ...single, settled: false }
+  const { rerender } = live()
+  await settle()
+  expect(navigate, 'Nyaa has not answered').not.toHaveBeenCalled()
+
+  await pluginsChange({ uri: NYAA_PACKAGE, state: 'connecting' })
+  media = { ...single }
+  await rerender()
+  expect(navigate, 'its package is connecting again').not.toHaveBeenCalled()
+
+  await pluginsChange(connectedNyaa)
+  expect(navigate, 'the answer on screen is from before it reconnected').not.toHaveBeenCalled()
+
+  media = { ...single }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+

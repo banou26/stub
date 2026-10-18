@@ -213,7 +213,7 @@ test('Playback has one switch, autoplay, on by default, and turned off it stays 
   const autoplay = page.getByRole('switch', { name: 'Autoplay next episode', exact: true })
   await expect(page.getByRole('switch')).toHaveCount(1)
   await expect(autoplay).toBeChecked()
-  await expect(panel(page)).toHaveText(/^Playback\s*Autoplay next episode$/)
+  await expect(panel(page)).toHaveText(/^Playback\s*Autoplay next episode\s*Play order\s*Crunchyroll\s*Prime Video\s*Netflix$/)
 
   await autoplay.click()
   await expect(autoplay).not.toBeChecked()
@@ -224,6 +224,41 @@ test('Playback has one switch, autoplay, on by default, and turned off it stays 
   await autoplay.click()
   await expect(autoplay).toBeChecked()
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
+})
+
+test('Play order lists stub\'s players and an added source, a moved row keeps the focus, and the order is kept and followed by another tab', async ({ page, context }) => {
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(() => localStorage.setItem('stub-enabled-plugins', JSON.stringify(['npm:@spec/anime-source'])))
+  await page.goto(`${origin}/settings#playback`)
+  const rows = (on: Page) => on.locator('ol.play-order li .name')
+  const move = (name: string) => page.getByRole('button', { name, exact: true })
+  await expect(rows(page)).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix', 'Spec Anime'])
+  await expect(move('Move Crunchyroll up')).toHaveAttribute('aria-disabled', 'true')
+  await expect(move('Move Spec Anime down')).toHaveAttribute('aria-disabled', 'true')
+  await expect(move('Move Netflix down')).not.toHaveAttribute('aria-disabled')
+
+  await move('Move Spec Anime up').focus()
+  for (const order of [['Crunchyroll', 'Prime Video', 'Spec Anime', 'Netflix'], ['Crunchyroll', 'Spec Anime', 'Prime Video', 'Netflix'], ['Spec Anime', 'Crunchyroll', 'Prime Video', 'Netflix']]) {
+    await page.keyboard.press('Enter')
+    await expect(rows(page)).toHaveText(order)
+    await expect(move('Move Spec Anime up'), order.join()).toBeFocused()
+  }
+  await expect(move('Move Spec Anime up')).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Enter')
+  await expect(rows(page), 'an end button moves nothing').toHaveText(['Spec Anime', 'Crunchyroll', 'Prime Video', 'Netflix'])
+
+  await move('Move Crunchyroll down').click()
+  await expect(rows(page)).toHaveText(['Spec Anime', 'Prime Video', 'Crunchyroll', 'Netflix'])
+  await expect(move('Move Crunchyroll down')).toBeFocused()
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('stub.sources.play-order')))!)).toEqual(['spec-anime', 'amazon', 'cr', 'nf'])
+
+  const other = await context.newPage()
+  await other.goto(`${origin}/settings#playback`)
+  await expect(rows(other)).toHaveText(['Spec Anime', 'Prime Video', 'Crunchyroll', 'Netflix'])
+  await move('Move Netflix up').click()
+  await expect(rows(other), 'another tab follows').toHaveText(['Spec Anime', 'Prime Video', 'Netflix', 'Crunchyroll'])
+  await page.reload()
+  await expect(rows(page), 'kept in this browser').toHaveText(['Spec Anime', 'Prime Video', 'Netflix', 'Crunchyroll'])
 })
 
 const SPEC_SOURCES = ['npm:@spec/anime-source', 'npm:@spec/source-family', 'npm:@spec/slow-source', 'npm:@spec/broken-source'] as const
