@@ -76,11 +76,15 @@ const bestDated = (episode: SourcedEpisode | undefined) =>
     .at(0)
 
 /**
- * An episode's date by the best-ranked of its sources that gives one, or its own when none does. The store's merged
- * row takes its date from one of those sources, so ranking it among them would let its unlisted origin decide.
+ * An episode's date by the best-ranked of its sources that gives one, or its own when none does, as the day alone
+ * when that source names a day. The store's merged row takes its date from one of those sources, so ranking it among
+ * them would let its unlisted origin decide.
  */
-export const releasedAtOf = (episode: SourcedEpisode | undefined): string | undefined =>
-  bestDated(episode)?.releaseDate ?? episode?.releaseDate ?? undefined
+export const releasedAtOf = (episode: SourcedEpisode | undefined): string | undefined => {
+  const dated = bestDated(episode)
+  if (!dated) return episode?.releaseDate ?? undefined
+  return isDay(dated) ? releaseDay(dated.releaseDate) : dated.releaseDate!
+}
 
 /** The time an episode airs by the best-ranked of its sources, or undefined when that source names a day. */
 export const timedAt = (episode: SourcedEpisode): string | undefined => {

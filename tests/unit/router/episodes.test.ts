@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
 import { firstUnreleased, releasedAtOf, unreleasedEpisodes } from '../../../src/router/home/episodes'
+import { releaseDateLabel } from '../../../src/utils/release-date'
 
 type Input = Parameters<typeof firstUnreleased>[0]
 
@@ -134,6 +135,15 @@ test('a Crunchyroll or Apple TV stamp is a day and gives way to a better-ranked 
   expect(releasedAtOf(by(['cr', '2026-10-17T00:00:00.000Z'], ['anizip', '2026-10-18']))).toBe('2026-10-18')
   expect(releasedAtOf(by(['appletv', '2026-10-17T00:00:00.000Z'], ['jw', '2026-10-17']))).toBe('2026-10-17')
   expect(releasedAtOf(by(['tvmaze', '2026-10-21'], ['trakt', '2026-10-22T00:00:00.000Z']))).toBe('2026-10-22T00:00:00.000Z')
+})
+
+// Severance 1x1 is 2022-02-18T00:00:00Z on Apple TV, the Friday Apple announced it for
+test('a Crunchyroll or Apple TV stamp alone is its day in every zone', () => {
+  for (const zone of ['America/Los_Angeles', 'Europe/London', 'Asia/Tokyo']) {
+    expect(inZone(zone, () => releaseDateLabel(releasedAtOf(by(['appletv', '2022-02-18T00:00:00.000Z'])), { locale: 'en-US' })), zone).toBe('Feb 18, 2022')
+    expect(inZone(zone, () => releaseDateLabel(releasedAtOf(by(['cr', '2026-10-17T00:00:00.000Z'])), { locale: 'en-US' })), zone).toBe('Oct 17, 2026')
+  }
+  expect(releasedAtOf(by(['trakt', '2026-10-22T00:00:00.000Z'])), 'any other midnight UTC stays a time').toBe('2026-10-22T00:00:00.000Z')
 })
 
 // Slow Horses 1x4 on series.fkn.app, where the store took Apple TV's stamp for its merged row (2026-10-18)

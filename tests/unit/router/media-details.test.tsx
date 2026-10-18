@@ -296,7 +296,7 @@ test('a series\' first dimmed episode counts down to its best source\'s time, an
     await act(() => { vi.setSystemTime(Date.parse('2026-10-22T01:00:10Z')); vi.advanceTimersByTime(30_000) })
     expect(fire().slice(1)).toEqual([{ unreleased: false, date: 'today' }, { unreleased: true, date: 'in 6 days, 23 hours' }])
     const stamp = '2026-10-23T00:00:00.000Z'
-    expect(rowsOf([[['appletv', stamp]]])(), 'Apple TV\'s midnight UTC names a day').toEqual([{ unreleased: true, date: 'tomorrow' }])
+    expect(rowsOf([[['appletv', stamp]]])(), 'Apple TV\'s midnight UTC names Oct 23, two days after the viewer\'s Oct 21').toEqual([{ unreleased: true, date: 'in 2 days' }])
   } finally {
     vi.useRealTimers()
     if (TZ === undefined) delete process.env.TZ
