@@ -933,17 +933,28 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   return container
 }
 
+// `ts<id>` and `tm<id>` are two unrelated titles behind one bare id, and the cluster's format only says
+// which to ask first: a film can read as a series (a source stamping SERIES on every row, or MAL's ONA
+// where JustWatch files a film), so the other is asked when the first is not titled like the cluster.
+// Penguin Highway's `ts403680` is The Numbers, measured 2026-10-19.
+const bareNode = async (uri: string, objectId: string, ctx: ExtractorServerContext, details?: boolean | null) => {
+  const cluster = await waitForMedia(uri, ctx, media => ['MOVIE', 'SERIES'].some(category => media?.categories?.includes(category)) ? media : undefined)
+  const titles: string[] = (cluster?.titles ?? []).map((title: { title: string }) => title.title)
+  const titled = async (node?: JWShowNode | null) => Boolean(node && (await rankByTitle(titles, [node], node => node.content?.title)).length)
+  const [first, second] = cluster?.categories?.includes('MOVIE') ? ['tm', 'ts'] : ['ts', 'tm']
+  const guess = (await getNodeDetails(`${first}${objectId}`, ctx, details)).data?.node
+  if (!titles.length || await titled(guess)) return guess
+  const other = (await getNodeDetails(`${second}${objectId}`, ctx, details)).data?.node
+  return await titled(other) ? other : guess
+}
+
 const resolveMedia = async (uri: string, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | null> => {
   const jwUri = extractAggregatedUriOrigin(uri, origin)
   if (jwUri) {
     const { objectId, seasonObjectId } = splitJwId(jwUri.id)
-    // `ts<id>` and `tm<id>` are two unrelated titles, and a bare id is a film's only when the cluster is
-    // a film: anything else stays a show, which is what a show container's bare id is
-    const format = seasonObjectId == null && isAggregatedUri(uri)
-      ? await waitForMedia(uri, ctx, media => ['MOVIE', 'SERIES'].find(category => media?.categories?.includes(category)))
-      : undefined
-    const detailRes = await getNodeDetails(`${format === 'MOVIE' ? 'tm' : 'ts'}${objectId}`, ctx, details)
-    const node = detailRes.data?.node
+    const node = seasonObjectId == null && isAggregatedUri(uri)
+      ? await bareNode(uri, objectId, ctx, details)
+      : (await getNodeDetails(`ts${objectId}`, ctx, details)).data?.node
     if (!node) return null
     // the uri pins a season by ITS id, so the number the episode lists use is looked up, not assumed
     const pinned = seasonObjectId != null

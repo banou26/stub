@@ -32,11 +32,11 @@ const anizipRow = async () => {
   return JSON.parse(JSON.stringify(value.media))
 }
 
-// JustWatch as the worker asks it, reading the cluster through the graph
-const askJustWatch = async () => {
+// JustWatch as the worker asks it, reading the cluster through the graph unless told otherwise
+const askJustWatch = async (findAggregatedMedia: (uri: string) => Promise<unknown> = resolveMedia) => {
   const asked: string[] = []
   const context = {
-    findAggregatedMedia: (uri: string) => resolveMedia(uri),
+    findAggregatedMedia,
     listenForMediaChanges: async function* () {},
     fetch: async (url: string, init?: { body?: string }) => {
       if (url !== JW_API) throw new Error(`no recorded answer for ${url}`)
@@ -75,4 +75,17 @@ test('the control: once AniList\'s row lands too, JustWatch asks for the film', 
     handles: [sameAs(media('mal:37407'))],
   })])
   expect((await askJustWatch()).asked).toEqual(['tm403680'])
+}, 60_000)
+
+// a cluster can read as a series while JustWatch files the work as a film: Crunchyroll stamps SERIES on every row,
+// and on The Ribbon Hero MAL's ONA outranks AniList's MOVIE (jw:2884940, 2026-10-19)
+test('a cluster that reads as a series still gets the film, since the show its id names is titled otherwise', async () => {
+  const series = async () => ({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'Penguin Highway' }], startDate: '2018-08-17' })
+  expect(await askJustWatch(series)).toEqual({
+    asked: ['ts403680', 'tm403680'],
+    uri: 'jw:403680',
+    offers: ['hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
+  })
+  const numbers = async () => ({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'The Numbers' }] })
+  expect((await askJustWatch(numbers)).asked, 'the control: a cluster titled like the show keeps the show').toEqual(['ts403680'])
 }, 60_000)

@@ -447,7 +447,7 @@ test('a re-asked bare id asks the film node for a film cluster, and the show nod
   asked.length = 0
   const { value: show } = await subscribe(
     undefined, { input: { uri: 'ag:(anilist:1,jw:12345)' } },
-    ctx({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'A Show Season 3' }], episodeCount: 12 })
+    ctx({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'A Show With Several Seasons' }, { title: 'A Show Season 3' }], episodeCount: 12 })
   ).next()
   expect(asked, 'the control: a show cluster still asks the show node').toEqual(['ts12345'])
   expect(show?.media?.uri).toBe('jw:12345-222')
