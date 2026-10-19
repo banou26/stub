@@ -302,16 +302,17 @@ test('a season and a part are read separately, and a silent title says nothing',
 // companion veto stops firing on every cluster AniList alone types.
 // A ROW THAT NAMES NO `type` NAMES NO FORMAT, which is the one place this differs from
 // `profileCluster` (`fuzzy-merge.ts:305-316`). `categories` is the shelf a source files its rows
-// under: `anizip/extractor.ts:20` stamps `['ANIME', 'SERIES']` on every row it mints, film or series,
-// and ani.zip publishes no `type`, so a format read off categories alone hands guard 9 a constant to
-// refuse a first-party id claim on. Measured over the corpus 2026-09-12: eight film clusters that
-// mal, AniList, kitsu and offline all agree about lost their anizip row to it.
+// under, and an extractor can stamp a constant on every row it mints, whatever the work is (Crunchyroll's
+// `['ANIME', 'SERIES']`), so a format read off categories alone hands guard 9 a constant to refuse a
+// first-party id claim on. Measured over the corpus 2026-09-12, while AniZip stamped `['ANIME', 'SERIES']`
+// on films too: eight film clusters that mal, AniList, kitsu and offline all agree about lost their
+// anizip row to it.
 // Mutation: drop the `if (!kind) return null` and the third row below reads SERIES, which is
 // `kind-mismatch` against every one of that film's other members.
 test('a row with categories and no type of its own names no format', () => {
   expect(formatOf('MOVIE', ['ANIME', 'MOVIE']), 'the control: a row that names its own type').toBe('MOVIE')
   expect(formatOf('TV', ['ANIME', 'SERIES'])).toBe('SERIES')
-  expect(formatOf(null, ['ANIME', 'SERIES']), "ani.zip's constant, on a film").toBe(null)
+  expect(formatOf(null, ['ANIME', 'SERIES']), "Crunchyroll's constant, on a film").toBe(null)
   expect(formatOf(null, ['MOVIE']), 'and the same for a row that only shelves itself under MOVIE').toBe(null)
   expect(formatOf('MOVIE', ['SERIES']), 'a row that disagrees with itself is silent').toBe(null)
   expect(formatOf('SPECIAL', ['ANIME', 'SERIES']), 'a one-off special straddles the boundary').toBe(null)

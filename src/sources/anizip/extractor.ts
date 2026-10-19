@@ -5,7 +5,7 @@ import { dropCredit, makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
 
 export const originUrl = 'https://api.ani.zip/' as const
 export const origin = 'anizip' as const
-export const categories = ['ANIME', 'SERIES'] as const
+export const categories = ['ANIME', 'SERIES', 'MOVIE'] as const
 export const name = 'AniZip' as const
 export const official = false as const
 export const metadataOnly = true as const

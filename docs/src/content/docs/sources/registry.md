@@ -389,7 +389,7 @@ the merged default in `src/worker/extractor.ts:448-464`.
 | --- | --- | --- | --- | --- | --- | --- |
 | jikan | `mal` | ANIME, SERIES, MOVIE | M | M | - | - |
 | anilist | `anilist` | ANIME, SERIES, MOVIE | M | M | - | - |
-| anizip | `anidb`, `mal` | ANIME, SERIES | M | - | - | - |
+| anizip | `anidb`, `mal` | ANIME, SERIES, MOVIE | M | - | - | - |
 | crunchyroll | `cr` | ANIME, SERIES | M | M | **M** | M |
 | unogs | `nf` | SERIES, MOVIE | M | M | **M** | M |
 | justwatch | `jw` | SERIES, MOVIE | M | M | **M** | M |
