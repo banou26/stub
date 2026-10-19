@@ -53,6 +53,8 @@ export type SimilarAsk = { runUri: string, origin: string, showId: string, conta
 export type SimilarDeps = {
   ask: (origin: string, input: SimilarMediaInput) => Promise<SimilarOutcome>
   implemented: (origin: string) => boolean
+  /** Called when a pair already has an ask in flight from another run, which this run then waits out. */
+  wait?: () => void
 }
 
 /** How many times one (run cluster, container) pair is asked in a session; see `drive` for the count. */
@@ -84,8 +86,11 @@ type AskRecord = {
   asks: number
   /** an answer was claimed, another run of the origin is already in the cluster, or the cap was reached */
   settled: boolean
-  /** the driver holding this record's one ask in flight, so two answers can never be claimed for one run */
-  driver?: symbol
+  /**
+   * the driver holding this record's one ask in flight, so two answers can never be claimed for one
+   * run; it settles once that driver is done
+   */
+  driver?: Promise<void>
   /** the record this one was folded into by `recordFor`; a driver resumed on the old record follows it */
   mergedInto?: AskRecord
   /** the newest question a read computed, asked once the in-flight ask settles if it is still new */
@@ -339,20 +344,22 @@ export const runEvidence = (cluster: Media[], episodeTitles: readonly string[]):
 
 /**
  * Ask a record's newest question until the pair settles or the question repeats. One driver per
- * record at a time; a read landing while an ask is in flight only moves `latest`, and the loop
- * re-checks it when the ask settles. A decline never reached the source, so nothing is recorded and
- * the next read retries it; a refusal did, so the same evidence is not put again; an answer naming
- * another show is recorded with the titles it was checked against, so a title landing later (the
- * English one after a romaji-only first read, which scores 0.44 against Crunchyroll's English series
- * title) asks again and the same answer is checked again.
+ * record at a time; a read landing while an ask is in flight only moves `latest` and waits for that
+ * driver, whose loop re-checks it when the ask settles. A decline never reached the source, so
+ * nothing is recorded and the next read retries it; a refusal did, so the same evidence is not put
+ * again; an answer naming another show is recorded with the titles it was checked against, so a
+ * title landing later (the English one after a romaji-only first read, which scores 0.44 against
+ * Crunchyroll's English series title) asks again and the same answer is checked again.
  */
 const drive = async (start: AskRecord, context: RequestContext, deps: SimilarDeps): Promise<void> => {
   if (start.driver) {
     const { ask } = start.latest!
     console.warn(`similarMedia: consumer deferred ${ask.origin} ${ask.showId} for ${ask.runUri} (an ask is in flight; asked when it settles if still new)`)
-    return
+    deps.wait?.()
+    return start.driver
   }
-  const driver = Symbol('similarMedia consumer driver')
+  let finish = () => {}
+  const driver = new Promise<void>(resolve => { finish = resolve })
   start.driver = driver
   let record = start
   // the question `deps.ask` is answering right now, so a throw anywhere on the asking path is
@@ -477,11 +484,13 @@ const drive = async (start: AskRecord, context: RequestContext, deps: SimilarDep
     for (let held: AskRecord | undefined = start; held; held = held.mergedInto) {
       if (held.driver === driver) held.driver = undefined
     }
+    finish()
   }
 }
 
 /**
- * Ask every owed container origin and claim each answer it accepts. Never throws.
+ * Ask every owed container origin and claim each answer it accepts. Never throws, and resolves once
+ * every pair it asked, or found another run asking, is done.
  *
  * Only a root whose policy spends cross-source work asks (a listing never does). A read with no
  * evidence records nothing, and a read whose run has no title asks nothing, since an answer could not

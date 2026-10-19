@@ -1,5 +1,5 @@
 import type { ExtractorServerContext } from '../../extractor'
-import type { Media, MediaPage, MediaPageResolvers, Resolvers, SubscriptionResolver, SubscriptionResolvers } from '../../../generated/schema/types.generated'
+import type { Media, MediaPage, Resolvers } from '../../../generated/schema/types.generated'
 
 // @ts-expect-error
 import _schema from './schema.gql?raw'
@@ -47,7 +47,8 @@ export const resolvers = {
         // and a read once the last of them has settled, which is what `settled` reports. What a READ
         // starts is never counted itself, only the asks it leads to: a read that counted its own work
         // would wake the next read as that work settled, and the page would never stop reading.
-        const settling = createSettling(() => iterator.wake())
+        let settles = 0
+        const settling = createSettling(() => { settles++; iterator.wake() })
         const { subscriptions, close, askOrigins, root } = proxyRequestToExtractors(ctx, 'MEDIA', undefined, settling)
 
         /**
@@ -107,15 +108,26 @@ export const resolvers = {
         // consumer still reads the OLD store's cluster, which is what spec step 4 rewires; skipping
         // it here would take the `containing` asks the fold depends on down for a whole step.
         // Resolves once its asks are made, not answered: the consumer makes them all in one pass
-        // (`drive` calls `deps.ask` before its first await), so the first is the last to wait for.
+        // (`drive` calls `deps.ask` or `deps.wait` before its first await), so the first is the last to
+        // wait for. From then until the consumer is done it is one ask out, since the claim it writes
+        // after an answer is what joins that answer's episodes (a Netflix season) to the media, and an
+        // ask another page made (the title page's, before Play) is waited out the same way.
         const askSimilarRuns = (cluster: Awaited<ReturnType<typeof findMediaForPage>>) =>
           new Promise<void>(asked => {
             if (!cluster.length) return asked()
-            const ask: typeof askSimilar = (origin, input) => {
+            let done: (() => void) | undefined
+            const wait = () => {
+              done ??= settling.ask()
               asked()
-              return settling.track(askSimilar(origin, input))
             }
-            void resolveSimilarRuns(cluster, root, { ask, implemented: implementsSimilarMedia }).then(() => asked())
+            const ask: typeof askSimilar = (origin, input) => {
+              wait()
+              return askSimilar(origin, input)
+            }
+            void resolveSimilarRuns(cluster, root, { ask, wait, implemented: implementsSimilarMedia }).then(() => {
+              done?.()
+              asked()
+            })
           })
 
         /** The media, and `asking`, which resolves once the asks the read leads to have been made. */
@@ -147,6 +159,9 @@ export const resolvers = {
         }
 
         const answer = async () => {
+          // A read under way as the last ask ends holds neither that answer's rows nor the asks they lead
+          // to (a Netflix id JustWatch names), so only a read begun after it says settled; its wake follows.
+          const since = settles
           // on the graph path the last answers' rows are a pass away from the read
           if (reader && settling.settled()) await passSettled()
           const found = await read()
@@ -154,7 +169,7 @@ export const resolvers = {
           // after the read, which may have asked a source the cluster has only just named, and with nothing
           // out, after the asks it makes past awaits of its own, or the page hears settled as one starts
           if (settling.settled()) await found.asking
-          return { ...found.media, settled: settling.settled() }
+          return { ...found.media, settled: settling.settled() && settles === since }
         }
 
         try {

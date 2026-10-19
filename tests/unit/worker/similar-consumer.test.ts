@@ -257,7 +257,7 @@ test('a cold read with no evidence burns nothing', async () => {
   expect(ask, 'the first read holding evidence is the first ask').toHaveBeenCalledTimes(1)
 })
 
-test('one ask in flight per pair, and evidence that lands meanwhile is asked once it settles', async () => {
+test('one ask in flight per pair, which a second run waits out, and evidence that lands meanwhile is asked once it settles', async () => {
   const cluster = await storeRun()
   let settleFirst!: (outcome: SimilarOutcome) => void
   const pending = new Promise<SimilarOutcome>(resolve => { settleFirst = resolve })
@@ -267,11 +267,16 @@ test('one ask in flight per pair, and evidence that lands meanwhile is asked onc
   await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1))
 
   await addEpisodeTitles()
-  await resolveSimilarRuns(await findAggregatedMedia('anilist:1'), root, { ask, implemented })
+  const wait = vi.fn()
+  let waited = false
+  const second = resolveSimilarRuns(await findAggregatedMedia('anilist:1'), root, { ask, implemented, wait }).then(() => { waited = true })
+  await vi.waitFor(() => expect(wait, 'the second run says it waits on the ask in flight').toHaveBeenCalledTimes(1))
+  await new Promise(resolve => setTimeout(resolve, 10))
   expect(ask, 'the pair has an ask in flight, so the new evidence waits').toHaveBeenCalledTimes(1)
+  expect(waited, 'the second run is done only once the ask in flight is').toBe(false)
 
   settleFirst(REFUSED)
-  await first
+  await Promise.all([first, second])
   expect(ask, 'the evidence that landed meanwhile is asked once the first settles').toHaveBeenCalledTimes(2)
   expect(episodeTitlesOfCall(ask, 1)).toHaveLength(5)
 })
@@ -370,10 +375,10 @@ test('a record absorbed while its ask is in flight does not leave the merged pai
   await upsertMedia([], [{ mediaUri: 'anilist:1', handleUri: 'mal:7' }])
   const merged = await findAggregatedMedia('anilist:1')
   expect(uris(merged)).toEqual(['anilist:1', 'kitsu:2', 'mal:7'])
-  await resolveSimilarRuns(merged, root, { ask, implemented })
-  expect(warn.mock.calls.map(call => String(call[0]))).toContainEqual('similarMedia: consumer merged 2 records under cr:X (3 members)')
+  const mergedRun = resolveSimilarRuns(merged, root, { ask, implemented })
+  await vi.waitFor(() => expect(warn.mock.calls.map(call => String(call[0]))).toContainEqual('similarMedia: consumer merged 2 records under cr:X (3 members)'))
   settleB(REFUSED)
-  await inFlight
+  await Promise.all([inFlight, mergedRun])
   expect(ask, 'the merged question was already refused for the survivor, so it is not asked again').toHaveBeenCalledTimes(2)
 
   await addEpisodeTitles()
@@ -414,11 +419,11 @@ test('a read during an in-flight ask says it deferred', async () => {
 
   const first = resolveSimilarRuns(cluster, root, { ask, implemented })
   await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1))
-  await resolveSimilarRuns(cluster, root, { ask, implemented })
-  expect(warn.mock.calls.map(call => String(call[0])))
-    .toContainEqual('similarMedia: consumer deferred cr X for anilist:1 (an ask is in flight; asked when it settles if still new)')
+  const second = resolveSimilarRuns(cluster, root, { ask, implemented })
+  await vi.waitFor(() => expect(warn.mock.calls.map(call => String(call[0])))
+    .toContainEqual('similarMedia: consumer deferred cr X for anilist:1 (an ask is in flight; asked when it settles if still new)'))
   settle(REFUSED)
-  await first
+  await Promise.all([first, second])
   warn.mockRestore()
 })
 

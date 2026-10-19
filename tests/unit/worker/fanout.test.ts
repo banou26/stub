@@ -203,17 +203,6 @@ describe('settling, what the media page waits on before it says a media has no e
     expect(onSettled).toHaveBeenCalledTimes(2)
   })
 
-  test('a tracked promise is out until it settles, a rejected one included', async () => {
-    const settling = createSettling(() => {})
-    let fail: (error: Error) => void = () => {}
-    settling.track(new Promise((_resolve, reject) => { fail = reject }))
-    expect(settling.settled()).toBe(false)
-
-    fail(new Error('the placeholder ask failed'))
-    await Promise.resolve()
-    expect(settling.settled()).toBe(true)
-  })
-
   // the urql client every source answers through ends each subscription on a `hasNext: false` result,
   // and the count rests on it: a stream that answered, one that answered nothing, and one that failed
   test("a real urql client ends every source's answer on a result the count reads", async () => {

@@ -67,12 +67,6 @@ export const createSettling = (onSettled: () => void, boundMs = ASK_BOUND_MS) =>
   return {
     settled: () => !out.size,
     ask,
-    /** `promise`, as one ask out until it settles. */
-    track: <T>(promise: Promise<T>): Promise<T> => {
-      const done = ask()
-      promise.then(done, done)
-      return promise
-    },
     /** Drops every ask still out without calling `onSettled`, for the question's own teardown. */
     close: () => {
       for (const timer of out.values()) clearTimeout(timer)

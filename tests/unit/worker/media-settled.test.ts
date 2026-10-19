@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ASK_BOUND_MS, askEntry, openFanout, type FanoutEntry, type Settling } from '../../../src/worker/fanout'
+import { emit } from '../../../src/worker/store/events'
 
 // see tests/unit/worker/graph/read.test.ts: urql's CommonJS build cannot load here, and nothing below calls it
 vi.mock('urql', () => ({ Client: class {}, fetchExchange: {}, mapExchange: () => ({}), getOperationName: () => undefined }))
@@ -26,11 +27,14 @@ const graph = vi.hoisted(() => ({
   rows: 0,
   address: async () => '',
   pass: async (): Promise<unknown> => null,
+  // what a read waits on after it has read the rows
+  reading: async () => {},
 }))
 // the similar consumer: by default it asks nothing, as for a cluster with no show-level link
 type Ask = (origin: string, input: unknown) => Promise<unknown>
+type Deps = { ask: Ask, wait?: () => void }
 const similar = vi.hoisted(() => ({
-  run: async (_cluster: unknown, _root: unknown, _deps: { ask: Ask }) => {},
+  run: async (_cluster: unknown, _root: unknown, _deps: Deps) => {},
   answer: async (): Promise<unknown> => ({ outcome: 'refused', reason: 'null' }),
 }))
 // every read of the media, counted
@@ -58,7 +62,11 @@ vi.mock('../../../src/worker/graph', async original => ({
   ...await original<object>(),
   readStore: () => graph.on ? 'graph' : 'legacy',
   createMediaReader: () => ({
-    read: async () => ({ _id: 'cl:1', uri: cluster.uri, categories: ['ANIME'], rows: graph.rows }),
+    read: async () => {
+      const rows = graph.rows
+      await graph.reading()
+      return { _id: 'cl:1', uri: cluster.uri, categories: ['ANIME'], rows }
+    },
     wakes: () => true,
   }),
   askAddressOf: () => graph.address(),
@@ -68,7 +76,7 @@ vi.mock('../../../src/worker/store/db', async original => ({
   ...await original<object>(),
   findMediaForPage: async () => { reads.count++; return [{ uri: 'anilist:1' }] },
 }))
-vi.mock('../../../src/worker/similar-consumer', () => ({ resolveSimilarRuns: (cluster: unknown, root: unknown, deps: { ask: Ask }) => similar.run(cluster, root, deps) }))
+vi.mock('../../../src/worker/similar-consumer', () => ({ resolveSimilarRuns: (cluster: unknown, root: unknown, deps: Deps) => similar.run(cluster, root, deps) }))
 vi.stubGlobal('location', new URL('http://localhost/'))
 vi.mock('../../../src/worker/store/aggregate', async original => ({
   ...await original<object>(),
@@ -91,7 +99,7 @@ afterEach(() => {
   sources.asked = []
   sources.byOrigin = {}
   cluster.uri = 'ag:(anilist:1)'
-  Object.assign(graph, { on: false, rows: 0, address: async () => '', pass: async () => null })
+  Object.assign(graph, { on: false, rows: 0, address: async () => '', pass: async () => null, reading: async () => {} })
   similar.run = async () => {}
   similar.answer = async () => ({ outcome: 'refused', reason: 'null' })
   reads.count = 0
@@ -234,6 +242,128 @@ describe('the media subscription', { timeout: 5_000 }, () => {
       anilist!.end()
       expect(await media.next(), 'Kitsu has not answered').toBe(false)
       kitsu.end()
+      expect(await media.next()).toBe(true)
+    })
+
+    test('a similar answer holds the media until the consumer has claimed it, which joins its episodes', async () => {
+      graph.on = true
+      const [anilist] = sources.asked = [source('anilist')]
+      let claim = () => {}
+      let asked = false
+      similar.run = async (_cluster, _root, deps) => {
+        if (asked) return
+        asked = true
+        await deps.ask('nf', { showId: '81511410' })
+        // the consumer checks Netflix's season against the cluster before it writes the claim
+        await new Promise<void>(resolve => { claim = resolve })
+        graph.rows = 1
+      }
+      const media = open()
+      opened.push(media)
+      expect(await media.answer()).toMatchObject({ settled: false })
+
+      anilist!.end()
+      const next = media.answer()
+      await quiet()
+      expect(await Promise.race([next, Promise.resolve('nothing')]), 'Netflix\'s season is not claimed').toBe('nothing')
+      claim()
+      expect(await next).toMatchObject({ settled: true, rows: 1 })
+    })
+
+    test('a similar ask another page has in flight holds the media until that page\'s consumer has claimed it', async () => {
+      graph.on = true
+      let driver: Promise<void> | undefined
+      let claimed = false
+      let claim = () => {}
+      // as `drive` does: the first run asks, a run that finds that ask in flight waits it out, and a
+      // claimed pair asks nothing
+      similar.run = async (_cluster, _root, deps) => {
+        if (claimed) return
+        if (driver) {
+          deps.wait?.()
+          return driver
+        }
+        driver = (async () => {
+          await deps.ask('nf', { showId: '81511410' })
+          await new Promise<void>(resolve => { claim = resolve })
+          graph.rows = 1
+          claimed = true
+          driver = undefined
+        })()
+        return driver
+      }
+      sources.asked = [source('anilist')]
+      const title = open()
+      expect(await title.answer()).toMatchObject({ settled: false })
+      // Play on the title page: it closes, and the watch page asks its own sources
+      title.close()
+      const [anilist] = sources.asked = [source('anilist')]
+      const watch = open()
+      opened.push(watch)
+      expect(await watch.answer()).toMatchObject({ settled: false })
+
+      anilist!.end()
+      const next = watch.answer()
+      await quiet()
+      expect(await Promise.race([next, Promise.resolve('nothing')]), 'Netflix\'s season is not claimed').toBe('nothing')
+      claim()
+      expect(await next).toMatchObject({ settled: true, rows: 1 })
+    })
+
+    test('a read under way as the last ask ends is not the settled one, and the read after it is', async () => {
+      graph.on = true
+      const [anilist] = sources.asked = [source('anilist')]
+      const media = open()
+      opened.push(media)
+      expect(await media.answer()).toMatchObject({ settled: false, rows: 0 })
+
+      // a read woken by a pass, which has read the rows when AniList's answer ends and its rows land
+      let read = () => {}
+      graph.reading = () => new Promise<void>(resolve => { read = resolve })
+      emit('view:changed', { clusters: ['cl:1'], uris: ['anilist:1'] })
+      const next = media.answer()
+      await quiet()
+      graph.reading = async () => {}
+      anilist!.end()
+      graph.rows = 1
+      read()
+      expect(await next, 'the rows it read are from before the answer').toMatchObject({ settled: false, rows: 0 })
+      expect(await media.answer()).toMatchObject({ settled: true, rows: 1 })
+    })
+
+    test('a consumer that never finishes still settles the media at the bound', async () => {
+      vi.useFakeTimers()
+      graph.on = true
+      const [anilist] = sources.asked = [source('anilist')]
+      let asked = false
+      similar.run = async (_cluster, _root, deps) => {
+        if (asked) return
+        asked = true
+        await deps.ask('nf', { showId: '81511410' })
+        await new Promise(() => {})
+      }
+      const media = open()
+      opened.push(media)
+      expect(await media.next()).toBe(false)
+
+      anilist!.end()
+      const next = media.next()
+      await vi.advanceTimersByTimeAsync(ASK_BOUND_MS - 1)
+      expect(await Promise.race([next, Promise.resolve('nothing')])).toBe('nothing')
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await next).toBe(true)
+    })
+
+    test('a media nothing more is asked about settles on the read its last answer wakes, with no time passing', async () => {
+      vi.useFakeTimers()
+      graph.on = true
+      const [anilist, justwatch] = sources.asked = [source('anilist'), source('jw')]
+      const media = open()
+      opened.push(media)
+      expect(await media.next()).toBe(false)
+
+      anilist!.end()
+      justwatch!.end()
       expect(await media.next()).toBe(true)
     })
 
