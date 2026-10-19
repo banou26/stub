@@ -268,13 +268,14 @@ const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
 type Origin = GetMediaOriginsSubscription['originPage']['nodes'][number]
 type Offer = { relation: string, node: { origin: string, url?: string | null } }
 
-const useOrigins = (ids: string[] | undefined): readonly Origin[] => {
-  const [{ data }] = useSubscription({
+const useOrigins = (ids: string[] | undefined) => {
+  const [{ data, operation }] = useSubscription({
     query: GET_MEDIA_ORIGINS,
     variables: { input: { ids: ids ?? [], filters: [OriginFilter.IsNotApiOnly] } },
     pause: !ids
   })
-  return data?.originPage?.nodes ?? []
+  const asked = operation?.variables.input.ids
+  return { origins: data?.originPage?.nodes ?? [], answered: !ids || ids.every(id => asked?.includes(id)) }
 }
 
 const useBackend = () => {
@@ -300,16 +301,17 @@ export const watchOriginIds = (episode: DetailsEpisode | undefined, offers: read
 /**
  * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
  * `offers` are media-level handles, linked out for a streaming site the episode itself does not name,
- * which is where a film's offers live.
+ * which is where a film's offers live. Until `answered`, a source just named waits on its origin's own
+ * answer, a worker round trip after the media's, and is missing from `sources`.
  */
 export const useWatchSources = (
   episode: DetailsEpisode | undefined,
   mediaUri: string,
   offers: readonly Offer[] = []
-): WatchSource[] => {
-  const origins = useOrigins(episode ? watchOriginIds(episode, offers) : undefined)
+): { sources: WatchSource[], answered: boolean } => {
+  const { origins, answered } = useOrigins(episode ? watchOriginIds(episode, offers) : undefined)
   const backend = useBackend()
-  return episode ? watchSources(episode, mediaUri, origins, backend, watchLinks(offers)) : []
+  return { sources: episode ? watchSources(episode, mediaUri, origins, backend, watchLinks(offers)) : [], answered }
 }
 
 /**
@@ -720,7 +722,7 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
     media.airingSchedule?.filter(({ airingAt }) => Date.parse(airingAt) > now).map(({ episodeNumber, airingAt }) => [episodeNumber, airingAt])
   )
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
-  const origins = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
+  const { origins } = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
   const backend = useBackend()
   const positions = usePositions()
   if (!media.episodes.length) {

@@ -30,7 +30,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 test('an origin with several releases links to its first release', () => {
   let sources: WatchSource[] = []
   const Probe = () => {
-    sources = useWatchSources(episode, 'ag:(anilist:1)')
+    sources = useWatchSources(episode, 'ag:(anilist:1)').sources
     return null
   }
   hosts.push(mount(<Probe/>))
@@ -48,7 +48,7 @@ test('a Prime Video episode outside Japan links to the watch page with the exten
     fkn.backend = backend
     let sources: WatchSource[] = []
     const Probe = () => {
-      sources = useWatchSources(prime, 'ag:(anilist:1)')
+      sources = useWatchSources(prime, 'ag:(anilist:1)').sources
       return null
     }
     hosts.push(mount(<Probe/>))

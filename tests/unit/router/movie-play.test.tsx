@@ -43,7 +43,7 @@ type Offers = Parameters<typeof useWatchSources>[2]
 
 // what the modal draws for a film: its play bar and, under the description, its sources, from one list of them
 const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEpisode | undefined, handles: Offers, startDate: string | null, status?: string, settled: boolean }) => {
-  const sources = useWatchSources(movie, 'ag:(anilist:9)', handles)
+  const { sources } = useWatchSources(movie, 'ag:(anilist:9)', handles)
   return (
     <>
       <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}/>

@@ -672,7 +672,6 @@ const TitlePage = () => {
   })
   const media = data?.media
   const current = currentMedia({ data, operation }, uri)
-  const settled = useSettledOnce(uri, current?.settled)
   const tracked = useTrackingSummary(media?.uri)
 
   // a layout effect, run as the answer is drawn: a plain one waits a frame, and a Back taken in that frame renders this
@@ -693,7 +692,8 @@ const TitlePage = () => {
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
   const film = isMovie ? media!.episodes.at(0) : undefined
-  const sources = useWatchSources(film, media?.uri ?? '', media?.handles)
+  const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
+  const settled = useSettledOnce(uri, current?.settled && answered)
   // the anime catalogues name the second title and the facts every anime has, AniList alone names relations, and
   // AniList joins an anime work's sources whichever catalogue the address names
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))

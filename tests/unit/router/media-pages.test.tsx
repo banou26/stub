@@ -8,8 +8,9 @@ import { Route, Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 // The preview and the title page against the details the worker has answered for each uri, the origins `origins`
-// answers for each list of ids, and nothing for every other subscription. As urql 4.2.2's `computeNextState` does, a
-// subscription keeps its last answer, and the operation it answered, while a new one starts.
+// answers for each list of ids (undefined while that answer is out), and nothing for every other subscription. As urql
+// 4.2.2's `computeNextState` does, a subscription keeps its last answer, and the operation it answered, while a new one
+// starts.
 const answers = vi.hoisted(() => ({ byUri: {} as Record<string, unknown>, origins: (_: string[]): unknown[] | undefined => undefined }))
 vi.mock('urql', async () => {
   const { useRef } = await import('preact/hooks')
@@ -17,7 +18,7 @@ vi.mock('urql', async () => {
     useSubscription: ({ query, variables, pause }: { query: { definitions: { name?: { value: string } }[] }, variables: { input?: { uri?: string, ids?: string[] } }, pause?: boolean }) => {
       const last = useRef<{ data?: unknown, operation?: unknown }>({})
       const nodes = !pause && query.definitions[0]?.name?.value === 'GetMediaOrigins' ? answers.origins(variables.input?.ids ?? []) : undefined
-      if (nodes) return [{ data: { originPage: { nodes } } }]
+      if (nodes) last.current = { data: { originPage: { nodes } }, operation: { variables } }
       const media = !pause && query.definitions[0]?.name?.value === 'GetMediaDetails' ? answers.byUri[variables.input?.uri ?? ''] : undefined
       if (media) last.current = { data: { media }, operation: { variables } }
       return [last.current]
@@ -70,6 +71,19 @@ const partial = (id: number) => ({
   studios: [], sourceMaterial: null, genres: [], tags: [], episodeCount: null, episodes: [],
 })
 const film = (id: number) => ({ ...work(id, 'Spirited Away'), type: 'MOVIE', categories: ['ANIME', 'MOVIE'], episodes: [] })
+// Penguin Highway's modal, 2026-10-19: the answer naming the film's sources and the one saying every source has
+// answered can land 17 ms apart, and the origins of those sources answer 34 ms after the answer naming them
+const streamed = (settled: boolean) => ({
+  ...film(3),
+  settled,
+  episodes: [{
+    _id: 'ep:3-1', uri: 'ag:(anilist:3-1)', origin: 'ag', id: '3-1', episodeNumber: 1, titles: [],
+    handles: settled ? [{ relation: 'SAME_AS', node: { uri: 'cr:GX1', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX1' } }] : [],
+  }],
+})
+// Crunchyroll's origin, once `ready`
+const crunchyroll = (ready: () => boolean) => (ids: string[]) =>
+  !ids.includes('cr') ? [] : ready() ? [{ id: 'cr', name: 'Crunchyroll', icon: null, color: null }] : undefined
 const sequel = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:9', uri: 'anilist:9', titles: [{ title: 'Frieren 2' }], covers: [] } }
 
 beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
@@ -141,6 +155,47 @@ describe('the preview', () => {
     expect(pending(modal())).toEqual([])
     answer({ ...late, settled: false })
     expect(pending(modal())).toEqual([])
+    expect(modal().querySelector('.play-bar')!.textContent).toBe('No sources yet')
+  })
+
+  test('a film settled before its sources\' origins answer holds Play\'s place, and never reads No sources yet', () => {
+    let ready = false
+    answers.origins = crunchyroll(() => ready)
+    const { answer } = preview(film(3).uri)
+    answer(streamed(false))
+    expect(modal().querySelector('.play-bar.held'), 'the control: held while a source is out').not.toBeNull()
+
+    answer(streamed(true))
+    expect(modal().querySelector('.play-bar .when')).toBeNull()
+    expect(modal().querySelector('.play-bar.held')).not.toBeNull()
+
+    ready = true
+    answer(streamed(true))
+    expect(modal().querySelector('.play-bar > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
+    expect(modal().querySelector('.play-bar .when')).toBeNull()
+  })
+
+  test('a film whose answered source gives none holds Play\'s place while a source named later is out', () => {
+    let ready = false
+    answers.origins = ids => ids.includes('cr') ? crunchyroll(() => ready)(ids) : ids.length ? [] : undefined
+    const anilist = { relation: 'SAME_AS', node: { uri: 'anilist:3-1', origin: 'anilist', url: 'https://anilist.co/anime/3' } }
+    const naming = (settled: boolean, ...handles: unknown[]) => ({ ...film(3), settled, episodes: [{ ...streamed(true).episodes[0]!, handles }] })
+    const { answer } = preview(film(3).uri)
+    answer(naming(false, anilist))
+    answer(naming(true, anilist, ...streamed(true).episodes[0]!.handles))
+    expect(modal().querySelector('.play-bar .when')).toBeNull()
+    expect(modal().querySelector('.play-bar.held')).not.toBeNull()
+
+    ready = true
+    answer(naming(true, anilist, ...streamed(true).episodes[0]!.handles))
+    expect(modal().querySelector('.play-bar > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
+  })
+
+  // the worker answers no origins for an empty list of ids
+  test('a film whose episode names no source reads No sources yet once settled', () => {
+    answers.origins = ids => ids.length ? [] : undefined
+    const { answer } = preview(film(3).uri)
+    answer({ ...streamed(false), settled: true })
     expect(modal().querySelector('.play-bar')!.textContent).toBe('No sources yet')
   })
 
@@ -242,6 +297,21 @@ describe('the title page', () => {
     expect(pending(host)).toEqual([])
     answer({ ...late, settled: false })
     expect(pending(host)).toEqual([])
+  })
+
+  test('a film settled before its sources\' origins answer holds its buttons\' place until they do', () => {
+    let ready = false
+    answers.origins = crunchyroll(() => ready)
+    const { host, answer } = titlePage(film(3).uri)
+    answer(streamed(false))
+    expect(host.querySelector('.watch.film .pending'), 'the control: held while a source is out').not.toBeNull()
+
+    answer(streamed(true))
+    expect(host.querySelector('.watch.film .pending')).not.toBeNull()
+
+    ready = true
+    answer(streamed(true))
+    expect([...host.querySelectorAll('.watch.film a .name')].map(name => name.textContent)).toEqual(['Crunchyroll'])
   })
 
   test('holds a line for each fact every anime has in its place, until it arrives or every source has answered without it', () => {

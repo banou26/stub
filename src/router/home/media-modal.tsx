@@ -342,11 +342,11 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   })
   const media = data?.media ?? foundMedia
   const current = currentMedia({ data, operation }, uri)
-  const settled = useSettledOnce(uri, current?.settled)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
-  const sources = useWatchSources(film, media?.uri ?? '', media?.handles)
+  const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
+  const settled = useSettledOnce(uri, current?.settled && answered)
   const tracked = useTrackingSummary(data?.media?.uri)
   const description = useMemo(
     () =>
