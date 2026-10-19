@@ -1,0 +1,837 @@
+{
+  "ts224087": {
+    "id": "ts224087",
+    "objectId": 224087,
+    "objectType": "SHOW",
+    "content": {
+      "title": "Ted Lasso",
+      "fullPath": "/us/tv-show/ted-lasso",
+      "originalReleaseYear": 2020,
+      "originalReleaseDate": "2020-08-14",
+      "shortDescription": "American college football coach Ted Lasso is hired to manage AFC Richmond, a struggling English soccer club, and must win over skeptical players, staff, and fans.",
+      "posterUrl": "/poster/304099436/s718/ted-lasso.jpg",
+      "externalIds": {
+        "imdbId": "tt10986410"
+      },
+      "genres": [
+        {
+          "shortName": "cmy",
+          "translation": "Comedy"
+        },
+        {
+          "shortName": "drm",
+          "translation": "Drama"
+        },
+        {
+          "shortName": "spt",
+          "translation": "Sport"
+        }
+      ],
+      "productionCountries": [
+        "GB",
+        "US"
+      ]
+    },
+    "offers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://tv.apple.com/jp/episode/%E3%82%88%E3%81%86%E3%81%93%E3%81%9D-%E3%83%A9%E3%83%83%E3%82%BD%E7%9B%A3%E7%9D%A3/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+        "deeplinkURL": "https://tv.apple.com/jp/episode/%E3%82%88%E3%81%86%E3%81%93%E3%81%9D-%E3%83%A9%E3%83%83%E3%82%BD%E7%9B%A3%E7%9D%A3/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+        "package": {
+          "id": "cGF8MzUw",
+          "packageId": 350,
+          "clearName": "Apple TV",
+          "technicalName": "appletvplus",
+          "shortName": "atp",
+          "icon": "/icon/338367329/s100/appletvplus.{format}"
+        }
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+        "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+        "package": {
+          "id": "cGF8MjI0Mw==",
+          "packageId": 2243,
+          "clearName": "Apple TV Amazon Channel",
+          "technicalName": "amazonappletvplus",
+          "shortName": "avl",
+          "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+        }
+      }
+    ],
+    "extraOffers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://tv.apple.com/us/episode/pilot/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+        "deeplinkURL": "https://tv.apple.com/us/episode/pilot/umc.cmc.zb0yksqtym68hasbq8mj4jwp?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVTEDL0560101&showId=umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+        "package": {
+          "id": "cGF8MzUw",
+          "packageId": 350,
+          "clearName": "Apple TV",
+          "technicalName": "appletvplus",
+          "shortName": "atp",
+          "icon": "/icon/338367329/s100/appletvplus.{format}"
+        }
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+        "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.2f897020-c26d-4e5b-a0cc-6b123749692e",
+        "package": {
+          "id": "cGF8MjI0Mw==",
+          "packageId": 2243,
+          "clearName": "Apple TV Amazon Channel",
+          "technicalName": "amazonappletvplus",
+          "shortName": "avl",
+          "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+        }
+      },
+      {
+        "monetizationType": "BUY",
+        "presentationType": "DVD",
+        "standardWebURL": "https://www.amazon.com/dp/B0G833DX1C?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "deeplinkURL": "https://www.amazon.com/dp/B0G833DX1C?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "package": {
+          "id": "cGF8NTA=",
+          "packageId": 50,
+          "clearName": "Amazon DVD / Blu-ray",
+          "technicalName": "amazondvdbr",
+          "shortName": "adb",
+          "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+        }
+      }
+    ],
+    "totalSeasonCount": 4,
+    "seasons": [
+      {
+        "id": "tss233988",
+        "objectId": 233988,
+        "totalEpisodeCount": 10,
+        "content": {
+          "title": "Season 1",
+          "seasonNumber": 1,
+          "fullPath": "/us/tv-show/ted-lasso/season-1",
+          "posterUrl": "/poster/194093627/{profile}/season-1.{format}",
+          "originalReleaseYear": 2020,
+          "originalReleaseDate": "2020-08-14",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse4314060",
+            "objectId": 4314060,
+            "content": {
+              "title": "Pilot",
+              "episodeNumber": 1,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "American football coach Ted Lasso is hired by a wealthy divorcée to coach the English soccer team AFC Richmond.",
+              "originalReleaseDate": "2020-08-14",
+              "runtime": 31
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4955226",
+            "objectId": 4955226,
+            "content": {
+              "title": "Biscuits",
+              "episodeNumber": 2,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "It's Ted's first day of coaching, and fans aren't happy. He makes little headway but remains undeterred as the team plays its first match.",
+              "originalReleaseDate": "2020-08-14",
+              "runtime": 29
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4955224",
+            "objectId": 4955224,
+            "content": {
+              "title": "Trent Crimm: The Independent",
+              "episodeNumber": 3,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "To arrange an in-depth exposé, Rebecca pairs cynical journalist Trent Crimm with Ted for a day. Ted and Roy venture into the community.",
+              "originalReleaseDate": "2020-08-14",
+              "runtime": 30
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4955225",
+            "objectId": 4955225,
+            "content": {
+              "title": "For the Children",
+              "episodeNumber": 4,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Rebecca hosts the team's annual charity benefit, where Ted stages a reconciliation between Roy and Jamie.",
+              "originalReleaseDate": "2020-08-21",
+              "runtime": 34
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4984378",
+            "objectId": 4984378,
+            "content": {
+              "title": "Tan Lines",
+              "episodeNumber": 5,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "With his wife and son visiting from America, Ted makes drastic changes to the lineup during a critical match.",
+              "originalReleaseDate": "2020-08-28",
+              "runtime": 31
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4993394",
+            "objectId": 4993394,
+            "content": {
+              "title": "Two Aces",
+              "episodeNumber": 6,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "When Jamie refuses to train, Ted turns to talented new signing Dani Rojas, and the team is struck by an age-old curse.",
+              "originalReleaseDate": "2020-09-04",
+              "runtime": 32
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse4995374",
+            "objectId": 4995374,
+            "content": {
+              "title": "Make Rebecca Great Again",
+              "episodeNumber": 7,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Rebecca celebrates her first anniversary as a divorcée as the team plays a match in Liverpool.",
+              "originalReleaseDate": "2020-09-11",
+              "runtime": 32
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5000646",
+            "objectId": 5000646,
+            "content": {
+              "title": "The Diamond Dogs",
+              "episodeNumber": 8,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Ted and Roy are both having relationship problems. Ted consults the Diamond Dogs while Roy has a talk with Keeley.",
+              "originalReleaseDate": "2020-09-18",
+              "runtime": 30
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5006565",
+            "objectId": 5006565,
+            "content": {
+              "title": "All Apologies",
+              "episodeNumber": 9,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "After a series of mistakes on the pitch, pressure mounts to bench Roy. Rebecca drops a bombshell.",
+              "originalReleaseDate": "2020-09-25",
+              "runtime": 31
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5012796",
+            "objectId": 5012796,
+            "content": {
+              "title": "The Hope That Kills You",
+              "episodeNumber": 10,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Richmond plays a climactic match that will determine the fates of Ted and his club.",
+              "originalReleaseDate": "2020-10-02",
+              "runtime": 34
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      },
+      {
+        "id": "tss274066",
+        "objectId": 274066,
+        "totalEpisodeCount": 12,
+        "content": {
+          "title": "Season 2",
+          "seasonNumber": 2,
+          "fullPath": "/us/tv-show/ted-lasso/season-2",
+          "posterUrl": "/poster/246950733/{profile}/season-2.{format}",
+          "originalReleaseYear": 2021,
+          "originalReleaseDate": "2021-07-23",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse5119267",
+            "objectId": 5119267,
+            "content": {
+              "title": "Goodbye Earl",
+              "episodeNumber": 1,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "AFC Richmond brings in a sports psychologist to help the team overcome their unprecedented seven game tie-streak.",
+              "originalReleaseDate": "2021-07-23",
+              "runtime": 34
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5745483",
+            "objectId": 5745483,
+            "content": {
+              "title": "Lavender",
+              "episodeNumber": 2,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Ted is surprised by the reappearance of a familiar face. Roy tries out a new gig.",
+              "originalReleaseDate": "2021-07-30",
+              "runtime": 33
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5745491",
+            "objectId": 5745491,
+            "content": {
+              "title": "Do the Right-est Thing",
+              "episodeNumber": 3,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Rebecca has a special visitor shadow her at work. A player's return is not welcomed by the team.",
+              "originalReleaseDate": "2021-08-06",
+              "runtime": 36
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5900051",
+            "objectId": 5900051,
+            "content": {
+              "title": "Carol of the Bells",
+              "episodeNumber": 4,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "It's Christmas in Richmond. Rebecca enlists Ted for a secret mission, Roy and Keeley search for a miracle, and the Higginses open up their home.",
+              "originalReleaseDate": "2021-08-13",
+              "runtime": 30
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5912399",
+            "objectId": 5912399,
+            "content": {
+              "title": "Rainbow",
+              "episodeNumber": 5,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Nate learns how to be assertive from Keeley and Rebecca. Ted asks Roy for a favor.",
+              "originalReleaseDate": "2021-08-20",
+              "runtime": 38
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5912398",
+            "objectId": 5912398,
+            "content": {
+              "title": "The Signal",
+              "episodeNumber": 6,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Ted is fired up that the new team dynamic seems to be working. But will they have a chance in the quarterfinal?",
+              "originalReleaseDate": "2021-08-27",
+              "runtime": 35
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938374",
+            "objectId": 5938374,
+            "content": {
+              "title": "Headspace",
+              "episodeNumber": 7,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "With things turning around for Richmond, it's time for everyone to work on their issues, like Ted's discomfort, Nate's confidence, and Roy's attention.",
+              "originalReleaseDate": "2021-09-03",
+              "runtime": 35
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938358",
+            "objectId": 5938358,
+            "content": {
+              "title": "Man City",
+              "episodeNumber": 8,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Ted and Dr. Sharon realize they might have to meet each other halfway. Tensions are high as the team prepares for the semifinal.",
+              "originalReleaseDate": "2021-09-10",
+              "runtime": 45
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938373",
+            "objectId": 5938373,
+            "content": {
+              "title": "Beard After Hours",
+              "episodeNumber": 9,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "After the semifinal, Beard sets out on an all-night odyssey through London in an effort to collect his thoughts.",
+              "originalReleaseDate": "2021-09-17",
+              "runtime": 43
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938376",
+            "objectId": 5938376,
+            "content": {
+              "title": "No Weddings and a Funeral",
+              "episodeNumber": 10,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Rebecca is stunned by a sudden loss. The team rallies to show their support, but Ted finds himself grappling with a piece of his past.",
+              "originalReleaseDate": "2021-09-24",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938363",
+            "objectId": 5938363,
+            "content": {
+              "title": "Midnight Train to Royston",
+              "episodeNumber": 11,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "A billionaire football enthusiast from Ghana makes Sam an unbelievable offer. Ted plans something special for Dr. Sharon's last day with the team.",
+              "originalReleaseDate": "2021-10-01",
+              "runtime": 42
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5938368",
+            "objectId": 5938368,
+            "content": {
+              "title": "Inverting the Pyramid of Success",
+              "episodeNumber": 12,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Richmond gets their final chance to win promotion as Ted deals with the fallout of Trent Crimm's painfully honest exposé.",
+              "originalReleaseDate": "2021-10-08",
+              "runtime": 49
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      },
+      {
+        "id": "tss281160",
+        "objectId": 281160,
+        "totalEpisodeCount": 12,
+        "content": {
+          "title": "Season 3",
+          "seasonNumber": 3,
+          "fullPath": "/us/tv-show/ted-lasso/season-3",
+          "posterUrl": "/poster/304099436/{profile}/season-3.{format}",
+          "originalReleaseYear": 2023,
+          "originalReleaseDate": "2023-03-14",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse5263420",
+            "objectId": 5263420,
+            "content": {
+              "title": "Smells Like Mean Spirit",
+              "episodeNumber": 1,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "The newly promoted AFC Richmond face mockery as pundits predict they'll finish dead last this season.",
+              "originalReleaseDate": "2023-03-14",
+              "runtime": 43
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281938",
+            "objectId": 7281938,
+            "content": {
+              "title": "(I Don't Want to Go to) Chelsea",
+              "episodeNumber": 2,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "News of a top player looking to move to London sends the English clubs into a frenzy. Richmond play their first game back in the Premier League.",
+              "originalReleaseDate": "2023-03-21",
+              "runtime": 47
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281939",
+            "objectId": 7281939,
+            "content": {
+              "title": "4-5-1",
+              "episodeNumber": 3,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "Richmond adjust to an exciting change, but Jamie has reservations. Ted learns there’s something new going on back in Kansas as well.",
+              "originalReleaseDate": "2023-03-28",
+              "runtime": 47
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281940",
+            "objectId": 7281940,
+            "content": {
+              "title": "Big Week",
+              "episodeNumber": 4,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "Everyone's feeling the pressure as Richmond gear up to play West Ham. Ted is reunited with an old friend.",
+              "originalReleaseDate": "2023-04-04",
+              "runtime": 49
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281941",
+            "objectId": 7281941,
+            "content": {
+              "title": "Signs",
+              "episodeNumber": 5,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "With their season in a tailspin, Richmond try to right the ship against mighty Manchester City. Off the pitch, everyone faces their own setbacks.",
+              "originalReleaseDate": "2023-04-11",
+              "runtime": 49
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281942",
+            "objectId": 7281942,
+            "content": {
+              "title": "Sunflowers",
+              "episodeNumber": 6,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "A friendly match takes the team to Amsterdam, where one night out unlocks truths for many.",
+              "originalReleaseDate": "2023-04-18",
+              "runtime": 63
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281943",
+            "objectId": 7281943,
+            "content": {
+              "title": "The Strings That Bind Us",
+              "episodeNumber": 7,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "The Greyhounds try a new strategy that has everyone thinking outside the box. Sam prepares to host a VIP guest at Ola's.",
+              "originalReleaseDate": "2023-04-25",
+              "runtime": 57
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281944",
+            "objectId": 7281944,
+            "content": {
+              "title": "We'll Never Have Paris",
+              "episodeNumber": 8,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "While watching Henry, Ted fights the urge to spiral when Michelle and Dr. Jacob go on a romantic trip. An online leak has massive implications for Keeley.",
+              "originalReleaseDate": "2023-05-02",
+              "runtime": 54
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281945",
+            "objectId": 7281945,
+            "content": {
+              "title": "La Locker Room Aux Folles",
+              "episodeNumber": 9,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "Colin and Isaac's friendship is tested. Roy is asked to do a press conference.",
+              "originalReleaseDate": "2023-05-09",
+              "runtime": 44
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281947",
+            "objectId": 7281947,
+            "content": {
+              "title": "International Break",
+              "episodeNumber": 10,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "While some of the Greyhounds head home to play for their countries in international matches, Edwin Akufo brings a business proposal to Rebecca.",
+              "originalReleaseDate": "2023-05-16",
+              "runtime": 63
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281946",
+            "objectId": 7281946,
+            "content": {
+              "title": "Mom City",
+              "episodeNumber": 11,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "An unexpected guest has Ted on edge. When Richmond travel to Manchester for a big match, Roy and Keeley become concerned about Jamie.",
+              "originalReleaseDate": "2023-05-23",
+              "runtime": 70
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7281948",
+            "objectId": 7281948,
+            "content": {
+              "title": "So Long, Farewell",
+              "episodeNumber": 12,
+              "seasonNumber": 3,
+              "isReleased": true,
+              "shortDescription": "AFC Richmond play their final game of the season.",
+              "originalReleaseDate": "2023-05-30",
+              "runtime": 75
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      },
+      {
+        "id": "tss469982",
+        "objectId": 469982,
+        "totalEpisodeCount": 10,
+        "content": {
+          "title": "Season 4",
+          "seasonNumber": 4,
+          "fullPath": "/us/tv-show/ted-lasso/season-4",
+          "posterUrl": "/poster/348176648/{profile}/season-4.{format}",
+          "originalReleaseYear": 2026,
+          "originalReleaseDate": "2026-08-04",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse8736714",
+            "objectId": 8736714,
+            "content": {
+              "title": "Home",
+              "episodeNumber": 1,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "A few years after Ted leaves Richmond, some familiar faces visit him in Kansas...or is it Missouri?",
+              "originalReleaseDate": "2026-08-04",
+              "runtime": 42
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684200",
+            "objectId": 9684200,
+            "content": {
+              "title": "Curiouser and Curiouser!",
+              "episodeNumber": 2,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "Ted returns to Richmond to meet the Lady Greyhounds, but not everyone is glad to see him.",
+              "originalReleaseDate": "2026-08-11",
+              "runtime": 47
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684211",
+            "objectId": 9684211,
+            "content": {
+              "title": " Richmond's Got Talent",
+              "episodeNumber": 3,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "Richmond's shareholders are unsure about a women's team. The coaches hold tryouts to fill out their roster.",
+              "originalReleaseDate": "2026-08-18",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684222",
+            "objectId": 9684222,
+            "content": {
+              "title": "Greyhounds' Day Off",
+              "episodeNumber": 4,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "The coaches must figure out how to break up team cliques. Ted adjusts to life outside the locker room.",
+              "originalReleaseDate": "2026-08-25",
+              "runtime": 44
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684237",
+            "objectId": 9684237,
+            "content": {
+              "title": "Riches of Embarrassment",
+              "episodeNumber": 5,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "The ladies face off against Chelsea. Alice feels the pressure. Rebecca navigates a complicated dynamic.",
+              "originalReleaseDate": "2026-09-01",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684245",
+            "objectId": 9684245,
+            "content": {
+              "title": "Don't Jump Around Much Anymore",
+              "episodeNumber": 6,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "The coaches must figure out how to break up team cliques. Ted adjusts to life outside the locker room.",
+              "originalReleaseDate": "2026-09-08",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684169",
+            "objectId": 9684169,
+            "content": {
+              "title": "Yes & Baby",
+              "episodeNumber": 7,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "Alice and Ted try stepping outside their comfort zones. Zelda helps with a new problem at Richmond.",
+              "originalReleaseDate": "2026-09-15",
+              "runtime": 41
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684186",
+            "objectId": 9684186,
+            "content": {
+              "title": "Follow the Anger",
+              "episodeNumber": 8,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "The Lady Greyhounds navigate a difficult setback. Roy and Keeley prepare for the Wall of Legends.",
+              "originalReleaseDate": "2026-09-22",
+              "runtime": 51
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684198",
+            "objectId": 9684198,
+            "content": {
+              "title": "Mae Rides the Bus",
+              "episodeNumber": 9,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "Morale is low, but the stakes have never been higher. Mae joins the team on the road. Keeley has news.",
+              "originalReleaseDate": "2026-09-29",
+              "runtime": 43
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9684209",
+            "objectId": 9684209,
+            "content": {
+              "title": "Being Alive",
+              "episodeNumber": 10,
+              "seasonNumber": 4,
+              "isReleased": true,
+              "shortDescription": "Big changes in bunches.",
+              "originalReleaseDate": "2026-10-06",
+              "runtime": 55
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      }
+    ]
+  }
+}

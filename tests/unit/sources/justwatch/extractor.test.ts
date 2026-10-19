@@ -697,3 +697,18 @@ test('a JustWatch placeholder synopsis is no description, and a real one stays',
   const jw = (media.episodes ?? []).filter(episode => episode?.origin === 'jw')
   expect(jw.map(episode => episode?.shortDescriptions?.at(0)?.shortDescription)).toEqual([undefined, undefined, 'A locust plague is looming.'])
 })
+
+test('a failed JustWatch request rejects its caller and leaves no unhandled rejection behind', async () => {
+  const unhandled: unknown[] = []
+  const listener = (reason: unknown) => unhandled.push(reason)
+  process.on('unhandledRejection', listener)
+  try {
+    const failing = { fetch: async () => { throw new Error('jw 500') } }
+    await expect((resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'jw:12345-111' } }, failing).next())
+      .rejects.toThrow('jw 500')
+    await new Promise(resolve => setTimeout(resolve, 0))
+  } finally {
+    process.off('unhandledRejection', listener)
+  }
+  expect(unhandled).toEqual([])
+})

@@ -1,6 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaPageInput, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
-import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
+import { extractAggregatedUriOrigin, isAggregatedUri, isUri, originsOfUri, toUri } from '../../utils/uri'
+import { site, type Site } from '../../site'
 import { resolveEpisodeToSeriesId } from '../crunchyroll/extractor'
 import { crunchyrollId } from '../crunchyroll/season-id'
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
@@ -265,7 +266,8 @@ const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<
   if (existing) return existing as Promise<T>
   const promise = fn()
   _inflight.set(key, promise)
-  promise.finally(() => _inflight.delete(key))
+  const clear = () => _inflight.delete(key)
+  promise.then(clear, clear)
   return promise
 }
 
@@ -933,11 +935,18 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   return container
 }
 
+// movies.fkn.app keeps films alone and series.fkn.app shows alone, so there a bare id is the node of that kind.
+// Opened cold, `ag:(jw:<id>)` has nothing else to name a format: the cluster's wait ran its 15 s, and the film
+// The End of Oak Street was asked as the show `ts1465819`, which does not exist (2026-10-19).
+const SITE_NODES: Partial<Record<Site, 'tm' | 'ts'>> = { movie: 'tm', series: 'ts' }
+
 // `ts<id>` and `tm<id>` are two unrelated titles behind one bare id, and the cluster's format only says
 // which to ask first: a film can read as a series (a source stamping SERIES on every row, or MAL's ONA
 // where JustWatch files a film), so the other is asked when the first is not titled like the cluster.
 // Penguin Highway's `ts403680` is The Numbers, measured 2026-10-19.
 const bareNode = async (uri: string, objectId: string, ctx: ExtractorServerContext, details?: boolean | null) => {
+  const kept = SITE_NODES[site]
+  if (kept) return (await getNodeDetails(`${kept}${objectId}`, ctx, details)).data?.node
   const cluster = await waitForMedia(uri, ctx, media => ['MOVIE', 'SERIES'].some(category => media?.categories?.includes(category)) ? media : undefined)
   const titles: string[] = (cluster?.titles ?? []).map((title: { title: string }) => title.title)
   const titled = async (node?: JWShowNode | null) => Boolean(node && (await rankByTitle(titles, [node], node => node.content?.title)).length)
@@ -956,6 +965,11 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext, details?: 
       ? await bareNode(uri, objectId, ctx, details)
       : (await getNodeDetails(`ts${objectId}`, ctx, details)).data?.node
     if (!node) return null
+    // a show its address names alone has no run to pick, so it is the show, as the home row answers it; only on
+    // series.fkn.app, since elsewhere the node is the cluster's guess at which of two titles the id names
+    if (site === 'series' && seasonObjectId == null && originsOfUri(uri).every(member => member === origin)) {
+      return showAsContainer(node, ctx, UNKNOWN_POLICY, true)
+    }
     // the uri pins a season by ITS id, so the number the episode lists use is looked up, not assumed
     const pinned = seasonObjectId != null
       ? node.seasons?.find(season => season.objectId === seasonObjectId)?.content.seasonNumber
