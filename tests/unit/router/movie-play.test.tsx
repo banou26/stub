@@ -148,7 +148,8 @@ test('until a source lands or the film\'s sources have all answered, the bar hol
   expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-bar')?.classList.contains('held'), 'Play has landed').toBe(false)
 })
 
-// so a film whose services all link out loses the held place as its buttons land, not when the media settles
+// so a film whose services all link out, none of them one stub plays, loses the held place as its buttons land,
+// not when the media settles
 test('a source that links out ends the hold, and a bar with nothing in it is not drawn, settled or not', () => {
   origin = 'hidive'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]

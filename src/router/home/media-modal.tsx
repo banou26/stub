@@ -211,7 +211,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           color: rgba(255, 255, 255, 0.8);
         }
 
-        /* Play's height, until a source lands or every source has answered */
+        /* Play's height, while no source has landed or one stub plays still links out, until every source has answered */
         &.held {
           min-height: 4.4rem;
         }
