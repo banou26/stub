@@ -993,27 +993,43 @@ test('390 px wide, a film\'s button with a name longer than its row wraps the na
   }
 })
 
+// every site the icon row at `row` draws from the first frame, however briefly
+const recordSites = (page: Page, row: string) => page.addInitScript(row => {
+  const seen = new Set<string>()
+  const record = () => {
+    for (const site of document.querySelectorAll(`${row} > .origin`)) seen.add(site.getAttribute('title')!)
+    requestAnimationFrame(record)
+  }
+  requestAnimationFrame(record)
+  Object.assign(window, { seen })
+}, row)
+const sitesSeen = (page: Page) => page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])
+
 test('a film\'s title page keeps the catalogue sites beside Play, and none of the services its buttons name, at any point, opened again at the address it grew to', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  // every site drawn beside Play from the first frame, however briefly
-  await page.addInitScript(() => {
-    const seen = new Set<string>()
-    const record = () => {
-      for (const site of document.querySelectorAll('.body > .actions .origins > .origin')) seen.add(site.getAttribute('title')!)
-      requestAnimationFrame(record)
-    }
-    requestAnimationFrame(record)
-    Object.assign(window, { seen })
-  })
+  const row = '.body > .actions .origins'
+  await recordSites(page, row)
   for (const load of ['opened', 'reloaded', 'reloaded again']) {
     await (load === 'opened' ? page.goto(`${origin}/title/${FILM}`) : page.reload())
     // JustWatch alone names TMDB, so the row has drawn its sites for every origin JustWatch's answer named
-    await expect(page.locator('.body > .actions .origins > [title="TMDB"]'), `${load}: JustWatch has answered`).toHaveCount(1, { timeout: 30_000 })
-    const seen = await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])
+    await expect(page.locator(`${row} > [title="TMDB"]`), `${load}: JustWatch has answered`).toHaveCount(1, { timeout: 30_000 })
+    const seen = await sitesSeen(page)
     expect(seen, `${load}: the control: a catalogue site stays`).toContain('AniList')
     expect(seen.filter(site => FILM_SOURCES.includes(site)), load).toEqual([])
     await expect(page, `${load}: the control: at the address naming every service`).toHaveURL(/jw:900050/)
   }
+})
+
+test('a film\'s modal keeps the catalogue sites next to its title, and none of the services its buttons name, at any point', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const row = '.modal .content > .header .origins'
+  await recordSites(page, row)
+  await page.goto(`${origin}/media/${FILM}`)
+  await expect(page.locator(`${row} > [title="TMDB"]`), 'JustWatch has answered').toHaveCount(1, { timeout: 30_000 })
+  await expect(modal(page).locator('.description + .watch a'), 'the control: the services are the buttons').toHaveCount(FILM_SOURCES.length)
+  const seen = await sitesSeen(page)
+  expect(seen, 'the control: a catalogue site stays').toContain('AniList')
+  expect(seen.filter(site => FILM_SOURCES.includes(site))).toEqual([])
 })
 
 // AniList answers Spec Prime Film, and JustWatch, five seconds later, with Prime Video on amazon.co.jp, which stub plays

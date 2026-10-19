@@ -24,7 +24,7 @@ import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, sh
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
-import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources } from './media-details'
+import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { getRoutePath, Route } from '../path'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
@@ -467,7 +467,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
-          <SourceLinks uri={data?.media?.uri} handles={media?.handles}/>
+          <SourceLinks uri={data?.media?.uri} handles={media?.handles} except={watchOriginIds(film, media?.handles)}/>
           <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>
         </div>
         {
