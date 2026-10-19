@@ -2,6 +2,7 @@
 // The Numbers, as `ts403680` (2026-10-19). JustWatch picks the node by what the cluster reads as when it asks, and
 // on 3 of 24 cold loads of the modal (2026-10-19) AniZip's row was the cluster's first and AniList's landed 22 to 119
 // answers later: JustWatch then asked the show, answered nothing, and the film's hoopla, Plex and Tubi never showed.
+// The recording is a viewer in the US's answer (Japan beside it), so the tests that read offers run as one.
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { resolvers as anizip } from '../../../../src/sources/anizip/extractor'
@@ -14,6 +15,7 @@ import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import ANIZIP from '../../../fixtures/anizip/penguin-highway.json'
 import JUSTWATCH from '../../../fixtures/justwatch/penguin-highway.json'
+import { viewerIn } from '../../sources/justwatch/viewer'
 import { answer, media, sameAs, title } from './plugins/fixtures'
 
 const ADDRESS = 'ag:(anilist:101249,anizip:13853,hoopla:12418002,jw:403680,kitsu:41007,mal:37407,nf:81037598,offline:mal-37407,omdb:tt8076344,plex:5d77708f594b2b001e74d1ea,simkl:774239,tubi:590793,watchmode:01298472)'
@@ -57,11 +59,12 @@ beforeAll(async () => { await enableGraph(true) }, 300_000)
 afterAll(async () => { await closeGraph() })
 
 test('JustWatch asks for the film when AniZip\'s row is the first to land', async () => {
+  viewerIn('America/New_York')
   await ingest([await anizipRow()])
   expect(await askJustWatch()).toEqual({
     asked: ['tm403680'],
     uri: 'jw:403680',
-    offers: ['hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
+    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
   })
 }, 60_000)
 
@@ -80,11 +83,12 @@ test('the control: once AniList\'s row lands too, JustWatch asks for the film', 
 // a cluster can read as a series while JustWatch files the work as a film: Crunchyroll stamps SERIES on every row,
 // and on The Ribbon Hero MAL's ONA outranks AniList's MOVIE (jw:2884940, 2026-10-19)
 test('a cluster that reads as a series still gets the film, since the show its id names is titled otherwise', async () => {
+  viewerIn('America/New_York')
   const series = async () => ({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'Penguin Highway' }], startDate: '2018-08-17' })
   expect(await askJustWatch(series)).toEqual({
     asked: ['ts403680', 'tm403680'],
     uri: 'jw:403680',
-    offers: ['hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
+    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
   })
   const numbers = async () => ({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'The Numbers' }] })
   expect((await askJustWatch(numbers)).asked, 'the control: a cluster titled like the show keeps the show').toEqual(['ts403680'])
