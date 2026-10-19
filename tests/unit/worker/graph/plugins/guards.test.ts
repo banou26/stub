@@ -133,6 +133,13 @@ beforeAll(async () => {
     await answer('media', media('jw:852', { type: 'MOVIE', categories: ['MOVIE'] })),
     await answer('episode', episode('jw:852-1', 'jw:852')),
     await answer('media', media('anilist:852', { type: 'TV', categories: ['ANIME', 'SERIES'], episodeCount: 12, status: 'FINISHED' })),
+    // 8c. a folding season naming another folding season's bare handle, which carries no count
+    await answer('media', media('jw:860-1', { categories: ['SERIES'], episodeCount: 12, handles: [{ relation: 'SAME_AS', node: media('nf:860-1') }] })),
+    await answer('media', media('jw:861-1', { categories: ['SERIES'], episodeCount: 12, handles: [{ relation: 'SAME_AS', node: media('cr:C861-S1') }] })),
+    await answer('media', media('jw:862-1', { categories: ['SERIES'], episodeCount: 12, handles: [{ relation: 'SAME_AS', node: media('nf:862-1') }] })),
+    await answer('media', media('jw:863-1', { categories: ['SERIES'], handles: [{ relation: 'SAME_AS', node: media('nf:863-1') }] })),
+    // the control: JustWatch's show naming the Netflix title, which carries no count, the BAKI-DOU shape
+    await answer('media', media('jw:870', { scope: 'CONTAINER', categories: ['SERIES'], episodeCount: 26, handles: [{ relation: 'SAME_AS', node: media('nf:870', { scope: 'CONTAINER' }) }] })),
     // 9. kind-mismatch: `tmdb:550` is Fight Club as a film and Till Death Us Do Part as a series
     await answer('media', media('tmdb:900', { titles: [title('en', 'Nine')], type: 'MOVIE', categories: ['MOVIE'] })),
     await answer('media', media('anilist:900', { titles: [title('en', 'Nine')], type: 'TV', categories: ['SERIES'] })),
@@ -569,6 +576,34 @@ test('guard 8 refuses a folding season facing a run with no length', async () =>
   expect(rows.find(row => row.pair === 'anilist:800 cr:C800-S1' && row.kind === 'PART_OF'))
     .toMatchObject({ status: 'active', reason: 'no-length' })
   expect(rows.find(row => row.pair === 'cr:C800-S1 anilist:801'), 'the control: a run that states its length')
+    .toMatchObject({ kind: 'SAME_AS', status: 'active' })
+})
+
+// OF TWO FOLDING SEASONS, THE ONE WITH NO COUNT IS THE RUN SIDE, whichever uri sorts first and
+// whichever end it is. Left to the uri tie-break, JustWatch's season welded Netflix's while that row was
+// only the handle it named, and kept it through the cluster the weld built (`bare-season-handle.test.ts`).
+// Mutation: weigh two folding seasons by `containerSideOf` alone and the two `nf` pairs are active;
+// drop the RUN test and JustWatch's show is refused the Netflix title; take either uncounted row as
+// the run side and the pair with no count on either end is downgraded the other way.
+test('guard 8 refuses a folding season facing another with no count, whichever sorts first', async () => {
+  await propose([
+    sameAs('jw:860-1', 'nf:860-1'), sameAs('jw:861-1', 'cr:C861-S1'), sameAs('nf:862-1', 'jw:862-1'), sameAs('nf:863-1', 'jw:863-1'),
+    sameAs('jw:870', 'nf:870'),
+  ])
+
+  const rows = await linksOf()
+  const refused = { status: 'refused', reason: 'no-length', evidence: '{"theirs":12,"ours":null}' }
+  expect(rows.find(row => row.pair === 'jw:860-1 nf:860-1' && row.kind === 'SAME_AS'), 'the uncounted row sorts last')
+    .toMatchObject(refused)
+  expect(rows.find(row => row.pair === 'nf:860-1 jw:860-1' && row.kind === 'PART_OF'), 'the uncounted row is the part')
+    .toMatchObject({ status: 'active', reason: 'no-length' })
+  expect(rows.find(row => row.pair === 'jw:861-1 cr:C861-S1' && row.kind === 'SAME_AS'), 'the uncounted row sorts first')
+    .toMatchObject(refused)
+  expect(rows.find(row => row.pair === 'nf:862-1 jw:862-1' && row.kind === 'SAME_AS'), 'the uncounted row proposes')
+    .toMatchObject(refused)
+  expect(rows.find(row => row.pair === 'jw:863-1 nf:863-1' && row.kind === 'PART_OF'), 'no count on either end: the tie-break')
+    .toMatchObject({ status: 'active', reason: 'no-length' })
+  expect(rows.find(row => row.pair === 'jw:870 nf:870'), 'the control: two shows')
     .toMatchObject({ kind: 'SAME_AS', status: 'active' })
 })
 

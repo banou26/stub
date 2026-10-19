@@ -1009,7 +1009,17 @@ const sameAsVerdict = (subject: SameAsSubject, facts: Facts): SameAsVerdict => {
   // the witnessed figure of 5.4 P5, and its own profile count only where no cluster holds it yet
   // (`runSideLength`). The folding side is weighed on its OWN count, because the whole question is
   // what that one packaging claims.
-  const folding = a.folding && b.folding ? containerSideOf(a, b) : a.folding ? a : b.folding ? b : null
+  // OF TWO FOLDING SEASONS, ONE WITH NO COUNT IS THE RUN SIDE, so guard 8 refuses it whichever uri sorts
+  // first. Left to the tie-break of `containerSideOf`, a season welded the other while it was still a
+  // bare handle, and the weld then held through the cluster it built: arrival order picked the card.
+  // Shows are exempt: Netflix states no count for a show, so the rule would refuse every JustWatch show
+  // that names a Netflix title and split the BAKI-DOU pair jw:495174 and nf:81922765. Two shows are
+  // still weighed by the tie-break, so a weld between them can still follow arrival order.
+  const uncounted = a.scope === 'RUN' ? [a, b].filter(side => countOf(side) === null) : []
+  const folding =
+    a.folding && b.folding
+      ? uncounted.length === 1 ? (uncounted[0] === a ? b : a) : containerSideOf(a, b)
+      : a.folding ? a : b.folding ? b : null
   if (folding) {
     const run = folding === a ? b : a
     const theirs = countOf(folding)
