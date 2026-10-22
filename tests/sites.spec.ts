@@ -168,7 +168,44 @@ test('search offers Category on stub alone, and Season and Format on anime and s
   }
   expect(await filters('127.0.0.1')).toEqual(['Search', 'Genres & Tags', 'Year', 'Season', 'Format', 'Airing Status', 'Category'])
   expect(await filters('anime.localhost')).toEqual(['Search', 'Genres & Tags', 'Year', 'Season', 'Format', 'Airing Status'])
-  expect(await filters('movies.localhost')).toEqual(['Search', 'Genres & Tags', 'Year'])
+  expect(await filters('movies.localhost')).toEqual(['Search', 'Genres', 'Year'])
+})
+
+const results = (page: Page) => page.locator('.grid a.title-text').allTextContents()
+
+test('movies.fkn.app and series.fkn.app list a genre by JustWatch\'s most popular titles of it', async ({ page }) => {
+  await page.goto(at('movies.localhost', '/search?genre=Comedy'))
+  await expect.poll(() => results(page)).toEqual(['Practical Magic'])
+  await page.goto(at('series.localhost', '/search?genre=Sport'))
+  await expect.poll(() => results(page)).toEqual(['Ted Lasso'])
+})
+
+const openPicker = async (page: Page, host: string, label: string) => {
+  await page.goto(at(host, '/search'))
+  await page.getByRole('combobox', { name: label, exact: true }).click()
+}
+
+test('the genre picker offers JustWatch\'s genres on movies.fkn.app and AniList\'s on anime.fkn.app', async ({ page }) => {
+  await openPicker(page, 'movies.localhost', 'Genres')
+  await expect(page.getByRole('option')).toHaveText([
+    'Action & Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'History', 'Horror',
+    'Kids & Family', 'Music & Musical', 'Mystery & Thriller', 'Reality TV', 'Romance', 'Science-Fiction', 'Sport',
+    'War & Military', 'Western',
+  ])
+  await openPicker(page, 'anime.localhost', 'Genres & Tags')
+  await expect(page.getByRole('option')).toHaveText([
+    'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Horror', 'Mahou Shoujo', 'Mecha', 'Music', 'Mystery',
+    'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller',
+  ])
+})
+
+test('a label typed in the genre picker is offered as a tag on anime.fkn.app, and not on movies.fkn.app', async ({ page }) => {
+  await openPicker(page, 'anime.localhost', 'Genres & Tags')
+  await page.getByRole('textbox', { name: 'Filter genres & tags' }).fill('Isekai')
+  await expect(page.getByRole('option'), 'the control: AniList may list by it').toHaveText(['Isekai'])
+  await openPicker(page, 'movies.localhost', 'Genres')
+  await page.getByRole('textbox', { name: 'Filter genres' }).fill('Isekai')
+  await expect(page.getByText('Nothing matches “Isekai”.')).toBeVisible()
 })
 
 // Watchmode's seven hits for it: two match less closely than the film, and none carries a popularity

@@ -3,6 +3,8 @@
 // filter the day a param is renamed.
 
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../generated/graphql'
+import { JUSTWATCH_GENRES } from '../../sources/justwatch/genres'
+import type { Site } from '../../site'
 
 /**
  * Every axis the search page filters on.
@@ -93,30 +95,35 @@ export const CATEGORY_OPTIONS = [
 ] as const
 
 /**
- * AniList's genre vocabulary, which is the one the sources actually emit.
+ * AniList's genres, the ones it lists by.
  *
  * A fixed list rather than a facet over the current results, because the control has to be usable
  * BEFORE anything is loaded: on an empty search page the results are empty, and a facet would offer
  * nothing to filter by. It is short and stable (AniList has published these since the v2 API), where
  * tags number in the hundreds and change, which is why tags are offered as a facet instead.
  *
- * jikan's own vocabulary is wider (its themes and demographics land in `genres` too, so "Isekai" and
- * "Shounen" appear on media as well). Those reach the picker through the facet, not through this list.
- *
  * ONE genre is deliberately missing. AniList's list also carries "Hentai", and its own browse hides it
  * behind an adult toggle. stub has an `isAdult` column that NO source fills and NO view reads, so there
  * is nothing here to gate it with, and offering it would be offering a filter with no control beside it.
  */
-export const KNOWN_GENRES = [
+const ANILIST_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Horror', 'Mahou Shoujo', 'Mecha',
   'Music', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural',
   'Thriller',
-] as const
+]
 
-const GENRE_KEYS = new Set<string>(KNOWN_GENRES.map(genre => genre.toLowerCase()))
-
-/** Whether a label is a genre rather than a tag, which is what splits one picker into two url keys. */
-export const isKnownGenre = (label: string): boolean => GENRE_KEYS.has(label.trim().toLowerCase())
+/**
+ * The genres each site offers, those a source it asks lists by: AniList's on anime.fkn.app, JustWatch's on
+ * movies.fkn.app and series.fkn.app, which never ask AniList, and both on stub.fkn.app. Any other genre a title
+ * carries, such as Jikan's "Award Winning", lists titles only inside a season, where the search page offers it from
+ * the results.
+ */
+export const SITE_GENRES: Record<Site, readonly string[]> = {
+  anime: ANILIST_GENRES,
+  movie: Object.keys(JUSTWATCH_GENRES),
+  series: Object.keys(JUSTWATCH_GENRES),
+  stub: [...new Set([...ANILIST_GENRES, ...Object.keys(JUSTWATCH_GENRES)])],
+}
 
 const memberOf = <T extends string>(values: readonly T[], raw: string | null): T | null =>
   values.find(value => value === raw) ?? null

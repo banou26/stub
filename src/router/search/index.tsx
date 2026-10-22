@@ -10,8 +10,8 @@ import { gql } from '../../generated'
 import { MediaSort } from '../../generated/graphql'
 import { getRoutePath, Route } from '../path'
 import {
-  CATEGORY_OPTIONS, FORMAT_OPTIONS, KNOWN_GENRES, SEASON_OPTIONS, STATUS_OPTIONS,
-  YEAR_MIN, hasSearchFilters, isKnownGenre, namesAQuery, parseSearchFilters, searchFiltersQuery, searchHeading, searchPath,
+  CATEGORY_OPTIONS, FORMAT_OPTIONS, SEASON_OPTIONS, SITE_GENRES, STATUS_OPTIONS,
+  YEAR_MIN, hasSearchFilters, namesAQuery, parseSearchFilters, searchFiltersQuery, searchHeading, searchPath,
   yearMax,
 } from './params'
 import MediaTitle from '../../components/media-title'
@@ -330,38 +330,33 @@ const Search = () => {
   /**
    * The two label vocabularies the picker offers, and which url key each one writes to.
    *
-   * Genres start from AniList's fixed list, because the control has to be usable before anything is
-   * loaded. They cannot END there: jikan's genres also carry its themes and demographics, so
-   * "Isekai" and "Shounen" arrive on media as GENRES. Offering those only as tags would write
-   * `tag=Isekai`, and the store matches tags against AniList's tag vocabulary, where the label is
-   * not, so the filter would return nothing at all.
-   *
-   * Tags are a pure facet: there are hundreds, they change, and the honest offer is the ones the
-   * current results carry. Both keep whatever the url already names, so a picked label never vanishes
-   * from its own picker while the page reloads under it.
+   * Genres are the site's own list, those its sources list by (./params.ts `SITE_GENRES`), and inside a season the
+   * ones its results carry too: MyAnimeList's season page gives its titles their themes and demographics as genres, so
+   * there "Suspense" lists titles, where outside a season no source lists by it. Tags are a pure facet: there are
+   * hundreds, they change, and the honest offer is the ones the current results carry. Both keep whatever the url
+   * already names, so a picked label never vanishes from its own picker or changes key while the page reloads under it.
    */
+  const seasonal = Boolean(filters.season && filters.year)
   const { genreOptions, tagOptions, genreKeys } = useMemo(() => {
-    const genres = new Map<string, string>(KNOWN_GENRES.map(genre => [genre.toLowerCase(), genre]))
+    const genres = new Map<string, string>(SITE_GENRES[site].map(genre => [genre.toLowerCase(), genre]))
     const tags = new Map<string, string>()
     for (const genre of filters.genres) genres.set(genre.toLowerCase(), genre)
     for (const tag of filters.tags) tags.set(tag.toLowerCase(), tag)
-    for (const node of nodes) {
-      for (const genre of node.genres ?? []) if (!genres.has(genre.toLowerCase())) genres.set(genre.toLowerCase(), genre)
-      for (const tag of node.tags ?? []) if (!genres.has(tag.toLowerCase()) && !tags.has(tag.toLowerCase())) tags.set(tag.toLowerCase(), tag)
+    const offer = (labels: Map<string, string>, label: string) => {
+      if (!genres.has(label.toLowerCase()) && !tags.has(label.toLowerCase())) labels.set(label.toLowerCase(), label)
     }
+    if (seasonal) for (const node of nodes) for (const genre of node.genres ?? []) offer(genres, genre)
+    for (const node of nodes) for (const tag of node.tags ?? []) offer(tags, tag)
     const byLabel = (a: string, b: string) => a.localeCompare(b)
     return {
       genreKeys: new Set(genres.keys()),
       genreOptions: [...genres.values()].sort(byLabel).map(genre => ({ value: genre, label: genre })),
       tagOptions: [...tags.values()].sort(byLabel).map(tag => ({ value: tag, label: tag })),
     }
-  }, [nodes, filters.genres, filters.tags])
+  }, [nodes, filters.genres, filters.tags, seasonal])
 
   const labels = [...filters.genres, ...filters.tags]
-  // A label the page has seen as a genre goes to `genre=`, whatever this build's fixed list says. The
-  // pure `isKnownGenre` is the fallback for a label typed into an empty page, where nothing is loaded
-  // to have seen it.
-  const isGenre = (label: string) => genreKeys.has(label.toLowerCase()) || isKnownGenre(label)
+  const isGenre = (label: string) => genreKeys.has(label.toLowerCase())
   const setLabels = (next: string[]) => setFilters({
     genres: next.filter(isGenre),
     tags: next.filter(label => !isGenre(label)),
@@ -430,13 +425,13 @@ const Search = () => {
           </div>
         </FilterField>
         <FilterSelect
-          label="Genres & Tags"
+          label={LIVE_ACTION_SITE ? 'Genres' : 'Genres & Tags'}
           options={[...genreOptions, ...tagOptions]}
           selected={labels}
           onChange={setLabels}
           multiple
           searchable
-          allowCustom
+          allowCustom={!LIVE_ACTION_SITE}
         />
         <FilterSelect
           label="Year"

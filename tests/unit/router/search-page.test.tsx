@@ -13,6 +13,7 @@ const stream = vi.hoisted(() => ({
   started: [] as Record<string, unknown>[],
   running: undefined as string | undefined,
   listeners: new Set<() => void>(),
+  pickers: {} as Record<string, { options: { value: string }[], onChange: (labels: string[]) => void }>,
 }))
 vi.mock('urql', async () => {
   const { useEffect, useState } = await import('preact/hooks')
@@ -34,7 +35,10 @@ vi.mock('urql', async () => {
 vi.mock('lucide-react', () => ({ Search: () => null, X: () => null }))
 vi.mock('../../../src/components/display-mode-toggle', () => ({ default: () => null }))
 vi.mock('../../../src/components/filter-select', () => ({
-  default: () => null,
+  default: (props: { label: string, options: { value: string }[], onChange: (labels: string[]) => void }) => {
+    stream.pickers[props.label] = props
+    return null
+  },
   FilterField: ({ children }: { children: unknown }) => children,
 }))
 const Result = ({ media }: { media: { _id: string } }) => <a className="result">{media._id}</a>
@@ -44,8 +48,8 @@ vi.mock('../../../src/components/media-row', () => ({ default: Result }))
 
 const { default: Search } = await import('../../../src/router/search')
 
-const publish = (...ids: string[]) => act(() => {
-  stream.data = { mediaPage: { nodes: ids.map(id => ({ _id: id, uri: id })) } }
+const publish = (...nodes: (string | { _id: string, genres: string[], tags: string[] })[]) => act(() => {
+  stream.data = { mediaPage: { nodes: nodes.map(node => typeof node === 'string' ? { _id: node, uri: node } : { ...node, uri: node._id }) } }
   for (const listener of stream.listeners) listener()
 })
 const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
@@ -191,5 +195,41 @@ describe('the search page', () => {
     await publish('mushoku-1')
     expect(page.results()).toEqual(['mushoku-1'])
     expect(page.pending()).toBe(0)
+  })
+
+  // outside a season Jikan's "Award Winning" and "Isekai" are genres no source lists by, and AniList lists "Isekai" as a tag
+  test('outside a season the genres offered are the site\'s own, never one only the results carry, and a label AniList tags is a tag', async () => {
+    const page = open('/search?q=frieren')
+    await publish({ _id: 'frieren', genres: ['Adventure', 'Award Winning', 'Isekai'], tags: ['Travel', 'Isekai'] })
+    const picker = stream.pickers['Genres & Tags']!
+    const offered = picker.options.map(option => option.value)
+    expect(offered).toEqual(expect.arrayContaining(['Adventure', 'Mecha', 'Science-Fiction', 'Travel', 'Isekai']))
+    expect(offered).not.toContain('Award Winning')
+    act(() => picker.onChange(['Isekai']))
+    expect(page.history.at(-1)).toBe('/search?q=frieren&tag=Isekai')
+  })
+
+  // MyAnimeList's season page gives its titles their themes and demographics as genres
+  test('inside a season the genres its results carry are offered, and each writes genre=', async () => {
+    const page = open('/search?season=FALL&year=2026')
+    await publish({ _id: 'psyren', genres: ['Action', 'Suspense', 'Isekai'], tags: ['Isekai', 'Time Manipulation'] })
+    const picker = stream.pickers['Genres & Tags']!
+    expect(picker.options.map(option => option.value)).toEqual(expect.arrayContaining(['Suspense', 'Isekai', 'Time Manipulation']))
+    act(() => picker.onChange(['Suspense', 'Isekai', 'Time Manipulation']))
+    expect(page.history.at(-1)).toBe('/search?season=FALL&year=2026&genre=Suspense&genre=Isekai&tag=Time+Manipulation')
+  })
+
+  test('a season with no year names no season page, so the genres only its results carry are not offered', async () => {
+    open('/search?season=FALL')
+    await publish({ _id: 'psyren', genres: ['Action', 'Suspense'], tags: ['Time Manipulation'] })
+    const offered = stream.pickers['Genres & Tags']!.options.map(option => option.value)
+    expect(offered, 'the control: the results landed').toContain('Time Manipulation')
+    expect(offered).not.toContain('Suspense')
+  })
+
+  test('a genre the url names stays a genre when another label is picked', () => {
+    const page = open('/search?q=frieren&genre=Award+Winning')
+    act(() => stream.pickers['Genres & Tags']!.onChange(['Award Winning', 'Travel']))
+    expect(page.history.at(-1)).toBe('/search?q=frieren&genre=Award+Winning&tag=Travel')
   })
 })

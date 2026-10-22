@@ -1,9 +1,9 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
 import {
-  EMPTY_SEARCH_FILTERS, KNOWN_GENRES, YEAR_MIN,
-  formatLabel, hasSearchFilters, isKnownGenre, legacySearchTerm, namesAQuery, parseSearchFilters,
+  EMPTY_SEARCH_FILTERS, SITE_GENRES, YEAR_MIN,
+  formatLabel, hasSearchFilters, legacySearchTerm, namesAQuery, parseSearchFilters,
   searchFiltersQuery, searchHeading, searchPath, seasonLabel, seasonValue, statusLabel, yearMax,
 } from '../../../src/router/search/params'
 import type { SearchFilters } from '../../../src/router/search/params'
@@ -158,16 +158,17 @@ describe('namesAQuery', () => {
   })
 })
 
-describe('isKnownGenre', () => {
-  test('splits one Genres and Tags picker into the two keys the schema separates', () => {
-    expect(isKnownGenre('Action')).toBe(true)
-    expect(isKnownGenre('slice of life')).toBe(true)
-    expect(isKnownGenre('Isekai')).toBe(false)
-    expect(isKnownGenre('Time Manipulation')).toBe(false)
-  })
-
-  test('every offered genre is recognised by the splitter that routes it', () => {
-    for (const genre of KNOWN_GENRES) expect(isKnownGenre(genre)).toBe(true)
+describe('SITE_GENRES', () => {
+  test('each site offers the genres its sources list by: AniList\'s on anime, JustWatch\'s on movies and series, both on stub', () => {
+    expect(SITE_GENRES.anime).toContain('Mecha')
+    expect(SITE_GENRES.anime).not.toContain('Science-Fiction')
+    expect(SITE_GENRES.anime).not.toContain('Isekai')
+    for (const site of ['movie', 'series'] as const) {
+      expect(SITE_GENRES[site]).toEqual(expect.arrayContaining(['Science-Fiction', 'Kids & Family']))
+      expect(SITE_GENRES[site]).not.toContain('Mecha')
+      expect(SITE_GENRES[site]).not.toContain('Made in Europe')
+    }
+    expect(SITE_GENRES.stub).toEqual(expect.arrayContaining(['Mecha', 'Science-Fiction']))
   })
 })
 

@@ -5,6 +5,7 @@ import { site, type Site } from '../../site'
 import { resolveEpisodeToSeriesId } from '../crunchyroll/extractor'
 import { crunchyrollId } from '../crunchyroll/season-id'
 import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
+import { JUSTWATCH_GENRES } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
@@ -280,19 +281,37 @@ const searchTitles = (query: string, ctx: ExtractorServerContext) =>
 
 const POPULAR_FIRST = 40
 
-const popularTitles = (objectType: 'MOVIE' | 'SHOW', ctx: ExtractorServerContext) =>
-  deduplicatedFetch(`popular:${objectType}`, () =>
+type PopularFilter = { objectTypes: ('MOVIE' | 'SHOW')[], genres?: string[] }
+
+const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) =>
+  deduplicatedFetch(`popular:${JSON.stringify(filter)}`, () =>
     jwFetch<JWSearchResponse>(SEARCH_QUERY, {
-      first: POPULAR_FIRST, searchTitlesFilter: { objectTypes: [objectType] }, language: LANGUAGE, country: COUNTRY, ...offerCountries()
+      first: POPULAR_FIRST, searchTitlesFilter: filter, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
   )
 
-// a home row: one format named and no search, season or status, which no other source answers
-const popularType = ({ categories, season, seasonYear, status }: MediaPageInput) =>
-  season || seasonYear || status || categories?.length !== 1 ? undefined
-  : categories[0] === 'MOVIE' ? 'MOVIE'
-  : categories[0] === 'SERIES' ? 'SHOW'
-  : undefined
+const KINDS: Partial<Record<MediaCategory, PopularFilter['objectTypes']>> = { MOVIE: ['MOVIE'], SERIES: ['SHOW'] }
+
+// the kinds a site lists a genre by: its own, or on stub.fkn.app the category named, none meaning every kind;
+// anime.fkn.app lists by AniList's genres
+const genreKinds = (named: PopularFilter['objectTypes'] | undefined) =>
+  site === 'movie' ? KINDS.MOVIE : site === 'series' ? KINDS.SERIES : site === 'stub' ? named ?? [] : undefined
+
+const genreCode = (label: string) =>
+  Object.entries(JUSTWATCH_GENRES).find(([name]) => name.toLowerCase() === label.toLowerCase())?.[1]
+
+// What JustWatch's most popular titles answer and no other source does: a home row, one category named, and a genre on
+// the sites that list by its genres. Never with a search, or a season, status or tag, which its titles never carry, nor
+// with formats that leave out a film's, the only one they carry. Its filter keeps a title carrying any genre asked where
+// the page keeps one carrying every genre picked, so it is asked the first.
+const popularFilter = ({ categories, formats, season, seasonYear, status, tags, genres }: MediaPageInput): PopularFilter | undefined => {
+  if (season || seasonYear || status || tags?.length || (formats?.length && !formats.includes('MOVIE'))) return undefined
+  const named = categories?.length === 1 ? KINDS[categories[0]!] : undefined
+  if (!genres?.length) return named && { objectTypes: named }
+  const objectTypes = genreKinds(named)
+  const codes = genres.map(genreCode)
+  return objectTypes && codes.every(Boolean) ? { objectTypes, genres: [codes[0]!] } : undefined
+}
 
 const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
   deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, () =>
@@ -1005,12 +1024,12 @@ export const resolvers: Resolvers = {
       subscribe: async function* (_, { input }, ctx: ExtractorServerContext) {
         const { search } = input
         const policy = policyFor(input)
-        const popular = search ? undefined : popularType(input)
+        const popular = search ? undefined : popularFilter(input)
         if (popular) {
           const edges = (await popularTitles(popular, ctx)).data?.popularTitles?.edges ?? []
           // films as runs, and shows as the CONTAINER a show is until a season of it is picked
           const nodes = await Promise.all(edges.map(({ node }) =>
-            popular === 'MOVIE' ? normalizeMedia(node, {}, ctx, policy) : showAsContainer(node, ctx, policy, true)))
+            node.objectType === 'MOVIE' ? normalizeMedia(node, {}, ctx, policy) : showAsContainer(node, ctx, policy, true)))
           return yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
         }
         if (!search) return yield { mediaPage: { nodes: [] } }

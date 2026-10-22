@@ -147,10 +147,10 @@ const TMDB: Record<string, string> = {
 // its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
 // alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
 // Squid Game's first two, which list one episode each, JustWatch with its four most popular films or shows
-// when asked for either and with The Boys as it answered the countries asked (prime-countries.json),
-// MyAnimeList with Cowboy Bebop's title and credits pages for mal:1, and Watchmode with its quick search for
-// "breaking bad" as recorded 2026-10-13; every other request goes where it
-// always went. AniList gives a bundled work the format and season of its record in the current season, or
+// when asked for either, those carrying a genre asked when asked any, and with The Boys as it answered the
+// countries asked (prime-countries.json), MyAnimeList with Cowboy Bebop's title and credits pages for mal:1,
+// and Watchmode with its quick search for "breaking bad" as recorded 2026-10-13; every other request goes where
+// it always went. AniList gives a bundled work the format and season of its record in the current season, or
 // else of its first record, so a film stays a film and a work stays in the season the home page lists, and
 // answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description, facts and four relations,
 // so its page draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a
@@ -183,8 +183,12 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   if (input === 'https://apis.justwatch.com/graphql' && typeof init?.body === 'string') {
     const { variables } = JSON.parse(init.body)
     const [objectType] = variables?.searchTitlesFilter?.objectTypes ?? []
-    if (objectType === 'MOVIE') return Response.json(POPULAR_MOVIES)
-    if (objectType === 'SHOW') return Response.json(POPULAR_SHOWS)
+    const genres: string[] = variables?.searchTitlesFilter?.genres ?? []
+    const popular = objectType === 'MOVIE' ? POPULAR_MOVIES : objectType === 'SHOW' ? POPULAR_SHOWS : undefined
+    if (popular) {
+      const edges = popular.data.popularTitles.edges.filter(({ node }) => !genres.length || node.content.genres.some(genre => genres.includes(genre.shortName)))
+      return Response.json({ data: { popularTitles: { edges } } })
+    }
     const theBoys = PRIME_COUNTRIES['the-boys'] as Record<string, unknown>
     if (variables?.nodeId === 'ts78125') return Response.json(theBoys[`${variables.offerCountry},${variables.extraCountry}`] ?? { data: { node: null } })
     const searched = JUSTWATCH.find(([media]) => media.title.english === variables?.searchTitlesFilter?.searchQuery)
