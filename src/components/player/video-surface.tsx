@@ -351,8 +351,6 @@ const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfa
     <MediaHotkeyC keys="0-9" action="seekToPercent" />
     <MediaHotkeyC keys="Home" action="seekToPercent" value={0} />
     <MediaHotkeyC keys="End" action="seekToPercent" value={100} />
-    <MediaHotkeyC keys=">" action="speedUp" />
-    <MediaHotkeyC keys="<" action="speedDown" />
     <MediaGestureC type="tap" action="togglePaused" pointer="mouse" region="center" />
     <MediaGestureC type="tap" action="toggleControls" pointer="touch" />
     <MediaGestureC type="doubletap" action="seekStep" value={-10} region="left" />
