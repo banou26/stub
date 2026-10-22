@@ -88,6 +88,34 @@ describe('the two classes', () => {
     expect(isHostOnly({ t: 'name', name: 'Ann' })).toBe(false)
     expect(isHostOnly({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe(false)
     expect(isHostOnly({ t: 'ask', c: 'go', path: '/watch/a/b' })).toBe(false)
+    expect(isHostOnly({ t: 'status', s: 'ready', path: '/watch/a/b' })).toBe(false)
+  })
+})
+
+describe('a follower\'s status', () => {
+  const wire = (message: Record<string, unknown>) => decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'status', ...message }))
+
+  test('its state, the watch page it is about, and where its player is and how fast it moves', () => {
+    for (const message of [
+      { t: 'status', s: 'ready', path: '/watch/a/b/c?release=2', time: 754.2, rate: 1 },
+      { t: 'status', s: 'loading', path: '/watch/a/b', time: 0, rate: 0 },
+      { t: 'status', s: 'loading', path: '/watch/a/b' },
+      { t: 'status', s: 'away', path: '/watch/a/b', time: 12, rate: 1.5 },
+      { t: 'status', s: 'away' },
+    ] as PartyMessage[]) expect(decodePartyMessage(encodePartyMessage(message))).toEqual(message)
+  })
+
+  test('an unknown state, a path off a watch page, or a time without its rate drops it', () => {
+    expect(wire({ s: 'gone' })).toBeUndefined()
+    expect(wire({})).toBeUndefined()
+    expect(wire({ s: 'ready', path: '//evil.example/watch/a' })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/settings' })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', time: -1, rate: 1 })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', time: 'soon', rate: 1 })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', time: 1, rate: -1 })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', time: 1, rate: 17 })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', time: 1 })).toBeUndefined()
+    expect(wire({ s: 'ready', path: '/watch/a/b', rate: 1 })).toBeUndefined()
   })
 })
 

@@ -10,10 +10,11 @@ import { getRoutePath, Route } from '../router/path'
 import { useEffect, useState } from 'preact/hooks'
 
 import { party, partyLink } from '../party'
-import { CONTROLS, isWatchPath } from '../party/protocol'
+import { CONTROLS, FOLLOWER_STATES, isWatchPath } from '../party/protocol'
+import { shownStatus } from '../party/status'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
-import PartyGrants, { CONTROL_LABEL } from './party-grants'
+import PartyGrants, { CONTROL_LABEL, StatusIcon } from './party-grants'
 import PartyTracks from './party-tracks'
 import { switchStyle } from './switch-style'
 
@@ -85,6 +86,20 @@ const menuStyle = css`
     margin-top: 0.4rem;
     color: rgba(255, 255, 255, 0.5);
     line-height: 1.4;
+  }
+
+  .tally {
+    display: flex;
+    gap: 1.2rem;
+    margin-top: 0.6rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.2rem;
+  }
+
+  .tally > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .link {
@@ -189,9 +204,9 @@ const PartyWidget = () => {
   const [page, navigate] = useLocation()
   const search = useSearch()
   const here = search ? `${page}?${search}` : page
-  // Play for everyone reads the host's page from the store, which moves on these and re-renders nothing
+  // Play for everyone and the host's count read the store, which moves on these and re-renders nothing
   const [, heard] = useState(0)
-  usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state') heard(n => n + 1) })
+  usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state' || message.t === 'status') heard(n => n + 1) })
   const toParty = () => { setOpen(false); navigate(getRoutePath(Route.PARTY)) }
 
   const { refs, floatingStyles, context } = useFloating({
@@ -228,6 +243,11 @@ const PartyWidget = () => {
 
   const live = state.status === 'active'
   const can = CONTROLS.filter(control => party.may(control))
+  const watching = isWatchPath(here) ? here : undefined
+  const now = Date.now()
+  const standing = watching && live && state.role === 'host'
+    ? [...party.statuses().values()].map(({ status, at }) => shownStatus(status, now - at, watching).s)
+    : []
   const playHere = can.includes('go') && isWatchPath(here) && here !== party.hostPath()
   const label =
     state.status === 'joining' ? 'Joining…'
@@ -259,13 +279,21 @@ const PartyWidget = () => {
                   <div className="hint">
                     {state.members === 1 ? 'Nobody has joined yet.' : `${state.members - 1} ${state.members === 2 ? 'person is' : 'people are'} following you.`}
                   </div>
+                  {standing.length > 0 && (
+                    <div className="tally">
+                      {FOLLOWER_STATES.map(s => {
+                        const count = standing.filter(other => other === s).length
+                        return count > 0 && <span key={s}><StatusIcon s={s}/>{count} {s}</span>
+                      })}
+                    </div>
+                  )}
                   <div className="link">
                     <input readOnly value={link} aria-label="Invite link" onFocus={event => event.currentTarget.select()}/>
                     <button type="button" onClick={() => { void copy() }} aria-label="Copy invite link">
                       {copied ? <Check size={14}/> : <Copy size={14}/>}
                     </button>
                   </div>
-                  <PartyGrants/>
+                  <PartyGrants page={watching}/>
                   <PartyTracks/>
                   <div className="actions">
                     <button type="button" className="primary" onClick={toParty}><Users size={14}/> Party</button>

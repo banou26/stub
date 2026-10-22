@@ -1,7 +1,7 @@
 // A source package's player as the same link the built-in embed produces, driven with a fake source.
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { pluginPlaybackLink } from '../../../src/party/plugin-link'
+import { BUFFER_WAIT_MS, pluginPlaybackLink } from '../../../src/party/plugin-link'
 
 const STATE = { paused: false, time: 42, rate: 1, at: 1 }
 
@@ -141,4 +141,47 @@ test('a report that is not a playback state is dropped at the link', () => {
   expect(heard).not.toHaveBeenCalled()
   report(STATE)
   expect(heard).toHaveBeenCalledWith(STATE)
+})
+
+// What a follower tells the host about its player comes from here for a torrent: the package reads
+// ripple's player when asked, and the page vets the answer like any other the package gives.
+describe('a package\'s buffer', () => {
+  const BUFFER = { time: 600, readyState: 4, ranges: [[0, 31.5], [598, 640]] }
+  const withBuffer = (buffer: () => Promise<unknown>) => pluginPlaybackLink({ ...fakeSource().source, buffer })!
+
+  test('is what the link\'s buffer answers, asked of the package each time', async () => {
+    const buffer = vi.fn(async () => BUFFER)
+    const link = withBuffer(buffer)
+    await expect(link.buffer!()).resolves.toEqual(BUFFER)
+    await expect(link.buffer!()).resolves.toEqual(BUFFER)
+    expect(buffer).toHaveBeenCalledTimes(2)
+  })
+
+  test('a package without it gives a link without it', () => {
+    expect(pluginPlaybackLink(fakeSource().source)!.buffer).toBeUndefined()
+  })
+
+  test('an answer of the wrong shape, nothing playing, or a refusal is nothing', async () => {
+    for (const junk of [
+      undefined, null, 'ready', {},
+      { ...BUFFER, time: -1 }, { ...BUFFER, time: NaN }, { ...BUFFER, readyState: 5 }, { ...BUFFER, readyState: '4' },
+      { ...BUFFER, ranges: 'all' }, { ...BUFFER, ranges: [[1]] }, { ...BUFFER, ranges: [[2, 1]] }, { ...BUFFER, ranges: [[0, Infinity]] },
+    ]) await expect(withBuffer(async () => junk).buffer!(), JSON.stringify(junk)).resolves.toBeUndefined()
+    await expect(withBuffer(async () => { throw new Error('gone') }).buffer!()).resolves.toBeUndefined()
+  })
+
+  // a package document that stops answering without going away: the follower must not sit on its last word
+  test('a package that never answers is nothing once its time is up', async () => {
+    vi.useFakeTimers()
+    try {
+      let answer: unknown = 'pending'
+      void withBuffer(() => new Promise(() => {})).buffer!().then(value => { answer = value })
+      await vi.advanceTimersByTimeAsync(BUFFER_WAIT_MS - 1)
+      expect(answer).toBe('pending')
+      await vi.advanceTimersByTimeAsync(1)
+      expect(answer).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

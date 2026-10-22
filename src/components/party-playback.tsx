@@ -1,7 +1,7 @@
 import type { EmbedTracks, TrackKind, TracksLink } from '../embed-tracks'
 import type { PlaybackLink } from '../party/bridge'
 import type { PlaybackState } from '../party'
-import type { PlayerAsk, PlayerControl } from '../party/protocol'
+import type { FollowerState, PlayerAsk, PlayerControl } from '../party/protocol'
 
 import { useEffect, useRef } from 'preact/hooks'
 
@@ -9,6 +9,7 @@ import { party } from '../party'
 import { TRACK_KINDS } from '../embed-tracks'
 import { advance, ASK_HOLD_MS, ASK_THROTTLE_MS, askedState, personAction, playbackCorrection, SEEK_TOLERANCE_S, SETTLE_MS } from '../party/playback'
 import { toHostTime, toLocalTime } from '../party/clock'
+import { HAVE_FUTURE_DATA, readiness, STATUS_CHECK_MS } from '../party/status'
 import { nextMine, trackToSelect } from '../party/tracks'
 import { useParty, usePartyMessages } from '../party/use-party'
 
@@ -31,6 +32,10 @@ const here = () => location.pathname + location.search
  * own pick. A track switch can reload the stream and put the player back where it was, so while one
  * runs a guest applies and reads nothing and a host sends nothing; afterwards a host more than the
  * tolerance from where it told the party it was seeks there.
+ *
+ * A guest also tells the host where it stands, once a second (see party/status.ts): ready or loading
+ * by what its player holds at the party's second, away once it stops following or leaves the host's
+ * page, and where its player is.
  */
 // A player also resumes by itself (a rebuild after a stall autoplays). Only a click or a key press gives the page
 // user activation, one inside the player's cross-origin frame included (measured in Chrome, 2026-10-11), so a
@@ -137,6 +142,34 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   }, [role, link])
 
   useEffect(() => { if (following) reapply() }, [following])
+
+  useEffect(() => {
+    if (role !== 'guest') return
+    let was: FollowerState | undefined
+    let live = true
+    const check = async () => {
+      const page = here()
+      const hostPath = party.hostPath()
+      if (hostPath === undefined) return
+      if (hostPath !== page) { party.setStatus({ s: 'away' }); return }
+      const buffer = await link?.buffer?.()
+      if (!live) return
+      const now = Date.now()
+      const own = last.current && advance(last.current, last.current.at, now)
+      const time = buffer?.time ?? own?.time
+      const moving = own && !own.paused && (buffer?.readyState ?? HAVE_FUTURE_DATA) >= HAVE_FUTURE_DATA
+      const where = time === undefined ? {} : { time, rate: moving ? own.rate : 0 }
+      if (!party.following()) { party.setStatus({ s: 'away', path: page, ...where }); return }
+      // judged only at a second the host said to this player: its own is not the party's
+      const heard = wanted.current
+      was = heard ? readiness(was, buffer, advance(heard.state, heard.receivedAt, now).time, link?.duration?.()) : 'loading'
+      party.setStatus({ s: was, path: page, ...where })
+    }
+    void check()
+    const timer = setInterval(() => { void check() }, STATUS_CHECK_MS)
+    return () => { live = false; clearInterval(timer) }
+  }, [role, link])
+  useEffect(() => () => { if (role === 'guest') party.setStatus({ s: 'away' }) }, [role])
 
   const followTracks = () => {
     const heard = local.current

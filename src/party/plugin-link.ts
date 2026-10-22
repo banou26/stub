@@ -1,5 +1,6 @@
 import type { PlaybackLink } from './bridge'
 import type { PlaybackState } from './protocol'
+import type { PlayerBuffer } from './status'
 
 import { isPlaybackState } from './protocol'
 
@@ -10,10 +11,28 @@ import { isPlaybackState } from './protocol'
 const lengthOf = (duration: unknown) =>
   typeof duration !== 'number' || duration === Infinity ? undefined : duration > 0 ? duration : 0
 
-/** The two optional methods a source package may serve beside `play`. See plugin-api.ts. */
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+/** A package's `buffer` answer, or nothing for one of the wrong shape. */
+const bufferOf = (value: unknown): PlayerBuffer | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const { time, readyState, ranges } = value as Record<string, unknown>
+  if (!finite(time) || time < 0 || !finite(readyState) || !Number.isInteger(readyState) || readyState < 0 || readyState > 4) return undefined
+  const valid = Array.isArray(ranges) && ranges.every(range => Array.isArray(range) && range.length === 2 && finite(range[0]) && finite(range[1]) && range[0] <= range[1])
+  return valid ? { time, readyState, ranges } : undefined
+}
+
+/**
+ * How long a package has to answer `buffer` before its answer is nothing. The package connection has
+ * no time limit of its own, so a document that stopped answering would hold the call for good.
+ */
+export const BUFFER_WAIT_MS = 1_000
+
+/** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
   onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
+  buffer?: () => Promise<unknown>
 }
 
 /**
@@ -25,7 +44,7 @@ export type PlaybackSource = {
  * not the page's to surface: a player it cannot hear is a player it does not sync.
  */
 export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undefined => {
-  const { onPlayback, applyPlayback } = source
+  const { onPlayback, applyPlayback, buffer } = source
   if (!onPlayback || !applyPlayback) return undefined
 
   const listeners = new Set<(state: PlaybackState) => void>()
@@ -56,6 +75,12 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
     onReport: listener => { listeners.add(listener); listen(); return () => { listeners.delete(listener) } },
     ended: () => ended,
     duration: () => duration,
+    ...buffer ? {
+      buffer: () => Promise.race([
+        buffer().then(bufferOf, () => undefined),
+        new Promise<undefined>(resolve => setTimeout(resolve, BUFFER_WAIT_MS)),
+      ]),
+    } : {},
     dispose: () => { disposed = true; listeners.clear() },
   }
 }

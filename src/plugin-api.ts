@@ -47,6 +47,14 @@ export type StubSource = {
   onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
+  /**
+   * Where the player `play` put up is, how far it can play on its own (`readyState`, as a media
+   * element's) and the ranges it holds, in seconds; undefined with nothing playing. Optional and
+   * additive to stub-source@1 like the two above: in watch together a follower reads it to tell the
+   * host whether it is ready to play, and without it, or with no answer within a second, a follower
+   * on that source reads as loading.
+   */
+  buffer?: () => Promise<{ time: number, readyState: number, ranges: [number, number][] } | undefined>
 }
 
 /**

@@ -16,7 +16,7 @@ import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 // the REAL store, over a fake room each test builds, behind the module every component imports
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ AudioLines: () => null, Captions: () => null, Check: () => null, Clapperboard: () => null, Copy: () => null, FastForward: () => null, Gauge: () => null, LogOut: () => null, Play: () => null, Radio: () => null, Users: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ AudioLines: () => null, Captions: () => null, Check: () => null, CircleCheck: () => null, CircleDashed: () => null, Clapperboard: () => null, Copy: () => null, FastForward: () => null, Gauge: () => null, LoaderCircle: () => null, LogOut: () => null, Play: () => null, Radio: () => null, Users: () => null, X: () => null }))
 vi.mock('../../../src/party', () => ({
   party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }),
   partyLink: () => 'link',
@@ -106,5 +106,41 @@ describe('Follow playback', () => {
     act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
     expect(document.body.textContent).toContain('You are hosting')
     expect(toggle()).toBeNull()
+  })
+})
+
+describe('the host\'s count of where followers stand', () => {
+  const hosting = async (page: string) => {
+    const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'ann', 'sam', 'kim', 'old'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.create()
+    const location = memoryLocation({ path: page })
+    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)))
+    act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
+    let seq = 0
+    const says = (from: string, message: PartyMessage) => act(() => {
+      seq++
+      fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+    })
+    return { says, tally: () => document.body.querySelector('.tally')?.textContent }
+  }
+
+  test('how many are ready, loading and away, in words, as each follower says', async () => {
+    const { says, tally } = await hosting(HOST_PAGE)
+    expect(tally()).toBeUndefined()
+    says('ann', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
+    says('sam', { t: 'status', s: 'loading', path: HOST_PAGE })
+    says('kim', { t: 'status', s: 'away' })
+    expect(tally()).toBe('1 ready1 loading1 away')
+    says('sam', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
+    expect(tally()).toBe('2 ready1 away')
+  })
+
+  test('not off a watch page', async () => {
+    const { says, tally } = await hosting('/search?q=a')
+    says('ann', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
+    expect(tally()).toBeUndefined()
   })
 })

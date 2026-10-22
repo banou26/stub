@@ -32,6 +32,18 @@ describe('linkMedia', () => {
     link.dispose()
   })
 
+  // what a follower tells the host: where its player is and what it holds, read off the mirror when asked
+  test('says where the player is, how ready it is and what it holds', async () => {
+    const ranges = [[0, 31.5], [598, 640]]
+    const link = linkMedia(Object.assign(media, {
+      currentTime: 600,
+      readyState: 4,
+      buffered: { length: 2, start: (index: number) => ranges[index]![0]!, end: (index: number) => ranges[index]![1]! },
+    }))
+    await expect(link.buffer?.()).resolves.toEqual({ time: 600, readyState: 4, ranges })
+    link.dispose()
+  })
+
   // the watch page counts an episode as watched on the share of it played (tracking/watched.ts)
   test('says how long the media is', () => {
     const link = linkMedia(Object.assign(media, { duration: 1440 }))

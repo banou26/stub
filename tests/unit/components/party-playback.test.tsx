@@ -4,6 +4,7 @@ import { mount, unmount } from './dom'
 import type { EmbedTracks, TrackKind } from '../../../src/embed-tracks'
 import type { Grants, PartyMessage, PlaybackState, PlayerAsk } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
+import type { PlayerBuffer } from '../../../src/party/status'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -12,6 +13,8 @@ import { render } from 'preact'
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 import { ASK_HOLD_MS, ASK_THROTTLE_MS, SETTLE_MS } from '../../../src/party/playback'
+import { STATUS_CHECK_MS } from '../../../src/party/status'
+import { STATUS_GAP_MS } from '../../../src/party/store'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 // the REAL store, over a fake room each test builds, behind the module every component imports
@@ -23,13 +26,15 @@ const { default: PartyPlayback } = await import('../../../src/components/party-p
 const PATH = '/watch/a/b'
 const NOW = 1_788_700_000_000
 
-const fakeLink = () => {
+/** A player; with `buffer`, one that says what it holds, read as the object stands when asked. */
+const fakeLink = (buffer?: PlayerBuffer) => {
   let listener: ((state: PlaybackState) => void) | undefined
   let ended = false
   const link = {
     apply: vi.fn<(state: PlaybackState, measured?: boolean) => void>(),
     onReport: (next: (state: PlaybackState) => void) => { listener = next; return () => { listener = undefined } },
     ended: () => ended,
+    ...buffer ? { buffer: async () => structuredClone(buffer) } : {},
     dispose: () => {},
   }
   return {
@@ -262,6 +267,107 @@ describe('a follower', () => {
     expect(player.link.apply).not.toHaveBeenCalled()
     say(fake, 'host', { t: 'playback', s: { ...playing(600), at: Date.now() } })
     expect(player.link.apply).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a follower tells the host how its player stands', () => {
+  const said = (fake: ReturnType<typeof fakeRoom>) => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'status')
+  const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+
+  /** A follower on the host's page, the party paused at `at`, its own player where `own` says. */
+  const waiting = async (link: ReturnType<typeof fakeLink> | undefined, { at = 600, own = at } = {}) => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.join(INVITE)
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...paused(at), at: Date.now() } })
+    hosts.push(mount(<PartyPlayback link={link?.link}/>))
+    link?.report(paused(own))
+    say(fake, 'host', { t: 'playback', s: { ...paused(at), at: Date.now() } })
+    await tick(STATUS_CHECK_MS)
+    return { fake }
+  }
+
+  test('loading with under 4 s loaded at the party\'s second, ready once 10 s are', async () => {
+    const buffer = { time: 600, readyState: 4, ranges: [[596, 603.97]] as [number, number][] }
+    const { fake } = await waiting(fakeLink(buffer))
+    expect(said(fake)).toEqual([{ t: 'status', s: 'loading', path: PATH, time: 600, rate: 0 }])
+    buffer.ranges = [[596, 610]]
+    await tick(STATUS_GAP_MS)
+    expect(said(fake)).toEqual([
+      { t: 'status', s: 'loading', path: PATH, time: 600, rate: 0 },
+      { t: 'status', s: 'ready', path: PATH, time: 600, rate: 0 },
+    ])
+  })
+
+  // its correction seek has not landed yet: the party's second is what Play will ask of it
+  test('judged at the party\'s second, not where its own player still is', async () => {
+    const { fake } = await waiting(fakeLink({ time: 10, readyState: 4, ranges: [[598, 640]] }), { own: 10 })
+    expect(said(fake)).toEqual([{ t: 'status', s: 'ready', path: PATH, time: 10, rate: 0 }])
+    const { fake: other } = await waiting(fakeLink({ time: 10, readyState: 4, ranges: [[0, 40]] }), { own: 10 })
+    expect(said(other)).toEqual([{ t: 'status', s: 'loading', path: PATH, time: 10, rate: 0 }])
+  })
+
+  // a joiner, a reload or a new player link, with the host paused: its next word is a heartbeat away
+  test('loading until the host says where the party is after its player came up, whatever it holds where it is', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.join(INVITE)
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...paused(600), at: Date.now() } })
+    const player = fakeLink({ time: 0, readyState: 4, ranges: [[0, 30]] })
+    hosts.push(mount(<PartyPlayback link={player.link}/>))
+    player.report(paused(0))
+    await tick(STATUS_CHECK_MS * 3)
+    expect(said(fake)).toEqual([{ t: 'status', s: 'loading', path: PATH, time: 0, rate: 0 }])
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...paused(10), at: Date.now() } })
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'ready', path: PATH, time: 0, rate: 0 })
+  })
+
+  test('with no player loading, and with one that cannot say what it holds loading where it is', async () => {
+    const { fake } = await waiting(undefined)
+    expect(said(fake)).toEqual([{ t: 'status', s: 'loading', path: PATH }])
+    const { fake: other } = await waiting(fakeLink(), { own: 598 })
+    expect(said(other)).toEqual([{ t: 'status', s: 'loading', path: PATH, time: 598, rate: 0 }])
+  })
+
+  test('a playing player says how fast its time moves, and one waiting for data that it does not move', async () => {
+    const buffer = { time: 600, readyState: 4, ranges: [[590, 640]] as [number, number][] }
+    const player = fakeLink(buffer)
+    const { fake } = await waiting(player)
+    player.report(playing(600))
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'ready', path: PATH, time: 600, rate: 1 })
+    buffer.readyState = 2
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'loading', path: PATH, time: 600, rate: 0 })
+  })
+
+  test('away with where its player is once it stops following, and away with nothing off the host\'s page', async () => {
+    const { fake } = await waiting(fakeLink({ time: 600, readyState: 4, ranges: [[590, 640]] }))
+    act(() => { current.store.setFollowing(false) })
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'away', path: PATH, time: 600, rate: 0 })
+    say(fake, 'host', { t: 'nav', path: '/watch/a/c' })
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'away' })
+  })
+
+  test('away when the watch page goes', async () => {
+    const { fake } = await waiting(fakeLink({ time: 600, readyState: 4, ranges: [[590, 640]] }))
+    unmount(hosts.pop()!)
+    await tick(STATUS_GAP_MS)
+    expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'away' })
+  })
+
+  test('an answer that arrives after the watch page went does not put the follower back on it', async () => {
+    let answer!: (buffer: PlayerBuffer) => void
+    const player = fakeLink()
+    Object.assign(player.link, { buffer: () => new Promise<PlayerBuffer>(resolve => { answer = resolve }) })
+    const { fake } = await waiting(player)
+    unmount(hosts.pop()!)
+    await act(async () => { answer({ time: 600, readyState: 4, ranges: [[590, 640]] }) })
+    await tick(STATUS_GAP_MS)
+    expect(said(fake)).toEqual([{ t: 'status', s: 'away' }])
   })
 })
 

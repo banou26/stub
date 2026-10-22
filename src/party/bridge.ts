@@ -1,5 +1,6 @@
 import type { MediaPlayerHandle } from '@banou/media-player/remote'
 import type { PlaybackState } from './protocol'
+import type { PlayerBuffer } from './status'
 
 import { mediaPlayer } from '@banou/media-player/remote'
 
@@ -28,6 +29,8 @@ export type PlaybackLink = {
   ended?: () => boolean
   /** The media's length in seconds, 0 before it is known, undefined for a source plugin's player that does not say. */
   duration?: () => number | undefined
+  /** Where the player is and what it has loaded, as of the call; absent for a source plugin's player that does not say. Never rejects or hangs. */
+  buffer?: () => Promise<PlayerBuffer | undefined>
   dispose: () => void
 }
 
@@ -41,6 +44,8 @@ export type LinkableMedia = EventTarget & {
   duration?: number
   currentTime: number
   playbackRate?: number
+  readyState?: number
+  buffered?: { length: number, start: (index: number) => number, end: (index: number) => number }
   play: () => Promise<void>
   /** `play`, muting if the far document will not start sound without a gesture; see @banou/media-player */
   autoplay?: () => Promise<{ muted: boolean }>
@@ -77,6 +82,12 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
     onReport: listener => { listeners.add(listener); queueMicrotask(report); return () => { listeners.delete(listener) } },
     ended: () => media.ended ?? false,
     duration: () => media.duration ?? 0,
+    buffer: async () => {
+      const { buffered } = media
+      const ranges: [number, number][] = []
+      for (let index = 0; buffered && index < buffered.length; index++) ranges.push([buffered.start(index), buffered.end(index)])
+      return { time: media.currentTime, readyState: media.readyState ?? 0, ranges }
+    },
     dispose: () => {
       for (const event of EVENTS) media.removeEventListener(event, report)
       clearInterval(heartbeat)

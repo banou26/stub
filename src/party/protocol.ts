@@ -10,6 +10,10 @@ export type PlaybackState = {
   at: number
 }
 
+/** Where a follower stands, as the host sees it: ready to play, loading, or away from the host's episode. */
+export type FollowerState = 'ready' | 'loading' | 'away'
+export const FOLLOWER_STATES: readonly FollowerState[] = ['ready', 'loading', 'away']
+
 /** A control the host can hand out to followers. Each one joins the list in the change that wires it. */
 export type Control = 'play' | 'seek' | 'rate' | 'go' | 'subs' | 'audio'
 export const CONTROLS: readonly Control[] = ['play', 'seek', 'go', 'rate', 'subs', 'audio']
@@ -48,6 +52,10 @@ export const allowed = (grants: Grants, id: string, control: Control): boolean =
  * subtitles and audio track: absent, the party sets none; null, off; a string, a track id as the player
  * names it. A `subs` or `audio` ask carries the track the follower wants the party on, in the same form.
  *
+ * `status` is a follower telling the host where it stands (see status.ts): `path` is the watch page it
+ * is about, absent once it is off the host's page, so it never says where it went; `time` is where its
+ * player is as it sends, and `rate` how fast that moves, 0 while paused or waiting for data.
+ *
  * `pong` is host only and is the reply to one ping: it carries the asker's own `at` back untouched
  * plus the host's clock at the moment it answered, which is everything Cristian's algorithm needs
  * (see clock.ts). `n` is the asker's nonce, since every member hears every reply.
@@ -66,6 +74,7 @@ export type PartyMessage =
   | { t: 'name', name: string }
   | { t: 'ping', n: number, at: number }
   | { t: 'pong', n: number, at: number, host: number }
+  | { t: 'status', s: FollowerState, path?: string, time?: number, rate?: number }
 
 /** An ask about the follower's player, as opposed to where the party is. */
 export type PlayerAsk = Extract<PartyMessage, { t: 'ask', c: PlayerControl }>
@@ -146,6 +155,17 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
         ...audio !== undefined ? { audio } : {},
       }
     }
+    case 'status': {
+      if (!FOLLOWER_STATES.includes(value.s as FollowerState)) return undefined
+      if (value.path !== undefined && !isWatchPath(value.path)) return undefined
+      const timed = isSeconds(value.time) && typeof value.rate === 'number' && value.rate >= 0 && value.rate <= 16
+      if (!timed && (value.time !== undefined || value.rate !== undefined)) return undefined
+      return {
+        t: 'status', s: value.s as FollowerState,
+        ...value.path !== undefined ? { path: value.path } : {},
+        ...timed ? { time: value.time as number, rate: value.rate as number } : {},
+      }
+    }
     case 'ask': {
       if (value.c === 'go') return isWatchPath(value.path) ? { t: 'ask', c: 'go', path: value.path } : undefined
       if (value.c === 'subs') {
@@ -209,7 +229,8 @@ export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string =>
 
 const trackText = (noun: string, id: string | null) => id === null ? `turned ${noun} off` : `set ${noun} to ${id}`
 
-const clockText = (seconds: number): string => {
+/** A player's time as a clock reads it: 4:05, or 1:02:05 past the hour. */
+export const clockText = (seconds: number): string => {
   const total = Math.floor(seconds)
   const pad = (value: number) => String(value).padStart(2, '0')
   const minutes = Math.floor(total / 60) % 60
@@ -248,6 +269,8 @@ export const isWatchPath = (value: unknown): value is string =>
  */
 const isStamp = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
+const isSeconds = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
+
 const isFraction = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
 
@@ -256,7 +279,7 @@ export const isPlaybackState = (value: unknown): value is PlaybackState => {
   if (!value || typeof value !== 'object') return false
   const state = value as Record<string, unknown>
   return typeof state.paused === 'boolean'
-    && typeof state.time === 'number' && Number.isFinite(state.time) && state.time >= 0
+    && isSeconds(state.time)
     && typeof state.rate === 'number' && Number.isFinite(state.rate) && state.rate > 0 && state.rate <= 16
     && typeof state.at === 'number' && Number.isFinite(state.at)
 }

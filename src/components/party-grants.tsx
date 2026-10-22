@@ -1,17 +1,35 @@
 import type { PartyMember } from '../party'
-import type { Control, Grants } from '../party/protocol'
+import type { Control, FollowerState, Grants } from '../party/protocol'
 
 import { css } from '@emotion/react'
-import { AudioLines, Captions, Check, Clapperboard, FastForward, Gauge, Play, X } from 'lucide-react'
+import { AudioLines, Captions, Check, CircleCheck, CircleDashed, Clapperboard, FastForward, Gauge, LoaderCircle, Play, X } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
 
 import { party } from '../party'
-import { CONTROLS } from '../party/protocol'
+import { clockText, CONTROLS } from '../party/protocol'
+import { shownStatus } from '../party/status'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { memberLabel } from './party-chat'
 
 export const CONTROL_LABEL: Record<Control, string> = { play: 'Play/pause', seek: 'Seek', go: 'Episode', rate: 'Speed', subs: 'Subtitles', audio: 'Audio' }
 const CONTROL_ICON: Record<Control, typeof Play> = { play: Play, seek: FastForward, go: Clapperboard, rate: Gauge, subs: Captions, audio: AudioLines }
+
+const STATUS_LABEL: Record<FollowerState, string> = { ready: 'Ready', loading: 'Loading', away: 'Away' }
+const STATUS_ICON: Record<FollowerState, typeof Play> = { ready: CircleCheck, loading: LoaderCircle, away: CircleDashed }
+
+const statusStyle = css`
+  display: inline-flex;
+  flex: none;
+  &.ready { color: #4ade80; }
+  &.loading { color: #fb923c; }
+  &.away { color: rgba(255, 255, 255, 0.3); }
+`
+
+/** Where a follower stands, as an icon named for it. */
+export const StatusIcon = ({ s }: { s: FollowerState }) => {
+  const Icon = STATUS_ICON[s]
+  return <span css={statusStyle} className={s} role="img" aria-label={STATUS_LABEL[s]} title={STATUS_LABEL[s]}><Icon size={13}/></span>
+}
 
 const style = css`
   margin-top: 1rem;
@@ -21,8 +39,12 @@ const style = css`
   table { width: 100%; border-collapse: collapse; }
   th { font-weight: 500; text-align: left; color: rgba(255, 255, 255, 0.6); }
   thead th { text-align: center; padding-bottom: 0.4rem; }
-  tbody th { max-width: 14rem; padding: 0.2rem 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* the row header takes what the controls leave: a name and its time never widen the menu past them */
+  tbody th { width: 100%; max-width: 0; padding: 0.2rem 0.6rem 0.2rem 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   td { text-align: center; padding: 0.2rem 0; }
+  .who { display: flex; align-items: center; gap: 0.6rem; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .time { flex: none; color: rgba(255, 255, 255, 0.4); font-variant-numeric: tabular-nums; }
 
   button.cell {
     display: inline-flex;
@@ -49,17 +71,30 @@ const withMember = (grants: Grants, id: string, control: Control, value: boolean
   return { ...grants, by }
 }
 
-/** The host's grid of who may use which control: all followers, then one row per follower. */
-const PartyGrants = () => {
+/**
+ * The host's grid of who may use which control: all followers, then one row per follower. On `page`,
+ * the host's watch page, each follower's row also says where it stands and where its player is.
+ */
+const PartyGrants = ({ page }: { page?: string }) => {
   const state = useParty()
   const [members, setMembers] = useState<PartyMember[]>([])
+  const [, tick] = useState(0)
   const count = state.status === 'active' ? state.members : 0
   useEffect(() => {
     let cancelled = false
     void party.roster().then(list => { if (!cancelled) setMembers(list) })
     return () => { cancelled = true }
   }, [count])
-  usePartyMessages(message => { if (message.t === 'name') void party.roster().then(setMembers) })
+  usePartyMessages(message => {
+    if (message.t === 'name') void party.roster().then(setMembers)
+    if (message.t === 'status') tick(n => n + 1)
+  })
+  // a playing follower's time moves between its reports
+  useEffect(() => {
+    if (!page) return
+    const timer = setInterval(() => tick(n => n + 1), 1_000)
+    return () => clearInterval(timer)
+  }, [page])
 
   if (state.status !== 'active') return null
   const grants = party.issued()
@@ -98,9 +133,17 @@ const PartyGrants = () => {
           </tr>
           {members.filter(member => !member.host).map(member => {
             const label = memberLabel({ from: member.id, name: member.name, self: member.self }, state.owner)
+            const heard = page ? party.statuses().get(member.id) : undefined
+            const shown = page && heard ? shownStatus(heard.status, Date.now() - heard.at, page) : undefined
             return (
               <tr key={member.id}>
-                <th scope="row" title={label}>{label}</th>
+                <th scope="row" title={label}>
+                  <span className="who">
+                    {shown && <StatusIcon s={shown.s}/>}
+                    <span className="name">{label}</span>
+                    {shown?.time !== undefined && <span className="time">{clockText(shown.time)}</span>}
+                  </span>
+                </th>
                 {CONTROLS.map(control => {
                   const own = grants.by[member.id]?.[control]
                   const inherited = grants.all.includes(control)

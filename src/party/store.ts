@@ -2,9 +2,11 @@ import type { rooms } from '@fkn/lib'
 import type { EmbedTracks, TrackKind } from '../embed-tracks'
 import type { Control, Grants, PartyMessage, PlaybackState } from './protocol'
 import type { MyTrack } from './tracks'
+import type { FollowerStatus } from './status'
 
-import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, NO_GRANTS, TRACK_CONTROL } from './protocol'
+import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, isWatchPath, NO_GRANTS, TRACK_CONTROL } from './protocol'
 import { advance } from './playback'
+import { statusMoved, statusTime } from './status'
 import { bestSample, clockSample, MAX_USABLE_RTT_MS, type ClockSample } from './clock'
 
 // The party's state machine, over a room it is handed rather than one it imports: @fkn/lib cannot
@@ -38,6 +40,9 @@ export type PartyChatLine = { seq: number, from: string, name?: string, text: st
 
 /** What a message listener is told beside the message. */
 export type PartyMessageMeta = { replayed: boolean, from: string, self: boolean }
+
+/** A follower's status and when it was said, on this clock. */
+export type HeardStatus = { status: FollowerStatus, at: number }
 
 /** Where the host is, as the host's own app keeps reporting it. What a joiner is handed. */
 export type PartySnapshot = { path: string, y: number, playback?: PlaybackState, playbackAt?: number }
@@ -129,6 +134,14 @@ export type PartyStore = {
    * after the re-tell, so the player is applied once, from the freshest.
    */
   replay: () => void
+  /**
+   * A guest's own status, kept current by its watch page. Sent when it is news (see `statusMoved`),
+   * at most once per STATUS_GAP_MS with the latest going out, and every STATUS_HEARTBEAT_MS while the
+   * host is on a watch page. A guest that never set one is away. Nothing for a host.
+   */
+  setStatus: (status: FollowerStatus) => void
+  /** Host only: each follower's last status by member id, in memory only and gone when the member leaves. */
+  statuses: () => ReadonlyMap<string, HeardStatus>
   /** Clear an ended or failed party from view. */
   dismiss: () => void
 }
@@ -154,6 +167,14 @@ export const STATE_HEARTBEAT_MS = 10_000
  * named member per half minute.
  */
 export const NAME_HEARTBEAT_MS = 30_000
+
+/**
+ * How often a follower's status may go out, and how often it is said again whatever happened: a host
+ * back from a reload has heard none. At most one message in twenty of a member's budget, and one in a
+ * hundred while nothing changes.
+ */
+export const STATUS_GAP_MS = 2_000
+export const STATUS_HEARTBEAT_MS = 10_000
 
 /**
  * How a guest times the host's clock: this many round trips, spaced this far apart, redone this often.
@@ -209,6 +230,12 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
   let clockTimer: ReturnType<typeof setInterval> | undefined
   const pings = new Map<number, number>()
   let nonce = 1
+  // a guest's own status as last set and as last sent, both with when; a host's, everyone else's
+  let status: HeardStatus | undefined
+  let told: HeardStatus | undefined
+  let statusTimer: ReturnType<typeof setTimeout> | undefined
+  let statusBeat: ReturnType<typeof setInterval> | undefined
+  const statuses = new Map<string, HeardStatus>()
   let ownName: string | undefined = (() => { try { return storage?.getItem(PARTY_NAME_KEY) ?? undefined } catch { return undefined } })()
 
   const setState = (next: PartyState) => {
@@ -297,6 +324,30 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     send(whereWeAre())
   }
 
+  // the status as of now: one set a while ago has a player that moved since
+  const tellStatus = () => {
+    statusTimer = undefined
+    if (!status) return
+    const now = Date.now()
+    const time = statusTime(status.status, now - status.at)
+    told = { status: time === undefined ? status.status : { ...status.status, time }, at: now }
+    send({ t: 'status', ...told.status })
+  }
+  const sayStatus = (always: boolean) => {
+    if (!status || statusTimer) return
+    if (!always && told && !statusMoved(told.status, status.status, status.at - told.at)) return
+    const wait = (told?.at ?? -Infinity) + STATUS_GAP_MS - Date.now()
+    if (wait <= 0) tellStatus()
+    else statusTimer = setTimeout(tellStatus, wait)
+  }
+
+  const hostPath = () => {
+    const last = [...heard.values()].filter((message): message is Extract<PartyMessage, { path: string }> => 'path' in message)
+    // whichever of the two carried a path was heard last: the store keeps one per kind, so the later
+    // one is the one with the higher seq, and both are set in order of arrival
+    return last.at(-1)?.path
+  }
+
   /**
    * The host's last `state`, carrying the newest position the host has reported rather than the one
    * that state was built with.
@@ -327,6 +378,13 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     introductions = undefined
     if (clockTimer) clearInterval(clockTimer)
     clockTimer = undefined
+    clearTimeout(statusTimer)
+    statusTimer = undefined
+    clearInterval(statusBeat)
+    statusBeat = undefined
+    status = undefined
+    told = undefined
+    statuses.clear()
     // a fresh party is a fresh clock: the next host is another machine
     collecting = undefined
     clock = undefined
@@ -398,6 +456,10 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
             if (role === 'host' && message.c === 'audio') choose('audio', message.audio)
           }
           if (message.t === 'name') names.set(from, message.name)
+          if (message.t === 'status' && role === 'host' && !self) {
+            const { t: _, ...told } = message
+            statuses.set(from, { status: told, at: Date.now() })
+          }
           if (message.t === 'chat' || message.t === 'ask') {
             const said = message.t === 'chat' ? { text: message.text } : { text: actionText(message), action: message.c }
             lines.push({ seq: event.message.seq, from, name: names.get(from), at: event.message.at, self, ...said })
@@ -425,6 +487,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           // A kick or a block arrives as `left` too, and a member who is gone needs no grants. A denial
           // stays: the same tab comes back with the same id after the seat hold, and "everyone except
           // Sam" must not lift because Sam's connection dropped.
+          statuses.delete(event.id)
           const entry = issued?.by[event.id]
           if (role === 'host' && issued && entry && !Object.values(entry).includes(false)) {
             issued = { ...issued, by: Object.fromEntries(Object.entries(issued.by).filter(([id]) => id !== event.id)) }
@@ -442,6 +505,8 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     if (role === 'guest') {
       measureClock()
       clockTimer = setInterval(measureClock, CLOCK_INTERVAL_MS)
+      status = { status: { s: 'away' }, at: Date.now() }
+      statusBeat = setInterval(() => { if (isWatchPath(hostPath())) sayStatus(true) }, STATUS_HEARTBEAT_MS)
     }
     introductions = setInterval(() => { if (ownName) send({ t: 'name', name: ownName }) }, NAME_HEARTBEAT_MS)
     if (ownName) send({ t: 'name', name: ownName })
@@ -521,12 +586,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     setPlayerTracks: tracks => { playerTracks = tracks; setState({ ...state }) },
     invite: () => state.status === 'active' ? state.invite : undefined,
     hostClock: () => clock,
-    hostPath: () => {
-      const last = [...heard.values()].filter((message): message is Extract<PartyMessage, { path: string }> => 'path' in message)
-      // whichever of the two carried a path was heard last: the store keeps one per kind, so the later
-      // one is the one with the higher seq, and both are set in order of arrival
-      return last.at(-1)?.path
-    },
+    hostPath,
     following: () => following,
     setFollowing: on => { following = on; setState({ ...state }) },
     replay: () => {
@@ -560,6 +620,12 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     kick: async id => { if (room && state.status === 'active' && state.role === 'host') await room.remove(id) },
     ban: async id => { if (room && state.status === 'active' && state.role === 'host') await room.block(id) },
     playing: () => Boolean(snapshot.playback && !snapshot.playback.paused),
+    setStatus: next => {
+      if (state.status !== 'active' || state.role !== 'guest') return
+      status = { status: next, at: Date.now() }
+      sayStatus(false)
+    },
+    statuses: () => statuses,
     dismiss: () => { if (state.status === 'ended' || state.status === 'failed') setState({ status: 'idle' }) },
   }
 }

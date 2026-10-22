@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { api, fakeRoom, INVITE, memoryStorage } from './fake-room'
-import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
+import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, STATUS_GAP_MS, STATUS_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -827,5 +827,108 @@ describe('the party\'s tracks', () => {
     expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY])
     await party.leave()
     expect([party.mine('subtitles'), party.mine('audio')]).toEqual(['party', 'party'])
+  })
+})
+
+describe('a follower\'s status', () => {
+  const NOW = 1_788_700_000_000
+  const PAGE = '/watch/a/b'
+  const READY = { s: 'ready', path: PAGE, time: 100, rate: 1 } as const
+  const say = (fake: ReturnType<typeof fakeRoom>, seq: number, from: string, message: Parameters<typeof encodePartyMessage>[0]) =>
+    fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false })
+  const said = (fake: ReturnType<typeof fakeRoom>) => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'status')
+
+  /** A guest whose host is on `hostPath`. */
+  const following = async (hostPath = PAGE) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const party = createPartyStore(api(fake.room), memoryStorage())
+    await party.join(INVITE)
+    say(fake, 1, 'host', { t: 'state', path: hostPath, y: 0 })
+    return { fake, party }
+  }
+
+  test('a guest says it at once and not again while nothing changes', async () => {
+    const { fake, party } = await following()
+    party.setStatus({ s: 'loading', path: PAGE, time: 100, rate: 0 })
+    expect(said(fake)).toEqual([{ t: 'status', s: 'loading', path: PAGE, time: 100, rate: 0 }])
+    await vi.advanceTimersByTimeAsync(3_000)
+    party.setStatus({ s: 'loading', path: PAGE, time: 100, rate: 0 })
+    party.setStatus({ s: 'loading', path: PAGE, time: 100.4, rate: 0 })
+    expect(said(fake)).toHaveLength(1)
+  })
+
+  test(`a change goes out at most once per ${STATUS_GAP_MS} ms, the latest last, moved on to when it leaves`, async () => {
+    const { fake, party } = await following()
+    party.setStatus({ s: 'loading', path: PAGE, time: 100, rate: 0 })
+    await vi.advanceTimersByTimeAsync(500)
+    party.setStatus({ s: 'ready', path: PAGE, time: 100, rate: 0 })
+    await vi.advanceTimersByTimeAsync(500)
+    party.setStatus(READY)
+    expect(said(fake)).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(STATUS_GAP_MS - 1_000)
+    expect(said(fake)).toEqual([
+      { t: 'status', s: 'loading', path: PAGE, time: 100, rate: 0 },
+      { t: 'status', ...READY, time: 101 },
+    ])
+  })
+
+  test(`said again every ${STATUS_HEARTBEAT_MS / 1000} s while the host is on a watch page, and not while it is elsewhere`, async () => {
+    const { fake, party } = await following()
+    party.setStatus(READY)
+    await vi.advanceTimersByTimeAsync(STATUS_HEARTBEAT_MS)
+    expect(said(fake)).toEqual([{ t: 'status', ...READY }, { t: 'status', ...READY, time: 110 }])
+    say(fake, 2, 'host', { t: 'nav', path: '/search?q=a' })
+    await vi.advanceTimersByTimeAsync(STATUS_HEARTBEAT_MS * 2)
+    expect(said(fake)).toHaveLength(2)
+  })
+
+  test('a guest that never said one is away, once the host is on a watch page', async () => {
+    const { fake } = await following('/search?q=a')
+    await vi.advanceTimersByTimeAsync(STATUS_HEARTBEAT_MS)
+    expect(said(fake)).toEqual([])
+    say(fake, 2, 'host', { t: 'nav', path: PAGE })
+    await vi.advanceTimersByTimeAsync(STATUS_HEARTBEAT_MS)
+    expect(said(fake)).toEqual([{ t: 'status', s: 'away' }])
+  })
+
+  test('the host says none, and keeps each follower\'s with when it was heard, in memory only', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    const storage = memoryStorage()
+    const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1', 'g2'] })
+    const party = createPartyStore(api(fake.room), storage)
+    await party.create()
+    party.setLocation(PAGE, 0)
+    party.setStatus(READY)
+    await vi.advanceTimersByTimeAsync(STATUS_HEARTBEAT_MS)
+    expect(said(fake)).toEqual([])
+
+    say(fake, 1, 'g1', { t: 'status', ...READY })
+    say(fake, 2, 'g2', { t: 'status', s: 'away' })
+    expect(party.statuses().get('g1')).toEqual({ status: READY, at: NOW + STATUS_HEARTBEAT_MS })
+    expect(party.statuses().get('g2')).toEqual({ status: { s: 'away' }, at: NOW + STATUS_HEARTBEAT_MS })
+    expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY])
+
+    fake.emit({ type: 'left', id: 'g1', reason: 'left' })
+    expect([...party.statuses().keys()]).toEqual(['g2'])
+  })
+
+  test('a guest keeps nobody\'s, and a host\'s next party starts with none', async () => {
+    const { fake, party: guest } = await following()
+    say(fake, 2, 'other', { t: 'status', ...READY })
+    expect(guest.statuses().size).toBe(0)
+
+    const first = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1'] })
+    const rooms = api(first.room)
+    const host = createPartyStore(rooms, memoryStorage())
+    await host.create()
+    say(first, 1, 'g1', { t: 'status', ...READY })
+    expect(host.statuses().size).toBe(1)
+    await host.leave()
+    rooms.create.mockResolvedValueOnce(fakeRoom({ self: 'me', owner: 'me', members: ['me'] }).room)
+    await host.create()
+    expect(host.statuses().size).toBe(0)
   })
 })
