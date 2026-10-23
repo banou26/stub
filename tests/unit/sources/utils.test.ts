@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { buildHandlesFromUri, desc, dropCredit, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity } from '../../../src/sources/utils'
+import type { ExtractorServerContext } from '../../../src/worker/extractor'
+
+import { buildHandlesFromUri, desc, dropCredit, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity, waitForMedia } from '../../../src/sources/utils'
 import SAMPLES from '../../fixtures/descriptions/samples.json'
 
 // The home and search pages filter on searchRelevance at 0.7, so a query that normalizes to nothing
@@ -329,5 +331,33 @@ describe('the source credit ending a description', () => {
     const { descriptions, shortDescriptions } = desc(description, 0.5)
     expect(descriptions?.[0]?.description).toBe(dropCredit(description))
     expect(shortDescriptions?.[0]?.shortDescription).toBe(dropCredit(description))
+  })
+})
+
+describe('a wait for the media', () => {
+  // a media nobody has described yet: the changes are read once, then listened for until the wait is aborted
+  const asked = (signal: AbortSignal) => ({
+    request: new Request('http://d/graphql', { signal }),
+    findAggregatedMedia: async () => undefined,
+    listenForMediaChanges: async function* (_: { uri: string }, { abortSignal }: { abortSignal: AbortSignal }) {
+      yield undefined
+      await new Promise(resolve => abortSignal.addEventListener('abort', resolve))
+    },
+  }) as unknown as ExtractorServerContext
+
+  const within = <T>(work: Promise<T>, ms: number) =>
+    Promise.race([work, new Promise(resolve => setTimeout(resolve, ms, 'still waiting'))])
+
+  test('ends as its ask is dropped, long before its own timeout', async () => {
+    const ask = new AbortController()
+    const waiting = waitForMedia('ag:(none:0)', asked(ask.signal), media => media, 60_000)
+    setTimeout(() => ask.abort(), 20)
+    expect(await within(waiting, 1_000)).toBeUndefined()
+  })
+
+  test('ends at once when its ask was dropped before it began', async () => {
+    const ask = new AbortController()
+    ask.abort()
+    expect(await within(waitForMedia('ag:(none:0)', asked(ask.signal), media => media, 60_000), 1_000)).toBeUndefined()
   })
 })

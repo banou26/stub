@@ -560,13 +560,22 @@ export const waitForMedia = async <T>(
   if (result) return result
   const ac = new AbortController()
   const timeout = setTimeout(() => ac.abort(), timeoutMs)
+  // a dropped ask ends the wait: its answer has nobody to reach, and a link preview's copy of the worker stays in
+  // memory while any of its sources still waits (src/preview/fetch.ts)
+  const asked = ctx.request?.signal
+  const dropped = () => ac.abort()
+  asked?.addEventListener('abort', dropped)
+  if (asked?.aborted) dropped()
   try {
     for await (const _ of ctx.listenForMediaChanges({ uri }, { abortSignal: ac.signal })) {
+      // the changes are listened for only after their first read, and an abort before then reaches no listener
+      if (ac.signal.aborted) break
       const r = extract(await ctx.findAggregatedMedia(uri))
       if (r) return r
     }
   } finally {
     clearTimeout(timeout)
+    asked?.removeEventListener('abort', dropped)
     ac.abort()
   }
   return undefined
