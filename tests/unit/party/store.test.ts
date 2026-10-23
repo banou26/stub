@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { api, fakeRoom, INVITE, memoryStorage } from './fake-room'
-import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_HOST_KEY, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, STATUS_GAP_MS, STATUS_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
+import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, STATUS_GAP_MS, STATUS_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -23,7 +23,6 @@ describe('hosting', () => {
 
     expect(party.getState()).toEqual({ status: 'active', role: 'host', invite: INVITE, members: 1, self: 'me', owner: 'me' })
     expect(storage.store.get(PARTY_SESSION_KEY)).toBe(INVITE)
-    expect(storage.store.get(PARTY_HOST_KEY)).toBe(fake.room.name)
   })
 
   // Two classes on the wire. Steering (nav, scroll, cursor, playback, state) is the host's; talking
@@ -433,58 +432,33 @@ describe('ending and failing', () => {
     expect(party.getState()).toEqual({ status: 'ended', reason: 'left' })
     expect(fake.room.leave).toHaveBeenCalledTimes(1)
     expect(storage.store.has(PARTY_SESSION_KEY)).toBe(false)
-    expect(storage.store.has(PARTY_HOST_KEY)).toBe(false)
   })
 })
 
 describe('resuming', () => {
-  // fkn.app keeps a tab's member seed under the room id the tab dialled, and once a site is bound to an
-  // app the invite names the room by another id (`fkn:app:…/<name>` for `https://anime.fkn.app/<name>`).
-  // Through the invite, the host's rebuilt store is a newcomer in its own party.
-  test('a host\'s store rebuilt from its saved session keeps the host role', async () => {
-    const storage = memoryStorage()
-    const hosting = fakeRoom({ self: 'me', owner: 'me' })
-    await createPartyStore(api(hosting.room), storage).create()
-
-    const newcomer = fakeRoom({ self: 'newcomer', owner: 'me', members: ['me', 'newcomer'] })
-    const rooms = { ...api(hosting.room), join: vi.fn(async () => newcomer.room) }
-    const party = createPartyStore(rooms, storage)
-    await party.resume()
-    expect(rooms.open).toHaveBeenCalledWith(hosting.room.name, { key: hosting.room.key })
-    expect(rooms.join).not.toHaveBeenCalled()
-    expect(party.getState()).toMatchObject({ status: 'active', role: 'host', self: 'me' })
-    expect(storage.store.get(PARTY_HOST_KEY)).toBe(hosting.room.name)
-  })
-
-  // Opening the invite of a party that had ended starts it again with the opener as its owner, under
-  // the id the invite names, which is where that tab's seed is kept.
-  test('a tab that came to host by opening an invite comes back through the invite', async () => {
+  // fkn.app hands a tab that rejoins through the invite its own seat back, so the seat decides the role
+  test('a host\'s store rebuilt from its saved session rejoins through the invite as the host', async () => {
     const storage = memoryStorage()
     const fake = fakeRoom({ self: 'me', owner: 'me' })
     const rooms = api(fake.room)
-    await createPartyStore(rooms, storage).join(INVITE)
-    expect(storage.store.has(PARTY_HOST_KEY)).toBe(false)
+    await createPartyStore(rooms, storage).create()
 
     const party = createPartyStore(rooms, storage)
     await party.resume()
-    expect(rooms.open).not.toHaveBeenCalled()
-    expect(rooms.join).toHaveBeenLastCalledWith(INVITE)
+    expect(rooms.join).toHaveBeenCalledWith(INVITE)
     expect(party.getState()).toMatchObject({ status: 'active', role: 'host', self: 'me' })
   })
 
-  test('a follower comes back through the invite, even in a tab that hosted before', async () => {
+  test('a follower comes back as a follower', async () => {
     const storage = memoryStorage()
     const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
-    const rooms = { ...api(fake.room), create: vi.fn(async () => fakeRoom({ self: 'me', owner: 'me' }).room) }
-    const before = createPartyStore(rooms, storage)
-    await before.create()
-    await before.join(INVITE)
+    const rooms = api(fake.room)
+    await createPartyStore(rooms, storage).join(INVITE)
 
     const party = createPartyStore(rooms, storage)
     await party.resume()
-    expect(rooms.open).not.toHaveBeenCalled()
-    expect(rooms.join).toHaveBeenLastCalledWith(INVITE)
-    expect(party.getState()).toMatchObject({ status: 'active', role: 'guest' })
+    expect(rooms.join).toHaveBeenNthCalledWith(2, INVITE)
+    expect(party.getState()).toMatchObject({ status: 'active', role: 'guest', self: 'me' })
   })
 
   // A resume that finds nothing is a party that ended while the tab was closed. There is nothing to
@@ -753,7 +727,7 @@ describe('grants', () => {
     expect(party.chat()).toEqual([])
   })
 
-  test('nothing of it is stored: the tab keeps its invite, the room it hosts and its name, no more', async () => {
+  test('nothing of it is stored: the tab keeps its invite and its name, no more', async () => {
     const storage = memoryStorage()
     const fake = fakeRoom({ self: 'me', owner: 'me', members: ['me', 'g1'] })
     const party = createPartyStore(api(fake.room), storage)
@@ -762,7 +736,7 @@ describe('grants', () => {
     party.setGrants({ all: ['play'], by: { g1: { play: false } } })
     say(fake, 1, 'me', lastSent(fake.sent)!)
     say(fake, 2, 'g1', ask)
-    expect([...storage.store.keys()].sort()).toEqual([PARTY_HOST_KEY, PARTY_NAME_KEY, PARTY_SESSION_KEY].sort())
+    expect([...storage.store.keys()].sort()).toEqual([PARTY_NAME_KEY, PARTY_SESSION_KEY].sort())
   })
 })
 
@@ -947,7 +921,7 @@ describe('a follower\'s status', () => {
     say(fake, 2, 'g2', { t: 'status', s: 'away' })
     expect(party.statuses().get('g1')).toEqual({ status: READY, at: NOW + STATUS_HEARTBEAT_MS })
     expect(party.statuses().get('g2')).toEqual({ status: { s: 'away' }, at: NOW + STATUS_HEARTBEAT_MS })
-    expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY, PARTY_HOST_KEY])
+    expect([...storage.store.keys()]).toEqual([PARTY_SESSION_KEY])
 
     fake.emit({ type: 'left', id: 'g1', reason: 'left' })
     expect([...party.statuses().keys()]).toEqual(['g2'])
