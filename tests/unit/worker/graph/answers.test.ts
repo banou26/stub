@@ -1,12 +1,11 @@
 /**
  * The `Answer` log, driven through the real hook.
  *
- * `src/worker/extractor.ts` cannot be imported under vitest (it reaches react through urql), so the
- * server here is built the way `makeExtractor` builds one: the same generated typeDefs, the same
+ * The server here is built the way `makeExtractor` builds one: the same generated typeDefs, the same
  * `useOnResolve` from `@envelop/on-resolve`, and the same `recordAnswers` call the extractor's hook
  * makes. What is not here is the three DataLoaders, which this step does not touch.
  */
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
