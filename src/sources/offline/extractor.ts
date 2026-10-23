@@ -11,8 +11,7 @@ import {
   type CatalogRow,
 } from './index-lookup'
 import { loadCatalog } from './catalog'
-import { historyEntry, historyMedia } from './history'
-import { loadShard } from './history-shards'
+import { historyEntry, historyMedia, type ShardLoader } from './history'
 
 // No icon, deliberately, and anizip is the precedent: it is the other source that exists to link
 // records rather than to be visited, and it ships none either. A badge would imply the show lives on
@@ -52,8 +51,9 @@ type SeasonBundle = { tag: string, updated: string, seasons: Record<string, Mana
 /**
  * Answered from the two generated modules below and the history's shards (./history.ts), compiled
  * into the app and read from memory, with no request of its own. It is the source that survives
- * every other source failing at once, which is not hypothetical: on 2026-08-16 the homepage rendered "Current season" with zero media because
- * AniList answered 403 and Jikan 504 at the same time, with the user's connection perfectly healthy.
+ * every other source failing at once, which is not hypothetical: on 2026-08-16 the homepage
+ * rendered "Current season" with zero media because AniList answered 403 and Jikan 504 at the same
+ * time, with the user's connection perfectly healthy.
  *
  * READ THE NAME CAREFULLY. "offline" describes the bundled DATA, an offline database in the sense its
  * upstream uses the word, compiled in rather than queried. It does NOT mean stub works offline. stub
@@ -193,8 +193,14 @@ const keysOf = (refs: readonly { origin: string, id: number }[]) =>
  * the history pairs no ids, so only the index row's handles may join it to anything else.
  */
 const fromHistory = async (keys: readonly string[]): Promise<GQLMedia | undefined> => {
+  // Imported here, so its map of 384 shard chunks stays out of the worker every page starts. A failure answers
+  // nothing, as a shard's does.
+  const load: ShardLoader = await import('./history-shards').then(module => module.loadShard, error => {
+    console.error('offline: the history could not be loaded', error)
+    return async () => undefined
+  })
   for (const key of keys) {
-    const entry = await historyEntry(key, loadShard)
+    const entry = await historyEntry(key, load)
     if (!entry) continue
     const [catalogue, id] = entry.key.split('-')
     return historyMedia(entry, rowHandles({ mal: 0, anilist: 0, kitsu: 0, anidb: 0, [catalogue!]: Number(id) }))
