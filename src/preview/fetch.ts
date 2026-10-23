@@ -11,6 +11,13 @@ import { withBackoff } from '../worker/backoff'
 type Relay = { id: string, region: string, proxyOrigin?: string, healthy?: boolean, draining?: boolean }
 
 const DIRECTORY = 'https://fkn.app/v1/relays'
+// the nodes as the directory listed them on 2026-10-24, for when it cannot be read: fkn.app is this Function's own
+// zone, and without `global_fetch_strictly_public` Cloudflare sends such a fetch to the zone's origin, ignoring the
+// Workers mapped to it (Workers "Compatibility flags")
+const NODES: Relay[] = [
+  { id: 'cz-prg-001', region: 'eu', proxyOrigin: 'https://cz-prg-001.fkn.app/v0/' },
+  { id: 'hk-hkg-001', region: 'asia', proxyOrigin: 'https://hk-hkg-001.fkn.app/v0/' },
+]
 // Prague: the crawlers run in the US and Europe (inferred), and from Tokyo, 256 ms from Prague, every cold run of the
 // verifier's still had its title by the deadline (8 of 8, 2026-10-23)
 const FIRST_REGION = 'eu'
@@ -18,15 +25,10 @@ const NULL_BODY_STATUSES = new Set([204, 205, 304])
 
 // read once per preview, since each preview evaluates this module anew
 let directory: Promise<Relay[]> | undefined
-const relays = () => {
-  if (!directory) {
-    directory = globalThis.fetch(DIRECTORY)
-      .then(response => response.json() as Promise<{ relays: Relay[] }>)
-      .then(({ relays }) => relays.filter(relay => relay.proxyOrigin && relay.healthy !== false && !relay.draining))
-    directory.catch(() => { directory = undefined })
-  }
-  return directory
-}
+const relays = () => directory ??= globalThis.fetch(DIRECTORY)
+  .then(response => response.json() as Promise<{ relays: Relay[] }>)
+  .then(({ relays }) => relays.filter(relay => relay.proxyOrigin && relay.healthy !== false && !relay.draining))
+  .catch(() => NODES)
 
 let turn = 0
 const order = async (spread?: boolean) => {

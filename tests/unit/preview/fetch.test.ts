@@ -11,7 +11,7 @@ const HONG_KONG = { id: 'hk-hkg-001', region: 'asia', proxyOrigin: 'https://hk-h
 let preview: typeof import('../../../src/preview/fetch')
 let sent: Sent[]
 let directoryReads: number
-let relays: object[] | Error
+let relays: object[] | Error | string
 let relay: (sent: Sent) => Response | Promise<Response>
 
 beforeEach(async () => {
@@ -25,7 +25,7 @@ beforeEach(async () => {
     if (input === 'https://fkn.app/v1/relays') {
       directoryReads++
       if (relays instanceof Error) throw relays
-      return Response.json({ relays })
+      return typeof relays === 'string' ? new Response(relays) : Response.json({ relays })
     }
     const headers: Record<string, string> = {}
     new Headers(init?.headers).forEach((value, name) => { headers[name] = value })
@@ -130,12 +130,19 @@ test('a spread request turns through the relays', async () => {
   expect(sent.map(({ url }) => new URL(url).hostname.split('.')[0])).toEqual(['cz-prg-001', 'hk-hkg-001', 'cz-prg-001', 'cz-prg-001'])
 })
 
-test('the directory is read once per copy, and read again after it failed', async () => {
-  relays = new Error('directory unreachable')
-  await expect(preview.fetch('https://example.com/')).rejects.toThrow('directory unreachable')
-  relays = [PRAGUE]
+test('the directory is read once per copy', async () => {
   await preview.fetch('https://example.com/')
   await preview.fetch('https://example.com/')
-  expect(directoryReads).toBe(2)
+  expect(directoryReads).toBe(1)
   expect(sent).toHaveLength(2)
+})
+
+test.each([
+  ['cannot be reached', new Error('directory unreachable')],
+  ['answers a page instead', '<!doctype html><title>fkn.app</title>'],
+])('a directory that %s leaves the two nodes, Prague first', async (_, failing) => {
+  relays = failing
+  relay = () => { throw new TypeError('unreachable') }
+  await expect(preview.fetch('https://example.com/')).rejects.toThrow('unreachable')
+  expect(sent.map(({ url }) => url)).toEqual(['https://cz-prg-001.fkn.app/v0', 'https://hk-hkg-001.fkn.app/v0'])
 })
