@@ -1032,6 +1032,27 @@ test('a film\'s modal keeps the catalogue sites next to its title, and none of t
   expect(seen.filter(site => FILM_SOURCES.includes(site))).toEqual([])
 })
 
+// an old bookmark or party link names the work by one source, and JustWatch searches only for a work asked as a cluster
+test('a film opened at its bare AniList address lists every place to watch it, and its address grows to name them, in the modal and on its page', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  for (const { path, row } of FILM_VIEWS) {
+    const bare = path.replace(FILM, 'anilist:900050')
+    await page.goto(`${origin}${bare}`)
+    const buttons = page.locator(row).locator('a')
+    await expect(buttons, bare).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    expect((await buttons.locator('.name').allTextContents()).sort(), bare).toEqual(FILM_SOURCES)
+    await expect(page, bare).toHaveURL(new RegExp(`/${path.split('/')[1]}/ag:\\([^/]*jw:900050`))
+  }
+})
+
+test('a series opened at its bare AniList address shows the ratings JustWatch gives, and its address grows to name JustWatch, on its page and in the modal', async ({ page }) => {
+  await page.goto(`${origin}/title/anilist:900040`)
+  await expect(page.locator('.heading > .chips .chip')).toHaveText(RATED_CHIPS, { timeout: 30_000 })
+  await expect(page).toHaveURL(/\/title\/ag:\([^/]*jw:900040/)
+  await page.goto(`${origin}/media/anilist:900040`)
+  await expect(page).toHaveURL(/\/media\/ag:\([^/]*jw:900040/, { timeout: 30_000 })
+})
+
 // AniList answers Spec Prime Film, and JustWatch, five seconds later, with Prime Video on amazon.co.jp, which stub plays
 // for a viewer in Japan, and Tubi (tests/fake-fetch.ts)
 const PRIME_FILM = 'ag:(anilist:900070)'
@@ -1054,6 +1075,16 @@ test.describe('a viewer in Japan', () => {
     await expect(button('Prime Video')).toHaveAttribute('target', '_blank', { timeout: 30_000 })
     await expect(button('Prime Video')).toHaveAttribute('href', 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070')
     await expect(bar).toHaveCount(0)
+  })
+
+  test('a film Prime Video plays in stub has Play in the modal at its bare AniList address too', async ({ page }) => {
+    await page.goto(`${origin}/media/anilist:900070`)
+    await expect(modal(page).locator('.movie .play-bar a.play')).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('a film Prime Video plays in stub is on the watch page an old link opens by its bare AniList address', async ({ page }) => {
+    await page.goto(`${origin}/watch/anilist:900070/jw:900070-1`)
+    await expect(page.locator('.list a[title="Prime Video"]')).toBeVisible({ timeout: 30_000 })
   })
 })
 

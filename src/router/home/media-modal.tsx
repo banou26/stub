@@ -20,7 +20,7 @@ import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
-import { AggregatedUri, asAggregatedUri, matchAggregatedUris, decodeRouteUri, shouldRewriteAddress } from '../../utils/uri'
+import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
@@ -306,8 +306,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const rawParams = useParams<RouteParams['MEDIA']>()
-  // wouter hands the segment through undecoded, and an encoded uri is a page that never subscribes
-  const params = { ...rawParams, uri: decodeRouteUri(rawParams.uri) }
+  const params = { ...rawParams, uri: routeMediaUri(rawParams.uri) }
   const [, navigate] = useLocation()
   // The listing is a SOURCE OF DRAWING, never the gate: `namesSameWork` asks whether the address and
   // a card share a source handle, because a shared link names whatever sources the store had folded
@@ -315,17 +314,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // different works, and the modal opened over a blank box (open problem 22).
   const foundMedia = listedMediaFor(params.uri, mediaNodes)
 
+  // held across the address growing, so a wider spelling of the same work does not restart the subscription
   const [uri, setUri] = useState(params.uri)
   useEffect(() => {
-    // BOTH SPELLINGS, since a one-source page is addressed `mal:39535` by an old bookmark or party
-    // link and `ag:(mal:39535)` by every address the store mints now that the singleton path is gone.
-    // Compared as written the two are different works, so the subscription would restart on a
-    // navigation that changed nothing.
-    setUri(prev =>
-      prev && matchAggregatedUris(asAggregatedUri(prev) as AggregatedUri, asAggregatedUri(params.uri ?? '') as AggregatedUri)
-        ? prev
-        : params.uri
-    )
+    setUri(prev => prev && matchAggregatedUris(prev as AggregatedUri, (params.uri ?? '') as AggregatedUri) ? prev : params.uri)
   }, [params.uri])
 
   const [{ data, operation }] = useSubscription({
@@ -403,8 +395,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // for a beat, so a link to a work known through one source ran this with the old cluster's eight
   // handles against the new address's one, decided the address had shrunk, and replaced it with the
   // page you were leaving. Clicking a relation or a graph node did nothing at all, twice out of twice
-  // (measured 2026-09-09); before these linked to a bare source uri the guard above happened to hide
-  // it, since a bare uri is not aggregated and the effect returned early.
+  // (measured 2026-09-09).
   const written = useRef<string | undefined>(undefined)
   useEffect(() => {
     if (shouldRewriteAddress(media?.uri, params.uri, written.current)) {

@@ -174,6 +174,16 @@ export const decodeRouteUri = <T extends string | undefined>(raw: T): T => {
   }
 }
 
+/**
+ * The uri a media page asks for, given its route segment: decoded, and a bare source uri, as an old bookmark or party
+ * link names a work, asked as its one member cluster. A source handed a bare uri describes that id and searches
+ * nothing (JustWatch, Crunchyroll, Apple TV, uNoGS), so a page asking with one never gathers what those find.
+ */
+export const routeMediaUri = <T extends string | undefined>(raw: T): T => {
+  const uri = decodeRouteUri(raw)
+  return (uri ? asAggregatedUri(uri) : uri) as T
+}
+
 export const toAggregatedUri = <T extends Uri[] | Uris>(uris: T, episode?: string) =>
   `ag:(${toAggregatedId(uris)})${episode ? `-${episode}` : ''}` as AggregatedUri
 

@@ -30,7 +30,7 @@ import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
-import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri } from '../../utils/uri'
+import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
@@ -291,7 +291,7 @@ const Watch = () => {
   // wouter hands the segments through undecoded, and an encoded uri is a page that never subscribes
   const params = {
     ...rawParams,
-    mediaUri: decodeRouteUri(rawParams.mediaUri),
+    mediaUri: routeMediaUri(rawParams.mediaUri),
     episodeUri: decodeRouteUri(rawParams.episodeUri),
     sourceUri: decodeRouteUri(rawParams.sourceUri),
   }

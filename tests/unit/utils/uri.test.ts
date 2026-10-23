@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { decodeRouteUri, extractAggregatedUriOrigin, fromAggregatedUri, isRoutableUri, matchAggregatedUris, originsOfUri } from '../../../src/utils/uri'
+import { decodeRouteUri, extractAggregatedUriOrigin, fromAggregatedUri, isRoutableUri, matchAggregatedUris, originsOfUri, routeMediaUri } from '../../../src/utils/uri'
 
 describe('originsOfUri', () => {
   test('lists the origins an aggregated uri lets a source recognise itself by', () => {
@@ -121,6 +121,19 @@ describe('decodeRouteUri', () => {
     expect(decodeRouteUri('not-a-uri')).toBe('not-a-uri')
     expect(decodeRouteUri('%E0%A4%A')).toBe('%E0%A4%A')
     expect(decodeRouteUri(undefined)).toBeUndefined()
+  })
+})
+
+describe('routeMediaUri', () => {
+  test('a bare source uri, as an old bookmark names a work, is asked as its one member cluster, encoded or not', () => {
+    expect(routeMediaUri('anilist:101249')).toBe('ag:(anilist:101249)')
+    expect(routeMediaUri(encodeURIComponent('anilist:101249'))).toBe('ag:(anilist:101249)')
+  })
+
+  test('a cluster is asked as it is, and what is no routable uri comes back as it was', () => {
+    expect(routeMediaUri('ag:(anilist:101249,jw:403680)')).toBe('ag:(anilist:101249,jw:403680)')
+    expect(routeMediaUri('not-a-uri')).toBe('not-a-uri')
+    expect(routeMediaUri(undefined)).toBeUndefined()
   })
 })
 

@@ -23,7 +23,7 @@ import { filmRelease } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
-import { AggregatedUri, asAggregatedUri, decodeRouteUri, matchAggregatedUris, originsOfUri, shouldRewriteAddress } from '../../utils/uri'
+import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { ratingChips, secondTitle, titleChips, titleFacts } from './facts'
@@ -649,8 +649,7 @@ const Themes = ({ themes }: { themes: Theme[] }) => (
 /** The full page for one title, at `/title/<address>`: what the modal shows, laid out as one long page. */
 const TitlePage = () => {
   const rawParams = useParams<RouteParams['TITLE']>()
-  // wouter hands the segment through undecoded, and an encoded uri is a page that never subscribes
-  const routeUri = decodeRouteUri(rawParams.uri)
+  const routeUri = routeMediaUri(rawParams.uri)
   const [, navigate] = useLocation()
   const search = carriedSearch(useSearch())
 
@@ -659,7 +658,7 @@ const TitlePage = () => {
   const [uri, setUri] = useState(routeUri)
   useEffect(() => {
     setUri(prev =>
-      prev && matchAggregatedUris(asAggregatedUri(prev) as AggregatedUri, asAggregatedUri(routeUri ?? '') as AggregatedUri)
+      prev && matchAggregatedUris(prev as AggregatedUri, (routeUri ?? '') as AggregatedUri)
         ? prev
         : routeUri
     )
