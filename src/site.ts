@@ -15,7 +15,10 @@ export const siteOf = (hostname: string): Site => {
   return label === 'movies' ? 'movie' : (label as Site | undefined) ?? 'stub'
 }
 
-export const site: Site = siteOf(globalThis.location?.hostname ?? '')
+export let site: Site = siteOf(globalThis.location?.hostname ?? '')
+
+/** Serves `next` from here on, for the link preview, whose one isolate answers all four sites' hosts. */
+export const setSite = (next: Site) => { site = next }
 
 const SITE_LINKS: { site: Site, host: string, label: string }[] = [
   { site: 'movie', host: 'movies', label: 'Movies' },

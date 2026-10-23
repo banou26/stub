@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'vite-plus'
 
 // What cannot be imported here is a WORKER RESOLVER: src/worker/resolvers/*/index.ts reaches
@@ -45,6 +46,10 @@ export default defineConfig({
       // urql names no exports map, so node picks its CommonJS build, whose `require('react')` no alias
       // reaches; its ESM build is what tests/unit/router/media-details.test.tsx renders rows against
       urql: 'urql/dist/urql.es.js',
+      // what vite.preview.config.ts builds for functions/_middleware.ts, stood in for so its tests need no build
+      '../functions-lib/preview.js': resolve(__dirname, 'tests/unit/functions/stub-preview.ts'),
+      '../functions-lib/frizbee_wasm_bg.wasm': resolve(__dirname, 'tests/unit/functions/stub-wasm.ts'),
+      '../functions-lib/sacha_bg.wasm': resolve(__dirname, 'tests/unit/functions/stub-wasm.ts'),
     },
   },
   ssr: { resolve: { conditions: ['module', 'browser', 'development', 'import', 'default'] } },

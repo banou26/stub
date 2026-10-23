@@ -2,7 +2,7 @@
 // movie, Chinese and Korean animation is anime, and live-action adaptations never are.
 import { expect, test } from 'vite-plus/test'
 
-import { siteAllows, siteAsks, siteLinksOf, siteOf, type Site } from '../../src/site'
+import { setSite, site, siteAllows, siteAsks, siteLinksOf, siteOf, type Site } from '../../src/site'
 
 const SITES: Site[] = ['anime', 'movie', 'series', 'stub']
 
@@ -77,4 +77,16 @@ test('no links off the four sites\' hosts', () => {
     'http://127.0.0.1:4173/',
     'http://localhost:4173/',
   ]) expect(links(address), address).toEqual([])
+})
+
+test('setSite moves the site every reader sees, for the link preview, whose one isolate answers all four sites', () => {
+  expect(site).toBe('stub')
+  setSite('movie')
+  expect(site).toBe('movie')
+  expect(siteAllows(['SERIES'])).toBe(false)
+  expect(siteAsks('anilist')).toBe(false)
+  setSite('anime')
+  expect(siteAllows(['ANIME', 'SERIES'])).toBe(true)
+  expect(siteAsks('anilist')).toBe(true)
+  setSite('stub')
 })

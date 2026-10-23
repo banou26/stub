@@ -1,9 +1,11 @@
+import type { Answer, Preview } from '../../../src/preview'
+
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { onRequest } from '../../../functions/_middleware'
+import wasmModule from './stub-wasm'
 
 const ROOT = resolve(import.meta.dirname, '../../..')
 const SHELL = readFileSync(resolve(ROOT, 'index.html'), 'utf8')
@@ -11,77 +13,47 @@ const SHELL = readFileSync(resolve(ROOT, 'index.html'), 'utf8')
 const DISCORD = 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)'
 const CHROME = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
 
-const BANNER = 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/195604.jpg'
-const ANILIST: Record<string, object> = {
-  'id:195604': { title: { english: 'Black Clover Season 2', romaji: 'Black Clover 2' }, description: 'Asta<br>returns. (Source: Crunchyroll)', coverImage: { extraLarge: 'https://s4.anilist.co/cover/195604.jpg', color: '#e4a15d' }, bannerImage: BANNER },
-  'idMal:61469': { title: { english: null, romaji: 'STEEL BALL RUN' }, description: null, coverImage: { extraLarge: 'https://s4.anilist.co/cover/61469.jpg', color: null }, bannerImage: null },
-}
+const SETTLED: Preview = { title: 'Black Clover Season 2', description: 'Asta returns.', image: 'https://artworks.thetvdb.com/banners/331753.jpg', wide: true, color: '#f1a143' }
+// what the merge reads before every source has answered (measured 2026-10-23)
+const INTERIM: Preview = { ...SETTLED, title: 'Black Clover Second Season' }
 
-const node = (title: string, imdbVotes: number, backdrop = true) => ({
-  objectType: 'MOVIE',
-  content: { title, shortDescription: `${title}, told short.`, posterUrl: `/poster/1/s718/${imdbVotes}.jpg`, backdrops: backdrop ? [{ backdropUrl: `/backdrop/2/s1920/${imdbVotes}.jpg` }] : [], scoring: { imdbVotes } },
-})
-const JUSTWATCH: Record<string, object> = {
-  tm985864: node('Coyote vs. Acme', 5_000),
-  ts985864: node('An Unrelated Show', 40),
-  tm128715: node('Batman Returns', 330_000),
-  ts128715: node('Whitetail Country', 12),
-  tm131317: node('An Obscure Short', 3),
-  ts131317: node('Slow Horses', 90_000),
-  tm555: node('A Film Nobody Rated', 0),
-  ts555: node('A Show Nobody Rated', 0),
-  tm395707: node('An Unrelated Film', 900_000),
-  ts395707: node('The Apothecary Diaries', 20_000),
-  tm777: node('A Film Without Art', 120, false),
-  tss511393: { content: { title: 'Season 3' } },
-}
+type Options = { deadline: number, settleBy?: number }
+type Asked = Options & { uri: string, site: string, wasm: unknown }
 
-const BLACK_CLOVER = { titles: { en: 'Black Clover Season 2' }, canonicalTitle: 'Black Clover 2', synopsis: 'Asta returns.', coverImage: { original: 'https://media.kitsu.app/cover/50024.jpg' }, posterImage: { original: 'https://media.kitsu.app/poster/50024.jpg' } }
-
-type Answer = (url: URL, body: any, signal?: AbortSignal | null) => unknown
-const ANSWERS: Record<string, Answer> = {
-  'graphql.anilist.co': (_, { query, variables }) => {
-    const media = ANILIST[`${/Media\((\w+):/.exec(query)?.[1]}:${variables.v}`]
-    return media ? { data: { Media: media } } : new Response('{"data":{"Media":null}}', { status: 404 })
-  },
-  'apis.justwatch.com': (_, { query }) => ({ data: Object.fromEntries([...query.matchAll(/(\w+):node\(id:"(\w+)"\)/g)].map(([, alias, id]) => [alias, JUSTWATCH[id] ?? null])) }),
-  'v3.sg.media-imdb.com': url => ({ d: url.pathname.endsWith('/tt0386676.json') ? [{ id: 'tt0386676', l: 'The Office', y: 2005, s: 'Steve Carell, Jenna Fischer', i: { imageUrl: 'https://m.media-amazon.com/office.jpg' } }] : [] }),
-  'api.tvmaze.com': url => url.pathname === '/shows/1292' ? { name: 'The Office', summary: '<p>A mockumentary.</p>', image: { original: 'https://static.tvmaze.com/office.jpg' } } : new Response('', { status: 404 }),
-  'kitsu.io': url => {
-    if (url.pathname === '/api/edge/anime/50024') return { data: { attributes: BLACK_CLOVER } }
-    const mapped = `${url.searchParams.get('filter[externalSite]')}:${url.searchParams.get('filter[externalId]')}`
-    if (url.pathname === '/api/edge/mappings' && url.searchParams.get('include') === 'item') {
-      return ['anilist/anime:195604', 'myanimelist/anime:61967'].includes(mapped)
-        ? { data: [{ type: 'mappings' }], included: [{ type: 'anime', attributes: BLACK_CLOVER }] }
-        : { data: [] }
-    }
-    return new Response('', { status: 404 })
-  },
-}
-
-let answers: Record<string, Answer>
-let fetches: { url: string, body: any }[]
+let onRequest: typeof import('../../../functions/_middleware').onRequest
+let createPreview: ReturnType<typeof vi.fn>
+let asked: Asked[]
 let cache: Map<string, Response>
+let matching: () => Promise<void>
 
-const late = (ms: number, answer: Answer): Answer => (url, body, signal) => new Promise((resolve, reject) => {
-  const timer = setTimeout(() => resolve(answer(url, body)), ms)
-  signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason) })
+const deferred = <T>() => {
+  let settle!: (value: T) => void
+  const promise = new Promise<T>(resolve => { settle = resolve })
+  return { promise, settle }
+}
+
+/** A copy of stub's worker whose answer, at the deadline and once settled, is the one given. */
+const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first) => ({
+  answer: (uri: string, site: string, wasm: unknown, options: Options): Answer => {
+    asked.push({ uri, site, wasm, ...options })
+    return { first: Promise.resolve(first), last: Promise.resolve(last) }
+  },
 })
 
-beforeEach(() => {
-  answers = { ...ANSWERS }
-  fetches = []
+beforeEach(async () => {
+  vi.resetModules()
+  ;({ onRequest } = await import('../../../functions/_middleware'))
+  ;({ createPreview } = await import('./stub-preview'))
+  createPreview.mockImplementation(() => copy(SETTLED))
+  asked = []
   cache = new Map()
-  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
-    const url = new URL(input)
-    const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
-    fetches.push({ url: url.href, body })
-    const answer = await answers[url.hostname]?.(url, body, init?.signal)
-    return answer instanceof Response ? answer : new Response(JSON.stringify(answer), { headers: { 'content-type': 'application/json' } })
-  })
+  matching = async () => {}
   vi.stubGlobal('caches', {
     default: {
-      match: async (key: Request) => cache.get(key.url)?.clone(),
+      match: async (key: Request) => {
+        await matching()
+        return cache.get(key.url)?.clone()
+      },
       put: async (key: Request, value: Response) => { cache.set(key.url, value) },
     },
   })
@@ -89,6 +61,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 const call = async (address: string, userAgent = DISCORD) => {
@@ -101,8 +74,7 @@ const call = async (address: string, userAgent = DISCORD) => {
   const pending: Promise<unknown>[] = []
   const request = new Request(address, { headers: { 'user-agent': userAgent } })
   const response = await onRequest({ request, next, waitUntil: promise => { pending.push(promise) } })
-  await Promise.all(pending)
-  return { response, html: await response.clone().text(), next, pages }
+  return { response, html: await response.clone().text(), next, pages, kept: Promise.all(pending) }
 }
 
 const meta = (html: string, key: string) =>
@@ -110,136 +82,39 @@ const meta = (html: string, key: string) =>
 
 const title = (html: string) => /<title>([^<]*)<\/title>/.exec(html)?.[1]
 
+const kept = (site: string, segment: string) => cache.get(`https://preview.cache/${site}/${segment}`)
+
 test.each([
-  { address: 'https://anime.fkn.app/title/ag:(anilist:195604,kitsu:50024,mal:61967)', site: 'Stub Anime', name: 'Black Clover Season 2', image: BANNER, card: 'summary_large_image', asked: ['graphql.anilist.co'] },
-  { address: 'https://stub.fkn.app/media/ag:(mal:61469,offline:mal-61469)', site: 'Stub', name: 'STEEL BALL RUN', image: 'https://s4.anilist.co/cover/61469.jpg', card: 'summary', asked: ['graphql.anilist.co'] },
-  { address: 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)', site: 'Stub Anime', name: 'Black Clover Season 2', image: BANNER, card: 'summary_large_image', asked: ['graphql.anilist.co'] },
-  { address: 'https://movies.fkn.app/title/ag:(jw:985864)', site: 'Stub Movies', name: 'Coyote vs. Acme', image: 'https://images.justwatch.com/backdrop/2/s1920/5000.jpg', card: 'summary_large_image', asked: ['apis.justwatch.com'] },
-  { address: 'https://movies.fkn.app/title/ag:(anilist:999,jw:985864)', site: 'Stub Movies', name: 'Coyote vs. Acme', image: 'https://images.justwatch.com/backdrop/2/s1920/5000.jpg', card: 'summary_large_image', asked: ['graphql.anilist.co', 'apis.justwatch.com'] },
-  { address: 'https://movies.fkn.app/title/ag:(jw:777)', site: 'Stub Movies', name: 'A Film Without Art', image: 'https://images.justwatch.com/poster/1/s718/120.jpg', card: 'summary', asked: ['apis.justwatch.com'] },
-  { address: 'https://series.fkn.app/media/ag:(jw:395707-511393)', site: 'Stub Series', name: 'The Apothecary Diaries, Season 3', image: 'https://images.justwatch.com/backdrop/2/s1920/20000.jpg', card: 'summary_large_image', asked: ['apis.justwatch.com'] },
-  { address: 'https://anime.fkn.app/media/ag:(jw:395707-511393)', site: 'Stub Anime', name: 'The Apothecary Diaries, Season 3', image: 'https://images.justwatch.com/backdrop/2/s1920/20000.jpg', card: 'summary_large_image', asked: ['apis.justwatch.com'] },
-  { address: 'https://series.fkn.app/title/ag:(imdb:tt0386676,trakt:the-office)', site: 'Stub Series', name: 'The Office (2005)', image: 'https://m.media-amazon.com/office.jpg', card: 'summary', asked: ['v3.sg.media-imdb.com'] },
-  { address: 'https://series.fkn.app/title/ag:(omdb:tt0386676)', site: 'Stub Series', name: 'The Office (2005)', image: 'https://m.media-amazon.com/office.jpg', card: 'summary', asked: ['v3.sg.media-imdb.com'] },
-  { address: 'https://series.fkn.app/title/ag:(tvmaze:1292)', site: 'Stub Series', name: 'The Office', image: 'https://static.tvmaze.com/office.jpg', card: 'summary', asked: ['api.tvmaze.com'] },
-  { address: 'https://series.fkn.app/watch/ag:(tvmaze:1292-s2)/ag:(tvmaze:1292-s2-e1)', site: 'Stub Series', name: 'The Office', image: 'https://static.tvmaze.com/office.jpg', card: 'summary', asked: ['api.tvmaze.com'] },
-  { address: 'https://anime.fkn.app/title/ag:(kitsu:50024)', site: 'Stub Anime', name: 'Black Clover Season 2', image: 'https://media.kitsu.app/cover/50024.jpg', card: 'summary_large_image', asked: ['kitsu.io'] },
-])('a crawler on $address gets "$name" from its ids', async ({ address, site, name, image, card, asked }) => {
+  { address: 'https://anime.fkn.app/title/ag:(anilist:195604,mal:61967)', uri: 'ag:(anilist:195604,mal:61967)', site: 'anime', name: 'Stub Anime' },
+  { address: 'https://stub.fkn.app/media/ag:(mal:61469,offline:mal-61469)', uri: 'ag:(mal:61469,offline:mal-61469)', site: 'stub', name: 'Stub' },
+  { address: 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)', uri: 'ag:(anilist:195604)', site: 'anime', name: 'Stub Anime' },
+  { address: 'https://movies.fkn.app/title/ag%3A(nf%3A70125365)', uri: 'ag:(nf:70125365)', site: 'movie', name: 'Stub Movies' },
+  { address: 'https://series.fkn.app/media/jw:131317', uri: 'ag:(jw:131317)', site: 'series', name: 'Stub Series' },
+])('a crawler on $address gets what stub draws for $uri on $site', async ({ address, uri, site, name }) => {
   const { response, html } = await call(address)
   expect(response.status).toBe(200)
-  expect(title(html)).toBe(`${name} - ${site}`)
-  expect(meta(html, 'og:title')).toEqual([name])
-  expect(meta(html, 'og:image')).toEqual([image])
-  expect(meta(html, 'og:site_name')).toEqual([site])
+  expect(asked).toEqual([{ uri, site, wasm: { frizbee: wasmModule, sacha: wasmModule }, deadline: expect.any(Number), settleBy: 20_000 }])
+  expect(title(html)).toBe(`Black Clover Season 2 - ${name}`)
+  expect(meta(html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(meta(html, 'og:description')).toEqual(['Asta returns.'])
+  expect(meta(html, 'og:image')).toEqual([SETTLED.image])
+  expect(meta(html, 'og:site_name')).toEqual([name])
   expect(meta(html, 'og:type')).toEqual(['video.other'])
   expect(meta(html, 'og:url')).toEqual([address])
-  expect(meta(html, 'twitter:card')).toEqual([card])
-  expect(fetches.map(({ url }) => new URL(url).hostname)).toEqual(asked)
+  expect(meta(html, 'twitter:card')).toEqual(['summary_large_image'])
+  expect(meta(html, 'theme-color')).toEqual(['#f1a143'])
 })
 
-test('a known colour replaces the shell\'s theme-color, and an unknown one keeps it', async () => {
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:195604)')).html, 'theme-color')).toEqual(['#e4a15d'])
-  expect(meta((await call('https://movies.fkn.app/title/ag:(jw:985864)')).html, 'theme-color')).toEqual(['#0f0f0f'])
+test('a cover rather than a banner is the small card, and no colour keeps the shell\'s theme-color', async () => {
+  createPreview.mockImplementation(() => copy({ title: 'I Am Love', image: 'https://occ.nflxso.net/cover.jpg', wide: false }))
+  const { html } = await call('https://movies.fkn.app/title/ag:(nf:70125365)')
+  expect(meta(html, 'twitter:card')).toEqual(['summary'])
+  expect(meta(html, 'og:description')).toEqual([])
+  expect(meta(html, 'theme-color')).toEqual(['#0f0f0f'])
 })
 
-test('the description is plain text, without markup or a source credit, and at most 200 characters', async () => {
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:195604)')).html, 'og:description')).toEqual(['Asta returns.'])
-  answers['graphql.anilist.co'] = () => ({ data: { Media: { title: { english: 'Long' }, description: 'word '.repeat(60) } } })
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:1)')).html, 'og:description')).toEqual([`${'word '.repeat(39)}word…`])
-})
-
-test.each([
-  'https://movies.fkn.app/title/ag%3A(jw%3A985864)',
-  'https://movies.fkn.app/title/ag%3A%28jw%3A985864%29',
-])('a percent-encoded segment resolves as the plain one: %s', async address => {
-  expect(meta((await call(address)).html, 'og:title')).toEqual(['Coyote vs. Acme'])
-})
-
-test('JustWatch is asked for the film on movies.fkn.app, the show on series.fkn.app, and both in one query elsewhere', async () => {
-  const kinds = async (address: string) => {
-    fetches = []
-    await call(address)
-    return fetches.map(({ body }) => [...body.query.matchAll(/node\(id:"(t[ms])985864"\)/g)].map(([, kind]) => kind))
-  }
-  expect(await kinds('https://movies.fkn.app/title/ag:(jw:985864)')).toEqual([['tm']])
-  expect(await kinds('https://series.fkn.app/title/ag:(jw:985864)')).toEqual([['ts']])
-  expect(await kinds('https://stub.fkn.app/title/ag:(jw:985864)')).toEqual([['tm', 'ts']])
-  expect(await kinds('https://anime.fkn.app/title/ag:(jw:985864)')).toEqual([['tm', 'ts']])
-})
-
-test('a bare JustWatch number off movies. and series. is the node with more IMDb votes, and a tie is the plain card', async () => {
-  expect(meta((await call('https://stub.fkn.app/media/ag:(jw:128715)')).html, 'og:title')).toEqual(['Batman Returns'])
-  expect(meta((await call('https://stub.fkn.app/media/ag:(jw:131317)')).html, 'og:title')).toEqual(['Slow Horses'])
-
-  const tie = await call('https://stub.fkn.app/media/ag:(jw:555)')
-  expect(tie.response.status).toBe(200)
-  expect(title(tie.html)).toBe('Stub')
-  expect(meta(tie.html, 'og:title')).toEqual(['Stub'])
-  expect(meta(tie.html, 'og:image')).toEqual([])
-})
-
-test('an address no source here can name gets the plain site card, asking nothing', async () => {
-  const { response, html } = await call('https://movies.fkn.app/media/ag:(nf:81365135)')
-  expect(response.status).toBe(200)
-  expect(title(html)).toBe('Stub Movies')
-  expect(meta(html, 'og:site_name')).toEqual(['Stub Movies'])
-  expect(meta(html, 'og:title')).toEqual(['Stub Movies'])
-  expect(meta(html, 'og:image')).toEqual([])
-  expect(fetches).toEqual([])
-})
-
-test.each([
-  ['stub.fkn.app/title/ag:(mal:61469))', 'Stub'],
-  ['stub.fkn.app/title/ag:(mal:abc)', 'Stub'],
-  ['anime.fkn.app/title/ag:(anilist:1x)', 'Stub Anime'],
-  ['movies.fkn.app/title/ag%3A(jw%3A985864%22)', 'Stub Movies'],
-])('an id that is not a number on %s asks no upstream and gets the plain card', async (address, site) => {
-  const { response, html } = await call(`https://${address}`)
-  expect(response.status).toBe(200)
-  expect(title(html)).toBe(site)
-  expect(fetches).toEqual([])
-})
-
-test('an anime named only by its AniList or MAL id is found through Kitsu when AniList refuses', async () => {
-  // what AniList answered Cloudflare's edge on 2026-10-23
-  answers['graphql.anilist.co'] = () => new Response('', { status: 403 })
-  for (const address of ['https://anime.fkn.app/title/ag:(anilist:195604)', 'https://anime.fkn.app/watch/ag:(mal:61967)']) {
-    const { html } = await call(address)
-    expect(meta(html, 'og:title'), address).toEqual(['Black Clover Season 2'])
-    expect(meta(html, 'og:image'), address).toEqual(['https://media.kitsu.app/cover/50024.jpg'])
-  }
-})
-
-test('an id goes into an upstream\'s path encoded', async () => {
-  await call('https://series.fkn.app/title/ag%3A(imdb%3Att0386676%3Fx)')
-  expect(fetches.map(({ url }) => url)).toEqual(['https://v3.sg.media-imdb.com/suggestion/x/tt0386676%3Fx.json'])
-})
-
-test('an answer that is not ok is a miss, whatever its body, and the next id is asked', async () => {
-  answers['graphql.anilist.co'] = () => new Response('<html>403</html>', { status: 403 })
-  const { html } = await call('https://movies.fkn.app/title/ag:(anilist:1,jw:985864)')
-  expect(meta(html, 'og:title')).toEqual(['Coyote vs. Acme'])
-})
-
-test('the whole lookup has one deadline, so slow misses cannot add up, and the crawler gets the shell', async () => {
-  answers['graphql.anilist.co'] = late(1_500, ANSWERS['graphql.anilist.co']!)
-  answers['kitsu.io'] = late(1_500, ANSWERS['kitsu.io']!)
-  const started = performance.now()
-  const { html, pages, response } = await call('https://anime.fkn.app/title/ag:(anilist:1,kitsu:50024)')
-  expect(performance.now() - started).toBeLessThan(2_900)
-  expect(response).toBe(pages.at(-1))
-  expect(html).toBe(SHELL)
-}, 10_000)
-
-test('a resolver that throws answers next() unchanged', async () => {
-  answers['graphql.anilist.co'] = () => ({ data: { Media: { title: null } } })
-  const { html, pages, response } = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
-  expect(response).toBe(pages.at(-1))
-  expect(html).toBe(SHELL)
-})
-
-test('upstream text is escaped in every attribute and in the title', async () => {
-  answers['graphql.anilist.co'] = () => ({ data: { Media: { title: { english: 'Tom & "Jerry" <Live> $& $\'' }, description: 'A "cat" & <i>a</i> mouse', coverImage: { color: '#fff" onload="x' }, bannerImage: 'https://s4.anilist.co/b.jpg?w=1&h="2"' } } })
+test('a source\'s text is escaped in every attribute and in the title', async () => {
+  createPreview.mockImplementation(() => copy({ title: 'Tom & "Jerry" <Live> $& $\'', description: 'A "cat" & a mouse', image: 'https://s4.anilist.co/b.jpg?w=1&h="2"', wide: true, color: '#fff" onload="x' }))
   const { html } = await call('https://anime.fkn.app/title/ag:(anilist:1)')
   const name = 'Tom &amp; &quot;Jerry&quot; &lt;Live&gt; $&amp; $\''
   expect(html).toContain(`<title>${name} - Stub Anime</title>`)
@@ -251,31 +126,19 @@ test('upstream text is escaped in every attribute and in the title', async () =>
   expect(html.match(/<title>/g)).toHaveLength(1)
 })
 
-test('the answer is kept a day per site and title, so a second crawler asks nothing', async () => {
-  await call('https://stub.fkn.app/title/ag:(anilist:195604)')
-  expect(fetches).toHaveLength(1)
-  expect([...cache.values()].map(entry => entry.headers.get('cache-control'))).toEqual(['max-age=86400'])
-
-  const again = await call('https://stub.fkn.app/title/ag:(anilist:195604)', 'TelegramBot (like TwitterBot)')
-  expect(fetches).toHaveLength(1)
-  expect(meta(again.html, 'og:title')).toEqual(['Black Clover Season 2'])
-
-  await call('https://anime.fkn.app/title/ag:(anilist:195604)')
-  expect(fetches).toHaveLength(2)
-})
-
 test.each([
   ['a desktop browser on a title', 'https://anime.fkn.app/title/ag:(anilist:195604)', CHROME],
   ['a desktop browser on a watch address', 'https://movies.fkn.app/watch/ag:(jw:985864)/ag:(jw:985864)', CHROME],
   ['a crawler on the home', 'https://anime.fkn.app/', DISCORD],
   ['a crawler on a party', 'https://anime.fkn.app/party', DISCORD],
   ['Pinterest\'s in-app browser', 'https://anime.fkn.app/title/ag:(anilist:195604)', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [Pinterest/iOS]'],
-])('%s gets next() byte for byte, asking no upstream', async (_, address, userAgent) => {
+])('%s gets next() byte for byte, and no copy of stub is built', async (_, address, userAgent) => {
   const { html, next, pages, response } = await call(address, userAgent)
   expect(next).toHaveBeenCalledTimes(1)
   expect(response).toBe(pages[0])
   expect(html).toBe(SHELL)
-  expect(fetches).toEqual([])
+  expect(createPreview).not.toHaveBeenCalled()
+  expect(cache.size).toBe(0)
 })
 
 test.each([
@@ -297,6 +160,124 @@ test.each([
   'Mozilla/5.0 (compatible; Pinterestbot/1.0; +https://www.pinterest.com/bot.html)',
 ])('%s is a link-preview crawler', async userAgent => {
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:195604)', userAgent)).html, 'og:title')).toEqual(['Black Clover Season 2'])
+})
+
+test('the deadline counts from the request, so time spent before the copy is not added to it', async () => {
+  matching = () => new Promise(resolve => setTimeout(resolve, 400))
+  await call('https://anime.fkn.app/title/ag:(anilist:195604)')
+  expect(asked[0]!.deadline).toBeGreaterThan(1_900)
+  expect(asked[0]!.deadline).toBeLessThanOrEqual(2_100)
+})
+
+test('the settled preview is what is kept for a day, and a later crawler gets it with no copy built', async () => {
+  createPreview.mockImplementation(() => copy(INTERIM, SETTLED))
+  const first = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
+  expect(meta(first.html, 'og:title')).toEqual(['Black Clover Second Season'])
+  await first.kept
+  expect(await kept('anime', 'ag:(anilist:195604)')!.clone().json()).toEqual(SETTLED)
+  expect(kept('anime', 'ag:(anilist:195604)')!.headers.get('cache-control')).toBe('max-age=86400')
+
+  const later = await call('https://anime.fkn.app/title/ag:(anilist:195604)', 'TelegramBot (like TwitterBot)')
+  expect(meta(later.html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(1)
+
+  await call('https://stub.fkn.app/title/ag:(anilist:195604)')
+  expect(createPreview).toHaveBeenCalledTimes(2)
+})
+
+test('when the read ends with no title, the deadline\'s preview is kept', async () => {
+  createPreview.mockImplementation(() => copy(INTERIM, Promise.resolve(undefined)))
+  await (await call('https://anime.fkn.app/title/ag:(anilist:195604)')).kept
+  expect(await kept('anime', 'ag:(anilist:195604)')!.json()).toEqual(INTERIM)
+})
+
+test('a link stub cannot name gets the plain card, kept for an hour, so a later crawler builds no copy', async () => {
+  createPreview.mockImplementation(() => copy(undefined))
+  const first = await call('https://series.fkn.app/title/ag:(tmdb:52762)')
+  expect(first.response.status).toBe(200)
+  expect(title(first.html)).toBe('Stub Series')
+  expect(meta(first.html, 'og:title')).toEqual(['Stub Series'])
+  expect(meta(first.html, 'og:image')).toEqual([])
+  await first.kept
+  expect(await kept('series', 'ag:(tmdb:52762)')!.clone().json()).toBeNull()
+  expect(kept('series', 'ag:(tmdb:52762)')!.headers.get('cache-control')).toBe('max-age=3600')
+
+  const later = await call('https://series.fkn.app/title/ag:(tmdb:52762)')
+  expect(meta(later.html, 'og:title')).toEqual(['Stub Series'])
+  expect(createPreview).toHaveBeenCalledTimes(1)
+})
+
+test('the copy\'s work is handed to waitUntil before the crawler is answered, so a crawler that leaves cannot cut it', async () => {
+  const atDeadline = deferred<Preview | undefined>()
+  createPreview.mockImplementation(() => copy(atDeadline.promise, new Promise(() => {})))
+  const handed: Promise<unknown>[] = []
+  const answered = onRequest({
+    request: new Request('https://anime.fkn.app/title/ag:(anilist:195604)', { headers: { 'user-agent': DISCORD } }),
+    next: async () => new Response(SHELL),
+    waitUntil: promise => { handed.push(promise) },
+  })
+  await vi.waitFor(() => expect(createPreview).toHaveBeenCalledTimes(1))
+  expect(handed).toHaveLength(1)
+  atDeadline.settle(SETTLED)
+  expect(title(await (await answered).text())).toBe('Black Clover Season 2 - Stub Anime')
+})
+
+test('while two copies answer, a third crawler gets the plain card at once, and a settled copy gives its turn back', async () => {
+  const settles = [deferred<Preview | undefined>(), deferred<Preview | undefined>()]
+  createPreview
+    .mockImplementationOnce(() => copy(SETTLED, settles[0]!.promise))
+    .mockImplementationOnce(() => copy(SETTLED, settles[1]!.promise))
+  const [one, two] = await Promise.all([call('https://anime.fkn.app/title/ag:(anilist:1)'), call('https://anime.fkn.app/title/ag:(anilist:2)')])
+  expect([one, two].map(({ html }) => meta(html, 'og:title'))).toEqual([['Black Clover Season 2'], ['Black Clover Season 2']])
+
+  const started = performance.now()
+  const third = await call('https://anime.fkn.app/title/ag:(anilist:3)')
+  expect(performance.now() - started).toBeLessThan(200)
+  expect(meta(third.html, 'og:title')).toEqual(['Stub Anime'])
+  expect(createPreview).toHaveBeenCalledTimes(2)
+  await third.kept
+  expect(kept('anime', 'ag:(anilist:3)')).toBeUndefined()
+
+  settles[0]!.settle(SETTLED)
+  await one.kept
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(3)
+})
+
+test.each([
+  ['building the copy throws', () => { throw new Error('the copy failed') }],
+  ['its answer throws', () => ({ answer: () => { throw new Error('the answer failed') } })],
+  ['its reads reject', () => ({ answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')) }) })],
+])('when %s, the crawler gets the page as is and the turn is given back', async (_, failing) => {
+  createPreview.mockImplementationOnce(failing).mockImplementationOnce(failing)
+  for (const id of [1, 2]) {
+    const { html, pages, response, kept: done } = await call(`https://anime.fkn.app/title/ag:(anilist:${id})`)
+    expect(response).toBe(pages.at(-1))
+    expect(html).toBe(SHELL)
+    await done
+  }
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  const answers = await Promise.all([3, 4].map(id => call(`https://anime.fkn.app/title/ag:(anilist:${id})`)))
+  expect(answers.map(({ html }) => meta(html, 'og:title'))).toEqual([['Black Clover Season 2'], ['Black Clover Season 2']])
+})
+
+test('a turn whose work the runtime cancelled lapses on its own after 35 s', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  await Promise.all([1, 2].map(id => call(`https://anime.fkn.app/title/ag:(anilist:${id})`)))
+
+  vi.setSystemTime(Date.now() + 34_000)
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Stub Anime'])
+  vi.setSystemTime(Date.now() + 1_001)
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(3)
+})
+
+test('an edge cache that fails answers the page as is', async () => {
+  matching = async () => { throw new Error('cache') }
+  const { html, pages, response } = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
+  expect(response).toBe(pages.at(-1))
+  expect(html).toBe(SHELL)
 })
 
 test('the Function runs on title, media and watch addresses alone, so assets and the home never invoke it', () => {

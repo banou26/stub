@@ -14,3 +14,7 @@
 
 # the graph-engine benchmark rig output (vite.bench.config.ts)
 /bench-out
+
+# the link preview build (vite.preview.config.ts) and wrangler pages dev
+/functions-lib
+/.wrangler
