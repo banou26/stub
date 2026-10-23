@@ -17,7 +17,7 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@fkn/lib": "^0.6.0",
-    "vite-plus": "^0.2.4"
+    "@fkn/lib": "^0.9.61",
+    "vite-plus": "^1.4.0"
   }
 }
