@@ -6,7 +6,7 @@ import LegalDoc from '../../components/legal-doc'
 const Legal = () => (
   <LegalDoc>
     <h1>Legal &amp; Terms</h1>
-    <div className="updated">Last updated 1 June 2026</div>
+    <div className="updated">Last updated 24 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project, provided “as is” without
@@ -15,11 +15,28 @@ const Legal = () => (
 
     <h2>No hosted content</h2>
     <p>
-      stub hosts, stores, and distributes no media of its own. All titles, descriptions,
+      stub hosts, stores, and distributes no media of its own. Titles, descriptions,
       artwork, ratings, and playback streams are retrieved on demand from third-party
-      services (including AniList, MyAnimeList, Crunchyroll, JustWatch, and Netflix) and
-      remain the property of their respective owners. You access those services with your
-      own accounts and are responsible for complying with their terms.
+      services (including AniList, MyAnimeList, Crunchyroll, JustWatch, and Netflix). So that
+      titles still show when those services are unreachable, stub’s files also carry titles,
+      artwork addresses, and descriptions compiled from the anime-offline-database, AniDB, and
+      Kitsu. All of it remains the property of its respective owners. You access those
+      services with your own accounts and are responsible for complying with their terms.
+    </p>
+    <p>
+      Contains information from{' '}
+      <a href="https://github.com/cedya77/anime-offline-database" target="_blank" rel="noreferrer noopener">
+        cedya77/anime-offline-database
+      </a>
+      , continuing{' '}
+      <a href="https://github.com/manami-project/anime-offline-database" target="_blank" rel="noreferrer noopener">
+        manami-project/anime-offline-database
+      </a>
+      , made available under the{' '}
+      <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer noopener">
+        ODbL
+      </a>
+      .
     </p>
 
     <h2>Personal use</h2>
@@ -37,9 +54,10 @@ const Legal = () => (
 
     <h2>Rights holders</h2>
     <p>
-      stub stores no content itself; anything you see lives on the third-party service it
-      came from. If you are a rights holder with a concern, you can reach the maintainer
-      through the project repository at{' '}
+      Apart from the compiled titles, artwork addresses, and descriptions above, stub stores
+      no content itself; anything you see lives on the third-party service it came from. If
+      you are a rights holder with a concern, you can reach the maintainer through the
+      project repository at{' '}
       <a href="https://github.com/banou26/stub" target="_blank" rel="noreferrer noopener">
         github.com/banou26/stub
       </a>
