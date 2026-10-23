@@ -25,6 +25,7 @@ let createPreview: ReturnType<typeof vi.fn>
 let asked: Asked[]
 let cache: Map<string, Response>
 let matching: () => Promise<void>
+let putting: () => Promise<void>
 
 const deferred = <T>() => {
   let settle!: (value: T) => void
@@ -48,13 +49,17 @@ beforeEach(async () => {
   asked = []
   cache = new Map()
   matching = async () => {}
+  putting = async () => {}
   vi.stubGlobal('caches', {
     default: {
       match: async (key: Request) => {
         await matching()
         return cache.get(key.url)?.clone()
       },
-      put: async (key: Request, value: Response) => { cache.set(key.url, value) },
+      put: async (key: Request, value: Response) => {
+        await putting()
+        cache.set(key.url, value)
+      },
     },
   })
 })
@@ -64,7 +69,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const call = async (address: string, userAgent = DISCORD) => {
+const call = async (address: string, userAgent = DISCORD, method = 'GET') => {
   const pages: Response[] = []
   const next = vi.fn(async () => {
     const page = new Response(SHELL, { headers: { 'content-type': 'text/html; charset=utf-8' } })
@@ -72,7 +77,7 @@ const call = async (address: string, userAgent = DISCORD) => {
     return page
   })
   const pending: Promise<unknown>[] = []
-  const request = new Request(address, { headers: { 'user-agent': userAgent } })
+  const request = new Request(address, { method, headers: { 'user-agent': userAgent } })
   const response = await onRequest({ request, next, waitUntil: promise => { pending.push(promise) } })
   return { response, html: await response.clone().text(), next, pages, kept: Promise.all(pending) }
 }
@@ -137,6 +142,14 @@ test.each([
   expect(next).toHaveBeenCalledTimes(1)
   expect(response).toBe(pages[0])
   expect(html).toBe(SHELL)
+  expect(createPreview).not.toHaveBeenCalled()
+  expect(cache.size).toBe(0)
+})
+
+test('a crawler\'s HEAD gets next(), and no copy of stub is built', async () => {
+  const { next, pages, response } = await call('https://series.fkn.app/title/ag:(tmdb:52762)', DISCORD, 'HEAD')
+  expect(next).toHaveBeenCalledTimes(1)
+  expect(response).toBe(pages[0])
   expect(createPreview).not.toHaveBeenCalled()
   expect(cache.size).toBe(0)
 })
@@ -222,26 +235,44 @@ test('the copy\'s work is handed to waitUntil before the crawler is answered, so
   expect(title(await (await answered).text())).toBe('Black Clover Season 2 - Stub Anime')
 })
 
-test('while two copies answer, a third crawler gets the plain card at once, and a settled copy gives its turn back', async () => {
-  const settles = [deferred<Preview | undefined>(), deferred<Preview | undefined>()]
-  createPreview
-    .mockImplementationOnce(() => copy(SETTLED, settles[0]!.promise))
-    .mockImplementationOnce(() => copy(SETTLED, settles[1]!.promise))
-  const [one, two] = await Promise.all([call('https://anime.fkn.app/title/ag:(anilist:1)'), call('https://anime.fkn.app/title/ag:(anilist:2)')])
-  expect([one, two].map(({ html }) => meta(html, 'og:title'))).toEqual([['Black Clover Season 2'], ['Black Clover Season 2']])
+test('while a copy answers, a second crawler gets the plain card at once, and the copy gives its turn back as it ends', async () => {
+  const settles = deferred<Preview | undefined>()
+  createPreview.mockImplementationOnce(() => copy(SETTLED, settles.promise))
+  const one = await call('https://anime.fkn.app/title/ag:(anilist:1)')
+  expect(meta(one.html, 'og:title')).toEqual(['Black Clover Season 2'])
 
   const started = performance.now()
-  const third = await call('https://anime.fkn.app/title/ag:(anilist:3)')
+  const second = await call('https://anime.fkn.app/title/ag:(anilist:2)')
   expect(performance.now() - started).toBeLessThan(200)
-  expect(meta(third.html, 'og:title')).toEqual(['Stub Anime'])
-  expect(createPreview).toHaveBeenCalledTimes(2)
-  await third.kept
-  expect(kept('anime', 'ag:(anilist:3)')).toBeUndefined()
+  expect(meta(second.html, 'og:title')).toEqual(['Stub Anime'])
+  expect(createPreview).toHaveBeenCalledTimes(1)
+  await second.kept
+  expect(kept('anime', 'ag:(anilist:2)')).toBeUndefined()
 
-  settles[0]!.settle(SETTLED)
+  settles.settle(SETTLED)
   await one.kept
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
-  expect(createPreview).toHaveBeenCalledTimes(3)
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(2)
+})
+
+test('a crawler answered from the edge cache takes no turn, its preview or its plain card', async () => {
+  createPreview.mockImplementationOnce(() => copy(SETTLED)).mockImplementationOnce(() => copy(undefined))
+  await (await call('https://anime.fkn.app/title/ag:(anilist:1)')).kept
+  await (await call('https://series.fkn.app/title/ag:(tmdb:52762)')).kept
+  await call('https://anime.fkn.app/title/ag:(anilist:1)')
+  await call('https://series.fkn.app/title/ag:(tmdb:52762)')
+  expect(createPreview).toHaveBeenCalledTimes(2)
+
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+})
+
+test('an edge cache that will not keep the preview still has the turn given back', async () => {
+  putting = async () => { throw new Error('put') }
+  await (await call('https://anime.fkn.app/title/ag:(anilist:1)')).kept
+  expect(cache.size).toBe(0)
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
 })
 
 test.each([
@@ -257,20 +288,19 @@ test.each([
     await done
   }
   createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
-  const answers = await Promise.all([3, 4].map(id => call(`https://anime.fkn.app/title/ag:(anilist:${id})`)))
-  expect(answers.map(({ html }) => meta(html, 'og:title'))).toEqual([['Black Clover Season 2'], ['Black Clover Season 2']])
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
 })
 
 test('a turn whose work the runtime cancelled lapses on its own after 35 s', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
-  await Promise.all([1, 2].map(id => call(`https://anime.fkn.app/title/ag:(anilist:${id})`)))
+  await call('https://anime.fkn.app/title/ag:(anilist:1)')
 
   vi.setSystemTime(Date.now() + 34_000)
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Stub Anime'])
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Stub Anime'])
   vi.setSystemTime(Date.now() + 1_001)
-  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:3)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
-  expect(createPreview).toHaveBeenCalledTimes(3)
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(2)
 })
 
 test('an edge cache that fails answers the page as is', async () => {

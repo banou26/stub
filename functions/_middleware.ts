@@ -13,13 +13,12 @@ const TITLE_PATH = /^\/(?:title|media|watch)\/([^/]+)/
 const SITE_NAMES: Record<Site, string> = { anime: 'Stub Anime', movie: 'Stub Movies', series: 'Stub Series', stub: 'Stub' }
 // from the request; no unfurler documents how long it waits for a page
 const DEADLINE_MS = 2_500
-// one copy peaks at 59 to 88 MB of heap while it answers, two at once at 97 to 113 MB, against an isolate's 128 MB
-// (2026-10-23)
-const AT_ONCE = 2
-// a copy cut here, before its sources settle, stays in the isolate's memory, about 12 MB a copy, held by its streams
-// still waiting on a source (measured in workerd, 2026-10-23); a copy that settles is collected
+// against an isolate's 128 MB: a long series' copy alone reached 132 and 167 MB of live heap (Detective Conan, One
+// Piece), a current season's 28 to 35 MB (Black Clover), measured in workerd 2026-10-24, 1 run each
+const AT_ONCE = 1
+// a copy still asking here is stopped, and holds its turn until it has unwound (src/preview)
 const SETTLE_MS = 20_000
-// a turn is given back when its copy settles; the runtime ends `waitUntil` work 30 s after the response at the latest,
+// a turn is given back when its copy ends; the runtime ends `waitUntil` work 30 s after the response at the latest,
 // and work it cancels never reaches its `finally`, so a turn also lapses on its own
 const TURN_MS = 35_000
 const DAY_S = 86_400
@@ -85,16 +84,16 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
 }
 
 /**
- * Gives a link-preview crawler on a title, media or watch address the title, description and art stub itself draws
- * for it, from stub's own sources run here (src/preview), and every other request the page untouched. Reads nothing
- * about the requester but its user agent, logs nothing, and keeps only a title's public preview in the edge cache. Any
- * failure answers the page as is.
+ * Gives a link-preview crawler's GET on a title, media or watch address the title, description and art stub itself
+ * draws for it, from stub's own sources run here (src/preview), and every other request the page untouched. Reads
+ * nothing about the requester but its user agent, logs nothing about it, and keeps only a title's public preview in
+ * the edge cache. Any failure answers the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil }: Context) => {
   const started = Date.now()
   const url = new URL(request.url)
   const segment = TITLE_PATH.exec(url.pathname)?.[1]
-  if (!segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
+  if (request.method !== 'GET' || !segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
   try {
     const site = siteOf(url.hostname)
     const preview = await lookup(segment, site, started, waitUntil)
