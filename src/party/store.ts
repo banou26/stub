@@ -14,7 +14,7 @@ import { bestSample, clockSample, MAX_USABLE_RTT_MS, type ClockSample } from './
 // what a joiner is told, what ends the party). ./index.ts binds it to the real rooms api.
 
 /** The slice of `@fkn/lib`'s rooms namespace the store calls, so a test can hand it a fake. */
-export type RoomsApi = Pick<typeof rooms, 'available' | 'create' | 'join'>
+export type RoomsApi = Pick<typeof rooms, 'available' | 'create' | 'join' | 'open'>
 export type Room = rooms.Room
 
 export type PartyRole = 'host' | 'guest'
@@ -147,6 +147,8 @@ export type PartyStore = {
 }
 
 export const PARTY_SESSION_KEY = 'stub-party-invite'
+/** Set while this tab is in a room it created: the room's name, which a reload reopens it by. */
+export const PARTY_HOST_KEY = 'stub-party-host'
 export const PARTY_NAME_KEY = 'stub-party-name'
 /** How much chat a tab keeps. The room keeps none: a joiner sees what is said from then on. */
 export const CHAT_KEEP = 200
@@ -243,9 +245,14 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     for (const listener of stateListeners) listener(state)
   }
 
-  const remember = (invite: string) => { try { storage?.setItem(PARTY_SESSION_KEY, invite) } catch {} }
-  const forget = () => { try { storage?.removeItem(PARTY_SESSION_KEY) } catch {} }
-  const remembered = (): string | undefined => { try { return storage?.getItem(PARTY_SESSION_KEY) ?? undefined } catch { return undefined } }
+  const remember = (joined: Room, created: boolean) => {
+    try {
+      storage?.setItem(PARTY_SESSION_KEY, joined.invite)
+      if (created) storage?.setItem(PARTY_HOST_KEY, joined.name)
+    } catch {}
+  }
+  const forget = () => { try { storage?.removeItem(PARTY_SESSION_KEY); storage?.removeItem(PARTY_HOST_KEY) } catch {} }
+  const remembered = (key: string): string | undefined => { try { return storage?.getItem(key) ?? undefined } catch { return undefined } }
 
   const roleIn = (joined: Room): PartyRole => joined.owner === joined.self.id ? 'host' : 'guest'
 
@@ -392,7 +399,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     mine = FOLLOW_PARTY
   }
 
-  const attach = async (joined: Room) => {
+  const attach = async (joined: Room, created: boolean) => {
     room = joined
     const role = roleIn(joined)
     names.clear()
@@ -403,7 +410,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     chosen = {}
     partyTracks = {}
     setState({ status: 'active', role, invite: joined.invite, members: 1, self: joined.self.id, owner: joined.owner })
-    remember(joined.invite)
+    remember(joined, created)
 
     unlisten = await joined.on(event => {
       if (room !== joined) return
@@ -543,7 +550,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     setState({ status: 'joining', invite: invite ?? '' })
     try {
       const joined = await start()
-      await attach(joined)
+      await attach(joined, invite === undefined)
     } catch (error) {
       fail(error, resuming)
     }
@@ -558,9 +565,15 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     create: () => open(undefined, () => api.create()),
     join: invite => open(invite, () => api.join(invite)),
     resume: async () => {
-      const invite = remembered()
+      const invite = remembered(PARTY_SESSION_KEY)
       if (!invite || room) return
-      await open(invite, () => api.join(invite), true)
+      // fkn.app keeps a tab's member seed under the room id the tab dialled, and on a site bound to an
+      // app the invite names the room by the app's id instead (measured 2026-10-23 on anime.fkn.app:
+      // dialled `https://anime.fkn.app/<name>`, invited as `fkn:app:…/<name>`). So a tab comes back the
+      // way it came in: by name if it created the room, through the invite if it joined, even when it
+      // came to own the room by joining one that had ended. Any other way it is a new member.
+      const hosted = remembered(PARTY_HOST_KEY)
+      await open(invite, () => hosted ? api.open(hosted, { key: invite.slice(0, invite.indexOf('.')) }) : api.join(invite), true)
     },
     leave: async () => { if (room) await end('left') },
     send,

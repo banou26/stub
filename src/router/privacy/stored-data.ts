@@ -1,7 +1,7 @@
 // What stub keeps per viewer, where, and for how long, as the privacy page lists it. Its keys are taken
 // from the modules that write or list them, so the list cannot drift from what is written.
 
-import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
+import { PARTY_HOST_KEY, PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
 import { SETTINGS_KEYS } from '../../settings-sync'
@@ -67,10 +67,10 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'party-invite',
     title: 'Party you are in',
-    what: 'The watch party this tab is in, so a reload rejoins it.',
+    what: 'The watch party this tab is in, and whether you started it, so a reload rejoins it as before.',
     where: SESSION,
     lasts: 'Until you leave the party or close the tab',
-    keys: { store: 'session', names: [PARTY_SESSION_KEY] },
+    keys: { store: 'session', names: [PARTY_SESSION_KEY, PARTY_HOST_KEY] },
   },
   {
     id: 'stub-list',

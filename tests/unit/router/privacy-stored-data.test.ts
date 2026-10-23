@@ -14,7 +14,7 @@ import { COUNTRY_KEY } from '../../../src/sources/country'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../../../src/sources/hidden-icons'
 import { PLAY_ORDER_KEY } from '../../../src/sources/play-order'
-import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
+import { PARTY_HOST_KEY, PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
@@ -38,7 +38,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
     expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
-    expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
+    expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY, PARTY_HOST_KEY] })
   })
 
   // what src writes, read from src itself, so a new key anywhere turns this red until the list names it

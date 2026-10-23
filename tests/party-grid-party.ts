@@ -20,7 +20,7 @@ const room = {
   closed: new Promise(() => {}),
 } as unknown as rooms.Room
 
-export const party = createPartyStore({ available: async () => true, create: async () => room, join: async () => room })
+export const party = createPartyStore({ available: async () => true, create: async () => room, join: async () => room, open: async () => room })
 export { partyLink } from '../src/party/invite'
 
 let seq = 0

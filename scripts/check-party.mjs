@@ -10,6 +10,12 @@
 //   npm run dev            # serves on 4560
 //   node scripts/check-party.mjs
 //
+// A localhost origin is never bound to an app, so its rooms keep the id they were dialled under and a
+// host's page load cannot show what it does on anime.fkn.app, where the invite names the room by the
+// app's id. STUB_SERVE serves a local build under the live origin, every request to it answered from there:
+//
+//   STUB_ORIGIN=https://anime.fkn.app STUB_SERVE=http://localhost:4560 node scripts/check-party.mjs
+//
 // Run it from INSIDE the repo: an ESM script resolves bare specifiers against its own location.
 
 import { execFileSync } from 'node:child_process'
@@ -17,6 +23,7 @@ import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const ORIGIN = process.env.STUB_ORIGIN ?? 'http://localhost:4560'
+const SERVE = process.env.STUB_SERVE
 
 const chromePath = () => {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH
@@ -48,10 +55,21 @@ const until = async (read, want, timeout = 20_000) => {
 
 const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
 
+const pageIn = async browser => {
+  const context = await browser.newContext({ serviceWorkers: 'block' })
+  if (SERVE) {
+    await context.route(url => url.origin === ORIGIN, async route => {
+      const { pathname, search } = new URL(route.request().url())
+      try { await route.fulfill({ response: await route.fetch({ url: `${SERVE}${pathname}${search}` }) }) } catch { await route.abort().catch(() => {}) }
+    })
+  }
+  return context.newPage()
+}
+
 const run = async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: chromePath(), args: ['--mute-audio'] })
-  const host = await browser.newContext().then(context => context.newPage())
-  const guest = await browser.newContext().then(context => context.newPage())
+  const browser = await chromium.launch({ headless: true, executablePath: chromePath(), args: ['--mute-audio', '--ozone-platform=headless'] })
+  const host = await pageIn(browser)
+  const guest = await pageIn(browser)
   for (const [name, page] of [['host', host], ['guest', guest]]) {
     page.on('pageerror', error => {
       // "Failed to fetch" with no stack is the broker library's own page-side call to api.fkn.app
@@ -62,7 +80,7 @@ const run = async () => {
     })
   }
 
-  console.log(`\n[party] ${ORIGIN}`)
+  console.log(`\n[party] ${ORIGIN}${SERVE ? `, served from ${SERVE}` : ''}`)
 
   console.log('\nthe host starts a party')
   await host.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
@@ -83,7 +101,7 @@ const run = async () => {
   }
   await widget(host).click()
   const link = await host.getByRole('textbox', { name: 'Invite link' }).inputValue()
-  check(/\/party#[0-9a-f-]{36}\.[A-Za-z0-9_-]+$/.test(link), 'the invite is a link with the key in the fragment', link.replace(/#.*/, '#…'))
+  check(/\/party#[A-Za-z0-9_-]{43}\.(?:[\x21-\x7e]+\/)?[a-z0-9][a-z0-9._-]*$/.test(link), 'the invite is a link with the key in the fragment', link.replace(/#.*/, '#…'))
   await host.keyboard.press('Escape')
 
   console.log('\nthe guest opens the link and lands where the host is')
@@ -99,6 +117,19 @@ const run = async () => {
   await host.goto(`${ORIGIN}/search?season=FALL&year=2026`, { waitUntil: 'domcontentloaded' })
   const followed = await until(() => pathOf(guest), path => path.startsWith('/search?'))
   check(followed === '/search?season=FALL&year=2026', 'the guest is on the same search, filters included', followed)
+
+  console.log('\na host that loads a page from scratch, or reloads, is still the host')
+  // A full load rebuilds the host's store from what the tab saved. Coming back as anyone but the
+  // owner leaves a party nobody hosts: the host reads Following and the guest counts a third member.
+  const settled = page => until(() => widget(page).innerText().catch(() => ''), text => /Hosting|Following/.test(text))
+  const hostLoaded = await settled(host)
+  check(/Hosting/.test(hostLoaded), 'after the page load the host’s widget reads Hosting', hostLoaded.replace(/\s+/g, ' '))
+  await host.reload({ waitUntil: 'domcontentloaded' })
+  const hostReloaded = await settled(host)
+  check(/Hosting/.test(hostReloaded), 'after a reload too', hostReloaded.replace(/\s+/g, ' '))
+  await new Promise(resolve => setTimeout(resolve, 2_000))
+  const guestCount = (await widget(guest).innerText().catch(() => '')).replace(/\s+/g, ' ')
+  check(guestCount.endsWith('Following 2'), 'and the guest still counts two: the host came back to its own seat', guestCount)
 
   console.log('\nand down the page')
   await host.locator('.grid > .card').first().waitFor({ timeout: 45_000 }).catch(() => {})
@@ -207,7 +238,7 @@ const run = async () => {
   check(/Following/.test(rejoined), 'kicked is not banned: the guest rejoined', /Following/.test(firstTry) ? 'first try' : `second try; the first read: ${firstTry}`)
 
   console.log('\nCONTROL: a broken link is refused on the page, not in the broker')
-  const stray = await browser.newContext().then(context => context.newPage())
+  const stray = await pageIn(browser)
   await stray.goto(`${ORIGIN}/party#not-an-invite`, { waitUntil: 'domcontentloaded' })
   const broken = await until(() => stray.locator('.status').innerText().catch(() => ''), text => /broken/i.test(text))
   check(/broken/i.test(broken), 'the page says the link is broken', broken)
@@ -225,6 +256,24 @@ const run = async () => {
   check(/Party over/.test(over), 'the guest’s widget reads Party over', over.replace(/\s+/g, ' '))
   const gone = await guest2.locator('[role="dialog"] .title').innerText().catch(() => '')
   check(/host left/i.test(gone), 'and says the host left', gone)
+
+  console.log('\nthe guest opening the ended party’s link hosts it, through a reload too')
+  // The room starts again with its opener as the owner, under the id the invite names. A reload that
+  // dials it any other way comes back as a newcomer, which reads Following until the api's 20 s hold
+  // on the old seat runs out and then Party over, so the check waits past the hold.
+  await guest2.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
+  await new Promise(resolve => setTimeout(resolve, 3_000))
+  await guest2.goto(link, { waitUntil: 'domcontentloaded' })
+  const reopened = await until(() => widget(guest2).innerText().catch(() => ''), text => /Hosting|Following|Party over|Party failed/.test(text), 30_000)
+  check(/Hosting/.test(reopened), 'the guest hosts the party it reopened', reopened.replace(/\s+/g, ' '))
+  await guest2.reload({ waitUntil: 'domcontentloaded' })
+  await new Promise(resolve => setTimeout(resolve, 25_000))
+  const held = (await widget(guest2).innerText().catch(() => '')).replace(/\s+/g, ' ')
+  check(/Hosting/.test(held), 'and still does 25 s after a reload, past the seat hold', held)
+  await guest2.locator('#stub-root').getByRole('button', { name: 'End party' }).dispatchEvent('click').catch(() => {})
+  await until(() => widget(guest2).innerText().catch(() => ''), text => !/Hosting/.test(text), 15_000)
+  // off the party page, so the next invite loads the page rather than only changing its fragment
+  await guest2.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
 
   console.log('\na banned guest cannot come back')
   // Last, and in a party of its own. The api blocks a guest on two keys, its seed AND its address

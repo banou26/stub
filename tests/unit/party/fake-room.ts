@@ -74,4 +74,5 @@ export const api = (room: Room, joinError?: rooms.RoomsErrorCode) => ({
   available: async () => true,
   create: vi.fn(async () => room),
   join: vi.fn(async () => { if (joinError) throw roomsError(joinError); return room }),
+  open: vi.fn(async () => { if (joinError) throw roomsError(joinError); return room }),
 })
