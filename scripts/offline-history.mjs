@@ -50,8 +50,8 @@ const sleeping = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const ENTITIES = { lt: '<', gt: '>', amp: '&', quot: '"', apos: '\'' }
 
-// One level, as an XML parser decodes. The file escapes some titles twice (HOR-919), and stub's page shows the
-// second level as it comes, so the history does too.
+// One level, as an XML parser decodes. The file escapes some titles twice, and api.ani.zip passes the second level
+// on as written, so it is left for the anizip source's own decode, which the history's pick runs too.
 const xmlText = text => text.replace(/&(?:#x([0-9a-f]+)|#(\d+)|(lt|gt|amp|quot|apos));/gi, (_, hex, decimal, name) =>
   hex ? String.fromCodePoint(parseInt(hex, 16)) : decimal ? String.fromCodePoint(Number(decimal)) : ENTITIES[name.toLowerCase()])
 

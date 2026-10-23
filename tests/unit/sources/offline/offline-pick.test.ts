@@ -28,6 +28,12 @@ test('a show heads with AniDB\'s English title over Kitsu\'s and the dump\'s, as
   expect(pick(GUNDAM, undefined, GUNDAM_KITSU).title).toEqual({ value: 'Mobile Suit Gundam (TV)', origin: 'kitsu' })
 })
 
+// Mutation: build the anizip member's titles apart from the anizip source's own.
+test('an AniDB title escaped once more than XML takes reads as the anizip source decodes it on the page', () => {
+  const nine = { t: 'Nine (Original Ban)', ty: 'MOVIE', p: '', ml: 9242, ad: 9242 }
+  expect(pick(nine, [['official', 'ja', 'ナイン &lt;オリジナル版&gt;']]).title).toEqual({ value: 'ナイン <オリジナル版>', origin: 'anizip' })
+})
+
 // Mutation: drop the MyAnimeList id condition.
 test('AniDB\'s titles take part only for a show with a MyAnimeList id, the only address the live anizip source answers', () => {
   const noMal = { t: 'Kidou Senshi Gundam', ty: 'TV', p: '', al: 80, ad: 63 }
