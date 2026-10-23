@@ -6,6 +6,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { STORED } from '../../../src/router/privacy/stored-data'
+import { DIRECT_FETCH_ORIGINS } from '../../../src/worker/direct-fetch'
 
 const { default: Privacy } = await import('../../../src/router/privacy')
 
@@ -71,4 +72,12 @@ test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the
   expect(page).toContain('stub plays Crunchyroll and Prime Video')
   expect(STORED.find(item => item.id === 'site-sign-ins')?.what).toContain('Prime Video')
   expect(STORED.find(item => item.id === 'site-status')?.what).toContain('Prime Video')
+})
+
+test('names every host stub asks from the browser, and keeps them out of the proxy list', () => {
+  const { text: page } = text()
+  for (const origin of DIRECT_FETCH_ORIGINS) expect(page, origin).toContain(`asks ${new URL(origin).host} from your browser`)
+  const proxied = /through the FKN platform proxy, which then reaches third-party services such as ([^.]*)\./.exec(page)?.[1]
+  expect(proxied).toBeDefined()
+  expect(proxied).not.toMatch(/Netflix/)
 })

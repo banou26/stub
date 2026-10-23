@@ -79,7 +79,7 @@ const Privacy = () => (
     <p>
       To fetch titles, artwork, and streams, stub sends requests through the FKN platform
       proxy, which then reaches third-party services such as AniList, MyAnimeList,
-      Crunchyroll, Prime Video, JustWatch, and Netflix. The proxy requires no account. It uses your IP
+      Crunchyroll, Prime Video and JustWatch. The proxy requires no account. It uses your IP
       address to rate-limit requests, and it keeps a copy of each answer for a while, under a
       key made from the whole request (its address, headers and body), so only an identical
       request is answered from that copy. How the FKN platform handles that data is described
@@ -89,6 +89,10 @@ const Privacy = () => (
       </a>
       . Each third-party service receives the requests made to it and applies its own
       privacy policy, especially when you sign in to one (for example Crunchyroll) to watch.
+    </p>
+    <p>
+      Netflix's catalogue is the exception: stub asks www.netflix.com from your browser, not through
+      the proxy, because its answer depends on your country, so Netflix sees your IP address.
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}
