@@ -36,6 +36,8 @@ const JUSTWATCH: Record<string, object> = {
   tss511393: { content: { title: 'Season 3' } },
 }
 
+const BLACK_CLOVER = { titles: { en: 'Black Clover Season 2' }, canonicalTitle: 'Black Clover 2', synopsis: 'Asta returns.', coverImage: { original: 'https://media.kitsu.app/cover/50024.jpg' }, posterImage: { original: 'https://media.kitsu.app/poster/50024.jpg' } }
+
 type Answer = (url: URL, body: any, signal?: AbortSignal | null) => unknown
 const ANSWERS: Record<string, Answer> = {
   'graphql.anilist.co': (_, { query, variables }) => {
@@ -45,7 +47,16 @@ const ANSWERS: Record<string, Answer> = {
   'apis.justwatch.com': (_, { query }) => ({ data: Object.fromEntries([...query.matchAll(/(\w+):node\(id:"(\w+)"\)/g)].map(([, alias, id]) => [alias, JUSTWATCH[id] ?? null])) }),
   'v3.sg.media-imdb.com': url => ({ d: url.pathname.endsWith('/tt0386676.json') ? [{ id: 'tt0386676', l: 'The Office', y: 2005, s: 'Steve Carell, Jenna Fischer', i: { imageUrl: 'https://m.media-amazon.com/office.jpg' } }] : [] }),
   'api.tvmaze.com': url => url.pathname === '/shows/1292' ? { name: 'The Office', summary: '<p>A mockumentary.</p>', image: { original: 'https://static.tvmaze.com/office.jpg' } } : new Response('', { status: 404 }),
-  'kitsu.io': url => url.pathname === '/api/edge/anime/50024' ? { data: { attributes: { titles: { en: 'Black Clover Season 2' }, canonicalTitle: 'Black Clover 2', synopsis: 'Asta returns.', coverImage: { original: 'https://media.kitsu.app/cover/50024.jpg' }, posterImage: { original: 'https://media.kitsu.app/poster/50024.jpg' } } } } : new Response('', { status: 404 }),
+  'kitsu.io': url => {
+    if (url.pathname === '/api/edge/anime/50024') return { data: { attributes: BLACK_CLOVER } }
+    const mapped = `${url.searchParams.get('filter[externalSite]')}:${url.searchParams.get('filter[externalId]')}`
+    if (url.pathname === '/api/edge/mappings' && url.searchParams.get('include') === 'item') {
+      return ['anilist/anime:195604', 'myanimelist/anime:61967'].includes(mapped)
+        ? { data: [{ type: 'mappings' }], included: [{ type: 'anime', attributes: BLACK_CLOVER }] }
+        : { data: [] }
+    }
+    return new Response('', { status: 404 })
+  },
 }
 
 let answers: Record<string, Answer>
@@ -187,6 +198,16 @@ test.each([
   expect(response.status).toBe(200)
   expect(title(html)).toBe(site)
   expect(fetches).toEqual([])
+})
+
+test('an anime named only by its AniList or MAL id is found through Kitsu when AniList refuses', async () => {
+  // what AniList answered Cloudflare's edge on 2026-10-23
+  answers['graphql.anilist.co'] = () => new Response('', { status: 403 })
+  for (const address of ['https://anime.fkn.app/title/ag:(anilist:195604)', 'https://anime.fkn.app/watch/ag:(mal:61967)']) {
+    const { html } = await call(address)
+    expect(meta(html, 'og:title'), address).toEqual(['Black Clover Season 2'])
+    expect(meta(html, 'og:image'), address).toEqual(['https://media.kitsu.app/cover/50024.jpg'])
+  }
 })
 
 test('an id goes into an upstream\'s path encoded', async () => {

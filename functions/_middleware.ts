@@ -63,9 +63,17 @@ const tvmaze = async (get: Get, id: string): Promise<Preview | undefined> => {
   return show?.name && { title: show.name, description: text(show.summary), image: show.image?.original }
 }
 
-const kitsu = async (get: Get, id: string): Promise<Preview | undefined> => {
-  const anime = (await get(`https://kitsu.io/api/edge/anime/${encodeURIComponent(id)}`))?.data?.attributes
-  return anime && { title: anime.titles?.en ?? anime.canonicalTitle, description: text(anime.synopsis), image: anime.coverImage?.original ?? anime.posterImage?.original, wide: Boolean(anime.coverImage?.original) }
+const fromKitsu = (anime: any): Preview | undefined =>
+  anime && { title: anime.titles?.en ?? anime.canonicalTitle, description: text(anime.synopsis), image: anime.coverImage?.original ?? anime.posterImage?.original, wide: Boolean(anime.coverImage?.original) }
+
+const kitsu = async (get: Get, id: string) => fromKitsu((await get(`https://kitsu.io/api/edge/anime/${encodeURIComponent(id)}`))?.data?.attributes)
+
+// AniList refused every request from Cloudflare's edge on 2026-10-23 (8 of 8, each in about 0.1 s) while Kitsu answered,
+// and Kitsu maps both AniList and MyAnimeList ids
+const kitsuByMapping = async (get: Get, site: 'anilist/anime' | 'myanimelist/anime', id: string) => {
+  if (!/^\d+$/.test(id)) return undefined
+  const found = await get(`https://kitsu.io/api/edge/mappings?${new URLSearchParams({ 'filter[externalSite]': site, 'filter[externalId]': id, include: 'item' })}`)
+  return fromKitsu(found?.included?.find((item: any) => item.type === 'anime')?.attributes)
 }
 
 const RESOLVERS: [string, (get: Get, id: string, site: Site) => Promise<Preview | undefined>][] = [
@@ -76,6 +84,8 @@ const RESOLVERS: [string, (get: Get, id: string, site: Site) => Promise<Preview 
   ['omdb', imdb],
   ['tvmaze', tvmaze],
   ['kitsu', kitsu],
+  ['anilist', (get, id) => kitsuByMapping(get, 'anilist/anime', id)],
+  ['mal', (get, id) => kitsuByMapping(get, 'myanimelist/anime', id)],
 ]
 
 const lookup = async (segment: string, site: Site): Promise<Preview | undefined> => {
