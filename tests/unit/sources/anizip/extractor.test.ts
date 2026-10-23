@@ -1,12 +1,15 @@
 // Frieren and Cowboy Bebop: The Movie as api.ani.zip answered stub's own mappings request on 2026-10-12,
-// BanG Dream! It's MyGO!!!!! on 2026-10-13.
+// BanG Dream! It's MyGO!!!!! on 2026-10-13, Nine: Original-ban and Happy-Go-Lucky Days on 2026-10-24.
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/anizip/extractor'
 import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
+import { parseTextDescription } from '../../../../src/worker/resolvers/utils'
 import FRIEREN from '../../../fixtures/anizip/frieren.json'
 import COWBOY_BEBOP_MOVIE from '../../../fixtures/anizip/cowboy-bebop-the-movie.json'
 import MYGO from '../../../fixtures/anizip/bang-dream-its-mygo.json'
+import NINE from '../../../fixtures/anizip/nine-original-ban.json'
+import HAPPY_GO_LUCKY_DAYS from '../../../fixtures/anizip/happy-go-lucky-days.json'
 
 const normalized = async (answer: { mappings: { mal_id: number } }) => {
   const context = { fetch: async () => ({ json: async () => answer }) }
@@ -80,6 +83,36 @@ test('a title or synopsis shows an apostrophe where AniDB writes a backtick', as
   expect(mygo.titles.map(({ title }: { title: string }) => title)).toContain('BanG Dream! It\'s MyGO!!!!!')
   expect(texts).toContain('It Didn\'t Have to Be Magic...')
   expect(texts.filter(text => text.includes('`'))).toEqual([])
+})
+
+test('a title or episode title shows the < and > AniDB writes as &lt; and &gt;', async () => {
+  const [nine, days] = await Promise.all([normalized(NINE), normalized(HAPPY_GO_LUCKY_DAYS)])
+  const titles = [nine, days]
+    .flatMap(media => [media, ...media.episodes] as Texts[])
+    .flatMap(({ titles }) => titles.map(({ title }) => title))
+
+  expect(nine.titles.map(({ title }: { title: string }) => title)).toEqual(['ナイン <オリジナル版>'])
+  expect(titles).toContain('スペシャルキャスト対談「どうにかなる日々, わたしたちの日々」完全版 <Episode 1> 花澤香菜 × 小松未可子 編')
+  expect(titles.filter(title => /&\w+;/.test(title))).toEqual([])
+})
+
+// anidb 18675's English title as api.ani.zip answered on 2026-10-24
+test('an English title shows the < and > AniDB writes as &lt; and &gt;', async () => {
+  const en = 'Bogus Skill &lt;&lt;Fruitmaster&gt;&gt;: About That Time I Became Able to Eat Unlimited Numbers of Skill Fruits (That Kill You)'
+  const answer = { ...NINE, titles: { en } }
+  const media = await normalized(answer)
+
+  expect(media.titles[0].title).toBe('Bogus Skill <<Fruitmaster>>: About That Time I Became Able to Eat Unlimited Numbers of Skill Fruits (That Kill You)')
+})
+
+// none of 735 summaries in 161 answers carried one on 2026-10-24, so this one is made up. A summary is shown through
+// Markdown, which reads its &lt; and &gt;, so a summary decoded first would lose `<Original-ban>` as a tag
+test('an episode summary shows the < and > AniDB writes as &lt; and &gt;', async () => {
+  const episode = { ...NINE.episodes['1'], summary: 'Nine &lt;Original-ban&gt; isn`t cut' }
+  const answer = { ...NINE, episodes: { 1: episode } }
+  const media = await normalized(answer)
+
+  expect(parseTextDescription(media.episodes[0].shortDescriptions[0].shortDescription).trim()).toBe('Nine <Original-ban> isn\'t cut')
 })
 
 // One Piece 1181 to 1184 as api.ani.zip answered on 2026-10-15: no `airDateUtc`, `airDate: null`, `airdate: ''`

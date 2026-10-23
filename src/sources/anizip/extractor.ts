@@ -1,6 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, MediaHandle as GQLMediaHandle } from '../../generated/schema/types.generated'
 import { fromAggregatedUri, isAggregatedUri } from '../../utils/uri'
+import { decodeEntities } from '../entities'
 import { dropCredit, makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
 
 export const originUrl = 'https://api.ani.zip/' as const
@@ -17,9 +18,14 @@ const SCORE = 0.9
 // AniDB, whose titles and summaries these are, writes every apostrophe as a backtick: "Frieren: Beyond Journey`s End"
 const apostrophes = (text: string) => text.replaceAll('`', '\'')
 
+// Its titles, episode titles included, also write `<` and `>` as `&lt;` and `&gt;` ("ナイン &lt;オリジナル版&gt;"),
+// which api.ani.zip passes on as written (22 titles in AniDB's titles dump, 2026-10-24). A summary stays escaped: it
+// is read as Markdown when shown, which decodes it, and a `<` decoded here would open a tag there that the page drops
+const anidbTitle = (text: string) => apostrophes(decodeEntities(text))
+
 const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
-  ...en ? [{ language: 'en', title: apostrophes(en), score: SCORE }] : [],
-  ...ja ? [{ language: 'ja', title: apostrophes(ja), score: SCORE }] : [],
+  ...en ? [{ language: 'en', title: anidbTitle(en), score: SCORE }] : [],
+  ...ja ? [{ language: 'ja', title: anidbTitle(ja), score: SCORE }] : [],
 ]
 
 const DAY_MS = 86_400_000

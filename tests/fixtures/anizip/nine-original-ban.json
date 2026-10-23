@@ -1,0 +1,34 @@
+{
+  "titles": {
+    "x-jat": "Nine (Original Ban)",
+    "ja": "ナイン &lt;オリジナル版&gt;"
+  },
+  "episodes": {
+    "1": {
+      "episode": "1",
+      "anidbEid": 43952,
+      "length": 75,
+      "airdate": "1983-09-16",
+      "title": {
+        "en": "Complete Movie"
+      }
+    }
+  },
+  "episodeCount": 1,
+  "specialCount": 0,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "nine-original",
+    "kitsu_id": 5642,
+    "mal_id": 9242,
+    "type": "MOVIE",
+    "anilist_id": 9242,
+    "anisearch_id": 1985,
+    "anidb_id": 3150,
+    "notifymoe_id": null,
+    "livechart_id": 12141,
+    "thetvdb_id": null,
+    "imdb_id": null,
+    "themoviedb_id": "701874"
+  }
+}

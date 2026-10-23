@@ -1,0 +1,69 @@
+{
+  "titles": {
+    "x-jat": "Dounika Naru Hibi",
+    "ja": "どうにかなる日々",
+    "en": "Happy-Go-Lucky Days",
+    "zh-Hant": "順其自然的日子"
+  },
+  "episodes": {
+    "1": {
+      "episode": "1",
+      "anidbEid": 226881,
+      "length": 55,
+      "airdate": "2020-09-15",
+      "title": {
+        "en": "Complete Movie"
+      }
+    },
+    "S1": {
+      "episode": "S1",
+      "anidbEid": 239886,
+      "length": 20,
+      "airdate": "2021-03-17",
+      "title": {
+        "ja": "スペシャルキャスト対談「どうにかなる日々, わたしたちの日々」完全版 &lt;Episode 1&gt; 花澤香菜 × 小松未可子 編",
+        "en": "Special Cast Talk 1: Hanazawa Kana x Komatsu Mikako",
+        "x-jat": "Special Cast Taidan \"Dounika Naru Hibi, Watashi-tachi no Hibi\" Kanzenban Episode 1: Hanazawa Kana x Komatsu Mikako Hen"
+      }
+    },
+    "S2": {
+      "episode": "S2",
+      "anidbEid": 239887,
+      "length": 25,
+      "airdate": "2021-03-17",
+      "title": {
+        "ja": "スペシャルキャスト対談「どうにかなる日々, わたしたちの日々」完全版 &lt;Episode 2&gt; 櫻井孝宏 × 山下誠一郎 編",
+        "en": "Special Cast Talk 2: Sakurai Takahiro x Yamashita Seiichirou",
+        "x-jat": "Special Cast Taidan \"Dounika Naru Hibi, Watashi-tachi no Hibi\" Kanzenban Episode 2: Sakurai Takahiro x Yamashita Seiichirou Hen"
+      }
+    },
+    "S3": {
+      "episode": "S3",
+      "anidbEid": 239888,
+      "length": 20,
+      "airdate": "2021-03-17",
+      "title": {
+        "ja": "スペシャルキャスト対談「どうにかなる日々, わたしたちの日々」完全版 &lt;Episode 3&gt; 木戸衣吹 × 石原夏織 × ファイルーズあい 編",
+        "en": "Special Cast Talk 3: Kido Ibuki x Ishihara Kaori x Fairouz Ai",
+        "x-jat": "Special Cast Taidan \"Dounika Naru Hibi, Watashi-tachi no Hibi\" Kanzenban Episode 3: Kido Ibuki x Ishihara Kaori x Fairouz Ai Hen"
+      }
+    }
+  },
+  "episodeCount": 1,
+  "specialCount": 3,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "happy-go-lucky-days",
+    "kitsu_id": 42733,
+    "mal_id": 40747,
+    "type": "MOVIE",
+    "anilist_id": 113416,
+    "anisearch_id": 14791,
+    "anidb_id": 15273,
+    "notifymoe_id": null,
+    "livechart_id": 9679,
+    "thetvdb_id": null,
+    "imdb_id": null,
+    "themoviedb_id": null
+  }
+}
