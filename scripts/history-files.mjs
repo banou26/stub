@@ -112,26 +112,23 @@ const download = async (get, url) => {
   return Buffer.from(await response.arrayBuffer())
 }
 
-/** Each asset a manifest names, downloaded from the release. */
-const downloadAssets = async (manifestText, get = fetch) => {
+/**
+ * The published manifest's text, from github.com. Asked again once after `pauseMs` when the first answer fails,
+ * which covers the seconds a publish replaces it. Throws, saying why, when it cannot be read.
+ */
+export const downloadManifest = async ({ get = fetch, pauseMs = MANIFEST_RETRY_MS } = {}) => {
+  try {
+    return (await download(get, `${DOWNLOAD}/${MANIFEST}`)).toString('utf8')
+  } catch {
+    await new Promise(resolve => setTimeout(resolve, pauseMs))
+    return (await download(get, `${DOWNLOAD}/${MANIFEST}`)).toString('utf8')
+  }
+}
+
+/** Each asset a manifest names, from github.com. Throws when one cannot be fetched. */
+export const downloadAssets = async (manifestText, get = fetch) => {
   const { assets } = readManifest(manifestText)
   const files = {}
   for (const { name } of Object.values(assets)) files[name] = await download(get, `${DOWNLOAD}/${name}`)
   return files
-}
-
-/**
- * The published history's files, from github.com. The manifest is asked again once after `pauseMs` when the first
- * answer fails, which covers the seconds a publish replaces it. Throws, saying why, when it cannot be read.
- */
-export const downloadHistory = async ({ get = fetch, pauseMs = MANIFEST_RETRY_MS } = {}) => {
-  let manifest
-  try {
-    manifest = await download(get, `${DOWNLOAD}/${MANIFEST}`)
-  } catch {
-    await new Promise(resolve => setTimeout(resolve, pauseMs))
-    manifest = await download(get, `${DOWNLOAD}/${MANIFEST}`)
-  }
-  const text = manifest.toString('utf8')
-  return { manifest: text, assets: await downloadAssets(text, get) }
 }

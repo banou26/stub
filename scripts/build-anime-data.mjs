@@ -67,7 +67,7 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
 import { errorText, seasonData } from './season-popularity.mjs'
-import { DOWNLOAD, MANIFEST, decodeHistory, downloadHistory, readManifest, sha256 } from './history-files.mjs'
+import { DOWNLOAD, MANIFEST, decodeHistory, downloadAssets, downloadManifest, readManifest, sha256 } from './history-files.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -334,16 +334,15 @@ const withPopularity = async (seasons, rows) => {
 }
 
 /**
- * The extract, which is deliberately NOT "the dump with some fields removed".
- *
- * Keeping a title and a cover path for every one of the 41,113 usable rows makes an 8.2 MB file,
- * and only the windowed seasons ever render a title. So only they carry one, and every other row is
- * reduced to its ids, which is the entire contribution the rest of the dump makes to the merge.
+ * The extract, which is deliberately NOT "the dump with some fields removed": the id rows of every
+ * entry, the windowed seasons' records, and `history`, the title, picture and ids (AniDB's
+ * included) of every record the offline source can be addressed by, which the history's shards are
+ * picked from. Nothing else of the dump reaches the build.
  *
  * It also lands the extract in nearly the shape the build wants, so the cache path exercises the
  * same code as the fresh path rather than a second one that could rot untested.
  */
-const buildExtract = (entries, meta, tag) => {
+export const buildExtract = (entries, meta, tag) => {
   const cut = new Date(`${meta.lastUpdate}T00:00:00Z`)
   const anchor = { year: cut.getUTCFullYear(), season: SEASON_ORDER[Math.floor(cut.getUTCMonth() / 3)] }
   const from = seasonIndex(anchor) - SEASONS_BACK
@@ -467,18 +466,20 @@ const writeHistoryCache = (cache, { manifest, assets }) => {
  * The offline history the Offline history workflow publishes, each asset checked against its manifest. A build
  * never gathers one itself, since from scratch means asking AniDB and Kitsu, which only that workflow may do.
  *
- * Unreachable, it falls back on the cache as the dump does. Unreadable, or with no cache, it throws, so the build
- * FAILS: a build on the dump's titles alone looks healthy while heading half of older shows unlike stub's page.
+ * A manifest it cannot fetch falls back on the cache, as the dump does. Unreadable (an asset the manifest names
+ * that cannot be fetched included), or with no cache, it throws, so the build FAILS: a build on the dump's titles
+ * alone looks healthy while heading half of older shows unlike stub's page.
  */
 export const loadHistory = async ({ offline = false, get = fetch, pauseMs, cache = HISTORY_CACHE } = {}) => {
   if (!offline) {
-    let files
+    let manifest
     try {
-      files = await downloadHistory({ get, pauseMs })
+      manifest = await downloadManifest({ get, pauseMs })
     } catch (error) {
       warn(`could not read the offline history at ${DOWNLOAD}: ${errorText(error)}`)
     }
-    if (files) {
+    if (manifest) {
+      const files = { manifest, assets: await downloadAssets(manifest, get) }
       const history = decodeHistory(files)
       writeHistoryCache(cache, files)
       return history
@@ -548,6 +549,19 @@ const refuse = line => {
   process.exit(1)
 }
 
+/**
+ * Why this build must not ship, or nothing. Guards rather than niceties: every artifact is lazily
+ * imported, so a shape change upstream would emit an empty table and every lookup would silently
+ * miss, which is indistinguishable from a show simply not being listed. A history with next to no
+ * AniDB titles (a first publish AniDB refused, or AniDB ids lost on the way) is refused too: it
+ * builds and looks healthy, while AniDB's titles head 12,075 shows on 2026-43.
+ */
+export const refusal = ({ indexRows, seasons, anidbTitles }) => {
+  if (indexRows < 15_000) return `only ${indexRows} index rows, expected at least 15000.`
+  if (seasons < 3) return `only ${seasons} seasons, expected at least 3.`
+  if (anidbTitles < 10_000) return `only ${anidbTitles} history titles from AniDB, expected at least 10000. Run the Offline history workflow once AniDB answers.`
+}
+
 const main = async () => {
   const armVersion = JSON.parse(readFileSync(require.resolve('@kawaiioverflow/arm/package.json'), 'utf8')).version
   const armEntries = require('@kawaiioverflow/arm/arm.json')
@@ -591,17 +605,8 @@ const main = async () => {
   log(`history: titles from AniDB ${counts.anidbTitles}, Kitsu ${counts.kitsuTitles}, the dump ${counts.records - counts.anidbTitles - counts.kitsuTitles}; Kitsu covers ${counts.kitsuCovers}, banners ${counts.banners}, descriptions ${counts.descriptions}`)
   emitHistory(sets, pick.shardName, provenance)
 
-  // Guards rather than niceties. Both artifacts are lazily imported, so a shape change upstream
-  // would emit an empty table and every lookup would silently miss, which is indistinguishable from
-  // a show simply not being listed.
-  if (kept.length < 15_000) {
-    console.error(`[anime-data] REFUSING: only ${kept.length} index rows, expected at least 15000.`)
-    process.exit(1)
-  }
-  if (Object.keys(seasons).length < 3) {
-    console.error(`[anime-data] REFUSING: only ${Object.keys(seasons).length} seasons, expected at least 3.`)
-    process.exit(1)
-  }
+  const refused = refusal({ indexRows: kept.length, seasons: Object.keys(seasons).length, anidbTitles: counts.anidbTitles })
+  if (refused) refuse(refused)
 }
 
 if (import.meta.main) await main()

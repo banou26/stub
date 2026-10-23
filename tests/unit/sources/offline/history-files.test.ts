@@ -1,11 +1,11 @@
 // The offline history's release assets, as the Offline history workflow writes them and every data build reads
-// them: a damaged or missing history fails the build loudly, an unreachable one falls back on the build cache.
+// them: a damaged or missing history fails the build loudly, an unreachable manifest falls back on the build cache.
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vite-plus/test'
 
-import { DOWNLOAD, decodeHistory, downloadHistory, encodeHistory, manifestCopy } from '../../../../scripts/history-files.mjs'
+import { DOWNLOAD, decodeHistory, downloadManifest, encodeHistory, manifestCopy } from '../../../../scripts/history-files.mjs'
 import { loadHistory } from '../../../../scripts/build-anime-data.mjs'
 
 const history = () => encodeHistory({
@@ -59,10 +59,9 @@ test('a damaged history fails loudly rather than reading as a smaller one', () =
 test('a data build asks the manifest again once, after the pause a publish needs to replace it', async () => {
   const files = history()
   const { asked, get } = release(files, { failFirst: 1 })
-  const read = await downloadHistory({ get, pauseMs: 0 })
-  expect(read.manifest).toBe(files.manifest)
+  expect(await downloadManifest({ get, pauseMs: 0 })).toBe(files.manifest)
   expect(asked.filter(url => url.endsWith('/manifest.json'))).toHaveLength(2)
-  await expect(downloadHistory({ get: release(files, { failFirst: 2 }).get, pauseMs: 0 })).rejects.toThrow(/manifest.json answered HTTP 404/)
+  await expect(downloadManifest({ get: release(files, { failFirst: 2 }).get, pauseMs: 0 })).rejects.toThrow(/manifest.json answered HTTP 404/)
 })
 
 const cacheWith = (files?: { manifest: string, assets: Record<string, Buffer> }) => {
@@ -83,6 +82,16 @@ test('an unreachable history falls back on the build cache, a damaged one fails 
   const [anidb] = Object.keys(files.assets) as [string]
   const damaged = release({ ...files, assets: { ...files.assets, [anidb]: Buffer.from('x') } })
   await expect(loadHistory({ get: damaged.get, pauseMs: 0, cache })).rejects.toThrow(/does not match its sha256/)
+})
+
+// Mutation: download the assets inside the try that falls back on the cache.
+test('an asset the manifest names that answers 404 fails the build, even with a cache to fall back on', async () => {
+  const files = history()
+  const cache = cacheWith(files)
+  const gone = release({ manifest: files.manifest, assets: {} })
+  await expect(loadHistory({ get: gone.get, pauseMs: 0, cache })).rejects.toThrow(/anidb-titles-[0-9a-f]{16}\.json\.zst answered HTTP 404/)
+  // control: the same cache serves a build whose manifest cannot be fetched
+  expect((await loadHistory({ get: release(undefined).get, pauseMs: 0, cache })).anidb.titles.size).toBe(2)
 })
 
 // Mutation: build on with an empty history when there is neither a release nor a cache.
