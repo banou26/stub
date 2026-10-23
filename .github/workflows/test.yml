@@ -34,12 +34,15 @@ jobs:
       # data:build has refreshed it whenever the network was fine.
       - uses: actions/cache@v4
         with:
-          path: node_modules/.cache/stub-anime-data.json
+          path: |
+            node_modules/.cache/stub-anime-data.json
+            node_modules/.cache/stub-offline-history
           key: stub-anime-data-${{ github.run_id }}
           restore-keys: stub-anime-data-
 
-      # Emits src/generated/anime-index.ts and anime-seasons.ts, which type-check needs:
-      # src/sources/offline/extractor.ts imports both, so tsc reports TS2307 on them otherwise.
+      # Emits src/generated/anime-index.ts, anime-seasons.ts and the history's shards, which type-check needs:
+      # src/sources/offline/extractor.ts imports the first two, so tsc reports TS2307 on them otherwise. The
+      # history is read from the offline-history release, with the same cache fallback as the dump.
       - run: npm run data:build
       - run: npm run type-check
 

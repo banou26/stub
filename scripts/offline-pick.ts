@@ -1,0 +1,142 @@
+// The offline history's titles, covers, banners and descriptions, chosen by stub's own rules (HOR-915): each
+// gathered input becomes the media stub's own source answers for it (offline, kitsu, anizip), and stub's own
+// `aggregateFields` merges them as it merges a page's members. Loaded by ./build-anime-data.mjs through vite's
+// module runner, since node cannot load these modules on its own (enums, extensionless imports).
+
+import type { Media as GQLMedia } from '../src/generated/schema/types.generated'
+
+import { aggregateFields, type ClusterFacts } from '../src/worker/graph/plugins/fields'
+import { normalizeMedia as anizipMedia } from '../src/sources/anizip/extractor'
+import { normalizeMedia as kitsuMedia } from '../src/sources/kitsu/extractor'
+import { recordId, seasonMedia, type ManamiRecord } from '../src/sources/offline/normalize'
+import { SHARDS, kitsuPath, shardName, shardOf, type DumpEntry, type HistorySet, type KitsuEntry } from '../src/sources/offline/history'
+import { makeMedia } from '../src/sources/utils'
+
+export { SHARDS, shardName }
+
+/** One AniDB title as the history keeps it, in its file's order. */
+export type AnidbTitle = [type: string, language: string, title: string]
+/** A Kitsu row as the history keeps it: the resource kitsu's `normalizeMedia` reads. */
+export type KitsuRow = Parameters<typeof kitsuMedia>[0]
+/** A dump record as the data build extracts it, with its AniDB id. */
+export type HistoryRecord = ManamiRecord & { ad?: number }
+
+const MAL_CDN = 'https://cdn.myanimelist.net/'
+
+/**
+ * api.ani.zip's `titles` for one AniDB entry, as far as its answers show the rule: per language the official
+ * title, else the first of that language in AniDB's file. Where a language has several unofficial titles,
+ * api.ani.zip took another than the first on 8 of 14 answers read 2026-10-24, by an order the file does not carry.
+ */
+export const anizipTitles = (titles: readonly AnidbTitle[]) => {
+  const out: { en?: string, ja?: string } = {}
+  for (const language of ['en', 'ja'] as const) {
+    const ofLanguage = titles.filter(([, lang]) => lang === language)
+    const title = ofLanguage.find(([type]) => type === 'official') ?? ofLanguage[0]
+    if (title) out[language] = title[2]
+  }
+  return out
+}
+
+/** The media stub's sources would answer for a record from the gathered inputs. */
+export const members = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow): GQLMedia[] => {
+  const offline = seasonMedia(record)
+  if (!offline) return []
+  const media = [offline]
+  // A dump picture on MyAnimeList's CDN is MyAnimeList's own cover, so it ranks where the mal source ranks its
+  // cover, as the season build ranks a MyAnimeList card's cover first. Without it Kitsu's poster (0.3) outranks
+  // it, and the cover was the page's on 47 of 185 walked shows instead of 178.
+  const cover = offline.covers[0]
+  if (record.ml && cover?.url.startsWith(MAL_CDN)) {
+    media.push(makeMedia({ origin: 'mal', id: String(record.ml), score: 0.9, covers: [{ ...cover, score: 0.9 }] }))
+  }
+  if (kitsu) media.push(kitsuMedia(kitsu))
+  // the live anizip source answers only an address carrying a mal id
+  if (record.ml && record.ad && anidb?.length) {
+    media.push(anizipMedia({
+      mappings: { anidb_id: record.ad, mal_id: record.ml, anilist_id: record.al, type: record.ty },
+      titles: anizipTitles(anidb),
+      images: [],
+      episodes: {},
+    } as unknown as Parameters<typeof anizipMedia>[0]))
+  }
+  return media
+}
+
+const CLUSTER: ClusterFacts = { id: 'history', aggUri: 'ag:()', scope: 'RUN', runLength: null, runLengthTier: null, runLengthWitnesses: 0, runLengthFrom: [], anomalies: [] }
+
+// the field of each list's items that carries its value
+const VALUE = { titles: 'title', covers: 'url', banners: 'url', descriptions: 'description' } as const
+
+/** What stub's page heads a record with from these inputs: the first title, cover, banner and description, each with the source that gave it. */
+export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow) => {
+  const media = members(record, anidb, kitsu)
+  const row = aggregateFields({
+    cluster: CLUSTER,
+    members: media.map(member => ({ uri: member.uri, origin: member.origin, id: member.id, owned: true, score: member.score ?? null, raw: member as unknown as Record<string, unknown>, fieldSeq: {} })),
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  // the merge keeps each member's own item, so the item says which member gave it
+  const first = (field: keyof typeof VALUE): { value: string, origin: string } | undefined => {
+    const item = (row[field] as Record<string, string>[])[0]
+    const from = item && media.find(member => (member[field] as unknown[]).includes(item))
+    return from ? { value: item[VALUE[field]]!, origin: from.origin } : undefined
+  }
+  return { title: first('titles'), cover: first('covers'), banner: first('banners'), description: first('descriptions') }
+}
+
+/**
+ * The history's shards: for each set, `SHARDS` objects of key to entry (see src/sources/offline/history.ts), and
+ * how many entries each source gave. A key two records share keeps the first. A record with no MyAnimeList id
+ * that names a Kitsu id is also reached from `kitsu-K`, which the id index cannot do, since it holds no row
+ * without a MyAnimeList id.
+ */
+export const historyShards = (
+  records: readonly HistoryRecord[],
+  anidb: ReadonlyMap<number, readonly AnidbTitle[]>,
+  kitsu: ReadonlyMap<number, KitsuRow>,
+) => {
+  const sets: Record<HistorySet, Record<string, unknown>[]> = {
+    dump: Array.from({ length: SHARDS }, () => ({})),
+    anidb: Array.from({ length: SHARDS }, () => ({})),
+    kitsu: Array.from({ length: SHARDS }, () => ({})),
+  }
+  const counts = { records: 0, anidbTitles: 0, kitsuTitles: 0, kitsuCovers: 0, banners: 0, descriptions: 0 }
+  const pointers = new Map<string, string>()
+  for (const record of records) {
+    const key = recordId(record)
+    if (!key || !record.t) continue
+    const shard = shardOf(key)
+    if (sets.dump[shard]![key]) continue
+    const dump: DumpEntry = [record.t, record.p]
+    sets.dump[shard]![key] = dump
+    counts.records++
+
+    const chosen = pick(record, record.ad ? anidb.get(record.ad) : undefined, record.ku ? kitsu.get(record.ku) : undefined)
+    const fromKitsu: KitsuEntry = {}
+    const title = chosen.title
+    // a title that reads as the dump's is the dump's entry already
+    if (title && title.value !== record.t) {
+      if (title.origin === 'anizip') sets.anidb[shard]![key] = title.value
+      if (title.origin === 'kitsu') fromKitsu.t = title.value
+    }
+    counts.anidbTitles += Number(Boolean(sets.anidb[shard]![key]))
+    counts.kitsuTitles += Number(Boolean(fromKitsu.t))
+    if (chosen.cover?.origin === 'kitsu') fromKitsu.p = kitsuPath(chosen.cover.value)
+    if (chosen.banner?.origin === 'kitsu') fromKitsu.b = kitsuPath(chosen.banner.value)
+    if (chosen.description?.origin === 'kitsu') fromKitsu.d = chosen.description.value
+    if (Object.keys(fromKitsu).length) sets.kitsu[shard]![key] = fromKitsu
+    counts.kitsuCovers += Number(Boolean(fromKitsu.p))
+    counts.banners += Number(Boolean(fromKitsu.b))
+    counts.descriptions += Number(Boolean(fromKitsu.d))
+
+    if (!record.ml && record.ku && key !== `kitsu-${record.ku}` && !pointers.has(`kitsu-${record.ku}`)) pointers.set(`kitsu-${record.ku}`, key)
+  }
+  for (const [pointer, key] of pointers) {
+    const shard = sets.dump[shardOf(pointer)]!
+    if (!shard[pointer]) shard[pointer] = key
+  }
+  return { sets, counts }
+}

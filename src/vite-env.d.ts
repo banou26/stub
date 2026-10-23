@@ -16,3 +16,8 @@ declare module '*.html?raw' {
   const source: string
   export default source
 }
+
+/** vite's glob import, the one form used: a lazy importer of each matching file's default export, by its path. */
+interface ImportMeta {
+  glob: <T>(pattern: string, options: { import: 'default' }) => Record<string, () => Promise<T>>
+}

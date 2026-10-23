@@ -127,7 +127,7 @@ const buildTitles = (attr: KitsuAnime) => {
 // GENRES ARE LEFT OUT ON PURPOSE, not forgotten. Kitsu publishes them as `categories`, a separate
 // JSON:API relationship, so every request in this file would have to carry `include=mappings,categories`
 // and grow its response, to buy a field AniList and jikan already answer for the same titles.
-const normalizeMedia = (resource: KitsuResource<KitsuAnime>, handles: (GQLMedia | GQLMediaHandle)[] = []): GQLMedia => {
+export const normalizeMedia = (resource: KitsuResource<KitsuAnime>, handles: (GQLMedia | GQLMediaHandle)[] = []): GQLMedia => {
   const attr = resource.attributes
   return makeMedia({
     origin,

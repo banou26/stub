@@ -47,7 +47,7 @@ const airedAt = ({ airDateUtc, airdate }: Episode) =>
     ? airdate
     : airDateUtc || airdate || undefined
 
-const normalizeMedia = (media: AnimeSeries) => {
+export const normalizeMedia = (media: AnimeSeries) => {
   const id = media.mappings.anidb_id.toString()
   const uri = `${origin}:${id}`
 

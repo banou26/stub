@@ -7,8 +7,10 @@
 //
 //   src/generated/anime-index.ts    cross-catalog ids: MyAnimeList, AniList, Kitsu, AniDB, Anime News Network
 //   src/generated/anime-seasons.ts  seasonal listings with titles and covers
+//   src/generated/history/          every listed show's title, cover, banner and description, as stub's own
+//                                   rules pick them from the dump and the offline history (HOR-915)
 //
-// Both are reached ONLY through a dynamic import, so they are separate content-hashed chunks and
+// All are reached ONLY through a dynamic import, so they are separate content-hashed chunks and
 // add nothing to the initial bundle.
 //
 // WHY TWO DATABASES RATHER THAN THE BEST ONE
@@ -58,13 +60,14 @@
 // field below IS the attribution of record: it travels inside every artifact and names the license,
 // its URI and the upstream url. ODbL 4.3 accepts that URI in place of a vendored copy of the text.
 
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
-import { brotliCompressSync, constants, zstdDecompressSync } from 'node:zlib'
+import { writeFileSync, mkdirSync, readFileSync, existsSync, rmSync } from 'node:fs'
+import { brotliCompressSync, constants, gzipSync, zstdDecompressSync } from 'node:zlib'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
 import { errorText, seasonData } from './season-popularity.mjs'
+import { DOWNLOAD, MANIFEST, decodeHistory, downloadHistory, readManifest, sha256 } from './history-files.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -77,6 +80,8 @@ const OUT_DIR = resolve(ROOT, 'src/generated')
 // mid-session reuses what the last build already fetched. A fresh CI checkout has no cache and
 // therefore always takes the live release, which is the point.
 const CACHE = resolve(ROOT, 'node_modules/.cache/stub-anime-data.json')
+// the offline history's files as last downloaded, for the same two reasons
+const HISTORY_CACHE = resolve(ROOT, 'node_modules/.cache/stub-offline-history')
 
 // manami-project's database was archived on 2026-07-04; cedya77's continues it, same asset, same ODbL terms, and asks
 // that manami be credited, which the notice below does
@@ -116,12 +121,21 @@ const ARM = {
   notice: 'Copyright (c) P-Chan.',
 }
 
+// The history's shards credit one source each, so AniDB's and Kitsu's content is never presented as part of the
+// ODbL database (its section 4.4 d). Their terms could not be read (2026-10-23), so no license is named for them.
+const HISTORY_SOURCES = {
+  dump: [OFFLINE_DATABASE],
+  anidb: [{ name: 'AniDB', url: 'https://anidb.net/', notice: 'Titles from its anime titles file, as api.ani.zip passes them on.' }],
+  kitsu: [{ name: 'Kitsu', url: 'https://kitsu.io/', notice: 'Titles, posters, banners and synopses from its API.' }],
+}
+const HISTORY_DIR = resolve(OUT_DIR, 'history')
+
 // A season is carried for a while either side of the dump's own cut date, because the artifact has
 // to stay useful as the clock moves past the season it was built in. manami lists seasons well
 // ahead, so a forward window is nearly free.
 const SEASONS_BACK = 1
 const SEASONS_FORWARD = 4
-const SEASON_ORDER = ['WINTER', 'SPRING', 'SUMMER', 'FALL']
+export const SEASON_ORDER = ['WINTER', 'SPRING', 'SUMMER', 'FALL']
 const seasonIndex = ({ year, season }) => year * 4 + SEASON_ORDER.indexOf(season)
 
 const CATALOGS = [
@@ -300,7 +314,7 @@ const newestRelease = async () => {
   return { tag: 'latest', url: DIRECT_DOWNLOAD, direct: true }
 }
 
-const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [key, idIn(entry.sources, host)]))
+export const catalogIds = entry => Object.fromEntries(CATALOGS.map(({ key, host }) => [key, idIn(entry.sources, host)]))
 
 /**
  * The seasons with every season source's shows and counts laid over them. manami ships no
@@ -337,15 +351,12 @@ const buildExtract = (entries, meta, tag) => {
 
   const rows = []
   const seasons = {}
+  // every record the offline source can be addressed by, for the history's shards
+  const history = []
   for (const entry of entries) {
     const ids = catalogIds(entry)
     const row = [ids.mal, ...COLUMNS.map(key => ids[key])]
     if (row.some(Boolean)) rows.push(row)
-
-    const season = entry.animeSeason
-    if (!season?.year || !SEASON_ORDER.includes(season.season)) continue
-    const index = seasonIndex(season)
-    if (index < from || index > to) continue
 
     const record = {
       t: entry.title,
@@ -360,14 +371,24 @@ const buildExtract = (entries, meta, tag) => {
     if (ids.mal) record.ml = ids.mal
     if (ids.anilist) record.al = ids.anilist
     if (ids.kitsu) record.ku = ids.kitsu
-    if (entry.score?.arithmeticMean) record.sc = Math.round(entry.score.arithmeticMean * 100) / 100
-    ;(seasons[`${season.year}-${season.season}`] ??= []).push(record)
+    // a copy, since laying the season sources over a bucket merges records in place
+    if (entry.title && (ids.mal || ids.anilist || ids.kitsu)) history.push({ ...record, ...ids.anidb && { ad: ids.anidb } })
+
+    const season = entry.animeSeason
+    if (!season?.year || !SEASON_ORDER.includes(season.season)) continue
+    const index = seasonIndex(season)
+    if (index < from || index > to) continue
+
+    ;(seasons[`${season.year}-${season.season}`] ??= []).push(
+      entry.score?.arithmeticMean ? { ...record, sc: Math.round(entry.score.arithmeticMean * 100) / 100 } : record
+    )
   }
 
-  return { sources: [OFFLINE_DATABASE], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons }
+  return { sources: [OFFLINE_DATABASE], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons, history }
 }
 
-const refreshExtract = async () => {
+/** The newest dump: its dated tag, its metadata line, its entries and the sha256 of the file. Throws, saying why. */
+export const downloadDump = async () => {
   const release = await newestRelease()
   // Names the path as well as the release, because a green build is NOT evidence the fallback
   // works: it almost always runs through the api. This line is the only thing that says otherwise.
@@ -376,7 +397,8 @@ const refreshExtract = async () => {
   // Its own budget, unspent by whatever the naming attempts above cost.
   const response = await fetch(release.url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
   if (!response.ok) throw new Error(`download ${release.url}: HTTP ${response.status}`)
-  const jsonl = zstdDecompressSync(Buffer.from(await response.arrayBuffer())).toString('utf8')
+  const bytes = Buffer.from(await response.arrayBuffer())
+  const jsonl = zstdDecompressSync(bytes).toString('utf8')
 
   const lines = jsonl.split('\n').filter(Boolean)
   const meta = JSON.parse(lines[0])
@@ -387,6 +409,11 @@ const refreshExtract = async () => {
   // API still records the dated tag rather than the rolling pointer that served it. Falls back to
   // whatever named the release if upstream ever changes that url's shape.
   const tag = /refs\/tags\/([^/]+)\//.exec(meta.$schema ?? '')?.[1] ?? release.tag
+  return { tag, meta, entries, sha256: sha256(bytes) }
+}
+
+const refreshExtract = async () => {
+  const { tag, meta, entries } = await downloadDump()
   const extract = buildExtract(entries, meta, tag)
   extract.seasons = await withPopularity(extract.seasons, extract.rows)
 
@@ -417,6 +444,50 @@ const loadManami = async () => {
   const extract = JSON.parse(readFileSync(CACHE, 'utf8'))
   warn(`using the build cache, ${extract.tag} cut ${extract.updated}. This may be out of date.`)
   return extract
+}
+
+const readHistoryCache = cache => {
+  if (!existsSync(resolve(cache, MANIFEST))) return undefined
+  const manifest = readFileSync(resolve(cache, MANIFEST), 'utf8')
+  const assets = {}
+  for (const { name } of Object.values(readManifest(manifest).assets)) {
+    if (existsSync(resolve(cache, name))) assets[name] = readFileSync(resolve(cache, name))
+  }
+  return { manifest, assets }
+}
+
+const writeHistoryCache = (cache, { manifest, assets }) => {
+  rmSync(cache, { recursive: true, force: true })
+  mkdirSync(cache, { recursive: true })
+  for (const [name, bytes] of Object.entries(assets)) writeFileSync(resolve(cache, name), bytes)
+  writeFileSync(resolve(cache, MANIFEST), manifest)
+}
+
+/**
+ * The offline history the Offline history workflow publishes, each asset checked against its manifest. A build
+ * never gathers one itself, since from scratch means asking AniDB and Kitsu, which only that workflow may do.
+ *
+ * Unreachable, it falls back on the cache as the dump does. Unreadable, or with no cache, it throws, so the build
+ * FAILS: a build on the dump's titles alone looks healthy while heading half of older shows unlike stub's page.
+ */
+export const loadHistory = async ({ offline = false, get = fetch, pauseMs, cache = HISTORY_CACHE } = {}) => {
+  if (!offline) {
+    let files
+    try {
+      files = await downloadHistory({ get, pauseMs })
+    } catch (error) {
+      warn(`could not read the offline history at ${DOWNLOAD}: ${errorText(error)}`)
+    }
+    if (files) {
+      const history = decodeHistory(files)
+      writeHistoryCache(cache, files)
+      return history
+    }
+  }
+  const files = readHistoryCache(cache)
+  if (!files) throw new Error(`no offline history at ${DOWNLOAD}/${MANIFEST}, and no build cache to fall back on. Run the Offline history workflow.`)
+  warn('using the cached offline history. It may be out of date.')
+  return decodeHistory(files)
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -454,10 +525,36 @@ export default JSON.parse(${JSON.stringify(json)}) as ${name.types}
   return brotli.length
 }
 
+/** Each set's shards as modules under src/generated/history, every stale one removed first. */
+const emitHistory = (sets, shardName, provenance) => {
+  rmSync(HISTORY_DIR, { recursive: true, force: true })
+  mkdirSync(HISTORY_DIR, { recursive: true })
+  for (const [set, shards] of Object.entries(sets)) {
+    const sizes = shards.map((records, shard) => {
+      const json = JSON.stringify({ sources: HISTORY_SOURCES[set], records })
+      writeFileSync(resolve(HISTORY_DIR, `${shardName(set, shard)}.ts`), `// GENERATED by scripts/build-anime-data.mjs. Do not edit. ${provenance}
+// Attribution of record is the sources field inside this file.
+export default JSON.parse(${JSON.stringify(json)})
+`)
+      return gzipSync(json, { level: 9 }).length
+    }).sort((a, b) => a - b)
+    const kb = bytes => (bytes / 1024).toFixed(1)
+    log(`history ${set.padEnd(5)} ${shards.length} shards, ${kb(sizes.reduce((sum, size) => sum + size, 0))} KB gzip, ${kb(sizes[sizes.length >> 1])} KB median`)
+  }
+}
+
+const refuse = line => {
+  console.error(`[anime-data] REFUSING: ${line}`)
+  process.exit(1)
+}
+
 const main = async () => {
   const armVersion = JSON.parse(readFileSync(require.resolve('@kawaiioverflow/arm/package.json'), 'utf8')).version
   const armEntries = require('@kawaiioverflow/arm/arm.json')
+  const history = await loadHistory({ offline: process.argv.includes('--offline') }).catch(error => refuse(errorText(error)))
   const manami = await loadManami()
+  // a cache written before the history existed carries no records for it
+  if (!manami.history) refuse('the build cache predates the offline history. Run with network access.')
 
   log(`arm@${armVersion}: ${armEntries.length} rows | offline database ${manami.tag}: ${manami.rows.length} rows`)
 
@@ -487,6 +584,13 @@ const main = async () => {
 
   log(`${(total / 1024).toFixed(0)} KB brotli total, none of it in the initial bundle`)
 
+  const { runnerImport } = await import('vite-plus')
+  const { module: pick } = await runnerImport(resolve(ROOT, 'scripts/offline-pick.ts'), { root: ROOT, configFile: false, logLevel: 'error' })
+  const { sets, counts } = pick.historyShards(manami.history, history.anidb.titles, history.kitsu)
+  log(`history: ${counts.records} records, AniDB titles of ${history.anidb.fetchedAt}, Kitsu rows refreshed for ${history.manifest.kitsu?.refreshedFor}`)
+  log(`history: titles from AniDB ${counts.anidbTitles}, Kitsu ${counts.kitsuTitles}, the dump ${counts.records - counts.anidbTitles - counts.kitsuTitles}; Kitsu covers ${counts.kitsuCovers}, banners ${counts.banners}, descriptions ${counts.descriptions}`)
+  emitHistory(sets, pick.shardName, provenance)
+
   // Guards rather than niceties. Both artifacts are lazily imported, so a shape change upstream
   // would emit an empty table and every lookup would silently miss, which is indistinguishable from
   // a show simply not being listed.
@@ -500,4 +604,4 @@ const main = async () => {
   }
 }
 
-await main()
+if (import.meta.main) await main()

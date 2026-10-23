@@ -1,0 +1,42 @@
+# The offline history (HOR-915): AniDB's titles and Kitsu's rows for every show the offline database lists, kept as
+# release assets on the rolling `offline-history` tag, which every data build reads (scripts/history-files.mjs).
+#
+# The only place AniDB is asked from, and the only place Kitsu is asked from for the history:
+# scripts/offline-history.mjs, which refuses to run outside this workflow. AniDB allows one download of its titles
+# file a day, so the script records each attempt before it asks and waits 24 hours between two.
+#
+# DAILY, off the hour, since scheduled runs queue at the top of it. A day with no new dump asks Kitsu nothing, and a
+# day whose AniDB file is unchanged gets a 304 and publishes nothing. A `schedule` trigger runs only on the default
+# branch, and in a public repo is disabled after 60 days with no repository activity.
+name: Offline history
+
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# a cancelled run mid-publish could leave manifest.json missing, so a queued run waits for the one writing
+concurrency:
+  group: offline-history
+  cancel-in-progress: false
+
+jobs:
+  history:
+    # a fork has no offline-history release, so it would start from scratch and ask AniDB and Kitsu for nothing
+    if: github.repository == 'banou26/stub'
+    runs-on: ubuntu-latest
+    # from scratch, Kitsu alone is about 1,120 requests at a second and a half each
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: node scripts/offline-history.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -26,6 +26,23 @@ vi.mock('../../../../src/generated/anime-seasons', () => {
   }
 })
 
+// The history's shards: Cowboy Bebop (indexed, outside the season window), its film (no index row), a record with
+// no MyAnimeList id reached from its Kitsu id, and Frieren, which the season bundle also holds
+vi.mock('../../../../src/sources/offline/history-shards', () => {
+  const sets: Record<string, Record<number, Record<string, unknown>>> = {
+    dump: {
+      1: { 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] },
+      5: { 'mal-5': ['Cowboy Bebop: Tengoku no Tobira', '1439/93480.jpg'] },
+      7: { 'kitsu-7': 'anilist-300' },
+      44: { 'anilist-300': ['Daicon III Opening Animation', ''] },
+      127: { 'mal-52991': ['Sousou no Frieren', ''] },
+    },
+    anidb: { 5: { 'mal-5': 'Cowboy Bebop: The Movie' } },
+    kitsu: { 1: { 'mal-1': { d: 'In the year 2071, humanity has colonized several of the planets.' } } },
+  }
+  return { loadShard: async (set: string, shard: number) => sets[set]?.[shard] && { records: sets[set]![shard] } }
+})
+
 afterEach(() => {
   vi.useRealTimers()
 })
@@ -91,4 +108,39 @@ test('a work bundled in a season over and one to come across a new year takes th
 // Mutation: answer only the current season's bucket.
 test('a work bundled only in an earlier season keeps it', async () => {
   expect(await seasonOf('offline:mal-61009', '2026-10-17T12:00:00Z')).toBe('SUMMER 2026')
+})
+
+// Mutation: answer the index row's carrier without its history record.
+test('a title outside the season window answers its history record, with the index row\'s handles', async () => {
+  const media = await mediaOf('mal:1')
+  expect(media.titles.map(({ title }: { title: string }) => title)).toEqual(['Cowboy Bebop'])
+  expect(media.covers.map(({ url }: { url: string }) => url)).toEqual(['https://cdn.myanimelist.net/images/anime/4/19644l.webp'])
+  expect(media.descriptions.map(({ description }: { description: string }) => description)).toEqual(['In the year 2071, humanity has colonized several of the planets.'])
+  expect(await handlesOf('mal:1')).toEqual(['mal:1', 'anilist:1', 'kitsu:1', 'anidb:23', 'ann:13'])
+  expect((await mediaOf('offline:mal-1')).titles[0].title).toBe('Cowboy Bebop')
+})
+
+// Mutations: answer nothing when the index has no row; give the record handles beyond its own key's.
+test('a show the index has no row for answers its history record, with its own catalogue id as its one handle', async () => {
+  const media = await mediaOf('mal:5')
+  expect([media.uri, media.titles[0].title]).toEqual(['offline:mal-5', 'Cowboy Bebop: The Movie'])
+  expect(await handlesOf('mal:5')).toEqual(['mal:5'])
+})
+
+// Mutation: look a Kitsu id up only under its own key.
+test('the Kitsu id of a record with no MyAnimeList id reaches it through the history', async () => {
+  const media = await mediaOf('kitsu:7')
+  expect([media.uri, media.titles[0].title]).toEqual(['offline:anilist-300', 'Daicon III Opening Animation'])
+  expect(await handlesOf('kitsu:7')).toEqual(['anilist:300'])
+})
+
+// Mutation: ask the history before the season bundle.
+test('a show the season bundle holds still answers its bundled record, not its history one', async () => {
+  const media = await mediaOn('mal:52991', '2026-10-17T12:00:00Z')
+  expect([media.titles[0].title, media.season, media.seasonYear]).toEqual(['Frieren', 'FALL', 2026])
+})
+
+// Mutation: answer from the history a show neither the index nor the history holds.
+test('a show the history does not hold answers nothing', async () => {
+  expect(await mediaOf('mal:9')).toBeNull()
 })

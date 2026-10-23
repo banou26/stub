@@ -46,7 +46,7 @@ const COVER_PREFIX = 'https://cdn.myanimelist.net/images/anime/'
  * and the livechart failures read in detail answered HTTP 500 to any referer (2026-10-09), while
  * LiveChart's current posters rendered 12 of 12 there.
  */
-const coverUrl = (picture: string) =>
+export const coverUrl = (picture: string) =>
   malLargeImage(picture.startsWith('http') ? picture : `${COVER_PREFIX}${picture}`)
 
 export type ManamiRecord = {

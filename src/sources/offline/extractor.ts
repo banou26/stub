@@ -11,6 +11,8 @@ import {
   type CatalogRow,
 } from './index-lookup'
 import { loadCatalog } from './catalog'
+import { historyEntry, historyMedia } from './history'
+import { loadShard } from './history-shards'
 
 // No icon, deliberately, and anizip is the precedent: it is the other source that exists to link
 // records rather than to be visited, and it ships none either. A badge would imply the show lives on
@@ -48,9 +50,9 @@ export const color = '#2b6cb0'
 type SeasonBundle = { tag: string, updated: string, seasons: Record<string, ManamiRecord[]> }
 
 /**
- * Answered from the two generated modules below, compiled into the app and read from memory, with no
- * request of its own. It is the source that survives every other source failing at once, which is
- * not hypothetical: on 2026-08-16 the homepage rendered "Current season" with zero media because
+ * Answered from the two generated modules below and the history's shards (./history.ts), compiled
+ * into the app and read from memory, with no request of its own. It is the source that survives
+ * every other source failing at once, which is not hypothetical: on 2026-08-16 the homepage rendered "Current season" with zero media because
  * AniList answered 403 and Jikan 504 at the same time, with the user's connection perfectly healthy.
  *
  * READ THE NAME CAREFULLY. "offline" describes the bundled DATA, an offline database in the sense its
@@ -135,17 +137,21 @@ const urisOf = (uri: string): { origin: string, id: string }[] => {
  * evidence for, and `aggregateMedia` enforces one format per media, so the safe thing to say is
  * nothing.
  */
-const handleCarrier = (row: CatalogRow): GQLMedia | undefined => {
-  const id = rowId(row)
-  if (!id) return undefined
-
+const rowHandles = (row: CatalogRow): GQLMedia[] => {
   const handles: GQLMedia[] = []
   if (row.mal) handles.push(makeMedia({ origin: 'mal', id: String(row.mal), url: `https://myanimelist.net/anime/${row.mal}` }))
   if (row.anilist) handles.push(makeMedia({ origin: 'anilist', id: String(row.anilist), url: `https://anilist.co/anime/${row.anilist}` }))
   if (row.kitsu) handles.push(makeMedia({ origin: 'kitsu', id: String(row.kitsu), url: `https://kitsu.app/anime/${row.kitsu}` }))
   if (row.anidb) handles.push(makeMedia({ origin: 'anidb', id: String(row.anidb), url: `https://anidb.net/anime/${row.anidb}` }))
   if (row.ann) handles.push(makeMedia({ origin: 'ann', id: String(row.ann), url: `https://www.animenewsnetwork.com/encyclopedia/anime.php?id=${row.ann}` }))
+  return handles
+}
 
+const handleCarrier = (row: CatalogRow): GQLMedia | undefined => {
+  const id = rowId(row)
+  if (!id) return undefined
+
+  const handles = rowHandles(row)
   // A single handle links nothing to anything, so the record would be an orphan node carrying no
   // information. Only rows that actually bridge two catalogues are worth returning.
   if (handles.length < 2) return undefined
@@ -176,13 +182,34 @@ const seasonalById = async (id: string): Promise<GQLMedia | undefined> => {
   return key ? seasonPage(seasons[key]!, key).find(candidate => candidate.id === id) : undefined
 }
 
+const KEYED: readonly string[] = ['mal', 'anilist', 'kitsu']
+
+/** The keys a history record could be filed under for these catalogue ids, in their order. */
+const keysOf = (refs: readonly { origin: string, id: number }[]) =>
+  refs.filter(({ origin, id }) => id && KEYED.includes(origin)).map(({ origin, id }) => `${origin}-${id}`)
+
+/**
+ * The history's record for the first of `keys` it holds, with the record's own catalogue id as its one handle:
+ * the history pairs no ids, so only the index row's handles may join it to anything else.
+ */
+const fromHistory = async (keys: readonly string[]): Promise<GQLMedia | undefined> => {
+  for (const key of keys) {
+    const entry = await historyEntry(key, loadShard)
+    if (!entry) continue
+    const [catalogue, id] = entry.key.split('-')
+    return historyMedia(entry, rowHandles({ mal: 0, anilist: 0, kitsu: 0, anidb: 0, [catalogue!]: Number(id) }))
+  }
+  return undefined
+}
+
 /**
  * Whatever this source knows about a uri, richest first.
  *
  * The seasonal half and the index half deliberately use the same id scheme, so a show in the
  * current season resolves to one node supplied twice rather than two nodes needing a merge. The
  * seasonal record is preferred when both exist, because it carries a title and a cover, and it takes
- * the index row's handles, because only the row carries AniDB's and Anime News Network's ids.
+ * the index row's handles, because only the row carries AniDB's and Anime News Network's ids. A show
+ * outside the bundled seasons answers its history record (./history.ts), with the row's handles too.
  */
 const getMedia = async (uri: string): Promise<GQLMedia | null> => {
   const uris = urisOf(uri)
@@ -204,10 +231,10 @@ const getMedia = async (uri: string): Promise<GQLMedia | null> => {
     if (!row) continue
     const carrier = handleCarrier(row)
     if (!carrier) continue
-    const media = seasonal ?? await seasonalById(carrier.id)
+    const media = seasonal ?? await seasonalById(carrier.id) ?? await fromHistory(keysOf([{ origin: 'mal', id: row.mal }, { origin: 'anilist', id: row.anilist }, { origin: 'kitsu', id: row.kitsu }]))
     return media ? { ...media, handles: carrier.handles } : carrier
   }
-  return seasonal ?? null
+  return seasonal ?? await fromHistory(keysOf(refs)) ?? null
 }
 
 export const resolvers: Resolvers = {
