@@ -74,7 +74,7 @@ const PLAYERS: PlayerUnderTest[] = [
   },
   {
     name: '@banou/media-player (Prime Video)',
-    Component: PrimeMediaPlayer,
+    Component: props => <PrimeMediaPlayer {...props} video={{ video: '#dv-web-player video', index: 0 }} />,
     muteControl: mediaPlayerMute,
     showsMuted: host => mediaPlayerMute(host)?.getAttribute('aria-pressed') === 'true',
   },

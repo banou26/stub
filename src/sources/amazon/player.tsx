@@ -187,6 +187,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   const [error, setError] = useState<string>()
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
   const [quality, setQuality] = useState<PrimeQualityRow[]>()
+  const [videoIndex, setVideoIndex] = useState(0)
   const [reloadKey, setReloadKey] = useState(0)
   const [attachKey, setAttachKey] = useState(0)
   const [signingIn, setSigningIn] = useState(false)
@@ -213,7 +214,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       // FKN's card names the first domain as the site it asks for, so the link's own leads
       domains: [...PRIME_DOMAINS].sort((a, b) => Number(b === site) - Number(a === site)),
       cookies: attachCookies(mode),
-      permissions: [{ category: 'evaluation', reason: 'Press Play on the episode, see whether you are signed in and switch the quality' }],
+      permissions: [{ category: 'evaluation', reason: 'Press Play on the episode, see whether you are signed in, switch the quality and step frames' }],
     })
       .then(attached => { if (!cancelled) setFrame(attached) })
       .catch(err => {
@@ -256,17 +257,18 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       }
       if (!page) throw new Error(intl.formatMessage({ id: 'Prime Video shows no Play button for this episode.', defaultMessage: 'Prime Video shows no Play button for this episode.' }))
       await frame.evaluate(pressPrimePlay, PAGE)
-      const video = await poll(async () => {
+      const found = await poll(async () => {
         const index = await frame.evaluate(findPrimeVideo, { videos: VIDEOS })
-        return index < 0 ? undefined : frame.locator(VIDEOS).nth(index).videoElement()
+        return index < 0 ? undefined : { index, video: await frame.locator(VIDEOS).nth(index).videoElement() }
       }, isCancelled, VIDEO_TIMEOUT)
       if (cancelled) return
-      if (!video) throw new Error(intl.formatMessage({ id: 'The episode did not load a player.', defaultMessage: 'The episode did not load a player.' }))
+      if (!found) throw new Error(intl.formatMessage({ id: 'The episode did not load a player.', defaultMessage: 'The episode did not load a player.' }))
       // only now: a Play that loads a new document would drop a style added before it
       await frame.addStyleTag({ content: PRIME_OUTER_CSS })
       if (cancelled) return
       setLoading(false)
-      setRemoteVideo(video)
+      setVideoIndex(found.index)
+      setRemoteVideo(found.video)
       // a quality menu that does not open costs the quality row and nothing else
       const rows = await frame.evaluate(primeQuality, QUALITY).catch(() => undefined)
       if (!cancelled) setQuality(rows)
@@ -374,7 +376,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   return (
     <div css={styles}>
       {mode !== 'detecting' && (
-        <PrimeMediaPlayer title={title} remote={remoteVideo} quality={qualityTracks}>
+        <PrimeMediaPlayer title={title} remote={remoteVideo} quality={qualityTracks} frame={frame} video={{ video: VIDEOS, index: videoIndex }}>
           <iframe
             key={`${mode}-${attachKey}`}
             ref={setIframe}

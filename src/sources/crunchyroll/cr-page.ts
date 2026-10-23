@@ -86,7 +86,9 @@ export const pickTrackOption = (
  *
  * React keeps the value it last saw in `_valueTracker` and shadows `value` with a setter of its own on
  * the element, so the tracker is reset and the value written through the prototype's setter: that way
- * the `input` event reads as a change and Crunchyroll's `onChange` seeks.
+ * the `input` event reads as a change, Crunchyroll's `onChange` keeps the value while the slider is
+ * pressed, and its `onMouseUp` seeks to it. The input's step is 0.25, so the seek lands on a quarter
+ * second.
  */
 export const seekTimeline = async ({ timeline, time, timeout }: { timeline: string, time: number, timeout: number }) => {
   const deadline = Date.now() + timeout

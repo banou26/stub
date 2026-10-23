@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'preact/hooks'
 
 import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
+import { usePageFrameStep } from '../frame-steps'
 import { withTimelineSeek } from './timeline-seek'
 
 type Props = {
@@ -25,6 +26,9 @@ type Props = {
   children?: ComponentChildren
 }
 
+// the element `frame.locator('video')` hands over as the player's media
+const PAGE_VIDEO = { video: 'video' }
+
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
 const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks, quality, thumbnails, chapters, pictureInPicture, expose = true, children }: Props) => {
@@ -39,6 +43,8 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   // served to the page that frames this embed, which is stub's own watch page: the party's playback
   // sync reads and moves the player through it, and a document nobody frames serves nobody
   useEffect(() => (volume && media && expose ? exposePlayer(volume.served(media)) : undefined), [volume, media, expose])
+  // on the element itself, never through `media`: the scrubber it seeks would round a step to its 0.25 s
+  const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
 
   return (
     <MediaPlayer
@@ -55,6 +61,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       pictureInPicture={pictureInPicture}
       onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
       onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
+      stepFrame={stepFrame}
     >
       {children}
     </MediaPlayer>

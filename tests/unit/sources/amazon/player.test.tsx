@@ -15,8 +15,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 import { PRIME_DOMAINS } from '../../../../src/sources/amazon/session'
 import { SITE_STATUS_KEY } from '../../../../src/tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../../../src/utils/player-volume'
+import { stepVideoFrame, watchVideoFrames } from '../../../../src/sources/frame-step-page'
 import { makeRemoteVideo, settle } from '../../components/remote-video'
 import { pageRealm } from '../crunchyroll/page-realm'
+import { pageVideo } from '../page-video'
 import { PRIME_PLAYER, wirePrimeControls } from './player-controls'
 
 // The Prime Video player over a fake amazon.co.jp: its page functions run in a page realm shaped like
@@ -37,11 +39,13 @@ const unplayable = vi.hoisted(() => vi.fn())
 vi.mock('../../../../src/embed-unplayable', () => ({ tellUnplayable: unplayable }))
 
 // @banou/media-player is not under test: what is, is the media it is handed
-const skin = vi.hoisted(() => ({ media: null as RemoteVideoElement | null, quality: undefined as DelegatedTracks | undefined }))
+type StepFrame = (direction: 1 | -1) => Promise<void>
+const skin = vi.hoisted(() => ({ media: null as RemoteVideoElement | null, quality: undefined as DelegatedTracks | undefined, stepFrame: undefined as StepFrame | undefined }))
 vi.mock('@banou/media-player', () => ({
-  MediaPlayer: ({ media, quality, children }: { media: RemoteVideoElement | null, quality?: DelegatedTracks, children?: ComponentChildren }) => {
+  MediaPlayer: ({ media, quality, stepFrame, children }: { media: RemoteVideoElement | null, quality?: DelegatedTracks, stepFrame?: StepFrame, children?: ComponentChildren }) => {
     skin.media = media
     skin.quality = quality
+    skin.stepFrame = stepFrame
     return <div className="skin">{children}</div>
   },
 }))
@@ -183,6 +187,7 @@ beforeEach(() => {
   unplayable.mockReset()
   skin.media = null
   skin.quality = undefined
+  skin.stepFrame = undefined
   values.clear()
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
@@ -243,6 +248,7 @@ describe('attaching the Prime Video frame', () => {
     expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
     expect(permissions[0]!.reason).toMatch(/Play/)
     expect(permissions[0]!.reason).toMatch(/quality/)
+    expect(permissions[0]!.reason).toMatch(/frames/)
     expect(permissions[0]!.reason.length).toBeLessThanOrEqual(100)
   })
 })
@@ -345,13 +351,35 @@ describe('playing an episode', () => {
   test('a seek is a currentTime write on Amazon\'s video, with no page code run for it', async () => {
     const page = amazon(SIGNED_IN_PAGE)
     await playing(page)
-    const ran = page.frame.evaluate.mock.calls.length
+    // the frame watch starts on its own once the video is handed over
+    const ran = () => page.frame.evaluate.mock.calls.filter(([pageFunction]) => pageFunction !== watchVideoFrames).length
+    const before = ran()
 
     skin.media!.currentTime = 300
     await settle()
 
     expect(page.handed[0]!.episode.remote.currentTime).toBe(300)
-    expect(page.frame.evaluate).toHaveBeenCalledTimes(ran)
+    expect(ran()).toBe(before)
+  })
+
+  test('steps a frame inside Amazon\'s page, on the video it handed over and not the one before it', async () => {
+    const surfaces = [
+      '<video src="blob:https://www.amazon.co.jp/ad"></video>',
+      '<video src="blob:https://www.amazon.co.jp/episode"></video>',
+    ].join('')
+    const page = amazon(SIGNED_IN_PAGE, { surfaces, idle: 0 })
+    await playing(page)
+    await vi.waitFor(() => expect(skin.stepFrame).toBeDefined())
+    const watched = () => page.frame.evaluate.mock.calls.filter(([pageFunction]) => pageFunction === watchVideoFrames)
+    await vi.waitFor(() => expect(watched().map(([, arg]) => arg)).toEqual([{ video: '#dv-web-player video', index: 1 }]))
+    const [ad, episode] = [...page.document.querySelectorAll('#dv-web-player video')].map(element => pageVideo(element, { currentTime: 600 }))
+
+    await skin.stepFrame!(1)
+
+    expect(page.frame.evaluate.mock.calls.filter(([pageFunction]) => pageFunction === stepVideoFrame)).toHaveLength(1)
+    expect(ad!.writes).toEqual([])
+    expect(episode!.writes).toHaveLength(1)
+    expect(episode!.writes[0]).toBeCloseTo(600 + 1001 / 24000, 9)
   })
 
   // Prime keeps no volume of its own (measured 2026-10-12), but its player can still unmute the video
