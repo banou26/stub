@@ -10,6 +10,7 @@ const HONG_KONG = { id: 'hk-hkg-001', region: 'asia', proxyOrigin: 'https://hk-h
 
 let preview: typeof import('../../../src/preview/fetch')
 let sent: Sent[]
+let attempts: number
 let directoryReads: number
 let relays: object[] | Error | string
 let relay: (sent: Sent) => Response | Promise<Response>
@@ -18,6 +19,7 @@ beforeEach(async () => {
   vi.resetModules()
   preview = await import('../../../src/preview/fetch')
   sent = []
+  attempts = 0
   directoryReads = 0
   relays = [HONG_KONG, PRAGUE]
   relay = () => new Response('{"ok":true}', { headers: { 'fkn-proxy-status': '200', 'fkn-proxy-headers': btoa(JSON.stringify({ 'content-type': 'application/json' })) } })
@@ -30,8 +32,15 @@ beforeEach(async () => {
     const headers: Record<string, string> = {}
     new Headers(init?.headers).forEach((value, name) => { headers[name] = value })
     const request = { url: input, method: init?.method ?? 'GET', headers, body: init?.body ?? null }
+    // as a fetch does: an aborted signal sends nothing, and aborting ends the wait for an answer
+    const signal = init?.signal
+    attempts++
+    signal?.throwIfAborted()
     sent.push(request)
-    return relay(request)
+    return new Promise<Response>((resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason))
+      Promise.resolve().then(() => relay(request)).then(resolve, reject)
+    })
   })
   return () => vi.unstubAllGlobals()
 })
@@ -114,14 +123,14 @@ test('a relay that cannot be reached is asked of the next relay once, unless the
   expect(await answered.text()).toBe('from Hong Kong')
   expect(answered.headers.get('fkn-relay')).toBe('hk-hkg-001')
 
-  sent = []
+  attempts = 0
   const controller = new AbortController()
   relay = () => {
     controller.abort()
     throw new DOMException('aborted', 'AbortError')
   }
   await expect(preview.fetch('https://example.com/', { signal: controller.signal })).rejects.toThrow('aborted')
-  expect(sent).toHaveLength(1)
+  expect(attempts).toBe(1)
 })
 
 test('a spread request turns through the relays', async () => {
@@ -145,4 +154,15 @@ test.each([
   relay = () => { throw new TypeError('unreachable') }
   await expect(preview.fetch('https://example.com/')).rejects.toThrow('unreachable')
   expect(sent.map(({ url }) => url)).toEqual(['https://cz-prg-001.fkn.app/v0', 'https://hk-hkg-001.fkn.app/v0'])
+})
+
+test('once stopped, the copy\'s calls end: those waiting on the relay, and those asked after, with no retry', async () => {
+  relay = () => new Promise(() => {})
+  const waiting = preview.fetchWithBackoff('https://kitsu.io/api/edge/anime/12/episodes')
+  await vi.waitFor(() => expect(sent).toHaveLength(1))
+  preview.stop()
+  await expect(waiting).rejects.toThrow()
+  await expect(preview.fetchWithBackoff('https://kitsu.io/api/edge/anime/12/episodes?page=2')).rejects.toThrow()
+  await expect(preview.fetch('https://kitsu.io/api/edge/anime/12/episodes?page=3')).rejects.toThrow()
+  expect(sent).toHaveLength(1)
 })

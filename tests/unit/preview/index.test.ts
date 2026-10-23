@@ -110,6 +110,30 @@ test('at settleBy the subscription is closed, so the copy asks nothing more', as
   expect(payloads).toBe(closedAt)
 })
 
+test('once the copy is done its relay calls are stopped, and last waits for what they end to unwind', async () => {
+  vi.resetModules()
+  const fresh = await import('../../../src/preview')
+  const relay = await import('../../../src/preview/fetch')
+  vi.stubGlobal('fetch', (_input: string, init?: RequestInit) => new Promise((_, reject) => {
+    init?.signal?.throwIfAborted()
+    init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+  }))
+  try {
+    feed.current = feeding(async function* () {
+      yield media('One Piece')
+      await new Promise(() => {})
+    })
+    const asking = relay.fetch('https://kitsu.io/api/edge/anime/12/episodes').then(() => 'answered', () => 'stopped')
+    const { last } = fresh.answer('ag:(anilist:21)', 'anime', WASM, { deadline: 50, settleBy: 200 })
+    const stoppedAt = await asking.then(outcome => [outcome, performance.now()] as const)
+    expect(stoppedAt[0]).toBe('stopped')
+    expect((await last)?.title).toBe('One Piece')
+    expect(performance.now() - stoppedAt[1]).toBeGreaterThanOrEqual(900)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 5_000)
+
 test('a read that fails ends both with what was read, and rejects neither', async () => {
   feed.current = feeding(async function* () {
     yield media('Slow Horses')

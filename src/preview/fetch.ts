@@ -23,9 +23,11 @@ const NODES: Relay[] = [
 const FIRST_REGION = 'eu'
 const NULL_BODY_STATUSES = new Set([204, 205, 304])
 
+const stopping = new AbortController()
+
 // read once per preview, since each preview evaluates this module anew
 let directory: Promise<Relay[]> | undefined
-const relays = () => directory ??= globalThis.fetch(DIRECTORY)
+const relays = () => directory ??= globalThis.fetch(DIRECTORY, { signal: stopping.signal })
   .then(response => response.json() as Promise<{ relays: Relay[] }>)
   .then(({ relays }) => relays.filter(relay => relay.proxyOrigin && relay.healthy !== false && !relay.draining))
   .catch(() => NODES)
@@ -74,6 +76,17 @@ const relayFetch = async (input: RequestInfo | URL, init?: FetchInit): Promise<R
   return new Response(nullBody ? null : response.body, { status, headers: upstreamHeaders })
 }
 
-export const fetch = relayFetch
+/**
+ * Ends every relay call of this copy at once, in flight or yet to come, so each source still asking settles while
+ * the request lives. A source left waiting on a call its request outlived never settles, and its answer's stream
+ * then keeps the whole copy in the isolate's memory.
+ */
+export const stop = () => stopping.abort()
 
-export const fetchWithBackoff = withBackoff(relayFetch)
+const stoppable = (init?: FetchInit): FetchInit => ({ ...init, signal: init?.signal ? AbortSignal.any([init.signal, stopping.signal]) : stopping.signal })
+
+const backoff = withBackoff(relayFetch)
+
+export const fetch = (input: RequestInfo | URL, init?: FetchInit) => relayFetch(input, stoppable(init))
+
+export const fetchWithBackoff = (input: RequestInfo | URL, init?: FetchInit) => backoff(input, stoppable(init))

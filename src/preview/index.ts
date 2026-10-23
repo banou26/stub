@@ -11,6 +11,7 @@ import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from '../worker/resolvers'
 import { enableGraph, setReadStore } from '../worker/graph'
 import { setSite } from '../site'
+import { stop } from './fetch'
 
 export type Preview = { title: string, description?: string, image?: string, wide?: boolean, color?: string }
 
@@ -32,6 +33,10 @@ const PREVIEW_MEDIA = `
     }
   }
 `
+
+// how long a stopped copy is given to unwind inside its request: One Piece's still held 90 MB after 100 ms, and after
+// 300 ms only what a settled copy leaves (workerd on this machine, 2026-10-24, 1 run each)
+const DRAIN_MS = 1_000
 
 const yoga = createYoga({ schema: createSchema({ typeDefs, resolvers }), maskedErrors: false, logging: false, graphiql: false })
 
@@ -72,14 +77,18 @@ export const previewOf = (media?: Media): Preview | undefined => {
 export type Answer = {
   /** The preview read when the sources settle or `deadline` passes, whichever is first. */
   first: Promise<Preview | undefined>
-  /** The preview read when the sources settle or `settleBy` passes, whichever is first. */
+  /**
+   * The preview read when the sources settle or `settleBy` passes, whichever is first, given once the copy has stopped
+   * every source still asking and let them unwind. Until it settles the copy is still working.
+   */
   last: Promise<Preview | undefined>
 }
 
 /**
  * The preview stub draws for `uri` on `site`, from the title page's own subscription. Both promises exist when this
- * returns, so a caller can hand `last` to `waitUntil` before it waits on anything. Once per copy of this module
- * (`createPreview()` in vite.preview.config.ts).
+ * returns, so a caller can hand `last` to `waitUntil` before it waits on anything, and must: a copy whose request ends
+ * before `last` keeps its sources' unfinished answers, and with them the whole copy, in the isolate's memory. Once per
+ * copy of this module (`createPreview()` in vite.preview.config.ts).
  */
 export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy = 20_000 }: { deadline: number, settleBy?: number }): Answer => {
   const controller = new AbortController()
@@ -114,15 +123,17 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   // a timer rather than the abort alone: aborted, the request left its read waiting for the subscription's next
   // payload, which sources that have gone quiet never send (measured under vitest, 2026-10-23)
   let giveUp: ReturnType<typeof setTimeout> | undefined
-  const last = Promise.race([reading.catch(() => {}), new Promise(resolve => { giveUp = setTimeout(resolve, settleBy) })])
-    .then(() => previewOf(media))
-    .finally(() => {
+  const ended = Promise.race([reading.catch(() => {}), new Promise(resolve => { giveUp = setTimeout(resolve, settleBy) })])
+    .then(() => {
       clearTimeout(giveUp)
       controller.abort()
       void reader?.cancel().catch(() => {})
+      stop()
+      return previewOf(media)
     })
+  const last = ended.then(preview => new Promise<Preview | undefined>(resolve => setTimeout(resolve, DRAIN_MS, preview)))
   let late: ReturnType<typeof setTimeout> | undefined
-  const first = Promise.race([last, new Promise(resolve => { late = setTimeout(resolve, deadline) })])
+  const first = Promise.race([ended, new Promise(resolve => { late = setTimeout(resolve, deadline) })])
     .then(() => previewOf(media))
     .finally(() => clearTimeout(late))
   return { first, last }
