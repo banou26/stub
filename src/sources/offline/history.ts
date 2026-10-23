@@ -55,8 +55,10 @@ export const historyEntry = async (key: string, load: ShardLoader, follow = true
 }
 
 /**
- * A history record as one media at the offline source's score, so every live source outranks it: its title
- * (AniDB's, else Kitsu's, else the dump's), its cover (Kitsu's, else the dump's), Kitsu's banner and description.
+ * A history record as one media at the offline source's score: its title (AniDB's, else Kitsu's, else the dump's),
+ * its cover (Kitsu's, else the dump's), Kitsu's banner and description. Every live source outranks the first three.
+ * Not the description: a page shows the longest one whatever its score, so Kitsu's synopsis as the history last
+ * read it competes with live Kitsu's own, and a closed season's is never read again.
  * No season, type, status or date: a record outside the bundled seasons claims nothing it was not picked for.
  */
 export const historyMedia = (entry: HistoryEntry, handles: Parameters<typeof makeMedia>[0]['handles']): GQLMedia => {

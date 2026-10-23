@@ -63,11 +63,11 @@ test('the cover is Kitsu\'s poster where stub\'s rules took it, else the dump\'s
   expect(historyMedia({ key: 'mal-2', title: 'A', picture: '' }, []).covers).toEqual([])
 })
 
-// Mutation: leave out the banner or the description.
+// Mutations: leave out the banner or the description; score the description above the offline source's 0.2.
 test('the banner and the description are Kitsu\'s, at the offline source\'s score', () => {
   const media = historyMedia({ key: 'mal-1', title: 'A', picture: '', kitsu: { b: 'cover_images/1/original.jpg', d: 'Space bounty hunters.' } }, [])
   expect(media.banners).toEqual([{ url: 'https://media.kitsu.app/anime/cover_images/1/original.jpg', score: 0.2 }])
-  expect(media.descriptions?.map(item => item.description)).toEqual(['Space bounty hunters.'])
+  expect(media.descriptions?.map(item => [item.description, item.score])).toEqual([['Space bounty hunters.', 0.2]])
   expect(media.score).toBe(0.2)
   expect(media.titles[0]?.score).toBe(0.2)
 })

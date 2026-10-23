@@ -127,6 +127,12 @@ test('a show the index has no row for answers its history record, with its own c
   expect(await handlesOf('mal:5')).toEqual(['mal:5'])
 })
 
+// Mutation: try only the first of the address's ids against the history.
+test('an address whose first id the history lacks answers the record a later id names', async () => {
+  const media = await mediaOf('ag:(anilist:999,mal:5)')
+  expect([media.uri, media.titles[0].title]).toEqual(['offline:mal-5', 'Cowboy Bebop: The Movie'])
+})
+
 // Mutation: look a Kitsu id up only under its own key.
 test('the Kitsu id of a record with no MyAnimeList id reaches it through the history', async () => {
   const media = await mediaOf('kitsu:7')
