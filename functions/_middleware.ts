@@ -13,8 +13,8 @@ const TITLE_PATH = /^\/(?:title|media|watch)\/([^/]+)/
 const SITE_NAMES: Record<Site, string> = { anime: 'Stub Anime', movie: 'Stub Movies', series: 'Stub Series', stub: 'Stub' }
 // from the request; no unfurler documents how long it waits for a page
 const DEADLINE_MS = 2_500
-// against an isolate's 128 MB: a long series' copy alone reached 132 and 167 MB of live heap (Detective Conan, One
-// Piece), a current season's 28 to 35 MB (Black Clover), measured in workerd 2026-10-24, 1 run each
+// against an isolate's 128 MB: a long series' copy alone holds up to 85 to 105 MB (Detective Conan, One Piece), a
+// current season's 30 to 39 MB (Black Clover), reachable after a full collection in workerd, 3 runs each, 2026-10-24
 const AT_ONCE = 1
 // a copy still asking here is stopped, and holds its turn until it has unwound (src/preview)
 const SETTLE_MS = 20_000
