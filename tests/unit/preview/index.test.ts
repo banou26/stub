@@ -25,8 +25,12 @@ vi.mock('../../../src/worker/resolvers', async () => {
     },
   }
 })
-const graph = vi.hoisted(() => ({ boots: (): Promise<void> => Promise.resolve() }))
-vi.mock('../../../src/worker/graph', () => ({ enableGraph: () => graph.boots(), setReadStore: () => {} }))
+const graph = vi.hoisted(() => ({ boots: (): Promise<void> => Promise.resolve(), episodesKept: undefined as boolean | undefined }))
+vi.mock('../../../src/worker/graph', () => ({
+  enableGraph: () => graph.boots(),
+  setReadStore: () => {},
+  keepEpisodes: (kept: boolean) => { graph.episodesKept = kept },
+}))
 
 const ROOT = resolve(import.meta.dirname, '../../..')
 // the two files vite.preview.config.ts copies beside the build
@@ -69,6 +73,14 @@ test('first is what is read at the deadline, last what is read once the sources 
   expect((await first)?.title).toBe('Black Clover Second Season')
   expect((await last)?.title).toBe('Black Clover Season 2')
   expect(asked).toEqual([{ uri: 'ag:(anilist:195604)', details: true, site: 'anime' }])
+})
+
+test('the copy keeps no episodes, which a preview never draws', async () => {
+  feed.current = feeding(async function* () {
+    yield media('One Piece', true)
+  })
+  await answer('ag:(anilist:21)', 'anime', WASM, { deadline: 1_000 }).first
+  expect(graph.episodesKept).toBe(false)
 })
 
 test('first comes as soon as the sources settle, before the deadline', async () => {

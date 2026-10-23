@@ -34,7 +34,7 @@ export type AnswerRow = {
   operation: string
   /** The field names the answer carried at the top level, sorted, so a partial answer is visible as such. */
   selection: string[]
-  /** The resolver's return value as JSON, byte for byte: handles, relations and episodes included. */
+  /** The resolver's return value as JSON, byte for byte: handles, relations and episodes included, unless `keepEpisodes(false)`. */
   raw: string
 }
 
@@ -172,6 +172,14 @@ const FLUSH_MS = 50
 // A separator no field name carries, the same one the ingest joins its list columns on.
 const SELECTION_SEPARATOR = '\u0000'
 
+let episodesKept = true
+
+/**
+ * Whether answers keep their episodes, as they do unless a caller that never reads an episode says otherwise: a media
+ * answer is then logged without its `episodes` and an episode answer not at all, so the graph holds none.
+ */
+export const keepEpisodes = (kept: boolean): void => { episodesKept = kept }
+
 let pending: Draft[] = []
 let timer: ReturnType<typeof setTimeout> | undefined
 let settle: (() => void) | undefined
@@ -263,8 +271,9 @@ export const recordAnswers = (
 ): Promise<void> | undefined => {
   if (!graphEnabled()) return undefined
   const kind = answerKindOf(info, typeName)
-  if (!kind) return undefined
+  if (!kind || (kind === 'episode' && !episodesKept)) return undefined
   const values = (Array.isArray(result) ? result : [result]).filter(isRecord)
+    .map(value => kind === 'media' && !episodesKept ? { ...value, episodes: undefined } : value)
   if (!values.length) return undefined
   const operation = operationOf(info)
   return Promise.all(values.map(value => draftOf(kind, operation, value)))

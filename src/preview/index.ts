@@ -9,7 +9,7 @@ import initSacha from 'sacha'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from '../worker/resolvers'
-import { enableGraph, setReadStore } from '../worker/graph'
+import { enableGraph, keepEpisodes, setReadStore } from '../worker/graph'
 import { setSite } from '../site'
 import { stop } from './fetch'
 
@@ -47,6 +47,10 @@ let booting: Promise<void> | undefined
 const boot = (wasm: Wasm) => (booting ??= (async () => {
   await initFrizbee({ module_or_path: wasm.frizbee })
   await initSacha({ module_or_path: wasm.sacha })
+  // a preview draws no episode, and a long series' episodes, in every source's answer, are most of what a copy holds:
+  // One Piece's aborted under a 120 MiB V8 heap with them (2 of 2) and completed without (3 of 3; Detective Conan 3 of 3)
+  // in workerd, 2026-10-24
+  keepEpisodes(false)
   await enableGraph(true, { scheduler: true })
   setReadStore('graph')
 })())

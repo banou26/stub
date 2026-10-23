@@ -16,7 +16,7 @@ import { typeDefs } from '../../../../src/generated/schema/typeDefs.generated'
 import { closeRoot, openRoot, stamp, type RootOperation } from '../../../../src/worker/request-context'
 import { closeGraph } from '../../../../src/worker/graph/engine'
 import { enableGraph } from '../../../../src/worker/graph'
-import { exportAnswers, recordAnswers } from '../../../../src/worker/graph/answers'
+import { exportAnswers, keepEpisodes, recordAnswers } from '../../../../src/worker/graph/answers'
 
 const HANDLE_NODE = { uri: 'kitsu:1', origin: 'kitsu', id: '1' }
 const RELATION_NODE = { uri: 'anilist:99', origin: 'anilist', id: '99' }
@@ -298,6 +298,26 @@ describe('the Answer log', () => {
     expect(spy).toHaveBeenCalledOnce()
     expect((await exportAnswers()).map(row => row.uri)).not.toContain('mal:9')
     spy.mockRestore()
+  })
+
+  // the link preview's copy (src/preview), where a long series' episodes in every source's answer were most of its heap
+  test('with episodes off, a media answer is kept without them and an episode answer not at all', async () => {
+    const before = new Set((await exportAnswers()).map(row => row.key))
+    const fixture = mediaFixture('One Piece')
+    payload = { ...fixture, uri: 'mal:21', id: '21', episodes: fixture.episodes.map(episode => ({ ...episode, uri: 'mal:21-1', id: '21-1', mediaUri: 'mal:21' })) }
+    keepEpisodes(false)
+    try {
+      await run(MEDIA_DOCUMENT, 'MEDIA', { uri: 'mal:21' })
+    } finally {
+      keepEpisodes(true)
+      payload = mediaFixture('Frieren')
+    }
+
+    const added = (await exportAnswers()).filter(row => !before.has(row.key))
+    expect(added.map(row => [row.kind, row.uri])).toEqual([['media', 'mal:21']])
+    expect(added[0]!.selection).toEqual(['handles', 'id', 'origin', 'relations', 'titles', 'uri'])
+    expect(JSON.parse(added[0]!.raw).episodes).toBeUndefined()
+    expect(JSON.parse(added[0]!.raw).titles[0].title).toBe('One Piece')
   })
 
   test('the export is ordered by seq, with no number re-used', async () => {

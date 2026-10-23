@@ -15,7 +15,7 @@ import { seedOrigins } from './seed-origins'
 export { closeGraph, graphEnabled, openGraph, setGraphEnabled } from './engine'
 export type { Graph, GraphRow } from './engine'
 export { createGraphSchema, graphReady, GRAPH_SCHEMA, GRAPH_TABLES } from './schema'
-export { exportAnswers, flushAnswers, recordAnswers } from './answers'
+export { exportAnswers, flushAnswers, keepEpisodes, recordAnswers } from './answers'
 export type { AnswerKind, AnswerRow } from './answers'
 // Section 7.3: the questions the similar consumer put, and what each came to.
 export { exportAsks, flushAsks, recordAsk } from './asks'
