@@ -204,7 +204,7 @@ test('when the read ends with no title, the deadline\'s preview is kept', async 
   expect(await kept('anime', 'ag:(anilist:195604)')!.json()).toEqual(INTERIM)
 })
 
-test('a link stub cannot name gets the plain card, kept for an hour, so a later crawler builds no copy', async () => {
+test('a link with no title, as a copy that reached no source ends too, gets the plain card, kept five minutes', async () => {
   createPreview.mockImplementation(() => copy(undefined))
   const first = await call('https://series.fkn.app/title/ag:(tmdb:52762)')
   expect(first.response.status).toBe(200)
@@ -213,7 +213,7 @@ test('a link stub cannot name gets the plain card, kept for an hour, so a later 
   expect(meta(first.html, 'og:image')).toEqual([])
   await first.kept
   expect(await kept('series', 'ag:(tmdb:52762)')!.clone().json()).toBeNull()
-  expect(kept('series', 'ag:(tmdb:52762)')!.headers.get('cache-control')).toBe('max-age=3600')
+  expect(kept('series', 'ag:(tmdb:52762)')!.headers.get('cache-control')).toBe('max-age=300')
 
   const later = await call('https://series.fkn.app/title/ag:(tmdb:52762)')
   expect(meta(later.html, 'og:title')).toEqual(['Stub Series'])

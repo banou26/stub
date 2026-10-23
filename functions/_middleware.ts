@@ -22,7 +22,9 @@ const SETTLE_MS = 20_000
 // and work it cancels never reaches its `finally`, so a turn also lapses on its own
 const TURN_MS = 35_000
 const DAY_S = 86_400
-const HOUR_S = 3_600
+// short, since a copy that reached no source (the relays restarting, or metering this data centre's address) ends
+// the same way as a link stub cannot name
+const PLAIN_S = 300
 
 let turns: number[] = []
 
@@ -39,7 +41,7 @@ const take = (now: number) => {
 
 // a title with no preview is kept too, as `null`, so a link stub cannot name does not take a turn on every fetch
 const keep = (cache: Cache, key: Request, preview?: Preview) =>
-  cache.put(key, new Response(JSON.stringify(preview ?? null), { headers: { 'cache-control': `max-age=${preview ? DAY_S : HOUR_S}` } }))
+  cache.put(key, new Response(JSON.stringify(preview ?? null), { headers: { 'cache-control': `max-age=${preview ? DAY_S : PLAIN_S}` } }))
 
 const lookup = async (segment: string, site: Site, started: number, waitUntil: Context['waitUntil']): Promise<Preview | undefined> => {
   const cache = (caches as CacheStorage & { default: Cache }).default
