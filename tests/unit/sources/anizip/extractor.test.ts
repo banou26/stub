@@ -1,5 +1,5 @@
 // Frieren and Cowboy Bebop: The Movie as api.ani.zip answered stub's own mappings request on 2026-10-12,
-// BanG Dream! It's MyGO!!!!! on 2026-10-13, Nine: Original-ban and Happy-Go-Lucky Days on 2026-10-24.
+// BanG Dream! It's MyGO!!!!! on 2026-10-13, Nine: Original-ban, Happy-Go-Lucky Days, Full Dive and Monster on 2026-10-24.
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/anizip/extractor'
@@ -10,6 +10,8 @@ import COWBOY_BEBOP_MOVIE from '../../../fixtures/anizip/cowboy-bebop-the-movie.
 import MYGO from '../../../fixtures/anizip/bang-dream-its-mygo.json'
 import NINE from '../../../fixtures/anizip/nine-original-ban.json'
 import HAPPY_GO_LUCKY_DAYS from '../../../fixtures/anizip/happy-go-lucky-days.json'
+import FULL_DIVE from '../../../fixtures/anizip/full-dive.json'
+import MONSTER from '../../../fixtures/anizip/monster.json'
 
 const normalized = async (answer: { mappings: { mal_id: number } }) => {
   const context = { fetch: async () => ({ json: async () => answer }) }
@@ -23,6 +25,8 @@ const links = async (answer: { mappings: { mal_id: number } }) =>
     .map(({ relation, node }) => `${relation} ${node.scope} ${node.uri} ${node.url}`)
 
 type Texts = { titles: { title: string }[], descriptions: { description: string }[], shortDescriptions: { shortDescription: string }[] }
+
+const shown = (episode: Texts) => parseTextDescription(episode.shortDescriptions[0]!.shortDescription).trim()
 
 // an enricher's ids are links that never weld two titles: PART_OF, which unions nothing
 test('a series\' TMDB, TheTVDB and IMDb ids are links to the show', async () => {
@@ -112,7 +116,37 @@ test('an episode summary shows the < and > AniDB writes as &lt; and &gt;', async
   const answer = { ...NINE, episodes: { 1: episode } }
   const media = await normalized(answer)
 
-  expect(parseTextDescription(media.episodes[0].shortDescriptions[0].shortDescription).trim()).toBe('Nine <Original-ban> isn\'t cut')
+  expect(shown(media.episodes[0])).toBe('Nine <Original-ban> isn\'t cut')
+})
+
+// Full Dive's (anidb 15905) episodes 2 and 6, two of the five anime.fkn.app showed raw
+test('an episode summary shows the text of a link AniDB writes as `URL [text]`', async () => {
+  const older = { ...FULL_DIVE.episodes['2'], summary: 'http://anidb.net/perl-bin/animedb.pl?show=character&charid=115820 [Hiro] logs in.' }
+  const answer = { ...FULL_DIVE, episodes: { 2: older } }
+  const [fullDive, olderLink] = await Promise.all([normalized(FULL_DIVE), normalized(answer)])
+
+  expect(fullDive.episodes.map(shown)).toEqual([
+    'Given the difficulty of Hiro\'s unique situation in the game, Reona and Hiro decide to seek the help of one of the few remaining players in Kiwame Quest.',
+    'Mizarisa and Alicia clash over Hiro. After the battle, Hiro starts to understand Kamui\'s advice.',
+  ])
+  expect(shown(olderLink.episodes[0])).toBe('Hiro logs in.')
+})
+
+// Monster's (anidb 1539) episodes 1 and 64: every one of its 66 summaries ends in this credit, 64's typed `[I[`
+test('an episode summary shows no `[I]` tag of AniDB\'s, nor the credit it wraps', async () => {
+  expect((await normalized(MONSTER)).episodes.map(shown)).toEqual([
+    'Doctor Tenma is a brilliant Japanese neurosurgeon who works at Eisler Memorial Hospital in Germany. He is doing well professionally and is even engaged to the director\'s daughter, Eva. One day, a boy with a gunshot wound to the head is brought to him.',
+    'The Baby is killed by a prostitute, and his death sends shockwaves through Petr Capek\'s organization. Capek becomes paranoid as to who is loyal or not and accidentally kills one of his guards. He makes it to his cottage where Johan is waiting for him.',
+  ])
+})
+
+// made up: of 6099 summaries in 719 titles on 2026-10-24, none had another bracket and 3 a bare address
+test('a summary with no link AniDB\'s way arrives as written', async () => {
+  const summary = 'Hiro logs in [again] to http://anidb.net/ch115822, where [Reona] waits.'
+  const answer = { ...FULL_DIVE, episodes: { 2: { ...FULL_DIVE.episodes['2'], summary } } }
+  const media = await normalized(answer)
+
+  expect(media.episodes[0].shortDescriptions[0].shortDescription).toBe(summary)
 })
 
 // One Piece 1181 to 1184 as api.ani.zip answered on 2026-10-15: no `airDateUtc`, `airDate: null`, `airdate: ''`

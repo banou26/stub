@@ -1,0 +1,74 @@
+{
+  "titles": {
+    "x-jat": "fulldive",
+    "ja": "究極進化したフルダイブRPGが現実よりもクソゲーだったら",
+    "en": "Full Dive: This Ultimate Next-Gen Full Dive RPG Is Even Shittier Than Real Life!"
+  },
+  "episodes": {
+    "2": {
+      "tvdbShowId": 395156,
+      "tvdbId": 8285832,
+      "seasonNumber": 1,
+      "episodeNumber": 2,
+      "absoluteEpisodeNumber": 2,
+      "title": {
+        "ja": "過疎ゲーの住人",
+        "en": "Living in a Dead Game",
+        "fr": "Un jeu dépeuplé",
+        "x-jat": "Kaso Gee no Juunin"
+      },
+      "airDate": "2021-04-14",
+      "airDateUtc": "2021-04-14T13:30:00Z",
+      "runtime": 24,
+      "overview": "Given the difficulty of Hiro's unique situation in the game, Reona and Hiro decide to seek the help of one of the few remaining players in Kiwame Quest.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/8285832/screencap/6075bda240276.jpg",
+      "episode": "2",
+      "anidbEid": 238619,
+      "length": 25,
+      "airdate": "2021-04-14",
+      "rating": "4.59",
+      "summary": "Given the difficulty of http://anidb.net/ch115820 [Hiro]`s unique situation in the game, http://anidb.net/ch115821 [Reona] and Hiro decide to seek the help of one of the few remaining players in Kiwame Quest. \nSource: Funimation"
+    },
+    "6": {
+      "tvdbShowId": 395156,
+      "tvdbId": 8285836,
+      "seasonNumber": 1,
+      "episodeNumber": 6,
+      "absoluteEpisodeNumber": 6,
+      "title": {
+        "ja": "ナイフとノコギリ",
+        "en": "Knife vs. Saw",
+        "fr": "Le couteau et la scie",
+        "x-jat": "Knife to Sokogiri"
+      },
+      "airDate": "2021-05-12",
+      "airDateUtc": "2021-05-12T13:30:00Z",
+      "runtime": 24,
+      "overview": "Mizarisa and Alicia clash over Hiro. After the battle, Hiro starts to understand Kamui's advice.",
+      "image": "https://artworks.thetvdb.com/banners/v4/episode/8285836/screencap/609a995e47d5e.jpg",
+      "episode": "6",
+      "anidbEid": 239650,
+      "length": 25,
+      "airdate": "2021-05-12",
+      "rating": "4.68",
+      "summary": "http://anidb.net/ch114198 [Mizarisa] and http://anidb.net/ch114196 [Alicia] clash over http://anidb.net/ch115820 [Hiro]. After the battle, Hiro starts to understand http://anidb.net/ch115824 [Kamui]`s advice.\nSource: Funimation"
+    }
+  },
+  "episodeCount": 12,
+  "specialCount": 0,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "full-dive-this-ultimate-next-gen-full-dive-rpg-is-even-shittier-than-real-life",
+    "kitsu_id": 43861,
+    "mal_id": 44276,
+    "type": "TV",
+    "anilist_id": 126791,
+    "anisearch_id": 15805,
+    "anidb_id": 15905,
+    "notifymoe_id": null,
+    "livechart_id": 10247,
+    "thetvdb_id": 395156,
+    "imdb_id": "tt13593022",
+    "themoviedb_id": "114198"
+  }
+}

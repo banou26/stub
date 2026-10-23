@@ -23,6 +23,13 @@ const apostrophes = (text: string) => text.replaceAll('`', '\'')
 // is read as Markdown when shown, which decodes it, and a `<` decoded here would open a tag there that the page drops
 const anidbTitle = (text: string) => apostrophes(decodeEntities(text))
 
+// Its summaries write a link as `URL [text]` ("http://anidb.net/ch115820 [Hiro]") and italics as `[i]text[/i]`, twice
+// typed `[I[` or `[/I[`: 16 and 66 of 6099 summaries in 719 titles, 2026-10-24. The 66 are Monster's, each ending
+// "\n[I]Source: theTVDB.com[/I]", a credit `dropCredit` sees once untagged. Only the text stays, as it is shown as text
+const plainText = (text: string) => text
+  .replace(/https?:\/\/\S+ \[([^\]]+)\]/g, '$1')
+  .replace(/\[\/?i[[\]]/gi, '')
+
 const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
   ...en ? [{ language: 'en', title: anidbTitle(en), score: SCORE }] : [],
   ...ja ? [{ language: 'ja', title: anidbTitle(ja), score: SCORE }] : [],
@@ -87,7 +94,7 @@ const normalizeMedia = (media: AnimeSeries) => {
         .entries(media.episodes)
         .map(([episodeId, episode]) => {
           const epId = `${id}-${episodeId}`
-          const summary = episode.summary && dropCredit(apostrophes(episode.summary))
+          const summary = episode.summary && dropCredit(plainText(apostrophes(episode.summary)))
           return makeEpisode({
             origin,
             id: epId,

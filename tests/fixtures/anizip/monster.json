@@ -1,0 +1,76 @@
+{
+  "titles": {
+    "x-jat": "Monster",
+    "ja": "MONSTER",
+    "en": "Monster"
+  },
+  "episodes": {
+    "1": {
+      "tvdbShowId": 74599,
+      "tvdbId": 149697,
+      "seasonNumber": 1,
+      "episodeNumber": 1,
+      "absoluteEpisodeNumber": 1,
+      "title": {
+        "ja": "ヘルDr.テンマ",
+        "en": "Herr Dr. Tenma",
+        "fr": "Herr Dr. Tenma",
+        "es": "Herr Doktor Tenma",
+        "x-jat": "Herr Dr. Tenma"
+      },
+      "airDate": "2004-04-07",
+      "airDateUtc": "2004-04-06T15:45:00Z",
+      "runtime": 24,
+      "overview": "Doctor Tenma is a brilliant Japanese neurosurgeon who works at Eisler Memorial Hospital in Germany. He is doing well professionally and is even engaged to the director's daughter, Eva. One day, a boy with a gunshot wound to the head is brought to him.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/74599/149697.jpg",
+      "episode": "1",
+      "anidbEid": 17843,
+      "length": 25,
+      "airdate": "2004-04-07",
+      "rating": "7.80",
+      "summary": "Doctor Tenma is a brilliant Japanese neurosurgeon who works at Eisler Memorial Hospital in Germany. He is doing well professionally and is even engaged to the director`s daughter, Eva. One day, a boy with a gunshot wound to the head is brought to him.\n[I]Source: theTVDB.com[/I]"
+    },
+    "64": {
+      "tvdbShowId": 74599,
+      "tvdbId": 303462,
+      "seasonNumber": 1,
+      "episodeNumber": 64,
+      "absoluteEpisodeNumber": 64,
+      "title": {
+        "ja": "赤ん坊の憂鬱",
+        "en": "The Baby`s Depression",
+        "fr": "Le bébé déprime",
+        "es": "La angustia de bebé",
+        "x-jat": "Akanbou no Yuuutsu"
+      },
+      "airDate": "2005-07-20",
+      "airDateUtc": "2005-07-19T15:45:00Z",
+      "runtime": 24,
+      "overview": "The Baby is killed by a prostitute, and his death sends shockwaves in Petr Capek's organization. Capek becomes paranoid as to who is loyal or not and accidentally kills one of his guards. He makes it to his cottage where Johan is waiting for him.",
+      "image": "https://artworks.thetvdb.com/banners/episodes/74599/303462.jpg",
+      "episode": "64",
+      "anidbEid": 38147,
+      "length": 25,
+      "airdate": "2005-07-20",
+      "rating": "8.24",
+      "summary": "The Baby is killed by a prostitute, and his death sends shockwaves through Petr Capek`s organization. Capek becomes paranoid as to who is loyal or not and accidentally kills one of his guards. He makes it to his cottage where Johan is waiting for him.\n[I[Source: theTVDB.com[/I]"
+    }
+  },
+  "episodeCount": 74,
+  "specialCount": 3,
+  "images": [],
+  "mappings": {
+    "animeplanet_id": "monster",
+    "kitsu_id": 10,
+    "mal_id": 19,
+    "type": "TV",
+    "anilist_id": 19,
+    "anisearch_id": 1888,
+    "anidb_id": 1539,
+    "notifymoe_id": null,
+    "livechart_id": 3619,
+    "thetvdb_id": 74599,
+    "imdb_id": "tt0434706",
+    "themoviedb_id": "30981"
+  }
+}
