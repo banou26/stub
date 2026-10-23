@@ -327,16 +327,17 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
     log(`AniDB: asked ${attempt.attemptedAt}, not again before 24 hours have passed`)
   } else {
     release ??= await gh.create()
-    const record = { attemptedAt: new Date(now()).toISOString(), outcome: turn === 'ask' ? 'asking' : 'not asked: no readable record', lastModified: attempt?.lastModified ?? anidb.lastModified ?? null }
+    const record = { attemptedAt: new Date(now()).toISOString(), outcome: turn === 'ask' ? 'asking' : 'not asked: no readable record' }
     const recorded = await gh.replace(release, ATTEMPT, JSON.stringify(record)).then(() => true, error => {
       log(`AniDB: not asked, the attempt could not be recorded (${errorText(error)})`)
       return false
     })
     if (turn === 'ask' && recorded) {
-      const answer = await askAnidb({ get, lastModified: record.lastModified })
+      // the published copy's date, so a 200 whose publish then failed is asked for again rather than answered 304
+      const answer = await askAnidb({ get, lastModified: anidb.lastModified })
       log(`AniDB: ${answer.outcome}${answer.titles ? `, ${answer.titles.size} shows with an English or Japanese title` : ''}`)
       if (answer.titles) anidb = { fetchedAt: record.attemptedAt, lastModified: answer.lastModified, titles: answer.titles }
-      await gh.replace(release, ATTEMPT, JSON.stringify({ ...record, outcome: answer.outcome, lastModified: anidb.lastModified ?? record.lastModified }))
+      await gh.replace(release, ATTEMPT, JSON.stringify({ ...record, outcome: answer.outcome }))
         .catch(error => log(`AniDB: the outcome could not be recorded (${errorText(error)})`))
     }
   }

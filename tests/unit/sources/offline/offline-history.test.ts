@@ -66,10 +66,13 @@ const kitsuResource = (id: number, status = 'finished') => ({
   attributes: { canonicalTitle: `Show ${id}`, status, synopsis: null, userCount: 9, posterImage: { tiny: 't', small: 's', medium: 'm', large: 'l', original: 'o', meta: {} } },
 })
 
+// Mutations: drop the synopsis; drop the banner.
 test('a Kitsu row keeps the attributes the kitsu source and the checkpoints read, and the image sizes it takes', () => {
   expect(kitsuRow(kitsuResource(5), '2026-10-25T05:41:00.000Z')).toEqual({
     id: '5', fetchedAt: '2026-10-25T05:41:00.000Z', attributes: { canonicalTitle: 'Show 5', status: 'finished', posterImage: { original: 'o', large: 'l', medium: 'm' } },
   })
+  const full = { ...kitsuResource(5), attributes: { ...kitsuResource(5).attributes, synopsis: 'Space bounty hunters.', coverImage: { tiny: 't', large: 'l', original: 'o' } } }
+  expect(kitsuRow(full, '2026-10-25T05:41:00.000Z').attributes).toMatchObject({ synopsis: 'Space bounty hunters.', coverImage: { original: 'o', large: 'l' } })
 })
 
 const kitsuApi = (answers: (number | 'rows')[] = []) => {
@@ -93,6 +96,14 @@ test('Kitsu is asked 20 ids a request, one at a time with a pause, and a 429 wai
   expect(asked.map(url => new URL(url).searchParams.get('filter[id]')!.split(',').length)).toEqual([20, 20, 20, 5])
   expect(new URL(asked[0]!).searchParams.get('page[limit]')).toBe('20')
   expect(waits).toEqual([30_000, 1_000, 1_000])
+})
+
+// Mutations: leave out the synopsis; leave out the banner.
+test('Kitsu is asked for every attribute the history keeps, the synopsis and the banner included', async () => {
+  const { asked, get } = kitsuApi()
+  await askKitsu([1], { get, sleep: async () => {} })
+  expect(new URL(asked[0]!).searchParams.get('fields[anime]')!.split(','))
+    .toEqual(['titles', 'canonicalTitle', 'synopsis', 'posterImage', 'coverImage', 'subtype', 'status', 'startDate', 'endDate', 'episodeCount'])
 })
 
 // Mutations: keep asking after the last back off; back off on a 404.
@@ -142,7 +153,14 @@ test('a season closes four seasons after the cut, and an unfinished show in it i
 })
 
 /** A fake GitHub release API, AniDB and Kitsu, recording every request in order. */
-const world = ({ release = true, assets = {} as Record<string, string | Buffer>, anidb = () => new Response(null, { status: 304 }) as Response, failUploads = false } = {}) => {
+const world = ({
+  release = true,
+  assets = {} as Record<string, string | Buffer>,
+  anidb = (_init: RequestInit): Response => new Response(null, { status: 304 }),
+  failUploads = (_name: string): boolean => false,
+  kitsuAnswers = [] as (number | 'rows')[],
+  gone = [] as string[],
+} = {}) => {
   const log: string[] = []
   const store = new Map<string, { id: number, name: string, bytes: Buffer, created_at: string }>()
   let id = 0
@@ -153,13 +171,15 @@ const world = ({ release = true, assets = {} as Record<string, string | Buffer>,
   }
   for (const [name, bytes] of Object.entries(assets)) put(name, bytes)
   let exists = release
-  const listed = () => [...store.values()].map(({ id, name, created_at }) => ({ id, name, created_at, url: `https://api.github.com/repos/banou26/stub/releases/assets/${id}` }))
-  const kitsu = kitsuApi()
+  // listed by the release but answering 404, as a stale listing can
+  let ghosts = gone.map((name, index) => ({ id: 900 + index, name, created_at: '2026-10-20T00:00:00Z', url: `https://api.github.com/repos/banou26/stub/releases/assets/${900 + index}` }))
+  const listed = () => [...[...store.values()].map(({ id, name, created_at }) => ({ id, name, created_at, url: `https://api.github.com/repos/banou26/stub/releases/assets/${id}` })), ...ghosts]
+  const kitsu = kitsuApi(kitsuAnswers)
   const get = async (url: string, init: RequestInit = {}) => {
     const method = init.method ?? 'GET'
     if (url === ANIDB) {
       log.push('anidb')
-      return anidb()
+      return anidb(init)
     }
     if (url.startsWith('https://kitsu.io/')) {
       log.push('kitsu')
@@ -177,14 +197,15 @@ const world = ({ release = true, assets = {} as Record<string, string | Buffer>,
     if (upload) {
       const name = decodeURIComponent(upload[1]!)
       log.push(`upload ${name}`)
-      if (failUploads) return new Response('', { status: 500 })
+      if (failUploads(name)) return new Response('', { status: 500 })
       put(name, init.body as string | Buffer)
       return Response.json(listed().find(asset => asset.name === name))
     }
     const assetId = /^https:\/\/api\.github\.com\/repos\/banou26\/stub\/releases\/assets\/(\d+)$/.exec(url)?.[1]
     if (assetId && method === 'DELETE') {
-      log.push(`delete ${store.get(assetId)?.name}`)
+      log.push(`delete ${listed().find(asset => String(asset.id) === assetId)?.name}`)
       store.delete(assetId)
+      ghosts = ghosts.filter(ghost => String(ghost.id) !== assetId)
       return new Response(null, { status: 204 })
     }
     if (assetId) return store.has(assetId) ? new Response(new Uint8Array(store.get(assetId)!.bytes)) : new Response('', { status: 404 })
@@ -192,7 +213,8 @@ const world = ({ release = true, assets = {} as Record<string, string | Buffer>,
   }
   const named = (name: string) => [...store.values()].find(asset => asset.name === name)?.bytes
   const kitsuIds = () => kitsu.asked.flatMap(url => new URL(url).searchParams.get('filter[id]')!.split(',').map(Number)).sort((a, b) => a - b)
-  return { log, get, named, kitsuIds, names: () => [...store.values()].map(asset => asset.name).sort() }
+  const kitsuOrder = () => kitsu.asked.flatMap(url => new URL(url).searchParams.get('filter[id]')!.split(',').map(Number))
+  return { log, get, named, kitsuIds, kitsuOrder, names: () => [...store.values()].map(asset => asset.name).sort() }
 }
 
 const dumpOf = (tag: string, entries = ENTRIES) => async () => ({ tag, meta: { lastUpdate: '2026-10-19' }, entries, sha256: `sha-of-${tag}` })
@@ -202,7 +224,7 @@ const run = (w: ReturnType<typeof world>, tag = '2026-43', now = NOW) =>
 
 /** A published history, as a first run from scratch leaves it, with its attempt record `hoursAgo` old. */
 const published = async (hoursAgo: number) => {
-  const first = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  const first = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Mon, 19 Oct 2026 04:00:00 GMT' } }) })
   await run(first, '2026-43', NOW - hoursAgo * HOUR)
   return Object.fromEntries(first.names().map(name => [name, first.named(name)!]))
 }
@@ -241,7 +263,7 @@ test('a day later AniDB is asked once, after the attempt is recorded, and a 304 
 
 // Mutation: ask AniDB when the record could not be written.
 test('when the attempt cannot be recorded, AniDB is not asked', async () => {
-  const w = world({ assets: await published(25), failUploads: true })
+  const w = world({ assets: await published(25), failUploads: () => true })
   await run(w)
   expect(w.log).not.toContain('anidb')
 })
@@ -253,6 +275,44 @@ test('a release that lost its attempt record writes one and asks AniDB nothing t
   await run(w)
   expect(w.log).toEqual([`upload ${ATTEMPT}`])
   expect(JSON.parse(w.named(ATTEMPT)!.toString()).attemptedAt).toBe('2026-10-25T05:41:00.000Z')
+})
+
+// Mutations: read a record that does not parse as an old one; read one that answers 404 as an old one.
+test('an attempt record that cannot be read is written anew, and AniDB is asked nothing that run', async () => {
+  const broken = world({ assets: { ...await published(25), [ATTEMPT]: 'not json' } })
+  await run(broken)
+  expect(broken.log).toEqual([`delete ${ATTEMPT}`, `upload ${ATTEMPT}`])
+  expect(JSON.parse(broken.named(ATTEMPT)!.toString()).attemptedAt).toBe('2026-10-25T05:41:00.000Z')
+
+  const { [ATTEMPT]: _, ...assets } = await published(25)
+  const missing = world({ assets, gone: [ATTEMPT] })
+  await run(missing)
+  expect(missing.log).toEqual([`delete ${ATTEMPT}`, `upload ${ATTEMPT}`])
+})
+
+// Mutation: send If-Modified-Since from the attempt record, which a failed publish leaves ahead of the history.
+test('If-Modified-Since is the published titles\' date, so a 200 whose publish failed is asked for again', async () => {
+  const sent: (string | undefined)[] = []
+  const anidb = (init: RequestInit) => {
+    sent.push((init.headers as Record<string, string>)['if-modified-since'])
+    return new Response(new Uint8Array(anidbFile(15_001)), { headers: { 'last-modified': 'Sat, 24 Oct 2026 04:00:00 GMT' } })
+  }
+  const w = world({ assets: await published(25), anidb, failUploads: name => name.startsWith('anidb-titles-') })
+  await expect(run(w)).rejects.toThrow(/answered HTTP 500/)
+  const retry = world({ assets: Object.fromEntries(w.names().map(name => [name, w.named(name)!])), anidb })
+  await run(retry, '2026-43', NOW + 25 * HOUR)
+  expect(sent).toEqual(['Mon, 19 Oct 2026 04:00:00 GMT', 'Mon, 19 Oct 2026 04:00:00 GMT'])
+  const history = decodeHistory({ manifest: retry.named('manifest.json')!.toString(), assets: Object.fromEntries(retry.names().map(name => [name, retry.named(name)!])) })
+  expect([history.anidb.titles.size, history.anidb.lastModified]).toEqual([15_001, 'Sat, 24 Oct 2026 04:00:00 GMT'])
+})
+
+// Mutation: read a release with no finished publish as one that does not exist.
+test('a release a run from scratch left with only its attempt record starts over, without asking AniDB again that day', async () => {
+  const { [ATTEMPT]: attempt } = await published(2)
+  const w = world({ assets: { [ATTEMPT]: attempt! } })
+  await run(w)
+  expect(w.log).not.toContain('anidb')
+  expect(w.kitsuIds()).toEqual([1, 3, 4, 5, 6, 12])
 })
 
 // Mutations: start over when manifest.json is missing; restore from the oldest copy.
@@ -273,6 +333,8 @@ test('a new dump asks Kitsu for new shows and open seasons only, and removes wha
   // the new show, the open seasons' three and One Piece, carried, in one request: here Kitsu calls the rest finished
   expect(w.log.filter(line => line === 'kitsu')).toHaveLength(1)
   expect(w.kitsuIds()).toEqual([4, 5, 6, 12, 77])
+  // the new show first, so a run Kitsu cuts short has asked it before refreshing what the history already holds
+  expect(w.kitsuOrder()[0]).toBe(77)
   const manifest = JSON.parse(w.named('manifest.json')!.toString())
   expect([manifest.dump.tag, manifest.kitsu.refreshedFor]).toEqual(['2026-44', '2026-44'])
   const first = Object.keys(before).find(name => name.startsWith('kitsu-'))!
@@ -284,6 +346,20 @@ test('a new dump asks Kitsu for new shows and open seasons only, and removes wha
   expect(w.names()).not.toContain(first)
   expect(w.names().filter(name => name.startsWith('kitsu-'))).toHaveLength(2)
   expect(w.names().filter(name => name.startsWith('manifest-'))).toHaveLength(2)
+})
+
+// Mutation: mark the refresh done when Kitsu stopped it.
+test('a Kitsu refresh cut short leaves the history refreshed for the old dump, and the next run asks the rest', async () => {
+  const dump = [...ENTRIES, entry('New this week', { mal: 7, kitsu: 77 }, { year: 2026, season: 'FALL' })]
+  const cut = world({ assets: await published(2), kitsuAnswers: [503] })
+  await runHistory({ token: 't', get: cut.get, dump: dumpOf('2026-44', dump), now: () => NOW, sleep: async () => {}, pauseMs: 0, backoff: [] })
+  const stopped = JSON.parse(cut.named('manifest.json')!.toString())
+  expect([stopped.dump.tag, stopped.kitsu.refreshedFor]).toEqual(['2026-44', '2026-43'])
+
+  const next = world({ assets: Object.fromEntries(cut.names().map(name => [name, cut.named(name)!])) })
+  await runHistory({ token: 't', get: next.get, dump: dumpOf('2026-44', dump), now: () => NOW, sleep: async () => {}, pauseMs: 0, backoff: [] })
+  expect(next.kitsuIds()).toEqual([4, 5, 6, 12, 77])
+  expect(JSON.parse(next.named('manifest.json')!.toString()).kitsu.refreshedFor).toBe('2026-44')
 })
 
 // Mutation: a release answer of 500 read as no release.
