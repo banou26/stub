@@ -2,6 +2,7 @@
 // from the modules that write or list them, so the list cannot drift from what is written.
 
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
+import { UPDATE_RELOADS_KEY } from '../../update/gate'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
 import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
 import { SETTINGS_KEYS } from '../../settings-sync'
@@ -71,6 +72,14 @@ export const STORED: readonly StoredItem[] = [
     where: SESSION,
     lasts: 'Until you leave the party or close the tab',
     keys: { store: 'session', names: [PARTY_SESSION_KEY] },
+  },
+  {
+    id: 'update-reloads',
+    title: 'Update reloads',
+    what: 'When this tab last reloaded by itself onto a new version of stub, so it does so at most twice in five minutes.',
+    where: SESSION,
+    lasts: 'Until you close the tab',
+    keys: { store: 'session', names: [UPDATE_RELOADS_KEY] },
   },
   {
     id: 'stub-list',

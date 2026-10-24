@@ -1,3 +1,4 @@
+import './update'
 import { css, Global } from '@emotion/react'
 import { render } from 'preact'
 import { Provider } from 'urql'

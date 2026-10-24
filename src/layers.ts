@@ -56,6 +56,11 @@ export const layer = {
   /** The plugin invite, which blocks the page until it is answered. */
   pluginPrompt: 2000,
   /**
+   * "Updating Stub", the whole page for the moment before an update's reload. Under the party cursor
+   * only because an update never goes while a party is running.
+   */
+  updating: 2500,
+  /**
    * The watch party's ghost pointer, over everything, because it says where the host's HAND is and
    * the host is as likely to be pointing at the thing on top. It costs the layers under it nothing,
    * having no pointer events of its own.

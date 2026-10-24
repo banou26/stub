@@ -17,7 +17,9 @@ declare module '*.html?raw' {
   export default source
 }
 
-/** vite's glob import, the one form used: a lazy importer of each matching file's default export, by its path. */
 interface ImportMeta {
+  /** True in a production build. */
+  readonly env: { readonly PROD: boolean }
+  /** vite's glob import, the one form used: a lazy importer of each matching file's default export, by its path. */
   glob: <T>(pattern: string, options: { import: 'default' }) => Record<string, () => Promise<T>>
 }
