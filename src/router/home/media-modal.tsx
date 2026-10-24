@@ -20,6 +20,7 @@ import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
+import { sanitizeDescription } from '../../utils/description'
 import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
@@ -489,7 +490,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           description
             ? (
               <Collapsible collapsedHeight={200} className="description">
-                <div dangerouslySetInnerHTML={{ __html: description }}/>
+                <div dangerouslySetInnerHTML={{ __html: sanitizeDescription(description) }}/>
               </Collapsible>
             )
             : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>

@@ -1273,6 +1273,27 @@ test('a film AniList and MAL date by its year alone reads Releases and the year,
   await expect(movie.locator('.facts')).toHaveText(/^Movie · 2099\b/)
 })
 
+// AniList describes Spec Unsafe with a script, an image's onerror, a handler, a javascript: link, a style attribute, a
+// style sheet and a form (tests/fake-fetch.ts)
+test('a description draws its paragraphs, breaks, italics, bold and links, and none of its scripts, handlers, styles or forms, in the modal and on its page', async ({ page }) => {
+  for (const [path, selector] of [['/media/ag:(anilist:900110)', '.modal > .content > .description'], ['/title/ag:(anilist:900110)', '.heading > .description']] as const) {
+    await page.goto(`${origin}${path}`)
+    const description = page.locator(selector)
+    await expect(description, path).toContainText('A quiet town.Its sequel, a link and a span.', { timeout: 30_000 })
+    await description.getByText('a span').hover()
+    // each image has loaded or failed, so an onerror left in has run
+    await description.evaluate(element => Promise.all([...element.querySelectorAll('img')].map(image => image.decode().catch(() => {}))))
+    expect(await description.evaluate(element => ({
+      text: element.textContent,
+      formatting: ['p', 'br', 'i', 'b', 'a[href="https://anilist.co/anime/1"]'].filter(tag => !element.querySelector(tag)),
+      elements: [...element.querySelectorAll('script, style, form')].map(child => child.localName),
+      attributes: [...element.querySelectorAll('*')].flatMap(child => child.getAttributeNames().filter(name => name.startsWith('on') || name === 'style')),
+      links: [...element.querySelectorAll('a[href]')].map(link => link.getAttribute('href')!).filter(href => !href.startsWith('https:')),
+      ran: (window as { ran?: string }).ran,
+    })), path).toEqual({ text: 'A quiet town.Its sequel, a link and a span.', formatting: [], elements: [], attributes: [], links: [], ran: undefined })
+  }
+})
+
 test('a long title wraps beside the modal\'s links rather than pushing them under it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openModal(page)

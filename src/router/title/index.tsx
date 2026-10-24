@@ -23,6 +23,7 @@ import { filmRelease } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
+import { sanitizeDescription } from '../../utils/description'
 import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
@@ -761,7 +762,7 @@ const TitlePage = () => {
           }
           {
             description
-              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
+              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: sanitizeDescription(description) }}/>
               : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}
