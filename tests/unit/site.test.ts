@@ -2,7 +2,7 @@
 // movie, Chinese and Korean animation is anime, and live-action adaptations never are.
 import { expect, test } from 'vite-plus/test'
 
-import { setSite, site, siteAllows, siteAsks, siteLinksOf, siteOf, type Site } from '../../src/site'
+import { isSiteHost, setSite, site, siteAllows, siteAsks, siteLinksOf, siteOf, type Site } from '../../src/site'
 
 const SITES: Site[] = ['anime', 'movie', 'series', 'stub']
 
@@ -89,4 +89,18 @@ test('setSite moves the site every reader sees, for the link preview, whose one 
   expect(siteAllows(['ANIME', 'SERIES'])).toBe(true)
   expect(siteAsks('anilist')).toBe(true)
   setSite('stub')
+})
+
+test('the four sites\' own hosts are fkn.app\'s and localhost\'s, and no preview or tenant', () => {
+  for (const host of ['anime.fkn.app', 'movies.fkn.app', 'series.fkn.app', 'stub.fkn.app', 'anime.localhost']) {
+    expect(isSiteHost(host), host).toBe(true)
+  }
+  for (const host of [
+    'fkn.app',
+    'stub-ben.pages.dev',
+    'movie.stub-ben.pages.dev',
+    'bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku.sdbx.app',
+    '127.0.0.1',
+    'localhost',
+  ]) expect(isSiteHost(host), host).toBe(false)
 })

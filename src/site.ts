@@ -15,6 +15,12 @@ export const siteOf = (hostname: string): Site => {
   return label === 'movies' ? 'movie' : (label as Site | undefined) ?? 'stub'
 }
 
+/**
+ * Whether a host is one of the four sites' own, on fkn.app or `localhost`, which is where stub's own
+ * deploys are served. A pages.dev preview or a sandbox tenant is not.
+ */
+export const isSiteHost = (hostname: string) => SITE_HOST.test(hostname)
+
 export let site: Site = siteOf(globalThis.location?.hostname ?? '')
 
 /** Serves `next` from here on, for the link preview, whose one isolate answers all four sites' hosts. */
