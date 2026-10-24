@@ -61,6 +61,32 @@ test('the reader draws the record that claims the address, and AniList\'s own ro
   expect([live?.type, live?.categories]).toEqual(['TV', ['ANIME', 'SERIES']])
 }, 60_000)
 
+// Mutation: follow the claim before the provisional view, as the first cut did, and the relation redraws as the
+// history's マクロス ゼロ with the dump's cover.
+test('a relation its parent described keeps the parent\'s snapshot over the record that claims it', async () => {
+  await pass([media('anilist:777100', {
+    score: 0.8,
+    titles: [title('en', 'Parent Show', 0.8)],
+    relations: [{
+      relation: 'SIDE_STORY',
+      format: 'TV',
+      node: {
+        uri: 'anilist:194',
+        titles: [title('en', 'Macross Zero')],
+        covers: [{ language: 'en', url: 'https://cover.test/anilist-194.jpg', score: 0.8 }],
+      },
+    }],
+  })])
+  await pass([await offlineRow('ag:(anilist:194)')])
+
+  const unnamed = await createMediaReader('ag:(mal:194)').read()
+  expect([unnamed?._id, titlesOf(unnamed)], 'the control: an id nobody described draws the record').toEqual(['cl:offline:mal-194', ['マクロス ゼロ']])
+
+  const relation = await createMediaReader('ag:(anilist:194)').read()
+  expect(titlesOf(relation)).toEqual(['Macross Zero'])
+  expect((relation?.covers as { url: string }[] | undefined)?.map(cover => cover.url)).toEqual(['https://cover.test/anilist-194.jpg'])
+}, 60_000)
+
 // Mutation: drop `k.provenance <> 'address'` and the echo's cluster is drawn under an id it only repeated.
 test('an address echo is never followed: a source that only repeated the id it was asked about is not that id', async () => {
   await pass([media('tvdb:777000', {

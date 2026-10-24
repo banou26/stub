@@ -428,7 +428,8 @@ const viewOfResolved = (resolved: ResolvedCluster): Promise<AggregatedMedia | un
  * no cluster holds. A catalogue id the offline source names stays a placeholder with no scope until that catalogue's
  * own source describes it (its claims are `seed`), so a link naming only catalogue ids (`ag:(anilist:20)`) resolved to
  * nothing while the offline record was the only answer: no payload in 9 s with every request refused (2026-10-25).
- * The reader's alone, as `provisionalView` is, and taken only after `resolveMedia` found nothing.
+ * The reader's alone, as `provisionalView` is, and taken only after `resolveMedia` found nothing and the provisional
+ * view drew no title.
  */
 const resolveByClaims = async (uris: readonly string[]): Promise<ResolvedCluster | undefined> => {
   if (!uris.length) return undefined
@@ -611,21 +612,24 @@ export const createMediaReader = (uri: string, member?: string) => {
 
   return {
     read: async (): Promise<AggregatedMedia | undefined> => {
-      let media = await resolveMedia(uri, member)
-      if (!media) {
-        const claimed = await resolveByClaims(addressUris(uri))
-        media = claimed && await viewOfResolved(claimed)
-      }
-      if (media) {
+      const settle = async (media: AggregatedMedia) => {
         clusterId = media._id
         wakeUris = new Set([...requested, ...await memberUrisOf([media._id])])
         return media
       }
+      const media = await resolveMedia(uri, member)
+      if (media) return settle(media)
       // NO CLUSTER YET, so draw the row itself rather than nothing (`provisionalView`). `clusterId`
       // and `wakeUris` are deliberately NOT touched: the reader stays waking on its requested uris,
       // which is what the real cluster's `view:changed` names, so the provisional view is replaced on
       // the very next pass rather than becoming the state this reader settles in.
-      return provisionalView(uri)
+      const provisional = await provisionalView(uri)
+      // a parent's description of a relation outranks the offline record claiming it, so the claim is followed only
+      // for a row nothing has titled
+      if ((provisional?.titles as unknown[] | undefined)?.length) return provisional
+      const claimed = await resolveByClaims(addressUris(uri))
+      const view = claimed && await viewOfResolved(claimed)
+      return view ? settle(view) : provisional
     },
     // The middle clause is the one an id-shaped address needs: 6.2 lets the route uri BE a cluster
     // id, `clusterId` is only set by a successful read, and a read only runs on a wake, so a reader

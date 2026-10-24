@@ -1873,11 +1873,12 @@ provisional path sets neither `clusterId` nor `wakeUris`: the reader keeps wakin
 uris, which is what the real cluster's `view:changed` names, and a blank modal never becomes a stale
 one.
 
-A reader whose address no cluster holds draws the cluster of a member that claims `SAME_AS` one of its uris, never
-through an `address` echo, before it falls back to the provisional view (HOR-915, 2026-10-25). The offline source's
-claims are `seed`, which gives its catalogue ids no scope, so they stay placeholders until each catalogue's own
-source answers: a link naming only those ids (`ag:(anilist:20)`) drew nothing while the offline record was the only
-answer. `resolveMedia` still does not follow claims, so a source waiting on the cluster waits for its own catalogue.
+A reader whose address no cluster holds, and whose provisional view draws no title, draws the cluster of a member that
+claims `SAME_AS` one of its uris, never through an `address` echo (HOR-915, 2026-10-25). A relation its parent
+described therefore keeps the parent's snapshot until its own catalogue answers. The offline source's claims are
+`seed`, which gives its catalogue ids no scope, so they stay placeholders until each catalogue's own source answers: a
+link naming only those ids (`ag:(anilist:20)`) drew nothing while the offline record was the only answer.
+`resolveMedia` still does not follow claims, so a source waiting on the cluster waits for its own catalogue.
 :::
 
 ```cypher
