@@ -1480,7 +1480,7 @@ test('with Prime Video answering before Crunchyroll, Play still opens Crunchyrol
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
-// a scene search's link opens the episode at the scene's second (HOR-517)
+// a scene search's link opens the episode at the scene's second
 test('Play\'s pick keeps the second a scene search opened the episode at', async () => {
   vi.useFakeTimers()
   origins = ['cr']

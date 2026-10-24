@@ -238,7 +238,7 @@ describe('formatLabel, statusLabel and seasonLabel', () => {
   })
 })
 
-// a scene search's address holds the picture's color code alone (HOR-517), so Back, a reload and a party all reopen it
+// a scene search's address holds the picture's color code alone, so Back, a reload and a party all reopen it
 describe('the scene address', () => {
   test('round-trips a color code, and reads nothing else as one', () => {
     const code = 'gwebWzth7oPe2UIubOJmozi1NDFp'

@@ -181,7 +181,7 @@ test('a source plugin\'s player that never says its length resumes on its first 
   expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
 })
 
-// a scene search's link opens the episode at the scene (HOR-517)
+// a scene search's link opens the episode at the scene
 test('a start the address names seeks there in place of the point kept, even past where the site resumed', async () => {
   keep(['nf:1', 600, 1400])
   const link = page({ start: 272 })

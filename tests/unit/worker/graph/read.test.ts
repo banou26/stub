@@ -884,8 +884,8 @@ test('and so does the search page document, which selects the wider half of the 
   for (const handle of handles) nonNull(handle.node, HANDLE_NODE_FIELDS, String(handle.node.uri))
 })
 
-// A scene search draws the search page's card of the show trace.moe named, and opens an episode of it by number
-// (HOR-517), so its document has to execute over the same view the modal reads.
+// A scene search draws the search page's card of the show trace.moe named, and opens an episode of it by number,
+// so its document has to execute over the same view the modal reads.
 test('the scene search document executes over the detail view, with the episodes it opens by number', async () => {
   const data = await execute(`${SCENE_MEDIA}\n${SEARCH_CARD}\n${MEDIA_FRAGMENT}`, {
     input: { uri: 'ag:(mal:39535)' },

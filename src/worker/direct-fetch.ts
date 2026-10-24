@@ -27,7 +27,7 @@
 // So this is not a workaround for a broken relay. It is a statement that for these hosts the viewer's
 // own address is part of the question, which no relay can supply.
 //
-// THE SECOND REASON, api.trace.moe (HOR-517): its answer is the same from any address, but its free
+// THE SECOND REASON, api.trace.moe: its answer is the same from any address, but its free
 // allowance is not. It counts 100 searches a day and one at a time PER ASKING ADDRESS, and its own
 // docs advise a distributed app to "send the API request directly from your clients". Through the
 // relay each node is one caller (measured 2026-10-24: Prague asks as 79.127.204.69, Hong Kong as

@@ -24,7 +24,7 @@ test('the host the season answer is about is asked from the browser', () => {
 })
 
 // trace.moe counts its free 100 searches a day per asking address, so through the relay every viewer of a node
-// would share one node's 100 (HOR-517)
+// would share one node's 100
 test('the scene search is asked from the browser, whose own address trace.moe counts', () => {
   expect(asksViewerDirectly(sceneSearchUrl('gwebWzth7oPe2UIubOJmozi1NDFp'))).toBe(true)
 })

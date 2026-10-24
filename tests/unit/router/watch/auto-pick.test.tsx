@@ -140,7 +140,7 @@ describe('useAutoPick', () => {
     expect(navigate).toHaveBeenLastCalledWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:1', { replace: true })
   })
 
-  // a scene search's link names the second to start at (HOR-517), and Play's pick must not drop it
+  // a scene search's link names the second to start at, and Play's pick must not drop it
   test('the pick keeps the address\'s query string', () => {
     const { navigate } = page({ ...at, search: 't=272', best: { uri: 'cr:GX1', now: true } })
     expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/cr:GX1?t=272', { replace: true })
