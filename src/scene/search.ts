@@ -13,7 +13,7 @@ export const sceneSearchUrl = (code: string) => `${TRACE_MOE_ORIGIN}/search?vect
 // trace.moe's docs: "Similarity lower than 90% are most likely incorrect results."
 export const MIN_SIMILARITY = 0.9
 
-/** One moment a show matched at: its AniList episode, absent for a special or a file trace.moe could not number, and the second it starts at. */
+/** One moment a show matched at: its AniList episode, absent for a special, a file of several episodes or one trace.moe could not number, and the second it starts at. */
 export type SceneMoment = { episode: number | null, from: number }
 
 /** A show the picture is from, and each episode it matched in, most similar first. */
@@ -25,6 +25,7 @@ export type SceneAnswer = { matches: SceneMatch[] } | { error: string }
 export type TraceMoeResult = {
   anilist: number | { id: number }
   episode_start?: number | null
+  episode_end?: number | null
   from: number
   similarity: number
 }
@@ -35,7 +36,8 @@ export type TraceMoeResult = {
  * An episode's moment is the EARLIEST `from` among its copies: trace.moe indexes several files of one episode, and
  * the same frame sat about 10 s apart between a Blu-ray and a TV copy (measured 2026-10-24), so the earliest starts
  * playback at or before the scene in any of them. `episode_start` is the episode in AniList's order, which stub's
- * numbers follow, where `episode` is only parsed from the file name.
+ * numbers follow, where `episode` is only parsed from the file name. A file of several episodes (EP07-12) names
+ * none, since its `from` counts from the start of the file.
  */
 export const scenesOf = (results: readonly TraceMoeResult[]): SceneMatch[] => {
   const shows = new Map<number, Map<number | null, number>>()
@@ -45,7 +47,8 @@ export const scenesOf = (results: readonly TraceMoeResult[]): SceneMatch[] => {
     if (!Number.isInteger(anilist)) continue
     const moments = shows.get(anilist) ?? new Map<number | null, number>()
     shows.set(anilist, moments)
-    const episode = result.episode_start ?? null
+    const { episode_start: start = null, episode_end: end = start } = result
+    const episode = start === end ? start : null
     moments.set(episode, Math.min(moments.get(episode) ?? Infinity, Math.max(0, result.from)))
   }
   return [...shows].map(([anilist, moments]) => ({

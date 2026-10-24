@@ -99,6 +99,18 @@ describe('scenesOf', () => {
       { anilist: 3, moments: [{ episode: null, from: 5 }] },
     ])
   })
+
+  // trace.moe's docs: a file of several episodes (EP07-12) is listed from episode_start to episode_end, its `from`
+  // counted from the start of the file
+  test('a file of several episodes names none of them, and one of a single episode names it', () => {
+    expect(scenesOf([
+      { anilist: 1, episode_start: 7, episode_end: 12, from: 3000, similarity: 0.97 },
+      { anilist: 2, episode_start: 4, episode_end: 4, from: 30, similarity: 0.96 },
+    ])).toEqual([
+      { anilist: 1, moments: [{ episode: null, from: 3000 }] },
+      { anilist: 2, moments: [{ episode: 4, from: 30 }] },
+    ])
+  })
 })
 
 test('a moment reads as its episode and its time', () => {
