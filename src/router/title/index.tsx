@@ -23,7 +23,6 @@ import { filmRelease } from '../home/episodes'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
-import { sanitizeDescription } from '../../utils/description'
 import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
@@ -689,6 +688,7 @@ const TitlePage = () => {
   const coverUrl = useCoverUrl(media?.covers, media)
   const title = media?.titles.at(0)?.title
   const second = secondTitle(media?.titles)
+  // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
   const isMovie = Boolean(media && isMovieMedia(media))
   const film = isMovie ? media!.episodes.at(0) : undefined
@@ -762,7 +762,7 @@ const TitlePage = () => {
           }
           {
             description
-              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: sanitizeDescription(description) }}/>
+              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
               : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}

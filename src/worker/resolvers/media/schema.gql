@@ -510,7 +510,9 @@ type MediaShortDescription {
 }
 
 enum MediaDescriptionContentType {
+  """The source's own HTML with only its text, formatting, links and remote images left, to draw as HTML"""
   HTML
+  """Plain text, the source's Markdown read"""
   TEXT
 }
 

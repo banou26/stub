@@ -4,7 +4,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/anizip/extractor'
 import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
-import { parseTextDescription } from '../../../../src/worker/resolvers/utils'
+import { descriptionText } from '../../../../src/worker/resolvers/utils'
 import FRIEREN from '../../../fixtures/anizip/frieren.json'
 import COWBOY_BEBOP_MOVIE from '../../../fixtures/anizip/cowboy-bebop-the-movie.json'
 import MYGO from '../../../fixtures/anizip/bang-dream-its-mygo.json'
@@ -26,7 +26,7 @@ const links = async (answer: { mappings: { mal_id: number } }) =>
 
 type Texts = { titles: { title: string }[], descriptions: { description: string }[], shortDescriptions: { shortDescription: string }[] }
 
-const shown = (episode: Texts) => parseTextDescription(episode.shortDescriptions[0]!.shortDescription).trim()
+const shown = (episode: Texts) => descriptionText(episode.shortDescriptions[0]!.shortDescription).trim()
 
 // an enricher's ids are links that never weld two titles: PART_OF, which unions nothing
 test('a series\' TMDB, TheTVDB and IMDb ids are links to the show', async () => {

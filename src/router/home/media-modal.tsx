@@ -20,7 +20,6 @@ import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
 import { carriedSearch } from '../debug/trace'
-import { sanitizeDescription } from '../../utils/description'
 import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
@@ -341,6 +340,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
   const settled = useSettledOnce(uri, current?.settled && answered)
   const tracked = useTrackingSummary(data?.media?.uri)
+  // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
   const description = useMemo(
     () =>
       media
@@ -490,7 +490,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           description
             ? (
               <Collapsible collapsedHeight={200} className="description">
-                <div dangerouslySetInnerHTML={{ __html: sanitizeDescription(description) }}/>
+                <div dangerouslySetInnerHTML={{ __html: description }}/>
               </Collapsible>
             )
             : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>

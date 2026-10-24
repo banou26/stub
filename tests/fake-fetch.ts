@@ -64,11 +64,11 @@ const YEAR_FILM_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Year Fil
 <div><span class="dark_text">Status:</span> Not yet aired</div>
 <div><span class="dark_text">Aired:</span> 2099</div>`
 // a description carrying a script, an image's onerror, a handler, a javascript: link, a style attribute, a style
-// sheet and a form among AniList's formatting
+// sheet and a form among AniList's formatting and a remote image
 const UNSAFE = {
   id: 900110, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Unsafe' },
   description: '<p>A <i style="color:red">quiet</i> <b>town</b>.<br>Its <a href="https://anilist.co/anime/1">sequel</a>, <a href="javascript:window.ran=\'link\'">a link</a> and <span onmouseover="window.ran=\'handler\'">a span</span>.</p>'
-    + '<img src="x" onerror="window.ran=\'onerror\'"><script>window.ran=\'script\'</script>'
+    + '<img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/1.jpg" alt=""><img src="x" onerror="window.ran=\'onerror\'"><script>window.ran=\'script\'</script>'
     + '<style>.description{color:red}</style><form action="https://e.example/collect"></form>',
 }
 const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
@@ -166,7 +166,7 @@ const TMDB: Record<string, string> = {
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
 // AniList describes Spec Unsafe (anilist:900110) with a script, an onerror, a handler, a javascript: link, a style
-// attribute, a style sheet and a form.
+// attribute, a style sheet and a form, and a remote image.
 // AniList schedules Spec Airing (anilist:900080, mal:900080) from its 4th episode a day out, weekly, when asked for
 // its schedule, and AniZip dates its first 3 episodes and lists 4 to 6 undated.
 // AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and

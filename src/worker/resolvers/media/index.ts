@@ -12,9 +12,8 @@ import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/
 import { askAddressOf, createMediaReader, createPageReader, episodesOf, passSettled, readStore } from '../../graph'
 import { listen, listenIterator, listenMultipleIterator, debouncedListenIterator } from '../../store/events'
 import { createSettling } from '../../fanout'
-import { parseHTMLDescription, parseTextDescription } from '../utils'
+import { descriptionAs } from '../utils'
 import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../../sources/utils'
-import { MediaDescriptionContentType } from '../../../generated/graphql'
 import { decodeRouteUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
 
 export const schema = _schema as string
@@ -356,45 +355,12 @@ export const resolvers = {
         .map(group => aggregateEpisode(group, location.origin))
         .sort((a, b) => (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0))
     },
-    descriptions: (parent, args) => {
-      const descriptions =
-        parent
-          .descriptions
-          ?.slice(0, args.input?.count ? args.input.count : undefined)
-          .map(mediaDescription => {
-            const parsed =
-              args.input?.type === MediaDescriptionContentType.Html ? parseHTMLDescription(mediaDescription.description)
-              : args.input?.type === MediaDescriptionContentType.Text ? parseTextDescription(mediaDescription.description)
-              : parseTextDescription(mediaDescription.description)
-
-            return {
-              ...mediaDescription,
-              shortDescription: parsed
-            }
-          })
-
-      return descriptions
-    },
-    shortDescriptions: (parent, args) => {
-      const shortDescriptions =
-        parent
-          .shortDescriptions
-          ?.slice(0, args.input?.count ? args.input.count : undefined)
-          ?.map(mediaShortDescription => {
-            const parsed =
-              args.input?.type === MediaDescriptionContentType.Html ? parseHTMLDescription(mediaShortDescription.shortDescription)
-              : args.input?.type === MediaDescriptionContentType.Text ? parseTextDescription(mediaShortDescription.shortDescription)
-              : parseTextDescription(mediaShortDescription.shortDescription)
-
-            return {
-              ...mediaShortDescription,
-              shortDescription: parsed
-            }
-          })
-          .filter((mediaShortDescription): mediaShortDescription is NonNullable<typeof mediaShortDescription> => Boolean(mediaShortDescription))
-
-      return shortDescriptions
-    },
+    descriptions: (parent, args) =>
+      parent.descriptions?.slice(0, args.input?.count || undefined)
+        .map(item => ({ ...item, description: descriptionAs(item.description, args.input?.type) })),
+    shortDescriptions: (parent, args) =>
+      parent.shortDescriptions?.slice(0, args.input?.count || undefined)
+        .map(item => ({ ...item, shortDescription: descriptionAs(item.shortDescription, args.input?.type) })),
     handles: (parent) => parent.handles ?? [],
   }
 } satisfies Resolvers

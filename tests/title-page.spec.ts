@@ -1274,8 +1274,8 @@ test('a film AniList and MAL date by its year alone reads Releases and the year,
 })
 
 // AniList describes Spec Unsafe with a script, an image's onerror, a handler, a javascript: link, a style attribute, a
-// style sheet and a form (tests/fake-fetch.ts)
-test('a description draws its paragraphs, breaks, italics, bold and links, and none of its scripts, handlers, styles or forms, in the modal and on its page', async ({ page }) => {
+// style sheet and a form, and a remote image (tests/fake-fetch.ts)
+test('a description draws its paragraphs, breaks, italics, bold, links and remote images, and none of its scripts, handlers, styles or forms, in the modal and on its page', async ({ page }) => {
   for (const [path, selector] of [['/media/ag:(anilist:900110)', '.modal > .content > .description'], ['/title/ag:(anilist:900110)', '.heading > .description']] as const) {
     await page.goto(`${origin}${path}`)
     const description = page.locator(selector)
@@ -1289,8 +1289,12 @@ test('a description draws its paragraphs, breaks, italics, bold and links, and n
       elements: [...element.querySelectorAll('script, style, form')].map(child => child.localName),
       attributes: [...element.querySelectorAll('*')].flatMap(child => child.getAttributeNames().filter(name => name.startsWith('on') || name === 'style')),
       links: [...element.querySelectorAll('a[href]')].map(link => link.getAttribute('href')!).filter(href => !href.startsWith('https:')),
+      images: [...element.querySelectorAll('img')].map(image => image.getAttribute('src')),
       ran: (window as { ran?: string }).ran,
-    })), path).toEqual({ text: 'A quiet town.Its sequel, a link and a span.', formatting: [], elements: [], attributes: [], links: [], ran: undefined })
+    })), path).toEqual({
+      text: 'A quiet town.Its sequel, a link and a span.', formatting: [], elements: [], attributes: [], links: [],
+      images: ['https://s4.anilist.co/file/anilistcdn/media/anime/banner/1.jpg', 'x'], ran: undefined,
+    })
   }
 })
 

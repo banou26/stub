@@ -105,8 +105,8 @@ MIT, see [LICENSE](./LICENSE).
 
 Decisions to impl:
 
-Sanitize data from the external sources handler, aka db side, not from the react UI
-Offer markdown from the graphql API, not compute it from the react UI
+Sanitize descriptions in the worker's GraphQL resolvers, on demand, not in the react UI: done, `type: HTML` answers sanitized HTML (sanitize-html), and the pages draw it as it comes
+Offer each description's form from the graphql API, not compute it in the react UI: done, `type: HTML` or `TEXT`. Sources send HTML or plain text (a few Kitsu synopses use `*emphasis*`), not Markdown, so the HTML keeps the source's own and only the plain text reads Markdown, as it did
 
 
 ## todo:
