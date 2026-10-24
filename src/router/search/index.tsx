@@ -1,3 +1,4 @@
+import type { SearchCardFragment } from '../../generated/graphql'
 import type { SearchFilters } from './params'
 
 import { css } from '@emotion/react'
@@ -11,9 +12,11 @@ import { MediaSort } from '../../generated/graphql'
 import { getRoutePath, Route } from '../path'
 import {
   CATEGORY_OPTIONS, FORMAT_OPTIONS, SEASON_OPTIONS, SITE_GENRES, STATUS_OPTIONS,
-  YEAR_MIN, hasSearchFilters, namesAQuery, parseSearchFilters, searchFiltersQuery, searchHeading, searchPath,
-  yearMax,
+  YEAR_MIN, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, scenePath, searchFiltersQuery, searchHeading,
+  searchPath, yearMax,
 } from './params'
+import { PictureButton, SceneItem, usePictureInput, useScene } from './scene'
+import { pictureCode } from '../../scene/code'
 import MediaTitle from '../../components/media-title'
 import MediaCard from '../../components/media-card'
 import MediaRow from '../../components/media-row'
@@ -25,50 +28,57 @@ import { site } from '../../site'
 
 const LIVE_ACTION_SITE = site === 'movie' || site === 'series'
 
+/** What each of the page's three layouts draws of a media, for a text search and a scene search (./scene.tsx) alike. */
+export const SEARCH_CARD_FRAGMENT = gql(`
+  fragment SearchCard on Media {
+    ...MediaFragment
+    score
+    episodeCount
+    titles {
+      language
+      title
+      score
+    }
+    shortDescriptions(input: $shortDescriptionInput) {
+      language
+      shortDescription
+    }
+    covers {
+      language
+      url
+      color
+    }
+    banners {
+      language
+      url
+    }
+    trailers {
+      uri
+      origin
+      id
+      url
+      thumbnail
+    }
+    popularity
+    genres
+    tags
+    averageScore
+    status
+    type
+    season
+    seasonYear
+    nextAiringEpisode {
+      episodeNumber
+      airingAt
+    }
+  }
+`)
+
 const SEARCH_MEDIA_PAGE = gql(`
   subscription SearchMediaPage($input: MediaPageInput!, $shortDescriptionInput: MediaShortDescriptionInput!) {
     mediaPage(input: $input) {
       nodes {
-        ...MediaFragment
-        score
-        episodeCount
-        titles {
-          language
-          title
-          score
-        }
-        shortDescriptions(input: $shortDescriptionInput) {
-          language
-          shortDescription
-        }
-        covers {
-          language
-          url
-          color
-        }
-        banners {
-          language
-          url
-        }
-        trailers {
-          uri
-          origin
-          id
-          url
-          thumbnail
-        }
-        popularity
-        genres
-        tags
-        averageScore
-        status
-        type
-        season
-        seasonYear
-        nextAiringEpisode {
-          episodeNumber
-          airingAt
-        }
+        ...SearchCard
       }
     }
   }
@@ -125,6 +135,52 @@ const style = css`
     font-size: 1.5rem;
     font-family: inherit;
   }
+
+  .text-field .picture {
+    display: flex;
+    padding: 0.4rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .text-field .picture:hover { color: #fff; }
+
+  .credit {
+    margin: -1.2rem 0 2rem;
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .credit a { color: rgba(255, 255, 255, 0.75); }
+
+  .scene {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    min-width: 0;
+  }
+
+  .moments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .moment {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1rem;
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.3rem;
+  }
+
+  a.moment:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
 
   .chips {
     display: flex;
@@ -251,7 +307,17 @@ const Search = () => {
   const search = useSearch()
   const [, navigate] = useLocation()
   const filters = useMemo(() => parseSearchFilters(search), [search])
-  const asked = namesAQuery(filters)
+  // trace.moe knows anime alone, so the live-action sites offer no scene search and read no scene address
+  const scene = LIVE_ACTION_SITE ? undefined : sceneOf(search)
+  const sceneAnswer = useScene(scene)
+  const asked = !scene && namesAQuery(filters)
+
+  const [unreadable, setUnreadable] = useState(false)
+  useEffect(() => { setUnreadable(false) }, [search])
+  const searchPicture = (file: File) => {
+    void pictureCode(file).then(code => navigate(scenePath(code)), () => setUnreadable(true))
+  }
+  usePictureInput(searchPicture, !LIVE_ACTION_SITE)
 
   // The url is the state, so a control writes to it and re-renders from it. `replace` keeps the back
   // button pointing at wherever the user came from rather than at every intermediate filter set.
@@ -283,7 +349,7 @@ const Search = () => {
   const [{ data }] = useSubscription({
     query: SEARCH_MEDIA_PAGE,
     variables: { input, shortDescriptionInput: { count: 1 } },
-    pause: !namesAQuery(fetched),
+    pause: Boolean(scene) || !namesAQuery(fetched),
   })
 
   // Read from storage once rather than kept in the url: see ./display.ts for why a layout is not part
@@ -370,20 +436,21 @@ const Search = () => {
   const layout = {
     grid: {
       className: 'grid',
-      item: (node: typeof nodes[number]) =>
+      item: (node: SearchCardFragment) =>
         <MediaTitle media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })} ellipsis={false}/>,
     },
     card: {
       className: 'cards',
-      item: (node: typeof nodes[number]) =>
+      item: (node: SearchCardFragment) =>
         <MediaCard media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
     },
     list: {
       className: 'rows',
-      item: (node: typeof nodes[number]) =>
+      item: (node: SearchCardFragment) =>
         <MediaRow media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
     },
   }[displayMode]
+  const pendingItems = <div className={layout.className}>{Array.from({ length: 12 }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>
 
   const chips: { key: string, label: string, clear: Partial<SearchFilters> }[] = [
     ...filters.year ? [{ key: 'year', label: String(filters.year), clear: { year: null } }] : [],
@@ -402,9 +469,10 @@ const Search = () => {
   return (
     <div css={style}>
       <div className="heading-row">
-        <div className="heading">{searchHeading(filters)}</div>
+        <div className="heading">{scene ? 'Scene search' : searchHeading(filters)}</div>
         <DisplayModeToggle mode={displayMode} onChange={pickDisplayMode}/>
       </div>
+      {scene ? <div className="credit">Scenes found by <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">trace.moe</a></div> : undefined}
 
       <div className="filters">
         <FilterField label="Search">
@@ -422,6 +490,7 @@ const Search = () => {
                 setFilters({ query: value })
               }}
             />
+            {LIVE_ACTION_SITE ? undefined : <PictureButton onPicture={searchPicture}/>}
           </div>
         </FilterField>
         <FilterSelect
@@ -492,13 +561,23 @@ const Search = () => {
       </div>
 
       {
-        nodes.length
-          ? <div className={layout.className}>{nodes.map(layout.item)}</div>
-          : asked
-            ? graceElapsed
-              ? <div className="status">No results found.</div>
-              : <div className={layout.className}>{Array.from({ length: 12 }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>
-            : <div className="status">{hasSearchFilters(filters) ? 'Add a title or another filter.' : 'Search by title, or pick a filter.'}</div>
+        unreadable
+          ? <div className="status">This picture could not be read.</div>
+          : scene
+            ? !sceneAnswer
+              ? pendingItems
+              : 'error' in sceneAnswer
+                ? <div className="status">{sceneAnswer.error}</div>
+                : sceneAnswer.matches.length
+                  ? <div className={layout.className}>{sceneAnswer.matches.map(match => <SceneItem key={match.anilist} match={match} item={layout.item}/>)}</div>
+                  : <div className="status">No results found.</div>
+            : nodes.length
+              ? <div className={layout.className}>{nodes.map(layout.item)}</div>
+              : asked
+                ? graceElapsed
+                  ? <div className="status">No results found.</div>
+                  : pendingItems
+                : <div className="status">{hasSearchFilters(filters) ? 'Add a title or another filter.' : 'Search by title, or pick a filter.'}</div>
       }
     </div>
   )

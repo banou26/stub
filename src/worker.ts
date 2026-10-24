@@ -38,7 +38,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, trackerCheck, trackerFocused } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -97,5 +97,6 @@ export {
   traceAnswer,
   // what only the page sees, for the stub tracker's list
   trackerCheck,
-  trackerFocused
+  trackerFocused,
+  searchScene
 }

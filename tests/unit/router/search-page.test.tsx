@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount } from '../components/dom'
 
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi, type Mock } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -32,7 +32,21 @@ vi.mock('urql', async () => {
     },
   }
 })
-vi.mock('lucide-react', () => ({ Search: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ Search: () => null, X: () => null, ImageIcon: () => null, LucidePlay: () => null }))
+// trace.moe as the worker answers it, and the picture's code as the browser computes it
+const scenes = vi.hoisted(() => ({ search: undefined as unknown as Mock<(code: string) => Promise<unknown>> }))
+vi.mock('../../../src/worker', async () => {
+  const { vi } = await import('vite-plus/test')
+  scenes.search = vi.fn()
+  return { searchScene: (code: string) => scenes.search(code) }
+})
+vi.mock('../../../src/scene/code', () => ({
+  pictureCode: async (file: File) => {
+    if (!file.type.startsWith('image/')) throw new Error('not a picture')
+    return CODE
+  },
+}))
+const CODE = 'gwebWzth7oPe2UIubOJmozi1NDFp'
 vi.mock('../../../src/components/display-mode-toggle', () => ({ default: () => null }))
 vi.mock('../../../src/components/filter-select', () => ({
   default: (props: { label: string, options: { value: string }[], onChange: (labels: string[]) => void }) => {
@@ -61,6 +75,7 @@ afterEach(() => {
   stream.data = undefined
   stream.started.length = 0
   stream.running = undefined
+  scenes.search.mockReset()
   delete (document as { activeElement?: Element }).activeElement
 })
 
@@ -231,5 +246,108 @@ describe('the search page', () => {
     const page = open('/search?q=frieren&genre=Award+Winning')
     act(() => stream.pickers['Genres & Tags']!.onChange(['Award Winning', 'Travel']))
     expect(page.history.at(-1)).toBe('/search?q=frieren&genre=Award+Winning&tag=Travel')
+  })
+})
+
+// HOR-517: a picture's color code asked of trace.moe, its address /search?scene=<code>
+describe('the scene search', () => {
+  const rabbit = { matches: [{ anilist: 21034, moments: [{ episode: 1, from: 272.19 }, { episode: 2, from: 5 }] }] }
+  const showMedia = () => act(() => {
+    stream.data = { media: { _id: 'rabbit', uri: 'ag:(anilist:21034)', type: 'TV', episodes: [{ _id: 'e1', uri: 'ep:1', episodeNumber: 1 }] } }
+    for (const listener of stream.listeners) listener()
+  })
+  const flush = () => act(async () => { await Promise.resolve() })
+  const pasted = (file?: File) => {
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: { files: file ? [file] : [] } })
+    act(() => { document.dispatchEvent(event) })
+    return event
+  }
+
+  test('its address asks trace.moe once, names it, and asks no text search', async () => {
+    scenes.search.mockResolvedValue(rabbit)
+    const page = open(`/search?scene=${CODE}`)
+    await flush()
+    expect(scenes.search).toHaveBeenCalledExactlyOnceWith(CODE)
+    const host = hosts.at(-1)!
+    expect(host.querySelector('.heading')?.textContent).toBe('Scene search')
+    expect(host.querySelector('.credit')?.textContent).toBe('Scenes found by trace.moe')
+    expect(host.querySelector('.credit a')?.getAttribute('href')).toBe('https://trace.moe')
+    expect(stream.started).toEqual(expect.arrayContaining([{ uri: 'anilist:21034' }]))
+    expect(stream.started.filter(input => !('uri' in input)), 'no text search').toEqual([])
+    page.go(`/search?scene=${CODE}`)
+    await flush()
+    expect(scenes.search, 'the same address, not asked again').toHaveBeenCalledOnce()
+  })
+
+  test('each show it found is its card, with a link per episode that opens it at the scene', async () => {
+    scenes.search.mockResolvedValue(rabbit)
+    open(`/search?scene=${CODE}`)
+    await flush()
+    const host = hosts.at(-1)!
+    expect(host.querySelectorAll('.pending').length, 'the show is still being read').toBe(1)
+    await showMedia()
+    expect([...host.querySelectorAll('.result')].map(result => result.textContent)).toEqual(['rabbit'])
+    const moments = [...host.querySelectorAll('.moment')]
+    expect(moments.map(moment => [moment.tagName, moment.textContent, moment.getAttribute('href')])).toEqual([
+      ['A', 'Episode 1, 4:32', '/watch/ag:(anilist:21034)/ep:1?t=272'],
+      ['SPAN', 'Episode 2, 0:05', null],
+    ])
+  })
+
+  test('a film plays from the time alone, and a special with no episode opens only the show', async () => {
+    scenes.search.mockResolvedValue({ matches: [{ anilist: 50, moments: [{ episode: null, from: 3723.9 }] }] })
+    open(`/search?scene=${CODE}`)
+    await flush()
+    const host = hosts.at(-1)!
+    const moments = () => [...host.querySelectorAll('.moment')].map(moment => [moment.textContent, moment.getAttribute('href')])
+    await act(() => {
+      stream.data = { media: { _id: 'film', uri: 'ag:(anilist:50)', type: 'MOVIE', episodes: [{ _id: 'f', uri: 'ep:film', episodeNumber: null }] } }
+      for (const listener of stream.listeners) listener()
+    })
+    expect(moments()).toEqual([['1:02:03', '/watch/ag:(anilist:50)/ep:film?t=3723']])
+    await act(() => {
+      stream.data = { media: { _id: 'special', uri: 'ag:(anilist:50)', type: 'SPECIAL', episodes: [{ _id: 's', uri: 'ep:s', episodeNumber: null }] } }
+      for (const listener of stream.listeners) listener()
+    })
+    expect([...host.querySelectorAll('.result')].map(result => result.textContent)).toEqual(['special'])
+    expect(moments()).toEqual([])
+  })
+
+  test('nothing at 0.9 or more is no result, and a refusal is its one line', async () => {
+    scenes.search.mockResolvedValue({ matches: [] })
+    const page = open(`/search?scene=${CODE}`)
+    expect(page.pending(), 'while trace.moe is asked').toBe(12)
+    await flush()
+    expect(page.status()).toBe('No results found.')
+
+    scenes.search.mockResolvedValue({ error: "trace.moe's daily limit is reached. Try again tomorrow." })
+    page.go('/search?scene=eOOEIPhB0IQhB8IQg-TPYQg-D0IQ')
+    await flush()
+    expect(page.status()).toBe("trace.moe's daily limit is reached. Try again tomorrow.")
+  })
+
+  test('a pasted picture opens its scene address as a new step, and a paste of text is the field\'s', async () => {
+    const page = open('/search?q=mushoku')
+    expect(pasted().defaultPrevented, 'no file').toBe(false)
+    expect(page.history).toEqual(['/search?q=mushoku'])
+    const event = pasted(new File([new Uint8Array([1])], 'shot.png', { type: 'image/png' }))
+    await flush()
+    expect(event.defaultPrevented).toBe(true)
+    expect(page.history).toEqual(['/search?q=mushoku', `/search?scene=${CODE}`])
+  })
+
+  test('a file that is no picture says so in one line, and asks nothing', async () => {
+    const page = open('/search')
+    pasted(new File(['text'], 'notes.txt', { type: 'text/plain' }))
+    await flush()
+    expect(page.status()).toBe('This picture could not be read.')
+    expect(scenes.search).not.toHaveBeenCalled()
+  })
+
+  test('the search field has the picture button', () => {
+    open('/search')
+    expect(hosts.at(-1)!.querySelector('.text-field button[aria-label="Search by picture"]')).not.toBeNull()
+    expect(hosts.at(-1)!.querySelector('.text-field input[type="file"][accept="image/*"]')).not.toBeNull()
   })
 })

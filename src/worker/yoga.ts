@@ -13,6 +13,8 @@ import { holdPickedCountry } from '../sources/country'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
+import { searchScene } from '../scene/search'
+import { fetch as upstreamFetch } from './fetch'
 
 export type ServerContext = YogaInitialContext & {
 
@@ -104,7 +106,9 @@ export const osraResolvers = {
   // unlocking the list checks which FKN account is signed in, and the page coming back into view reads
   // the other devices' files (tracking/account-link.ts). An account change the worker hears itself.
   trackerCheck: () => stubTrackerLink().then(link => link.check()),
-  trackerFocused: () => stubTrackerLink().then(link => link.focused())
+  trackerFocused: () => stubTrackerLink().then(link => link.focused()),
+  // a picture's color code to trace.moe, over the worker's fetch so ./direct-fetch.ts decides the path
+  searchScene: (code: string) => searchScene(code, upstreamFetch)
 }
 
 export type Resolvers = typeof osraResolvers

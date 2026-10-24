@@ -91,8 +91,13 @@ const Privacy = () => (
       privacy policy, especially when you sign in to one (for example Crunchyroll) to watch.
     </p>
     <p>
-      Netflix's catalogue is the exception: stub asks www.netflix.com from your browser, not through
+      Netflix's catalogue is an exception: stub asks www.netflix.com from your browser, not through
       the proxy, because its answer depends on your country, so Netflix sees your IP address.
+    </p>
+    <p>
+      A search by picture asks api.trace.moe from your browser too, with a short color code of the
+      picture, never the picture itself: trace.moe sees the code and your IP address, and FKN stores
+      neither.
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}

@@ -21,8 +21,8 @@ const relayFetch = (input: RequestInfo | URL, init?: FetchInit) =>
  * Every upstream request an extractor makes, over whichever of the two paths the host takes.
  *
  * Nearly all of them go through the relay. The handful that do not are named, measured and costed in
- * `./direct-fetch`, and the reason is always the same one: the answer is about the address that
- * asked, so a relay cannot supply it.
+ * `./direct-fetch`, for one of its two reasons: the answer is about the address that asked, or the
+ * upstream's free allowance is counted per asking address, so a relay cannot supply either.
  */
 export const fetch = withDirectFetch(
   relayFetch,

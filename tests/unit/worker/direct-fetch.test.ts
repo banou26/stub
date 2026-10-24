@@ -11,15 +11,22 @@
 //
 // So the two cases that matter are "this host goes direct" and "everything else does not", and a rule
 // that sent everything one way would satisfy neither.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { asksViewerDirectly, DIRECT_FETCH_ORIGINS, withDirectFetch } from '../../../src/worker/direct-fetch'
 import { NETFLIX_GRAPHQL_URL } from '../../../src/sources/unogs/netflix'
+import { sceneSearchUrl } from '../../../src/scene/search'
 
 test('the host the season answer is about is asked from the browser', () => {
   expect(asksViewerDirectly(NETFLIX_GRAPHQL_URL), 'the endpoint the episodes come from').toBe(true)
   expect(asksViewerDirectly(new URL(NETFLIX_GRAPHQL_URL)), 'a URL, which is what a source may pass').toBe(true)
   expect(asksViewerDirectly(new Request(NETFLIX_GRAPHQL_URL)), 'a Request, same').toBe(true)
+})
+
+// trace.moe counts its free 100 searches a day per asking address, so through the relay every viewer of a node
+// would share one node's 100 (HOR-517)
+test('the scene search is asked from the browser, whose own address trace.moe counts', () => {
+  expect(asksViewerDirectly(sceneSearchUrl('gwebWzth7oPe2UIubOJmozi1NDFp'))).toBe(true)
 })
 
 // THE CONTROL, and the half that is easy to lose: the relay is the default and nearly every source
@@ -33,15 +40,17 @@ test('every other upstream still goes through the relay', () => {
     // the trap a suffix match walks into: a host somebody else controls, ending in the allowed one
     'https://www.netflix.com.evil.test/graphql',
     // and a sibling host that was never measured, so it was never exempted
-    'https://api.netflix.com/graphql'
+    'https://api.netflix.com/graphql',
+    'https://trace.moe/',
+    'https://api.trace.moe.evil.test/search',
   ]) {
     expect(asksViewerDirectly(url), url).toBe(false)
   }
   expect(asksViewerDirectly('not a url at all'), 'unparseable falls back to the relay').toBe(false)
 })
 
-test('the exemption is one named origin, not a rule that grew', () => {
-  expect([...DIRECT_FETCH_ORIGINS]).toEqual(['https://www.netflix.com'])
+test('the exemption is two named origins, not a rule that grew', () => {
+  expect([...DIRECT_FETCH_ORIGINS]).toEqual(['https://www.netflix.com', 'https://api.trace.moe'])
 })
 
 test('each request takes exactly one of the two paths', async () => {

@@ -101,6 +101,8 @@ const MEDIA_FRAGMENT = documentNamed('../../../../src/worker/resolvers/media/fra
 const EPISODE_FRAGMENT = documentNamed('../../../../src/worker/resolvers/episode/fragment.ts', 'EpisodeFragment')
 const HOME_PAGE = documentNamed('../../../../src/router/home/index.tsx', 'GetReleasingMediaPage')
 const SEARCH_PAGE = documentNamed('../../../../src/router/search/index.tsx', 'SearchMediaPage')
+const SEARCH_CARD = documentNamed('../../../../src/router/search/index.tsx', 'SearchCard')
+const SCENE_MEDIA = documentNamed('../../../../src/router/search/scene.tsx', 'SceneMedia')
 const MEDIA_MODAL = documentNamed('../../../../src/router/home/media-details.tsx', 'GetMediaDetails')
 
 // ---------------------------------------------------------------------------------------------
@@ -862,7 +864,7 @@ test('the home row document executes over cards with every selected field presen
 // Mutation: any of `averageScore`, `nextAiringEpisode`, `banners` or `score` removed from `cardOf`
 // turns its assertion below to null; removing `covers` nulls the page outright.
 test('and so does the search page document, which selects the wider half of the set', async () => {
-  const data = await execute(`${SEARCH_PAGE}\n${MEDIA_FRAGMENT}`, {
+  const data = await execute(`${SEARCH_PAGE}\n${SEARCH_CARD}\n${MEDIA_FRAGMENT}`, {
     input: { nodes: [{ uri: 'mal:39535' }] },
     shortDescriptionInput: { count: 1 },
   })
@@ -880,6 +882,21 @@ test('and so does the search page document, which selects the wider half of the 
 
   const handles = node.handles as { node: Record<string, unknown> }[]
   for (const handle of handles) nonNull(handle.node, HANDLE_NODE_FIELDS, String(handle.node.uri))
+})
+
+// A scene search draws the search page's card of the show trace.moe named, and opens an episode of it by number
+// (HOR-517), so its document has to execute over the same view the modal reads.
+test('the scene search document executes over the detail view, with the episodes it opens by number', async () => {
+  const data = await execute(`${SCENE_MEDIA}\n${SEARCH_CARD}\n${MEDIA_FRAGMENT}`, {
+    input: { uri: 'ag:(mal:39535)' },
+    shortDescriptionInput: { count: 1 },
+  })
+  const media = data.media as Record<string, unknown>
+  expect(media._id).toBe(RUN_ID)
+  nonNull(media, ['_id', 'uri', 'score', 'type', 'season', 'seasonYear'], 'card')
+  const episodes = media.episodes as { uri: string, episodeNumber: number }[]
+  expect(episodes.map(entry => entry.episodeNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+  for (const entry of episodes) expect(entry.uri, String(entry.episodeNumber)).toMatch(/\S/)
 })
 
 // Mutation: drop the `addressOf` normalization from the relations map in plugins/fields.ts. The

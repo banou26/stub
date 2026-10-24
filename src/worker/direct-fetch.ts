@@ -27,17 +27,26 @@
 // So this is not a workaround for a broken relay. It is a statement that for these hosts the viewer's
 // own address is part of the question, which no relay can supply.
 //
+// THE SECOND REASON, api.trace.moe (HOR-517): its answer is the same from any address, but its free
+// allowance is not. It counts 100 searches a day and one at a time PER ASKING ADDRESS, and its own
+// docs advise a distributed app to "send the API request directly from your clients". Through the
+// relay each node is one caller (measured 2026-10-24: Prague asks as 79.127.204.69, Hong Kong as
+// 152.233.49.59), so every viewer on a node would share those 100, one search at a time. Its CORS
+// reflects the page's origin on the preflight and the GET (measured 2026-10-24, from anime.fkn.app).
+//
 // WHAT THE EXCEPTION COSTS THE VIEWER, stated rather than implied:
 //
 //  - The viewer's address reaches the upstream directly. For www.netflix.com that is an address which
-//    already loads netflix.com's images on any page that shows a Netflix badge.
+//    already loads netflix.com's images on any page that shows a Netflix badge; api.trace.moe logs it
+//    for its rate limit, its terms say.
 //  - It only works where the upstream opens CORS. www.netflix.com/graphql answers
 //    `access-control-allow-origin` reflecting a foreign origin on both the preflight and the POST
 //    (measured 2026-09-12 and again 2026-09-13 from a page on 127.0.0.1). An upstream that closes
 //    CORS cannot be added here, and adding it would fail as a network error rather than as an answer.
 //  - Every request to a host in this set MUST carry `credentials: 'omit'`. The viewer may well be
 //    signed in to Netflix in this very browser, and the relay's own isolation is what used to make
-//    that impossible by construction. `netflix.ts` sets it explicitly on both of its calls.
+//    that impossible by construction. `netflix.ts` sets it explicitly on both of its calls, and
+//    src/scene/search.ts on its one.
 //
 // Adding a host here is a deliberate decision with all three costs above, never a fix for a request
 // that failed once.
@@ -49,7 +58,7 @@ import type { FetchLike } from './backoff'
  * Exact origins, never suffixes: `endsWith('netflix.com')` would also match a host somebody else
  * controls, and the point of the set is that it names what was measured.
  */
-export const DIRECT_FETCH_ORIGINS: ReadonlySet<string> = new Set(['https://www.netflix.com'])
+export const DIRECT_FETCH_ORIGINS: ReadonlySet<string> = new Set(['https://www.netflix.com', 'https://api.trace.moe'])
 
 /**
  * Whether this request goes straight to the upstream from the viewer's browser.

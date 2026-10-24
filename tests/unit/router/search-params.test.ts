@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
 import {
   EMPTY_SEARCH_FILTERS, SITE_GENRES, YEAR_MIN,
-  formatLabel, hasSearchFilters, legacySearchTerm, namesAQuery, parseSearchFilters,
+  formatLabel, hasSearchFilters, legacySearchTerm, namesAQuery, parseSearchFilters, sceneOf, scenePath,
   searchFiltersQuery, searchHeading, searchPath, seasonLabel, seasonValue, statusLabel, yearMax,
 } from '../../../src/router/search/params'
 import type { SearchFilters } from '../../../src/router/search/params'
@@ -235,5 +235,20 @@ describe('formatLabel, statusLabel and seasonLabel', () => {
     // "Fall" alone names a window in every year at once, which says less than nothing.
     expect(seasonLabel(MediaSeason.Fall, null)).toBeUndefined()
     expect(seasonLabel(null, null)).toBeUndefined()
+  })
+})
+
+// a scene search's address holds the picture's color code alone (HOR-517), so Back, a reload and a party all reopen it
+describe('the scene address', () => {
+  test('round-trips a color code, and reads nothing else as one', () => {
+    const code = 'gwebWzth7oPe2UIubOJmozi1NDFp'
+    expect(scenePath(code)).toBe(`/search?scene=${code}`)
+    expect(sceneOf(scenePath(code).slice('/search?'.length))).toBe(code)
+    expect(sceneOf('q=mushoku')).toBeUndefined()
+    expect(sceneOf('scene=too-short')).toBeUndefined()
+  })
+
+  test('is not a filter, so a filter change leaves the scene search', () => {
+    expect(parseSearchFilters('scene=gwebWzth7oPe2UIubOJmozi1NDFp')).toEqual(EMPTY_SEARCH_FILTERS)
   })
 })

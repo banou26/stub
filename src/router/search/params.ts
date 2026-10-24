@@ -6,6 +6,8 @@ import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../genera
 import { JUSTWATCH_GENRES } from '../../sources/justwatch/genres'
 import type { Site } from '../../site'
 
+import { isSceneCode } from '../../scene/search'
+
 /**
  * Every axis the search page filters on.
  *
@@ -247,6 +249,18 @@ export const legacySearchTerm = (query: string | undefined): string => {
 export const searchPath = (filters: Partial<SearchFilters> = {}): string => {
   const query = searchFiltersQuery(filters)
   return query ? `/search?${query}` : '/search'
+}
+
+// the url key of a scene search: the picture's color code (src/scene/code.ts), never the picture
+const SCENE_PARAM = 'scene'
+
+/** The href of a scene search for a color code. */
+export const scenePath = (code: string): string => `/search?${SCENE_PARAM}=${code}`
+
+/** The color code a query string asks a scene search for, or nothing. Takes it without its `?`. */
+export const sceneOf = (search: string): string | undefined => {
+  const code = new URLSearchParams(search).get(SCENE_PARAM)
+  return isSceneCode(code) ? code : undefined
 }
 
 /**
