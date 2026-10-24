@@ -20,7 +20,8 @@ import { mediaSeasonNow } from '../src/sources/season'
 // AniList answers each of them with Cowboy Bebop's credits and one sequel, Spec Sequel, AniZip with 26
 // episodes and Frieren's ids, AnimeThemes with Frieren's themes, one without a video, IMDb answers
 // Breaking Bad, TMDB Squid Game's three seasons, the first two with one episode each, and Frieren's one,
-// and MyAnimeList Cowboy Bebop's title and credits pages for mal:1 (tests/fake-fetch.ts).
+// TVmaze Spec Maze's two seasons, and MyAnimeList Cowboy Bebop's title and credits pages for mal:1
+// (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -486,6 +487,18 @@ test('a show\'s own address opens its first season, the Seasons row marking it',
   await expect(page).toHaveURL(/\/title\/ag:\([^/]*tmdb:93405-s1[,)]/, { timeout: 30_000 })
   const seasons = page.locator('[data-seasons] a')
   await expect(seasons).toHaveText(['Season 1', 'Season 2', 'Season 3'], { timeout: 30_000 })
+  await expect(seasons.nth(0)).toHaveAttribute('aria-current', 'page')
+})
+
+// an address naming TVmaze alone drew an empty page: the source waited for a run nothing else could name, then refused
+// the show (HOR-1003, Game of Thrones at series.fkn.app/title/ag:(tvmaze:82), 2026-10-25)
+test('a show\'s own TVmaze address draws the show and opens its first season', async ({ page }) => {
+  await page.goto(`${origin}/title/ag:(tvmaze:900200)`)
+  await expect(page).toHaveURL(/\/title\/ag:\([^/]*tvmaze:900200-s1[,)]/, { timeout: 30_000 })
+  await expect(heading(page)).toHaveText('Spec Maze', { timeout: 30_000 })
+  await expect(page.locator('.description')).toHaveText('Two ways out of one maze.')
+  const seasons = page.locator('[data-seasons] a')
+  await expect(seasons).toHaveText(['Season 1', 'Season 2'])
   await expect(seasons.nth(0)).toHaveAttribute('aria-current', 'page')
 })
 

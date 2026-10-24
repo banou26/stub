@@ -1,7 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaInput } from '../../generated/schema/types.generated'
 
-import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
+import { extractAggregatedUriOrigin, isAggregatedUri, isUri, originsOfUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, desc, img, waitForMedia } from '../utils'
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
@@ -85,9 +85,9 @@ const buildHandles = (show: TvmazeShow): GQLMedia[] => {
 // TVmaze describes a SHOW while a stub media is one season, so a season-scoped media cannot carry the
 // bare show id: every season would hand back the same one and clustering union-finds them into a
 // single media. Same defect TMDB and JustWatch had, same '-s<n>' fix. The bare show id is still minted
-// for SEARCH, and for a show with no season to pick, scoped CONTAINER so the store keeps it out of
-// every run's identity space: the live site fuzzy merged 'tvmaze:52279' into Mushoku Tensei season 1
-// and season 3 then asserted sameness through it.
+// for SEARCH, for the show's own address and for a show with no season to pick, scoped CONTAINER so
+// the store keeps it out of every run's identity space: the live site fuzzy merged 'tvmaze:52279' into
+// Mushoku Tensei season 1 and season 3 then asserted sameness through it.
 const normalizeMedia = (
   show: TvmazeShow,
   seasonNumber?: number,
@@ -180,12 +180,20 @@ const seasonCandidates = (episodes: TvmazeEpisode[]): SeasonCandidate<{ seasonNu
   }))
 }
 
+// The seasons a show's page links, as TMDB's do: the show's own page opens the first, and a season's marks itself.
+// None for an anime, whose runs are its cours rather than a catalogue's seasons, as on TMDB.
+const seasonLinks = (show: TvmazeShow, all: TvmazeEpisode[]): GQLMedia['seasons'] =>
+  isAnime(show) ? undefined : [...new Set(all.flatMap(episode => episode.season ?? []))]
+    .sort((a, b) => a - b)
+    .map(number => ({ number, uri: toUri({ origin, id: seasonScopedId(show.id, number) }) }))
+
 /** One season's run, or with no season the SHOW as a container carrying every episode, as before. */
 const runMedia = (show: TvmazeShow, all: TvmazeEpisode[], seasonNumber: number | undefined): GQLMedia => {
   const media = normalizeMedia(show, seasonNumber, buildHandles(show), seasonPremiere(all, seasonNumber))
   const episodes = seasonNumber == null ? all : all.filter(episode => episode.season === seasonNumber)
   media.episodes = episodes.map(episode => normalizeEpisode(episode, media.uri))
   media.episodeCount = media.episodes.length
+  media.seasons = seasonLinks(show, all)
   return media
 }
 
@@ -195,19 +203,22 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   if (!show) return undefined
   const all = show._embedded?.episodes ?? []
   const candidates = seasonCandidates(all)
+  // An address naming TVmaze alone is the show's own, as TMDB and JustWatch answer theirs: nothing else in it can name
+  // a run, so the wait below only ran out and the page drew nothing (Game of Thrones, `ag:(tvmaze:82)`, 2026-10-25).
+  const ownAddress = pinned == null && originsOfUri(uri).every(other => other === origin)
 
   // The probe stays SYNCHRONOUS: waitForMedia keeps the first result it finds truthy, and a promise
   // is always truthy, so an async one would succeed instantly with a value that resolves to nothing.
   // No lone-season shortcut: a lone season shorter than our run passes the picker on its own, and a
   // lone season LONGER than it is a fold the shortcut used to hand over.
-  const seasonNumber = pinned ?? (candidates.length ? await waitForMedia(uri, ctx, (media: any) => pickSimilarSeason({
+  const seasonNumber = pinned ?? (candidates.length && !ownAddress ? await waitForMedia(uri, ctx, (media: any) => pickSimilarSeason({
     titles: (media?.titles ?? []).map((title: { title: string }) => title.title),
     startDate: media?.startDate,
     episodeCount: media?.episodeCount ?? undefined,
   }, candidates)?.season.seasonNumber) : undefined)
 
   // a series whose season cannot be determined has no identity here: see normalizeMedia
-  if (seasonNumber == null && candidates.length > 1) return undefined
+  if (seasonNumber == null && candidates.length > 1 && !ownAddress) return undefined
 
   const media = runMedia(show, all, seasonNumber)
   return details && show._embedded ? Object.assign(media, { credits: parseCredits(show._embedded) }) : media

@@ -139,6 +139,16 @@ const SEQUEL_THEMES = {
 const THEMES = structuredClone(FRIEREN_THEMES)
 THEMES.data.findAnimeByExternalSite[0]!.animethemes[2]!.animethemeentries = []
 
+// a show TVmaze alone knows, two seasons of two episodes
+const MAZE = {
+  id: 900200, name: 'Spec Maze', type: 'Scripted', language: 'English', genres: ['Drama'], summary: '<p>Two ways out of one maze.</p>', externals: {},
+  _embedded: {
+    episodes: [1, 2].flatMap(season => [1, 2].map(number => ({ id: 900200 + season * 10 + number, name: `Turn ${season}.${number}`, season, number, airdate: `202${season}-01-0${number}` }))),
+    cast: [],
+    crew: [],
+  },
+}
+
 const TMDB: Record<string, string> = {
   '/tv/93405': SQUID_GAME_SHOW,
   '/tv/93405/seasons': SQUID_GAME_SEASONS,
@@ -157,12 +167,12 @@ const TMDB: Record<string, string> = {
 // Squid Game's first two, which list one episode each, JustWatch with its four most popular films or shows
 // when asked for either, those carrying a genre asked when asked any, and with The Boys as it answered the
 // countries asked (prime-countries.json), MyAnimeList with Cowboy Bebop's title and credits pages for mal:1,
-// and Watchmode with its quick search for "breaking bad" as recorded 2026-10-13; every other request goes where
-// it always went. AniList gives a bundled work the format and season of its record in the current season, or
-// else of its first record, so a film stays a film and a work stays in the season the home page lists, and
-// answers Spec Late (anilist:900010, mal:900010) five seconds late, with its description, facts and four relations,
-// so its page draws AniZip's title and episodes first; AniZip names Spec Late's AniList id, as api.ani.zip names a
-// work's, so its MAL address reaches AniList too.
+// Watchmode with its quick search for "breaking bad" as recorded 2026-10-13, and TVmaze with Spec Maze's two seasons
+// for tvmaze:900200; every other request goes where it always went. AniList gives a bundled work the format and
+// season of its record in the current season, or else of its first record, so a film stays a film and a work stays
+// in the season the home page lists, and answers Spec Late (anilist:900010, mal:900010) five seconds late, with its
+// description, facts and four relations, so its page draws AniZip's title and episodes first; AniZip names Spec Late's
+// AniList id, as api.ani.zip names a work's, so its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
 // AniList describes Spec Unsafe (anilist:900110) with a script, an onerror, a handler, a javascript: link, a style
@@ -214,6 +224,7 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     return Response.json([WATCHMODE_BREAKING_BAD])
   }
   if (typeof input === 'string' && input.startsWith('https://www.themoviedb.org/')) return new Response(TMDB[new URL(input).pathname] ?? '')
+  if (typeof input === 'string' && input.startsWith(`https://api.tvmaze.com/shows/${MAZE.id}?`)) return Response.json(MAZE)
   if (input === 'https://caching.graphql.imdb.com/' && typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === 'tt0903747') {
     return Response.json(BREAKING_BAD)
   }

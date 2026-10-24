@@ -26,6 +26,10 @@ const SHOW = {
 
 // a show tvmaze lists with NO episodes yet, so no season can be named for it
 const EMPTY_SHOW = { id: 99, name: 'Announced Show', premiered: null, externals: { imdb: null }, _embedded: { episodes: [] } }
+const ANIME_SHOW = { ...SHOW, id: 52280, genres: ['Anime'] }
+
+// the address once another source has answered, which is when the aggregated media has a run to pick by
+const LINKED = 'ag:(anilist:108465,tvmaze:52279)'
 
 // One season carrying each shape tvmaze publishes: an `airdate` naming a DAY, an `airstamp` naming an
 // INSTANT beside it, an episode with neither, and one with no `airtime` whose `airstamp` is a made-up
@@ -56,6 +60,7 @@ const context = (misses: string[], known?: unknown) => ({
   fetch: async (url: string) => {
     if (url.startsWith(`${API}/shows/52279?embed=episodes`)) return { ok: true, status: 200, json: async () => SHOW }
     if (url.startsWith(`${API}/shows/99?embed=episodes`)) return { ok: true, status: 200, json: async () => EMPTY_SHOW }
+    if (url.startsWith(`${API}/shows/52280?embed=episodes`)) return { ok: true, status: 200, json: async () => ANIME_SHOW }
     if (url.startsWith(`${API}/shows/77?embed=episodes`)) return { ok: true, status: 200, json: async () => DATED_SHOW }
     if (url.startsWith(`${API}/search/shows?q=`)) return { ok: true, status: 200, json: async () => [{ show: SHOW }] }
     misses.push(url)
@@ -66,7 +71,14 @@ const context = (misses: string[], known?: unknown) => ({
   listenForMediaChanges: async function* () {},
 }) as never
 
-type Row = { uri: string, scope?: string, episodes: unknown[], handles: { relation: string, node: { uri: string, scope?: string } }[] }
+type Row = {
+  uri: string
+  scope?: string
+  titles: { title: string }[]
+  episodes: unknown[]
+  seasons?: { number: number, uri: string }[]
+  handles: { relation: string, node: { uri: string, scope?: string } }[]
+}
 
 const mediaOrNull = async (uri: string, known?: unknown): Promise<Row | null> => {
   const misses: string[] = []
@@ -142,15 +154,46 @@ test('a media-path row that falls back to the bare show id is a CONTAINER', asyn
   expect(media.scope).toBe('CONTAINER')
 })
 
+// HOR-1003. A TVmaze search card or a shared link opens an address naming TVmaze alone. Nothing else in it can name a
+// run, yet the source waited for one and then refused the show, so Game of Thrones, Breaking Bad and The Simpsons drew
+// an empty page on series.fkn.app (`ag:(tvmaze:82)`, 2026-10-25). The show answers at once, as TMDB's does.
+test('an address naming TVmaze alone is the show, at once, linking each of its seasons', async () => {
+  const misses: string[] = []
+  let listened = false
+  const waiting = Object.assign(context(misses) as object, {
+    listenForMediaChanges: async function* (_: unknown, options?: { abortSignal?: AbortSignal }) {
+      listened = true
+      await new Promise(resolve => options?.abortSignal?.addEventListener('abort', resolve))
+      yield
+    },
+  })
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'ag:(tvmaze:52279)' } }, waiting).next()
+  const media: Row | null = value?.media ?? null
+
+  expect(misses).toEqual([])
+  expect(listened, 'no other source can answer, so nothing is waited for').toBe(false)
+  expect(media && { uri: media.uri, scope: media.scope, title: media.titles[0]?.title, seasons: media.seasons }).toEqual({
+    uri: 'tvmaze:52279',
+    scope: 'CONTAINER',
+    title: 'Mushoku Tensei: Jobless Reincarnation',
+    seasons: [1, 2, 3].map(number => ({ number, uri: `tvmaze:52279-s${number}` })),
+  })
+})
+
+test('a season links every season of its show, and an anime links none', async () => {
+  expect((await mediaFor('tvmaze:52279-s2')).seasons?.map(season => season.uri)).toEqual(['tvmaze:52279-s1', 'tvmaze:52279-s2', 'tvmaze:52279-s3'])
+  expect((await mediaFor('ag:(tvmaze:52280)')).seasons, 'its runs are its cours, not TVmaze\'s seasons').toBeUndefined()
+})
+
 // THE MEDIA PATH. A count with no ordinal is tried against the FIRST season only, and with several
 // seasons only an exact count is accepted. The unique-count pick this replaces would have taken
 // season 3 for a run of 1 (the only season holding exactly 1), which is the Mushoku coincidence.
 test('the media path takes the first season on an exact count, and never another season by unique count', async () => {
-  const first = await mediaFor('tvmaze:52279', { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 2 })
+  const first = await mediaFor(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 2 })
   expect(first.uri).toBe('tvmaze:52279-s1')
 
   expect(
-    await mediaOrNull('tvmaze:52279', { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 1 }),
+    await mediaOrNull(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 1 }),
     'season 3 holds exactly 1 episode, and it is never reached by count'
   ).toBeNull()
 })
@@ -237,7 +280,7 @@ test('an episode named TBA carries no title', async () => {
 const AGGREGATE = { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], startDate: '2022-01-03', episodes: [] }
 
 test('an aggregated media with no count asks with no count rather than with zero', async () => {
-  const media = await mediaFor('tvmaze:52279', { ...AGGREGATE, episodeCount: null })
+  const media = await mediaFor(LINKED, { ...AGGREGATE, episodeCount: null })
 
   expect(media.uri).toBe('tvmaze:52279-s2')
 })
@@ -246,7 +289,7 @@ test('an aggregated media with no count asks with no count rather than with zero
 // declares still vetoes a season holding more episodes than the run.
 test('a count the aggregate really declares is still read', async () => {
   expect(
-    await mediaOrNull('tvmaze:52279', { ...AGGREGATE, episodeCount: 2 }),
+    await mediaOrNull(LINKED, { ...AGGREGATE, episodeCount: 2 }),
     'season 2 holds 3 against a run of 2, which is a fold'
   ).toBeNull()
 })
