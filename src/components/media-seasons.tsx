@@ -34,29 +34,41 @@ const style = css`
   }
 `
 
+type Seasons = readonly { number: number, uri: string }[] | null | undefined
+
+/**
+ * The season MediaSeasons sends a show's own page to: its first, when it has two or more and none is on screen.
+ * A page growing its address holds off while this names one, as the redirect runs first in the same commit and the
+ * growth would replace it.
+ */
+export const firstSeasonRedirect = (seasons: Seasons, currentUris: readonly string[]): string | undefined =>
+  seasons && seasons.length > 1 && !seasons.some(season => currentUris.includes(season.uri)) ? seasons[0]!.uri : undefined
+
 /**
  * A show's seasons, each linking its own run as a cluster, the one on screen marked. Nothing for one season or none.
  * On the show's own page, where no season is on screen, it replaces the address with the first season.
  */
 const MediaSeasons = ({ seasons, currentUris, href }: {
-  seasons: readonly { number: number, uri: string }[] | null | undefined
+  seasons: Seasons
   /** Every uri the page's media answers to. */
   currentUris: readonly string[]
   href: (uri: string) => string
-}) =>
-  !seasons || seasons.length < 2 ? null
-  : !seasons.some(season => currentUris.includes(season.uri)) ? <Redirect to={href(asAggregatedUri(seasons[0]!.uri))} replace/>
-  : (
-    <section className="seasons" css={style} data-seasons>
-      <h2>Seasons</h2>
-      <nav>
-        {seasons.map(season => (
-          <Link key={season.uri} href={href(asAggregatedUri(season.uri))} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
-            Season {season.number}
-          </Link>
-        ))}
-      </nav>
-    </section>
-  )
+}) => {
+  const first = firstSeasonRedirect(seasons, currentUris)
+  return !seasons || seasons.length < 2 ? null
+    : first ? <Redirect to={href(asAggregatedUri(first))} replace/>
+    : (
+      <section className="seasons" css={style} data-seasons>
+        <h2>Seasons</h2>
+        <nav>
+          {seasons.map(season => (
+            <Link key={season.uri} href={href(asAggregatedUri(season.uri))} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
+              Season {season.number}
+            </Link>
+          ))}
+        </nav>
+      </section>
+    )
+}
 
 export default MediaSeasons

@@ -10,7 +10,7 @@ import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
 import MediaRelations from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
-import MediaSeasons from '../../components/media-seasons'
+import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
 import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
@@ -670,6 +670,7 @@ const TitlePage = () => {
     pause: !uri
   })
   const media = data?.media
+  const currentUris = media?.handles.map(handle => handle.node.uri) ?? []
   const current = currentMedia({ data, operation }, uri)
   const tracked = useTrackingSummary(media?.uri)
 
@@ -678,7 +679,7 @@ const TitlePage = () => {
   // entry Back landed on
   const written = useRef<string | undefined>(undefined)
   useLayoutEffect(() => {
-    if (shouldRewriteAddress(media?.uri, routeUri, written.current)) {
+    if (!firstSeasonRedirect(media?.seasons, currentUris) && shouldRewriteAddress(media?.uri, routeUri, written.current)) {
       written.current = media!.uri
       navigate(`${getRoutePath(Route.TITLE, { uri: media!.uri })}${location.search}`, { replace: true })
     }
@@ -805,13 +806,13 @@ const TitlePage = () => {
         <div key={uri} className="main">
           <MediaRelations
             relations={media?.relations ?? []}
-            action={<MediaFranchise franchise={media?.franchise} currentUris={media?.handles.map(handle => handle.node.uri) ?? []} route={Route.TITLE}/>}
+            action={<MediaFranchise franchise={media?.franchise} currentUris={currentUris} route={Route.TITLE}/>}
             route={Route.TITLE}
             pending={anime && !settled}
           />
           <MediaSeasons
             seasons={media?.seasons}
-            currentUris={media?.handles.map(handle => handle.node.uri) ?? []}
+            currentUris={currentUris}
             href={uri => `${getRoutePath(Route.TITLE, { uri })}${search}`}
           />
           {

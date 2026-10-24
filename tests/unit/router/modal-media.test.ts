@@ -177,7 +177,7 @@ describe('the address the modal leaves behind', () => {
     // CONTROL: the rewrite is there to be guarded, and it goes to the media route.
     expect(navigations, 'no navigation was found, so this test read nothing').toHaveLength(1)
     expect(navigations[0]).toContain('Route.MEDIA')
-    expect(source).toContain('if (shouldRewriteAddress(media?.uri, params.uri, written.current)) {')
+    expect(source).toContain('if (!firstSeasonRedirect(data?.media?.seasons, seasonUris) && shouldRewriteAddress(media?.uri, params.uri, written.current)) {')
   })
 })
 

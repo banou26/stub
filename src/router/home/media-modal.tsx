@@ -12,7 +12,7 @@ import { LucidePause, LucidePlay } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
 import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
-import MediaSeasons from '../../components/media-seasons'
+import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
@@ -398,8 +398,9 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // page you were leaving. Clicking a relation or a graph node did nothing at all, twice out of twice
   // (measured 2026-09-09).
   const written = useRef<string | undefined>(undefined)
+  const seasonUris = data?.media?.handles.map(handle => handle.node.uri) ?? []
   useEffect(() => {
-    if (shouldRewriteAddress(media?.uri, params.uri, written.current)) {
+    if (!firstSeasonRedirect(data?.media?.seasons, seasonUris) && shouldRewriteAddress(media?.uri, params.uri, written.current)) {
       written.current = media!.uri
       // THE QUERY STRING COMES ALONG. This replace is the reason a media url loses its flags: opened
       // at `/media/...?graph=1&trace=1`, the address grows a beat later and the url it is replaced
@@ -510,7 +511,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         />
         <MediaSeasons
           seasons={data?.media?.seasons}
-          currentUris={data?.media?.handles.map(handle => handle.node.uri) ?? []}
+          currentUris={seasonUris}
           href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
         />
         {

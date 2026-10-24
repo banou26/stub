@@ -139,9 +139,9 @@ const SEQUEL_THEMES = {
 const THEMES = structuredClone(FRIEREN_THEMES)
 THEMES.data.findAnimeByExternalSite[0]!.animethemes[2]!.animethemeentries = []
 
-// a show TVmaze alone knows, two seasons of two episodes
+// a show TVmaze alone answers, two seasons of two episodes, with the IMDb id a real show carries
 const MAZE = {
-  id: 900200, name: 'Spec Maze', type: 'Scripted', language: 'English', genres: ['Drama'], summary: '<p>Two ways out of one maze.</p>', externals: {},
+  id: 900200, name: 'Spec Maze', type: 'Scripted', language: 'English', genres: ['Drama'], summary: '<p>Two ways out of one maze.</p>', externals: { imdb: 'tt9002000' },
   _embedded: {
     episodes: [1, 2].flatMap(season => [1, 2].map(number => ({ id: 900200 + season * 10 + number, name: `Turn ${season}.${number}`, season, number, airdate: `202${season}-01-0${number}` }))),
     cast: [],

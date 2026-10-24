@@ -491,15 +491,26 @@ test('a show\'s own address opens its first season, the Seasons row marking it',
 })
 
 // an address naming TVmaze alone drew an empty page: the source waited for a run nothing else could name, then refused
-// the show (HOR-1003, Game of Thrones at series.fkn.app/title/ag:(tvmaze:82), 2026-10-25)
+// the show (HOR-1003, Game of Thrones at series.fkn.app/title/ag:(tvmaze:82), 2026-10-25). The show's IMDb id then grew
+// its address in the very commit that redirects to season 1, and on the page and in the modal that growth replaced the
+// redirect with an address that drew nothing.
 test('a show\'s own TVmaze address draws the show and opens its first season', async ({ page }) => {
-  await page.goto(`${origin}/title/ag:(tvmaze:900200)`)
-  await expect(page).toHaveURL(/\/title\/ag:\([^/]*tvmaze:900200-s1[,)]/, { timeout: 30_000 })
-  await expect(heading(page)).toHaveText('Spec Maze', { timeout: 30_000 })
-  await expect(page.locator('.description')).toHaveText('Two ways out of one maze.')
   const seasons = page.locator('[data-seasons] a')
+  for (const address of ['ag:(tvmaze:900200)', 'ag:(imdb:tt9002000,tvmaze:900200)']) {
+    await page.goto(`${origin}/title/${address}`)
+    await expect(heading(page), address).toHaveText('Spec Maze', { timeout: 30_000 })
+    await expect(seasons.nth(0), address).toHaveAttribute('aria-current', 'page', { timeout: 30_000 })
+    await expect(page, address).toHaveURL(/\/title\/ag:\([^/]*tvmaze:900200-s1[,)]/)
+  }
+  await expect(page.locator('.description')).toHaveText('Two ways out of one maze.')
   await expect(seasons).toHaveText(['Season 1', 'Season 2'])
-  await expect(seasons.nth(0)).toHaveAttribute('aria-current', 'page')
+  await page.reload()
+  await expect(heading(page)).toHaveText('Spec Maze', { timeout: 30_000 })
+  await expect(seasons.nth(0)).toHaveAttribute('aria-current', 'page', { timeout: 30_000 })
+
+  await page.goto(`${origin}/media/ag:(tvmaze:900200)`)
+  await expect(modal(page).locator('[data-seasons] a').nth(0)).toHaveAttribute('aria-current', 'page', { timeout: 30_000 })
+  await expect(page).toHaveURL(/\/media\/ag:\([^/]*tvmaze:900200-s1[,)]/)
 })
 
 test('a show with one season draws no Seasons row', async ({ page }) => {

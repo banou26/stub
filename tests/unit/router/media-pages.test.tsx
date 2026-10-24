@@ -473,6 +473,31 @@ describe('the url after a split', () => {
   }
 })
 
+// HOR-1003 (a series opened by a bare TVmaze id drew nothing). The show's answer carries its IMDb id, so its address grew in
+// the very commit MediaSeasons sends a show to its first season, and the page and the modal both replaced that redirect
+// with the show's grown address
+describe('a show\'s own address', () => {
+  const show = (id: number, seasons?: number[]) => ({
+    ...work(id, 'Spec Maze'),
+    uri: `ag:(imdb:tt${id},tvmaze:${id})`,
+    handles: [`tvmaze:${id}`, `imdb:tt${id}`].map(uri => ({ relation: 'SAME_AS', node: { uri, origin: uri.split(':')[0] } })),
+    seasons: seasons?.map(number => ({ number, uri: `tvmaze:${id}-s${number}` })),
+  })
+  beforeEach(() => { vi.stubGlobal('location', { search: '' }) })
+
+  for (const [page, route] of [[preview, 'media'], [titlePage, 'title']] as const) {
+    test(`/${route}: goes to its first season though its address grows as it answers`, () => {
+      const opened = page('ag:(tvmaze:900200)')
+      opened.answer(show(900200, [1, 2]), 'ag:(tvmaze:900200)')
+      expect(opened.history).toEqual([`/${route}/ag:(tvmaze:900200-s1)`])
+
+      const control = page('ag:(tvmaze:900201)')
+      control.answer(show(900201), 'ag:(tvmaze:900201)')
+      expect(control.history, 'the control: with no seasons the address grows').toEqual([`/${route}/ag:(imdb:tt900201,tvmaze:900201)`])
+    })
+  }
+})
+
 describe('Relations', () => {
   const related = (relation: string, format: string, id: number, title: string) =>
     ({ relation, format, node: { _id: `anilist:${id}`, uri: `anilist:${id}`, titles: [{ title }], covers: [] } })
