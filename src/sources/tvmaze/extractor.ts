@@ -205,7 +205,8 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   const candidates = seasonCandidates(all)
   // An address naming TVmaze alone is the show's own, as TMDB and JustWatch answer theirs: nothing else in it can name
   // a run, so the wait below only ran out and the page drew nothing (Game of Thrones, `ag:(tvmaze:82)`, 2026-10-25).
-  const ownAddress = pinned == null && originsOfUri(uri).every(other => other === origin)
+  // The show's IMDb id, which its answer carries and so grows its address with, names the show and answers nothing.
+  const ownAddress = pinned == null && originsOfUri(uri).every(other => other === origin || other === 'imdb')
 
   // The probe stays SYNCHRONOUS: waitForMedia keeps the first result it finds truthy, and a promise
   // is always truthy, so an async one would succeed instantly with a value that resolves to nothing.

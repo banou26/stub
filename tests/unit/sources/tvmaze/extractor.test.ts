@@ -154,10 +154,8 @@ test('a media-path row that falls back to the bare show id is a CONTAINER', asyn
   expect(media.scope).toBe('CONTAINER')
 })
 
-// HOR-1003. A TVmaze search card or a shared link opens an address naming TVmaze alone. Nothing else in it can name a
-// run, yet the source waited for one and then refused the show, so Game of Thrones, Breaking Bad and The Simpsons drew
-// an empty page on series.fkn.app (`ag:(tvmaze:82)`, 2026-10-25). The show answers at once, as TMDB's does.
-test('an address naming TVmaze alone is the show, at once, linking each of its seasons', async () => {
+// asked with a listener that never ends, so a source that waits for another's evidence is caught waiting
+const askOwn = async (uri: string) => {
   const misses: string[] = []
   let listened = false
   const waiting = Object.assign(context(misses) as object, {
@@ -167,10 +165,17 @@ test('an address naming TVmaze alone is the show, at once, linking each of its s
       yield
     },
   })
-  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'ag:(tvmaze:52279)' } }, waiting).next()
-  const media: Row | null = value?.media ?? null
-
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri } }, waiting).next()
   expect(misses).toEqual([])
+  return { listened, media: (value?.media ?? null) as Row | null }
+}
+
+// HOR-1003. A TVmaze search card or a shared link opens an address naming TVmaze alone. Nothing else in it can name a
+// run, yet the source waited for one and then refused the show, so Game of Thrones, Breaking Bad and The Simpsons drew
+// an empty page on series.fkn.app (`ag:(tvmaze:82)`, 2026-10-25). The show answers at once, as TMDB's does.
+test('an address naming TVmaze alone is the show, at once, linking each of its seasons', async () => {
+  const { listened, media } = await askOwn('ag:(tvmaze:52279)')
+
   expect(listened, 'no other source can answer, so nothing is waited for').toBe(false)
   expect(media && { uri: media.uri, scope: media.scope, title: media.titles[0]?.title, seasons: media.seasons }).toEqual({
     uri: 'tvmaze:52279',
@@ -178,6 +183,16 @@ test('an address naming TVmaze alone is the show, at once, linking each of its s
     title: 'Mushoku Tensei: Jobless Reincarnation',
     seasons: [1, 2, 3].map(number => ({ number, uri: `tvmaze:52279-s${number}` })),
   })
+})
+
+// The show's answer carries its IMDb id, so its address grows to `ag:(imdb:tt0944947,tvmaze:82)`, and that address drew
+// nothing either: an IMDb id names the show and answers nothing (src/sources/imdb/extractor.ts).
+test('the show\'s IMDb id beside TVmaze\'s still names the show, while another source\'s is waited for', async () => {
+  const { listened, media } = await askOwn('ag:(imdb:tt13303712,tvmaze:52279)')
+
+  expect(listened, 'IMDb can name no run, so nothing is waited for').toBe(false)
+  expect(media && { uri: media.uri, scope: media.scope }).toEqual({ uri: 'tvmaze:52279', scope: 'CONTAINER' })
+  expect(await mediaOrNull(LINKED), 'AniList can name a run, so with no evidence the show is still refused').toBeNull()
 })
 
 test('a season links every season of its show, and an anime links none', async () => {
