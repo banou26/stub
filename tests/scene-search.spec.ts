@@ -9,9 +9,9 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { PNG } from 'pngjs'
 import { build } from 'vite-plus'
 
-import { frame, letterboxed } from './fixtures/scene/frame'
+import { frame, letterboxed, withPhoneChrome } from './fixtures/scene/frame'
 
-// HOR-517, the scene search on anime.fkn.app, built and served the way tests/sites.spec.ts does: one build under the
+// The scene search on anime.fkn.app, built and served the way tests/sites.spec.ts does: one build under the
 // sites' names, every request that leaves the server refused, AniList answering Spec Rated (anilist:900040) and
 // AniZip its 26 episodes (tests/fake-fetch.ts). trace.moe is answered here, and only here can it be told apart from
 // the relay: a request that reaches this route left the browser itself, since tests/fake-fetch.ts stands in for the
@@ -32,8 +32,8 @@ const FRAME_CODE = 'eOOEIPhB0IQhB8IQg-TPYQg-D0IQ'
 const png = (pixels: ReturnType<typeof frame>) =>
   PNG.sync.write(Object.assign(new PNG({ width: pixels.width, height: pixels.height }), { data: Buffer.from(pixels.data) }))
 const FRAME = png(frame())
-// a portrait phone's screenshot of the frame, which coded whole is another picture
-const PHONE = png(letterboxed(frame(), 640, 1386))
+// a portrait phone's screenshot of the frame, its clock and indicators lit in the bars, which coded whole is another picture
+const PHONE = png(withPhoneChrome(letterboxed(frame(), 640, 1386)))
 
 let dir: string
 let server: Server
@@ -109,17 +109,21 @@ const at = (host: string, path = '/') => `http://${host}:${port}${path}`
 const field = (page: Page) => page.getByRole('textbox', { name: 'Search by title' })
 const sceneUrl = new RegExp(`/search\\?scene=${FRAME_CODE}$`)
 
-// what a drop or a paste hands the page: the file itself, built in the page from its bytes
+/**
+ * What a drop or a paste hands the page: the file itself, built in the page from its bytes. Answers whether the page
+ * took each event from the browser, which opens a dropped file in the tab when its dragover or its drop is not taken.
+ */
 const handOver = (page: Page, kind: 'drop' | 'paste', bytes: Buffer, name: string) =>
   page.evaluate(({ kind, bytes, name }) => {
     const transfer = new DataTransfer()
     transfer.items.add(new File([new Uint8Array(bytes)], name, { type: 'image/png' }))
-    if (kind === 'paste') {
-      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }))
-      return
-    }
-    document.dispatchEvent(new DragEvent('dragover', { dataTransfer: transfer, bubbles: true, cancelable: true }))
-    document.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }))
+    const events = kind === 'paste'
+      ? [new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })]
+      : ['dragover', 'drop'].map(type => new DragEvent(type, { dataTransfer: transfer, bubbles: true, cancelable: true }))
+    return events.map(event => {
+      document.dispatchEvent(event)
+      return event.defaultPrevented
+    })
   }, { kind, bytes: [...bytes], name })
 
 test('a picture picked on anime.fkn.app\'s search page finds its show, from the browser, by its color code alone', async ({ page }) => {
@@ -145,8 +149,7 @@ test('a picture picked on anime.fkn.app\'s search page finds its show, from the 
   const [search] = asked
   expect(search!.headers().origin, 'asked by the page itself, which a relay is not').toBe(at('anime.localhost', ''))
   expect(search!.postDataBuffer(), 'no body').toBeNull()
-  const picture = FRAME.subarray(FRAME.length / 2, FRAME.length / 2 + 64)
-  expect(sent.filter(request => request.postDataBuffer()?.includes(picture)).map(request => request.url()), 'no request carries the picture').toEqual([])
+  expect(sent.filter(request => request.postDataBuffer()).map(request => request.url()), 'no request carries a body, so none the picture').toEqual([])
   expect(sent.filter(request => request.url().includes(FRAME_CODE)).map(request => request.url()), 'the code goes to trace.moe alone').toEqual([`https://api.trace.moe/search?vector=${FRAME_CODE}`])
 
   await moment.click()
@@ -157,14 +160,14 @@ test('a phone screenshot dropped on the page is searched as its frame, and a pas
   const { asked } = await traceMoe(page)
   await page.goto(at('anime.localhost', '/search?q=spec'))
   await expect(field(page)).toBeVisible()
-  await handOver(page, 'drop', PHONE, 'phone.png')
+  expect(await handOver(page, 'drop', PHONE, 'phone.png'), 'its dragover and its drop taken').toEqual([true, true])
   await expect(page, 'the same code as the frame').toHaveURL(sceneUrl)
   await expect(page.locator('.scene').first()).toBeVisible()
 
   await page.goBack()
   await expect(page).toHaveURL(/\/search\?q=spec$/)
   await expect(field(page)).toHaveValue('spec')
-  await handOver(page, 'paste', PHONE, 'phone.png')
+  expect(await handOver(page, 'paste', PHONE, 'phone.png')).toEqual([true])
   await expect(page).toHaveURL(sceneUrl)
   await expect(page.locator('.scene').first()).toBeVisible()
   expect(asked.map(request => request.url()), 'one ask per open').toEqual([
@@ -195,7 +198,7 @@ test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a sc
   await expect(field(page)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Search by picture' })).toHaveCount(0)
   await expect(page.locator('.heading')).not.toHaveText('Scene search')
-  await handOver(page, 'paste', FRAME, 'shot.png')
+  expect(await handOver(page, 'paste', FRAME, 'shot.png'), 'left to the browser').toEqual([false])
   await page.waitForTimeout(1_000)
   await expect(page).toHaveURL(at('movies.localhost', `/search?scene=${FRAME_CODE}`))
   expect(asked).toEqual([])
