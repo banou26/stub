@@ -5,7 +5,7 @@ import { css } from '@emotion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
-import { Link, useLocation, useParams } from 'wouter'
+import { Link, useLocation, useParams, useSearch } from 'wouter'
 
 import { remotePicker, remotePlayer } from '../../worker'
 
@@ -36,7 +36,7 @@ import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { bestSource, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
-import { useResume } from './resume'
+import { startOf, useResume } from './resume'
 import UpNext from './up-next'
 
 /**
@@ -544,8 +544,9 @@ const Watch = () => {
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   const cannotPlay = Boolean(selectedSourceUri && unplayable.includes(selectedSourceUri))
-  useAutoPick(bestSource(episodeHandles.filter(handle => !unplayable.includes(handle.uri)), ways), { ...params, guest, cannotPlay }, navigate)
-  useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest)
+  const search = useSearch()
+  useAutoPick(bestSource(episodeHandles.filter(handle => !unplayable.includes(handle.uri)), ways), { ...params, guest, cannotPlay, search }, navigate)
+  useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
   const episodes = media?.episodes ?? []
   const index = episode ? episodes.indexOf(episode) : -1

@@ -9,7 +9,7 @@ import type { PlaybackSource } from '../../../../src/party/plugin-link'
 import type { PlaybackState } from '../../../../src/party/protocol'
 
 import { pluginPlaybackLink } from '../../../../src/party/plugin-link'
-import { useResume } from '../../../../src/router/watch/resume'
+import { startOf, useResume, watchFrom } from '../../../../src/router/watch/resume'
 import { WATCH_POSITIONS_KEY } from '../../../../src/utils/watch-positions'
 
 const stored = new Map<string, string>()
@@ -59,12 +59,12 @@ const pluginLink = () => {
   return { link, applied, report }
 }
 
-const Resume = ({ link, uri, uris, guest }: { link: PlaybackLink, uri: string, uris: string[], guest: boolean }) => {
-  useResume(link, uri, uris, guest)
+const Resume = ({ link, uri, uris, guest, start }: { link: PlaybackLink, uri: string, uris: string[], guest: boolean, start?: number }) => {
+  useResume(link, uri, uris, guest, start)
   return null
 }
-const page = ({ link = fakeLink(1400), uri = 'nf:1', uris = ['nf:1', 'cr:1'], guest = false } = {}) => {
-  hosts.push(mount(<Resume link={link} uri={uri} uris={uris} guest={guest}/>))
+const page = ({ link = fakeLink(1400), uri = 'nf:1', uris = ['nf:1', 'cr:1'], guest = false, start = undefined as number | undefined } = {}) => {
+  hosts.push(mount(<Resume link={link} uri={uri} uris={uris} guest={guest} start={start}/>))
   return link
 }
 const keep = (...points: [string, number, number][]) => stored.set(WATCH_POSITIONS_KEY, JSON.stringify(points))
@@ -179,4 +179,32 @@ test('a source plugin\'s player that never says its length resumes on its first 
   expect(applied).toEqual([600])
   await report({ time: 700 })
   expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
+})
+
+// a scene search's link opens the episode at the scene (HOR-517)
+test('a start the address names seeks there in place of the point kept, even past where the site resumed', async () => {
+  keep(['nf:1', 600, 1400])
+  const link = page({ start: 272 })
+  await link.report({ time: 2 })
+  expect(seeks(link)).toEqual([272])
+
+  const resumed = page({ start: 272 })
+  await resumed.report({ time: 300 })
+  expect(seeks(resumed)).toEqual([272])
+})
+
+test('a start is not for a party guest, nor past the episode\'s end', async () => {
+  const guest = page({ start: 272, guest: true })
+  await guest.report({ time: 2 })
+  expect(guest.apply).not.toHaveBeenCalled()
+  const past = page({ start: 1500 })
+  await past.report({ time: 2 })
+  expect(past.apply).not.toHaveBeenCalled()
+})
+
+test('the start rides in the address as whole seconds, and anything else is no start', () => {
+  expect(watchFrom('/watch/ag:(anilist:1)/ag:(anilist:1-1)', 272.19)).toBe('/watch/ag:(anilist:1)/ag:(anilist:1-1)?t=272')
+  expect(startOf('t=272')).toBe(272)
+  expect(startOf('t=0')).toBe(0)
+  for (const search of ['', 't=', 't=-5', 't=4:32', 't=1e3']) expect(startOf(search), search).toBeUndefined()
 })

@@ -13,6 +13,8 @@ import { memoryLocation } from 'wouter/memory-location'
 const navigate = vi.fn()
 const allUri = 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a)'
 let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+// the address's query string, without its `?`
+let search = ''
 const handle = (uri: string, origin: string, url: string) => ({ relation: 'SAME_AS', node: { uri, origin, url } })
 const allHandles = [
   handle('cr:GX1', 'cr', 'https://www.crunchyroll.com/watch/GX1'),
@@ -61,7 +63,7 @@ vi.mock('urql', async () => {
     }],
   }
 })
-vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate] }))
+vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate], useSearch: () => search }))
 // the worker's answer to which origins play their own releases, held until `held` settles
 const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown> }))
 vi.mock('../../../../src/worker', () => ({
@@ -189,6 +191,7 @@ afterEach(() => {
   backend = 'cloud'
   statuses = { crunchyroll: 'signed-out' }
   params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+  search = ''
   Object.assign(episode, { uri: allUri, handles: allHandles })
   media = single
   runs = {}
@@ -1475,6 +1478,18 @@ test('with Prime Video answering before Crunchyroll, Play still opens Crunchyrol
   primeEpisode(allHandles[0]!)
   await rerender()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
+// a scene search's link opens the episode at the scene's second (HOR-517)
+test('Play\'s pick keeps the second a scene search opened the episode at', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  primeEpisode(allHandles[0]!)
+  params = { ...params, episodeUri: episode.uri }
+  search = 't=272'
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1?t=272`, { replace: true })
 })
 
 // the order is a setting on the FKN account, kept in this browser's own key while signed out

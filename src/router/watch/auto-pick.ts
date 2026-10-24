@@ -52,11 +52,12 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
  * Writes `best` into the address with a replace, so Back skips it, once it is `now`. Never while the
  * address names a source, unless it is this hook's own pick, not left for another source since, and
  * `cannotPlay` says it cannot play the episode here: `best` must then leave that source out. Never for a
- * party guest, who follows the host's address.
+ * party guest, who follows the host's address. The address keeps its query string `search`, such as the
+ * second a scene search starts the player at.
  */
 export const useAutoPick = (
   best: { uri: string, now: boolean } | undefined,
-  { mediaUri, episodeUri, sourceUri, guest, cannotPlay }: { mediaUri: string, episodeUri: string, sourceUri?: string, guest: boolean, cannotPlay?: boolean },
+  { mediaUri, episodeUri, sourceUri, guest, cannotPlay, search }: { mediaUri: string, episodeUri: string, sourceUri?: string, guest: boolean, cannotPlay?: boolean, search?: string },
   navigate: (to: string, options: { replace: boolean }) => void,
 ) => {
   const picked = useRef<string | undefined>(undefined)
@@ -69,6 +70,7 @@ export const useAutoPick = (
   useEffect(() => {
     if (!armed) return
     picked.current = armed
-    navigate(getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed }), { replace: true })
+    const path = getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri: armed })
+    navigate(search ? `${path}?${search}` : path, { replace: true })
   }, [armed, mediaUri, episodeUri])
 }
