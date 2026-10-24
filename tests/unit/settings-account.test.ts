@@ -75,3 +75,40 @@ test('a check runs under the site\'s Web Lock, so its tabs take turns', async ()
   expect(request).toHaveBeenCalledWith('stub:positions', expect.any(Function))
   vi.unstubAllGlobals()
 })
+
+test('a resume point on its way to the account holds an update reload until it lands', async () => {
+  await checkPositions()
+  const { savePosition, positions } = await import('../../src/utils/watch-positions')
+  const { createUpdateGate } = await import('../../src/update/gate')
+  const { parseHTML } = await import('linkedom')
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  const location = { pathname: '/', reload: vi.fn() }
+  const session = new Map<string, string>()
+  vi.stubGlobal('document', parseHTML('<!doctype html><html><head></head><body></body></html>').document)
+  vi.stubGlobal('location', location)
+  vi.stubGlobal('navigator', { onLine: true })
+  vi.stubGlobal('sessionStorage', { getItem: (key: string) => session.get(key) ?? null, setItem: (key: string, value: string) => { session.set(key, value) } })
+  const party = { getState: () => ({ status: 'idle' }) as const }
+
+  const check = checkPositions()
+  createUpdateGate({ party }).due()
+  expect(location.reload, 'the control: a check with nothing to save holds nothing').toHaveBeenCalledOnce()
+  await check
+  location.reload.mockClear()
+
+  const gate = createUpdateGate({ party })
+  const written = account.browser.state.writes.length
+
+  // what leaving /watch does: the player's last point, then a flush
+  savePosition('cr:S-A-E1', { time: 600, duration: 1440 })
+  positions.flush()
+  gate.due()
+  expect(location.reload, 'held while the point is on its way').not.toHaveBeenCalled()
+  await vi.waitFor(() => expect(account.browser.state.writes.slice(written).map(({ path }) => path)).toContain(POSITIONS_PATH))
+  await vi.waitFor(() => {
+    vi.advanceTimersByTime(1_000)
+    expect(location.reload).toHaveBeenCalledOnce()
+  })
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})

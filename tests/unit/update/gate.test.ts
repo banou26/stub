@@ -4,7 +4,7 @@ import { parseHTML } from 'linkedom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { layer } from '../../../src/layers'
-import { createUpdateGate } from '../../../src/update/gate'
+import { createUpdateGate, holdUpdatesWhile } from '../../../src/update/gate'
 
 /** A tab: its address, its focus, its party, its connection and its storage, each one a test can move. */
 const tab = () => {
@@ -109,6 +109,18 @@ describe('an update waits for its safe moment', () => {
     vi.advanceTimersByTime(30_000)
     expect(location.reload).not.toHaveBeenCalled()
     video.paused = true
+    vi.advanceTimersByTime(1_000)
+    expect(location.reload).toHaveBeenCalledOnce()
+  })
+
+  test('while something holds it, until it lets go', () => {
+    const { location, gate } = tab()
+    let held = true
+    holdUpdatesWhile(() => held)
+    gate.due()
+    vi.advanceTimersByTime(30_000)
+    expect(location.reload).not.toHaveBeenCalled()
+    held = false
     vi.advanceTimersByTime(1_000)
     expect(location.reload).toHaveBeenCalledOnce()
   })

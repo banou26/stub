@@ -253,3 +253,32 @@ describe('where you stopped, on the FKN account', () => {
     expect(fileOf(world, 'alice')![0]![1]).toBe(335)
   })
 })
+
+describe('an edit not on the account yet', () => {
+  test('is unsaved from its save until the step that writes it ends, and a check with no edit holds nothing', async () => {
+    const world = fknWorld()
+    const anime = site(world.browser({ account: 'alice' }))
+    const check = anime.sync.check()
+    expect(anime.sync.unsaved(), 'the control: a check with nothing to save').toBe(false)
+    await check
+    anime.store.setItem(KEY, JSON.stringify([['nf:1', 600, 1400, 1_000]]))
+    expect(anime.sync.unsaved(), 'paced, before its step').toBe(true)
+    anime.store.flush()
+    expect(anime.sync.unsaved(), 'its step on its way').toBe(true)
+    await anime.sync.check()
+    expect(fileOf(world, 'alice')).toEqual([['nf:1', 600, 1400, 1_000]])
+    expect(anime.sync.unsaved()).toBe(false)
+  })
+
+  test('is let go by a step that ends without writing, as when FKN does not answer', async () => {
+    const browser = fknWorld().browser({ account: 'alice' })
+    const anime = site(browser)
+    await anime.sync.check()
+    browser.state.reachable = false
+    anime.store.setItem(KEY, JSON.stringify([['nf:1', 600, 1400, 1_000]]))
+    anime.store.flush()
+    expect(anime.sync.unsaved()).toBe(true)
+    await settle()
+    expect(anime.sync.unsaved()).toBe(false)
+  })
+})

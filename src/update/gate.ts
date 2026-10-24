@@ -26,9 +26,18 @@ const mayReload = (): boolean => {
   }
 }
 
+const holds = new Set<() => boolean>()
+
+/**
+ * Holds this tab's update reload while `held()` answers true, as it does for an edit the FKN account
+ * does not have yet: a reload then loses it, and the account's older copy wins on the next load.
+ */
+export const holdUpdatesWhile = (held: () => boolean) => { holds.add(held) }
+
 const safe = (party: { getState: () => PartyState }) => {
   const { status } = party.getState()
-  return navigator.onLine
+  return ![...holds].some(held => held())
+    && navigator.onLine
     && !location.pathname.startsWith('/watch/')
     && status !== 'joining' && status !== 'active'
     && !document.activeElement?.matches(TYPING)
@@ -52,8 +61,9 @@ export type UpdateGate = {
  * and looks for that moment again every second until then. A hidden tab goes as soon as it is safe.
  *
  * SAFE when online (a reload offline is the browser's error page), off `/watch` (stub cannot read the
- * playback of the cross-origin players it frames), with no party joining or active, no text field
- * focused and no video of this page playing.
+ * playback of the cross-origin players it frames), with nothing held (`holdUpdatesWhile`), no
+ * party joining or active, no text field focused and no video of this page
+ * playing.
  *
  * GUARDED per tab (sessionStorage): at most two automatic reloads in five minutes. A refused reload
  * shows nothing and goes once the window has room.

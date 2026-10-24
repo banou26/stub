@@ -5,6 +5,7 @@ import { positionsSync, settingsSync } from './settings-sync'
 import { REFRESH_MS } from './tracking/account-link'
 import { watchTrackerAccount } from './tracking/account-watch'
 import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
+import { holdUpdatesWhile } from './update/gate'
 import { positions } from './utils/watch-positions'
 
 const lock = (name: string) => <T>(work: () => Promise<T>): Promise<T> =>
@@ -12,11 +13,16 @@ const lock = (name: string) => <T>(work: () => Promise<T>): Promise<T> =>
     ? navigator.locks.request(name, work)
     : work()
 
+const settingsAccount = settingsSync({ settings, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:settings') })
+const positionsAccount = positionsSync({ settings: positions, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:positions') })
+
+holdUpdatesWhile(() => settingsAccount.unsaved() || positionsAccount.unsaved())
+
 /** Brings this browser's settings in line with the FKN account's: at start, and whenever the page asks again. */
-export const checkSettings = settingsSync({ settings, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:settings') }).check
+export const checkSettings = settingsAccount.check
 
 /** Brings this browser's resume points in line with the FKN account's, as checkSettings does the settings. */
-export const checkPositions = positionsSync({ settings: positions, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:positions') }).check
+export const checkPositions = positionsAccount.check
 
 type Page = Pick<Parameters<typeof watchTrackerAccount>[0], 'page' | 'document'>
 

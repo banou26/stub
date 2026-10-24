@@ -114,6 +114,9 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock, path = SE
     for (const key of keys) if (settings.getItem(key) !== before.get(key)) tell(key)
   }
 
+  // edits made on this page, and how many of them a finished step had taken, for `unsaved`
+  let edited = 0
+  let taken = 0
   let queued = false
   let waiting = Promise.resolve()
   const start = () => {
@@ -121,7 +124,8 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock, path = SE
     queued = true
     return waiting = lock(() => {
       queued = false
-      return step()
+      const upTo = edited
+      return step().finally(() => { taken = Math.max(taken, upTo) })
     }).catch(error => console.warn('settings: account file', error))
   }
 
@@ -134,6 +138,7 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock, path = SE
     return start()
   }
   onEdit(flush => {
+    if (!flush) edited += 1
     if (flush) { if (edits.size) void now() }
     else if (paceMs === undefined) void start()
     else timer ??= setTimeout(now, Math.max(0, paced + paceMs - Date.now()))
@@ -148,6 +153,12 @@ export const settingsSync = ({ settings, cloud, onAccountChange, lock, path = SE
   return {
     /** Reads the account's settings and brings this browser in line with them. */
     check: start,
+    /**
+     * Whether an edit made on this page waits for a step, or is in the running one: a reload now would
+     * lose it, and the account's older copy would win on the next load. A step that ends without
+     * writing, FKN not answering or no key held, lets it go.
+     */
+    unsaved: () => taken < edited,
   }
 }
 
