@@ -72,10 +72,10 @@ test('the banner and the description are Kitsu\'s, at the offline source\'s scor
   expect(media.titles[0]?.score).toBe(0.2)
 })
 
-// Mutation: stamp a season or a type from the record.
-test('a history media claims no season, type, status or date', () => {
+// Mutations: stamp a season or a type from the record; claim SERIES; leave out ANIME.
+test('a history media claims no season, type, status or date, and ANIME as its one category', () => {
   const media = historyMedia({ key: 'mal-1', title: 'A', picture: '' }, [])
-  expect([media.season, media.seasonYear, media.type, media.status, media.startDate, media.endDate, media.categories]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined, []])
+  expect([media.season, media.seasonYear, media.type, media.status, media.startDate, media.endDate, media.categories]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined, ['ANIME']])
 })
 
 test('a Kitsu image keeps only what follows Kitsu\'s own prefix', () => {

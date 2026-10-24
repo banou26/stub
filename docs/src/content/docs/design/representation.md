@@ -784,7 +784,7 @@ exchange.
 | --- | --- | --- | --- |
 | `graph:changed` | `{seq, uris}` | per commit, when a new row, a new claim, a new `HAS_EPISODE` or a change in a projected column landed | the plugin scheduler only (one pass, coalesced). Nothing that reads the store wakes here: what it would read is written by the pass this event starts |
 | `row:changed` | `{uris}` | per commit, when only unprojected `raw` fields changed, or a claim's `node` was re-asserted | `plugin:aggregate`'s re-materialization of the touched clusters' JSON (no guards, no links), which ends in a `view:changed` naming them |
-| `view:changed` | `{clusters, uris}` | after a pass or a re-materialization, naming the clusters whose membership, slots, attachments, run length, anomalies or JSON moved, and every member uri of those clusters | `Subscription.media`: by any of its requested uris until a cluster has resolved for it (a requested uri has no cluster before its owner answers, and a subscription with nothing to filter on would otherwise never wake, `media/index.ts:81-87`), then by its cluster id or an alias; `mediaPage` with the 100 ms trailing debounce (`media/index.ts:108`), re-reading only the named clusters; `ctx.listenForMediaChanges` and the seven `waitForMedia` callers (unogs, appletv, tmdb, crunchyroll, justwatch, tvmaze; `src/sources/utils.ts`) for any uri they wait on |
+| `view:changed` | `{clusters, uris}` | after a pass or a re-materialization, naming the clusters whose membership, slots, attachments, run length, anomalies or JSON moved, every member uri of those clusters, and every placeholder a member claims `SAME_AS` (never an `address` echo) | `Subscription.media`: by any of its requested uris until a cluster has resolved for it (a requested uri has no cluster before its owner answers, and a subscription with nothing to filter on would otherwise never wake, `media/index.ts:81-87`), then by its cluster id or an alias; `mediaPage` with the 100 ms trailing debounce (`media/index.ts:108`), re-reading only the named clusters; `ctx.listenForMediaChanges` and the seven `waitForMedia` callers (unogs, appletv, tmdb, crunchyroll, justwatch, tvmaze; `src/sources/utils.ts`) for any uri they wait on |
 | `origin:changed` | `{ids}` | only when an `Origin` row changed | `Subscription.origin`, `originPage` |
 
 Today every emit passes `{}` (`db.ts:200,222,237,253,414,520`), which is why `mediaPage` re-reads the
@@ -1872,6 +1872,12 @@ released by a row that is not one. And it must not become the state the reader s
 provisional path sets neither `clusterId` nor `wakeUris`: the reader keeps waking on its requested
 uris, which is what the real cluster's `view:changed` names, and a blank modal never becomes a stale
 one.
+
+A reader whose address no cluster holds draws the cluster of a member that claims `SAME_AS` one of its uris, never
+through an `address` echo, before it falls back to the provisional view (HOR-915, 2026-10-25). The offline source's
+claims are `seed`, which gives its catalogue ids no scope, so they stay placeholders until each catalogue's own
+source answers: a link naming only those ids (`ag:(anilist:20)`) drew nothing while the offline record was the only
+answer. `resolveMedia` still does not follow claims, so a source waiting on the cluster waits for its own catalogue.
 :::
 
 ```cypher

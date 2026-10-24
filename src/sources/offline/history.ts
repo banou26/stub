@@ -59,7 +59,9 @@ export const historyEntry = async (key: string, load: ShardLoader, follow = true
  * its cover (Kitsu's, else the dump's), Kitsu's banner and description. Every live source outranks the first three.
  * Not the description: a page shows the longest one whatever its score, so Kitsu's synopsis as the history last
  * read it competes with live Kitsu's own, and a closed season's is never read again.
- * No season, type, status or date: a record outside the bundled seasons claims nothing it was not picked for.
+ * No season, type, status or date: a record outside the bundled seasons claims nothing it was not picked for. ANIME
+ * is the one category it claims, and the only one every record holds: without it anime.fkn.app drops a title only
+ * this source has answered (`siteAllows`), and SERIES or MOVIE is the format no record carries.
  */
 export const historyMedia = (entry: HistoryEntry, handles: Parameters<typeof makeMedia>[0]['handles']): GQLMedia => {
   const kitsu = entry.kitsu ?? {}
@@ -69,6 +71,7 @@ export const historyMedia = (entry: HistoryEntry, handles: Parameters<typeof mak
     id: entry.key,
     handles,
     score: SCORE,
+    categories: ['ANIME'],
     titles: [{ language: 'en', title: entry.anidb ?? kitsu.t ?? entry.title, score: SCORE }],
     covers: cover ? [{ url: cover, score: SCORE }] : [],
     banners: kitsu.b ? [{ url: kitsuUrl(kitsu.b), score: SCORE }] : [],

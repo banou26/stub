@@ -18,7 +18,8 @@ type StoreEventMap = {
   'row:changed': { uris: string[] }
   /**
    * After a pass that applied something (6.6): the clusters whose membership, slots, attachments,
-   * run length, anomalies or JSON moved, and every member uri of those clusters. The read path's
+   * run length, anomalies or JSON moved, and every member uri of those clusters with every placeholder
+   * a member claims to be (`SAME_AS`, never an `address` echo). The read path's
    * wake, so a reader is woken once the row it reads exists rather than at the commit before it.
    */
   'view:changed': { clusters: string[], uris: string[] }

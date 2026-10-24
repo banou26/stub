@@ -122,7 +122,8 @@ const clusterOfSlot = (id: string): string => {
 }
 
 /**
- * The `view:changed` payload for what a pass applied: the clusters it touched and their members.
+ * The `view:changed` payload for what a pass applied: the clusters it touched, their members and the placeholders
+ * their members claim to be.
  *
  * Every change is mapped to a cluster by its key alone where the key names one, and through ONE
  * query per remaining class where it does not. `MediaProfile`, `EpisodeProfile`, `TitleKey`,
@@ -182,7 +183,13 @@ export const viewOf = async (changes: WriterChange[]): Promise<{ clusters: strin
     'UNWIND $ids AS i MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster {id: i}) RETURN m.uri AS uri',
     { ids }
   )
-  return { clusters: ids, uris: [...new Set(members.map(row => String(row.uri)))].sort() }
+  // and the placeholders a member says it IS, which a reader addressed by one of them draws (`createMediaReader`)
+  const claimed = await query(
+    `UNWIND $ids AS i MATCH (c:Cluster {id: i})<-[:MEMBER_OF]-(:Media)-[k:CLAIMS]->(t:Media {owned: false})
+     WHERE k.kind = 'SAME_AS' AND k.provenance <> 'address' RETURN t.uri AS uri`,
+    { ids }
+  )
+  return { clusters: ids, uris: [...new Set([...members, ...claimed].map(row => String(row.uri)))].sort() }
 }
 
 const drain = async (): Promise<void> => {

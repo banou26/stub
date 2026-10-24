@@ -417,8 +417,28 @@ export const resolveMedia = async (uri: string, member?: string): Promise<Aggreg
     if (fallthrough) resolved = fallthrough
   }
 
-  const id = resolved.scope === 'CONTAINER' && resolved.preferredRun ? resolved.preferredRun : resolved.id
-  return viewOfCluster(id)
+  return viewOfResolved(resolved)
+}
+
+const viewOfResolved = (resolved: ResolvedCluster): Promise<AggregatedMedia | undefined> =>
+  viewOfCluster(resolved.scope === 'CONTAINER' && resolved.preferredRun ? resolved.preferredRun : resolved.id)
+
+/**
+ * The cluster of a member that says it IS one of `uris` (a `SAME_AS` claim, never an `address` echo), for an address
+ * no cluster holds. A catalogue id the offline source names stays a placeholder with no scope until that catalogue's
+ * own source describes it (its claims are `seed`), so a link naming only catalogue ids (`ag:(anilist:20)`) resolved to
+ * nothing while the offline record was the only answer: no payload in 9 s with every request refused (2026-10-25).
+ * The reader's alone, as `provisionalView` is, and taken only after `resolveMedia` found nothing.
+ */
+const resolveByClaims = async (uris: readonly string[]): Promise<ResolvedCluster | undefined> => {
+  if (!uris.length) return undefined
+  const { query } = await graphReady()
+  const [claimed] = await query(
+    `UNWIND $uris AS u MATCH (c:Cluster)<-[:MEMBER_OF]-(:Media)-[k:CLAIMS]->(:Media {uri: u})
+     WHERE k.kind = 'SAME_AS' AND k.provenance <> 'address' ${RESOLVE_COLUMNS}`,
+    { uris: [...uris] }
+  )
+  return clusterOf(claimed)
 }
 
 /** Statement 2: the materialized view of one cluster, with the page `kind` of 6.5 beside it. */
@@ -591,7 +611,11 @@ export const createMediaReader = (uri: string, member?: string) => {
 
   return {
     read: async (): Promise<AggregatedMedia | undefined> => {
-      const media = await resolveMedia(uri, member)
+      let media = await resolveMedia(uri, member)
+      if (!media) {
+        const claimed = await resolveByClaims(addressUris(uri))
+        media = claimed && await viewOfResolved(claimed)
+      }
       if (media) {
         clusterId = media._id
         wakeUris = new Set([...requested, ...await memberUrisOf([media._id])])
