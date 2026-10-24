@@ -16,8 +16,14 @@ vi.mock('../../src/sources/players', () => ({
 }))
 vi.mock('../../src/embed-title', () => ({ receiveEmbedTitle: () => () => {} }))
 
-const lib = vi.hoisted(() => ({ extension: false }))
-vi.mock('@fkn/lib', () => ({ isExtensionExposed: () => lib.extension }))
+const lib = vi.hoisted(() => ({ extension: false, taken: [] as (() => void)[] }))
+vi.mock('@fkn/lib', () => ({
+  isExtensionExposed: () => lib.extension,
+  shell: { onUpdateTaken: (handler: () => void) => { lib.taken.push(handler); return () => {} } },
+}))
+// what the lib does when an FKN update is taken in any tab: the page's handlers run, or with none it reloads
+const reload = vi.fn()
+const takeFknUpdate = () => lib.taken.length ? lib.taken.forEach(handler => handler()) : reload()
 
 const check = vi.hoisted(() => ({ calls: [] as unknown[][], answer: Promise.resolve(['r3']) }))
 vi.mock('../../src/sources/crunchyroll/relay-check', () => ({
@@ -43,6 +49,8 @@ beforeEach(() => {
   played.length = 0
   check.calls = []
   lib.extension = false
+  lib.taken = []
+  reload.mockClear()
 })
 
 afterEach(() => {
@@ -73,4 +81,11 @@ test('another source\'s episode is not checked', async () => {
 
   expect(check.calls).toEqual([])
   expect(props.unlistedRelays).toBeUndefined()
+})
+
+test('an FKN update taken while the player plays leaves it playing, for the watch page to reload it with itself', async () => {
+  await open(CRUNCHYROLL)
+  takeFknUpdate()
+
+  expect(reload).not.toHaveBeenCalled()
 })

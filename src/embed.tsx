@@ -1,4 +1,4 @@
-import { isExtensionExposed } from '@fkn/lib'
+import { isExtensionExposed, shell } from '@fkn/lib'
 import { render } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
 import { triedRelaysOf } from './embed-relays'
@@ -6,6 +6,9 @@ import { receiveEmbedTitle } from './embed-title'
 import { unlistedRelays } from './sources/crunchyroll/relay-check'
 import { getPlayer } from './sources/players'
 import { fromUri } from './utils/uri'
+
+// the lib's default reloads this player under the viewer; the watch page framing it reloads both at its own safe moment
+shell.onUpdateTaken(() => {})
 
 const params = new URLSearchParams(globalThis.location.search)
 const mediaUri = params.get('mediaUri')
