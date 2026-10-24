@@ -249,7 +249,7 @@ describe('the search page', () => {
   })
 })
 
-// HOR-517: a picture's color code asked of trace.moe, its address /search?scene=<code>
+// a picture's color code asked of trace.moe, its address /search?scene=<code>
 describe('the scene search', () => {
   const rabbit = { matches: [{ anilist: 21034, moments: [{ episode: 1, from: 272.19 }, { episode: 2, from: 5 }] }] }
   const showMedia = () => act(() => {
@@ -257,16 +257,18 @@ describe('the scene search', () => {
     for (const listener of stream.listeners) listener()
   })
   const flush = () => act(async () => { await Promise.resolve() })
-  const pasted = (file?: File) => {
+  const pasted = (file?: File, types = file ? ['Files'] : ['text/plain']) => {
     const event = new Event('paste', { bubbles: true, cancelable: true })
-    Object.defineProperty(event, 'clipboardData', { value: { files: file ? [file] : [] } })
+    Object.defineProperty(event, 'clipboardData', { value: { files: file ? [file] : [], types } })
     act(() => { document.dispatchEvent(event) })
     return event
   }
+  const picture = () => new File([new Uint8Array([1])], 'shot.png', { type: 'image/png' })
+  const notPicture = () => new File(['text'], 'notes.txt', { type: 'text/plain' })
 
   test('its address asks trace.moe once, names it, and asks no text search', async () => {
     scenes.search.mockResolvedValue(rabbit)
-    const page = open(`/search?scene=${CODE}`)
+    const page = open(`/search?scene=${CODE}&q=frieren`)
     await flush()
     expect(scenes.search).toHaveBeenCalledExactlyOnceWith(CODE)
     const host = hosts.at(-1)!
@@ -331,18 +333,60 @@ describe('the scene search', () => {
     const page = open('/search?q=mushoku')
     expect(pasted().defaultPrevented, 'no file').toBe(false)
     expect(page.history).toEqual(['/search?q=mushoku'])
-    const event = pasted(new File([new Uint8Array([1])], 'shot.png', { type: 'image/png' }))
+    const event = pasted(picture())
     await flush()
     expect(event.defaultPrevented).toBe(true)
     expect(page.history).toEqual(['/search?q=mushoku', `/search?scene=${CODE}`])
   })
 
+  test('a paste of text with a picture beside it, as Word and Excel copy, is the field\'s', async () => {
+    const page = open('/search?q=mushoku')
+    const event = pasted(picture(), ['text/plain', 'text/html', 'Files'])
+    await flush()
+    expect(event.defaultPrevented).toBe(false)
+    expect(page.history).toEqual(['/search?q=mushoku'])
+  })
+
+  test('a new code draws placeholders until its own answer, never the last code\'s', async () => {
+    scenes.search.mockResolvedValueOnce(rabbit)
+    const page = open(`/search?scene=${CODE}`)
+    await flush()
+    await showMedia()
+    expect(page.results()).toEqual(['rabbit'])
+    let answer!: (value: unknown) => void
+    scenes.search.mockReturnValueOnce(new Promise(resolve => { answer = resolve }))
+    page.go('/search?scene=eOOEIPhB0IQhB8IQg-TPYQg-D0IQ')
+    await flush()
+    expect(page.results()).toEqual([])
+    expect(page.pending()).toBe(12)
+    answer({ matches: [] })
+    await flush()
+    expect(page.status()).toBe('No results found.')
+  })
+
   test('a file that is no picture says so in one line, and asks nothing', async () => {
     const page = open('/search')
-    pasted(new File(['text'], 'notes.txt', { type: 'text/plain' }))
+    pasted(notPicture())
     await flush()
     expect(page.status()).toBe('This picture could not be read.')
     expect(scenes.search).not.toHaveBeenCalled()
+    page.type('frieren')
+    expect(page.status(), 'gone once the address moves on').not.toBe('This picture could not be read.')
+  })
+
+  test('the same picture again after a file that is no picture draws its results again, in the same step', async () => {
+    scenes.search.mockResolvedValue(rabbit)
+    const page = open(`/search?scene=${CODE}`)
+    await flush()
+    await showMedia()
+    pasted(notPicture())
+    await flush()
+    expect(page.status()).toBe('This picture could not be read.')
+    pasted(picture())
+    await flush()
+    expect(page.status()).toBeUndefined()
+    expect(page.results()).toEqual(['rabbit'])
+    expect(page.history).toEqual([`/search?scene=${CODE}`])
   })
 
   test('the search field has the picture button', () => {

@@ -43,8 +43,8 @@ export const useScene = (code: string | undefined): SceneAnswer | undefined => {
 }
 
 /**
- * Calls `onPicture` with a file pasted or dropped anywhere on the page while `enabled`. A paste with no file, text
- * into the search field, is left to the field.
+ * Calls `onPicture` with a file pasted or dropped anywhere on the page while `enabled`. A paste that carries text is
+ * left to the field, even with a file beside it: Word and Excel copy a picture of the selection next to its text.
  */
 export const usePictureInput = (onPicture: (file: File) => void, enabled: boolean) => {
   const latest = useRef(onPicture)
@@ -53,7 +53,7 @@ export const usePictureInput = (onPicture: (file: File) => void, enabled: boolea
     if (!enabled) return
     const paste = (event: ClipboardEvent) => {
       const file = event.clipboardData?.files[0]
-      if (!file) return
+      if (!file || event.clipboardData!.types.includes('text/plain')) return
       event.preventDefault()
       latest.current(file)
     }

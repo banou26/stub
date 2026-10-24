@@ -315,7 +315,8 @@ const Search = () => {
   const [unreadable, setUnreadable] = useState(false)
   useEffect(() => { setUnreadable(false) }, [search])
   const searchPicture = (file: File) => {
-    void pictureCode(file).then(code => navigate(scenePath(code)), () => setUnreadable(true))
+    setUnreadable(false)
+    void pictureCode(file).then(code => navigate(scenePath(code), { replace: code === scene }), () => setUnreadable(true))
   }
   usePictureInput(searchPicture, !LIVE_ACTION_SITE)
 
