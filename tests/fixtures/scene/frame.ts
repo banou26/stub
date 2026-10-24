@@ -29,3 +29,15 @@ export const letterboxed = (inner: Pixels, width: number, height: number): Pixel
   }
   return { data, width, height }
 }
+
+/** `shot` with a phone's lit clock and battery along its top and its home indicator along its bottom. */
+export const withPhoneChrome = (shot: Pixels): Pixels => {
+  const data = new Uint8ClampedArray(shot.data)
+  const light = (left: number, top: number, width: number, height: number) => {
+    for (let y = top; y < top + height; y++) data.fill(255, (y * shot.width + left) * 4, (y * shot.width + left + width) * 4)
+  }
+  light(16, 12, 40, 14)
+  light(shot.width - 56, 14, 40, 10)
+  light((shot.width - 140) / 2, shot.height - 20, 140, 5)
+  return { ...shot, data }
+}
