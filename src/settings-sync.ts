@@ -12,6 +12,7 @@ import { parseValues, type Settings, type SettingValues } from './settings-store
 import { COUNTRY_KEY } from './sources/country'
 import { DISABLED_SOURCES_KEY } from './sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from './sources/hidden-icons'
+import { MERGE_ORDER_KEY } from './sources/merge-order'
 import { PLAY_ORDER_KEY } from './sources/play-order'
 import { COMPACT_PREFS_KEY } from './tracking/compact-prefs'
 import { AUTOPLAY_KEY } from './utils/autoplay'
@@ -32,7 +33,7 @@ export const POSITIONS_PACE_MS = 30_000
 const LISTS = [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY]
 
 /** Every setting that follows the account. The volume, the tracking sites' sessions and the party stay on the device. */
-export const SETTINGS_KEYS: readonly string[] = [...LISTS, COUNTRY_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY]
+export const SETTINGS_KEYS: readonly string[] = [...LISTS, COUNTRY_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY]
 
 const same = (a: SettingValues, b: SettingValues) => JSON.stringify(a) === JSON.stringify(b)
 

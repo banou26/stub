@@ -44,6 +44,7 @@ import type { EpisodeMemberRow, RelatedRow, RelationRow } from './fields'
 import type { Plugin, PluginContext, PluginOutput, PluginRow } from './contract'
 
 import { isRoutableUri } from '../../../utils/uri'
+import { heldMergeOrder } from '../../../sources/merge-order'
 import { tieredConsensus } from '../../store/consensus'
 import { readAnomalies } from './anomalies'
 import { attachmentsOf, listingIndexOf, listingVerdict, preferredRunOf } from './containment'
@@ -1040,6 +1041,7 @@ export const aggregatePlugin: Plugin = {
         related,
         relations: relations.filter(edge => inside.has(edge.fromUri)),
         locationOrigin,
+        order: heldMergeOrder(),
       })
       const owns = members.some(member => member.owned)
 

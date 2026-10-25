@@ -10,6 +10,7 @@ import { readsLegacyStore } from './utils/export-flag'
 import { sessionResolvers } from './tracking/site-sessions'
 import { readDisabledSources, watchDisabledSources } from './sources/disabled-sources'
 import { readPickedCountry, watchPickedCountry } from './sources/country'
+import { readMergeOrder, watchMergeOrder } from './sources/merge-order'
 
 const worker = new Worker()
 
@@ -38,13 +39,17 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, setMergeOrder, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
     key: 'yoga'
   }
 )
+
+// Before the engine boots, so its first pass merges in the viewer's order and none re-merges for it.
+await setMergeOrder(readMergeOrder())
+watchMergeOrder(() => { void setMergeOrder(readMergeOrder()) })
 
 // THE GRAPH IS THE DEFAULT STORE since 2026-09-13, and `?store=legacy` is the way back to the old
 // one. It was the other way round for the whole migration, so anything written before that date

@@ -13,6 +13,7 @@ import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { COUNTRY_KEY } from '../../../src/sources/country'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../../../src/sources/hidden-icons'
+import { MERGE_ORDER_KEY } from '../../../src/sources/merge-order'
 import { PLAY_ORDER_KEY } from '../../../src/sources/play-order'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { UPDATE_RELOADS_KEY } from '../../../src/update/gate'
@@ -33,7 +34,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
-      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],
+      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],
     })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
@@ -110,7 +111,7 @@ describe('what stub keeps per viewer', () => {
     expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
     expect(kept.lasts).toContain("this browser's copy of it when you sign out")
     expect(kept.what).toContain('What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
-    expect(kept.what).toContain('the play order')
+    expect(kept.what).toContain('the play order, the merge order, and')
   })
 
   test('keeps the volume, the tracking sites and their sign-in states on the device, and names them apart', () => {

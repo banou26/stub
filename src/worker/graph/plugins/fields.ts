@@ -7,8 +7,9 @@
  * into `Cluster.card`, `Cluster.media`, `Cluster.episodes` and `Slot.episode`. No read chooses a
  * field value; a read is a lookup of what these wrote.
  *
- * WHAT THEY PROMISE. Same rows, same output, whatever order the rows arrived in. The members are
- * sorted once, by score descending and then by uri, and every rule below reads that one order:
+ * WHAT THEY PROMISE. Same rows and merge order, same output, whatever order the rows arrived in. The
+ * members are sorted once, by score descending and then by uri, weighed by the viewer's merge order
+ * (`mergeWeights`), and every rule below reads that one order:
  * `aggregate.ts:379-381` records today's reduce as "non-deterministic between loads" because a tie
  * inside one score tier fell to arrival order, and that is the one behaviour change 6.3 asks for.
  *
@@ -25,6 +26,7 @@
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
 import { seasonNamesFirst } from '../../../sources/season'
+import { DEFAULT_MERGE, mergeOrder } from '../../../sources/merge-order'
 import { refinesDate } from '../../../utils/release-date'
 import { mergeCredits } from './credits'
 import { COERCING_ORIGINS } from './origins'
@@ -196,6 +198,47 @@ const scoreOf = (value: unknown): number => (isRecord(value) && typeof value.sco
 /** Sorted by score descending, and STABLE within a score, which is the member order it arrived in. */
 const byScore = <T>(values: T[]): T[] => [...values].sort((a, b) => scoreOf(b) - scoreOf(a))
 
+/** How the viewer's merge order weighs one origin's rows and values. */
+type Weight = { place: number, scaled: (score: number) => number }
+
+const AS_TUNED: Weight = { place: 0, scaled: score => score }
+
+/**
+ * THE VIEWER'S MERGE ORDER (Settings, src/sources/merge-order.ts). A built-in source moved to place `i` weighs as the
+ * source the default order puts there: a row's or a value's score is scaled by the default score at `i` over the
+ * source's own, so its own offsets keep their ratios (AniList's strip banner stays under every other banner,
+ * MyAnimeList's romaji under every English title), and a score equal to the source's own becomes the one at `i`
+ * exactly, so a tie goes to the earlier place. An unscored row or value, and an origin the order does not name, keep
+ * their own. The default order, or none, weighs every origin as tuned: today's merge byte for byte
+ * (tests/unit/worker/graph/plugins/merge-order.test.ts).
+ */
+export const mergeWeights = (kept: readonly string[] = []): ((origin: string) => Weight) => {
+  const order = mergeOrder(kept)
+  if (order.every((origin, at) => origin === DEFAULT_MERGE[at]![0])) return () => AS_TUNED
+  const own = new Map(DEFAULT_MERGE)
+  const weights = new Map(order.map((origin, place): [string, Weight] => {
+    const from = own.get(origin)!
+    const to = DEFAULT_MERGE[place]![1]
+    return [origin, { place, scaled: score => (score < 0 ? score : score === from ? to : score * (to / from)) }]
+  }))
+  const unnamed: Weight = { place: order.length, scaled: score => score }
+  return origin => weights.get(origin) ?? unnamed
+}
+
+type Weigh = ReturnType<typeof mergeWeights>
+
+/** The members by weighted score, then by place, then in the order they arrived in. */
+const byWeight = <T extends { origin: string, score: number | null }>(rows: readonly T[], weigh: Weigh): T[] =>
+  [...rows].sort((a, b) =>
+    weigh(b.origin).scaled(b.score ?? -1) - weigh(a.origin).scaled(a.score ?? -1) || weigh(a.origin).place - weigh(b.origin).place)
+
+/** Every member's values of `field`, by weighted score, then by place, then in member order. */
+const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): unknown[] =>
+  members
+    .flatMap(member => listOf(member.raw[field]).map(value => ({ value, weight: weigh(member.origin) })))
+    .sort((a, b) => b.weight.scaled(scoreOf(b.value)) - a.weight.scaled(scoreOf(a.value)) || a.weight.place - b.weight.place)
+    .map(({ value }) => value)
+
 /** ANIME if present plus exactly one of MOVIE / SERIES, first in score order (`aggregate.ts:8-15`). */
 const reconcileCategories = (categories: string[]): string[] => {
   const out: string[] = []
@@ -335,10 +378,13 @@ export const aggregateFields = (options: {
   relations: readonly RelationRow[]
   /** The app origin a media route is built against. Empty in a worker with no `location`. */
   locationOrigin: string
+  /** The viewer's merge order as kept (src/sources/merge-order.ts). None is the default order. */
+  order?: readonly string[]
 }): AggregatedMedia => {
   const { cluster, locationOrigin } = options
   const members = byScoreThenUri(options.members)
-  const owned = members.filter(member => member.owned)
+  const weigh = mergeWeights(options.order)
+  const owned = byWeight(members, weigh).filter(member => member.owned)
   const provenance: FieldProvenance[] = []
   const identity = aggregatedIdentity(members.map(member => member.uri))
 
@@ -411,7 +457,7 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.titles = dedupeByField('title', seasonNamesFirst(byScore(owned.flatMap(member => listOf(member.raw.titles))) as { title?: string }[]))
+  row.titles = dedupeByField('title', seasonNamesFirst(valuesOf(owned, 'titles', weigh) as { title?: string }[]))
   for (const member of owned) {
     if (listOf(member.raw.titles).length) {
       provenance.push({ field: 'titles', uri: member.uri, answerSeq: member.fieldSeq.titles ?? null, rule: 'concat' })
@@ -421,7 +467,7 @@ export const aggregateFields = (options: {
   // sorted by score and NOT deduped: two catalogues describing the same work in two languages are two
   // descriptions, and two covers are two covers
   for (const field of ['descriptions', 'shortDescriptions', 'covers', 'banners'] as const) {
-    row[field] = byScore(owned.flatMap(member => listOf(member.raw[field])))
+    row[field] = valuesOf(owned, field, weigh)
     for (const member of owned) {
       if (listOf(member.raw[field]).length) {
         provenance.push({ field, uri: member.uri, answerSeq: member.fieldSeq[field] ?? null, rule: 'concat' })
@@ -429,7 +475,7 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.trailers = dedupeByField('uri', byScore(owned.flatMap(member => listOf(member.raw.trailers))))
+  row.trailers = dedupeByField('uri', valuesOf(owned, 'trailers', weigh))
 
   const credits = mergeCredits(owned)
   if (credits) {

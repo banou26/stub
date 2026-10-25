@@ -303,13 +303,14 @@ export const afterOrder = (plugins: Plugin[]): Plugin[] => {
 /**
  * What woke the pass, and what it named.
  *
- * A `boot` or a `manual` pass is FULL whatever else it carries: nothing is known to be unchanged on a
- * boot, and `manual` is the caller asking for everything. A `graph:changed` pass is scoped when it
+ * A `boot`, a `manual` or a `merge-order` pass is FULL whatever else it carries: nothing is known to be
+ * unchanged on a boot, `manual` is the caller asking for everything, and a new merge order moves every
+ * cluster's fields (`mergeWeights` in ./fields.ts). A `graph:changed` pass is scoped when it
  * names at least one of the three lists, and full when it names none of them, which is what keeps a
  * caller that only has the reason (a test, an older call site) asking for the pass it used to get.
  */
 export type PassTrigger = {
-  reason: 'boot' | 'graph:changed' | 'manual'
+  reason: 'boot' | 'graph:changed' | 'manual' | 'merge-order'
   seq?: number
   /** `Media.uri`: rows created, projections that moved, and rows a new answer was written ABOUT. */
   uris?: string[]

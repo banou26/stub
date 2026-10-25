@@ -9,6 +9,7 @@ import { SETTINGS_KEYS, SETTINGS_PATH, settingsSync } from '../../src/settings-s
 import { ACCOUNT_SETTINGS_KEY, createSettings, settings as pageSettings } from '../../src/settings-store'
 import { DISABLED_SOURCES_KEY as OFF, readDisabledSources, watchDisabledSources } from '../../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY as ICONS, readHiddenIcons } from '../../src/sources/hidden-icons'
+import { MERGE_ORDER_KEY as MERGE } from '../../src/sources/merge-order'
 import { PLAY_ORDER_KEY as PLAY, readPlayOrder } from '../../src/sources/play-order'
 import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src/utils/autoplay'
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
@@ -115,6 +116,18 @@ describe('settings on the FKN account', () => {
     expect(fileOf(world, 'alice')).toEqual({ [OFF]: '["trakt","simkl","anilist"]', [ICONS]: '["nf"]', [AUTOPLAY]: null, [PLAY]: '["nf","cr"]' })
     expect(anime.settings.getItem(OFF)).toBe('["trakt","simkl","anilist"]')
     expect(anime.items.has(PLAY), 'this browser\'s own order leaves').toBe(false)
+  })
+
+  test('a merge order set on one site is the order on every other site and device signed in to the account', async () => {
+    const world = fknWorld()
+    const anime = site(world.browser({ account: 'alice' }))
+    await anime.sync.check()
+    await anime.set(MERGE, '["anilist","mal"]')
+    expect(fileOf(world, 'alice')).toEqual({ [MERGE]: '["anilist","mal"]' })
+
+    const series = site(world.browser({ account: 'alice' }))
+    await series.sync.check()
+    expect(series.settings.getItem(MERGE)).toBe('["anilist","mal"]')
   })
 
   test('a value set back to its default on one device overrules the other device\'s own value', async () => {

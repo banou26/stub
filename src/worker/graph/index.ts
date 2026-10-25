@@ -5,6 +5,7 @@
  * `setGraphEnabled` over osra right after spawning. Off is the default and costs nothing: the engine
  * client is imported lazily, so with the flag down neither it nor the 22 MB engine is ever fetched.
  */
+import { holdMergeOrder } from '../../sources/merge-order'
 import { setAnswerSink } from './answers'
 import { graphEnabled, setGraphEnabled } from './engine'
 import { ingestAnswers } from './ingest'
@@ -118,4 +119,13 @@ export const enableGraph = (enabled: boolean, options: { scheduler?: boolean } =
   setGraphEnabled(enabled)
   if (!graphEnabled()) return Promise.resolve()
   return (booting ??= boot(options.scheduler === true))
+}
+
+/**
+ * Holds the viewer's merge order, and once the engine is on and the order followed changed, re-merges every cluster
+ * in a pass of its own, which ends in the `view:changed` that redraws what is on screen.
+ */
+export const setMergeOrder = async (order: readonly string[]): Promise<void> => {
+  if (!holdMergeOrder(order) || !graphEnabled()) return
+  await schedulePass('merge-order').catch(error => console.error(new Error('graph: the merge order pass failed', { cause: error })))
 }

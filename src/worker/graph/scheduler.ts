@@ -287,7 +287,7 @@ export const stopScheduler = (): void => {
  * the report of a pass that started before it was made. Rejects when that pass throws, which is why
  * the boot caller catches: a failed boot pass must not fail `enableGraph`.
  */
-export const schedulePass = (reason: 'boot' | 'manual'): Promise<PassReport> =>
+export const schedulePass = (reason: 'boot' | 'manual' | 'merge-order'): Promise<PassReport> =>
   new Promise<PassReport>((resolve, reject) => { request(reason, {}, { resolve, reject }) })
 
 /**

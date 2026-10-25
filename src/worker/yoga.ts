@@ -12,7 +12,7 @@ import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remoteP
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
 import { exportStore } from './store/export'
-import { enableGraph, exportAnswers, exportAsks, graphCounts, setReadStore, traceAnswer, traceGraph } from './graph'
+import { enableGraph, exportAnswers, exportAsks, graphCounts, setMergeOrder, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
 import { searchScene } from '../scene/search'
 import { fetch as upstreamFetch } from './fetch'
@@ -63,6 +63,8 @@ export const osraResolvers = {
   setDisabledSources: (origins: string[]) => setDisabledOrigins(origins),
   // the country picked in Settings, handed over the same way
   setPickedCountry: (country: string | undefined) => holdPickedCountry(country),
+  // the merge order set in Settings, handed over before the engine boots and again on every change
+  setMergeOrder: (order: string[]) => setMergeOrder(order),
   registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: RegisteredSource[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
     try {
       return { ok: await registerRemoteExtractor(port, pluginUri) }
