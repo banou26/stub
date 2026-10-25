@@ -5,7 +5,7 @@ import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } fro
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './types'
-import { desc, makeMedia, normalizePage } from '../utils'
+import { desc, img, makeMedia, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
 import { languageCode, type SourceCredits, type SourcePerson } from '../credits'
@@ -283,6 +283,11 @@ const GET_MEDIA_CREDITS = mediaQuery(`
  * is not wanted, the fix is not to raise this back to 0.9 but to score the cover separately.
  */
 const SCORE = 0.8
+
+// below Kitsu's 0.3, so it stands in only where no other source has a banner: AniList's is a 1900x400
+// strip, and at 0.8 the title page kept it over Kitsu's 3840x1129 for Witch on the Holy Night and
+// 2896x876 for Dragon Ball Super: Beerus (measured 2026-10-25)
+const BANNER_SCORE = 0.2
 
 /** What this source knows about the run it is describing, handed to the origin it asks. */
 type RunEvidence = { startDate?: string, titles: string[], episodeCount?: number }
@@ -746,6 +751,7 @@ const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, e
         ? [{ language: 'jp', url: media.coverImage.extraLarge, color: media.coverImage.color ?? undefined, score: SCORE }]
         : []
     ],
+    banners: img(media.bannerImage, BANNER_SCORE),
     episodeCount: media.episodes,
     duration: media.duration,
     sourceMaterial: media.source,

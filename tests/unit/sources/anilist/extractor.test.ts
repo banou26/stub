@@ -395,6 +395,17 @@ describe('what the card and list modes read', () => {
   })
 })
 
+// Measured 2026-10-25 on anime.fkn.app: with no other banner the home hero drew MyAnimeList's 425x600
+// poster at 1920x1080 (Even the Student Council Has Its Holes!), while AniList's 1900x400 banner was
+// asked for and dropped. Ranked at AniList's 0.8, it would hide Kitsu's sharper ones (score 0.3).
+test('the banner is AniList\'s, ranked below Kitsu\'s', async () => {
+  const banner = 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/195604-lQpCzTziSA17.jpg'
+  const [node, bare] = await browsedNodes([{ ...PAGE_MEDIA, bannerImage: banner }, { ...PAGE_MEDIA, id: 2, bannerImage: null }])
+
+  expect(node.banners).toEqual([{ url: banner, score: 0.2 }])
+  expect(bare.banners).toEqual([])
+})
+
 // Cowboy Bebop as AniList's details query answers it, trimmed to three characters and three staff
 const creditsContext = () => {
   const bodies: string[] = []
