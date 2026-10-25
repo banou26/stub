@@ -517,6 +517,19 @@ test('each episode button names the episode it opens under its label, and sits a
   expect([...first.querySelectorAll('.episode-row > a')].map(step => step.className)).toEqual(['episode-step next'])
 })
 
+// HOR-1022: a way back to the show other than the browser's Back
+test('the show\'s name under the episode\'s title opens the show\'s page', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series()
+  media = { ...media, titles: [{ title: 'Frieren' }] }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  const show = host.querySelector('.episode-info > a.media-title')
+  expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}`])
+})
+
 test('an episode not out yet is not linked as the next one', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']

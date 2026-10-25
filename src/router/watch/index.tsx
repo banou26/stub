@@ -278,8 +278,14 @@ const style = css`
     }
 
     .media-title {
-      font-size: 1.2rem;
-      opacity: 0.6;
+      align-self: flex-start;
+      font-size: 1.4rem;
+      color: rgba(255, 255, 255, 0.6);
+
+      &:hover {
+        color: #fff;
+        text-decoration: underline;
+      }
     }
   }
 
@@ -723,7 +729,7 @@ const Watch = () => {
             <div className="episode-main">
               <div className="episode-info">
                 <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-                {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
+                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri })}>{mediaTitle}</Link> : undefined}
               </div>
               <div className="tracking">
                 <MediaTracking
