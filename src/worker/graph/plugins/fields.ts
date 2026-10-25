@@ -237,7 +237,8 @@ const byWeight = <T extends { origin: string, score: number | null }>(rows: read
 
 /**
  * Every member's values of `field`, each carrying its weighted score, by that score, then by place, then in member
- * order. The home hero reads the leading title's score (src/utils/theater.ts `fromGoodSource`).
+ * order. The home hero reads the leading title's score (src/utils/theater.ts `fromGoodSource`). A value the order
+ * leaves at its own score is the member's own object, which scripts/offline-pick.ts finds its source by.
  */
 const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): unknown[] =>
   members
@@ -246,7 +247,7 @@ const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): u
       return { value, place, score: scaled(scoreOf(value)) }
     }))
     .sort((a, b) => b.score - a.score || a.place - b.place)
-    .map(({ value, score }) => (isRecord(value) && typeof value.score === 'number' ? { ...value, score } : value))
+    .map(({ value, score }) => (isRecord(value) && typeof value.score === 'number' && value.score !== score ? { ...value, score } : value))
 
 /** ANIME if present plus exactly one of MOVIE / SERIES, first in score order (`aggregate.ts:8-15`). */
 const reconcileCategories = (categories: string[]): string[] => {
