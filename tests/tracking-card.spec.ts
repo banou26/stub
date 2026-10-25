@@ -110,11 +110,12 @@ test('typing in a card while the pointer rests on another chip keeps the card an
   // up out of the card, which sits under the other chips, and onto MyAnimeList's
   const over = await centre(page, '[data-chip="mal"] .logo-button')
   await page.mouse.move(over.x, over.y, { steps: 4 })
-  await page.waitForTimeout(300)
-  await expect(card(page, 'mal')).toBeHidden()
   await expect(input).toBeFocused()
+  // the 2 has to land within the second after the 1 that the card waits before saving a typed number
   await page.keyboard.type('2')
   await expect.poll(() => writes(page), { timeout: 3000 }).toEqual([[['stub'], { status: 'WATCHING', progress: 12 }]])
+  // that second also took MyAnimeList's card well past its 100 ms open delay
+  await expect(card(page, 'mal')).toBeHidden()
 })
 
 test('with a mouse, a press anywhere on a chip but its logo checks or unchecks it', async ({ page }) => {
