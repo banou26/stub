@@ -19,8 +19,8 @@ import { typeDefs } from '../generated/schema/typeDefs.generated'
 import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
-import { askEntry, collectUris, joinFanout, leaveFanout, openFanout, type Fanout, type Settling } from './fanout'
-import { askable } from './disabled-origins'
+import { askEntry, collectUris, leaveFanout, openFanout, type Fanout, type Settling } from './fanout'
+import { askable, joinOpenFanouts } from './disabled-origins'
 import { answersForOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
@@ -746,7 +746,7 @@ export const registerRemoteExtractor = async (
         pickers.set(meta.origin, { pluginUri, select: select as RemotePicker['select'] })
       }
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
-      for (const fanout of fanouts) joinFanout(fanout, entry)
+      joinOpenFanouts(fanouts, entry)
       registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)

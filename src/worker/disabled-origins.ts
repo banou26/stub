@@ -2,6 +2,7 @@
 // apart from ./extractor.ts, which cannot load under vitest, so the rule is tested alone.
 
 import { site, siteAsks, type Site } from '../site'
+import { joinFanout, type Fanout, type FanoutEntry } from './fanout'
 
 const disabled = new Set<string>()
 
@@ -17,3 +18,9 @@ export const setDisabledOrigins = (origins: readonly string[]) => {
  */
 export const askable = <E extends { extractor: { origin: string }, pluginUri?: string }>(entries: readonly E[], current: Site = site): E[] =>
   entries.filter(entry => !disabled.has(entry.extractor.origin) && (entry.pluginUri !== undefined || siteAsks(entry.extractor.origin, current)))
+
+/** Joins a source that registered mid-flight to every fan-out still open, unless `askable` leaves it out. */
+export const joinOpenFanouts = <E extends FanoutEntry & { extractor: { origin: string }, pluginUri?: string }>(fanouts: Iterable<Fanout<E>>, entry: E) => {
+  if (!askable([entry]).length) return
+  for (const fanout of fanouts) joinFanout(fanout, entry)
+}

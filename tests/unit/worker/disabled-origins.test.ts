@@ -1,8 +1,9 @@
-// The worker's half of a source turned off in Settings, built in or added: every fan-out and every single-origin question
-// in worker/extractor.ts takes its entries through `askable`, which leaves those sources out.
+// The worker's half of a source turned off in Settings, built in or added: every fan-out, every single-origin question
+// and every source joining an open fan-out in worker/extractor.ts goes through `askable`, which leaves those sources out.
 import { afterEach, expect, test } from 'vite-plus/test'
 
-import { askable, setDisabledOrigins } from '../../../src/worker/disabled-origins'
+import { askable, joinOpenFanouts, setDisabledOrigins } from '../../../src/worker/disabled-origins'
+import { openFanout } from '../../../src/worker/fanout'
 
 const builtIn = (origin: string) => ({ extractor: { origin }, pluginUri: undefined as string | undefined })
 const plugin = (origin: string) => ({ extractor: { origin }, pluginUri: `npm:@spec/${origin}` })
@@ -34,4 +35,24 @@ test('movie and series leave out the anime catalogues, and keep a plugin source'
   expect(origins(askable(ENTRIES, 'movie'))).toEqual(['simkl', 'tvdb', 'nyaa'])
   expect(origins(askable(ENTRIES, 'series'))).toEqual(['simkl', 'tvdb', 'nyaa'])
   expect(origins(askable(ENTRIES, 'anime'))).toEqual(['anilist', 'simkl', 'tvdb', 'nyaa'])
+})
+
+// a package connects through FKN well after the page's first questions, which stay open as long as the page
+test('a plugin source turned off that registers mid-flight joins no open fan-out, and joins once turned back on', () => {
+  const asked: string[] = []
+  const late = (origin: string) => ({
+    ...plugin(origin),
+    name: origin,
+    client: { subscription: () => ({ subscribe: () => { asked.push(origin); return { unsubscribe: () => {} } } }) },
+  })
+  const open = () => openFanout<ReturnType<typeof late>>({ entries: [], query: 'Q', variables: {} })
+  const fanouts = [open(), open()]
+  setDisabledOrigins(['nyaa'])
+  joinOpenFanouts(fanouts, late('nyaa'))
+  joinOpenFanouts(fanouts, late('tosho'))
+  expect(asked).toEqual(['tosho', 'tosho'])
+
+  setDisabledOrigins([])
+  joinOpenFanouts(fanouts, late('nyaa'))
+  expect(asked).toEqual(['tosho', 'tosho', 'nyaa', 'nyaa'])
 })
