@@ -4,6 +4,7 @@ import type { RemoteVideoElement } from '@fkn/lib'
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
 import { fetch as relayFetch } from '../../utils/fetch'
+import { chaptersBesideNext } from '../../utils/next-offer'
 
 type Fetch = (input: string) => Promise<Response>
 
@@ -132,15 +133,16 @@ export const useSkipEvents = (episodeId: string | undefined) => {
 }
 
 /**
- * The chapters of the episode at `url`, from its skip events. Always an array: the player keeps its last
- * list when handed `undefined`, which would leave the previous episode's chapters on the next.
+ * The chapters stub's player shows for the episode at `url`, from its skip events, as `chaptersBesideNext`
+ * hands them over. Always an array: the player keeps its last list when handed `undefined`, which would
+ * leave the previous episode's chapters on the next.
  */
 export const useCrunchyrollChapters = (url: string, remote: RemoteVideoElement | null) => {
   const events = useSkipEvents(crunchyrollEpisodeId(url))
   const duration = useDuration(remote)
 
   return useMemo(() => {
-    const chapters = skipEventsToChapters(events, duration)
+    const chapters = chaptersBesideNext(skipEventsToChapters(events, duration), duration)
     return chapters.length ? chapters : NO_CHAPTERS
   }, [events, duration])
 }

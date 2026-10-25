@@ -9,7 +9,8 @@ import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { skipEventsToChapters, skipEventsUrl } from '../../../../src/sources/crunchyroll/skip-events'
-import { CREDITS_ONLY, EVERY_EVENT } from './skip-events-fixture'
+import { chaptersBesideNext } from '../../../../src/utils/next-offer'
+import { CREDITS_KEY_ONLY, CREDITS_ONLY, EVERY_EVENT } from './skip-events-fixture'
 
 // The skip events' wiring in the Crunchyroll player, against a fake signed-in frame and a fake relay.
 // The skin is replaced by a stub that records the chapters it was handed.
@@ -84,6 +85,8 @@ const makeFrame = (duration = DURATION) => {
 }
 
 const element = (url: string) => <CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" />
+// the chapters the player is handed for `events`, beside the Next episode the watch page offers
+const handed = (events: unknown, duration = DURATION) => chaptersBesideNext(skipEventsToChapters(events, duration), duration)
 const answer = (events: unknown) => new Response(JSON.stringify(events))
 
 const hosts: HTMLElement[] = []
@@ -118,7 +121,7 @@ describe('skip events', () => {
       .mockReturnValueOnce(next.promise)
     const host = show(EPISODE)
 
-    await vi.waitFor(() => expect(skin.chapters).toEqual(skipEventsToChapters(CREDITS_ONLY, DURATION)), { timeout: 5_000 })
+    await vi.waitFor(() => expect(skin.chapters).toEqual(handed(CREDITS_ONLY)), { timeout: 5_000 })
     expect(relay.fetch).toHaveBeenCalledTimes(1)
     expect(relay.fetch.mock.calls[0]![0]).toBe(skipEventsUrl('GAAAAAAAA'))
     // a render of the same episode asks nothing more
@@ -146,8 +149,23 @@ describe('skip events', () => {
     const [video] = frame.videos
     video!.duration = DURATION
     act(() => { video!.fire('durationchange') })
-    await vi.waitFor(() => expect(skin.chapters).toEqual(skipEventsToChapters(CREDITS_ONLY, DURATION)))
+    await vi.waitFor(() => expect(skin.chapters).toEqual(handed(CREDITS_ONLY)))
     expect(skin.chapters!.at(-1)).toEqual({ start: 1767, end: DURATION, title: 'Episode' })
+  })
+
+  // owner question 2, answered (a): Next takes Skip Ending's corner where Skip Ending could only reach the end
+  test('credits with less than 10 s after them reach the player without their Ending, and credits something follows with it', async () => {
+    for (const [events, duration, chapters] of [
+      [CREDITS_KEY_ONLY, 1_420, [{ start: 0, end: 1325, title: 'Episode' }, { start: 1415, end: 1420, title: 'Episode' }]],
+      [CREDITS_KEY_ONLY, 1_425, [{ start: 0, end: 1325, title: 'Episode' }, { start: 1325, end: 1415, title: 'Ending' }, { start: 1415, end: 1425, title: 'Episode' }]],
+      [EVERY_EVENT, 1_440, skipEventsToChapters(EVERY_EVENT, 1_440)],
+    ] as const) {
+      lib.attachFrame.mockReset().mockResolvedValue(makeFrame(duration))
+      relay.fetch.mockResolvedValue(answer(events))
+      show(EPISODE)
+      await vi.waitFor(() => expect(skin.chapters, `${duration} s`).toEqual(chapters), { timeout: 5_000 })
+      unmount(hosts.pop()!)
+    }
   })
 
   test('an answer that lands after its episode has gone is not shown on the next one', async () => {

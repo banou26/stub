@@ -8,7 +8,8 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { seekTimeline } from '../../../../src/sources/crunchyroll/cr-page'
 import { skipEventsToChapters } from '../../../../src/sources/crunchyroll/skip-events'
-import { CREDITS_ONLY, EVERY_EVENT, OPENING_ONLY } from './skip-events-fixture'
+import { chaptersBesideNext } from '../../../../src/utils/next-offer'
+import { CREDITS_KEY_ONLY, CREDITS_ONLY, EVERY_EVENT, OPENING_ONLY } from './skip-events-fixture'
 
 // The real player of @banou/media-player, handed the chapters Crunchyroll's skip events map to. Its
 // two CommonJS dependencies cannot reach the react alias under node (see vitest.config.ts), and
@@ -51,14 +52,14 @@ const hover = (host: HTMLElement, duration: number, seconds: number) => {
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
-const show = (duration: number, currentTime: number, events: unknown) => {
+const show = (duration: number, currentTime: number, events: unknown, chapters = skipEventsToChapters(events, duration)) => {
   const remote = makeRemote(duration, currentTime)
   const frame = makeFrame()
   const host = mount(
     <CrunchyrollVideoJSPlayer
       remote={remote}
       frame={frame as unknown as Frame}
-      chapters={skipEventsToChapters(events, duration)}
+      chapters={chapters}
     />,
   )
   hosts.push(host)
@@ -140,6 +141,15 @@ describe('the skip events in the player', () => {
     ['a preview alone', { preview: { start: 1_350, end: 1_440 } }, 1_380],
   ])('%s, as long as a theme, is not offered a skip', async (_, events, at) => {
     expect(skipButton(await shownAt(at, events))).toBeNull()
+  })
+
+  // owner question 2, answered (a): Next episode takes that corner instead
+  test('handed over beside Next episode, credits with nothing after them offer no Skip Ending, and credits something follows still do', async () => {
+    for (const [duration, offered] of [[1_420, undefined], [1_440, 'Skip Ending']] as const) {
+      const { host } = show(duration, 1_330, CREDITS_KEY_ONLY, chaptersBesideNext(skipEventsToChapters(CREDITS_KEY_ONLY, duration), duration))
+      await vi.waitFor(() => expect(host.querySelector('.time')?.textContent).toBe(`22:10 / ${duration === 1_420 ? '23:40' : '24:00'}`))
+      await vi.waitFor(() => expect(skipButton(host)?.textContent, `${duration} s`).toBe(offered))
+    }
   })
 
   test('an episode with no events offers nothing and draws an unbroken bar', async () => {

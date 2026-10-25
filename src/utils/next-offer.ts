@@ -41,3 +41,13 @@ export const nextOfferAt = (chapters: MediaChapter[], duration: number | undefin
   const preview = chapters.findLast(chapter => isPreview(chapter) && duration - chapter.end < NOTHING_S)
   return preview && preview.start - LEAD_S
 }
+
+/**
+ * `chapters` as stub hands them to its own player: without the last ending when nothing follows it.
+ * Owner question 2, answered (a): there Next takes Skip Ending's corner, Skip Ending having nothing
+ * left to skip to but the end.
+ */
+export const chaptersBesideNext = (chapters: MediaChapter[], duration: number | undefined): MediaChapter[] => {
+  const last = known(duration) ? lastEnding(chapters, duration) : undefined
+  return last && last.after < NOTHING_S ? chapters.filter(chapter => chapter !== last.ending) : chapters
+}

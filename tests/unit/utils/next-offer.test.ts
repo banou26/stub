@@ -3,7 +3,7 @@ import type { MediaChapter } from '@banou/media-player'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { skipEventsToChapters } from '../../../src/sources/crunchyroll/skip-events'
-import { nextOfferAt } from '../../../src/utils/next-offer'
+import { chaptersBesideNext, nextOfferAt } from '../../../src/utils/next-offer'
 import { CREDITS_KEY_ONLY, EVERY_EVENT, OPENING_ONLY } from '../sources/crunchyroll/skip-events-fixture'
 
 // an episode of `duration` s marked `title` from `start` to `end`, in the shape skip-events.ts hands chapters over
@@ -132,5 +132,27 @@ describe('when Next episode is offered', () => {
       offers.filter((at, index) => at === SAMPLE[index]![3] - 1).length,
       offers.filter(at => at === undefined).length,
     ]).toEqual([18, 19, 2])
+  })
+})
+
+// owner question 2, answered (a)
+describe('the chapters stub hands its own player beside Next', () => {
+  test('leave out the ending when nothing follows it', () => {
+    expect(chaptersBesideNext(marked(1324, 1415, 1420), 1420)).toEqual([
+      { start: 0, end: 1324, title: 'Episode' },
+      { start: 1415, end: 1420, title: 'Episode' },
+    ])
+  })
+
+  test('keep it when something follows, when it is not the end, and while the length is unknown', () => {
+    for (const [chapters, duration] of [
+      [skipEventsToChapters(EVERY_EVENT, 1440), 1440],
+      [marked(1361, 1451, 1542), 1542],
+      [marked(1140, 1226, 1437), 1437],
+      [skipEventsToChapters(CREDITS_KEY_ONLY), undefined],
+      [marked(1324, 1415, 1420, 'Mixed Ending'), 1420],
+    ] as const) {
+      expect(chaptersBesideNext([...chapters], duration), String(duration)).toEqual(chapters)
+    }
   })
 })
