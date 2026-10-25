@@ -36,9 +36,13 @@ const style = css`
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem 1.2rem; }
   .group { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
   .platforms { justify-content: flex-end; }
-  /* a line of its own on a phone, where the trackers never fit beside the controls, so it is there before they are */
+  /* a line of its own where the trackers may not fit beside the controls once they answer, the chips
+     below 768 px and the tiles on a phone, so it is there before they are */
   @media (max-width: 768px) {
     .row, .platforms { justify-content: flex-start; }
+    .platforms.expanded { flex-basis: 100%; }
+  }
+  @media (max-width: 480px) {
     .platforms { flex-basis: 100%; }
   }
 
@@ -720,7 +724,7 @@ const TrackingCompact = (
   return (
     <section css={style} className="tracking-compact" aria-label="Quick tracking">
       <div className="row">
-        <div className="group platforms">
+        <div className={`group platforms${expanded ? ' expanded' : ''}`}>
           <button
             type="button"
             className="expand"

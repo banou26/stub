@@ -60,18 +60,20 @@ const writes = (page: Page) => page.evaluate(() => (window as unknown as { write
 const reaches = (page: Page, id: string, at: { x: number, y: number }) =>
   page.evaluate(({ id, x, y }) => Boolean(document.elementFromPoint(x, y)?.closest(`[data-card="${id}"]`)), { id, ...at })
 
-// 450 px leaves room beside the controls for one chip and not for three
-test('on a phone, the row is as tall before the trackers have answered as once they have', async ({ page }) => {
-  await page.setViewportSize({ width: 450, height: 844 })
+// 450 and 700 px leave room beside the controls for one chip and not for three
+test('on a phone or a tablet, the row is as tall before the trackers have answered as once they have', async ({ page }) => {
   const height = async (query: string) => {
     await page.goto(`${ORIGIN}/?top=0${query}`)
     const row = page.locator('.tracking-compact')
     await expect(row).toBeVisible()
     return (await row.boundingBox())!.height
   }
-  const answered = await height('')
-  await expect(page.locator('[data-chip="stub"]'), 'the control: the chips are drawn').toBeVisible()
-  expect(await height('&waiting')).toBe(answered)
+  for (const width of [450, 700]) {
+    await page.setViewportSize({ width, height: 844 })
+    const answered = await height('')
+    await expect(page.locator('[data-chip="stub"]'), 'the control: the chips are drawn').toBeVisible()
+    expect(await height('&waiting'), `${width} px`).toBe(answered)
+  }
 })
 
 test('a card opens on hover and stays open while the pointer crosses into it', async ({ page }) => {
@@ -329,8 +331,9 @@ test('the trackers start as tiles two high before the controls, and their button
   await expect(page.locator('[data-chip]')).toHaveCount(0)
 })
 
-test('on a phone the tiles take a line of their own over the controls, as tall before the trackers have answered, with no sideways scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+// 430 px leaves room beside the controls for the one loading tile and not for three tiles
+const expectOwnLine = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 844 })
   const height = async (query: string) => {
     await page.goto(`${ORIGIN}/?top=0&tiles${query}`)
     const row = page.locator('.tracking-compact')
@@ -339,12 +342,35 @@ test('on a phone the tiles take a line of their own over the controls, as tall b
   }
   const answered = await height('')
   const { row, toggle, tiles, controls, rows } = await folded(page)
-  expect(rows).toBe(2)
-  expect(tiles.y + tiles.height, 'over the controls').toBeLessThanOrEqual(controls.y)
-  expect([toggle.x, controls.x].map(left => Math.round(left - row.x)), 'both from the left edge').toEqual([0, 0])
+  expect(rows, `${width} px`).toBe(2)
+  expect(tiles.y + tiles.height, `${width} px: over the controls`).toBeLessThanOrEqual(controls.y)
+  expect([toggle.x, controls.x].map(left => Math.round(left - row.x)), `${width} px: both from the left edge`).toEqual([0, 0])
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
-  expect(await height('&waiting')).toBe(answered)
+  expect(await height('&waiting'), `${width} px: as tall before they answer`).toBe(answered)
   await expect(page.getByRole('img', { name: 'Trackers loading' }), 'the control: before they have answered').toHaveCount(1)
+}
+// on a tablet the tiles fit beside the controls, so the row is one line
+const expectBeside = async (page: Page, where: string) => {
+  await page.setViewportSize({ width: 700, height: 844 })
+  await page.goto(`${ORIGIN}/?top=0&tiles`)
+  await expect(page.locator('[data-tile]')).toHaveCount(3)
+  const { toggle, star, controls } = await folded(page)
+  const row = (await page.locator('.row').boundingBox())!
+  expect(Math.abs(toggle.y - star.y), `${where}: on the controls' line`).toBeLessThan(4)
+  expect(toggle.x + toggle.width, `${where}: before them`).toBeLessThanOrEqual(star.x)
+  expect(row.height, `${where}: one line`).toBeLessThanOrEqual(controls.height + 1)
+}
+
+test('on a phone the tiles take a line of their own over the controls, as tall before the trackers have answered, with no sideways scroll', async ({ page }) => {
+  for (const width of [390, 430]) await expectOwnLine(page, width)
+})
+
+test('on a tablet the tiles sit on the controls\' line, and the chips take a line of their own', async ({ page }) => {
+  await expectBeside(page, 'tiles')
+  await page.locator('.expand').click()
+  await expect(page.locator('[data-chip]')).toHaveCount(3)
+  const [chips, controls] = await Promise.all(['.platforms', '.row > .edit'].map(selector => page.locator(selector).boundingBox()))
+  expect(chips!.y + chips!.height, 'the control: the chips over the controls').toBeLessThanOrEqual(controls!.y)
 })
 
 test("a note that sends to a tracker's card opens it from the folded tiles, with focus on its logo", async ({ page }) => {
@@ -360,7 +386,7 @@ test("a note that sends to a tracker's card opens it from the folded tiles, with
 })
 
 // HOR-1024 broke a layout in Firefox alone, and CI installs no Firefox
-test('in Firefox too, the tiles are two high before the controls that end the row', async () => {
+test('in Firefox too, the tiles are two high before the controls that end the row, beside them on a tablet and over them on a phone', async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH
   const build = browsers && existsSync(browsers) ? readdirSync(browsers).find(name => name.startsWith('firefox-')) : undefined
   const executablePath = process.env.FIREFOX_PATH ?? (build && join(browsers!, build, 'firefox', 'firefox'))
@@ -377,6 +403,8 @@ test('in Firefox too, the tiles are two high before the controls that end the ro
     await page.goto(`${ORIGIN}/?tiles`)
     await expect(page.locator('[data-tile]')).toHaveCount(3)
     await expectFolded(page, 'Firefox')
+    await expectBeside(page, 'Firefox')
+    await expectOwnLine(page, 430)
   } finally {
     await browser.close()
   }
