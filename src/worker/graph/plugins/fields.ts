@@ -477,7 +477,7 @@ export const aggregateFields = (options: {
 
   row.trailers = dedupeByField('uri', valuesOf(owned, 'trailers', weigh))
 
-  const credits = mergeCredits(owned)
+  const credits = mergeCredits(owned, (member, score) => weigh(member.origin).scaled(score))
   if (credits) {
     Object.assign(row, credits)
     const uris = owned.filter(member => member.raw.credits).map(member => member.uri)

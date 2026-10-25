@@ -123,3 +123,15 @@ test('LiveChart moved to the top takes MyAnimeList\'s score exactly, so the earl
   const pair = [member('mal:3', 0.9, { titles: [text('title', 'MyAnimeList Title', 0.9)] }), member('livechart:3', 0.6, { titles: [text('title', 'LiveChart Title', 0.6)] })]
   expect(pick(merged(pair, ['livechart']), 'titles', 'title')).toEqual(['LiveChart Title', 'MyAnimeList Title'])
 })
+
+test('a source moved down leads the characters only after the sources above it', () => {
+  const actor = { language: 'ja', person: { id: 'x:1', name: 'Kouichi Yamadera' } }
+  const spike = (origin: string) => ({ id: `${origin}:c1`, names: ['Spike Spiegel'], image: `https://${origin}.test/spike.jpg`, role: 'MAIN', voiceActors: [actor] })
+  const pair = [
+    member('mal:5', 0.9, { credits: { score: 0.7, characters: [spike('mal')], staff: [] } }),
+    member('anilist:5', 0.8, { credits: { characters: [spike('anilist')], staff: [] } }),
+  ]
+  expect(pick(merged(pair), 'characters', 'image'), 'AniList\'s faces lead by default').toEqual(['https://anilist.test/spike.jpg'])
+  const last = [...DEFAULT_MERGE_ORDER.filter(origin => origin !== 'anilist'), 'anilist']
+  expect(pick(merged(pair, last), 'characters', 'image')).toEqual(['https://mal.test/spike.jpg'])
+})

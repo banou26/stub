@@ -145,9 +145,10 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * One title's characters and staff out of every member's `credits`, or nothing when no member carries
  * any, so only a title opened on its page pays.
  *
- * `members` come in `byScoreThenUri` order, the order every other field reads, and credits that carry
- * their own `score` are read at it: AniList (0.8), MyAnimeList (a 0.9 row, its credits 0.7, so that
- * AniList's names, faces, urls and casts lead and its staff stay in order of relevance, where
+ * `members` come in the order every other field reads, and each source's credits are read at their
+ * own `score`, or their row's, as `weighed` scales it by the viewer's merge order (`mergeWeights`),
+ * ties kept in member order. By default: AniList (0.8), MyAnimeList (a 0.9 row, its credits 0.7, so
+ * that AniList's names, faces, urls and casts lead and its staff stay in order of relevance, where
  * MyAnimeList's come by job), then Anime News Network (0.2); in live action IMDb, TMDB and TVmaze
  * (0.3), then JustWatch (0.2). Nothing is matched across titles and nothing becomes a graph link, so a
  * wrong rule is a code fix and an `AGGREGATE_VERSION` bump.
@@ -206,11 +207,14 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * carry none of those null languages (AniList's, even with no actor listed yet) their characters are
  * left out: they share no actor with AniList's, so each character would be drawn twice.
  */
-export const mergeCredits = (members: readonly Member[]): { characters: CreditCharacter[], staff: CreditPerson[] } | undefined => {
+export const mergeCredits = <M extends Member>(
+  members: readonly M[],
+  weighed: (member: M, score: number) => number = (_, score) => score,
+): { characters: CreditCharacter[], staff: CreditPerson[] } | undefined => {
   const sources = members
     .flatMap(member => {
       const credits = creditsOf(member)
-      return credits ? [{ credits, score: credits.score ?? member.score ?? -1 }] : []
+      return credits ? [{ credits, score: weighed(member, credits.score ?? member.score ?? -1) }] : []
     })
     .sort((a, b) => b.score - a.score)
     .map(({ credits }) => credits)
