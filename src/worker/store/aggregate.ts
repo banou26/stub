@@ -287,6 +287,10 @@ function episodeToGQL(episode: Episode): GQLEpisode {
     episodeNumber: episode.episodeNumber,
     absoluteEpisodeNumber: episode.absoluteEpisodeNumber,
     runtime: episode.runtime,
+    videoQualities: episode.videoQualities,
+    audioQualities: episode.audioQualities,
+    audioLanguages: episode.audioLanguages,
+    subtitleLanguages: episode.subtitleLanguages,
     handles: [],
   }
 }

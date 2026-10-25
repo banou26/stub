@@ -11,7 +11,7 @@
 import type { FieldNode, OperationDefinitionNode } from 'graphql'
 
 import { buildASTSchema, parse, validate } from 'graphql'
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { typeDefs } from '../../../src/generated/schema/typeDefs.generated'
 import { CONTAINING_MEDIA_DOCUMENT, SIMILAR_MEDIA_DOCUMENT } from '../../../src/worker/similar-document'
@@ -47,9 +47,9 @@ test('every field the store keeps off an episode is selected', () => {
 
   expect(episodes, 'an unselected episodes field is an episodeInserter that never fires').toBeDefined()
   expect(names(episodes!).sort()).toEqual([
-    'absoluteEpisodeNumber', 'descriptions', 'embedUrl', 'episodeNumber', 'id', 'mediaUri', 'origin',
-    'releaseDate', 'runtime', 'score', 'seasonNumber', 'shortDescriptions', 'thumbnails', 'titles',
-    'uri', 'url'
+    'absoluteEpisodeNumber', 'audioLanguages', 'audioQualities', 'descriptions', 'embedUrl', 'episodeNumber', 'id',
+    'mediaUri', 'origin', 'releaseDate', 'runtime', 'score', 'seasonNumber', 'shortDescriptions', 'subtitleLanguages',
+    'thumbnails', 'titles', 'uri', 'url', 'videoQualities'
   ])
 })
 

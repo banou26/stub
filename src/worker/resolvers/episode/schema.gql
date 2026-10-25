@@ -30,6 +30,17 @@ type Episode {
   absoluteEpisodeNumber: Int
   """Runtime in minutes"""
   runtime: Int
+  """
+  What this source's stream offers, as display labels: `4K`, `HD`, `Dolby Vision`, `HDR`. Only what
+  the source states before playback; absent when it states nothing. Never merged across sources.
+  """
+  videoQualities: [String!]
+  """The same for its sound: `5.1`, `Dolby Atmos`, or a codec a release names"""
+  audioQualities: [String!]
+  """The audio languages this source's stream carries, as BCP 47 tags"""
+  audioLanguages: [String!]
+  """The subtitle languages this source's stream carries, as BCP 47 tags"""
+  subtitleLanguages: [String!]
 }
 
 type EpisodeTitle {

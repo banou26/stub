@@ -159,6 +159,10 @@ export type Episode = {
   episodeNumber: number | null
   absoluteEpisodeNumber: number | null
   runtime: number | null
+  videoQualities: string[] | null
+  audioQualities: string[] | null
+  audioLanguages: string[] | null
+  subtitleLanguages: string[] | null
 }
 
 export type Origin = {

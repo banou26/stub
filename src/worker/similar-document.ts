@@ -56,6 +56,10 @@ const ANSWER_SELECTION = `
         episodeNumber
         absoluteEpisodeNumber
         runtime
+        videoQualities
+        audioQualities
+        audioLanguages
+        subtitleLanguages
       }`
 
 export const SIMILAR_MEDIA_DOCUMENT = `

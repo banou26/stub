@@ -7,7 +7,6 @@ import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } 
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
-import { useErrorHandler } from '@envelop/core'
 import { useResponseCache } from '@graphql-yoga/plugin-response-cache'
 import { Client, fetchExchange, getOperationName } from 'urql'
 import { getNamedType, GraphQLError } from 'graphql'
@@ -35,7 +34,7 @@ import { recordAnswers } from './graph/answers'
 import { readStore, resolveMedia } from './graph/read'
 import { canBeContained, describeEvidence, hasEvidence, isRunAnswerFrom, printableToken, similarAskKey, type SimilarOutcome } from '../sources/similar'
 import { CONTAINING_MEDIA_DOCUMENT, SIMILAR_MEDIA_DOCUMENT } from './similar-document'
-import { closeRoot, descend, openRoot, readContext, stamp, type RequestContext, type RootOperation } from './request-context'
+import { closeRoot, descend, openRoot, readContext, stamp, type RootOperation } from './request-context'
 
 export type ExtractorServerContext = YogaInitialContext & {
   fetch: typeof fetch
@@ -69,6 +68,10 @@ const normalizeToStoreEpisode = (episode: Episode): StoreEpisode => ({
   episodeNumber: episode.episodeNumber ?? null,
   absoluteEpisodeNumber: episode.absoluteEpisodeNumber ?? null,
   runtime: episode.runtime ?? null,
+  videoQualities: episode.videoQualities ?? null,
+  audioQualities: episode.audioQualities ?? null,
+  audioLanguages: episode.audioLanguages ?? null,
+  subtitleLanguages: episode.subtitleLanguages ?? null,
 })
 
 const normalizeOrigin = (origin: { id: string; url?: string | null; name: string; icon?: string | null; color?: string | null; isApiOnly: boolean }): StoreOrigin => ({
