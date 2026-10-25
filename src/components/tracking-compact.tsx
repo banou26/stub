@@ -417,6 +417,8 @@ const Chip = (
   }
 ) => {
   const logo = useRef<HTMLButtonElement>(null)
+  // drawn with its card open, as a note's Open draws it: focus goes where the card's own keyboard path starts
+  useEffect(() => { if (open) logo.current?.focus() }, [])
   const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: (next, _event, reason) => {
@@ -462,7 +464,8 @@ const Chip = (
  * The way to track a media: a score, a status and an episode count, written at once to every tracker
  * whose chip is checked, and on each chip a card with the same controls over that tracker's own entry.
  * The trackers come first, as a grid of small tiles naming each one's state, until the viewer expands
- * them into their chips (`prefs.expanded`), and the controls end the row.
+ * them into their chips (`prefs.expanded`), and the controls end the row. While they are folded, a note
+ * that sends the viewer to a chip's Log in or card carries that action itself.
  *
  * What the row shows is the worker's summary of EVERY listed tracker, checked or not: unchecking a
  * tracker means "do not write to it", never "ignore it". A change goes to each checked tracker that can
@@ -624,6 +627,11 @@ const TrackingCompact = (
     // an episode watched that a checked tracker cannot write yet: the line goes once it can, as the write then goes by itself
     if (!state.failed && due.includes(answer) && !writable(answer)) return { ...state, failed: { fields: auto[answer.tracker.id]!, error: whyNot(answer) } }
     return state
+  }
+
+  const reveal = (id: string) => {
+    onPrefs({ ...prefs, expanded: true })
+    setOpenCard(id)
   }
 
   const setChecked = (id: string, on: boolean) => {
@@ -815,10 +823,17 @@ const TrackingCompact = (
           const id = answer.tracker.id
           const name = answer.tracker.name
           return [
-            notes[id] && answer.state === 'SIGNED_OUT' ? <div key={`${id}-sign-in`} className="note" data-note={id}>{notes[id]}</div> : undefined,
+            notes[id] && answer.state === 'SIGNED_OUT'
+              ? <div key={`${id}-sign-in`} className="note" data-note={id}>{notes[id]}{expanded ? undefined : loginButton(answer)}</div>
+              : undefined,
             <SaveProblems key={`${id}-problems`} answer={answer} state={stateOf(answer)} queue={queue}/>,
             target.kind === 'check' && target.sendable && countDiffers(answer, row.total)
-              ? <div key={`${id}-count`} className="note" data-note={id}>{name}: set progress on its card</div>
+              ? (
+                <div key={`${id}-count`} className="note" data-note={id}>
+                  {name}: set progress on its card
+                  {expanded ? undefined : <button type="button" aria-haspopup="dialog" onClick={() => reveal(id)}>Open</button>}
+                </div>
+              )
               : undefined,
           ].filter(Boolean)
         })}

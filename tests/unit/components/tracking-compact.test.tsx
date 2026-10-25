@@ -932,6 +932,38 @@ describe('the trackers, folded as the row starts', () => {
     expect(tiles(host).map(([id]) => id)).toEqual(['anilist', 'mal', 'stub'])
     expect(store.read()).toEqual({ targets: { stub: false } })
   })
+
+  test("a note that sends to a tracker's card opens it from the note, expanded, with focus on its logo", async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    const { host, store } = render({ tracking: { ...tracking, answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub] } }, folded())
+    const note = q(host, '[data-note="anilist"]')
+    expect(note.textContent).toBe('AniList: set progress on its cardOpen')
+    await click(button(note, 'Open')!)
+    expect(store.read().expanded).toBe(true)
+    expect(cardOf(host, 'anilist'), 'the card the note names').toBeTruthy()
+    expect(cardOf(host, 'mal')).toBeNull()
+    expect(focus.mock.contexts).toContain(q(host, '[data-chip="anilist"] .logo-button'))
+    focus.mockRestore()
+    expect(q(host, '[data-note="anilist"]').querySelector('button'), 'the chip is there now, so the note is words alone').toBeNull()
+  })
+
+  test('a blocked sign-in note carries its Log in while the chips are folded away', async () => {
+    let finish: (outcome: WindowSignIn) => void = () => {}
+    const signIn = vi.fn(() => new Promise<WindowSignIn>(resolve => { finish = resolve }))
+    const { host } = render({ signIns: { mal: signIn } })
+    named(host, 'Log in to MyAnimeList').click()
+    await act(async () => {
+      finish('blocked')
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    const logins = () => [...host.querySelectorAll('[aria-label="Log in to MyAnimeList"]')].map(login => login.closest('[data-note], [data-chip]')!.hasAttribute('data-note') ? 'note' : 'chip')
+    expect(logins(), 'expanded, the chip has it').toEqual(['chip'])
+    await click(q(host, 'button.expand'))
+    expect(q(host, '[data-note="mal"]').textContent).toContain('blocked the sign-in window')
+    expect(logins()).toEqual(['note'])
+    named(host, 'Log in to MyAnimeList').click()
+    expect(signIn, 'called inside the click, from the note').toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('before the trackers have answered at all', () => {

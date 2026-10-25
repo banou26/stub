@@ -347,6 +347,18 @@ test('on a phone the tiles take a line of their own over the controls, as tall b
   await expect(page.getByRole('img', { name: 'Trackers loading' }), 'the control: before they have answered').toHaveCount(1)
 })
 
+test("a note that sends to a tracker's card opens it from the folded tiles, with focus on its logo", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await page.goto(`${ORIGIN}/?long&tiles`)
+  const note = page.locator('[data-note="anilist"]')
+  await expect(note).toHaveText(/^AniList: set progress on its card/)
+  await note.getByRole('button', { name: 'Open' }).click()
+  await expect(card(page, 'anilist')).toBeVisible()
+  await expect(logo(page, 'anilist')).toBeFocused()
+  await expect(page.locator('.expand')).toHaveAttribute('aria-expanded', 'true')
+  await expect(card(page, 'anilist').locator('.of'), 'counted on its own episodes').toHaveText('/ 48')
+})
+
 // HOR-1024 broke a layout in Firefox alone, and CI installs no Firefox
 test('in Firefox too, the tiles are two high before the controls that end the row', async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH

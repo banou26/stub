@@ -10,8 +10,8 @@ import TrackingCompact from '../src/components/tracking-compact'
 // The page tests/tracking-card.spec.ts drives: the tracking row over a listed tracker, a signed out one
 // and one that lists nothing, `?top=` pixels down the page, and with `?clip=` in a box that many pixels
 // tall that clips what overflows it, as the modal does. With `?modal` it sits in the media modal's
-// backdrop instead, with `?cr` Crunchyroll is one episode ahead of AniList and holds 4 stars, and
-// with `?waiting` none of the trackers has answered yet. The trackers start expanded into their chips,
+// backdrop instead, with `?cr` Crunchyroll is one episode ahead of AniList and holds 4 stars, with
+// `?long` AniList counts twice the row's episodes, and with `?waiting` none of the trackers has answered yet. The trackers start expanded into their chips,
 // and with `?tiles` folded into tiles as the app starts them. Every write is kept on `window.writes`, and
 // a close of the modal sets `window.dismissed`.
 const query = new URLSearchParams(location.search)
@@ -24,7 +24,7 @@ const answers: CompactAnswer[] = [
     state: 'LISTED',
     candidates: [],
     tracker: tracker('anilist', 'AniList', 'POINT_10'),
-    entry: { status: 'WATCHING', progress: 3, score: 70, episodeCount: 24 },
+    entry: { status: 'WATCHING', progress: 3, score: 70, episodeCount: query.has('long') ? 48 : 24 },
   },
   { state: 'SIGNED_OUT', candidates: [], tracker: tracker('mal', 'MyAnimeList', 'POINT_10'), entry: null },
   { state: 'NOT_LISTED', candidates: [], tracker: tracker('stub', 'Stub', 'POINT_100'), entry: null },
@@ -32,9 +32,10 @@ const answers: CompactAnswer[] = [
     ? [{ state: 'LISTED', candidates: [], tracker: { ...tracker('cr', 'Crunchyroll', 'POINT_5'), statuses: ['PLANNING'], canClearScore: false }, entry: { progress: 4, score: 80 } }]
     : [],
 ]
+const summary = { ...answers[0]!.entry, episodeCount: 24 }
 const tracking: CompactTracking = query.has('cr')
-  ? { summary: { ...answers[0]!.entry, progress: 4 }, disagreements: ['PROGRESS'], answers }
-  : { summary: answers[0]!.entry, disagreements: [], answers }
+  ? { summary: { ...summary, progress: 4 }, disagreements: ['PROGRESS'], answers }
+  : { summary, disagreements: [], answers }
 
 const Page = () => {
   const [prefs, setPrefs] = useState<CompactPrefs>({ targets: {}, expanded: !query.has('tiles') })
