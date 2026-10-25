@@ -132,7 +132,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
             })}
           </tr>
           {members.filter(member => !member.host).map(member => {
-            const label = memberLabel({ from: member.id, name: member.name, self: member.self }, state.owner)
+            const label = memberLabel({ from: member.id, name: member.name, self: member.self })
             const heard = page ? party.statuses().get(member.id) : undefined
             const shown = page && heard ? shownStatus(heard.status, Date.now() - heard.at, page) : undefined
             return (

@@ -1,5 +1,6 @@
 import type { PartyChatLine } from '../party'
 
+import { defaultName } from '@banou/social/names'
 import { css } from '@emotion/react'
 import { MessageCircle, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -139,9 +140,9 @@ const style = css`
   }
 `
 
-/** A member's name as chat shows it: what they called themselves, else the start of their id. */
-export const memberLabel = (line: { from: string, name?: string, self: boolean }, owner: string): string =>
-  line.self ? 'you' : line.name ?? (line.from === owner ? 'host' : line.from.slice(0, 6))
+/** A member's name as the party shows it: what they called themselves, else the default name of their member id. */
+export const memberLabel = (line: { from: string, name?: string, self: boolean }): string =>
+  line.self ? 'you' : line.name ?? defaultName(line.from)
 
 /**
  * The party's chat, as a bubble in the corner of every page while a party is on.
@@ -169,7 +170,6 @@ const PartyChat = () => {
   useEffect(() => { list.current?.scrollTo({ top: list.current.scrollHeight }) }, [lines, open])
 
   if (!active) return null
-  const owner = state.owner
 
   const submit = (event: Event) => {
     event.preventDefault()
@@ -190,10 +190,10 @@ const PartyChat = () => {
           <div className="lines" ref={list}>
             {lines.length === 0 && <div className="empty">Nothing said yet.</div>}
             {lines.map(line => line.action
-              ? <div key={line.seq} className="line action">{memberLabel(line, owner)} {line.text}</div>
+              ? <div key={line.seq} className="line action">{memberLabel(line)} {line.text}</div>
               : (
                 <div key={line.seq} className={`line${line.self ? ' self' : ''}`}>
-                  <span className="who">{memberLabel(line, owner)}</span>
+                  <span className="who">{memberLabel(line)}</span>
                   <span className="text">{line.text}</span>
                 </div>
               ))}

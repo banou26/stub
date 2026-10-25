@@ -1,5 +1,6 @@
 import type { PartyMember } from '../../party'
 
+import { defaultName } from '@banou/social/names'
 import { css } from '@emotion/react'
 import { Ban, Check, Copy, LogOut, UserX } from 'lucide-react'
 import { Link } from 'wouter'
@@ -56,21 +57,15 @@ const style = css`
 
   .row + .row { margin-top: 0.6rem; }
 
-  .row .id {
+  .row .name {
     flex: 1;
     min-width: 0;
-    font-family: ui-monospace, monospace;
-    font-size: 1.3rem;
-    color: rgba(255, 255, 255, 0.75);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .row .name {
     font-size: 1.4rem;
     font-weight: 600;
     color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .badge {
@@ -168,12 +163,12 @@ const Party = () => {
   useEffect(() => {
     if (!active) { setMembers([]); return }
     let cancelled = false
-    party.roster().then(list => { if (!cancelled) setMembers(list) })
+    void party.roster().then(list => { if (!cancelled) setMembers(list) })
     return () => { cancelled = true }
   }, [active, members_])
   usePartyMessages(message => {
     if (message.t !== 'name') return
-    party.roster().then(setMembers)
+    void party.roster().then(setMembers)
   })
   useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 1_500); return () => clearTimeout(timer) }, [copied])
 
@@ -237,8 +232,7 @@ const Party = () => {
             <div className="label">In the party ({members.length})</div>
             {members.map(member => (
               <div key={member.id} className="row" data-member={member.id}>
-                {member.name ? <span className="name">{member.name}</span> : null}
-                <span className="id" title={member.id}>{member.id}</span>
+                <span className="name" title={member.id}>{member.name ?? defaultName(member.id)}</span>
                 {member.host && <span className="badge">host</span>}
                 {member.self && <span className="badge you">you</span>}
                 {state.role === 'host' && !member.self && (

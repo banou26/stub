@@ -5,6 +5,7 @@ import type { PartyStore } from '../../../src/party/store'
 
 import type { PartyMessage } from '../../../src/party/protocol'
 
+import { defaultName } from '@banou/social/names'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
@@ -18,6 +19,10 @@ vi.mock('lucide-react', () => ({ AudioLines: () => null, Captions: () => null, C
 vi.mock('../../../src/party', () => ({ party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }) }))
 
 const { default: PartyGrants } = await import('../../../src/components/party-grants')
+
+// what each follower is called when it typed no name
+const SAM = defaultName('sam1234567')
+const ANN = defaultName('ann')
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!); vi.useRealTimers() })
@@ -39,7 +44,7 @@ const hosting = async () => {
 describe('the host hands out controls', () => {
   test('a row per follower, named as chat names them, under All followers', async () => {
     const { host } = await hosting()
-    expect([...host.querySelectorAll('tbody th')].map(row => row.textContent)).toEqual(['All followers', 'Ann', 'sam123'])
+    expect([...host.querySelectorAll('tbody th')].map(row => row.textContent)).toEqual(['All followers', 'Ann', SAM])
   })
 
   test('All followers gives a control to every follower, and tells the party', async () => {
@@ -61,7 +66,7 @@ describe('the host hands out controls', () => {
     expect(current.store.issued()).toEqual({ all: ['play'], by: { ann: { play: false } } })
     expect(cell('Ann').getAttribute('aria-pressed')).toBe('false')
     expect(cell('Ann').dataset.grant).toBe('off')
-    expect(cell('sam123').getAttribute('aria-pressed')).toBe('true')
+    expect(cell(SAM).getAttribute('aria-pressed')).toBe('true')
     click('Ann')
     expect(current.store.issued()).toEqual({ all: ['play'], by: { ann: { play: true } } })
     expect(cell('Ann').dataset.grant).toBe('on')
@@ -87,21 +92,21 @@ describe('the host hands out controls', () => {
     expect([...host.querySelectorAll('thead th')].map(th => th.getAttribute('title'))).toEqual([null, 'Play/pause', 'Seek', 'Episode', 'Speed', 'Subtitles', 'Audio'])
     click('All followers', 'Seek')
     click('Ann', 'Speed')
-    click('sam123', 'Seek')
+    click(SAM, 'Seek')
     click('Ann', 'Episode')
     click('All followers', 'Subtitles')
-    click('sam123', 'Subtitles')
+    click(SAM, 'Subtitles')
     click('Ann', 'Audio')
     expect(current.store.issued()).toEqual({ all: ['seek', 'subs'], by: { ann: { rate: true, go: true, audio: true }, sam1234567: { seek: false, subs: false } } })
     expect(cell('Ann', 'Seek').dataset.grant).toBe('all')
-    expect(cell('sam123', 'Seek').dataset.grant).toBe('off')
+    expect(cell(SAM, 'Seek').dataset.grant).toBe('off')
     expect(cell('Ann', 'Play/pause').getAttribute('aria-pressed')).toBe('false')
   })
 
   // the store is the only copy: a grid keeping its own would hand a departed member's entry back
   test('a member who left is not put back by the next click', async () => {
     const { fake, members, click } = await hosting()
-    click('sam123')
+    click(SAM)
     members.splice(members.indexOf('sam1234567'), 1)
     act(() => { fake.emit({ type: 'left', id: 'sam1234567', reason: 'left' }) })
     click('All followers')
@@ -135,15 +140,15 @@ describe('the host sees each follower\'s status', () => {
       ['ann', { t: 'status', s: 'ready', path: PAGE, time: 754.2, rate: 0 }],
       ['sam1234567', { t: 'status', s: 'loading', path: PAGE }],
     ])
-    expect([status('ann'), time('ann')]).toEqual(['Ready', '12:34'])
-    expect([status('sam123'), time('sam123')]).toEqual(['Loading', undefined])
+    expect([status(ANN), time(ANN)]).toEqual(['Ready', '12:34'])
+    expect([status(SAM), time(SAM)]).toEqual(['Loading', undefined])
   })
 
   test('a playing follower\'s time moves on between its reports', async () => {
     const { time } = await watching(PAGE, [['ann', { t: 'status', s: 'ready', path: PAGE, time: 754.2, rate: 1 }]])
-    expect(time('ann')).toBe('12:34')
+    expect(time(ANN)).toBe('12:34')
     await tick(5_000)
-    expect(time('ann')).toBe('12:39')
+    expect(time(ANN)).toBe('12:39')
   })
 
   test('away, and a status about another page is still on its way', async () => {
@@ -151,16 +156,16 @@ describe('the host sees each follower\'s status', () => {
       ['ann', { t: 'status', s: 'away' }],
       ['sam1234567', { t: 'status', s: 'ready', path: '/watch/a/a', time: 1400, rate: 1 }],
     ])
-    expect([status('ann'), time('ann')]).toEqual(['Away', undefined])
-    expect([status('sam123'), time('sam123')]).toEqual(['Loading', undefined])
+    expect([status(ANN), time(ANN)]).toEqual(['Away', undefined])
+    expect([status(SAM), time(SAM)]).toEqual(['Loading', undefined])
   })
 
   test('nothing for a follower that never said one, and nothing off a watch page', async () => {
     const { status } = await watching(PAGE, [['ann', { t: 'status', s: 'ready', path: PAGE }]])
-    expect(status('sam123')).toBeUndefined()
+    expect(status(SAM)).toBeUndefined()
     unmount(hosts.pop()!)
     const off = await watching(undefined, [['ann', { t: 'status', s: 'ready', path: PAGE }]])
-    expect(off.status('ann')).toBeUndefined()
+    expect(off.status(ANN)).toBeUndefined()
     expect(off.host.querySelectorAll('.time')).toHaveLength(0)
   })
 })

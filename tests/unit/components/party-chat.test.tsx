@@ -4,6 +4,7 @@ import { mount, unmount } from './dom'
 import type { PartyMessage } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
 
+import { defaultName } from '@banou/social/names'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
@@ -24,17 +25,43 @@ const { default: PartyChat } = await import('../../../src/components/party-chat'
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
+/** A guest's chat, with any member able to say something in it. */
+const chatting = async () => {
+  const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex', 'bob'] })
+  current.store = createPartyStore(api(fake.room), memoryStorage())
+  await current.store.join(INVITE)
+  const host = mount(<PartyChat/>)
+  hosts.push(host)
+  let seq = 0
+  const say = (from: string, message: PartyMessage) =>
+    act(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
+  const open = () => act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Show chat"]')!.click() })
+  const lines = () => [...host.querySelectorAll('.line')].map(line => [line.className, line.textContent])
+  return { host, say, open, lines }
+}
+
+describe('who said it', () => {
+  test('a member who typed no name, the host included, reads as the default name of their member id', async () => {
+    const { say, open, lines } = await chatting()
+    say('host', { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: {} } })
+    say('host', { t: 'chat', text: 'starting' })
+    say('bob', { t: 'chat', text: 'ok' })
+    say('bob', { t: 'ask', c: 'play', path: '/watch/a/b', s: { paused: true, time: 1, rate: 1, at: 1 } })
+    say('alex', { t: 'name', name: 'Alex' })
+    say('alex', { t: 'chat', text: 'hi' })
+    open()
+    expect(lines()).toEqual([
+      ['line', `${defaultName('host')}starting`],
+      ['line', `${defaultName('bob')}ok`],
+      ['line action', `${defaultName('bob')} paused`],
+      ['line', 'Alexhi'],
+    ])
+  })
+})
+
 describe('an action line', () => {
   test('reads as the member doing it, apart from what was said, and counts as unread', async () => {
-    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex'] })
-    current.store = createPartyStore(api(fake.room), memoryStorage())
-    await current.store.join(INVITE)
-    const host = mount(<PartyChat/>)
-    hosts.push(host)
-    let seq = 0
-    const say = (from: string, message: PartyMessage) =>
-      act(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
-
+    const { host, say, open, lines } = await chatting()
     say('host', { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['play'], by: {} } })
     say('alex', { t: 'name', name: 'Alex' })
     say('alex', { t: 'chat', text: 'ready?' })
@@ -45,8 +72,8 @@ describe('an action line', () => {
     say('alex', { t: 'ask', c: 'play', path: '/watch/a/b', s: { paused: false, time: 1, rate: 1, at: 1 } })
     expect(host.querySelector('.unread')?.textContent).toBe('2')
 
-    act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Show chat"]')!.click() })
-    expect([...host.querySelectorAll('.line')].map(line => [line.className, line.textContent])).toEqual([
+    open()
+    expect(lines()).toEqual([
       ['line', 'Alexready?'],
       ['line self', 'youyes'],
       ['line action', 'Alex resumed'],

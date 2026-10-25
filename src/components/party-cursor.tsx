@@ -1,3 +1,4 @@
+import { defaultName } from '@banou/social/names'
 import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocation, useSearch } from 'wouter'
@@ -100,10 +101,10 @@ const PartyCursor = () => {
     return () => clearInterval(timer)
   }, [ghost])
 
-  if (role !== 'guest' || !ghost || now - ghost.at > LINGER_MS) return null
+  if (role !== 'guest' || !ghost || state.status !== 'active' || now - ghost.at > LINGER_MS) return null
   // what the host calls itself, which everyone repeats on a heartbeat, rather than only what it has
-  // said in the chat: a host that never typed anything used to be labelled "host" for ever
-  const name = state.status === 'active' ? party.nameOf(state.owner) : undefined
+  // said in the chat
+  const name = party.nameOf(state.owner) ?? defaultName(state.owner)
   return (
     <div
       css={style}
@@ -113,7 +114,7 @@ const PartyCursor = () => {
       <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
         <path d="M2 2 L2 17 L6.5 13 L9.5 20 L12 19 L9 12.5 L15 12 Z" fill="#4ade80" stroke="#06120a" strokeWidth="1.2" strokeLinejoin="round"/>
       </svg>
-      <span className="tag">{name ?? 'host'}</span>
+      <span className="tag">{name}</span>
     </div>
   )
 }
