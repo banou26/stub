@@ -8,6 +8,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { DEFAULT_MERGE_ORDER } from '../../../../../src/sources/merge-order'
 import { aggregateFields, type MemberRow } from '../../../../../src/worker/graph/plugins/fields'
+import { fromGoodSource } from '../../../../../src/utils/theater'
 
 type Options = Parameters<typeof aggregateFields>[0]
 
@@ -134,4 +135,12 @@ test('a source moved down leads the characters only after the sources above it',
   expect(pick(merged(pair), 'characters', 'image'), 'AniList\'s faces lead by default').toEqual(['https://anilist.test/spike.jpg'])
   const last = [...DEFAULT_MERGE_ORDER.filter(origin => origin !== 'anilist'), 'anilist']
   expect(pick(merged(pair, last), 'characters', 'image')).toEqual(['https://mal.test/spike.jpg'])
+})
+
+test('the leading title reads at its place in the order, so the home hero takes a show the first source titled', () => {
+  const titles = (media: ReturnType<typeof merged>) => media.titles as { title: string, score: number }[]
+  expect(fromGoodSource({ titles: titles(merged(SHOW.filter(({ origin }) => origin === 'kitsu'))) }), 'Kitsu is no good source by default').toBe(false)
+  const first = titles(merged(SHOW, ['kitsu']))
+  expect(first[0]).toEqual({ language: 'en', title: 'Kitsu English', score: 0.9 })
+  expect(fromGoodSource({ titles: first })).toBe(true)
 })

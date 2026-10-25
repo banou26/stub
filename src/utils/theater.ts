@@ -95,7 +95,8 @@ const KITSU_SCORE = 0.3
  * placeholder synopsis ("The second season of ...") and an announcement trailer that YouTube may
  * refuse to embed where AniList's trailer for the same show plays (measured 2026-10-10). A source
  * answers a show's title, description and trailer together, so the leading title's score stands for all three.
- * Jikan's romaji (0.4) sits below its description (0.9), and still above Kitsu.
+ * Jikan's romaji (0.4) sits below its description (0.9), and still above Kitsu. The score is the one the viewer's
+ * merge order weighs it at (Settings), so with Kitsu moved to the top, Kitsu's title reads at MyAnimeList's 0.9.
  *
  * It decides when what the hero shows is final, and only for `THEATER_WAIT_MS` whether it shows anything.
  */

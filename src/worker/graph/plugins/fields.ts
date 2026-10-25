@@ -232,12 +232,18 @@ const byWeight = <T extends { origin: string, score: number | null }>(rows: read
   [...rows].sort((a, b) =>
     weigh(b.origin).scaled(b.score ?? -1) - weigh(a.origin).scaled(a.score ?? -1) || weigh(a.origin).place - weigh(b.origin).place)
 
-/** Every member's values of `field`, by weighted score, then by place, then in member order. */
+/**
+ * Every member's values of `field`, each carrying its weighted score, by that score, then by place, then in member
+ * order. The home hero reads the leading title's score (src/utils/theater.ts `fromGoodSource`).
+ */
 const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): unknown[] =>
   members
-    .flatMap(member => listOf(member.raw[field]).map(value => ({ value, weight: weigh(member.origin) })))
-    .sort((a, b) => b.weight.scaled(scoreOf(b.value)) - a.weight.scaled(scoreOf(a.value)) || a.weight.place - b.weight.place)
-    .map(({ value }) => value)
+    .flatMap(member => listOf(member.raw[field]).map(value => {
+      const { place, scaled } = weigh(member.origin)
+      return { value, place, score: scaled(scoreOf(value)) }
+    }))
+    .sort((a, b) => b.score - a.score || a.place - b.place)
+    .map(({ value, score }) => (isRecord(value) && typeof value.score === 'number' ? { ...value, score } : value))
 
 /** ANIME if present plus exactly one of MOVIE / SERIES, first in score order (`aggregate.ts:8-15`). */
 const reconcileCategories = (categories: string[]): string[] => {
