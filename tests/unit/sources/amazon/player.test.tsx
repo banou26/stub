@@ -2,6 +2,7 @@
 // reads at module scope. See the file for what happens when it does not.
 import { button, mount, unmount } from '../../components/dom'
 
+import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, GotoOptions, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
@@ -14,6 +15,7 @@ import { SITE_STATUS_KEY } from '../../../../src/tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../../../src/utils/player-volume'
 import { makeRemoteVideo, settle } from '../../components/remote-video'
 import { pageRealm } from '../crunchyroll/page-realm'
+import { PRIME_PLAYER, wirePrimeControls } from './player-controls'
 
 // The Prime Video player over a fake amazon.co.jp: its page functions run in a page realm shaped like
 // the detail page measured in a signed-in Chrome on 2026-10-12, and the lib around it is mocked.
@@ -33,10 +35,11 @@ const unplayable = vi.hoisted(() => vi.fn())
 vi.mock('../../../../src/embed-unplayable', () => ({ tellUnplayable: unplayable }))
 
 // @banou/media-player is not under test: what is, is the media it is handed
-const skin = vi.hoisted(() => ({ media: null as RemoteVideoElement | null }))
+const skin = vi.hoisted(() => ({ media: null as RemoteVideoElement | null, quality: undefined as DelegatedTracks | undefined }))
 vi.mock('@banou/media-player', () => ({
-  MediaPlayer: ({ media, children }: { media: RemoteVideoElement | null, children?: ComponentChildren }) => {
+  MediaPlayer: ({ media, quality, children }: { media: RemoteVideoElement | null, quality?: DelegatedTracks, children?: ComponentChildren }) => {
     skin.media = media
+    skin.quality = quality
     return <div className="skin">{children}</div>
   },
 }))
@@ -172,6 +175,7 @@ beforeEach(() => {
   signIn.mockReset().mockReturnValue(new Promise(() => {}))
   unplayable.mockReset()
   skin.media = null
+  skin.quality = undefined
   values.clear()
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
@@ -231,6 +235,7 @@ describe('attaching the Prime Video frame', () => {
     const [{ permissions }] = lib.attachFrame.mock.calls[0]! as [{ permissions: { category: string, reason: string }[] }]
     expect(permissions.map(({ category }) => category)).toEqual(['evaluation'])
     expect(permissions[0]!.reason).toMatch(/Play/)
+    expect(permissions[0]!.reason).toMatch(/quality/)
     expect(permissions[0]!.reason.length).toBeLessThanOrEqual(100)
   })
 })
@@ -347,6 +352,38 @@ describe('playing an episode', () => {
     episode.setByPage('muted', false)
     await vi.waitFor(() => expect(episode.video.muted).toBe(true))
     expect(JSON.parse(values.get(PLAYER_VOLUME_KEY)!)).toEqual({ volume: 1, muted: true })
+  })
+})
+
+describe('the quality', () => {
+  test('the media player is handed Amazon\'s Good, Better and Best, and its pick checks Amazon\'s', async () => {
+    const page = amazon(SIGNED_IN_PAGE, { surfaces: `${EPISODE_SURFACE}${PRIME_PLAYER}` })
+    const amazonPlayer = wirePrimeControls(page.document)
+    await playing(page)
+
+    await vi.waitFor(() => expect(skin.quality?.selection).toMatchObject({
+      options: [{ id: 'good', label: 'Good' }, { id: 'better', label: 'Better' }, { id: 'best', label: 'Best' }],
+      selectedId: 'best',
+    }), { timeout: 5_000 })
+    expect(amazonPlayer.state.menu, 'Amazon\'s menu is closed again').toBe('none')
+
+    await skin.quality!.selection.select('good')
+    expect(amazonPlayer.state).toMatchObject({ quality: 'good', menu: 'none' })
+    await vi.waitFor(() => expect(skin.quality?.selection.selectedId).toBe('good'))
+  })
+
+  test('a quality menu that does not open leaves the episode playing, with no quality row', async () => {
+    const page = amazon(SIGNED_IN_PAGE)
+    const evaluate = page.frame.evaluate.getMockImplementation()!
+    const quality = vi.fn(() => Promise.reject(Object.assign(new Error('Prime Video #atvwebplayersdk-settings-button is not on the page'), { name: 'PrimeControlMissingError' })))
+    page.frame.evaluate.mockImplementation((pageFunction, arg) => (arg as { menu?: string } | undefined)?.menu ? quality() : evaluate(pageFunction, arg))
+    const host = await playing(page)
+
+    await vi.waitFor(() => expect(quality).toHaveBeenCalledOnce())
+    await settle()
+    expect(host.querySelector('.overlay')).toBeNull()
+    expect(skin.media).toBeTruthy()
+    expect(skin.quality).toBeUndefined()
   })
 })
 

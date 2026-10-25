@@ -1,18 +1,19 @@
+import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
 import type { PlayerProps } from '../players'
-import type { PrimePageSelectors } from './prime-page'
+import type { PrimePageSelectors, PrimeQualityRow, PrimeQualitySelectors } from './prime-page'
 
 import { css, keyframes } from '@emotion/react'
 import { attachFrame } from '@fkn/lib'
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { tellUnplayable } from '../../embed-unplayable'
 import { siteStatuses } from '../../tracking/site-status'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import PrimeMediaPlayer from './prime-media-player'
-import { findPrimeVideo, pressPrimePlay, readPrimePage } from './prime-page'
+import { findPrimeVideo, pressPrimePlay, primeQuality, readPrimePage } from './prime-page'
 import { PRIME_DOMAINS, PRIME_SIGN_IN_LINK, primeSignedIn, primeSignInUrl, primeSiteOf } from './session'
 
 const PAGE: PrimePageSelectors = {
@@ -25,6 +26,18 @@ const PAGE: PrimePageSelectors = {
 
 // the player's video only: the detail page's muted hero video plays outside it, in `.draper-player-container`
 const VIDEOS = '#dv-web-player video'
+
+// Amazon's player SDK's settings menu (ATVWebPlayerSDK-1.0, read 2026-10-26), whose Video Quality offers
+// good, better and best. Driven on a trailer signed out the same day, under PRIME_OUTER_CSS: the controls
+// came up on a mousemove that moved, and a pick played on without a reload.
+const QUALITY: PrimeQualitySelectors = {
+  reveal: '.atvwebplayersdk-loading-overlay',
+  settings: '#atvwebplayersdk-settings-button',
+  item: '#atvwebplayersdk-video-quality-button',
+  menu: '#atvwebplayersdk-video-quality-menu',
+  option: 'input[type="radio"]',
+  timeout: 10_000,
+}
 
 // Amazon's page hidden down to the player. `#dv-web-player` and the video stay in layout, and the
 // player's own controls inside it stay there too, at opacity 0.
@@ -170,6 +183,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   const [rentOnly, setRentOnly] = useState(false)
   const [error, setError] = useState<string>()
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
+  const [quality, setQuality] = useState<PrimeQualityRow[]>()
   const [reloadKey, setReloadKey] = useState(0)
   const [attachKey, setAttachKey] = useState(0)
   const [signingIn, setSigningIn] = useState(false)
@@ -196,7 +210,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       // FKN's card names the first domain as the site it asks for, so the link's own leads
       domains: [...PRIME_DOMAINS].sort((a, b) => Number(b === site) - Number(a === site)),
       cookies: attachCookies(mode),
-      permissions: [{ category: 'evaluation', reason: 'Press Play on the episode and see whether you are signed in' }],
+      permissions: [{ category: 'evaluation', reason: 'Press Play on the episode, see whether you are signed in and switch the quality' }],
     })
       .then(attached => { if (!cancelled) setFrame(attached) })
       .catch(err => {
@@ -217,6 +231,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     setLoggedOut(false)
     setRentOnly(false)
     setRemoteVideo(null)
+    setQuality(undefined)
     ;(async () => {
       await frame.goto(detailUrl(url), { waitUntil: 'commit' })
       const page = await poll(async () => {
@@ -249,6 +264,9 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       if (cancelled) return
       setLoading(false)
       setRemoteVideo(video)
+      // a quality menu that does not open costs the quality row and nothing else
+      const rows = await frame.evaluate(primeQuality, QUALITY).catch(() => undefined)
+      if (!cancelled) setQuality(rows)
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Prime Video player', err)
@@ -257,6 +275,18 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     })
     return () => { cancelled = true }
   }, [frame, url, reloadKey])
+
+  const qualityTracks = useMemo<DelegatedTracks | undefined>(() => frame && quality ? {
+    selection: {
+      options: quality.map(({ id, label }) => ({ id, label })),
+      selectedId: quality.find(row => row.selected)?.id ?? null,
+      select: async (id: string | null) => {
+        if (id === null) return
+        const rows = await frame.evaluate(primeQuality, { ...QUALITY, pick: id })
+        if (mounted.current) setQuality(rows)
+      },
+    },
+  } : undefined, [frame, quality])
 
   // a fresh iframe, since the cloud refuses to attach one it already attached
   const remount = useCallback(() => {
@@ -341,7 +371,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   return (
     <div css={styles}>
       {mode !== 'detecting' && (
-        <PrimeMediaPlayer title={title} remote={remoteVideo}>
+        <PrimeMediaPlayer title={title} remote={remoteVideo} quality={qualityTracks}>
           <iframe
             key={`${mode}-${attachKey}`}
             ref={setIframe}
