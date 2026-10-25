@@ -908,6 +908,8 @@ test('a heartbeat reporting a stall short of the moment keeps Next episode', asy
   await report({ paused: false, time: 1320 })
   await wait(4_000)
   expect(nextShown(host)).toBe('E3 - Title 3')
+  await report({ paused: false, time: 1320 })
+  expect(nextShown(host), 'held where it was').toBe('E3 - Title 3')
   await report({ paused: false, time: 1322 })
   expect(nextShown(host)).toBe('E3 - Title 3')
   await report({ paused: true, time: 1322.5 })
