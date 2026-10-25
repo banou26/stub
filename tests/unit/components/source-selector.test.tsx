@@ -99,6 +99,70 @@ test('a film\'s buttons hold one placeholder while sources may still land, and d
   expect(selector({ film: true, pending: true }).host.querySelector('.pending'), 'sources replace it').toBeNull()
 })
 
+// HOR-1011: the watch page's card shows the source's picture and what its stream offers
+const detailedNetflix = {
+  ...sources[0]!,
+  thumbnails: [{ url: 'https://img.example/nf.jpg' }, { url: 'https://img.example/episode.jpg' }],
+  videoQualities: ['4K', 'Dolby Vision'],
+  audioQualities: ['5.1'],
+  audioLanguages: ['ja-JP', 'en-US', 'es-419', 'es-ES', 'pt-BR'],
+  subtitleLanguages: ['en'],
+}
+const card = (host: HTMLElement, name: string) => host.querySelector(`[title="${name}"]`)!
+const lines = (element: Element) => [...element.querySelectorAll('.languages')].map(line => [line.textContent, line.getAttribute('title')])
+
+test('a source\'s card on the watch page shows its picture, its quality and its languages by name', () => {
+  const { host } = selector({ sources: [detailedNetflix, sources[1]!] })
+  const netflix = card(host, 'Netflix')
+  expect(netflix.classList.contains('detailed')).toBe(true)
+  expect(netflix.querySelector('img.thumbnail')?.getAttribute('src')).toBe('https://img.example/nf.jpg')
+  expect([...netflix.querySelectorAll('.qualities > *')].map(chip => chip.textContent)).toEqual(['4K', 'Dolby Vision', '5.1'])
+  expect(lines(netflix), 'three names and how many more; the region is not a language of its own').toEqual([
+    ['AudioJapanese, English, Spanish+1', 'Audio: Japanese, English, Spanish, Portuguese'],
+    ['SubtitlesEnglish', 'Subtitles: English'],
+  ])
+  expect(netflix.querySelector('.languages .more')?.textContent, 'the count apart from the names a narrow card cuts').toBe('+1')
+  expect(netflix.querySelector('.head .name')?.textContent, 'its usual row, under the picture').toBe('Netflix')
+
+  const hulu = card(host, 'Hulu')
+  expect(hulu.classList.contains('detailed'), 'the control: a source that says nothing keeps its row alone').toBe(false)
+  expect(hulu.querySelector('img, .qualities, .languages')).toBeNull()
+})
+
+test('a card draws nothing for a fact its source did not give', () => {
+  const { host } = selector({ sources: [{ ...sources[0]!, thumbnails: [{ url: 'https://img.example/episode.jpg' }] }] })
+  const netflix = card(host, 'Netflix')
+  expect(netflix.querySelector('img.thumbnail'), 'the control: a card').not.toBeNull()
+  expect(netflix.querySelector('.qualities, .languages')).toBeNull()
+  expect(netflix.textContent).toBe('NNetflix▶')
+})
+
+test('a card\'s picture that fails to load gives way to the next, and to none once every one has', () => {
+  const { host } = selector({ sources: [detailedNetflix] })
+  const picture = () => card(host, 'Netflix').querySelector('img.thumbnail')
+  act(() => { picture()!.dispatchEvent(new Event('error')) })
+  expect(picture()?.getAttribute('src')).toBe('https://img.example/episode.jpg')
+  act(() => { picture()!.dispatchEvent(new Event('error')) })
+  expect(picture()).toBeNull()
+  expect(card(host, 'Netflix').querySelector('.qualities'), 'what it says stays').not.toBeNull()
+})
+
+test('a source with several releases shows the facts it was given beside its count', () => {
+  const nyaa = { ...sources[2]!, videoQualities: ['1080p', 'HEVC'], thumbnails: [{ url: 'https://img.example/episode.jpg' }] }
+  const button = card(selector({ sources: [nyaa] }).host, '2 releases on Nyaa')
+  expect(button.classList.contains('detailed')).toBe(true)
+  expect([...button.querySelectorAll('.head .count, .qualities > *')].map(chip => chip.textContent)).toEqual(['2', '1080p', 'HEVC'])
+})
+
+test('a film\'s buttons and the compact icons leave a source\'s details out', () => {
+  const detailedSources = [detailedNetflix, sources[1]!]
+  const film = selector({ sources: detailedSources, film: true }).host
+  expect(film.querySelector('.detailed, img, .qualities, .languages')).toBeNull()
+  expect(card(film, 'Netflix').outerHTML, 'as a source that says nothing').toBe(card(selector({ sources, film: true }).host, 'Netflix').outerHTML)
+  const compact = selector({ sources: detailedSources, compact: true }).host
+  expect(compact.innerHTML).toBe(selector({ sources: [sources[0]!, sources[1]!], compact: true }).host.innerHTML)
+})
+
 describe('a hidden source icon', () => {
   const stored = new Map<string, string>()
   beforeEach(() => {

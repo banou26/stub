@@ -5,6 +5,7 @@ import { useState } from 'preact/hooks'
 import { Link } from 'wouter'
 
 import { useHiddenIcons } from '../sources/hidden-icons'
+import { nextThumbnail } from '../utils/thumbnails'
 import Placeholder from './placeholder'
 import SourcePopup from './source-popup'
 
@@ -36,6 +37,16 @@ export type WatchSource = {
   releases?: SourceRelease[]
   /** set when the source is a plugin that renders its own picker, which replaces the inline list */
   picker?: { pluginUri: string }
+  /**
+   * What the watch page's card shows, and nothing else does: the pictures to try in order (the
+   * source's own, then the episode's), and what the source states about its stream before it plays,
+   * as the Episode fields of the same names carry it.
+   */
+  thumbnails?: readonly { url: string }[]
+  videoQualities?: readonly string[] | null
+  audioQualities?: readonly string[] | null
+  audioLanguages?: readonly string[] | null
+  subtitleLanguages?: readonly string[] | null
 }
 
 const BRAND_COLORS: Record<string, string> = {
@@ -223,6 +234,98 @@ const style = css`
     }
   }
 
+  &:not(.film) .list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+
+    @media (max-width: 768px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .source.detailed {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    min-width: 0;
+    padding: 0;
+
+    .thumbnail {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      min-width: 0;
+      padding: 0.9rem 1.4rem 1.1rem 1.1rem;
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+    }
+
+    .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .qualities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    /* the names give way first, so how many more there are stays on screen */
+    .languages {
+      display: flex;
+      gap: 0.6rem;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 1.2rem;
+      white-space: nowrap;
+    }
+
+    .languages-label {
+      flex-shrink: 0;
+      color: rgba(255, 255, 255, 0.45);
+      font-weight: 600;
+    }
+
+    .names {
+      overflow: hidden;
+      min-width: 0;
+      text-overflow: ellipsis;
+    }
+
+    .more {
+      flex-shrink: 0;
+    }
+
+    /* the picture beside what it says, so a phone's column of cards stays short */
+    @media (max-width: 768px) {
+      flex-direction: row;
+
+      .thumbnail {
+        flex-shrink: 0;
+        align-self: center;
+        width: 12rem;
+        margin-left: 0.4rem;
+        border-radius: 0.6rem;
+      }
+
+      .body {
+        flex: 1;
+      }
+    }
+  }
+
   /* a film's are as wide as what they hold, and a name wraps only in one wider than its row */
   &.film .list > .source {
     min-width: 0;
@@ -353,6 +456,50 @@ const compactStyle = css`
   }
 `
 
+const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })
+
+// a card names the language, not the region or script it is in: es-419 and es-ES are both Spanish
+const languageName = (tag: string) => {
+  try {
+    return languageNames.of(tag.split('-')[0]!) ?? tag
+  } catch {
+    return tag
+  }
+}
+
+const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | null }) => {
+  const names = [...new Set((tags ?? []).map(languageName))]
+  if (!names.length) return null
+  return (
+    <span className="languages" title={`${label}: ${names.join(', ')}`}>
+      <span className="languages-label">{label}</span>
+      <span className="names">{names.slice(0, 3).join(', ')}</span>
+      {names.length > 3 ? <span className="more">+{names.length - 3}</span> : undefined}
+    </span>
+  )
+}
+
+const detailed = (source: WatchSource) =>
+  Boolean(source.thumbnails?.length || source.videoQualities?.length || source.audioQualities?.length || source.audioLanguages?.length || source.subtitleLanguages?.length)
+
+/** The watch page's card: the source's picture over its usual row, then what its stream offers. */
+const Details = ({ source, head }: { source: WatchSource, head: ComponentChildren }) => {
+  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set())
+  const thumbnail = nextThumbnail(source.thumbnails, failed)
+  const qualities = [...source.videoQualities ?? [], ...source.audioQualities ?? []]
+  return (
+    <>
+      {thumbnail ? <img className="thumbnail" src={thumbnail} alt="" loading="lazy" onError={() => setFailed(seen => new Set(seen).add(thumbnail))}/> : undefined}
+      <span className="body">
+        <span className="head">{head}</span>
+        {qualities.length ? <span className="qualities">{qualities.map(quality => <span key={quality} className="count">{quality}</span>)}</span> : undefined}
+        <Languages label="Audio" tags={source.audioLanguages}/>
+        <Languages label="Subtitles" tags={source.subtitleLanguages}/>
+      </span>
+    </>
+  )
+}
+
 const SourceIcon = ({ source }: { source: WatchSource }) => {
   const [failed, setFailed] = useState(false)
   return (
@@ -412,29 +559,36 @@ export const SourceSelector = (
       {film ? undefined : <div className="label">Watch on</div>}
       <div className="list">
         {shown.length ? undefined : <Placeholder className="pending"/>}
-        {shown.map(source =>
-          source.releases && source.releases.length > 1 && !film
-            ? <MultiReleaseSource key={source.id} source={source} onOpenPicker={() => setPicking(source)} />
-            : (
-              <SourceLink
-                key={source.id}
-                className={`source${source.active ? ' active' : ''}`}
-                style={{ '--brand': brandColor(source) }}
-                href={source.href}
-                external={source.external}
-                title={source.name}
-              >
-                <SourceIcon source={source} />
-                <span className="name">{source.name}</span>
-                {source.releases && source.releases.length > 1 ? <span className="count">{source.releases.length}</span> : undefined}
-                {source.active
-                  ? <span className="playing"><i/><i/><i/></span>
-                  : source.external
-                    ? <span className="ext">↗</span>
-                    : <span className="play">▶</span>}
-              </SourceLink>
-            )
-        )}
+        {shown.map(source => {
+          if (source.releases && source.releases.length > 1 && !film) {
+            return <MultiReleaseSource key={source.id} source={source} onOpenPicker={() => setPicking(source)} />
+          }
+          const head = (
+            <>
+              <SourceIcon source={source} />
+              <span className="name">{source.name}</span>
+              {source.releases && source.releases.length > 1 ? <span className="count">{source.releases.length}</span> : undefined}
+              {source.active
+                ? <span className="playing"><i/><i/><i/></span>
+                : source.external
+                  ? <span className="ext">↗</span>
+                  : <span className="play">▶</span>}
+            </>
+          )
+          const card = !film && detailed(source)
+          return (
+            <SourceLink
+              key={source.id}
+              className={`source${card ? ' detailed' : ''}${source.active ? ' active' : ''}`}
+              style={{ '--brand': brandColor(source) }}
+              href={source.href}
+              external={source.external}
+              title={source.name}
+            >
+              {card ? <Details source={source} head={head}/> : head}
+            </SourceLink>
+          )
+        })}
       </div>
       {picking?.picker
         ? (
@@ -458,21 +612,27 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
   // a plugin that renders its own picker replaces the inline list entirely: it knows what its releases
   // are (seeders, size, subtitle tracks) where stub only ever sees a flattened label
   const owned = Boolean(source.picker)
+  const head = (
+    <>
+      <SourceIcon source={source} />
+      <span className="name">{source.name}</span>
+      <span className="count">{releases.length}</span>
+      <span className="chevron">{owned ? '›' : open ? '▾' : '▸'}</span>
+    </>
+  )
+  const card = detailed(source)
   return (
     <div className="source-group" style={{ '--brand': brandColor(source) }}>
       <button
         type="button"
-        className={`source${source.active ? ' active' : ''}`}
+        className={`source${card ? ' detailed' : ''}${source.active ? ' active' : ''}`}
         style={{ '--brand': brandColor(source) }}
         onClick={() => owned ? onOpenPicker() : setOpen(value => !value)}
         title={`${releases.length} releases on ${source.name}`}
         aria-expanded={owned ? undefined : open}
         aria-haspopup={owned ? 'dialog' : undefined}
       >
-        <SourceIcon source={source} />
-        <span className="name">{source.name}</span>
-        <span className="count">{releases.length}</span>
-        <span className="chevron">{owned ? '›' : open ? '▾' : '▸'}</span>
+        {card ? <Details source={source} head={head}/> : head}
       </button>
       {!owned && open
         ? (
