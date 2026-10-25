@@ -21,11 +21,11 @@ const QUALITIES = [
   ['best', 'Best', 'Uses about 6.84 GB per hour'],
 ]
 
-const SETTINGS_MENU = `
+const settingsMenu = (live: boolean) => `
   <div id="atvwebplayersdk-settings-menu" aria-label="Settings">
     <button id="atvwebplayersdk-subtitles-button" aria-label="Subtitles">Subtitles<div>Off</div></button>
     <button id="atvwebplayersdk-audio-button" aria-label="Audio">Audio<div>English</div></button>
-    <button id="atvwebplayersdk-video-quality-button" aria-label="Video Quality">Video Quality<div>Best</div></button>
+    ${live ? '' : '<button id="atvwebplayersdk-video-quality-button" aria-label="Video Quality">Video Quality<div>Best</div></button>'}
   </div>`
 
 const QUALITY_MENU = `
@@ -42,9 +42,10 @@ const QUALITY_MENU = `
 
 /**
  * Makes `document`'s `PRIME_PLAYER` behave as Amazon's, wherever it is or will be placed. `picks: false`
- * is a player that ignores a click on a quality. What the player stands at is in the state returned.
+ * is a player that ignores a click on a quality, `live: true` one whose settings menu has no Video Quality,
+ * as a live title's has none. What the player stands at is in the state returned.
  */
-export const wirePrimeControls = (document: Document, { quality = 'best', picks = true } = {}) => {
+export const wirePrimeControls = (document: Document, { quality = 'best', picks = true, live = false } = {}) => {
   const state = { quality, menu: 'none' as 'none' | 'settings' | 'quality', shown: false }
 
   const render = () => {
@@ -52,7 +53,7 @@ export const wirePrimeControls = (document: Document, { quality = 'best', picks 
     if (!controls) return
     controls.innerHTML = !state.shown ? '' : `
       <button id="atvwebplayersdk-settings-button" aria-label="Settings"></button>
-      ${state.menu === 'settings' ? SETTINGS_MENU : state.menu === 'quality' ? QUALITY_MENU : ''}`
+      ${state.menu === 'settings' ? settingsMenu(live) : state.menu === 'quality' ? QUALITY_MENU : ''}`
     for (const input of controls.querySelectorAll<HTMLInputElement>('input[name="videoQuality"]')) {
       Object.defineProperty(input, 'checked', { configurable: true, get: () => input.value === state.quality })
     }
@@ -86,5 +87,11 @@ export const wirePrimeControls = (document: Document, { quality = 'best', picks 
     render()
   }
 
-  return { state, open }
+  /** Closes every menu and leaves the controls up, as a mouse leaving Amazon's settings does. */
+  const closeAll = () => {
+    state.menu = 'none'
+    render()
+  }
+
+  return { state, open, closeAll }
 }

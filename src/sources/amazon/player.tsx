@@ -36,6 +36,7 @@ const QUALITY: PrimeQualitySelectors = {
   item: '#atvwebplayersdk-video-quality-button',
   menu: '#atvwebplayersdk-video-quality-menu',
   option: 'input[type="radio"]',
+  menus: '#atvwebplayersdk-settings-menu, #atvwebplayersdk-video-quality-menu',
   timeout: 10_000,
 }
 

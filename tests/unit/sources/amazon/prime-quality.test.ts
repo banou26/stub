@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { primeQuality, type PrimeQualitySelectors } from '../../../../src/sources/amazon/prime-page'
 import { pageRealm } from '../crunchyroll/page-realm'
@@ -12,6 +12,7 @@ const QUALITY: PrimeQualitySelectors = {
   item: '#atvwebplayersdk-video-quality-button',
   menu: '#atvwebplayersdk-video-quality-menu',
   option: 'input[type="radio"]',
+  menus: '#atvwebplayersdk-settings-menu, #atvwebplayersdk-video-quality-menu',
   timeout: 1_000,
 }
 
@@ -63,6 +64,21 @@ describe('reading Prime Video\'s quality', () => {
     expect(error.name).toBe('PrimeControlMissingError')
     expect(Date.now() - started).toBeLessThan(3_000)
   })
+
+  test('a settings menu with no Video Quality, as a live title\'s, throws PrimeControlMissingError and is closed again', async () => {
+    const { run, state } = prime({ live: true })
+    expect((await rejected(run())).name).toBe('PrimeControlMissingError')
+    expect(state.menu).toBe('none')
+  })
+
+  test('a menu the player closed on its own is not opened again', async () => {
+    const { run, state, closeAll } = prime({ live: true })
+    const error = rejected(run())
+    await vi.waitFor(() => expect(state.menu).toBe('settings'))
+    closeAll()
+    expect((await error).name).toBe('PrimeControlMissingError')
+    expect(state.menu).toBe('none')
+  })
 })
 
 describe('picking Prime Video\'s quality', () => {
@@ -76,10 +92,10 @@ describe('picking Prime Video\'s quality', () => {
     expect(state).toMatchObject({ quality: 'better', menu: 'none' })
   })
 
-  test('a choice the menu does not hold throws PrimeControlMissingError and checks nothing', async () => {
+  test('a choice the menu does not hold throws PrimeControlMissingError, checks nothing and closes the menu', async () => {
     const { run, state } = prime()
     expect((await rejected(run('ultra'))).name).toBe('PrimeControlMissingError')
-    expect(state.quality).toBe('best')
+    expect(state).toMatchObject({ quality: 'best', menu: 'none' })
   })
 
   test('a pick the player does not take is an error, with the menu closed', async () => {

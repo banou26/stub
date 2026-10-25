@@ -385,6 +385,27 @@ describe('the quality', () => {
     expect(skin.media).toBeTruthy()
     expect(skin.quality).toBeUndefined()
   })
+
+  test('a live title, whose settings hold no Video Quality, plays with no quality row and Amazon\'s settings closed', async () => {
+    const page = amazon(SIGNED_IN_PAGE, { surfaces: `${EPISODE_SURFACE}${PRIME_PLAYER}` })
+    const amazonPlayer = wirePrimeControls(page.document, { live: true })
+    const evaluate = page.frame.evaluate.getMockImplementation()!
+    let read: Promise<unknown> | undefined
+    // the player's own selectors, on a shorter clock than its 10 s
+    page.frame.evaluate.mockImplementation((pageFunction, arg) => {
+      if (!(arg as { menu?: string } | undefined)?.menu) return evaluate(pageFunction, arg)
+      read = evaluate(pageFunction, { ...arg as object, timeout: 300 })
+      return read
+    })
+    await playing(page)
+    await vi.waitFor(() => expect(read).toBeDefined())
+
+    expect((await read!.catch((error: Error) => error) as Error).name).toBe('PrimeControlMissingError')
+    await settle()
+    expect(amazonPlayer.state.menu).toBe('none')
+    expect(skin.media).toBeTruthy()
+    expect(skin.quality).toBeUndefined()
+  })
 })
 
 describe('an episode Prime Video offers only to rent or buy', () => {
