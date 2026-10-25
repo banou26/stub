@@ -254,6 +254,9 @@ type NetflixSeason = {
 type SeasonListing = {
   seasons: NetflixSeason[]
   truncated: boolean
+  /** the title's, which every episode of it carries: see `NetflixTitle` */
+  audioLanguages?: string[]
+  subtitleLanguages?: string[]
 }
 
 const UNOGS = 'https://unogs.com/api'
@@ -364,6 +367,8 @@ const netflixSeasons = (title: NetflixTitle): SeasonListing => {
   const ordinals = derivedOrdinals(title.seasons)
   return {
     truncated: title.seasonsTruncated,
+    audioLanguages: title.audioLanguages,
+    subtitleLanguages: title.subtitleLanguages,
     seasons: title.seasons.map((season, index) => {
       const seasnum = ordinals[index]!
       return {
@@ -645,7 +650,7 @@ const normalizeSearchResult = (result: UnogsSearchResult): GQLMedia =>
     startDate: result.year ? String(result.year) : undefined
   })
 
-const normalizeEpisode = (episode: UnogsEpisode, mediaUri: string, episodeNumber: number): GQLEpisode => {
+const normalizeEpisode = (episode: UnogsEpisode, mediaUri: string, episodeNumber: number, languages: Pick<SeasonListing, 'audioLanguages' | 'subtitleLanguages'> = {}): GQLEpisode => {
   const synopsis = episode.synopsis?.trim()
   const decodedSynopsis = synopsis && !synopsis.startsWith("THIS EPISODE'S SYNOPSIS IS COMING SOON")
     ? decode(synopsis) : undefined
@@ -661,7 +666,9 @@ const normalizeEpisode = (episode: UnogsEpisode, mediaUri: string, episodeNumber
     // the schema's `runtime` is MINUTES and Netflix publishes seconds: 1422 s is a 24 minute episode
     runtime: episode.runtimeSec ? Math.round(episode.runtimeSec / 60) : undefined,
     seasonNumber: episode.seasnum,
-    episodeNumber
+    episodeNumber,
+    audioLanguages: languages.audioLanguages,
+    subtitleLanguages: languages.subtitleLanguages,
   })
 }
 
@@ -774,7 +781,7 @@ const assembleMedia = (
     // tenth season whenever unOGS is the one that could not answer.
     if (seasonNumber != null && !filtered.length && listing.truncated) return undefined
     media.episodes = filtered.flatMap(season =>
-      season.episodes.map((ep, i) => normalizeEpisode(ep, media.uri, i + 1))
+      season.episodes.map((ep, i) => normalizeEpisode(ep, media.uri, i + 1, listing))
     )
     // A TRUNCATED season has a length and no count: the Netflix fallback answers ten of a 24 episode
     // season, and ten published as `episodeCount` is a false claim that the season picker reads as
@@ -1141,10 +1148,10 @@ export const resolvers: Resolvers = {
       // split before asking anyone (see `splitSeasonId`) and the answer is filtered back down to that
       // one season, because a RUN may never list another season's episodes.
       const { showId, season: seasonNumber } = splitSeasonId(parent.id)
-      const { seasons } = await fetchEpisodes(showId, ctx, seasonNumber)
-      const filtered = seasonNumber != null ? seasons.filter(season => season.season === seasonNumber) : seasons
+      const listing = await fetchEpisodes(showId, ctx, seasonNumber)
+      const filtered = seasonNumber != null ? listing.seasons.filter(season => season.season === seasonNumber) : listing.seasons
       return filtered.flatMap(season =>
-        season.episodes.map((ep, i) => normalizeEpisode(ep, parent.uri, i + 1))
+        season.episodes.map((ep, i) => normalizeEpisode(ep, parent.uri, i + 1, listing))
       )
     }
   }

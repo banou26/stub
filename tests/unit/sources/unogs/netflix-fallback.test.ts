@@ -6,7 +6,7 @@
 // published as a count is evidence the season picker acts on. And its persisted query id is Netflix's,
 // hardcoded here, so the day Netflix edits the query every call is answered PersistedQueryNotFound,
 // which must arrive as a named failure rather than as a title with no seasons.
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
@@ -536,6 +536,29 @@ test('the fallback DOES run when unOGS fails', async () => {
 
   expect(netflixCalls(calls).length, 'one landing query for the season index').toBe(1)
   expect(media?.episodes?.map(episode => episode.id).slice(0, 3)).toEqual(['81402901', '81402902', '81402903'])
+})
+
+// Frieren's tracks as the landing query answered them to Tokyo, 2026-10-25: Netflix names a language
+// rather than coding it, and lists them for the title, not per episode
+const FRIEREN_TRACKS = {
+  __typename: 'MediaTracks',
+  audioTracks: ['English', 'Japanese [Original]', 'Mandarin (Guoyu)'].map(language => ({ __typename: 'AudioTrack', language })),
+  subtitles: ['English', 'Japanese', 'Korean', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Klingon'].map(language => ({ __typename: 'TimedTextTrack', language })),
+}
+
+test('the landing query, when it is asked, gives every episode the title\'s audio and subtitle languages', async () => {
+  const [video] = RECORDED_NETFLIX.data.videos
+  const { ctx } = rig({
+    ...unogsRoutes('80987039', status(503)),
+    [NETFLIX_GRAPHQL_URL]: json({ data: { videos: [{ ...video, mediaTracks: FRIEREN_TRACKS }] } })
+  })
+  const media = await getMedia('80987039', ctx, 1, true)
+
+  expect(media?.episodes?.length, 'the control: the fallback answered').toBeGreaterThan(1)
+  for (const episode of media?.episodes ?? []) {
+    expect(episode.audioLanguages).toEqual(['en', 'ja', 'zh'])
+    expect(episode.subtitleLanguages, 'a name no code reads is dropped').toEqual(['en', 'ja', 'ko', 'zh'])
+  }
 })
 
 // A season answered as a prefix has a length and no COUNT. Ten published as `episodeCount` is a claim

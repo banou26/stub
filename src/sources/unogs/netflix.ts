@@ -18,6 +18,8 @@
 // ours.
 import type { ExtractorServerContext } from '../../worker/extractor'
 
+import { languageTags } from '../stream-facts'
+
 /** The endpoint. Public title pages call it unauthenticated; see `fetchNetflixTitle` on credentials. */
 export const NETFLIX_GRAPHQL_URL = 'https://www.netflix.com/graphql'
 
@@ -122,6 +124,9 @@ export type NetflixTitle = {
    * absent, and `extractor.ts`'s `assembleMedia` refuses to mint one rather than publishing zero.
    */
   seasonsTruncated: boolean
+  /** The title's audio and subtitle languages, as BCP 47 tags: Netflix lists them per title, never per episode. */
+  audioLanguages?: string[]
+  subtitleLanguages?: string[]
 }
 
 /**
@@ -200,6 +205,37 @@ const labelNumber = (...labels: (string | undefined)[]): number | undefined => {
   }
   return undefined
 }
+
+const ISO_639_1 = (
+  'aa ab ae af ak am an ar as av ay az ba be bg bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee el en eo es et eu '
+  + 'fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km '
+  + 'kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv ny oc oj om '
+  + 'or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr '
+  + 'ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu'
+).split(' ')
+// the two Netflix names no ISO 639-1 code is called in English
+const LANGUAGE_ALIASES: Record<string, string> = { Mandarin: 'zh', Cantonese: 'yue' }
+let languageCodes: Map<string, string> | undefined
+
+/**
+ * Netflix names a track's language in English rather than coding it ("Japanese [Original]", "Spanish
+ * (Latin America)", "Mandarin (Guoyu)"), so the name without its brackets is read back to its code. A
+ * name nothing reads is dropped rather than guessed.
+ */
+const netflixLanguageCode = (name: string): string | undefined => {
+  if (!languageCodes) {
+    const english = new Intl.DisplayNames(['en'], { type: 'language' })
+    languageCodes = new Map(ISO_639_1.map(code => [english.of(code) ?? code, code]))
+  }
+  const base = name.replace(/\[[^\]]*\]|\([^)]*\)|\s-\s.*$/g, '').trim()
+  return LANGUAGE_ALIASES[base] ?? languageCodes.get(base)
+}
+
+const trackLanguages = (tracks: unknown): string[] | undefined =>
+  languageTags(asArray(tracks).map(track => {
+    const name = asString(asRecord(track)?.language)
+    return name ? netflixLanguageCode(name) : undefined
+  }))
 
 /** An image is only a url when Netflix says it resolved; an unavailable one carries a stale key. */
 const imageUrl = (value: unknown): string | undefined => {
@@ -403,6 +439,7 @@ export const fetchNetflixTitle = async (videoId: string | number, ctx: Extractor
 
   const seasons = asRecord(video.seasons)
   const parsedSeasons = asArray(seasons?.edges).map(parseSeason).filter((season): season is NetflixSeasonListing => Boolean(season))
+  const tracks = asRecord(video.mediaTracks)
   return {
     ok: true,
     title: {
@@ -412,7 +449,9 @@ export const fetchNetflixTitle = async (videoId: string | number, ctx: Extractor
       year: asNumber(video.latestYear),
       seasons: parsedSeasons,
       // a film carries no seasons connection at all, which is not a prefix of anything
-      seasonsTruncated: Boolean(seasons) && isPrefix(seasons, parsedSeasons.length)
+      seasonsTruncated: Boolean(seasons) && isPrefix(seasons, parsedSeasons.length),
+      audioLanguages: trackLanguages(tracks?.audioTracks),
+      subtitleLanguages: trackLanguages(tracks?.subtitles),
     }
   }
 }
