@@ -466,9 +466,7 @@ const browse = async (variables: BrowseVariables, context: ExtractorServerContex
       ...data?.Page?.media ?? [],
       ...!variables.search && lastPage
         ? (await Promise.all(
-          new Array(Math.min(2, lastPage - 1))
-            .fill(undefined)
-            .map((_, i) => fetchBrowsePage(variables, i + 2, context).then(data => data?.Page?.media ?? []))
+          Array.from({ length: Math.min(2, lastPage - 1) }, (_, i) => fetchBrowsePage(variables, i + 2, context).then(data => data?.Page?.media ?? []))
         )).flat()
         : []
     ].filter(media => !(variables.season && !variables.search && media?.isAdult)),
@@ -746,11 +744,10 @@ const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, e
       ...media.title?.romaji ? [{ language: 'jp-en', title: media.title.romaji, score: SCORE }] : [],
       ...media.title?.native ? [{ language: 'jp', title: media.title.native, score: SCORE }] : []
     ],
-    covers: [
-      ...media.coverImage?.extraLarge
+    covers:
+      media.coverImage?.extraLarge
         ? [{ language: 'jp', url: media.coverImage.extraLarge, color: media.coverImage.color ?? undefined, score: SCORE }]
-        : []
-    ],
+        : [],
     banners: img(media.bannerImage, BANNER_SCORE),
     episodeCount: media.episodes,
     duration: media.duration,
