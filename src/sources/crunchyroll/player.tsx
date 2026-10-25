@@ -6,6 +6,7 @@ import type { PlayerProps } from '../players'
 import type { CrunchyrollTrackKind, CrunchyrollTrackSelection, CrunchyrollTracks } from './cr-native-controls'
 import type { CrunchyrollThumbnails } from './seek-thumbnails'
 
+import { preferredSelection } from '@banou/media-player/language'
 import { css, keyframes } from '@emotion/react'
 import { attachFrame, isRelayUnavailable, relayOf } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -15,6 +16,7 @@ import { tellUnplayable } from '../../embed-unplayable'
 import { serveEmbedTracks } from '../../embed-tracks'
 import { CONNECTED_CHANNEL, createConnections } from '../../tracking/connections'
 import { siteStatuses } from '../../tracking/site-status'
+import { readTrackLanguages } from '../../utils/track-languages'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
@@ -351,6 +353,28 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
     let cancelled = false
     const isCancelled = () => cancelled || !mounted.current || generation !== trackGeneration.current
 
+    // switched to before the tracks are shown, so a watch party hears the preferred track as where this player starts
+    const preferred = readTrackLanguages()
+    const applied = new Set<'audio' | 'subtitles'>()
+    const prefer = async (tracks: CrunchyrollTracks) => {
+      let next = tracks
+      for (const kind of ['audio', 'subtitles'] as const) {
+        const selection = next[kind]
+        if (!selection || applied.has(kind)) continue
+        applied.add(kind)
+        const id = preferredSelection(selection, preferred[kind])
+        if (id === undefined) continue
+        try {
+          next = await selectCrunchyrollTrack(frame, remoteVideo, kind, id, isCancelled)
+        } catch (err) {
+          if (isCancelled()) throw err
+          console.warn(`[cr] the preferred ${kind} track could not be selected:`, err)
+          next = await discoverCrunchyrollTracks(frame, isCancelled)
+        }
+      }
+      return next
+    }
+
     void (async () => {
       let lastError: unknown
       let discovered: CrunchyrollTracks | undefined
@@ -358,7 +382,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
         try {
           discovered = await runTrackOperation(
             generation,
-            () => discoverCrunchyrollTracks(frame, isCancelled),
+            async () => prefer(await discoverCrunchyrollTracks(frame, isCancelled)),
           )
           lastError = undefined
           if (isCancelled()) return

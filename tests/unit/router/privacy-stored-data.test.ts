@@ -17,6 +17,7 @@ import { PLAY_ORDER_KEY } from '../../../src/sources/play-order'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { UPDATE_RELOADS_KEY } from '../../../src/update/gate'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
+import { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
@@ -36,7 +37,7 @@ describe('what stub keeps per viewer', () => {
     })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
-    expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
+    expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY] })
     expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] })
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
@@ -77,9 +78,10 @@ describe('what stub keeps per viewer', () => {
     expect(byId('stub-list').where).toContain('this device')
   })
 
-  test('says the player keeps its volume and mute, and nothing else of the player', () => {
+  test('says the player keeps its volume and mute and the languages last picked, and not its speed', () => {
     expect(byId('player').what).toContain('whether it was muted')
-    expect(byId('player').what).toContain('Speed and captions are not kept')
+    expect(byId('player').what).toContain('the audio and subtitle languages you last picked')
+    expect(byId('player').what).toContain('Speed is not kept')
   })
 
   test("says a removed entry stays in stub's list, with its title and last values", () => {
@@ -111,7 +113,7 @@ describe('what stub keeps per viewer', () => {
   })
 
   test('keeps the volume, the tracking sites and their sign-in states on the device, and names them apart', () => {
-    for (const key of [PLAYER_VOLUME_KEY, CONNECTED_KEY, SITE_STATUS_KEY, WATCH_POSITIONS_KEY]) expect(byId('settings').keys!.names, key).not.toContain(key)
+    for (const key of [PLAYER_VOLUME_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, CONNECTED_KEY, SITE_STATUS_KEY, WATCH_POSITIONS_KEY]) expect(byId('settings').keys!.names, key).not.toContain(key)
     for (const id of ['player', 'connected-sites', 'site-status']) expect(byId(id).where, id).not.toContain('FKN account')
   })
 

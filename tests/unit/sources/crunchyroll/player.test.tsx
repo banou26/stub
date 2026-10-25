@@ -442,6 +442,61 @@ describe('the tracks served to the watch page', () => {
     await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
   })
 
+  // switched to before any list is served, so a party hears the preferred tracks as where this player starts
+  describe('the languages the viewer last picked', () => {
+    const picks = () => controls.select.mock.calls.map(([, , kind, id]) => [kind, id])
+    const firstServed = () => (served.mock.calls as unknown as [EmbedTracks][]).map(([tracks]) => tracks).find(tracks => tracks.subtitles)!
+    const switched: CrunchyrollTracks = {
+      ...TRACKS,
+      subtitles: { ...TRACKS.subtitles!, selectedId: null },
+      audio: { ...TRACKS.audio!, selectedId: 'English#2' },
+    }
+
+    test('are switched to as the episode loads, before the tracks are served', async () => {
+      stored.set('stub.player.audio-language', 'eng')
+      stored.set('stub.player.subtitle-language', 'off')
+      controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
+        kind === 'audio' ? { ...TRACKS, audio: switched.audio } : switched)
+      await playing()
+      expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', null]])
+      expect(firstServed()).toMatchObject({ audio: { selected: 'English#2' }, subtitles: { selected: null } })
+      expect(skin.audioTracks!.selection.selectedId).toBe('English#2')
+    })
+
+    test('leave the tracks alone when none was picked', async () => {
+      await playing()
+      expect(picks()).toEqual([])
+    })
+
+    test('leave the tracks alone when the episode has none in them, or already plays them', async () => {
+      stored.set('stub.player.audio-language', 'Japanese')
+      stored.set('stub.player.subtitle-language', 'Français')
+      await playing()
+      expect(picks()).toEqual([])
+    })
+
+    test('are applied once a kind is found, and once for the episode', async () => {
+      stored.set('stub.player.audio-language', 'English')
+      stored.set('stub.player.subtitle-language', 'Deutsch')
+      controls.discover.mockResolvedValueOnce({ audio: TRACKS.audio }).mockResolvedValue(TRACKS)
+      controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
+        kind === 'audio' ? { audio: switched.audio } : { ...TRACKS, subtitles: { ...TRACKS.subtitles!, selectedId: 'Deutsch' } })
+      await playing()
+      expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', 'Deutsch']])
+    })
+
+    test('a switch Crunchyroll refuses leaves the tracks it reads afterwards', async () => {
+      stored.set('stub.player.audio-language', 'English')
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      controls.select.mockRejectedValue(new Error('Crunchyroll did not apply the audio option'))
+      // what its menu shows once the switch gave up, here half done
+      controls.discover.mockResolvedValueOnce(TRACKS).mockResolvedValue(switched)
+      await playing()
+      expect(picks()).toEqual([['audio', 'English#2']])
+      expect(firstServed().audio).toEqual({ ids: ['Japanese', 'English#2'], selected: 'English#2' })
+    })
+  })
+
   for (const outcome of ['succeeds', 'fails'] as const) {
     test(`busy while a switch runs, and not once it ${outcome}`, async () => {
       const done = Promise.withResolvers<CrunchyrollTracks>()

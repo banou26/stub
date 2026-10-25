@@ -9,6 +9,7 @@ import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
+import { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../utils/track-languages'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
 
 export type StoredItem = {
@@ -104,11 +105,11 @@ export const STORED: readonly StoredItem[] = [
   },
   {
     id: 'player',
-    title: 'Player volume',
-    what: 'The volume you last left a player at, and whether it was muted, so the next episode or theme starts the same. Speed and captions are not kept.',
+    title: 'Player volume and languages',
+    what: 'The volume you last left a player at and whether it was muted, so the next episode or theme starts the same, and the audio and subtitle languages you last picked, so the next episode starts in them. Speed is not kept.',
     where: LOCAL,
     lasts: "Until you clear this site's data in your browser",
-    keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },
+    keys: { store: 'local', names: [PLAYER_VOLUME_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY] },
   },
   {
     id: 'positions',
