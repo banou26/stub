@@ -149,7 +149,7 @@ const jwFetch = async <T>(query: string, variables: Record<string, unknown>, ctx
   return res.json() as T
 }
 
-const SEARCH_QUERY = `
+const titlesQuery = (extra: string) => `
   query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {
     popularTitles(country: $country, filter: $searchTitlesFilter, first: $first, sortBy: POPULAR, sortRandomSeed: 0) {
       edges {
@@ -171,7 +171,7 @@ const SEARCH_QUERY = `
               shortName
               translation(language: $language)
             }
-            productionCountries
+            productionCountries${extra}
           }
           offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
@@ -192,6 +192,17 @@ const SEARCH_QUERY = `
     }
   }
 `
+
+const SEARCH_QUERY = titlesQuery('')
+// the home hero's wide image and trailer, which nothing reading a search draws. On the 40 most popular US shows and
+// films, 7 to 10 KB of backdrops and 4 to 5 KB of clips on a 177 to 204 KB answer, and a clip on 79 of the 80 (2026-10-26)
+const POPULAR_QUERY = titlesQuery(`
+            backdrops(profile: S1920, format: JPG) {
+              backdropUrl
+            }
+            clips(providers: [YOUTUBE]) {
+              externalId
+            }`)
 
 const nodeQuery = (details: string) => `
   query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!) {
@@ -306,7 +317,7 @@ type PopularFilter = { objectTypes: ('MOVIE' | 'SHOW')[], genres?: string[] }
 
 const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) =>
   deduplicatedFetch(`popular:${JSON.stringify(filter)}`, () =>
-    jwFetch<JWSearchResponse>(SEARCH_QUERY, {
+    jwFetch<JWSearchResponse>(POPULAR_QUERY, {
       first: POPULAR_FIRST, searchTitlesFilter: filter, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
   )
@@ -370,9 +381,11 @@ interface JWSearchNode {
     genres?: { shortName: string, translation?: string | null }[] | null
     productionCountries?: string[] | null
     externalIds?: { imdbId?: string | null, tmdbId?: string | null } | null
-    /** these four and `externalIds.tmdbId` only on NODE_DETAILS_QUERY's answer */
+    /** these four and `externalIds.tmdbId` only on NODE_DETAILS_QUERY's answer, `backdrops` on POPULAR_QUERY's too */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
+    /** YouTube's videos for the title, only on POPULAR_QUERY's answer */
+    clips?: { externalId: string }[] | null
     scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
     credits?: JWCredit[] | null
   }
@@ -449,6 +462,14 @@ export const parseCredits = (credits: JWCredit[]): SourceCredits => ({
 
 const resolveImageUrl = (url: string | null | undefined) =>
   url ? (url.startsWith('http') ? url : `${JW_IMAGE_BASE}${url}`) : undefined
+
+const bannersOf = ({ content }: JWSearchNode) =>
+  (content.backdrops ?? []).flatMap(({ backdropUrl }) => img(resolveImageUrl(backdropUrl), BACKDROP_SCORE))
+
+// in JustWatch's order, which puts the title's own trailer first: one of 79 first clips was named in another
+// language (2026-10-26)
+const trailersOf = ({ content }: JWSearchNode) =>
+  (content.clips ?? []).map(({ externalId: id }) => ({ uri: `yt:${id}`, origin: 'yt', id, url: `https://www.youtube.com/watch?v=${id}` }))
 
 const ratingsOf = (scoring: JWSearchNode['content']['scoring']): MediaRating[] =>
   [
@@ -660,6 +681,8 @@ export const showAsContainer = async (
     titles: [{ language: 'en', title: node.content.title, score: SCORE }],
     ...desc(node.content.shortDescription ?? undefined, SCORE),
     covers: img(resolveImageUrl(node.content.posterUrl), SCORE),
+    banners: bannersOf(node),
+    trailers: trailersOf(node),
     // the SHOW's own day, which is the right subject here and only here: this media IS the show
     startDate: dayOrYear(node.content.originalReleaseDate, node.content.originalReleaseYear)
   })
@@ -760,7 +783,8 @@ const normalizeMedia = async (
     startDate: dayOrYear(seasonDay, seasonYear),
     // a show's runtime is an episode's, which the episodes already carry
     duration: node.objectType === 'MOVIE' ? node.content.runtime ?? undefined : undefined,
-    banners: (node.content.backdrops ?? []).flatMap(({ backdropUrl }) => img(resolveImageUrl(backdropUrl), BACKDROP_SCORE)),
+    banners: bannersOf(node),
+    trailers: trailersOf(node),
     ratings: ratingsOf(node.content.scoring),
     ...node.content.credits ? { credits: parseCredits(node.content.credits) } : {},
   })

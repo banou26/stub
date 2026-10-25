@@ -41,6 +41,28 @@
               ],
               "productionCountries": [
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/347103111/s1920/lanterns.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/347576116/s1920/lanterns.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "XmcIjxwLJcY"
+                },
+                {
+                  "externalId": "7UIBOsuUwc4"
+                },
+                {
+                  "externalId": "Z1jcPlGXnMo"
+                },
+                {
+                  "externalId": "HF_WsM_4mzI"
+                }
               ]
             },
             "offers": [
@@ -143,6 +165,37 @@
               "productionCountries": [
                 "GB",
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/348176663/s1920/ted-lasso.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/348176664/s1920/ted-lasso.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/304411520/s1920/ted-lasso.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/246950734/s1920/ted-lasso.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/194093629/s1920/ted-lasso.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "BwPcMIDFVKw"
+                },
+                {
+                  "externalId": "zQusW5WJhfw"
+                },
+                {
+                  "externalId": "WZXgJQRoCaI"
+                },
+                {
+                  "externalId": "3u7EIiohs6U"
+                }
               ]
             },
             "offers": [
@@ -282,6 +335,37 @@
               "productionCountries": [
                 "GB",
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/272750278/s1920/slow-horses.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/320463462/s1920/slow-horses.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/301994148/s1920/slow-horses.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/301994152/s1920/slow-horses.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/349310645/s1920/slow-horses.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "O9ZJChzPn0U"
+                },
+                {
+                  "externalId": "UUPWCmPiYj0"
+                },
+                {
+                  "externalId": "HcQ6P4aHhWs"
+                },
+                {
+                  "externalId": "ieLStl_Ccts"
+                }
               ]
             },
             "offers": [
@@ -466,6 +550,37 @@
               ],
               "productionCountries": [
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/322061240/s1920/special-ops-lioness.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/306764280/s1920/special-ops-lioness.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/321604796/s1920/special-ops-lioness.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/355173676/s1920/special-ops-lioness.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/306764274/s1920/special-ops-lioness.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "uEjcXhW7CXo"
+                },
+                {
+                  "externalId": "IljG0a1YEck"
+                },
+                {
+                  "externalId": "_NTTf-Ih2Qk"
+                },
+                {
+                  "externalId": "c5X7wVy9QWs"
+                }
               ]
             },
             "offers": [

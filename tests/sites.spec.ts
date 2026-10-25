@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 
 import { expect as baseExpect, test } from '@playwright/test'
-import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
@@ -131,8 +131,34 @@ test('movies.fkn.app draws each popular film\'s poster, and the hero shows one o
     ])
   await expect(page.locator('.theater .information > .title'), 'the hero holds THEATER_WAIT_MS for a source above JustWatch')
     .toHaveText(new RegExp(`^(${films.join('|')})$`))
-  await expect(page.locator('.theater .player-wrapper')).toHaveAttribute('style', /images\.justwatch\.com\/poster\//)
 })
+
+// the hero drew JustWatch's 718x1024 poster across the screen and played nothing, as the home row asked for neither
+for (const [host, fixture] of [['movies.localhost', 'popular-movies'], ['series.localhost', 'popular-shows']] as const) {
+  test(`${host}'s hero plays the title's JustWatch trailer, and draws its backdrop on a 2G link`, async ({ page }) => {
+    const titles: { title: string, clips: { externalId: string }[] }[] =
+      JSON.parse(readFileSync(join(ROOT, 'tests', 'fixtures', 'justwatch', `${fixture}.json`), 'utf8')).data.popularTitles.edges.map(({ node }: any) => node.content)
+    const shown = () => page.evaluate(() => ({
+      title: document.querySelector('.theater .information > .title')?.textContent,
+      frame: document.querySelector('.theater iframe')?.getAttribute('src'),
+      style: document.querySelector<HTMLElement>('.theater .player-wrapper')?.getAttribute('style') ?? '',
+    }))
+    await page.goto(at(host))
+    // YouTube is refused here, so the frame gives way to the title's next clip about every 10 s
+    await expect.poll(async () => {
+      const { title, frame } = await shown()
+      const id = frame && new URL(frame).pathname.split('/').pop()
+      return Boolean(id && titles.find(content => content.title === title)?.clips.some(({ externalId }) => externalId === id))
+    }, { message: 'the frame is one of the shown title\'s clips' }).toBe(true)
+
+    await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: Object.assign(new EventTarget(), { effectiveType: '2g' }) }))
+    await page.goto(at(host))
+    await expect.poll(async () => {
+      const { title, frame, style } = await shown()
+      return Boolean(titles.some(content => content.title === title) && !frame && /images\.justwatch\.com\/backdrop\/\d+\/s1920\//.test(style))
+    }, { message: 'a title is shown over its backdrop, with no frame' }).toBe(true)
+  })
+}
 
 test('series.fkn.app lists JustWatch\'s popular shows, each a card of its own', async ({ page }) => {
   await page.goto(at('series.localhost'))

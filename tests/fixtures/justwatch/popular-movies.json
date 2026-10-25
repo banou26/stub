@@ -34,6 +34,25 @@
               "productionCountries": [
                 "CA",
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/344090471/s1920/backrooms.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "0HjdiohVOik"
+                },
+                {
+                  "externalId": "LTHlnIN9Bdk"
+                },
+                {
+                  "externalId": "rIH8Nkb2V_c"
+                },
+                {
+                  "externalId": "SiXvLh2FMO8"
+                }
               ]
             },
             "offers": [
@@ -134,6 +153,37 @@
               "productionCountries": [
                 "GB",
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/345890808/s1920/obsession-2026.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/344501161/s1920/obsession-2026.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/341717737/s1920/obsession-2026.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/335829977/s1920/obsession-2026.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/344501156/s1920/obsession-2026.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "WY61cz9Bn4Q"
+                },
+                {
+                  "externalId": "gMC8kkwbIQQ"
+                },
+                {
+                  "externalId": "TaaDkbG3I7g"
+                },
+                {
+                  "externalId": "ojHqFxMI6XQ"
+                }
               ]
             },
             "offers": [
@@ -338,6 +388,25 @@
               ],
               "productionCountries": [
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/348652491/s1920/flowervale-street.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "3oB9AxspVow"
+                },
+                {
+                  "externalId": "nbtyFBdfSr8"
+                },
+                {
+                  "externalId": "u4tgctWuHc0"
+                },
+                {
+                  "externalId": "gd9SfAFgf9k"
+                }
               ]
             },
             "offers": [
@@ -481,6 +550,37 @@
               ],
               "productionCountries": [
                 "US"
+              ],
+              "backdrops": [
+                {
+                  "backdropUrl": "/backdrop/11005486/s1920/practical-magic.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/11005485/s1920/practical-magic.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/11005482/s1920/practical-magic.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/11005474/s1920/practical-magic.jpg"
+                },
+                {
+                  "backdropUrl": "/backdrop/327523901/s1920/practical-magic.jpg"
+                }
+              ],
+              "clips": [
+                {
+                  "externalId": "R7uixLkpjPs"
+                },
+                {
+                  "externalId": "1pmSzGEqobo"
+                },
+                {
+                  "externalId": "XmVoYeENOo8"
+                },
+                {
+                  "externalId": "HoGjg6XEADY"
+                }
               ]
             },
             "offers": [
