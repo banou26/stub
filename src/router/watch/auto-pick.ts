@@ -52,13 +52,19 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
 
 /**
  * `bestSource` for a viewer who may have to sign in first, `plays` naming the handles that play for them
- * here without one. Play opens nothing while none of those plays, and once the page has asked the viewer to
- * sign in or add a source (`asked`), it opens only one of those. `stuck` while none plays and either every
- * source has answered (`answered`) or the page has asked.
+ * here without one. Play opens nothing while none of those plays, unless it is `moving` on from its own
+ * pick that cannot play, and once the page has asked the viewer to sign in or add a source (`asked`), it
+ * opens only one of those. `stuck` while none plays and either every source has answered (`answered`) or
+ * the page has asked.
  */
-export const playPick = (handles: readonly Handle[], ways: Ways, plays: (handle: Handle) => boolean, { answered, asked }: { answered: boolean, asked: boolean }) => {
+export const playPick = (
+  handles: readonly Handle[],
+  ways: Ways,
+  plays: (handle: Handle) => boolean,
+  { answered, asked, moving }: { answered: boolean, asked: boolean, moving: boolean },
+) => {
   const playing = bestSource(handles.filter(plays), ways)
-  return { pick: playing && (asked ? playing : bestSource(handles, ways)), stuck: !playing && (answered || asked) }
+  return { pick: asked ? playing : playing || moving ? bestSource(handles, ways) : undefined, stuck: !playing && (answered || asked) }
 }
 
 /**

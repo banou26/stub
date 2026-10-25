@@ -2352,6 +2352,25 @@ test('where the browser cannot add the extension and nothing else plays the epis
   expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
 })
 
+// the owner, 2026-10-19: Play's pick that cannot play moves to the next ranked source, which HOR-1014 keeps
+test('Play\'s pick that cannot play, with every other source still to sign in to, moves to the next ranked one for its player to ask', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  statuses = { crunchyroll: 'signed-in' }
+  plugins.statuses = []
+  primeEpisode(allHandles[0]!)
+  params = { ...params, episodeUri: episode.uri }
+  const { host, rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
+
+  params = { ...params, sourceUri: 'cr:GX1' }
+  await rerender()
+  await cannotPlay(host)
+  expect(navigate).toHaveBeenCalledTimes(2)
+  expect(navigate).toHaveBeenLastCalledWith(watching(PRIME), { replace: true })
+})
+
 test('where the browser cannot add the extension, Netflix ranked first does not hold Play until every source answered', async () => {
   vi.useFakeTimers()
   origins = ['cr']

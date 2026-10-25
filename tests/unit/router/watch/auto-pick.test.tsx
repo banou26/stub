@@ -75,7 +75,7 @@ describe('bestSource', () => {
 // HOR-1014: an episode whose every source plays only once the viewer signs in asks them to, rather than opening one
 describe('playPick', () => {
   const playsButCr = (handle: { origin: string }) => handle.origin !== 'cr'
-  const answered = { answered: true, asked: false }
+  const answered = { answered: true, asked: false, moving: false }
 
   test('with a source that plays without a sign in, Play still opens the favourite still to sign in to', () => {
     expect(playPick([cr, prime], ways({ settled: () => true }), playsButCr, answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
@@ -91,6 +91,12 @@ describe('playPick', () => {
   test('once asked, the page stays stuck while sources answer again, and then opens only what plays without a sign in', () => {
     expect(playPick([cr], ways(), playsButCr, { ...answered, answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
     expect(playPick([cr, prime], ways({ settled: () => true }), playsButCr, { ...answered, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
+  })
+
+  // the owner, 2026-10-19: "Only if their sources aren't available should it go to the next best ranked source available."
+  test('moving on from its own pick that cannot play, Play opens the next ranked source, one still to sign in to too, unless the page has asked', () => {
+    expect(playPick([cr], ways(), playsButCr, { ...answered, moving: true })).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: true })
+    expect(playPick([cr], ways(), playsButCr, { ...answered, moving: true, asked: true })).toEqual({ pick: undefined, stuck: true })
   })
 })
 

@@ -693,7 +693,7 @@ const Watch = () => {
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
   // the episode the page last asked the viewer to sign in or add a source for
   const asked = useRef<string | undefined>(undefined)
-  const { pick, stuck } = playPick(open, ways, plays, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri })
+  const { pick, stuck } = playPick(open, ways, plays, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri, moving: cannotPlay })
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
