@@ -1,4 +1,4 @@
-// What the settings page's Accounts section is wired to: which window each Sign in opens, which
+// What the settings page's source cards are wired to: which window each Sign in opens, which
 // cookies each Sign out removes from FKN's jar, and what each of them and the automatic check remembers.
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 

@@ -11,20 +11,20 @@ import { isSiteConnected, signInToCrunchyroll, signOutOfCrunchyroll, signOutOfSi
 import { createRefresh, rememberSignIn, siteStatuses } from '../../tracking/site-status'
 import { mountHiddenFrame } from '../../utils/hidden-frame'
 
-/** What the Accounts section reaches for Crunchyroll: the Log in of its tracker's chip, which turns its tracking on, and its sign out. */
+/** What Crunchyroll's card in Settings reaches: the Log in of its tracker's chip, which turns its tracking on, and its sign out. */
 export const crunchyroll: AccountsProps['crunchyroll'] = {
   signIn: signInToCrunchyroll,
   signOut: signOutOfCrunchyroll,
 }
 
-/** What the Accounts section reaches for Prime Video: the viewer's country's sign-in window, and the cookies a sign out removes. */
+/** What Prime Video's card in Settings reaches: the viewer's country's sign-in window, and the cookies a sign out removes. */
 export const prime: AccountsProps['prime'] = {
   signIn: () => signInThroughWindow({ url: primeSignInUrl(primeSiteFor(viewerCountry())), domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
     .then(rememberSignIn(siteStatuses, 'prime')),
   signOut: () => clearCloudCookies(PRIME_DOMAINS).then(() => siteStatuses.record('prime', 'signed-out')),
 }
 
-/** What the Accounts section reaches for AniList and MyAnimeList. */
+/** What the AniList and MyAnimeList cards in Settings reach. */
 export const sites: AccountsProps['sites'] = {
   isConnected: isSiteConnected,
   watch: watchSite,

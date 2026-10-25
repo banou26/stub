@@ -179,7 +179,7 @@ describe("Crunchyroll's session on this device", () => {
     expect(attach).not.toHaveBeenCalled()
   })
 
-  test("its sign out from the Accounts section stops the tracker reaching it at once, then removes its cookies from FKN's jar and remembers it", async () => {
+  test("its sign out from its card in Settings stops the tracker reaching it at once, then removes its cookies from FKN's jar and remembers it", async () => {
     const { sessionResolvers, signOutOfCrunchyroll } = await load()
     stored.set('stub.sessions', JSON.stringify(['cr', 'anilist']))
     attach.mockResolvedValueOnce(hiddenFrame({ watched: async () => 'read' }).frame)

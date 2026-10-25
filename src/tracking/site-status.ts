@@ -1,5 +1,5 @@
-// Whether the viewer was signed in to each site when stub last learned it, for the Accounts section to
-// show. Import free, so a test drives it over fake storage.
+// Whether the viewer was signed in to each site when stub last learned it, for each source's card in
+// Settings to show. Import free, so a test drives it over fake storage.
 
 import type { FknBackend } from '../utils/fkn-backend'
 
