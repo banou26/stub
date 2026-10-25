@@ -125,7 +125,7 @@ test('the modal and the page opening one title at once each send their own form'
   expect(page.bodies[0]).toContain('scoring {')
 })
 
-// 0.2 is the lowest score any other source gives a banner (unogs, Apple TV, offline), and on a tie
+// 0.2 is the lowest score any other source but AniList gives a banner (unogs, Apple TV, offline), and on a tie
 // `jw:` sorted first, so Netflix's own art lost to a backdrop
 test('a backdrop comes after any other source\'s banner', async () => {
   const { media } = await open(DUNE, 'jw:1133934', true)

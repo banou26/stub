@@ -284,10 +284,11 @@ const GET_MEDIA_CREDITS = mediaQuery(`
  */
 const SCORE = 0.8
 
-// below Kitsu's 0.3, so it stands in only where no other source has a banner: AniList's is a 1900x400
-// strip, and at 0.8 the title page kept it over Kitsu's 3840x1129 for Witch on the Holy Night and
-// 2896x876 for Dragon Ball Super: Beerus (measured 2026-10-25)
-const BANNER_SCORE = 0.2
+// below every other source's banner, JustWatch's 0.1 backdrops included (a tie goes to the higher scored
+// member, AniList), so it stands in only where no other source has one: AniList's is a 1900x400 strip, and
+// at 0.8 the title page kept it over Kitsu's 3840x1129 for Witch on the Holy Night and 2896x876 for Dragon
+// Ball Super: Beerus (measured 2026-10-25)
+const BANNER_SCORE = 0.05
 
 /** What this source knows about the run it is describing, handed to the origin it asks. */
 type RunEvidence = { startDate?: string, titles: string[], episodeCount?: number }

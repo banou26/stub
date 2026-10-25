@@ -16,7 +16,7 @@ import { viewerCountry } from '../country'
 import { isViewersPrime } from '../amazon/session'
 
 const SCORE = 0.2
-// below every other source's banner (the lowest is 0.2), so a backdrop only fills a gap
+// below every other source's banner but AniList's 1900x400 strip (0.05), so a backdrop only fills a gap
 const BACKDROP_SCORE = 0.1
 
 export const icon = 'https://www.justwatch.com/appasset/img/favicon/favicon-32x32.png'

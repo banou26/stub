@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto'
 
 import { closeRoot, openRoot } from '../../../../src/worker/request-context'
 import { resolvers } from '../../../../src/sources/anilist/extractor'
+import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 import { unreleasedEpisodes } from '../../../../src/router/home/episodes'
 import { neighbours } from '../../../../src/router/watch/neighbours'
 import BEBOP from '../../../fixtures/credits/anilist-bebop.json'
@@ -397,13 +398,31 @@ describe('what the card and list modes read', () => {
 
 // Measured 2026-10-25 on anime.fkn.app: with no other banner the home hero drew MyAnimeList's 425x600
 // poster at 1920x1080 (Even the Student Council Has Its Holes!), while AniList's 1900x400 banner was
-// asked for and dropped. Ranked at AniList's 0.8, it would hide Kitsu's sharper ones (score 0.3).
-test('the banner is AniList\'s, ranked below Kitsu\'s', async () => {
+// asked for and dropped. Ranked at AniList's 0.8, it hid Kitsu's sharper ones on the title page.
+test('AniList\'s banner comes after every other source\'s', async () => {
   const banner = 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/195604-lQpCzTziSA17.jpg'
   const [node, bare] = await browsedNodes([{ ...PAGE_MEDIA, bannerImage: banner }, { ...PAGE_MEDIA, id: 2, bannerImage: null }])
-
-  expect(node.banners).toEqual([{ url: banner, score: 0.2 }])
   expect(bare.banners).toEqual([])
+
+  const member = (uri: string, score: number, raw: Record<string, unknown>) => ({
+    uri, origin: uri.slice(0, uri.indexOf(':')), id: uri.slice(uri.indexOf(':') + 1), owned: true, score, raw, fieldSeq: {},
+  })
+  const row = aggregateFields({
+    cluster: {
+      id: 'cl:anilist:1', aggUri: 'ag:(anilist:1,jw:1,kitsu:1)', scope: 'RUN', runLength: null, runLengthTier: null,
+      runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+    },
+    // the lowest banner scores of the other sources: the bundle's Kitsu banners, and JustWatch's backdrops
+    members: [
+      member('anilist:1', 0.8, node),
+      member('kitsu:1', 0.2, { banners: [{ url: 'bundle-kitsu-banner', score: 0.2 }] }),
+      member('jw:1', 0.2, { banners: [{ url: 'jw-backdrop', score: 0.1 }] }),
+    ],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect((row.banners as { url: string }[]).map(({ url }) => url)).toEqual(['bundle-kitsu-banner', 'jw-backdrop', banner])
 })
 
 // Cowboy Bebop as AniList's details query answers it, trimmed to three characters and three staff
