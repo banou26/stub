@@ -192,6 +192,9 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
   // read at each attach and never rendered: an attach effect keyed on it would run on the iframe being replaced
   const excluded = useRef(triedRelays)
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
+  // the video the watch page may drive: with languages kept, only once they are switched to
+  const [exposed, setExposed] = useState<RemoteVideoElement | null>(null)
+  const keeps = languages.audio !== undefined || languages.subtitles !== undefined
   const [reloadKey, setReloadKey] = useState(0)
   const [attachKey, setAttachKey] = useState(0)
   const [popupOpen, setPopupOpen] = useState(false)
@@ -352,22 +355,27 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
     let cancelled = false
     const isCancelled = () => cancelled || !mounted.current || generation !== trackGeneration.current
 
-    // switched to before the tracks are shown, so a watch party hears the preferred track as where this player starts
-    const applied = new Set<'audio' | 'subtitles'>()
+    // A switch puts the reloaded stream back where it was when the switch began, which would undo the page's seek to
+    // where the viewer stopped, so with languages kept the page drives the player only once the first look listing
+    // tracks has switched to them, a look failed, or discovery ended. Switched before the tracks are shown, so a watch
+    // party hears the preferred track as where this player starts.
+    let holding = keeps
+    const expose = () => { if (keeps && !isCancelled()) setExposed(remoteVideo) }
     const prefer = async (tracks: CrunchyrollTracks) => {
       let next = tracks
       for (const kind of ['audio', 'subtitles'] as const) {
         const selection = next[kind]
-        if (!selection || applied.has(kind)) continue
-        applied.add(kind)
-        const id = preferredSelection(selection, languages[kind])
+        const id = selection && preferredSelection(selection, languages[kind])
         if (id === undefined) continue
+        setSwitching(count => count + 1)
         try {
           next = await selectCrunchyrollTrack(frame, remoteVideo, kind, id, isCancelled)
         } catch (err) {
           if (isCancelled()) throw err
           console.warn(`[cr] the preferred ${kind} track could not be selected:`, err)
           next = await discoverCrunchyrollTracks(frame, isCancelled)
+        } finally {
+          setSwitching(count => count - 1)
         }
       }
       return next
@@ -378,16 +386,21 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
       let discovered: CrunchyrollTracks | undefined
       for (let attempt = 0; attempt < 5 && !isCancelled(); attempt += 1) {
         try {
-          discovered = await runTrackOperation(
-            generation,
-            async () => prefer(await discoverCrunchyrollTracks(frame, isCancelled)),
-          )
+          discovered = await runTrackOperation(generation, async () => {
+            const found = await discoverCrunchyrollTracks(frame, isCancelled)
+            if (!holding || !(found.audio || found.subtitles)) return found
+            holding = false
+            return prefer(found)
+          })
           lastError = undefined
           if (isCancelled()) return
           setTracks(discovered)
+          if (!holding) expose()
           if (discovered.audio && discovered.subtitles) return
         } catch (err) {
           lastError = err
+          holding = false
+          expose()
         }
         await new Promise(resolve => setTimeout(resolve, 500))
       }
@@ -395,7 +408,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
     })().then(
       () => {},
       err => { if (!isCancelled()) console.warn('[cr] track discovery failed:', err) },
-    )
+    ).finally(expose)
 
     return () => { cancelled = true }
   }, [frame, remoteVideo, invalidateTracks, runTrackOperation])
@@ -631,6 +644,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
           thumbnails={thumbnails}
           chapters={chapters}
           pictureInPicture={pictureInPicture}
+          expose={!keeps || exposed === remoteVideo}
         >
           <iframe
             key={`${mode}-${attachKey}`}

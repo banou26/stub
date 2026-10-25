@@ -10,6 +10,8 @@ import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
 import type { TrackLanguages } from '../../../../src/utils/track-languages'
 
+import { render as renderInto } from 'preact'
+import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { CONNECTED_CHANNEL } from '../../../../src/tracking/connections'
@@ -34,11 +36,14 @@ vi.mock('../../../../src/utils/fetch', () => ({ fetch: () => new Promise(() => {
 
 // the media player skin needs a real media to draw anything, and none of it is under test here
 // beyond the audio tracks and qualities its menu is handed
-const skin = vi.hoisted(() => ({ audioTracks: undefined as DelegatedTracks | undefined, quality: undefined as DelegatedTracks | undefined }))
+// and whether it serves the watch page the player of the episode's video
+const skin = vi.hoisted(() => ({ audioTracks: undefined as DelegatedTracks | undefined, quality: undefined as DelegatedTracks | undefined, remote: null as unknown, expose: true }))
 vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
-  default: ({ children, audioTracks, quality }: { children?: ComponentChildren, audioTracks?: DelegatedTracks, quality?: DelegatedTracks }) => {
+  default: ({ children, audioTracks, quality, remote, expose = true }: { children?: ComponentChildren, audioTracks?: DelegatedTracks, quality?: DelegatedTracks, remote: unknown, expose?: boolean }) => {
     skin.audioTracks = audioTracks
     skin.quality = quality
+    skin.remote = remote
+    skin.expose = expose
     return <div className="skin">{children}</div>
   },
 }))
@@ -385,14 +390,17 @@ describe('the tracks served to the watch page', () => {
   const lastServed = () => served.mock.calls.at(-1) as [EmbedTracks, (kind: TrackKind, id: string | null) => void]
 
   // a signed-in page whose video is up, so the player discovers its tracks
-  const playing = async (languages?: TrackLanguages) => {
+  const load = async (languages?: TrackLanguages) => {
     lib.extension = true
     frame.locator = (selector: string) => ({
       exists: async () => selector === '#user-menu-authenticated' || selector === 'video',
       videoElement: async () => Object.assign(new EventTarget(), { duration: 1440 }),
     }) as unknown as ReturnType<typeof frame.locator>
     Object.assign(frame, { evaluate: () => new Promise(() => {}) })
-    await render(languages)
+    return render(languages)
+  }
+  const playing = async (languages?: TrackLanguages) => {
+    await load(languages)
     await vi.waitFor(() => expect(lastServed()[0].subtitles).toBeTruthy(), { timeout: 5_000 })
   }
 
@@ -473,12 +481,100 @@ describe('the tracks served to the watch page', () => {
       expect(picks()).toEqual([])
     })
 
-    test('are applied once a kind is found, and once for the episode', async () => {
+    test('are switched to in the first look that lists tracks, and in no later one', async () => {
       controls.discover.mockResolvedValueOnce({ audio: TRACKS.audio }).mockResolvedValue(TRACKS)
-      controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
-        kind === 'audio' ? { audio: switched.audio } : { ...TRACKS, subtitles: { ...TRACKS.subtitles!, selectedId: 'Deutsch' } })
+      controls.select.mockResolvedValue({ audio: switched.audio })
       await playing({ audio: 'English', subtitles: 'Deutsch' })
-      expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', 'Deutsch']])
+      expect(picks()).toEqual([['audio', 'English#2']])
+    })
+
+    test('a look that lists nothing waits for the next', async () => {
+      const second = Promise.withResolvers<CrunchyrollTracks>()
+      controls.discover.mockResolvedValueOnce({}).mockReturnValueOnce(second.promise).mockResolvedValue(TRACKS)
+      controls.select.mockResolvedValue({ ...TRACKS, audio: switched.audio })
+      await load({ audio: 'English' })
+      await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(2), { timeout: 5_000 })
+      expect(skin.expose).toBe(false)
+      second.resolve(TRACKS)
+      await vi.waitFor(() => expect(skin.expose).toBe(true))
+      expect(picks()).toEqual([['audio', 'English#2']])
+    })
+
+    // a switch puts the stream back where it was when it began, which would undo the page's seek to where the viewer stopped
+    describe('the watch page drives the player', () => {
+      test('once they are switched to, and busy until then', async () => {
+        const done = Promise.withResolvers<CrunchyrollTracks>()
+        controls.select.mockReturnValue(done.promise)
+        await load({ audio: 'English' })
+        await vi.waitFor(() => expect(lastServed()[0].busy).toBe(true), { timeout: 5_000 })
+        expect(skin.remote).toBeTruthy()
+        expect(skin.expose).toBe(false)
+        done.resolve({ ...TRACKS, audio: switched.audio })
+        await vi.waitFor(() => expect(skin.expose).toBe(true))
+        expect(lastServed()[0].busy).toBe(false)
+      })
+
+      test('and is not busy once a switch to them fails', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const done = Promise.withResolvers<CrunchyrollTracks>()
+        controls.select.mockReturnValue(done.promise)
+        await load({ audio: 'English' })
+        await vi.waitFor(() => expect(lastServed()[0].busy).toBe(true), { timeout: 5_000 })
+        done.reject(new Error('Crunchyroll did not apply the audio option'))
+        await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
+        expect(skin.expose).toBe(true)
+      })
+
+      test('at once when none was picked', async () => {
+        controls.discover.mockReturnValue(new Promise(() => {}))
+        await load()
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalled(), { timeout: 5_000 })
+        expect(skin.remote).toBeTruthy()
+        expect(skin.expose).toBe(true)
+      })
+
+      test('once a look lists one kind, while discovery looks for the other', async () => {
+        controls.discover.mockResolvedValueOnce({ audio: TRACKS.audio }).mockReturnValue(new Promise(() => {}))
+        await load({ audio: 'Japanese' })
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(2), { timeout: 5_000 })
+        expect(skin.expose).toBe(true)
+      })
+
+      test('once a look fails, and no later look switches', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const second = Promise.withResolvers<CrunchyrollTracks>()
+        controls.discover.mockRejectedValueOnce(new Error('Crunchyroll menu did not open')).mockReturnValueOnce(second.promise)
+        await load({ audio: 'English' })
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(2), { timeout: 5_000 })
+        expect(skin.expose).toBe(true)
+        second.resolve(TRACKS)
+        await vi.waitFor(() => expect(lastServed()[0].subtitles).toBeTruthy())
+        expect(picks()).toEqual([])
+      })
+
+      test('once discovery ends with nothing listed', async () => {
+        controls.discover.mockResolvedValue({})
+        await load({ audio: 'English' })
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(5), { timeout: 5_000 })
+        await vi.waitFor(() => expect(skin.expose).toBe(true), { timeout: 2_000 })
+      })
+
+      test('on the next video, whatever the look on the one it replaced does afterwards', async () => {
+        const first = Promise.withResolvers<CrunchyrollTracks>()
+        controls.discover.mockReturnValueOnce(first.promise)
+        const host = await load({ audio: 'Japanese' })
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(1), { timeout: 5_000 })
+        const replaced = skin.remote
+        act(() => { renderInto(<CrunchyrollPlayer url={`${EPISODE}-next`} mediaUri="" episodeUri="" sourceUri="" languages={{ audio: 'Japanese' }} />, host) })
+        await vi.waitFor(() => {
+          expect(skin.remote).toBeTruthy()
+          expect(skin.remote).not.toBe(replaced)
+          expect(skin.expose).toBe(true)
+        }, { timeout: 5_000 })
+        first.resolve(TRACKS)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        expect(skin.expose).toBe(true)
+      })
     })
 
     test('a switch Crunchyroll refuses leaves the tracks it reads afterwards', async () => {
