@@ -79,9 +79,12 @@ use, which the log line spells out both halves of
 
 `partNamed` reads the marker through `namesALaterPart`, which lets one shape through: the FIRST part of
 a season the title names before the marker (`The Apothecary Diaries Season 3 Cour 1`). That run starts
-where its season starts, so the ordinal places it exactly as the bare `Season 3` beside it does. A
-first part naming no season (`Final Chapters Part 1`) still counts as a part, since its only number is
-the part's.
+where its season starts, so the ordinal places it exactly as the bare `Season 3` beside it does. The
+head has to name the same ordinal `parseSeasonNumber` reads off the whole title, which is the one Rule 3
+places the run with. So a first part naming no season (`Final Chapters Part 1`, whose only number is
+the part's) still counts as a part, and so does `Show S2 Part 1`: `SEASON_PATTERNS` tries `Part 1`
+before `S2`, `第2期` and `シーズン2`, so the whole title reads 1 and would otherwise put a second season's
+first cour on the provider's season 1.
 
 ## What a candidate is
 
@@ -323,6 +326,8 @@ Apothecary Diaries' third season, whose ani.zip titles add `Season 3 Cour 1` to 
 takes Netflix's season 3 (5 episodes as it airs) by ordinal, measured live 2026-10-26, where the
 marker alone had refused it and the watch page drew no Netflix. A later cour beside it, a first part
 naming no season, and a named season longer than the run all still refuse.
+`a first part whose title the ordinal reads as the part is still a part` pins `Show S2 Part 1`,
+`Show 第2期 Part 1` and `Show シーズン2 Cour 1` as refusals beside `Show Season 2 Part 1`, which answers.
 
 Note what Rule 3 does **not** check: it never compares our count to the season's beyond the fold veto.
 The count is there to make the ordinal usable at all (`evidence.episodeCount != null`) and to give the

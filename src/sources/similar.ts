@@ -142,13 +142,16 @@ export const namedSeasonOrdinals = (titles: readonly string[] | null | undefined
 /**
  * A part that does not open the season its title names. "Season 3 Cour 1" starts where season 3 starts,
  * so the ordinal places it exactly as the bare "Season 3" beside it does: ani.zip spells The Apothecary
- * Diaries' third season that way, and its marker alone refused Netflix's season 3 (2026-10-26). A first
- * part naming no season ("Final Chapters Part 1") still counts, since its only number is the part's.
+ * Diaries' third season that way, and its marker alone refused Netflix's season 3 (2026-10-26).
+ *
+ * The head before the marker has to name the very ordinal rule 3 reads off the whole title. So a first
+ * part naming no season ("Final Chapters Part 1", whose only number is the part's) still counts, and so
+ * does one whose season `parseSeasonNumber` tries after the part ("S2 Part 1" reads 1, "第2期 Part 1" too).
  */
 const namesALaterPart = (title: string): boolean => {
   if (!namesAPart(title)) return false
   const at = title.search(PART_MARKER)
-  return at < 0 || parseSeasonNumber(title.slice(0, at)) === undefined || parseSeasonNumber(title.slice(at)) !== 1
+  return at < 0 || parseSeasonNumber(title.slice(0, at)) !== parseSeasonNumber(title) || parseSeasonNumber(title.slice(at)) !== 1
 }
 
 const GENERIC_EPISODE = /^(?:episode|ep|e|part|chapter|第)?\s*\d+\s*(?:話|集|화)?$/

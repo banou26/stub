@@ -111,6 +111,21 @@ test('the first part of a named season keeps that season\'s ordinal', () => {
     .toBeUndefined()
 })
 
+// `parseSeasonNumber` tries `Part 1` before `S2`, `第2期` and `シーズン2`, so the whole title reads 1 while
+// its head names season 2, and rule 3 would place a second season's first cour on season 1.
+test('a first part whose title the ordinal reads as the part is still a part', () => {
+  const justwatch: SeasonCandidate<number>[] = [
+    { season: 1, seasonNumber: 1, episodeCount: 12, year: 2026 },
+    { season: 2, seasonNumber: 2, episodeCount: 5, year: 2026 },
+  ]
+  for (const title of ['Show S2 Part 1', 'Show 第2期 Part 1', 'Show シーズン2 Cour 1']) {
+    expect(pickSimilarSeason({ titles: ['Show', title], episodeCount: 12, startDate: '2026-10-02' }, justwatch), title)
+      .toBeUndefined()
+  }
+  expect(pickSimilarSeason({ titles: ['Show', 'Show Season 2 Part 1'], episodeCount: 12, startDate: '2026-10-02' }, justwatch))
+    .toEqual({ season: 2, rule: 'ordinal' })
+})
+
 test('a day-precise date picks the run, and the date rule refuses rather than falling through', () => {
   expect(pickSimilarSeason({ startDate: '2026-07-04' }, CR)).toEqual({ season: 3, rule: 'date' })
 
