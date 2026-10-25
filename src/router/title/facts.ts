@@ -47,6 +47,17 @@ export const secondTitle = (titles: TitleMedia['titles']): string | undefined =>
   return (others.find(({ language }) => language !== titles?.[0]?.language) ?? others[0])?.title
 }
 
+/**
+ * The release date the preview draws under a show's title: its start as precisely as a source names it, its season
+ * when a source names only the year, and nothing when no source dates it.
+ */
+export const releasedLabel = (media: Pick<TitleMedia, 'startDate' | 'season' | 'seasonYear'>, options: ReleaseDateOptions = {}): string | undefined => {
+  const start = releaseDay(media.startDate)
+  return (start?.length === 4 ? undefined : releaseDateLabel(start, options))
+    ?? seasonLabel(media.season, media.seasonYear)
+    ?? releaseDateLabel(start, options)
+}
+
 /** The chips under the title: episodes, format and status, each left out when no source named it. */
 export const titleChips = (media: TitleMedia): string[] =>
   [episodesLabel(media.episodeCount), formatLabel(media.type), statusLabel(media.status)]

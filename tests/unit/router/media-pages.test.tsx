@@ -7,6 +7,8 @@ import { act } from 'preact/test-utils'
 import { Route, Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { releaseDateLabel } from '../../../src/utils/release-date'
+
 // The preview and the title page against the details the worker has answered for each uri, the origins `origins`
 // answers for each list of ids (undefined while that answer is out), and nothing for every other subscription. As urql
 // 4.2.2's `computeNextState` does, a subscription keeps its last answer, and the operation it answered, while a new one
@@ -126,7 +128,7 @@ const facts = (root: Element) => [...root.querySelectorAll('.facts > div')]
 describe('the preview', () => {
   test('holds its title and description until the worker answers, then draws them', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
-    expect(pending(modal())).toEqual(['title-pending', 'description.pending'])
+    expect(pending(modal())).toEqual(['title-pending', 'released.pending', 'description.pending'])
 
     answer(work(1, 'Frieren'))
     expect(pending(modal())).toEqual([])
@@ -137,10 +139,31 @@ describe('the preview', () => {
   test('holds each until its own field arrives, or every source has answered without it', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(partial(1))
-    expect(pending(modal())).toEqual(['title-pending', 'description.pending', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
+    expect(pending(modal())).toEqual(['title-pending', 'released.pending', 'description.pending', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
 
     answer({ ...partial(1), settled: true })
     expect(pending(modal())).toEqual([])
+  })
+
+  // HOR-1017: the owner, "Probably put the release date somewhere like, under the titles"
+  test('draws the release date under the title, its season without a day, and nothing without either', () => {
+    const frieren = work(1, 'Frieren')
+    const { answer } = preview(frieren.uri)
+    answer(frieren)
+    expect(modal().querySelector('.header + .released')?.textContent).toBe(releaseDateLabel('2023-09-29'))
+    const seasonOnly = { ...frieren, startDate: null, settled: true }
+    answer(seasonOnly)
+    expect(modal().querySelector('.header + .released')?.textContent).toBe('Fall 2023')
+    const undated = { ...seasonOnly, season: null, seasonYear: null }
+    answer(undated)
+    expect(modal().querySelector('.released')).toBeNull()
+  })
+
+  test('draws a film\'s release date in its line of facts under the title', () => {
+    const { answer } = preview(film(3).uri)
+    answer(film(3))
+    expect(modal().querySelector('.released')).toBeNull()
+    expect(modal().querySelector('.header + .movie > .facts')?.textContent).toBe(`Movie · ${releaseDateLabel('2023-09-29')} · Fantasy`)
   })
 
   // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does

@@ -212,9 +212,9 @@ test('a film\'s own release day stays put when its episode\'s air time arrives, 
   }
 })
 
-test('a film\'s year is its own release day\'s, whatever year its episode airs', () => {
+test('a film\'s date is its own release day, whatever day its episode airs', () => {
   const host = render({ ...episode, releaseDate: '2021-12-31T15:30:00Z' } as DetailsEpisode, [], '2022-01-01T00:00:00Z')
-  expect(host.querySelector('.facts')?.textContent).toBe('Movie · 2022')
+  expect(host.querySelector('.facts')?.textContent).toBe(`Movie · ${releaseDateLabel('2022-01-01')}`)
 })
 
 // the title page and the hero decide by the episode's air time, so the modal does too
@@ -320,11 +320,11 @@ test('a film dated by a year or a month that has begun is out, unless it is know
 })
 
 // AniList's schedule airing a film at 00:30 JST on New Year's Day 2027
-test('a film whose start is an air time names the year of the day its line names', () => {
+test('a film whose start is an air time names the day its Releases line names', () => {
   for (const zone of ZONES) {
     const host = seenAt('2026-12-01T00:00:00Z', zone, episode, 'Thu, 31 Dec 2026 15:30:00 GMT')
-    const day = host.querySelector('.when')!.textContent!
-    expect(host.querySelector('.facts')?.textContent, `${zone}: ${day}`).toBe(`Movie · ${day.slice(-4)}`)
+    const day = host.querySelector('.when')!.textContent!.replace('Releases ', '')
+    expect(host.querySelector('.facts')?.textContent, `${zone}: ${day}`).toBe(`Movie · ${day}`)
   }
 })
 

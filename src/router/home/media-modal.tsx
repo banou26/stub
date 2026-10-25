@@ -26,6 +26,7 @@ import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { getRoutePath, Route } from '../path'
+import { releasedLabel } from '../title/facts'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -169,6 +170,18 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       & > .more:hover { background: rgba(255, 255, 255, 0.12); }
+    }
+
+    & > .released {
+      margin-top: 1rem;
+      font-size: 1.5rem;
+      line-height: 2rem;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    & > .released.pending {
+      width: 12rem;
+      height: 2rem;
     }
 
     & > .movie {
@@ -336,6 +349,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const current = currentMedia({ data, operation }, uri)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
+  const released = data?.media && releasedLabel(data.media)
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
   const settled = useSettledOnce(uri, current?.settled && answered)
@@ -463,6 +477,12 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           <SourceLinks uri={data?.media?.uri} handles={media?.handles} except={watchOriginIds(film, media?.handles)}/>
           <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>
         </div>
+        {/* a film's line under its title names its day (MoviePlay) */}
+        {
+          isMovie ? undefined
+          : released ? <div className="released">{released}</div>
+          : settled ? undefined : <Placeholder className="released pending"/>
+        }
         {
           isMovie && media
             ? (

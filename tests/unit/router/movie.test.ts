@@ -5,6 +5,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { MediaCategory, MediaType } from '../../../src/generated/graphql'
 import { isMovieMedia, isUpcoming, movieFacts, releaseSide, runtimeText } from '../../../src/router/home/movie'
+import { releaseDateLabel } from '../../../src/utils/release-date'
 
 test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   expect(runtimeText(112)).toBe('1h 52m')
@@ -13,15 +14,18 @@ test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   for (const none of [0, -3, null, undefined]) expect(runtimeText(none), String(none)).toBeUndefined()
 })
 
-test('the facts line names the format, the year, the runtime and three genres at most', () => {
+// HOR-1017: the release date under the preview's title, the film's as precisely as its sources date it
+test('the facts line names the format, the release date, the runtime and three genres at most', () => {
   expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance', 'Historical'] }))
-    .toEqual(['Movie', '2026', '1h 52m', 'Mystery, Drama, Romance'])
+    .toEqual(['Movie', releaseDateLabel('2026-12-11'), '1h 52m', 'Mystery, Drama, Romance'])
+  expect(movieFacts({ released: '2026-12' })).toEqual(['Movie', releaseDateLabel('2026-12')])
+  expect(movieFacts({ released: '2026' })).toEqual(['Movie', '2026'])
 })
 
 test('a fact a source did not give is left out rather than shown empty', () => {
   expect(movieFacts({})).toEqual(['Movie'])
   expect(movieFacts({ released: 'not a date', runtime: 0, genres: [] })).toEqual(['Movie'])
-  expect(movieFacts({ released: '2024-07-26T15:00:00.000Z' })).toEqual(['Movie', '2024'])
+  expect(movieFacts({ released: '2024-07-26T15:00:00.000Z' })).toEqual(['Movie', releaseDateLabel('2024-07-26T15:00:00.000Z')])
 })
 
 const TZ = process.env.TZ
@@ -56,10 +60,10 @@ test('a year or a month alone is ahead before it begins, maybe out during it, an
 })
 
 // AniList's schedule airing a film at 00:30 JST on New Year's Day 2027
-test('a film\'s year is the one its air time falls in where the viewer is, and a day\'s own year everywhere', () => {
-  expect(inZone('Asia/Tokyo', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', '2027'])
-  expect(inZone('America/Los_Angeles', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', '2026'])
-  expect(inZone('America/Los_Angeles', () => movieFacts({ released: '2027-01-01' })), 'the control: a day').toEqual(['Movie', '2027'])
+test('a film\'s date is the day its air time falls on where the viewer is, and a day\'s own day everywhere', () => {
+  expect(inZone('Asia/Tokyo', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', releaseDateLabel('2027-01-01')])
+  expect(inZone('America/Los_Angeles', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', releaseDateLabel('2026-12-31')])
+  expect(inZone('America/Los_Angeles', () => movieFacts({ released: '2027-01-01' })), 'the control: a day').toEqual(['Movie', releaseDateLabel('2027-01-01')])
 })
 
 // anizip's `airDateUtc` for Jujutsu Kaisen 0: 00:30 JST on Dec 24

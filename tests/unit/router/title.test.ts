@@ -5,7 +5,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
 import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
-import { currentEpisode, playLabel, playTarget, ratingChips, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
+import { currentEpisode, playLabel, playTarget, ratingChips, releasedLabel, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
 
 // Frieren as AniList and the offline catalogue name it
 const FRIEREN = {
@@ -23,6 +23,20 @@ const FRIEREN = {
   studios: ['Madhouse'],
   sourceMaterial: 'MANGA',
 }
+
+// HOR-1017: the preview's release date, as precisely as the sources date the show
+test('the release date is the start\'s day or month, else the season, else the year, and nothing undated', () => {
+  const en = { locale: 'en-US' }
+  expect(releasedLabel(FRIEREN, en)).toBe('Sep 29, 2023')
+  expect(releasedLabel({ startDate: '2023-09-29T00:00:00.000Z' }, en), 'AniList\'s day at midnight UTC').toBe('Sep 29, 2023')
+  expect(releasedLabel({ ...FRIEREN, startDate: '2023-09' }, en)).toBe('Sep 2023')
+  expect(releasedLabel({ ...FRIEREN, startDate: '2023' }, en), 'a season outranks a year').toBe('Fall 2023')
+  expect(releasedLabel({ ...FRIEREN, startDate: null }, en)).toBe('Fall 2023')
+  expect(releasedLabel({ startDate: '2027' }, en)).toBe('2027')
+  expect(releasedLabel({ seasonYear: 2027 }, en)).toBe('2027')
+  expect(releasedLabel({ startDate: 'not a date' }, en)).toBeUndefined()
+  expect(releasedLabel({}, en)).toBeUndefined()
+})
 
 test('the chips name the episodes, the format and the status', () => {
   expect(titleChips(FRIEREN)).toEqual(['28 Episodes', 'TV Show', 'Finished'])

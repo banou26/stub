@@ -2,7 +2,7 @@
 // may still be ahead. No app imports, so the rules are tested without rendering the modal (which
 // cannot load under vitest, see tests/unit/router/modal-media.test.ts).
 
-import { isDateOnly, parseReleaseDate } from '../../utils/release-date'
+import { isDateOnly, parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
 
 /** "1h 52m" for 112 minutes, "45m" under an hour, undefined for none. */
 export const runtimeText = (minutes: number | null | undefined): string | undefined => {
@@ -12,20 +12,16 @@ export const runtimeText = (minutes: number | null | undefined): string | undefi
   return hours ? (rest ? `${hours}h ${rest}m` : `${hours}h`) : `${rest}m`
 }
 
-/** The line under a movie's title: "Movie", its year, its runtime and up to three genres. */
+/** The line under a movie's title: "Movie", its release date, its runtime and up to three genres. */
 export const movieFacts = (
   { released, runtime, genres }: { released?: string | null, runtime?: number | null, genres?: readonly string[] | null }
-): string[] => {
-  const date = parseReleaseDate(released)
-  // an air time's year is where the viewer is, as its day is
-  const year = date && (isDateOnly(released) ? date.getUTCFullYear() : date.getFullYear())
-  return [
+): string[] =>
+  [
     'Movie',
-    year ? String(year) : undefined,
+    releaseDateLabel(released),
     runtimeText(runtime),
     genres?.length ? genres.slice(0, 3).join(', ') : undefined,
   ].filter((fact): fact is string => !!fact)
-}
 
 /** Whether a media draws as a film: by its format when known, else its categories, however many parts a source lists it in. */
 export const isMovieMedia = (
