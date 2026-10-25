@@ -92,6 +92,21 @@ test('anime.fkn.app lists the current season alone, with no category tabs', asyn
   await expect(page.getByRole('textbox', { name: 'Search' })).toHaveAttribute('placeholder', 'Search anime…')
 })
 
+test('the header\'s site links read over a bright trailer: white with the theater title\'s dark outline', async ({ page }) => {
+  await page.goto(at('anime.localhost'))
+  const links = page.locator('header nav.sites a')
+  await expect(links.first()).toBeVisible()
+  for (const link of await links.all()) {
+    const { color, shadow } = await link.evaluate(element => ({ color: getComputedStyle(element).color, shadow: getComputedStyle(element).textShadow }))
+    const [r, g, b, a = 1] = color.match(/[\d.]+/g)!.map(Number)
+    expect(Math.min(r!, g!, b!), `${await link.innerText()} is white, not grey`).toBe(255)
+    expect(a, `${await link.innerText()} is at least three quarters opaque`).toBeGreaterThanOrEqual(0.75)
+    expect(shadow.match(/rgba\(0, 0, 0, 0\.8\)/g)?.length, `${await link.innerText()} has the four-sided outline`).toBe(4)
+    if (await link.getAttribute('aria-current') === 'page') expect(a, 'the current site is fully white').toBe(1)
+    else expect(a, `${await link.innerText()} is dimmer than the current site`).toBeLessThan(1)
+  }
+})
+
 test('movies.fkn.app lists JustWatch\'s popular films alone, with no category tabs', async ({ page }) => {
   await page.goto(at('movies.localhost'))
   await expect(row(page, 'Popular movies')).toBeVisible()
@@ -275,15 +290,15 @@ const linkList = (page: Page) => siteLinks(page).evaluateAll(links => links.map(
 ]))
 
 test('the header links the four sites in order, marks the current one, and a link lands on that site', async ({ page }) => {
-  const grey = 'rgb(119, 119, 119)'
+  const dim = 'rgba(255, 255, 255, 0.75)'
   const white = 'rgb(255, 255, 255)'
   await page.goto(at('movies.localhost'))
   await expect(siteLinks(page)).toHaveCount(4)
   expect(await linkList(page)).toEqual([
     ['Movies', at('movies.localhost'), 'page', white],
-    ['Series', at('series.localhost'), null, grey],
-    ['Anime', at('anime.localhost'), null, grey],
-    ['All', at('stub.localhost'), null, grey],
+    ['Series', at('series.localhost'), null, dim],
+    ['Anime', at('anime.localhost'), null, dim],
+    ['All', at('stub.localhost'), null, dim],
   ])
   await siteLinks(page).getByText('Series', { exact: true }).click()
   await expect(page).toHaveURL(at('series.localhost'))

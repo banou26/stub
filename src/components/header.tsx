@@ -66,11 +66,13 @@ const style = css`
     pointer-events: auto;
   }
 
+  /* the wordmark and site links sit over the home theater's trailer, so they take its title's outline */
   .start {
     justify-self: start;
     display: flex;
     align-items: baseline;
     gap: 2.4rem;
+    text-shadow: rgb(0 0 0 / 80%) -1px -1px 0, rgb(0 0 0 / 80%) -1px 1px 0, rgb(0 0 0 / 80%) 1px -1px 0, rgb(0 0 0 / 80%) 1px 1px 0;
   }
 
   .sites {
@@ -78,6 +80,15 @@ const style = css`
     gap: 1.6rem;
     font-size: 1.5rem;
     font-weight: 600;
+
+    a {
+      color: rgba(255, 255, 255, 0.75);
+
+      &:hover,
+      &[aria-current='page'] {
+        color: #fff;
+      }
+    }
 
     @media (max-width: 1023px) {
       display: none;
@@ -479,7 +490,7 @@ export const Header = () => {
       <div className="start">
         <Wordmark/>
         {siteLinks.length > 0 && (
-          <nav className="sites" css={currentSiteStyle}>
+          <nav className="sites">
             <SiteLinks/>
           </nav>
         )}
