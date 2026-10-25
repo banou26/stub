@@ -82,10 +82,19 @@ test('a card opens on hover and stays open while the pointer crosses into it', a
   const from = await centre(page, '[data-chip="stub"] .logo-button')
   await page.mouse.move(from.x, from.y)
   await expect(card(page, 'stub')).toBeVisible()
+  // Straight down over the gap under the chip, where floating-ui's safePolygon keeps the card open
+  // however slow the pointer is. Beside the chip it closes the card unless the pointer moves again
+  // within 40 ms, and a loaded machine spaces a mouse.move's steps wider than that.
+  const chip = (await page.locator('[data-chip="stub"]').boundingBox())!
+  const shown = (await card(page, 'stub').boundingBox())!
   const to = await centre(page, '[data-card="stub"]')
-  await page.mouse.move(to.x, to.y, { steps: 10 })
-  await page.waitForTimeout(300)
+  expect(await reaches(page, 'stub', { x: from.x, y: to.y }), 'the card runs under the logo').toBe(true)
+  await page.mouse.move(from.x, (chip.y + chip.height + shown.y) / 2, { steps: 2 })
+  await expect(card(page, 'stub'), 'over the gap').toBeVisible()
+  await page.mouse.move(from.x, to.y, { steps: 2 })
+  await page.mouse.move(to.x, to.y, { steps: 5 })
   await expect(card(page, 'stub')).toBeVisible()
+  await expect.poll(() => card(page, 'stub').evaluate(element => element.matches(':hover')), 'the pointer rests on it').toBe(true)
   await page.mouse.move(5, 5, { steps: 5 })
   await expect(card(page, 'stub'), 'the control: a pointer leaving closes it').toBeHidden()
 })
