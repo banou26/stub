@@ -699,8 +699,8 @@ test('Tab reaches the watch page\'s episode buttons in the order they are drawn,
   expect(await order(), 'the episode first where it is drawn first').toEqual(['episode', 'previous', 'next', 'last'])
 })
 
-// HOR-1011: the score, status, episodes and trackers together, right under the title
-test('the watch page\'s tracking sits under the title, its trackers right after its controls, at 1440 px and at 390 px', async ({ page }) => {
+// HOR-1011: the trackers, score, status and episodes together, right under the title; HOR-1018 put the trackers first
+test('the watch page\'s tracking sits under the title, its controls right after its trackers, at 1440 px and at 390 px', async ({ page }) => {
   await secondEpisode(page)
   const info = page.locator('.episode-info')
   const tracking = page.locator('.watch-info .tracking-compact')
@@ -712,11 +712,34 @@ test('the watch page\'s tracking sits under the title, its trackers right after 
   const [title, row, edit, chips] = await Promise.all([box(info), box(tracking), box(controls), box(trackers)])
   expect(row.top, 'under the title').toBeGreaterThanOrEqual(title.bottom)
   expect(Math.abs(row.left - title.left), 'from the title\'s left edge').toBeLessThan(1)
+  expect(Math.abs(chips.left - title.left), 'the trackers from the title\'s left edge').toBeLessThan(1)
   expect(Math.abs(chips.top - edit.top), 'the trackers on the controls\' line').toBeLessThan(4)
-  expect(chips.left - edit.right, 'and right after them').toBeLessThan(20)
+  expect(edit.left - chips.right, 'the controls right after them').toBeGreaterThanOrEqual(0)
+  expect(edit.left - chips.right).toBeLessThan(20)
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect((await box(tracking)).top).toBeGreaterThanOrEqual((await box(info)).bottom)
+  expect(await overflowX(page)).toBe(0)
+})
+
+// HOR-1018: the controls take the right end of the row, where the trackers' chips were, the trackers folded before them
+test('the title page\'s tracking ends at the right of its column, its trackers folded before its controls, at 1440 px and at 390 px', async ({ page }) => {
+  const title = await openModal(page)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  await expect(heading(page)).toHaveText(title)
+  const tracking = page.locator('.actions .tracking-compact')
+  const trackers = tracking.locator('.group.platforms')
+  await expect(trackers.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+  await expect(trackers.locator('[data-chip]')).toHaveCount(0)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const [row, edit, tiles] = await Promise.all([box(tracking), box(tracking.locator('.group.edit')), box(trackers)])
+  expect(Math.abs(edit.right - row.right), 'the controls end the row').toBeLessThan(1)
+  expect(Math.abs(tiles.top - edit.top), 'the trackers on the controls\' line').toBeLessThan(4)
+  expect(edit.left - tiles.right, 'right before them').toBeGreaterThanOrEqual(0)
+  expect(edit.left - tiles.right).toBeLessThan(20)
+
+  await page.setViewportSize({ width: 390, height: 844 })
   expect(await overflowX(page)).toBe(0)
 })
 

@@ -289,13 +289,12 @@ const style = css`
     }
   }
 
-  /* the score, status, episodes and the trackers run on from each other under the title, where the
-     row elsewhere sets the trackers apart at its right end */
+  /* the trackers, score, status and episodes run on from the title's left edge, where the row
+     elsewhere sits at its right end */
   .tracking .tracking-compact {
     margin-top: 0;
 
-    .platforms {
-      margin-left: 0;
+    .row, .platforms {
       justify-content: flex-start;
     }
   }

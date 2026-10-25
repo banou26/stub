@@ -28,6 +28,14 @@ describe('the compact row prefs', () => {
     expect(createCompactPrefs(storage).read()).toEqual({ targets: { stub: false } })
   })
 
+  test('keep the trackers expanded once chosen, and only a true expands them', () => {
+    const storage = memory()
+    createCompactPrefs(storage).write({ targets: {}, expanded: true })
+    expect(createCompactPrefs(storage).read()).toEqual({ targets: {}, expanded: true })
+    storage.setItem(COMPACT_PREFS_KEY, JSON.stringify({ targets: {}, expanded: 'yes' }))
+    expect(createCompactPrefs(storage).read()).toEqual({ targets: {} })
+  })
+
   test('a storage that throws on read gives the defaults', () => {
     const storage = { getItem: () => { throw new Error('blocked') }, setItem: () => {} }
     expect(createCompactPrefs(storage).read()).toEqual(DEFAULT_COMPACT_PREFS)

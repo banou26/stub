@@ -158,7 +158,7 @@ vi.mock('../../../../src/embed-unplayable', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronLeft', 'ChevronRight', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,
@@ -1279,6 +1279,7 @@ test('a + taken off a tracker by unchecking it, then checked again, still gets t
     ],
   }
   const { host } = await atTheEnd()
+  await act(async () => { host.querySelector<HTMLButtonElement>('.watch-info button.expand')!.click() })
   const check = () => host.querySelector<HTMLInputElement>('.watch-info input[name="compact-target-anilist"]')!
   const flip = async (on: boolean) => {
     await act(async () => {

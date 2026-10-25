@@ -11,8 +11,9 @@ import TrackingCompact from '../src/components/tracking-compact'
 // and one that lists nothing, `?top=` pixels down the page, and with `?clip=` in a box that many pixels
 // tall that clips what overflows it, as the modal does. With `?modal` it sits in the media modal's
 // backdrop instead, with `?cr` Crunchyroll is one episode ahead of AniList and holds 4 stars, and
-// with `?waiting` none of the trackers has answered yet. Every write is kept on `window.writes`, and a
-// close of the modal sets `window.dismissed`.
+// with `?waiting` none of the trackers has answered yet. The trackers start expanded into their chips,
+// and with `?tiles` folded into tiles as the app starts them. Every write is kept on `window.writes`, and
+// a close of the modal sets `window.dismissed`.
 const query = new URLSearchParams(location.search)
 const writes: [string[], Fields | 'remove'][] = []
 Object.assign(window, { writes, dismissed: false })
@@ -36,7 +37,7 @@ const tracking: CompactTracking = query.has('cr')
   : { summary: answers[0]!.entry, disagreements: [], answers }
 
 const Page = () => {
-  const [prefs, setPrefs] = useState<CompactPrefs>({ targets: {} })
+  const [prefs, setPrefs] = useState<CompactPrefs>({ targets: {}, expanded: !query.has('tiles') })
   return (
     <TrackingCompact
       tracking={query.has('waiting') ? undefined : tracking}

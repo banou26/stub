@@ -2,7 +2,7 @@ import type { ComponentChild, ComponentChildren } from 'preact'
 
 import { css } from '@emotion/react'
 import { autoUpdate, flip, offset, safePolygon, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions } from '@floating-ui/react'
-import { Check, LoaderCircle, Minus, Plus } from 'lucide-react'
+import { Check, ChevronsLeftRight, ChevronsRightLeft, LoaderCircle, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import type { WindowSignIn } from '../sources/login-window'
@@ -33,11 +33,14 @@ const style = css`
   gap: 0.8rem;
   font-size: 1.4rem;
 
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem 1.2rem; }
   .group { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
-  .platforms { margin-left: auto; justify-content: flex-end; }
-  /* a line of its own on a phone, where the chips never fit beside the controls, so it is there before they are */
-  @media (max-width: 768px) { .platforms { flex-basis: 100%; } }
+  .platforms { justify-content: flex-end; }
+  /* a line of its own on a phone, where the trackers never fit beside the controls, so it is there before they are */
+  @media (max-width: 768px) {
+    .row, .platforms { justify-content: flex-start; }
+    .platforms { flex-basis: 100%; }
+  }
 
   button, select, .progress-field, .chip {
     display: flex;
@@ -88,6 +91,40 @@ const style = css`
   }
   .differs { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #fb923c; }
 
+  .expand {
+    padding: 0 0.6rem;
+    > svg { opacity: 0.6; }
+  }
+  /* two tiles high, as tall as the controls beside them */
+  .tiles { display: grid; grid-template-rows: repeat(2, 1.4rem); grid-auto-flow: column; grid-auto-columns: 1.4rem; gap: 0.2rem 0.4rem; }
+  .tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .logo { width: 1.4rem; height: 1.4rem; border-radius: 0.3rem; font-size: 0.9rem; }
+    &.loading .logo, &.cannot .logo { opacity: 0.35; }
+    &.off .logo, &.login .logo { opacity: 0.45; }
+    .mark {
+      position: absolute;
+      right: -0.25rem;
+      bottom: -0.2rem;
+      display: flex;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0.1rem #17171a;
+      color: #fff;
+    }
+    &.on .mark { background: #4ade80; }
+    &.off .mark { box-sizing: border-box; border: 0.15rem solid rgba(255, 255, 255, 0.55); background: #17171a; }
+    &.login .mark { background: rgba(255, 255, 255, 0.6); }
+    &.error .mark { background: #f87171; }
+    &.paused .mark { background: #fb923c; }
+    &.cannot .mark { display: none; }
+    &.loading .mark, &.busy .mark { right: -0.4rem; bottom: -0.35rem; width: auto; height: auto; background: #17171a; }
+  }
+
   .logo {
     display: flex;
     align-items: center;
@@ -114,7 +151,6 @@ const style = css`
     .slot { display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; }
     .check { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #4ade80; color: #000; display: flex; align-items: center; justify-content: center; }
     .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 0.15rem solid rgba(255, 255, 255, 0.45); }
-    .spin { animation: tracking-spin 1s linear infinite; }
     .badge { position: absolute; top: 0.2rem; left: 2.4rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; }
     .badge.amber { background: #fb923c; }
     .badge.red { background: #f87171; }
@@ -141,8 +177,9 @@ const style = css`
     .account { font-weight: normal; color: rgba(255, 255, 255, 0.55); }
     .why { max-width: 34rem; font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); }
   }
+  .spin { animation: tracking-spin 1s linear infinite; }
   @keyframes tracking-spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .chip .spin { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 
   .notes { display: flex; flex-direction: column; gap: 0.4rem; font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); }
   .note { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
@@ -186,6 +223,35 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
 )
 
 const problemOf = (answer: CompactAnswer) => answer.state === 'PAUSED' || answer.state === 'ERROR' ? whyNot(answer) : undefined
+
+const TILE_STATES = {
+  loading: 'loading',
+  login: 'signed out',
+  cannot: 'cannot track this media',
+  busy: 'updating',
+  error: 'error',
+  paused: 'paused',
+  on: 'connected',
+  off: 'off',
+} as const
+type TileState = keyof typeof TILE_STATES
+
+const tileState = (answer: CompactAnswer, target: Target, { busy, failed }: { busy?: boolean, failed?: unknown }): TileState =>
+  target.kind !== 'check' ? target.kind
+  : busy ? 'busy'
+  : failed || answer.state === 'ERROR' ? 'error'
+  : answer.state === 'PAUSED' ? 'paused'
+  : target.checked ? 'on' : 'off'
+
+const Tile = ({ answer, state }: { answer: CompactAnswer, state: TileState }) => {
+  const label = `${answer.tracker.name}: ${TILE_STATES[state]}`
+  return (
+    <span className={`tile ${state}`} data-tile={answer.tracker.id} role="img" aria-label={label} title={label}>
+      <Logo answer={answer}/>
+      <span className="mark">{state === 'loading' || state === 'busy' ? <LoaderCircle size={10} className="spin" aria-hidden="true"/> : undefined}</span>
+    </span>
+  )
+}
 
 const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) =>
   failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/>
@@ -395,6 +461,8 @@ const Chip = (
 /**
  * The way to track a media: a score, a status and an episode count, written at once to every tracker
  * whose chip is checked, and on each chip a card with the same controls over that tracker's own entry.
+ * The trackers come first, as a grid of small tiles naming each one's state, until the viewer expands
+ * them into their chips (`prefs.expanded`), and the controls end the row.
  *
  * What the row shows is the worker's summary of EVERY listed tracker, checked or not: unchecking a
  * tracker means "do not write to it", never "ignore it". A change goes to each checked tracker that can
@@ -402,7 +470,7 @@ const Chip = (
  * the save queue, so rapid + clicks become one save. Nothing is written to a tracker that is signed out,
  * paused, failing, or cannot tell which media this is. A change on a card goes to its tracker alone,
  * checked or not, through the same queue. With no `tracking` yet the row holds its place, one loading
- * chip and nothing to act on; a tracking with no tracker in it draws nothing.
+ * tile or chip and nothing to act on; a tracking with no tracker in it draws nothing.
  *
  * Once `watched` passes 85% of an episode (tracking/watched.ts), each checked tracker that can write
  * decides on that episode once, and again only after deciding on another: it is raised to the episode
@@ -514,6 +582,7 @@ const TrackingCompact = (
   if (tracking !== undefined && !answers.length) return null
 
   const targets = answers.map(answer => ({ answer, target: targetOf(answer, prefs.targets[answer.tracker.id]) }))
+  const expanded = prefs.expanded === true
   const sendable = targets.filter(({ target }) => target.kind === 'check' && target.sendable).map(({ answer }) => answer)
   const disabled = !sendable.length
   const picker = pickerScale(sendable.map(answer => answer.tracker.scoreScale))
@@ -643,29 +712,36 @@ const TrackingCompact = (
   return (
     <section css={style} className="tracking-compact" aria-label="Quick tracking">
       <div className="row">
-        <Controls
-          name="compact"
-          movie={movie}
-          shown={shown}
-          scale={picker?.scale ?? 'POINT_100'}
-          mixed={picker?.mixed ?? false}
-          disabled={disabled}
-          listed={answers.some(answer => answer.state === 'LISTED')}
-          removable={sendable.some(canRemove)}
-          onChange={change}
-          dots={{
-            SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(answer.entry.score, answer.tracker.scoreScale) : undefined),
-            STATUS: differs('STATUS', answer => answer.entry?.status ? STATUS_LABELS[answer.entry.status] : undefined),
-            PROGRESS: differs('PROGRESS', answer => answer.entry?.progress != null ? String(answer.entry.progress) : undefined),
-          }}
-        />
         <div className="group platforms">
+          <button
+            type="button"
+            className="expand"
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Trackers' : undefined}
+            title={expanded ? 'Collapse trackers' : undefined}
+            onClick={() => onPrefs({ ...prefs, expanded: !expanded })}
+          >
+            {expanded
+              ? <ChevronsRightLeft size={14} aria-hidden="true"/>
+              : (
+                <>
+                  <span className="tiles">
+                    {
+                      tracking === undefined
+                        ? <span className="tile loading" role="img" aria-label="Trackers loading" title="Trackers loading"><LoaderCircle size={12} className="spin" aria-hidden="true"/></span>
+                        : targets.map(({ answer, target }) => <Tile key={answer.tracker.id} answer={answer} state={tileState(answer, target, stateOf(answer))}/>)
+                    }
+                  </span>
+                  <ChevronsLeftRight size={12} aria-hidden="true"/>
+                </>
+              )}
+          </button>
           {
-            tracking === undefined
+            expanded && tracking === undefined
               ? <span className="chip loading"><span className="slot" role="img" aria-label="Trackers loading"><LoaderCircle size={14} className="spin" aria-hidden="true"/></span></span>
               : undefined
           }
-          {targets.map(({ answer, target }) => {
+          {expanded && targets.map(({ answer, target }) => {
             const id = answer.tracker.id
             const name = answer.tracker.name
             const chip = {
@@ -717,6 +793,22 @@ const TrackingCompact = (
             )
           })}
         </div>
+        <Controls
+          name="compact"
+          movie={movie}
+          shown={shown}
+          scale={picker?.scale ?? 'POINT_100'}
+          mixed={picker?.mixed ?? false}
+          disabled={disabled}
+          listed={answers.some(answer => answer.state === 'LISTED')}
+          removable={sendable.some(canRemove)}
+          onChange={change}
+          dots={{
+            SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(answer.entry.score, answer.tracker.scoreScale) : undefined),
+            STATUS: differs('STATUS', answer => answer.entry?.status ? STATUS_LABELS[answer.entry.status] : undefined),
+            PROGRESS: differs('PROGRESS', answer => answer.entry?.progress != null ? String(answer.entry.progress) : undefined),
+          }}
+        />
       </div>
       <div className="notes">
         {targets.flatMap(({ answer, target }) => {

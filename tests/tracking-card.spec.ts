@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test'
 
-import { expect, test } from '@playwright/test'
+import { expect, firefox, test } from '@playwright/test'
 import preact from '@preact/preset-vite'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'vite-plus'
@@ -272,7 +272,7 @@ test("in the media modal, each chip's check and the row's announcements reach th
 test('Escape inside a card closes it and hands focus back to its logo', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 })
   await open(page)
-  await page.locator('.row > .edit .more').focus()
+  await page.locator('.row .expand').focus()
   for (let step = 0; step < 20 && !await logo(page, 'stub').evaluate(element => element === document.activeElement); step++) {
     await page.keyboard.press('Tab')
   }
@@ -285,4 +285,87 @@ test('Escape inside a card closes it and hands focus back to its logo', async ({
   await expect(logo(page, 'stub')).toBeFocused()
   await page.waitForTimeout(300)
   await expect(card(page, 'stub'), 'and it stays closed').toBeHidden()
+})
+
+// HOR-1018: the trackers fold into a grid two tiles high before the controls, which end the row where the chips used to
+const folded = async (page: Page) => {
+  const [row, tiles, toggle, star, controls] = await Promise.all(
+    ['.tracking-compact', '.tiles', '.expand', '.row > .edit .star', '.row > .edit'].map(selector => page.locator(selector).boundingBox()),
+  )
+  const tops = await page.locator('[data-tile]').evaluateAll(tiles => tiles.map(tile => Math.round(tile.getBoundingClientRect().top)))
+  return { row: row!, tiles: tiles!, toggle: toggle!, star: star!, controls: controls!, rows: new Set(tops).size, count: tops.length }
+}
+const expectFolded = async (page: Page, where: string) => {
+  const { row, tiles, toggle, star, controls, rows, count } = await folded(page)
+  expect(count, `${where}: a tile a tracker`).toBe(3)
+  expect(rows, `${where}: two tiles high`).toBe(2)
+  expect(tiles.height, `${where}: no taller than the controls`).toBeLessThanOrEqual(controls.height)
+  expect(Math.abs(toggle.y - star.y), `${where}: on the controls' line`).toBeLessThan(4)
+  expect(toggle.x + toggle.width, `${where}: before them`).toBeLessThanOrEqual(star.x)
+  expect(Math.abs(controls.x + controls.width - (row.x + row.width)), `${where}: the controls end the row`).toBeLessThan(1)
+}
+
+test('the trackers start as tiles two high before the controls, and their button expands them into chips and back', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await page.goto(`${ORIGIN}/?tiles`)
+  const toggle = page.getByRole('button', { name: /^AniList: connected\s*MyAnimeList: signed out\s*Stub: connected$/ })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expectFolded(page, 'folded')
+  await expect(page.locator('[data-chip]')).toHaveCount(0)
+
+  await toggle.focus()
+  await page.keyboard.press('Enter')
+  const expanded = page.getByRole('button', { name: 'Trackers', exact: true })
+  await expect(expanded).toHaveAttribute('aria-expanded', 'true')
+  await expect(expanded, 'focus stays on it').toBeFocused()
+  await expect(page.locator('[data-chip]')).toHaveCount(3)
+  await expect(page.locator('[data-tile]')).toHaveCount(0)
+  const [row, chips, controls] = await Promise.all(['.tracking-compact', '.platforms', '.row > .edit'].map(selector => page.locator(selector).boundingBox()))
+  expect(chips!.x + chips!.width, 'the chips before the controls').toBeLessThanOrEqual(controls!.x)
+  expect(Math.abs(controls!.x + controls!.width - (row!.x + row!.width)), 'which still end the row').toBeLessThan(1)
+
+  await page.keyboard.press('Enter')
+  await expect(page.locator('[data-tile]')).toHaveCount(3)
+  await expect(page.locator('[data-chip]')).toHaveCount(0)
+})
+
+test('on a phone the tiles take a line of their own over the controls, as tall before the trackers have answered, with no sideways scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const height = async (query: string) => {
+    await page.goto(`${ORIGIN}/?top=0&tiles${query}`)
+    const row = page.locator('.tracking-compact')
+    await expect(row.locator('.tile').first()).toBeVisible()
+    return (await row.boundingBox())!.height
+  }
+  const answered = await height('')
+  const { row, toggle, tiles, controls, rows } = await folded(page)
+  expect(rows).toBe(2)
+  expect(tiles.y + tiles.height, 'over the controls').toBeLessThanOrEqual(controls.y)
+  expect([toggle.x, controls.x].map(left => Math.round(left - row.x)), 'both from the left edge').toEqual([0, 0])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+  expect(await height('&waiting')).toBe(answered)
+  await expect(page.getByRole('img', { name: 'Trackers loading' }), 'the control: before they have answered').toHaveCount(1)
+})
+
+// HOR-1024 broke a layout in Firefox alone, and CI installs no Firefox
+test('in Firefox too, the tiles are two high before the controls that end the row', async () => {
+  const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH
+  const build = browsers && existsSync(browsers) ? readdirSync(browsers).find(name => name.startsWith('firefox-')) : undefined
+  const executablePath = process.env.FIREFOX_PATH ?? (build && join(browsers!, build, 'firefox', 'firefox'))
+  test.skip(!executablePath || !existsSync(executablePath), 'no Firefox installed')
+  const browser = await firefox.launch({ executablePath, firefoxUserPrefs: { 'media.volume_scale': '0.0' } })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } })
+    await page.route(`${ORIGIN}/**`, route => {
+      const { pathname } = new URL(route.request().url())
+      return pathname === '/'
+        ? route.fulfill({ contentType: 'text/html', body: PAGE })
+        : route.fulfill({ path: join(dir, pathname) })
+    })
+    await page.goto(`${ORIGIN}/?tiles`)
+    await expect(page.locator('[data-tile]')).toHaveCount(3)
+    await expectFolded(page, 'Firefox')
+  } finally {
+    await browser.close()
+  }
 })

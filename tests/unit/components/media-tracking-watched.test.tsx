@@ -28,7 +28,7 @@ vi.mock('urql', () => ({
 }))
 
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
 vi.mock('../../../src/tracking/site-status', () => ({ recordTrackerAnswers: () => {}, siteStatuses: {} }))
 vi.mock('../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
@@ -210,6 +210,7 @@ test('a tracker unchecked on the row\'s chip is not written, where storage is bl
   tracking = { summary: null, disagreements: [], answers: [listedAt(4), answer('stub', 'Stub', 'NOT_LISTED')] }
   const blocked = createCompactPrefs({ getItem: () => { throw new Error('blocked') }, setItem: () => { throw new Error('blocked') } })
   const { host, link } = page({ prefs: blocked })
+  await act(async () => { host.querySelector<HTMLButtonElement>('button.expand')!.click() })
   const check = host.querySelector<HTMLInputElement>('input[name="compact-target-anilist"]')!
   await act(async () => {
     check.checked = false

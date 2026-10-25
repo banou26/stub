@@ -1,11 +1,14 @@
-// What the compact tracking row remembers: the trackers the viewer chose not to write to, a setting that
-// follows the FKN account (src/settings-store.ts). Not per media: it is how this viewer likes to write.
+// What the compact tracking row remembers: the trackers the viewer chose not to write to, and whether
+// the trackers show in full, a setting that follows the FKN account (src/settings-store.ts). Not per
+// media: it is how this viewer likes to write.
 
 import { settings } from '../settings-store'
 
 export type CompactPrefs = {
   /** Only the choices the viewer made. A tracker missing here is written to when it can be. */
   targets: Record<string, boolean>
+  /** The trackers as full chips rather than a grid of small tiles. */
+  expanded?: boolean
 }
 
 export const COMPACT_PREFS_KEY = 'stub.tracking.compact'
@@ -20,6 +23,7 @@ export const parseCompactPrefs = (raw: string | null | undefined): CompactPrefs 
     const value = JSON.parse(raw ?? 'null') as Partial<CompactPrefs> | null
     return {
       targets: Object.fromEntries(Object.entries(value?.targets ?? {}).filter(([, on]) => typeof on === 'boolean')),
+      ...value?.expanded === true ? { expanded: true } : {},
     }
   } catch {
     return DEFAULT_COMPACT_PREFS

@@ -16,7 +16,7 @@ import { viewerIn } from '../sources/justwatch/viewer'
 
 // lucide-react is CommonJS and requires react under node; the tracking row draws its icons with it
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
 const { AccountsSection } = await import('../../../src/router/settings/accounts')
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
@@ -486,7 +486,7 @@ describe('a connected tracking site whose session stub learned is signed out', (
         onSaveFields={async () => []}
         onRemove={async () => []}
         signIns={{ [site]: async () => 'closed' }}
-        prefs={{ targets: {} }}
+        prefs={{ targets: {}, expanded: true }}
         onPrefs={() => {}}
       />,
     )

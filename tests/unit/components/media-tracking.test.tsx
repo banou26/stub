@@ -9,7 +9,7 @@ import { useState } from 'preact/hooks'
 import { typeDefs } from '../../../src/generated/schema/typeDefs.generated'
 
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
 const tracking = {
   _id: 'tracking:media:1',
@@ -85,7 +85,13 @@ afterEach(() => {
 // answered with; `address` is `work` unless given
 type Shown = { work: string | undefined, address?: string, uri: string | undefined }
 // `show` is the page moving on, or the worker answering, and the row drawn again
-const render = (initial: Shown = { work: 'media:1', uri: 'media:1' }, store = createCompactPrefs(memory())) => {
+// with the trackers expanded, so the chips these tests read are drawn
+const expandedStore = () => {
+  const store = createCompactPrefs(memory())
+  store.write({ targets: {}, expanded: true })
+  return store
+}
+const render = (initial: Shown = { work: 'media:1', uri: 'media:1' }, store = expandedStore()) => {
   let shownBy: (next: Shown) => void = () => {}
   const Harness = () => {
     const [{ work, address = work, uri }, setShown] = useState(initial)

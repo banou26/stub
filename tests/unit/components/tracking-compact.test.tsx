@@ -11,7 +11,7 @@ import type { CompactAnswer, CompactTracking, Fields, TrackerOutcome } from '../
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')
@@ -60,7 +60,14 @@ const focusOn = (element: Element) => {
 
 type Props = Partial<Parameters<typeof TrackingCompact>[0]>
 
-const render = (props: Props = {}, store = createCompactPrefs(memory())) => {
+// the chips are what most tests here drive, so the row starts with its trackers expanded unless a test passes a store
+const expandedStore = () => {
+  const store = createCompactPrefs(memory())
+  store.write({ targets: {}, expanded: true })
+  return store
+}
+
+const render = (props: Props = {}, store = expandedStore()) => {
   const onSaveFields = vi.fn(async (targets: string[], _entry: Fields) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
   const onRemove = vi.fn(async (targets: string[]) => targets.map(tracker => ({ tracker, outcome: 'SAVED' })))
   let answer: (next: CompactTracking) => void = () => {}
@@ -84,9 +91,9 @@ const click = async (element: HTMLElement) => { await act(async () => { element.
 const fire = async (target: EventTarget, type: string, extra: Record<string, unknown> = {}) => {
   await act(async () => { target.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), extra)) })
 }
-// the row's own menu comes first, so on the whole row this is the row's and on a card the card's
+// on the whole row this is the row's menu, and on a card the card's
 const pickStatus = async (host: HTMLElement, value: string) => {
-  const select = q<HTMLSelectElement>(host, 'select')
+  const select = host.querySelector<HTMLSelectElement>('select[name="compact-status"]') ?? q<HTMLSelectElement>(host, 'select')
   // linkedom's select has a getter alone
   Object.defineProperty(select, 'value', { value, configurable: true })
   await fire(select, 'change')
@@ -112,11 +119,11 @@ const hover = async (host: HTMLElement, id: string, pointerType = 'mouse') => {
 }
 
 describe('the compact tracking row', () => {
-  test('lays out star, status, episodes, then the chips, with no advanced toggle', () => {
+  test('lays out the expand button and the chips, then star, status and episodes, with no advanced toggle', () => {
     const { host } = render()
-    const order = [...host.querySelectorAll('.star, select, .progress-field, [data-chip], .advanced')]
+    const order = [...host.querySelectorAll('.expand, .star, select, .progress-field, [data-chip], .advanced')]
       .map(element => element.getAttribute('data-chip') ?? (element.className.split(' ')[0] || element.tagName))
-    expect(order).toEqual(['star', 'SELECT', 'progress-field', 'anilist', 'mal', 'stub'])
+    expect(order).toEqual(['expand', 'anilist', 'mal', 'stub', 'star', 'SELECT', 'progress-field'])
     expect(host.querySelector('[aria-label="Advanced tracking"]')).toBeNull()
   })
 
@@ -849,17 +856,98 @@ describe("a tracker's card", () => {
   })
 })
 
+describe('the trackers, folded as the row starts', () => {
+  const folded = (targets: Record<string, boolean> = {}) => {
+    const store = createCompactPrefs(memory())
+    store.write({ targets })
+    return store
+  }
+  const tiles = (host: HTMLElement) => [...host.querySelectorAll<HTMLElement>('[data-tile]')]
+    .map(tile => [tile.getAttribute('data-tile'), tile.className, tile.getAttribute('aria-label')])
+
+  test('are a grid of tiles in the expand button, before the controls, each named by its tracker and state, with no chip', () => {
+    const { host } = render({}, folded())
+    const toggle = q<HTMLButtonElement>(host, 'button.expand')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.hasAttribute('aria-label'), 'named by its tiles').toBe(false)
+    expect([...toggle.querySelectorAll('[data-tile]')].map(tile => [tile.getAttribute('role'), tile.getAttribute('aria-label'), tile.getAttribute('title')])).toEqual([
+      ['img', 'AniList: connected', 'AniList: connected'],
+      ['img', 'MyAnimeList: signed out', 'MyAnimeList: signed out'],
+      ['img', 'Stub: connected', 'Stub: connected'],
+    ])
+    expect(host.querySelector('[data-chip], [aria-label="Log in to MyAnimeList"]')).toBeNull()
+    expect([...host.querySelectorAll('.expand, .star')].map(element => element.className.split(' ')[0])).toEqual(['expand', 'star'])
+  })
+
+  test('a tile reads each state its chip draws: paused, error, off, loading and cannot track', () => {
+    const answers: CompactAnswer[] = [
+      { ...anilist, state: 'PAUSED' },
+      { ...mal, state: 'ERROR' },
+      stub,
+      { ...stub, state: 'LOADING', tracker: { ...stub.tracker, id: 'cr', name: 'Crunchyroll' } },
+      { ...stub, state: 'AMBIGUOUS', candidates: ['stub:1', 'stub:2'], tracker: { ...stub.tracker, id: 'kitsu', name: 'Kitsu' } },
+    ]
+    const { host } = render({ tracking: { ...tracking, answers } }, folded({ stub: false }))
+    expect(tiles(host)).toEqual([
+      ['anilist', 'tile paused', 'AniList: paused'],
+      ['mal', 'tile error', 'MyAnimeList: error'],
+      ['stub', 'tile off', 'Stub: off'],
+      ['cr', 'tile loading', 'Crunchyroll: loading'],
+      ['kitsu', 'tile cannot', 'Kitsu: cannot track this media'],
+    ])
+  })
+
+  test('a tile reads updating while its save is pending, and error once it failed', async () => {
+    const finishes: (() => void)[] = []
+    const { host, onSaveFields } = render({}, folded())
+    onSaveFields.mockImplementation(targets => new Promise(resolve => {
+      finishes.push(() => resolve(targets.map(tracker => ({ tracker, outcome: 'FAILED', error: 'Asked to wait a minute' }))))
+    }))
+    await pickStatus(host, 'DROPPED')
+    expect(tiles(host)).toContainEqual(['anilist', 'tile busy', 'AniList: updating'])
+    await act(async () => {
+      for (const finish of finishes) finish()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    expect(tiles(host)).toContainEqual(['anilist', 'tile error', 'AniList: error'])
+  })
+
+  test('the expand button turns the tiles into the chips and back, staying one button, and the choice is kept', async () => {
+    const { host, store } = render({}, folded())
+    const toggle = q<HTMLButtonElement>(host, 'button.expand')
+    await click(toggle)
+    expect(q(host, 'button.expand'), 'the same button, so focus stays on it').toBe(toggle)
+    expect([toggle.getAttribute('aria-expanded'), toggle.getAttribute('aria-label')]).toEqual(['true', 'Trackers'])
+    expect(host.querySelector('[data-tile]')).toBeNull()
+    expect([...host.querySelectorAll('[data-chip]')].map(chip => chip.getAttribute('data-chip'))).toEqual(['anilist', 'mal', 'stub'])
+    expect(named(host, 'Log in to MyAnimeList').textContent).toBe('Log in')
+    expect(store.read().expanded).toBe(true)
+
+    await tick(q(host, 'input[name="compact-target-stub"]'), false)
+    expect(store.read(), 'unchecking a chip keeps them expanded').toEqual({ targets: { stub: false }, expanded: true })
+
+    await click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(host.querySelector('[data-chip]')).toBeNull()
+    expect(tiles(host).map(([id]) => id)).toEqual(['anilist', 'mal', 'stub'])
+    expect(store.read()).toEqual({ targets: { stub: false } })
+  })
+})
+
 describe('before the trackers have answered at all', () => {
-  const draw = (tracking: CompactTracking | undefined) => {
-    const host = mount(<TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={async () => []} onRemove={async () => []} prefs={createCompactPrefs(memory()).read()} onPrefs={() => {}}/>)
+  const draw = (tracking: CompactTracking | undefined, prefs: CompactPrefs = { targets: {} }) => {
+    const host = mount(<TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={async () => []} onRemove={async () => []} prefs={prefs} onPrefs={() => {}}/>)
     hosts.push(host)
     return host
   }
 
-  test('the row holds its place with one loading chip and nothing to act on', () => {
+  test('the row holds its place with one loading tile, or chip once expanded, and nothing to act on', () => {
     const host = draw(undefined)
-    expect(host.querySelectorAll('.platforms > .chip.loading')).toHaveLength(1)
+    expect([...host.querySelectorAll('.expand .tile')].map(tile => tile.getAttribute('aria-label'))).toEqual(['Trackers loading'])
     expect(host.querySelector('select[name="compact-status"]')!.hasAttribute('disabled')).toBe(true)
+    const expanded = draw(undefined, { targets: {}, expanded: true })
+    expect(expanded.querySelectorAll('.platforms > .chip.loading')).toHaveLength(1)
+    expect(expanded.querySelector('.tile')).toBeNull()
   })
 
   test('the control: trackers that answered with nothing to track draw no row', () => {
