@@ -1,8 +1,8 @@
 import type { AddressInfo } from 'node:net'
 import type { Locator, Page } from '@playwright/test'
 
-import { expect, test } from '@playwright/test'
-import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { expect, firefox, test } from '@playwright/test'
+import { createReadStream, existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
@@ -1224,6 +1224,27 @@ test.describe('a viewer in Japan', () => {
     const short = await box(player)
     expect(short.height, 'a phone on its side keeps the player the screen\'s height').toBeGreaterThanOrEqual(390 - short.top - 1)
     expect((await box(page.locator('.watch-info .list'))).top, 'and the sources still below the row').toBeGreaterThanOrEqual((await box(page.locator('.episode-row'))).bottom)
+  })
+
+  // HOR-1024: Firefox took the player's width from its 16:9 and the column's height, so at 2000x1104 it
+  // was 1838 px wide with an empty strip beside it; Chrome stretches it either way. CI installs no Firefox.
+  test('the player spans the window in Firefox too', async () => {
+    const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH
+    const build = browsers && existsSync(browsers) ? readdirSync(browsers).find(name => name.startsWith('firefox-')) : undefined
+    const executablePath = process.env.FIREFOX_PATH ?? (build && join(browsers!, build, 'firefox', 'firefox'))
+    test.skip(!executablePath || !existsSync(executablePath), 'no Firefox installed')
+    const browser = await firefox.launch({ executablePath, firefoxUserPrefs: { 'media.volume_scale': '0.0' } })
+    try {
+      const page = await browser.newPage({ viewport: { width: 2000, height: 1104 } })
+      await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1/amazon:amzn1.dv.gti.900070`)
+      const player = page.locator('.player-container')
+      await expect(player.locator('iframe')).toBeVisible({ timeout: 30_000 })
+      const [screen, row] = await Promise.all([box(player), box(page.locator('.episode-row'))])
+      expect(screen.width, 'the window\'s width').toBeCloseTo(2000, 0)
+      expect(row.bottom, 'the episode on the first screen').toBeLessThanOrEqual(1104)
+    } finally {
+      await browser.close()
+    }
   })
 })
 

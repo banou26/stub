@@ -197,6 +197,9 @@ const style = css`
     position: relative;
     display: flex;
     flex-direction: column;
+    /* Firefox otherwise takes the width from the ratio and the column's height before the column
+       shrinks it, 1838 of 2000 px (Firefox 157, 2026-10-26) */
+    width: 100%;
     aspect-ratio: 16 / 9;
     min-height: 20rem;
     max-height: calc(100vh - var(--stub-header-height));
