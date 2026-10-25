@@ -111,15 +111,12 @@ const useDuration = (remote: RemoteVideoElement | null) => {
 const NO_CHAPTERS: MediaChapter[] = []
 
 /**
- * The chapters of the episode at `url`, from its skip events, fetched once per episode through the
- * same relay the extractor asks Crunchyroll through (so no page code runs, and it works on every
- * backend). Always an array: the player keeps its last list when handed `undefined`, which would
- * leave the previous episode's chapters on the next. A failed fetch is no chapters and one warning.
+ * The skip events of `episodeId` as Crunchyroll wrote them, fetched once per episode through the same
+ * relay the extractor asks Crunchyroll through (so no page code runs, and it works on every backend).
+ * Undefined for no episode, while they load and after a failed fetch, which warns once.
  */
-export const useCrunchyrollChapters = (url: string, remote: RemoteVideoElement | null) => {
-  const episodeId = crunchyrollEpisodeId(url)
+export const useSkipEvents = (episodeId: string | undefined) => {
   const [loaded, setLoaded] = useState<{ episodeId: string, events: unknown }>()
-  const duration = useDuration(remote)
 
   useEffect(() => {
     if (!episodeId) return
@@ -131,9 +128,19 @@ export const useCrunchyrollChapters = (url: string, remote: RemoteVideoElement |
     return () => { cancelled = true }
   }, [episodeId])
 
+  return episodeId && loaded?.episodeId === episodeId ? loaded.events : undefined
+}
+
+/**
+ * The chapters of the episode at `url`, from its skip events. Always an array: the player keeps its last
+ * list when handed `undefined`, which would leave the previous episode's chapters on the next.
+ */
+export const useCrunchyrollChapters = (url: string, remote: RemoteVideoElement | null) => {
+  const events = useSkipEvents(crunchyrollEpisodeId(url))
+  const duration = useDuration(remote)
+
   return useMemo(() => {
-    if (!loaded || loaded.episodeId !== episodeId) return NO_CHAPTERS
-    const chapters = skipEventsToChapters(loaded.events, duration)
+    const chapters = skipEventsToChapters(events, duration)
     return chapters.length ? chapters : NO_CHAPTERS
-  }, [loaded, episodeId, duration])
+  }, [events, duration])
 }

@@ -12,6 +12,7 @@ import { remotePicker, remotePlayer } from '../../worker'
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
 import { builtInSources } from '../../sources/built-in'
+import { crunchyrollEpisodeId, skipEventsToChapters, useSkipEvents } from '../../sources/crunchyroll/skip-events'
 import { readDisabledSources } from '../../sources/disabled-sources'
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
 import { playOrder, readPlayOrder } from '../../sources/play-order'
@@ -615,6 +616,8 @@ const Watch = () => {
 
   // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
   const selected = episodeHandles.find(h => h.uri === selectedSourceUri)
+  const skipEvents = useSkipEvents(embedUrl && selected?.origin === 'cr' && selected.url ? crunchyrollEpisodeId(selected.url) : undefined)
+  const chapters = useMemo(() => skipEventsToChapters(skipEvents), [skipEvents])
   const needsExtension = backend === 'cloud' && !embedUrl && selected?.url && canPlay(selected.origin, selected.url, 'extension')
     ? builtInSources.find(source => source.origin === selected.origin)?.name
     : undefined
@@ -710,7 +713,7 @@ const Watch = () => {
                     `}
                   />
                 )}
-              <UpNext link={playbackLink} next={upNext}/>
+              <UpNext link={playbackLink} next={upNext} chapters={chapters}/>
             </div>
           )
           : needsExtension

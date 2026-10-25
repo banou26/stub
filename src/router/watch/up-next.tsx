@@ -1,10 +1,12 @@
+import type { MediaChapter } from '@banou/media-player'
 import type { PlaybackLink } from '../../party/bridge'
 
 import { css, keyframes } from '@emotion/react'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocation } from 'wouter'
 
 import { readAutoplay } from '../../utils/autoplay'
+import { nextOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
@@ -46,14 +48,18 @@ const style = css`
 `
 
 /**
- * Next episode over the player once it has ended. With autoplay on, Cancel beside it and `next` opened
- * when `UP_NEXT_MS` is out. Nothing without a `next`; a report that the player is no longer at its end
- * (a seek back, a play) withdraws it.
+ * Next episode over the player, from the moment `nextOfferAt` reads off `chapters` and once the player
+ * has ended. With autoplay on, the end counts down with Cancel beside it and opens `next` when
+ * `UP_NEXT_MS` is out. Nothing without a `next`. A seek back before the moment withdraws the button, and
+ * a report that the player is no longer at its end (a seek back, a play) withdraws the countdown.
  */
-const UpNext = ({ link, next }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined }) => {
+const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[] }) => {
   const [, navigate] = useLocation()
   const [shown, setShown] = useState<'counting' | 'offered'>()
   const href = next?.href
+  // read at each report rather than keyed on: chapters landing mid-episode must not reset what the reports said
+  const marks = useRef(chapters)
+  marks.current = chapters
 
   useEffect(() => {
     setShown(undefined)
@@ -61,17 +67,33 @@ const UpNext = ({ link, next }: { link: PlaybackLink | undefined, next: { href: 
     // Only an end after a play counts, and once: a link tells every new ear where the player is,
     // and that repeat must not bring back a countdown the viewer cancelled.
     let played = false
-    return link.onReport(({ paused }) => {
-      if (!link.ended?.()) {
-        played ||= !paused
-        setShown(undefined)
-      } else if (played) {
+    let last: number | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // owner question 1, answered (a): the early button waits for a press, the countdown is the end's
+    const offer = () => setShown('offered')
+    const stop = link.onReport(({ paused, time, rate }) => {
+      clearTimeout(timer)
+      const before = last
+      last = time
+      if (link.ended?.()) {
+        if (!played) return
         played = false
         // a player fullscreened inside its frame hides anything the page draws
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
         setShown(readAutoplay() ? 'counting' : 'offered')
+        return
       }
+      played ||= !paused
+      const at = nextOfferAt(marks.current, link.duration?.())
+      if (at !== undefined && time >= at) offer()
+      // a stall reaches the page only as a report behind the timer, which keeps the button; one gone back is a seek
+      else if (at === undefined || before === undefined || time < before) setShown(undefined)
+      if (at !== undefined && time < at && !paused && rate > 0) timer = setTimeout(offer, (at - time) / rate * 1000)
     })
+    return () => {
+      stop()
+      clearTimeout(timer)
+    }
     // whether there is a next, not its address: that grows as sources join the episode, mid-countdown too
   }, [link, Boolean(href)])
 

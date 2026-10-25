@@ -94,29 +94,29 @@ vi.mock('../../../../src/utils/fkn-backend', () => ({
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } }, recordTrackerAnswers: () => {} }))
 vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
 vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
-type Report = { paused: boolean, ended?: boolean, time?: number }
+type Report = { paused: boolean, ended?: boolean, time?: number, rate?: number }
 // each player the page attaches, which a test makes report as a person or the browser would; with
 // `greets`, a new listener hears the last report at once, after dispose too, as the real link does
-const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, apply: Mock<(state: { time: number }) => void> }[], greets: false }))
+const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, apply: Mock<(state: { time: number }) => void> }[], greets: false, duration: 1000 }))
 vi.mock('../../../../src/party/bridge', () => ({
   attachPlaybackBridge: () => {
     const listeners = new Set<(state: object) => void>()
-    let last = { paused: true, time: 0 }
+    let last = { paused: true, time: 0, rate: 1 }
     let ended = false
     const link = {
       apply: vi.fn<(state: { time: number }) => void>(),
       onReport: (listener: (state: object) => void) => {
         listeners.add(listener)
-        if (bridge.greets) queueMicrotask(() => listener({ ...last, rate: 1, at: Date.now() }))
+        if (bridge.greets) queueMicrotask(() => listener({ ...last, at: Date.now() }))
         return () => { listeners.delete(listener) }
       },
       ended: () => ended,
-      duration: () => 1000,
+      duration: () => bridge.duration,
       dispose: () => listeners.clear(),
-      report: ({ paused, ended: atEnd = false, time = 0 }: Report) => {
+      report: ({ paused, ended: atEnd = false, time = 0, rate = 1 }: Report) => {
         ended = atEnd
-        last = { paused, time }
-        for (const listener of listeners) listener({ paused, time, rate: 1, at: Date.now() })
+        last = { paused, time, rate }
+        for (const listener of listeners) listener({ paused, time, rate, at: Date.now() })
       },
     }
     bridge.links.push(link)
@@ -139,6 +139,14 @@ vi.mock('../../../../src/components/plugin-player', async () => {
   }
 })
 vi.mock('../../../../src/components/party-playback', () => ({ default: () => null }))
+// the relay: Crunchyroll's skip events by url, and the bucket's 403 for an episode with no file
+const relay = vi.hoisted(() => ({ files: {} as Record<string, unknown>, asked: [] as string[] }))
+vi.mock('../../../../src/utils/fetch', () => ({
+  fetch: async (input: string) => {
+    relay.asked.push(input)
+    return input in relay.files ? Response.json(relay.files[input]) : new Response('', { status: 403 })
+  },
+}))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
 vi.mock('../../../../src/embed-relays', () => ({
@@ -169,6 +177,7 @@ vi.stubGlobal('localStorage', {
 const { default: Watch } = await import('../../../../src/router/watch/index')
 const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
+const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { Router } = await import('wouter')
@@ -201,6 +210,9 @@ afterEach(() => {
   relays.heard = []
   bridge.links = []
   bridge.greets = false
+  bridge.duration = 1000
+  relay.files = {}
+  relay.asked = []
   tracking = undefined
   storage = undefined
   saved.length = 0
@@ -781,6 +793,137 @@ test('a player fullscreened in its frame is let out of fullscreen, so the countd
     await report(played)
     expect(exitFullscreen).not.toHaveBeenCalled()
     await report(ended)
+    expect(exitFullscreen).toHaveBeenCalledTimes(1)
+  } finally {
+    Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
+  }
+})
+
+// HOR-1014: Next episode when the ending appears. The second episode on Crunchyroll, 1420 s long with
+// its credits marked from 1325 to 1415 s (Solo Leveling e3's shape), reported playing at 1300 s.
+const atTheCredits = async () => {
+  relay.files[skipEventsUrl('GX2')] = { credits: { start: 1325, end: 1415 } }
+  bridge.duration = 1420
+  const page = await atTheEnd()
+  await report({ paused: false, time: 1300 })
+  return page
+}
+const nextShown = (host: HTMLElement) => host.querySelector('.up-next')?.getAttribute('title')
+
+test('Next episode shows a second before the credits and counts down only at the end', async () => {
+  const { host } = await atTheCredits()
+  expect(relay.asked).toEqual([skipEventsUrl('GX2')])
+  await wait(23_900)
+  expect(nextShown(host), 'at 1323.9 s').toBeUndefined()
+  await wait(100)
+  expect(nextShown(host), 'at 1324 s').toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
+  // the next heartbeat, past the moment
+  await report({ paused: false, time: 1325 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'still none').toBeNull()
+  await wait(UP_NEXT_MS * 4)
+  expect(navigate).not.toHaveBeenCalled()
+
+  await report({ ...ended, time: 1420 })
+  expect(host.querySelector('.up-next.counting')).not.toBeNull()
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+})
+
+// a Netflix address has the same /watch/<id> shape as Crunchyroll's
+test('only a Crunchyroll episode asks for skip events', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf']
+  backend = 'extension'
+  for (const [sourceUri, asked] of [['nf:81', []], ['cr:GX1', [skipEventsUrl('GX1')]]] as const) {
+    params = { ...params, sourceUri }
+    relay.asked = []
+    const host = page()
+    hosts.push(host)
+    await settle()
+    expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent(sourceUri)}`)
+    expect(relay.asked, sourceUri).toEqual(asked)
+    unmount(hosts.pop()!)
+  }
+})
+
+test('the early Next episode opens it at once', async () => {
+  const { host } = await atTheCredits()
+  await wait(30_000)
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+})
+
+test('the moment is timed from each report, at its rate', async () => {
+  const { host } = await atTheCredits()
+  await report({ paused: false, time: 1310, rate: 2 })
+  await wait(6_900)
+  expect(nextShown(host)).toBeUndefined()
+  await wait(100)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+})
+
+test('a seek back or a pause before the moment holds Next episode back', async () => {
+  const { host } = await atTheCredits()
+  await wait(10_000)
+  await report({ paused: false, time: 1000 })
+  await wait(20_000)
+  expect(nextShown(host), 'a seek back').toBeUndefined()
+  await report({ paused: false, time: 1320 })
+  await wait(1_000)
+  await report({ paused: true, time: 1321 })
+  await wait(10_000)
+  expect(nextShown(host), 'a pause').toBeUndefined()
+  await report({ paused: false, time: 1321 })
+  await wait(3_000)
+  expect(nextShown(host), 'played on to it').toBe('E3 - Title 3')
+})
+
+test('a seek back before the moment withdraws Next episode, until playback reaches it again', async () => {
+  const { host } = await atTheCredits()
+  await wait(30_000)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  await report({ paused: false, time: 1200 })
+  expect(nextShown(host)).toBeUndefined()
+  await wait(123_900)
+  expect(nextShown(host)).toBeUndefined()
+  await wait(100)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+})
+
+// no report comes on `waiting`, so a stall shows only as a heartbeat behind where the timer had the player
+test('a heartbeat reporting a stall short of the moment keeps Next episode', async () => {
+  const { host } = await atTheCredits()
+  await report({ paused: false, time: 1320 })
+  await wait(4_000)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  await report({ paused: false, time: 1322 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  await report({ paused: true, time: 1322.5 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+})
+
+test('a party guest is never offered Next episode early, the host takes the party along', async () => {
+  for (const member of [{ status: 'idle' }, { status: 'active', role: 'guest' }]) {
+    party = member as typeof party
+    const { host } = await atTheCredits()
+    await wait(30_000)
+    expect(Boolean(host.querySelector('.up-next')), member.status).toBe(member.status === 'idle')
+    unmount(hosts.pop()!)
+  }
+})
+
+test('in fullscreen the early Next episode leaves the player fullscreen, and the end lets it out as before', async () => {
+  const { host } = await atTheCredits()
+  const exitFullscreen = vi.fn(async () => {})
+  Object.assign(document, { fullscreenElement: host.querySelector('iframe'), exitFullscreen })
+  try {
+    await wait(30_000)
+    expect(nextShown(host)).toBe('E3 - Title 3')
+    await report({ paused: false, time: 1330 })
+    expect(exitFullscreen).not.toHaveBeenCalled()
+    await report({ ...ended, time: 1420 })
     expect(exitFullscreen).toHaveBeenCalledTimes(1)
   } finally {
     Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
