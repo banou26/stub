@@ -1,4 +1,4 @@
-// The worker's half of a source turned off in Settings: every fan-out and every single-origin question
+// The worker's half of a source turned off in Settings, built in or added: every fan-out and every single-origin question
 // in worker/extractor.ts takes its entries through `askable`, which leaves those sources out.
 import { afterEach, expect, test } from 'vite-plus/test'
 
@@ -22,8 +22,11 @@ test('a built-in source turned off is left out, and the next list replaces the l
   expect(origins(askable(ENTRIES))).toEqual(['anilist', 'simkl', 'nyaa'])
 })
 
-test('a plugin source is never left out here: removing it is how one is stopped', () => {
+// the owner, 2026-10-25 (HOR-1019): "right now custom sources can't be disabled besides just removing the plugin"
+test('a plugin source turned off is left out too, and asked again once turned back on', () => {
   setDisabledOrigins(['nyaa'])
+  expect(origins(askable(ENTRIES))).toEqual(['anilist', 'simkl', 'tvdb'])
+  setDisabledOrigins([])
   expect(origins(askable(ENTRIES))).toEqual(['anilist', 'simkl', 'tvdb', 'nyaa'])
 })
 

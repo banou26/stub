@@ -639,9 +639,9 @@ const Watch = () => {
     builtIn: (origin, url) => canPlay(origin, url, 'extension'),
     selfPlaying: players && (origin => Boolean(players[origin])),
     order: playOrder(readPlayOrder(), added),
-    possible: origin => PLAYABLE_ORIGINS.has(origin)
-      ? (addable || !EXTENSION_ONLY_ORIGINS.has(origin)) && !readDisabledSources().includes(origin)
-      : connecting || added.includes(origin),
+    possible: origin => !readDisabledSources().includes(origin) && (PLAYABLE_ORIGINS.has(origin)
+      ? addable || !EXTENSION_ONLY_ORIGINS.has(origin)
+      : connecting || added.includes(origin)),
     settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')

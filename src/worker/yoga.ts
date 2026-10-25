@@ -58,7 +58,7 @@ export const osraResolvers = {
     if (store === 'graph') await enableGraph(true, { scheduler: true })
     setReadStore(store)
   },
-  // the built-in sources turned off in Settings, handed over before the page's first question and again on every change
+  // the sources turned off in Settings, handed over before the page's first question and again on every change
   setDisabledSources: (origins: string[]) => setDisabledOrigins(origins),
   // the country picked in Settings, handed over the same way
   setPickedCountry: (country: string | undefined) => holdPickedCountry(country),

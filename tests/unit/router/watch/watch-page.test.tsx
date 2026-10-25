@@ -1611,6 +1611,25 @@ test('a ranked source connecting after a settled answer is waited for until an a
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
+test('a ranked added source turned off does not hold Play, connecting or connected', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  nyaaFirst()
+  stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+  Object.assign(episode, { handles: [allHandles[0]] })
+  live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+
+  navigate.mockClear()
+  plugins.statuses = [connectedNyaa]
+  media = { ...single, settled: false }
+  live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
 test('a ranked source whose package fails to connect does not hold Play', async () => {
   vi.useFakeTimers()
   origins = ['cr']

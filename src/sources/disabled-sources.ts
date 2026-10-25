@@ -1,4 +1,4 @@
-// Which built-in sources the viewer turned off in Settings, a setting that follows the FKN account
+// Which sources, built in or added, the viewer turned off in Settings, a setting that follows the FKN account
 // (src/settings-store.ts). Every source is on until turned off, so an empty or unreadable value means all
 // of them. Import free but for the settings store, so the settings page, src/worker.ts and the tests
 // share it without bundling anything else.
