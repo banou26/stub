@@ -8,6 +8,8 @@ import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
 
 import { readFileSync } from 'node:fs'
+import { render as renderInto } from 'preact'
+import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { PRIME_DOMAINS } from '../../../../src/sources/amazon/session'
@@ -48,6 +50,7 @@ const { default: PrimeVideoPlayer } = await import('../../../../src/sources/amaz
 
 const GTI = 'amzn1.dv.gti.fe903f64-0000-0000-0000-000000000002'
 const DEEP_LINK = `https://watch.amazon.co.jp/watch?gti=${GTI}`
+const NEXT_LINK = 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64-0000-0000-0000-000000000003'
 const DETAIL = 'https://www.amazon.co.jp/gp/video/detail/0PJQL97FNFXU3VZWEHILB694SJ'
 const SIGNED_OUT_NOTE = 'Sign in to Prime Video to watch.'
 const SIGN_IN = 'Sign in to Prime Video'
@@ -124,11 +127,14 @@ const amazon = (html: string, { url = DETAIL, surfaces = EPISODE_SURFACE, idle =
 }
 
 const hosts: HTMLElement[] = []
+const player = (url: string) => <PrimeVideoPlayer url={url} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />
 const render = (url = DEEP_LINK) => {
-  const host = mount(<PrimeVideoPlayer url={url} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />)
+  const host = mount(player(url))
   hosts.push(host)
   return host
 }
+// the watch page moving on to the next episode in the same player
+const next = (host: HTMLElement) => act(() => { renderInto(player(NEXT_LINK), host) })
 
 const playing = async (page: ReturnType<typeof amazon>) => {
   lib.attachFrame.mockResolvedValue(page.frame)
@@ -404,6 +410,42 @@ describe('the quality', () => {
     await settle()
     expect(amazonPlayer.state.menu).toBe('none')
     expect(skin.media).toBeTruthy()
+    expect(skin.quality).toBeUndefined()
+  })
+
+  test('the next episode drops the last one\'s quality row until its own is read', async () => {
+    const page = amazon(SIGNED_IN_PAGE, { surfaces: `${EPISODE_SURFACE}${PRIME_PLAYER}` })
+    wirePrimeControls(page.document)
+    const host = await playing(page)
+    await vi.waitFor(() => expect(skin.quality).toBeDefined(), { timeout: 5_000 })
+
+    page.frame.goto.mockReturnValue(new Promise(() => {}))
+    next(host)
+    await settle()
+    expect(page.frame.goto).toHaveBeenLastCalledWith(NEXT_LINK.replace('/watch?', '/detail?'), { waitUntil: 'commit' })
+    expect(skin.quality).toBeUndefined()
+  })
+
+  test('a quality read that answers after the next episode began is dropped', async () => {
+    const page = amazon(SIGNED_IN_PAGE, { surfaces: `${EPISODE_SURFACE}${PRIME_PLAYER}` })
+    wirePrimeControls(page.document)
+    let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    let read: Promise<unknown> | undefined
+    const evaluate = page.frame.evaluate.getMockImplementation()!
+    page.frame.evaluate.mockImplementation((pageFunction, arg) => {
+      if (!(arg as { menu?: string } | undefined)?.menu) return evaluate(pageFunction, arg)
+      read = held.then(() => evaluate(pageFunction, arg))
+      return read
+    })
+    const host = await playing(page)
+    await vi.waitFor(() => expect(read).toBeDefined())
+
+    page.frame.goto.mockReturnValue(new Promise(() => {}))
+    next(host)
+    release()
+    expect(await read, 'the read itself answered').toHaveLength(3)
+    await settle()
     expect(skin.quality).toBeUndefined()
   })
 })
