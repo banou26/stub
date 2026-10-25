@@ -86,3 +86,9 @@ test('names every host stub asks from the browser, and of their services only An
   expect(asksViewerDirectly(FRONTEND_GRAPHQL_URL)).toBe(false)
   expect(items.map(item => item.firstChild!.textContent!.trim()).filter(service => proxied!.includes(service))).toEqual(['AniList'])
 })
+
+// a video, an embed and a stylesheet the browser loads itself, outside any source's fetch, so direct-fetch.ts lists none
+test('names the hosts of the theme videos, the trailer embeds and the fonts', () => {
+  const { text: page } = text()
+  for (const host of ['v.animethemes.moe', 'www.youtube.com', 'fonts.googleapis.com', 'fonts.gstatic.com']) expect(page, host).toContain(host)
+})

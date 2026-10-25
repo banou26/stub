@@ -124,7 +124,9 @@ const Privacy = () => (
       <li>TVmaze <span className="host">api.tvmaze.com</span></li>
     </ul>
     <p>
-      Artwork loads from each service's own image servers, which see your IP address too.
+      Artwork loads from each service's own image servers, theme videos from AnimeThemes (v.animethemes.moe),
+      trailers from YouTube (www.youtube.com) and fonts from Google Fonts (fonts.googleapis.com and
+      fonts.gstatic.com), and each of these sees your IP address too.
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}
