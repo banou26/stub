@@ -5,6 +5,7 @@ import { party } from '../party'
 import { cancelReset } from '../router/scroll-reset'
 import { scrollFraction, scrollRoom, scrollTo } from '../party/scroll'
 import { PARTY_PATH } from '../party/invite'
+import { isWatchPath } from '../party/protocol'
 import { getRoutePath, Route } from '../router/path'
 import { useParty, usePartyMessages } from '../party/use-party'
 
@@ -46,10 +47,13 @@ const PartySync = () => {
   // second, so the last navs of a fast typist, the ones carrying the finished query, would be refused.
   const atTheDoor = location === PARTY_PATH
   const searching = location === getRoutePath(Route.SEARCH)
+  // A watch page's scroll stays the host's: below the player are the sources, and a guest dragged down
+  // to them would lose the video the party is watching, so a joiner lands on the player.
+  const watching = isWatchPath(location)
   useEffect(() => {
     if (role !== 'host' || atTheDoor) return
     const send = () => {
-      party.setLocation(path, scrollFraction())
+      party.setLocation(path, watching ? 0 : scrollFraction())
       party.send({ t: 'nav', path })
     }
     if (!searching) return send()
@@ -58,7 +62,7 @@ const PartySync = () => {
   }, [role, path, atTheDoor])
 
   useEffect(() => {
-    if (role !== 'host' || atTheDoor) return
+    if (role !== 'host' || atTheDoor || watching) return
     let last = 0
     let pending: ReturnType<typeof setTimeout> | undefined
     const flush = () => {

@@ -9,7 +9,9 @@ import { memoryLocation } from 'wouter/memory-location'
 import type { PartyMessage } from '../../../src/party/protocol'
 import type { PartyMessageMeta } from '../../../src/party/store'
 
-const sent = vi.hoisted(() => [] as { t: string, path?: string }[])
+const sent = vi.hoisted(() => [] as { t: string, path?: string, y?: number }[])
+const located = vi.hoisted(() => [] as [string, number][])
+const fraction = vi.hoisted(() => ({ y: 0 }))
 // what the store tells: by then it has dropped an ask its sender was not granted
 const told = vi.hoisted(() => new Set<(message: PartyMessage, meta: PartyMessageMeta) => void>())
 vi.mock('../../../src/party', () => ({
@@ -17,12 +19,12 @@ vi.mock('../../../src/party', () => ({
     getState: () => ({ status: 'active', role: 'host', invite: 'room' }),
     subscribe: () => () => {},
     onMessage: (listener: (message: PartyMessage, meta: PartyMessageMeta) => void) => { told.add(listener); return () => { told.delete(listener) } },
-    setLocation: () => {},
+    setLocation: (path: string, y: number) => { located.push([path, y]) },
     send: (message: { t: string, path?: string }) => { sent.push(message) },
     hostPath: () => undefined,
   },
 }))
-vi.mock('../../../src/party/scroll', () => ({ scrollFraction: () => 0, scrollRoom: () => 0, scrollTo: () => {} }))
+vi.mock('../../../src/party/scroll', () => ({ scrollFraction: () => fraction.y, scrollRoom: () => 0, scrollTo: () => {} }))
 
 const { default: PartySync } = await import('../../../src/components/party-sync')
 
@@ -31,6 +33,8 @@ afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   vi.useRealTimers()
   sent.length = 0
+  located.length = 0
+  fraction.y = 0
 })
 
 const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
@@ -76,6 +80,28 @@ describe('the host', () => {
     act(() => { for (const listener of told) listener({ t: 'ask', c: 'go', path: '/watch/a/b' }, { replayed: false, from: 'ann', self: false }) })
     expect(location.history.at(-1)).toBe('/watch/a/b')
     expect(sent.filter(message => message.t === 'nav')).toEqual([{ t: 'nav', path: '/watch/a/b' }])
+  })
+
+  // HOR-1011: the watch page scrolls down to its sources, and a guest following the host there would
+  // lose the video the party is watching
+  test('a scroll on the watch page stays the host\'s, and a guest joining there lands on the player', async () => {
+    vi.useFakeTimers()
+    fraction.y = 0.6
+    const location = memoryLocation({ path: '/media/anilist:1', record: true })
+    hosts.push(mount(<Router hook={location.hook} searchHook={location.searchHook}><PartySync/></Router>))
+    const scroll = async () => {
+      act(() => { document.dispatchEvent(new Event('scroll')) })
+      await wait(1_000)
+    }
+    await scroll()
+    expect(sent.filter(message => message.t === 'scroll'), 'the control: a scroll elsewhere goes out').toEqual([{ t: 'scroll', y: 0.6 }])
+    expect(located.at(-1)).toEqual(['/media/anilist:1', 0.6])
+
+    sent.length = 0
+    act(() => { location.navigate('/watch/a/b') })
+    await scroll()
+    expect(sent.filter(message => message.t === 'scroll')).toEqual([])
+    expect(located.at(-1)).toEqual(['/watch/a/b', 0])
   })
 
   // two followers asking at once, or one asking for where the host already is, must not cost the host its Back
