@@ -162,7 +162,7 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
   }
 }
 
-const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url, retryMs = 1_000 } = {}) => {
+const setup = ({ serve = true, connectTimeoutMs = 2_000, callTimeoutMs = 2_000, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url, retryMs = 1_000 } = {}) => {
   const page = fakeFrame({ serve, report, blank, siteUrl })
   const removed: number[] = []
   let mounted = 0
@@ -179,7 +179,7 @@ const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as Goto
     appOrigin: 'https://anime.fkn.app',
     key: () => `key-${++keys}`,
     connectTimeoutMs,
-    callTimeoutMs: 2_000,
+    callTimeoutMs,
     retryMs,
   })
   const ask = (question: string) => frames.use('anilist', api => api.ask(question))
@@ -302,13 +302,22 @@ describe('the session frame', () => {
     expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
   })
 
-  test("a call the page script refused is not run again", async () => {
+  test('a call the page script refused is not run again', async () => {
     const { refuse, reached, ask } = setup({ retryMs: 20 })
     await ask('warm')
 
     refuse('anilist.co served no CSRF token to this page')
     await expect(ask('refused')).rejects.toThrow('anilist.co served no CSRF token to this page')
     expect(reached.filter(question => question === 'refused')).toHaveLength(1)
+  })
+
+  test('a call its page did not answer in time is not run again', async () => {
+    const { hang, reached, ask } = setup({ callTimeoutMs: 100, retryMs: 20 })
+    await ask('warm')
+    hang()
+
+    await expect(ask('silent')).rejects.toThrow('https://anilist.co did not answer within 0.1 s')
+    expect(reached.filter(question => question === 'silent')).toHaveLength(1)
   })
 
   test('reload drops the frame and tells the watchers, and the next use attaches a new one', async () => {
