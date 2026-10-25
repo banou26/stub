@@ -125,6 +125,22 @@ test('LiveChart moved to the top takes MyAnimeList\'s score exactly, so the earl
   expect(pick(merged(pair, ['livechart']), 'titles', 'title')).toEqual(['LiveChart Title', 'MyAnimeList Title'])
 })
 
+test('AniZip moved above MyAnimeList leads the titles, though its row carries no score', () => {
+  const pair = [member('mal:6', 0.9, { titles: [text('title', 'MyAnimeList Title', 0.9)] }), member('anizip:6', null, { titles: [text('title', 'AniZip Title', 0.9)] })]
+  expect(pick(merged(pair), 'titles', 'title')).toEqual(['MyAnimeList Title', 'AniZip Title'])
+  expect(pick(merged(pair, ['anizip']), 'titles', 'title')).toEqual(['AniZip Title', 'MyAnimeList Title'])
+})
+
+test('an added source tied with a ranked one comes after it', () => {
+  const trio = [
+    member('mal:4', 0.9, { titles: [text('title', 'MyAnimeList Title', 0.9)], status: 'FINISHED' }),
+    member('nyaa:4', 0.9, { titles: [text('title', 'Nyaa Title', 0.9)], status: 'CANCELLED' }),
+    member('anilist:4', 0.8, { titles: [text('title', 'AniList Title', 0.8)] }),
+  ]
+  const moved = merged(trio, ['anilist'])
+  expect([pick(moved, 'titles', 'title'), moved.status]).toEqual([['AniList Title', 'MyAnimeList Title', 'Nyaa Title'], 'FINISHED'])
+})
+
 test('a source moved down leads the characters only after the sources above it', () => {
   const actor = { language: 'ja', person: { id: 'x:1', name: 'Kouichi Yamadera' } }
   const spike = (origin: string) => ({ id: `${origin}:c1`, names: ['Spike Spiegel'], image: `https://${origin}.test/spike.jpg`, role: 'MAIN', voiceActors: [actor] })
