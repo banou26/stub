@@ -44,6 +44,9 @@ const style = css`
     gap: 0.8rem;
   }
 
+  /* one column, so Move up and Move down never move a card sideways */
+  ol.play-order > li { grid-column: 1; }
+
   .card {
     display: flex;
     flex-direction: column;

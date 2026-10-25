@@ -329,6 +329,17 @@ for (const [width, height] of [[1440, 900], [390, 844]] as const) {
   })
 }
 
+test('at 1440x900 Play order is one column, so a move takes a card up or down and never sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await withSources(page, SPEC_SOURCES)
+  const lefts = (cards: string) => page.locator(cards).evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().left)))
+  expect(new Set(await lefts('ul.cards > li')).size, 'the control: Other sources keeps two columns').toBe(2)
+  const ranked = await page.locator('ol.play-order > li').evaluateAll(items => items.map(item => item.getBoundingClientRect()).map(({ left, top, bottom }) => ({ left, top, bottom })))
+  expect(ranked.length).toBeGreaterThan(3)
+  expect(new Set(ranked.map(box => Math.round(box.left))).size).toBe(1)
+  expect(ranked.every((box, at) => !at || box.top >= ranked[at - 1]!.bottom), 'each card under the one before it').toBe(true)
+})
+
 test('adding by address shows a refused address\'s error under the group, and a good one is added', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await withSources(page, [])
