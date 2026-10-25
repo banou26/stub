@@ -1,7 +1,8 @@
 // Stands in for src/worker/fetch.ts in the link preview's build (vite.preview.config.ts). Every request goes through the
 // FKN relay over plain HTTP, sent as a page's cloud.fetch sends it (fkn-client web/src/api/proxy/proxy-fetch.ts), so a
-// preview and a page asking the same thing share the relay's cache entry. Netflix too: a preview has no viewer whose
-// country to keep, and the edge is no place to ask from (AniList refused every request from it, 2026-10-23).
+// preview and a page asking the same thing share the relay's cache entry. The hosts a page asks from the viewer's browser
+// (src/worker/direct-fetch.ts) are relayed here too, so only another preview's entry serves those: a preview has no
+// viewer to ask from, and the edge is no place to (AniList refused every request from it, 2026-10-23).
 import type { FetchInit } from '../worker/backoff'
 
 import { RELAY_HEADER } from '@fkn/lib/contract'
