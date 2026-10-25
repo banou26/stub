@@ -199,20 +199,20 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const slowLink = useSyncExternalStore(onConnectionChange, () => slowConnection(connection()))
   // a trailer playing while a source connects shares the link with the source's files: at 6 KB/s and
   // 300 ms, holding it let the source connect 8 to 12 s sooner (measured 2026-10-16)
-  const connecting = useSyncExternalStore(onPluginsChange, () => pluginStatuses().some(source => source.state !== 'connected'))
+  const starting = useSyncExternalStore(onPluginsChange, () => pluginStatuses().some(source => source.state === 'connecting' && !source.retry))
   const [waitedForSources, setWaitedForSources] = useState(false)
   useEffect(() => {
-    if (!connecting) return
+    if (!starting) return
     const timer = setTimeout(() => setWaitedForSources(true), SOURCES_WAIT_MS)
     return () => {
       clearTimeout(timer)
       setWaitedForSources(false)
     }
-  }, [connecting])
+  }, [starting])
   // a failed trailer gives way to the show's next one, or to none, never to another show: with YouTube
   // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
-  const trailer = slowLink || (connecting && !waitedForSources)
+  const trailer = slowLink || (starting && !waitedForSources)
     ? undefined
     : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal

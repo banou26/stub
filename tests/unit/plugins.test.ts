@@ -117,3 +117,51 @@ test("a source of the account's list FKN does not install is shown failed, and n
     await checkSources()
   }
 })
+
+// The home trailer waits for a source's first connection only: a retry held it again for 120 s
+// (measured 2026-10-25 on anime.fkn.app, a source FKN refused retried every 6 to 30 s).
+test('a connection after the source failed, or after it closed, reads as a retry, and its first does not', async () => {
+  const worker = await import('../../src/worker')
+  const failing = 'npm:@banou/failing'
+  const closing = 'npm:@banou/closing'
+  stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([failing, closing]))
+  let close = () => {}
+  const closed = new Promise<void>(resolve => { close = resolve })
+  fkn.connect.mockImplementation(async (uri?: string) => {
+    if (uri === failing) throw new Error(`'${failing}' is not installed by this app`)
+    if (uri === closing) return { port: {}, closed }
+    return new Promise(() => {})
+  })
+  vi.mocked(worker.registerRemoteSource).mockResolvedValue({ ok: { sources: [], rejected: [] } })
+  const seen = new Map<string, object[]>()
+  const stop = onPluginsChange(() => {
+    for (const { uri, ...status } of pluginStatuses()) {
+      const before = seen.get(uri) ?? []
+      if (JSON.stringify(before.at(-1)) !== JSON.stringify(status)) seen.set(uri, [...before, status])
+    }
+  })
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.useFakeTimers()
+  try {
+    await installPlugin(failing)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen.get(failing)).toEqual([{ state: 'connecting' }, { state: 'error' }])
+    await vi.advanceTimersByTimeAsync(6_000)
+    expect(seen.get(failing)?.slice(2)).toEqual([{ state: 'connecting', retry: true }, { state: 'error' }])
+
+    await installPlugin(closing)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen.get(closing)).toEqual([{ state: 'connecting' }, { state: 'connected', sources: [], rejected: [] }])
+    close()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen.get(closing)?.at(-1)).toEqual({ state: 'connecting', retry: true })
+  } finally {
+    stop()
+    void disablePlugin(failing)
+    void disablePlugin(closing)
+    vi.useRealTimers()
+    warn.mockRestore()
+    fkn.connect.mockImplementation(() => new Promise(() => {}))
+    vi.mocked(worker.registerRemoteSource).mockReset()
+  }
+})

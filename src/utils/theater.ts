@@ -58,24 +58,30 @@ export const theaterCandidates = <T extends TheaterCandidate>(mediaNodes: readon
 }
 
 /** What the hero reads of the browser's `navigator.connection`, where it has one. */
-export type ConnectionReading = { effectiveType?: string, saveData?: boolean }
+export type ConnectionReading = { effectiveType?: string, saveData?: boolean, downlink?: number }
+
+/** The Network Information spec's bound for 2G, in Mbps: a downlink at or under it reads as 2G or slower. */
+const SLOW_DOWNLINK_MBPS = 0.07
 
 /**
- * Whether the hero plays no trailer on this connection: one the browser reads as 2G or slower, or with
- * data saving on. Not 3G: Chrome reads that from latency alone, so a fast link with a 270 ms round
- * trip is 3G.
+ * Whether the hero plays no trailer on this connection: one the browser reads as 2G or slower, by its
+ * effective type or by its downlink, or with data saving on. Not 3G: Chrome reads that from latency
+ * alone, so a fast link with a 270 ms round trip is 3G, and so is one of 6 KB/s with 300 ms, which
+ * reads a downlink of 0.05 (measured 2026-10-25, Chrome 155 under CDP network emulation).
  */
 export const slowConnection = (connection: ConnectionReading | undefined): boolean =>
-  !!connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')
+  !!connection?.saveData
+  || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')
+  || (!!connection?.downlink && connection.downlink <= SLOW_DOWNLINK_MBPS)
 
 /**
- * How long sources that have not connected hold the hero's trailer back, from when one started
- * connecting. A source that never connects (its files gone, or FKN unreachable) is retried for as long
- * as the page is open, and fails within about a second on a fast link. Measured 2026-10-16 at 6 KB/s
- * and 300 ms, a source connected 39 to 191 s after it was added, most often within 110 s, and in some
- * runs not within 200 s.
+ * How long a source connecting for the first time holds the hero's trailer back, from when one started.
+ * A source that failed, and its retries, hold nothing: one that cannot connect (its files gone, not
+ * installed, FKN unreachable) is retried for as long as the page is open. Measured 2026-10-15 on a
+ * normal network, a source connected 0.7 to 2.1 s after it was added, and 9.8 s with each of its files
+ * answering 8 s late.
  */
-export const SOURCES_WAIT_MS = 120_000
+export const SOURCES_WAIT_MS = 10_000
 
 /** How many of the candidates the hero picks between. Kept small so it stays a highlight reel. */
 export const THEATER_POOL_SIZE = 10

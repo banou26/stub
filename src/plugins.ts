@@ -13,6 +13,8 @@ const RECONNECT_DELAY_MS = 3_000
 export type PluginStatus = {
   uri: string
   state: 'connecting' | 'connected' | 'error'
+  /** while connecting, that the source already connected or failed in this page and this is its retry */
+  retry?: true
   /** every source the package registered; one package may ship a family of them */
   sources?: { origin: string, name: string }[]
   /** sources the package declared that could not be registered; the rest still serve */
@@ -54,7 +56,7 @@ const RECONNECT_MAX_MS = 30_000
 const scheduleReconnect = (uri: string, attempt: number) => {
   if (!loadEnabled().includes(uri) || connected.has(uri) || retryTimers.has(uri)) return
   // keep a recorded failure on screen while the retry is pending
-  if (statuses.get(uri)?.state !== 'error') setStatus(uri, { state: 'connecting' })
+  if (statuses.get(uri)?.state !== 'error') setStatus(uri, { state: 'connecting', retry: true })
   const delay = Math.min(RECONNECT_DELAY_MS * attempt, RECONNECT_MAX_MS)
   const timer = setTimeout(() => {
     retryTimers.delete(uri)
@@ -66,7 +68,7 @@ const scheduleReconnect = (uri: string, attempt: number) => {
 const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
   if (connected.has(uri)) return
   connected.add(uri)
-  setStatus(uri, { state: 'connecting' })
+  setStatus(uri, attempt > 1 ? { state: 'connecting', retry: true } : { state: 'connecting' })
   try {
     // `connected` is claimed before the attempt succeeds, so an attempt that never settles holds the slot forever
     const { port, closed } = await withDeadline<{ port: MessagePort, closed: Promise<void> }>(

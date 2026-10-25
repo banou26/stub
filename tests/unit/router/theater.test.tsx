@@ -44,15 +44,20 @@ vi.mock('urql', async () => {
 })
 vi.mock('../../../src/worker', () => ({}))
 
+// a source's state, or `retry` for a source connecting again after it connected or failed
+type SourceState = 'connecting' | 'connected' | 'error' | 'retry'
 const sources = vi.hoisted(() => ({ states: [] as string[], listeners: new Set<() => void>() }))
 vi.mock('../../../src/plugins', () => ({
-  pluginStatuses: () => sources.states.map((state, index) => ({ uri: `https:source-${index}`, state })),
+  pluginStatuses: () => sources.states.map((state, index) => ({
+    uri: `https:source-${index}`,
+    ...state === 'retry' ? { state: 'connecting', retry: true } : { state },
+  })),
   onPluginsChange: (listener: () => void) => {
     sources.listeners.add(listener)
     return () => { sources.listeners.delete(listener) }
   },
 }))
-const setSources = (...states: string[]) => act(() => {
+const setSources = (...states: SourceState[]) => act(() => {
   sources.states = states
   sources.listeners.forEach(listener => listener())
 })
@@ -379,9 +384,6 @@ test('while a source connects, the hero holds its trailer, shows its banner, and
   expect(backdrop()).toContain('https://img.test/a-banner.jpg')
   expect(controls()).toBe(false)
 
-  setSources('connected', 'error')
-  expect(shown().trailer).toBeUndefined()
-
   setSources('connected', 'connected')
   expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
   expect(controls()).toBe(true)
@@ -399,19 +401,39 @@ test('a source added while the trailer plays holds it until the source connects'
   expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
 })
 
-test('a source that never connects holds the trailer for SOURCES_WAIT_MS, and its retries do not hold it again', () => {
+// Measured 2026-10-25 on anime.fkn.app with one source FKN refuses (not installed by this app): it
+// failed 1.6 s after the load and every 6 to 30 s after, and the hero stayed on its banner for 120 s.
+test('a source that failed holds no trailer, and neither do its retries', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  sources.states = ['connected', 'connecting']
+  const { shown } = hero([show('a')])
+  expect(shown().trailer, 'the control: held while it connects').toBeUndefined()
+
+  setSources('connected', 'error')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+
+  setSources('connected', 'retry')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+  setSources('connected', 'error')
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+})
+
+// A source that has not connected in 10 s is stuck, or slow enough that a trailer can wait no longer:
+// on a normal network one connected in 0.7 to 2.1 s, measured 2026-10-15.
+test('a source still connecting holds the trailer for 10 s at most', () => {
   vi.useFakeTimers()
   vi.spyOn(Math, 'random').mockReturnValue(0)
-  sources.states = ['error']
+  sources.states = ['connecting']
   const { shown } = hero([show('a')])
-  act(() => { vi.advanceTimersByTime(SOURCES_WAIT_MS - 1) })
+  expect(SOURCES_WAIT_MS).toBe(10_000)
+  act(() => { vi.advanceTimersByTime(9_999) })
   expect(shown().trailer).toBeUndefined()
 
   act(() => { vi.advanceTimersByTime(1) })
   expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
 
-  setSources('connecting')
   setSources('error')
+  setSources('retry')
   expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
 })
 

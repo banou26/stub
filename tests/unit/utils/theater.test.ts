@@ -49,6 +49,19 @@ describe('slowConnection', () => {
     expect(slowConnection({ effectiveType: '4g' })).toBe(false)
   })
 
+  // Measured 2026-10-25, Chrome 155 under CDP's 6 KB/s and 300 ms: effective type 3g, downlink 0.05.
+  // A fresh profile on this machine's fast link read 4g and 1.5.
+  test('a downlink at or under the 2G bound of 70 kbps is slow whatever the effective type', () => {
+    expect(slowConnection({ effectiveType: '3g', downlink: 0.05 })).toBe(true)
+    expect(slowConnection({ effectiveType: '4g', downlink: 0.025 })).toBe(true)
+    expect(slowConnection({ effectiveType: '3g', downlink: 0.075 })).toBe(false)
+    expect(slowConnection({ effectiveType: '4g', downlink: 1.5 })).toBe(false)
+  })
+
+  test('a downlink of 0 is not read as slow', () => {
+    expect(slowConnection({ effectiveType: '4g', downlink: 0 })).toBe(false)
+  })
+
   test('data saving is slow on any connection', () => {
     expect(slowConnection({ effectiveType: '4g', saveData: true })).toBe(true)
     expect(slowConnection({ saveData: true })).toBe(true)
