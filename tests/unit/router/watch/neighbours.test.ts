@@ -91,6 +91,7 @@ test('a film has no run beside it', () => {
 const ways: Ways = {
   builtIn: origin => origin === 'cr',
   selfPlaying: origin => origin === 'nyaa',
+  off: () => false,
   order: ['cr', 'amazon', 'nf'],
   possible: () => true,
   settled: () => false,
@@ -110,4 +111,5 @@ test('an origin the other episode lacks, or cannot play there, names no source',
   expect(sourceFor(third, 'amazon', ways)).toBeUndefined()
   expect(sourceFor([{ uri: 'amazon:us', origin: 'amazon', url: 'https://watch.amazon.com/watch?gti=us' }], 'amazon', ways)).toBeUndefined()
   expect(sourceFor(third, undefined, ways)).toBeUndefined()
+  expect(sourceFor(third, 'nyaa', { ...ways, off: origin => origin === 'nyaa' }), 'an origin turned off').toBeUndefined()
 })

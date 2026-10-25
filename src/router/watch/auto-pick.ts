@@ -16,6 +16,8 @@ export type Ways = {
   builtIn: (origin: string, url: string) => boolean
   /** The origin's plugin plays its releases. Undefined until the worker has answered. */
   selfPlaying: ((origin: string) => boolean) | undefined
+  /** The viewer turned the origin off, so none of its handles is picked, even one it gave before. */
+  off: (origin: string) => boolean
   /** The viewer's play order, best first. An origin it does not name comes after every one it names. */
   order: readonly string[]
   /** The origin could still bring a handle: it is on, and its player or package is here. */
@@ -24,9 +26,9 @@ export type Ways = {
   settled: (origin: string) => boolean
 }
 
-const playable = (handle: Handle, ways: Ways): boolean =>
+const playable = (handle: Handle, ways: Ways): boolean => !ways.off(handle.origin) && (
   Boolean(handle.url && ways.builtIn(handle.origin, handle.url))
-  || Boolean(ways.selfPlaying && (handle.embedUrl || ways.selfPlaying(handle.origin)))
+  || Boolean(ways.selfPlaying && (handle.embedUrl || ways.selfPlaying(handle.origin))))
 
 /**
  * What Play opens when the address names no source: the playable handle whose origin the play order

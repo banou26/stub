@@ -14,6 +14,7 @@ const nyaa = (id: string) => ({ uri: `nyaa:${id}`, origin: 'nyaa', url: `magnet:
 const ways = (overrides: Partial<Ways> = {}): Ways => ({
   builtIn: origin => origin === 'cr' || origin === 'amazon',
   selfPlaying: origin => origin === 'nyaa',
+  off: () => false,
   order: ['cr', 'amazon', 'nf'],
   possible: () => true,
   settled: () => false,
@@ -36,6 +37,8 @@ describe('bestSource', () => {
 
   test('a source turned off, a handle with no url and a magnet with no plugin player are never picked', () => {
     expect(bestSource([cr], ways({ builtIn: () => false }))).toBeUndefined()
+    expect(bestSource([nyaa('1'), { ...nyaa('2'), embedUrl: 'https://embed.test/2' }, cr], ways({ order: ['nyaa', 'cr'], off: origin => origin === 'nyaa', possible: origin => origin !== 'nyaa' })))
+      .toEqual({ uri: 'cr:GX1', now: true })
     expect(bestSource([{ ...cr, url: null }], ways())).toBeUndefined()
     expect(bestSource([nyaa('1')], ways({ selfPlaying: () => false }))).toBeUndefined()
     expect(bestSource([{ ...nyaa('1'), embedUrl: 'https://embed.test/1' }], ways({ selfPlaying: () => false })))

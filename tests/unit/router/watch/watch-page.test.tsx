@@ -1630,6 +1630,23 @@ test('a ranked added source turned off does not hold Play, connecting or connect
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
+// a source turned off keeps the handles it gave until a reload
+test('a release from an added source turned off is never opened, alone or ranked first', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+  Object.assign(episode, { handles: [allHandles[2]] })
+  live()
+  await settle()
+  expect(navigate, 'its release alone').not.toHaveBeenCalled()
+
+  nyaaFirst()
+  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+  live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
 test('a ranked source whose package fails to connect does not hold Play', async () => {
   vi.useFakeTimers()
   origins = ['cr']

@@ -634,12 +634,14 @@ const Watch = () => {
 
   const party = useParty()
   const addable = backend === 'extension' || canAddExtension()
+  const off = (origin: string) => readDisabledSources().includes(origin)
   const ways: Ways = {
     // on the extension's terms: a stream that needs a sign in or the extension here is still the viewer's to open
     builtIn: (origin, url) => canPlay(origin, url, 'extension'),
     selfPlaying: players && (origin => Boolean(players[origin])),
+    off,
     order: playOrder(readPlayOrder(), added),
-    possible: origin => !readDisabledSources().includes(origin) && (PLAYABLE_ORIGINS.has(origin)
+    possible: origin => !off(origin) && (PLAYABLE_ORIGINS.has(origin)
       ? addable || !EXTENSION_ONLY_ORIGINS.has(origin)
       : connecting || added.includes(origin)),
     settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
