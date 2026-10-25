@@ -607,51 +607,64 @@ test('the watch page lists no source it has nothing to open for', async ({ page 
   await expect(list.locator('a[title="TMDB"]')).toHaveCount(0)
 })
 
-test('the watch page links the episodes either side beside the title, Back returns, and at 390 px they fit under it', async ({ page }) => {
+const box = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
+
+/** The second episode's watch page of the first work the home page lists, once both its neighbours are linked. */
+const secondEpisode = async (page: Page) => {
   await openModal(page)
   await page.goto(`${origin}${await modal(page).locator('a.episode-link').nth(1).getAttribute('href')}`)
-  const nav = page.locator('.episode-nav')
-  const next = nav.getByRole('link', { name: 'Next episode' })
-  await expect(nav.getByRole('link', { name: 'Previous episode' })).toHaveAttribute('title', /^E1 - /, { timeout: 30_000 })
-  await expect(next).toHaveAttribute('title', /^E3 - /)
+  await expect(page.getByRole('link', { name: 'Previous episode' })).toHaveAttribute('title', /^E1 - /, { timeout: 30_000 })
+  await expect(page.getByRole('link', { name: 'Next episode' })).toHaveAttribute('title', /^E3 - /)
+}
+
+// HOR-1011: big buttons at the page's two ends, each naming the episode it opens
+test('the watch page\'s episode buttons stand big at the two ends of its row, Back returns, and at 390 px they share a line under the episode', async ({ page }) => {
+  await secondEpisode(page)
+  const previous = page.getByRole('link', { name: 'Previous episode' })
+  const next = page.getByRole('link', { name: 'Next episode' })
+  await expect(next.locator('.step-target')).toHaveText(/^E3 - /)
   await next.click()
   await expect(page.locator('.episode-title')).toHaveText(/^E3 - /)
   await page.goBack()
   await expect(page.locator('.episode-title')).toHaveText(/^E2 - /)
 
-  const box = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
-  const info = page.locator('.episode-info')
-  // clear of the bottom right corner, where FKN draws its toasts over the page
-  await page.setViewportSize({ width: 1920, height: 1080 })
-  expect((await box(nav)).left - (await box(info)).right).toBeLessThan(20)
-
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect((await box(nav)).top).toBeGreaterThanOrEqual((await box(info)).bottom)
-  const outside = () => nav.locator('a').evaluateAll(links => links.map(link => Math.max(0, link.getBoundingClientRect().right - innerWidth)))
-  expect(await outside()).toEqual([0, 0])
-  // the control: the same check reads a link pushed past the edge
-  await nav.evaluate(element => { element.style.marginLeft = '400px' })
-  expect((await outside()).every(Boolean)).toBe(true)
+  const row = page.locator('.episode-row')
+  const main = page.locator('.episode-main')
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height })
+    const [edges, left, right, episode] = await Promise.all([box(row), box(previous), box(next), box(main)])
+    expect(Math.abs(left.left - edges.left), `${width} px: Previous at the row's left end`).toBeLessThan(1)
+    expect(Math.abs(right.right - edges.right), `${width} px: Next at its right end`).toBeLessThan(1)
+    expect(Math.min(left.height, right.height), `${width} px: big enough to hit`).toBeGreaterThanOrEqual(56)
+    if (width === 1440) {
+      expect(left.right, 'the episode between them').toBeLessThan(episode.left)
+      expect(right.left).toBeGreaterThan(episode.right)
+    } else {
+      expect(left.top, 'under the episode on a phone').toBeGreaterThanOrEqual(episode.bottom)
+      expect(right.top, 'on one line').toBe(left.top)
+    }
+  }
+  expect(await overflowX(page)).toBe(0)
 })
 
-// the page is as tall as the window and the player takes what the rest leaves, so a line of its own
-// would come off the player
-test('the watch page\'s tracking row sits on the title\'s line at 1920 px, and under it at 390 px', async ({ page }) => {
-  await openModal(page)
-  await page.goto(`${origin}${await modal(page).locator('a.episode-link').nth(1).getAttribute('href')}`)
-  const row = page.locator('.watch-info .tracking-compact')
+// HOR-1011: the score, status, episodes and trackers together, right under the title
+test('the watch page\'s tracking sits under the title, its trackers right after its controls, at 1440 px and at 390 px', async ({ page }) => {
+  await secondEpisode(page)
   const info = page.locator('.episode-info')
-  const nav = page.locator('.episode-nav')
-  await expect(row).toBeVisible({ timeout: 30_000 })
-  await expect(nav.getByRole('link', { name: 'Next episode' })).toBeVisible({ timeout: 30_000 })
-  const box = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
+  const tracking = page.locator('.watch-info .tracking-compact')
+  const controls = tracking.locator('.group.edit')
+  const trackers = tracking.locator('.group.platforms')
+  await expect(trackers.locator('> *').first()).toBeVisible({ timeout: 30_000 })
 
-  await page.setViewportSize({ width: 1920, height: 1080 })
-  expect((await box(row)).top).toBeLessThan((await box(info)).bottom)
-  expect((await box(row)).left).toBeGreaterThanOrEqual((await box(nav)).right)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const [title, row, edit, chips] = await Promise.all([box(info), box(tracking), box(controls), box(trackers)])
+  expect(row.top, 'under the title').toBeGreaterThanOrEqual(title.bottom)
+  expect(Math.abs(row.left - title.left), 'from the title\'s left edge').toBeLessThan(1)
+  expect(Math.abs(chips.top - edit.top), 'the trackers on the controls\' line').toBeLessThan(4)
+  expect(chips.left - edit.right, 'and right after them').toBeLessThan(20)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect((await box(row)).top).toBeGreaterThanOrEqual((await box(nav)).bottom)
+  expect((await box(tracking)).top).toBeGreaterThanOrEqual((await box(info)).bottom)
   expect(await overflowX(page)).toBe(0)
 })
 
@@ -1109,6 +1122,36 @@ test.describe('a viewer in Japan', () => {
   test('a film Prime Video plays in stub is on the watch page an old link opens by its bare AniList address', async ({ page }) => {
     await page.goto(`${origin}/watch/anilist:900070/jw:900070-1`)
     await expect(page.locator('.list a[title="Prime Video"]')).toBeVisible({ timeout: 30_000 })
+  })
+
+  // HOR-1011: the sources follow the player and the episode's row, so another source never takes its height from the video
+  test('the player stays 16:9 however many sources the watch page lists, with the episode under it on the first screen, and the sources below', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1/amazon:amzn1.dv.gti.900070`)
+    const player = page.locator('.player-container')
+    const cards = page.locator('.watch-info .list > *')
+    await expect(player.locator('iframe'), 'Prime Video plays here for a viewer in Japan').toBeVisible({ timeout: 30_000 })
+    await expect(cards).toHaveCount(1, { timeout: 30_000 })
+    const ratio = async () => { const { width, height } = await box(player); return width / height }
+    expect(await ratio()).toBeCloseTo(16 / 9, 2)
+
+    // five more, as a title more sources list
+    await cards.first().evaluate(card => { for (let i = 0; i < 5; i++) card.parentElement!.append(card.cloneNode(true)) })
+    await expect(cards).toHaveCount(6)
+    expect(await ratio(), 'the same player with six').toBeCloseTo(16 / 9, 2)
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+    const last = await box(cards.last())
+    expect(last.top, 'the last reached by scrolling the page').toBeGreaterThan(0)
+    expect(last.bottom).toBeLessThanOrEqual(844)
+
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.evaluate(() => scrollTo(0, 0))
+    const [screen, row] = await Promise.all([box(player), box(page.locator('.episode-row'))])
+    expect(screen.height, 'as tall as the first screen leaves it').toBeGreaterThan(600)
+    expect(row.top).toBeGreaterThanOrEqual(screen.bottom)
+    expect(row.bottom, 'the episode on the first screen').toBeLessThanOrEqual(900)
+    expect((await box(page.locator('.watch-info .list'))).top, 'the sources below it').toBeGreaterThanOrEqual(row.bottom)
+    expect(await overflowX(page)).toBe(0)
   })
 })
 

@@ -117,6 +117,13 @@ const GET_WATCH_MEDIA = gql(`
               language
               shortDescription
             }
+            thumbnails {
+              url
+            }
+            videoQualities
+            audioQualities
+            audioLanguages
+            subtitleLanguages
           }
         }
       }
@@ -165,30 +172,30 @@ const useRun = (uri: string | undefined) => {
 }
 
 const style = css`
+  /* what the first screen keeps under the player for the episode's row on a wide window */
+  --watch-row: 13rem;
+
   display: flex;
   flex-direction: column;
-  height: 100vh;
   /* The bar is fixed, so it takes no room in the flow and every other route pads itself out from
      under it. This one has to as well: without the reservation the header floats over the top strip
-     of the player, which is exactly where the source puts its own title and controls. The height is
-     the whole viewport minus that strip, which border-box gives us for free. */
+     of the player, which is exactly where the source puts its own title and controls. */
   padding-top: var(--stub-header-height);
-  overflow: hidden;
   color: rgb(255, 255, 255);
 
   .watch-container {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
   }
 
+  /* The player and the episode's row fill the first screen and the sources follow below, so a source
+     never takes its height from the video. */
   .player-container {
     position: relative;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
+    aspect-ratio: 16 / 9;
+    max-height: max(20rem, calc(100vh - var(--stub-header-height) - var(--watch-row)));
   }
 
   .fix {
@@ -212,19 +219,35 @@ const style = css`
   .watch-info {
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    padding: 1.6rem 2.4rem;
+    gap: 2.4rem;
+    padding: 1.6rem 2.4rem 4rem;
     width: 100%;
     max-width: 2200px;
     margin: 0 auto;
     box-sizing: border-box;
   }
 
+  /* Previous at the far left, Next at the far right, the episode between them; a phone puts the two
+     side by side under it */
   .episode-row {
+    display: grid;
+    grid-template-areas: 'prev main next';
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: stretch;
+
+    @media (max-width: 768px) {
+      grid-template-areas: 'main main' 'prev next';
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 1.2rem 1rem;
+    }
+  }
+
+  .episode-main {
+    grid-area: main;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1.2rem;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
   }
 
   .episode-info {
@@ -248,43 +271,102 @@ const style = css`
     }
   }
 
-  .tracking {
-    flex: 1 1 36rem;
-    min-width: 0;
+  /* the score, status, episodes and the trackers run on from each other under the title, where the
+     row elsewhere sets the trackers apart at its right end */
+  .tracking .tracking-compact {
+    margin-top: 0;
 
-    .tracking-compact {
-      margin-top: 0;
+    .platforms {
+      margin-left: 0;
+      justify-content: flex-start;
     }
   }
 
   .episode-nav {
+    display: contents;
+  }
+
+  .episode-step {
     display: flex;
-    gap: 0.8rem;
+    align-items: center;
+    gap: 1rem;
+    min-width: 18rem;
+    max-width: 30rem;
+    padding: 1.2rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    background: rgb(28, 28, 30);
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.15s ease;
 
-    a {
+    &:hover {
+      background: rgb(34, 34, 37);
+    }
+
+    &.previous {
+      grid-area: prev;
+      margin-right: 2rem;
+    }
+
+    &.next {
+      grid-area: next;
+      justify-content: flex-end;
+      margin-left: 2rem;
+      text-align: right;
+    }
+
+    svg {
+      flex-shrink: 0;
+      width: 2.8rem;
+      height: 2.8rem;
+    }
+
+    .step {
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.8rem 1.2rem;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 1rem;
-      background: rgb(28, 28, 30);
-      color: #fff;
-      font-size: 1.4rem;
-      text-decoration: none;
-      transition: background 0.15s ease;
+      flex-direction: column;
+      gap: 0.2rem;
+      min-width: 0;
+    }
 
-      &:hover {
-        background: rgb(34, 34, 37);
-      }
+    .step-label {
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
 
-      svg {
-        width: 1.8rem;
-        height: 1.8rem;
+    .step-target {
+      overflow: hidden;
+      font-size: 1.2rem;
+      opacity: 0.6;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+      min-width: 0;
+      max-width: none;
+      padding: 1rem 1.2rem;
+
+      &.previous,
+      &.next {
+        margin: 0;
       }
     }
   }
 `
+
+type EpisodeLink = { href: string, title?: string }
+
+const EpisodeStep = ({ link, previous = false }: { link: EpisodeLink, previous?: boolean }) => (
+  <Link className={`episode-step ${previous ? 'previous' : 'next'}`} href={link.href} title={link.title}>
+    {previous ? <ChevronLeft/> : undefined}
+    <span className="step">
+      <span className="step-label">{previous ? 'Previous episode' : 'Next episode'}</span>
+      {link.title ? <span className="step-target">{link.title}</span> : undefined}
+    </span>
+    {previous ? undefined : <ChevronRight/>}
+  </Link>
+)
 
 const Watch = () => {
   const rawParams = useParams<RouteParams['WATCH']>()
@@ -496,6 +578,8 @@ const Watch = () => {
         }))
 
         const first = handles.at(0)
+        // the release playing, else the one the card opens
+        const shown = handles.find(handle => handle.uri === selectedSourceUri) ?? first
         return {
           id: origin.id,
           name: origin.name ?? origin.id,
@@ -506,9 +590,14 @@ const Watch = () => {
           active: releases.some(release => release.active),
           releases: releases.length > 1 ? releases : undefined,
           picker: pickers[origin.id] ? { pluginUri: pickers[origin.id]! } : undefined,
+          thumbnails: [...shown?.thumbnails ?? [], ...episode?.thumbnails ?? []],
+          videoQualities: shown?.videoQualities,
+          audioQualities: shown?.audioQualities,
+          audioLanguages: shown?.audioLanguages,
+          subtitleLanguages: shown?.subtitleLanguages,
         }
       }).filter(source => source.href || source.releases),
-    [originData, episodeHandles, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend]
+    [originData, episodeHandles, episode?.thumbnails, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend]
   )
 
   // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
@@ -557,7 +646,7 @@ const Watch = () => {
   // the address's own spelling of this run, so a link inside it keeps the page's subscription
   const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index, new Date(now))
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
-  const linkTo = (target: typeof next) => target?.episode.uri ? {
+  const linkTo = (target: typeof next): EpisodeLink | undefined => target?.episode.uri ? {
     href: getRoutePath(Route.WATCH, {
       mediaUri: target.mediaUri,
       episodeUri: target.episode.uri,
@@ -622,32 +711,34 @@ const Watch = () => {
 
         <div className="watch-info">
           <div className="episode-row">
-            <div className="episode-info">
-              <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-              {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
+            <div className="episode-main">
+              <div className="episode-info">
+                <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
+                {mediaTitle ? <div className="media-title">{mediaTitle}</div> : undefined}
+              </div>
+              <div className="tracking">
+                <MediaTracking
+                  work={params.mediaUri}
+                  address={params.mediaUri}
+                  uri={currentMedia(watchMedia, params.mediaUri)?.uri}
+                  title={mediaTitle}
+                  cover={media?.covers?.at(0)?.url}
+                  episodeCount={media?.episodeCount}
+                  movie={media ? isMovieMedia(media) : false}
+                  notice={false}
+                  link={playbackLink}
+                  episode={episodeNumber}
+                />
+              </div>
             </div>
             {previousLink || nextLink
               ? (
-                <nav className="episode-nav">
-                  {previousLink ? <Link href={previousLink.href} title={previousLink.title}><ChevronLeft/>Previous episode</Link> : undefined}
-                  {nextLink ? <Link href={nextLink.href} title={nextLink.title}>Next episode<ChevronRight/></Link> : undefined}
+                <nav className="episode-nav" aria-label="Episodes">
+                  {previousLink ? <EpisodeStep link={previousLink} previous/> : undefined}
+                  {nextLink ? <EpisodeStep link={nextLink}/> : undefined}
                 </nav>
               )
               : undefined}
-            <div className="tracking">
-              <MediaTracking
-                work={params.mediaUri}
-                address={params.mediaUri}
-                uri={currentMedia(watchMedia, params.mediaUri)?.uri}
-                title={mediaTitle}
-                cover={media?.covers?.at(0)?.url}
-                episodeCount={media?.episodeCount}
-                movie={media ? isMovieMedia(media) : false}
-                notice={false}
-                link={playbackLink}
-                episode={episodeNumber}
-              />
-            </div>
           </div>
 
           <SourceSelector

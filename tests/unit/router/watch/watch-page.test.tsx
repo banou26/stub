@@ -480,7 +480,7 @@ const series = (third: object = {}, sourceUri = 'nyaa:a') => {
 }
 const watchPath = (n: number, sourceUri?: string) => `/watch/${params.mediaUri}/ag:(anilist:1-${n})${sourceUri ? `/${sourceUri}` : ''}`
 const episodeLinks = (host: HTMLElement) =>
-  [...host.querySelectorAll('.episode-nav a')].map(link => [link.textContent, link.getAttribute('href'), link.getAttribute('title')])
+  [...host.querySelectorAll('.episode-nav a')].map(link => [link.querySelector('.step-label')?.textContent, link.getAttribute('href'), link.getAttribute('title')])
 
 test('the episodes either side are linked, the next on the release playing now, the previous where the Play pick decides', async () => {
   vi.useFakeTimers()
@@ -493,6 +493,28 @@ test('the episodes either side are linked, the next on the release playing now, 
     ['Previous episode', watchPath(1), 'E1 - Title 1'],
     ['Next episode', watchPath(3, 'nyaa:b'), 'E3 - Title 3'],
   ])
+})
+
+// HOR-1011: big buttons at the row's two ends, each saying which episode it opens
+test('each episode button names the episode it opens under its label, and sits at its own end of the row', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  const steps = [...host.querySelectorAll('.episode-row .episode-nav > a')]
+  expect(steps.map(step => [step.className, step.querySelector('.step-label')?.textContent, step.querySelector('.step-target')?.textContent])).toEqual([
+    ['episode-step previous', 'Previous episode', 'E1 - Title 1'],
+    ['episode-step next', 'Next episode', 'E3 - Title 3'],
+  ])
+
+  // the first episode has nothing before it, so Next stands alone at its end
+  params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
+  const first = page()
+  hosts.push(first)
+  await settle()
+  expect([...first.querySelectorAll('.episode-nav > a')].map(step => step.className)).toEqual(['episode-step next'])
 })
 
 test('an episode not out yet is not linked as the next one', async () => {
@@ -531,6 +553,35 @@ test('a film\'s one episode links nothing', async () => {
   hosts.push(host)
   await settle()
   expect(host.querySelector('.episode-nav')).toBeNull()
+})
+
+// HOR-1011: each source's card shows its own picture, else the episode's, and what its own row says of
+// its stream; the release playing speaks for a source with several
+test('a source\'s card shows its own row\'s picture and stream, the episode\'s picture without one, and the playing release\'s', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf', 'nyaa']
+  const crunchyroll = handle('cr:GX1', 'cr', 'https://www.crunchyroll.com/watch/GX1')
+  Object.assign(crunchyroll.node, {
+    thumbnails: [{ url: 'https://img.example/cr.jpg' }],
+    audioLanguages: ['ja-JP', 'en-US'],
+    subtitleLanguages: ['en-US', 'es-419'],
+  })
+  const releases = ['a', 'b'].map(id => handle(`nyaa:${id}`, 'nyaa', `magnet:?xt=urn:btih:${id}`))
+  Object.assign(releases[1]!.node, { videoQualities: ['1080p', 'HEVC'] })
+  media = { ...single, episodes: [{ ...episode, thumbnails: [{ url: 'https://img.example/episode.jpg' }], handles: [crunchyroll, allHandles[1]!, ...releases] }] }
+  params = { ...params, sourceUri: 'nyaa:b' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+
+  const card = (title: string) => host.querySelector(`.watch-info [title="${title}"]`)!
+  const picture = (title: string) => card(title).querySelector('img.thumbnail')?.getAttribute('src')
+  expect(picture('cr')).toBe('https://img.example/cr.jpg')
+  expect(card('cr').querySelector('.languages')?.textContent).toBe('AudioJapanese, English')
+  expect(picture('nf'), 'Netflix has none of its own').toBe('https://img.example/episode.jpg')
+  expect(card('nf').querySelector('.qualities, .languages')).toBeNull()
+  expect([...card('2 releases on nyaa').querySelectorAll('.qualities > *')].map(chip => chip.textContent)).toEqual(['1080p', 'HEVC'])
+  expect(watchQuery, 'what each card reads off its own row').toMatch(/shortDescription\s*\}\s*thumbnails \{\s*url\s*\}\s*videoQualities\s*audioQualities\s*audioLanguages\s*subtitleLanguages/)
 })
 
 test('the watch query asks what decides whether an episode is out', async () => {
