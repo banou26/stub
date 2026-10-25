@@ -97,6 +97,7 @@ test('#playback shows Playback and its one switch, autoplay, on until turned off
   const autoplay = () => host.querySelector<HTMLInputElement>('input[role="switch"]')!
   expect([...host.querySelectorAll('input[role="switch"]')].map(input => input.closest('label')?.textContent)).toEqual(['Autoplay next episode'])
   expect(host.querySelector('[data-section] p'), 'labels only').toBeNull()
+  expect(host.querySelector('ol'), 'the play order is on the source cards').toBeNull()
   expect(isOn(autoplay())).toBe(true)
   await act(() => {
     Object.assign(autoplay(), { checked: false })
@@ -120,18 +121,22 @@ test('an open Playback follows autoplay turned off in another tab or on the FKN 
 })
 
 const PLAY_ORDER_KEY = 'stub.sources.play-order'
-const playOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.play-order li')].map(row => row.querySelector('.name')?.textContent)
-const move = (host: HTMLElement, label: string) => host.querySelector<HTMLButtonElement>(`ol.play-order button[aria-label="${label}"]`)!
+const playOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.play-order > li')].map(card => card.querySelector('h3')?.textContent)
+const move = (host: HTMLElement, label: string) => host.querySelector<HTMLButtonElement>(`ol.play-order .order button[aria-label="${label}"]`)!
 
-test('#playback lists stub\'s three players and every added source, in the play order, the end buttons disabled', async () => {
+// the owner, 2026-10-25 (HOR-1019): "we should be able to order the cards [...] and also probably have a ranking
+// for preferred playback (for sources that don't offer playback the element would be hidden of course)"
+test('Sources ranks the cards of stub\'s three players and every added source first, in the play order, numbered, the end buttons disabled', async () => {
   plugins.statuses = [
     { uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] },
     { uri: 'npm:@spec/slow-source', state: 'connecting' },
   ]
-  const host = await open('#playback')
-  expect(host.querySelector('h3')?.textContent).toBe('Play order')
+  const host = await open('#sources')
+  expect([...host.querySelectorAll('h3.part')].map(heading => heading.textContent)).toEqual(['Play order', 'Other sources', 'Added'])
   expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'Nyaa'])
-  expect([...host.querySelectorAll('ol.play-order button')].map(button => [button.getAttribute('aria-label'), button.getAttribute('aria-disabled')])).toEqual([
+  expect([...host.querySelectorAll('ol.play-order > li .place')].map(place => place.textContent)).toEqual(['1', '2', '3', '4'])
+  expect(host.querySelectorAll('ul.cards [aria-label^="Move "], ul.cards .place'), 'a source Play never tries has no place').toHaveLength(0)
+  expect([...host.querySelectorAll('ol.play-order .order button')].map(button => [button.getAttribute('aria-label'), button.getAttribute('aria-disabled')])).toEqual([
     ['Move Crunchyroll up', 'true'], ['Move Crunchyroll down', null],
     ['Move Prime Video up', null], ['Move Prime Video down', null],
     ['Move Netflix up', null], ['Move Netflix down', null],
@@ -144,7 +149,7 @@ test('#playback lists stub\'s three players and every added source, in the play 
 
 test('a move swaps the row with the one beside it and is kept, and a reopened page reads it', async () => {
   plugins.statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
-  const host = await open('#playback')
+  const host = await open('#sources')
   await act(() => { move(host, 'Move Nyaa up').click() })
   expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Nyaa', 'Netflix'])
   await act(() => { move(host, 'Move Crunchyroll down').click() })
@@ -153,28 +158,29 @@ test('a move swaps the row with the one beside it and is kept, and a reopened pa
   expect(move(host, 'Move Prime Video up').getAttribute('aria-disabled')).toBe('true')
   expect(move(host, 'Move Crunchyroll up').getAttribute('aria-disabled')).toBeNull()
   unmount(hosts.pop()!)
-  expect(playOrder(await open('#playback')), 'kept').toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
+  expect(playOrder(await open('#sources')), 'kept').toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
 })
 
-test('a source turned off is left out of the play order and keeps its rank against the others, and another tab\'s order is followed', async () => {
+test('a source turned off keeps its card and its place, and another tab\'s order is followed', async () => {
   stored.set('stub.sources.disabled', JSON.stringify(['amazon']))
-  const host = await open('#playback')
-  expect(playOrder(host)).toEqual(['Crunchyroll', 'Netflix'])
+  const host = await open('#sources')
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix'])
+  expect(host.querySelector('[data-source="amazon"]')!.classList.contains('off')).toBe(true)
   await act(() => { move(host, 'Move Netflix up').click() })
-  expect(playOrder(host)).toEqual(['Netflix', 'Crunchyroll'])
-  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!), 'Prime Video still below Crunchyroll').toEqual(['nf', 'cr', 'amazon'])
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Netflix', 'Prime Video'])
+  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['cr', 'nf', 'amazon'])
 
   await act(() => {
-    stored.set(PLAY_ORDER_KEY, JSON.stringify(['cr']))
+    stored.set(PLAY_ORDER_KEY, JSON.stringify(['amazon']))
     for (const listener of listeners.get('storage') ?? []) listener({ key: PLAY_ORDER_KEY })
   })
-  expect(playOrder(host)).toEqual(['Crunchyroll', 'Netflix'])
+  expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Netflix'])
 })
 
 test('with the FKN account\'s settings in use, a move changes the account\'s order, and an open list follows the account', async () => {
   const account = (order: string[]) => stored.set('stub.settings.account', JSON.stringify({ [PLAY_ORDER_KEY]: JSON.stringify(order) }))
   account(['nf', 'cr', 'amazon'])
-  const host = await open('#playback')
+  const host = await open('#sources')
   expect(playOrder(host)).toEqual(['Netflix', 'Crunchyroll', 'Prime Video'])
   await act(() => { move(host, 'Move Prime Video up').click() })
   expect(JSON.parse(JSON.parse(stored.get('stub.settings.account')!)[PLAY_ORDER_KEY])).toEqual(['nf', 'amazon', 'cr'])

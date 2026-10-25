@@ -1,7 +1,9 @@
+import type { ComponentChildren } from 'preact'
 import type { AccountsProps } from './accounts'
 
-import { useEffect, useId, useRef, useState } from 'preact/hooks'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 import OriginIcon from '../../components/origin-icon'
 import { switchStyle } from '../../components/switch-style'
@@ -9,6 +11,7 @@ import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatus
 import { builtInSources, drawnAs } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
 import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
+import { DEFAULT_PLAY_ORDER, moved, playOrder, readPlayOrder, watchPlayOrder, writePlayOrder } from '../../sources/play-order'
 import { siteAsks } from '../../site'
 import { SourceAccount } from './accounts'
 import { CountryRow } from './country'
@@ -32,9 +35,10 @@ const style = css`
   }
 
   .part-head .count { font-size: 1.3rem; color: rgba(255, 255, 255, 0.5); }
+  .part-head + h3.part { margin-top: 1.6rem; }
   .part-head .link-button { margin-left: auto; }
 
-  ul.cards {
+  .cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));
     gap: 0.8rem;
@@ -73,7 +77,21 @@ const style = css`
   .card .icon img { width: 2rem; height: 2rem; object-fit: contain; }
   .card .icon .letter { font-size: 1.5rem; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
 
-  .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
+  .card .place { flex: none; min-width: 1.2rem; font-size: 1.5rem; font-weight: 600; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+  .card .order { flex: none; display: flex; gap: 0.4rem; }
+
+  .card .order button {
+    display: grid;
+    place-items: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    padding: 0;
+
+    svg { width: 1.6rem; height: 1.6rem; }
+  }
+
+  .card .order button[aria-disabled='true'] { opacity: 0.35; cursor: default; }
   .card h3 { font-size: 1.5rem; overflow-wrap: anywhere; transition: color 0.15s; }
   .card .from { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card.off h3 { color: rgba(255, 255, 255, 0.5); }
@@ -317,11 +335,13 @@ const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap
   ? (plugin.sources ?? []).map(source => ({ origin: source.origin, name: source.name, from: plugin.uri, icon: source.icon, drawn: source.isApiOnly ? undefined : source.origin, asked: true }))
   : [])
 
-const SourceCard = ({ card, on, shown, accounts }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps }) => {
+/** A source's card; one Play tries has its place in the play order and the buttons that move it. */
+const SourceCard = ({ card, on, shown, accounts, place, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, children?: ComponentChildren }) => {
   const heading = useRef<HTMLHeadingElement>(null)
   return (
     <li className={`card${on ? '' : ' off'}`} data-source={card.origin}>
       <div className="top">
+        {place ? <span className="place" aria-hidden="true">{place}</span> : undefined}
         <span className="icon">
           {card.icon ? <OriginIcon icon={card.icon} name={card.name}/> : <span className="letter" aria-hidden="true">{card.name.charAt(0)}</span>}
         </span>
@@ -329,6 +349,7 @@ const SourceCard = ({ card, on, shown, accounts }: { card: Card, on: boolean, sh
           <h3 ref={heading} tabIndex={-1}>{card.name}</h3>
           <span className="from">{card.from}</span>
         </div>
+        {children ? <div className="order">{children}</div> : undefined}
       </div>
       <div className="switches">
         {card.asked
@@ -355,11 +376,13 @@ const SourceCard = ({ card, on, shown, accounts }: { card: Card, on: boolean, sh
 
 /**
  * The viewer's country, then a card for every source stub ships with or the viewer added, each with its
- * switches and its sign-in, then the added packages and the two ways to add more.
+ * switches and its sign-in, the ones Play tries first and in the order it tries them, then the added
+ * packages and the two ways to add more.
  */
 export const SourcesSection = (accounts: AccountsProps) => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
+  const [kept, setKept] = useState(readPlayOrder)
   const hidden = useHiddenIcons()
   const [uri, setUri] = useState('')
   const [adding, setAdding] = useState(false)
@@ -373,10 +396,48 @@ export const SourcesSection = (accounts: AccountsProps) => {
     return onPluginsChange(refresh)
   }, [])
   useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
+  useEffect(() => watchPlayOrder(() => setKept(readPlayOrder())), [])
 
-  const cards = [...BUILT_IN, ...addedCards(plugins)]
-  const switched = cards.filter(card => card.asked)
+  // every added source is ranked: only the worker holding its package knows whether it plays
+  const added = addedCards(plugins)
+  const players = [...BUILT_IN.filter(card => card.asked && DEFAULT_PLAY_ORDER.includes(card.origin)), ...added]
+  const order = playOrder(kept, added.map(card => card.origin))
+  const ranked = order.flatMap(origin => players.filter(card => card.origin === origin))
+  const others = BUILT_IN.filter(card => !players.includes(card))
+  const switched = [...ranked, ...others].filter(card => card.asked)
   const off = switched.filter(card => disabled.has(card.origin)).length
+
+  // a keyed card moved in the DOM loses the focus, so the pressed button takes it back; the end buttons stay
+  // focusable for it
+  const pressed = useRef<HTMLButtonElement | undefined>(undefined)
+  useLayoutEffect(() => {
+    pressed.current?.focus()
+    pressed.current = undefined
+  })
+
+  const move = (card: Card, step: -1 | 1, at: number) => {
+    const end = step < 0 ? at === 0 : at === ranked.length - 1
+    return (
+      <button
+        type="button"
+        className="secondary"
+        aria-label={`Move ${card.name} ${step < 0 ? 'up' : 'down'}`}
+        aria-disabled={end ? true : undefined}
+        onClick={event => {
+          if (end) return
+          pressed.current = event.currentTarget
+          writePlayOrder(moved(order, card.origin, step, ranked.map(other => other.origin)))
+        }}
+      >
+        {step < 0 ? <ChevronUp/> : <ChevronDown/>}
+      </button>
+    )
+  }
+  const cardOf = (card: Card, place?: number, at = 0) => (
+    <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts} place={place}>
+      {place ? <>{move(card, -1, at)}{move(card, 1, at)}</> : undefined}
+    </SourceCard>
+  )
 
   const onAdd = (event: Event) => {
     event.preventDefault()
@@ -407,9 +468,10 @@ export const SourcesSection = (accounts: AccountsProps) => {
         <span className="count">{off ? `${switched.length - off} of ${switched.length} on` : `All ${switched.length} on`}</span>
         <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(switched.map(card => card.origin)) }}>Turn all on</button>
       </div>
-      <ul className="cards">
-        {cards.map(card => <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts}/>)}
-      </ul>
+      <h3 className="part">Play order</h3>
+      <ol className="cards play-order">{ranked.map((card, at) => cardOf(card, at + 1, at))}</ol>
+      <h3 className="part">Other sources</h3>
+      <ul className="cards">{others.map(card => cardOf(card))}</ul>
       <h3 className="part">Added</h3>
       {plugins.length
         ? (

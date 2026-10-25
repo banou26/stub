@@ -213,7 +213,7 @@ test('Playback has one switch, autoplay, on by default, and turned off it stays 
   const autoplay = page.getByRole('switch', { name: 'Autoplay next episode', exact: true })
   await expect(page.getByRole('switch')).toHaveCount(1)
   await expect(autoplay).toBeChecked()
-  await expect(panel(page)).toHaveText(/^Playback\s*Autoplay next episode\s*Play order\s*Crunchyroll\s*Prime Video\s*Netflix$/)
+  await expect(panel(page), 'the play order is on the source cards').toHaveText(/^Playback\s*Autoplay next episode$/)
 
   await autoplay.click()
   await expect(autoplay).not.toBeChecked()
@@ -226,13 +226,15 @@ test('Playback has one switch, autoplay, on by default, and turned off it stays 
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
 })
 
-test('Play order lists stub\'s players and an added source, a moved row keeps the focus, and the order is kept and followed by another tab', async ({ page, context }) => {
+test('Play order ranks the cards of stub\'s players and an added source, a moved card keeps the focus, and the order is kept and followed by another tab', async ({ page, context }) => {
   await page.goto(`${origin}/legal`)
   await page.evaluate(() => localStorage.setItem('stub-enabled-plugins', JSON.stringify(['npm:@spec/anime-source'])))
-  await page.goto(`${origin}/settings#playback`)
-  const rows = (on: Page) => on.locator('ol.play-order li .name')
+  await page.goto(`${origin}/settings#sources`)
+  const rows = (on: Page) => on.locator('ol.play-order > li h3')
   const move = (name: string) => page.getByRole('button', { name, exact: true })
   await expect(rows(page)).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix', 'Spec Anime'])
+  await expect(page.locator('ol.play-order > li .place')).toHaveText(['1', '2', '3', '4'])
+  await expect(page.getByRole('button', { name: /^Move / }), 'only the sources Play tries can move').toHaveCount(8)
   await expect(move('Move Crunchyroll up')).toHaveAttribute('aria-disabled', 'true')
   await expect(move('Move Spec Anime down')).toHaveAttribute('aria-disabled', 'true')
   await expect(move('Move Netflix down')).not.toHaveAttribute('aria-disabled')
@@ -253,7 +255,8 @@ test('Play order lists stub\'s players and an added source, a moved row keeps th
   expect(JSON.parse((await page.evaluate(() => localStorage.getItem('stub.sources.play-order')))!)).toEqual(['spec-anime', 'amazon', 'cr', 'nf'])
 
   const other = await context.newPage()
-  await other.goto(`${origin}/settings#playback`)
+  await other.route(url => !url.href.startsWith(origin), route => route.abort())
+  await other.goto(`${origin}/settings#sources`)
   await expect(rows(other)).toHaveText(['Spec Anime', 'Prime Video', 'Crunchyroll', 'Netflix'])
   await move('Move Netflix up').click()
   await expect(rows(other), 'another tab follows').toHaveText(['Spec Anime', 'Prime Video', 'Netflix', 'Crunchyroll'])

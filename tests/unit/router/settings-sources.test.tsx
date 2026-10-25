@@ -21,6 +21,8 @@ const calls = vi.hoisted(() => ({
   installPlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
   disablePlugin: vi.fn(async (_uri: string) => {}),
 }))
+// lucide-react is CommonJS and requires react under node; no behaviour here
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null }))
 vi.mock('../../../src/plugins', () => ({
   pluginStatuses: () => fake.statuses,
   onPluginsChange: (listener: () => void) => {
@@ -93,10 +95,11 @@ const flip = (input: HTMLInputElement, on: boolean) => act(() => {
 
 // the owner, 2026-10-25 (HOR-1019): "for every source, we have a card, with its icon/logo, the name, the
 // source enable/disable, the show icon enable/disable, and a 'log into account' within the card"
-test('a card for every source stub ships with, then every source an added package registered, each on by default', () => {
+test('a card for every source stub ships with or an added package registered, those Play tries first, each on by default', () => {
   const { host } = render([CONNECTED, FAMILY, FAILED])
   const cards = [...host.querySelectorAll<HTMLElement>('[data-source]')]
-  expect(cards.map(item => item.getAttribute('data-source'))).toEqual([...builtInSources.map(source => source.origin), 'one', 'a', 'b', 'c'])
+  const players = ['cr', 'amazon', 'nf', 'one', 'a', 'b', 'c']
+  expect(cards.map(item => item.getAttribute('data-source'))).toEqual([...players, ...builtInSources.map(source => source.origin).filter(origin => !players.includes(origin))])
   expect(cards.map(item => isOn(item.querySelector<HTMLInputElement>('input[aria-label$=" source"]')!))).toEqual(cards.map(() => true))
   expect(card(host, 'imdb'), 'the placeholder origin answers nothing, so it has no card').toBeNull()
   expect(host.querySelector('.count')!.textContent).toBe(`All ${builtInSources.length + 4} on`)
@@ -185,7 +188,7 @@ test('the country comes first, and the sources stub signs in to hold their sign-
   const { host } = render()
   expect(host.querySelector('.rows > .row')?.getAttribute('data-setting')).toBe('country')
   const accounts = [...host.querySelectorAll('[data-account]')].map(account => [account.closest('[data-source]')!.getAttribute('data-source'), account.getAttribute('data-account')])
-  expect(accounts).toEqual([['mal', 'mal'], ['anilist', 'anilist'], ['cr', 'crunchyroll'], ['nf', 'netflix'], ['amazon', 'prime']])
+  expect(accounts).toEqual([['cr', 'crunchyroll'], ['amazon', 'prime'], ['nf', 'netflix'], ['mal', 'mal'], ['anilist', 'anilist']])
 })
 
 test('with nothing added, says so in place of the list', () => {

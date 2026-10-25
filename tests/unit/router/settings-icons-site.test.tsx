@@ -6,6 +6,8 @@ import { act } from 'preact/test-utils'
 
 import type { AccountsProps } from '../../../src/router/settings/accounts'
 
+// lucide-react is CommonJS and requires react under node; no behaviour here
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null }))
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 vi.mock('../../../src/site', async importOriginal => {
   const real = await importOriginal<typeof import('../../../src/site')>()
@@ -39,7 +41,8 @@ test('a site that never asks the anime catalogues keeps a card for each icon it 
   }
   expect(host.querySelector('[data-source="kitsu"]'), 'an anime catalogue stub never draws has no card').toBeNull()
   expect(labels('tvdb'), 'the control').toEqual(['Source', 'Icon'])
-  expect([...host.querySelectorAll('[data-account]')].map(account => account.getAttribute('data-account'))).toEqual(['netflix', 'prime'])
+  expect([...host.querySelectorAll('[data-account]')].map(account => account.getAttribute('data-account'))).toEqual(['prime', 'netflix'])
+  expect([...host.querySelectorAll('ol.play-order > li')].map(card => card.getAttribute('data-source')), 'Crunchyroll is not ranked where it is not asked').toEqual(['amazon', 'nf'])
 })
 
 // the switches follow the account to every site, and movies never lists MyAnimeList to turn back off
