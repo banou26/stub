@@ -360,6 +360,22 @@ test('a held show whose trailers all fail plays a trailer its listing gained sin
   expect(shown().trailer, 'and with the listing\'s failed too, none').toBeUndefined()
 })
 
+// Trailers merge in member score order, MyAnimeList's (0.9) ahead of AniList's (0.8), so one answering
+// after the listing's trailer started would put its own first.
+test('the listing\'s trailer that plays stays when a merge puts another first', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('black-clover', { trailers: ['9QyiEgv33z4'] })])
+  update([show('black-clover', { trailers: ['4MYo8FfiXMA', '9QyiEgv33z4'] })])
+  act(() => { player.fail() })
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=4MYo8FfiXMA')
+
+  update([show('black-clover', { trailers: ['mal-trailer', '4MYo8FfiXMA', '9QyiEgv33z4'] })])
+  expect(shown().trailer).toBe('https://www.youtube.com/watch?v=4MYo8FfiXMA')
+
+  act(() => { player.fail() })
+  expect(shown().trailer, 'the control: once it fails, the listing\'s first left plays').toBe('https://www.youtube.com/watch?v=mal-trailer')
+})
+
 // With YouTube unreachable every embed is reported silent about 10 s after its frame loads, and the
 // hero re-picked on each one: six shows in 70 s, measured 2026-10-10.
 test('when every trailer of the show fails, the show stays without one', () => {

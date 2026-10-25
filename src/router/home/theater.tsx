@@ -217,9 +217,15 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // which YouTube refuses to embed (error 150), while AniList's for the show had merged in and plays
   // (Black Clover Season 2 and Firefly Wedding, measured 2026-10-25)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
+  const spares = listed?.trailers?.filter(trailer => !deadTrailers.includes(trailer.uri)) ?? []
+  // the listing's trailer on screen stays until it fails, as the pick does, since a later merge can put another first
+  const shownTrailer = useRef<string | undefined>(undefined)
   const trailer = slowLink || (starting && !waitedForSources)
     ? undefined
-    : [...media?.trailers ?? [], ...listed?.trailers ?? []].find(trailer => !deadTrailers.includes(trailer.uri))
+    : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
+      ?? spares.find(trailer => trailer.uri === shownTrailer.current)
+      ?? spares.at(0)
+  shownTrailer.current = trailer?.uri
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal. Read off
   // the listing rather than the pick as held: over the ten picks with the trailer held, the pick as held
   // ended on a 425x600 poster in 3 and never on AniZip's 1920x1080 fanart, which the listing's node drew
