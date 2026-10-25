@@ -25,7 +25,7 @@ const js = () => new Response('export {}', { headers: { 'content-type': 'applica
 const html = (body: string) => new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8' } })
 
 /** A server answering `/` with `page` and any asset with `asset(path)`, recording what was asked. */
-const serve = (page: () => Response, asset: (path: string) => Response = js) => {
+const serve = (page: () => Response | Promise<Response>, asset: (path: string) => Response = js) => {
   const asked: { path: string, cache?: RequestCache }[] = []
   vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
     asked.push({ path: input, cache: init?.cache })
@@ -66,6 +66,11 @@ describe('newBuildReady', () => {
     expect(await newBuildReady(RUNNING)).toBe(false)
   })
 
+  test('a new file the server refuses is not downloaded, whatever type it names', async () => {
+    serve(() => html(B), path => path.includes('worker') ? new Response('', { status: 404, headers: { 'content-type': 'application/javascript' } }) : js())
+    expect(await newBuildReady(RUNNING)).toBe(false)
+  })
+
   test('an error page is not a build', async () => {
     serve(() => new Response('<!doctype html><title>502 Bad Gateway</title>', { status: 502 }))
     expect(await newBuildReady(RUNNING)).toBe(false)
@@ -99,6 +104,21 @@ describe('watchBuild', () => {
     expect(asked, 'the control: hiding asks nothing').toEqual([])
     await show('visible')
     await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce())
+  })
+
+  test('a check still on its way is not started again', async () => {
+    let answer!: () => void
+    const asked = serve(() => new Promise(resolve => { answer = () => resolve(html(B)) }))
+    const ready = vi.fn()
+    watchBuild(ready)
+    await show('visible')
+    await show('visible')
+    window.dispatchEvent(new window.Event('vite:preloadError'))
+    expect(asked).toEqual([{ path: '/', cache: 'no-store' }])
+    answer()
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce())
+    await show('visible')
+    expect(ready).toHaveBeenCalledOnce()
   })
 
   test('a lazy chunk that fails to load checks', async () => {
