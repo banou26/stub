@@ -205,11 +205,14 @@ const AS_TUNED: Weight = { place: 0, scaled: score => score }
 
 /**
  * THE VIEWER'S MERGE ORDER (Settings, src/sources/merge-order.ts). A built-in source moved to place `i` weighs as the
- * source the default order puts there: a row's or a value's score is scaled by the default score at `i` over the
- * source's own, so its own offsets keep their ratios (AniList's strip banner stays under every other banner,
- * MyAnimeList's romaji under every English title), and a score equal to the source's own becomes the one at `i`
- * exactly, so a tie goes to the earlier place. An unscored row or value, and an origin the order does not name, keep
- * their own. The default order, or none, weighs every origin as tuned: today's merge byte for byte
+ * source the default order puts there: a row's, a value's or its credits' score is scaled by the default score at `i`
+ * over the source's own, so the offsets inside one source keep their ratios (MyAnimeList's 0.4 romaji stays under its
+ * 0.9 English title), and a score equal to the source's own becomes the one at `i` exactly, so a tie goes to the
+ * earlier place. Against another source an offset is read at its own source's scale: AniList's 0.05 strip banner (at
+ * most 0.056) stays under JustWatch's 0.1 backdrops (at least 0.1) wherever either sits, but moving a third source can
+ * reorder two values, as Kitsu moved above Crunchyroll puts Crunchyroll's English title (0.5, now 0.3) under
+ * MyAnimeList's romaji (0.4). An unscored row or value, and an origin the order does not name, keep their own. The
+ * default order, or none, weighs every origin as tuned: today's merge byte for byte
  * (tests/unit/worker/graph/plugins/merge-order.test.ts).
  */
 export const mergeWeights = (kept: readonly string[] = []): ((origin: string) => Weight) => {
