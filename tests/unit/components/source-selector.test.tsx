@@ -117,11 +117,15 @@ test('a source\'s card on the watch page shows its picture, its quality and its 
   expect(netflix.classList.contains('detailed')).toBe(true)
   expect(netflix.querySelector('img.thumbnail')?.getAttribute('src')).toBe('https://img.example/nf.jpg')
   expect([...netflix.querySelectorAll('.qualities > *')].map(chip => chip.textContent)).toEqual(['4K', 'Dolby Vision', '5.1'])
-  expect(lines(netflix), 'three names and how many more; the region is not a language of its own').toEqual([
-    ['AudioJapanese, English, Spanish+1', 'Audio: Japanese, English, Spanish, Portuguese'],
+  expect(lines(netflix), 'every name, then how many past three; the region is not a language of its own').toEqual([
+    ['AudioJapanese, English, Spanish, Portuguese+1', 'Audio: Japanese, English, Spanish, Portuguese'],
     ['SubtitlesEnglish', 'Subtitles: English'],
   ])
-  expect(netflix.querySelector('.languages .more')?.textContent, 'the count apart from the names a narrow card cuts').toBe('+1')
+  expect(netflix.querySelector('.languages .rest')?.textContent, 'past three apart, for a card that shows three').toBe(', Portuguese')
+  const more = netflix.querySelector('.languages .more')
+  expect(more?.textContent, 'the count apart from the names a narrow card cuts').toBe('+1')
+  expect(more?.getAttribute('aria-hidden'), 'and not read out over the names it stands for').toBe('true')
+  expect(netflix.querySelectorAll('.rest, .more'), 'none for a line of three or fewer').toHaveLength(2)
   expect(netflix.querySelector('.head .name')?.textContent, 'its usual row, under the picture').toBe('Netflix')
 
   const hulu = card(host, 'Hulu')

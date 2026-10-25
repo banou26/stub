@@ -283,13 +283,11 @@ const style = css`
       gap: 0.4rem;
     }
 
-    /* the names give way first, so how many more there are stays on screen */
     .languages {
       display: flex;
       gap: 0.6rem;
       color: rgba(255, 255, 255, 0.75);
       font-size: 1.2rem;
-      white-space: nowrap;
     }
 
     .languages-label {
@@ -299,13 +297,40 @@ const style = css`
     }
 
     .names {
-      overflow: hidden;
       min-width: 0;
-      text-overflow: ellipsis;
     }
 
     .more {
+      display: none;
       flex-shrink: 0;
+    }
+
+    /* Where a pointer can hover, the first three names and how many more, the rest in the tooltip and
+       still read out; a phone, or a card the keyboard is on, lists them all. The names give way first,
+       so how many more there are stays on screen. */
+    @media (hover: hover) {
+      &:not(:focus-visible) {
+        .languages {
+          white-space: nowrap;
+        }
+
+        .names {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .rest {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+
+        .more {
+          display: block;
+        }
+      }
     }
 
     /* the picture beside what it says, so a phone's column of cards stays short */
@@ -470,11 +495,15 @@ const languageName = (tag: string) => {
 const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | null }) => {
   const names = [...new Set((tags ?? []).map(languageName))]
   if (!names.length) return null
+  const rest = names.slice(3)
   return (
     <span className="languages" title={`${label}: ${names.join(', ')}`}>
       <span className="languages-label">{label}</span>
-      <span className="names">{names.slice(0, 3).join(', ')}</span>
-      {names.length > 3 ? <span className="more">+{names.length - 3}</span> : undefined}
+      <span className="names">
+        {names.slice(0, 3).join(', ')}
+        {rest.length ? <span className="rest">, {rest.join(', ')}</span> : undefined}
+      </span>
+      {rest.length ? <span className="more" aria-hidden="true">+{rest.length}</span> : undefined}
     </span>
   )
 }
