@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
 // a plain .mjs beside the other build scripts, so its exports arrive untyped
-import { embedPageProblems, MAX_PACKED_FILES, npmEntryProblems, packedFilesProblems } from '../../scripts/check-npm-entry.mjs'
+import { embedPageProblems, MAX_PACKED_FILES, npmEntryProblems, packedFilesProblems, packedPaths } from '../../scripts/check-npm-entry.mjs'
 import { EMBED_PAGE } from '../../scripts/embed-page'
 
 // package.json's `main` is the only thing the platform reads to load this app: the sandbox appends
@@ -164,6 +164,13 @@ describe('the published file list', () => {
 
   test('the control: 0.0.60\'s 62 files pass', () => {
     expect(packedFilesProblems(paths(62))).toEqual([])
+  })
+
+  test('npm pack\'s report reads the same from npm 11\'s array and npm 12\'s object keyed by name', () => {
+    const report = { name: '@banou/stub', files: [{ path: 'build/index.js' }, { path: 'fkn.json' }] }
+    expect(packedPaths([report])).toEqual(['build/index.js', 'fkn.json'])
+    expect(packedPaths({ '@banou/stub': report })).toEqual(['build/index.js', 'fkn.json'])
+    expect(() => packedPaths({}), 'the control: no report is an error, not an empty list').toThrow()
   })
 
   test('package.json leaves the offline history\'s shards and their maps out of the package', () => {

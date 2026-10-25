@@ -248,6 +248,16 @@ export const appIconProblems = (pkg, tree) => {
  */
 export const MAX_PACKED_FILES = 100
 
+/**
+ * The paths `npm pack --dry-run --json` would publish. npm 11 answers an array of reports and npm 12
+ * an object keyed by the package's name; anything else throws rather than passing as an empty list.
+ */
+export const packedPaths = (json) => {
+  const report = Array.isArray(json) ? json[0] : Object.values(json ?? {})[0]
+  if (!Array.isArray(report?.files)) throw new Error('npm pack --dry-run --json gave no file list')
+  return report.files.map(file => file.path)
+}
+
 /** Why `npm pack` would publish a package the signer refuses: too many files for its list. */
 export const packedFilesProblems = (paths) => paths.length > MAX_PACKED_FILES
   ? [`the package would publish ${paths.length} files, and its signature lists at most about ${MAX_PACKED_FILES}: leave generated data out of "files" in package.json`]
@@ -258,7 +268,7 @@ if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   const tree = readTree(root)
-  const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' }))[0].files.map(file => file.path)
+  const packed = packedPaths(JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' })))
   const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree), ...packedFilesProblems(packed)]
   if (problems.length) {
     console.error(`the built package cannot be loaded as an app:\n${problems.map(line => `  - ${line}`).join('\n')}`)
