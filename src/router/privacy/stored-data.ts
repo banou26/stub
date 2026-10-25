@@ -9,7 +9,6 @@ import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
-import { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../utils/track-languages'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
 
 export type StoredItem = {
@@ -37,7 +36,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'settings',
     title: 'Settings',
-    what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country you picked, autoplay, the search layout, the trackers you chose not to save to and whether you expanded them, and the play order. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
+    what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country you picked, autoplay, the search layout, the trackers you chose not to save to and whether you expanded them, the play order, and the audio and subtitle languages you last picked in a player. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
     lasts: "Until you change them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
     keys: { store: 'local', names: [...SETTINGS_KEYS, ACCOUNT_SETTINGS_KEY] },
@@ -105,11 +104,11 @@ export const STORED: readonly StoredItem[] = [
   },
   {
     id: 'player',
-    title: 'Player volume and languages',
-    what: 'The volume you last left a player at and whether it was muted, so the next episode or theme starts the same, and the audio and subtitle languages you last picked, so the next episode starts in them. Speed is not kept.',
+    title: 'Player volume',
+    what: 'The volume you last left a player at, and whether it was muted, so the next episode or theme starts the same. Speed is not kept.',
     where: LOCAL,
     lasts: "Until you clear this site's data in your browser",
-    keys: { store: 'local', names: [PLAYER_VOLUME_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY] },
+    keys: { store: 'local', names: [PLAYER_VOLUME_KEY] },
   },
   {
     id: 'positions',

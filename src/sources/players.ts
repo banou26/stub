@@ -6,6 +6,8 @@
  * know WHETHER an origin is playable wants `./playable`, which is a set of strings (see its header
  * for the 353 kB this separation keeps off every page load).
  */
+import type { TrackLanguages } from '../utils/track-languages'
+
 import PrimeVideoPlayer from './amazon/player'
 import CrunchyrollPlayer from './crunchyroll/player'
 import NetflixPlayer from './unogs/player'
@@ -21,6 +23,8 @@ export type PlayerProps = {
   triedRelays?: readonly string[]
   /** the relays a light check found the episode unlisted on, ahead of one that lists it, which a cloud frame also starts past */
   unlistedRelays?: Promise<readonly string[]>
+  /** the audio and subtitle languages the viewer last picked, which the player starts in */
+  languages?: TrackLanguages
 }
 
 const players: Record<string, (props: PlayerProps) => any> = {

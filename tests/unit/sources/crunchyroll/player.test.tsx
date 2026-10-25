@@ -8,6 +8,7 @@ import type { EmbedTracks, TrackKind } from '../../../../src/embed-tracks'
 import type { CrunchyrollTracks } from '../../../../src/sources/crunchyroll/cr-native-controls'
 import type { ComponentChildren } from 'preact'
 import type { WindowSignIn } from '../../../../src/sources/login-window'
+import type { TrackLanguages } from '../../../../src/utils/track-languages'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -87,8 +88,8 @@ const makeFrame = () => {
 
 const hosts: HTMLElement[] = []
 
-const render = async () => {
-  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" />)
+const render = async (languages?: TrackLanguages) => {
+  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" languages={languages} />)
   hosts.push(host)
   return host
 }
@@ -384,14 +385,14 @@ describe('the tracks served to the watch page', () => {
   const lastServed = () => served.mock.calls.at(-1) as [EmbedTracks, (kind: TrackKind, id: string | null) => void]
 
   // a signed-in page whose video is up, so the player discovers its tracks
-  const playing = async () => {
+  const playing = async (languages?: TrackLanguages) => {
     lib.extension = true
     frame.locator = (selector: string) => ({
       exists: async () => selector === '#user-menu-authenticated' || selector === 'video',
       videoElement: async () => Object.assign(new EventTarget(), { duration: 1440 }),
     }) as unknown as ReturnType<typeof frame.locator>
     Object.assign(frame, { evaluate: () => new Promise(() => {}) })
-    await render()
+    await render(languages)
     await vi.waitFor(() => expect(lastServed()[0].subtitles).toBeTruthy(), { timeout: 5_000 })
   }
 
@@ -442,7 +443,8 @@ describe('the tracks served to the watch page', () => {
     await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
   })
 
-  // switched to before any list is served, so a party hears the preferred tracks as where this player starts
+  // handed over by the watch page, and switched to before any list is served, so a party hears the preferred tracks
+  // as where this player starts
   describe('the languages the viewer last picked', () => {
     const picks = () => controls.select.mock.calls.map(([, , kind, id]) => [kind, id])
     const firstServed = () => (served.mock.calls as unknown as [EmbedTracks][]).map(([tracks]) => tracks).find(tracks => tracks.subtitles)!
@@ -453,11 +455,9 @@ describe('the tracks served to the watch page', () => {
     }
 
     test('are switched to as the episode loads, before the tracks are served', async () => {
-      stored.set('stub.player.audio-language', 'eng')
-      stored.set('stub.player.subtitle-language', 'off')
       controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
         kind === 'audio' ? { ...TRACKS, audio: switched.audio } : switched)
-      await playing()
+      await playing({ audio: 'eng', subtitles: null })
       expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', null]])
       expect(firstServed()).toMatchObject({ audio: { selected: 'English#2' }, subtitles: { selected: null } })
       expect(skin.audioTracks!.selection.selectedId).toBe('English#2')
@@ -469,29 +469,24 @@ describe('the tracks served to the watch page', () => {
     })
 
     test('leave the tracks alone when the episode has none in them, or already plays them', async () => {
-      stored.set('stub.player.audio-language', 'Japanese')
-      stored.set('stub.player.subtitle-language', 'Français')
-      await playing()
+      await playing({ audio: 'Japanese', subtitles: 'Français' })
       expect(picks()).toEqual([])
     })
 
     test('are applied once a kind is found, and once for the episode', async () => {
-      stored.set('stub.player.audio-language', 'English')
-      stored.set('stub.player.subtitle-language', 'Deutsch')
       controls.discover.mockResolvedValueOnce({ audio: TRACKS.audio }).mockResolvedValue(TRACKS)
       controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
         kind === 'audio' ? { audio: switched.audio } : { ...TRACKS, subtitles: { ...TRACKS.subtitles!, selectedId: 'Deutsch' } })
-      await playing()
+      await playing({ audio: 'English', subtitles: 'Deutsch' })
       expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', 'Deutsch']])
     })
 
     test('a switch Crunchyroll refuses leaves the tracks it reads afterwards', async () => {
-      stored.set('stub.player.audio-language', 'English')
       vi.spyOn(console, 'warn').mockImplementation(() => {})
       controls.select.mockRejectedValue(new Error('Crunchyroll did not apply the audio option'))
       // what its menu shows once the switch gave up, here half done
       controls.discover.mockResolvedValueOnce(TRACKS).mockResolvedValue(switched)
-      await playing()
+      await playing({ audio: 'English' })
       expect(picks()).toEqual([['audio', 'English#2']])
       expect(firstServed().audio).toEqual({ ids: ['Japanese', 'English#2'], selected: 'English#2' })
     })

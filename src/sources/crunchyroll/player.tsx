@@ -16,7 +16,6 @@ import { tellUnplayable } from '../../embed-unplayable'
 import { serveEmbedTracks } from '../../embed-tracks'
 import { CONNECTED_CHANNEL, createConnections } from '../../tracking/connections'
 import { siteStatuses } from '../../tracking/site-status'
-import { readTrackLanguages } from '../../utils/track-languages'
 import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
@@ -182,7 +181,7 @@ const styles = css`
   }
 `
 
-const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: PlayerProps) => {
+const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, languages = {} }: PlayerProps) => {
   const [mode, setMode] = useState<Backend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -354,7 +353,6 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
     const isCancelled = () => cancelled || !mounted.current || generation !== trackGeneration.current
 
     // switched to before the tracks are shown, so a watch party hears the preferred track as where this player starts
-    const preferred = readTrackLanguages()
     const applied = new Set<'audio' | 'subtitles'>()
     const prefer = async (tracks: CrunchyrollTracks) => {
       let next = tracks
@@ -362,7 +360,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays }: Pla
         const selection = next[kind]
         if (!selection || applied.has(kind)) continue
         applied.add(kind)
-        const id = preferredSelection(selection, preferred[kind])
+        const id = preferredSelection(selection, languages[kind])
         if (id === undefined) continue
         try {
           next = await selectCrunchyrollTrack(frame, remoteVideo, kind, id, isCancelled)

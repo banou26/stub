@@ -6,8 +6,8 @@ import { MediaPlayer } from '@banou/media-player'
 import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
+import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
-import { keepAudioLanguage, keepSubtitleLanguage } from '../../utils/track-languages'
 import { withTimelineSeek } from './timeline-seek'
 
 type Props = {
@@ -51,8 +51,8 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       thumbnails={thumbnails}
       chapters={chapters}
       pictureInPicture={pictureInPicture}
-      onPreferredAudioLanguageChange={keepAudioLanguage}
-      onPreferredSubtitleLanguageChange={keepSubtitleLanguage}
+      onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
+      onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
     >
       {children}
     </MediaPlayer>

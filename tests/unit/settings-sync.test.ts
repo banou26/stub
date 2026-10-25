@@ -12,6 +12,7 @@ import { HIDDEN_ICONS_KEY as ICONS, readHiddenIcons } from '../../src/sources/hi
 import { PLAY_ORDER_KEY as PLAY, readPlayOrder } from '../../src/sources/play-order'
 import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src/utils/autoplay'
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
+import { AUDIO_LANGUAGE_KEY as AUDIO, SUBTITLE_LANGUAGE_KEY as SUBTITLES, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages } from '../../src/utils/track-languages'
 import { COUNTRY_KEY as COUNTRY, readPickedCountry } from '../../src/sources/country'
 import { DISPLAY_MODE_KEY, readDisplayMode } from '../../src/router/search/display'
 import { COMPACT_PREFS_KEY, viewerPrefs } from '../../src/tracking/compact-prefs'
@@ -404,6 +405,7 @@ describe('the page\'s settings', () => {
     holds(world, 'alice', {
       [OFF]: '["simkl"]', [ICONS]: '["nf"]', [COUNTRY]: 'JP', [AUTOPLAY]: 'off',
       [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}', [PLAY]: '["nyaa","cr"]',
+      [AUDIO]: 'Japanese', [SUBTITLES]: 'off',
     })
     const realm = world.browser({ account: 'alice' }).realm()
     const sync = settingsSync({ settings: pageSettings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
@@ -411,8 +413,28 @@ describe('the page\'s settings', () => {
     expect(storage.getItem(OFF), 'the control: nothing of this browser\'s own').toBe(null)
     expect({
       sources: readDisabledSources(), icons: readHiddenIcons(), country: readPickedCountry(), autoplay: readAutoplay(),
-      layout: readDisplayMode(), prefs: viewerPrefs.read(), order: readPlayOrder(),
-    }).toEqual({ sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, layout: 'list', prefs: { targets: { anilist: false } }, order: ['nyaa', 'cr'] })
+      layout: readDisplayMode(), prefs: viewerPrefs.read(), order: readPlayOrder(), languages: readTrackLanguages(),
+    }).toEqual({
+      sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, layout: 'list', prefs: { targets: { anilist: false } }, order: ['nyaa', 'cr'],
+      languages: { audio: 'Japanese', subtitles: null },
+    })
+  })
+
+  test('the languages last picked on one device are the account\'s, which another device starts in', async () => {
+    const { storage } = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    const world = fknWorld()
+    const realm = world.browser({ account: 'alice' }).realm()
+    const sync = settingsSync({ settings: pageSettings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
+    await sync.check()
+    keepAudioLanguage('Japanese')
+    keepSubtitleLanguage(null)
+    await sync.check()
+    expect(fileOf(world, 'alice')).toEqual({ [AUDIO]: 'Japanese', [SUBTITLES]: 'off' })
+
+    const other = site(world.browser({ account: 'alice' }))
+    await other.sync.check()
+    expect([other.settings.getItem(AUDIO), other.settings.getItem(SUBTITLES)]).toEqual(['Japanese', 'off'])
   })
 
   test('the worker\'s watcher and the Autoplay switch\'s hear a change a sync step applied', async () => {

@@ -24,6 +24,7 @@ import Placeholder from '../../components/placeholder'
 import MediaTracking from '../../components/media-tracking'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
+import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { hearUnplayable } from '../../embed-unplayable'
 import { serveEmbedTitle } from '../../embed-title'
@@ -463,8 +464,10 @@ const Watch = () => {
     return () => { cancelled = true }
   }, [])
 
-  // read once per source: a handles update later in the episode would otherwise change the url and reload the player
+  // read once per source: a handles update later in the episode would otherwise change the url and reload the player,
+  // and so would a language the viewer picks in it
   const triedRelays = useMemo(() => selectedSourceUri ? triedRelaysParams(selectedSourceUri) : {}, [selectedSourceUri])
+  const languages = useMemo(() => selectedSourceUri ? trackLanguagesParams() : {}, [selectedSourceUri])
 
   const embedUrl = useMemo(() => {
     if (!selectedSourceUri) return undefined
@@ -479,10 +482,11 @@ const Watch = () => {
       sourceUri: selectedSourceUri,
       url: handle.url,
       ...triedRelays,
+      ...languages,
     })
     // the page sits beside the running build's html, which under fkn.app/app is /build/ and not the origin root
     return `${__STUB_EMBED_PAGE__}?${embedParams}`
-  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, backend])
+  }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, languages, backend])
 
   const plugins = usePluginStatuses()
   const added = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources?.map(source => source.origin) ?? [] : [])
@@ -559,6 +563,12 @@ const Watch = () => {
     if (viaPlugin || !embedUrl || !iframe || !selectedSourceUri) return
     return hearTriedRelays(iframe, selectedSourceUri)
   }, [viaPlugin, embedUrl, selectedSourceUri])
+
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe) return
+    return hearTrackLanguages(iframe)
+  }, [viaPlugin, embedUrl])
 
   const [unplayable, setUnplayable] = useState<readonly string[]>([])
   useEffect(() => {

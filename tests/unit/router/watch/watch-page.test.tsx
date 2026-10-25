@@ -156,6 +156,14 @@ vi.mock('../../../../src/embed-relays', () => ({
     return () => {}
   },
 }))
+const languages = vi.hoisted(() => ({ heard: [] as HTMLIFrameElement[] }))
+vi.mock('../../../../src/embed-languages', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../../src/embed-languages')>(),
+  hearTrackLanguages: (iframe: HTMLIFrameElement) => {
+    languages.heard.push(iframe)
+    return () => {}
+  },
+}))
 // the embed saying its source cannot play the episode here, heard by the frame it was said in
 const unplayables = vi.hoisted(() => ({ listeners: new Map<HTMLIFrameElement, () => void>() }))
 vi.mock('../../../../src/embed-unplayable', () => ({
@@ -180,6 +188,8 @@ const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
+const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
+const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
@@ -208,6 +218,7 @@ afterEach(() => {
   stored.clear()
   relays.remembered = {}
   relays.heard = []
+  languages.heard = []
   bridge.links = []
   bridge.greets = false
   bridge.duration = 1000
@@ -474,6 +485,38 @@ test('the relays a show was unavailable through reach its next episode\'s player
   await settle()
   expect(src()).toContain('triedRelays=r1')
   expect(relays.heard.at(-1)).toEqual([host.querySelector('iframe'), 'cr:GX2'])
+})
+
+test('the languages last picked, the account\'s when signed in, reach the next episode\'s player, and never reload the one playing', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [AUDIO_LANGUAGE_KEY]: 'Japanese' }))
+  const location = memoryLocation()
+  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  const framed = () => new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams
+  expect(framed().get(AUDIO_LANGUAGE_KEY)).toBe('Japanese')
+  expect(framed().has(SUBTITLE_LANGUAGE_KEY)).toBe(false)
+  expect(languages.heard.at(-1)).toBe(host.querySelector('iframe'))
+
+  // the viewer turns the subtitles off in the player, then the episode's handles update while it plays
+  keepSubtitleLanguage(null)
+  Object.assign(episode, { handles: [...allHandles] })
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(framed().has(SUBTITLE_LANGUAGE_KEY)).toBe(false)
+
+  const next = handle('cr:GX2', 'cr', 'https://www.crunchyroll.com/watch/GX2')
+  Object.assign(episode, { handles: [next, ...allHandles] })
+  params = { ...params, sourceUri: 'cr:GX2' }
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(framed().get(SUBTITLE_LANGUAGE_KEY)).toBe('off')
+  expect(framed().get(AUDIO_LANGUAGE_KEY)).toBe('Japanese')
+  expect(languages.heard.at(-1)).toBe(host.querySelector('iframe'))
 })
 
 const row = (n: number, ...handles: ReturnType<typeof handle>[]) =>
