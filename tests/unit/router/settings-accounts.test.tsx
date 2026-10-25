@@ -132,7 +132,7 @@ describe('Prime Video', () => {
   test('on the cloud in Japan, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
     viewerIn('Asia/Tokyo')
     const { row, props } = render({ status: signedInTo('prime') })
-    expect(row('prime').closest('[data-source]')!.querySelector('h3')!.textContent).toBe('Prime Video')
+    expect(row('prime').closest('[data-source]')!.querySelector('h4')!.textContent).toBe('Prime Video')
     await act(async () => { button(row('prime'), 'Sign out')!.click() })
     expect(row('prime').textContent).toContain('Sign out of Prime Video in every fkn.app app?')
     await act(async () => { button(row('prime'), 'Yes, sign out')!.click() })

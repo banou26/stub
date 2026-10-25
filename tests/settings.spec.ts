@@ -230,7 +230,7 @@ test('Play order ranks the cards of stub\'s players and an added source, a moved
   await page.goto(`${origin}/legal`)
   await page.evaluate(() => localStorage.setItem('stub-enabled-plugins', JSON.stringify(['npm:@spec/anime-source'])))
   await page.goto(`${origin}/settings#sources`)
-  const rows = (on: Page) => on.locator('ol.play-order > li h3')
+  const rows = (on: Page) => on.locator('ol.play-order > li h4')
   const move = (name: string) => page.getByRole('button', { name, exact: true })
   await expect(rows(page)).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix', 'Spec Anime'])
   await expect(page.locator('ol.play-order > li .place')).toHaveText(['1', '2', '3', '4'])

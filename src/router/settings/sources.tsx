@@ -92,9 +92,9 @@ const style = css`
   }
 
   .card .order button[aria-disabled='true'] { opacity: 0.35; cursor: default; }
-  .card h3 { font-size: 1.5rem; overflow-wrap: anywhere; transition: color 0.15s; }
+  .card h4 { font-size: 1.5rem; font-weight: 600; overflow-wrap: anywhere; transition: color 0.15s; }
   .card .from { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card.off h3 { color: rgba(255, 255, 255, 0.5); }
+  .card.off h4 { color: rgba(255, 255, 255, 0.5); }
   .card.off .icon { opacity: 0.5; }
 
   .card .switches {
@@ -129,7 +129,7 @@ const style = css`
   .card .account button:not(.small) { padding: 0.5rem 1.2rem; font-size: 1.3rem; }
 
   @media (prefers-reduced-motion: reduce) {
-    .card .icon, .card h3 { transition: none; }
+    .card .icon, .card h4 { transition: none; }
   }
 
   button.link-button {
@@ -346,7 +346,7 @@ const SourceCard = ({ card, on, shown, accounts, place, children }: { card: Card
           {card.icon ? <OriginIcon icon={card.icon} name={card.name}/> : <span className="letter" aria-hidden="true">{card.name.charAt(0)}</span>}
         </span>
         <div className="title">
-          <h3 ref={heading} tabIndex={-1}>{card.name}</h3>
+          <h4 ref={heading} tabIndex={-1}>{card.name}</h4>
           <span className="from">{card.from}</span>
         </div>
         {children ? <div className="order">{children}</div> : undefined}

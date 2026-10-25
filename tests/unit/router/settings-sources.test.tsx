@@ -114,7 +114,7 @@ test('a card shows the source\'s icon, or its initial without one, its name, and
   expect(icon('anizip').textContent).toBe('A')
   expect(icon('one').querySelector('img')!.getAttribute('src')).toBe('https://one.spec.test/icon.png')
   expect(icon('a').textContent, 'a package\'s source with no icon').toBe('A')
-  expect([card(host, 'cr'), card(host, 'one')].map(item => [item.querySelector('h3')!.textContent, item.querySelector('.from')!.textContent]))
+  expect([card(host, 'cr'), card(host, 'one')].map(item => [item.querySelector('h4')!.textContent, item.querySelector('.from')!.textContent]))
     .toEqual([['Crunchyroll', 'crunchyroll.com'], ['One', 'npm:@spec/one']])
 })
 

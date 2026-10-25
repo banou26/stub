@@ -121,7 +121,7 @@ test('an open Playback follows autoplay turned off in another tab or on the FKN 
 })
 
 const PLAY_ORDER_KEY = 'stub.sources.play-order'
-const playOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.play-order > li')].map(card => card.querySelector('h3')?.textContent)
+const playOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.play-order > li')].map(card => card.querySelector('h4')?.textContent)
 const move = (host: HTMLElement, label: string) => host.querySelector<HTMLButtonElement>(`ol.play-order .order button[aria-label="${label}"]`)!
 
 // the owner, 2026-10-25 (HOR-1019): "we should be able to order the cards [...] and also probably have a ranking
@@ -133,6 +133,8 @@ test('Sources ranks the cards of stub\'s three players and every added source fi
   ]
   const host = await open('#sources')
   expect([...host.querySelectorAll('h3.part')].map(heading => heading.textContent)).toEqual(['Play order', 'Other sources', 'Added'])
+  const cardHeadings = [...host.querySelectorAll('[data-source] h2, [data-source] h3, [data-source] h4')]
+  expect(new Set(cardHeadings.map(heading => heading.tagName)), 'a card\'s name is a level under its group\'s').toEqual(new Set(['H4']))
   expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'Nyaa'])
   expect([...host.querySelectorAll('ol.play-order > li .place')].map(place => place.textContent)).toEqual(['1', '2', '3', '4'])
   expect(host.querySelectorAll('ul.cards [aria-label^="Move "], ul.cards .place'), 'a source Play never tries has no place').toHaveLength(0)
