@@ -135,7 +135,7 @@ test('movies.fkn.app draws each popular film\'s poster, and the hero shows one o
 
 // the hero drew JustWatch's 718x1024 poster across the screen and played nothing, as the home row asked for neither
 for (const [host, fixture] of [['movies.localhost', 'popular-movies'], ['series.localhost', 'popular-shows']] as const) {
-  test(`${host}'s hero plays the title's JustWatch trailer, and draws its backdrop on a 2G link`, async ({ page }) => {
+  test(`${host}'s hero plays the title's first JustWatch clip, then its backdrop once refused or on a 2G link`, async ({ page }) => {
     const titles: { title: string, backdrops: { backdropUrl: string }[], clips: { externalId: string }[] }[] =
       JSON.parse(readFileSync(join(ROOT, 'tests', 'fixtures', 'justwatch', `${fixture}.json`), 'utf8')).data.popularTitles.edges.map(({ node }: any) => node.content)
     const shown = async () => {
@@ -152,11 +152,20 @@ for (const [host, fixture] of [['movies.localhost', 'popular-movies'], ['series.
       }
     }
     await page.goto(at(host))
-    // YouTube is refused here, so the frame gives way to the title's next clip about every 10 s
+    let picked: typeof titles[number] | undefined
     await expect.poll(async () => {
       const { content, clip } = await shown()
-      return Boolean(clip && content?.clips.some(({ externalId }) => externalId === clip))
-    }, { message: 'the frame is one of the shown title\'s clips' }).toBe(true)
+      picked = content
+      return Boolean(clip && clip === content?.clips[0]?.externalId)
+    }, { message: 'the frame is the shown title\'s first clip' }).toBe(true)
+    // YouTube is refused here, so the frame fails about 10 s after it loads
+    const played = new Set<string>()
+    await expect.poll(async () => {
+      const { content, clip, ownBackdrop } = await shown()
+      if (clip) played.add(clip)
+      return content === picked && !clip && ownBackdrop
+    }, { message: 'the refused clip gives way to the title\'s own backdrop' }).toBe(true)
+    expect([...played].filter(clip => clip !== picked?.clips[0]?.externalId), 'none of the title\'s later clips played').toEqual([])
 
     await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: Object.assign(new EventTarget(), { effectiveType: '2g' }) }))
     await page.goto(at(host))

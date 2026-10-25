@@ -466,10 +466,11 @@ const resolveImageUrl = (url: string | null | undefined) =>
 const bannersOf = ({ content }: JWSearchNode) =>
   (content.backdrops ?? []).flatMap(({ backdropUrl }) => img(resolveImageUrl(backdropUrl), BACKDROP_SCORE))
 
-// in JustWatch's order, which puts the title's own trailer first: one of 79 first clips was named in another
-// language (2026-10-26)
+// the first clip only: the ones after it are often a trailer in another language, or not this title's at all (South
+// Park's second is a video game's). The first was in another language on 2 of 79 titles and unnamed on 8, and a
+// clip's `language` only echoes the one asked (2026-10-26)
 const trailersOf = ({ content }: JWSearchNode) =>
-  (content.clips ?? []).map(({ externalId: id }) => ({ uri: `yt:${id}`, origin: 'yt', id, url: `https://www.youtube.com/watch?v=${id}` }))
+  (content.clips ?? []).slice(0, 1).map(({ externalId: id }) => ({ uri: `yt:${id}`, origin: 'yt', id, url: `https://www.youtube.com/watch?v=${id}` }))
 
 const ratingsOf = (scoring: JWSearchNode['content']['scoring']): MediaRating[] =>
   [

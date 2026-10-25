@@ -102,18 +102,20 @@ test('the home row asks each title\'s backdrops and YouTube clips, and a search 
   expect(search).not.toMatch(/backdrops|clips/)
 })
 
-test('each film and show of the home row carries its backdrops as banners and its clips as YouTube trailers', async () => {
+test('each film and show of the home row carries its backdrops as banners and its first clip as its YouTube trailer', async () => {
   const { nodes: films } = await listing({ categories: ['MOVIE'] }, POPULAR_MOVIES)
   const { nodes: shows } = await listing({ categories: ['SERIES'] }, POPULAR_SHOWS)
   const [backrooms] = films
   expect(backrooms.banners).toEqual([{ url: 'https://images.justwatch.com/backdrop/344090471/s1920/backrooms.jpg', score: 0.1 }])
-  expect(backrooms.trailers[0]).toEqual({ uri: 'yt:0HjdiohVOik', origin: 'yt', id: '0HjdiohVOik', url: 'https://www.youtube.com/watch?v=0HjdiohVOik' })
+  expect(backrooms.trailers).toEqual([{ uri: 'yt:0HjdiohVOik', origin: 'yt', id: '0HjdiohVOik', url: 'https://www.youtube.com/watch?v=0HjdiohVOik' }])
+  // each fixture title has four clips
   expect(shows.map((media: any) => [media.titles[0].title, media.banners.length, media.trailers.map(({ uri }: { uri: string }) => uri)])).toEqual([
-    ['Lanterns', 2, ['yt:XmcIjxwLJcY', 'yt:7UIBOsuUwc4', 'yt:Z1jcPlGXnMo', 'yt:HF_WsM_4mzI']],
-    ['Ted Lasso', 5, ['yt:BwPcMIDFVKw', 'yt:zQusW5WJhfw', 'yt:WZXgJQRoCaI', 'yt:3u7EIiohs6U']],
-    ['Slow Horses', 5, ['yt:O9ZJChzPn0U', 'yt:UUPWCmPiYj0', 'yt:HcQ6P4aHhWs', 'yt:ieLStl_Ccts']],
-    ['Lioness', 5, ['yt:uEjcXhW7CXo', 'yt:IljG0a1YEck', 'yt:_NTTf-Ih2Qk', 'yt:c5X7wVy9QWs']],
+    ['Lanterns', 2, ['yt:XmcIjxwLJcY']],
+    ['Ted Lasso', 5, ['yt:BwPcMIDFVKw']],
+    ['Slow Horses', 5, ['yt:O9ZJChzPn0U']],
+    ['Lioness', 5, ['yt:uEjcXhW7CXo']],
   ])
+  expect(films.map((media: any) => media.trailers.length)).toEqual([1, 1, 1, 1])
   // the hero picks among titles carrying a trailer, and draws a banner before a poster
   expect(theaterCandidates([...films, ...shows]).map((media: any) => media.trailers.length > 0)).toEqual(Array(8).fill(true))
   expect([...films, ...shows].every((media: any) => /^https:\/\/images\.justwatch\.com\/backdrop\/\d+\/s1920\//.test(media.banners[0].url))).toBe(true)
