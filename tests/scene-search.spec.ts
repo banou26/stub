@@ -10,6 +10,7 @@ import { PNG } from 'pngjs'
 import { build } from 'vite-plus'
 
 import { frame, letterboxed, withPhoneChrome } from './fixtures/scene/frame'
+import { workerFakes } from './worker-fakes'
 
 // The scene search on anime.fkn.app, built and served the way tests/sites.spec.ts does: one build under the
 // sites' names, every request that leaves the server refused, AniList answering Spec Rated (anilist:900040) and
@@ -48,6 +49,7 @@ test.beforeAll(async () => {
     configFile: join(ROOT, 'vite.config.ts'),
     root: ROOT,
     logLevel: 'error',
+    worker: { plugins: workerFakes },
     build: { outDir: dir, emptyOutDir: true },
     plugins: [{
       name: 'spec-fakes',

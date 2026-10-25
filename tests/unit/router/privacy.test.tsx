@@ -74,10 +74,13 @@ test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the
   expect(STORED.find(item => item.id === 'site-status')?.what).toContain('Prime Video')
 })
 
+// a browser-asked host sees the viewer's address, so the page names exactly the hosts src/worker/direct-fetch.ts lists
 test('names every host stub asks from the browser, and keeps them out of the proxy list', () => {
-  const { text: page } = text()
-  for (const origin of DIRECT_FETCH_ORIGINS) expect(page, origin).toContain(`asks ${new URL(origin).host} from your browser`)
+  const { host, text: page } = text()
+  const intro = [...host.querySelectorAll('p')].find(p => p.textContent!.includes('asked from your browser instead, not through the proxy'))
+  const named = [...intro?.nextElementSibling?.querySelectorAll('.host') ?? []].map(item => item.textContent)
+  expect(named.sort()).toEqual([...DIRECT_FETCH_ORIGINS].map(origin => new URL(origin).host).sort())
   const proxied = /through the FKN platform proxy, which then reaches third-party services such as ([^.]*)\./.exec(page)?.[1]
   expect(proxied).toBeDefined()
-  expect(proxied).not.toMatch(/Netflix/)
+  expect(proxied).not.toMatch(/Netflix|AniList|Kitsu|TVmaze|Trakt/)
 })

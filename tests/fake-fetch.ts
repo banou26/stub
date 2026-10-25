@@ -1,7 +1,5 @@
 import type { FetchInit } from '../src/worker/backoff'
 
-import { cloud } from '@fkn/lib'
-
 import { parseSeasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 
@@ -185,7 +183,8 @@ const TMDB: Record<string, string> = {
 // seven offers;
 // Spec Prime Film (anilist:900070) the same, with Prime Video on amazon.co.jp and Tubi, and Spec Late Film
 // (anilist:900060) with Tubi alone, forty seconds later.
-export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
+// TheTVDB's search finds none of these titles, so no ask with a body leaves the rig.
+export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promise<Response | undefined> => {
   const malId = typeof input === 'string' ? input.match(/^https:\/\/api\.ani\.zip\/mappings\?mal_id=(\d+)/)?.[1] : undefined
   if (malId) {
     // api.ani.zip's answer for an id it does not know, as for a film not out yet
@@ -223,12 +222,13 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
     && JSON.parse(new URL(input).searchParams.get('input') ?? '{}')[0]?.json?.q === 'breaking bad') {
     return Response.json([WATCHMODE_BREAKING_BAD])
   }
+  if (input === 'https://api4.thetvdb.com/web/search/queries') return Response.json({ results: [{ hits: [] }] })
   if (typeof input === 'string' && input.startsWith('https://www.themoviedb.org/')) return new Response(TMDB[new URL(input).pathname] ?? '')
   if (typeof input === 'string' && input.startsWith(`https://api.tvmaze.com/shows/${MAZE.id}?`)) return Response.json(MAZE)
   if (input === 'https://caching.graphql.imdb.com/' && typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === 'tt0903747') {
     return Response.json(BREAKING_BAD)
   }
-  if (input !== 'https://graphql.anilist.co/' || typeof init?.body !== 'string') return cloud.fetch(input, init)
+  if (input !== 'https://graphql.anilist.co/' || typeof init?.body !== 'string') return undefined
   const { query, variables } = JSON.parse(init.body) as { query: string, variables: { id?: number, idMal?: number } }
   if (query.includes('Page(')) return Response.json({ data: { Page: { pageInfo: { lastPage: 1 }, media: [] } } })
   const { characters, staff, studios } = BEBOP
@@ -259,3 +259,10 @@ export const fetch = async (input: RequestInfo | URL, init?: FetchInit) => {
   const bundled = listed.find(({ season, year }) => season === now.season && year === now.year) ?? listed[0]
   return Response.json({ data: { Media: { id: variables.id, format: bundled?.format, season: bundled?.season, seasonYear: bundled?.year, relations, ...credits } } })
 }
+
+/**
+ * The relay's path in the rig, standing in for src/utils/fetch.ts: an answer above, else FKN's cloud, which every spec
+ * refuses. FKN is loaded only here, so the worker's stand-in (./fake-browser-fetch.ts) reads the answers without it.
+ */
+export const fetch = async (input: RequestInfo | URL, init?: FetchInit) =>
+  await answer(input, init) ?? (await import('@fkn/lib')).cloud.fetch(input, init)

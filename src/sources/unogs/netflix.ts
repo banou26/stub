@@ -10,12 +10,11 @@
 // this call.
 //
 // AND IT HAS TO BE THE BROWSER THAT MAKES IT. Netflix answers per COUNTRY, about the address the
-// request came from, so this is the one host in the app whose `ctx.fetch` does not go through the FKN
-// relay: the relay would answer correctly about the relay's country and the page is about the
-// viewer's. `src/worker/direct-fetch.ts` holds the routing, the measurement and what the exception
-// costs. Until 2026-09-13 these two calls went over the relay and this whole slice published nothing
-// on any page load, while the log read `no-episodes-listed`, which named Netflix for a fault that was
-// ours.
+// request came from, so its `ctx.fetch` must not go through the FKN relay: the relay would answer
+// correctly about the relay's country and the page is about the viewer's. `src/worker/direct-fetch.ts`
+// holds the routing and what asking from the browser costs. Until 2026-09-13 these two calls went over
+// the relay and this whole slice published nothing on any page load, while the log read
+// `no-episodes-listed`, which named Netflix for a fault that was ours.
 import type { ExtractorServerContext } from '../../worker/extractor'
 
 import { languageTags } from '../stream-facts'

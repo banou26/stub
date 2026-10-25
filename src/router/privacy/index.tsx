@@ -21,12 +21,24 @@ const keptStyle = css`
   .facts { color: rgba(255, 255, 255, 0.55); }
 `
 
+const hostsStyle = css`
+  margin: 0 0 1.6rem;
+  padding-left: 2rem;
+
+  li {
+    font-size: 1.5rem;
+    line-height: 1.7;
+  }
+
+  .host { color: rgba(255, 255, 255, 0.55); }
+`
+
 const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 13 October 2026</div>
+    <div className="updated">Last updated 25 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -77,8 +89,8 @@ const Privacy = () => (
 
     <h2>Network requests &amp; third parties</h2>
     <p>
-      To fetch titles, artwork, and streams, stub sends requests through the FKN platform
-      proxy, which then reaches third-party services such as AniList, MyAnimeList,
+      To fetch titles and streams, stub sends requests through the FKN platform
+      proxy, which then reaches third-party services such as MyAnimeList,
       Crunchyroll, Prime Video and JustWatch. The proxy requires no account. It uses your IP
       address to rate-limit requests, and it keeps a copy of each answer for a while, under a
       key made from the whole request (its address, headers and body), so only an identical
@@ -91,13 +103,28 @@ const Privacy = () => (
       privacy policy, especially when you sign in to one (for example Crunchyroll) to watch.
     </p>
     <p>
-      Netflix's catalogue is an exception: stub asks www.netflix.com from your browser, not through
-      the proxy, because its answer depends on your country, so Netflix sees your IP address.
+      The services that allow it are asked from your browser instead, not through the proxy, so each
+      of them sees your IP address:
     </p>
+    <ul css={hostsStyle}>
+      <li>AniList <span className="host">graphql.anilist.co</span></li>
+      <li>Anime News Network <span className="host">cdn.animenewsnetwork.com</span></li>
+      <li>AnimeThemes <span className="host">graphql.animethemes.moe</span></li>
+      <li>AniZip <span className="host">api.ani.zip</span></li>
+      <li>Apple TV <span className="host">uts-api.itunes.apple.com</span></li>
+      <li>Kitsu <span className="host">kitsu.io</span></li>
+      <li>LiveChart <span className="host">www.livechart.me</span></li>
+      <li>Netflix <span className="host">www.netflix.com</span>, whose catalogue depends on your country</li>
+      <li>TheTVDB <span className="host">api4.thetvdb.com</span></li>
+      <li>
+        trace.moe <span className="host">api.trace.moe</span>, for a search by picture: it gets a short color code
+        of the picture, never the picture itself, and FKN stores neither the code nor your IP address
+      </li>
+      <li>Trakt <span className="host">apiz.trakt.tv</span></li>
+      <li>TVmaze <span className="host">api.tvmaze.com</span></li>
+    </ul>
     <p>
-      A search by picture asks api.trace.moe from your browser too, with a short color code of the
-      picture, never the picture itself: trace.moe sees the code and your IP address, and FKN stores
-      neither.
+      Artwork loads from each service's own image servers, which see your IP address too.
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}

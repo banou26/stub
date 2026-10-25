@@ -14,6 +14,7 @@ import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
+import { workerFakes } from './worker-fakes'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
 // request that leaves this origin is refused, so the works are the season the bundled catalogue lists,
@@ -42,6 +43,7 @@ test.beforeAll(async () => {
     configFile: join(ROOT, 'vite.config.ts'),
     root: ROOT,
     logLevel: 'error',
+    worker: { plugins: workerFakes },
     build: { outDir: dir, emptyOutDir: true },
     plugins: [{
       name: 'spec-fake-plugins',

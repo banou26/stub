@@ -213,7 +213,7 @@ const mediaQuery = (credits: string) => `
 const GET_MEDIA = mediaQuery('')
 
 /**
- * The title page's form, a different body from the modal's and so its own relay cache entry: 85 KB
+ * The title page's form, a different body from the modal's, so the modal never pays for it: 85 KB
  * against 23 KB on Frieren. AniList pages credits at 25 and the page asks no more. No language
  * argument on `voiceActors`, so every dub comes back.
  */
@@ -359,10 +359,12 @@ const frontend = createAnilistFrontendSession((input, init) => {
 const fetchPublicAnilist = async <T>({ query, variables }: { query: string, variables: any }, context: ExtractorServerContext): Promise<T | undefined> => {
   const response = await context.fetch('https://graphql.anilist.co/', {
     method: 'POST',
-    // The public API meters per source address, 30 a minute measured, and every user behind one FKN
-    // node shares that. Spreading across nodes multiplies it by the fleet. The frontend fallback is
-    // NOT spread: its CSRF pair was minted through one node and anilist.co may well bind it to the
-    // address, which is not something to find out from a gate refusal in production.
+    // The public API meters per source address, 30 a minute measured. A page asks it from the browser
+    // (worker/direct-fetch.ts), so those are the viewer's own; the link preview relays it, where every
+    // preview behind one FKN node would share them, and spreading across nodes multiplies it by the
+    // fleet. The frontend fallback is NOT spread: its CSRF pair was minted through one node and
+    // anilist.co may well bind it to the address, which is not something to find out from a gate
+    // refusal in production.
     spread: true,
     headers: {
       'content-type': 'application/json'
@@ -449,11 +451,11 @@ const fetchBrowsePage = (variables: BrowseVariables, page: number, context: Extr
 /**
  * One browse, paged.
  *
- * THE PAGE COUNT IS A BUDGET, not a style choice: AniList answers 30 requests a minute on a shared
- * relay ip (measured in scripts/measure-start-date-window.mjs), and a single listing that spent more
- * of it would starve every other call in the same minute. So a filtered browse takes 3 pages, which
- * `sort` makes the 150 most popular rather than an arbitrary slice, and a search takes 1, since its
- * own ranking already puts the answer on the first page.
+ * THE PAGE COUNT IS A BUDGET, not a style choice: AniList answers 30 requests a minute per address
+ * (measured in scripts/measure-start-date-window.mjs), the viewer's own, and a single listing that
+ * spent more of it would starve every other call in the same minute. So a filtered browse takes 3
+ * pages, which `sort` makes the 150 most popular rather than an arbitrary slice, and a search takes 1,
+ * since its own ranking already puts the answer on the first page.
  *
  * A season listed without a search leaves out what AniList marks adult, after the read, as the bundled
  * season does with the same 150 (scripts/season-popularity.mjs).

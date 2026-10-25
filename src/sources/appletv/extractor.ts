@@ -352,8 +352,7 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<Ap
 
 /**
  * How many results of one search are read in full, about the first screenful of cards. A common word
- * keeps almost every result ("the" keeps 54 of 56), and the relay meters a viewer at a burst of 40
- * requests, cached or not, shared with every other source the search asks.
+ * keeps almost every result ("the" keeps 54 of 56), each read a request of its own.
  */
 const SEARCH_READS = 12
 

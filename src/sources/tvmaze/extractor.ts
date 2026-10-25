@@ -198,7 +198,7 @@ const runMedia = (show: TvmazeShow, all: TvmazeEpisode[], seasonNumber: number |
 }
 
 const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx: ExtractorServerContext, details?: boolean | null): Promise<GQLMedia | undefined> => {
-  // the relay caches on the url, so the modal's stays as it was
+  // a cache keys on the url, so the modal's stays as it was
   const show = await api<TvmazeShow>(details ? `/shows/${id}?embed[]=episodes&embed[]=cast&embed[]=crew` : `/shows/${id}?embed=episodes`, ctx)
   if (!show) return undefined
   const all = show._embedded?.episodes ?? []

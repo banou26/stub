@@ -10,6 +10,7 @@ import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
 import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
+import { workerFakes } from './worker-fakes'
 
 // One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movies.fkn.app and
 // series.fkn.app: `*.localhost` stands in for fkn.app, and 127.0.0.1 is any other host, which shows
@@ -41,6 +42,7 @@ test.beforeAll(async () => {
     configFile: join(ROOT, 'vite.config.ts'),
     root: ROOT,
     logLevel: 'error',
+    worker: { plugins: workerFakes },
     build: { outDir: dir, emptyOutDir: true },
     plugins: [{
       name: 'spec-fakes',

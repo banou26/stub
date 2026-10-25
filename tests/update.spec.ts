@@ -10,6 +10,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import config from '../playwright.config'
+import { workerFakes } from './worker-fakes'
 
 // Stub's own update, end to end: the real app, built as tests/sites.spec.ts builds it (with
 // tests/party-grid-party.ts in place of the party module, so a party starts without FKN), served the
@@ -64,6 +65,7 @@ test.beforeAll(async () => {
       configFile: join(ROOT, 'vite.config.ts'),
       root: ROOT,
       logLevel: 'error',
+      worker: { plugins: workerFakes },
       build: { outDir, emptyOutDir: true },
       plugins: [{
         name: 'spec-fakes',

@@ -3,6 +3,8 @@
 // those headers name, the packed headers and the body, so any other shape would miss every entry pages made.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
+import { DIRECT_FETCH_ORIGINS } from '../../../src/worker/direct-fetch'
+
 type Sent = { url: string, method: string, headers: Record<string, string>, body: unknown }
 
 const PRAGUE = { id: 'cz-prg-001', region: 'eu', proxyOrigin: 'https://cz-prg-001.fkn.app/v0/', healthy: true, draining: false }
@@ -81,9 +83,12 @@ test('a request reaches the relay as cloud.fetch sends it', async () => {
   ])
 })
 
-test('Netflix goes through the relay too, never from the edge itself', async () => {
-  await preview.fetch('https://www.netflix.com/graphql', { method: 'POST', body: '{}', credentials: 'omit' })
-  expect(sent.map(({ url, headers }) => [url, headers['fkn-proxy-hostname']])).toEqual([['https://cz-prg-001.fkn.app/v0', 'www.netflix.com']])
+// a page asks these from the viewer's browser; a preview has no viewer, and the edge is no place to ask from
+test('every host a page asks from the browser goes through the relay too, never from the edge itself', async () => {
+  for (const origin of DIRECT_FETCH_ORIGINS) await preview.fetch(`${origin}/graphql`, { method: 'POST', body: '{}', credentials: 'omit' })
+  expect(sent.map(({ url, headers }) => [url, headers['fkn-proxy-hostname']])).toEqual(
+    [...DIRECT_FETCH_ORIGINS].map(origin => ['https://cz-prg-001.fkn.app/v0', new URL(origin).host]),
+  )
 })
 
 test('the answer is the upstream\'s, its status and headers unpacked, with the relay that served it named', async () => {

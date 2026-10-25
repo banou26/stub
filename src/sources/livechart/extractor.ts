@@ -127,10 +127,8 @@ export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season
 /**
  * One season, in ONE request. `limit=200` covers it (148 for fall 2026, 160 for summer) and paging is
  * no way round a longer one: `page=2` answered 2 items with `has_more` still true (2026-08-16). The
- * site's robots.txt asks for 5 seconds between requests. The relay caches each answer for an hour per
- * node, which holds one season to about one request an hour, but nothing paces requests ACROSS seasons:
- * a viewer stepping through years on the search page asks once per year, and the relay has no pacing
- * entry for www.livechart.me (its default is 50 a second).
+ * site's robots.txt asks for 5 seconds between requests, and nothing paces requests ACROSS seasons: a
+ * viewer stepping through years on the search page asks once per year, from their own browser.
  */
 const getSeason = async (ctx: ExtractorServerContext, asked = animeSeasonOf()): Promise<GQLMedia[]> => {
   try {
