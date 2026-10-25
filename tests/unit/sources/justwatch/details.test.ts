@@ -93,7 +93,7 @@ test('the details form goes out only when asked, and the modal and listing bodie
   viewerIn('America/New_York')
   const modal = await open(DUNE, 'jw:1133934')
   const page = await open(DUNE, 'jw:1133934', true)
-  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('063a0c76963dab4d4c1a70908e0c38cf15c67ddb690ed8972dddbbbc5ea978a1')
+  expect(sha256(modal.bodies[0]!), 'the modal body').toBe('dde0b504ca822fc386678a2ea39ac5dcbbdf061ea0029c1081ec429d6a386f5c')
   expect(page.bodies[0], 'the page body').toContain('scoring {')
 
   const listing: string[] = []

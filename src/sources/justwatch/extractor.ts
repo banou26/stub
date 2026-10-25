@@ -8,6 +8,7 @@ import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequ
 import { JUSTWATCH_GENRES } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
+import { languageTags, qualityLabels } from '../stream-facts'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, mergeHandles, waitForMedia, partOf, sameAs, declaredEpisodeCount, tmdbLink } from '../utils'
@@ -73,6 +74,26 @@ const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: J
 const PLAYBACK_ORIGINS = ['amazon', 'disney', 'hbo']
 const PLAYBACK_PACKAGES = Object.keys(PACKAGE_ORIGIN_MAP).filter(name => PLAYBACK_ORIGINS.includes(PACKAGE_ORIGIN_MAP[name]!))
 
+// What an offer says about its stream, which a playback row carries to the watch page's card
+const OFFER_FACTS = `
+                presentationType
+                videoTechnology
+                audioTechnology
+                audioLanguages
+                subtitleLanguages`
+// `videoTechnology` answers [''] for none (2026-10-25); a value with no label here is left off
+const VIDEO_LABELS: Record<string, string> = {
+  SD: 'SD', HD: 'HD', _4K: '4K', _8K: '8K', DOLBY_VISION: 'Dolby Vision', HDR: 'HDR', HDR10: 'HDR10', IMAX: 'IMAX',
+}
+const AUDIO_LABELS: Record<string, string> = { _5_POINT_1: '5.1', _7_POINT_1: '7.1', DOLBY_ATMOS: 'Dolby Atmos' }
+
+const offerFacts = (offer: JWOffer) => ({
+  videoQualities: qualityLabels([offer.presentationType, ...offer.videoTechnology ?? []], VIDEO_LABELS),
+  audioQualities: qualityLabels(offer.audioTechnology, AUDIO_LABELS),
+  audioLanguages: languageTags(offer.audioLanguages),
+  subtitleLanguages: languageTags(offer.subtitleLanguages),
+})
+
 const OFFER = `
             monetizationType
             presentationType
@@ -92,7 +113,7 @@ const episodeOffers = (country: string) => `
                 filter: { monetizationTypes: [FLATRATE_AND_BUY, FLATRATE, ADS, FREE], bestOnly: true, packages: ${JSON.stringify(PLAYBACK_PACKAGES)} }
               ) {
                 monetizationType
-                deeplinkURL(platform: WEB)
+                deeplinkURL(platform: WEB)${OFFER_FACTS}
                 package {
                   shortName
                 }
@@ -195,9 +216,9 @@ const nodeQuery = (details: string) => `
           }
           productionCountries${details}
         }
-        offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
+        offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}${OFFER_FACTS}
         }
-        extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
+        extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}${OFFER_FACTS}
         }
         ... on Show {
           totalSeasonCount
@@ -326,6 +347,12 @@ interface JWOffer {
   standardWebURL?: string | null
   deeplinkURL?: string | null
   package: { shortName: string }
+  /** `OFFER_FACTS`, which the search query does not ask for */
+  presentationType?: string | null
+  videoTechnology?: string[] | null
+  audioTechnology?: string[] | null
+  audioLanguages?: string[] | null
+  subtitleLanguages?: string[] | null
 }
 
 interface JWSearchNode {
@@ -777,12 +804,13 @@ const normalizeEpisode = (ep: JWEpisode, mediaUri: string): GQLEpisode =>
  * never on a media handle.
  */
 const playbackLinks = (offers: JWOffer[]) => {
-  const links = new Map<string, { origin: string, id: string, url: string }>()
-  for (const { deeplinkURL, package: { shortName } } of offers) {
+  const links = new Map<string, { origin: string, id: string, url: string } & ReturnType<typeof offerFacts>>()
+  for (const offer of offers) {
+    const { deeplinkURL, package: { shortName } } = offer
     const service = PACKAGE_ORIGIN_MAP[shortName]
     const id = deeplinkURL ? extractContentId(deeplinkURL) : undefined
     if (!service || !id || links.has(service) || !PLAYBACK_ORIGINS.includes(service)) continue
-    links.set(service, { origin: service, id, url: deeplinkURL! })
+    links.set(service, { origin: service, id, url: deeplinkURL!, ...offerFacts(offer) })
   }
   return [...links.values()]
 }

@@ -118,3 +118,28 @@ test('rent and buy offers stay unmapped, and another country\'s Prime Video is n
   expect(urls.filter(url => url?.includes('d6674b8e'))).toEqual([])
   expect(played(saltburn).map(line => line.split(' ')[1]!.split(':')[0])).toEqual(['hbo'])
 })
+
+// What JustWatch answered for The Boys season 1's Prime Video offers in the US, 2026-10-25, set on the
+// recorded first episode's offer: the fixture was taken before the query asked for them
+const BOYS_FACTS = {
+  presentationType: '_4K',
+  videoTechnology: [''],
+  audioTechnology: ['_5_POINT_1'],
+  audioLanguages: ['ar', 'ca', 'cs', 'de', 'el', 'en', 'es', 'fr', 'he', 'hi', 'hu', 'id', 'it', 'ja', 'kn', 'ml', 'ms', 'nl', 'pl', 'pt', 'ro', 'ta', 'te', 'th', 'tr', 'vi'],
+  subtitleLanguages: ['ar', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es', 'eu', 'fi', 'fr', 'gl', 'he', 'hi', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'ml', 'ms', 'nb', 'nl', 'pl', 'pt', 'ro', 'ru', 'sv', 'ta', 'te', 'th', 'tr', 'uk', 'vi', 'zh'],
+}
+const facts = ({ videoQualities, audioQualities, audioLanguages, subtitleLanguages }: GQLMedia['episodes'][number]) =>
+  ({ videoQualities, audioQualities, audioLanguages: audioLanguages?.length, subtitleLanguages: subtitleLanguages?.length })
+
+test('a playing row carries what its offer says of the stream: quality, sound and languages', async () => {
+  viewerIn('America/New_York')
+  const answer = structuredClone(THE_BOYS)
+  Object.assign(answer.data.node.seasons[0]!.episodes[0]!.offers[0]!, BOYS_FACTS)
+  const [first, second] = (await open(answer, 'jw:78125-104253')).episodes.filter(episode => episode.origin === 'amazon')
+  expect(facts(first!)).toEqual({ videoQualities: ['4K'], audioQualities: ['5.1'], audioLanguages: 26, subtitleLanguages: 36 })
+  expect(facts(second!), 'the control: an offer that says nothing gives nothing').toEqual({ videoQualities: undefined, audioQualities: undefined, audioLanguages: undefined, subtitleLanguages: undefined })
+
+  // a film's offer is the title's, which names its picture (Max's HD, Prime Video's 4K), and a type no label reads gives none
+  const saltburn = await open(SALTBURN, 'jw:1349029')
+  expect(saltburn.episodes.filter(episode => episode.origin !== 'jw').map(episode => [episode.origin, episode.videoQualities])).toEqual([['amazon', ['4K']], ['hbo', ['HD']]])
+})
