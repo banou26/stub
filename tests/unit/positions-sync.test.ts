@@ -270,6 +270,26 @@ describe('an edit not on the account yet', () => {
     expect(anime.sync.unsaved()).toBe(false)
   })
 
+  test('is not made by a flush with nothing left to save', async () => {
+    const anime = site(fknWorld().browser({ account: 'alice' }))
+    await anime.save(['nf:1', 600, 1400, 1_000])
+    expect(anime.sync.unsaved(), 'the control: saved').toBe(false)
+    anime.store.flush()
+    expect(anime.sync.unsaved()).toBe(false)
+  })
+
+  test('is let go by a step that throws, as by one that ends without writing', async () => {
+    const world = fknWorld()
+    const anime = site(world.browser({ account: 'alice' }))
+    await anime.sync.check()
+    world.storageOf('alice').set(POSITIONS_PATH, { text: '{ not json', updatedAt: new Date(0).toISOString() })
+    anime.store.setItem(KEY, JSON.stringify([['nf:1', 600, 1400, 1_000]]))
+    anime.store.flush()
+    expect(anime.sync.unsaved()).toBe(true)
+    await anime.sync.check()
+    expect(anime.sync.unsaved()).toBe(false)
+  })
+
   test('is let go by a step that ends without writing, as when FKN does not answer', async () => {
     const browser = fknWorld().browser({ account: 'alice' })
     const anime = site(browser)
