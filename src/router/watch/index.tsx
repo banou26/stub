@@ -240,6 +240,9 @@ const style = css`
     grid-template-areas: 'prev main next';
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: stretch;
+    /* Tab in the order drawn: the page lists Previous, the episode and Next as a wide window draws
+       them, and the stacked layout, which draws the episode first, needs the grid's rows (Chrome 137) */
+    reading-flow: grid-rows;
 
     @media (max-width: 1100px) {
       grid-template-areas: 'main main' 'prev next';
@@ -286,10 +289,6 @@ const style = css`
       margin-left: 0;
       justify-content: flex-start;
     }
-  }
-
-  .episode-nav {
-    display: contents;
   }
 
   .episode-step {
@@ -717,6 +716,7 @@ const Watch = () => {
 
         <div className="watch-info">
           <div className="episode-row">
+            {previousLink ? <EpisodeStep link={previousLink} previous/> : undefined}
             <div className="episode-main">
               <div className="episode-info">
                 <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
@@ -737,14 +737,7 @@ const Watch = () => {
                 />
               </div>
             </div>
-            {previousLink || nextLink
-              ? (
-                <nav className="episode-nav" aria-label="Episodes">
-                  {previousLink ? <EpisodeStep link={previousLink} previous/> : undefined}
-                  {nextLink ? <EpisodeStep link={nextLink}/> : undefined}
-                </nav>
-              )
-              : undefined}
+            {nextLink ? <EpisodeStep link={nextLink}/> : undefined}
           </div>
         </div>
       </div>

@@ -665,6 +665,38 @@ test('the watch page\'s episode buttons leave the episode at least half its row,
   }
 })
 
+// HOR-1011: on a wide window Previous is drawn first and Next last, while the page lists them after the
+// episode for a phone, which draws them under it
+test('Tab reaches the watch page\'s episode buttons in the order they are drawn, at 1440 px and at 820 px', async ({ page }) => {
+  await secondEpisode(page)
+  await expect(page.locator('.watch-info .tracking-compact .group.platforms > *').first()).toBeVisible({ timeout: 30_000 })
+  const order = async () => {
+    await page.locator('.episode-row').evaluate(row => {
+      const start = Object.assign(document.createElement('button'), { className: 'tab-start' })
+      row.before(start)
+      start.focus()
+    })
+    const reached: string[] = []
+    for (let step = 0; step < 40 && reached.at(-1) !== 'last'; step++) {
+      await page.keyboard.press('Tab')
+      const at = await page.evaluate(() => {
+        const focused = document.activeElement
+        if (!focused?.closest('.episode-row')) return 'last'
+        return focused.closest('.episode-step')?.classList.contains('previous') ? 'previous'
+          : focused.closest('.episode-step') ? 'next'
+          : 'episode'
+      })
+      if (reached.at(-1) !== at) reached.push(at)
+    }
+    await page.locator('.tab-start').evaluate(start => start.remove())
+    return reached
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  expect(await order()).toEqual(['previous', 'episode', 'next', 'last'])
+  await page.setViewportSize({ width: 820, height: 1180 })
+  expect(await order(), 'the episode first where it is drawn first').toEqual(['episode', 'previous', 'next', 'last'])
+})
+
 // HOR-1011: the score, status, episodes and trackers together, right under the title
 test('the watch page\'s tracking sits under the title, its trackers right after its controls, at 1440 px and at 390 px', async ({ page }) => {
   await secondEpisode(page)

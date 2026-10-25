@@ -480,7 +480,7 @@ const series = (third: object = {}, sourceUri = 'nyaa:a') => {
 }
 const watchPath = (n: number, sourceUri?: string) => `/watch/${params.mediaUri}/ag:(anilist:1-${n})${sourceUri ? `/${sourceUri}` : ''}`
 const episodeLinks = (host: HTMLElement) =>
-  [...host.querySelectorAll('.episode-nav a')].map(link => [link.querySelector('.step-label')?.textContent, link.getAttribute('href'), link.getAttribute('title')])
+  [...host.querySelectorAll('.episode-row a.episode-step')].map(link => [link.querySelector('.step-label')?.textContent, link.getAttribute('href'), link.getAttribute('title')])
 
 test('the episodes either side are linked, the next on the release playing now, the previous where the Play pick decides', async () => {
   vi.useFakeTimers()
@@ -503,7 +503,7 @@ test('each episode button names the episode it opens under its label, and sits a
   const host = page()
   hosts.push(host)
   await settle()
-  const steps = [...host.querySelectorAll('.episode-row .episode-nav > a')]
+  const steps = [...host.querySelectorAll('.episode-row > a')]
   expect(steps.map(step => [step.className, step.querySelector('.step-label')?.textContent, step.querySelector('.step-target')?.textContent])).toEqual([
     ['episode-step previous', 'Previous episode', 'E1 - Title 1'],
     ['episode-step next', 'Next episode', 'E3 - Title 3'],
@@ -514,7 +514,7 @@ test('each episode button names the episode it opens under its label, and sits a
   const first = page()
   hosts.push(first)
   await settle()
-  expect([...first.querySelectorAll('.episode-nav > a')].map(step => step.className)).toEqual(['episode-step next'])
+  expect([...first.querySelectorAll('.episode-row > a')].map(step => step.className)).toEqual(['episode-step next'])
 })
 
 test('an episode not out yet is not linked as the next one', async () => {
@@ -552,7 +552,7 @@ test('a film\'s one episode links nothing', async () => {
   const host = page()
   hosts.push(host)
   await settle()
-  expect(host.querySelector('.episode-nav')).toBeNull()
+  expect(host.querySelector('.episode-step')).toBeNull()
 })
 
 // HOR-1011: each source's card shows its own picture, else the episode's, and what its own row says of
@@ -1477,7 +1477,7 @@ test('a run that has not answered yet is never read from the one asked before it
   act(() => { render(tree(), host) })
   await settle()
   expect(asked).toEqual(['anilist:2', 'anilist:3'])
-  expect(host.querySelector('.episode-nav')).toBeNull()
+  expect(host.querySelector('.episode-step')).toBeNull()
 })
 
 test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it', () => {
