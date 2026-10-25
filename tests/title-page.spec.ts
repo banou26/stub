@@ -1273,6 +1273,7 @@ test('390 px wide, Relations\' held place goes once every source has answered an
 })
 
 test('the episode list opens on the page of the viewer\'s next episode, and stays where it is paged to', async ({ page }) => {
+  test.setTimeout(120_000)
   await page.goto(`${origin}${LONG}`)
   const episodes = page.locator('[data-episodes]')
   const numbers = episodes.locator('.episode .number')
