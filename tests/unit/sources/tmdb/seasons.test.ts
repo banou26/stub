@@ -11,7 +11,7 @@ import { GetMediaDetailsDocument } from '../../../../src/generated/graphql'
 import { resolvers } from '../../../../src/sources/tmdb/extractor'
 import { payloads, providerServer } from '../../worker/yoga-client'
 
-const SHOWS: Record<string, string> = { 93405: 'squid-game', 1396: 'breaking-bad' }
+const SHOWS: Record<string, string> = { 93405: 'squid-game', 1396: 'breaking-bad', 209867: 'frieren' }
 
 const fixture = (name: string) => readFileSync(new URL(`../../../fixtures/tmdb/${name}.html`, import.meta.url), 'utf8')
 
@@ -115,6 +115,13 @@ test('the show\'s own address is answered as the show, with nothing else to wait
   const media = await ask('tmdb:93405')
   expect(media.uri).toBe('tmdb:93405')
   expect(media.seasons).toHaveLength(3)
+})
+
+// answered as its run, it drew nothing there: the page names the show, and opens no season of a show of one
+test('the own address of a show of one season is answered as the show, carrying that season\'s episodes', async () => {
+  const media = await ask('tmdb:209867')
+  expect(media.uri).toBe('tmdb:209867')
+  expect(media.episodes).toHaveLength(1)
 })
 
 test('a card naming other sources waits past the show for the run its page follows to', async () => {

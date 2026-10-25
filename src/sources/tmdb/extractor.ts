@@ -233,9 +233,9 @@ const normalizeEpisode = (episode: TmdbEpisode, season: number, tvId: string, me
  * The title first, then the run's episode count against the counts the season list names.
  */
 const resolveSeasonNumber = async (uri: string, seasons: TmdbSeason[], ctx: ExtractorServerContext): Promise<number | 'show' | undefined> => {
-  if (seasons.length === 1) return seasons[0]!.seasonNumber
   if (!seasons.length) return undefined
   if (originsOfUri(uri).every(other => other === origin)) return 'show'
+  if (seasons.length === 1) return seasons[0]!.seasonNumber
   // A show's card from search is a CONTAINER until another source answers its first run, and the page
   // then follows to that run: answering the show there leaves the run with no TMDB season in it, so a
   // container is waited past, and answered as the show only when the last view is still one.
@@ -282,9 +282,17 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
     return credits?.characters.length ? Object.assign(media, { credits }) : media
   }
 
-  // The show's own card is answered as the show, with its season list and no episodes. A season must
-  // not name the show PART_OF instead: with two seasons stored, the store hides the show everywhere.
-  if (seasonNumber === 'show') return withCredits(normalizeMedia(show))
+  // The show's own card is answered as the show, with its season list, and with no episodes unless it has one season,
+  // which its page opens none of (as TVmaze's show does). A season must not name the show PART_OF instead: with two
+  // seasons stored, the store hides the show everywhere.
+  if (seasonNumber === 'show') {
+    const media = normalizeMedia(show)
+    if (show.seasons.length === 1) {
+      media.episodes = await fetchEpisodes(id, show.seasons[0]!.seasonNumber, media.uri, ctx)
+      media.episodeCount = media.episodes.length
+    }
+    return withCredits(media)
+  }
 
   const media = normalizeMedia(show, seasonNumber)
   media.episodes = seasonNumber == null ? [] : await fetchEpisodes(id, seasonNumber, media.uri, ctx)

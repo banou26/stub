@@ -23,7 +23,7 @@ runs are the same media, once per run, permanently.
 > So the rule is absolute: a series media is `<node>-<season>`, never the bare node id.
 
 Three other files say the same thing in their own words, each after the same failure. TMDB
-(`src/sources/tmdb/extractor.ts:88-91`): *every season handing back `tmdb:94664` union-finds them
+(`src/sources/tmdb/extractor.ts:180-182`): *every season handing back `tmdb:94664` union-finds them
 into a single media, which is what merged all three seasons of Mushoku Tensei even after JustWatch
 stopped doing the same thing.* TVmaze (`src/sources/tvmaze/extractor.ts:60-65`): *the live site fuzzy
 merged 'tvmaze:52279' into Mushoku Tensei season 1 and season 3 then asserted sameness through it.*
@@ -74,7 +74,7 @@ The conditions in that figure are real lines. The first is JustWatch's
 (`src/sources/justwatch/extractor.ts:470`), and every source in the ordinal family has its own
 spelling of it, listed [below](#when-there-is-no-season-nobody-guesses-one). The two mint expressions
 are `src/sources/justwatch/extractor.ts:474` and `src/sources/appletv/extractor.ts:105`. The third is
-`src/sources/tmdb/extractor.ts:243`.
+`src/sources/tmdb/extractor.ts:271`.
 
 | shape | function | mints for | example |
 | --- | --- | --- | --- |
@@ -166,10 +166,10 @@ The ordinal shapes are only reproducible while the number comes off the catalogu
 TMDB reads the show's seasons out of its scraped season list (`/tv/<id>/seasons`, since the show page
 links only the latest season) and pins the season from the uri when the uri
 already carries one (`pinned ?? await resolveSeasonNumber(...)`,
-`src/sources/tmdb/extractor.ts:243`). The failure mode is a number arriving from somewhere else, and
+`src/sources/tmdb/extractor.ts:271`). The failure mode is a number arriving from somewhere else, and
 there is a measured one in the file:
 
-`src/sources/tmdb/extractor.ts:265`
+`src/sources/tmdb/extractor.ts:311`
 
 > spelled out so map's index never lands in seasonNumber: it minted the first row as '&lt;id&gt;-s0'
 
@@ -182,7 +182,7 @@ well-formed, precise, entirely invented id.
 Every source in the ordinal family refuses rather than falling back to the bare id on a linking path.
 
 - justwatch, `src/sources/justwatch/extractor.ts:470`: `if (opts.seasonNumber == null && showRequiresSeason(node.objectType)) return null`, with the comment above it reading *refusing to build the media is the point*. A movie is exempt, because `showRequiresSeason` is `objectType !== 'MOVIE'` (`src/sources/justwatch/id.ts:35`) and a film has no seasons to be confused between.
-- tmdb, `src/sources/tmdb/extractor.ts:249`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`. The one exception is the show's own card: asked by an address naming TMDB alone, or one no other source has split into runs within the wait, it answers the show itself, a CONTAINER carrying its season list, and the page opens the first season from there. A card naming other sources waits for the run its page follows to, and the season it answers is dated by its first episode, which is what lets `plugin:title` put it in that run. A run whose title names no season is placed by its episode count against the counts the season list names, so no season's own page is fetched for it. Two limits stay: two seasons premiering within 45 days, or in one year with a premiere on the 1st of a month, weld (`tests/unit/worker/graph/show-seasons-weld.test.ts`), and a run dated on the other side of New Year from TMDB's first episode lands in another year bucket and stays out.
+- tmdb, `src/sources/tmdb/extractor.ts:274`: `if (seasonNumber == null && show.seasons.length > 1) return undefined`. The one exception is the show's own card: asked by an address naming TMDB alone, or one no other source has split into runs within the wait, it answers the show itself, a CONTAINER carrying its season list, and the page opens the first season from there; a show of one season carries that season's episodes instead, as TVmaze's does, since its page opens none. Until 2026-10-25 a show of one season was answered as its run, which nothing on the page named, so such a page drew nothing (HOR-1004). A card naming other sources waits for the run its page follows to, and the season it answers is dated by its first episode, which is what lets `plugin:title` put it in that run. A run whose title names no season is placed by its episode count against the counts the season list names, so no season's own page is fetched for it. Two limits stay: two seasons premiering within 45 days, or in one year with a premiere on the 1st of a month, weld (`tests/unit/worker/graph/show-seasons-weld.test.ts`), and a run dated on the other side of New Year from TMDB's first episode lands in another year bucket and stays out.
 - tvmaze, `src/sources/tvmaze/extractor.ts:222`: `if (seasonNumber == null && candidates.length > 1 && !ownAddress) return undefined`. The exception is the same as TMDB's, for an address naming TVmaze alone or beside the show's IMDb id, which the show's answer carries and which names no run: it answers the show at once, a CONTAINER carrying its season list (none for an anime), and the page opens the first season from there. Until 2026-10-25 it waited out the 15 s for a run nothing else could name and refused the show, so such a page drew nothing (HOR-1003).
 - unogs, `src/sources/unogs/extractor.ts:254`: `if (requireSeason && seasonNumber == null && title.vtype === 'series') return undefined`, and `requireSeason` is passed `true` only where cluster handles are attached, because that is the only path that can weld.
 - appletv, `src/sources/appletv/extractor.ts:102`: it does not refuse, it demotes. `const scope = scoped || content.type === 'Movie' ? 'RUN' : 'CONTAINER'`, so the bare show id is still emitted and the store keeps it out of every run's identity space instead.
