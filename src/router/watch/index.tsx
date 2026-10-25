@@ -722,8 +722,8 @@ const Watch = () => {
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
-  // a guest follows the host to the next episode, as to any page; one with nothing to play asks there
-  const upNext = guest ? undefined : nextLink
+  // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
+  const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
 
   return (
     <div css={style}>

@@ -1101,6 +1101,14 @@ test('a next episode with nothing that plays is counted down to all the same, wi
   expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3))
 })
 
+test('a next episode out that lists no source is not counted down to', async () => {
+  const { host } = await atTheEnd({ handles: [] })
+  await report(played, ended)
+  expect(host.querySelector('.up-next.counting')).toBeNull()
+  await wait(UP_NEXT_MS)
+  expect(navigate).not.toHaveBeenCalled()
+})
+
 test('with autoplay turned off, the end offers Next episode and never counts down', async () => {
   stored.set(AUTOPLAY_KEY, 'off')
   const { host } = await atTheEnd()
