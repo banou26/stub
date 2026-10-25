@@ -234,7 +234,7 @@ test('Play order ranks the cards of stub\'s players and an added source, a moved
   const move = (name: string) => page.getByRole('button', { name, exact: true })
   await expect(rows(page)).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix', 'Spec Anime'])
   await expect(page.locator('ol.play-order > li .place')).toHaveText(['1', '2', '3', '4'])
-  await expect(page.getByRole('button', { name: /^Move / }), 'only the sources Play tries can move').toHaveCount(8)
+  await expect(page.locator('ol.play-order').getByRole('button', { name: /^Move / }), 'only the sources Play tries can move').toHaveCount(8)
   await expect(move('Move Crunchyroll up')).toHaveAttribute('aria-disabled', 'true')
   await expect(move('Move Spec Anime down')).toHaveAttribute('aria-disabled', 'true')
   await expect(move('Move Netflix down')).not.toHaveAttribute('aria-disabled')
@@ -329,15 +329,38 @@ for (const [width, height] of [[1440, 900], [390, 844]] as const) {
   })
 }
 
-test('at 1440x900 Play order is one column, so a move takes a card up or down and never sideways', async ({ page }) => {
+test('at 1440x900 Play order and Merge order are one column, so a move takes a card up or down and never sideways', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await withSources(page, SPEC_SOURCES)
   const lefts = (cards: string) => page.locator(cards).evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().left)))
   expect(new Set(await lefts('ul.cards > li')).size, 'the control: Other sources keeps two columns').toBe(2)
-  const ranked = await page.locator('ol.play-order > li').evaluateAll(items => items.map(item => item.getBoundingClientRect()).map(({ left, top, bottom }) => ({ left, top, bottom })))
-  expect(ranked.length).toBeGreaterThan(3)
-  expect(new Set(ranked.map(box => Math.round(box.left))).size).toBe(1)
-  expect(ranked.every((box, at) => !at || box.top >= ranked[at - 1]!.bottom), 'each card under the one before it').toBe(true)
+  for (const list of ['ol.play-order', 'ol.merge-order']) {
+    const ranked = await page.locator(`${list} > li`).evaluateAll(items => items.map(item => item.getBoundingClientRect()).map(({ left, top, bottom }) => ({ left, top, bottom })))
+    expect(ranked.length, list).toBeGreaterThan(3)
+    expect(new Set(ranked.map(box => Math.round(box.left))).size, list).toBe(1)
+    expect(ranked.every((box, at) => !at || box.top >= ranked[at - 1]!.bottom), `each card under the one before it in ${list}`).toBe(true)
+  }
+  expect(new Set(await lefts('ol.merge-order > li .icon')).size, 'the icons line up past the ninth place').toBe(1)
+})
+
+test('Merge order moves a card from the keyboard, keeps the focus on the button pressed, and is kept across a reload', async ({ page }) => {
+  await page.goto(`${origin}/settings#sources`)
+  const rows = page.locator('ol.merge-order > li h4')
+  const up = page.getByRole('button', { name: 'Move AniList up in the merge order', exact: true })
+  await expect(rows.first()).toHaveText('MyAnimeList')
+  await expect(page.getByRole('button', { name: 'Move MyAnimeList up in the merge order', exact: true })).toHaveAttribute('aria-disabled', 'true')
+  await up.focus()
+  for (const top of [['MyAnimeList', 'AniList', 'AniZip'], ['AniList', 'MyAnimeList', 'AniZip']]) {
+    await page.keyboard.press('Enter')
+    await expect(rows.nth(0)).toHaveText(top[0]!)
+    await expect(rows.nth(1)).toHaveText(top[1]!)
+    await expect(rows.nth(2)).toHaveText(top[2]!)
+    await expect(up).toBeFocused()
+  }
+  await expect(page.locator('ol.merge-order > li.brief h4'), 'a player is ranked here too').toHaveText(['Crunchyroll', 'Netflix'])
+  await expect(page.locator('ol.play-order > li h4'), 'the play order stays').toHaveText(['Crunchyroll', 'Prime Video', 'Netflix'])
+  await page.reload()
+  await expect(rows.first(), 'kept in this browser').toHaveText('AniList')
 })
 
 test('adding by address shows a refused address\'s error under the group, and a good one is added', async ({ page }) => {

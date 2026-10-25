@@ -36,6 +36,7 @@ const { SourcesSection } = await import('../../../src/router/settings/sources')
 const { builtInSources } = await import('../../../src/sources/built-in')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
 const { HIDDEN_ICONS_KEY } = await import('../../../src/sources/hidden-icons')
+const { DEFAULT_MERGE_ORDER } = await import('../../../src/sources/merge-order')
 
 const ACCOUNTS: AccountsProps = {
   backend: 'cloud',
@@ -97,9 +98,11 @@ const flip = (input: HTMLInputElement, on: boolean) => act(() => {
 // source enable/disable, the show icon enable/disable, and a 'log into account' within the card"
 test('a card for every source stub ships with or an added package registered, those Play tries first, each on by default', () => {
   const { host } = render([CONNECTED, FAMILY, FAILED])
-  const cards = [...host.querySelectorAll<HTMLElement>('[data-source]')]
+  const cards = [...host.querySelectorAll<HTMLElement>('[data-source]:not(.brief)')]
   const players = ['cr', 'amazon', 'nf', 'one', 'a', 'b', 'c']
-  expect(cards.map(item => item.getAttribute('data-source'))).toEqual([...players, ...builtInSources.map(source => source.origin).filter(origin => !players.includes(origin))])
+  const merged = DEFAULT_MERGE_ORDER.filter(origin => !players.includes(origin))
+  expect(cards.map(item => item.getAttribute('data-source'))).toEqual([...players, ...merged, ...builtInSources.map(source => source.origin).filter(origin => !players.includes(origin) && !merged.includes(origin))])
+  expect([...host.querySelectorAll('.brief')].map(item => item.getAttribute('data-source')), 'a player the merge weighs is ranked there again').toEqual(['cr', 'nf'])
   expect(cards.map(item => isOn(item.querySelector<HTMLInputElement>('input[aria-label$=" source"]')!))).toEqual(cards.map(() => true))
   expect(card(host, 'imdb'), 'the placeholder origin answers nothing, so it has no card').toBeNull()
   expect(host.querySelector('.count')!.textContent).toBe(`All ${builtInSources.length + 4} on`)
@@ -164,7 +167,7 @@ test('a source an added package registered turns off without removing its packag
 
 test('a package still connecting or that failed has no card, its row only', () => {
   const { host, row } = render([CONNECTING, FAILED])
-  expect(host.querySelectorAll('[data-source]')).toHaveLength(builtInSources.length)
+  expect(host.querySelectorAll('[data-source]:not(.brief)')).toHaveLength(builtInSources.length)
   expect(row(CONNECTING.uri)).not.toBeNull()
   expect(row(FAILED.uri)).not.toBeNull()
 })

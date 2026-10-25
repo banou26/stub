@@ -61,6 +61,11 @@ const YEAR_FILM_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Year Fil
 <div><span class="dark_text">Type:</span> Movie</div>
 <div><span class="dark_text">Status:</span> Not yet aired</div>
 <div><span class="dark_text">Aired:</span> 2099</div>`
+// a show AniList and MyAnimeList each name in English, differently
+const MERGE = { id: 900130, idMal: 900130, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Merge AniList' } }
+const MERGE_MAL = `<h1 class="title-name h1_bold_none"><strong>Spec Merge</strong></h1>
+<div><span class="dark_text">English:</span> Spec Merge MyAnimeList</div>
+<div><span class="dark_text">Type:</span> TV</div>`
 // a description carrying a script, an image's onerror, a handler, a javascript: link, a style attribute, a style
 // sheet and a form among AniList's formatting and a remote image
 const UNSAFE = {
@@ -172,7 +177,8 @@ const TMDB: Record<string, string> = {
 // description, facts and four relations, so its page draws AniZip's title and episodes first; AniZip names Spec Late's
 // AniList id, as api.ani.zip names a work's, so its MAL address reaches AniList too.
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
-// and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone.
+// and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone, and name Spec Merge
+// (anilist:900130, mal:900130) in English differently.
 // AniList describes Spec Unsafe (anilist:900110) with a script, an onerror, a handler, a javascript: link, a style
 // attribute, a style sheet and a form, and a remote image.
 // AniList schedules Spec Airing (anilist:900080, mal:900080) from its 4th episode a day out, weekly, when asked for
@@ -199,6 +205,7 @@ export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promis
   if (input === 'https://myanimelist.net/anime/1') return new Response(BEBOP_MAL)
   if (input === 'https://myanimelist.net/anime/1/_/characters') return new Response(BEBOP_MAL_CREDITS)
   if (input === `https://myanimelist.net/anime/${YEAR_FILM.idMal}`) return new Response(YEAR_FILM_MAL)
+  if (input === `https://myanimelist.net/anime/${MERGE.idMal}`) return new Response(MERGE_MAL)
   if (input === 'https://apis.justwatch.com/graphql' && typeof init?.body === 'string') {
     const { variables } = JSON.parse(init.body)
     const [objectType] = variables?.searchTitlesFilter?.objectTypes ?? []
@@ -237,6 +244,7 @@ export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promis
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
   if (variables.id === UNSAFE.id) return Response.json({ data: { Media: { ...UNSAFE, ...credits } } })
   if (variables.id === YEAR_FILM.id || variables.idMal === YEAR_FILM.idMal) return Response.json({ data: { Media: { ...YEAR_FILM, ...credits } } })
+  if (variables.id === MERGE.id || variables.idMal === MERGE.idMal) return Response.json({ data: { Media: { ...MERGE, ...credits } } })
   for (const [media, edges] of [[APOTHECARY, APOTHECARY_RELATIONS], [ONE_PIECE, ONE_PIECE_RELATIONS]] as const) {
     if (variables.id === media.id) return Response.json({ data: { Media: { ...media, ...credits, relations: { edges } } } })
   }

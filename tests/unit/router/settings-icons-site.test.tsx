@@ -17,6 +17,7 @@ vi.mock('../../../src/site', async importOriginal => {
 const { SourcesSection } = await import('../../../src/router/settings/sources')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
 const { PLAY_ORDER_KEY } = await import('../../../src/sources/play-order')
+const { MERGE_ORDER_KEY } = await import('../../../src/sources/merge-order')
 
 const ACCOUNTS: AccountsProps = {
   backend: 'cloud',
@@ -74,4 +75,20 @@ test('a move steps past a source this site does not rank, so the card always mov
   await act(() => { host.querySelector<HTMLButtonElement>('[aria-label="Move Netflix up"]')!.click() })
   expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['nf', 'amazon', 'cr'])
   expect([...host.querySelectorAll('ol.play-order > li')].map(card => card.getAttribute('data-source'))).toEqual(['nf', 'amazon'])
+})
+
+test('Merge order ranks the sources this site asks, and a move keeps where the anime catalogues rank for the other sites', async () => {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  })
+  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  hosts.push(host)
+  const ranked = () => [...host.querySelectorAll('ol.merge-order > li')].map(card => card.getAttribute('data-source'))
+  expect(ranked()).toEqual(['omdb', 'simkl', 'tmdb', 'trakt', 'tvdb', 'tvmaze', 'watchmode', 'ann', 'appletv', 'jw', 'nf', 'paramount'])
+  await act(() => { host.querySelector<HTMLButtonElement>('[aria-label="Move TMDB up in the merge order"]')!.click() })
+  expect(ranked().slice(0, 3)).toEqual(['omdb', 'tmdb', 'simkl'])
+  expect(JSON.parse(stored.get(MERGE_ORDER_KEY)!).slice(0, 9)).toEqual(['mal', 'anizip', 'anilist', 'livechart', 'cr', 'kitsu', 'omdb', 'tmdb', 'simkl'])
 })

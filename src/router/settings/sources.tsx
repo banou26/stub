@@ -11,6 +11,7 @@ import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatus
 import { builtInSources, drawnAs } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
 import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
+import { mergeOrder, readMergeOrder, watchMergeOrder, writeMergeOrder } from '../../sources/merge-order'
 import { DEFAULT_PLAY_ORDER, moved, playOrder, readPlayOrder, watchPlayOrder, writePlayOrder } from '../../sources/play-order'
 import { siteAsks } from '../../site'
 import { SourceAccount } from './accounts'
@@ -45,7 +46,7 @@ const style = css`
   }
 
   /* one column, so Move up and Move down never move a card sideways */
-  ol.play-order > li { grid-column: 1; }
+  ol.cards > li { grid-column: 1; }
 
   .card {
     display: flex;
@@ -81,7 +82,8 @@ const style = css`
   .card .icon .letter { font-size: 1.5rem; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
 
   .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
-  .card .place { flex: none; min-width: 1.2rem; font-size: 1.5rem; font-weight: 600; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+  /* two digits wide, so the icons of a list past nine line up */
+  .card .place { flex: none; min-width: 2ch; text-align: end; font-size: 1.5rem; font-weight: 600; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
   .card .order { flex: none; display: flex; gap: 0.4rem; }
 
   .card .order button {
@@ -338,11 +340,14 @@ const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap
   ? (plugin.sources ?? []).map(source => ({ origin: source.origin, name: source.name, from: plugin.uri, icon: source.icon, drawn: source.isApiOnly ? undefined : source.origin, asked: true }))
   : [])
 
-/** A source's card; one Play tries has its place in the play order and the buttons that move it. */
-const SourceCard = ({ card, on, shown, accounts, place, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, children?: ComponentChildren }) => {
+/**
+ * A source's card; in a ranked list it has its place and the buttons that move it. A `brief` card is a source's second
+ * one, its switches and sign-in on its first.
+ */
+const SourceCard = ({ card, on, shown, accounts, place, brief, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, brief?: boolean, children?: ComponentChildren }) => {
   const heading = useRef<HTMLHeadingElement>(null)
   return (
-    <li className={`card${on ? '' : ' off'}`} data-source={card.origin}>
+    <li className={`card${brief ? ' brief' : ''}${on ? '' : ' off'}`} data-source={card.origin}>
       <div className="top">
         {place ? <span className="place" aria-hidden="true">{place}</span> : undefined}
         <span className="icon">
@@ -354,38 +359,46 @@ const SourceCard = ({ card, on, shown, accounts, place, children }: { card: Card
         </div>
         {children ? <div className="order">{children}</div> : undefined}
       </div>
-      <div className="switches">
-        {card.asked
-          ? (
-            <label>
-              Source
-              <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} source`} checked={on} onChange={event => setSourceEnabled(card.origin, (event.target as HTMLInputElement).checked)}/>
-            </label>
-          )
-          : undefined}
-        {card.drawn
-          ? (
-            <label>
-              Icon
-              <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} icon`} checked={shown} onChange={event => setIconShown(card.drawn!, (event.target as HTMLInputElement).checked)}/>
-            </label>
-          )
-          : undefined}
-      </div>
-      <SourceAccount origin={card.origin} heading={heading} {...accounts}/>
+      {brief
+        ? undefined
+        : (
+          <>
+            <div className="switches">
+              {card.asked
+                ? (
+                  <label>
+                    Source
+                    <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} source`} checked={on} onChange={event => setSourceEnabled(card.origin, (event.target as HTMLInputElement).checked)}/>
+                  </label>
+                )
+                : undefined}
+              {card.drawn
+                ? (
+                  <label>
+                    Icon
+                    <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} icon`} checked={shown} onChange={event => setIconShown(card.drawn!, (event.target as HTMLInputElement).checked)}/>
+                  </label>
+                )
+                : undefined}
+            </div>
+            <SourceAccount origin={card.origin} heading={heading} {...accounts}/>
+          </>
+        )}
     </li>
   )
 }
 
 /**
  * The viewer's country, then a card for every source stub ships with or the viewer added, each with its
- * switches and its sign-in, the ones Play tries first and in the order it tries them, then the added
- * packages and the two ways to add more.
+ * switches and its sign-in, the ones Play tries first and in the order it tries them, then the built-in
+ * ones the merge weighs in the order it weighs them, a player among them again as a brief card, then the
+ * added packages and the two ways to add more.
  */
 export const SourcesSection = (accounts: AccountsProps) => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
   const [kept, setKept] = useState(readPlayOrder)
+  const [keptMerge, setKeptMerge] = useState(readMergeOrder)
   const hidden = useHiddenIcons()
   const [uri, setUri] = useState('')
   const [adding, setAdding] = useState(false)
@@ -400,14 +413,17 @@ export const SourcesSection = (accounts: AccountsProps) => {
   }, [])
   useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
   useEffect(() => watchPlayOrder(() => setKept(readPlayOrder())), [])
+  useEffect(() => watchMergeOrder(() => setKeptMerge(readMergeOrder())), [])
 
   // every added source is ranked: only the worker holding its package knows whether it plays
   const added = addedCards(plugins)
   const players = [...BUILT_IN.filter(card => card.asked && DEFAULT_PLAY_ORDER.includes(card.origin)), ...added]
   const order = playOrder(kept, added.map(card => card.origin))
   const ranked = order.flatMap(origin => players.filter(card => card.origin === origin))
-  const others = BUILT_IN.filter(card => !players.includes(card))
-  const switched = [...ranked, ...others].filter(card => card.asked)
+  const merging = mergeOrder(keptMerge)
+  const merged = merging.flatMap(origin => BUILT_IN.filter(card => card.origin === origin && card.asked))
+  const others = BUILT_IN.filter(card => !players.includes(card) && !merged.includes(card))
+  const switched = [...ranked, ...merged.filter(card => !players.includes(card)), ...others].filter(card => card.asked)
   const off = switched.filter(card => disabled.has(card.origin)).length
 
   // a keyed card moved in the DOM loses the focus, so the pressed button takes it back; the end buttons stay
@@ -418,27 +434,31 @@ export const SourcesSection = (accounts: AccountsProps) => {
     pressed.current = undefined
   })
 
-  const move = (card: Card, step: -1 | 1, at: number) => {
-    const end = step < 0 ? at === 0 : at === ranked.length - 1
+  type Ranking = { cards: Card[], order: string[], write: (order: string[]) => void, named: string }
+  const play: Ranking = { cards: ranked, order, write: writePlayOrder, named: '' }
+  const merge: Ranking = { cards: merged, order: merging, write: writeMergeOrder, named: ' in the merge order' }
+
+  const move = (card: Card, step: -1 | 1, at: number, ranking: Ranking) => {
+    const end = step < 0 ? at === 0 : at === ranking.cards.length - 1
     return (
       <button
         type="button"
         className="secondary"
-        aria-label={`Move ${card.name} ${step < 0 ? 'up' : 'down'}`}
+        aria-label={`Move ${card.name} ${step < 0 ? 'up' : 'down'}${ranking.named}`}
         aria-disabled={end ? true : undefined}
         onClick={event => {
           if (end) return
           pressed.current = event.currentTarget
-          writePlayOrder(moved(order, card.origin, step, ranked.map(other => other.origin)))
+          ranking.write(moved(ranking.order, card.origin, step, ranking.cards.map(other => other.origin)))
         }}
       >
         {step < 0 ? <ChevronUp/> : <ChevronDown/>}
       </button>
     )
   }
-  const cardOf = (card: Card, place?: number, at = 0) => (
-    <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts} place={place}>
-      {place ? <>{move(card, -1, at)}{move(card, 1, at)}</> : undefined}
+  const cardOf = (card: Card, ranking?: Ranking, at = 0) => (
+    <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts} place={ranking ? at + 1 : undefined} brief={ranking === merge && players.includes(card)}>
+      {ranking ? <>{move(card, -1, at, ranking)}{move(card, 1, at, ranking)}</> : undefined}
     </SourceCard>
   )
 
@@ -472,7 +492,9 @@ export const SourcesSection = (accounts: AccountsProps) => {
         <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(switched.map(card => card.origin)) }}>Turn all on</button>
       </div>
       <h3 className="part">Play order</h3>
-      <ol className="cards play-order">{ranked.map((card, at) => cardOf(card, at + 1, at))}</ol>
+      <ol className="cards play-order">{ranked.map((card, at) => cardOf(card, play, at))}</ol>
+      <h3 className="part">Merge order</h3>
+      <ol className="cards merge-order">{merged.map((card, at) => cardOf(card, merge, at))}</ol>
       <h3 className="part">Other sources</h3>
       <ul className="cards">{others.map(card => cardOf(card))}</ul>
       <h3 className="part">Added</h3>

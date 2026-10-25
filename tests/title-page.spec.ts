@@ -1457,6 +1457,28 @@ test('a film AniList and MAL date by its year alone reads Releases and the year,
   await expect(movie.locator('.facts')).toHaveText(/^Movie · 2099\b/)
 })
 
+// the owner, 2026-10-26 (HOR-1030): "I feel like the card order should decide merge priority, yes, but by default,
+// their card order is the order we defined, and most people aren't going to change the order, so our tuning will still
+// be useful."
+test('a title page heads with AniList\'s title once Settings moves AniList above MyAnimeList in another tab, and after a reload', async ({ page, context }) => {
+  const heading = page.getByRole('heading', { level: 1 })
+  await page.goto(`${origin}/title/ag:(anilist:900130,mal:900130)`)
+  await expect(heading, 'the control: MyAnimeList\'s English title outranks AniList\'s').toHaveText('Spec Merge MyAnimeList', { timeout: 30_000 })
+
+  const settings = await context.newPage()
+  await settings.route(url => !url.href.startsWith(origin), route => route.abort())
+  await settings.goto(`${origin}/settings#sources`)
+  const up = settings.getByRole('button', { name: 'Move AniList up in the merge order', exact: true })
+  await up.click()
+  await up.click()
+  await expect(settings.locator('ol.merge-order > li h4').first()).toHaveText('AniList')
+  await expect(heading, 're-merged on screen').toHaveText('Spec Merge AniList')
+  await settings.close()
+
+  await page.reload()
+  await expect(heading, 'and merged so from the first pass').toHaveText('Spec Merge AniList', { timeout: 30_000 })
+})
+
 // AniList describes Spec Unsafe with a script, an image's onerror, a handler, a javascript: link, a style attribute, a
 // style sheet and a form, and a remote image (tests/fake-fetch.ts)
 test('a description draws its paragraphs, breaks, italics, bold, links and remote images, and none of its scripts, handlers, styles or forms, in the modal and on its page', async ({ page }) => {

@@ -132,7 +132,7 @@ test('Sources ranks the cards of stub\'s three players and every added source fi
     { uri: 'npm:@spec/slow-source', state: 'connecting' },
   ]
   const host = await open('#sources')
-  expect([...host.querySelectorAll('h3.part')].map(heading => heading.textContent)).toEqual(['Play order', 'Other sources', 'Added'])
+  expect([...host.querySelectorAll('h3.part')].map(heading => heading.textContent)).toEqual(['Play order', 'Merge order', 'Other sources', 'Added'])
   const cardHeadings = [...host.querySelectorAll('[data-source] h2, [data-source] h3, [data-source] h4')]
   expect(new Set(cardHeadings.map(heading => heading.tagName)), 'a card\'s name is a level under its group\'s').toEqual(new Set(['H4']))
   expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'Nyaa'])
@@ -193,6 +193,45 @@ test('with the FKN account\'s settings in use, a move changes the account\'s ord
     for (const listener of listeners.get('storage') ?? []) listener({ key: 'stub.settings.account' })
   })
   expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Netflix'])
+})
+
+const MERGE_ORDER_KEY = 'stub.sources.merge-order'
+const mergeOrder = (host: HTMLElement) => [...host.querySelectorAll('ol.merge-order > li')].map(card => card.querySelector('h4')?.textContent)
+const mergeMove = (host: HTMLElement, label: string) => host.querySelector<HTMLButtonElement>(`ol.merge-order .order button[aria-label="${label}"]`)!
+const MERGED = ['MyAnimeList', 'AniZip', 'AniList', 'LiveChart', 'Crunchyroll', 'Kitsu', 'IMDb', 'Simkl', 'TMDB', 'Trakt', 'TheTVDB', 'TVmaze', 'Watchmode', 'Anime News Network', 'Apple TV+', 'JustWatch', 'Netflix', 'Offline database', 'Paramount+']
+
+// the owner, 2026-10-26 (HOR-1030): "I feel like the card order should decide merge priority, yes, but by default,
+// their card order is the order we defined, and most people aren't going to change the order, so our tuning will still
+// be useful."
+test('Merge order ranks every built-in source the merge weighs in today\'s order, numbered, a player there again with no switches or sign-in', async () => {
+  const host = await open('#sources')
+  expect(mergeOrder(host)).toEqual(MERGED)
+  expect([...host.querySelectorAll('ol.merge-order > li .place')].map(place => place.textContent)).toEqual(MERGED.map((_, at) => String(at + 1)))
+  const brief = [...host.querySelectorAll('ol.merge-order > li.brief')]
+  expect(brief.map(card => card.getAttribute('data-source'))).toEqual(['cr', 'nf'])
+  expect(brief.flatMap(card => [...card.querySelectorAll('input, [data-account]')]), 'its switches and sign-in are on its Play order card').toEqual([])
+  expect([mergeMove(host, 'Move MyAnimeList up in the merge order'), mergeMove(host, 'Move Paramount+ down in the merge order')].map(button => button.getAttribute('aria-disabled'))).toEqual(['true', 'true'])
+  expect(mergeMove(host, 'Move AniList up in the merge order').getAttribute('aria-disabled')).toBeNull()
+  expect(stored.has(MERGE_ORDER_KEY)).toBe(false)
+})
+
+test('a merge move is kept as the whole order, leaves the play order, and another tab\'s order is followed', async () => {
+  const host = await open('#sources')
+  await act(() => { mergeMove(host, 'Move AniList up in the merge order').click() })
+  await act(() => { mergeMove(host, 'Move AniList up in the merge order').click() })
+  expect(mergeOrder(host).slice(0, 3)).toEqual(['AniList', 'MyAnimeList', 'AniZip'])
+  expect(JSON.parse(stored.get(MERGE_ORDER_KEY)!)).toEqual(['anilist', 'mal', 'anizip', 'livechart', 'cr', 'kitsu', 'omdb', 'simkl', 'tmdb', 'trakt', 'tvdb', 'tvmaze', 'watchmode', 'ann', 'appletv', 'jw', 'nf', 'offline', 'paramount'])
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix'])
+  expect(stored.has(PLAY_ORDER_KEY)).toBe(false)
+  unmount(hosts.pop()!)
+  expect(mergeOrder(await open('#sources')).slice(0, 3), 'kept').toEqual(['AniList', 'MyAnimeList', 'AniZip'])
+
+  const followed = hosts.at(-1)!
+  await act(() => {
+    stored.set(MERGE_ORDER_KEY, JSON.stringify(['kitsu']))
+    for (const listener of listeners.get('storage') ?? []) listener({ key: MERGE_ORDER_KEY })
+  })
+  expect(mergeOrder(followed).slice(0, 2)).toEqual(['Kitsu', 'MyAnimeList'])
 })
 
 for (const removed of ['#accounts', '#data', '#tracking']) {
