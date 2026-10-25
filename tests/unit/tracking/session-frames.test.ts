@@ -52,8 +52,8 @@ const runInPage = (source: string, realm: Context, arg: unknown) =>
  * The page script lands a task after it is evaluated, so a read can find a document before it does.
  * `hang` makes that document's answers wait, and `leave` then fails them as Firefox fails a leaving
  * page's fetches, before the next document is reported. `fail` fails the next answers on a page that
- * stays. `order` records each report and each install as it lands, and `reached` every question that
- * reached a page, answered or not.
+ * stays, as a dropped fetch does, and `refuse` throws the page script's own error. `order` records each
+ * report and each install as it lands, and `reached` every question that reached a page, answered or not.
  */
 const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url } = {}) => {
   let document = -1
@@ -63,7 +63,7 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
   const listeners = new Set<(event: { type: 'document', origin: string }) => void>()
   const hanging = new Set<number>()
   const waiting = new Map<number, Set<(error: Error) => void>>()
-  let failing = 0
+  const failures: Error[] = []
   const order: string[] = []
   const reached: string[] = []
 
@@ -95,10 +95,8 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
     void expose<PageApi>({
       ask: async question => {
         reached.push(question)
-        if (failing > 0) {
-          failing--
-          throw new TypeError(FIREFOX_FETCH_FAILED)
-        }
+        const failure = failures.shift()
+        if (failure) throw failure
         if (hanging.has(own) || own !== document) {
           await new Promise<never>((_resolve, reject) => {
             if (own === document) waiting.set(own, (waiting.get(own) ?? new Set()).add(reject))
@@ -159,7 +157,8 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
       for (const reject of waiting.get(document) ?? []) reject(new TypeError(FIREFOX_FETCH_FAILED))
       waiting.delete(document)
     },
-    fail: (times = 1) => { failing = times },
+    fail: (times = 1) => { for (let time = 0; time < times; time++) failures.push(new TypeError(FIREFOX_FETCH_FAILED)) },
+    refuse: (message: string) => { failures.push(new Error(message)) },
   }
 }
 
@@ -285,6 +284,15 @@ describe('the session frame', () => {
     fail(2)
     await expect(ask('dropped')).rejects.toThrow(FIREFOX_FETCH_FAILED)
     expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
+  })
+
+  test("a call the page script refused is not run again", async () => {
+    const { refuse, reached, ask } = setup({ retryMs: 20 })
+    await ask('warm')
+
+    refuse('anilist.co served no CSRF token to this page')
+    await expect(ask('refused')).rejects.toThrow('anilist.co served no CSRF token to this page')
+    expect(reached.filter(question => question === 'refused')).toHaveLength(1)
   })
 
   test('reload drops the frame and tells the watchers, and the next use attaches a new one', async () => {

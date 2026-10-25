@@ -63,7 +63,8 @@ export type SessionFramesOptions<Api> = {
 export type UseOptions = {
   /**
    * Never run the call a second time: a call the page's next document cut short rejects with
-   * `CallInterrupted` rather than running again. For a write, which may already have reached the site.
+   * `CallInterrupted`, and one whose fetch failed with that failure, rather than running again. For a
+   * write, which may already have reached the site.
    * A page that went away before the call was made (while attaching, installing or connecting) is
    * still tried once more, since nothing was sent to it.
    */
@@ -72,9 +73,10 @@ export type UseOptions = {
 
 export type SessionFrames<Api> = {
   /**
-   * Runs `call` against the site's page, attaching the frame on the first use. A call that failed, or
-   * that the page's next document cut short, runs once more, on the page installed there once it is
-   * reported, unless `once` says it may not. A page that did not answer in time rejects.
+   * Runs `call` against the site's page, attaching the frame on the first use. A call the page's next
+   * document cut short runs once more on the page installed there, and a call whose fetch failed (a
+   * TypeError) runs once more on the next document, or after `retryMs` on the same page, unless `once`
+   * says it may not. Anything else the call threw, and a page that did not answer in time, rejects.
    */
   use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
   /** Drops the site's frame, so the next use loads the page afresh (after a sign in), and tells the watchers. */
@@ -231,12 +233,14 @@ export const createSessionFrames = <Api>(
           throw new CallInterrupted(`${site.origin} changed while stub's call was running, so whether it arrived is not known`)
         }
         if (error instanceof PageSilent) drop(entry, current)
-        if (!again || once || error instanceof PageSilent) throw error
+        if (error instanceof PageGone && again) continue
         // A page that starts to leave fails the fetch a call is waiting on, and the page script sends that
         // failure back before the next document can be reported: Firefox 157 at beforeunload, before the next
         // document is even asked for ("NetworkError when attempting to fetch resource."), Chrome 155 at unload
-        // ("Failed to fetch"), measured 2026-10-26. So a call cut short by the next document mostly arrives
-        // as an ordinary failure, not as PageGone. It runs again on that document, or on this one if none comes.
+        // ("Failed to fetch"), measured 2026-10-26. So a call the next document cut short mostly arrives as
+        // that TypeError (osra keeps the class across the port), not as PageGone. What the page script throws
+        // itself, an HTTP status say, is a plain Error and is not sent again.
+        if (!again || once || !(error instanceof TypeError)) throw error
         await Promise.race([current.gone, sleep(retryMs)]).catch(() => {})
       }
     }

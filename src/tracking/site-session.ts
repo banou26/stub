@@ -12,9 +12,11 @@ export type PageApi = { [method: string]: (arg: never) => Promise<unknown> }
 export type CallOptions = {
   /**
    * Never run the call a second time. Without it, a call the page's next document cut short runs
-   * again on the page installed there, which is right for a read and wrong for a write: a write cut
-   * short may already have reached the site, so `once` rejects with the session frame's
-   * `CallInterrupted` instead, and the caller finds out by reading what the site now holds.
+   * again on the page installed there, and a call whose fetch failed (a TypeError) runs again on the
+   * next document or, a few seconds later, on the same page. That is right for a read and wrong for a
+   * write: a write cut short may already have reached the site, so `once` rejects instead (with the
+   * session frame's `CallInterrupted`, or the failure), and the caller finds out by reading what the
+   * site now holds. What the page script throws itself, an HTTP refusal say, is never sent again.
    */
   once?: boolean
 }
