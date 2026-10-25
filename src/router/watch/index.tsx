@@ -24,6 +24,7 @@ import Placeholder from '../../components/placeholder'
 import MediaTracking from '../../components/media-tracking'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
+import { serveEmbedFullscreen } from '../../embed-fullscreen'
 import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { hearUnplayable } from '../../embed-unplayable'
@@ -195,6 +196,47 @@ const style = css`
 
     @media (min-height: 600px) {
       max-height: calc(100vh - var(--stub-header-height));
+    }
+  }
+
+  /* What goes fullscreen, so that the fullscreen outlasts the player in it. Outside fullscreen it draws no box of its
+     own, and what it holds is laid out as the page's own; with no box it still goes fullscreen (Chrome 155, Firefox 157,
+     WebKit 26.4, 2026-10-26, tests/watch-stage.spec.ts). */
+  .stage {
+    display: contents;
+  }
+
+  .stage:fullscreen {
+    display: flex;
+    flex-direction: column;
+    background: #000;
+
+    > .player-container {
+      flex: 1;
+      aspect-ratio: auto;
+      min-height: 0;
+      max-height: none;
+    }
+  }
+
+  /* the episode, in fullscreen while no player is in the stage yet */
+  .episode-card {
+    display: none;
+  }
+
+  .stage:fullscreen > .episode-card:only-child {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.6rem;
+    font-size: 2rem;
+    font-weight: 600;
+
+    img {
+      width: min(48rem, 60vw);
+      border-radius: 1rem;
     }
   }
 
@@ -406,6 +448,7 @@ const Watch = () => {
   }
   const [, navigate] = useLocation()
   const embedFrame = useRef<HTMLIFrameElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
   // the player the page can hear and move, from whichever of the two below is up, and the source it plays
   const [playback, setPlayback] = useState<{ link: PlaybackLink, sourceUri?: string }>()
   const [tracksLink, setTracksLink] = useState<TracksLink | undefined>(undefined)
@@ -468,6 +511,7 @@ const Watch = () => {
   const episodeTitle = episode?.titles?.at(0)?.title
   const episodeNumber = episode?.episodeNumber
   const episodeName = episodeLabel(episodeNumber, episodeTitle)
+  const thumbnail = episode?.thumbnails?.at(0)?.url
 
   const [backend, setBackend] = useState<FknBackend>()
   useEffect(() => {
@@ -580,6 +624,27 @@ const Watch = () => {
     const iframe = embedFrame.current
     if (viaPlugin || !embedUrl || !iframe) return
     return hearTrackLanguages(iframe)
+  }, [viaPlugin, embedUrl])
+
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe || !stage.current) return
+    return serveEmbedFullscreen(iframe, stage.current)
+  }, [viaPlugin, embedUrl])
+
+  // A frame in place of another takes the keys: the one they were in went with its frame, and a press on Next left
+  // them on a button that went too, which in fullscreen is the page's only control.
+  const framed = useRef(false)
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe) return
+    if (!framed.current) {
+      framed.current = true
+      return
+    }
+    const focus = () => { if (!document.activeElement || document.activeElement === document.body) iframe.focus() }
+    iframe.addEventListener('load', focus)
+    return () => iframe.removeEventListener('load', focus)
   }, [viaPlugin, embedUrl])
 
   const [unplayable, setUnplayable] = useState<readonly string[]>([])
@@ -728,53 +793,59 @@ const Watch = () => {
   return (
     <div css={style}>
       <div className="watch-container">
-        {/*
-          Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
-          place adds a step to the tab's history, and Back then moves the player rather than the page.
-        */}
-        {noSource
-          ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
-          : (viaPlugin && pluginPlayer) || embedUrl
-          ? (
-            <div className="player-container">
-              {viaPlugin && pluginPlayer
-                ? (
-                  <PluginPlayer
-                    key={pluginPlayer.release.uri}
-                    pluginUri={pluginPlayer.pluginUri}
-                    release={pluginPlayer.release}
-                    onUnplayable={() => setDeclined(selectedSourceUri)}
-                    onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
-                  />
-                )
-                : (
-                  <iframe
-                    key={embedUrl}
-                    ref={embedFrame}
-                    src={embedUrl}
-                    referrerPolicy="no-referrer"
-                    allow="encrypted-media; autoplay; fullscreen;"
-                    css={css`
-                      width: 100%;
-                      border: none;
-                      background: #000;
-                      flex: 1;
-                      min-height: 0;
-                    `}
-                  />
-                )}
-              <UpNext link={playbackLink} next={upNext} chapters={chapters}/>
-            </div>
-          )
-          : needsExtension
-          ? (
-            <div className="player-container fix">
-              <button type="button" onClick={() => { void addExtension().then(installed => { if (installed) setBackend('extension') }) }}>
-                Install the FKN extension to play {needsExtension}
-              </button>
-            </div>
-          )
-          : undefined}
+        <div className="stage" ref={stage}>
+          <div className="episode-card">
+            {thumbnail ? <img src={thumbnail} alt=""/> : undefined}
+            {episodeName}
+          </div>
+          {/*
+            Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
+            place adds a step to the tab's history, and Back then moves the player rather than the page.
+          */}
+          {noSource
+            ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
+            : (viaPlugin && pluginPlayer) || embedUrl
+            ? (
+              <div className="player-container">
+                {viaPlugin && pluginPlayer
+                  ? (
+                    <PluginPlayer
+                      key={pluginPlayer.release.uri}
+                      pluginUri={pluginPlayer.pluginUri}
+                      release={pluginPlayer.release}
+                      onUnplayable={() => setDeclined(selectedSourceUri)}
+                      onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
+                    />
+                  )
+                  : (
+                    <iframe
+                      key={embedUrl}
+                      ref={embedFrame}
+                      src={embedUrl}
+                      referrerPolicy="no-referrer"
+                      allow="encrypted-media; autoplay; fullscreen;"
+                      css={css`
+                        width: 100%;
+                        border: none;
+                        background: #000;
+                        flex: 1;
+                        min-height: 0;
+                      `}
+                    />
+                  )}
+                <UpNext link={playbackLink} next={upNext} chapters={chapters} stage={stage}/>
+              </div>
+            )
+            : needsExtension
+            ? (
+              <div className="player-container fix">
+                <button type="button" onClick={() => { void addExtension().then(installed => { if (installed) setBackend('extension') }) }}>
+                  Install the FKN extension to play {needsExtension}
+                </button>
+              </div>
+            )
+            : undefined}
+        </div>
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 
         <div className="watch-info">

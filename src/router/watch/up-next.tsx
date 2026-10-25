@@ -1,4 +1,5 @@
 import type { MediaChapter } from '@banou/media-player'
+import type { RefObject } from 'preact'
 import type { PlaybackLink } from '../../party/bridge'
 
 import { css, keyframes } from '@emotion/react'
@@ -52,11 +53,27 @@ const style = css`
  * has ended. With autoplay on, the end counts down with Cancel beside it and opens `next` when
  * `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before the moment withdraws the
  * button, and a report that the player is no longer at its end (a seek back, a play) withdraws the countdown.
+ * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  */
-const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[] }) => {
+const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[], stage: RefObject<HTMLElement | null> }) => {
   const [, navigate] = useLocation()
   const [shown, setShown] = useState<'counting' | 'offered'>()
   const href = next?.href
+  // a player fullscreened inside its frame hides anything the page draws, and takes the stage under it out of
+  // fullscreen when its frame goes, unless it has left first
+  const leaveFrameFullscreen = () => document.fullscreenElement && document.fullscreenElement !== stage.current
+    ? document.exitFullscreen().catch(() => {})
+    : undefined
+  const open = (to: string) => {
+    const leaving = leaveFrameFullscreen()
+    if (leaving) void leaving.then(() => navigate(to))
+    else navigate(to)
+  }
+  // the keys go back to the player, as the button they were on goes
+  const cancel = () => {
+    setShown(undefined)
+    stage.current?.querySelector('iframe')?.focus()
+  }
   // read at each report rather than keyed on: chapters landing mid-episode must not reset what the reports said
   const marks = useRef(chapters)
   marks.current = chapters
@@ -78,8 +95,7 @@ const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next
       if (link.ended?.()) {
         if (!played) return
         played = false
-        // a player fullscreened inside its frame hides anything the page draws
-        if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+        void leaveFrameFullscreen()
         setShown(readAutoplay() ? 'counting' : 'offered')
         return
       }
@@ -100,15 +116,15 @@ const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next
 
   useEffect(() => {
     if (shown !== 'counting' || !href) return
-    const timer = setTimeout(() => navigate(href), UP_NEXT_MS)
+    const timer = setTimeout(() => open(href), UP_NEXT_MS)
     return () => clearTimeout(timer)
   }, [shown, href])
 
   if (!shown || !href) return null
   return (
     <div css={style}>
-      <button type="button" className={`up-next ${shown}`} title={next?.title} onClick={() => navigate(href)}>Next episode</button>
-      {shown === 'counting' ? <button type="button" className="up-next-cancel" onClick={() => setShown(undefined)}>Cancel</button> : undefined}
+      <button type="button" className={`up-next ${shown}`} title={next?.title} onClick={() => open(href)}>Next episode</button>
+      {shown === 'counting' ? <button type="button" className="up-next-cancel" onClick={cancel}>Cancel</button> : undefined}
     </div>
   )
 }

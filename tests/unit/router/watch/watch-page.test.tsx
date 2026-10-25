@@ -207,6 +207,14 @@ vi.mock('../../../../src/embed-unplayable', () => ({
     return () => { unplayables.listeners.delete(iframe) }
   },
 }))
+// the embed's fullscreen, kept on the stage each frame is served on
+const fullscreens = vi.hoisted(() => ({ served: [] as [HTMLIFrameElement, HTMLElement][], stopped: 0 }))
+vi.mock('../../../../src/embed-fullscreen', () => ({
+  serveEmbedFullscreen: (iframe: HTMLIFrameElement, stage: HTMLElement) => {
+    fullscreens.served.push([iframe, stage])
+    return () => { fullscreens.stopped++ }
+  },
+}))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
   ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
@@ -274,6 +282,8 @@ afterEach(() => {
   plugins.browse.mockClear()
   vi.mocked(wiring.crunchyroll.signIn).mockClear()
   vi.mocked(wiring.prime.signIn).mockClear()
+  fullscreens.served = []
+  fullscreens.stopped = 0
 })
 
 const settle = async () => {
@@ -1302,6 +1312,134 @@ test('in fullscreen the early Next episode leaves the player fullscreen, and the
   } finally {
     Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
   }
+})
+
+// HOR-1014: the stage, the box the player sits in, is what goes fullscreen, so the fullscreen outlasts each player in it
+const toTheNext = async (rerender: () => void) => {
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  rerender()
+  await settle()
+}
+const inFullscreen = async (element: Element | null, run: (exitFullscreen: Mock<() => Promise<void>>) => Promise<void>, exit = async () => {}) => {
+  const exitFullscreen = vi.fn(exit)
+  Object.assign(document, { fullscreenElement: element, exitFullscreen })
+  try {
+    await run(exitFullscreen)
+  } finally {
+    Object.assign(document, { fullscreenElement: null, exitFullscreen: undefined })
+  }
+}
+
+test('the stage is the same element across a next-episode navigation, through a render with no player in it', async () => {
+  const { host, rerender } = await atTheEnd({ handles: [] })
+  const stage = host.querySelector('.stage')
+  expect(stage?.querySelector('iframe'), 'the player is on the stage').not.toBeNull()
+  await toTheNext(rerender)
+  expect(host.querySelector('iframe'), 'the next episode holds no source yet').toBeNull()
+  expect(host.querySelector('.stage')).toBe(stage)
+  Object.assign((media as { episodes: object[] }).episodes[2]!, { handles: [crunchyroll(3)] })
+  rerender()
+  await settle()
+  expect(stage?.querySelector('iframe')?.getAttribute('src')).toContain('GX3')
+  expect(host.querySelector('.stage')).toBe(stage)
+})
+
+test('each episode\'s frame has its fullscreen kept on the one stage', async () => {
+  const { host, rerender } = await atTheEnd()
+  const stage = host.querySelector('.stage')!
+  const first = host.querySelector('iframe')!
+  expect(fullscreens.served).toEqual([[first, stage]])
+  await toTheNext(rerender)
+  const next = host.querySelector('iframe')!
+  expect(next).not.toBe(first)
+  expect(fullscreens.served).toEqual([[first, stage], [next, stage]])
+  expect(fullscreens.stopped, 'the first frame\'s, as it went').toBe(1)
+})
+
+test('in the stage\'s fullscreen the end counts down there, and Next opens the next episode without leaving it', async () => {
+  const { host } = await atTheEnd()
+  await inFullscreen(host.querySelector('.stage'), async exitFullscreen => {
+    await report(played, ended)
+    expect(host.querySelector('.stage .up-next.counting')).not.toBeNull()
+    await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+    expect(exitFullscreen).not.toHaveBeenCalled()
+  })
+})
+
+// Chromium 156, Firefox 157, WebKit 27.2, 2026-10-26: a frame fullscreened above the stage takes the stage out of
+// fullscreen when it is removed, and leaves it fullscreen once it has left first (Chromium and WebKit)
+test('Next lets a player fullscreened above the stage out before its frame goes', async () => {
+  const { host } = await atTheCredits()
+  let leave = () => {}
+  await inFullscreen(host.querySelector('iframe'), async exitFullscreen => {
+    await wait(30_000)
+    await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+    expect(exitFullscreen).toHaveBeenCalledTimes(1)
+    expect(navigate, 'not while it is still out').not.toHaveBeenCalled()
+    await act(async () => { leave() })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+  }, () => new Promise<void>(resolve => { leave = resolve }))
+})
+
+test('a party guest\'s stage stays fullscreen as its page follows the host to the next episode', async () => {
+  party = { status: 'active', role: 'guest' } as typeof party
+  const { host, rerender } = await atTheEnd()
+  const stage = host.querySelector('.stage')
+  expect(stage).not.toBeNull()
+  await inFullscreen(stage, async exitFullscreen => {
+    await report(played, ended)
+    await toTheNext(rerender)
+    expect(stage?.querySelector('iframe')?.getAttribute('src')).toContain('GX3')
+    expect(host.querySelector('.stage')).toBe(stage)
+    expect(exitFullscreen).not.toHaveBeenCalled()
+  })
+})
+
+test('the next episode\'s frame takes the keys once it loads; the page\'s first frame, and keys left on a control of the page, stay where they are', async () => {
+  const { host, rerender } = await atTheEnd()
+  const first = host.querySelector('iframe')!
+  const firstFocus = vi.spyOn(first, 'focus')
+  first.dispatchEvent(new Event('load'))
+  expect(firstFocus, 'the page\'s first frame').not.toHaveBeenCalled()
+
+  await toTheNext(rerender)
+  const next = host.querySelector('iframe')!
+  const nextFocus = vi.spyOn(next, 'focus')
+  next.dispatchEvent(new Event('load'))
+  expect(nextFocus).toHaveBeenCalledTimes(1)
+
+  const control = host.querySelector('.episode-step')!
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
+  try {
+    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'cr:GX2' }
+    rerender()
+    await settle()
+    const back = host.querySelector('iframe')!
+    const backFocus = vi.spyOn(back, 'focus')
+    back.dispatchEvent(new Event('load'))
+    expect(backFocus, 'keys on the page\'s own link').not.toHaveBeenCalled()
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+})
+
+test('Cancel gives the keys back to the player', async () => {
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  const focus = vi.spyOn(host.querySelector('iframe')!, 'focus')
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next-cancel')!.click() })
+  expect(focus).toHaveBeenCalledTimes(1)
+})
+
+test('with no player in it yet, the stage holds the episode\'s picture and title, and with one, the player', async () => {
+  const { host, rerender } = await atTheEnd({ handles: [], thumbnails: [{ url: 'https://img.example/e3.jpg' }] })
+  expect(host.querySelector('.stage')!.children.length, 'the player beside it').toBeGreaterThan(1)
+  await toTheNext(rerender)
+  const stage = host.querySelector('.stage')!
+  expect([...stage.children].map(child => child.className)).toEqual(['episode-card'])
+  expect(stage.querySelector('.episode-card img')?.getAttribute('src')).toBe('https://img.example/e3.jpg')
+  expect(stage.querySelector('.episode-card')?.textContent).toBe('E3 - Title 3')
 })
 
 // each viewer's own player raises each viewer's own trackers, so a guest's page writes as the host's does
