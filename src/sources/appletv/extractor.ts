@@ -7,6 +7,7 @@ import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstT
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickGatedCandidate, searchQueries } from '../catalogue-gate'
 import { pickSimilarSeason, type SeasonCandidate } from '../similar'
+import { languageTags, qualityLabels } from '../stream-facts'
 
 const SCORE = 0.2
 
@@ -81,10 +82,40 @@ interface AppleEpisode {
   images?: AppleImages
 }
 
+/** What one episode's stream offers, in the same episodes answer (Severance, 2026-10-25) */
+interface ApplePlayable {
+  videoQuality?: string
+  videoColorRange?: string
+  audioTrackFormats?: string[]
+  /** the original audio, which `audioTrackLocales` leaves out: it lists the dubs */
+  primaryLocale?: { locale: string }
+  audioTrackLocales?: { locale: string }[]
+  subtitledLocales?: { locale: string }[]
+  closedCaptionedLocales?: { locale: string }[]
+}
+
 interface AppleSearchResponse { data?: { canvas?: { shelves?: { items?: AppleItem[] }[] } } }
 interface AppleContentData { content?: AppleItem, seasons?: Record<string, AppleSeason> }
 interface AppleContentResponse { data?: AppleContentData }
-interface AppleEpisodesResponse { data?: { episodes?: AppleEpisode[] } }
+interface AppleEpisodesResponse {
+  data?: {
+    episodes?: AppleEpisode[]
+    /** each episode's playable ids, by episode id */
+    episodesPlayables?: Record<string, { playableId: string }[]>
+    playables?: Record<string, ApplePlayable>
+  }
+}
+
+// AAC is every stream's stereo, so it says nothing a viewer picks by
+const VIDEO_LABELS: Record<string, string> = { SD: 'SD', HD: 'HD', UHD: '4K', DolbyVisionHDR: 'Dolby Vision', HDR10: 'HDR10', HDR: 'HDR' }
+const AUDIO_LABELS: Record<string, string> = { 'Dolby5.1': '5.1', DolbyAtmos: 'Dolby Atmos' }
+
+const playableFacts = (playable: ApplePlayable | undefined) => ({
+  videoQualities: qualityLabels([playable?.videoQuality, playable?.videoColorRange], VIDEO_LABELS),
+  audioQualities: qualityLabels(playable?.audioTrackFormats, AUDIO_LABELS),
+  audioLanguages: languageTags([playable?.primaryLocale, ...playable?.audioTrackLocales ?? []].map(track => track?.locale)),
+  subtitleLanguages: languageTags([...playable?.subtitledLocales ?? [], ...playable?.closedCaptionedLocales ?? []].map(({ locale }) => locale)),
+})
 
 /**
  * Apple TV describes a SHOW while a stub media is one season, so a season-scoped media may not carry
@@ -130,7 +161,7 @@ const normalizeMedia = (content: AppleItem, season?: AppleSeason): GQLMedia => {
   })
 }
 
-const normalizeEpisode = (episode: AppleEpisode, mediaUri: string): GQLEpisode =>
+const normalizeEpisode = (episode: AppleEpisode, mediaUri: string, playable?: ApplePlayable): GQLEpisode =>
   makeEpisode({
     origin,
     id: episode.id,
@@ -146,6 +177,7 @@ const normalizeEpisode = (episode: AppleEpisode, mediaUri: string): GQLEpisode =
     // ../catalogue-gate.ts from real values, and a seconds-for-milliseconds mixup read downstream is
     // a silent 1970 rather than an error. Fetched on every episode and dropped until 2026-09-08.
     releaseDate: episode.releaseDate != null ? new Date(episode.releaseDate).toISOString() : undefined,
+    ...playableFacts(playable),
   })
 
 /**
@@ -179,10 +211,17 @@ const fetchEpisodes = async (
     .map(season => season.id)
     .filter(Boolean)
   if (!wanted.length) return []
+  const playables = new Map<string, ApplePlayable>()
   const perSeason = await Promise.all(
     wanted.map(seasonId =>
       api<AppleEpisodesResponse>(`/shows/${showId}/episodes?selectedSeasonId=${seasonId}`, ctx)
-        .then(res => res.data?.episodes ?? [])
+        .then(res => {
+          for (const [episodeId, [first] = []] of Object.entries(res.data?.episodesPlayables ?? {})) {
+            const playable = first && res.data?.playables?.[first.playableId]
+            if (playable) playables.set(episodeId, playable)
+          }
+          return res.data?.episodes ?? []
+        })
         .catch(() => [])
     )
   )
@@ -195,7 +234,7 @@ const fetchEpisodes = async (
   // happens to carry (Silo comes back 2, 1, 3), which the flatten used to publish as episode order
   return [...byId.values()]
     .sort((a, b) => (a.seasonNumber ?? 0) - (b.seasonNumber ?? 0) || (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0))
-    .map(episode => normalizeEpisode(episode, mediaUri))
+    .map(episode => normalizeEpisode(episode, mediaUri, playables.get(episode.id)))
 }
 
 /**

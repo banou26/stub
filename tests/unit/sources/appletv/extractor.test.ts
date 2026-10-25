@@ -13,6 +13,7 @@ import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { resolvers } from '../../../../src/sources/appletv/extractor'
 import SEVERANCE from '../../../fixtures/appletv/severance.json'
 import SEVERANCE_S2_EPISODES from '../../../fixtures/appletv/severance-s2-episodes.json'
+import SEVERANCE_S2_PLAYABLES from '../../../fixtures/appletv/severance-s2-playables.json'
 import SLOW_HORSES from '../../../fixtures/appletv/slow-horses.json'
 import THE_INSTIGATORS from '../../../fixtures/appletv/the-instigators.json'
 import SEARCH_TEHRAN from '../../../fixtures/appletv/search-tehran.json'
@@ -374,6 +375,25 @@ test('a recorded season answer gives each of its episodes its own still', async 
     ['H8ApKzved8NUkSOA-0Wmlg', '8hSoEZuR695MkM1iy-p7-w', '9SMCasTEGL-y4nF4gtUMew', 'b3K0ifmQXbyogK6W7kppTg', 'zQDsSwFG7XVFxR24ZuYTfg', 'Wgb1NPDkunT1lWimTR0jaQ']
       .map(still => [mzstatic(still, '1280x720')])
   )
+})
+
+// The same answer names each episode's playable, which says what its stream offers. Trimmed to the
+// first two episodes' playables and the fields read, from the whole answer recorded 2026-10-25.
+test('an episode carries what its stream offers: picture, sound, its original audio and dubs, and subtitles', async () => {
+  const { id } = SEVERANCE.data.content
+  const media = await resolveMedia(`appletv:${id}-s2`, {
+    [url(`/shows/${id}`)]: SEVERANCE,
+    [url(`/shows/${id}/episodes?selectedSeasonId=umc.cmc.uhm560ns0yg3a5fy454bb967`)]: { data: { ...SEVERANCE_S2_EPISODES.data, ...SEVERANCE_S2_PLAYABLES.data } },
+  })
+  const [first, second, third] = media.episodes as { videoQualities?: string[], audioQualities?: string[], audioLanguages?: string[], subtitleLanguages?: string[] }[]
+
+  expect(first!.videoQualities).toEqual(['4K', 'Dolby Vision'])
+  expect(first!.audioQualities, 'AAC, Dolby5.1, DolbyAtmos').toEqual(['5.1', 'Dolby Atmos'])
+  expect(second!.audioQualities, 'DolbyAtmos, AAC, Dolby5.1: one order whatever Apple lists them in').toEqual(['5.1', 'Dolby Atmos'])
+  expect(first!.audioLanguages).toEqual(['en', 'it', 'fr-FR', 'pt-BR', 'de', 'es-419', 'tr', 'fr-CA', 'es-ES', 'ja'])
+  expect(first!.subtitleLanguages).toHaveLength(42)
+  expect(first!.subtitleLanguages).toContain('pt-BR')
+  expect(third!.videoQualities, 'the control: an episode with no playable named has nothing').toBeUndefined()
 })
 
 // THE MEDIA PATH picks its season through the shared picker, off what the aggregated media knows.

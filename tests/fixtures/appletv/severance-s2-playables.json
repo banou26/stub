@@ -1,0 +1,366 @@
+{
+  "data": {
+    "episodesPlayables": {
+      "umc.cmc.1xkk4g9qkusfdsjezvqznch8b": [
+        {
+          "playableId": "tvs.sbd.4000:A0005902001"
+        }
+      ],
+      "umc.cmc.6sye1rbpj966p9952s1svo9m3": [
+        {
+          "playableId": "tvs.sbd.4000:A0005902002"
+        }
+      ]
+    },
+    "playables": {
+      "tvs.sbd.4000:A0005902001": {
+        "videoQuality": "UHD",
+        "videoColorRange": "DolbyVisionHDR",
+        "audioTrackFormats": [
+          "AAC",
+          "Dolby5.1",
+          "DolbyAtmos"
+        ],
+        "audioTrackLocales": [
+          {
+            "locale": "it"
+          },
+          {
+            "locale": "fr_FR"
+          },
+          {
+            "locale": "pt_BR"
+          },
+          {
+            "locale": "de"
+          },
+          {
+            "locale": "es_419"
+          },
+          {
+            "locale": "tr"
+          },
+          {
+            "locale": "fr_CA"
+          },
+          {
+            "locale": "es_ES"
+          },
+          {
+            "locale": "ja"
+          }
+        ],
+        "subtitledLocales": [
+          {
+            "locale": "th"
+          },
+          {
+            "locale": "pt_BR"
+          },
+          {
+            "locale": "de"
+          },
+          {
+            "locale": "fi"
+          },
+          {
+            "locale": "ko"
+          },
+          {
+            "locale": "nl"
+          },
+          {
+            "locale": "te"
+          },
+          {
+            "locale": "da"
+          },
+          {
+            "locale": "en"
+          },
+          {
+            "locale": "es_419"
+          },
+          {
+            "locale": "hu"
+          },
+          {
+            "locale": "he"
+          },
+          {
+            "locale": "pl"
+          },
+          {
+            "locale": "cmn_Hant"
+          },
+          {
+            "locale": "id"
+          },
+          {
+            "locale": "fr_FR"
+          },
+          {
+            "locale": "it"
+          },
+          {
+            "locale": "yue_Hant"
+          },
+          {
+            "locale": "bg"
+          },
+          {
+            "locale": "hi"
+          },
+          {
+            "locale": "el"
+          },
+          {
+            "locale": "ar"
+          },
+          {
+            "locale": "ru"
+          },
+          {
+            "locale": "uk"
+          },
+          {
+            "locale": "pt"
+          },
+          {
+            "locale": "ta"
+          },
+          {
+            "locale": "tr"
+          },
+          {
+            "locale": "es_ES"
+          },
+          {
+            "locale": "cs"
+          },
+          {
+            "locale": "ms"
+          },
+          {
+            "locale": "cmn_Hans"
+          },
+          {
+            "locale": "vi"
+          },
+          {
+            "locale": "et"
+          },
+          {
+            "locale": "sv"
+          },
+          {
+            "locale": "fr_CA"
+          },
+          {
+            "locale": "ro"
+          },
+          {
+            "locale": "sl"
+          },
+          {
+            "locale": "lt"
+          },
+          {
+            "locale": "ja"
+          },
+          {
+            "locale": "lv"
+          },
+          {
+            "locale": "no"
+          },
+          {
+            "locale": "sk"
+          }
+        ],
+        "closedCaptionedLocales": [
+          {
+            "locale": "en"
+          }
+        ],
+        "primaryLocale": {
+          "locale": "en"
+        }
+      },
+      "tvs.sbd.4000:A0005902002": {
+        "videoQuality": "UHD",
+        "videoColorRange": "DolbyVisionHDR",
+        "audioTrackFormats": [
+          "DolbyAtmos",
+          "AAC",
+          "Dolby5.1"
+        ],
+        "audioTrackLocales": [
+          {
+            "locale": "fr_FR"
+          },
+          {
+            "locale": "pt_BR"
+          },
+          {
+            "locale": "de"
+          },
+          {
+            "locale": "fr_CA"
+          },
+          {
+            "locale": "es_419"
+          },
+          {
+            "locale": "ja"
+          },
+          {
+            "locale": "it"
+          },
+          {
+            "locale": "tr"
+          },
+          {
+            "locale": "es_ES"
+          }
+        ],
+        "subtitledLocales": [
+          {
+            "locale": "fr_FR"
+          },
+          {
+            "locale": "ms"
+          },
+          {
+            "locale": "cs"
+          },
+          {
+            "locale": "pt_BR"
+          },
+          {
+            "locale": "ar"
+          },
+          {
+            "locale": "id"
+          },
+          {
+            "locale": "ja"
+          },
+          {
+            "locale": "lt"
+          },
+          {
+            "locale": "cmn_Hant"
+          },
+          {
+            "locale": "vi"
+          },
+          {
+            "locale": "es_ES"
+          },
+          {
+            "locale": "ru"
+          },
+          {
+            "locale": "ro"
+          },
+          {
+            "locale": "yue_Hant"
+          },
+          {
+            "locale": "et"
+          },
+          {
+            "locale": "sv"
+          },
+          {
+            "locale": "te"
+          },
+          {
+            "locale": "de"
+          },
+          {
+            "locale": "hi"
+          },
+          {
+            "locale": "bg"
+          },
+          {
+            "locale": "en"
+          },
+          {
+            "locale": "lv"
+          },
+          {
+            "locale": "th"
+          },
+          {
+            "locale": "tr"
+          },
+          {
+            "locale": "he"
+          },
+          {
+            "locale": "es_419"
+          },
+          {
+            "locale": "no"
+          },
+          {
+            "locale": "it"
+          },
+          {
+            "locale": "ta"
+          },
+          {
+            "locale": "sl"
+          },
+          {
+            "locale": "sk"
+          },
+          {
+            "locale": "ko"
+          },
+          {
+            "locale": "nl"
+          },
+          {
+            "locale": "pl"
+          },
+          {
+            "locale": "hu"
+          },
+          {
+            "locale": "da"
+          },
+          {
+            "locale": "fi"
+          },
+          {
+            "locale": "fr_CA"
+          },
+          {
+            "locale": "el"
+          },
+          {
+            "locale": "uk"
+          },
+          {
+            "locale": "cmn_Hans"
+          },
+          {
+            "locale": "pt"
+          }
+        ],
+        "closedCaptionedLocales": [
+          {
+            "locale": "en"
+          }
+        ],
+        "primaryLocale": {
+          "locale": "en"
+        }
+      }
+    }
+  }
+}
