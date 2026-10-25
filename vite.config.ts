@@ -5,6 +5,7 @@ import { defineConfig, lazyPlugins } from 'vite-plus'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import preact from '@preact/preset-vite'
 
+import { brokerFrame } from './scripts/broker-frame'
 import { embedPage, renderBuiltUrl } from './scripts/embed-page'
 import { pageScript } from './scripts/page-script'
 
@@ -24,7 +25,7 @@ export const commit = (() => {
   }
 })()
 
-export default defineConfig((_) => ({
+export default defineConfig(() => ({
   define: {
     __STUB_VERSION__: JSON.stringify(version),
     // read off index.html's meta: a sha in the js renames the entry on every commit, and every open tab
@@ -113,6 +114,7 @@ export default defineConfig((_) => ({
       name: 'stub-commit',
       transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'stub-commit', content: commit }, injectTo: 'head' }],
     },
+    brokerFrame(),
     pageScript(),
     nodePolyfills(),
     embedPage(),

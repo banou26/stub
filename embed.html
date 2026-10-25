@@ -38,8 +38,6 @@
     </style>
   </head>
   <body>
-    <!-- overlay baseline: clipped (invisible + pass-through) until @fkn/lib mounts the projector; display:none would keep the overlay invisible forever -->
-    <iframe src="%VITE_WEB_ORIGIN%/api" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: none; clip-path: inset(100%);"></iframe>
     <div id="app"></div>
     <script type="module" src="/src/embed.tsx"></script>
   </body>
