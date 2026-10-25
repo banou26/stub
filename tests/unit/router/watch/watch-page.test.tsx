@@ -892,6 +892,16 @@ test('a seek back before the moment withdraws Next episode, until playback reach
   expect(nextShown(host)).toBe('E3 - Title 3')
 })
 
+test('another source picked before the moment brings no Next episode at the old one\'s moment', async () => {
+  const { host, rerender } = await atTheCredits()
+  params = { ...params, sourceUri: 'nyaa:a' }
+  rerender()
+  await settle()
+  expect(host.querySelector('.plugin-player'), 'the other source plays').not.toBeNull()
+  await wait(30_000)
+  expect(nextShown(host)).toBeUndefined()
+})
+
 // no report comes on `waiting`, so a stall shows only as a heartbeat behind where the timer had the player
 test('a heartbeat reporting a stall short of the moment keeps Next episode', async () => {
   const { host } = await atTheCredits()
