@@ -434,11 +434,13 @@ const noSource = (host: HTMLElement) => host.querySelector<HTMLElement>('.no-sou
 const signInRows = (host: HTMLElement) => [...host.querySelectorAll('.no-source li')]
   .map(row => [row.getAttribute('data-source'), row.querySelector('.name')?.textContent, row.querySelector('button')?.textContent])
 const toWatch = (sourceUri: string) => `/watch/${params.mediaUri}/${params.episodeUri}/${sourceUri}`
-// Crunchyroll and Prime Video in Japan, the viewer signed in to neither as far as stub knows
+// Crunchyroll and Prime Video in Japan, the viewer signed in to neither as far as stub knows, and no source added:
+// this harness answers on the first render, so a package connected at load reads as connected after that answer
 const premiumEpisode = () => {
   vi.useFakeTimers()
   origins = ['amazon', 'cr']
   statuses = {}
+  plugins.statuses = []
   primeEpisode(allHandles[0]!)
   params = { ...params, episodeUri: episode.uri }
 }
@@ -523,6 +525,7 @@ test('with only sources turned off or opening elsewhere, the page offers Browse 
   vi.useFakeTimers()
   origins = ['amazon', 'cr']
   statuses = {}
+  plugins.statuses = []
   stored.set('stub.sources.disabled', JSON.stringify(['cr']))
   Object.assign(episode, { handles: [allHandles[0], handle('amazon:us', 'amazon', 'https://watch.amazon.com/watch?gti=us')] })
   const host = page()
@@ -531,6 +534,15 @@ test('with only sources turned off or opening elsewhere, the page offers Browse 
   expect(noSource(host)).not.toBeNull()
   expect(signInRows(host)).toEqual([])
   expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
+})
+
+test('a source the play order names whose package is gone does not hold the page', async () => {
+  premiumEpisode()
+  stored.set('stub.sources.play-order', JSON.stringify(['nyaa', 'cr', 'amazon', 'nf']))
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr', 'amazon'])
 })
 
 test('an episode that lists no source is not asked about', async () => {
@@ -558,6 +570,41 @@ test('nothing is asked before every source has answered, and Play waits on a fav
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
   await rerender()
   expect(navigate, 'the favourite, for its player to ask').toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+})
+
+// the answer on screen when a package connects was reached before the worker asked its source
+test('an added source that connects after the answer on screen holds the page until the worker answers again', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  statuses = {}
+  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const { host, rerender } = live()
+  await settle()
+  expect(noSource(host), 'connecting').toBeNull()
+  await pluginsChange(connectedNyaa)
+  expect(noSource(host), 'connected, the answer on screen from before').toBeNull()
+
+  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+  media = { ...single }
+  await rerender()
+  expect(navigate, 'the favourite, for its player to ask').toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+  expect(noSource(host)).toBeNull()
+})
+
+test('an added source that answers with nothing for the episode leaves the page asking', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  statuses = {}
+  plugins.statuses = []
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const { host, rerender } = live()
+  await settle()
+  await pluginsChange(connectedNyaa)
+  media = { ...single }
+  await rerender()
+  expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr'])
+  expect(navigate).not.toHaveBeenCalled()
 })
 
 test('a source the address names keeps its own player, one still to sign in to too', async () => {

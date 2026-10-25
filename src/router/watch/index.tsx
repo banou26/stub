@@ -691,9 +691,12 @@ const Watch = () => {
   // a stream that needs the extension plays nowhere on a browser that cannot add it
   const plays = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && (addable || !extensionOnly(handle))
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
+  // every source has answered, an added one since its package connected
+  const everyAnswered = Boolean(episode && backend) && answered && !connecting
+    && ways.order.every(origin => !ways.possible(origin) || ways.settled(origin))
   // the episode the page last asked the viewer to sign in or add a source for
   const asked = useRef<string | undefined>(undefined)
-  const { pick, stuck } = playPick(open, ways, plays, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri, moving: cannotPlay })
+  const { pick, stuck } = playPick(open, ways, plays, { answered: everyAnswered, asked: asked.current === params.episodeUri, moving: cannotPlay })
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
