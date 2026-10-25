@@ -145,6 +145,7 @@ test.each([
 
 test.each([
   ['its Kitsu id', 'https://anime.fkn.app/title/ag:(kitsu:1)', 'Stub Anime'],
+  ['its Kitsu id, percent-encoded', 'https://anime.fkn.app/title/ag%3A(kitsu%3A1)', 'Stub Anime'],
   ['its offline record', 'https://stub.fkn.app/media/ag:(offline:mal-1)', 'Stub'],
 ])('a show the offline data holds with a title and a cover, named by %s, is answered from it with nothing asked', async (_, address, name) => {
   const { html } = await call(address)
