@@ -40,6 +40,9 @@ const REPORTS: GotoReport[] = ['held', 'load', 'early', 'never']
 
 const newRealm = () => createContext() as Context & Record<symbol, unknown>
 
+// what a page's fetch rejects with on Firefox when the request is dropped, or the page starts to leave
+const FIREFOX_FETCH_FAILED = 'NetworkError when attempting to fetch resource.'
+
 const runInPage = (source: string, realm: Context, arg: unknown) =>
   (runInContext(`(${source}\n)`, realm) as (arg: unknown) => unknown)(arg)
 
@@ -47,8 +50,10 @@ const runInPage = (source: string, realm: Context, arg: unknown) =>
  * A Frame whose page serves `ask` over the port its document's install was sent, answering with the
  * number of the document it runs in; a document that left answers nothing, as its port died with it.
  * The page script lands a task after it is evaluated, so a read can find a document before it does.
- * `hang` makes that document's answers wait. `order` records each report and each install as it lands,
- * and `reached` every question that reached a page, answered or not.
+ * `hang` makes that document's answers wait, and `leave` then fails them as Firefox fails a leaving
+ * page's fetches, before the next document is reported. `fail` fails the next answers on a page that
+ * stays. `order` records each report and each install as it lands, and `reached` every question that
+ * reached a page, answered or not.
  */
 const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url } = {}) => {
   let document = -1
@@ -57,6 +62,8 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
   let url = ''
   const listeners = new Set<(event: { type: 'document', origin: string }) => void>()
   const hanging = new Set<number>()
+  const waiting = new Map<number, Set<(error: Error) => void>>()
+  let failing = 0
   const order: string[] = []
   const reached: string[] = []
 
@@ -88,7 +95,15 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
     void expose<PageApi>({
       ask: async question => {
         reached.push(question)
-        if (hanging.has(own) || own !== document) await new Promise(() => {})
+        if (failing > 0) {
+          failing--
+          throw new TypeError(FIREFOX_FETCH_FAILED)
+        }
+        if (hanging.has(own) || own !== document) {
+          await new Promise<never>((_resolve, reject) => {
+            if (own === document) waiting.set(own, (waiting.get(own) ?? new Set()).add(reject))
+          })
+        }
         return `${question} from document ${own}`
       },
     }, { transport: port })
@@ -140,10 +155,15 @@ const fakeFrame = ({ serve = true, report = 'held' as GotoReport, blank = false,
     /** The extension's report of the document the frame already holds, on the iframe's load. */
     load: reportDocument,
     hang: () => hanging.add(document),
+    leave: () => {
+      for (const reject of waiting.get(document) ?? []) reject(new TypeError(FIREFOX_FETCH_FAILED))
+      waiting.delete(document)
+    },
+    fail: (times = 1) => { failing = times },
   }
 }
 
-const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url } = {}) => {
+const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as GotoReport, blank = false, siteUrl = SITE.url, retryMs = 1_000 } = {}) => {
   const page = fakeFrame({ serve, report, blank, siteUrl })
   const removed: number[] = []
   let mounted = 0
@@ -161,6 +181,7 @@ const setup = ({ serve = true, connectTimeoutMs = 2_000, report = 'held' as Goto
     key: () => `key-${++keys}`,
     connectTimeoutMs,
     callTimeoutMs: 2_000,
+    retryMs,
   })
   const ask = (question: string) => frames.use('anilist', api => api.ask(question))
   return { ...page, frames, attach, mount, removed, ask }
@@ -230,6 +251,40 @@ describe('the session frame', () => {
     newDocument()
 
     expect(await answer).toBe('cut short from document 1')
+  })
+
+  test.each(REPORTS)('a call whose page failed its fetch as it left, as Firefox does, runs once more on the next document (goto %s)', async report => {
+    // far past this test's timeout: the call has to run again as the next document lands, not after this
+    const { hang, leave, newDocument, reached, ask } = setup({ report, retryMs: 60_000 })
+    await ask('warm')
+    hang()
+
+    const answer = ask('cut short')
+    answer.catch(() => {})
+    await vi.waitFor(() => expect(reached).toContain('cut short'))
+    leave()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    newDocument()
+
+    expect(await answer).toBe('cut short from document 1')
+  }, 5_000)
+
+  test('a call that failed on a page that stays runs once more on it', async () => {
+    const { fail, reached, ask } = setup({ retryMs: 20 })
+    await ask('warm')
+
+    fail()
+    expect(await ask('dropped')).toBe('dropped from document 0')
+    expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
+  })
+
+  test('a call that fails twice rejects with what the page said', async () => {
+    const { fail, reached, ask } = setup({ retryMs: 20 })
+    await ask('warm')
+
+    fail(2)
+    await expect(ask('dropped')).rejects.toThrow(FIREFOX_FETCH_FAILED)
+    expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
   })
 
   test('reload drops the frame and tells the watchers, and the next use attaches a new one', async () => {
@@ -365,6 +420,15 @@ describe('a call that must not run twice', () => {
 
     expect(await running).toBe('write from document 1')
     expect(reached.filter(question => question === 'write')).toHaveLength(2)
+  })
+
+  test('a once call that failed is not run again', async () => {
+    const { frames, fail, reached, ask } = setup({ retryMs: 20 })
+    await ask('warm')
+
+    fail()
+    await expect(write(frames)).rejects.toThrow(FIREFOX_FETCH_FAILED)
+    expect(reached.filter(question => question === 'write')).toHaveLength(1)
   })
 
   test('a once call whose frame was reloaded before the call was made runs, once, on the new one', async () => {

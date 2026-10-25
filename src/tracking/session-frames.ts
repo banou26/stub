@@ -55,6 +55,8 @@ export type SessionFramesOptions<Api> = {
   connectTimeoutMs?: number
   /** How long one call may take before its port is given up on. */
   callTimeoutMs?: number
+  /** How long a failed call waits for the page's next document before it runs again on the same one. */
+  retryMs?: number
 }
 
 /** How `use` may run its call. */
@@ -70,9 +72,9 @@ export type UseOptions = {
 
 export type SessionFrames<Api> = {
   /**
-   * Runs `call` against the site's page, attaching the frame on the first use. A call the page's next
-   * document cut short runs once more on the page installed there, unless `once` says it may not;
-   * anything else rejects.
+   * Runs `call` against the site's page, attaching the frame on the first use. A call that failed, or
+   * that the page's next document cut short, runs once more, on the page installed there once it is
+   * reported, unless `once` says it may not. A page that did not answer in time rejects.
    */
   use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
   /** Drops the site's frame, so the next use loads the page afresh (after a sign in), and tells the watchers. */
@@ -92,6 +94,8 @@ export class CallInterrupted extends Error {
 }
 /** The page did not answer in time, so the port it was given is not trusted again. */
 class PageSilent extends Error {}
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
 const deadline = <T>(promise: PromiseLike<T>, ms: number, message: string) =>
   new Promise<T>((resolve, reject) => {
@@ -120,7 +124,7 @@ type Entry<Api> = {
 
 export const createSessionFrames = <Api>(
   sites: readonly SessionSite[],
-  { attach, mount, connect, appOrigin, key, connectTimeoutMs = 15_000, callTimeoutMs = 30_000 }: SessionFramesOptions<Api>,
+  { attach, mount, connect, appOrigin, key, connectTimeoutMs = 15_000, callTimeoutMs = 30_000, retryMs = 5_000 }: SessionFramesOptions<Api>,
 ): SessionFrames<Api> => {
   const entries = new Map<string, Entry<Api>>()
   const watchers = new Map<string, Set<() => void>>()
@@ -226,9 +230,14 @@ export const createSessionFrames = <Api>(
         if (error instanceof PageGone && once) {
           throw new CallInterrupted(`${site.origin} changed while stub's call was running, so whether it arrived is not known`)
         }
-        if (error instanceof PageGone && again) continue
         if (error instanceof PageSilent) drop(entry, current)
-        throw error
+        if (!again || once || error instanceof PageSilent) throw error
+        // A page that starts to leave fails the fetch a call is waiting on, and the page script sends that
+        // failure back before the next document can be reported: Firefox 157 at beforeunload, before the next
+        // document is even asked for ("NetworkError when attempting to fetch resource."), Chrome 155 at unload
+        // ("Failed to fetch"), measured 2026-10-26. So a call cut short by the next document mostly arrives
+        // as an ordinary failure, not as PageGone. It runs again on that document, or on this one if none comes.
+        await Promise.race([current.gone, sleep(retryMs)]).catch(() => {})
       }
     }
   }
