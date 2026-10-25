@@ -23,10 +23,24 @@ const { CustomEvent, DocumentFragment, Element, Event, HTMLElement, Node, SVGEle
 // a top-level page, as a browser has it: linkedom's window has no `parent`
 Object.assign(dom.window, { parent: dom.window })
 
+// Node's own EventTarget, which refuses an event of linkedom's with ERR_INVALID_ARG_TYPE: @banou/media-player 0.10.29
+// tells each change of its chapters with `new Event('chapterschange')` on a `new EventTarget()`, which failed every
+// test rendering the real player. Node's target stays, as linkedom's ignores a listener's `signal`, and takes
+// linkedom's event as one of its own with the same fields.
+const NodeEvent = globalThis.Event
+class EventTargetForDomEvents extends EventTarget {
+  dispatchEvent (event: globalThis.Event) {
+    if (event instanceof NodeEvent) return super.dispatchEvent(event)
+    const own = new NodeEvent(event.type, { bubbles: event.bubbles, cancelable: event.cancelable })
+    for (const [key, value] of Object.entries(event)) if (!(key in own)) Object.defineProperty(own, key, { value })
+    return super.dispatchEvent(own)
+  }
+}
+
 Object.assign(globalThis, {
   document: dom.document,
   window: dom.window,
-  CustomEvent, DocumentFragment, Element, Event, HTMLElement, Node, SVGElement, Text,
+  CustomEvent, DocumentFragment, Element, Event, EventTarget: EventTargetForDomEvents, HTMLElement, Node, SVGElement, Text,
 })
 
 /**
