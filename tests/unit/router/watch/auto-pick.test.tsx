@@ -74,23 +74,23 @@ describe('bestSource', () => {
 
 // HOR-1014: an episode whose every source plays only once the viewer signs in asks them to, rather than opening one
 describe('playPick', () => {
-  const owesCr = (handle: { origin: string }) => handle.origin === 'cr'
+  const playsButCr = (handle: { origin: string }) => handle.origin !== 'cr'
   const answered = { answered: true, asked: false }
 
   test('with a source that plays without a sign in, Play still opens the favourite still to sign in to', () => {
-    expect(playPick([cr, prime], ways({ settled: () => true }), owesCr, answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+    expect(playPick([cr, prime], ways({ settled: () => true }), playsButCr, answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
   })
 
   test('with none, nothing is opened, and the page is stuck once every source has answered', () => {
-    expect(playPick([cr], ways(), owesCr, { answered: false, asked: false })).toEqual({ pick: undefined, stuck: false })
-    expect(playPick([cr], ways(), owesCr, answered)).toEqual({ pick: undefined, stuck: true })
-    expect(playPick([], ways(), owesCr, answered), 'an episode with no source at all').toEqual({ pick: undefined, stuck: true })
-    expect(playPick([cr], ways(), () => false, answered), 'the control: nothing owed').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+    expect(playPick([cr], ways(), playsButCr, { ...answered, answered: false })).toEqual({ pick: undefined, stuck: false })
+    expect(playPick([cr], ways(), playsButCr, answered)).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([], ways(), playsButCr, answered), 'an episode with no source at all').toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr], ways(), () => true, answered), 'the control: every source plays').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
   })
 
   test('once asked, the page stays stuck while sources answer again, and then opens only what plays without a sign in', () => {
-    expect(playPick([cr], ways(), owesCr, { answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
-    expect(playPick([cr, prime], ways({ settled: () => true }), owesCr, { answered: true, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
+    expect(playPick([cr], ways(), playsButCr, { ...answered, answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr, prime], ways({ settled: () => true }), playsButCr, { ...answered, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
   })
 })
 

@@ -51,13 +51,13 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
 }
 
 /**
- * `bestSource` for a viewer who may have to sign in first, `owes` naming the handles that play only once
- * they have. Play opens nothing while no other handle plays, and once the page has asked the viewer to
- * sign in or add a source (`asked`), it opens only a handle that plays without a sign in. `stuck` while
- * nothing plays without one and either every source has answered (`answered`) or the page has asked.
+ * `bestSource` for a viewer who may have to sign in first, `plays` naming the handles that play for them
+ * here without one. Play opens nothing while none of those plays, and once the page has asked the viewer to
+ * sign in or add a source (`asked`), it opens only one of those. `stuck` while none plays and either every
+ * source has answered (`answered`) or the page has asked.
  */
-export const playPick = (handles: readonly Handle[], ways: Ways, owes: (handle: Handle) => boolean, { answered, asked }: { answered: boolean, asked: boolean }) => {
-  const playing = bestSource(handles.filter(handle => !owes(handle)), ways)
+export const playPick = (handles: readonly Handle[], ways: Ways, plays: (handle: Handle) => boolean, { answered, asked }: { answered: boolean, asked: boolean }) => {
+  const playing = bestSource(handles.filter(plays), ways)
   return { pick: playing && (asked ? playing : bestSource(handles, ways)), stuck: !playing && (answered || asked) }
 }
 

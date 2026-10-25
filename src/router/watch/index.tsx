@@ -637,10 +637,13 @@ const Watch = () => {
   )
 
   // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
+  const extensionOnly = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
+    backend !== 'extension' && !handle.embedUrl && canPlay(handle.origin, handle.url, 'extension')
+    && (EXTENSION_ONLY_ORIGINS.has(handle.origin) || !canPlay(handle.origin, handle.url, backend))
   const selected = episodeHandles.find(h => h.uri === selectedSourceUri)
   const skipEvents = useSkipEvents(embedUrl && selected?.origin === 'cr' && selected.url ? crunchyrollEpisodeId(selected.url) : undefined)
   const chapters = useMemo(() => skipEventsToChapters(skipEvents), [skipEvents])
-  const needsExtension = backend === 'cloud' && !embedUrl && selected?.url && canPlay(selected.origin, selected.url, 'extension')
+  const needsExtension = backend === 'cloud' && selected && extensionOnly(selected)
     ? builtInSources.find(source => source.origin === selected.origin)?.name
     : undefined
 
@@ -685,10 +688,12 @@ const Watch = () => {
   // a backend not known yet counts as the cloud, as for canPlay, so Play opens no site still to sign in to before it is known
   const owes = (handle: { origin: string, url?: string | null }) =>
     Boolean(handle.url && canPlay(handle.origin, handle.url, backend) && offersSignIn(handle.origin, backend ?? 'cloud', status))
+  // a stream that needs the extension plays nowhere on a browser that cannot add it
+  const plays = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && (addable || !extensionOnly(handle))
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
   // the episode the page last asked the viewer to sign in or add a source for
   const asked = useRef<string | undefined>(undefined)
-  const { pick, stuck } = playPick(open, ways, owes, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri })
+  const { pick, stuck } = playPick(open, ways, plays, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri })
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0

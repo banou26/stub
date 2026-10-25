@@ -596,6 +596,33 @@ test('before the backend is known, a site still to sign in to is neither opened 
   expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr', 'amazon'])
 })
 
+// Netflix needs the extension on the cloud, which iOS Safari or Chrome on Android cannot add
+test('where the browser cannot add the extension, Netflix plays nothing, so the page asks for the sign in still to do', async () => {
+  for (const order of [['cr', 'amazon', 'nf'], ['nf', 'cr', 'amazon']]) {
+    vi.useFakeTimers()
+    origins = ['cr', 'nf']
+    statuses = {}
+    plugins.statuses = []
+    stored.set('stub.sources.play-order', JSON.stringify(order))
+    Object.assign(episode, { handles: [allHandles[0], allHandles[1]] })
+    detecting.addable = false
+    const host = page()
+    hosts.push(host)
+    await settle()
+    expect(navigate, order.join()).not.toHaveBeenCalled()
+    expect(signInRows(host).map(([origin]) => origin), order.join()).toEqual(['cr'])
+
+    detecting.addable = true
+    const addable = page()
+    hosts.push(addable)
+    await settle()
+    expect(noSource(addable), `the control: a browser that can add it, ${order.join()}`).toBeNull()
+    expect(navigate, order.join()).toHaveBeenCalledOnce()
+    navigate.mockClear()
+    while (hosts.length) unmount(hosts.pop()!)
+  }
+})
+
 test('a party guest, who follows the host, is never asked', async () => {
   premiumEpisode()
   party = { status: 'active', role: 'guest' } as typeof party
@@ -2310,21 +2337,19 @@ test('outside Japan where the browser cannot add the extension, Play\'s Prime Vi
   expect(navigate).toHaveBeenLastCalledWith(watching('nyaa:a'), { replace: true })
 })
 
-test('where the browser cannot add the extension and nothing else plays the episode, Play\'s pick keeps its install button', async () => {
+test('where the browser cannot add the extension and nothing else plays the episode, the page offers Browse sources rather than Netflix', async () => {
   vi.useFakeTimers()
   detecting.addable = false
   origins = ['nf']
+  plugins.statuses = []
   Object.assign(episode, { uri: 'ag:(anilist:1-1,nf:81)', handles: [allHandles[1]] })
   params = { ...params, episodeUri: episode.uri }
-  const { host, rerender } = live()
+  const host = page()
+  hosts.push(host)
   await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('nf:81'), { replace: true })
-
-  params = { ...params, sourceUri: 'nf:81' }
-  await rerender()
-  await rerender()
-  expect(navigate).toHaveBeenCalledOnce()
-  expect(button(host, 'Install the FKN extension to play Netflix')).toBeTruthy()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(signInRows(host)).toEqual([])
+  expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
 })
 
 test('where the browser cannot add the extension, Netflix ranked first does not hold Play until every source answered', async () => {
