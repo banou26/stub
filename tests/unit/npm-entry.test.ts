@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
 // a plain .mjs beside the other build scripts, so its exports arrive untyped
-import { embedPageProblems, npmEntryProblems } from '../../scripts/check-npm-entry.mjs'
+import { embedPageProblems, MAX_PACKED_FILES, npmEntryProblems, packedFilesProblems } from '../../scripts/check-npm-entry.mjs'
 import { EMBED_PAGE } from '../../scripts/embed-page'
 
 // package.json's `main` is the only thing the platform reads to load this app: the sandbox appends
@@ -151,5 +151,23 @@ describe('the build script', () => {
   test('publishes the entry the platform loads', () => {
     expect(pkg.main).toBe('build/index.js')
     expect(pkg.files).toContain('build')
+  })
+})
+
+describe('the published file list', () => {
+  const paths = (count: number) => Array.from({ length: count }, (_, index) => `build/assets/file-${index}.js`)
+
+  test('a package with more files than the signature can list is refused, as 0.0.61\'s 832 were', () => {
+    expect(packedFilesProblems(paths(832))).toHaveLength(1)
+    expect(packedFilesProblems(paths(MAX_PACKED_FILES + 1))).toHaveLength(1)
+  })
+
+  test('the control: 0.0.60\'s 62 files pass', () => {
+    expect(packedFilesProblems(paths(62))).toEqual([])
+  })
+
+  test('package.json leaves the offline history\'s shards and their maps out of the package', () => {
+    expect(pkg.files).toContain('!build/assets/*-[0-9][0-9][0-9]-*.js')
+    expect(pkg.files).toContain('!build/assets/*history-shards-*.js')
   })
 })

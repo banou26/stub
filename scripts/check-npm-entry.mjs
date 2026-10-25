@@ -12,6 +12,7 @@
 // story for 0.0.27, whose player answered 502 under /app while anime.fkn.app played fine. The icon
 // rules keep the manifest and icons in the signed release, the only place fkn.app reads an icon from.
 
+import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -240,12 +241,25 @@ export const appIconProblems = (pkg, tree) => {
   return problems
 }
 
+/**
+ * The most files a release can carry: the publish signs the package in place, and the signature's file
+ * list (fkn.json) is refused past 16,384 bytes. 0.0.61's first publish carried 832 files, the offline
+ * history's 768 shards among them, and its fkn.json came to 123,981 bytes, about 149 bytes a file.
+ */
+export const MAX_PACKED_FILES = 100
+
+/** Why `npm pack` would publish a package the signer refuses: too many files for its list. */
+export const packedFilesProblems = (paths) => paths.length > MAX_PACKED_FILES
+  ? [`the package would publish ${paths.length} files, and its signature lists at most about ${MAX_PACKED_FILES}: leave generated data out of "files" in package.json`]
+  : []
+
 const isMain =process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   const tree = readTree(root)
-  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree)]
+  const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' }))[0].files.map(file => file.path)
+  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree), ...packedFilesProblems(packed)]
   if (problems.length) {
     console.error(`the built package cannot be loaded as an app:\n${problems.map(line => `  - ${line}`).join('\n')}`)
     process.exit(1)
