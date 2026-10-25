@@ -1,7 +1,8 @@
 // TMDB's show and season-list pages on 2026-10-12, cut to the lines this source reads. The show page
 // links only its latest season (Squid Game's links season 3 alone), and the season list links every
 // season with its episode count, under a slug for a show with an English title
-// (`/tv/1396-breaking-bad/season/5`).
+// (`/tv/1396-breaking-bad/season/5`). Such a show is served at its slugged address alone, every page of
+// it moved there by a 301 (2026-10-25).
 import { readFileSync } from 'node:fs'
 import { print } from 'graphql'
 import { expect, test } from 'vite-plus/test'
@@ -32,7 +33,9 @@ const context = (known: unknown, paths: string[] = []) => {
     },
     fetch: async (url: string) => {
       paths.push(url.replace('https://www.themoviedb.org', ''))
-      const [, id, page] = url.match(/^https:\/\/www\.themoviedb\.org\/tv\/(\d+)(\/seasons)?\?language=en-US$/) ?? []
+      const [, moved] = url.match(/^https:\/\/www\.themoviedb\.org\/tv\/1396([/?].*)$/) ?? []
+      if (moved) return new Response('<html><head><title>301 Moved Permanently</title></head></html>', { status: 301, headers: { location: `/tv/1396-breaking-bad${moved}` } })
+      const [, id, page] = url.match(/^https:\/\/www\.themoviedb\.org\/tv\/(\d+)(?:-[a-z-]+)?(\/seasons)?\?language=en-US$/) ?? []
       // a season's own page answers one episode: its episodes are not what this pins
       const body = id ? fixture(`${page ? 'seasons' : 'show'}-${SHOWS[id]}`)
         : /\/season\/\d+\?/.test(url) ? '<div class="card" data-episode-number="1"><h3><a href="#">One</a></h3></div>'
@@ -62,6 +65,14 @@ test('a show listed under a slug lists its seasons too, and not its specials', a
   const media = await ask('tmdb:1396-s1')
   expect(media.seasons.map((season: { uri: string }) => season.uri))
     .toEqual(['tmdb:1396-s1', 'tmdb:1396-s2', 'tmdb:1396-s3', 'tmdb:1396-s4', 'tmdb:1396-s5'])
+})
+
+// read as the 301's body, Game of Thrones and Breaking Bad drew nothing at their TMDB address
+test('a show TMDB moves to its slugged address is read there, its seasons and a season\'s episodes too', async () => {
+  const show = await ask('tmdb:1396')
+  expect(show.titles[0].title).toBe('Breaking Bad')
+  expect(show.seasons).toHaveLength(5)
+  expect((await ask('tmdb:1396-s1')).episodes).toHaveLength(1)
 })
 
 test('the show\'s own card is answered as the show, listing its seasons and naming nothing else', async () => {

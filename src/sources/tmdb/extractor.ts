@@ -24,8 +24,16 @@ export const isApiOnly = false
 export const supportedUris = ['tmdb']
 export const color = '#01b4e4'
 
+// TMDB moves a show with an English title to its slugged address, every page of it (`/tv/1399` answers 301 to
+// `/tv/1399-game-of-thrones`, 2026-10-25), and the relay hands a redirect back rather than following it.
 const fetchHtml = (path: string, ctx: ExtractorServerContext): Promise<string | undefined> =>
-  ctx.fetch(`${BASE}${path}`).then(r => r.text()).catch(() => undefined)
+  ctx.fetch(`${BASE}${path}`)
+    .then(r => {
+      const location = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null
+      return location ? ctx.fetch(new URL(location, BASE).href) : r
+    })
+    .then(r => r.text())
+    .catch(() => undefined)
 
 const meta = (html: string, property: string): string | undefined =>
   html.match(new RegExp(`<meta property="${property}" content="([^"]*)"`))?.[1]
