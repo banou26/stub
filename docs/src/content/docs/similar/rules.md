@@ -63,7 +63,7 @@ Four values are read once, before any rule runs, at `similar.ts:177-180`:
 
 ```ts
 const titles = evidence.titles ?? []
-const partNamed = titles.some(namesAPart)
+const partNamed = titles.some(namesALaterPart)
 const ordinals = seasonOrdinals(titles)
 const evidenceYear = yearOf(evidence.startDate)
 ```
@@ -76,6 +76,12 @@ separate axis, and the two overlap on purpose: `SEASON_PATTERNS` reads `Part 2` 
 use, which the log line spells out both halves of
 (`{day:2026-07-04, count:-, ordinals:2, parts:yes, titles:1, episodeTitles:0}`, pinned at
 `tests/unit/sources/similar.test.ts:257-258`).
+
+`partNamed` reads the marker through `namesALaterPart`, which lets one shape through: the FIRST part of
+a season the title names before the marker (`The Apothecary Diaries Season 3 Cour 1`). That run starts
+where its season starts, so the ordinal places it exactly as the bare `Season 3` beside it does. A
+first part naming no season (`Final Chapters Part 1`) still counts as a part, since its only number is
+the part's.
 
 ## What a candidate is
 
@@ -305,12 +311,18 @@ flowchart TD
 `src/sources/similar.ts:213-215`
 
 > Rule 3, ORDINAL WITH COUNT. Disagreeing titles refuse outright. A part marker makes the ordinal
-> unusable here: "Season 2 Part 3" of 12 episodes would otherwise take the provider's season 2
-> whenever that happens to hold 12 or fewer.
+> unusable here, unless it is the part that opens the named season: "Season 2 Part 3" of 12
+> episodes would otherwise take the provider's season 2 whenever that happens to hold 12 or fewer.
 
 `similar.test.ts:212-215` is the control pair: `Show Season 2 Part II` of 12 against a lone candidate
 `{ season: 2, seasonNumber: 2, episodeCount: 12 }` refuses, and the same evidence titled `Show Season 2`
 answers `{ season: 2, rule: 'ordinal' }`.
+
+The exception is pinned by `the first part of a named season keeps that season's ordinal`: The
+Apothecary Diaries' third season, whose ani.zip titles add `Season 3 Cour 1` to AniList's `Season 3`,
+takes Netflix's season 3 (5 episodes as it airs) by ordinal, measured live 2026-10-26, where the
+marker alone had refused it and the watch page drew no Netflix. A later cour beside it, a first part
+naming no season, and a named season longer than the run all still refuse.
 
 Note what Rule 3 does **not** check: it never compares our count to the season's beyond the fold veto.
 The count is there to make the ordinal usable at all (`evidence.episodeCount != null`) and to give the

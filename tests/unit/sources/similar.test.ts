@@ -3,7 +3,7 @@
 // same count as anime season 1; a count-only match minted `nf:80987039-3` for season 1 while season 3
 // took it by ordinal. Every case here is one way that guess used to get through, or a control that
 // proves the rule still answers when the evidence is real.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import {
   answerNamesOurShow,
@@ -78,6 +78,37 @@ test('a part marker makes the ordinal unusable', () => {
     { season: 3, seasonNumber: 3, episodeCount: 12 },
   ]
   expect(pickSimilarSeason({ titles: ['Show Season 2 Part 2'], episodeCount: 12 }, candidates)).toBeUndefined()
+})
+
+// The Apothecary Diaries' third season, live 2026-10-26: ani.zip names the run "Season 3 Cour 1" beside
+// AniList's "Season 3", and Netflix lists its season 3 as it airs, 5 episodes and one real title. The
+// marker refused the ordinal the bare title is given, and the watch page drew no Netflix at all.
+// Mutation: read the marker with `namesAPart` again and the first expectation is a refusal.
+test('the first part of a named season keeps that season\'s ordinal', () => {
+  const generic = (from: number, count: number) => Array.from({ length: count }, (_, i) => `Episode ${from + i}`)
+  const netflix: SeasonCandidate<number>[] = [
+    { season: 1, seasonNumber: 1, episodeCount: 24, year: 2023, episodeTitles: episodeTitles(1, 24) },
+    { season: 2, seasonNumber: 2, episodeCount: 24, episodeTitles: ['Maomao and Maomao', ...generic(26, 23)] },
+    { season: 3, seasonNumber: 3, episodeCount: 5, episodeTitles: ['Locusts', ...generic(50, 4)] },
+  ]
+  const run = {
+    startDate: '2026-10-02',
+    episodeCount: 12,
+    titles: [
+      'The Apothecary Diaries Season 3', 'Kusuriya no Hitorigoto 3rd Season', '薬屋のひとりごと 第3期',
+      'The Apothecary Diaries Season 3 Cour 1', 'Kusuriya no Hitorigoto 3rd Season Cour 1', '薬屋のひとりごと 第3期 第1クール',
+      'The Apothecary Diaries (2026)', '薬屋のひとりごと (2026)',
+    ],
+    episodeTitles: ['Locusts', '蝗', 'Fire Rat\'s Cloak', '火鼠の皮衣', 'Let Them Eat Cake', '麺麭[パン]がなければ', 'The Last Volume', '最後の一冊'],
+  }
+  expect(pickSimilarSeason(run, netflix)).toEqual({ season: 3, rule: 'ordinal' })
+  expect(pickSimilarSeason({ ...run, titles: [...run.titles, 'The Apothecary Diaries Season 3 Cour 2'] }, netflix), 'a later cour')
+    .toBeUndefined()
+  const firstCour: SeasonCandidate<number>[] = [{ season: 1, seasonNumber: 1, episodeCount: 12 }]
+  expect(pickSimilarSeason({ titles: ['Show Part 1'], episodeCount: 12 }, firstCour), 'a first part naming no season')
+    .toBeUndefined()
+  expect(pickSimilarSeason({ ...run, titles: ['The Apothecary Diaries Season 2 Cour 1'] }, netflix), 'season 2 is longer than the run')
+    .toBeUndefined()
 })
 
 test('a day-precise date picks the run, and the date rule refuses rather than falling through', () => {

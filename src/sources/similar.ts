@@ -139,6 +139,18 @@ export const namedSeasonOrdinals = (titles: readonly string[] | null | undefined
     .map(parseSeasonNumber)
     .filter((n): n is number => n != null))
 
+/**
+ * A part that does not open the season its title names. "Season 3 Cour 1" starts where season 3 starts,
+ * so the ordinal places it exactly as the bare "Season 3" beside it does: ani.zip spells The Apothecary
+ * Diaries' third season that way, and its marker alone refused Netflix's season 3 (2026-10-26). A first
+ * part naming no season ("Final Chapters Part 1") still counts, since its only number is the part's.
+ */
+const namesALaterPart = (title: string): boolean => {
+  if (!namesAPart(title)) return false
+  const at = title.search(PART_MARKER)
+  return at < 0 || parseSeasonNumber(title.slice(0, at)) === undefined || parseSeasonNumber(title.slice(at)) !== 1
+}
+
 const GENERIC_EPISODE = /^(?:episode|ep|e|part|chapter|第)?\s*\d+\s*(?:話|集|화)?$/
 const HAS_LETTER = /\p{L}/u
 
@@ -213,7 +225,7 @@ export const pickSimilarSeason = <T>(
   candidates: readonly SeasonCandidate<T>[]
 ): SimilarVerdict<T> | undefined => {
   const titles = evidence.titles ?? []
-  const partNamed = titles.some(namesAPart)
+  const partNamed = titles.some(namesALaterPart)
   const ordinals = seasonOrdinals(titles)
   const evidenceYear = yearOf(evidence.startDate)
 
@@ -275,8 +287,8 @@ export const pickSimilarSeason = <T>(
   }
 
   // Rule 3, ORDINAL WITH COUNT. Disagreeing titles refuse outright. A part marker makes the ordinal
-  // unusable here: "Season 2 Part 3" of 12 episodes would otherwise take the provider's season 2
-  // whenever that happens to hold 12 or fewer.
+  // unusable here, unless it is the part that opens the named season: "Season 2 Part 3" of 12
+  // episodes would otherwise take the provider's season 2 whenever that happens to hold 12 or fewer.
   if (ordinals.size > 1) return undefined
   if (ordinals.size === 1 && !partNamed && evidence.episodeCount != null) {
     const [ordinal] = ordinals
