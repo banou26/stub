@@ -912,8 +912,24 @@ test('a heartbeat reporting a stall short of the moment keeps Next episode', asy
   expect(nextShown(host), 'held where it was').toBe('E3 - Title 3')
   await report({ paused: false, time: 1322 })
   expect(nextShown(host)).toBe('E3 - Title 3')
-  await report({ paused: true, time: 1322.5 })
+})
+
+// a seek back shorter than the time since the last heartbeat lands after that heartbeat, as a stall does
+test('a short seek back then a pause before the moment withdraws Next episode', async () => {
+  const { host } = await atTheCredits()
+  await report({ paused: false, time: 1320 })
+  await wait(4_500)
   expect(nextShown(host)).toBe('E3 - Title 3')
+  await report({ paused: false, time: 1321 })
+  expect(nextShown(host), 'the seek alone').toBe('E3 - Title 3')
+  await report({ paused: true, time: 1321 })
+  await wait(60_000)
+  expect(nextShown(host), 'paused').toBeUndefined()
+  await report({ paused: false, time: 1321 })
+  await wait(3_000)
+  expect(nextShown(host), 'played on to it').toBe('E3 - Title 3')
+  await report({ paused: true, time: 1325 })
+  expect(nextShown(host), 'a pause past it').toBe('E3 - Title 3')
 })
 
 test('a party guest is never offered Next episode early, the host takes the party along', async () => {
