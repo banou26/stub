@@ -638,6 +638,15 @@ export const showAsContainer = async (
   })
 }
 
+// JustWatch's own names for a season that say only where it sits in its show, past the "Season 2" any catalogue
+// uses: over 1,849 popular US shows (2026-10-25), 758 of 8,331 seasons were one of "Series 2", "Miniseries",
+// "Season 1984", "S2", "Limited Series", "Volume 2", "Season-2", "season_1.0" (Mr. Robot), "(jp) season 12",
+// "The Complete First Season" or "Book 2". Taken as its title, the season is refused by every source naming the
+// show and drawn alone under it.
+const PLACE_NAME = /^(?:\(\w+\)\s*)?(?:(?:season|series|volume|book|s)[\s_-]*\d+(?:\.\d+)?|the complete \w+ season|miniseries|limited series)$/i
+
+const namesOnlyAPlace = (title: string) => isOnlySeasonLabel(title) || PLACE_NAME.test(title.trim())
+
 const normalizeMedia = async (
   node: JWSearchNode,
   opts: { seasons?: JWSeason[], seasonNumber?: number },
@@ -659,7 +668,7 @@ const normalizeMedia = async (
   // the season's own title when JustWatch gives it one naming more than a position, else the show's.
   // "<show> Season <n>" used to be synthesized here, and its ordinal is the number this source no
   // longer trusts as an identity
-  const title = season?.content.title && !isOnlySeasonLabel(season.content.title) ? season.content.title : node.content.title
+  const title = season?.content.title && !namesOnlyAPlace(season.content.title) ? season.content.title : node.content.title
 
   const filteredSeasons = opts.seasonNumber != null
     ? (opts.seasons ?? []).filter(s => s.content.seasonNumber === opts.seasonNumber)

@@ -225,7 +225,7 @@ test('a crunchyroll series offer leaves as a CONTAINER, and everything season sc
 // never enters a cluster's title set while the row is still findable by `plugin:title`.
 //
 // Mutation: delete the `titles` line in `normalizeMedia` and the first two go red; drop the `!` from
-// `isOnlySeasonLabel` and the last two swap.
+// `namesOnlyAPlace` and the last two swap.
 const mediaFor = async (uri: string, which: typeof node | typeof film = node) => {
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri } }, context(which)).next()
@@ -260,6 +260,23 @@ test('a season media carries a title: its own when it names one, the show\'s oth
   expect(show?.node.titles.map(title => title.title)).toEqual(['A Show With Several Seasons'])
   expect((await mediaFor('jw:12345-111')).handles.flatMap(handle => handle.node.titles).map(title => title.title))
     .not.toContainEqual(expect.stringMatching(/season\s+\d/i))
+})
+
+// JustWatch's other names for a season's place, read off its catalogue on 2026-10-25. Taken as the title, Mr. Robot's
+// "season_1.0" was refused by TVmaze's season 1 and headed the show's link preview, and "Miniseries" headed The
+// Dropout's page.
+test('a season JustWatch names only by its place in the show takes the show\'s title', async () => {
+  const titled = (title: string) => ({
+    ...node,
+    seasons: [{ ...season(111, 2), content: { ...season(111, 2).content, title } }, season(222, 3)],
+  }) as typeof node
+  const places = ['season_1.0', 'Series 2', 'S2', 'Season-2', 'Season 1984', 'Volume 2', 'Book 2', '(jp) season 12', 'The Complete Second Season', 'Miniseries', 'Limited Series']
+  for (const place of places) {
+    expect(titlesOf(await mediaFor('jw:12345-111', titled(place))), place).toEqual(['A Show With Several Seasons'])
+  }
+  for (const name of ['Book One: Water', 'Season 16: Evolution', 'Murder House']) {
+    expect(titlesOf(await mediaFor('jw:12345-111', titled(name))), name).toEqual([name])
+  }
 })
 
 // A film keeps what it had: its own title on the media, and the same title on the one synthetic episode
