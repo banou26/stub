@@ -24,20 +24,6 @@ const FRIEREN = {
   sourceMaterial: 'MANGA',
 }
 
-// HOR-1017: the preview's release date, as precisely as the sources date the show
-test('the release date is the start\'s day or month, else the season, else the year, and nothing undated', () => {
-  const en = { locale: 'en-US' }
-  expect(releasedLabel(FRIEREN, en)).toBe('Sep 29, 2023')
-  expect(releasedLabel({ startDate: '2023-09-29T00:00:00.000Z' }, en), 'AniList\'s day at midnight UTC').toBe('Sep 29, 2023')
-  expect(releasedLabel({ ...FRIEREN, startDate: '2023-09' }, en)).toBe('Sep 2023')
-  expect(releasedLabel({ ...FRIEREN, startDate: '2023' }, en), 'a season outranks a year').toBe('Fall 2023')
-  expect(releasedLabel({ ...FRIEREN, startDate: null }, en)).toBe('Fall 2023')
-  expect(releasedLabel({ startDate: '2027' }, en)).toBe('2027')
-  expect(releasedLabel({ seasonYear: 2027 }, en)).toBe('2027')
-  expect(releasedLabel({ startDate: 'not a date' }, en)).toBeUndefined()
-  expect(releasedLabel({}, en)).toBeUndefined()
-})
-
 test('the chips name the episodes, the format and the status', () => {
   expect(titleChips(FRIEREN)).toEqual(['28 Episodes', 'TV Show', 'Finished'])
   expect(titleChips({ episodeCount: 1, type: MediaType.Movie }), 'one episode is not plural').toEqual(['1 Episode', 'Movie'])
@@ -127,6 +113,22 @@ test('Aired is the day the source named, west of Greenwich too', () => {
     expect(inZone(zone, () => aired({ startDate: '2023-09-29T00:00:00+00:00', endDate: '2024-03-22T00:00:00+00:00' })), zone)
       .toBe('Sep 29, 2023 to Mar 22, 2024')
   }
+})
+
+// HOR-1017: the preview's release date, as precisely as the sources date the show
+test('the release date is the start\'s day or month, else the season, else the year, and nothing undated', () => {
+  const en = { locale: 'en-US' }
+  expect(releasedLabel(FRIEREN, en)).toBe('Sep 29, 2023')
+  for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
+    expect(inZone(zone, () => releasedLabel({ startDate: '2023-09-29T00:00:00.000Z' }, en)), `${zone}: AniList's day at midnight UTC`).toBe('Sep 29, 2023')
+  }
+  expect(releasedLabel({ ...FRIEREN, startDate: '2023-09' }, en)).toBe('Sep 2023')
+  expect(releasedLabel({ ...FRIEREN, startDate: '2023' }, en), 'a season outranks a year').toBe('Fall 2023')
+  expect(releasedLabel({ ...FRIEREN, startDate: null }, en)).toBe('Fall 2023')
+  expect(releasedLabel({ startDate: '2027' }, en)).toBe('2027')
+  expect(releasedLabel({ seasonYear: 2027 }, en)).toBe('2027')
+  expect(releasedLabel({ startDate: 'not a date' }, en)).toBeUndefined()
+  expect(releasedLabel({}, en)).toBeUndefined()
 })
 
 // AniList knowing only December 2021 for Jujutsu Kaisen 0, so `airedDate` gives its schedule's first airing, 00:30 JST on Dec 24
