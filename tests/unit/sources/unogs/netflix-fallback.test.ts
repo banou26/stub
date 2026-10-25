@@ -798,6 +798,21 @@ test('Media.episodes resolves one season through the fallback, and only that sea
   expect(episodes?.map(episode => episode.mediaUri)).toEqual(['nf:80987039-2', 'nf:80987039-2'])
 })
 
+test('Media.episodes gives a season\'s episodes the title\'s languages too', async () => {
+  const [video] = RECORDED_NETFLIX.data.videos
+  const { ctx } = rig({
+    ...unogsRoutes('80987039', status(503)),
+    [NETFLIX_GRAPHQL_URL]: json({ data: { videos: [{ ...video, mediaTracks: FRIEREN_TRACKS }] } })
+  })
+
+  const episodes = await askMediaEpisodes({ id: '80987039-2', uri: 'nf:80987039-2' }, ctx)
+
+  expect(episodes?.map(episode => [episode.id, episode.audioLanguages, episode.subtitleLanguages])).toEqual([
+    ['81705186', ['en', 'ja', 'zh'], ['en', 'ja', 'ko', 'zh']],
+    ['81705187', ['en', 'ja', 'zh'], ['en', 'ja', 'ko', 'zh']],
+  ])
+})
+
 // The cooldown is MODULE GLOBAL, so what may arm it is only evidence about unOGS itself. A 200 carrying
 // `{}` and a 500 for one id are the upstream working and this ask failing, and the ids that fail that
 // way include the ones this app mints, which is how one page visit silenced every Netflix row.

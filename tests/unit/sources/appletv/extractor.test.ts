@@ -396,6 +396,25 @@ test('an episode carries what its stream offers: picture, sound, its original au
   expect(third!.videoQualities, 'the control: an episode with no playable named has nothing').toBeUndefined()
 })
 
+// Apple lists the captions for the deaf and hard of hearing apart from the other subtitles
+test('a language Apple only captions counts among an episode\'s subtitles', async () => {
+  const { id } = SEVERANCE.data.content
+  const { playables } = SEVERANCE_S2_PLAYABLES.data
+  const [playableId, playable] = Object.entries(playables)[0]!
+  const media = await resolveMedia(`appletv:${id}-s2`, {
+    [url(`/shows/${id}`)]: SEVERANCE,
+    [url(`/shows/${id}/episodes?selectedSeasonId=umc.cmc.uhm560ns0yg3a5fy454bb967`)]: {
+      data: {
+        ...SEVERANCE_S2_EPISODES.data,
+        ...SEVERANCE_S2_PLAYABLES.data,
+        playables: { ...playables, [playableId]: { ...playable, subtitledLocales: [], closedCaptionedLocales: [{ locale: 'en' }] } },
+      },
+    },
+  })
+  const [first] = media.episodes as { subtitleLanguages?: string[] }[]
+  expect(first!.subtitleLanguages).toEqual(['en'])
+})
+
 // THE MEDIA PATH picks its season through the shared picker, off what the aggregated media knows.
 test('a media whose run is dated inside a season\'s window resolves to that season', async () => {
   const media = await resolveMedia(`appletv:${SHOW}`, showRoutes(), { titles: [{ title: 'A Show' }], startDate: '2023-04-10' })
