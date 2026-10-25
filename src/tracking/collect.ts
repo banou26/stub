@@ -24,6 +24,15 @@ const messageOf = (error: unknown) =>
   ?? String(error)
 
 /**
+ * The answer for a read that threw. A fetch that got no answer rejects with a TypeError however the
+ * engine words it (Chrome "Failed to fetch", Firefox "NetworkError when attempting to fetch resource.",
+ * Safari "Load failed"), and osra keeps the class across the session page's port, so the class decides
+ * and the chip says so in stub's words. Every tracker reads again after a failed read.
+ */
+export const failedReadAnswer = (uri: string, tracker: Tracker, error: unknown): TrackerAnswer =>
+  errorAnswer(uri, tracker, error instanceof TypeError ? `Could not reach ${tracker.name}, retrying` : messageOf(error))
+
+/**
  * Wakes on every `subscribe` notification, coalescing a burst into one wake, until `signal` aborts.
  * What a subscription loop waits on between yields.
  */

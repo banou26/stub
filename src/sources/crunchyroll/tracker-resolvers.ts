@@ -6,7 +6,7 @@ import type { PageApi, SiteSession } from '../../tracking/site-session'
 import type { CrunchyrollPageApi, Held, SaveRequest } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
-import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
+import { answerId, changes, failedReadAnswer, rereads } from '../../tracking/collect'
 import { isScored, nativeScore } from '../../tracking/score-scale'
 import { extractAggregatedUriOrigin } from '../../utils/uri'
 import { CRUNCHYROLL_ICON, CRUNCHYROLL_TRACKER_ID } from './session'
@@ -106,7 +106,7 @@ export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: numb
       if (result.kind === 'not-connected' || crunchyrollSignInState(result.response) === 'signed-out') return answer(uri, 'SIGNED_OUT')
       return listed(uri, season, result.response.held!)
     } catch (error) {
-      return errorAnswer(uri, crunchyrollTracker(false), messageOf(error))
+      return failedReadAnswer(uri, crunchyrollTracker(false), error)
     }
   }
 

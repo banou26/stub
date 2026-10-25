@@ -7,7 +7,7 @@ import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/sit
 import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
 
 import { trackingId } from '../../tracking/aggregate'
-import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
+import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
 import {
   ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
@@ -128,7 +128,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     try {
       result = await trackingRead(ctx, mediaId)
     } catch (error) {
-      return errorAnswer(uri, anilistTracker(viewer), messageOf(error))
+      return failedReadAnswer(uri, anilistTracker(viewer), error)
     }
     if (result.kind === 'signed-out') return answer(uri, 'SIGNED_OUT')
     if (result.kind === 'rate-limited') return answer(uri, 'PAUSED', { error: waitMessage(pacer.pausedUntil()) })

@@ -8,7 +8,7 @@ import type { MalListRequest, MalListStatus, MalPageApi, MalWrite } from './sess
 import type { SaveTurn } from './pacing'
 
 import { trackingId } from '../../tracking/aggregate'
-import { answerId, changes, errorAnswer, rereads } from '../../tracking/collect'
+import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
 import {
   LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
@@ -253,7 +253,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
     try {
       result = await indexOf(ctx, INDEX_TTL_MS, ctx.request.signal)
     } catch (error) {
-      return errorAnswer(uri, malTracker(userOf()), messageOf(error))
+      return failedReadAnswer(uri, malTracker(userOf()), error)
     }
     if (result.kind === 'signed-out') return answer(uri, 'SIGNED_OUT', {}, null)
     if (result.kind === 'blocked') return answer(uri, 'PAUSED', { error: waitMessage(pacer.pausedUntil()) })

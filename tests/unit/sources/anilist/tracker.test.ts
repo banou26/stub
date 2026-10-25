@@ -172,6 +172,13 @@ describe('what the AniList tracker answers', () => {
     expect(answerOf(await watch(target, 'ag:(jw:1)').next(1_000)).state).toBe('NO_ID')
   })
 
+  test('a read whose fetch got no answer says AniList could not be reached, and any other throw keeps its words', async () => {
+    const unreached = setup({ StubTracking: () => { throw new TypeError('Failed to fetch') } }, { holdWaits: true })
+    expect(answerOf(await watch(unreached.target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'ERROR', error: 'Could not reach AniList, retrying' })
+    const broken = setup({ StubTracking: () => { throw new Error('anilist.co did not answer within 30 s') } }, { holdWaits: true })
+    expect(answerOf(await watch(broken.target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'ERROR', error: 'anilist.co did not answer within 30 s' })
+  })
+
   test('a read that failed is read again on its own after RETRY_MS, and nothing is asked before', async () => {
     let calls = 0
     const { target, waits, release } = setup({

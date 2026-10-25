@@ -124,6 +124,13 @@ describe('what the Crunchyroll tracker answers', () => {
     await vi.waitFor(() => expect(waits).toEqual([RETRY_MS]))
   })
 
+  test('a read whose fetch got no answer says Crunchyroll could not be reached, and any other throw keeps its words', async () => {
+    const unreached = setup([new TypeError('NetworkError when attempting to fetch resource.')])
+    expect(answerOf(await watch(unreached.target).next())).toMatchObject({ state: 'ERROR', error: 'Could not reach Crunchyroll, retrying' })
+    const refused = setup([new Error('Crunchyroll answered 500')])
+    expect(answerOf(await watch(refused.target).next())).toMatchObject({ state: 'ERROR', error: 'Crunchyroll answered 500' })
+  })
+
   test('reads again after a sign in', async () => {
     const { target, changed } = setup(['not-connected', read(1)])
     const subscription = watch(target)

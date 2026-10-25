@@ -534,6 +534,17 @@ describe('when MyAnimeList refuses stub', () => {
     expect(answerOfResult(await removedTracking.next())).toMatchObject({ state: 'PAUSED', tracker: { account: 'viewer', canWrite: true } })
   })
 
+  test('a read whose fetch got no answer says MyAnimeList could not be reached, and any other throw keeps its words', async () => {
+    const unreached = setup()
+    unreached.script.whoami = () => { throw new TypeError('Load failed') }
+    unreached.holdNextWait()
+    expect(answerOfResult(await watch(unreached.target, HACK).next())).toMatchObject({ state: 'ERROR', error: 'Could not reach MyAnimeList, retrying' })
+    const broken = setup()
+    broken.script.whoami = () => { throw new Error('myanimelist.net did not answer within 30 s') }
+    broken.holdNextWait()
+    expect(answerOfResult(await watch(broken.target, HACK).next())).toMatchObject({ state: 'ERROR', error: 'myanimelist.net did not answer within 30 s' })
+  })
+
   test('a read that failed is read again on its own after RETRY_MS, through the same read, and nothing is asked before', async () => {
     const { target, script, waits, log, holdNextWait } = setup()
     let failed = false
