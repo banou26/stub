@@ -5,7 +5,32 @@ import { resolve } from 'node:path'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
+import { offlinePreview } from '../../../src/preview'
 import wasmModule from './stub-wasm'
+
+// stub's offline data as the build bundles it: Cowboy Bebop with a title, MyAnimeList's cover, and Kitsu's banner and
+// synopsis; its film with a title and no picture; a film of a bundled season
+vi.mock('../../../src/generated/anime-index', () => ({ default: { mal: [1], anilist: [0], kitsu: [1], anidb: [23], ann: [13] } }))
+vi.mock('../../../src/generated/anime-seasons', () => ({
+  default: { tag: 'test', updated: '', seasons: { '2026-FALL': [{ t: 'Sekiro: No Defeat', ty: 'MOVIE', p: '1/62312.jpg', ml: 62312 }] } },
+}))
+vi.mock('../../../src/sources/offline/history-shards', () => {
+  const sets: Record<string, Record<number, Record<string, unknown>>> = {
+    dump: { 1: { 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] }, 5: { 'mal-5': ['Cowboy Bebop: Tengoku no Tobira', ''] } },
+    kitsu: { 1: { 'mal-1': { b: 'cover_images/1/original.jpg', d: 'In the year 2071, humanity has colonized several of the planets.' } } },
+  }
+  return { loadShard: async (set: string, shard: number) => sets[set]?.[shard] && { records: sets[set]![shard] } }
+})
+// what a copy boots to ask the sources, which an offline answer must not reach
+const booted = vi.hoisted(() => [] as string[])
+vi.mock('../../../src/worker/resolvers', () => {
+  booted.push('resolvers')
+  return { resolvers: {} }
+})
+vi.mock('../../../src/worker/graph', () => {
+  booted.push('graph')
+  return {}
+})
 
 const ROOT = resolve(import.meta.dirname, '../../..')
 const SHELL = readFileSync(resolve(ROOT, 'index.html'), 'utf8')
@@ -24,8 +49,10 @@ let onRequest: typeof import('../../../functions/_middleware').onRequest
 let createPreview: ReturnType<typeof vi.fn>
 let asked: Asked[]
 let cache: Map<string, Response>
+let cacheCalls: number
 let matching: () => Promise<void>
 let putting: () => Promise<void>
+let fetched: ReturnType<typeof vi.fn>
 
 const deferred = <T>() => {
   let settle!: (value: T) => void
@@ -33,8 +60,9 @@ const deferred = <T>() => {
   return { promise, settle }
 }
 
-/** A copy of stub's worker whose answer, at the deadline and once settled, is the one given. */
+/** A copy of stub's worker with its own offline answer, whose sources' answer is the one given. */
 const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first) => ({
+  offlinePreview,
   answer: (uri: string, site: string, wasm: unknown, options: Options): Answer => {
     asked.push({ uri, site, wasm, ...options })
     return { first: Promise.resolve(first), last: Promise.resolve(last) }
@@ -48,20 +76,25 @@ beforeEach(async () => {
   createPreview.mockImplementation(() => copy(SETTLED))
   asked = []
   cache = new Map()
+  cacheCalls = 0
   matching = async () => {}
   putting = async () => {}
   vi.stubGlobal('caches', {
     default: {
       match: async (key: Request) => {
+        cacheCalls++
         await matching()
         return cache.get(key.url)?.clone()
       },
       put: async (key: Request, value: Response) => {
+        cacheCalls++
         await putting()
         cache.set(key.url, value)
       },
     },
   })
+  fetched = vi.fn(async () => { throw new Error('nothing is fetched here') })
+  vi.stubGlobal('fetch', fetched)
 })
 
 afterEach(() => {
@@ -108,6 +141,46 @@ test.each([
   expect(meta(html, 'og:url')).toEqual([address])
   expect(meta(html, 'twitter:card')).toEqual(['summary_large_image'])
   expect(meta(html, 'theme-color')).toEqual(['#f1a143'])
+})
+
+test.each([
+  ['its Kitsu id', 'https://anime.fkn.app/title/ag:(kitsu:1)', 'Stub Anime'],
+  ['its offline record', 'https://stub.fkn.app/media/ag:(offline:mal-1)', 'Stub'],
+])('a show the offline data holds with a title and a cover, named by %s, is answered from it with nothing asked', async (_, address, name) => {
+  const { html } = await call(address)
+  expect(title(html)).toBe(`Cowboy Bebop - ${name}`)
+  expect(meta(html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(meta(html, 'og:description')).toEqual(['In the year 2071, humanity has colonized several of the planets.'])
+  expect(meta(html, 'og:image')).toEqual(['https://media.kitsu.app/anime/cover_images/1/original.jpg'])
+  expect(meta(html, 'twitter:card')).toEqual(['summary_large_image'])
+  expect(asked).toEqual([])
+  expect(fetched).not.toHaveBeenCalled()
+  expect(cacheCalls).toBe(0)
+})
+
+test('an offline answer boots none of what asks the sources', async () => {
+  expect(meta((await call('https://anime.fkn.app/title/ag:(mal:1)')).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(booted).toEqual([])
+})
+
+test('an offline answer takes no turn, so it comes while a copy asks the sources', async () => {
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  await call('https://anime.fkn.app/title/ag:(anilist:195604)')
+  // control: the one turn is taken
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Stub Anime'])
+  expect(meta((await call('https://anime.fkn.app/title/ag:(mal:1)')).html, 'og:title')).toEqual(['Cowboy Bebop'])
+})
+
+test.each([
+  ['a show the offline data lacks', 'https://anime.fkn.app/title/ag:(mal:999)', 'ag:(mal:999)', 'anime'],
+  ['a show it holds with a title and no cover', 'https://anime.fkn.app/title/ag:(mal:5)', 'ag:(mal:5)', 'anime'],
+  ['a film it holds, on movies, which never asks it', 'https://movies.fkn.app/title/ag:(offline:mal-62312)', 'ag:(offline:mal-62312)', 'movie'],
+  ['a show it holds, on series, which never asks it', 'https://series.fkn.app/title/ag:(mal:1)', 'ag:(mal:1)', 'series'],
+])('%s is answered by stub\'s sources, from the same copy', async (_, address, uri, site) => {
+  const { html } = await call(address)
+  expect(asked).toEqual([{ uri, site, wasm: { frizbee: wasmModule, sacha: wasmModule }, deadline: expect.any(Number), settleBy: 20_000 }])
+  expect(meta(html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(1)
 })
 
 test('a cover rather than a banner is the small card, and no colour keeps the shell\'s theme-color', async () => {
@@ -176,13 +249,13 @@ test.each([
 })
 
 test('the deadline counts from the request, so time spent before the copy is not added to it', async () => {
-  matching = () => new Promise(resolve => setTimeout(resolve, 400))
+  vi.useFakeTimers({ toFake: ['Date'] })
+  matching = async () => { vi.setSystemTime(Date.now() + 400) }
   await call('https://anime.fkn.app/title/ag:(anilist:195604)')
-  expect(asked[0]!.deadline).toBeGreaterThan(1_900)
-  expect(asked[0]!.deadline).toBeLessThanOrEqual(2_100)
+  expect(asked[0]!.deadline).toBe(2_100)
 })
 
-test('the settled preview is what is kept for a day, and a later crawler gets it with no copy built', async () => {
+test('the settled preview is what is kept for a day, and a later crawler gets it with no source asked', async () => {
   createPreview.mockImplementation(() => copy(INTERIM, SETTLED))
   const first = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
   expect(meta(first.html, 'og:title')).toEqual(['Black Clover Second Season'])
@@ -192,10 +265,10 @@ test('the settled preview is what is kept for a day, and a later crawler gets it
 
   const later = await call('https://anime.fkn.app/title/ag:(anilist:195604)', 'TelegramBot (like TwitterBot)')
   expect(meta(later.html, 'og:title')).toEqual(['Black Clover Season 2'])
-  expect(createPreview).toHaveBeenCalledTimes(1)
+  expect(asked).toHaveLength(1)
 
   await call('https://stub.fkn.app/title/ag:(anilist:195604)')
-  expect(createPreview).toHaveBeenCalledTimes(2)
+  expect(asked).toHaveLength(2)
 })
 
 test('when the read ends with no title, the deadline\'s preview is kept', async () => {
@@ -217,7 +290,7 @@ test('a link with no title, as a copy that reached no source ends too, gets the 
 
   const later = await call('https://series.fkn.app/title/ag:(tmdb:52762)')
   expect(meta(later.html, 'og:title')).toEqual(['Stub Series'])
-  expect(createPreview).toHaveBeenCalledTimes(1)
+  expect(asked).toHaveLength(1)
 })
 
 test('the copy\'s work is handed to waitUntil before the crawler is answered, so a crawler that leaves cannot cut it', async () => {
@@ -229,7 +302,7 @@ test('the copy\'s work is handed to waitUntil before the crawler is answered, so
     next: async () => new Response(SHELL),
     waitUntil: promise => { handed.push(promise) },
   })
-  await vi.waitFor(() => expect(createPreview).toHaveBeenCalledTimes(1))
+  await vi.waitFor(() => expect(asked).toHaveLength(1))
   expect(handed).toHaveLength(1)
   atDeadline.settle(SETTLED)
   expect(title(await (await answered).text())).toBe('Black Clover Season 2 - Stub Anime')
@@ -245,14 +318,14 @@ test('while a copy answers, a second crawler gets the plain card at once, and th
   const second = await call('https://anime.fkn.app/title/ag:(anilist:2)')
   expect(performance.now() - started).toBeLessThan(200)
   expect(meta(second.html, 'og:title')).toEqual(['Stub Anime'])
-  expect(createPreview).toHaveBeenCalledTimes(1)
+  expect(asked).toHaveLength(1)
   await second.kept
   expect(kept('anime', 'ag:(anilist:2)')).toBeUndefined()
 
   settles.settle(SETTLED)
   await one.kept
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
-  expect(createPreview).toHaveBeenCalledTimes(2)
+  expect(asked).toHaveLength(2)
 })
 
 test('a crawler answered from the edge cache takes no turn, its preview or its plain card', async () => {
@@ -261,7 +334,7 @@ test('a crawler answered from the edge cache takes no turn, its preview or its p
   await (await call('https://series.fkn.app/title/ag:(tmdb:52762)')).kept
   await call('https://anime.fkn.app/title/ag:(anilist:1)')
   await call('https://series.fkn.app/title/ag:(tmdb:52762)')
-  expect(createPreview).toHaveBeenCalledTimes(2)
+  expect(asked).toHaveLength(2)
 
   createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
@@ -277,8 +350,8 @@ test('an edge cache that will not keep the preview still has the turn given back
 
 test.each([
   ['building the copy throws', () => { throw new Error('the copy failed') }],
-  ['its answer throws', () => ({ answer: () => { throw new Error('the answer failed') } })],
-  ['its reads reject', () => ({ answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')) }) })],
+  ['its answer throws', () => ({ offlinePreview, answer: () => { throw new Error('the answer failed') } })],
+  ['its reads reject', () => ({ offlinePreview, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')) }) })],
 ])('when %s, the crawler gets the page as is and the turn is given back', async (_, failing) => {
   createPreview.mockImplementationOnce(failing).mockImplementationOnce(failing)
   for (const id of [1, 2]) {
@@ -300,7 +373,7 @@ test('a turn whose work the runtime cancelled lapses on its own after 35 s', asy
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Stub Anime'])
   vi.setSystemTime(Date.now() + 1_001)
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
-  expect(createPreview).toHaveBeenCalledTimes(2)
+  expect(asked).toHaveLength(2)
 })
 
 test('an edge cache that fails answers the page as is', async () => {

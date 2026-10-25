@@ -1,16 +1,13 @@
-// The link preview's entry, built by vite.preview.config.ts for functions/_middleware.ts: stub's own worker (the
-// GraphQL server, the graph engine and every built-in source) answering one title's media subscription in a Pages
-// Function, with src/preview/fetch.ts in place of the page's cloud.fetch.
+// The link preview's entry, built by vite.preview.config.ts for functions/_middleware.ts: stub's offline data, and
+// stub's own worker (the GraphQL server, the graph engine and every built-in source) answering one title's media
+// subscription in a Pages Function, with src/preview/fetch.ts in place of the page's cloud.fetch.
 import type { Site } from '../site'
 
-import { createSchema, createYoga } from 'graphql-yoga'
 import initFrizbee from 'frizbee'
 import initSacha from 'sacha'
 
-import { typeDefs } from '../generated/schema/typeDefs.generated'
-import { resolvers } from '../worker/resolvers'
-import { enableGraph, keepEpisodes, setReadStore } from '../worker/graph'
-import { setSite } from '../site'
+import { setSite, siteAsks } from '../site'
+import { getMedia, origin as offline } from '../sources/offline/extractor'
 import { stop } from './fetch'
 
 export type Preview = { title: string, description?: string, image?: string, wide?: boolean, color?: string }
@@ -38,22 +35,32 @@ const PREVIEW_MEDIA = `
 // 300 ms only what a settled copy leaves (workerd on this machine, 2026-10-24, 1 run each)
 const DRAIN_MS = 1_000
 
-const yoga = createYoga({ schema: createSchema({ typeDefs, resolvers }), maskedErrors: false, logging: false, graphiql: false })
-
 /** The two wasm modules stub's sources match titles and release names with, compiled: a Worker may not compile bytes. */
 export type Wasm = { frizbee: WebAssembly.Module, sacha: WebAssembly.Module }
 
-let booting: Promise<void> | undefined
-const boot = (wasm: Wasm) => (booting ??= (async () => {
+// Imported on the first answer rather than with this module, so a copy that only answers from the offline data
+// (`offlinePreview`) never builds them: a request building a copy took 183 ms with them and 2.4 ms without, a bare
+// request 1.3 ms (workerd, medians of 64, 2026-10-26)
+const start = async (wasm: Wasm) => {
+  const [{ createSchema, createYoga }, { typeDefs }, { resolvers }, graph] = await Promise.all([
+    import('graphql-yoga'),
+    import('../generated/schema/typeDefs.generated'),
+    import('../worker/resolvers'),
+    import('../worker/graph'),
+  ])
   await initFrizbee({ module_or_path: wasm.frizbee })
   await initSacha({ module_or_path: wasm.sacha })
   // a preview draws no episode, and a long series' episodes, in every source's answer, are most of what a copy holds:
   // One Piece's aborted under a 120 MiB V8 heap with them (2 of 2) and completed without (3 of 3; Detective Conan 3 of 3)
   // in workerd, 2026-10-24
-  keepEpisodes(false)
-  await enableGraph(true, { scheduler: true })
-  setReadStore('graph')
-})())
+  graph.keepEpisodes(false)
+  await graph.enableGraph(true, { scheduler: true })
+  graph.setReadStore('graph')
+  return createYoga({ schema: createSchema({ typeDefs, resolvers }), maskedErrors: false, logging: false, graphiql: false })
+}
+
+let booting: ReturnType<typeof start> | undefined
+const boot = (wasm: Wasm) => booting ??= start(wasm)
 
 const plain = (html?: string, max = 200) => {
   const text = (html ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, '\'').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim()
@@ -65,7 +72,7 @@ type Media = {
   descriptions?: { description: string }[]
   covers: { url: string, color?: string | null }[]
   banners: { url: string }[]
-  settled?: boolean
+  settled?: boolean | null
 }
 
 /** As the title page draws `media`: the first title, the longest description, the banner over the cover. */
@@ -76,6 +83,16 @@ export const previewOf = (media?: Media): Preview | undefined => {
   const banner = media.banners.at(0)?.url
   const cover = media.covers.at(0)?.url
   return { title, description: plain(description), image: banner ?? cover, wide: Boolean(banner), color: media.covers.find(cover => cover.color)?.color ?? undefined }
+}
+
+/**
+ * The preview stub's offline data alone draws for `uri` on `site`, when it holds a title and a cover there, else
+ * nothing. Reads only what the build bundled: it asks nothing of anyone, and boots none of what `answer` does.
+ */
+export const offlinePreview = async (uri: string, site: Site): Promise<Preview | undefined> => {
+  if (!siteAsks(offline, site)) return undefined
+  const media = await getMedia(uri)
+  return media?.covers.length ? previewOf(media) : undefined
 }
 
 export type Answer = {
@@ -100,7 +117,7 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   let reader: ReadableStreamDefaultReader<string> | undefined
   const reading = (async () => {
     setSite(site)
-    await boot(wasm)
+    const yoga = await boot(wasm)
     const response = await yoga.handleRequest(new Request('http://preview/graphql', {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'text/event-stream' },

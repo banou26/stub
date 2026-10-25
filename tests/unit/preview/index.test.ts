@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { beforeEach, expect, test, vi } from 'vite-plus/test'
+import { beforeAll, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { answer, previewOf } from '../../../src/preview'
 import { site } from '../../../src/site'
@@ -48,6 +48,13 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 let asked: { uri: string, details?: boolean, site: string }[]
 let ended: boolean
+
+// a copy boots on its first answer, importing the GraphQL server and the sources, which a loaded run can take longer
+// than a test's deadline over
+beforeAll(async () => {
+  feed.current = async function* () { yield media('', true) }
+  await answer('ag:(anilist:1)', 'anime', WASM, { deadline: 60_000 }).first
+})
 
 beforeEach(() => {
   asked = []

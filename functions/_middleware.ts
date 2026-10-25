@@ -45,6 +45,10 @@ const keep = (cache: Cache, key: Request, preview?: Preview) =>
   cache.put(key, new Response(JSON.stringify(preview ?? null), { headers: { 'cache-control': `max-age=${preview ? DAY_S : PLAIN_S}` } }))
 
 const lookup = async (segment: string, site: Site, started: number, waitUntil: Context['waitUntil']): Promise<Preview | undefined> => {
+  const uri = routeMediaUri(segment)
+  const copy = createPreview()
+  const known = await copy.offlinePreview(uri, site)
+  if (known) return known
   const cache = (caches as CacheStorage & { default: Cache }).default
   const key = new Request(`https://preview.cache/${site}/${segment}`)
   const cached = await cache.match(key)
@@ -53,7 +57,7 @@ const lookup = async (segment: string, site: Site, started: number, waitUntil: C
   if (!release) return undefined
   let answer: Answer
   try {
-    answer = createPreview().answer(routeMediaUri(segment), site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS })
+    answer = copy.answer(uri, site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS })
   } catch (error) {
     release()
     throw error
@@ -88,9 +92,10 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
 
 /**
  * Gives a link-preview crawler's GET on a title, media or watch address the title, description and art stub itself
- * draws for it, from stub's own sources run here (src/preview), and every other request the page untouched. Reads
- * nothing about the requester but its user agent, logs nothing about it, and keeps only a title's public preview in
- * the edge cache. Any failure answers the page as is.
+ * draws for it, and every other request the page untouched: from stub's offline data alone when it holds a title and
+ * a cover for the address, asking nothing, else from stub's own sources run here (src/preview). Reads nothing about
+ * the requester but its user agent, logs nothing about it, and keeps only a title's public preview in the edge
+ * cache. Any failure answers the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil }: Context) => {
   const started = Date.now()

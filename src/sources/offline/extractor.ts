@@ -217,7 +217,7 @@ const fromHistory = async (keys: readonly string[]): Promise<GQLMedia | undefine
  * the index row's handles, because only the row carries AniDB's and Anime News Network's ids. A show
  * outside the bundled seasons answers its history record (./history.ts), with the row's handles too.
  */
-const getMedia = async (uri: string): Promise<GQLMedia | null> => {
+export const getMedia = async (uri: string): Promise<GQLMedia | null> => {
   const uris = urisOf(uri)
   if (!uris.length) return null
 
