@@ -220,7 +220,14 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // with the trailer held, the pick as held ended on a 425x600 poster in 3 and never on AniZip's
   // 1920x1080 fanart, which the listing's node drew in 8 (measured 2026-10-25)
   const listed = media && mediaNodes.find(node => isSameShow(node, media))
-  const backdrop = useCoverUrl(trailer?.url ? undefined : headerImages(listed ?? media), media)
+  // the viewport stands in for the hero's own box, 5rem shorter, since each merge would otherwise swap
+  // the backdrop for any higher ranked banner, also one no sharper (Kitsu's 4096x1049 to AniZip's
+  // 1920x1080, measured 2026-10-25)
+  const backdrop = useCoverUrl(
+    trailer?.url ? undefined : headerImages(listed ?? media),
+    media,
+    { box: { width: globalThis.innerWidth, height: globalThis.innerHeight } }
+  )
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)

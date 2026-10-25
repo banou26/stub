@@ -392,6 +392,55 @@ test('a banner the listing gains after the pick is drawn once it loads', async (
   expect(shown().title).toBe('late-banner title')
 })
 
+/** Loads every image at its size in `sizes`, as a browser would report its natural size. */
+const sizedImages = (sizes: Record<string, [number, number]>) => vi.stubGlobal('Image', class {
+  onload?: () => void
+  naturalWidth = 0
+  naturalHeight = 0
+  set src (url: string) {
+    ;[this.naturalWidth, this.naturalHeight] = sizes[url] ?? [0, 0]
+    setTimeout(() => this.onload?.())
+  }
+})
+
+// Natural sizes measured 2026-10-25 on anime.fkn.app at 1920x1080: Cyberpunk: Edgerunners 2's poster
+// from MyAnimeList, its banner from Kitsu and its fanart from AniZip, which ranks above Kitsu's
+test('the backdrop keeps a banner sharp enough for the hero over a higher ranked one that merges in', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  vi.stubGlobal('innerWidth', 1920)
+  vi.stubGlobal('innerHeight', 1080)
+  const kitsu = 'https://img.test/edgerunners-kitsu.jpg'
+  const fanart = 'https://img.test/edgerunners-fanart.jpg'
+  sizedImages({ 'https://img.test/edgerunners-cover.jpg': [480, 600], [kitsu]: [4096, 1049], [fanart]: [1920, 1080] })
+  const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  const { backdrop, update } = hero([show('edgerunners', { trailers: [], banners: [] })])
+  await settle()
+  update([show('edgerunners', { trailers: [], banners: [kitsu] })])
+  await settle()
+  expect(backdrop(), 'the control: the poster gives way to the banner').toContain(kitsu)
+
+  update([show('edgerunners', { trailers: [], banners: [fanart, kitsu] })])
+  await settle()
+  expect(backdrop()).toContain(kitsu)
+})
+
+test('the control: a banner too soft for the hero gives way to a markedly sharper one that merges in', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  vi.stubGlobal('innerWidth', 1920)
+  vi.stubGlobal('innerHeight', 1080)
+  const wide = 'https://img.test/soft-wide.jpg'
+  const fanart = 'https://img.test/soft-fanart.jpg'
+  sizedImages({ [wide]: [1920, 640], [fanart]: [1920, 1080] })
+  const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  const { backdrop, update } = hero([show('soft', { trailers: [], banners: [wide] })])
+  await settle()
+  expect(backdrop()).toContain(wide)
+
+  update([show('soft', { trailers: [], banners: [fanart, wide] })])
+  await settle()
+  expect(backdrop()).toContain(fanart)
+})
+
 test('while a source connects, the hero holds its trailer, shows its banner, and plays it once connected', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
   sources.states = ['connected', 'connecting']
