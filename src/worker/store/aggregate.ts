@@ -408,12 +408,16 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
   }
 }
 
+// What a stream offers is one source's, so only each source's handle carries it, as on the graph store
+const NO_STREAM_FACTS = { videoQualities: null, audioQualities: null, audioLanguages: null, subtitleLanguages: null }
+
 export function aggregateEpisode(episodes: Episode[], locationOrigin: string): GQLEpisode {
   if (episodes.length === 0) throw new Error('Cannot aggregate empty cluster')
   if (episodes.length === 1) {
     const e = episodes[0]!
     return {
       ...episodeToGQL(e),
+      ...NO_STREAM_FACTS,
       _id: clusterId([e.uri], 'EPISODE'),
       handles: [sameAsEpisodeHandle(episodeToGQL(e))],
     }
@@ -453,6 +457,7 @@ export function aggregateEpisode(episodes: Episode[], locationOrigin: string): G
 
   return {
     ...merged as GQLEpisode,
+    ...NO_STREAM_FACTS,
     titles: removeDuplicatesByField('title', byScore(merged.titles ?? [])),
     descriptions: byScore(merged.descriptions ?? []),
     shortDescriptions: byScore(merged.shortDescriptions ?? []),

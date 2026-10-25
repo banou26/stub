@@ -5,7 +5,7 @@
 // season it was filtered on.
 import { beforeEach, expect, test } from 'vite-plus/test'
 
-import { aggregateMedia } from '../../../../src/worker/store/aggregate'
+import { aggregateEpisode, aggregateMedia } from '../../../../src/worker/store/aggregate'
 import { resetStore } from '../../../../src/worker/store/db'
 
 const row = (uri: string, fields: Record<string, unknown> = {}) => ({
@@ -183,4 +183,38 @@ test('the old store takes AniList\'s first of a month, and a month inside a year
   const anilist = row('anilist:1', { score: 0.8, startDate: 'Fri, 01 Oct 2027 00:00:00 GMT', endDate: '2027-12' })
   const aggregated = aggregateMedia([anilist, mal], 'https://stub.moe')
   expect([aggregated.startDate, aggregated.endDate]).toEqual(['Fri, 01 Oct 2027 00:00:00 GMT', '2027-12'])
+})
+
+// HOR-1011: what a stream offers is one source's, so each source's episode handle carries its own, which
+// the watch page's cards read, and the merged episode, which speaks for every source, carries none
+const episode = (uri: string, score: number, audioLanguages: string[]) => ({
+  uri,
+  origin: uri.slice(0, uri.indexOf(':')),
+  id: uri.slice(uri.indexOf(':') + 1),
+  mediaUri: 'anilist:1',
+  score,
+  episodeNumber: 2,
+  titles: [],
+  videoQualities: ['HD'],
+  audioQualities: ['5.1'],
+  audioLanguages,
+  subtitleLanguages: ['en'],
+}) as any
+
+test('each source\'s episode keeps what its stream offers, and the merged episode claims none of it', () => {
+  const crunchyroll = episode('cr:GX1', 0.5, ['ja-JP', 'en-US', 'de-DE'])
+  const prime = episode('amazon:B1', 0.2, ['ja'])
+  const facts = (node: { videoQualities?: unknown, audioQualities?: unknown, audioLanguages?: unknown, subtitleLanguages?: unknown }) =>
+    [node.videoQualities, node.audioQualities, node.audioLanguages, node.subtitleLanguages]
+
+  const merged = aggregateEpisode([prime, crunchyroll], 'https://x')
+  expect(merged.handles?.map(handle => [handle.node.uri, ...facts(handle.node)])).toEqual([
+    ['cr:GX1', ['HD'], ['5.1'], ['ja-JP', 'en-US', 'de-DE'], ['en']],
+    ['amazon:B1', ['HD'], ['5.1'], ['ja'], ['en']],
+  ])
+  expect(facts(merged), 'not the top source\'s as the whole episode\'s').toEqual([null, null, null, null])
+
+  const alone = aggregateEpisode([prime], 'https://x')
+  expect(facts(alone.handles![0]!.node), 'one source, the same').toEqual([['HD'], ['5.1'], ['ja'], ['en']])
+  expect(facts(alone)).toEqual([null, null, null, null])
 })
