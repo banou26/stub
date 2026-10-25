@@ -11,4 +11,4 @@ const updates = createUpdateGate({ party })
 shell.onUpdateTaken(updates.due)
 
 // a sandbox tenant serves the package version fkn.app chose, so only stub's own hosts look for a deploy
-if (import.meta.env.PROD && window.top === window && isSiteHost(location.hostname)) watchBuild(updates.due)
+if (import.meta.env.PROD && isSiteHost(location.hostname)) watchBuild(updates.due)
