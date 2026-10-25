@@ -11,7 +11,7 @@ import { memoryLocation } from 'wouter/memory-location'
 
 import { createPartyStore } from '../../../src/party/store'
 import { encodePartyMessage } from '../../../src/party/protocol'
-import { api, fakeRoom, memoryStorage } from '../party/fake-room'
+import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
@@ -44,5 +44,17 @@ describe('who is in the party', () => {
     expect(rows.map(row => row.querySelector('.name')?.textContent)).toEqual([defaultName('host'), 'Ann', defaultName('sam1234567')])
     expect(rows.map(row => row.querySelector('.badge')?.textContent)).toEqual(['host', undefined, undefined])
     expect(host.textContent).not.toContain('sam1234567')
+  })
+
+  test('the name box shows your own default name, the one the others see, until you type one', async () => {
+    const fake = fakeRoom({ self: 'ann', owner: 'host', members: ['host', 'ann'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.join(INVITE)
+    const location = memoryLocation({ path: '/party' })
+    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><Party/></Router>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)))
+
+    expect(host.querySelector<HTMLInputElement>('input[aria-label="Your name"]')?.placeholder).toBe(defaultName('ann'))
   })
 })

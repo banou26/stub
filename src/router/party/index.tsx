@@ -215,7 +215,7 @@ const Party = () => {
           <div className="section">
             <div className="label">Your name</div>
             <form className="field" onSubmit={saveName}>
-              <input value={name} maxLength={32} placeholder="What the party should call you" aria-label="Your name" onInput={event => setName(event.currentTarget.value)}/>
+              <input value={name} maxLength={32} placeholder={defaultName(state.self)} aria-label="Your name" onInput={event => setName(event.currentTarget.value)}/>
               <button type="submit" className="action"><Check size={14}/> Save</button>
             </form>
           </div>
