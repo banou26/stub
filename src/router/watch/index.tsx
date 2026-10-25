@@ -172,9 +172,6 @@ const useRun = (uri: string | undefined) => {
 }
 
 const style = css`
-  /* what the first screen keeps under the player for the episode's row on a wide window */
-  --watch-row: 13rem;
-
   display: flex;
   flex-direction: column;
   /* The bar is fixed, so it takes no room in the flow and every other route pads itself out from
@@ -183,19 +180,26 @@ const style = css`
   padding-top: var(--stub-header-height);
   color: rgb(255, 255, 255);
 
+  /* The player and the episode's row fill the first screen, the player giving up height to the row
+     rather than going past 16:9, and the sources follow below, so a source never takes its height from
+     the video. Not on a window too short to keep 20rem of player above the row, where the row would
+     spill over the sources. */
   .watch-container {
     display: flex;
     flex-direction: column;
+
+    @media (min-height: 600px) {
+      max-height: calc(100vh - var(--stub-header-height));
+    }
   }
 
-  /* The player and the episode's row fill the first screen and the sources follow below, so a source
-     never takes its height from the video. */
   .player-container {
     position: relative;
     display: flex;
     flex-direction: column;
     aspect-ratio: 16 / 9;
-    max-height: max(20rem, calc(100vh - var(--stub-header-height) - var(--watch-row)));
+    min-height: 20rem;
+    max-height: calc(100vh - var(--stub-header-height));
   }
 
   .fix {
@@ -217,25 +221,27 @@ const style = css`
   }
 
   .watch-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2.4rem;
-    padding: 1.6rem 2.4rem 4rem;
+    padding: 1.6rem 2.4rem;
     width: 100%;
     max-width: 2200px;
     margin: 0 auto;
     box-sizing: border-box;
+
+    &.sources {
+      padding-top: 0.8rem;
+      padding-bottom: 4rem;
+    }
   }
 
-  /* Previous at the far left, Next at the far right, the episode between them; a phone puts the two
-     side by side under it */
+  /* Previous at the far left, Next at the far right, the episode between them; below 1100px, where the
+     two would squeeze the title and tracking into a narrow column, they sit side by side under it */
   .episode-row {
     display: grid;
     grid-template-areas: 'prev main next';
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: stretch;
 
-    @media (max-width: 768px) {
+    @media (max-width: 1100px) {
       grid-template-areas: 'main main' 'prev next';
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 1.2rem 1rem;
@@ -291,7 +297,7 @@ const style = css`
     align-items: center;
     gap: 1rem;
     min-width: 18rem;
-    max-width: 30rem;
+    max-width: 24rem;
     padding: 1.2rem 2rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 1rem;
@@ -342,7 +348,7 @@ const style = css`
       white-space: nowrap;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1100px) {
       min-width: 0;
       max-width: none;
       padding: 1rem 1.2rem;
@@ -740,17 +746,19 @@ const Watch = () => {
               )
               : undefined}
           </div>
-
-          <SourceSelector
-            sources={sources}
-            onPickRelease={uri =>
-              navigate(getRoutePath(Route.WATCH, {
-                mediaUri: params.mediaUri,
-                episodeUri: params.episodeUri,
-                sourceUri: uri
-              }))}
-          />
         </div>
+      </div>
+
+      <div className="watch-info sources">
+        <SourceSelector
+          sources={sources}
+          onPickRelease={uri =>
+            navigate(getRoutePath(Route.WATCH, {
+              mediaUri: params.mediaUri,
+              episodeUri: params.episodeUri,
+              sourceUri: uri
+            }))}
+        />
       </div>
     </div>
   )

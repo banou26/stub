@@ -618,7 +618,7 @@ const secondEpisode = async (page: Page) => {
 }
 
 // HOR-1011: big buttons at the page's two ends, each naming the episode it opens
-test('the watch page\'s episode buttons stand big at the two ends of its row, Back returns, and at 390 px they share a line under the episode', async ({ page }) => {
+test('the watch page\'s episode buttons stand big at the two ends of its row, Back returns, and below 1100 px they share a line under the episode', async ({ page }) => {
   await secondEpisode(page)
   const previous = page.getByRole('link', { name: 'Previous episode' })
   const next = page.getByRole('link', { name: 'Next episode' })
@@ -630,21 +630,39 @@ test('the watch page\'s episode buttons stand big at the two ends of its row, Ba
 
   const row = page.locator('.episode-row')
   const main = page.locator('.episode-main')
-  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+  for (const [width, height] of [[1440, 900], [1101, 800], [1100, 800], [1024, 768], [820, 1180], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     const [edges, left, right, episode] = await Promise.all([box(row), box(previous), box(next), box(main)])
     expect(Math.abs(left.left - edges.left), `${width} px: Previous at the row's left end`).toBeLessThan(1)
     expect(Math.abs(right.right - edges.right), `${width} px: Next at its right end`).toBeLessThan(1)
     expect(Math.min(left.height, right.height), `${width} px: big enough to hit`).toBeGreaterThanOrEqual(56)
-    if (width === 1440) {
-      expect(left.right, 'the episode between them').toBeLessThan(episode.left)
+    if (width > 1100) {
+      expect(left.right, `${width} px: the episode between them`).toBeLessThan(episode.left)
       expect(right.left).toBeGreaterThan(episode.right)
     } else {
-      expect(left.top, 'under the episode on a phone').toBeGreaterThanOrEqual(episode.bottom)
+      expect(episode.width, `${width} px: the episode across the row`).toBeCloseTo(edges.width, 0)
+      expect(left.top, `${width} px: the buttons under it`).toBeGreaterThanOrEqual(episode.bottom)
       expect(right.top, 'on one line').toBe(left.top)
     }
   }
   expect(await overflowX(page)).toBe(0)
+})
+
+// HOR-1011: between a phone and a wide window the two buttons squeezed the episode into a column 81 px
+// wide and the row 384 px tall (769 px, the review of 2026-10-26)
+test('the watch page\'s episode buttons leave the episode at least half its row, however long the episodes they name', async ({ page }) => {
+  await secondEpisode(page)
+  await page.locator('.step-target').evaluateAll(([previous, next]) => {
+    previous!.textContent = "E1 - The Journey's End and the Long Road Home"
+    next!.textContent = 'E3 - Killing Magic Is Not the Same as Being Strong'
+  })
+  const row = page.locator('.episode-row')
+  for (const [width, height] of [[1440, 900], [1101, 800], [1024, 768], [820, 1180], [769, 1024]] as const) {
+    await page.setViewportSize({ width, height })
+    const [edges, episode] = await Promise.all([box(row), box(page.locator('.episode-main'))])
+    expect(episode.width / edges.width, `${width} px: the episode's share of the row`).toBeGreaterThanOrEqual(0.5)
+    expect(edges.height, `${width} px: the row's height`).toBeLessThan(200)
+  }
 })
 
 // HOR-1011: the score, status, episodes and trackers together, right under the title
@@ -1152,6 +1170,26 @@ test.describe('a viewer in Japan', () => {
     expect(row.bottom, 'the episode on the first screen').toBeLessThanOrEqual(900)
     expect((await box(page.locator('.watch-info .list'))).top, 'the sources below it').toBeGreaterThanOrEqual(row.bottom)
     expect(await overflowX(page)).toBe(0)
+  })
+
+  // HOR-1011: a fixed allowance for the row let a taller one, as the stacked buttons make it below 1100 px,
+  // end 66 px under a 768 px screen (the review of 2026-10-26)
+  test('the player gives up height so a taller episode row still ends on the first screen, and keeps it on a short window', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1/amazon:amzn1.dv.gti.900070`)
+    const player = page.locator('.player-container')
+    await expect(player.locator('iframe')).toBeVisible({ timeout: 30_000 })
+    // 120 px more row, as long titles and the buttons under them make it
+    await page.locator('.episode-main').evaluate(main => { main.append(Object.assign(document.createElement('div'), { style: 'height: 120px' })) })
+    const [screen, row] = await Promise.all([box(player), box(page.locator('.episode-row'))])
+    expect(row.bottom, 'the episode on the first screen').toBeLessThanOrEqual(768)
+    expect(screen.height, 'the player shorter for it').toBeLessThan(1024 * 9 / 16 - 100)
+    expect((await box(page.locator('.watch-info .list'))).top, 'the sources below it').toBeGreaterThanOrEqual(row.bottom)
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    const short = await box(player)
+    expect(short.height, 'a phone on its side keeps the player the screen\'s height').toBeGreaterThanOrEqual(390 - short.top - 1)
+    expect((await box(page.locator('.watch-info .list'))).top, 'and the sources still below the row').toBeGreaterThanOrEqual((await box(page.locator('.episode-row'))).bottom)
   })
 })
 
