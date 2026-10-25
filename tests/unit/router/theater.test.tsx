@@ -376,6 +376,22 @@ test('with no banner, the cover stands in', () => {
   expect(backdrop()).toContain('https://img.test/tougen-cover.jpg')
 })
 
+// Measured 2026-10-25 on anime.fkn.app with the trailer held: the banners merged into the listing after
+// the hero picked its show, and the hero kept what it had at the pick, a 425x600 poster for 3 of 10 shows.
+test('a banner the listing gains after the pick is drawn once it loads', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  sources.states = ['connecting']
+  const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
+  const { backdrop, shown, update } = hero([show('late-banner', { banners: [] })])
+  await settle()
+  expect(backdrop(), 'the control: the cover stands in').toContain('https://img.test/late-banner-cover.jpg')
+
+  update([show('late-banner', { title: 'late-banner kitsu title', banners: ['https://img.test/late-banner-kitsu.jpg'] })])
+  await settle()
+  expect(backdrop()).toContain('https://img.test/late-banner-kitsu.jpg')
+  expect(shown().title).toBe('late-banner title')
+})
+
 test('while a source connects, the hero holds its trailer, shows its banner, and plays it once connected', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
   sources.states = ['connected', 'connecting']

@@ -11,7 +11,7 @@ import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
 import VolumeControl from '../../components/volume-control'
 import TextEllipsis from '../../components/text-ellipsis'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
-import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
+import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, isSameShow, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { onPluginsChange, pluginStatuses } from '../../plugins'
 import { getRouterRoutePath, Route } from '../path'
@@ -215,8 +215,12 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const trailer = slowLink || (starting && !waitedForSources)
     ? undefined
     : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
-  // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal
-  const backdrop = useCoverUrl(trailer?.url ? undefined : headerImages(media), media)
+  // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal. Read off
+  // the listing rather than the pick as held, since banners merge in after the pick: over the ten picks
+  // with the trailer held, the pick as held ended on a 425x600 poster in 3 and never on AniZip's
+  // 1920x1080 fanart, which the listing's node drew in 8 (measured 2026-10-25)
+  const listed = media && mediaNodes.find(node => isSameShow(node, media))
+  const backdrop = useCoverUrl(trailer?.url ? undefined : headerImages(listed ?? media), media)
 
   const [playerPaused, setPlayerPaused] = useState(false)
   const [playerMuted, setPlayerMuted] = useState(true)
