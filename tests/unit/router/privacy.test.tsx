@@ -6,7 +6,8 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { STORED } from '../../../src/router/privacy/stored-data'
-import { DIRECT_FETCH_ORIGINS } from '../../../src/worker/direct-fetch'
+import { FRONTEND_GRAPHQL_URL } from '../../../src/sources/anilist/frontend'
+import { asksViewerDirectly, DIRECT_FETCH_ORIGINS } from '../../../src/worker/direct-fetch'
 
 const { default: Privacy } = await import('../../../src/router/privacy')
 
@@ -75,12 +76,13 @@ test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the
 })
 
 // a browser-asked host sees the viewer's address, so the page names exactly the hosts src/worker/direct-fetch.ts lists
-test('names every host stub asks from the browser, and keeps them out of the proxy list', () => {
+test('names every host stub asks from the browser, and of their services only AniList, whose fallback is relayed, as proxied', () => {
   const { host, text: page } = text()
   const intro = [...host.querySelectorAll('p')].find(p => p.textContent!.includes('asked from your browser instead, not through the proxy'))
-  const named = [...intro?.nextElementSibling?.querySelectorAll('.host') ?? []].map(item => item.textContent)
-  expect(named.sort()).toEqual([...DIRECT_FETCH_ORIGINS].map(origin => new URL(origin).host).sort())
-  const proxied = /through the FKN platform proxy, which then reaches third-party services such as ([^.]*)\./.exec(page)?.[1]
+  const items = [...intro?.nextElementSibling?.querySelectorAll('li') ?? []]
+  expect(items.map(item => item.querySelector('.host')!.textContent!).sort()).toEqual([...DIRECT_FETCH_ORIGINS].map(origin => new URL(origin).host).sort())
+  const proxied = /through the FKN platform proxy, which then reaches third-party services such as (.*?)\. The proxy requires no account/.exec(page)?.[1]
   expect(proxied).toBeDefined()
-  expect(proxied).not.toMatch(/Netflix|AniList|Kitsu|TVmaze|Trakt/)
+  expect(asksViewerDirectly(FRONTEND_GRAPHQL_URL)).toBe(false)
+  expect(items.map(item => item.firstChild!.textContent!.trim()).filter(service => proxied!.includes(service))).toEqual(['AniList'])
 })

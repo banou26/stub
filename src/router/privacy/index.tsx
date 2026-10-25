@@ -38,7 +38,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 25 October 2026</div>
+    <div className="updated">Last updated 26 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -90,7 +90,7 @@ const Privacy = () => (
     <h2>Network requests &amp; third parties</h2>
     <p>
       To fetch titles and streams, stub sends requests through the FKN platform
-      proxy, which then reaches third-party services such as MyAnimeList,
+      proxy, which then reaches third-party services such as AniList (anilist.co), MyAnimeList,
       Crunchyroll, Prime Video and JustWatch. The proxy requires no account. It uses your IP
       address to rate-limit requests, and it keeps a copy of each answer for a while, under a
       key made from the whole request (its address, headers and body), so only an identical
