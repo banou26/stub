@@ -135,7 +135,6 @@ describe('when Next episode is offered', () => {
   })
 })
 
-// owner question 2, answered (a)
 describe('the chapters stub hands its own player beside Next', () => {
   test('leave out the ending when nothing follows it', () => {
     expect(chaptersBesideNext(marked(1324, 1415, 1420), 1420)).toEqual([

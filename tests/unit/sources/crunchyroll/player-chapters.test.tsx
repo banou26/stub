@@ -153,7 +153,7 @@ describe('skip events', () => {
     expect(skin.chapters!.at(-1)).toEqual({ start: 1767, end: DURATION, title: 'Episode' })
   })
 
-  // owner question 2, answered (a): Next takes Skip Ending's corner where Skip Ending could only reach the end
+  // HOR-1014: Next takes Skip Ending's corner where Skip Ending could only reach the end
   test('credits with less than 10 s after them reach the player without their Ending, and credits something follows with it', async () => {
     for (const [events, duration, chapters] of [
       [CREDITS_KEY_ONLY, 1_420, [{ start: 0, end: 1325, title: 'Episode' }, { start: 1415, end: 1420, title: 'Episode' }]],

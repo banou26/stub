@@ -22,7 +22,7 @@ const known = (duration: number | undefined): duration is number =>
 /** The last ending, and how long what follows it runs. */
 const lastEnding = (chapters: MediaChapter[], duration: number) => {
   const ending = chapters.findLast(isEnding)
-  // owner question 3, answered (a): a preview is something after the ending, so it counts here
+  // a preview is something after the ending, so it counts here
   return ending && { ending, after: duration - ending.end }
 }
 
@@ -43,9 +43,8 @@ export const nextOfferAt = (chapters: MediaChapter[], duration: number | undefin
 }
 
 /**
- * `chapters` as stub hands them to its own player: without the last ending when nothing follows it.
- * Owner question 2, answered (a): there Next takes Skip Ending's corner, Skip Ending having nothing
- * left to skip to but the end.
+ * `chapters` as stub hands them to its own player: without the last ending when nothing follows it,
+ * where Next takes Skip Ending's corner and Skip Ending has nothing left to skip to but the end.
  */
 export const chaptersBesideNext = (chapters: MediaChapter[], duration: number | undefined): MediaChapter[] => {
   const last = known(duration) ? lastEnding(chapters, duration) : undefined

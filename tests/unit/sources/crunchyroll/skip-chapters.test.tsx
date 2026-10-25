@@ -143,7 +143,7 @@ describe('the skip events in the player', () => {
     expect(skipButton(await shownAt(at, events))).toBeNull()
   })
 
-  // owner question 2, answered (a): Next episode takes that corner instead
+  // HOR-1014: Next episode takes that corner instead
   test('handed over beside Next episode, credits with nothing after them offer no Skip Ending, and credits something follows still do', async () => {
     for (const [duration, offered] of [[1_420, undefined], [1_440, 'Skip Ending']] as const) {
       const { host } = show(duration, 1_330, CREDITS_KEY_ONLY, chaptersBesideNext(skipEventsToChapters(CREDITS_KEY_ONLY, duration), duration))

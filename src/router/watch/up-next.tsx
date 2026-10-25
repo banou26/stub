@@ -69,7 +69,7 @@ const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next
     let played = false
     let last: number | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
-    // owner question 1, answered (a): the early button waits for a press, the countdown is the end's
+    // the early button waits for a press: only the end counts down
     const offer = () => setShown('offered')
     const stop = link.onReport(({ paused, time, rate }) => {
       clearTimeout(timer)
