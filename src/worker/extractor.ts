@@ -28,7 +28,7 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { readPluginPayload, readPluginSources } from './plugin-sources'
+import { readPluginPayload, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -724,14 +724,14 @@ export const remotePlayer = (origin: string): { pluginUri: string } | null => {
 export const registerRemoteExtractor = async (
   port: MessagePort,
   pluginUri: string
-): Promise<{ sources: { origin: string, name: string }[], rejected: { origin: string, reason: string }[] }> => {
+): Promise<{ sources: RegisteredSource[], rejected: { origin: string, reason: string }[] }> => {
   const remote = await attach(port) as RemotePluginPayload
   const { sources, rejected } = readPluginSources(remote, pluginUri)
 
   // a reconnect re-registers the same plugin, so drop its own previous entries before the collision check
   unregisterRemoteExtractor(pluginUri)
 
-  const registered: { origin: string, name: string }[] = []
+  const registered: RegisteredSource[] = []
   const failed = [...rejected]
   for (const { meta, source } of sources) {
     try {
@@ -747,7 +747,7 @@ export const registerRemoteExtractor = async (
       }
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
       for (const fanout of fanouts) joinFanout(fanout, entry)
-      registered.push({ origin: meta.origin, name: meta.name })
+      registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       console.error(new Error(`plugin '${pluginUri}': source '${meta.origin}' failed to register`, { cause: error }))

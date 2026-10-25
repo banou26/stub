@@ -27,6 +27,9 @@ export type PluginSourceMeta = {
 
 export type RejectedSource = { origin: string, reason: string }
 
+/** What the page learns of a source that registered: how Settings names and draws its card. */
+export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon' | 'isApiOnly'>
+
 // the single-source shape stays supported: it is what the example plugin and every plugin written before this sends
 /**
  * The sources a payload declares, each validated on its own.

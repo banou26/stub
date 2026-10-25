@@ -4,14 +4,15 @@
 import { expect, test } from 'vite-plus/test'
 
 import * as sources from '../../../src/sources/index'
-import { builtInSources, iconSources } from '../../../src/sources/built-in'
+import { builtInSources, drawnAs } from '../../../src/sources/built-in'
 
-test('names every source that answers, under its own origin, name and site, in the order they run', () => {
+test('names every source that answers, under its own origin, name, site and icon, in the order they run', () => {
   const answering = Object.values(sources)
     .filter(source => source.origin !== 'imdb')
-    .map(source => ({ origin: source.origin, name: source.name, url: source.originUrl }))
+    .map(source => ({ origin: source.origin, name: source.name, url: source.originUrl, icon: 'icon' in source ? source.icon : undefined }))
   expect(builtInSources).toEqual(answering)
   expect(builtInSources).toHaveLength(35)
+  expect(builtInSources.filter(source => !source.icon).map(source => source.origin), 'the three with no icon of their own').toEqual(['anizip', 'livechart', 'offline'])
 })
 
 test('lists IMDb once, as the source that reads it', () => {
@@ -19,11 +20,13 @@ test('lists IMDb once, as the source that reads it', () => {
 })
 
 test('lists Anime News Network, for its credits', () => {
-  expect(builtInSources).toContainEqual({ origin: 'ann', name: 'Anime News Network', url: 'https://www.animenewsnetwork.com' })
+  expect(builtInSources).toContainEqual({ origin: 'ann', name: 'Anime News Network', url: 'https://www.animenewsnetwork.com', icon: 'https://www.animenewsnetwork.com/favicon.ico' })
 })
 
-test('lists an icon switch for exactly the origins stub draws', () => {
+test('names the origin of exactly the icons stub draws, IMDb\'s as imdb', () => {
   const drawn = Object.values(sources).filter(source => !source.isApiOnly).map(source => source.origin)
-  expect(iconSources.map(source => source.origin).sort()).toEqual([...drawn].sort())
-  expect(iconSources).toContainEqual({ origin: 'imdb', name: 'IMDb', url: 'https://www.imdb.com' })
+  const byName = (a: string, b: string) => a.localeCompare(b)
+  expect(builtInSources.flatMap(source => drawnAs(source.origin) ?? []).sort(byName)).toEqual([...drawn].sort(byName))
+  expect(drawnAs('omdb')).toBe('imdb')
+  expect(drawnAs('kitsu'), 'an api only source').toBeUndefined()
 })

@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { siteAsks } from '../../site'
 import { ConfirmAction } from './confirm'
 import { primePlaysOnCloud, primeSiteFor } from '../../sources/amazon/session'
-import { CountryRow, useViewerCountry } from './country'
+import { useViewerCountry } from './country'
 
 export type { TrackerSite }
 
@@ -22,7 +22,7 @@ export type StreamingAccount = {
 }
 
 /**
- * What the Accounts section reaches, handed in so the section renders and acts the same over fakes.
+ * What the sources' accounts reach, handed in so the cards render and act the same over fakes.
  * `backend` is undefined until it is known whether the extension runs here, and no site offers an
  * action until then: what a sign out does depends on it.
  */
@@ -71,7 +71,7 @@ const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
   return status.read(site)
 }
 
-/** Asks Crunchyroll again when the section opens and each time the page comes back into view, while `enabled`. */
+/** Asks Crunchyroll again when its card shows and each time the page comes back into view, while `enabled`. */
 const useRefresh = (status: AccountsProps['status'], backend: FknBackend | undefined, enabled: boolean) => {
   useEffect(() => {
     if (!backend || !enabled) return
@@ -82,12 +82,12 @@ const useRefresh = (status: AccountsProps['status'], backend: FknBackend | undef
   }, [status, backend, enabled])
 }
 
-const Row = ({ id, title, state, on, heading, children }: { id: string, title: string, state?: string, on?: boolean, heading?: RefObject<HTMLHeadingElement | null>, children: ComponentChildren }) => (
-  <div className="row account" data-account={id}>
-    <div className="head">
-      <h3 ref={heading} tabIndex={-1}>{title}</h3>
-      {state ? <span className={`state${on ? ' on' : ''}`}>{state}</span> : undefined}
-    </div>
+/** The card's heading, which a confirmed sign out gives the focus to, since it can take its button away. */
+type Heading = RefObject<HTMLHeadingElement | null>
+
+const Account = ({ id, state, on, children }: { id: string, state?: string, on?: boolean, children: ComponentChildren }) => (
+  <div className="account" data-account={id}>
+    {state ? <span className={`state${on ? ' on' : ''}`}>{state}</span> : undefined}
     {children}
   </div>
 )
@@ -110,14 +110,13 @@ const STREAMING_SITES = ([
   site: 'crunchyroll' | 'prime', origin: string, name: string, hostFor: (country: string) => string, signsInOnCloud: (host: string) => boolean, checked: boolean,
 }[]).filter(entry => siteAsks(entry.origin))
 
-type StreamingRowProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount } & Pick<AccountsProps, 'backend' | 'status'>
+type StreamingProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount, heading: Heading } & Pick<AccountsProps, 'backend' | 'status'>
 
-const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, backend, status }: StreamingRowProps) => {
+const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, heading, backend, status }: StreamingProps) => {
   const host = hostFor(useViewerCountry())
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
-  const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, site)
   // the cloud only, where the check reuses the site's device id (with the extension each check is a new
   // device), and only once stub knows of the site, since the check asks FKN for a permission
@@ -143,12 +142,10 @@ const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, b
   const state = remembered?.state ?? (cloud ? 'signed-out' : undefined)
 
   return (
-    <Row
+    <Account
       id={site}
-      title={name}
       state={state && STATE_LABEL[state]}
       on={state === 'signed-in'}
-      heading={heading}
     >
       {cloud
         ? (
@@ -176,7 +173,7 @@ const StreamingRow = ({ site, name, hostFor, signsInOnCloud, checked, account, b
           )
           : <p>Loading...</p>}
       <NoteLine note={note}/>
-    </Row>
+    </Account>
   )
 }
 
@@ -185,12 +182,11 @@ const TRACKER_SITES = ([
   { site: 'mal', name: 'MyAnimeList', host: 'myanimelist.net' },
 ] satisfies { site: TrackerSite, name: string, host: string }[]).filter(entry => siteAsks(entry.site))
 
-const TrackerRow = ({ site, name, host, backend, sites, status }: (typeof TRACKER_SITES)[number] & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
+const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof TRACKER_SITES)[number] & { heading: Heading } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
   const mounted = useMounted()
-  const heading = useRef<HTMLHeadingElement>(null)
   const remembered = useSiteStatus(status, site)
   const signedIn = connected && remembered?.state !== 'signed-out'
 
@@ -228,12 +224,10 @@ const TrackerRow = ({ site, name, host, backend, sites, status }: (typeof TRACKE
   )
 
   return (
-    <Row
+    <Account
       id={site}
-      title={name}
       state={!connected ? 'Not connected' : remembered && STATE_LABEL[remembered.state]}
       on={signedIn}
-      heading={heading}
     >
       {backend
         ? (
@@ -258,24 +252,26 @@ const TrackerRow = ({ site, name, host, backend, sites, status }: (typeof TRACKE
         )
         : undefined}
       <NoteLine note={note}/>
-    </Row>
+    </Account>
   )
 }
 
-const NetflixRow = ({ backend }: Pick<AccountsProps, 'backend'>) => (
-  <Row id="netflix" title="Netflix">
+const Netflix = ({ backend }: Pick<AccountsProps, 'backend'>) => (
+  <Account id="netflix">
     {backend === 'extension'
       ? <div className="actions"><a className="link" href="https://www.netflix.com" target="_blank" rel="noreferrer">Open netflix.com</a></div>
       : <p>Needs the FKN browser extension.</p>}
-  </Row>
+  </Account>
 )
 
-/** The viewer's country, then every sign-in stub uses and the way out of it where there is one. */
-export const AccountsSection = ({ backend, sites, status, ...streaming }: AccountsProps) => (
-  <div className="rows">
-    <CountryRow/>
-    {STREAMING_SITES.map(entry => <StreamingRow key={entry.site} {...entry} account={streaming[entry.site]} backend={backend} status={status}/>)}
-    {TRACKER_SITES.map(entry => <TrackerRow key={entry.site} {...entry} backend={backend} sites={sites} status={status}/>)}
-    <NetflixRow backend={backend}/>
-  </div>
-)
+/**
+ * The sign-in a source's card holds, with its state and the way out of it where there is one, for the
+ * sources stub signs in to on this site; nothing for the others. `heading` is the card's.
+ */
+export const SourceAccount = ({ origin, heading, backend, sites, status, ...streaming }: AccountsProps & { origin: string, heading: Heading }) => {
+  const playing = STREAMING_SITES.find(entry => entry.origin === origin)
+  if (playing) return <Streaming {...playing} account={streaming[playing.site]} heading={heading} backend={backend} status={status}/>
+  const tracking = TRACKER_SITES.find(entry => entry.site === origin)
+  if (tracking) return <Tracker {...tracking} heading={heading} backend={backend} sites={sites} status={status}/>
+  return origin === 'nf' ? <Netflix backend={backend}/> : null
+}

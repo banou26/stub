@@ -49,8 +49,7 @@ const Privacy = () => (
     <h2>What stub keeps</h2>
     <p>
       stub sets no advertising or tracking cookies and runs no analytics or telemetry. This is everything
-      it keeps, where, and for how long. You sign out of a site in{' '}
-      <Link to="/settings#accounts">Settings, under Accounts</Link>, and remove a source you added in{' '}
+      it keeps, where, and for how long. You sign out of a site and remove a source you added in{' '}
       <Link to="/settings#sources">Settings, under Sources</Link>. Clearing this site's data in your
       browser removes everything stub keeps in this browser.
     </p>
@@ -78,7 +77,7 @@ const Privacy = () => (
       stub plays Crunchyroll and Prime Video and tracks your AniList and MyAnimeList lists with your own
       accounts on those sites. Without the FKN browser extension, you sign in on each site's own page, in an
       FKN window, and the cookies that sign-in sets are kept by FKN, in a cookie jar every fkn.app app shares,
-      and not by stub. Signing out in <Link to="/settings#accounts">Settings, under Accounts</Link>, removes
+      and not by stub. Signing out in <Link to="/settings#sources">Settings, under Sources</Link>, removes
       that site's cookies from FKN. The site itself is not told, so its session stays valid there until it
       expires, held by nobody.
     </p>
@@ -130,7 +129,7 @@ const Privacy = () => (
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}
-      <Link to="/settings#accounts">Settings</Link>, or else the one your device's time zone is in.
+      <Link to="/settings#sources">Settings</Link>, or else the one your device's time zone is in.
       Only the country is sent, never the time zone.
     </p>
 

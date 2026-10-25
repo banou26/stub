@@ -80,15 +80,15 @@ const shown = (host: HTMLElement) => ({
 
 test('lists every category as a link whose fragment picks it', async () => {
   const host = await open()
-  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Accounts', '#accounts'], ['Sources', '#sources'], ['Playback', '#playback']])
+  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Playback', '#playback']])
 })
 
-test('with no fragment, shows Accounts and only Accounts', async () => {
-  expect(shown(await open())).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
+test('with no fragment, shows Sources and only Sources, its cards holding the sign-ins', async () => {
+  expect(shown(await open())).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
 })
 
 test('#sources shows Sources and only Sources', async () => {
-  expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 0 })
+  expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
 })
 
 test('#playback shows Playback and its one switch, autoplay, on until turned off', async () => {
@@ -187,24 +187,24 @@ test('with the FKN account\'s settings in use, a move changes the account\'s ord
   expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Netflix'])
 })
 
-for (const removed of ['#data', '#tracking']) {
-  test(`${removed}, a category that is gone, shows Accounts`, async () => {
-    expect(shown(await open(removed))).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
+for (const removed of ['#accounts', '#data', '#tracking']) {
+  test(`${removed}, a category that is gone, shows Sources`, async () => {
+    expect(shown(await open(removed))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
   })
 }
 
 test('a change of fragment switches the panel, and back', async () => {
   const host = await open()
-  await go('#sources')
-  expect(shown(host).panels).toEqual(['sources'])
+  await go('#playback')
+  expect(shown(host).panels).toEqual(['playback'])
   await go('#data')
-  expect(shown(host).panels).toEqual(['accounts'])
+  expect(shown(host).panels).toEqual(['sources'])
 })
 
-test('a pushState that drops the fragment, as the header\'s Settings link sends, shows Accounts', async () => {
-  const host = await open('#sources')
+test('a pushState that drops the fragment, as the header\'s Settings link sends, shows Sources', async () => {
+  const host = await open('#playback')
   await go('', 'pushState')
-  expect(shown(host)).toEqual({ panels: ['accounts'], heading: 'Accounts', current: ['Accounts'], accountRows: 5 })
+  expect(shown(host)).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
 })
 
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload

@@ -1,5 +1,6 @@
 import type { YogaInitialContext } from 'graphql-yoga'
 import type { Resolvers as MainThreadResolvers } from '../worker'
+import type { RegisteredSource } from './plugin-sources'
 
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
 import { createSchema, createYoga, useErrorHandler, useExecutionCancellation } from 'graphql-yoga'
@@ -62,7 +63,7 @@ export const osraResolvers = {
   setDisabledSources: (origins: string[]) => setDisabledOrigins(origins),
   // the country picked in Settings, handed over the same way
   setPickedCountry: (country: string | undefined) => holdPickedCountry(country),
-  registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: { origin: string, name: string }[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
+  registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: RegisteredSource[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
     try {
       return { ok: await registerRemoteExtractor(port, pluginUri) }
     } catch (error) {

@@ -16,7 +16,7 @@ export type PluginStatus = {
   /** while connecting, that the source already connected or failed in this page and this is its retry */
   retry?: true
   /** every source the package registered; one package may ship a family of them */
-  sources?: { origin: string, name: string }[]
+  sources?: { origin: string, name: string, icon?: string | null, isApiOnly?: boolean }[]
   /** sources the package declared that could not be registered; the rest still serve */
   rejected?: { origin: string, reason: string }[]
 }

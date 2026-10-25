@@ -7,9 +7,10 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { COUNTRIES, COUNTRY_KEY } from '../../../src/sources/country'
 import { viewerIn } from '../sources/justwatch/viewer'
 
-const { AccountsSection } = await import('../../../src/router/settings/accounts')
+const { CountryRow } = await import('../../../src/router/settings/country')
 
-// The Country setting atop Accounts: Automatic, naming the time zone's country, until one is picked.
+// The Country setting atop Sources (tests/unit/router/settings-sources.test.tsx): Automatic, naming the
+// time zone's country, until one is picked.
 
 const stored = new Map<string, string>()
 beforeEach(() => {
@@ -28,16 +29,7 @@ afterEach(() => {
 })
 
 const render = () => {
-  const account = { signIn: async () => 'authed' as const, signOut: async () => {} }
-  const host = mount(
-    <AccountsSection
-      backend="cloud"
-      crunchyroll={account}
-      prime={account}
-      sites={{ isConnected: () => false, watch: () => () => {}, signIn: async () => 'authed', signOut: async () => {} }}
-      status={{ read: () => undefined, watch: () => () => {}, refresh: () => {} }}
-    />
-  )
+  const host = mount(<CountryRow/>)
   hosts.push(host)
   const row = host.querySelector<HTMLElement>('[data-setting="country"]')!
   const select = row.querySelector('select')!
@@ -49,10 +41,9 @@ const render = () => {
   return { host, row, select, pick }
 }
 
-test('the first row of Accounts is Country, Automatic naming the time zone\'s country, then every country by name', () => {
+test('Country offers Automatic, naming the time zone\'s country, then every country by name', () => {
   viewerIn('America/Toronto')
-  const { host, row, select } = render()
-  expect(host.querySelector('.rows > .row'), 'first').toBe(row)
+  const { row, select } = render()
   expect(document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent).toBe('Country')
   const options = [...select.querySelectorAll('option')]
   expect(options[0]!.textContent).toBe('Automatic (Canada)')

@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const CATEGORIES = ['Accounts', 'Sources', 'Playback']
+const CATEGORIES = ['Sources', 'Playback']
 const HOUR = 3_600_000
 
 // what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
@@ -90,22 +90,23 @@ const seeded = async (page: Page, path = '/settings') => {
 
 const categories = (page: Page) => page.getByRole('navigation', { name: 'Settings categories' })
 const panel = (page: Page) => page.locator('[data-section]')
-const builtIn = (page: Page) => page.locator('[data-source]')
+const sourceSwitches = (page: Page) => page.getByRole('switch', { name: / source$/ })
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
-test('the page lists its three categories and shows Accounts alone, without the FKN row, Data or Tracking', async ({ page }) => {
+// the owner, 2026-10-25 (HOR-1019): "I think we can completely remove that Accounts category and also merge it with the Sources category"
+test('the page lists its two categories and shows Sources alone, its cards holding the sign-ins, without the FKN row, Data or Tracking', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
   await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
   for (const title of CATEGORIES) await expect(categories(page).getByRole('link', { name: title })).toHaveAttribute('href', `#${title.toLowerCase()}`)
   await expect(panel(page)).toHaveCount(1)
-  await expect(panel(page)).toHaveAttribute('data-section', 'accounts')
-  await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Accounts')
-  await expect(page.locator('[data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(5)
+  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Sources')
+  await expect(page.locator('[data-source] [data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(5)
   await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: /^(Data|Tracking|Playback)$/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /^(Accounts|Data|Tracking|Playback)$/ })).toHaveCount(0)
 })
 
 /** Clicks a category, and checks it alone is shown, marked, below the header, with the page still at the top. */
@@ -120,32 +121,30 @@ const picks = async (page: Page, title: string) => {
   expect((await panel(page).boundingBox())!.y).toBeGreaterThanOrEqual(await headerBottom(page))
 }
 
-test('clicking Sources shows Sources and hides Accounts, and back, from the top even when scrolled', async ({ page }) => {
+test('clicking Playback shows Playback and hides Sources, and back, from the top even when scrolled', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 500 })
   await seeded(page)
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
-  expect(await scrollY(page), 'Accounts is taller than the window').toBeGreaterThan(0)
+  expect(await scrollY(page), 'Sources is taller than the window').toBeGreaterThan(0)
+  await picks(page, 'Playback')
+  await expect(page.locator('[data-source]'), 'Sources is hidden').toHaveCount(0)
   await picks(page, 'Sources')
-  await expect(page.locator('[data-account]'), 'Accounts is hidden').toHaveCount(0)
   await expect(page.locator('[data-plugin]'), 'the seeded source is listed').toHaveCount(1)
-  await expect(builtIn(page).getByRole('switch'), 'every source stub ships with, each with a switch').toHaveCount(ALL)
-  await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
-  await picks(page, 'Accounts')
+  await expect(sourceSwitches(page), 'every source stub ships with, each with a switch').toHaveCount(ALL)
   await expect(page.locator('[data-account="anilist"]')).toBeVisible()
-  await expect(page.locator('[data-plugin]')).toHaveCount(0)
+  await expect(panel(page).locator('input[type="password"]'), 'no key form').toHaveCount(0)
   await page.goBack()
-  await expect(panel(page), 'back returns to the category before').toHaveAttribute('data-section', 'sources')
+  await expect(panel(page), 'back returns to the category before').toHaveAttribute('data-section', 'playback')
 })
 
 // the owner, 2026-10-10: "display all of the native sources and make the user able to disable/enable
 // them. By default obviously all enabled."
 test('every source stub ships with is on by default, and one turned off stays off across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#sources`)
-  const simkl = page.getByRole('switch', { name: 'Simkl', exact: true })
+  const simkl = page.getByRole('switch', { name: 'Simkl source', exact: true })
   // from the top of the page, not of the window: a click scrolls its target into view first
-  const firstTop = () => page.getByRole('switch').first().evaluate(input => input.getBoundingClientRect().top + window.scrollY)
-  await expect(page.getByRole('heading', { level: 3, name: 'Built in' })).toBeVisible()
-  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL)
+  const firstTop = () => sourceSwitches(page).first().evaluate(input => input.getBoundingClientRect().top + window.scrollY)
+  await expect(page.getByRole('switch', { name: / source$/, checked: true })).toHaveCount(ALL)
   await expect(page.getByText(`All ${ALL} on`, { exact: true })).toBeVisible()
   const top = await firstTop()
 
@@ -157,11 +156,12 @@ test('every source stub ships with is on by default, and one turned off stays of
 
   await page.reload()
   await expect(simkl, 'kept in this browser').not.toBeChecked()
-  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL - 1)
+  await expect(page.locator('[data-source="simkl"]')).toHaveClass(/\boff\b/)
+  await expect(page.getByRole('switch', { name: / source$/, checked: true })).toHaveCount(ALL - 1)
   const turnAllOn = page.getByRole('button', { name: 'Turn all on' })
   await turnAllOn.focus()
   await page.keyboard.press('Enter')
-  await expect(builtIn(page).getByRole('switch', { checked: true })).toHaveCount(ALL)
+  await expect(page.getByRole('switch', { name: / source$/, checked: true })).toHaveCount(ALL)
   await expect(turnAllOn, 'the button stays, so the keyboard stays on it').toBeFocused()
   expect(await firstTop(), 'and turning all on moves nothing either').toBe(top)
   expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBeNull()
@@ -169,39 +169,39 @@ test('every source stub ships with is on by default, and one turned off stays of
 
 test('a keyboard reaches the categories and switches between them', async ({ page }) => {
   await page.goto(`${origin}/settings`)
-  await categories(page).getByRole('link', { name: 'Accounts' }).focus()
+  await categories(page).getByRole('link', { name: 'Sources' }).focus()
   await page.keyboard.press('Tab')
-  await expect(categories(page).getByRole('link', { name: 'Sources' })).toBeFocused()
+  await expect(categories(page).getByRole('link', { name: 'Playback' })).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
-  await expect(categories(page).getByRole('link', { name: 'Sources' })).toHaveAttribute('aria-current', 'true')
+  await expect(panel(page)).toHaveAttribute('data-section', 'playback')
+  await expect(categories(page).getByRole('link', { name: 'Playback' })).toHaveAttribute('aria-current', 'true')
 })
 
-test('a link or a reload on #sources lands on Sources, and the header link or a category that is gone lands on Accounts', async ({ page }) => {
-  await page.goto(`${origin}/settings#sources`)
-  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+test('a link or a reload on #playback lands on Playback, and the header link or a category that is gone lands on Sources', async ({ page }) => {
+  await page.goto(`${origin}/settings#playback`)
+  await expect(panel(page)).toHaveAttribute('data-section', 'playback')
   await page.reload()
-  await expect(panel(page)).toHaveAttribute('data-section', 'sources')
+  await expect(panel(page)).toHaveAttribute('data-section', 'playback')
   await page.locator('header').getByRole('link', { name: 'Settings' }).click()
   await expect(page, 'the header\'s Settings link drops the fragment').toHaveURL(/\/settings(\?[^#]*)?$/)
-  await expect(panel(page), 'and so shows Accounts').toHaveAttribute('data-section', 'accounts')
-  await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Accounts'])
-  for (const gone of ['data', 'tracking']) {
+  await expect(panel(page), 'and so shows Sources').toHaveAttribute('data-section', 'sources')
+  await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Sources'])
+  for (const gone of ['accounts', 'data', 'tracking']) {
     await page.goto(`${origin}/legal`)
     await page.goto(`${origin}/settings#${gone}`)
-    await expect(panel(page), gone).toHaveAttribute('data-section', 'accounts')
-    await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Accounts'])
+    await expect(panel(page), gone).toHaveAttribute('data-section', 'sources')
+    await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Sources'])
   }
 })
 
 test('on a phone the categories are a row above the panel, the page stays at the top, and never scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await seeded(page, '/settings#accounts')
+  await seeded(page, '/settings#sources')
   const nav = await categories(page).boundingBox()
   expect(nav!.y + nav!.height).toBeLessThanOrEqual((await panel(page).boundingBox())!.y)
   for (const link of await categories(page).getByRole('link').all()) await expect(link).toBeInViewport()
   expect(await scrollY(page), 'a load on a category does not scroll to it').toBe(0)
-  for (const title of ['Sources', 'Playback', 'Accounts']) {
+  for (const title of ['Playback', 'Sources']) {
     await picks(page, title)
     expect(await overflowX(page), title).toBeLessThanOrEqual(0)
   }
@@ -287,6 +287,44 @@ test('Sources lists each added source with its state, and says so once none is l
   await expect(panel(page).locator('.empty')).toHaveText('No sources added yet.')
   expect(JSON.parse((await readLocal(page))['stub-enabled-plugins']!)).toEqual([])
 })
+
+// the owner, 2026-10-25 (HOR-1019): "right now custom sources can't be disabled besides just removing the plugin, but I want them visible too"
+test('every source an added package registered has a card, and one turned off stays off across a reload with its package kept', async ({ page }) => {
+  await withSources(page, SPEC_SOURCES)
+  const card = (origin: string) => page.locator(`[data-source="${origin}"]`)
+  for (const [origin, name, from] of [['spec-anime', 'Spec Anime', 'npm:@spec/anime-source'], ['spec-b', 'Spec Batches', 'npm:@spec/source-family']] as const) {
+    await expect(card(origin).getByRole('heading', { name })).toBeVisible()
+    await expect(card(origin).locator('.from')).toHaveText(from)
+  }
+  await expect(page.locator('[data-source^="spec-"]'), 'none for a package still connecting or that failed').toHaveCount(4)
+  await expect(sourceSwitches(page)).toHaveCount(ALL + 4)
+
+  const spec = page.getByRole('switch', { name: 'Spec Anime source', exact: true })
+  await spec.click()
+  await expect(spec).not.toBeChecked()
+  await expect(page.getByText(`${ALL + 3} of ${ALL + 4} on`, { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('stub.sources.disabled'))).toBe('["spec-anime"]')
+  await page.reload()
+  await expect(spec, 'kept in this browser').not.toBeChecked()
+  await expect(card('spec-anime')).toHaveClass(/\boff\b/)
+  await expect(page.locator('[data-plugin="npm:@spec/anime-source"] .pill'), 'its package stays').toHaveText('Connected')
+})
+
+for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+  test(`at ${width}x${height} every card keeps its content inside it, and the page never scrolls sideways`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await withSources(page, SPEC_SOURCES)
+    const past = await page.locator('[data-source]').evaluateAll(cards => cards.flatMap(card => {
+      const { left, right } = card.getBoundingClientRect()
+      return [...card.querySelectorAll('*')].filter(element => {
+        const box = element.getBoundingClientRect()
+        return box.width && (box.left < left - 0.5 || box.right > right + 0.5)
+      }).map(element => `${card.getAttribute('data-source')}: ${element.tagName}.${element.className}`)
+    }))
+    expect(past).toEqual([])
+    expect(await overflowX(page)).toBeLessThanOrEqual(0)
+  })
+}
 
 test('adding by address shows a refused address\'s error under the group, and a good one is added', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -427,11 +465,11 @@ test('a confirmation opens on Cancel, Cancel gives focus back to its button, and
   await page.keyboard.press('Enter')
   await expect(row).toContainText('Not connected')
   expect(JSON.parse((await readLocal(page))['stub.sessions']!)).not.toContain('anilist')
-  await expect(row.getByRole('heading', { name: 'AniList' }), 'the Sign out is gone, so focus goes to its row').toBeFocused()
+  await expect(page.locator('[data-source="anilist"]').getByRole('heading', { name: 'AniList' }), 'the Sign out is gone, so focus goes to its card').toBeFocused()
 })
 
 test('signing out of AniList and MyAnimeList disconnects each on this device, one at a time', async ({ page }) => {
-  await seeded(page, '/settings#accounts')
+  await seeded(page, '/settings#sources')
   for (const [site, title, left] of [['anilist', 'AniList', ['mal']], ['mal', 'MyAnimeList', []]] as const) {
     const row = page.locator(`[data-account="${site}"]`)
     await expect(row).not.toContainText('Not connected')
@@ -440,7 +478,7 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
     await row.getByRole('button', { name: 'Yes, sign out' }).click()
     await expect(row).toContainText('Not connected')
     expect(JSON.parse((await readLocal(page))['stub.sessions']!)).toEqual(left)
-    await expect(row.getByRole('heading', { name: title }), 'focus stays on the row, whose button is gone').toBeFocused()
+    await expect(page.locator(`[data-source="${site}"]`).getByRole('heading', { name: title }), 'focus stays on the card, whose button is gone').toBeFocused()
   }
   await page.reload()
   await expect(page.locator('[data-account="anilist"]')).toContainText('Not connected')
@@ -449,10 +487,10 @@ test('signing out of AniList and MyAnimeList disconnects each on this device, on
 
 // a sign out sent on a BroadcastChannel alone reached the other tab before its storage had it (src/tracking/connections.ts)
 test('a sign out of AniList in one tab reaches its row in another, and leaves MyAnimeList connected there', async ({ page, context }) => {
-  await seeded(page, '/settings#accounts')
+  await seeded(page, '/settings#sources')
   const other = await context.newPage()
   await other.route(url => !url.href.startsWith(origin), route => route.abort())
-  await other.goto(`${origin}/settings#accounts`)
+  await other.goto(`${origin}/settings#sources`)
   await expect(other.locator('[data-account="anilist"]')).not.toContainText('Not connected')
 
   const row = page.locator('[data-account="anilist"]')
@@ -463,7 +501,7 @@ test('a sign out of AniList in one tab reaches its row in another, and leaves My
   await expect(other.locator('[data-account="mal"]')).not.toContainText('Not connected')
 })
 
-const chip = (page: Page, site: string) => page.locator(`[data-account="${site}"] .head .state`)
+const chip = (page: Page, site: string) => page.locator(`[data-account="${site}"] .state`)
 
 // a check asks through FKN, which this page never reaches, so what a check leaves behind is the hidden
 // frame it mounts first, named by its title and recorded even when a failed attach takes it out at once.
@@ -477,7 +515,7 @@ const recordFrames = (page: Page) => page.addInitScript(() => {
 })
 const mountedFrames = (page: Page) => page.evaluate(() => (window as unknown as { mountedFrames: string[] }).mountedFrames)
 
-test('Accounts shows what stub last learned of each sign-in, with no age and nothing to press to check it', async ({ page }) => {
+test('the cards show what stub last learned of each sign-in, with no age and nothing to press to check it', async ({ page }) => {
   await page.goto(`${origin}/legal`)
   await page.evaluate(() => {
     localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
@@ -486,7 +524,7 @@ test('Accounts shows what stub last learned of each sign-in, with no age and not
       anilist: { state: 'signed-out', checkedAt: Date.now() - 26 * 3_600_000 },
     }))
   })
-  await page.goto(`${origin}/settings#accounts`)
+  await page.goto(`${origin}/settings#sources`)
 
   await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
   await expect(chip(page, 'anilist')).toHaveText('Signed out')
@@ -504,7 +542,7 @@ test('a connected tracking site stub learned is signed out offers Sign in, never
       mal: { state: 'signed-out', checkedAt: Date.now() },
     }))
   })
-  await page.goto(`${origin}/settings#accounts`)
+  await page.goto(`${origin}/settings#sources`)
 
   for (const [site, title] of [['anilist', 'AniList'], ['mal', 'MyAnimeList']] as const) {
     const row = page.locator(`[data-account="${site}"]`)
@@ -522,7 +560,7 @@ test('an AniList stub learned is signed out reads Signed in, with Sign out, once
   })
   const other = await context.newPage()
   await other.route(url => !url.href.startsWith(origin), route => route.abort())
-  await other.goto(`${origin}/settings#accounts`)
+  await other.goto(`${origin}/settings#sources`)
   const row = other.locator('[data-account="anilist"]')
   await expect(chip(other, 'anilist')).toHaveText('Signed out')
   // once the backend is known: its answer renders the row again, which reads the new state with no listener
@@ -535,7 +573,7 @@ test('an AniList stub learned is signed out reads Signed in, with Sign out, once
   await expect(row.getByRole('button', { name: 'Sign out of AniList', exact: true })).toBeVisible()
 })
 
-test('opening Accounts checks a Crunchyroll stub knows of once what it learned is stale, asks no tracker site, and keeps the state when no answer comes', async ({ page }) => {
+test('opening Sources checks a Crunchyroll stub knows of once what it learned is stale, asks no tracker site, and keeps the state when no answer comes', async ({ page }) => {
   await recordFrames(page)
   const seed = (age: number) => page.evaluate(age => {
     localStorage.setItem('stub.sessions', JSON.stringify(['mal']))
@@ -548,7 +586,7 @@ test('opening Accounts checks a Crunchyroll stub knows of once what it learned i
   await page.goto(`${origin}/legal`)
 
   await seed(0)
-  await page.goto(`${origin}/settings#accounts`)
+  await page.goto(`${origin}/settings#sources`)
   await backendKnown()
   await page.waitForTimeout(1_000)
   expect(await mountedFrames(page), 'learned just now, so nothing is asked').toEqual([])
@@ -567,7 +605,7 @@ test('opening Accounts checks a Crunchyroll stub knows of once what it learned i
 // HOR-755: a session stub never saw cannot be checked without a permission, which Sign in asks for
 test('with nothing remembered Crunchyroll reads signed out with Sign in alone, a site not connected says so, and nothing is asked', async ({ page }) => {
   await recordFrames(page)
-  await page.goto(`${origin}/settings#accounts`)
+  await page.goto(`${origin}/settings#sources`)
 
   await expect(page.locator('[data-account="crunchyroll"]').getByRole('button', { name: 'Sign in' })).toBeVisible()
   await expect(chip(page, 'crunchyroll')).toHaveText('Signed out')
@@ -587,7 +625,7 @@ test('the privacy page says what stub keeps, and its link to Sources opens that 
   await expect(body).not.toContainText('API key')
   await expect(body).not.toContainText('Everything else stub holds is cleared when you close or refresh the tab')
   await expect(body).not.toContainText('under Data')
-  await page.getByRole('link', { name: 'Settings, under Sources' }).click()
+  await page.getByRole('link', { name: 'Settings, under Sources' }).first().click()
   await expect(page).toHaveURL(/\/settings#sources$/)
   await expect(panel(page)).toHaveAttribute('data-section', 'sources')
   expect(await scrollY(page)).toBe(0)

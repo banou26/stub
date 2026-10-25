@@ -1,12 +1,17 @@
-import { useEffect, useId, useState } from 'preact/hooks'
+import type { AccountsProps } from './accounts'
+
+import { useEffect, useId, useRef, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 
+import OriginIcon from '../../components/origin-icon'
 import { switchStyle } from '../../components/switch-style'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
-import { builtInSources, iconSources } from '../../sources/built-in'
+import { builtInSources, drawnAs } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
 import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
 import { siteAsks } from '../../site'
+import { SourceAccount } from './accounts'
+import { CountryRow } from './country'
 
 const style = css`
   h3.part {
@@ -15,49 +20,98 @@ const style = css`
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);
-    margin: 0 0 0.6rem;
+    margin: 3.2rem 0 0.6rem;
   }
-
-  h3.part ~ h3.part, .part-head ~ h3.part { margin-top: 3.2rem; }
 
   .part-head {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.4rem 1.2rem;
-    margin-bottom: 0.6rem;
+    margin: 2.4rem 0 0.8rem;
   }
 
-  .part-head h3.part { margin: 0; }
   .part-head .count { font-size: 1.3rem; color: rgba(255, 255, 255, 0.5); }
   .part-head .link-button { margin-left: auto; }
 
-  .built-in {
+  ul.cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));
     gap: 0.8rem;
   }
 
-  .built-in label {
+  .card {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 1.2rem;
-    padding: 1rem 1.2rem;
+    min-width: 0;
+    padding: 1.2rem 1.4rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.8rem;
     background: rgba(255, 255, 255, 0.02);
-    cursor: pointer;
-    transition: border-color 0.15s;
   }
 
-  .built-in label:hover { border-color: rgba(255, 255, 255, 0.25); }
-  .built-in .source { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
-  .built-in .source-name { font-size: 1.5rem; font-weight: 600; color: #fff; overflow-wrap: anywhere; transition: color 0.15s; }
-  .built-in .host { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .built-in label.off .source-name { color: rgba(255, 255, 255, 0.5); }
+  .card .top {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    min-width: 0;
+  }
+
+  .card .icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    transition: opacity 0.15s;
+  }
+
+  .card .icon img { width: 2rem; height: 2rem; object-fit: contain; }
+  .card .icon .letter { font-size: 1.5rem; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
+
+  .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .card h3 { font-size: 1.5rem; overflow-wrap: anywhere; transition: color 0.15s; }
+  .card .from { font-size: 1.2rem; color: rgba(255, 255, 255, 0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.off h3 { color: rgba(255, 255, 255, 0.5); }
+  .card.off .icon { opacity: 0.5; }
+
+  .card .switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem 2.4rem;
+  }
+
+  .card .switches label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+  }
+
+  .card .account {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .card .account .state { margin-right: auto; font-size: 1.3rem; color: rgba(255, 255, 255, 0.55); }
+  .card .account .state.on { color: #4ade80; }
+  .card .account .actions { margin-left: auto; }
+  .card .account p { font-size: 1.3rem; }
+  .card .account .note { flex-basis: 100%; }
+  .card .account button:not(.small) { padding: 0.5rem 1.2rem; font-size: 1.3rem; }
 
   @media (prefers-reduced-motion: reduce) {
-    .built-in .source-name { transition: none; }
+    .card .icon, .card h3 { transition: none; }
   }
 
   button.link-button {
@@ -242,68 +296,71 @@ const siteOf = (url: string) => {
   return host.replace(/^www\./, '') + pathname.replace(/\/$/, '')
 }
 
-const sources = builtInSources.filter(source => siteAsks(source.origin))
-
-/** The sources stub ships with that this site asks, each with a switch: all on until the viewer turns one off. */
-const BuiltInSources = () => {
-  const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
-  useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
-  const off = sources.filter(source => disabled.has(source.origin)).length
-
-  // Turn all on stays mounted when nothing is off, so no line comes or goes under the pointer and focus stays put
-  return (
-    <>
-      <div className="part-head">
-        <h3 className="part">Built in</h3>
-        <span className="count">{off ? `${sources.length - off} of ${sources.length} on` : `All ${sources.length} on`}</span>
-        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(sources.map(source => source.origin)) }}>Turn all on</button>
-      </div>
-      <ul className="built-in">
-        {sources.map(source => {
-          const on = !disabled.has(source.origin)
-          return (
-            <li key={source.origin} data-source={source.origin}>
-              <label className={on ? undefined : 'off'}>
-                <span className="source">
-                  <span className="source-name">{source.name}</span>
-                  <span className="host">{siteOf(source.url)}</span>
-                </span>
-                <input type="checkbox" role="switch" css={switchStyle} aria-label={source.name} checked={on} onChange={event => setSourceEnabled(source.origin, (event.target as HTMLInputElement).checked)}/>
-              </label>
-            </li>
-          )
-        })}
-      </ul>
-    </>
-  )
+type Card = {
+  origin: string
+  name: string
+  /** The site it reads, or the address of the package that added it. */
+  from: string
+  icon?: string | null
+  /** The origin its icon is drawn as, when stub draws one. */
+  drawn?: string
+  /** This site asks it, so it has a switch. */
+  asked: boolean
 }
 
 // every drawn icon on every site, not only the sources this site asks: Simkl and Watchmode mint `mal`, `anilist` and `cr` handles everywhere
-const Icons = () => {
-  const hidden = useHiddenIcons()
+const BUILT_IN: Card[] = builtInSources
+  .map(source => ({ origin: source.origin, name: source.name, from: siteOf(source.url), icon: source.icon, drawn: drawnAs(source.origin), asked: siteAsks(source.origin) }))
+  .filter(card => card.asked || card.drawn)
+
+const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap(plugin => plugin.state === 'connected'
+  ? (plugin.sources ?? []).map(source => ({ origin: source.origin, name: source.name, from: plugin.uri, icon: source.icon, drawn: source.isApiOnly ? undefined : source.origin, asked: true }))
+  : [])
+
+const SourceCard = ({ card, on, shown, accounts }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps }) => {
+  const heading = useRef<HTMLHeadingElement>(null)
   return (
-    <>
-      <h3 className="part">Icons</h3>
-      <ul className="built-in">
-        {iconSources.map(source => {
-          const shown = !hidden.has(source.origin)
-          return (
-            <li key={source.origin} data-icon={source.origin}>
-              <label className={shown ? undefined : 'off'}>
-                <span className="source"><span className="source-name">{source.name}</span></span>
-                <input type="checkbox" role="switch" css={switchStyle} aria-label={`${source.name} icon`} checked={shown} onChange={event => setIconShown(source.origin, (event.target as HTMLInputElement).checked)}/>
-              </label>
-            </li>
+    <li className={`card${on ? '' : ' off'}`} data-source={card.origin}>
+      <div className="top">
+        <span className="icon">
+          {card.icon ? <OriginIcon icon={card.icon} name={card.name}/> : <span className="letter" aria-hidden="true">{card.name.charAt(0)}</span>}
+        </span>
+        <div className="title">
+          <h3 ref={heading} tabIndex={-1}>{card.name}</h3>
+          <span className="from">{card.from}</span>
+        </div>
+      </div>
+      <div className="switches">
+        {card.asked
+          ? (
+            <label>
+              Source
+              <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} source`} checked={on} onChange={event => setSourceEnabled(card.origin, (event.target as HTMLInputElement).checked)}/>
+            </label>
           )
-        })}
-      </ul>
-    </>
+          : undefined}
+        {card.drawn
+          ? (
+            <label>
+              Icon
+              <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} icon`} checked={shown} onChange={event => setIconShown(card.drawn!, (event.target as HTMLInputElement).checked)}/>
+            </label>
+          )
+          : undefined}
+      </div>
+      <SourceAccount origin={card.origin} heading={heading} {...accounts}/>
+    </li>
   )
 }
 
-/** The sources stub ships with, the sources the viewer added from npm, and the two ways to add more. */
-export const SourcesSection = () => {
+/**
+ * The viewer's country, then a card for every source stub ships with or the viewer added, each with its
+ * switches and its sign-in, then the added packages and the two ways to add more.
+ */
+export const SourcesSection = (accounts: AccountsProps) => {
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
+  const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
+  const hidden = useHiddenIcons()
   const [uri, setUri] = useState('')
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
@@ -315,6 +372,11 @@ export const SourcesSection = () => {
     refresh()
     return onPluginsChange(refresh)
   }, [])
+  useEffect(() => watchDisabledSources(() => setDisabled(new Set(readDisabledSources()))), [])
+
+  const cards = [...BUILT_IN, ...addedCards(plugins)]
+  const switched = cards.filter(card => card.asked)
+  const off = switched.filter(card => disabled.has(card.origin)).length
 
   const onAdd = (event: Event) => {
     event.preventDefault()
@@ -335,10 +397,19 @@ export const SourcesSection = () => {
       })
   }
 
+  // Turn all on stays mounted when nothing is off, so no line comes or goes under the pointer and focus stays put
   return (
     <div css={style}>
-      <BuiltInSources/>
-      <Icons/>
+      <div className="rows">
+        <CountryRow/>
+      </div>
+      <div className="part-head">
+        <span className="count">{off ? `${switched.length - off} of ${switched.length} on` : `All ${switched.length} on`}</span>
+        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(switched.map(card => card.origin)) }}>Turn all on</button>
+      </div>
+      <ul className="cards">
+        {cards.map(card => <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts}/>)}
+      </ul>
       <h3 className="part">Added</h3>
       {plugins.length
         ? (

@@ -6,7 +6,6 @@ import { useLocationProperty } from 'wouter/use-browser-location'
 
 import { detectBackend } from '../../utils/fkn-backend'
 import { scrollToTop } from '../scroll-reset'
-import { AccountsSection } from './accounts'
 import { PlaybackSection } from './playback'
 import { SETTINGS_SECTIONS, sectionFromHash } from './sections'
 import { SourcesSection } from './sources'
@@ -103,9 +102,9 @@ const Settings = () => {
       </nav>
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
         <h2 id="settings-section-title">{current.title}</h2>
-        {current.id === 'accounts'
-          ? <AccountsSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
-          : current.id === 'sources' ? <SourcesSection/> : <PlaybackSection/>}
+        {current.id === 'sources'
+          ? <SourcesSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
+          : <PlaybackSection/>}
       </section>
     </div>
   )

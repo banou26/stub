@@ -1,6 +1,5 @@
 /** The settings page's categories, in the order its list shows them. */
 export const SETTINGS_SECTIONS = [
-  { id: 'accounts', title: 'Accounts' },
   { id: 'sources', title: 'Sources' },
   { id: 'playback', title: 'Playback' },
 ] as const
@@ -9,7 +8,7 @@ type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']
 
 /**
  * The category a fragment picks, spelled as `location.hash` spells it (`#sources`). No fragment, or one
- * naming no category (`#data` from before the Data section went), picks Accounts.
+ * naming no category (`#accounts` from before the sign-ins joined their sources' cards), picks Sources.
  */
 export const sectionFromHash = (hash: string): SettingsSectionId =>
-  SETTINGS_SECTIONS.find(section => `#${section.id}` === hash)?.id ?? 'accounts'
+  SETTINGS_SECTIONS.find(section => `#${section.id}` === hash)?.id ?? 'sources'

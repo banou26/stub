@@ -16,14 +16,15 @@ import { viewerIn } from '../sources/justwatch/viewer'
 
 // lucide-react is CommonJS and requires react under node; the tracking row draws its icons with it
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronDown', 'ChevronUp', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
-const { AccountsSection } = await import('../../../src/router/settings/accounts')
+const { SourcesSection } = await import('../../../src/router/settings/sources')
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 
-// The Accounts section of the settings page: every sign-in stub uses, what it is, and the way out of it
-// where one exists. On the cloud a site's session sits in FKN's jar, which a sign out empties; with the
-// extension it is the browser's own, which stub can only stop using.
+// The sign-ins in the cards of the settings page's Sources: every sign-in stub uses, what it is, and the
+// way out of it where one exists. On the cloud a site's session sits in FKN's jar, which a sign out
+// empties; with the extension it is the browser's own, which stub can only stop using.
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -73,13 +74,13 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
     status: fakeStatus().status,
     ...overrides,
   }
-  const host = mount(<AccountsSection {...props}/>)
+  const host = mount(<SourcesSection {...props}/>)
   hosts.push(host)
   const row = (id: string) => host.querySelector<HTMLElement>(`[data-account="${id}"]`)!
   return { host, props, row }
 }
 
-const chip = (row: HTMLElement) => row.querySelector('.head .state')?.textContent
+const chip = (row: HTMLElement) => row.querySelector('.state')?.textContent
 
 /** Stub remembers the viewer signed in to `site`, so its row offers the sign out. */
 const signedInTo = (site: StatusSite) => {
@@ -90,7 +91,7 @@ const signedInTo = (site: StatusSite) => {
 
 test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
   const { host } = render()
-  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account'))).toEqual(['crunchyroll', 'prime', 'anilist', 'mal', 'netflix'])
+  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account')!).sort((a, b) => a.localeCompare(b))).toEqual(['anilist', 'crunchyroll', 'mal', 'netflix', 'prime'])
 })
 
 describe('Crunchyroll on the cloud', () => {
@@ -131,7 +132,7 @@ describe('Prime Video', () => {
   test('on the cloud in Japan, signs out of FKN\'s jar once asked twice, and signs in through a window', async () => {
     viewerIn('Asia/Tokyo')
     const { row, props } = render({ status: signedInTo('prime') })
-    expect(row('prime').querySelector('h3')!.textContent).toBe('Prime Video')
+    expect(row('prime').closest('[data-source]')!.querySelector('h3')!.textContent).toBe('Prime Video')
     await act(async () => { button(row('prime'), 'Sign out')!.click() })
     expect(row('prime').textContent).toContain('Sign out of Prime Video in every fkn.app app?')
     await act(async () => { button(row('prime'), 'Yes, sign out')!.click() })
@@ -296,7 +297,7 @@ describe('the sign-in states', () => {
 
     expect(chip(row('crunchyroll'))).toBe('Signed in')
     expect(chip(row('anilist'))).toBe('Signed out')
-    expect(row('anilist').querySelector('.head .state')!.classList.contains('on'), 'signed out is not shown as on').toBe(false)
+    expect(row('anilist').querySelector('.state')!.classList.contains('on'), 'signed out is not shown as on').toBe(false)
     expect(host.textContent).not.toMatch(/checked|Check/)
     expect([...host.querySelectorAll('button')].map(item => item.textContent).filter(text => /check/i.test(text ?? ''))).toEqual([])
   })
@@ -351,7 +352,7 @@ describe('the sign-in states', () => {
     const Harness = () => {
       const [backend, setBackend] = useState<FknBackend>()
       known = setBackend
-      return <AccountsSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} prime={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
+      return <SourcesSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} prime={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
     }
     hosts.push(mount(<Harness/>))
     await flush()
