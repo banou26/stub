@@ -274,7 +274,7 @@ test('a season JustWatch names only by its place in the show takes the show\'s t
   for (const place of places) {
     expect(titlesOf(await mediaFor('jw:12345-111', titled(place))), place).toEqual(['A Show With Several Seasons'])
   }
-  for (const name of ['Book One: Water', 'Season 16: Evolution', 'Murder House']) {
+  for (const name of ['Book One: Water', 'Season 16: Evolution', 'Murder House', 'All Stars 2', 'Outlander: Blood of my Blood - Season 1']) {
     expect(titlesOf(await mediaFor('jw:12345-111', titled(name))), name).toEqual([name])
   }
 })
