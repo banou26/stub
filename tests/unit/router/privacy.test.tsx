@@ -89,6 +89,11 @@ test('names every host stub asks from the browser, and of their services only An
   expect(items.map(item => item.firstChild!.textContent!.trim()).filter(service => proxied!.includes(service))).toEqual(['AniList'])
 })
 
+test('says what a source added in Settings is told of the viewer: the languages', () => {
+  const { text: page } = text()
+  expect(page).toContain("Sources you add in Settings are told your browser's language and the audio and subtitle languages you last picked in a player")
+})
+
 // a video, an embed and a stylesheet the browser loads itself, outside any source's fetch, so direct-fetch.ts lists none
 test('names the hosts of the theme videos, the trailer embeds and the fonts', () => {
   const { text: page } = text()

@@ -11,6 +11,7 @@ import { sessionResolvers } from './tracking/site-sessions'
 import { readDisabledSources, watchDisabledSources } from './sources/disabled-sources'
 import { readPickedCountry, watchPickedCountry } from './sources/country'
 import { readMergeOrder, watchMergeOrder } from './sources/merge-order'
+import { viewerLanguages, watchViewerLanguages } from './viewer-languages'
 
 const worker = new Worker()
 
@@ -39,7 +40,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, setMergeOrder, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, setMergeOrder, setViewerLanguages, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -81,6 +82,8 @@ await setDisabledSources(readDisabledSources())
 watchDisabledSources(() => { void setDisabledSources(readDisabledSources()) })
 await setPickedCountry(readPickedCountry())
 watchPickedCountry(() => { void setPickedCountry(readPickedCountry()) })
+await setViewerLanguages(viewerLanguages())
+watchViewerLanguages(() => { void setViewerLanguages(viewerLanguages()) })
 
 export {
   handleRequest,

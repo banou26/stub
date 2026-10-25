@@ -1,6 +1,7 @@
 import type { YogaInitialContext } from 'graphql-yoga'
 import type { Resolvers as MainThreadResolvers } from '../worker'
 import type { RegisteredSource } from './plugin-sources'
+import type { ViewerLanguages } from '../plugin-api'
 
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
 import { createSchema, createYoga, useErrorHandler, useExecutionCancellation } from 'graphql-yoga'
@@ -11,6 +12,7 @@ import { resolvers } from './resolvers'
 import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
+import { holdViewerLanguages } from '../viewer-languages'
 import { exportStore } from './store/export'
 import { enableGraph, exportAnswers, exportAsks, graphCounts, setMergeOrder, setReadStore, traceAnswer, traceGraph } from './graph'
 import { stubTrackerLink } from '../sources/stub/tracker'
@@ -65,6 +67,7 @@ export const osraResolvers = {
   setPickedCountry: (country: string | undefined) => holdPickedCountry(country),
   // the merge order set in Settings, handed over before the engine boots and again on every change
   setMergeOrder: (order: string[]) => setMergeOrder(order),
+  setViewerLanguages: (languages: ViewerLanguages) => holdViewerLanguages(languages),
   registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: RegisteredSource[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
     try {
       return { ok: await registerRemoteExtractor(port, pluginUri) }

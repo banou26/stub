@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 
 import type { PlaybackLink } from '../party/bridge'
 
-import { STUB_SOURCE_PROTOCOL } from '../plugin-api'
+import { STUB_SOURCE_PROTOCOL, type ViewerLanguages } from '../plugin-api'
 import { pluginPlaybackLink, type PlaybackSource } from '../party/plugin-link'
 import { fromUri } from '../utils/uri'
+import { viewerLanguages } from '../viewer-languages'
 
 const style = css`
   position: relative;
@@ -38,7 +39,7 @@ const style = css`
 
 type PlayableSource = PlaybackSource & {
   origin?: string
-  play?: (release: { uri: string, url?: string }) => Promise<boolean>
+  play?: (release: { uri: string, url?: string, languages?: ViewerLanguages }) => Promise<boolean>
 }
 
 type PluginPayload = PlayableSource & { sources?: PlayableSource[] }
@@ -96,7 +97,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         const { origin } = fromUri(release.uri as `${string}:${string}`)
         const payload = connection.remote
         const source = payload.sources?.find(entry => entry.origin === origin) ?? payload
-        const played = await source.play?.({ uri: release.uri, url: release.url })
+        const played = await source.play?.({ uri: release.uri, url: release.url, languages: viewerLanguages() })
         if (done) return
         // false is the source saying it cannot play THIS release, which is a fallback, not a failure
         if (!played) { connection.unmount(); mounted = undefined; callbacks.current.onUnplayable(); return }

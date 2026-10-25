@@ -3,7 +3,13 @@ import type { PlaybackState } from './party/protocol'
 
 export type { PlaybackState }
 
-// Subscription.media, mediaPage and similarMedia subscribe generators are served; the ctx a plugin sees carries exactly one function, `similarMedia`
+// Subscription.media, mediaPage and similarMedia subscribe generators are served; the ctx a plugin sees carries exactly one function, `similarMedia`, and the viewer's `languages`
+
+/**
+ * BCP 47 tags: the viewer's language, and the audio and subtitle languages last picked in a player (null: off).
+ * Additive to stub-source@1: a resolver gets them as `languages` in its context, and `play` with the release.
+ */
+export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null }
 
 export type StubSource = {
   // contract: every top-level media a plugin yields must carry its declared origin or the worker drops it (enforcePluginOrigin); nested handles are exempt, cross-origin handles are how clustering works
@@ -30,7 +36,7 @@ export type StubSource = {
    * point: a torrent index can hand its release to a torrent client without stub knowing torrents
    * exist.
    */
-  play?: (release: { uri: string, url?: string }) => Promise<boolean>
+  play?: (release: { uri: string, url?: string, languages?: ViewerLanguages }) => Promise<boolean>
   /**
    * Hear what the player `play` put up is doing: every play, pause, seek and rate change, and a
    * heartbeat every few seconds while it plays. One listener; the next call replaces it.

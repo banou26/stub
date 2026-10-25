@@ -347,21 +347,28 @@ also the one claim that is unchecked. Disabling the plugin afterwards removes it
 
 A built-in resolver is handed an `ExtractorServerContext` with four members
 (`src/worker/extractor.ts:39-48`): `fetch` (the backoff-wrapped proxy fetch), `findAggregatedMedia`,
-`listenForMediaChanges`, and `similarMedia`. A plugin resolver is handed one object with one member,
-minted per call at `src/worker/extractor.ts:675`:
+`listenForMediaChanges`, and `similarMedia`. A plugin resolver is handed one object with one function
+and the viewer's languages, minted per call at `src/worker/extractor.ts:682`:
 
 ```ts
-for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin) })) {
+for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin), languages: heldViewerLanguages() })) {
 ```
 
-`src/worker/extractor.ts:667-674` is the argument for that one function being there at all:
+`languages` is `{ language, audio?, subtitles? }` in BCP 47 tags (`ViewerLanguages`, `src/plugin-api.ts`):
+the browser's first language, and the audio and subtitle languages last picked in a player, subtitles off
+as `null` and a pick naming no language left out. The page hands them to the worker at start and on every
+pick (`src/viewer-languages.ts`), as it hands the country, and `play` gets the same object beside the
+release. Both are additive to `stub-source@1`: an older plugin reads neither.
+
+`src/worker/extractor.ts:672-680` is the argument for that one function being there at all:
 
 > The ctx a plugin sees is EXACTLY one function and never the real one. Stub's privileged
 > context, the proxy fetch and the store reads, still does not cross to third-party code; what
 > crosses is the ability to ask a first-party source "which run of this show is the one this
 > evidence describes", which is the same question the app asks on the plugin's behalf anyway.
 > The surface is narrow: scalars and strings that every implementation compares rather than
-> interpolates into a url, answered with a media the app was going to fetch anyway.
+> interpolates into a url, answered with a media the app was going to fetch anyway. Beside it,
+> plain strings: the viewer's languages, read when the call is made.
 
 No source takes a key from the viewer since 2026-10-07, so a plugin's question spends nobody's key.
 
@@ -446,7 +453,7 @@ defaults, the fan-out join, the DataLoaders, the store, is shared.*
 | definition | a module namespace in `src/sources/index.ts` | `PluginSourceMeta` plus `makeDelegatingResolvers`, `src/worker/extractor.ts` |
 | `supportedUris` | declared, read by `answersForOrigins` | absent from `PluginSourceMeta` (`src/worker/plugin-sources.ts:18-26`), so the re-ask matches on origin alone |
 | where resolvers run | in the worker | in the package's own frame, reached over the port |
-| context | four members (`src/worker/extractor.ts:39-48`) | one, `{ similarMedia: similarMediaFrom(origin) }` |
+| context | four members (`src/worker/extractor.ts:39-48`) | one function and the languages, `{ similarMedia: similarMediaFrom(origin), languages }` |
 | origin enforcement | none | `enforcePluginOrigin` per payload, nested handles exempt |
 | handle shape | edges, as the schema declares | bare rows accepted, `readPluginHandles`, media depth 4, episode depth 1 |
 | identity | whatever the module exports | `/^[a-z0-9][a-z0-9-]{0,31}$/`, and must not collide |

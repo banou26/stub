@@ -4,6 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
+import type { ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -34,6 +35,7 @@ import { recordAnswers } from './graph/answers'
 import { readStore, resolveMedia } from './graph/read'
 import { canBeContained, describeEvidence, hasEvidence, isRunAnswerFrom, printableToken, similarAskKey, type SimilarOutcome } from '../sources/similar'
 import { CONTAINING_MEDIA_DOCUMENT, SIMILAR_MEDIA_DOCUMENT } from './similar-document'
+import { heldViewerLanguages } from '../viewer-languages'
 import { closeRoot, descend, openRoot, readContext, stamp, type RootOperation } from './request-context'
 
 export type ExtractorServerContext = YogaInitialContext & {
@@ -613,8 +615,8 @@ export const extractors = Object.values(extractorDefinitions).map(definition => 
 
 // data fields materialize locally, resolver functions stay remote and execute inside the plugin's own sandbox frame
 
-/** Everything a plugin source is handed. One function, and see `delegate` below for why only this one. */
-type RemotePluginContext = { similarMedia: ExtractorServerContext['similarMedia'] }
+/** Everything a plugin source is handed: one function, see `delegate` below for why only this one, and the viewer's languages. */
+type RemotePluginContext = { similarMedia: ExtractorServerContext['similarMedia'], languages: ViewerLanguages }
 type RemotePluginSubscribe = (parent: undefined, args: unknown, ctx: RemotePluginContext) => Promise<AsyncIterable<any>>
 /** One connection may carry several sources, so a package can ship a whole family of them. */
 type RemotePluginPayload = RemotePluginSource & { sources?: unknown }
@@ -662,7 +664,7 @@ const enforcePluginOrigin = (origin: string, field: PluginField, payload: any): 
   return { ...payload, mediaPage: { ...payload.mediaPage, nodes: kept } }
 }
 
-const makeDelegatingResolvers = (origin: string, remote: RemotePluginSource): Resolvers => {
+export const makeDelegatingResolvers = (origin: string, remote: RemotePluginSource): Resolvers => {
   const subscription = remote.resolvers?.Subscription
   const delegate = (field: PluginField) => ({
     subscribe: async function* (_parent: unknown, args: unknown) {
@@ -674,9 +676,10 @@ const makeDelegatingResolvers = (origin: string, remote: RemotePluginSource): Re
        * crosses is the ability to ask a first-party source "which run of this show is the one this
        * evidence describes", which is the same question the app asks on the plugin's behalf anyway.
        * The surface is narrow: scalars and strings that every implementation compares rather than
-       * interpolates into a url, answered with a media the app was going to fetch anyway.
+       * interpolates into a url, answered with a media the app was going to fetch anyway. Beside it,
+       * plain strings: the viewer's languages, read when the call is made.
        */
-      for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin) })) {
+      for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin), languages: heldViewerLanguages() })) {
         // a plugin written against `handles: [Media!]!` sends bare rows where the store reads edges
         yield enforcePluginOrigin(origin, field, readPluginPayload(field, payload))
       }
