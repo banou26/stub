@@ -7,6 +7,7 @@ import { MediaPlayer } from '@banou/media-player'
 import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
+import { useHostFullscreen } from '../../embed-fullscreen'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { usePageFrameStep } from '../frame-steps'
 
@@ -27,10 +28,11 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
   useEffect(() => volume?.hold(), [volume])
   useEffect(() => (volume ? exposePlayer(volume.served(volume.media)) : undefined), [volume])
   const stepFrame = usePageFrameStep(frame, remote, video)
+  const fullscreen = useHostFullscreen()
 
   return (
     // `media` is passed even as null: its presence is what makes the player drive a media it does not own
-    <MediaPlayer media={volume?.media ?? null} title={title} quality={quality} stepFrame={stepFrame}>
+    <MediaPlayer media={volume?.media ?? null} title={title} quality={quality} stepFrame={stepFrame} fullscreen={fullscreen}>
       {children}
     </MediaPlayer>
   )

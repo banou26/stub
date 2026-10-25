@@ -6,6 +6,7 @@ import { MediaPlayer } from '@banou/media-player'
 import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
+import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { usePageFrameStep } from '../frame-steps'
@@ -45,6 +46,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   useEffect(() => (volume && media && expose ? exposePlayer(volume.served(media)) : undefined), [volume, media, expose])
   // on the element itself, never through `media`: the scrubber it seeks would round a step to its 0.25 s
   const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
+  const fullscreen = useHostFullscreen()
 
   return (
     <MediaPlayer
@@ -59,6 +61,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       thumbnails={thumbnails}
       chapters={chapters}
       pictureInPicture={pictureInPicture}
+      fullscreen={fullscreen}
       onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
       onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
       stepFrame={stepFrame}
