@@ -768,3 +768,22 @@ test('two seasons containing the run is a refusal', async () => {
   )
   expect(media).toBeNull()
 })
+
+// The episode list stub already asks for names the Japanese version, every dub beside it and the
+// subtitles, which the watch page's Crunchyroll card lists.
+test('an episode carries the audio languages of its version and every dub, and its subtitle languages', async () => {
+  const routes = series('GFRIEREN', [{ id: 'GSFRIEREN1', seasonNumber: 1, episodes: 2 }])
+  const url = `${CMS}/seasons/GSFRIEREN1/episodes?preferred_audio_language=ja-JP&locale=en-US`
+  const list = routes[url] as { data: object[] }
+  list.data = list.data.map((episode, index) => ({
+    ...episode,
+    audio_locale: 'ja-JP',
+    versions: index ? null : [{ audio_locale: 'ja-JP' }, { audio_locale: 'en-US' }, { audio_locale: 'es-419' }],
+    subtitle_locales: index ? [] : ['en-US', 'pt-BR', 'ar-SA'],
+  }))
+  const media = await getMedia('GFRIEREN-GSFRIEREN1', context(routes))
+  expect(media?.episodes.map(({ audioLanguages, subtitleLanguages }) => ({ audioLanguages, subtitleLanguages }))).toEqual([
+    { audioLanguages: ['ja-JP', 'en-US', 'es-419'], subtitleLanguages: ['en-US', 'pt-BR', 'ar-SA'] },
+    { audioLanguages: ['ja-JP'], subtitleLanguages: undefined },
+  ])
+})

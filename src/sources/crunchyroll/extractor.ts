@@ -4,8 +4,8 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaI
 import { RELAY_HEADER } from '@fkn/lib/contract'
 
 import { extractAggregatedUriOrigin, fromAggregatedUri, isAggregatedUri, isUri } from '../../utils/uri'
-import { SEASON_DATE_WINDOW } from '../catalogue-gate'
 import { isOnlySeasonLabel } from '../season'
+import { languageTags } from '../stream-facts'
 import { pickSimilarSeason, type RunEvidence, type SeasonCandidate } from '../similar'
 import {
   makeMedia, makeEpisode, desc, img,
@@ -138,6 +138,10 @@ interface CrEpisode {
   sequence_number: number
   episode_air_date: string
   images?: { thumbnail?: { source: string }[][] }
+  /** the version this list was asked in (`preferred_audio_language`); `versions` names every dub beside it */
+  audio_locale?: string
+  versions?: { audio_locale: string }[] | null
+  subtitle_locales?: string[]
 }
 
 const CMS = 'https://www.crunchyroll.com/content/v2/cms'
@@ -236,7 +240,9 @@ const normalizeEpisode = (ep: CrEpisode, mediaUri: string): GQLEpisode =>
     seasonNumber: ep.season_number,
     episodeNumber: ep.episode_number,
     absoluteEpisodeNumber: ep.sequence_number,
-    releaseDate: ep.episode_air_date ? new Date(ep.episode_air_date).toISOString() : undefined
+    releaseDate: ep.episode_air_date ? new Date(ep.episode_air_date).toISOString() : undefined,
+    audioLanguages: languageTags([ep.audio_locale, ...(ep.versions ?? []).map(version => version.audio_locale)]),
+    subtitleLanguages: languageTags(ep.subtitle_locales),
   })
 
 // regular episodes come after specials in CR's ordering, so the last per episode_number wins
