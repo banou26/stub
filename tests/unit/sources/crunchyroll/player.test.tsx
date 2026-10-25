@@ -500,6 +500,15 @@ describe('the tracks served to the watch page', () => {
       expect(picks()).toEqual([['audio', 'English#2']])
     })
 
+    test('match the subtitles against the list the audio switched to', async () => {
+      // a dub lists subtitles of its own
+      const dubbed = { ...TRACKS, audio: switched.audio, subtitles: { options: [{ id: 'English', label: 'English' }, { id: 'Español', label: 'Español' }], selectedId: null, offLabel: 'Off' } }
+      controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles') =>
+        kind === 'audio' ? dubbed : { ...dubbed, subtitles: { ...dubbed.subtitles, selectedId: 'Español' } })
+      await playing({ audio: 'English', subtitles: 'Español' })
+      expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', 'Español']])
+    })
+
     // a switch puts the stream back where it was when it began, which would undo the page's seek to where the viewer stopped
     describe('the watch page drives the player', () => {
       test('once they are switched to, and busy until then', async () => {
