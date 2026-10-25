@@ -4,8 +4,8 @@
  * overlays; Settings opens the settings menu, or closes every open menu, after which the controls are
  * gone again; the menu's Video Quality entry opens the quality menu in its place, three radios that check
  * the one clicked. The quality menu's markup is the one measured, without its class names and images.
- * The check lands a tick after the click, as under a React that renders a click's update once the click
- * has returned (React 18; the SDK carries 16.8.6, which renders at once, but takes its React from its host).
+ * The check lands a tick after the click, as Amazon's does: the SDK hands a pick to its menu through
+ * `MulticastCallback.invoke`, which defers it with `setImmediate`.
  */
 export const PRIME_PLAYER = `
   <div class="atvwebplayersdk-player-container">
