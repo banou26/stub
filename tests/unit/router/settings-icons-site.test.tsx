@@ -16,6 +16,7 @@ vi.mock('../../../src/site', async importOriginal => {
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
+const { PLAY_ORDER_KEY } = await import('../../../src/sources/play-order')
 
 const ACCOUNTS: AccountsProps = {
   backend: 'cloud',
@@ -58,4 +59,19 @@ test('Turn all on turns on the sources this site lists, and leaves an anime cata
   await act(() => { button(host, 'Turn all on')!.click() })
   expect(JSON.parse(stored.get(DISABLED_SOURCES_KEY)!)).toEqual(['mal'])
   expect(button(host, 'Turn all on')!.getAttribute('aria-disabled'), 'all of this site\'s on').toBe('true')
+})
+
+// the order follows the account from anime, where Crunchyroll sits between the two cards movies ranks
+test('a move steps past a source this site does not rank, so the card always moves', async () => {
+  const stored = new Map([[PLAY_ORDER_KEY, '["amazon","cr","nf"]']])
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  })
+  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  hosts.push(host)
+  await act(() => { host.querySelector<HTMLButtonElement>('[aria-label="Move Netflix up"]')!.click() })
+  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['nf', 'amazon', 'cr'])
+  expect([...host.querySelectorAll('ol.play-order > li')].map(card => card.getAttribute('data-source'))).toEqual(['nf', 'amazon'])
 })
