@@ -268,6 +268,22 @@ describe('the session frame', () => {
     expect(await answer).toBe('cut short from document 1')
   }, 5_000)
 
+  test.each(REPORTS)('a call whose page failed its fetch as it left, then held on past retryMs, runs on the next document once it lands (goto %s)', async report => {
+    const { hang, leave, newDocument, reached, ask } = setup({ report, retryMs: 50 })
+    await ask('warm')
+    hang()
+
+    const answer = ask('cut short')
+    answer.catch(() => {})
+    await vi.waitFor(() => expect(reached).toContain('cut short'))
+    leave()
+    await vi.waitFor(() => expect(reached.filter(question => question === 'cut short'), 'run again on the page still leaving').toHaveLength(2))
+    newDocument()
+
+    expect(await answer).toBe('cut short from document 1')
+    expect(reached.filter(question => question === 'cut short')).toHaveLength(3)
+  })
+
   test('a call that failed on a page that stays runs once more on it', async () => {
     const { fail, reached, ask } = setup({ retryMs: 20 })
     await ask('warm')

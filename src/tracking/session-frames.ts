@@ -207,13 +207,14 @@ export const createSessionFrames = <Api>(
 
   const use = async <T>(id: string, call: (api: Api) => Promise<T>, { once = false }: UseOptions = {}): Promise<T> => {
     const site = siteOf(id)
-    for (let attempt = 0; ; attempt++) {
-      const again = attempt === 0
+    let moved = false
+    let failed = false
+    for (;;) {
       const entry = entries.get(site.id) ?? start(site)
       const frame = await entry.frame
       // reloaded while attaching: that frame is already on its way out
       if (entries.get(site.id) !== entry) {
-        if (again) continue
+        if (!moved) { moved = true; continue }
         throw new PageGone(`${site.origin} was reloaded while stub was asking it`)
       }
       const current = entry.current ?? install(entry, site, frame)
@@ -221,7 +222,7 @@ export const createSessionFrames = <Api>(
       try {
         api = await Promise.race([current.api, current.gone])
       } catch (error) {
-        if (error instanceof PageGone && again) continue
+        if (error instanceof PageGone && !moved) { moved = true; continue }
         // an install that failed is dropped, so the next use installs again rather than failing for good
         drop(entry, current)
         throw error
@@ -233,14 +234,17 @@ export const createSessionFrames = <Api>(
           throw new CallInterrupted(`${site.origin} changed while stub's call was running, so whether it arrived is not known`)
         }
         if (error instanceof PageSilent) drop(entry, current)
-        if (error instanceof PageGone && again) continue
+        if (error instanceof PageGone && !moved) { moved = true; continue }
         // A page that starts to leave fails the fetch a call is waiting on, and the page script sends that
         // failure back before the next document can be reported: Firefox 157 at beforeunload, before the next
         // document is even asked for ("NetworkError when attempting to fetch resource."), Chrome 155 at unload
         // ("Failed to fetch"), measured 2026-10-26. So a call the next document cut short mostly arrives as
         // that TypeError (osra keeps the class across the port), not as PageGone. What the page script throws
         // itself, an HTTP status say, is a plain Error and is not sent again.
-        if (!again || once || !(error instanceof TypeError)) throw error
+        // Firefox's leaving page keeps running, so the run after retryMs can land on it, and a next document
+        // reported during that run still gets the call.
+        if (failed || once || !(error instanceof TypeError)) throw error
+        failed = true
         await Promise.race([current.gone, sleep(retryMs)]).catch(() => {})
       }
     }
