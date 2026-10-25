@@ -344,6 +344,22 @@ test('a trailer that fails gives way to the show\'s next trailer, and the show s
   expect(shown()).toEqual({ title: 'black-clover title', description: 'black-clover description', trailer: 'https://www.youtube.com/watch?v=4MYo8FfiXMA' })
 })
 
+// Measured 2026-10-25 on anime.fkn.app: the hero held Black Clover Season 2 with only Kitsu's trailer,
+// which YouTube refuses to embed (error 150), and showed its banner, while AniList's trailer for the
+// show had merged into the listing since and plays.
+test('a held show whose trailers all fail plays a trailer its listing gained since', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { shown, update } = hero([show('black-clover', { trailers: ['9QyiEgv33z4'] })])
+  update([show('black-clover', { title: 'Black Clover Season 2', trailers: ['4MYo8FfiXMA', '9QyiEgv33z4'] })])
+  expect(shown().trailer, 'the control: the pick\'s own plays first').toBe('https://www.youtube.com/watch?v=9QyiEgv33z4')
+
+  act(() => { player.fail() })
+  expect(shown()).toEqual({ title: 'black-clover title', description: 'black-clover description', trailer: 'https://www.youtube.com/watch?v=4MYo8FfiXMA' })
+
+  act(() => { player.fail() })
+  expect(shown().trailer, 'and with the listing\'s failed too, none').toBeUndefined()
+})
+
 // With YouTube unreachable every embed is reported silent about 10 s after its frame loads, and the
 // hero re-picked on each one: six shows in 70 s, measured 2026-10-10.
 test('when every trailer of the show fails, the show stays without one', () => {

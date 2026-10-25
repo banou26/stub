@@ -209,17 +209,21 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
       setWaitedForSources(false)
     }
   }, [starting])
+  // the show as listed now, since banners and trailers merge in after the pick
+  const listed = media && mediaNodes.find(node => isSameShow(node, media))
   // a failed trailer gives way to the show's next one, or to none, never to another show: with YouTube
-  // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10)
+  // unreachable every embed fails, and re-picking on each one cycled the hero every 10 s (measured 2026-10-10).
+  // The pick's own come first, then the listing's: in 2 of 8 loads the pick held only Kitsu's trailer,
+  // which YouTube refuses to embed (error 150), while AniList's for the show had merged in and plays
+  // (Black Clover Season 2 and Firefly Wedding, measured 2026-10-25)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
   const trailer = slowLink || (starting && !waitedForSources)
     ? undefined
-    : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
+    : [...media?.trailers ?? [], ...listed?.trailers ?? []].find(trailer => !deadTrailers.includes(trailer.uri))
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal. Read off
-  // the listing rather than the pick as held, since banners merge in after the pick: over the ten picks
-  // with the trailer held, the pick as held ended on a 425x600 poster in 3 and never on AniZip's
-  // 1920x1080 fanart, which the listing's node drew in 8 (measured 2026-10-25)
-  const listed = media && mediaNodes.find(node => isSameShow(node, media))
+  // the listing rather than the pick as held: over the ten picks with the trailer held, the pick as held
+  // ended on a 425x600 poster in 3 and never on AniZip's 1920x1080 fanart, which the listing's node drew
+  // in 8 (measured 2026-10-25)
   // the viewport stands in for the hero's own box, 5rem shorter, since each merge would otherwise swap
   // the backdrop for any higher ranked banner, also one no sharper (Kitsu's 4096x1049 to AniZip's
   // 1920x1080, measured 2026-10-25)
