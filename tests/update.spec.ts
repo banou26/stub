@@ -39,10 +39,14 @@ let index: string
 let stylesheet: string
 /** The build `/` serves, 0 being the one built. */
 let deployed = 0
+/** The html of the same code built at another commit, which `/` serves as build SAME_CODE. */
+let sameCode: string
+const SAME_CODE = -1
 let asked: { path: string, dest?: string, status: number }[] = []
 
 /** Build `n`: the built html, its stylesheet renamed and its number in a meta tag. */
 const html = (n: number) => {
+  if (n === SAME_CODE) return sameCode
   const page = index.replace('<head>', `<head><meta name="stub-build" content="${n}">`)
   return n === 0 ? page : page.replace(stylesheet, renamed(n))
 }
@@ -54,24 +58,35 @@ test.beforeAll(async () => {
   const plugins = join(ROOT, 'src', 'plugins')
   const fetch = join(ROOT, 'src', 'utils', 'fetch')
   const party = join(ROOT, 'src', 'party', 'index.ts')
-  await build({
-    configFile: join(ROOT, 'vite.config.ts'),
-    root: ROOT,
-    logLevel: 'error',
-    build: { outDir: dir, emptyOutDir: true },
-    plugins: [{
-      name: 'spec-fakes',
-      enforce: 'pre',
-      resolveId: (source, importer) => {
-        const path = importer && resolve(dirname(importer), source)
-        return path === plugins ? join(ROOT, 'tests', 'fake-plugins.ts')
-          : path === fetch ? join(ROOT, 'tests', 'fake-fetch.ts')
-          : undefined
-      },
-      load: id => id === party ? `export * from ${JSON.stringify(join(ROOT, 'tests', 'party-grid-party.ts'))}` : undefined,
-    }],
-  })
-  index = readFileSync(join(dir, 'index.html'), 'utf8')
+  const built = async (commit: string, outDir: string) => {
+    process.env.CF_PAGES_COMMIT_SHA = commit
+    await build({
+      configFile: join(ROOT, 'vite.config.ts'),
+      root: ROOT,
+      logLevel: 'error',
+      build: { outDir, emptyOutDir: true },
+      plugins: [{
+        name: 'spec-fakes',
+        enforce: 'pre',
+        resolveId: (source, importer) => {
+          const path = importer && resolve(dirname(importer), source)
+          return path === plugins ? join(ROOT, 'tests', 'fake-plugins.ts')
+            : path === fetch ? join(ROOT, 'tests', 'fake-fetch.ts')
+            : undefined
+        },
+        load: id => id === party ? `export * from ${JSON.stringify(join(ROOT, 'tests', 'party-grid-party.ts'))}` : undefined,
+      }],
+    })
+    return readFileSync(join(outDir, 'index.html'), 'utf8')
+  }
+  const commit = process.env.CF_PAGES_COMMIT_SHA
+  try {
+    sameCode = await built('bbbbbbb000', join(dir, 'same-code'))
+    index = await built('aaaaaaa000', dir)
+  } finally {
+    if (commit === undefined) delete process.env.CF_PAGES_COMMIT_SHA
+    else process.env.CF_PAGES_COMMIT_SHA = commit
+  }
   stylesheet = index.match(/\/assets\/main-[\w-]{8}\.css/)![0]
 
   server = createServer((request, response) => {
@@ -161,6 +176,24 @@ test('a page left open finds the new build, shows Updating Stub over everything 
   const after = asked.slice(reload)
   expect(before.filter(({ path }) => path === renamed(1)), 'downloaded before the reload').toEqual([{ path: renamed(1), dest: 'empty', status: 200 }])
   expect(after.filter(({ path }) => path === renamed(1)), 'and revalidated by it').toEqual([{ path: renamed(1), dest: 'style', status: 304 }])
+})
+
+const commitOf = (page: string) => page.match(/name="stub-commit" content="(\w+)"/)?.[1]
+const namesOf = (page: string) => [...page.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map(([, name]) => name)
+
+test('a deploy of the same code at another commit is not a new build, and the footer names the commit its page carries', async ({ page }) => {
+  expect(namesOf(sameCode)).toEqual(namesOf(index))
+  expect([commitOf(index), commitOf(sameCode)], 'the control: two commits').toEqual(['aaaaaaa', 'bbbbbbb'])
+  await open(page)
+  await expect(page.locator('footer')).toContainText('aaaaaaa')
+  deployed = SAME_CODE
+  asked = []
+  await look(page)
+  await expect.poll(() => asked.some(({ path, dest }) => path === '/' && dest === 'empty'), 'the check ran').toBe(true)
+  await page.waitForTimeout(3_000)
+  expect(loads()).toBe(0)
+  await page.reload()
+  await expect(page.locator('footer')).toContainText('bbbbbbb')
 })
 
 test('a link a lazy chunk adds to the head is not a new build', async ({ page }) => {

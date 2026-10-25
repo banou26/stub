@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite-plus'
 
-import appConfig from './vite.config'
+import appConfig, { commit } from './vite.config'
 
 /**
  * The npm entry build, run after the app build and written beside it into `build/`.
@@ -28,6 +28,8 @@ export default defineConfig(env => {
     base: './',
     define: {
       ...app.define,
+      // no html around the entry to carry it
+      __STUB_COMMIT__: JSON.stringify(commit),
       // An app build has vite replace this and a LIB BUILD DELIBERATELY DOES NOT, because a library
       // is meant to leave the choice to whoever bundles it. Nothing bundles this one: it is loaded
       // as-is, so the reference survives to runtime and `process` does not exist in a browser. It

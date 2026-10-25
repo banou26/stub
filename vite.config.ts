@@ -14,7 +14,7 @@ const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 
 // Cloudflare Pages hands the sha in as an env var, and its checkout may carry no usable git metadata, so
 // that is the source to trust there. Falls back to git for a local build, and to 'dev' when neither
 // answers, because a footer that renders `undefined` is worse than one that admits it does not know.
-const commit = (() => {
+export const commit = (() => {
   const fromPages = process.env.CF_PAGES_COMMIT_SHA
   if (fromPages) return fromPages.slice(0, 7)
   try {
@@ -27,7 +27,9 @@ const commit = (() => {
 export default defineConfig((_) => ({
   define: {
     __STUB_VERSION__: JSON.stringify(version),
-    __STUB_COMMIT__: JSON.stringify(commit),
+    // read off index.html's meta: a sha in the js renames the entry on every commit, and every open tab
+    // would take a deploy that changes no code for an update
+    __STUB_COMMIT__: `document.querySelector('meta[name="stub-commit"]')?.content`,
   },
   fmt: { semi: false, singleQuote: true },
   lint: {
@@ -106,6 +108,10 @@ export default defineConfig((_) => ({
           )
         }
       },
+    },
+    {
+      name: 'stub-commit',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'stub-commit', content: commit }, injectTo: 'head' }],
     },
     pageScript(),
     nodePolyfills(),
