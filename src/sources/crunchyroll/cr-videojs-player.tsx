@@ -6,6 +6,7 @@ import { MediaPlayer } from '@banou/media-player'
 import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 
+import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { withTimelineSeek } from './timeline-seek'
@@ -39,6 +40,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   // served to the page that frames this embed, which is stub's own watch page: the party's playback
   // sync reads and moves the player through it, and a document nobody frames serves nobody
   useEffect(() => (volume && media && expose ? exposePlayer(volume.served(media)) : undefined), [volume, media, expose])
+  const fullscreen = useHostFullscreen()
 
   return (
     <MediaPlayer
@@ -53,6 +55,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       thumbnails={thumbnails}
       chapters={chapters}
       pictureInPicture={pictureInPicture}
+      fullscreen={fullscreen}
       onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
       onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
     >

@@ -5,16 +5,16 @@ import type { PlayerCapabilities, PlayerMediaAdapter, PlayerMediaBinding } from 
 
 import { css } from '@emotion/react'
 import { useEffect } from 'preact/hooks'
-import { videoFeatures } from '@videojs/core/dom'
 import { createPlayer, useMediaAttach } from '@videojs/react'
 import '@videojs/react/video/skin.css'
 
 import { exposePlayer } from '@banou/media-player/remote'
 
 import { rememberPlayerVolume } from '../../utils/player-volume'
+import { hostFullscreenFeatures } from './host-fullscreen'
 import VideoSurface from './video-surface'
 
-const { Provider } = createPlayer({ features: videoFeatures })
+const { Provider } = createPlayer({ features: hostFullscreenFeatures })
 
 const normalizeBinding = (value: Media | PlayerMediaBinding): PlayerMediaBinding =>
   'media' in value ? value : { media: value }
