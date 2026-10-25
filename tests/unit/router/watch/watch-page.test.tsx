@@ -31,7 +31,9 @@ let watchQuery = ''
 let origins: string[] | undefined
 let party = { status: 'idle' }
 let backend = 'cloud'
-let statuses: Record<string, string> = { crunchyroll: 'signed-out' }
+// what stub remembers of the viewer's sign-in to each site
+const SIGNED_IN = { crunchyroll: 'signed-in', prime: 'signed-in' }
+let statuses: Record<string, string> = { ...SIGNED_IN }
 let tracking: object | undefined
 let storage: object | undefined
 const saved: object[] = []
@@ -73,9 +75,11 @@ vi.mock('../../../../src/worker', () => ({
     return id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null
   },
 }))
-// the added sources as src/plugins.ts reports them: Nyaa's package connected unless a test says otherwise
-const plugins = vi.hoisted(() => ({ statuses: [] as object[], listeners: new Set<() => void>() }))
+// the added sources as src/plugins.ts reports them: Nyaa's package connected unless a test says otherwise;
+// `browse` is FKN's package browser
+const plugins = vi.hoisted(() => ({ statuses: [] as object[], listeners: new Set<() => void>(), browse: vi.fn(async () => {}) }))
 vi.mock('../../../../src/plugins', () => ({
+  addPlugins: plugins.browse,
   pluginStatuses: () => plugins.statuses,
   onPluginsChange: (listener: () => void) => {
     plugins.listeners.add(listener)
@@ -93,6 +97,37 @@ vi.mock('../../../../src/utils/fkn-backend', () => ({
 }))
 vi.mock('../../../../src/tracking/site-status', () => ({ siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } }, recordTrackerAnswers: () => {} }))
 vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
+// what the sources' cards in Settings reach, over `statuses`: a streaming site's sign in answers
+// `accounts.outcome` and, authed, remembers the site as signed in, telling the site's watchers
+const accounts = vi.hoisted(() => ({ outcome: 'authed', listeners: new Map<string, Set<() => void>>() }))
+vi.mock('../../../../src/router/settings/wiring', () => {
+  const record = (site: string, state: string) => {
+    statuses[site] = state
+    for (const listener of accounts.listeners.get(site) ?? []) listener()
+  }
+  const streaming = (site: string) => ({
+    signIn: vi.fn(async () => {
+      if (accounts.outcome === 'authed') record(site, 'signed-in')
+      return accounts.outcome
+    }),
+    signOut: async () => record(site, 'signed-out'),
+  })
+  return {
+    crunchyroll: streaming('crunchyroll'),
+    prime: streaming('prime'),
+    sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'closed', signOut: async () => {} },
+    status: {
+      read: (site: string) => statuses[site] ? { state: statuses[site], checkedAt: 0 } : undefined,
+      watch: (site: string, listener: () => void) => {
+        const set = accounts.listeners.get(site) ?? new Set()
+        accounts.listeners.set(site, set.add(listener))
+        return () => { set.delete(listener) }
+      },
+      refresh: () => {},
+    },
+    record,
+  }
+})
 vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
 type Report = { paused: boolean, ended?: boolean, time?: number, rate?: number }
 // each player the page attaches, which a test makes report as a person or the browser would; with
@@ -183,6 +218,7 @@ vi.stubGlobal('localStorage', {
 })
 
 const { default: Watch } = await import('../../../../src/router/watch/index')
+const wiring = await import('../../../../src/router/settings/wiring') as unknown as typeof import('../../../../src/router/settings/wiring') & { record: (site: string, state: string) => void }
 const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
@@ -208,7 +244,7 @@ afterEach(() => {
   navigate.mockClear()
   party = { status: 'idle' }
   backend = 'cloud'
-  statuses = { crunchyroll: 'signed-out' }
+  statuses = { ...SIGNED_IN }
   params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
   search = ''
   Object.assign(episode, { uri: allUri, handles: allHandles })
@@ -233,6 +269,11 @@ afterEach(() => {
   detecting.installs.mockClear()
   detecting.addable = true
   unplayables.listeners.clear()
+  accounts.outcome = 'authed'
+  accounts.listeners.clear()
+  plugins.browse.mockClear()
+  vi.mocked(wiring.crunchyroll.signIn).mockClear()
+  vi.mocked(wiring.prime.signIn).mockClear()
 })
 
 const settle = async () => {
@@ -245,7 +286,7 @@ test('a Crunchyroll ranked first that the viewer was last seen signed out of ope
   vi.useFakeTimers()
   origins = ['cr', 'nf', 'nyaa']
   lookups.held = new Promise(() => {})
-  expect(statuses.crunchyroll, 'the control: signed out').toBe('signed-out')
+  statuses = { crunchyroll: 'signed-out' }
   hosts.push(page())
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
@@ -385,6 +426,183 @@ test('a viewer last seen signed out of Prime Video still gets Prime Video before
   hosts.push(page())
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
+})
+
+// HOR-1014, the owner, 2026-10-26: "if the user has zero playable sources because they're all premium, we should
+// ask them to either log into one, or recommend installing stub plugins, and offer the browse packages button"
+const noSource = (host: HTMLElement) => host.querySelector<HTMLElement>('.no-source')
+const signInRows = (host: HTMLElement) => [...host.querySelectorAll('.no-source li')]
+  .map(row => [row.getAttribute('data-source'), row.querySelector('.name')?.textContent, row.querySelector('button')?.textContent])
+const toWatch = (sourceUri: string) => `/watch/${params.mediaUri}/${params.episodeUri}/${sourceUri}`
+// Crunchyroll and Prime Video in Japan, the viewer signed in to neither as far as stub knows
+const premiumEpisode = () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  statuses = {}
+  primeEpisode(allHandles[0]!)
+  params = { ...params, episodeUri: episode.uri }
+}
+
+test('with every source on the episode still to sign in to, the player\'s place offers each one\'s sign in and Browse sources, and Play opens nothing', async () => {
+  premiumEpisode()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(noSource(host)?.querySelector('h2')?.textContent).toBe('No source you can play here yet')
+  expect(signInRows(host), 'in the play order').toEqual([['cr', 'Crunchyroll', 'Sign in'], ['amazon', 'Prime Video', 'Sign in']])
+  expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
+  expect(host.querySelector('a.source'), 'the sources stay listed below').not.toBeNull()
+
+  statuses = { crunchyroll: 'signed-in' }
+  const signedIn = page()
+  hosts.push(signedIn)
+  await settle()
+  expect(noSource(signedIn), 'the control: signed in to one').toBeNull()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+})
+
+test('signing in there opens that source in place, though one still to sign in to ranks above it', async () => {
+  premiumEpisode()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  await act(async () => { button(host.querySelector('.no-source [data-source="amazon"]')!, 'Sign in')!.click() })
+  await settle()
+  expect(wiring.prime.signIn).toHaveBeenCalledOnce()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch(PRIME), { replace: true })
+  expect(noSource(host)).toBeNull()
+})
+
+test('a sign in that did not happen keeps the page asking', async () => {
+  premiumEpisode()
+  accounts.outcome = 'closed'
+  const host = page()
+  hosts.push(host)
+  await settle()
+  await act(async () => { button(host.querySelector('.no-source [data-source="cr"]')!, 'Sign in')!.click() })
+  await settle()
+  expect(wiring.crunchyroll.signIn).toHaveBeenCalledOnce()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr', 'amazon'])
+})
+
+test('a sign in heard from a player or another tab opens the source', async () => {
+  premiumEpisode()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(noSource(host)).not.toBeNull()
+  await act(async () => { wiring.record('crunchyroll', 'signed-in') })
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+})
+
+test('Browse sources opens FKN\'s package browser, the page keeps asking while the source connects, and opens the release it brings', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  statuses = {}
+  plugins.statuses = []
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const { host, rerender } = live()
+  await settle()
+  expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr'])
+  await act(async () => { button(host, 'Browse sources')!.click() })
+  expect(plugins.browse).toHaveBeenCalledOnce()
+
+  await pluginsChange({ uri: NYAA_PACKAGE, state: 'connecting' })
+  expect(noSource(host), 'connecting').not.toBeNull()
+  await pluginsChange(connectedNyaa)
+  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+  media = { ...single }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+})
+
+test('with only sources turned off or opening elsewhere, the page offers Browse sources alone', async () => {
+  vi.useFakeTimers()
+  origins = ['amazon', 'cr']
+  statuses = {}
+  stored.set('stub.sources.disabled', JSON.stringify(['cr']))
+  Object.assign(episode, { handles: [allHandles[0], handle('amazon:us', 'amazon', 'https://watch.amazon.com/watch?gti=us')] })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(noSource(host)).not.toBeNull()
+  expect(signInRows(host)).toEqual([])
+  expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
+})
+
+test('an episode that lists no source is not asked about', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  Object.assign(episode, { handles: [] })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('a.source')).toBeNull()
+  expect(noSource(host)).toBeNull()
+})
+
+test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  statuses = { crunchyroll: 'signed-out' }
+  Object.assign(episode, { handles: [allHandles[0]] })
+  media = { ...single, settled: false }
+  const { host, rerender } = live()
+  await settle()
+  expect(noSource(host)).toBeNull()
+  expect(navigate).not.toHaveBeenCalled()
+
+  Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+  await rerender()
+  expect(navigate, 'the favourite, for its player to ask').toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+})
+
+test('a source the address names keeps its own player, one still to sign in to too', async () => {
+  premiumEpisode()
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(noSource(host)).toBeNull()
+  expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('sourceUri')).toBe('cr:GX1')
+})
+
+// with the extension the session is the browser's own, which stub learns of only from the player
+test('with the extension, a site stub knows nothing of is opened at once, for its player to ask', async () => {
+  premiumEpisode()
+  backend = 'extension'
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(noSource(host)).toBeNull()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+})
+
+test('before the backend is known, a site still to sign in to is neither opened nor asked for', async () => {
+  premiumEpisode()
+  let known = () => {}
+  detecting.held = new Promise<void>(resolve => { known = resolve })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(noSource(host)).toBeNull()
+
+  known()
+  await settle()
+  expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr', 'amazon'])
+})
+
+test('a party guest, who follows the host, is never asked', async () => {
+  premiumEpisode()
+  party = { status: 'active', role: 'guest' } as typeof party
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(noSource(host)).toBeNull()
 })
 
 // another country's Prime Video, which a Japanese account does not play
@@ -793,17 +1011,20 @@ test('a viewer last seen signed out who plays Crunchyroll anyway is still counte
   expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
 })
 
-test('nothing starts when the next episode is not out, or has nothing that plays', async () => {
+test('nothing starts when the next episode is not out', async () => {
   await atTheEnd({ releaseDate: '2099-01-01' })
   await report(played, ended)
   await wait(UP_NEXT_MS)
-  expect(navigate, 'not out').not.toHaveBeenCalled()
-  unmount(hosts.pop()!)
+  expect(navigate).not.toHaveBeenCalled()
+})
 
-  await atTheEnd({ handles: [handle('amazon:us', 'amazon', 'https://watch.amazon.com/watch?gti=us')] })
+// HOR-1014: autoplay must not stall silently, so the next episode's page asks for a sign in or a source
+test('a next episode with nothing that plays is counted down to all the same, with no source named', async () => {
+  const { host } = await atTheEnd({ handles: [handle('amazon:us', 'amazon', 'https://watch.amazon.com/watch?gti=us')] })
   await report(played, ended)
+  expect(host.querySelector('.up-next.counting')).not.toBeNull()
   await wait(UP_NEXT_MS)
-  expect(navigate, 'nothing plays').not.toHaveBeenCalled()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3))
 })
 
 test('with autoplay turned off, the end offers Next episode and never counts down', async () => {

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { siteAsks } from '../../site'
 import { ConfirmAction } from './confirm'
 import { primePlaysOnCloud, primeSiteFor } from '../../sources/amazon/session'
+import { viewerCountry } from '../../sources/country'
 import { useViewerCountry } from './country'
 
 export type { TrackerSite }
@@ -109,6 +110,12 @@ const STREAMING_SITES = ([
 ] satisfies {
   site: 'crunchyroll' | 'prime', origin: string, name: string, hostFor: (country: string) => string, signsInOnCloud: (host: string) => boolean, checked: boolean,
 }[]).filter(entry => siteAsks(entry.origin))
+
+/** Whether the source's card offers Sign in on `backend`: stub signs in to its site there, and has not learned that the viewer is signed in. */
+export const offersSignIn = (origin: string, backend: FknBackend | undefined, status: Pick<AccountsProps['status'], 'read'>): boolean => {
+  const entry = STREAMING_SITES.find(each => each.origin === origin)
+  return Boolean(entry && backend === 'cloud' && entry.signsInOnCloud(entry.hostFor(viewerCountry())) && status.read(entry.site)?.state !== 'signed-in')
+}
 
 type StreamingProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount, heading: Heading } & Pick<AccountsProps, 'backend' | 'status'>
 

@@ -36,8 +36,11 @@ import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggreg
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
-import { bestSource, useAutoPick, type Ways } from './auto-pick'
+import { offersSignIn } from '../settings/accounts'
+import { crunchyroll, prime, sites, status } from '../settings/wiring'
+import { playPick, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
+import NoSource from './no-source'
 import { startOf, useResume } from './resume'
 import UpNext from './up-next'
 
@@ -205,6 +208,15 @@ const style = css`
     aspect-ratio: 16 / 9;
     min-height: 20rem;
     max-height: calc(100vh - var(--stub-header-height));
+  }
+
+  /* The prompt in the player's place starts at the player's 16:9 and grows to fit what it holds where that is too
+     short, as on a phone. Not by the ratio itself: a flex item's automatic minimum is then the ratio's height,
+     and min-content is too, so it neither grows nor gives the row its height (Chrome 155, 2026-10-26). */
+  .no-source {
+    aspect-ratio: auto;
+    flex-basis: calc(100vw * 9 / 16);
+    min-height: auto;
   }
 
   .fix {
@@ -662,7 +674,25 @@ const Watch = () => {
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   const cannotPlay = Boolean(selectedSourceUri && unplayable.includes(selectedSourceUri))
   const search = useSearch()
-  useAutoPick(bestSource(episodeHandles.filter(handle => !unplayable.includes(handle.uri)), ways), { ...params, guest, cannotPlay, search }, navigate)
+
+  // a sign in or out, on this page, in its player or in another tab, changes what plays
+  const [, setSignIns] = useState(0)
+  useEffect(() => {
+    const changed = () => setSignIns(count => count + 1)
+    const stops = (['crunchyroll', 'prime'] as const).map(site => status.watch(site, changed))
+    return () => { for (const stop of stops) stop() }
+  }, [])
+  // a backend not known yet counts as the cloud, as for canPlay, so Play opens no site still to sign in to before it is known
+  const owes = (handle: { origin: string, url?: string | null }) =>
+    Boolean(handle.url && canPlay(handle.origin, handle.url, backend) && offersSignIn(handle.origin, backend ?? 'cloud', status))
+  const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
+  // the episode the page last asked the viewer to sign in or add a source for
+  const asked = useRef<string | undefined>(undefined)
+  const { pick, stuck } = playPick(open, ways, owes, { answered: Boolean(episode && backend) && answered && !connecting, asked: asked.current === params.episodeUri })
+  if (stuck) asked.current = params.episodeUri
+  // on an episode that lists sources, as one not out yet often lists none
+  const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
+  useAutoPick(pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
   const episodes = media?.episodes ?? []
@@ -684,8 +714,8 @@ const Watch = () => {
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
-  // a guest follows the host to the next episode, as to any page
-  const upNext = !guest && next && bestSource(playableHandlesOf(next.episode.handles), ways) ? nextLink : undefined
+  // a guest follows the host to the next episode, as to any page; one with nothing to play asks there
+  const upNext = guest ? undefined : nextLink
 
   return (
     <div css={style}>
@@ -694,7 +724,9 @@ const Watch = () => {
           Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
           place adds a step to the tab's history, and Back then moves the player rather than the page.
         */}
-        {(viaPlugin && pluginPlayer) || embedUrl
+        {noSource
+          ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
+          : (viaPlugin && pluginPlayer) || embedUrl
           ? (
             <div className="player-container">
               {viaPlugin && pluginPlayer

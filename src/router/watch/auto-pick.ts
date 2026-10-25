@@ -51,6 +51,17 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
 }
 
 /**
+ * `bestSource` for a viewer who may have to sign in first, `owes` naming the handles that play only once
+ * they have. Play opens nothing while no other handle plays, and once the page has asked the viewer to
+ * sign in or add a source (`asked`), it opens only a handle that plays without a sign in. `stuck` while
+ * nothing plays without one and either every source has answered (`answered`) or the page has asked.
+ */
+export const playPick = (handles: readonly Handle[], ways: Ways, owes: (handle: Handle) => boolean, { answered, asked }: { answered: boolean, asked: boolean }) => {
+  const playing = bestSource(handles.filter(handle => !owes(handle)), ways)
+  return { pick: playing && (asked ? playing : bestSource(handles, ways)), stuck: !playing && (answered || asked) }
+}
+
+/**
  * Writes `best` into the address with a replace, so Back skips it, once it is `now`. Never while the
  * address names a source, unless it is this hook's own pick, not left for another source since, and
  * `cannotPlay` says it cannot play the episode here: `best` must then leave that source out. Never for a

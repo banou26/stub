@@ -20,6 +20,7 @@ vi.mock('lucide-react', () => Object.fromEntries(
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
+const { offersSignIn } = await import('../../../src/router/settings/accounts')
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 
 // The sign-ins in the cards of the settings page's Sources: every sign-in stub uses, what it is, and the
@@ -189,6 +190,31 @@ describe('Prime Video', () => {
     expect(row('crunchyroll').querySelector('a')!.getAttribute('href'), 'Crunchyroll is one site everywhere').toBe('https://www.crunchyroll.com')
     vi.unstubAllGlobals()
   })
+})
+
+// the watch page asks for the sign in a streaming card offers (HOR-1014), so the two must agree
+test('offersSignIn says whether a streaming card offers Sign in, on each backend, country and remembered state', () => {
+  const offered: string[] = []
+  for (const zone of ['Asia/Tokyo', 'America/Toronto']) {
+    viewerIn(zone)
+    for (const backend of ['cloud', 'extension', undefined] as const) {
+      for (const state of [undefined, 'signed-out', 'signed-in'] as const) {
+        const { status, statuses } = fakeStatus()
+        if (state) for (const site of ['crunchyroll', 'prime'] as const) statuses.record(site, state, NOW)
+        const { row } = render({ backend, status })
+        for (const [origin, site] of [['cr', 'crunchyroll'], ['amazon', 'prime']] as const) {
+          const named = `${origin} ${zone} ${backend} ${state}`
+          expect(offersSignIn(origin, backend, status), named).toBe(Boolean(button(row(site), 'Sign in')))
+          if (offersSignIn(origin, backend, status)) offered.push(named)
+        }
+      }
+    }
+  }
+  expect(offered, 'only on the cloud, Prime Video in Japan alone, while not known signed in').toEqual([
+    'cr Asia/Tokyo cloud undefined', 'amazon Asia/Tokyo cloud undefined', 'cr Asia/Tokyo cloud signed-out', 'amazon Asia/Tokyo cloud signed-out',
+    'cr America/Toronto cloud undefined', 'cr America/Toronto cloud signed-out',
+  ])
+  for (const origin of ['nf', 'anilist', 'mal']) expect(offersSignIn(origin, 'cloud', fakeStatus().status), origin).toBe(false)
 })
 
 describe('AniList and MyAnimeList', () => {

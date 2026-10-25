@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 
-import { bestSource, useAutoPick, type Ways } from '../../../../src/router/watch/auto-pick'
+import { bestSource, playPick, useAutoPick, type Ways } from '../../../../src/router/watch/auto-pick'
 
 const cr = { uri: 'cr:GX1', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX1' }
 const prime = { uri: 'amazon:gti1', origin: 'amazon', url: 'https://watch.amazon.co.jp/watch?gti=gti1' }
@@ -69,6 +69,28 @@ describe('bestSource', () => {
   test('an origin the order does not name comes after every one it names', () => {
     const embed = { uri: 'other:1', origin: 'other', url: null, embedUrl: 'https://embed.test/1' }
     expect(bestSource([embed, nyaa('1')], ways({ order: ['nyaa'], settled: () => true }))?.uri).toBe('nyaa:1')
+  })
+})
+
+// HOR-1014: an episode whose every source plays only once the viewer signs in asks them to, rather than opening one
+describe('playPick', () => {
+  const owesCr = (handle: { origin: string }) => handle.origin === 'cr'
+  const answered = { answered: true, asked: false }
+
+  test('with a source that plays without a sign in, Play still opens the favourite still to sign in to', () => {
+    expect(playPick([cr, prime], ways({ settled: () => true }), owesCr, answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+  })
+
+  test('with none, nothing is opened, and the page is stuck once every source has answered', () => {
+    expect(playPick([cr], ways(), owesCr, { answered: false, asked: false })).toEqual({ pick: undefined, stuck: false })
+    expect(playPick([cr], ways(), owesCr, answered)).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([], ways(), owesCr, answered), 'an episode with no source at all').toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr], ways(), () => false, answered), 'the control: nothing owed').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+  })
+
+  test('once asked, the page stays stuck while sources answer again, and then opens only what plays without a sign in', () => {
+    expect(playPick([cr], ways(), owesCr, { answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr, prime], ways({ settled: () => true }), owesCr, { answered: true, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
   })
 })
 

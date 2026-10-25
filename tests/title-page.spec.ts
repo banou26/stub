@@ -1229,6 +1229,40 @@ test.describe('a viewer in Japan', () => {
     expect(await overflowX(page)).toBe(0)
   })
 
+  // HOR-1014: Prime Video plays the film once the viewer signs in, and Tubi only links out, so Play opens nothing and asks
+  test('with nothing to play until the viewer signs in, the player\'s place asks, in the player\'s box on a wide window and grown to fit its rows on a phone', async ({ page }) => {
+    // asked once every source has answered, the last on its 30 s bound
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
+    const prompt = page.locator('.player-container.no-source')
+    await expect(prompt.locator('h2')).toHaveText('No source you can play here yet', { timeout: 60_000 })
+    await expect(prompt.locator('li[data-source="amazon"] .name')).toHaveText('Prime Video')
+    await expect(prompt.locator('li[data-source="amazon"] button')).toHaveText('Sign in')
+    await expect(prompt.getByRole('button', { name: 'Browse sources' })).toBeVisible()
+    expect(page.url(), 'Play opened nothing').not.toContain('/amazon:')
+    const [screen, row] = await Promise.all([box(prompt), box(page.locator('.episode-row'))])
+    expect(screen.height, 'the player\'s box, as tall as the first screen leaves it').toBeGreaterThan(600)
+    expect(row.top, 'the episode under it').toBeGreaterThanOrEqual(screen.bottom)
+    expect(row.bottom, 'on the first screen').toBeLessThanOrEqual(900)
+
+    // three sites to sign in to, as an episode more of them list
+    await prompt.locator('li').evaluate(row => { for (let i = 0; i < 2; i++) row.parentElement!.append(row.cloneNode(true)) })
+    for (const [width, height] of [[390, 844], [320, 640]] as const) {
+      await page.setViewportSize({ width, height })
+      const outer = await box(prompt)
+      for (const part of await prompt.locator('h2, li, > button').all()) {
+        const inner = await box(part)
+        expect(inner.top, `${width} px: inside the box`).toBeGreaterThanOrEqual(outer.top)
+        expect(inner.bottom, `${width} px: inside the box`).toBeLessThanOrEqual(outer.bottom)
+        expect(inner.left).toBeGreaterThanOrEqual(outer.left)
+        expect(inner.right).toBeLessThanOrEqual(outer.right)
+      }
+      expect((await box(page.locator('.episode-row'))).top, `${width} px: the episode under it`).toBeGreaterThanOrEqual(outer.bottom)
+      expect(await overflowX(page)).toBe(0)
+    }
+  })
+
   // HOR-1011: a fixed allowance for the row let a taller one, as the stacked buttons make it below 1100 px,
   // end 66 px under a 768 px screen (the review of 2026-10-26)
   test('the player gives up height so a taller episode row still ends on the first screen, and keeps it on a short window', async ({ page }) => {
