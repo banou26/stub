@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
 
+import { startLanguage } from '../../../src/i18n'
+
 import { MediaCategory, MediaType } from '../../../src/generated/graphql'
 import { isMovieMedia, isUpcoming, movieFacts, releaseSide, runtimeText } from '../../../src/router/home/movie'
 import { releaseDateLabel } from '../../../src/utils/release-date'
@@ -21,6 +23,15 @@ test('the facts line names the format, the release date, the runtime and three g
     .toEqual(['Movie', releaseDateLabel('2026-12-11'), '1h 52m', 'Mystery, Drama, Romance'])
   expect(movieFacts({ released: '2026-12' })).toEqual(['Movie', releaseDateLabel('2026-12')])
   expect(movieFacts({ released: '2026' })).toEqual(['Movie', '2026'])
+})
+
+test('in German, the facts line is German, its runtime and genres the language\'s own way', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance'] })).toEqual(['Film', '11. Dez. 2026', '1h, 52 Min.', 'Mystery, Drama und Romance'])
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 test('a fact a source did not give is left out rather than shown empty', () => {

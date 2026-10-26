@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from './dom'
 
-import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
@@ -11,6 +11,7 @@ vi.mock('lucide-react', () => ({ Frown: () => null, Meh: () => null, Smile: () =
 const { default: MediaCard } = await import('../../../src/components/media-card')
 const { default: MediaRow } = await import('../../../src/components/media-row')
 const { MediaPreview } = await import('../../../src/components/media-preview')
+const { startLanguage } = await import('../../../src/i18n')
 
 const NOW = Date.parse('2026-10-26T12:00:00Z')
 const HOUR = 3_600_000
@@ -63,4 +64,17 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
     draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [], episodeCount } as never}/>).text('.episodes')
   // a lone episode read "1 Episodes" until the plural was a message
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
+})
+
+describe('in German', () => {
+  beforeEach(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('a card and a row read German, their numbers and countdowns written the German way', () => {
+    const card = draw(<MediaCard media={AIRING as never} to="/media/anilist:21"/>)
+    expect([card.text('.airing-label'), card.text('.airing-value'), card.label('.detail-top > span'), card.text('.detail-top .value')])
+      .toEqual([['Bis Folge 1180:'], ['2 Tage, 3 Stunden'], 'Bewertung: 82 Prozent', ['82\u00a0%']])
+    const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
+    expect([row.text('.score .secondary'), row.text('.airing')]).toEqual([['115.797 Nutzer'], ['Bis Folge 1180: 2 Tage']])
+  })
 })

@@ -23,6 +23,7 @@ vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => nu
 
 const { Episodes, SourceLinks, useTrackingSummary } = await import('../../../src/router/home/media-details')
 const { setIconShown } = await import('../../../src/sources/hidden-icons')
+const { startLanguage } = await import('../../../src/i18n')
 
 // a real urql client whose origins subscription answers once and stays open, as the worker's does
 const client = (origins: { id: string, name: string, icon?: string }[] = [{ id: 'nf', name: 'Netflix' }]) => new Client({
@@ -648,5 +649,40 @@ describe('a hidden source icon', () => {
     expect(await draw(), 'five of the six while all are shown').toEqual(['Watch on A', 'Watch on B', 'Watch on C', 'Watch on D', 'Watch on E'])
     setIconShown('b', false)
     expect(await draw()).toEqual(['Watch on A', 'Watch on C', 'Watch on D', 'Watch on E', 'Watch on F'])
+  })
+})
+
+describe('in German', () => {
+  beforeEach(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const render = (shown: DetailsMedia, tracked?: Tracked) => {
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={shown} tracked={tracked}/></Router></Provider>))
+    hosts.push(host)
+    return host
+  }
+
+  test('a row\'s fallback title, its bar, its countdown and its day read German', () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-16T09:30:00Z'), toFake: ['Date'] })
+    try {
+      const airing = {
+        uri: 'ag:(anilist:195516)',
+        status: 'RELEASING',
+        nextAiringEpisode: { episodeNumber: 3, airingAt: 'Fri, 16 Oct 2026 14:00:00 GMT' },
+        episodes: media.episodes.slice(0, 4).map((episode, index) => ({ ...episode, titles: [], releaseDate: ['2026-10-02T14:00:00Z', '2026-10-16T08:00:00Z', '2026-10-16T14:00:00Z', '2026-10-23T14:00:00Z'][index] })),
+      } as unknown as DetailsMedia
+      const host = render(airing, { status: 'WATCHING', progress: 1 })
+      const rows = [...host.querySelectorAll('.episode')]
+      expect(rows.map(row => row.querySelector('.title')!.textContent)).toEqual(['Folge 1', 'Folge 2', 'Unveröffentlichte Folge', 'Unveröffentlichte Folge'])
+      expect(rows.slice(1).map(row => row.querySelector('time')?.textContent)).toEqual(['heute', 'noch 4 Stunden, 30 Min.', 'in 7 Tagen'])
+      expect(host.querySelector('.thumbnail > .bar')?.getAttribute('aria-label')).toBe('Gesehen')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('the list\'s pages and an empty list read German', () => {
+    expect(render(media).querySelector('nav')?.getAttribute('aria-label')).toMatch(/^Folgen /)
+    expect(render({ uri: 'ag:(anilist:1)', episodes: [], settled: true } as unknown as DetailsMedia).querySelector('.episodes')!.textContent).toBe('Keine Folgen gefunden')
   })
 })

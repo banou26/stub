@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { afterAll, describe, expect, test } from 'vite-plus/test'
 
 import { airsIn, episodesLabel } from '../../../src/components/listed-media'
+import { startLanguage } from '../../../src/i18n'
 
 const NOW = Date.parse('2026-09-06T12:00:00Z')
 
@@ -30,5 +31,14 @@ describe('episodesLabel', () => {
     expect(episodesLabel(0)).toBe('0 episodes')
     expect(episodesLabel(null)).toBeUndefined()
     expect(episodesLabel(undefined)).toBeUndefined()
+  })
+
+  test('in Russian, each of its four forms', async () => {
+    try {
+      await startLanguage({ language: 'ru', languages: ['ru-RU'] })
+      expect([1, 2, 5, 21, 1180].map(episodesLabel)).toEqual(['1 серия', '2 серии', '5 серий', '21 серия', '1180 серий'])
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
   })
 })

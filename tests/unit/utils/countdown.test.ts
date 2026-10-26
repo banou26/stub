@@ -48,6 +48,17 @@ describe('formatCountdown', () => {
   })
 })
 
+describe('in another language', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('the units and how they join are the language\'s own', async () => {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect([formatCountdown(2 * DAY + 3 * HOUR), formatCountdown(6 * DAY + 42 * MINUTE), formatCountdown(30_000)]).toEqual(['2 Tage, 3 Stunden', '6 Tage, 42 Min.', '30 Sek.'])
+    await startLanguage({ language: 'ja', languages: ['ja-JP'] })
+    expect(formatCountdown(2 * DAY + 3 * HOUR)).toBe('2 日 3 時間')
+  })
+})
+
 // stub's English has always read mins and secs, whichever English the browser writes dates in
 describe('in every English', () => {
   afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))

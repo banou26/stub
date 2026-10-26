@@ -23,6 +23,7 @@ vi.mock('lucide-react', () => ({ LucidePlay: () => null }))
 const { default: MoviePlay } = await import('../../../src/router/home/movie-play')
 const { useWatchSources } = await import('../../../src/router/home/media-details')
 const { default: SourceSelector } = await import('../../../src/components/source-selector')
+const { startLanguage } = await import('../../../src/i18n')
 
 const episode = {
   uri: 'ag:(cr:GX1)',
@@ -359,5 +360,17 @@ test('Play stays when the source that plays has its icon hidden', async () => {
     expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
   } finally {
     vi.unstubAllGlobals()
+  }
+})
+
+test('in German, Play, its release line and No sources yet read German', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect(render(episode).querySelector('a.play')?.textContent).toBe('Abspielen')
+    expect(render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false).querySelector('.when')?.textContent).toBe('Erscheint: 1. Jan. 2099')
+    origin = 'none'
+    expect(render(episode).querySelector('.when')?.textContent).toBe('Noch keine Quellen')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
   }
 })

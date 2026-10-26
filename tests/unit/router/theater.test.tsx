@@ -81,6 +81,7 @@ const connection = (reading: { effectiveType?: string, saveData?: boolean }) => 
 
 const { default: HomeHeader } = await import('../../../src/router/home/theater')
 const { SOURCES_WAIT_MS, THEATER_WAIT_MS } = await import('../../../src/utils/theater')
+const { startLanguage } = await import('../../../src/i18n')
 
 type Nodes = Parameters<typeof HomeHeader>[0]['mediaNodes']
 
@@ -252,6 +253,22 @@ test('with the show completed, it reads Rewatch and opens the first', () => {
   answer.tracking = { _id: `tracking:${uriOf('a')}`, summary: { status: 'COMPLETED', progress: 6 } }
   const { play } = hero([show('a')])
   expect(play()).toEqual({ label: 'Rewatch', href: `/watch/${uriOf('a')}/ag:(anilist:a-1)` })
+})
+
+test('in German, Play, Continue and Rewatch read German', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    answer.details[uriOf('a')] = details('a', { episodes: 6 })
+    const labels: (string | null | undefined)[] = []
+    for (const summary of [undefined, { status: 'CURRENT', progress: 3 }, { status: 'COMPLETED', progress: 6 }]) {
+      answer.tracking = summary && { _id: `tracking:${uriOf('a')}`, summary }
+      labels.push(hero([show('a')]).play()?.label)
+    }
+    expect(labels).toEqual(['Abspielen', 'Weiterschauen', 'Erneut ansehen'])
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 // only the clock is faked, so the hero's own waits draw nothing over the tick

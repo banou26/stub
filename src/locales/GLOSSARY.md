@@ -23,6 +23,9 @@ same change, using the terms below, and runs `npm run i18n:check`.
   where the English lacks it.
 - **A date range** joins a year or a month alone as often as a day (`1998`, `avr. 1998`, `3 avr. 1998`), so its words
   fit all three: French and Italian write `{start} - {end}`, since du/au and dal/al fit a day alone.
+- **A value Intl writes** (`{countdown}` is `2 Tage, 3 Stunden`, `{day}` a year, a month or a day) comes in the
+  nominative, so the words around it ask no case of it: German `noch {countdown}` and `Bis Folge {episode}:` where
+  `in` would want `Tagen`, Polish `jeszcze {countdown}` where `za` would want `godzinę`, and a colon before `{day}`.
 
 ## Register and terms
 
@@ -60,3 +63,20 @@ stub only connects to the browser's own session, so its words differ from signin
 | `zh-Hant` | 來源 | 登入, 登出 | 連線, 中斷連線 | 播放順序 | 合併順序 |
 | `tr` | kaynak | Oturum aç, Oturumu kapat | Bağla, Bağlantıyı kes | Oynatma sırası | Birleştirme sırası |
 | `pl` | źródło | Zaloguj się, Wyloguj się | Połącz, Rozłącz | Kolejność odtwarzania | Kolejność scalania |
+
+## Watching
+
+| | a source (where a title plays) | Continue (resume watching) | Rewatch | Watched (how far) |
+| --- | --- | --- | --- | --- |
+| `es-419` | fuente | Continuar | Volver a ver | Visto |
+| `pt-BR` | fonte | Continuar | Assistir de novo | Assistido |
+| `fr` | source | Reprendre | Revoir | Visionné |
+| `de` | Quelle | Weiterschauen | Erneut ansehen | Gesehen |
+| `it` | fonte | Riprendi | Riguarda | Visto |
+| `ru` | источник | Продолжить | Пересмотреть | Просмотрено |
+| `ja` | ソース | 続きから再生 | もう一度見る | 視聴進捗 |
+| `ko` | 소스 | 이어 보기 | 다시 보기 | 시청 진행률 |
+| `zh-Hans` | 片源 | 继续观看 | 重新观看 | 观看进度 |
+| `zh-Hant` | 片源 | 繼續觀看 | 重新觀看 | 觀看進度 |
+| `tr` | kaynak | Devam et | Yeniden izle | İzlendi |
+| `pl` | źródło | Kontynuuj | Obejrzyj ponownie | Obejrzano |
