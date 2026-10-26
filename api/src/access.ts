@@ -3,8 +3,10 @@ import { fkn } from '../../package.json'
 const SITES = new Set(['https://stub.fkn.app', 'https://anime.fkn.app', 'https://movies.fkn.app', 'https://series.fkn.app'])
 
 // fkn-client web/src/sandbox.ts: `<policy digit><base36 of the package address>`, or `<policy digit>0a<app id body>`
-// for a release that verified to that app id, which only fkn.app mints
-const TENANT = /^([0-9a-z])([0-9a-z]+)\.sdbx\.app$/
+// for a release that verified to that app id, which only fkn.app mints. A label is one DNS label, at most 63
+// characters (a longer address gets a digest label), and the cap also bounds the decode below, which is quadratic and
+// runs before the rate limit: a 100,000 character label took 0.9 s to refuse
+const TENANT = /^([0-9a-z])([0-9a-z]{1,62})\.sdbx\.app$/
 const APP_LABEL = `0a${fkn.app.slice('fkn:app:'.length)}`
 const PACKAGE = /^npm:@banou\/stub(?:@[0-9A-Za-z.+-]+)?$/
 const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz'

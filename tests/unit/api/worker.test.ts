@@ -44,6 +44,7 @@ const toBase36 = (text: string) => {
   return out
 }
 const STUB_APP = '173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq'
+const versionLabel = (length: number) => `0${toBase36(`npm:@banou/stub@0.0.${'1'.repeat(length)}`)}`
 
 let reads: string[][]
 let stored: Record<string, unknown>
@@ -91,6 +92,11 @@ describe('access', () => {
     expect(`0${toBase36('npm:@banou/stub')}`).toBe('0x3lk9k4779agjbj1og4i6hu')
   })
 
+  test('the longest version label is the longest a DNS label can be, and one more byte goes past it', () => {
+    expect(versionLabel(20)).toHaveLength(63)
+    expect(versionLabel(21)).toHaveLength(65)
+  })
+
   test.each([
     'https://stub.fkn.app',
     'https://anime.fkn.app',
@@ -98,6 +104,7 @@ describe('access', () => {
     'https://series.fkn.app',
     'https://0x3lk9k4779agjbj1og4i6hu.sdbx.app',
     `https://0${toBase36('npm:@banou/stub@0.0.59')}.sdbx.app`,
+    `https://${versionLabel(20)}.sdbx.app`,
     `https://00a${STUB_APP}.sdbx.app`,
     `https://b0a${STUB_APP}.sdbx.app`,
   ])('%s is answered, with its origin echoed', async origin => {
@@ -117,6 +124,7 @@ describe('access', () => {
   test.each([
     ['another package\'s label', { origin: `https://0${toBase36('npm:@banou/ripple')}.sdbx.app` }],
     ['a package whose name starts with stub\'s', { origin: `https://0${toBase36('npm:@banou/stub-extra')}.sdbx.app` }],
+    ['stub\'s version label past one DNS label', { origin: `https://${versionLabel(21)}.sdbx.app` }],
     ['another app\'s signed label', { origin: `https://00a1${'b'.repeat(52)}.sdbx.app` }],
     ['another sdbx.app host', { origin: 'https://proxy.sdbx.app' }],
     ['a site mirage shows', { origin: 'https://s-x3lk9k4779agjbj1og4i6hu.sdbx.app' }],
