@@ -94,6 +94,28 @@ test('on a browser that blocks site data, keeps that the viewer was signed in be
   expect(statuses.read('prime')).toEqual({ state: 'signed-out', checkedAt: 2_000, signedInBefore: true })
 })
 
+test('a state stored after one that could not be is the one read, for a state stub finds and for a sign out made in stub', () => {
+  const storage = memory()
+  let full = true
+  const statuses = createSiteStatuses(() => ({
+    getItem: storage.getItem,
+    setItem: (key, value) => {
+      if (full) throw new Error('QuotaExceededError')
+      storage.setItem(key, value)
+    },
+  }))
+  for (const [site, signOut, read] of [
+    ['crunchyroll', () => statuses.recordSignOut('crunchyroll', 2_000), { state: 'signed-out', checkedAt: 2_000 }],
+    ['prime', () => statuses.record('prime', 'signed-out', 2_000), { state: 'signed-out', checkedAt: 2_000, signedInBefore: true }],
+  ] as const) {
+    full = true
+    statuses.record(site, 'signed-in', 1_000)
+    full = false
+    signOut()
+    expect(statuses.read(site), site).toEqual(read)
+  }
+})
+
 test('reads a signed in before only as true, and only beside a signed out', () => {
   for (const [stored, read] of [
     ['{"crunchyroll":{"state":"signed-out","checkedAt":1,"signedInBefore":true}}', { state: 'signed-out', checkedAt: 1, signedInBefore: true }],
