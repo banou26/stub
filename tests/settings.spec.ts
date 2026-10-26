@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
+import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
 const ALL = builtInSources.length
 
@@ -16,7 +17,8 @@ const ALL = builtInSources.length
 // with index.html as Pages does, and every request that leaves this origin refused, so nothing reaches
 // FKN or any site. That is also why a sign out only shows its half on this device (the cookie half is
 // FKN's, pinned in tests/unit), and why the build swaps the plugin runtime for tests/fake-plugins.ts:
-// a real install would wait on FKN forever.
+// a real install would wait on FKN forever. Every catalogue and the pseudo-language are offered (tests/languages.ts), so
+// a test picks one by its setting, and a browser in English, as every other test's, gets English.
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -38,7 +40,7 @@ test.beforeAll(async () => {
     root: ROOT,
     logLevel: 'error',
     build: { outDir: dir, emptyOutDir: true },
-    plugins: [{
+    plugins: [offerEveryLanguage(), {
       name: 'spec-fake-plugins',
       enforce: 'pre',
       resolveId: (source, importer) => importer && resolve(dirname(importer), source) === plugins ? join(ROOT, 'tests', 'fake-plugins.ts') : undefined,
@@ -686,5 +688,116 @@ test.describe('in Toronto', () => {
     await country().selectOption('')
     await expect(country().locator('option:checked')).toHaveText('Automatic (Canada)')
     expect((await readLocal(page))['stub.country'], 'Automatic keeps nothing').toBeUndefined()
+  })
+})
+
+// HOR-1026 (stub in the viewer's language): the page's own words and its prompt's, each text run and label, a run split
+// where the page joins its counts with ` · `
+const wordsIn = (page: Page, selector: string) => page.evaluate(selector => {
+  const words: string[] = []
+  const walk = (element: Element) => {
+    for (const name of ['aria-label', 'title', 'placeholder']) if (element.getAttribute(name)) words.push(element.getAttribute(name)!)
+    let run = ''
+    for (const child of [...element.childNodes, null]) {
+      if (child?.nodeType === Node.TEXT_NODE) run += child.textContent
+      else {
+        words.push(...run.split(' · ').map(part => part.trim()).filter(Boolean))
+        run = ''
+        if (child instanceof Element) walk(child)
+      }
+    }
+  }
+  for (const root of document.querySelectorAll(selector)) walk(root)
+  return words
+}, selector)
+
+/** Each element in `selector` that reaches past the left or right edge of the box `within` holds it. */
+const pastEdges = (page: Page, selector: string, within: string) => page.locator(selector).evaluateAll((roots, within) => roots.flatMap(root => {
+  const { left, right } = (root.closest(within) ?? root).getBoundingClientRect()
+  return [...root.querySelectorAll('*')].filter(element => {
+    const box = element.getBoundingClientRect()
+    return box.width && (box.left < left - 0.5 || box.right > right + 0.5)
+  }).map(element => `${element.tagName}.${element.className}: ${element.textContent}`)
+}), within)
+
+const SETTINGS = 'h1, nav.index, [data-section]'
+
+/**
+ * Draws Sources with an added source in each state, a source off, a sign out asked, an address refused, then Playback,
+ * then the prompts a link raises, at `width`, and returns their words and what runs past its card, its section or
+ * its dialog. Picks no element by its English.
+ */
+const drawnWords = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  const past: string[] = []
+  const overflow: number[] = []
+  const settled = async () => {
+    past.push(...await pastEdges(page, '[data-source]', '[data-source]'), ...await pastEdges(page, '[data-section]', '[data-section]'))
+    overflow.push(await overflowX(page))
+  }
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(list => {
+    localStorage.setItem('stub-enabled-plugins', JSON.stringify(list))
+    localStorage.setItem('stub.sessions', JSON.stringify(['anilist', 'mal']))
+    localStorage.setItem('stub.sources.disabled', JSON.stringify(['simkl']))
+    localStorage.setItem('stub.site-status', JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: Date.now() }, anilist: { state: 'signed-out', checkedAt: Date.now() } }))
+  }, SPEC_SOURCES)
+  await page.goto(`${origin}/settings#sources`)
+  await expect(page.locator('[data-account="mal"] .actions button')).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator(`[data-plugin="${SPEC_SOURCES[0]}"] .pill[data-state="connected"]`)).toBeVisible()
+  await page.locator('[data-account="mal"] .actions button').click()
+  await expect(page.locator('[data-account="mal"] .confirm')).toBeVisible()
+  await settled()
+  const words = await wordsIn(page, SETTINGS)
+  await page.locator('.group input').fill('not a package')
+  await page.locator('.group button').click()
+  await expect(page.locator('[role="alert"]')).not.toHaveText('')
+  await settled()
+  words.push(...await wordsIn(page, '.by-address'))
+
+  await page.goto(`${origin}/settings#playback`)
+  await expect(page.locator('[data-section="playback"]')).toBeVisible()
+  await settled()
+  words.push(...await wordsIn(page, SETTINGS))
+
+  await page.goto(`${origin}/legal`)
+  await page.evaluate(() => localStorage.removeItem('stub-enabled-plugins'))
+  await page.goto(`${origin}/settings?plugins=${SPEC_SOURCES[0]}`)
+  await expect(page.locator('[role="dialog"] .dialog')).toBeVisible()
+  words.push(...await wordsIn(page, '[role="dialog"]'))
+  await page.goto(`${origin}/settings?plugins=https:dead.spec.test&plugins=https:still.connecting.spec.test`)
+  await page.locator('[role="dialog"] .actions button:not(.decline)').click()
+  await expect(page.locator('[role="dialog"] .dismiss')).toBeVisible()
+  past.push(...await pastPrompt(page.locator('[role="dialog"] .dialog')))
+  overflow.push(await overflowX(page))
+  words.push(...await wordsIn(page, '[role="dialog"]'))
+  return { words, past, overflow }
+}
+
+test.describe('in a language stub does not offer yet', () => {
+  test.use({ timezoneId: 'America/Toronto' })
+
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: Sources, Playback and the prompt run past nothing at 1440 and 390 px, with none of their own words in English`, async ({ page }) => {
+      test.setTimeout(240_000)
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      const code = english()
+      const translated = language === PSEUDO ? undefined : catalogues()[language]
+      for (const width of [1440, 390]) {
+        const { words, past, overflow } = await drawnWords(page, width)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        expect(overflow, `${width} px`).toEqual([0, 0, 0, 0])
+        expect(past, `${width} px`).toEqual([])
+        expect(words.length, `${width} px: the control, the page's words were read`).toBeGreaterThan(400)
+        expect(englishIn(words, code, translated), `${width} px`).toEqual([])
+      }
+    })
+  }
+
+  test('the control: in English the same reading finds the page\'s own words', async ({ page }) => {
+    test.setTimeout(120_000)
+    const { words } = await drawnWords(page, 1440)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(englishIn(words, english()).length).toBeGreaterThan(60)
   })
 })
