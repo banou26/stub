@@ -82,6 +82,30 @@ describe('the plural forms each language needs', () => {
   test('Japanese needs other alone, and French no many', () => {
     expect(said({ catalogues: { ja: { [EPISODES]: '{count, plural, other {#話}}' }, fr: FRENCH } })).toEqual([])
   })
+
+  test('an offset applies to the forms, not to an =N branch', () => {
+    const OTHERS = '{count, plural, offset:1 =0 {Nobody} =1 {You} other {You and # others}}'
+    expect(said({ english: [OTHERS] })).toEqual([`src "${OTHERS}" lacks the plural branch count: one`])
+  })
+
+  test('a selectordinal needs the ordinal forms', () => {
+    expect(said({ english: ['{n, selectordinal, one {#st} other {#th}}'] })).toEqual([
+      'src "{n, selectordinal, one {#st} other {#th}}" lacks the plural branch n: few',
+      'src "{n, selectordinal, one {#st} other {#th}}" lacks the plural branch n: two',
+    ])
+    expect(said({ english: ['{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}'] })).toEqual([])
+  })
+
+  test('a plural inside a select or a tag needs its forms too', () => {
+    const KIND = '{kind, select, audio {{count, plural, one {# track} other {# tracks}}} other {{count, plural, one {# file} other {# files}}}}'
+    expect(said({ english: [KIND], catalogues: { ru: { [KIND]: '{kind, select, audio {{count, plural, one {# дорожка} other {# дорожек}}} other {{count, plural, one {# файл} other {# файлов}}}}' } } })).toEqual(
+      ['few', 'many', 'few', 'many'].map(form => `src/locales/ru.json "${KIND}" lacks the plural branch count: ${form}`),
+    )
+    const BOLD = '<b>{count, plural, one {# episode} other {# episodes}}</b>'
+    expect(said({ english: [BOLD], catalogues: { ru: { [BOLD]: '<b>{count, plural, one {# серия} other {# серий}}</b>' } } })).toEqual(
+      ['few', 'many'].map(form => `src/locales/ru.json "${BOLD}" lacks the plural branch count: ${form}`),
+    )
+  })
 })
 
 describe('each message as the linter holds it, since no gate runs the linter', () => {
@@ -101,6 +125,14 @@ describe('each message as the linter holds it, since no gate runs the linter', (
     ['two spaces in a row', "intl.formatMessage({ id: 'Hi  there', defaultMessage: 'Hi  there' })", ['formatjs(no-multiple-whitespaces)']],
   ])('%s fails', (_, call, broken) => {
     expect(rules(call)).toEqual(broken.map(rule => `${VIEW}:4 ${rule}`))
+  })
+
+  test('English that is no literal stops the check, and --fix before it drops that message\'s translation', () => {
+    const root = tree({ code: { [VIEW]: formatting("intl.formatMessage({ id: 'Pause', defaultMessage: text })") }, catalogues: { fr: { Pause: 'Pause', ...FRENCH } } })
+    const french = readFileSync(join(root, 'src/locales/fr.json'), 'utf8')
+    expect(() => check(root)).toThrow(/`defaultMessage` must be a string literal/)
+    expect(() => fix(root)).toThrow(/`defaultMessage` must be a string literal/)
+    expect(readFileSync(join(root, 'src/locales/fr.json'), 'utf8')).toBe(french)
   })
 })
 

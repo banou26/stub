@@ -26,7 +26,10 @@ const inTemporary = run => {
   try { return run(directory) } finally { rmSync(directory, { recursive: true, force: true }) }
 }
 
-/** The English of every message in the code under `root`, by id. */
+/**
+ * The English of every message in the code under `root`, by id. `--throws` stops on a message extract cannot read (a
+ * defaultMessage that is no literal) rather than leave it out, where `--fix` would drop its translations as unused.
+ */
 export const extract = root => JSON.parse(execFileSync(join(BIN, 'formatjs'), [
   'extract', 'src/**/*.{ts,tsx}', '--ignore', 'src/generated/**', '--ignore', '**/*.d.ts',
   '--id-interpolation-pattern', '[content]', '--format', 'simple', '--throws',
