@@ -36,9 +36,9 @@ import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggreg
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
-import { offersSignIn } from '../settings/accounts'
+import { foundSignedOut, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
-import { playPick, useAutoPick, type Ways } from './auto-pick'
+import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import NoSource from './no-source'
 import { startOf, useResume } from './resume'
@@ -675,7 +675,6 @@ const Watch = () => {
     settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
-  const cannotPlay = Boolean(selectedSourceUri && unplayable.includes(selectedSourceUri))
   const search = useSearch()
 
   // a sign in or out, on this page, in its player or in another tab, changes what plays
@@ -690,13 +689,18 @@ const Watch = () => {
     Boolean(handle.url && canPlay(handle.origin, handle.url, backend) && offersSignIn(handle.origin, backend ?? 'cloud', status))
   // a stream that needs the extension plays nowhere on a browser that cannot add it
   const plays = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && (addable || !extensionOnly(handle))
+  const signedOut = (handle: { origin: string }) => foundSignedOut(handle.origin, status)
+  const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && !extensionOnly(handle) && !signedOut(handle)
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
+  // Play's own pick whose player has just found the viewer signed out gives way too, while a source plays with nothing to fix
+  const cannotPlay = Boolean(selectedSourceUri && (unplayable.includes(selectedSourceUri)
+    || (selected && signedOut(selected) && bestSource(open.filter(free), ways))))
   // every source has answered, an added one since its package connected
   const everyAnswered = Boolean(episode && backend) && answered && !connecting
     && ways.order.every(origin => !ways.possible(origin) || ways.settled(origin))
   // the episode the page last asked the viewer to sign in or add a source for
   const asked = useRef<string | undefined>(undefined)
-  const { pick, stuck } = playPick(open, ways, plays, { answered: everyAnswered, asked: asked.current === params.episodeUri, moving: cannotPlay })
+  const { pick, stuck } = playPick(open, ways, { plays, free, signedOut }, { answered: everyAnswered, asked: asked.current === params.episodeUri, moving: cannotPlay })
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0

@@ -50,21 +50,34 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
   return { uri: best.uri, now }
 }
 
+/** What the watch page knows of the viewer's access to each handle. */
+export type Access = {
+  /** Plays for the viewer here without a sign in, though it may still need the extension. */
+  plays: (handle: Handle) => boolean
+  /** Plays here with nothing to fix, as far as stub knows: no sign in, no extension, and not a site the viewer was found signed out of. */
+  free: (handle: Handle) => boolean
+  /** Of a site stub found the viewer signed out of lately; a state never learned is not. */
+  signedOut: (handle: Handle) => boolean
+}
+
 /**
- * `bestSource` for a viewer who may have to sign in first, `plays` naming the handles that play for them
- * here without one. Play opens nothing while none of those plays, unless it is `moving` on from its own
- * pick that cannot play, and once the page has asked the viewer to sign in or add a source (`asked`), it
- * opens only one of those. `stuck` while none plays and either every source has answered (`answered`) or
- * the page has asked.
+ * `bestSource` for a viewer who may have to sign in first. A favourite they were found signed out of
+ * gives way to the best ranked `free` handle, when there is one. Otherwise Play opens nothing while none
+ * of `plays` plays, unless it is `moving` on from its own pick that cannot play, and once the page has
+ * asked the viewer to sign in or add a source (`asked`), it opens only one of those. `stuck` while none
+ * plays and either every source has answered (`answered`) or the page has asked.
  */
 export const playPick = (
   handles: readonly Handle[],
   ways: Ways,
-  plays: (handle: Handle) => boolean,
+  { plays, free, signedOut }: Access,
   { answered, asked, moving }: { answered: boolean, asked: boolean, moving: boolean },
 ) => {
   const playing = bestSource(handles.filter(plays), ways)
-  return { pick: asked ? playing : playing || moving ? bestSource(handles, ways) : undefined, stuck: !playing && (answered || asked) }
+  const favourite = bestSource(handles, ways)
+  const top = handles.find(handle => handle.uri === favourite?.uri)
+  const instead = top && signedOut(top) ? bestSource(handles.filter(free), ways) : undefined
+  return { pick: instead ?? (asked ? playing : playing || moving ? favourite : undefined), stuck: !playing && (answered || asked) }
 }
 
 /**

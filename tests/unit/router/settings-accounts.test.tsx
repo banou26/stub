@@ -10,7 +10,7 @@ import type { CompactAnswer } from '../../../src/tracking/compact'
 import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
-import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers } from '../../../src/tracking/site-status'
+import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers, SIGNED_OUT_MS } from '../../../src/tracking/site-status'
 import { pickCountry } from '../../../src/sources/country'
 import { viewerIn } from '../sources/justwatch/viewer'
 
@@ -20,7 +20,7 @@ vi.mock('lucide-react', () => Object.fromEntries(
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
-const { offersSignIn } = await import('../../../src/router/settings/accounts')
+const { foundSignedOut, offersSignIn } = await import('../../../src/router/settings/accounts')
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 
 // The sign-ins in the cards of the settings page's Sources: every sign-in stub uses, what it is, and the
@@ -215,6 +215,24 @@ test('offersSignIn says whether a streaming card offers Sign in, on each backend
     'cr America/Toronto cloud undefined', 'cr America/Toronto cloud signed-out',
   ])
   for (const origin of ['nf', 'anilist', 'mal']) expect(offersSignIn(origin, 'cloud', fakeStatus().status), origin).toBe(false)
+})
+
+// the watch page's Play gives way to a source that plays with nothing to fix while this holds (HOR-1033)
+test('foundSignedOut holds a recorded signed out for a day, of a streaming source\'s own site alone', () => {
+  expect(SIGNED_OUT_MS).toBe(24 * HOUR)
+  const { status, statuses } = fakeStatus()
+  expect(foundSignedOut('cr', status, NOW), 'nothing remembered').toBe(false)
+  statuses.record('crunchyroll', 'signed-out', NOW)
+  expect(foundSignedOut('cr', status, NOW)).toBe(true)
+  expect(foundSignedOut('cr', status, NOW + SIGNED_OUT_MS - 1)).toBe(true)
+  expect(foundSignedOut('cr', status, NOW + SIGNED_OUT_MS), 'a day later').toBe(false)
+  expect(foundSignedOut('amazon', status, NOW), 'another site').toBe(false)
+  statuses.record('prime', 'signed-out', NOW)
+  expect(foundSignedOut('amazon', status, NOW)).toBe(true)
+  statuses.record('crunchyroll', 'signed-in', NOW + HOUR)
+  expect(foundSignedOut('cr', status, NOW + HOUR), 'signed in since').toBe(false)
+  statuses.record('anilist', 'signed-out', NOW)
+  for (const origin of ['nf', 'nyaa', 'anilist']) expect(foundSignedOut(origin, status, NOW), origin).toBe(false)
 })
 
 describe('AniList and MyAnimeList', () => {

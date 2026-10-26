@@ -7,6 +7,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { siteAsks } from '../../site'
+import { SIGNED_OUT_MS } from '../../tracking/site-status'
 import { ConfirmAction } from './confirm'
 import { primePlaysOnCloud, primeSiteFor } from '../../sources/amazon/session'
 import { viewerCountry } from '../../sources/country'
@@ -115,6 +116,13 @@ const STREAMING_SITES = ([
 export const offersSignIn = (origin: string, backend: FknBackend | undefined, status: Pick<AccountsProps['status'], 'read'>): boolean => {
   const entry = STREAMING_SITES.find(each => each.origin === origin)
   return Boolean(entry && backend === 'cloud' && entry.signsInOnCloud(entry.hostFor(viewerCountry())) && status.read(entry.site)?.state !== 'signed-in')
+}
+
+/** Whether stub found the viewer signed out of the source's site under SIGNED_OUT_MS ago, on either backend. A state never learned is not. */
+export const foundSignedOut = (origin: string, status: Pick<AccountsProps['status'], 'read'>, now = Date.now()): boolean => {
+  const entry = STREAMING_SITES.find(each => each.origin === origin)
+  const remembered = entry && status.read(entry.site)
+  return remembered?.state === 'signed-out' && now - remembered.checkedAt < SIGNED_OUT_MS
 }
 
 type StreamingProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount, heading: Heading } & Pick<AccountsProps, 'backend' | 'status'>
