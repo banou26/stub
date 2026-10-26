@@ -350,6 +350,36 @@ describe('the title page', () => {
     expect(facts(host)).toEqual(['Format: TV Show', 'Genres: Fantasy'])
   })
 
+  test('names its sections, its controls and its credits in English', () => {
+    const voice = (name: string, language: string) => ({ name, language, image: null, url: null })
+    const credited = {
+      ...work(1, 'Frieren'),
+      relations: [sequel],
+      trailers: [{ uri: 'yt:a', origin: 'yt', id: 'a', url: 'https://www.youtube.com/watch?v=a' }],
+      characters: [
+        { name: 'Frieren', role: 'MAIN', image: null, url: null, voiceActors: [voice('Atsumi Tanezaki', 'ja'), voice('Mallorie Rodak', 'en')] },
+        { name: 'Himmel', role: 'SUPPORTING', image: null, url: null, voiceActors: [voice('Nobuhiko Okamoto', 'ja')] },
+        { name: 'Flamme', role: 'BACKGROUND', image: null, url: null, voiceActors: [] },
+      ],
+      staff: [{ name: 'Keiichirou Saitou', roles: ['Director', 'Storyboard'], image: null, url: null }],
+      themes: [{ kind: 'OP', sequence: 1, title: 'Yuusha', artists: ['YOASOBI', 'Ayase'], video: 'https://v.animethemes.moe/a.webm' }],
+    }
+    const { host, answer } = titlePage(credited.uri)
+    answer(credited)
+    const texts = (selector: string) => [...host.querySelectorAll(selector)].map(element => element.textContent)
+    const attributes = (selector: string, name: string) => [...host.querySelectorAll(selector)].map(element => element.getAttribute(name))
+    expect(texts('.chips > .chip')).toEqual(['2 Episodes', 'TV Show', 'Finished'])
+    expect(texts('[data-relations] h2 > span, [data-episodes] > h2, [data-characters] h2 > span, [data-staff] > h2, [data-themes] > h2'))
+      .toEqual(['Relations', 'Episodes', 'Characters', 'Staff', 'Themes'])
+    expect(texts('.relation-card .relation')).toEqual(['Sequel'])
+    expect(attributes('[data-characters] select', 'aria-label')).toEqual(['Language'])
+    expect(texts('[data-characters] option')).toEqual(['Japanese', 'English'])
+    expect(texts('.person:not(.actor) .detail')).toEqual(['Main', 'Supporting', 'Background', 'Director, Storyboard'])
+    expect(texts('[data-themes] .theme > span:not(.toggle)')).toEqual(['OP1', 'Yuusha', 'YOASOBI, Ayase'])
+    expect(attributes('[data-themes] button.toggle', 'aria-label')).toEqual(['Play'])
+    expect(['aria-label', 'title'].flatMap(name => attributes('.actions .icon', name))).toEqual(['Share', 'Trailer', 'Share', 'Trailer'])
+  })
+
   test('holds a full page of relations: three cards and the page buttons under them', () => {
     const { host } = titlePage(work(1, 'Frieren').uri)
     expect(host.querySelectorAll('.relations.placeholder > .grid > *')).toHaveLength(3)

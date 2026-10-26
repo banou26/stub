@@ -42,6 +42,15 @@ test('roles and languages read as words', () => {
   expect(languageLabel('Klingon')).toBe('Klingon')
 })
 
+test('each role AniList names, and one it does not as the source wrote it', () => {
+  expect(['MAIN', 'SUPPORTING', 'BACKGROUND', 'GUEST'].map(roleLabel)).toEqual(['Main', 'Supporting', 'Background', 'GUEST'])
+})
+
+test('the languages AniList voices read in English', () => {
+  expect(['ja', 'en', 'es', 'pt', 'fr', 'de', 'it', 'ko', 'zh', 'he', 'hu', 'fil'].map(languageLabel))
+    .toEqual(['Japanese', 'English', 'Spanish', 'Portuguese', 'French', 'German', 'Italian', 'Korean', 'Chinese', 'Hebrew', 'Hungarian', 'Filipino'])
+})
+
 test('live action names no language: no picker, and every actor is drawn', () => {
   const cast = [{ name: 'Walter White', voiceActors: [{ name: 'Bryan Cranston', language: null }] }]
   const languages = creditLanguages(cast)

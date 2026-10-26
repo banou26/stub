@@ -105,6 +105,47 @@ test('the source material reads as words', () => {
   expect(titleFacts({ sourceMaterial: 'LIGHT_NOVEL' })).toEqual([{ label: 'Source', value: 'Light novel' }])
 })
 
+test('each source material AniList names reads as words, and one it may add later as its own word', () => {
+  const sources = ['ORIGINAL', 'MANGA', 'LIGHT_NOVEL', 'VISUAL_NOVEL', 'VIDEO_GAME', 'OTHER', 'NOVEL', 'DOUJINSHI', 'ANIME', 'WEB_NOVEL', 'LIVE_ACTION', 'GAME', 'COMIC', 'MULTIMEDIA_PROJECT', 'PICTURE_BOOK', 'AUDIO_DRAMA']
+  expect(sources.map(sourceMaterial => titleFacts({ sourceMaterial })[0]?.value)).toEqual([
+    'Original', 'Manga', 'Light novel', 'Visual novel', 'Video game', 'Other', 'Novel', 'Doujinshi', 'Anime', 'Web novel', 'Live action', 'Game', 'Comic', 'Multimedia project', 'Picture book', 'Audio drama',
+  ])
+})
+
+// One Piece's 1100 episodes, as the sources count them
+test('a count past a thousand reads as the sources write it, with no grouping', () => {
+  expect(titleChips({ episodeCount: 1100 })).toEqual(['1100 Episodes'])
+  expect(titleFacts({ episodeCount: 1100, duration: 1500 })).toEqual([{ label: 'Episodes', value: '1100' }, { label: 'Episode length', value: '1500 min' }])
+})
+
+test('names are joined by a comma and a space, however many', () => {
+  const named = (studios: string[]) => titleFacts({ studios }).at(0)?.value
+  expect([named(['Sunrise']), named(['Sunrise', 'Bones']), named(['Sunrise', 'Bones', 'MAPPA'])]).toEqual(['Sunrise', 'Sunrise, Bones', 'Sunrise, Bones, MAPPA'])
+  expect(titleFacts({ genres: ['Drama', 'Mystery'], tags: ['Elf', 'Travel', 'Magic'] })).toEqual([
+    { label: 'Genres', value: 'Drama, Mystery' },
+    { label: 'Tags', value: 'Elf, Travel, Magic' },
+  ])
+})
+
+test('a percent rounds to a whole number and a score to one place, half up', () => {
+  const ratings = [
+    { source: 'Rotten Tomatoes', value: 14.5, scale: 100 },
+    { source: 'Rotten Tomatoes', value: 92.4, scale: 100 },
+    { source: 'IMDb', value: 7.25, scale: 10 },
+    { source: 'TMDB', value: 8.05, scale: 10 },
+    { source: 'IMDb', value: 0, scale: 10 },
+    { source: 'Rotten Tomatoes', value: 100, scale: 100 },
+  ]
+  expect(ratingChips({ ratings })).toEqual(['Rotten Tomatoes 15%', 'Rotten Tomatoes 92%', 'IMDb 7.3', 'TMDB 8.1', 'IMDb 0.0', 'Rotten Tomatoes 100%'])
+})
+
+test('an upcoming start reads Releases', () => {
+  expect(titleFacts({ type: MediaType.Movie, startDate: '2027-01-08' }, { locale: 'en-US' }, false, true)).toEqual([
+    { label: 'Format', value: 'Movie' },
+    { label: 'Releases', value: 'Jan 8, 2027' },
+  ])
+})
+
 test('Aired is the day the source named, west of Greenwich too', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     // AniList's shape, then Jikan's

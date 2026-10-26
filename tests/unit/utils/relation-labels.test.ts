@@ -35,6 +35,14 @@ describe('relationLabel', () => {
     expect(relationLabel('SOURCE')).toBe('Source')
   })
 
+  test('each relation the schema declares, word for word', () => {
+    expect(Object.fromEntries(schemaRelations().map(relation => [relation, relationLabel(relation)]))).toEqual({
+      ADAPTATION: 'Adaptation', PREQUEL: 'Prequel', SEQUEL: 'Sequel', PARENT: 'Parent story', SIDE_STORY: 'Side story',
+      CHARACTER: 'Character', SUMMARY: 'Summary', ALTERNATIVE: 'Alternative', SPIN_OFF: 'Spin off', OTHER: 'Related',
+      SOURCE: 'Source', COMPILATION: 'Compilation', CONTAINS: 'Contains',
+    })
+  })
+
   test('an unknown or absent relation still says something true', () => {
     expect(relationLabel('WHAT_IS_THIS')).toBe('Related')
     expect(relationLabel(undefined)).toBe('Related')
@@ -75,6 +83,10 @@ describe('workFormatLabel', () => {
     expect(workFormatLabel('ONA')).toBe('ONA')
     expect(workFormatLabel('MOVIE')).toBe('Movie')
     expect(workFormatLabel('TV_SHORT')).toBe('TV Short')
+  })
+
+  test('each format it knows, word for word', () => {
+    expect(['SPECIAL', 'MUSIC', 'MANGA', 'ONE_SHOT'].map(workFormatLabel)).toEqual(['Special', 'Music', 'Manga', 'One Shot'])
   })
 
   test('an unseen format is title cased rather than dropped', () => {
