@@ -25,7 +25,7 @@
   "Connect": "Collega",
   "Connected to {name}.": "Collegato a {name}.",
   "Connected#state of an added source": "Connessa",
-  "Connecting#state of an added source": "Connessione",
+  "Connecting#state of an added source": "Connessione in corso",
   "Contains": "Contiene",
   "Copied": "Copiato",
   "Could not add this source.": "Impossibile aggiungere questa fonte.",

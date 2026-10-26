@@ -25,7 +25,7 @@
   "Connect": "Associer",
   "Connected to {name}.": "Associé à {name}.",
   "Connected#state of an added source": "Connectée",
-  "Connecting#state of an added source": "Connexion",
+  "Connecting#state of an added source": "Connexion en cours",
   "Contains": "Contient",
   "Copied": "Copié",
   "Could not add this source.": "Impossible d’ajouter cette source.",
