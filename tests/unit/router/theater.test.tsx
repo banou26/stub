@@ -246,6 +246,14 @@ test('with three episodes watched, it reads Continue and opens the fourth', () =
   expect(play()).toEqual({ label: 'Continue', href: `/watch/${uriOf('a')}/ag:(anilist:a-4)` })
 })
 
+test('with the show completed, it reads Rewatch and opens the first', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  answer.details[uriOf('a')] = details('a', { episodes: 6 })
+  answer.tracking = { _id: `tracking:${uriOf('a')}`, summary: { status: 'COMPLETED', progress: 6 } }
+  const { play } = hero([show('a')])
+  expect(play()).toEqual({ label: 'Rewatch', href: `/watch/${uriOf('a')}/ag:(anilist:a-1)` })
+})
+
 // only the clock is faked, so the hero's own waits draw nothing over the tick
 test('Continue appears on the clock\'s next tick once the next episode has aired', () => {
   vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })

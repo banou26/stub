@@ -11,6 +11,7 @@ test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   expect(runtimeText(112)).toBe('1h 52m')
   expect(runtimeText(120)).toBe('2h')
   expect(runtimeText(45)).toBe('45m')
+  expect([runtimeText(61), runtimeText(600), runtimeText(1)]).toEqual(['1h 1m', '10h', '1m'])
   for (const none of [0, -3, null, undefined]) expect(runtimeText(none), String(none)).toBeUndefined()
 })
 

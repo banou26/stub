@@ -556,6 +556,7 @@ describe('a media with no episode rows', () => {
     const host = render({ ...media, settled: true } as DetailsMedia)
     expect(host.querySelectorAll('.episode:not(.placeholder)')).toHaveLength(12)
     expect(host.textContent).not.toContain('No episodes found')
+    expect(host.querySelector('nav')?.getAttribute('aria-label')).toBe('Episodes pages')
   })
 })
 

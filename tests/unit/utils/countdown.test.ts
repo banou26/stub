@@ -1,5 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { afterAll, describe, expect, test } from 'vite-plus/test'
 
+import { startLanguage } from '../../../src/i18n'
 import { formatCountdown } from '../../../src/utils/countdown'
 
 const MINUTE = 60_000
@@ -31,6 +32,11 @@ describe('formatCountdown', () => {
 
   test('under a minute still counts down', () => {
     expect(formatCountdown(30_000)).toBe('30 secs')
+    expect(formatCountdown(MINUTE + 1_000)).toBe('1 min, 1 sec')
+  })
+
+  test('days past a month are still days', () => {
+    expect(formatCountdown(45 * DAY + 3 * HOUR)).toBe('45 days, 3 hours')
   })
 
   // A stored schedule outlives the airing it describes, so the caller needs a way to render nothing
@@ -39,5 +45,16 @@ describe('formatCountdown', () => {
     expect(formatCountdown(0)).toBeUndefined()
     expect(formatCountdown(-HOUR)).toBeUndefined()
     expect(formatCountdown(Number.NaN)).toBeUndefined()
+  })
+})
+
+// stub's English has always read mins and secs, whichever English the browser writes dates in
+describe('in every English', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test.each(['en-US', 'en-GB', 'en-IN'])('%s reads as stub always wrote it', async locale => {
+    await startLanguage({ language: 'en', languages: [locale] })
+    expect([formatCountdown(HOUR + 42 * MINUTE), formatCountdown(30_000), formatCountdown(DAY + HOUR + MINUTE, 3), formatCountdown(2 * DAY + 2 * HOUR, 1)])
+      .toEqual(['1 hour, 42 mins', '30 secs', '1 day, 1 hour, 1 min', '2 days'])
   })
 })

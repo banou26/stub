@@ -199,6 +199,14 @@ describe('releaseDateDisplay', () => {
       releaseDateDisplay('2026-01-07', { locale: 'en-US', now: new Date('2026-09-08T20:00:00.000Z') }))).toBe('Jan 7, 2026')
   })
 
+  test('every English writes its days alike', () => {
+    for (const locale of ['en-US', 'en-GB', 'en-IN']) {
+      const at = (value: string, upcoming = false) => releaseDateDisplay(value, { locale, now: new Date(2026, 8, 8, 12), upcoming })
+      expect([at('2026-09-08'), at('2026-09-07'), at('2026-09-06'), at('2026-08-10'), at('2026-09-09', true), at('2026-09-10', true), at('2026-10-07', true)], locale)
+        .toEqual(['today', 'yesterday', '2 days ago', '29 days ago', 'tomorrow', 'in 2 days', 'in 29 days'])
+    }
+  })
+
   test('there is nothing to show where there is no date', () => {
     expect(releaseDateDisplay(undefined)).toBeUndefined()
     expect(releaseDateDisplay('TBA')).toBeUndefined()
