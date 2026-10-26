@@ -13,8 +13,8 @@
 //
 //   node scripts/preview-heap.mjs [the directory holding preview.js and the two .wasm files, default functions-lib]
 //
-// It starts `wrangler dev` (WRANGLER names the binary, default `npx wrangler`) on a scratch Worker whose relay is a
-// stand-in, so no upstream is asked, and stops it on exit.
+// It starts `wrangler dev` (WRANGLER names the binary, default `npx -y wrangler@4.152.0`, the one measured) on a
+// scratch Worker whose relay is a stand-in, so no upstream is asked, and stops it on exit.
 import { spawn } from 'node:child_process'
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -65,7 +65,7 @@ export default {
 }
 `)
 
-const [command, ...args] = (process.env.WRANGLER ?? 'npx wrangler').split(' ')
+const [command, ...args] = (process.env.WRANGLER ?? 'npx -y wrangler@4.152.0').split(' ')
 const wrangler = spawn(command, [...args, 'dev', 'entry.mjs', '--port', String(PORT), '--inspector-port', String(INSPECTOR), '--compatibility-date', '2026-10-01', '--local'], {
   cwd: dir,
   detached: true,
