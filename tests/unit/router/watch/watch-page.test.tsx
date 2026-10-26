@@ -228,6 +228,22 @@ vi.mock('../../../../src/utils/fetch', () => ({
     return input in relay.files ? Response.json(relay.files[input]) : new Response('', { status: 403 })
   },
 }))
+// Crunchyroll's length of each episode, read when a torrent plays, and the viewer's own browser, which answers aniskip
+const lengths = vi.hoisted(() => ({ byUrl: {} as Record<string, number>, asked: [] as string[] }))
+vi.mock('../../../../src/sources/crunchyroll/relay-check', () => ({
+  unlistedRelays: async () => [],
+  crunchyrollLength: async (url: string) => {
+    lengths.asked.push(url)
+    return lengths.byUrl[url]
+  },
+}))
+const direct = vi.hoisted(() => ({ answers: {} as Record<string, unknown>, asked: [] as string[] }))
+vi.mock('../../../../src/worker/browser-fetch', () => ({
+  browserFetch: async (input: string) => {
+    direct.asked.push(String(input))
+    return String(input) in direct.answers ? Response.json(direct.answers[String(input)]) : new Response('', { status: 404 })
+  },
+}))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
 const relays = vi.hoisted(() => ({ remembered: {} as Record<string, string>, heard: [] as [HTMLIFrameElement, string][] }))
 vi.mock('../../../../src/embed-relays', () => ({
@@ -276,6 +292,7 @@ const wiring = await import('../../../../src/router/settings/wiring') as unknown
 const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
+const { aniskipUrl } = await import('../../../../src/sources/aniskip')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { ACCOUNT_WAIT_MS } = await import('../../../../src/worker/plugin-sources')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
@@ -317,6 +334,10 @@ afterEach(() => {
   bridge.duration = 1000
   relay.files = {}
   relay.asked = []
+  lengths.byUrl = {}
+  lengths.asked = []
+  direct.answers = {}
+  direct.asked = []
   tracking = undefined
   storage = undefined
   saved.length = 0
@@ -1709,6 +1730,86 @@ test('a torrent\'s own chapters bring Next episode a second before its ending', 
   await wait(100)
   expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
   expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
+})
+
+// HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,
+// else aniskip's ending. The second episode as a torrent of 1395 s whose file's chapters are `chapters`, on a show
+// MyAnimeList knows as 5, its third episode as given.
+const torrentOf = async (chapters: object[] | undefined, third: object = {}) => {
+  pluginPlayers.chapters = chapters
+  bridge.duration = 1395
+  const page = await atTheEnd(third, 'nyaa:a')
+  Object.assign(media, { uri: 'ag:(anilist:1,mal:5,tvdb:1)' })
+  await page.rerender()
+  return page
+}
+const PARTS = [{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }]
+const CREDITS = { credits: { start: 1300, end: 1390 } }
+const crunchyrollUrl = (n: number) => `https://www.crunchyroll.com/watch/GX${n}`
+
+test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when its length is Crunchyroll\'s', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1394.95
+  relay.files[skipEventsUrl('GX2')] = CREDITS
+  const { host } = await torrentOf(PARTS)
+  await report({ paused: false, time: 1290 })
+  await settle()
+  expect(lengths.asked).toEqual([crunchyrollUrl(2)])
+  expect(relay.asked).toEqual([skipEventsUrl('GX2')])
+  expect(direct.asked, 'aniskip is not asked once Crunchyroll has the credits').toEqual([])
+  // the next report, a heartbeat
+  await report({ paused: false, time: 1291 })
+  await wait(7_900)
+  expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
+  await wait(100)
+  expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+})
+
+test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor aniskip', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1394.95
+  relay.files[skipEventsUrl('GX2')] = { credits: { start: 1320, end: 1390 } }
+  const { host } = await torrentOf([{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }])
+  await report({ paused: false, time: 1290 })
+  await settle()
+  await report({ paused: false, time: 1291 })
+  await wait(8_000)
+  expect(nextShown(host), 'from the file\'s own ending').toBe('E3 - Title 3')
+  expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
+})
+
+test('with no Crunchyroll handle, Crunchyroll is asked nothing and aniskip\'s ending, asked from the browser, brings Next episode', async () => {
+  direct.answers[aniskipUrl('5', 2, 1395)] = { found: true, results: [{ interval: { startTime: 1300, endTime: 1390 }, skipType: 'ed', episodeLength: 1395.02 }] }
+  const { host, rerender } = await torrentOf(undefined)
+  Object.assign((media as { episodes: object[] }).episodes[1]!, { handles: [release('a')] })
+  await rerender()
+  await report({ paused: false, time: 1290 })
+  await settle()
+  expect(direct.asked).toEqual([aniskipUrl('5', 2, 1395)])
+  expect([lengths.asked, relay.asked]).toEqual([[], []])
+  await report({ paused: false, time: 1291 })
+  await wait(8_000)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+})
+
+test('a torrent asks for an ending only once it plays, and once', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1394.95
+  await torrentOf(PARTS)
+  await report({ paused: true, time: 0 })
+  await settle()
+  expect([lengths.asked, direct.asked], 'paused').toEqual([[], []])
+  await report({ paused: false, time: 0 })
+  await settle()
+  await report({ paused: false, time: 5 }, { paused: true, time: 6 }, { paused: false, time: 6 })
+  await settle()
+  expect(lengths.asked).toEqual([crunchyrollUrl(2)])
+  expect(direct.asked, 'aniskip, as Crunchyroll\'s events have no ending').toEqual([aniskipUrl('5', 2, 1395)])
+})
+
+test('a torrent with no next episode to offer asks for no ending', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1394.95
+  await torrentOf(PARTS, { releaseDate: '2099-01-01' })
+  await report({ paused: false, time: 1290 })
+  await settle()
+  expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
 })
 
 test('a torrent\'s player is put on the stage, which keeps its fullscreen', async () => {

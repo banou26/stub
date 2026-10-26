@@ -37,7 +37,7 @@ import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
-import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
+import { AggregatedUri, asAggregatedUri, extractAggregatedUriOrigin, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
 import { Episodes, EpisodesPlaceholder, useTrackingSummary } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
@@ -45,6 +45,7 @@ import { getRoutePath, Route } from '../path'
 import { foundSignedIn, neverSignedIn as neverSignedInTo, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
 import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
+import { useFallbackEnding } from './fallback-ending'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import NoSource from './no-source'
 import { startOf, useResume } from './resume'
@@ -872,6 +873,12 @@ const Watch = () => {
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
+  const malId = media?.uri ? extractAggregatedUriOrigin(media.uri, 'mal')?.id : undefined
+  // asked only where there is a Next episode to time
+  const fallback = useFallbackEnding(viaPlugin && upNext ? playbackLink : undefined, {
+    crunchyroll: episodeHandles.find(handle => handle.origin === 'cr' && handle.url)?.url ?? undefined,
+    mal: malId && Number.isInteger(episodeNumber) ? { id: malId, episode: episodeNumber! } : undefined,
+  })
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
   const [season, setSeason] = useState<{ uri: string, on: string }>()
@@ -928,7 +935,7 @@ const Watch = () => {
                       `}
                     />
                   )}
-                <UpNext link={playbackLink} next={upNext} chapters={chapters} stage={stage}/>
+                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : chapters} stage={stage}/>
               </div>
             )
             : needsExtension

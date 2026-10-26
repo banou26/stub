@@ -24,6 +24,9 @@
 // | www.themoviedb.org       | no allow-origin                                                                       |
 // | unogs.com                | no allow-origin, and it needs unogs.com as its referer                                |
 //
+// api.aniskip.com, which the watch page asks itself (src/router/watch/fallback-ending.ts), was measured the same way and
+// answered, 2026-10-26.
+//
 // What a listed host costs: the viewer's address reaches it, so the privacy page names each one
 // (tests/unit/router/privacy.test.tsx holds it to this list), and a limit it counts per address counts the viewer's
 // requests rather than a relay node's: AniList's 30 a minute, trace.moe's 100 searches a day. For www.netflix.com the
@@ -41,6 +44,7 @@ import type { FetchLike } from './backoff'
  */
 export const DIRECT_FETCH_ORIGINS: ReadonlySet<string> = new Set([
   'https://api.ani.zip',
+  'https://api.aniskip.com',
   'https://api.trace.moe',
   'https://api.tvmaze.com',
   'https://api4.thetvdb.com',
