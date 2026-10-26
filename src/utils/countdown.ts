@@ -1,5 +1,19 @@
+import { intl } from '../i18n'
+
+// days and hours in full, minutes and seconds short, each left out at zero
+const COUNTDOWN: Intl.DurationFormatOptions = { style: 'short', days: 'long', hours: 'long', daysDisplay: 'auto', hoursDisplay: 'auto' }
+
+const formats = new Map<string, Intl.DurationFormat>()
+
+// US English writes "42 min" where stub's English has always read "42 mins", as international English (en-001) does
+const countdownFormat = () => {
+  const locale = new Intl.Locale(intl.locale).language === 'en' ? 'en-001' : intl.locale
+  if (!formats.has(locale)) formats.set(locale, new Intl.DurationFormat(locale, COUNTDOWN))
+  return formats.get(locale)!
+}
+
 /**
- * A duration as the largest units it actually uses, the way a broadcast countdown reads.
+ * A duration as the largest units it actually uses, the way a broadcast countdown reads, in the language shown.
  *
  * `units` is how many of them to name: two gives "1 hour, 42 mins", one gives "1 hour". Empty units
  * are SKIPPED rather than padded, so an episode six days and forty-two minutes out reads
@@ -12,21 +26,17 @@
 export const formatCountdown = (ms: number, units = 2): string | undefined => {
   if (!Number.isFinite(ms) || ms <= 0) return undefined
 
-  const parts: string[] = []
+  const parts: Partial<Record<Intl.DurationFormatUnit, number>> = {}
+  let named = 0
   let rest = ms
-  for (const unit of UNITS) {
-    const count = Math.floor(rest / unit.ms)
-    rest -= count * unit.ms
+  for (const [unit, size] of UNITS) {
+    const count = Math.floor(rest / size)
+    rest -= count * size
     if (!count) continue
-    parts.push(`${count} ${count === 1 ? unit.singular : unit.plural}`)
-    if (parts.length >= units) break
+    parts[unit] = count
+    if (++named >= units) break
   }
-  return parts.length ? parts.join(', ') : undefined
+  return named ? countdownFormat().format(parts) : undefined
 }
 
-const UNITS = [
-  { ms: 86_400_000, singular: 'day', plural: 'days' },
-  { ms: 3_600_000, singular: 'hour', plural: 'hours' },
-  { ms: 60_000, singular: 'min', plural: 'mins' },
-  { ms: 1_000, singular: 'sec', plural: 'secs' },
-] as const
+const UNITS = [['days', 86_400_000], ['hours', 3_600_000], ['minutes', 60_000], ['seconds', 1_000]] as const

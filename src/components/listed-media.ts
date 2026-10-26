@@ -1,5 +1,7 @@
 import type { Media } from '../generated/graphql'
 
+import { intl } from '../i18n'
+
 /**
  * A media as the search page's card and list modes read it.
  *
@@ -22,4 +24,4 @@ export const airsIn = (media: Pick<ListedMedia, 'nextAiringEpisode'>, now: numbe
 
 /** An episode count as words, or nothing. Singular because a one-episode film read "1 episodes". */
 export const episodesLabel = (count: number | null | undefined): string | undefined =>
-  count == null ? undefined : `${count} episode${count === 1 ? '' : 's'}`
+  count == null ? undefined : intl.formatMessage({ id: '{count, plural, one {{count} episode} other {{count} episodes}}', defaultMessage: '{count, plural, one {{count} episode} other {{count} episodes}}' }, { count })

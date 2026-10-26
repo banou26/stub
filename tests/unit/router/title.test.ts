@@ -316,6 +316,6 @@ test('the page is its own route, beside the modal\'s', () => {
 // media-modal.tsx cannot be imported here (see modal-media.test.ts), so its link is read off the source
 test('the modal links to the page for the address it has grown to, with the session\'s flags', () => {
   const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
-  expect(modal).toContain('<Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>')
+  expect(modal).toContain('<Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: \'More details\'')
   expect(modal).toContain('const search = carriedSearch(useSearch())')
 })

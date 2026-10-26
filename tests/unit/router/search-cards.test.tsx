@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -64,7 +64,7 @@ const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
 const open = async (mode: string, nodes: object[]) => {
   vi.stubGlobal('localStorage', { getItem: () => mode, setItem: () => {} })
   const location = memoryLocation({ path: '/search?season=SPRING&year=2026' })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><Search/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Search/></Router>))
   hosts.push(host)
   const cards = () => [...host.querySelectorAll<HTMLElement>('.grid > *, .cards > *, .rows > *')]
   const answer = (next: object[]) => {

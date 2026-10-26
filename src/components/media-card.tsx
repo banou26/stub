@@ -2,6 +2,7 @@ import type { Path } from 'wouter'
 import type { ListedMedia } from './listed-media'
 
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 
 import { airsIn, episodesLabel } from './listed-media'
@@ -142,6 +143,7 @@ const style = css`
  * the same slot always answers "where is this up to" rather than going blank on a finished show.
  */
 const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
+  const intl = useIntl()
   const now = useNow()
   const coverUrl = useCoverUrl(media.covers, media, { box: CARD_BOX })
   const accent = media.covers?.find(cover => cover.color)?.color
@@ -167,11 +169,11 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
               countdown && episode != null
                 ? (
                   <>
-                    <div className="airing-label">Ep {episode} airing in</div>
+                    <div className="airing-label">{intl.formatMessage({ id: 'Ep {episode} airing in', defaultMessage: 'Ep {episode} airing in' }, { episode })}</div>
                     <div className="airing-value airing">{countdown}</div>
                   </>
                 )
-                : <div className="airing-value">{statusLabel(media.status) ?? 'Unknown status'}</div>
+                : <div className="airing-value">{statusLabel(media.status) ?? intl.formatMessage({ id: 'Unknown status', defaultMessage: 'Unknown status' })}</div>
             }
           </div>
           {media.averageScore != null && <MediaScore percent={media.averageScore}/>}

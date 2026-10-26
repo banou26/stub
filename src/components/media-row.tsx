@@ -2,6 +2,7 @@ import type { Path } from 'wouter'
 import type { ListedMedia } from './listed-media'
 
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 
 import { airsIn, episodesLabel } from './listed-media'
@@ -101,6 +102,7 @@ const style = css`
  * results down a column is the reader for whom "82%, 115,797 users" says more than either half does.
  */
 const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
+  const intl = useIntl()
   const now = useNow()
   const coverUrl = useCoverUrl(media.covers, media, { box: CARD_BOX })
   const accent = media.covers?.find(cover => cover.color)?.color
@@ -119,7 +121,10 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
       </div>
       <div className="column score">
         {media.averageScore != null && <MediaScore percent={media.averageScore} size={17}/>}
-        {media.popularity != null && <span className="secondary">{media.popularity.toLocaleString()} users</span>}
+        {
+          media.popularity != null
+            && <span className="secondary">{intl.formatMessage({ id: '{count, plural, one {# user} other {# users}}', defaultMessage: '{count, plural, one {# user} other {# users}}' }, { count: media.popularity })}</span>
+        }
       </div>
       <div className="column format">
         <span>{formatLabel(media.type)}</span>
@@ -129,7 +134,7 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
         <span>{statusLabel(media.status)}</span>
         {
           countdown && episode != null &&
-            <span className="secondary airing">Ep {episode} airing in {countdown}</span>
+            <span className="secondary airing">{intl.formatMessage({ id: 'Ep {episode} airing in {countdown}', defaultMessage: 'Ep {episode} airing in {countdown}' }, { episode, countdown })}</span>
         }
       </div>
     </Link>

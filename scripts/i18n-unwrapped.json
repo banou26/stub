@@ -7,16 +7,6 @@
     "src/router/search/index.tsx",
     "src/router/search/scene.tsx"
   ],
-  "home-cards": [
-    "src/components/media-card.tsx",
-    "src/components/media-preview.tsx",
-    "src/components/media-row.tsx",
-    "src/components/media-score.tsx",
-    "src/router/home/index.tsx",
-    "src/router/home/media-details.tsx",
-    "src/router/home/media-modal.tsx",
-    "src/router/home/movie-play.tsx"
-  ],
   "watch-players": [
     "src/components/player/video-surface.tsx",
     "src/components/plugin-player.tsx",

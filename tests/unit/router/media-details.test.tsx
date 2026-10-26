@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import type { DetailsMedia } from '../../../src/router/home/media-details'
 import type { Tracked } from '../../../src/router/title/facts'
@@ -53,7 +53,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
 test('every page of episodes gets its rows\' source icons, once the first page has its own', async () => {
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={media}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={media}/></Router></Provider>))
   hosts.push(host)
   const rows = () => [...host.querySelectorAll('.episode')]
   const withIcons = () => rows().filter(row => row.querySelector('.src')).length
@@ -71,7 +71,7 @@ test('every page of episodes gets its rows\' source icons, once the first page h
 
 test('the list opens on the page holding the episode after the viewer\'s progress', () => {
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={media} tracked={{ status: 'WATCHING', progress: 12 }}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={media} tracked={{ status: 'WATCHING', progress: 12 }}/></Router></Provider>))
   hosts.push(host)
   expect(host.querySelector('.episode .number')!.textContent).toBe('13')
   expect(host.querySelector('button[aria-current="page"]')!.textContent).toBe('2')
@@ -87,7 +87,7 @@ describe('the bar on an episode\'s thumbnail', () => {
 
   const render = (shown: DetailsMedia, tracked?: Tracked) => {
     const { hook } = memoryLocation({ path: '/' })
-    const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={shown} tracked={tracked}/></Router></Provider>)
+    const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={shown} tracked={tracked}/></Router></Provider>))
     hosts.push(host)
     return host
   }
@@ -170,7 +170,7 @@ test('a later page keeps its own rows\' release: unreleased ones dimmed and not 
     episodes: media.episodes.map(episode => ({ ...episode, titles: [], releaseDate: episode.episodeNumber! < 20 ? '2023-09-29' : '2099-01-01' })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={airing}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={airing}/></Router></Provider>))
   hosts.push(host)
   const rows = () => [...host.querySelectorAll('.episode')].map(row => ({
     number: Number(row.querySelector('.number')!.textContent),
@@ -205,7 +205,7 @@ test('the next episode reads how long until it airs while dimmed and turns on on
         episodes: media.episodes.slice(0, 4).map(episode => ({ ...episode, releaseDate: new Date(Date.UTC(2026, 9, 2 - early + 7 * (episode.episodeNumber! - 1), 14)).toISOString() })),
       } as unknown as DetailsMedia
       const { hook } = memoryLocation({ path: '/' })
-      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={airing}/></Router></Provider>)
+      const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={airing}/></Router></Provider>))
       hosts.push(host)
       return () => {
         const row = host.querySelectorAll('.episode')[2]!
@@ -235,7 +235,7 @@ const thirdOf = (airingAt: string, dates: string[]) => {
     episodes: media.episodes.slice(0, 3).map((episode, index) => ({ ...episode, releaseDate: dates[index] })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={weekly}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={weekly}/></Router></Provider>))
   hosts.push(host)
   return () => {
     const row = host.querySelectorAll('.episode')[2]!
@@ -279,7 +279,7 @@ test('a series\' first dimmed episode counts down to its best source\'s time, an
         })),
       } as unknown as DetailsMedia
       const { hook } = memoryLocation({ path: '/' })
-      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={series}/></Router></Provider>)
+      const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={series}/></Router></Provider>))
       hosts.push(host)
       return () => [...host.querySelectorAll('.episode')].map(row => ({ unreleased: row.classList.contains('unreleased'), date: row.querySelector('time')?.textContent }))
     }
@@ -344,7 +344,7 @@ const scheduledShow = (
     })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={show}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={show}/></Router></Provider>))
   hosts.push(host)
   return host
 }
@@ -459,7 +459,7 @@ test('a released row with no title is named by its number and keeps its synopsis
     })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={untitled}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={untitled}/></Router></Provider>))
   hosts.push(host)
   await act(() => new Promise(resolve => setTimeout(resolve, 10)))
   expect([...host.querySelectorAll('.episode')].map(row => ({
@@ -480,7 +480,7 @@ test('an episode airing at midnight UTC shows the day it aired where the viewer 
     for (const [zone, day] of [['America/Los_Angeles', '2024-01-06'], ['Asia/Tokyo', '2024-01-07']] as const) {
       process.env.TZ = zone
       const { hook } = memoryLocation({ path: '/' })
-      const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={dawn}/></Router></Provider>)
+      const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={dawn}/></Router></Provider>))
       hosts.push(host)
       expect(host.querySelector('.episode time')?.textContent, zone).toBe(releaseDateLabel(day))
     }
@@ -503,7 +503,7 @@ test('a Prime Video row outside Japan plays in stub with the extension, and link
   const hrefOn = async (backend: FknBackend) => {
     fkn.backend = backend
     const { hook } = memoryLocation({ path: '/' })
-    const host = mount(<Provider value={client([{ id: 'amazon', name: 'Prime Video' }])}><Router hook={hook}><Episodes media={prime}/></Router></Provider>)
+    const host = mount(withIntl(<Provider value={client([{ id: 'amazon', name: 'Prime Video' }])}><Router hook={hook}><Episodes media={prime}/></Router></Provider>))
     hosts.push(host)
     await act(() => new Promise(resolve => setTimeout(resolve, 10)))
     return host.querySelector('.episode .src')?.getAttribute('href')
@@ -522,7 +522,7 @@ test('an episode row\'s lone release a browser cannot open goes to the watch pag
     })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(<Provider value={client([{ id: 'nyaa', name: 'Nyaa' }])}><Router hook={hook}><Episodes media={torrents}/></Router></Provider>)
+  const host = mount(withIntl(<Provider value={client([{ id: 'nyaa', name: 'Nyaa' }])}><Router hook={hook}><Episodes media={torrents}/></Router></Provider>))
   hosts.push(host)
   await act(() => new Promise(resolve => setTimeout(resolve, 10)))
   expect([...host.querySelectorAll('.episode .src')].map(link => ({ href: link.getAttribute('href'), target: link.getAttribute('target') }))).toEqual([
@@ -535,7 +535,7 @@ describe('a media with no episode rows', () => {
   const empty = (fields: Record<string, unknown>) => ({ uri: 'ag:(anilist:1)', episodes: [], ...fields }) as unknown as DetailsMedia
   const render = (shown: DetailsMedia) => {
     const { hook } = memoryLocation({ path: '/' })
-    const host = mount(<Provider value={client()}><Router hook={hook}><Episodes media={shown}/></Router></Provider>)
+    const host = mount(withIntl(<Provider value={client()}><Router hook={hook}><Episodes media={shown}/></Router></Provider>))
     hosts.push(host)
     return host
   }
@@ -640,7 +640,7 @@ describe('a hidden source icon', () => {
     } as unknown as DetailsMedia
     const draw = async () => {
       const { hook } = memoryLocation({ path: '/' })
-      const host = mount(<Provider value={client(ids.map(id => ({ id, name: id.toUpperCase() })))}><Router hook={hook}><Episodes media={six}/></Router></Provider>)
+      const host = mount(withIntl(<Provider value={client(ids.map(id => ({ id, name: id.toUpperCase() })))}><Router hook={hook}><Episodes media={six}/></Router></Provider>))
       hosts.push(host)
       await act(() => new Promise(resolve => setTimeout(resolve, 10)))
       return [...host.querySelectorAll('.episode .src')].map(src => src.getAttribute('title'))

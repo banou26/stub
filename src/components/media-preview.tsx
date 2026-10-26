@@ -3,6 +3,7 @@ import type { HTMLAttributes, Ref } from 'react'
 import type { Media } from '../generated/schema/types.generated'
 
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 import { useCallback, useMemo, useState } from 'preact/hooks'
 
@@ -81,6 +82,7 @@ a {
 `
 
 export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElement> & { ref: Ref<HTMLDivElement>, media: Pick<Media, '_id' | 'uri' | 'titles' | 'shortDescriptions' | 'trailers' | 'covers' | 'episodeCount'> }) => {
+  const intl = useIntl()
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const shortDescription = useMemo(() => media?.shortDescriptions?.at(0)?.shortDescription, [media])
   const cover = useCoverUrl(media?.covers, media)
@@ -130,7 +132,11 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
           </div>
           <div className="top">
             <span className="episodes">
-              {media.episodeCount ?? '?'} Episodes
+              {
+                media.episodeCount != null
+                  ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count: media.episodeCount })
+                  : intl.formatMessage({ id: '? Episodes', defaultMessage: '? Episodes' })
+              }
             </span>
           </div>
           <TextEllipsis className="description">

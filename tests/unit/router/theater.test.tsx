@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -110,7 +110,7 @@ afterEach(() => {
 
 const hero = (nodes: object[]) => {
   const { hook } = memoryLocation({ path: '/' })
-  const tree = (next: object[]) => <Router hook={hook}><HomeHeader mediaNodes={next as Nodes}/></Router>
+  const tree = (next: object[]) => withIntl(<Router hook={hook}><HomeHeader mediaNodes={next as Nodes}/></Router>)
   const host = mount(tree(nodes))
   hosts.push(host)
   return {

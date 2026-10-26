@@ -1,6 +1,7 @@
 import { css } from '@emotion/react'
 import { useSubscription } from 'urql'
 import { useState, useMemo, useRef } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { gql } from '../../generated'
 import { MediaCategory, MediaSort, type MediaPageInput } from '../../generated/graphql'
@@ -110,6 +111,7 @@ const useRow = (input: MediaPageInput, row: Row) => {
 }
 
 const Index = () => {
+  const intl = useIntl()
   const [matchMediaRoute] = useRoute(getRouterRoutePath(Route.MEDIA))
   const [category, setCategory] = useState<MediaCategory | null>(null)
   const nodes = {
@@ -142,9 +144,9 @@ const Index = () => {
           )
           : undefined
       }
-      {rows.includes('season') && <MediaSection title="Current season" titleTo={CURRENT_SEASON_SEARCH} mediaNodes={nodes.season}/>}
-      {rows.includes('movies') && (!category || category === MediaCategory.Movie) && <MediaSection title="Popular movies" mediaNodes={nodes.movies}/>}
-      {rows.includes('shows') && (!category || category === MediaCategory.Series) && <MediaSection title="Popular shows" mediaNodes={nodes.shows}/>}
+      {rows.includes('season') && <MediaSection title={intl.formatMessage({ id: 'Current season', defaultMessage: 'Current season' })} titleTo={CURRENT_SEASON_SEARCH} mediaNodes={nodes.season}/>}
+      {rows.includes('movies') && (!category || category === MediaCategory.Movie) && <MediaSection title={intl.formatMessage({ id: 'Popular movies', defaultMessage: 'Popular movies' })} mediaNodes={nodes.movies}/>}
+      {rows.includes('shows') && (!category || category === MediaCategory.Series) && <MediaSection title={intl.formatMessage({ id: 'Popular shows', defaultMessage: 'Popular shows' })} mediaNodes={nodes.shows}/>}
       {matchMediaRoute && <MediaModal mediaNodes={[...nodes.season, ...nodes.movies, ...nodes.shows]} />}
     </div>
   )

@@ -42,7 +42,7 @@ export const isPartialDate = (value: string | null | undefined): boolean => isDa
 const IMPLAUSIBLE_BEFORE = 1900
 
 export type ReleaseDateOptions = {
-  /** Left undefined in the app, so the viewer's own locale decides. Named so a test can pin one. */
+  /** The locale the page writes dates in, `intl.locale`; undefined is the browser's own. */
   locale?: string | readonly string[]
 }
 
@@ -140,11 +140,14 @@ export const releaseDateDisplay = (
   const date = parseReleaseDate(value)
   if (!date) return undefined
   const days = Math.round((civilDay(now, false) - civilDay(date, isDateOnly(value))) / DAY_MS)
-  if (days === 0) return 'today'
-  if (days === 1) return 'yesterday'
-  if (days > 1 && days < RELATIVE_WITHIN_DAYS) return `${days} days ago`
-  if (upcoming && days === -1) return 'tomorrow'
-  if (upcoming && days < -1 && -days < RELATIVE_WITHIN_DAYS) return `in ${-days} days`
+  if (days >= 0 ? days < RELATIVE_WITHIN_DAYS : upcoming && -days < RELATIVE_WITHIN_DAYS) {
+    try {
+      // today, yesterday, 3 days ago, tomorrow, in 3 days
+      return new Intl.RelativeTimeFormat(locale as string | string[] | undefined, { numeric: 'auto' }).format(-days, 'day')
+    } catch {
+      return undefined
+    }
+  }
   return releaseDateLabel(value, { locale })
 }
 

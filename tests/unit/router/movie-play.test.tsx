@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import type { DetailsEpisode } from '../../../src/router/home/media-details'
 
@@ -54,7 +54,7 @@ const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEp
 
 const tree = (movie: DetailsEpisode | undefined, handles: Offers = [], startDate: string | null = '2020-01-01', status?: string, settled = true) => {
   const { hook } = memoryLocation({ path: '/' })
-  return <Router hook={hook}><Film movie={movie} handles={handles} startDate={startDate} status={status} settled={settled}/></Router>
+  return withIntl(<Router hook={hook}><Film movie={movie} handles={handles} startDate={startDate} status={status} settled={settled}/></Router>)
 }
 
 const render = (...props: Parameters<typeof tree>) => {

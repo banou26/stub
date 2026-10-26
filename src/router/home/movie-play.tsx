@@ -2,6 +2,7 @@ import type { WatchSource } from '../../components/source-selector'
 import type { DetailsEpisode } from './media-details'
 
 import { LucidePlay } from 'lucide-react'
+import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 
 import { canPlay } from '../../sources/playable'
@@ -30,6 +31,7 @@ const MoviePlay = (
     genres?: readonly string[] | null
   }
 ) => {
+  const intl = useIntl()
   const now = useNow()
   const { released, upcoming } = filmRelease({ startDate, status, episode }, new Date(now))
   const plays = (source: WatchSource) => !source.external || Boolean(episode?.handles?.some(({ relation, node }) =>
@@ -37,9 +39,11 @@ const MoviePlay = (
   const play = !upcoming && episode?.uri && sources.some(plays)
     ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
     : undefined
-  const day = releaseDateLabel(released)
+  const day = releaseDateLabel(released, { locale: intl.locale })
   const none = !upcoming && !sources.length
-  const when = upcoming ? day && `Releases ${day}` : none && settled ? 'No sources yet' : undefined
+  const when = upcoming ? day && intl.formatMessage({ id: 'Releases {day}', defaultMessage: 'Releases {day}' }, { day })
+    : none && settled ? intl.formatMessage({ id: 'No sources yet', defaultMessage: 'No sources yet' })
+    : undefined
   const held = !play && !upcoming && !settled && (none || sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
   return (
     <div className="movie">
@@ -48,7 +52,7 @@ const MoviePlay = (
         play || when || held
           ? (
             <div className={held ? 'play-bar held' : 'play-bar'}>
-              {play ? <Link className="play" href={play}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>Play</Link> : undefined}
+              {play ? <Link className="play" href={play}><LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{intl.formatMessage({ id: 'Play', defaultMessage: 'Play' })}</Link> : undefined}
               {when ? <span className="when">{when}</span> : undefined}
             </div>
           )

@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { Router } from 'wouter'
@@ -32,7 +32,7 @@ afterEach(() => {
 })
 
 const draw = (vnode: preact.JSX.Element) => {
-  const host = mount(<Router hook={memoryLocation().hook}>{vnode}</Router>)
+  const host = mount(withIntl(<Router hook={memoryLocation().hook}>{vnode}</Router>))
   hosts.push(host)
   const text = (selector: string) => [...host.querySelectorAll(selector)].map(element => element.textContent)
   return { host, text, label: (selector: string) => host.querySelector(selector)?.getAttribute('aria-label') }
@@ -53,12 +53,14 @@ test('a row names the score\'s users grouped, the episodes and the next airing t
   const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
   expect([row.text('.score .secondary'), row.text('.format > span'), row.text('.airing'), row.text('.chip')])
     .toEqual([['115,797 users'], ['TV Show', '1180 episodes'], ['Ep 1180 airing in 2 days'], ['action', 'adventure', 'comedy']])
+  // a lone user read "1 users" until the plural was a message
   expect(draw(<MediaRow media={FINISHED as never} to="/media/anilist:21"/>).text('.score .secondary, .format > span, .airing'))
-    .toEqual(['1 users', 'TV Show', '1 episode'])
+    .toEqual(['1 user', 'TV Show', '1 episode'])
 })
 
 test('a row\'s preview names its episodes, and a count no source gave as a question mark', () => {
   const preview = (episodeCount: number | null) =>
     draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [], episodeCount } as never}/>).text('.episodes')
-  expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episodes'], ['? Episodes']])
+  // a lone episode read "1 Episodes" until the plural was a message
+  expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
 })

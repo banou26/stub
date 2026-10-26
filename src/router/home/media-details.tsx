@@ -8,6 +8,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 import { css } from '@emotion/react'
 import { LucidePlay } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { defineMessages, useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
@@ -25,7 +26,6 @@ import { isMovieMedia } from './movie'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
-import { intl } from '../../i18n'
 import { formatCountdown } from '../../utils/countdown'
 import { useNow } from '../../utils/use-now'
 import { canPlay } from '../../sources/playable'
@@ -246,8 +246,15 @@ export const useTrackingSummary = (uri: string | undefined): Tracked => {
   return tracking && namesSameWork(tracking._id.slice('tracking:'.length), uri) ? tracking.summary : undefined
 }
 
+const PLAY_LABELS = defineMessages({
+  Play: { id: 'Play', defaultMessage: 'Play' },
+  Continue: { id: 'Continue#resume watching', defaultMessage: 'Continue', description: 'resume watching' },
+  Rewatch: { id: 'Rewatch', defaultMessage: 'Rewatch' },
+})
+
 /** The Play button of a media: Play, Continue or Rewatch from the viewer's tracking, opening that episode. Nothing while it is not out at `useNow`'s time, a film by the modal's rule. */
 export const MediaPlay = ({ media }: { media: DetailsMedia | null | undefined }) => {
+  const intl = useIntl()
   const tracked = useTrackingSummary(media?.uri)
   const now = useNow()
   if (!media) return null
@@ -258,7 +265,7 @@ export const MediaPlay = ({ media }: { media: DetailsMedia | null | undefined })
   return target
     ? (
       <Link className="play" href={getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: target.episodeUri })}>
-        <LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{target.label}
+        <LucidePlay size={20} fill="currentColor" aria-hidden="true"/>{intl.formatMessage(PLAY_LABELS[target.label])}
       </Link>
     )
     : null
@@ -626,12 +633,13 @@ const Episode = (
     scheduled?: string, now: number, watched: boolean, progress?: number
   }
 ) => {
+  const intl = useIntl()
   // one thumbnail per source, score first; a host that refuses this viewer must not blank the row
   const [failedThumbnails, setFailedThumbnails] = useState<ReadonlySet<string>>(() => new Set())
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
   const releasedAt = airingAt ?? scheduled ?? releasedAtOf(episode)
   const airsIn = unreleased && airingAt ? formatCountdown(Date.parse(airingAt) - now) : undefined
-  const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt, { upcoming: unreleased, locale: intl.locale })
+  const released = airsIn ? intl.formatMessage({ id: 'in {countdown}', defaultMessage: 'in {countdown}' }, { countdown: airsIn }) : releaseDateDisplay(releasedAt, { upcoming: unreleased, locale: intl.locale })
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
   const bar = unreleased ? undefined : progress ?? (watched ? 1 : undefined)
 
@@ -652,12 +660,12 @@ const Episode = (
         {thumbnail ? <img src={thumbnail} onError={() => setFailedThumbnails(prev => new Set(prev).add(thumbnail))}/> : undefined}
         {
           bar === undefined ? undefined
-            : <div className="bar" role="progressbar" aria-label="Watched" aria-valuenow={Math.round(bar * 100)} style={{ width: `${bar * 100}%` }}/>
+            : <div className="bar" role="progressbar" aria-label={intl.formatMessage({ id: 'Watched#progress', defaultMessage: 'Watched', description: 'progress' })} aria-valuenow={Math.round(bar * 100)} style={{ width: `${bar * 100}%` }}/>
         }
       </div>
       <div className="content">
         <div className="header">
-          <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? 'Unreleased episode' : `Episode ${index + 1}`)}</div>
+          <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? intl.formatMessage({ id: 'Unreleased episode', defaultMessage: 'Unreleased episode' }) : intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: index + 1 }))}</div>
           <span className="origins">
             <SourceSelector compact sources={sources} />
           </span>
@@ -716,6 +724,7 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
  * rows' placeholders until every source has answered, then "No episodes found".
  */
 export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
+  const intl = useIntl()
   const now = useNow()
   const unreleased = unreleasedEpisodes(media, new Date(now))
   const next = unreleased.indexOf(true)
@@ -728,11 +737,11 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
   const positions = usePositions()
   if (!media.episodes.length) {
     return media.settled
-      ? <div className="episodes" css={episodesStyle}><div className="empty">No episodes found</div></div>
+      ? <div className="episodes" css={episodesStyle}><div className="empty">{intl.formatMessage({ id: 'No episodes found', defaultMessage: 'No episodes found' })}</div></div>
       : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
   return (
-    <Paged items={media.episodes} size={EPISODES_PAGE} label="Episodes" start={currentEpisode(media.episodes, tracked)}>
+    <Paged items={media.episodes} size={EPISODES_PAGE} label={intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })} start={currentEpisode(media.episodes, tracked)}>
       {(page, offset) => (
         <div className="episodes" css={episodesStyle}>
           {page.map((episode, at) => {

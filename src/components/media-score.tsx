@@ -1,5 +1,6 @@
 import { css } from '@emotion/react'
 import { Frown, Meh, Smile } from 'lucide-react'
+import { useIntl } from 'react-intl'
 
 import { scoreMood, type ScoreMood } from '../utils/score'
 
@@ -19,11 +20,12 @@ const style = css`
 
 /** A 0 to 100 rating as the face and percentage the card and list modes both show. */
 const MediaScore = ({ percent, size = 18 }: { percent: number, size?: number }) => {
+  const intl = useIntl()
   const Face = FACES[scoreMood(percent)]
   return (
-    <span css={style} aria-label={`Rated ${percent} percent`}>
+    <span css={style} aria-label={intl.formatMessage({ id: 'Rated {percent} percent', defaultMessage: 'Rated {percent} percent' }, { percent })}>
       <span className="face" style={{ color: COLOURS[scoreMood(percent)] }}><Face size={size}/></span>
-      <span className="value">{percent}%</span>
+      <span className="value">{intl.formatNumber(percent, { style: 'unit', unit: 'percent', maximumFractionDigits: 0 })}</span>
     </span>
   )
 }

@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -44,7 +44,7 @@ const layouts = { grid: MediaTitle, cards: MediaCard, list: MediaRow } as Record
 test.each(Object.keys(layouts))('the %s layout keeps a cover sharp enough for it when a higher ranked source answers another', async layout => {
   const Listed = layouts[layout]!
   const { hook } = memoryLocation()
-  const tree = (media: object) => <Router hook={hook}><Listed media={media as never} to="/title/mal:61987"/></Router>
+  const tree = (media: object) => withIntl(<Router hook={hook}><Listed media={media as never} to="/title/mal:61987"/></Router>)
   const host = mount(tree(show(['mal-old.webp'])))
   hosts.push(host)
   const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))

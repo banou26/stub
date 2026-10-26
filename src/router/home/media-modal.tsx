@@ -3,6 +3,7 @@ import type { RouteParams } from '../path'
 
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
@@ -27,7 +28,6 @@ import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { getRoutePath, Route } from '../path'
 import { releasedLabel } from '../title/facts'
-import { intl } from '../../i18n'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -319,6 +319,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 `
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
+  const intl = useIntl()
   const rawParams = useParams<RouteParams['MEDIA']>()
   const params = { ...rawParams, uri: routeMediaUri(rawParams.uri) }
   const [, navigate] = useLocation()
@@ -476,7 +477,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
           <SourceLinks uri={data?.media?.uri} handles={media?.handles} except={watchOriginIds(film, media?.handles)}/>
-          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>More details</Link>
+          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
         </div>
         {/* a film's line under its title names its day (MoviePlay) */}
         {
