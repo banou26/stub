@@ -95,7 +95,6 @@
     "wouter": "^3.7.1"
   },
   "devDependencies": {
-    "@babel/parser": "^7.29.11",
     "@eddeee888/gcg-typescript-resolver-files": "^0.12.1",
     "@formatjs/cli": "^6.16.35",
     "@formatjs/icu-messageformat-parser": "^3.5.22",
