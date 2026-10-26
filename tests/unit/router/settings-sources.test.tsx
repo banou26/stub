@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { button, mount, unmount, withIntl } from '../components/dom'
 
-import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
 import type { PluginStatus } from '../../../src/plugins'
@@ -33,6 +33,7 @@ vi.mock('../../../src/plugins', () => ({
 }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
+const { startLanguage } = await import('../../../src/i18n')
 const { builtInSources } = await import('../../../src/sources/built-in')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
 const { HIDDEN_ICONS_KEY } = await import('../../../src/sources/hidden-icons')
@@ -322,4 +323,24 @@ test('declining FKN\'s confirm keeps the address, and an empty one asks nothing'
   await typeAddress(host, '   ')
   await submit(host)
   expect(calls.installPlugin).not.toHaveBeenCalled()
+})
+
+describe('in Russian', () => {
+  beforeAll(() => startLanguage({ language: 'ru', languages: ['ru-RU'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('a package counts its sources and those it could not register in the forms each count takes', () => {
+    const FIVE: PluginStatus = {
+      uri: 'npm:@spec/five',
+      state: 'connected',
+      sources: ['a', 'b', 'c', 'd', 'e'].map(origin => ({ origin: `five-${origin}`, name: origin.toUpperCase() })),
+      rejected: [{ origin: 'x', reason: 'no catalogue' }, { origin: 'y', reason: 'no catalogue' }],
+    }
+    const { row } = render([FAMILY, FIVE])
+    expect(row(FAMILY.uri).querySelector('.name')!.textContent).toBe('Alpha, Beta, Gamma')
+    expect(row(FAMILY.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/family · 3 источника · 1 недоступен')
+    expect(row(FIVE.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/five · 5 источников · 2 недоступны')
+    expect(row(FIVE.uri).querySelector('.pill')!.textContent).toBe('Подключён')
+    expect(row(FIVE.uri).querySelector('button')!.getAttribute('aria-label')).toBe('Удалить A, B, C, D, E')
+  })
 })

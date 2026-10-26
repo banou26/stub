@@ -10,7 +10,10 @@ same change, using the terms below, and runs `npm run i18n:check`.
   TMDB, Rotten Tomatoes, AnimeThemes, trace.moe, and the format codes TV, OVA, ONA.
 - **No em or en dash** (U+2014, U+2013), even where the language's typography uses one: restructure, or use a comma,
   a colon, a plain hyphen or the language's own range mark (`～` in Japanese, `~` in Korean, `至` in Chinese).
-- **French and Italian** write the typographic apostrophe `’`.
+- **French and Italian** write the typographic apostrophe `’`. French puts a no-break space (U+00A0) before `?` and `:`.
+- **Japanese and Chinese** put a space between their own text and a Latin name or value (`{name} にサインインしました。`,
+  `已登录 {name}。`), none beside full-width punctuation. Korean and Turkish add no particle or suffix that changes with
+  the name: `{name}에`, `{name} hesabına`.
 - **Short labels.** On a 390 px phone a fact's label wraps past 11rem, and the Relations heading and the graph button
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
   everything under it. The button is a noun phrase in most languages for that reason.
@@ -36,3 +39,23 @@ same change, using the terms below, and runs `npm run i18n:check`.
 | `zh-Hant` | 你 | 集 | 季 | 季度 | 系列 | 原作 |
 | `tr` | siz | bölüm | sezon | Sezon | Seri | Kaynak eser |
 | `pl` | ty, or impersonal | odcinek | sezon | Sezon | Seria | Pierwowzór |
+
+## Settings
+
+A source is a site or package stub reads or plays. On the cloud a site is signed in to and out of; with the extension
+stub only connects to the browser's own session, so its words differ from signing in.
+
+| | source | sign in, sign out | connect, disconnect (extension) | play order | merge order |
+| --- | --- | --- | --- | --- | --- |
+| `es-419` | fuente | Iniciar sesión, Cerrar sesión | Conectar, Desconectar | Orden de reproducción | Orden de fusión |
+| `pt-BR` | fonte | Entrar, Sair | Conectar, Desconectar | Ordem de reprodução | Ordem de mesclagem |
+| `fr` | source | Se connecter, Se déconnecter | Associer, Dissocier | Ordre de lecture | Ordre de fusion |
+| `de` | Quelle | Anmelden, Abmelden | Verbinden, Trennen | Wiedergabereihenfolge | Reihenfolge beim Zusammenführen |
+| `it` | fonte | Accedi, Esci | Collega, Scollega | Ordine di riproduzione | Ordine di unione |
+| `ru` | источник | Войти, Выйти | Подключить, Отключить | Порядок воспроизведения | Порядок объединения |
+| `ja` | ソース | サインイン, サインアウト | 接続, 接続解除 | 再生の順序 | 統合の順序 |
+| `ko` | 소스 | 로그인, 로그아웃 | 연결, 연결 해제 | 재생 순서 | 병합 순서 |
+| `zh-Hans` | 来源 | 登录, 退出登录 | 连接, 断开连接 | 播放顺序 | 合并顺序 |
+| `zh-Hant` | 來源 | 登入, 登出 | 連線, 中斷連線 | 播放順序 | 合併順序 |
+| `tr` | kaynak | Oturum aç, Oturumu kapat | Bağla, Bağlantıyı kes | Oynatma sırası | Birleştirme sırası |
+| `pl` | źródło | Zaloguj się, Wyloguj się | Połącz, Rozłącz | Kolejność odtwarzania | Kolejność scalania |

@@ -2,8 +2,9 @@
 import { mount, unmount, withIntl } from '../components/dom'
 
 import { act } from 'preact/test-utils'
-import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { startLanguage } from '../../../src/i18n'
 import { COUNTRIES, COUNTRY_KEY } from '../../../src/sources/country'
 import { viewerIn } from '../sources/justwatch/viewer'
 
@@ -75,4 +76,18 @@ test('a country picked is kept on this device, and Automatic keeps nothing', asy
   expect(select.querySelector('option')!.textContent, 'Automatic still names the time zone\'s').toBe('Automatic (Japan)')
   await pick('')
   expect(stored.has(COUNTRY_KEY)).toBe(false)
+})
+
+describe('in German', () => {
+  beforeAll(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('the row and each country read in German, in German order', () => {
+    viewerIn('America/Toronto')
+    const { select } = render()
+    expect(document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent).toBe('Land')
+    const options = [...select.querySelectorAll('option')].map(option => option.textContent)
+    expect(options.slice(0, 6)).toEqual(['Automatisch (Kanada)', 'Afghanistan', 'Ägypten', 'Ålandinseln', 'Albanien', 'Algerien'])
+    expect(options).toContain('Vereinigte Staaten')
+  })
 })
