@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { ViewerLanguages } from '../plugin-api'
+import type { SourceAccount, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -29,7 +29,7 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { readPluginPayload, readPluginSources, type RegisteredSource } from './plugin-sources'
+import { askAccount, readPluginPayload, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -724,6 +724,16 @@ export const remotePlayer = (origin: string): { pluginUri: string } | null => {
   return pluginUri ? { pluginUri } : null
 }
 
+// what a source that needs an account says of the viewer's, asked on THIS connection: unlike `play`, the
+// answer is about the source's site and not about a frame, so any document of the package can give it
+const accounts = new Map<string, { pluginUri: string, ask: () => Promise<unknown> }>()
+
+/** The source's `account` answer, bounded by ACCOUNT_WAIT_MS; undefined for a source that serves none or needs no account. */
+export const remoteAccount = async (origin: string): Promise<SourceAccount | undefined> => {
+  const entry = accounts.get(origin)
+  return entry ? askAccount(entry.ask) : undefined
+}
+
 export const registerRemoteExtractor = async (
   port: MessagePort,
   pluginUri: string
@@ -749,8 +759,10 @@ export const registerRemoteExtractor = async (
         pickers.set(meta.origin, { pluginUri, select: select as RemotePicker['select'] })
       }
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
+      const account = (source as { account?: unknown }).account
+      if (meta.access !== 'none' && typeof account === 'function') accounts.set(meta.origin, { pluginUri, ask: account as () => Promise<unknown> })
       joinOpenFanouts(fanouts, entry)
-      registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly })
+      registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly, access: meta.access })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       console.error(new Error(`plugin '${pluginUri}': source '${meta.origin}' failed to register`, { cause: error }))
@@ -775,6 +787,9 @@ export const unregisterRemoteExtractor = (pluginUri: string) => {
   }
   for (const [origin, uri] of players) {
     if (uri === pluginUri) players.delete(origin)
+  }
+  for (const [origin, account] of accounts) {
+    if (account.pluginUri === pluginUri) accounts.delete(origin)
   }
   for (let index = extractors.length - 1; index >= 0; index -= 1) {
     const entry = extractors[index]!

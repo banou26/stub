@@ -40,7 +40,7 @@ expose<typeof sessionResolvers>(
   }
 )
 
-const { handleRequest, registerRemoteSource, unregisterRemoteSource, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, setMergeOrder, setViewerLanguages, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
+const { handleRequest, registerRemoteSource, unregisterRemoteSource, remoteAccount, remotePicker, remotePlayer, selectRemoteRelease, exportStore, exportAnswers, exportAsks, graphCounts, traceGraph, traceAnswer, setGraphEnabled, setReadStore, setDisabledSources, setPickedCountry, setMergeOrder, setViewerLanguages, trackerCheck, trackerFocused, searchScene } = await expose<WorkerResolvers>(
   {},
   {
     transport: worker,
@@ -89,6 +89,7 @@ export {
   handleRequest,
   registerRemoteSource,
   unregisterRemoteSource,
+  remoteAccount,
   remotePicker,
   remotePlayer,
   selectRemoteRelease,

@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { readPluginPayload, readPluginSources } from '../../../src/worker/plugin-sources'
+import { ACCOUNT_WAIT_MS, askAccount, readPluginPayload, readPluginSources } from '../../../src/worker/plugin-sources'
 
 const source = (origin: string, name?: string) => ({
   origin,
@@ -79,6 +79,43 @@ describe('readPluginSources', () => {
     expect(readPluginSources(source('bare'), 'u').sources[0]!.meta.name).toBe('bare')
     const long = readPluginSources({ ...source('x'), name: 'n'.repeat(200) }, 'u')
     expect(long.sources[0]!.meta.name.length).toBe(64)
+  })
+
+  test('access is read as declared, and as none when left out, as every older plugin does, or of any other value', () => {
+    const access = (value?: unknown) => readPluginSources({ ...source('s'), ...value === undefined ? {} : { access: value } }, 'u').sources[0]!.meta.access
+    expect(access('account')).toBe('account')
+    expect(access('paid')).toBe('paid')
+    expect(access('none')).toBe('none')
+    expect(access()).toBe('none')
+    for (const value of ['Paid', 'free', true, 1, null, {}]) expect(access(value), JSON.stringify(value)).toBe('none')
+  })
+})
+
+describe('askAccount', () => {
+  test('passes the three answers through', async () => {
+    for (const state of ['signed-in', 'signed-out', 'no-plan']) expect(await askAccount(async () => state)).toBe(state)
+  })
+
+  test('reads any other value, a rejection and a throw as no answer', async () => {
+    for (const value of ['signed in', 'SIGNED-IN', true, undefined, null, { state: 'signed-in' }]) {
+      expect(await askAccount(async () => value), JSON.stringify(value)).toBeUndefined()
+    }
+    expect(await askAccount(() => Promise.reject(new Error('the frame went away')))).toBeUndefined()
+    expect(await askAccount(() => { throw new Error('not a promise') })).toBeUndefined()
+  })
+
+  test('an answer that never comes is no answer once ACCOUNT_WAIT_MS is out, and not before', async () => {
+    vi.useFakeTimers()
+    try {
+      let settled: unknown = 'waiting'
+      void askAccount(() => new Promise(() => {})).then(state => { settled = state })
+      await vi.advanceTimersByTimeAsync(ACCOUNT_WAIT_MS - 1)
+      expect(settled).toBe('waiting')
+      await vi.advanceTimersByTimeAsync(1)
+      expect(settled).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

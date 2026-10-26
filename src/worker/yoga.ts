@@ -9,7 +9,7 @@ import { expose } from 'osra'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
-import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
+import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
 import { holdViewerLanguages } from '../viewer-languages'
@@ -107,6 +107,7 @@ export const osraResolvers = {
   traceAnswer: (seq: number) => traceAnswer(seq),
   remotePicker: (origin: string) => remotePicker(origin),
   remotePlayer: (origin: string) => remotePlayer(origin),
+  remoteAccount: (origin: string) => remoteAccount(origin),
   selectRemoteRelease: (origin: string, uris: string[]) => selectRemoteRelease(origin, uris),
   // What only the page sees, for the stub tracker's list: the page starting, coming back online or
   // unlocking the list checks which FKN account is signed in, and the page coming back into view reads

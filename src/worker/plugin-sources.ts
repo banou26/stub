@@ -1,5 +1,7 @@
 // nothing here touches the graph or the source barrel, so it stays importable outside a browser
 
+import type { SourceAccess, SourceAccount } from '../plugin-api'
+
 /** A short lowercase token. Origins name things across the store, the UI and the uri grammar. */
 export const PLUGIN_ORIGIN_TOKEN = /^[a-z0-9][a-z0-9-]{0,31}$/
 
@@ -11,6 +13,7 @@ export type PluginSourceInput = {
   color?: unknown
   isApiOnly?: unknown
   metadataOnly?: unknown
+  access?: unknown
   resolvers?: unknown
 }
 
@@ -23,12 +26,13 @@ export type PluginSourceMeta = {
   color: string | null
   isApiOnly: boolean
   metadataOnly: boolean
+  access: SourceAccess
 }
 
 export type RejectedSource = { origin: string, reason: string }
 
-/** What the page learns of a source that registered: how Settings names and draws its card. */
-export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon' | 'isApiOnly'>
+/** What the page learns of a source that registered: how Settings names and draws its card, and what Play weighs. */
+export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon' | 'isApiOnly' | 'access'>
 
 // the single-source shape stays supported: it is what the example plugin and every plugin written before this sends
 /**
@@ -78,12 +82,25 @@ export const readPluginSources = (
         color: typeof source.color === 'string' ? source.color : null,
         isApiOnly: source.isApiOnly === true,
         metadataOnly: source.metadataOnly === true,
+        access: source.access === 'account' || source.access === 'paid' ? source.access : 'none',
       },
     })
   }
 
   return { sources, rejected }
 }
+
+/** How long a source has to answer `account`. The connection has no time limit of its own, and Play waits for the answer. */
+export const ACCOUNT_WAIT_MS = 3_000
+
+const ACCOUNT_STATES: readonly unknown[] = ['signed-in', 'signed-out', 'no-plan'] satisfies SourceAccount[]
+
+/** A source's `account` answer, or undefined for one that is late, rejected or of any other value. */
+export const askAccount = (account: () => Promise<unknown>): Promise<SourceAccount | undefined> =>
+  Promise.race([
+    Promise.resolve().then(account).then(state => ACCOUNT_STATES.includes(state) ? state as SourceAccount : undefined, () => undefined),
+    new Promise<undefined>(resolve => setTimeout(resolve, ACCOUNT_WAIT_MS)),
+  ])
 
 type PluginEdge = { node: unknown, relation: string }
 

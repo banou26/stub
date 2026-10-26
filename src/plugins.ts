@@ -3,7 +3,7 @@ import type { InstallOptions } from '@fkn/lib/packages'
 import { packages } from '@fkn/lib'
 
 import { registerRemoteSource, unregisterRemoteSource } from './worker'
-import { STUB_SOURCE_PROTOCOL } from './plugin-api'
+import { STUB_SOURCE_PROTOCOL, type SourceAccess } from './plugin-api'
 import { loadEnabled } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
@@ -15,8 +15,8 @@ export type PluginStatus = {
   state: 'connecting' | 'connected' | 'error'
   /** while connecting, that the source already connected or failed in this page and this is its retry */
   retry?: true
-  /** every source the package registered; one package may ship a family of them */
-  sources?: { origin: string, name: string, icon?: string | null, isApiOnly?: boolean }[]
+  /** every source the package registered, and what playing its releases needs; one package may ship a family of them */
+  sources?: { origin: string, name: string, icon?: string | null, isApiOnly?: boolean, access?: SourceAccess }[]
   /** sources the package declared that could not be registered; the rest still serve */
   rejected?: { origin: string, reason: string }[]
 }
