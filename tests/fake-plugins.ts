@@ -32,9 +32,13 @@ const row = (origin: string, id: string, fields: object = {}) => ({
   ...fields,
 })
 
+const release = (id: string, score: number) =>
+  row('spec-free', id, { mediaUri: 'spec-free:900070', episodeNumber: 1, url: `magnet:?xt=urn:btih:${id}`, score })
+
 // Registered in the worker itself while added, as src/plugins.ts registers a package's connection, so it is
 // asked like any source. It plays its own releases, as the stub plugin's Nyaa does, and answers Spec Prime
-// Film (anilist:900070, tests/fake-fetch.ts) with a release of its one episode.
+// Film (anilist:900070, tests/fake-fetch.ts) with three releases of its one episode, each ranked in its score
+// as Nyaa ranks them, the first with the highest id.
 const freeReleases = {
   origin: 'spec-free',
   originUrl: 'https://spec-free.test',
@@ -53,7 +57,7 @@ const freeReleases = {
             media: row('spec-free', '900070', {
               categories: ['MOVIE'],
               handles: [{ relation: 'SAME_AS', node: row('anilist', '900070') }],
-              episodes: [row('spec-free', '900070-1', { mediaUri: 'spec-free:900070', episodeNumber: 1, url: 'magnet:?xt=urn:btih:900070' })],
+              episodes: [release('900070-1', 0.3), release('900070-0b', 0.2999), release('900070-0a', 0.2998)],
             }),
           }
         },

@@ -12,6 +12,7 @@ import SEASONS from '../src/generated/anime-seasons'
 import { ENABLED_PLUGINS_KEY } from '../src/plugin-list'
 import { DISABLED_SOURCES_KEY } from '../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
+import { PLAY_ORDER_KEY } from '../src/sources/play-order'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
@@ -1278,9 +1279,26 @@ test.describe('a viewer in Japan', () => {
         if (out) localStorage.setItem(key, JSON.stringify({ prime: { state: 'signed-out', checkedAt: Date.now() } }))
       }, [FREE_RELEASES, ENABLED_PLUGINS_KEY, SITE_STATUS_KEY, signedOut] as const)
       await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
-      await expect(page.locator('.list a[title="Spec Free"]'), 'the release joined the film').toBeVisible({ timeout: 60_000 })
+      await expect(page.locator('.list [title="3 releases on Spec Free"]'), 'the releases joined the film').toBeVisible({ timeout: 60_000 })
       // the address keeps the added sources' query, as every link here does
       await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
+    })
+  }
+
+  // HOR-1044: the media page links an episode by an address naming its releases, lowest id first, so only the
+  // address's last segment says which one Play opened
+  for (const [address, episode] of [
+    ['naming the releases', 'ag:(jw:900070-1,spec-free:900070-0a,spec-free:900070-0b,spec-free:900070-1)'],
+    ['naming none of them', 'jw:900070-1'],
+  ] as const) {
+    test(`Play opens the release an added source ranks first, at an episode address ${address}`, async ({ page }) => {
+      test.setTimeout(120_000)
+      await page.addInitScript(([plugin, list, key]) => {
+        localStorage.setItem(list, JSON.stringify([plugin]))
+        localStorage.setItem(key, JSON.stringify(['spec-free']))
+      }, [FREE_RELEASES, ENABLED_PLUGINS_KEY, PLAY_ORDER_KEY] as const)
+      await page.goto(`${origin}/watch/${PRIME_FILM}/${episode}`)
+      await expect(page).toHaveURL(url => decodeURIComponent(url.pathname).split('/')[4] === 'spec-free:900070-1', { timeout: 60_000 })
     })
   }
 
