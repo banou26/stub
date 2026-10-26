@@ -9,6 +9,7 @@ const port = vi.hoisted(() => ({ payload: {} as object }))
 vi.mock('@fkn/lib/packages', () => ({ attach: async () => port.payload }))
 
 const { registerRemoteExtractor, remoteAccount, unregisterRemoteExtractor } = await import('../../../src/worker/extractor')
+const { ACCOUNT_WAIT_MS } = await import('../../../src/worker/plugin-sources')
 
 const PACKAGE = 'https:account.spec.test'
 const source = (origin: string, fields: object) => ({ origin, originUrl: `https://${origin}.test`, name: origin, isApiOnly: false, resolvers: {}, ...fields })
@@ -17,7 +18,10 @@ const register = (...sources: object[]) => {
   return registerRemoteExtractor(new MessageChannel().port1, PACKAGE)
 }
 
-afterEach(() => unregisterRemoteExtractor(PACKAGE))
+afterEach(() => {
+  vi.useRealTimers()
+  unregisterRemoteExtractor(PACKAGE)
+})
 
 test('the page learns each source\'s access as it registers, none for one that declares none', async () => {
   const { sources } = await register(
@@ -52,4 +56,22 @@ test('a source that needs an account and serves no `account` answers nothing, an
   unregisterRemoteExtractor(PACKAGE)
   expect(await remoteAccount('spec-paid')).toBeUndefined()
   expect(account).not.toHaveBeenCalled()
+})
+
+// the page keeps no time limit of its own: this bound is what keeps a source that never answers from holding Play
+test('an answer late past ACCOUNT_WAIT_MS, a rejection or any other value is no answer', async () => {
+  await register(
+    source('spec-late', { access: 'account', account: () => new Promise(() => {}) }),
+    source('spec-rejects', { access: 'account', account: async () => { throw new Error('no session') } }),
+    source('spec-odd', { access: 'paid', account: async () => 'SIGNED-IN' }),
+  )
+  vi.useFakeTimers()
+  let late: unknown = 'waiting'
+  void remoteAccount('spec-late').then(state => { late = state })
+  await vi.advanceTimersByTimeAsync(ACCOUNT_WAIT_MS - 1)
+  expect(late).toBe('waiting')
+  await vi.advanceTimersByTimeAsync(1)
+  expect(late).toBeUndefined()
+  expect(await remoteAccount('spec-rejects')).toBeUndefined()
+  expect(await remoteAccount('spec-odd')).toBeUndefined()
 })
