@@ -32,6 +32,10 @@ const state = async (bucket: ReturnType<typeof fakeBucket>) => {
   const { manifest, index } = await readStore(bucket.client)
   return { manifest, lines: [...index.values()] }
 }
+const unsha = (lines: string[]) => lines.map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
+// the bucket holds what manifest.json names and nothing else
+const holdsOnly = (bucket: ReturnType<typeof fakeBucket>, manifest: { index: { name: string }, job: Record<string, { name: string }> }) =>
+  expect(new Set(bucket.objects.keys())).toEqual(new Set(['manifest.json', manifest.index.name, ...Object.values(manifest.job).map(file => file.name)]))
 
 // Mutations: build a client with a secret unset; send a request unsigned; address another endpoint.
 test('the bucket is reached only with all three secrets, at R2\'s S3 endpoint, each request signed for its auto region', async () => {
@@ -78,7 +82,7 @@ test('AniDB\'s file as fetched, Kitsu\'s answers and the index go up under conte
   const kitsu = [{ id: '5', fetchedAt: T1, body: '{"data":{"id":"5","type":"anime"},"included":[]}' }]
   await keepAnswers(bucket.client, await readStore(bucket.client), { anidb: answer, kitsu, writer: WRITER })
 
-  const puts = bucket.log.filter(line => line.startsWith('PUT ')).map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
+  const puts = unsha(bucket.log.filter(line => line.startsWith('PUT ')))
   expect(puts).toEqual(['PUT job/anidb-titles-<sha>.xml.gz', 'PUT job/kitsu-<sha>.jsonl.zst', 'PUT index-<sha>.jsonl.zst', 'PUT manifest.json'])
   const { manifest, lines: index } = await state(bucket)
   expect(manifest.job['anidb-titles']).toEqual({ name: `job/anidb-titles-${sha(xml).slice(0, 16)}.xml.gz`, sha256: sha(xml), rows: 2, lastModified: LAST_MODIFIED })
@@ -86,7 +90,7 @@ test('AniDB\'s file as fetched, Kitsu\'s answers and the index go up under conte
   const kitsuText = `${JSON.stringify({ source: 'kitsu', id: '5', form: 'upstream', type: 'application/vnd.api+json', sha256: sha(kitsu[0]!.body), body: kitsu[0]!.body })}\n`
   expect(manifest.job.kitsu).toEqual({ name: `job/kitsu-${sha(kitsuText).slice(0, 16)}.jsonl.zst`, sha256: sha(kitsuText), rows: 1 })
   expect(manifest.index).toMatchObject({ name: expect.stringMatching(/^index-[0-9a-f]{16}\.jsonl\.zst$/), rows: 3 })
-  expect(new Set(bucket.objects.keys())).toEqual(new Set([manifest.index.name, manifest.job['anidb-titles'].name, manifest.job.kitsu.name, 'manifest.json']))
+  holdsOnly(bucket, manifest)
   expect(index.map(line => [line.source, line.id, line.sha256, line.fetchedAt, line.changedAt])).toEqual([
     ['anidb-titles', '1', anidbShows(xml).get('1'), T1, T1],
     ['anidb-titles', '9242', anidbShows(xml).get('9242'), T1, T1],
@@ -94,32 +98,41 @@ test('AniDB\'s file as fetched, Kitsu\'s answers and the index go up under conte
   ])
 })
 
-// Mutations: move changedAt or the hash on a 304; upload an unchanged file again; keep a file no manifest names.
-test('a 304 moves fetchedAt only, the same file again keeps its name, and a changed show moves its own changedAt', async () => {
+// Mutations: move changedAt or the hash on a 304; move another source's lines or keep the old writer on one; upload
+// an unchanged file again; keep a file no manifest names; remove one the new manifest names; remove before writing it.
+test('a 304 moves AniDB\'s fetchedAt and writer only, the same file again keeps its name, and a changed show moves its own changedAt', async () => {
   const bucket = fakeBucket()
-  const keep = async (anidb: object) => keepAnswers(bucket.client, await readStore(bucket.client), { anidb, writer: WRITER })
-  await keep(anidb200(titlesFile(), T1))
+  const keep = async (anidb: object, more: object = {}) => keepAnswers(bucket.client, await readStore(bucket.client), { anidb, writer: WRITER, ...more })
+  const writes = () => unsha(bucket.log.filter(line => !line.startsWith('GET ')))
+  const anidbLines = <T extends { source: string }>(lines: T[]) => lines.filter(line => line.source === 'anidb-titles')
+  await keep(anidb200(titlesFile(), T1), { kitsu: [{ id: '5', fetchedAt: T1, body: '{"data":{"id":"5","type":"anime"},"included":[]}' }] })
   const first = await state(bucket)
   const file = first.manifest.job['anidb-titles'].name
 
-  await keep({ outcome: '304', fetchedAt: T2 })
+  const next = { ...WRITER, run: '43' }
+  await keep({ outcome: '304', fetchedAt: T2 }, { writer: next })
   const unchanged = await state(bucket)
-  expect(unchanged.lines.map(line => [line.id, line.sha256, line.fetchedAt, line.changedAt])).toEqual(first.lines.map(line => [line.id, line.sha256, T2, T1]))
+  expect(unchanged.lines).toEqual(first.lines.map(line => (line.source === 'anidb-titles' ? { ...line, fetchedAt: T2, writer: next } : line)))
   expect(unchanged.manifest.job).toEqual(first.manifest.job)
+  holdsOnly(bucket, unchanged.manifest)
 
   bucket.log.length = 0
   await keep(anidb200(titlesFile(), T3))
   const again = await state(bucket)
-  // control: the run did write, the index and manifest.json
-  expect(bucket.log.filter(line => line.startsWith('PUT ')).map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))).toEqual(['PUT index-<sha>.jsonl.zst', 'PUT manifest.json'])
+  // control: the run did write: the index, manifest.json, and then the removal of the index it replaced
+  expect(writes()).toEqual(['PUT index-<sha>.jsonl.zst', 'PUT manifest.json', 'DELETE index-<sha>.jsonl.zst'])
   expect(again.manifest.job['anidb-titles'].name).toBe(file)
-  expect(again.lines.map(line => [line.fetchedAt, line.changedAt])).toEqual([[T3, T1], [T3, T1]])
+  expect(anidbLines(again.lines).map(line => [line.fetchedAt, line.changedAt])).toEqual([[T3, T1], [T3, T1]])
+  holdsOnly(bucket, again.manifest)
 
+  bucket.log.length = 0
   await keep(anidb200(titlesFile('Crest of the Stars (TV)'), T4))
   const changed = await state(bucket)
-  expect(changed.lines.map(line => [line.id, line.fetchedAt, line.changedAt])).toEqual([['1', T4, T4], ['9242', T4, T1]])
+  expect(anidbLines(changed.lines).map(line => [line.id, line.fetchedAt, line.changedAt])).toEqual([['1', T4, T4], ['9242', T4, T1]])
   expect(changed.manifest.job['anidb-titles'].name).not.toBe(file)
-  expect(bucket.objects.has(file)).toBe(false)
+  // the old files go only once manifest.json no longer names them, and the Kitsu file it still names stays
+  expect(writes()).toEqual(['PUT job/anidb-titles-<sha>.xml.gz', 'PUT index-<sha>.jsonl.zst', 'PUT manifest.json', 'DELETE index-<sha>.jsonl.zst', 'DELETE job/anidb-titles-<sha>.xml.gz'])
+  holdsOnly(bucket, changed.manifest)
 })
 
 // Mutations: keep the lines of shows AniDB's file no longer lists; drop another source's lines with them.
