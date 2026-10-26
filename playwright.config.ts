@@ -20,6 +20,8 @@ export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   use: {
+    // the browser's language is what stub's text follows, so a runner's own never changes what a test reads
+    locale: 'en-US',
     launchOptions: {
       executablePath: detectChromePath(),
       // this is the owner's machine: no run gets to make noise on it, headless or not

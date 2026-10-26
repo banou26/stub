@@ -1,6 +1,10 @@
 import { resolve } from 'path'
 import { defineConfig } from 'vite-plus'
 
+// Node reads its default locale (Intl's, navigator.languages) from the environment once, as a worker starts, so it
+// is set here in the main process, before any worker: a runner's own locale never changes what a test reads
+process.env.LC_ALL = 'en_US.UTF-8'
+
 // What cannot be imported here is a WORKER RESOLVER: src/worker/resolvers/*/index.ts reaches
 // src/worker/extractor.ts and, through urql, a CommonJS `require('react')` that no resolve alias
 // intercepts, so it dies with "Cannot find module 'react'".
