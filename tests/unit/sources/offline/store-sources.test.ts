@@ -19,7 +19,7 @@ const at = (ms: number) => new Date(ms).toISOString()
 const seconds = (ms: number) => Math.floor(ms / 1000)
 const WRITER = { by: 'offline-history', run: '42', stub: '0.0.62', commit: '0dcc4455' }
 
-type Pulled = { answers: { id: string, fetchedAt: string, body: string }[], state?: object, stopped?: string }
+type Pulled = { answers: { id: string, fetchedAt: string, body: string }[], state?: object, stopped?: string, requests: number }
 const ids = (pulled: Pulled) => pulled.answers.map(answer => answer.id)
 const sleeper = () => {
   const waits: number[] = []
@@ -159,6 +159,20 @@ test('ANN answering 429 past every back off is stopped for the run, after each w
   expect([fake.asked.length, waits, pulled.stopped, pulled.state]).toEqual([5, [30_000, 60_000, 120_000, 240_000], '429', undefined])
 })
 
+// Mutation: take a request that failed before any answer as the answer, with no wait and no second ask.
+test('a request that fails before any answer is asked again after the back off', async () => {
+  const fake = fakeSources()
+  let failed = false
+  const flaky = async (url: string, init?: RequestInit) => {
+    if (failed) return fake.get(url, init)
+    failed = true
+    throw new TypeError('fetch failed')
+  }
+  const { waits, sleep } = sleeper()
+  const pulled = await askAnn({ kept: { askedAt: at(NOW - DAY) }, now: () => NOW, get: flaky, sleep, backoff: [30_000, 60_000] })
+  expect([waits, pulled.requests, ids(pulled), pulled.state]).toEqual([[30_000], 2, ['40725', '40716', '40715'], { askedAt: at(NOW) }])
+})
+
 // Mutations: pull the catalogue more than once a week; stop before the last page; mark a cut pull done; keep the data
 // of a page GraphQL answered with errors.
 test('AnimeThemes\' catalogue is pulled whole every 7 UTC days, 100 a page, and a pull cut short is not done', async () => {
@@ -183,6 +197,18 @@ test('AnimeThemes\' catalogue is pulled whole every 7 UTC days, 100 a page, and 
   const failing = async () => Response.json({ errors: [{ message: 'Max query complexity should be 10000 but got 15000.' }], data: { animePagination: { paginatorInfo: { hasMorePages: false }, data: [anime(1)] } } })
   const refused = await askAnimethemes({ kept: undefined, now: () => NOW, get: failing, sleep })
   expect([refused.answers, refused.state, refused.stopped]).toEqual([[], undefined, 'Max query complexity should be 10000 but got 15000.'])
+})
+
+// Mutation: go on past a page with no anime.
+test('an AnimeThemes page with no anime ends the pull, whatever it says of more pages', async () => {
+  let requests = 0
+  const endless = async () => {
+    // a pull that went on would ask this forever, so a third request ends the test
+    if (++requests > 2) throw new Error('asked past a page with no anime')
+    return Response.json({ data: { animePagination: { paginatorInfo: { hasMorePages: true }, data: [] } } })
+  }
+  const pulled = await askAnimethemes({ kept: undefined, now: () => NOW, get: endless, sleep: async () => {}, backoff: [] })
+  expect([requests, pulled.answers, pulled.state]).toEqual([1, [], { askedAt: at(NOW) }])
 })
 
 /** Each field a query selects under `root`, as a dotted path. */
