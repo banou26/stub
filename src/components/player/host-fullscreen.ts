@@ -30,11 +30,7 @@ const hostFullscreenFeature = definePlayerFeature<State>({
     }
   },
   attach: context => {
-    // its own reading of the embed's document, which says nothing once the page's stage is what is fullscreen
-    fullscreenFeature.attach?.({
-      ...context,
-      set: partial => context.set(context.get().hostRequest ? { ...partial, fullscreen: context.get().fullscreen } : partial),
-    })
+    fullscreenFeature.attach?.(context)
     const stop = watchHostFullscreen(({ active, request }) => context.set({ fullscreen: active, fullscreenAvailability: 'available', hostRequest: request }))
     context.signal.addEventListener('abort', stop)
   },
