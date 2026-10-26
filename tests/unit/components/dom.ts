@@ -29,7 +29,7 @@ Object.assign(dom.window, { parent: dom.window })
 // linkedom's event as one of its own with the same fields.
 const NodeEvent = globalThis.Event
 class EventTargetForDomEvents extends EventTarget {
-  dispatchEvent (event: globalThis.Event) {
+  dispatchEvent (event: { type: string, bubbles: boolean, cancelable: boolean }) {
     if (event instanceof NodeEvent) return super.dispatchEvent(event)
     const own = new NodeEvent(event.type, { bubbles: event.bubbles, cancelable: event.cancelable })
     for (const [key, value] of Object.entries(event)) if (!(key in own)) Object.defineProperty(own, key, { value })
