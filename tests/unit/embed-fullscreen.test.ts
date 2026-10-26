@@ -113,6 +113,18 @@ describe('the embed\'s fullscreen, kept by the watch page', () => {
     expect(stage.requestFullscreen).not.toHaveBeenCalled()
   })
 
+  test('an embed framed by a page on another origin hears nothing from it', async () => {
+    const foreign = makeWindow('https://player.example')
+    const embed = makeWindow(APP)
+    embed.parent = foreign
+    foreign.postMessage = () => {}
+    const states: boolean[] = []
+    stops.push(watchHostFullscreen(state => states.push(state.active), embed as unknown as Window))
+    deliver(embed, foreign)({ type: 'stub:embed-fullscreen', active: true }, APP)
+    await delivered()
+    expect(states).toEqual([])
+  })
+
   test('the page hears only its embed, and the embed only the page, even from this origin', async () => {
     const { page, embed, iframe, stage } = makePage()
     const states: boolean[] = []
