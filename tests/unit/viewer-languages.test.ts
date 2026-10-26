@@ -2,8 +2,9 @@
 // player reported them (../utils/track-languages.test.ts).
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
+import { LANGUAGE_KEY } from '../../src/i18n/languages'
 import { keepAudioLanguage, keepSubtitleLanguage } from '../../src/utils/track-languages'
-import { contentLanguage, heldViewerLanguages, holdViewerLanguages, viewerLanguages, watchViewerLanguages } from '../../src/viewer-languages'
+import { heldViewerLanguages, holdViewerLanguages, viewerLanguages, watchViewerLanguages } from '../../src/viewer-languages'
 
 const stored = new Map<string, string>()
 beforeEach(() => {
@@ -17,16 +18,13 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals() })
 
-test("the content language is the browser's first, as it writes it, else English", () => {
-  expect(contentLanguage()).toBe('fr-CA')
-  expect(contentLanguage(['pt-PT', 'pt'])).toBe('pt-PT')
-  expect(contentLanguage([])).toBe('en')
-  vi.stubGlobal('navigator', undefined)
-  expect(contentLanguage()).toBe('en')
-})
-
 test('nothing picked hands the content language alone', () => {
   expect(viewerLanguages()).toEqual({ language: 'fr-CA' })
+})
+
+test('a language picked in Settings is the content language handed', () => {
+  stored.set(LANGUAGE_KEY, 'en')
+  expect(viewerLanguages()).toEqual({ language: 'en' })
 })
 
 test('the picks are handed as tags, whether the player reported a tag or a name, and subtitles off as null', () => {

@@ -5,11 +5,9 @@ import type { ViewerLanguages } from './plugin-api'
 
 import { languageTag } from '@banou/media-player/language'
 
+import { contentLanguage } from './i18n/languages'
 import { settings } from './settings-store'
 import { AUDIO_LANGUAGE_KEY, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from './utils/track-languages'
-
-/** The language content is wanted in: the browser's first, as it writes it (`fr-CA`), else English. */
-export const contentLanguage = (languages: readonly string[] | undefined = globalThis.navigator?.languages) => languages?.[0] ?? 'en'
 
 /** The content language, and the audio and subtitle languages last picked in a player as tags; a pick naming none is left out. */
 export const viewerLanguages = (): ViewerLanguages => {
