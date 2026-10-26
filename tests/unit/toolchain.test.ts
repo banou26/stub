@@ -43,11 +43,11 @@ describe('the vite-plus toolchain is pinned as one release', () => {
   })
 })
 
-// Cloudflare Pages, and Workers Builds for api/, build on whatever .node-version names, and Pages on
-// node 22.16.0 without one, which is below vite-plus's own floor. npm only warns for a regular
-// dependency, but drops an OPTIONAL native binding that fails its engine check without a word, so a
-// floor raised past the pin breaks the deploy and nothing local. The ranges these packages publish are
-// ^x.y.z and >=x.y.z joined by ||; anything else throws rather than being guessed at.
+// Cloudflare Pages builds on whatever .node-version names, and on node 22.16.0 without one, which is
+// below vite-plus's own floor. npm only warns for a regular dependency, but drops an OPTIONAL native
+// binding that fails its engine check without a word, so a floor raised past the pin breaks the deploy
+// and nothing local. The ranges these packages publish are ^x.y.z and >=x.y.z joined by ||; anything
+// else throws rather than being guessed at.
 type Version = [number, number, number]
 const parse = (version: string): Version => {
   const [major = NaN, minor = NaN, patch = NaN] = version.split('.').map(Number)
@@ -61,17 +61,17 @@ const satisfies = (version: string, range: string) => range.split('||').some(cla
   return atLeast(have, floor) && (match[1] === '>=' || have[0] === floor[0])
 })
 
-describe('Pages and Workers Builds build on a node the toolchain accepts', () => {
+describe('Pages builds on a node the toolchain accepts', () => {
   it('the range check can tell an accepted node from a refused one (control)', () => {
     expect(satisfies('24.21.0', '^20.19.0 || ^22.18.0 || >=24.11.0')).toBe(true)
     expect(satisfies('22.16.0', '^20.19.0 || ^22.18.0 || >=24.11.0')).toBe(false)
     expect(satisfies('21.0.0', '^20.19.0 || >=24.11.0')).toBe(false)
   })
 
-  it('.node-version satisfies vite-plus, vite-plus-core, vitest and wrangler', () => {
+  it('.node-version satisfies vite-plus, vite-plus-core and vitest', () => {
     const pinned = readFileSync(join(ROOT, '.node-version'), 'utf8').trim()
     expect(pinned).toMatch(/^\d+\.\d+\.\d+$/)
-    const refused = ['node_modules/vite-plus', 'node_modules/vite', 'node_modules/vitest', 'node_modules/wrangler']
+    const refused = ['node_modules/vite-plus', 'node_modules/vite', 'node_modules/vitest']
       .map(path => [path, (lock.packages[path] as LockEntry).engines?.node] as const)
       .filter(([, range]) => !range || !satisfies(pinned, range))
     expect(refused).toEqual([])

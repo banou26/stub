@@ -18,7 +18,3 @@
 # the link preview build (vite.preview.config.ts) and wrangler pages dev
 /functions-lib
 /.wrangler
-
-# the api Worker build (vite.api.config.ts) and its wrangler dev state
-/api/build
-/api/.wrangler
