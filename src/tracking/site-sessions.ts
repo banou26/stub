@@ -151,7 +151,7 @@ export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Pro
   disconnectAndReload(site, { frames, connections })
   if (backend !== 'cloud') return
   await clearCloudCookies(SITE_DOMAINS[site])
-  siteStatuses.record(site, 'signed-out')
+  siteStatuses.recordSignOut(site)
 }
 
 /**
@@ -161,5 +161,5 @@ export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Pro
 export const signOutOfCrunchyroll = async (): Promise<void> => {
   disconnectAndReload(CRUNCHYROLL_TRACKER_ID, { frames, connections })
   await clearCloudCookies(CRUNCHYROLL_DOMAINS)
-  siteStatuses.record('crunchyroll', 'signed-out')
+  siteStatuses.recordSignOut('crunchyroll')
 }

@@ -21,7 +21,7 @@ export const crunchyroll: AccountsProps['crunchyroll'] = {
 export const prime: AccountsProps['prime'] = {
   signIn: () => signInThroughWindow({ url: primeSignInUrl(primeSiteFor(viewerCountry())), domains: PRIME_DOMAINS, isSignedIn: primeSignedIn })
     .then(rememberSignIn(siteStatuses, 'prime')),
-  signOut: () => clearCloudCookies(PRIME_DOMAINS).then(() => siteStatuses.record('prime', 'signed-out')),
+  signOut: () => clearCloudCookies(PRIME_DOMAINS).then(() => siteStatuses.recordSignOut('prime')),
 }
 
 /** What the AniList and MyAnimeList cards in Settings reach. */

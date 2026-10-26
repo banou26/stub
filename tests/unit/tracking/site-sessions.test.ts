@@ -179,9 +179,10 @@ describe("Crunchyroll's session on this device", () => {
     expect(attach).not.toHaveBeenCalled()
   })
 
-  test("its sign out from its card in Settings stops the tracker reaching it at once, then removes its cookies from FKN's jar and remembers it", async () => {
+  test("its sign out from its card in Settings stops the tracker reaching it at once, then removes its cookies from FKN's jar and remembers it, as never signed in to", async () => {
     const { sessionResolvers, signOutOfCrunchyroll } = await load()
     stored.set('stub.sessions', JSON.stringify(['cr', 'anilist']))
+    stored.set('stub.site-status', JSON.stringify({ crunchyroll: { state: 'signed-in', checkedAt: 1 } }))
     attach.mockResolvedValueOnce(hiddenFrame({ watched: async () => 'read' }).frame)
     expect(await sessionResolvers.call('cr', 'watched', SEASON)).toEqual({ kind: 'response', response: 'read' })
 
@@ -193,7 +194,7 @@ describe("Crunchyroll's session on this device", () => {
     expect(JSON.parse(stored.get('stub.sessions')!), 'the other site stays connected').toEqual(['anilist'])
     expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: CRUNCHYROLL_DOMAINS, cookies: 'persistent' })
     expect(clearCookies).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(stored.get('stub.site-status')!).crunchyroll.state).toBe('signed-out')
+    expect(JSON.parse(stored.get('stub.site-status')!).crunchyroll).toEqual({ state: 'signed-out', checkedAt: expect.any(Number) })
   })
 
   test('its sign out disconnects even when FKN cannot remove the cookies, and then remembers nothing', async () => {
@@ -440,14 +441,15 @@ describe('signing out of a site', () => {
     expect(stored.has('stub.site-status'), 'the session may still be there, so nothing is remembered').toBe(false)
   })
 
-  test('on the cloud, a sign out is remembered as signed out once the cookies are gone', async () => {
+  test('on the cloud, a sign out is remembered as signed out once the cookies are gone, as never signed in to', async () => {
     const { signOutOfSite } = await load()
     recordFrames()
     stored.set('stub.sessions', JSON.stringify(['anilist']))
+    stored.set('stub.site-status', JSON.stringify({ anilist: { state: 'signed-in', checkedAt: 1 } }))
     attach.mockResolvedValueOnce({ clearCookies: async () => {} })
 
     await signOutOfSite('anilist', 'cloud')
-    expect(JSON.parse(stored.get('stub.site-status')!).anilist.state).toBe('signed-out')
+    expect(JSON.parse(stored.get('stub.site-status')!).anilist).toEqual({ state: 'signed-out', checkedAt: expect.any(Number) })
   })
 
   test("with the extension, a disconnect remembers nothing: the browser's session is still there", async () => {

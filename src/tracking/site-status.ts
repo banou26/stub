@@ -13,13 +13,16 @@ export type SiteState = 'signed-in' | 'signed-out'
 
 /**
  * A state and when stub learned it, in epoch milliseconds, and on a `signed-out`, whether stub found the
- * viewer signed in to the site before on this browser. Never an account name: that stays with the site.
+ * viewer signed in to the site before on this browser, since their last sign out in stub. Never an account
+ * name: that stays with the site.
  */
 export type SiteStatus = { state: SiteState, checkedAt: number, signedInBefore?: true }
 
 export type SiteStatuses = {
   read: (site: StatusSite) => SiteStatus | undefined
   record: (site: StatusSite, state: SiteState, now?: number) => void
+  /** Records a sign out the viewer made in stub: signed out, with no mark of a sign in before, so Play counts the site as never signed in to. */
+  recordSignOut: (site: StatusSite, now?: number) => void
   /** Called after every `record` of the site on this page, and after every change to it `heard` is told of. */
   watch: (site: StatusSite, listener: () => void) => () => void
   /** Tells the watchers of each site whose state differs between two values of SITE_STATUS_KEY, as a storage event carries them. */
@@ -49,6 +52,15 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
   const listeners = new Map<StatusSite, Set<() => void>>()
   const stored = () => entries(() => storage().getItem(SITE_STATUS_KEY))
   const tell = (site: string) => { for (const listener of listeners.get(site as StatusSite) ?? []) listener() }
+  const write = (site: StatusSite, status: SiteStatus) => {
+    try {
+      storage().setItem(SITE_STATUS_KEY, JSON.stringify({ ...stored(), [site]: status }))
+      unsaved.delete(site)
+    } catch {
+      unsaved.set(site, status)
+    }
+    tell(site)
+  }
   const statuses: SiteStatuses = {
     read: site => {
       const status = unsaved.get(site) ?? stored()[site]
@@ -59,17 +71,11 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
     },
     record: (site, state, now = Date.now()) => {
       const last = statuses.read(site)
-      const status: SiteStatus = state === 'signed-out' && (last?.state === 'signed-in' || last?.signedInBefore)
+      write(site, state === 'signed-out' && (last?.state === 'signed-in' || last?.signedInBefore)
         ? { state, checkedAt: now, signedInBefore: true }
-        : { state, checkedAt: now }
-      try {
-        storage().setItem(SITE_STATUS_KEY, JSON.stringify({ ...stored(), [site]: status }))
-        unsaved.delete(site)
-      } catch {
-        unsaved.set(site, status)
-      }
-      tell(site)
+        : { state, checkedAt: now })
     },
+    recordSignOut: (site, now = Date.now()) => write(site, { state: 'signed-out', checkedAt: now }),
     watch: (site, listener) => {
       let set = listeners.get(site)
       if (!set) listeners.set(site, set = new Set())

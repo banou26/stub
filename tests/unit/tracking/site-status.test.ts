@@ -50,6 +50,42 @@ test('a sign out keeps that the viewer was signed in before, through every sign 
   expect(statuses.read('prime'), 'never signed in').toEqual({ state: 'signed-out', checkedAt: 6_000 })
 })
 
+// the owner, 2026-10-26, on whether a sign out made in stub's Settings forgets the mark: "I guess so."
+test('a sign out the viewer makes in stub forgets that they were signed in before, and tells the watchers, while a sign out stub finds after it keeps none', () => {
+  const storage = memory()
+  const statuses = createSiteStatuses(() => storage)
+  const watcher = vi.fn()
+  statuses.watch('crunchyroll', watcher)
+  statuses.record('crunchyroll', 'signed-in', 1_000)
+  statuses.recordSignOut('crunchyroll', 2_000)
+
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: 2_000 })
+  expect(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).crunchyroll).toEqual({ state: 'signed-out', checkedAt: 2_000 })
+  expect(watcher).toHaveBeenCalledTimes(2)
+  statuses.record('crunchyroll', 'signed-out', 3_000)
+  expect(statuses.read('crunchyroll'), 'found signed out after it').toEqual({ state: 'signed-out', checkedAt: 3_000 })
+
+  statuses.record('prime', 'signed-in', 1_000)
+  statuses.record('prime', 'signed-out', 2_000)
+  statuses.recordSignOut('prime', 3_000)
+  expect(statuses.read('prime'), 'over a mark already kept').toEqual({ state: 'signed-out', checkedAt: 3_000 })
+
+  const blocked = createSiteStatuses(() => { throw new Error('SecurityError') })
+  blocked.record('prime', 'signed-in', 1_000)
+  blocked.recordSignOut('prime', 2_000)
+  expect(blocked.read('prime'), 'on a browser that blocks site data').toEqual({ state: 'signed-out', checkedAt: 2_000 })
+})
+
+test('Settings\' check finding the viewer signed out keeps that they were signed in before', async () => {
+  const storage = memory()
+  const statuses = createSiteStatuses(() => storage)
+  statuses.record('crunchyroll', 'signed-in', 0)
+  createRefresh(statuses, async () => 'signed-out', () => FRESH_MS)('crunchyroll', 'cloud')
+  await new Promise(resolve => setTimeout(resolve, 0))
+
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: FRESH_MS, signedInBefore: true })
+})
+
 test('on a browser that blocks site data, keeps that the viewer was signed in before for this page', () => {
   const statuses = createSiteStatuses(() => { throw new Error('SecurityError') })
   statuses.record('prime', 'signed-in', 1_000)

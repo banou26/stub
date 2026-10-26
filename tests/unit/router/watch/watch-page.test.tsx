@@ -2,6 +2,7 @@
 import { button, mount, unmount } from '../../components/dom'
 
 import type { Mock } from 'vite-plus/test'
+import type { SiteStatus, StatusSite } from '../../../../src/tracking/site-status'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -129,39 +130,37 @@ vi.mock('../../../../src/tracking/site-status', () => ({
   recordTrackerAnswers: () => {},
 }))
 vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
-// what the sources' cards in Settings reach, over `statuses`: a streaming site's sign in answers
-// `accounts.outcome` and, authed, remembers the site as signed in, telling the site's watchers
-const accounts = vi.hoisted(() => ({ outcome: 'authed', listeners: new Map<string, Set<() => void>>() }))
-vi.mock('../../../../src/router/settings/wiring', () => {
-  const record = (site: string, state: string) => {
-    if (statuses[site] === 'signed-in') before.add(site)
-    statuses[site] = state
-    learned[site] = Date.now()
-    for (const listener of accounts.listeners.get(site) ?? []) listener()
-  }
-  const streaming = (site: string) => ({
+// what the sources' cards in Settings reach, over `statuses`, `learned` and `before` with stub's own rule for them:
+// a streaming site's sign in answers `accounts.outcome` and, authed, remembers the site as signed in, and its sign
+// out is the viewer's own; `record` is a state stub finds, as a player does
+const accounts = vi.hoisted(() => ({ outcome: 'authed' }))
+vi.mock('../../../../src/router/settings/wiring', async () => {
+  const { createSiteStatuses } = await vi.importActual<typeof import('../../../../src/tracking/site-status')>('../../../../src/tracking/site-status')
+  const remembered = createSiteStatuses(() => ({
+    getItem: () => JSON.stringify(Object.fromEntries(Object.entries(statuses).map(([site, state]) =>
+      [site, { state, checkedAt: learned[site] ?? 0, ...state === 'signed-out' && before.has(site) ? { signedInBefore: true } : {} }]))),
+    setItem: (_key: string, value: string) => {
+      for (const [site, { state, checkedAt, signedInBefore }] of Object.entries(JSON.parse(value) as Record<string, SiteStatus>)) {
+        statuses[site] = state
+        learned[site] = checkedAt
+        if (signedInBefore) before.add(site)
+        else if (state === 'signed-out') before.delete(site)
+      }
+    },
+  }))
+  const streaming = (site: StatusSite) => ({
     signIn: vi.fn(async () => {
-      if (accounts.outcome === 'authed') record(site, 'signed-in')
+      if (accounts.outcome === 'authed') remembered.record(site, 'signed-in')
       return accounts.outcome
     }),
-    signOut: async () => record(site, 'signed-out'),
+    signOut: async () => remembered.recordSignOut(site),
   })
   return {
     crunchyroll: streaming('crunchyroll'),
     prime: streaming('prime'),
     sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'closed', signOut: async () => {} },
-    status: {
-      read: (site: string) => statuses[site]
-        ? { state: statuses[site], checkedAt: learned[site] ?? 0, ...statuses[site] === 'signed-out' && before.has(site) ? { signedInBefore: true } : {} }
-        : undefined,
-      watch: (site: string, listener: () => void) => {
-        const set = accounts.listeners.get(site) ?? new Set()
-        accounts.listeners.set(site, set.add(listener))
-        return () => { set.delete(listener) }
-      },
-      refresh: () => {},
-    },
-    record,
+    status: { read: remembered.read, watch: remembered.watch, refresh: () => {} },
+    record: remembered.record,
   }
 })
 vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async () => false }))
@@ -313,7 +312,6 @@ afterEach(() => {
   detecting.addable = true
   unplayables.listeners.clear()
   accounts.outcome = 'authed'
-  accounts.listeners.clear()
   plugins.browse.mockClear()
   vi.mocked(wiring.crunchyroll.signIn).mockClear()
   vi.mocked(wiring.prime.signIn).mockClear()
@@ -2578,6 +2576,24 @@ test('a Crunchyroll ranked first that the viewer never signed in to here gives w
       navigate.mockClear()
       while (hosts.length) unmount(hosts.pop()!)
     }
+  }
+})
+
+// the owner, 2026-10-26, on whether a sign out made in stub's Settings forgets that the viewer signed in before: "I guess so."
+test('after a sign out in Settings, Play gives way to the release as for a viewer never signed in, and after a session that expired it opens Crunchyroll to sign in again', async () => {
+  for (const [signedOut, to] of [
+    ['in Settings', 'nyaa:a'],
+    ['as the session expired', 'cr:GX1'],
+  ] as const) {
+    crAndRelease()
+    await wiring.crunchyroll.signIn()
+    if (signedOut === 'in Settings') await wiring.crunchyroll.signOut()
+    else wiring.record('crunchyroll', 'signed-out')
+    hosts.push(page())
+    await settle()
+    expect(navigate, signedOut).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+    navigate.mockClear()
+    while (hosts.length) unmount(hosts.pop()!)
   }
 })
 

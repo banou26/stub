@@ -14,11 +14,12 @@ const calls = vi.hoisted(() => ({
   signInToMal: vi.fn(async () => 'closed' as const),
   checkCrunchyroll: vi.fn(async (_backend: string, _deps: Record<string, unknown>) => 'signed-in' as const),
   record: vi.fn((_site: string, _state: string, _now?: number) => {}),
+  recordSignOut: vi.fn((_site: string) => {}),
 }))
 vi.mock('../../../src/sources/crunchyroll/sign-in-check', () => ({ checkCrunchyroll: calls.checkCrunchyroll }))
 vi.mock('../../../src/tracking/site-status', async importOriginal => ({
   ...await importOriginal<typeof import('../../../src/tracking/site-status')>(),
-  siteStatuses: { read: () => undefined, watch: () => () => {}, record: calls.record },
+  siteStatuses: { read: () => undefined, watch: () => () => {}, record: calls.record, recordSignOut: calls.recordSignOut },
 }))
 vi.mock('../../../src/sources/cloud-sign-out', () => ({ clearCloudCookies: calls.clearCloudCookies }))
 vi.mock('../../../src/sources/login-window', () => ({ signInThroughWindow: calls.signInThroughWindow }))
@@ -49,11 +50,12 @@ test("Crunchyroll's Sign in is the Log in of its tracker's chip, so it turns its
   expect(calls.signInThroughWindow).not.toHaveBeenCalled()
 })
 
-test("Prime Video's Sign out removes the cookies of every host its player reads from FKN's jar, and remembers it", async () => {
+test("Prime Video's Sign out removes the cookies of every host its player reads from FKN's jar, and remembers it as the viewer's own sign out", async () => {
   await prime.signOut()
   expect(calls.clearCloudCookies.mock.calls).toEqual([[PRIME_DOMAINS]])
   expect(PRIME_DOMAINS).toEqual(expect.arrayContaining(['www.amazon.co.jp', 'amazon.com', 'a2z.com', 'www.primevideo.com', 'www.amazon.co.uk', 'www.amazon.de']))
-  expect(calls.record.mock.calls).toEqual([['prime', 'signed-out']])
+  expect(calls.recordSignOut.mock.calls).toEqual([['prime']])
+  expect(calls.record).not.toHaveBeenCalled()
 })
 
 test("Prime Video's Sign in opens the viewer's country's own Sign in on the player's hosts, and remembers an authed one", async () => {

@@ -81,7 +81,7 @@ test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the
 test('says the sign-in states keep whether you were signed in to each site before', () => {
   const item = STORED.find(each => each.id === 'site-status')
   expect(item?.what).toContain('whether you were signed in to it on this browser before')
-  expect(item?.lasts).toContain('That you were signed in before stays through the sign outs after it')
+  expect(item?.lasts).toContain("That you were signed in before stays through the sign outs stub finds after it, and goes when you sign out in stub's Settings")
 })
 
 // a browser-asked host sees the viewer's address, so the page names exactly the hosts src/worker/direct-fetch.ts lists
