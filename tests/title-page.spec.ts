@@ -1291,6 +1291,8 @@ test.describe('a viewer in Japan', () => {
       await expect(page.locator('.list [title="3 releases on Spec Free"]'), 'the releases joined the film').toBeVisible({ timeout: 60_000 })
       // the address keeps the added sources' query, as every link here does
       await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
+      // nothing here plays on the cloud before the release, so this holds without Play's wait for it too: the wait is
+      // pinned in tests/unit/router/watch/watch-page.test.tsx, on the extension
       const named = await page.evaluate(() => (window as unknown as { addresses: string[] }).addresses
         .map(address => decodeURIComponent(new URL(address, location.href).pathname).split('/')[4])
         .filter(Boolean))
