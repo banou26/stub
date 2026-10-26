@@ -104,10 +104,10 @@ export type StubSource = {
   /** Whether stub shows the player fullscreen, for its fullscreen controls to show: told at once and on every change. */
   applyFullscreen?: (active: boolean) => Promise<void>
   /**
-   * Hand the keys on to the player, after stub focused the package's frame: called once a release's player
-   * is up in place of another's, and after a press on stub's own buttons over the player. The player's
-   * document may not have loaded yet, and a focus given before it has does not reach it once it has
-   * (Chrome 155, 2026-10-26), so a package waits for the load.
+   * Hand the keys on to the player, after stub focused the package's frame: called at the first report of
+   * a release's player put up in place of another's, and after a press on stub's own buttons over the
+   * player. The player's document may still be loading, and a focus given before it has loaded does not
+   * reach it once it has (Chrome 155, 2026-10-26), so a package waits for the load.
    */
   focus?: () => Promise<void>
 }

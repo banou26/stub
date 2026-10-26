@@ -1716,21 +1716,28 @@ test('a torrent\'s player is put on the stage, which keeps its fullscreen', asyn
   expect(pluginPlayers.stages).toEqual([host.querySelector('.stage')])
 })
 
-test('the next torrent\'s player takes the keys through the plugin; the page\'s first, and keys left on a control of the page, stay where they are', async () => {
+// once it first reports, since Chrome 155 can take a focus given while its frame loads back out of the plugin's document
+test('the next torrent\'s player takes the keys through the plugin once it reports; the page\'s first, and keys on a control of the page by then, stay where they are', async () => {
   const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  await report(played)
   expect(pluginPlayers.focus[0], 'the page\'s first player').not.toHaveBeenCalled()
   params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
   rerender()
   await settle()
   expect(pluginPlayers.focus).toHaveLength(2)
+  expect(pluginPlayers.focus[1], 'not before it reports').not.toHaveBeenCalled()
+  await report(played)
   expect(pluginPlayers.focus[1]).toHaveBeenCalledTimes(1)
+  await report(played)
+  expect(pluginPlayers.focus[1], 'at its first report only').toHaveBeenCalledTimes(1)
 
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  rerender()
+  await settle()
   const control = host.querySelector('.episode-step')!
   Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
   try {
-    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
-    rerender()
-    await settle()
+    await report(played)
     expect(pluginPlayers.focus).toHaveLength(3)
     expect(pluginPlayers.focus[2], 'keys on the page\'s own link').not.toHaveBeenCalled()
   } finally {
@@ -1747,6 +1754,7 @@ test('keys left on the torrent\'s player go on to the next one', async () => {
     params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
     rerender()
     await settle()
+    await report(played)
     expect(pluginPlayers.focus).toHaveLength(2)
     expect(pluginPlayers.focus[1]).toHaveBeenCalledTimes(1)
   } finally {
@@ -1759,6 +1767,7 @@ test('a torrent after a Crunchyroll episode takes the keys as well', async () =>
   params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
   rerender()
   await settle()
+  await report(played)
   expect(pluginPlayers.focus).toHaveLength(1)
   expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
 })

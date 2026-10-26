@@ -77,11 +77,17 @@ const serve = async (page: Page) => {
       : pathname === '/embed.html' ? route.fulfill({ contentType: 'text/html', body: EMBED })
       : route.fulfill({ path: join(dir, pathname) })
   })
-  // the package's frame and its player's, each on an origin of its own, from the same build
+  // the package's frame and its player's, each on an origin of its own, from the same build. The second player has
+  // loaded by its first report and takes the keys at once, which WebKit allows only a package clicked in before; the
+  // third's document loads a second later, so the package waits for that load, which needs the focus stub gave it
+  let players = 0
   for (const [origin, html, script] of [[PLUGIN_ORIGIN, '/plugin.html', 'plugin.js'], [PLAYER_ORIGIN, '/player.html', 'player.js']] as const) {
     await page.route(`${origin}/**`, route => {
       const { pathname } = new URL(route.request().url())
-      return pathname === html ? route.fulfill({ contentType: 'text/html', body: framePage(script) }) : route.fulfill({ path: join(dir, pathname) })
+      if (pathname === '/player.html') players++
+      return pathname === html ? route.fulfill({ contentType: 'text/html', body: framePage(script) })
+        : pathname === '/late.png' ? new Promise(resolve => setTimeout(resolve, players === 3 ? 1_000 : 0)).then(() => route.fulfill({ status: 404 })).catch(() => {})
+        : route.fulfill({ path: join(dir, pathname) })
     })
   }
   // the torrents' package added on this device
@@ -149,6 +155,12 @@ const nextPlayer = async (page: Page, previous: Frame) => {
   await expect.poll(async () => await torrentPlayer(page)?.evaluate(() => document.readyState).catch(() => null) ?? null).toBe('complete')
   return torrentPlayer(page)!
 }
+// pressed until it is heard: the keys reach the next player once it is up, not at a moment the page can see
+const reachesPlayer = (page: Page, frame: Frame, message: string) =>
+  expect.poll(async () => {
+    await page.keyboard.press('k')
+    return heard(frame)
+  }, { message }).toContain('k')
 
 const torrentAcrossEpisodes = async (page: Page) => {
   await serve(page)
@@ -172,16 +184,14 @@ const torrentAcrossEpisodes = async (page: Page) => {
   await offered.click()
   const second = await nextPlayer(page, first)
   await expect(button, 'the next player hears the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
-  await page.keyboard.press('k')
-  await expect.poll(() => heard(second), { message: 'a key after Next reaches the next player' }).toContain('k')
+  await reachesPlayer(page, second, 'a key after Next reaches the next player')
   expect(await fullscreenElement(page), 'the stage is still fullscreen').toBe('stage')
 
   // no click on the page: the end counts down and opens the next episode by itself
   await page.keyboard.press('e')
   await expect(page.locator('.stage .up-next.counting')).toBeVisible()
   const third = await nextPlayer(page, second)
-  await page.keyboard.press('k')
-  await expect.poll(() => heard(third), { message: 'a key after the countdown reaches the next player' }).toContain('k')
+  await reachesPlayer(page, third, 'a key after the countdown reaches the next player')
   expect(await fullscreenElement(page), 'the stage is still fullscreen').toBe('stage')
   await page.keyboard.press('f')
   await expect.poll(() => fullscreenElement(page), { message: 'the player\'s f leaves fullscreen' }).toBe(null)

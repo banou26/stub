@@ -699,15 +699,22 @@ const Watch = () => {
     iframe.addEventListener('load', focus)
     return () => iframe.removeEventListener('load', focus)
   }, [viaPlugin, embedUrl])
-  // A source package's player takes them once it is up, through the package, which holds it a frame further down.
-  // The package's frame stays for its next release, so keys still on it, or on a button over it, go on as well.
+  // A source package's player takes them through the package, which holds it a frame further down, once it first
+  // reports: in Chrome 155 a focus given while the player's frame still loads can leave the package's document again
+  // at once (2026-10-26). The package's frame stays for its next release, so keys still on it, or on a button over it,
+  // go on as well.
   const pluginLink = viaPlugin ? playbackLink : undefined
   useEffect(() => {
     if (!pluginLink) return
     const replaced = framed.current
     framed.current = true
-    const active = document.activeElement
-    if (replaced && (!active || active === document.body || stage.current?.contains(active))) pluginLink.focus?.()
+    if (!replaced || !pluginLink.focus) return
+    const stop = pluginLink.onReport(() => {
+      stop()
+      const active = document.activeElement
+      if (!active || active === document.body || stage.current?.contains(active)) pluginLink.focus?.()
+    })
+    return stop
   }, [pluginLink])
 
   const [unplayable, setUnplayable] = useState<readonly string[]>([])

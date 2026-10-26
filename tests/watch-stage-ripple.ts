@@ -3,7 +3,8 @@ import { PLUGIN_ORIGIN } from './watch-stage-media'
 // The player tests/watch-stage.spec.ts runs where ripple's would be, inside ./watch-stage-plugin.ts: its fullscreen
 // button and `f` ask the plugin, as @banou/media-player's do once the fullscreen is handed over, and show the state the
 // plugin tells; `k` plays and `e` ends. `keys` lists the keys this document heard, and the button is marked
-// `data-clicked` once a click has reached it.
+// `data-clicked` once a click has reached it. Its document's load waits for `/late.png`, which tests/watch-stage.spec.ts
+// can hold back.
 
 const keys: string[] = []
 Object.assign(window, { keys })
@@ -20,6 +21,9 @@ button.addEventListener('click', () => {
   ask('fullscreen')
 })
 document.body.append(button)
+const late = new Image()
+late.src = '/late.png'
+document.body.append(late)
 
 addEventListener('keydown', event => {
   keys.push(event.key)
