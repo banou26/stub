@@ -18,6 +18,7 @@ import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 import { SITE_STATUS_KEY } from '../src/tracking/site-status'
 import { ACCOUNT_RELEASES, FREE_RELEASES, SPEC_ACCOUNT_KEY } from './fake-plugins'
+import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 import { workerFakes } from './worker-fakes'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
@@ -26,7 +27,8 @@ import { workerFakes } from './worker-fakes'
 // episodes and Frieren's ids, AnimeThemes with Frieren's themes, one without a video, IMDb answers
 // Breaking Bad, TMDB Squid Game's three seasons, the first two with one episode each, and Frieren's one,
 // TVmaze Spec Maze's two seasons, and MyAnimeList Cowboy Bebop's title and credits pages for mal:1
-// (tests/fake-fetch.ts).
+// (tests/fake-fetch.ts). Every catalogue and the pseudo-language are offered (tests/languages.ts), so a test picks one by
+// its setting, and a browser in English, as every other test's, gets English.
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -49,7 +51,7 @@ test.beforeAll(async () => {
     logLevel: 'error',
     worker: { plugins: workerFakes },
     build: { outDir: dir, emptyOutDir: true },
-    plugins: [{
+    plugins: [offerEveryLanguage(), {
       name: 'spec-fake-plugins',
       enforce: 'pre',
       resolveId: (source, importer) => {
@@ -1682,4 +1684,72 @@ test('a work the bundle lists in this season and an earlier one shows this seaso
   await page.goto(`${origin}/title/ag:(offline:${recordId(work!)})`)
   const season = page.locator('.facts > div', { has: page.getByText('Season', { exact: true }) }).locator('dd')
   await expect(season).toHaveText(new RegExp(`^${now.season} ${now.year}$`, 'i'), { timeout: 30_000 })
+})
+
+// HOR-1026 (stub in the viewer's language): the page's own words, by where they are drawn, and the series graph's
+const OWN_WORDS = {
+  text: [
+    '.chips > .chip', '.facts dt', '.facts dd', '.heading > .expand', '[data-relations] h2 > span', '[data-seasons] > h2', '[data-seasons] a',
+    '[data-episodes] > h2', '[data-characters] h2 > span', '[data-staff] > h2', '[data-themes] > h2', '.relation-card .relation',
+    '.relation-card .meta', '.person .detail', '[data-themes] .artists', '[data-franchise-open]',
+  ],
+  labels: ['.actions .icon', '[data-characters] select', '[data-themes] button.toggle'],
+}
+const GRAPH_WORDS = {
+  text: ['[data-franchise] .bar > .title', '[data-franchise] .kinds > .legend', '[data-franchise] .kinds label > span', '[data-franchise] .edge-label', '[data-franchise] .work-node .meta'],
+  labels: ['[data-franchise] .close', '[data-franchise] .react-flow'],
+}
+const wordsIn = (page: Page, words: typeof OWN_WORDS) => page.evaluate(({ text, labels }) => [
+  ...text.flatMap(selector => [...document.querySelectorAll(selector)].map(element => element.textContent!.trim())),
+  ...labels.flatMap(selector => [...document.querySelectorAll(selector)].flatMap(element => ['aria-label', 'title'].map(name => element.getAttribute(name)).filter(value => value !== null))),
+], words)
+
+/**
+ * Draws Cowboy Bebop's title page, its series graph and Squid Game's second season's page at `width`, and returns
+ * their own words. Its format and status, TV Show and Finished, are search/params.ts's words, which no message of the
+ * page shares.
+ */
+const drawnWords = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.goto(`${origin}/title/ag:(anilist:1,mal:1)`)
+  await expect(page.locator('[data-themes] li')).toHaveCount(4, { timeout: 30_000 })
+  await expect(page.locator('[data-characters] li').first()).toBeVisible()
+  await expect(page.locator('.facts .placeholder')).toHaveCount(0, { timeout: 45_000 })
+  const overflow = [await overflowX(page)]
+  const words = await wordsIn(page, OWN_WORDS)
+  await page.locator('[data-franchise-open]').click()
+  await expect(page.locator('[data-franchise] .work-node').first()).toBeVisible({ timeout: 30_000 })
+  for (const kind of await page.locator('[data-franchise] .kinds input:not(:checked)').all()) await kind.check()
+  words.push(...await wordsIn(page, GRAPH_WORDS))
+  await page.keyboard.press('Escape')
+  await page.goto(`${origin}/title/tmdb:93405-s2`)
+  await expect(page.locator('[data-seasons] a')).toHaveCount(3, { timeout: 30_000 })
+  overflow.push(await overflowX(page))
+  words.push(...await wordsIn(page, OWN_WORDS))
+  return { overflow, words }
+}
+
+test.describe('in a language stub does not offer yet', () => {
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: the title page and its series graph have no sideways scroll at 1440 and 390 px, and none of their own words in English`, async ({ page }) => {
+      test.setTimeout(240_000)
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      const code = english()
+      const translated = language === PSEUDO ? undefined : catalogues()[language]
+      for (const width of [1440, 390]) {
+        const { overflow, words } = await drawnWords(page, width)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        expect(overflow, `${width} px`).toEqual([0, 0])
+        expect(words.length, `${width} px: the control, the page's words were read`).toBeGreaterThan(40)
+        expect(englishIn(words, code, translated), `${width} px`).toEqual([])
+      }
+    })
+  }
+
+  test('the control: in English the same reading finds the page\'s own words', async ({ page }) => {
+    test.setTimeout(120_000)
+    const { words } = await drawnWords(page, 1440)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(englishIn(words, english()).length).toBeGreaterThan(30)
+  })
 })
