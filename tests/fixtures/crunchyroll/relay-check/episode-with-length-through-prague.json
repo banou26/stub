@@ -1,0 +1,24 @@
+{
+  "total": 1,
+  "data": [
+    {
+      "id": "GE00380133JAJP",
+      "title": "Well-Intentioned Mediator",
+      "type": "episode",
+      "slug_title": "well-intentioned-mediator",
+      "episode_metadata": {
+        "series_id": "GR9P57W96",
+        "series_title": "Saga of Tanya the Evil",
+        "season_id": "GS00380130JAJP",
+        "season_number": 4,
+        "episode_number": 3,
+        "duration_ms": 1420004,
+        "episode_air_date": "2026-07-22T00:00:00Z",
+        "availability_status": "premium_only",
+        "is_premium_only": true,
+        "eligible_region": "CZ"
+      }
+    }
+  ],
+  "meta": {}
+}
