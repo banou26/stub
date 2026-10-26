@@ -118,6 +118,7 @@
     "chai": "^5.2.1",
     "chai-as-promised": "^8.0.1",
     "chai-shallow-deep-equal": "^1.4.6",
+    "eslint-plugin-formatjs": "^8.1.2",
     "linkedom": "^0.18.12",
     "patch-package": "^8.0.1",
     "playwright": "^1.54.2",
