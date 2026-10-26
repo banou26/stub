@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The Offline history workflow's job (HOR-915, .github/workflows/offline-history.yml): gathers what the offline
-// history holds and publishes it as release assets (./history-files.mjs), which every data build reads.
+// history holds and publishes it as release assets (./history-files.mjs), which every data build reads. What it asks
+// is also kept in the private source store (HOR-994, ./source-store.mjs) when the workflow has its secrets.
 //
 // The only code that asks AniDB, and the only code that asks Kitsu for the history. It refuses to run outside that
 // workflow, so a local run, a test or a Pages build cannot reach AniDB through it.
@@ -10,11 +11,13 @@
 // record is 24 hours old: a 304 morning followed by a manual run, a run that fails after asking and is re-run, or
 // two manual runs, can never ask twice in a day.
 
-import { gunzipSync } from 'node:zlib'
+import { readFileSync } from 'node:fs'
+import { gunzipSync, gzipSync } from 'node:zlib'
 
 import { SEASON_ORDER, catalogIds, downloadDump } from './build-anime-data.mjs'
 import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, manifestCopy, readManifest } from './history-files.mjs'
 import { errorText } from './season-popularity.mjs'
+import { SECRETS, keepAnswers, r2, readStore } from './source-store.mjs'
 
 const WORKFLOW = 'Offline history'
 const API = `https://api.github.com/repos/${REPOSITORY}`
@@ -42,6 +45,7 @@ const KITSU_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000]
 const SEASONS_OPEN = 4
 
 const log = (...args) => console.log('[offline-history]', ...args)
+const warn = text => console.log(`::warning::[offline-history] ${text}`)
 const sleeping = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 /* --------------------------------------------------------------------------------------------- */
@@ -88,7 +92,8 @@ export const anidbTurn = ({ released, attempt, now }) => {
 
 /**
  * The one request for AniDB's titles file: `If-Modified-Since` when a copy's date is known, a user agent naming
- * stub, no retry. `{ outcome }`, with `titles` and `lastModified` only on a 200 that parses to enough shows.
+ * stub, no retry. `{ outcome }`, with `titles`, `lastModified`, the file's `xml` and its gzip `file` only on a 200
+ * that parses to enough shows.
  */
 export const askAnidb = async ({ get = fetch, lastModified } = {}) => {
   try {
@@ -100,10 +105,11 @@ export const askAnidb = async ({ get = fetch, lastModified } = {}) => {
     if (response.status !== 200) return { outcome: `HTTP ${response.status}` }
     const bytes = Buffer.from(await response.arrayBuffer())
     // gzip unless something on the way already decoded it
-    const xml = (bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes).toString('utf8')
+    const gzip = bytes[0] === 0x1f && bytes[1] === 0x8b
+    const xml = (gzip ? gunzipSync(bytes) : bytes).toString('utf8')
     const { shows, titles } = parseAnidbTitles(xml)
     if (shows < ANIDB_MIN_SHOWS) return { outcome: `only ${shows} shows` }
-    return { outcome: '200', titles, lastModified: response.headers.get('last-modified') }
+    return { outcome: '200', titles, lastModified: response.headers.get('last-modified'), xml, file: gzip ? bytes : gzipSync(bytes) }
   } catch (error) {
     return { outcome: errorText(error) }
   }
@@ -126,19 +132,27 @@ export const kitsuRow = ({ id, attributes = {} }, fetchedAt) => {
   return { id: String(id), fetchedAt, attributes: kept }
 }
 
+/** A Kitsu resource as the source store keeps it: a JSON:API document of its own, with the resources it links. */
+export const kitsuBody = (resource, included = []) => {
+  const linked = new Set(Object.values(resource.relationships ?? {}).flatMap(({ data }) => [data ?? []].flat()).map(({ type, id }) => `${type}/${id}`))
+  return JSON.stringify({ data: resource, included: included.filter(({ type, id }) => linked.has(`${type}/${id}`)) })
+}
+
 const transient = status => typeof status !== 'number' || status === 429 || status >= 500
 
 /**
- * Kitsu's rows for `ids`, 20 a request, one request at a time and `pauseMs` apart. A 429, a 5xx or a failed request
- * is asked again after each wait of `backoff`, and after the last nothing more is asked this run: `complete` says
- * whether every id was asked.
+ * Kitsu's whole resources for `ids` with their mappings, 20 a request, one request at a time and `pauseMs` apart:
+ * `rows` as the history keeps them, `answers` as the source store does. A 429, a 5xx or a failed request is asked
+ * again after each wait of `backoff`, and after the last nothing more is asked this run: `complete` says whether
+ * every id was asked.
  */
 export const askKitsu = async (ids, { get = fetch, sleep = sleeping, pauseMs = KITSU_PAUSE_MS, backoff = KITSU_BACKOFF_MS } = {}) => {
   const rows = []
+  const answers = []
   let requests = 0
   for (let start = 0; start < ids.length; start += KITSU_IDS) {
     if (start) await sleep(pauseMs)
-    const url = `${KITSU}?filter%5Bid%5D=${ids.slice(start, start + KITSU_IDS).join(',')}&page%5Blimit%5D=${KITSU_IDS}&fields%5Banime%5D=${KITSU_FIELDS.join(',')}`
+    const url = `${KITSU}?filter%5Bid%5D=${ids.slice(start, start + KITSU_IDS).join(',')}&page%5Blimit%5D=${KITSU_IDS}&include=mappings`
     for (let attempt = 0; ; attempt++) {
       requests++
       const response = await get(url, {
@@ -147,14 +161,18 @@ export const askKitsu = async (ids, { get = fetch, sleep = sleeping, pauseMs = K
       }).catch(error => ({ ok: false, status: errorText(error) }))
       if (response.ok) {
         const fetchedAt = new Date().toISOString()
-        for (const resource of (await response.json()).data ?? []) rows.push(kitsuRow(resource, fetchedAt))
+        const { data, included } = await response.json()
+        for (const resource of data ?? []) {
+          rows.push(kitsuRow(resource, fetchedAt))
+          answers.push({ id: String(resource.id), fetchedAt, body: kitsuBody(resource, included) })
+        }
         break
       }
-      if (!transient(response.status) || attempt >= backoff.length) return { rows, requests, complete: false, stopped: String(response.status) }
+      if (!transient(response.status) || attempt >= backoff.length) return { rows, answers, requests, complete: false, stopped: String(response.status) }
       await sleep(backoff[attempt])
     }
   }
-  return { rows, requests, complete: true }
+  return { rows, answers, requests, complete: true }
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -310,17 +328,27 @@ const publish = async (gh, release, files, previousManifest) => {
 /* --------------------------------------------------------------------------------------------- */
 
 /**
- * One run: read the published history (a build from scratch only when the release answers 404), take the newest
- * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed.
+ * The If-Modified-Since that brings every copy of AniDB's file up to date: the oldest copy's date, or none when a
+ * copy has none, as a release started over or a store not yet written has.
  */
-export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff }) => {
+export const anidbSince = dates => (dates.every(Boolean) ? dates.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a)) : undefined)
+
+/**
+ * One run: read the published history (a build from scratch only when the release answers 404), take the newest
+ * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed. Then, when
+ * `store` is given, keep what was asked in the source store, as `writer`'s run: a store that cannot be read or
+ * written is skipped with a warning, and never fails the run.
+ */
+export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
   const gh = github(token, get)
   let release = await gh.release()
   const previous = release ? await readPublished(gh, release) : undefined
   const { tag, meta, entries, sha256 } = await dump()
   log(`dump ${tag}, ${previous ? `history of dump ${previous.history.manifest.dump?.tag}` : 'no history yet, from scratch'}`)
+  const stored = store && await readStore(store).catch(error => warn(`the source store is skipped this run: ${errorText(error)}`))
 
   let anidb = previous?.history.anidb ?? { fetchedAt: null, lastModified: null, titles: new Map() }
+  let anidbAnswer
   const attempt = release ? await readAttempt(gh, release) : undefined
   const turn = anidbTurn({ released: Boolean(release), attempt, now: now() })
   if (turn === 'wait') {
@@ -333,10 +361,11 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
       return false
     })
     if (turn === 'ask' && recorded) {
-      // the published copy's date, so a 200 whose publish then failed is asked for again rather than answered 304
-      const answer = await askAnidb({ get, lastModified: anidb.lastModified })
+      // the copies' date, so a 200 whose publish or store write then failed is asked for again rather than answered 304
+      const answer = await askAnidb({ get, lastModified: anidbSince([anidb.lastModified, ...stored ? [stored.manifest.job['anidb-titles']?.lastModified] : []]) })
       log(`AniDB: ${answer.outcome}${answer.titles ? `, ${answer.titles.size} shows with an English or Japanese title` : ''}`)
       if (answer.titles) anidb = { fetchedAt: record.attemptedAt, lastModified: answer.lastModified, titles: answer.titles }
+      anidbAnswer = { ...answer, fetchedAt: record.attemptedAt }
       await gh.replace(release, ATTEMPT, JSON.stringify({ ...record, outcome: answer.outcome }))
         .catch(error => log(`AniDB: the outcome could not be recorded (${errorText(error)})`))
     }
@@ -346,22 +375,32 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   const cut = new Date(`${meta.lastUpdate}T00:00:00Z`)
   const checkpoints = previous?.history.manifest.checkpoints
   let refreshedFor = previous?.history.manifest.kitsu?.refreshedFor ?? null
+  let kitsuAnswers = []
   if (refreshedFor !== tag) {
     const { refresh } = checkpointsOf({ entries, cut, tag, kitsu, previous: checkpoints })
     const lacking = entries.map(entry => catalogIds(entry).kitsu).filter(id => id && !kitsu.has(id))
     const ids = [...new Set([...lacking, ...refresh])]
     const asked = await askKitsu(ids, { get, sleep, pauseMs, backoff })
     for (const row of asked.rows) kitsu.set(Number(row.id), row)
+    kitsuAnswers = asked.answers
     log(`Kitsu: ${ids.length} ids asked in ${asked.requests} requests, ${asked.rows.length} rows${asked.complete ? '' : `, stopped on ${asked.stopped}, the next run goes on`}`)
     if (asked.complete) refreshedFor = tag
   }
 
   const plan = checkpointsOf({ entries, cut, tag, kitsu, previous: checkpoints })
   const files = encodeHistory({ anidb, kitsu, fields: { dump: { tag, sha256 }, kitsu: { refreshedFor }, checkpoints: plan.checkpoints, open: plan.open } })
-  if (files.manifest === previous?.files.manifest) return log('nothing changed, nothing published')
-  release ??= await gh.create()
-  await publish(gh, release, files, previous?.files.manifest)
-  log(`published ${Object.keys(files.assets).join(', ')} and ${MANIFEST}`)
+  if (files.manifest === previous?.files.manifest) {
+    log('nothing changed, nothing published')
+  } else {
+    release ??= await gh.create()
+    await publish(gh, release, files, previous?.files.manifest)
+    log(`published ${Object.keys(files.assets).join(', ')} and ${MANIFEST}`)
+  }
+
+  if (stored) {
+    await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
+      .then(outcome => log(`the source store: ${outcome}`), error => warn(`the source store was not written: ${errorText(error)}`))
+  }
 }
 
 const main = async () => {
@@ -373,7 +412,11 @@ const main = async () => {
     console.error('[offline-history] REFUSING: no GH_TOKEN to publish with.')
     process.exit(1)
   }
-  await runHistory({ token: process.env.GH_TOKEN })
+  const missing = SECRETS.filter(name => !process.env[name])
+  if (missing.length) console.log(`::notice::[offline-history] the source store is skipped: ${missing.join(', ')} not set`)
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  const writer = { by: 'offline-history', run: process.env.GITHUB_RUN_ID ?? null, stub: version, commit: process.env.GITHUB_SHA?.slice(0, 8) ?? null }
+  await runHistory({ token: process.env.GH_TOKEN, store: r2(process.env), writer })
 }
 
 if (import.meta.main) await main()

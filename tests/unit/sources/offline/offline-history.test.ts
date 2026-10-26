@@ -4,11 +4,13 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gzipSync } from 'node:zlib'
+import { gunzipSync, gzipSync } from 'node:zlib'
 import { expect, test } from 'vite-plus/test'
 
-import { ATTEMPT, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory } from '../../../../scripts/offline-history.mjs'
+import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
+import { SECRETS, readStore } from '../../../../scripts/source-store.mjs'
+import { STORE_ENV, fakeBucket } from './fake-bucket'
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 const HOUR = 3_600_000
@@ -60,6 +62,16 @@ test('AniDB gets one request, with If-Modified-Since and a user agent naming stu
   expect(asked.map(({ url }) => url)).toEqual(Array(5).fill(ANIDB))
 })
 
+// Mutations: recompress the file AniDB served; keep a file that came decoded as it came.
+test('AniDB\'s file is handed on as served for the source store, and gzipped when it came decoded', async () => {
+  const xml = gunzipSync(anidbFile(15_000)).toString('utf8')
+  const served = gzipSync(xml, { level: 1 })
+  const gzip = await askAnidb({ get: async () => new Response(new Uint8Array(served)) })
+  expect([gzip.xml === xml, Buffer.compare(gzip.file, served)]).toEqual([true, 0])
+  const decoded = await askAnidb({ get: async () => new Response(xml) })
+  expect([decoded.xml === xml, gunzipSync(decoded.file).toString('utf8') === xml]).toEqual([true, true])
+})
+
 const kitsuResource = (id: number, status = 'finished') => ({
   id: String(id),
   type: 'anime',
@@ -98,12 +110,14 @@ test('Kitsu is asked 20 ids a request, one at a time with a pause, and a 429 wai
   expect(waits).toEqual([30_000, 1_000, 1_000])
 })
 
-// Mutations: leave out the synopsis; leave out the banner.
-test('Kitsu is asked for every attribute the history keeps, the synopsis and the banner included', async () => {
+// Mutations: ask sparse fields; leave out the mappings.
+test('Kitsu is asked for whole resources and their mappings, which the source store keeps', async () => {
   const { asked, get } = kitsuApi()
-  await askKitsu([1], { get, sleep: async () => {} })
-  expect(new URL(asked[0]!).searchParams.get('fields[anime]')!.split(','))
-    .toEqual(['titles', 'canonicalTitle', 'synopsis', 'posterImage', 'coverImage', 'subtype', 'status', 'startDate', 'endDate', 'episodeCount'])
+  const { rows } = await askKitsu([1], { get, sleep: async () => {} })
+  const params = new URL(asked[0]!).searchParams
+  expect([params.get('include'), params.has('fields[anime]')]).toEqual(['mappings', false])
+  // the history's row is still only what it keeps
+  expect(rows[0]).toEqual(kitsuRow(kitsuResource(1), rows[0].fetchedAt))
 })
 
 // Mutations: keep asking after the last back off; back off on a 404.
@@ -362,6 +376,95 @@ test('a Kitsu refresh cut short leaves the history refreshed for the old dump, a
   expect(JSON.parse(next.named('manifest.json')!.toString()).kitsu.refreshedFor).toBe('2026-44')
 })
 
+const WRITER = { by: 'offline-history', run: '42', stub: '0.0.62', commit: '0dcc4455' }
+const keeping = (w: ReturnType<typeof world>, bucket: ReturnType<typeof fakeBucket>, tag = '2026-43', now = NOW) =>
+  runHistory({ token: 't', get: w.get, dump: dumpOf(tag), now: () => now, sleep: async () => {}, pauseMs: 0, backoff: [], store: bucket.client, writer: WRITER })
+const assetsOf = (w: ReturnType<typeof world>) => Object.fromEntries(w.names().map(name => [name, w.named(name)!]))
+const historyOf = (w: ReturnType<typeof world>) => decodeHistory({ manifest: w.named('manifest.json')!.toString(), assets: assetsOf(w) })
+const unsha = (lines: string[]) => lines.map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
+
+// Mutation: publish nothing when a store is given.
+test('with the source store, the release gets what it gets without one, and the store dates every show asked', async () => {
+  const anidb = () => new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Mon, 19 Oct 2026 04:00:00 GMT' } })
+  const plain = world({ release: false, anidb })
+  await run(plain)
+  const kept = world({ release: false, anidb })
+  const bucket = fakeBucket()
+  await keeping(kept, bucket)
+  expect(unsha(kept.log)).toEqual(unsha(plain.log))
+  expect(historyOf(kept).anidb.titles).toEqual(historyOf(plain).anidb.titles)
+  expect([...historyOf(kept).kitsu.keys()]).toEqual([...historyOf(plain).kitsu.keys()])
+  const { manifest, index } = await readStore(bucket.client)
+  const lines = [...index.values()]
+  expect([lines.filter(line => line.source === 'anidb-titles').length, lines.filter(line => line.source === 'kitsu').length]).toEqual([15_000, 6])
+  expect(new Set(lines.map(line => JSON.stringify(line.writer)))).toEqual(new Set([JSON.stringify(WRITER)]))
+  expect(manifest.job['anidb-titles'].lastModified).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
+})
+
+// Mutations: send the newer copy's date; send a date when a copy has none.
+test('If-Modified-Since is the older copy\'s date, and none when either copy has none', () => {
+  expect(anidbSince(['Sat, 24 Oct 2026 04:00:00 GMT', 'Mon, 19 Oct 2026 04:00:00 GMT'])).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
+  expect(anidbSince(['Mon, 19 Oct 2026 04:00:00 GMT', 'Sat, 24 Oct 2026 04:00:00 GMT'])).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
+  // a release started over, beside a store that holds the file
+  expect(anidbSince([null, 'Sat, 24 Oct 2026 04:00:00 GMT'])).toBeUndefined()
+  expect(anidbSince(['Sat, 24 Oct 2026 04:00:00 GMT', undefined])).toBeUndefined()
+  expect(anidbSince(['Sat, 24 Oct 2026 04:00:00 GMT'])).toBe('Sat, 24 Oct 2026 04:00:00 GMT')
+})
+
+// Mutation: send the release's date while the store holds no file.
+test('a store with no AniDB file is sent no If-Modified-Since, so it gets the whole file, and then both copies\' date', async () => {
+  const sent: (string | undefined)[] = []
+  const anidb = (init: RequestInit) => {
+    sent.push((init.headers as Record<string, string>)['if-modified-since'])
+    return new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Sat, 24 Oct 2026 04:00:00 GMT' } })
+  }
+  const bucket = fakeBucket()
+  const first = world({ assets: await published(25), anidb })
+  await keeping(first, bucket)
+  await keeping(world({ assets: assetsOf(first), anidb }), bucket, '2026-43', NOW + 25 * HOUR)
+  expect(sent).toEqual([undefined, 'Sat, 24 Oct 2026 04:00:00 GMT'])
+  expect((await readStore(bucket.client)).manifest.job['anidb-titles']).toMatchObject({ rows: 15_000, lastModified: 'Sat, 24 Oct 2026 04:00:00 GMT' })
+})
+
+// Mutation: let a store write failure fail the run.
+test('a store that cannot be written leaves the release published and the run green', async () => {
+  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  const bucket = fakeBucket({ fail: method => method === 'PUT' })
+  await keeping(w, bucket)
+  expect(w.names()).toContain('manifest.json')
+  expect(historyOf(w).anidb.titles.size).toBe(15_000)
+  // control: the store was written to, and refused it
+  expect(bucket.log.some(line => line.startsWith('PUT '))).toBe(true)
+  expect(bucket.objects.size).toBe(0)
+})
+
+// Mutations: let a store read failure fail the run; read a store that answered 500 as an empty one.
+test('a store that cannot be read is skipped for the run: AniDB gets the release\'s date and the store nothing', async () => {
+  const sent: (string | undefined)[] = []
+  const anidb = (init: RequestInit) => {
+    sent.push((init.headers as Record<string, string>)['if-modified-since'])
+    return new Response(null, { status: 304 })
+  }
+  const bucket = fakeBucket({ fail: method => method === 'GET' })
+  await keeping(world({ assets: await published(25), anidb }), bucket)
+  expect(sent).toEqual(['Mon, 19 Oct 2026 04:00:00 GMT'])
+  expect(bucket.log).toEqual(['GET manifest.json'])
+})
+
+// Mutation: write manifest.json again when nothing was asked.
+test('a rerun the same day asks nothing and writes nothing to the store', async () => {
+  const bucket = fakeBucket()
+  const first = world({ assets: await published(25), anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  await keeping(first, bucket)
+  const objects = new Map(bucket.objects)
+  bucket.log.length = 0
+  const rerun = world({ assets: assetsOf(first) })
+  await keeping(rerun, bucket, '2026-43', NOW + HOUR)
+  expect(rerun.log).toEqual([])
+  expect(bucket.log.filter(line => !line.startsWith('GET '))).toEqual([])
+  expect(bucket.objects).toEqual(objects)
+})
+
 // Mutation: a release answer of 500 read as no release.
 test('GitHub answering 404 for the tag is the one answer that means there is no release', async () => {
   const answering = (status: number) => async () => new Response('{}', { status })
@@ -373,7 +476,7 @@ test('GitHub answering 404 for the tag is the one answer that means there is no 
 // a fetch that reports itself on stderr, to show whether the script asked anything
 const TRAP = `data:text/javascript,globalThis.fetch = async url => { process.stderr.write('FETCHED ' + url + '\\n'); throw new Error('trapped') }`
 const script = (env: Record<string, string>) => {
-  const { GITHUB_WORKFLOW: _, GH_TOKEN: __, ...rest } = process.env
+  const rest = Object.fromEntries(Object.entries(process.env).filter(([name]) => !['GITHUB_WORKFLOW', 'GH_TOKEN', ...SECRETS].includes(name)))
   return spawnSync(process.execPath, ['--import', TRAP, join(ROOT, 'scripts/offline-history.mjs')], { cwd: ROOT, env: { ...rest, ...env }, encoding: 'utf8', timeout: 60_000 })
 }
 
@@ -385,6 +488,16 @@ test('the job refuses to run anywhere but its workflow, before it asks anything'
   // control: inside the workflow it does ask, so the trap would have seen a request
   const workflow = script({ GITHUB_WORKFLOW: 'Offline history', GH_TOKEN: 't' })
   expect(workflow.stderr).toContain('FETCHED https://api.github.com/repos/banou26/stub/releases/tags/offline-history')
+})
+
+// Mutation: no notice when a secret is unset.
+test('without the source store\'s secrets the job says so in a notice and goes on as before', () => {
+  const skipped = script({ GITHUB_WORKFLOW: 'Offline history', GH_TOKEN: 't' })
+  expect(skipped.stdout).toContain(`::notice::[offline-history] the source store is skipped: ${SECRETS.join(', ')} not set`)
+  expect(skipped.stderr).toContain('FETCHED https://api.github.com/repos/banou26/stub/releases/tags/offline-history')
+  // control: with them, no notice
+  const stored = script({ GITHUB_WORKFLOW: 'Offline history', GH_TOKEN: 't', ...STORE_ENV })
+  expect([stored.stdout.includes('::notice::'), stored.stderr.includes('FETCHED https://api.github.com/')]).toEqual([false, true])
 })
 
 const files = (dir: string): string[] =>

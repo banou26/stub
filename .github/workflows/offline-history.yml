@@ -5,6 +5,10 @@
 # scripts/offline-history.mjs, which refuses to run outside this workflow. AniDB allows one download of its titles
 # file a day, so the script records each attempt before it asks and waits 24 hours between two.
 #
+# What it asks is also kept in the private R2 bucket `stub-sources` (HOR-994, scripts/source-store.mjs), through R2's
+# S3 API with a token scoped to that bucket. While any of the three STUB_SOURCES_* secrets below is unset, the job
+# skips the bucket with a notice and does everything else as before.
+#
 # DAILY, off the hour, since scheduled runs queue at the top of it. A day with no new dump asks Kitsu nothing, and a
 # day whose AniDB file is unchanged gets a 304 and publishes nothing. A `schedule` trigger runs only on the default
 # branch, and in a public repo is disabled after 60 days with no repository activity.
@@ -40,3 +44,6 @@ jobs:
       - run: node scripts/offline-history.mjs
         env:
           GH_TOKEN: ${{ github.token }}
+          STUB_SOURCES_ACCOUNT_ID: ${{ secrets.STUB_SOURCES_ACCOUNT_ID }}
+          STUB_SOURCES_ACCESS_KEY_ID: ${{ secrets.STUB_SOURCES_ACCESS_KEY_ID }}
+          STUB_SOURCES_SECRET_ACCESS_KEY: ${{ secrets.STUB_SOURCES_SECRET_ACCESS_KEY }}
