@@ -105,6 +105,15 @@ describe('when Next episode is offered', () => {
     expect(nextOfferAt(marked(600, 640, 1440, 'Preview'), 1440)).toBeUndefined()
   })
 
+  // a torrent's file names its own chapters, and an ending is what the player's own Skip Ending calls one
+  test('a file\'s ED or Credits is an ending, and its Opening is not', () => {
+    for (const title of ['ED', 'Credits', 'ED2', 'エンディング']) {
+      expect(nextOfferAt(marked(1300, 1390, 1395, title), 1395), title).toBe(1299)
+    }
+    expect(nextOfferAt(marked(1300, 1390, 1395, 'Opening'), 1395)).toBeUndefined()
+    expect(chaptersBesideNext(marked(1300, 1390, 1395, 'ED'), 1395).map(({ title }) => title)).toEqual(['Episode', 'Episode'])
+  })
+
   test('the last of two endings decides', () => {
     const twice = [...marked(600, 690, 690), ...marked(1324, 1415, 1420).slice(1)]
     expect(nextOfferAt(twice, 1420)).toBe(1323)
