@@ -75,58 +75,79 @@ describe('bestSource', () => {
 // HOR-1014: an episode whose every source plays only once the viewer signs in asks them to, rather than opening one
 describe('playPick', () => {
   const playsButCr = (handle: { origin: string }) => handle.origin !== 'cr'
-  // Crunchyroll still to sign in to, and no state stub learned of any site
-  const unknown: Access = { plays: playsButCr, free: playsButCr, signedOut: () => false }
-  const answered = { answered: true, asked: false, moving: false }
+  // Crunchyroll to sign in to again, the viewer signed in to it here before
+  const before: Access = { plays: playsButCr, free: playsButCr, neverSignedIn: () => false }
+  const answered = { answered: true, asked: false, moving: false, pending: false }
 
   test('with none, nothing is opened, and the page is stuck once every source has answered', () => {
-    expect(playPick([cr], ways(), unknown, { ...answered, answered: false })).toEqual({ pick: undefined, stuck: false })
-    expect(playPick([cr], ways(), unknown, answered)).toEqual({ pick: undefined, stuck: true })
-    expect(playPick([], ways(), unknown, answered), 'an episode with no source at all').toEqual({ pick: undefined, stuck: true })
-    expect(playPick([cr], ways(), { ...unknown, plays: () => true }, answered), 'the control: every source plays').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+    expect(playPick([cr], ways(), before, { ...answered, answered: false })).toEqual({ pick: undefined, stuck: false })
+    expect(playPick([cr], ways(), before, answered)).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([], ways(), before, answered), 'an episode with no source at all').toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr], ways(), { ...before, plays: () => true }, answered), 'the control: every source plays').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
   })
 
   test('once asked, the page stays stuck while sources answer again, and then opens only what plays without a sign in', () => {
-    expect(playPick([cr], ways(), unknown, { ...answered, answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
-    expect(playPick([cr, prime], ways({ settled: () => true }), unknown, { ...answered, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
+    expect(playPick([cr], ways(), before, { ...answered, answered: false, asked: true })).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr, prime], ways({ settled: () => true }), before, { ...answered, asked: true })).toEqual({ pick: { uri: 'amazon:gti1', now: true }, stuck: false })
   })
 
   // the owner, 2026-10-19: "Only if their sources aren't available should it go to the next best ranked source available."
   test('moving on from its own pick that cannot play, Play opens the next ranked source, one still to sign in to too, unless the page has asked', () => {
-    expect(playPick([cr], ways(), unknown, { ...answered, moving: true })).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: true })
-    expect(playPick([cr], ways(), unknown, { ...answered, moving: true, asked: true })).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr], ways(), before, { ...answered, moving: true })).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: true })
+    expect(playPick([cr], ways(), before, { ...answered, moving: true, asked: true })).toEqual({ pick: undefined, stuck: true })
   })
 })
 
-// HOR-1033, the owner, 2026-10-25: "route automatically the user to free watching alternatives available if there are
-// any instead of defaulting to premium sources when the user is not logged in"
-describe('playPick for a viewer found signed out', () => {
+// HOR-1033, the owner, 2026-10-26: "if we know that the user has previously logged into CR, then we should ask him to
+// re-log into his account, otherwise we wait for the free source"
+describe('playPick for a viewer signed out of their favourite', () => {
   const nf = { uri: 'nf:81', origin: 'nf', url: 'https://www.netflix.com/watch/81' }
   const primeUs = { uri: 'amazon:us', origin: 'amazon', url: 'https://watch.amazon.com/watch?gti=us' }
   const every = ways({ builtIn: origin => ['cr', 'amazon', 'nf'].includes(origin), settled: () => true })
-  // a computer's cloud browser without the extension: Crunchyroll owes a sign in, and Netflix and Prime Video
+  const extensionOnly = (handle: { uri: string }) => handle.uri === nf.uri || handle.uri === primeUs.uri
+  // signed out of Crunchyroll and Prime Video, and never signed in to the sites `never` names: on a
+  // computer's cloud browser without the extension, both owe a sign in, and Netflix and Prime Video
   // outside Japan need the extension, which it can add
-  const cloud = (signedOut: string[] = []): Access => {
-    const owes = (handle: { origin: string }) => handle.origin === 'cr'
-    const extensionOnly = (handle: { uri: string }) => handle.uri === nf.uri || handle.uri === primeUs.uri
-    return {
-      plays: handle => !owes(handle),
-      free: handle => !owes(handle) && !extensionOnly(handle) && !signedOut.includes(handle.origin),
-      signedOut: handle => signedOut.includes(handle.origin),
-    }
-  }
-  // with the extension nothing owes a sign in or needs the extension
-  const extension = (signedOut: string[] = []): Access => ({
-    plays: () => true,
-    free: handle => !signedOut.includes(handle.origin),
-    signedOut: handle => signedOut.includes(handle.origin),
+  const cloud = (never: string[]): Access => ({
+    plays: handle => handle.origin !== 'cr' && handle.uri !== prime.uri,
+    free: handle => handle.origin === 'nyaa',
+    neverSignedIn: handle => never.includes(handle.origin) && !extensionOnly(handle),
   })
-  const answered = { answered: true, asked: false, moving: false }
+  // with the extension nothing owes a sign in or needs the extension
+  const extension = (never: string[]): Access => ({
+    plays: () => true,
+    free: handle => handle.origin === 'nyaa',
+    neverSignedIn: handle => never.includes(handle.origin),
+  })
+  const answered = { answered: true, asked: false, moving: false, pending: false }
+  const backends = [['cloud', cloud], ['extension', extension]] as const
 
-  test('a favourite the viewer was found signed out of gives way to the release, once the sources ranked above it have answered', () => {
-    expect(playPick([cr, nyaa('1')], every, cloud(['cr']), answered)).toEqual({ pick: { uri: 'nyaa:1', now: true }, stuck: false })
-    expect(playPick([cr, nyaa('1')], ways({ settled: () => false }), cloud(['cr']), answered), 'Crunchyroll not answered yet, and not opened meanwhile')
-      .toEqual({ pick: { uri: 'nyaa:1', now: false }, stuck: false })
+  test('a favourite never signed in to gives way to the release, once the sources ranked above it have answered', () => {
+    for (const [backend, access] of backends) {
+      expect(playPick([cr, nyaa('1')], every, access(['cr']), answered), backend).toEqual({ pick: { uri: 'nyaa:1', now: true }, stuck: false })
+      expect(playPick([cr, nyaa('1')], ways(), access(['cr']), answered), `${backend}: Crunchyroll not answered yet, and not opened meanwhile`)
+        .toEqual({ pick: { uri: 'nyaa:1', now: false }, stuck: false })
+    }
+  })
+
+  test('a favourite signed in to here before opens, for its player to ask the viewer to sign in again', () => {
+    for (const [backend, access] of backends) {
+      expect(playPick([cr, nyaa('1')], every, access([]), answered), backend).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+      expect(playPick([prime, nyaa('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), access(['cr']), answered).pick?.uri, `${backend}: Prime Video`).toBe(prime.uri)
+    }
+  })
+
+  test('while an added source could still bring a release, Play opens nothing in place of a favourite never signed in to', () => {
+    for (const [backend, access] of backends) {
+      expect(playPick([cr, nf], every, access(['cr']), { ...answered, answered: false, pending: true }), backend).toEqual({ pick: undefined, stuck: false })
+      expect(playPick([cr, nf], every, access([]), { ...answered, answered: false, pending: true }).pick?.uri, `${backend}: the control, signed in before`).toBe('cr:GX1')
+    }
+  })
+
+  test('with no release once every added source has answered, or none added, Play does as before: the favourite, or the prompt', () => {
+    expect(playPick([cr, nf], every, cloud(['cr']), answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+    expect(playPick([cr], every, cloud(['cr']), answered)).toEqual({ pick: undefined, stuck: true })
+    expect(playPick([cr], every, extension(['cr']), answered), 'the extension, never stuck').toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
   })
 
   test('Netflix or Prime Video outside Japan ranked between them, which need the extension, never take the release\'s place', () => {
@@ -134,27 +155,15 @@ describe('playPick for a viewer found signed out', () => {
     expect(playPick([cr, primeUs, nyaa('1')], every, cloud(['cr']), answered).pick?.uri).toBe('nyaa:1')
   })
 
-  test('a favourite stub knows nothing of still opens, for its player to learn the state', () => {
-    expect(playPick([cr, nyaa('1')], every, cloud(), answered).pick?.uri).toBe('cr:GX1')
-  })
-
-  test('a favourite that needs the extension still opens, with the viewer found signed out of the source below it', () => {
+  test('a favourite that needs the extension still opens, with the viewer never signed in to the source below it', () => {
     expect(playPick([cr, nf, nyaa('1')], ways({ ...every, order: ['nf', 'cr', 'amazon'] }), cloud(['cr']), answered).pick?.uri).toBe('nf:81')
+    expect(playPick([cr, primeUs, nyaa('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), cloud(['cr', 'amazon']), answered).pick?.uri, 'Prime Video outside Japan').toBe('amazon:us')
   })
 
-  test('with nothing that plays with nothing to fix, the favourite still opens', () => {
-    expect(playPick([cr, nf], every, cloud(['cr']), answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
-  })
-
-  test('with the extension, the release takes the favourite\'s place too, and with none the favourite opens and the page is never stuck', () => {
-    expect(playPick([cr, nyaa('1')], every, extension(['cr']), answered).pick?.uri).toBe('nyaa:1')
-    expect(playPick([cr], every, extension(['cr']), answered)).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
-  })
-
-  test('moving on from a failed pick while something plays goes to the release past a source found signed out, not past one never seen', () => {
+  test('moving on from a failed pick goes to the release past a source never signed in to, not past one signed in to before', () => {
     const order = ['amazon', 'cr', 'nf']
     expect(playPick([cr, nyaa('1')], ways({ ...every, order }), cloud(['cr']), { ...answered, moving: true }).pick?.uri).toBe('nyaa:1')
-    expect(playPick([cr, nyaa('1')], ways({ ...every, order }), cloud(), { ...answered, moving: true }).pick?.uri).toBe('cr:GX1')
+    expect(playPick([cr, nyaa('1')], ways({ ...every, order }), cloud([]), { ...answered, moving: true }).pick?.uri).toBe('cr:GX1')
   })
 })
 

@@ -31,10 +31,12 @@ let watchQuery = ''
 let origins: string[] | undefined
 let party = { status: 'idle' }
 let backend = 'cloud'
-// what stub remembers of the viewer's sign-in to each site, and when it learned it: long ago unless `learned` says
+// what stub remembers of the viewer's sign-in to each site, and when it learned it: long ago unless `learned` says;
+// a site signed out of in `before` was found signed in to here before
 const SIGNED_IN = { crunchyroll: 'signed-in', prime: 'signed-in' }
 let statuses: Record<string, string> = { ...SIGNED_IN }
 let learned: Record<string, number> = {}
+const before = new Set<string>()
 let tracking: object | undefined
 let storage: object | undefined
 const saved: object[] = []
@@ -96,8 +98,7 @@ vi.mock('../../../../src/utils/fkn-backend', () => ({
   addExtension: detecting.installs,
   canAddExtension: () => detecting.addable,
 }))
-vi.mock('../../../../src/tracking/site-status', async importOriginal => ({
-  SIGNED_OUT_MS: (await importOriginal<typeof import('../../../../src/tracking/site-status')>()).SIGNED_OUT_MS,
+vi.mock('../../../../src/tracking/site-status', () => ({
   siteStatuses: { read: (site: string) => statuses[site] && { state: statuses[site] } },
   recordTrackerAnswers: () => {},
 }))
@@ -107,6 +108,7 @@ vi.mock('../../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, i
 const accounts = vi.hoisted(() => ({ outcome: 'authed', listeners: new Map<string, Set<() => void>>() }))
 vi.mock('../../../../src/router/settings/wiring', () => {
   const record = (site: string, state: string) => {
+    if (statuses[site] === 'signed-in') before.add(site)
     statuses[site] = state
     learned[site] = Date.now()
     for (const listener of accounts.listeners.get(site) ?? []) listener()
@@ -123,7 +125,9 @@ vi.mock('../../../../src/router/settings/wiring', () => {
     prime: streaming('prime'),
     sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'closed', signOut: async () => {} },
     status: {
-      read: (site: string) => statuses[site] ? { state: statuses[site], checkedAt: learned[site] ?? 0 } : undefined,
+      read: (site: string) => statuses[site]
+        ? { state: statuses[site], checkedAt: learned[site] ?? 0, ...statuses[site] === 'signed-out' && before.has(site) ? { signedInBefore: true } : {} }
+        : undefined,
       watch: (site: string, listener: () => void) => {
         const set = accounts.listeners.get(site) ?? new Set()
         accounts.listeners.set(site, set.add(listener))
@@ -232,7 +236,6 @@ const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
 const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
-const { SIGNED_OUT_MS } = await import('../../../../src/tracking/site-status')
 const { Router } = await import('wouter')
 const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
 
@@ -253,6 +256,7 @@ afterEach(() => {
   backend = 'cloud'
   statuses = { ...SIGNED_IN }
   learned = {}
+  before.clear()
   params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
   search = ''
   Object.assign(episode, { uri: allUri, handles: allHandles })
@@ -289,12 +293,20 @@ const settle = async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(0) })
 }
 
-// the owner, 2026-10-19: a viewer wants their favourite source, so one they can sign in to is not skipped
-test('a Crunchyroll ranked first that the viewer was found signed out of over a day ago opens at once, for its player to ask them to sign in', async () => {
+// signed out of the site now, as stub found the viewer signed in to it here before
+const signedOutAgain = (site: string) => {
+  statuses[site] = 'signed-out'
+  before.add(site)
+}
+
+// the owner, 2026-10-26: "if we know that the user has previously logged into CR, then we should ask him to re-log
+// into his account"
+test('a Crunchyroll ranked first that the viewer signed in to here before opens at once, for its player to ask them to sign in again', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nf', 'nyaa']
   lookups.held = new Promise(() => {})
-  statuses = { crunchyroll: 'signed-out' }
+  statuses = {}
+  signedOutAgain('crunchyroll')
   hosts.push(page())
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
@@ -425,17 +437,18 @@ test('with no source named, a Prime Video episode is picked at once, on the clou
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${PRIME}`, { replace: true })
 })
 
-test('a viewer found signed out of Prime Video over a day ago still gets Prime Video before the release, and in the last day the release', async () => {
-  for (const [when, to] of [[-SIGNED_OUT_MS, PRIME], [0, 'nyaa:a']] as const) {
+test('a Prime Video ranked first gives way to the release for a viewer never signed in to it here, and opens for one signed in to it before', async () => {
+  for (const [viewer, to] of [['nothing known', 'nyaa:a'], ['signed out', 'nyaa:a'], ['signed out since a sign in', PRIME]] as const) {
     vi.useFakeTimers()
     origins = ['amazon', 'nyaa']
-    statuses = { prime: 'signed-out' }
-    learned = { prime: Date.now() + when }
+    statuses = {}
+    if (viewer === 'signed out') statuses.prime = 'signed-out'
+    if (viewer === 'signed out since a sign in') signedOutAgain('prime')
     primeEpisode(allHandles[2]!)
     params = { ...params, episodeUri: episode.uri }
     hosts.push(page())
     await settle()
-    expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${to}`, { replace: true })
+    expect(navigate, viewer).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/${to}`, { replace: true })
     navigate.mockClear()
     while (hosts.length) unmount(hosts.pop()!)
   }
@@ -572,7 +585,8 @@ test('an episode that lists no source is not asked about', async () => {
 test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
-  statuses = { crunchyroll: 'signed-out' }
+  statuses = {}
+  signedOutAgain('crunchyroll')
   Object.assign(episode, { handles: [allHandles[0]] })
   media = { ...single, settled: false }
   const { host, rerender } = live()
@@ -601,7 +615,7 @@ test('an added source that connects after the answer on screen holds the page un
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
   media = { ...single }
   await rerender()
-  expect(navigate, 'the favourite, for its player to ask').toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+  expect(navigate, 'the release, as the viewer never signed in to Crunchyroll here').toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
   expect(noSource(host)).toBeNull()
 })
 
@@ -2502,29 +2516,34 @@ test('where the browser cannot add the extension but has it, Netflix ranked firs
 })
 
 // HOR-1033, the owner, 2026-10-25: "route automatically the user to free watching alternatives available if there are
-// any instead of defaulting to premium sources when the user is not logged in"
-const foundOut = (site: string) => {
-  statuses[site] = 'signed-out'
-  learned[site] = Date.now()
-}
+// any instead of defaulting to premium sources when the user is not logged in", and 2026-10-26: "if we know that the
+// user has previously logged into CR, then we should ask him to re-log into his account, otherwise we wait for the
+// free source"
+// this harness answers on the first render, so an added source connected at load has answered only once `media` is new
 const crAndRelease = () => {
   vi.useFakeTimers()
   origins = ['cr', 'nf', 'nyaa']
   statuses = {}
+  before.clear()
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
 }
 
-test('a Crunchyroll ranked first that the viewer was found signed out of in the last day gives way to the release, on the cloud and with the extension', async () => {
+test('a Crunchyroll ranked first that the viewer never signed in to here gives way to the release, on the cloud and with the extension, and one they did opens', async () => {
   for (const each of ['cloud', 'extension']) {
-    for (const [mark, to] of [['now', 'nyaa:a'], ['a day ago', 'cr:GX1'], ['signed in', 'cr:GX1']] as const) {
+    for (const [viewer, to] of [
+      ['nothing known', 'nyaa:a'],
+      ['signed out', 'nyaa:a'],
+      ['signed out since a sign in', 'cr:GX1'],
+      ['signed in', 'cr:GX1'],
+    ] as const) {
       crAndRelease()
       backend = each
-      foundOut('crunchyroll')
-      if (mark === 'a day ago') learned.crunchyroll = Date.now() - SIGNED_OUT_MS
-      if (mark === 'signed in') wiring.record('crunchyroll', 'signed-in')
+      if (viewer === 'signed out') statuses.crunchyroll = 'signed-out'
+      if (viewer === 'signed out since a sign in') signedOutAgain('crunchyroll')
+      if (viewer === 'signed in') statuses.crunchyroll = 'signed-in'
       hosts.push(page())
       await settle()
-      expect(navigate, `${each}, ${mark}`).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+      expect(navigate, `${each}, ${viewer}`).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
       navigate.mockClear()
       while (hosts.length) unmount(hosts.pop()!)
     }
@@ -2543,30 +2562,28 @@ const followPicks = async (rerender: () => Promise<void>) => {
 // the review of 2026-10-26: JustWatch lists Netflix beside Crunchyroll for 5 of 51 current and 20 of 50 older US shows
 test('on the cloud, Netflix ranked between them, which needs the extension, never takes the release\'s place', async () => {
   crAndRelease()
-  foundOut('crunchyroll')
   Object.assign(episode, { handles: allHandles })
   const { rerender } = live()
   await settle()
-  const named = await followPicks(rerender)
-  expect(named.at(-1)).toBe('nyaa:a')
-  expect(named).not.toContain('nf:81')
+  expect(await followPicks(rerender)).toEqual(['nyaa:a'])
 })
 
 // the review of 2026-10-26: stub never learns whether the viewer is signed in to Netflix, nor to Prime Video before its player says
-test('with the extension, a Netflix or Prime Video not known to be signed in never takes the place of a Crunchyroll found signed out', async () => {
+test('with the extension, a Netflix or Prime Video not known to be signed in never takes the place of a Crunchyroll never signed in to', async () => {
   const prime = handle(PRIME, 'amazon', PRIME_LINK)
   for (const [others, picks] of [
     [[allHandles[1]!], ['cr:GX1']],
     [[prime], ['cr:GX1']],
-    [[allHandles[1]!, prime, allHandles[2]!], ['cr:GX1', 'nyaa:a']],
+    [[allHandles[1]!, prime, allHandles[2]!], ['nyaa:a']],
   ] as const) {
     crAndRelease()
     backend = 'extension'
     origins = ['cr', 'nf', 'amazon', 'nyaa']
-    foundOut('crunchyroll')
     Object.assign(episode, { handles: [allHandles[0], ...others] })
     const { rerender } = live()
     await settle()
+    media = { ...single }
+    await rerender()
     expect(await followPicks(rerender), others.map(each => each.node.origin).join(', ')).toEqual(picks)
     navigate.mockClear()
     params = { ...params, sourceUri: undefined }
@@ -2574,12 +2591,11 @@ test('with the extension, a Netflix or Prime Video not known to be signed in nev
   }
 })
 
-test('a Crunchyroll found signed out gives way to a Prime Video the viewer was found signed in to, on the cloud and with the extension', async () => {
+test('a Crunchyroll never signed in to gives way to a Prime Video the viewer was found signed in to, on the cloud and with the extension', async () => {
   for (const each of ['cloud', 'extension']) {
     crAndRelease()
     backend = each
     origins = ['cr', 'amazon', 'nyaa']
-    foundOut('crunchyroll')
     statuses.prime = 'signed-in'
     Object.assign(episode, { handles: [allHandles[0], handle(PRIME, 'amazon', PRIME_LINK), allHandles[2]] })
     hosts.push(page())
@@ -2594,53 +2610,102 @@ test('outside Japan on the cloud, a Prime Video the viewer was found signed in t
   crAndRelease()
   vi.stubEnv('TZ', 'America/Toronto')
   origins = ['cr', 'amazon', 'nyaa']
-  foundOut('crunchyroll')
   statuses.prime = 'signed-in'
   Object.assign(episode, { handles: [allHandles[0], handle(CANADA, 'amazon', CANADA_LINK), allHandles[2]] })
   const { rerender } = live()
   await settle()
-  const named = await followPicks(rerender)
-  expect(named.at(-1)).toBe('nyaa:a')
-  expect(named).not.toContain(CANADA)
+  expect(await followPicks(rerender)).toEqual(['nyaa:a'])
 })
 
-test('with nothing learned of Crunchyroll, Play opens it, and moves to the release once its player finds the viewer signed out', async () => {
+// HOR-758, the owner, 2026-10-19: the favourite is fixed, not skipped, where the fix is not a sign in
+test('outside Japan on the cloud, a Prime Video ranked first that the viewer never signed in to still opens, for the page to ask for the extension', async () => {
+  crAndRelease()
+  vi.stubEnv('TZ', 'America/Toronto')
+  origins = ['amazon', 'nyaa']
+  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'cr', 'nf']))
+  Object.assign(episode, { handles: [handle(CANADA, 'amazon', CANADA_LINK), allHandles[2]] })
+  hosts.push(page())
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch(CANADA), { replace: true })
+})
+
+test('a Crunchyroll signed in to before stays Play\'s pick when its player finds the viewer signed out, for it to ask them to sign in again', async () => {
   for (const each of ['cloud', 'extension']) {
     crAndRelease()
     backend = each
+    statuses.crunchyroll = 'signed-in'
     const { rerender } = live()
     await settle()
     expect(navigate, each).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
 
     params = { ...params, sourceUri: 'cr:GX1' }
     await rerender()
-    expect(navigate, `${each}: the control, its player has said nothing yet`).toHaveBeenCalledOnce()
     await act(async () => { wiring.record('crunchyroll', 'signed-out') })
     await settle()
-    expect(navigate, each).toHaveBeenCalledTimes(2)
-    expect(navigate, each).toHaveBeenLastCalledWith(toWatch('nyaa:a'), { replace: true })
+    expect(navigate, each).toHaveBeenCalledOnce()
     navigate.mockClear()
     params = { ...params, sourceUri: undefined }
     while (hosts.length) unmount(hosts.pop()!)
   }
 })
 
-test('Play\'s Crunchyroll found signed out stays while the release cannot be opened yet, and moves once it can', async () => {
+// the step 1 report of 2026-10-26: Crunchyroll showed until the added source answered, then the release
+test('for a viewer never signed in to Crunchyroll, Play opens nothing while the added source has not answered, and then the release', async () => {
+  for (const [each, handles] of [['extension', [allHandles[0], allHandles[2]]], ['cloud', allHandles]] as const) {
+    crAndRelease()
+    backend = each
+    Object.assign(episode, { handles })
+    let answer = () => {}
+    lookups.held = new Promise<void>(resolve => { answer = resolve })
+    const { rerender } = live()
+    await settle()
+    expect(navigate, `${each}: the plugin has not said it plays the release`).not.toHaveBeenCalled()
+
+    answer()
+    await settle()
+    expect(await followPicks(rerender), each).toEqual(['nyaa:a'])
+    navigate.mockClear()
+    params = { ...params, sourceUri: undefined }
+    while (hosts.length) unmount(hosts.pop()!)
+  }
+})
+
+test('with the extension, a Crunchyroll never signed in to opens once the added source answered nothing, and the page never asks', async () => {
   crAndRelease()
   backend = 'extension'
-  let answer = () => {}
-  lookups.held = new Promise<void>(resolve => { answer = resolve })
-  const { rerender } = live()
+  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  Object.assign(episode, { handles: [allHandles[0]] })
+  const { host, rerender } = live()
   await settle()
-  params = { ...params, sourceUri: 'cr:GX1' }
-  await rerender()
-  await act(async () => { wiring.record('crunchyroll', 'signed-out') })
-  await settle()
-  expect(navigate.mock.calls.map(([to]) => to), 'the plugin has not said it plays the release').toEqual([toWatch('cr:GX1')])
+  expect(navigate, 'connecting').not.toHaveBeenCalled()
 
-  answer()
-  await settle()
-  expect(navigate.mock.calls.map(([to]) => to)).toEqual([toWatch('cr:GX1'), toWatch('nyaa:a')])
+  await pluginsChange(connectedNyaa)
+  media = { ...single }
+  await rerender()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+  expect(noSource(host)).toBeNull()
+})
+
+test('Play\'s Crunchyroll never signed in to gives way to a release heard after it opened, and one signed in to before stays', async () => {
+  for (const [viewer, picks] of [['never signed in', ['cr:GX1', 'nyaa:a']], ['signed in before', ['cr:GX1']]] as const) {
+    crAndRelease()
+    backend = 'extension'
+    if (viewer === 'signed in before') signedOutAgain('crunchyroll')
+    Object.assign(episode, { handles: [allHandles[0]] })
+    const { rerender } = live()
+    await settle()
+    media = { ...single }
+    await rerender()
+    await followPicks(rerender)
+
+    Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
+    media = { ...single }
+    await rerender()
+    expect(navigate.mock.calls.map(([to]) => to.split('/').at(-1)), viewer).toEqual(picks)
+    navigate.mockClear()
+    params = { ...params, sourceUri: undefined }
+    while (hosts.length) unmount(hosts.pop()!)
+  }
 })
 
 test('a Crunchyroll the viewer opened by hand stays when its player finds them signed out', async () => {
@@ -2653,16 +2718,4 @@ test('a Crunchyroll the viewer opened by hand stays when its player finds them s
   await settle()
   expect(navigate).not.toHaveBeenCalled()
   expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('sourceUri')).toBe('cr:GX1')
-})
-
-test('with the extension and nothing else to play, a Crunchyroll found signed out still opens, and the page never asks', async () => {
-  crAndRelease()
-  backend = 'extension'
-  foundOut('crunchyroll')
-  Object.assign(episode, { handles: [allHandles[0]] })
-  const host = page()
-  hosts.push(host)
-  await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
-  expect(noSource(host)).toBeNull()
 })

@@ -10,7 +10,7 @@ import type { CompactAnswer } from '../../../src/tracking/compact'
 import type { SiteState, StatusSite } from '../../../src/tracking/site-status'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
-import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers, SIGNED_OUT_MS } from '../../../src/tracking/site-status'
+import { createRefresh, createSiteStatuses, FRESH_MS, recordTrackerAnswers } from '../../../src/tracking/site-status'
 import { pickCountry } from '../../../src/sources/country'
 import { viewerIn } from '../sources/justwatch/viewer'
 
@@ -20,7 +20,7 @@ vi.mock('lucide-react', () => Object.fromEntries(
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
-const { foundSignedIn, foundSignedOut, offersSignIn } = await import('../../../src/router/settings/accounts')
+const { foundSignedIn, neverSignedIn, offersSignIn } = await import('../../../src/router/settings/accounts')
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 
 // The sign-ins in the cards of the settings page's Sources: every sign-in stub uses, what it is, and the
@@ -218,21 +218,21 @@ test('offersSignIn says whether a streaming card offers Sign in, on each backend
 })
 
 // the watch page's Play gives way to a source that plays with nothing to fix while this holds (HOR-1033)
-test('foundSignedOut holds a recorded signed out for a day, of a streaming source\'s own site alone', () => {
-  expect(SIGNED_OUT_MS).toBe(24 * HOUR)
+test('neverSignedIn holds until stub finds the viewer signed in to a streaming source\'s own site, and a sign out after keeps it false', () => {
   const { status, statuses } = fakeStatus()
-  expect(foundSignedOut('cr', status, NOW), 'nothing remembered').toBe(false)
+  expect(neverSignedIn('cr', status), 'nothing remembered').toBe(true)
   statuses.record('crunchyroll', 'signed-out', NOW)
-  expect(foundSignedOut('cr', status, NOW)).toBe(true)
-  expect(foundSignedOut('cr', status, NOW + SIGNED_OUT_MS - 1)).toBe(true)
-  expect(foundSignedOut('cr', status, NOW + SIGNED_OUT_MS), 'a day later').toBe(false)
-  expect(foundSignedOut('amazon', status, NOW), 'another site').toBe(false)
-  statuses.record('prime', 'signed-out', NOW)
-  expect(foundSignedOut('amazon', status, NOW)).toBe(true)
+  expect(neverSignedIn('cr', status), 'signed out, never in').toBe(true)
   statuses.record('crunchyroll', 'signed-in', NOW + HOUR)
-  expect(foundSignedOut('cr', status, NOW + HOUR), 'signed in since').toBe(false)
-  statuses.record('anilist', 'signed-out', NOW)
-  for (const origin of ['nf', 'nyaa', 'anilist']) expect(foundSignedOut(origin, status, NOW), origin).toBe(false)
+  expect(neverSignedIn('cr', status)).toBe(false)
+  statuses.record('crunchyroll', 'signed-out', NOW + 2 * HOUR)
+  expect(neverSignedIn('cr', status), 'signed out since').toBe(false)
+  statuses.record('crunchyroll', 'signed-out', NOW + 3 * HOUR)
+  expect(neverSignedIn('cr', status), 'and again').toBe(false)
+  expect(neverSignedIn('amazon', status), 'another site').toBe(true)
+  statuses.record('prime', 'signed-in', NOW)
+  expect(neverSignedIn('amazon', status)).toBe(false)
+  for (const origin of ['nf', 'nyaa', 'anilist']) expect(neverSignedIn(origin, status), origin).toBe(false)
 })
 
 // Play counts one of stub's own paid players as free only while this holds (HOR-1033)

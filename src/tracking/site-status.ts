@@ -97,13 +97,6 @@ globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => { if (
 export const FRESH_MS = 60_000
 
 /**
- * A `signed-out` stub learned this recently sends Play to a source that plays with nothing to fix. Past it,
- * Play opens the site again, whose player learns the state anew: a sign in made outside stub reaches it
- * otherwise only through the Crunchyroll card's check in Settings, on the cloud.
- */
-export const SIGNED_OUT_MS = 24 * 60 * 60_000
-
-/**
  * Asks a site with `ask` and remembers the answer, unless the remembered state or the last ask of it is
  * under FRESH_MS old or an ask of it is still running. A failed ask remembers nothing, and neither does
  * one outrun by a state recorded while it ran, such as a sign out.
