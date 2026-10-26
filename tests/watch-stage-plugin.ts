@@ -4,14 +4,15 @@ import { PLAYER_ORIGIN } from './watch-stage-media'
 
 // The source package tests/watch-stage.spec.ts mounts for its torrents, two frames down as stub-plugin plays one: it
 // frames a player at another origin (./watch-stage-ripple.ts) as the plugin frames ripple, and answers stub's calls
-// as stub-plugin's src/ui/playback.ts does, its `focus` included. Each episode runs 40 s, its ending from 20 to 38 s,
-// and plays from 18.5 s.
+// as stub-plugin's src/ui/playback.ts does, its `focus` included, and reports first once the player is up, as
+// @banou/media-player's mirror does at `ready`. Each episode runs 40 s, its ending from 20 to 38 s, and plays from 18.5 s.
 
 const DURATION = 40
 const CHAPTERS = [{ start: 0, end: 20, title: 'Part A' }, { start: 20, end: 38, title: 'ED' }]
 
 let frame: HTMLIFrameElement | undefined
 let loaded = false
+let ready = false
 let ear: ((state: object) => void) | undefined
 let fullscreenEar: (() => void) | undefined
 let fullscreen = false
@@ -28,8 +29,11 @@ addEventListener('message', event => {
   }
   if (event.source !== frame?.contentWindow || event.origin !== PLAYER_ORIGIN) return
   const { type } = event.data as { type?: string }
-  if (type === 'ready') tell()
-  else if (type === 'fullscreen') fullscreenEar?.()
+  if (type === 'ready') {
+    ready = true
+    tell()
+    report()
+  } else if (type === 'fullscreen') fullscreenEar?.()
   else if (type === 'play') {
     state = { paused: false, time: 18.5, ended: false }
     report()
@@ -43,6 +47,8 @@ const api = {
   play: async () => {
     frame = document.createElement('iframe')
     loaded = false
+    ready = false
+    state = { paused: true, time: 0, ended: false }
     frame.addEventListener('load', () => { loaded = true }, { once: true })
     frame.src = `${PLAYER_ORIGIN}/player.html`
     frame.allow = 'autoplay; fullscreen'
@@ -52,7 +58,7 @@ const api = {
   },
   onPlayback: async (listener: (state: object) => void) => {
     ear = listener
-    report()
+    if (ready) report()
   },
   applyPlayback: async () => {},
   onFullscreenRequest: async (listener: () => void) => { fullscreenEar = listener },
