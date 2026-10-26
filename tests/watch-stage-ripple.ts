@@ -2,7 +2,8 @@ import { PLUGIN_ORIGIN } from './watch-stage-media'
 
 // The player tests/watch-stage.spec.ts runs where ripple's would be, inside ./watch-stage-plugin.ts: its fullscreen
 // button and `f` ask the plugin, as @banou/media-player's do once the fullscreen is handed over, and show the state the
-// plugin tells; `k` plays and `e` ends. `keys` lists the keys this document heard.
+// plugin tells; `k` plays and `e` ends. `keys` lists the keys this document heard, and the button is marked
+// `data-clicked` once a click has reached it.
 
 const keys: string[] = []
 Object.assign(window, { keys })
@@ -14,7 +15,10 @@ const button = document.createElement('button')
 button.className = 'full-screen'
 button.textContent = 'Fullscreen'
 button.setAttribute('aria-pressed', 'false')
-button.addEventListener('click', () => { ask('fullscreen') })
+button.addEventListener('click', () => {
+  button.dataset.clicked = ''
+  ask('fullscreen')
+})
 document.body.append(button)
 
 addEventListener('keydown', event => {
