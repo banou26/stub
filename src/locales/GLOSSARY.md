@@ -15,8 +15,8 @@ same change, using the terms below, and runs `npm run i18n:check`.
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
   everything under it. The button is a noun phrase in most languages for that reason.
 - **Plurals** carry every form the language needs (the check names a missing one): Russian and Polish
-  `one, few, many, other`; Japanese, Korean and Chinese `other` alone. A count is written as given, `{count}`, never
-  grouped, as in English.
+  `one, few, many, other`; Japanese, Korean and Chinese `other` alone. A count is written as the English writes it:
+  `{count}` as given, never `#`, which groups it (`1.100 Folgen`); the check names a `#` the English lacks.
 
 ## Register and terms
 

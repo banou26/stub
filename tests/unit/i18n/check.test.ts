@@ -108,6 +108,16 @@ describe('the plural forms each language needs', () => {
   })
 })
 
+// `#` groups a count where `{count}` writes it as given, and formatjs verify takes the two alike: a German # writes One
+// Piece's 1100 episodes as 1.100
+test('a translation writes # only where its English does', () => {
+  const GIVEN = '{count, plural, one {{count} Episode} other {{count} Episodes}}'
+  expect(said({ english: [GIVEN], catalogues: { de: { [GIVEN]: '{count, plural, one {{count} Folge} other {{count} Folgen}}' } } })).toEqual([])
+  expect(said({ english: [GIVEN], catalogues: { de: { [GIVEN]: '{count, plural, one {eine Folge} other {# Folgen}}' } } })).toEqual([
+    `src/locales/de.json "${GIVEN}" writes #, which groups a count, where its English does not`,
+  ])
+})
+
 describe('each message as the linter holds it, since no gate runs the linter', () => {
   // each problem's file, line and rule
   const rules = (call: string) => problems({ code: { [VIEW]: formatting(call) } }).map(({ file, line, message }) => `${file}:${line} ${message.slice(0, message.indexOf(':'))}`)

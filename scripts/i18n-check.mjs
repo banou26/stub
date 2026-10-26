@@ -2,10 +2,11 @@
 // `npm run i18n:check`: stub's messages (src/i18n) through FormatJS's own tools, plus what they leave unchecked. It
 // lints src with MESSAGE_RULES, as vite.config.ts does, since no gate runs the linter, and runs `formatjs verify` on
 // each catalogue against the English `formatjs extract` reads from the code. It adds the plural forms each language
-// needs, no dash, each catalogue sorted by id, and text outside a message, which only the files of
-// scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue, drops its keys no code uses, printed beside
-// the keys it lacks so a changed English string's old translations are edited rather than written again, and drops
-// listed files left with nothing to wrap. `-- --unwrapped` names every string the listed files hold, by file and line.
+// needs, `#` only where the English writes it, no dash, each catalogue sorted by id, and text outside a message,
+// which only the files of scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue, drops its keys no code
+// uses, printed beside the keys it lacks so a changed English string's old translations are edited rather than written
+// again, and drops listed files left with nothing to wrap. `-- --unwrapped` names every string the listed files hold,
+// by file and line.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -107,13 +108,26 @@ const missingForms = (elements, language) => elements.flatMap(element => {
   return [...picked].sort().filter(form => !Object.hasOwn(element.options, form)).map(form => `${element.value}: ${form}`).concat(nested)
 })
 
-// a message's own problems in `language`; one that does not parse is left to no-invalid-icu and `formatjs verify`
-const messageProblems = (file, id, text, language) => {
+// whether `elements` write a count as `#`, which groups it (`1.100` in German) where `{count}` writes it as given;
+// formatjs verify takes the two alike
+const writesPound = elements => elements.some(element => element.type === TYPE.pound
+  || Object.values(element.options ?? {}).some(option => writesPound(option.value))
+  || writesPound(element.children ?? []))
+
+const parsed = text => {
+  try { return parse(text) } catch { return undefined }
+}
+
+// a message's own problems in `language`, against its `english` in a catalogue; one that does not parse is left to
+// no-invalid-icu and `formatjs verify`
+const messageProblems = (file, id, text, language, english) => {
   const problems = []
   if (DASH.test(text)) problems.push({ file, message: `${shown(id)} has an em or en dash: ${shown(text)}` })
-  let elements
-  try { elements = parse(text) } catch { return problems }
+  const elements = parsed(text)
+  if (!elements) return problems
   for (const form of missingForms(elements, language)) problems.push({ file, message: `${shown(id)} lacks the plural branch ${form}` })
+  const source = english === undefined ? undefined : parsed(english)
+  if (source && writesPound(elements) && !writesPound(source)) problems.push({ file, message: `${shown(id)} writes #, which groups a count, where its English does not` })
   return problems
 }
 
@@ -141,7 +155,7 @@ export const check = root => {
   for (const [language, catalogue] of Object.entries(catalogues)) {
     const ids = Object.keys(catalogue)
     if (ids.join('\u0000') !== [...ids].sort().join('\u0000')) problems.push({ file: catalogueFile(language), message: 'is not sorted by id' })
-    for (const [id, text] of Object.entries(catalogue)) problems.push(...messageProblems(catalogueFile(language), id, text, language))
+    for (const [id, text] of Object.entries(catalogue)) problems.push(...messageProblems(catalogueFile(language), id, text, language, english[id]))
   }
   problems.push(...verify(root, english, Object.keys(catalogues), ['--structural-equality', '--extra-keys']))
   problems.push(...verify(root, english, offered.filter(language => catalogues[language]), ['--missing-keys']))
