@@ -34,11 +34,17 @@ export default defineConfig(() => ({
   },
   fmt: { semi: false, singleQuote: true },
   lint: {
-    jsPlugins: [{ name: 'vite-plus', specifier: 'vite-plus/oxlint-plugin' }],
+    jsPlugins: [{ name: 'vite-plus', specifier: 'vite-plus/oxlint-plugin' }, { name: 'formatjs', specifier: 'eslint-plugin-formatjs' }],
     rules: {
       'vite-plus/prefer-vite-plus-imports': 'error',
       'no-var': 'error',
       'prefer-const': 'error',
+      // stub's messages (src/i18n): each id is its English, which react-intl looks it up by and `vp lint --fix` writes
+      'formatjs/enforce-id': ['error', { idInterpolationPattern: '[content]' }],
+      'formatjs/enforce-default-message': ['error', 'literal'],
+      'formatjs/enforce-placeholders': 'error',
+      'formatjs/no-invalid-icu': 'error',
+      'formatjs/no-multiple-whitespaces': 'error',
     },
     options: { typeAware: true, typeCheck: true },
     overrides: [
