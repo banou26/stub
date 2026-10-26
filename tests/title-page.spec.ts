@@ -1267,21 +1267,34 @@ test.describe('a viewer in Japan', () => {
     }
   })
 
-  // HOR-1033: Prime Video plays the film once the viewer signs in, and an added source's release with nothing to fix
-  for (const [viewer, signedOut, sourceUri] of [
-    ['found signed out of Prime Video in the last day gets the added source\'s release', true, 'spec-free:900070-1'],
-    ['stub knows nothing of still gets Prime Video, for its player to learn the state', false, 'amazon:amzn1.dv.gti.900070'],
+  // HOR-1033, the owner, 2026-10-26: "if we know that the user has previously logged into CR, then we should ask him to
+  // re-log into his account, otherwise we wait for the free source"; Prime Video plays the film once the viewer signs
+  // in, and an added source's release with nothing to fix
+  for (const [viewer, before, sourceUri] of [
+    ['signed in to Prime Video here before, and signed out since, gets Prime Video, for its player to ask them to sign in again', true, 'amazon:amzn1.dv.gti.900070'],
+    ['never signed in to Prime Video here gets the added source\'s release, and Prime Video never first', false, 'spec-free:900070-1'],
   ] as const) {
     test(`with a release that plays with nothing to fix, a viewer ${viewer}`, async ({ page }) => {
       test.setTimeout(120_000)
-      await page.addInitScript(([plugin, list, key, out]) => {
+      await page.addInitScript(([plugin, list, key, before]) => {
         localStorage.setItem(list, JSON.stringify([plugin]))
-        if (out) localStorage.setItem(key, JSON.stringify({ prime: { state: 'signed-out', checkedAt: Date.now() } }))
-      }, [FREE_RELEASES, ENABLED_PLUGINS_KEY, SITE_STATUS_KEY, signedOut] as const)
+        if (before) localStorage.setItem(key, JSON.stringify({ prime: { state: 'signed-out', checkedAt: Date.now(), signedInBefore: true } }))
+        // every address the page goes to, Play's own replace included
+        const addresses: string[] = []
+        Object.assign(window, { addresses })
+        for (const name of ['pushState', 'replaceState'] as const) {
+          const original = history[name].bind(history)
+          history[name] = (data, unused, url) => { addresses.push(String(url)); original(data, unused, url) }
+        }
+      }, [FREE_RELEASES, ENABLED_PLUGINS_KEY, SITE_STATUS_KEY, before] as const)
       await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
       await expect(page.locator('.list [title="3 releases on Spec Free"]'), 'the releases joined the film').toBeVisible({ timeout: 60_000 })
       // the address keeps the added sources' query, as every link here does
       await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
+      const named = await page.evaluate(() => (window as unknown as { addresses: string[] }).addresses
+        .map(address => decodeURIComponent(new URL(address, location.href).pathname).split('/')[4])
+        .filter(Boolean))
+      expect([...new Set(named)], 'the sources the address named').toEqual([sourceUri])
     })
   }
 
