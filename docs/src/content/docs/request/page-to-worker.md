@@ -374,7 +374,7 @@ the top left instead of from a bad link.
 | the page's one urql client | `src/urql.ts:19-50` |
 | graphcache key resolvers | `src/urql-keys.ts:16-44` |
 | page side of the osra boundary | `src/worker.ts:14-47` |
-| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:25-118` |
+| worker side, app yoga and the osra resolvers | `src/worker/yoga.ts:25-119` |
 | the fan-out driver, and the uri gate | `src/worker/resolvers/media/index.ts:30-93` |
 | one yoga and one urql client per source | `src/worker/extractor.ts:411-549` |
 | the fan-out itself | `src/worker/extractor.ts:777-851` |

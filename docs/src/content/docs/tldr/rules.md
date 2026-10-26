@@ -38,7 +38,7 @@ that argues each rule, and in full in [Constants](/reference/constants/).
 | `IDENTITY_FIELDS` | `new Set(['uri', 'origin', 'id', 'scope'])` | `db.ts:104` | a row carrying only these is a placeholder and is not stored (`:140`), unless it stamps CONTAINER |
 | the scope ratchet | `scopeOf(media.uri) === 'CONTAINER' ? 'CONTAINER' : media.scope ?? 'RUN'` | `db.ts:146` | applied BEFORE `graph.set`, because scalars there are last-write-wins (`graph.ts:396`) and an incoming RUN would overwrite a stored CONTAINER |
 | media / episode / origin `maxBatchSize` | `250` / `250` / `50`, on a 50 ms `batchScheduleFn` | `src/worker/extractor.ts:132`, `:150`, `:160` | one `upsertMedia` per 250 rows, which is also the blast radius of a `throw` (`graph.ts:167`) |
-| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:4` | a rejected plugin origin is reported and skipped, never fatal to its siblings |
+| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:6` | a rejected plugin origin is reported and skipped, never fatal to its siblings |
 | plugin name cap | `source.name.slice(0, 64)` | `plugin-sources.ts:73` | falls back to the origin |
 | plugin handle depth | media `4`, episode `1` | `plugin-sources.ts:123`, `:126` | bounds a self-referencing payload; an episode handle's node carries no handles of its own |
 

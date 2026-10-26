@@ -234,7 +234,7 @@ their subject into a url or a uri:
 | pattern | value | declared at | what it refuses |
 | --- | --- | --- | --- |
 | `SAFE_SHOW_ID` | `/^[A-Za-z0-9._~-]{1,128}$/` | `src/worker/extractor.ts:244` | a show id carrying `..`, `?` or `#`, which would steer which path on the source's host gets fetched |
-| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:4` | a plugin origin that is not a short lowercase token. A rejected source is reported and skipped, never fatal to its siblings |
+| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:6` | a plugin origin that is not a short lowercase token. A rejected source is reported and skipped, never fatal to its siblings |
 
 `SAFE_SHOW_ID`'s character set is the union of what is actually in use, and the comment says so:
 Crunchyroll `G24H1N3MP`, Apple TV `umc.cmc.1srk2goyh2q2zdxcx605w8vtx`, a Hulu uuid, a numeric TVmaze

@@ -118,7 +118,7 @@ flowchart TD
   R1["rejected.push origin or '(none)', 'origin must be a short lowercase token'<br/>continue"]
   D2{"has this payload already claimed it?<br/><small>claimed.has(origin)</small>"}
   R2["rejected.push origin, declared twice by pluginUri<br/>continue"]
-  META["meta built with coercions: originUrl to '', name = source.name.slice(0, 64) or the origin,<br/>icon and color to null, isApiOnly and metadataOnly by === true"]
+  META["meta built with coercions: originUrl to '', name = source.name.slice(0, 64) or the origin,<br/>icon and color to null, isApiOnly and metadataOnly by === true, access to 'none' unless 'account' or 'paid'"]
   D3{"is the origin already registered by another source?<br/><small>extractors.some(entry =&gt; entry.extractor.origin === meta.origin)</small>"}
   R3["throw inside the per-source try, failed.push, siblings carry on"]
   OK["extractors.push entry, entry.pluginUri = uri, joinFanout every open fan-out"]
@@ -178,13 +178,13 @@ The constants, exactly as written:
 
 | thing | value | where |
 | --- | --- | --- |
-| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:4` |
+| `PLUGIN_ORIGIN_TOKEN` | `/^[a-z0-9][a-z0-9-]{0,31}$/` | `src/worker/plugin-sources.ts:6` |
 | name cap | `source.name.slice(0, 64)`, falling back to the origin | `src/worker/plugin-sources.ts:73` |
 | protocol | `'stub-source@1'` | `src/plugin-api.ts:59` |
 | media handle depth | `4` | `src/worker/plugin-sources.ts:123` |
 | episode handle depth | `1` | `src/worker/plugin-sources.ts:126` |
 
-The origin regex allows 1 to 32 characters. Its comment (`src/worker/plugin-sources.ts:3`) says why it
+The origin regex allows 1 to 32 characters. Its comment (`src/worker/plugin-sources.ts:5`) says why it
 is that narrow:
 
 > A short lowercase token. Origins name things across the store, the UI and the uri grammar.
@@ -297,7 +297,7 @@ before it reaches the batch, not thrown from inside it.
 
 The depth cap is per level of nesting, not per handle: `readPluginHandles(media, 4)` reads four levels
 of media handles and empties the fifth, and an episode's handles are read at depth `1`, so an episode
-handle's node carries no handles of its own. `tests/unit/worker/plugin-sources.test.ts:106-109` pins
+handle's node carries no handles of its own. `tests/unit/worker/plugin-sources.test.ts:143-146` pins
 the drop set exactly: `{ origin: 'anilist', id: '2' }` becomes a `SAME_AS` edge to `anilist:2`, while
 `null`, `'junk'` and `{ relation: 'SAME_AS' }` all vanish.
 
@@ -451,7 +451,7 @@ defaults, the fan-out join, the DataLoaders, the store, is shared.*
 | axis | a built-in | a plugin |
 | --- | --- | --- |
 | definition | a module namespace in `src/sources/index.ts` | `PluginSourceMeta` plus `makeDelegatingResolvers`, `src/worker/extractor.ts` |
-| `supportedUris` | declared, read by `answersForOrigins` | absent from `PluginSourceMeta` (`src/worker/plugin-sources.ts:18-26`), so the re-ask matches on origin alone |
+| `supportedUris` | declared, read by `answersForOrigins` | absent from `PluginSourceMeta` (`src/worker/plugin-sources.ts:21-30`), so the re-ask matches on origin alone |
 | where resolvers run | in the worker | in the package's own frame, reached over the port |
 | context | four members (`src/worker/extractor.ts:41-50`) | one function and the languages, `{ similarMedia: similarMediaFrom(origin), languages }` |
 | origin enforcement | none | `enforcePluginOrigin` per payload, nested handles exempt |
@@ -544,17 +544,17 @@ Play reads it as it reads stub's own Crunchyroll and Prime Video, by the owner's
 viewer seen signed in before is asked to sign in again, and one never seen signed in gets the release
 that plays with nothing to fix.
 
-| what the source said in this page | plays with nothing to fix | as Play's favourite, it |
+| what the source said for this episode | plays with nothing to fix | as Play's favourite, it |
 | --- | --- | --- |
 | it needs no account | yes | opens |
 | `signed-in` | yes | opens |
-| `signed-out`, after a `signed-in` | no | opens, for its own player to ask the viewer to sign in again |
-| `signed-out` with no `signed-in` before; nothing yet; no `account`; no answer | no | gives way to a release that plays with nothing to fix, and with none, opens |
+| `signed-out` or no answer, after a `signed-in` earlier in this page | no | opens, for its own player to ask the viewer to sign in again |
+| `signed-out` or no answer, with no `signed-in` before; no `account` | no | gives way to a release that plays with nothing to fix, and with none, opens |
 | `no-plan` | no | gives way, since a sign in cannot fix it, and with none, opens |
 
-While its answer for the episode is out, the source is not settled, so Play opens nothing ranked below
-it, for `ACCOUNT_WAIT_MS` at most. The page does not wait: the source list's links come from the
-player lookup, which the ask never holds.
+While its answer for the episode is out, for `ACCOUNT_WAIT_MS` at most, the source is not settled, so
+Play opens nothing ranked below it, and it is not free, whatever it said for the episode before. The
+page does not wait: the source list's links come from the player lookup, which the ask never holds.
 
 ## What is not reduced
 
