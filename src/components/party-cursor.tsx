@@ -1,4 +1,4 @@
-import { defaultName } from '@banou/social/names'
+import { defaultName } from '@banou/fkn-social/names'
 import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocation, useSearch } from 'wouter'

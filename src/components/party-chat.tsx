@@ -1,6 +1,6 @@
 import type { PartyChatLine } from '../party'
 
-import { defaultName } from '@banou/social/names'
+import { defaultName } from '@banou/fkn-social/names'
 import { css } from '@emotion/react'
 import { MessageCircle, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'

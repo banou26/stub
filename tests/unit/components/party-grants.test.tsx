@@ -5,7 +5,7 @@ import type { PartyStore } from '../../../src/party/store'
 
 import type { PartyMessage } from '../../../src/party/protocol'
 
-import { defaultName } from '@banou/social/names'
+import { defaultName } from '@banou/fkn-social/names'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 

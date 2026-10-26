@@ -1,6 +1,6 @@
 import type { PartyMember } from '../../party'
 
-import { defaultName } from '@banou/social/names'
+import { defaultName } from '@banou/fkn-social/names'
 import { css } from '@emotion/react'
 import { Ban, Check, Copy, LogOut, UserX } from 'lucide-react'
 import { Link } from 'wouter'
