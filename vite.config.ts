@@ -7,6 +7,7 @@ import preact from '@preact/preset-vite'
 
 import { brokerFrame } from './scripts/broker-frame'
 import { embedPage, renderBuiltUrl } from './scripts/embed-page'
+import { MESSAGE_RULES } from './scripts/i18n-check.mjs'
 import { pageScript } from './scripts/page-script'
 
 // read rather than imported so the manifest does not end up in the bundle
@@ -39,12 +40,7 @@ export default defineConfig(() => ({
       'vite-plus/prefer-vite-plus-imports': 'error',
       'no-var': 'error',
       'prefer-const': 'error',
-      // stub's messages (src/i18n): each id is its English, which react-intl looks it up by and `vp lint --fix` writes
-      'formatjs/enforce-id': ['error', { idInterpolationPattern: '[content]' }],
-      'formatjs/enforce-default-message': ['error', 'literal'],
-      'formatjs/enforce-placeholders': 'error',
-      'formatjs/no-invalid-icu': 'error',
-      'formatjs/no-multiple-whitespaces': 'error',
+      ...MESSAGE_RULES,
     },
     options: { typeAware: true, typeCheck: true },
     overrides: [

@@ -45,6 +45,10 @@ const tree = ({ english = [EPISODES, 'Play'], code = {}, catalogues = {}, offere
 const problems = (input: Parameters<typeof tree>[0]): Problem[] => check(tree(input))
 const said = (input: Parameters<typeof tree>[0]) => problems(input).map(({ file, line, message }) => `${file}${line ? `:${line}` : ''} ${message}`)
 
+// a component formatting `call`, on line 4
+const formatting = (call: string) =>
+  `import { useIntl } from 'react-intl'\nexport const View = ({ text }: { text: string }) => {\n  const intl = useIntl()\n  return <p>{${call}}</p>\n}\n`
+
 const FRENCH = { Play: 'Lecture', [EPISODES]: '{count, plural, one {# épisode} other {# épisodes}}' }
 
 test('the repo passes', () => {
@@ -77,6 +81,26 @@ describe('the plural forms each language needs', () => {
 
   test('Japanese needs other alone, and French no many', () => {
     expect(said({ catalogues: { ja: { [EPISODES]: '{count, plural, other {#話}}' }, fr: FRENCH } })).toEqual([])
+  })
+})
+
+describe('each message as the linter holds it, since no gate runs the linter', () => {
+  // each problem's file, line and rule
+  const rules = (call: string) => problems({ code: { [VIEW]: formatting(call) } }).map(({ file, line, message }) => `${file}:${line} ${message.slice(0, message.indexOf(':'))}`)
+
+  test('a message written as stub writes them passes', () => {
+    expect(rules("intl.formatMessage({ id: 'Hi {name}#greeting', defaultMessage: 'Hi {name}', description: 'greeting' }, { name: text })")).toEqual([])
+  })
+
+  test.each<[string, string, string[]]>([
+    ['no id', "intl.formatMessage({ defaultMessage: 'Play' })", ['formatjs(enforce-id)']],
+    ['an id other than its English', "intl.formatMessage({ id: 'play', defaultMessage: 'Play' })", ['formatjs(enforce-id)']],
+    ['no English', "intl.formatMessage({ id: 'Pause' })", ['formatjs(enforce-default-message)', 'formatjs(enforce-id)']],
+    ['a value left out', "intl.formatMessage({ id: 'Hi {name}', defaultMessage: 'Hi {name}' })", ['formatjs(enforce-placeholders)']],
+    ['English that does not parse', "intl.formatMessage({ id: '{count, plural, one {#}', defaultMessage: '{count, plural, one {#}' }, { count: 1 })", ['formatjs(enforce-placeholders)', 'formatjs(no-invalid-icu)', 'formatjs(no-multiple-whitespaces)']],
+    ['two spaces in a row', "intl.formatMessage({ id: 'Hi  there', defaultMessage: 'Hi  there' })", ['formatjs(no-multiple-whitespaces)']],
+  ])('%s fails', (_, call, broken) => {
+    expect(rules(call)).toEqual(broken.map(rule => `${VIEW}:4 ${rule}`))
   })
 })
 

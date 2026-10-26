@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// `npm run i18n:check`: what FormatJS's own tools leave unchecked in stub's messages (src/i18n). The linter checks each
-// message where it is written (vite.config.ts) and `formatjs verify` each catalogue against the English `formatjs
-// extract` reads from the code; this adds the plural forms each language needs, no dash, each catalogue sorted by id,
-// and text outside a message, which only the files of scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each
-// catalogue, drops its keys no code uses, printed beside the keys it lacks so a changed English string's old
-// translations are edited rather than written again, and drops listed files left with nothing to wrap.
-// `-- --unwrapped` names every string the listed files hold, by file and line.
+// `npm run i18n:check`: stub's messages (src/i18n) through FormatJS's own tools, plus what they leave unchecked. It
+// lints src with MESSAGE_RULES, as vite.config.ts does, since no gate runs the linter, and runs `formatjs verify` on
+// each catalogue against the English `formatjs extract` reads from the code. It adds the plural forms each language
+// needs, no dash, each catalogue sorted by id, and text outside a message, which only the files of
+// scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue, drops its keys no code uses, printed beside
+// the keys it lacks so a changed English string's old translations are edited rather than written again, and drops
+// listed files left with nothing to wrap. `-- --unwrapped` names every string the listed files hold, by file and line.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -39,27 +39,47 @@ const verify = (root, english, languages, flags) => languages.length === 0 ? [] 
   return run.status === 0 ? [] : [{ file: 'src/locales', message: `formatjs verify ${flags.join(' ')}: ${`${run.stdout}${run.stderr}`.replace(/-{5,}\n/g, '').trim()}` }]
 })
 
+/**
+ * The eslint-plugin-formatjs rules each message is held to. vite.config.ts lints with them, so `vp lint --fix` writes
+ * each id: its English, which react-intl looks it up by.
+ */
+export const MESSAGE_RULES = {
+  'formatjs/enforce-id': ['error', { idInterpolationPattern: '[content]' }],
+  'formatjs/enforce-default-message': ['error', 'literal'],
+  'formatjs/enforce-placeholders': 'error',
+  'formatjs/no-invalid-icu': 'error',
+  'formatjs/no-multiple-whitespaces': 'error',
+}
+
 /** eslint-plugin-formatjs's rule for text in JSX, as stub runs it on src: JSX text and the attributes a viewer reads. */
 export const JSX_TEXT = ['error', { props: { include: [['*', '{label,placeholder,title}']] } }]
+const JSX_RULE = 'formatjs(no-literal-string-in-jsx)'
 
-/** The text under `root`'s src outside a message, by file, each `{ line, text }`. */
-export const textOutsideMessages = root => inTemporary(directory => {
+// oxlint's diagnostics on `root`'s src under MESSAGE_RULES and JSX_TEXT
+const lint = root => inTemporary(directory => {
   const config = join(directory, 'oxlintrc.json')
   writeFileSync(config, JSON.stringify({
     plugins: [], categories: { correctness: 'off' },
     jsPlugins: [fileURLToPath(import.meta.resolve('eslint-plugin-formatjs'))],
-    rules: { 'formatjs/no-literal-string-in-jsx': JSX_TEXT },
+    rules: { ...MESSAGE_RULES, 'formatjs/no-literal-string-in-jsx': JSX_TEXT },
   }))
   const run = spawnSync(join(BIN, 'vp'), ['lint', '-c', config, '--format', 'json', 'src'], { cwd: root, encoding: 'utf8' })
   if (!run.stdout.trim()) throw new Error(`vp lint answered nothing: ${run.stderr}`)
+  return JSON.parse(run.stdout).diagnostics
+})
+
+const textIn = (root, diagnostics) => {
   const found = new Map()
-  for (const { filename, labels: [{ span }] } of JSON.parse(run.stdout).diagnostics) {
-    const code = readFileSync(join(root, filename))
-    const text = code.subarray(span.offset, span.offset + span.length).toString('utf8').replace(/\s+/g, ' ').trim()
+  for (const { code, filename, labels: [{ span }] } of diagnostics) {
+    if (code !== JSX_RULE) continue
+    const text = readFileSync(join(root, filename)).subarray(span.offset, span.offset + span.length).toString('utf8').replace(/\s+/g, ' ').trim()
     found.set(filename, [...found.get(filename) ?? [], { line: span.line, text }])
   }
   return found
-})
+}
+
+/** The text under `root`'s src outside a message, by file, each `{ line, text }`. */
+export const textOutsideMessages = root => textIn(root, lint(root))
 
 const pluralRules = new Map()
 const rulesOf = (language, type) => {
@@ -84,7 +104,7 @@ const missingForms = (elements, language) => elements.flatMap(element => {
   return [...picked].sort().filter(form => !Object.hasOwn(element.options, form)).map(form => `${element.value}: ${form}`).concat(nested)
 })
 
-// a message's own problems in `language`; one that does not parse is left to the linter and `formatjs verify`
+// a message's own problems in `language`; one that does not parse is left to no-invalid-icu and `formatjs verify`
 const messageProblems = (file, id, text, language) => {
   const problems = []
   if (DASH.test(text)) problems.push({ file, message: `${shown(id)} has an em or en dash: ${shown(text)}` })
@@ -123,8 +143,12 @@ export const check = root => {
   problems.push(...verify(root, english, Object.keys(catalogues), ['--structural-equality', '--extra-keys']))
   problems.push(...verify(root, english, offered.filter(language => catalogues[language]), ['--missing-keys']))
 
+  const diagnostics = lint(root)
+  for (const { code, message, filename, labels: [{ span }] } of diagnostics) {
+    if (code !== JSX_RULE) problems.push({ file: filename, line: span.line, message: `${code}: ${message}` })
+  }
   const listed = listedFiles(unwrapped)
-  const text = textOutsideMessages(root)
+  const text = textIn(root, diagnostics)
   for (const [file, found] of text) {
     if (!listed.has(file)) for (const { line, text } of found) problems.push({ file, line, message: `${shown(text)} is not in a message` })
   }
