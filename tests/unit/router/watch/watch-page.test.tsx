@@ -2686,6 +2686,23 @@ test('with the extension, a Crunchyroll never signed in to opens once the added 
   expect(noSource(host)).toBeNull()
 })
 
+// a source turned off is never asked, so its answer never comes
+test('with the extension, a Crunchyroll never signed in to opens before the sources answer with no source added, one that failed to connect, or one turned off', async () => {
+  for (const [added, off] of [[[], false], [[{ uri: NYAA_PACKAGE, state: 'error' }], false], [[connectedNyaa], true]] as const) {
+    crAndRelease()
+    backend = 'extension'
+    plugins.statuses = [...added]
+    if (off) stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+    media = { ...single, settled: false }
+    Object.assign(episode, { handles: [allHandles[0]] })
+    live()
+    await settle()
+    expect(navigate, off ? 'turned off' : added.length ? 'failed' : 'none added').toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+    navigate.mockClear()
+    while (hosts.length) unmount(hosts.pop()!)
+  }
+})
+
 test('Play\'s Crunchyroll never signed in to gives way to a release heard after it opened, and one signed in to before stays', async () => {
   for (const [viewer, picks] of [['never signed in', ['cr:GX1', 'nyaa:a']], ['signed in before', ['cr:GX1']]] as const) {
     crAndRelease()
