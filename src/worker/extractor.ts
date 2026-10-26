@@ -183,6 +183,11 @@ export type ExtractorDefinition = {
   color?: string | null
   isApiOnly: boolean
   metadataOnly?: boolean
+  /**
+   * The country this source's answers are read in, for a source whose answers depend on one: the private source
+   * store keeps an answer per country (src/preview/inbox.ts). Never the viewer's own, since pages write nothing there.
+   */
+  region?: () => string
   resolvers: Resolvers
 }
 

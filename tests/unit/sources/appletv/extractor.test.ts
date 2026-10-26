@@ -10,7 +10,7 @@
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
-import { resolvers } from '../../../../src/sources/appletv/extractor'
+import { region, resolvers } from '../../../../src/sources/appletv/extractor'
 import SEVERANCE from '../../../fixtures/appletv/severance.json'
 import SEVERANCE_S2_EPISODES from '../../../fixtures/appletv/severance-s2-episodes.json'
 import SEVERANCE_S2_PLAYABLES from '../../../fixtures/appletv/severance-s2-playables.json'
@@ -491,4 +491,9 @@ test('similarMedia is null for a movie, a missing show and no evidence, and yiel
     expect((await iterator.next()).done).toBe(false)
     expect((await iterator.next()).done).toBe(true)
   }
+})
+
+test('every answer is read in the US, the storefront each request names', () => {
+  expect(PARAMS).toContain('sf=143441')
+  expect(region()).toBe('US')
 })

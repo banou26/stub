@@ -28,6 +28,9 @@ const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
 const STOREFRONT = '143441'
 const PARAMS = `caller=web&sf=${STOREFRONT}&v=58&pfm=web&locale=en-US&utsk=0`
 
+/** The storefront's country. */
+export const region = () => 'US'
+
 const api = <T>(path: string, ctx: ExtractorServerContext, init?: RequestInit): Promise<T> =>
   ctx
     .fetch(`${ATV}${path}${path.includes('?') ? '&' : '?'}${PARAMS}`, init)

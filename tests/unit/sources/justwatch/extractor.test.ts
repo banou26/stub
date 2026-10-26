@@ -12,7 +12,7 @@
 import { expect, test } from 'vite-plus/test'
 
 import type { Media as GQLMedia } from '../../../../src/generated/schema/types.generated'
-import { resolvers } from '../../../../src/sources/justwatch/extractor'
+import { region, resolvers } from '../../../../src/sources/justwatch/extractor'
 import { viewerIn } from './viewer'
 
 const JW_API = 'https://apis.justwatch.com/graphql'
@@ -728,4 +728,14 @@ test('a failed JustWatch request rejects its caller and leaves no unhandled reje
     process.off('unhandledRejection', listener)
   }
   expect(unhandled).toEqual([])
+})
+
+test.each([
+  ['UTC, a Worker\'s zone', 'UTC', 'US'],
+  ['Tokyo', 'Asia/Tokyo', 'JP'],
+  ['Paris', 'Europe/Paris', 'FR'],
+  ['Ho Chi Minh City, whose country JustWatch keeps no catalogue for', 'Asia/Ho_Chi_Minh', 'US'],
+])('a viewer in %s has answers read in %s', (_, timeZone, country) => {
+  viewerIn(timeZone)
+  expect(region()).toBe(country)
 })

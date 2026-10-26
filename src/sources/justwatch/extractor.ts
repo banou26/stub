@@ -65,6 +65,9 @@ const offerCountries = () => {
   return { offerCountry, extraCountry: offerCountry === 'JP' ? 'US' : 'JP' }
 }
 
+/** The offer country, which also decides the country asked beside it. */
+export const region = () => offerCountries().offerCountry
+
 const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: JWOffer[] }) =>
   [...offers ?? [], ...extraOffers ?? []].filter(offer =>
     PACKAGE_ORIGIN_MAP[offer.package.shortName] !== 'amazon' || isViewersPrime(offer.deeplinkURL ?? offer.standardWebURL ?? ''))
