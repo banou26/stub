@@ -23,7 +23,7 @@ export type SiteStatuses = {
   record: (site: StatusSite, state: SiteState, now?: number) => void
   /** Records a sign out the viewer made in stub: signed out, with no mark of a sign in before, so Play counts the site as never signed in to. */
   recordSignOut: (site: StatusSite, now?: number) => void
-  /** Called after every `record` of the site on this page, and after every change to it `heard` is told of. */
+  /** Called after every `record` and `recordSignOut` of the site on this page, and after every change to it `heard` is told of. */
   watch: (site: StatusSite, listener: () => void) => () => void
   /** Tells the watchers of each site whose state differs between two values of SITE_STATUS_KEY, as a storage event carries them. */
   heard: (oldValue: string | null, newValue: string | null) => void

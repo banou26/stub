@@ -123,7 +123,7 @@ export const foundSignedIn = (origin: string, status: Pick<AccountsProps['status
   return Boolean(entry && status.read(entry.site)?.state === 'signed-in')
 }
 
-/** Whether the source's site is one whose sign-in stub learns, and stub has never found the viewer signed in to it on this browser. */
+/** Whether the source's site is one whose sign-in stub learns, and stub has not found the viewer signed in to it on this browser since their last sign out in stub. */
 export const neverSignedIn = (origin: string, status: Pick<AccountsProps['status'], 'read'>): boolean => {
   const entry = STREAMING_SITES.find(each => each.origin === origin)
   const remembered = entry && status.read(entry.site)
