@@ -7,10 +7,11 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useSubscription } from 'urql'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
 
-import { remotePicker, remotePlayer } from '../../worker'
+import { remoteAccount, remotePicker, remotePlayer } from '../../worker'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
+import { pluginAccounts } from '../../plugin-accounts'
 import { builtInSources } from '../../sources/built-in'
 import { crunchyrollEpisodeId, skipEventsToChapters, useSkipEvents } from '../../sources/crunchyroll/skip-events'
 import { readDisabledSources } from '../../sources/disabled-sources'
@@ -501,7 +502,9 @@ const Watch = () => {
   }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, languages, backend])
 
   const plugins = usePluginStatuses()
-  const added = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources?.map(source => source.origin) ?? [] : [])
+  const addedSources = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources ?? [] : [])
+  const added = addedSources.map(source => source.origin)
+  const accessOf = (origin: string) => addedSources.find(source => source.origin === origin)?.access ?? 'none'
 
   // a plugin source renders its own picker; which added sources do is only known to the worker holding
   // the plugin connection, so it is resolved here and folded into the source list
@@ -529,6 +532,20 @@ const Watch = () => {
       .catch(() => { if (!cancelled) setLookedUp(lookupOrigins) })
     return () => { cancelled = true }
   }, [lookupOrigins])
+
+  // an added source that needs an account is asked for the viewer's on every episode, and is not settled until it answered
+  const accountOrigins = added.filter(origin => accessOf(origin) !== 'none').join(',')
+  const accountsKey = `${params.episodeUri} ${accountOrigins}`
+  const [accountsFor, setAccountsFor] = useState<string>()
+  useEffect(() => {
+    if (!accountOrigins) return
+    let cancelled = false
+    void Promise.all(accountOrigins.split(',').map(origin => remoteAccount(origin).then(
+      state => { if (state) pluginAccounts.record(origin, state) },
+      () => {},
+    ))).then(() => { if (!cancelled) setAccountsFor(accountsKey) })
+    return () => { cancelled = true }
+  }, [accountsKey])
 
   // The source's own player wins over stub's built-in ones: it is the source saying how its releases
   // are played, and a release stub cannot open any other way (a magnet) is exactly the case for it.
@@ -672,7 +689,8 @@ const Watch = () => {
     possible: origin => !off(origin) && (PLAYABLE_ORIGINS.has(origin)
       ? addable || !EXTENSION_ONLY_ORIGINS.has(origin)
       : connecting || added.includes(origin)),
-    settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media)),
+    settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media))
+      && (accessOf(origin) === 'none' || accountsFor === accountsKey),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   const search = useSearch()
@@ -692,10 +710,12 @@ const Watch = () => {
   // the owner, 2026-10-26: "if we know that the user has previously logged into CR, then we should ask him to
   // re-log into his account, otherwise we wait for the free source"; a stream that needs the extension asks for it
   const neverSignedIn = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
-    neverSignedInTo(handle.origin, status) && !extensionOnly(handle)
-  // stub's own players are all of paid sites, so one is free only once stub found the viewer signed in there
-  const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
-    !PLAYABLE_ORIGINS.has(handle.origin) || (foundSignedIn(handle.origin, status) && !extensionOnly(handle))
+    (neverSignedInTo(handle.origin, status) && !extensionOnly(handle)) || pluginAccounts.neverSignedIn(handle.origin, accessOf(handle.origin))
+  // stub's own players are all of paid sites, so one is free only once stub found the viewer signed in there; an
+  // added source is free when it needs no account, or said in this page the viewer is signed in
+  const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => PLAYABLE_ORIGINS.has(handle.origin)
+    ? foundSignedIn(handle.origin, status) && !extensionOnly(handle)
+    : pluginAccounts.free(handle.origin, accessOf(handle.origin))
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
   // Play's own pick of a site never signed in to gives way too, once a source plays with nothing to fix
   const cannotPlay = Boolean(selectedSourceUri && (unplayable.includes(selectedSourceUri)

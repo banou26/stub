@@ -69,15 +69,39 @@ vi.mock('urql', async () => {
   }
 })
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate], useSearch: () => search }))
-// the worker's answer to which origins play their own releases, held until `held` settles
-const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown> }))
-vi.mock('../../../../src/worker', () => ({
-  remotePicker: async () => null,
-  remotePlayer: async (id: string) => {
-    await lookups.held
-    return id === 'nyaa' ? { pluginUri: 'plugin:nyaa' } : null
-  },
-}))
+// the worker's answer to which origins play their own releases, held until `held` settles; and each added source's
+// `account`, by origin, asked as the worker asks it, with every origin the page asked about
+const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, account: {} as Record<string, () => Promise<unknown>>, asked: [] as string[] }))
+vi.mock('../../../../src/worker', async () => {
+  const { askAccount } = await import('../../../../src/worker/plugin-sources')
+  return {
+    remotePicker: async () => null,
+    remotePlayer: async (id: string) => {
+      await lookups.held
+      return id === 'nyaa' || id === 'paid' ? { pluginUri: `plugin:${id}` } : null
+    },
+    remoteAccount: async (id: string) => {
+      lookups.asked.push(id)
+      const account = lookups.account[id]
+      return account ? askAccount(account) : undefined
+    },
+  }
+})
+// what the added sources said, in the page's memory, fresh for each test
+const said = vi.hoisted(() => ({ reset: () => {} }))
+vi.mock('../../../../src/plugin-accounts', async importOriginal => {
+  const { createPluginAccounts } = await importOriginal<typeof import('../../../../src/plugin-accounts')>()
+  let accounts = createPluginAccounts()
+  said.reset = () => { accounts = createPluginAccounts() }
+  return {
+    createPluginAccounts,
+    pluginAccounts: {
+      record: (...args) => accounts.record(...args),
+      free: (...args) => accounts.free(...args),
+      neverSignedIn: (...args) => accounts.neverSignedIn(...args),
+    } satisfies ReturnType<typeof createPluginAccounts>,
+  }
+})
 // the added sources as src/plugins.ts reports them: Nyaa's package connected unless a test says otherwise;
 // `browse` is FKN's package browser
 const plugins = vi.hoisted(() => ({ statuses: [] as object[], listeners: new Set<() => void>(), browse: vi.fn(async () => {}) }))
@@ -233,6 +257,7 @@ const { default: MediaTracking } = await import('../../../../src/components/medi
 const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
+const { ACCOUNT_WAIT_MS } = await import('../../../../src/worker/plugin-sources')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
 const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
@@ -277,6 +302,9 @@ afterEach(() => {
   saved.length = 0
   held = Promise.resolve()
   lookups.held = Promise.resolve()
+  lookups.account = {}
+  lookups.asked = []
+  said.reset()
   detecting.held = Promise.resolve()
   detecting.installs.mockClear()
   detecting.addable = true
@@ -2735,4 +2763,118 @@ test('a Crunchyroll the viewer opened by hand stays when its player finds them s
   await settle()
   expect(navigate).not.toHaveBeenCalled()
   expect(new URL(host.querySelector('iframe')!.getAttribute('src')!, 'https://stub.test').searchParams.get('sourceUri')).toBe('cr:GX1')
+})
+
+// HOR-1033, the owner, 2026-10-26, on whether an added source can say its releases need an account: "Yes, it should be
+// able to." The source here is ranked first, its release plays in its own player, and Nyaa's release needs nothing.
+const PAID_PACKAGE = 'https:paid.spec.test'
+const paidRelease = handle('paid:a', 'paid', 'magnet:?xt=urn:btih:p')
+const connectedPaid = (access?: string) => ({ uri: PAID_PACKAGE, state: 'connected', sources: [{ origin: 'paid', name: 'paid', ...access ? { access } : {} }] })
+const paidFirst = (access?: string, account?: () => Promise<unknown>) => {
+  vi.useFakeTimers()
+  origins = ['cr', 'paid', 'nyaa']
+  plugins.statuses = [connectedPaid(access), connectedNyaa]
+  if (account) lookups.account.paid = account
+  stored.set('stub.sources.play-order', JSON.stringify(['paid', 'nyaa', 'cr', 'amazon', 'nf']))
+  Object.assign(episode, { handles: [paidRelease, allHandles[2]] })
+}
+// the page once the worker has answered again since the added sources connected, as it does in the app
+const answered = async () => {
+  const view = live()
+  await settle()
+  media = { ...single }
+  await view.rerender()
+  return view
+}
+const again = () => {
+  navigate.mockClear()
+  params = { ...params, sourceUri: undefined }
+  lookups.asked = []
+  while (hosts.length) unmount(hosts.pop()!)
+}
+
+test('an added source that needs an account gives way to a release that needs none, unless it says the viewer is signed in', async () => {
+  for (const [access, answer, to] of [
+    ['account', 'signed-in', 'paid:a'],
+    ['account', 'signed-out', 'nyaa:a'],
+    ['paid', 'signed-in', 'paid:a'],
+    ['paid', 'no-plan', 'nyaa:a'],
+    ['paid', 'an answer of no known value', 'nyaa:a'],
+    ['account', 'no account to ask', 'nyaa:a'],
+  ] as const) {
+    paidFirst(access, answer === 'no account to ask' ? undefined : async () => answer)
+    await answered()
+    expect(navigate, `${access}, ${answer}`).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+    expect(lookups.asked, `${access}, ${answer}`).toEqual(['paid'])
+    again()
+    said.reset()
+  }
+})
+
+test('an added source that needs no account is never asked and opens first as before, one that names no access too', async () => {
+  for (const access of ['none', undefined]) {
+    paidFirst(access, async () => 'signed-out')
+    await answered()
+    expect(navigate, String(access)).toHaveBeenCalledExactlyOnceWith(toWatch('paid:a'), { replace: true })
+    expect(lookups.asked, String(access)).toEqual([])
+    again()
+  }
+})
+
+test('a Crunchyroll never signed in to gives way to an added source that needs an account only while it says the viewer is signed in', async () => {
+  for (const [access, answer, to] of [
+    ['account', 'signed-out', 'nyaa:a'],
+    ['account', 'signed-in', 'paid:a'],
+    [undefined, 'signed-out', 'paid:a'],
+  ] as const) {
+    paidFirst(access, async () => answer)
+    statuses = {}
+    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'nyaa', 'amazon', 'nf']))
+    Object.assign(episode, { handles: [allHandles[0], paidRelease, allHandles[2]] })
+    await answered()
+    expect(navigate, `${access}, ${answer}`).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+    again()
+    said.reset()
+  }
+})
+
+// the owner, 2026-10-26: "if we know that the user has previously logged into CR, then we should ask him to re-log into
+// his account, otherwise we wait for the free source"
+test('an added source that said in this page the viewer was signed in opens though they are signed out since, for its player to ask them to sign in again; with no plan since, it gives way', async () => {
+  paidFirst('paid', async () => 'signed-in')
+  for (const [answer, to] of [['signed-in', 'paid:a'], ['signed-out', 'paid:a'], ['no-plan', 'nyaa:a']] as const) {
+    lookups.account.paid = async () => answer
+    await answered()
+    expect(navigate, answer).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+    again()
+  }
+})
+
+test('the account is asked again on every episode', async () => {
+  paidFirst('account', async () => 'signed-in')
+  const { rerender } = live()
+  await settle()
+  expect(lookups.asked).toEqual(['paid'])
+  await rerender()
+  expect(lookups.asked, 'the same episode').toEqual(['paid'])
+  params = { ...params, episodeUri: 'ag:(anilist:1-2,paid:b,nyaa:b)' }
+  Object.assign(episode, { uri: params.episodeUri })
+  await rerender()
+  expect(lookups.asked, 'the next episode').toEqual(['paid', 'paid'])
+})
+
+// an ask that never settles counts as no answer once the worker's wait is out, and the source then counts as never signed in
+test('an added source whose account never answers lists its release at once and holds Play for ACCOUNT_WAIT_MS at most, then gives way, and with nothing to give way to opens', async () => {
+  for (const [added, to] of [[[connectedPaid('account'), connectedNyaa], 'nyaa:a'], [[connectedPaid('account')], 'paid:a']] as const) {
+    paidFirst('account', () => new Promise(() => {}))
+    plugins.statuses = [...added]
+    const { host } = await answered()
+    expect(host.querySelector('a.source[title="paid"]')?.getAttribute('href'), `${to}: listed, to play in stub`).toBe(toWatch('paid:a'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(ACCOUNT_WAIT_MS - 1) })
+    expect(navigate, to).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    await settle()
+    expect(navigate, to).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
+    again()
+  }
 })

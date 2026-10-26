@@ -56,7 +56,7 @@ export type Access = {
   plays: (handle: Handle) => boolean
   /** Plays here with nothing to fix, as far as stub knows: needs no extension, and no account or one stub found the viewer signed in to. */
   free: (handle: Handle) => boolean
-  /** Of a site stub has never found the viewer signed in to on this browser, whose one fix here is that sign in. */
+  /** Of a site stub has never found the viewer signed in to on this browser, whose one fix here is that sign in. For an added source, `PluginAccounts.neverSignedIn`. */
   neverSignedIn: (handle: Handle) => boolean
 }
 
