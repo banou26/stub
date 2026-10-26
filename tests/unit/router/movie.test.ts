@@ -114,5 +114,5 @@ test('a movie of one episode gets the play bar and the Watched toggle, and no ep
 test('the title page draws no episode list for a movie either', () => {
   expect(page).toContain('const isMovie = Boolean(media && isMovieMedia(media))')
   expect(page).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)
-  expect(page).toMatch(/media && !isMovie\s*\?\s*\(\s*<section data-episodes>\s*<h2>Episodes<\/h2>\s*\{current \? <Episodes media=\{current\}/)
+  expect(page).toMatch(/media && !isMovie\s*\?\s*\(\s*<section data-episodes>\s*<h2>\{intl\.formatMessage\(\{ id: 'Episodes', defaultMessage: 'Episodes' \}\)\}<\/h2>\s*\{current \? <Episodes media=\{current\}/)
 })

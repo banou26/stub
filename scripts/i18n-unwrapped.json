@@ -26,12 +26,6 @@
     "src/router/home/media-modal.tsx",
     "src/router/home/movie-play.tsx"
   ],
-  "title-page": [
-    "src/components/media-franchise.tsx",
-    "src/components/media-relations.tsx",
-    "src/components/media-seasons.tsx",
-    "src/router/title/index.tsx"
-  ],
   "watch-players": [
     "src/components/player/video-surface.tsx",
     "src/components/plugin-player.tsx",

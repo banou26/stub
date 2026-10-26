@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -101,12 +101,12 @@ afterEach(() => {
 const open = (path: string, page: () => preact.JSX.Element) => {
   const { hook, searchHook, navigate, history } = memoryLocation({ path, record: true })
   const tree = () => <Router hook={hook} searchHook={searchHook}><Route path={path.replace(/ag:\(.*\)$/, ':uri')} component={page}/></Router>
-  const host = mount(tree())
+  const host = mount(withIntl(tree()))
   hosts.push(host)
   return {
     host,
     history: history!,
-    answer: (media: { uri: string, settled?: boolean }, asked = media.uri) => act(() => { answers.byUri[asked] = media; render(tree(), host) }),
+    answer: (media: { uri: string, settled?: boolean }, asked = media.uri) => act(() => { answers.byUri[asked] = media; render(withIntl(tree()), host) }),
     navigate: (to: string) => act(() => { navigate(to) }),
   }
 }

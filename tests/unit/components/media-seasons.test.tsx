@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, expect, test } from 'vite-plus/test'
 import { Router } from 'wouter'
@@ -14,11 +14,11 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
 const render = (seasons: typeof SEASONS | null, currentUris = ['tmdb:93405-s2', 'tvmaze:43687-s2']) => {
   const { hook, history } = memoryLocation({ path: '/title/tmdb:93405', record: true })
-  const host = mount(
+  const host = mount(withIntl(
     <Router hook={hook}>
       <MediaSeasons seasons={seasons} currentUris={currentUris} href={uri => `/title/${uri}`}/>
     </Router>
-  )
+  ))
   hosts.push(host)
   return { host, history }
 }

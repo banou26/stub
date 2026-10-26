@@ -1,10 +1,15 @@
 // The title page's words: its chips, its facts and what its Play button says. Pure, so they are tested
 // without rendering the page (which cannot load under vitest, see tests/unit/router/modal-media.test.ts).
 
+import type { MessageDescriptor } from 'react-intl'
+
 import type { MediaSeason } from '../../generated/graphql'
 import type { ReleaseDateOptions } from '../../utils/release-date'
 
+import { defineMessages } from 'react-intl'
+
 import { MediaStatus, MediaType } from '../../generated/graphql'
+import { intl, NAME_LIST } from '../../i18n'
 import { formatLabel, seasonLabel, statusLabel } from '../search/params'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
 
@@ -28,15 +33,38 @@ export type TitleMedia = {
 /** A labelled fact; one with no value is held, its line kept for a source still to give it. */
 export type Fact = { label: string, value?: string }
 
-const episodesLabel = (count: number | null | undefined) =>
-  count ? `${count} ${count === 1 ? 'Episode' : 'Episodes'}` : undefined
+// AniList's MediaSource values
+const SOURCES: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  ORIGINAL: { id: 'Original#source material', defaultMessage: 'Original', description: 'source material' },
+  MANGA: { id: 'Manga#source material', defaultMessage: 'Manga', description: 'source material' },
+  LIGHT_NOVEL: { id: 'Light novel#source material', defaultMessage: 'Light novel', description: 'source material' },
+  VISUAL_NOVEL: { id: 'Visual novel#source material', defaultMessage: 'Visual novel', description: 'source material' },
+  VIDEO_GAME: { id: 'Video game#source material', defaultMessage: 'Video game', description: 'source material' },
+  OTHER: { id: 'Other#source material', defaultMessage: 'Other', description: 'source material' },
+  NOVEL: { id: 'Novel#source material', defaultMessage: 'Novel', description: 'source material' },
+  DOUJINSHI: { id: 'Doujinshi#source material', defaultMessage: 'Doujinshi', description: 'source material' },
+  ANIME: { id: 'Anime#source material', defaultMessage: 'Anime', description: 'source material' },
+  WEB_NOVEL: { id: 'Web novel#source material', defaultMessage: 'Web novel', description: 'source material' },
+  LIVE_ACTION: { id: 'Live action#source material', defaultMessage: 'Live action', description: 'source material' },
+  GAME: { id: 'Game#source material', defaultMessage: 'Game', description: 'source material' },
+  COMIC: { id: 'Comic#source material', defaultMessage: 'Comic', description: 'source material' },
+  MULTIMEDIA_PROJECT: { id: 'Multimedia project#source material', defaultMessage: 'Multimedia project', description: 'source material' },
+  PICTURE_BOOK: { id: 'Picture book#source material', defaultMessage: 'Picture book', description: 'source material' },
+})
 
-// AniList's word, LIGHT_NOVEL, as a label: Light novel
+const episodesLabel = (count: number | null | undefined) =>
+  count ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count }) : undefined
+
+// a value AniList may add later reads as its own words: AUDIO_DRAMA as Audio drama
 const sourceLabel = (source: string | null | undefined) =>
-  source ? source.charAt(0) + source.slice(1).toLowerCase().replaceAll('_', ' ') : undefined
+  !source ? undefined
+  : SOURCES[source] ? intl.formatMessage(SOURCES[source])
+  : source.charAt(0) + source.slice(1).toLowerCase().replaceAll('_', ' ')
+
+const names = (list: readonly string[] | null | undefined) => list ? intl.formatList(list, NAME_LIST) : undefined
 
 const ratingLabel = ({ source, value, scale }: NonNullable<TitleMedia['ratings']>[number]) =>
-  `${source} ${scale === 100 ? `${Math.round(value)}%` : value.toFixed(1)}`
+  `${source} ${intl.formatNumber(value, scale === 100 ? { style: 'unit', unit: 'percent', maximumFractionDigits: 0 } : { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
 
 /**
  * The second title under the main one: the first that reads differently in another language, usually the
@@ -79,17 +107,23 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
   return [
-    { label: 'Format', value: formatLabel(media.type) },
-    { label: 'Episodes', value: media.episodeCount ? String(media.episodeCount) : undefined },
-    { label: media.type === MediaType.Movie ? 'Length' : 'Episode length', value: media.duration ? `${media.duration} min` : undefined },
-    { label: 'Status', value: statusLabel(media.status) },
-    { label: upcoming ? 'Releases' : 'Aired', value: start && end && end !== start ? `${start} to ${end}` : start },
-    { label: 'Season', value: seasonLabel(media.season, media.seasonYear) },
-    { label: 'Studios', value: media.studios?.join(', ') },
-    { label: 'Source', value: sourceLabel(media.sourceMaterial) },
-    { label: 'Genres', value: media.genres?.join(', ') },
-    { label: 'Tags', value: media.tags?.join(', ') },
-    { label: 'Also known as', value: others.join(', ') },
+    { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: formatLabel(media.type) },
+    { label: intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' }), value: media.episodeCount ? String(media.episodeCount) : undefined },
+    {
+      label: media.type === MediaType.Movie ? intl.formatMessage({ id: 'Length', defaultMessage: 'Length' }) : intl.formatMessage({ id: 'Episode length', defaultMessage: 'Episode length' }),
+      value: media.duration ? intl.formatNumber(media.duration, { style: 'unit', unit: 'minute', unitDisplay: 'short', useGrouping: false }) : undefined,
+    },
+    { label: intl.formatMessage({ id: 'Status', defaultMessage: 'Status' }), value: statusLabel(media.status) },
+    {
+      label: upcoming ? intl.formatMessage({ id: 'Releases#verb', defaultMessage: 'Releases', description: 'verb' }) : intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }),
+      value: start && end && end !== start ? intl.formatMessage({ id: '{start} to {end}', defaultMessage: '{start} to {end}' }, { start, end }) : start,
+    },
+    { label: intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' }), value: seasonLabel(media.season, media.seasonYear) },
+    { label: intl.formatMessage({ id: 'Studios', defaultMessage: 'Studios' }), value: names(media.studios) },
+    { label: intl.formatMessage({ id: 'Source#adapted from', defaultMessage: 'Source', description: 'adapted from' }), value: sourceLabel(media.sourceMaterial) },
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(media.genres) },
+    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(media.tags) },
+    { label: intl.formatMessage({ id: 'Also known as', defaultMessage: 'Also known as' }), value: names(others) },
   ].flatMap(({ label, value }): Fact[] => value ? [{ label, value }] : held ? [{ label }] : [])
 }
 

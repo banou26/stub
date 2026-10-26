@@ -1,6 +1,6 @@
 // The failure this guards is a relation added to the schema and forgotten here, which renders as raw
 // SCREAMING_SNAKE in the middle of the page. Nothing throws, and it looks like a data problem.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 import { readFileSync } from 'node:fs'
 
 import { relationLabel, relationRank, workFormatLabel } from '../../../src/utils/relation-labels'

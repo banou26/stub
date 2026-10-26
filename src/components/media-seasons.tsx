@@ -1,4 +1,5 @@
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link, Redirect } from 'wouter'
 
 import { asAggregatedUri } from '../utils/uri'
@@ -54,16 +55,17 @@ const MediaSeasons = ({ seasons, currentUris, href }: {
   currentUris: readonly string[]
   href: (uri: string) => string
 }) => {
+  const intl = useIntl()
   const first = firstSeasonRedirect(seasons, currentUris)
   return !seasons || seasons.length < 2 ? null
     : first ? <Redirect to={href(asAggregatedUri(first))} replace/>
     : (
       <section className="seasons" css={style} data-seasons>
-        <h2>Seasons</h2>
+        <h2>{intl.formatMessage({ id: 'Seasons#of a show', defaultMessage: 'Seasons', description: 'of a show' })}</h2>
         <nav>
           {seasons.map(season => (
             <Link key={season.uri} href={href(asAggregatedUri(season.uri))} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
-              Season {season.number}
+              {intl.formatMessage({ id: 'Season {number}', defaultMessage: 'Season {number}' }, { number: season.number })}
             </Link>
           ))}
         </nav>

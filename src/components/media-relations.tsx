@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact'
 
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link, useSearch } from 'wouter'
 
 import Paged from './paged'
@@ -157,6 +158,7 @@ const MediaRelations = (
   // its engine survive it either way; what the query buys is an ADDRESS that reproduces this page
   // when it is reloaded or pasted (`carriedSearch`).
   const search = carriedSearch(useSearch())
+  const heading = useIntl().formatMessage({ id: 'Relations', defaultMessage: 'Relations' })
   // Nothing at all rather than an empty heading: only some sources name relations, so most media have
   // none and a "Relations" heading over blank space reads as a page that failed to load. The action
   // goes with it: whatever it opens is built from the same source that named these.
@@ -176,10 +178,10 @@ const MediaRelations = (
   return (
     <section className="relations" css={style} data-relations>
       <h2>
-        <span>Relations</span>
+        <span>{heading}</span>
         {action}
       </h2>
-      <Paged items={shown} size={ROW} label="Relations">
+      <Paged items={shown} size={ROW} label={heading}>
         {page => (
           <div className="grid">
             {page.map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={route}/>)}

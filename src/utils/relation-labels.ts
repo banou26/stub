@@ -4,6 +4,12 @@
 // value added to `MediaRelation` and forgotten here would otherwise render as raw SCREAMING_SNAKE in
 // the middle of the page, which is the sort of thing that ships.
 
+import type { MessageDescriptor } from 'react-intl'
+
+import { defineMessages } from 'react-intl'
+
+import { intl } from '../i18n'
+
 /**
  * What an edge says, in the direction the reader is looking.
  *
@@ -12,21 +18,21 @@
  * every one of them except that AniList writes "Alternative" where MyAnimeList writes "Alternative
  * version"; the shorter one is used because it sits in a narrow card.
  */
-const RELATIONS: Record<string, string> = {
-  ADAPTATION: 'Adaptation',
-  PREQUEL: 'Prequel',
-  SEQUEL: 'Sequel',
-  PARENT: 'Parent story',
-  SIDE_STORY: 'Side story',
-  CHARACTER: 'Character',
-  SUMMARY: 'Summary',
-  ALTERNATIVE: 'Alternative',
-  SPIN_OFF: 'Spin off',
-  SOURCE: 'Source',
-  COMPILATION: 'Compilation',
-  CONTAINS: 'Contains',
-  OTHER: 'Related',
-}
+const RELATIONS: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  ADAPTATION: { id: 'Adaptation', defaultMessage: 'Adaptation' },
+  PREQUEL: { id: 'Prequel', defaultMessage: 'Prequel' },
+  SEQUEL: { id: 'Sequel', defaultMessage: 'Sequel' },
+  PARENT: { id: 'Parent story', defaultMessage: 'Parent story' },
+  SIDE_STORY: { id: 'Side story', defaultMessage: 'Side story' },
+  CHARACTER: { id: 'Character#shares characters', defaultMessage: 'Character', description: 'shares characters' },
+  SUMMARY: { id: 'Summary', defaultMessage: 'Summary' },
+  ALTERNATIVE: { id: 'Alternative', defaultMessage: 'Alternative' },
+  SPIN_OFF: { id: 'Spin off', defaultMessage: 'Spin off' },
+  SOURCE: { id: 'Source#adapted from', defaultMessage: 'Source', description: 'adapted from' },
+  COMPILATION: { id: 'Compilation', defaultMessage: 'Compilation' },
+  CONTAINS: { id: 'Contains', defaultMessage: 'Contains' },
+  OTHER: { id: 'Related', defaultMessage: 'Related' },
+})
 
 /**
  * The order relations are shown in, which is by how much a reader cares rather than alphabetically.
@@ -48,7 +54,7 @@ export const relationRank = (relation: string): number => {
 
 /** A relation as a reader reads it. Unknown values fall back to the enum's own catch-all wording. */
 export const relationLabel = (relation: string | null | undefined): string =>
-  (relation && RELATIONS[relation]) || RELATIONS.OTHER!
+  intl.formatMessage((relation && RELATIONS[relation]) || RELATIONS.OTHER!)
 
 /**
  * What KIND of work the other end is, spelled for a reader.
@@ -57,18 +63,18 @@ export const relationLabel = (relation: string | null | undefined): string =>
  * one that matters is `NOVEL`: AniList uses it for light novels, which is what a viewer of an anime
  * page is being told the show was adapted from, so writing it as "Novel" would understate it.
  */
-const FORMATS: Record<string, string> = {
-  TV: 'TV',
-  TV_SHORT: 'TV Short',
-  MOVIE: 'Movie',
-  SPECIAL: 'Special',
-  OVA: 'OVA',
-  ONA: 'ONA',
-  MUSIC: 'Music',
-  MANGA: 'Manga',
-  NOVEL: 'Light Novel',
-  ONE_SHOT: 'One Shot',
-}
+const FORMATS: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  TV: { id: 'TV', defaultMessage: 'TV' },
+  TV_SHORT: { id: 'TV Short', defaultMessage: 'TV Short' },
+  MOVIE: { id: 'Movie', defaultMessage: 'Movie' },
+  SPECIAL: { id: 'Special', defaultMessage: 'Special' },
+  OVA: { id: 'OVA', defaultMessage: 'OVA' },
+  ONA: { id: 'ONA', defaultMessage: 'ONA' },
+  MUSIC: { id: 'Music', defaultMessage: 'Music' },
+  MANGA: { id: 'Manga', defaultMessage: 'Manga' },
+  NOVEL: { id: 'Light Novel', defaultMessage: 'Light Novel' },
+  ONE_SHOT: { id: 'One Shot', defaultMessage: 'One Shot' },
+})
 
 /**
  * A work's kind, or `undefined` when the source named none.
@@ -80,7 +86,7 @@ const FORMATS: Record<string, string> = {
 export const workFormatLabel = (format: string | null | undefined): string | undefined => {
   if (!format) return undefined
   const known = FORMATS[format]
-  if (known) return known
+  if (known) return intl.formatMessage(known)
   return format
     .split('_')
     .filter(Boolean)

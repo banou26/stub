@@ -14,6 +14,12 @@ export { LANGUAGE_KEY, OFFERED, bestLanguage, contentLanguage, formatLocale, isR
 /** A language's text by message id. */
 export type Catalogue = Readonly<Record<string, string>>
 
+/**
+ * How `intl.formatList` joins names (studios, genres, artists): narrow conjunction writes US English as stub always
+ * joined them, `A, B, C`, and each other language its own way, `A、B、C` in Japanese, `A, B und C` in German.
+ */
+export const NAME_LIST = { type: 'conjunction', style: 'narrow' } as const
+
 const cache = createIntlCache()
 
 // English shown, the defaultLocale is the browser's own English: against plain `en`, react-intl reports each message
@@ -27,8 +33,10 @@ const intlOf = (language: string, locale: string, messages: Catalogue) =>
  */
 export let intl: IntlShape = intlOf('en', 'en', {})
 
-// one chunk per language, by its path as the pattern writes it
-const CATALOGUES = import.meta.glob<Catalogue>('../locales/*.json', { import: 'default' })
+// one chunk per language, by its path as the pattern writes it. No type argument: Vitest 5 leaves a module out of its
+// on-disk cache only when its source reads `import.meta.glob(`, and `glob<Catalogue>(` kept the catalogues found
+// before src/locales existed (2026-10-26)
+const CATALOGUES = import.meta.glob('../locales/*.json', { import: 'default' }) as Record<string, () => Promise<Catalogue>>
 
 /**
  * Shows `language` on this page from now on: loads its catalogue, makes `intl` write in it, with dates and numbers in

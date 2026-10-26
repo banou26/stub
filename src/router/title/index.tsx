@@ -3,6 +3,7 @@ import type { RouteParams } from '../path'
 import { css } from '@emotion/react'
 import { Check, Clapperboard, LucidePlay, Share2, Square } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { useLocation, useParams, useSearch } from 'wouter'
 
@@ -12,6 +13,7 @@ import MediaRelations from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
 import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
+import { NAME_LIST } from '../../i18n'
 import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
@@ -539,24 +541,26 @@ const Person = ({ person, detail, actor }: { person: Credit, detail?: string, ac
 type Character = Credit & { role?: string | null, voiceActors: (Credit & { language?: string | null })[] }
 
 const Characters = ({ characters }: { characters: Character[] }) => {
+  const intl = useIntl()
+  const heading = intl.formatMessage({ id: 'Characters', defaultMessage: 'Characters' })
   const languages = creditLanguages(characters)
   const [picked, setPicked] = useState<string>()
   const cast = castIn(characters, picked ?? languages.selected)
   return (
     <section data-characters>
       <h2>
-        <span>Characters</span>
+        <span>{heading}</span>
         {
           languages.options.length
             ? (
-              <select aria-label="Language" value={picked ?? languages.selected} onChange={event => setPicked(event.currentTarget.value)}>
+              <select aria-label={intl.formatMessage({ id: 'Language', defaultMessage: 'Language' })} value={picked ?? languages.selected} onChange={event => setPicked(event.currentTarget.value)}>
                 {languages.options.map(language => <option key={language} value={language}>{languageLabel(language)}</option>)}
               </select>
             )
             : undefined
         }
       </h2>
-      <Paged items={cast} size={PAGE} label="Characters">
+      <Paged items={cast} size={PAGE} label={heading}>
         {(page, offset) => (
           <ul className="credits">
             {page.map((character, index) => (
@@ -576,20 +580,24 @@ const Characters = ({ characters }: { characters: Character[] }) => {
   )
 }
 
-const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) => (
-  <section data-staff>
-    <h2>Staff</h2>
-    <Paged items={staff} size={PAGE} label="Staff">
-      {(page, offset) => (
-        <ul className="credits">
-          {page.map((person, index) => (
-            <li key={`${person.name}:${offset + index}`}><Person person={person} detail={person.roles?.join(', ')}/></li>
-          ))}
-        </ul>
-      )}
-    </Paged>
-  </section>
-)
+const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) => {
+  const intl = useIntl()
+  const heading = intl.formatMessage({ id: 'Staff', defaultMessage: 'Staff' })
+  return (
+    <section data-staff>
+      <h2>{heading}</h2>
+      <Paged items={staff} size={PAGE} label={heading}>
+        {(page, offset) => (
+          <ul className="credits">
+            {page.map((person, index) => (
+              <li key={`${person.name}:${offset + index}`}><Person person={person} detail={person.roles ? intl.formatList(person.roles, NAME_LIST) : undefined}/></li>
+            ))}
+          </ul>
+        )}
+      </Paged>
+    </section>
+  )
+}
 
 type Theme = { kind: string, sequence?: number | null, title?: string | null, artists: string[], video?: string | null }
 
@@ -607,6 +615,7 @@ const ThemeVideo = ({ url }: { url: string }) => {
 
 // one page of songs, keyed by its offset, so paging away stops what was playing on it
 const ThemeRows = ({ themes }: { themes: Theme[] }) => {
+  const intl = useIntl()
   const [playing, setPlaying] = useState<number>()
   return (
     <ul className="themes">
@@ -618,7 +627,7 @@ const ThemeRows = ({ themes }: { themes: Theme[] }) => {
               {
                 url
                   ? (
-                    <button type="button" className="toggle" aria-label={playing === index ? 'Stop' : 'Play'} onClick={() => setPlaying(playing === index ? undefined : index)}>
+                    <button type="button" className="toggle" aria-label={playing === index ? intl.formatMessage({ id: 'Stop', defaultMessage: 'Stop' }) : intl.formatMessage({ id: 'Play', defaultMessage: 'Play' })} onClick={() => setPlaying(playing === index ? undefined : index)}>
                       {playing === index ? <Square size={14} fill="currentColor"/> : <LucidePlay size={14} fill="currentColor"/>}
                     </button>
                   )
@@ -626,7 +635,7 @@ const ThemeRows = ({ themes }: { themes: Theme[] }) => {
               }
               <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
               <span className="song">{theme.title}</span>
-              <span className="artists">{theme.artists.join(', ')}</span>
+              <span className="artists">{intl.formatList(theme.artists, NAME_LIST)}</span>
             </div>
             {playing === index && url ? <ThemeVideo url={url}/> : undefined}
           </li>
@@ -637,17 +646,21 @@ const ThemeRows = ({ themes }: { themes: Theme[] }) => {
 }
 
 /** Each opening, ending and insert song, with one of them playing at a time under its row. */
-const Themes = ({ themes }: { themes: Theme[] }) => (
-  <section data-themes>
-    <h2>Themes</h2>
-    <Paged items={themes} size={PAGE} label="Themes">
-      {(page, offset) => <ThemeRows key={offset} themes={page}/>}
-    </Paged>
-  </section>
-)
+const Themes = ({ themes }: { themes: Theme[] }) => {
+  const heading = useIntl().formatMessage({ id: 'Themes', defaultMessage: 'Themes' })
+  return (
+    <section data-themes>
+      <h2>{heading}</h2>
+      <Paged items={themes} size={PAGE} label={heading}>
+        {(page, offset) => <ThemeRows key={offset} themes={page}/>}
+      </Paged>
+    </section>
+  )
+}
 
 /** The full page for one title, at `/title/<address>`: what the modal shows, laid out as one long page. */
 const TitlePage = () => {
+  const intl = useIntl()
   const rawParams = useParams<RouteParams['TITLE']>()
   const routeUri = routeMediaUri(rawParams.uri)
   const [, navigate] = useLocation()
@@ -700,7 +713,7 @@ const TitlePage = () => {
   const anime = originsOfUri(uri ?? '').some(origin => ANIME_CATALOGUES.includes(origin))
   // the clock at draw time: the label only turns at the release, and Play follows the tick
   const upcoming = isMovie && filmRelease({ startDate: media!.startDate, status: media!.status, episode: media!.episodes.at(0) }).upcoming
-  const facts = titleFacts(media ?? {}, {}, anime && !settled, upcoming)
+  const facts = titleFacts(media ?? {}, { locale: intl.locale }, anime && !settled, upcoming)
   const chips = media ? titleChips(media) : []
   const ratings = ratingChips(media ?? {})
   const season = media ? seasonLabel(media.season, media.seasonYear) : undefined
@@ -730,6 +743,8 @@ const TitlePage = () => {
     } catch {}
   }
   const trailer = media?.trailers.at(0)?.url
+  const shareLabel = copied ? intl.formatMessage({ id: 'Copied', defaultMessage: 'Copied' }) : intl.formatMessage({ id: 'Share', defaultMessage: 'Share' })
+  const trailerLabel = intl.formatMessage({ id: 'Trailer', defaultMessage: 'Trailer' })
 
   return (
     <div css={style}>
@@ -766,7 +781,7 @@ const TitlePage = () => {
               ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
               : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
-          {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? 'Collapse' : 'Expand'}</button> : undefined}
+          {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? intl.formatMessage({ id: 'Collapse', defaultMessage: 'Collapse' }) : intl.formatMessage({ id: 'Expand', defaultMessage: 'Expand' })}</button> : undefined}
           {isMovie ? <SourceSelector film sources={sources} pending={!settled}/> : undefined}
         </div>
         <div className="actions">
@@ -775,12 +790,12 @@ const TitlePage = () => {
               ? (
                 <div className="buttons">
                   <MediaPlay media={media}/>
-                  <button type="button" className="icon" onClick={share} aria-label={copied ? 'Copied' : 'Share'} title={copied ? 'Copied' : 'Share'}>
+                  <button type="button" className="icon" onClick={share} aria-label={shareLabel} title={shareLabel}>
                     {copied ? <Check size={20}/> : <Share2 size={20}/>}
                   </button>
                   {
                     trailer
-                      ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label="Trailer" title="Trailer"><Clapperboard size={20}/></a>
+                      ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label={trailerLabel} title={trailerLabel}><Clapperboard size={20}/></a>
                       : undefined
                   }
                   <SourceLinks uri={media.uri} handles={media.handles} except={watchOriginIds(film, media.handles)}/>
@@ -819,7 +834,7 @@ const TitlePage = () => {
             media && !isMovie
               ? (
                 <section data-episodes>
-                  <h2>Episodes</h2>
+                  <h2>{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</h2>
                   {current ? <Episodes media={current} tracked={tracked}/> : <EpisodesPlaceholder/>}
                 </section>
               )

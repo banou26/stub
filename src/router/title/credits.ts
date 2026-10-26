@@ -1,3 +1,9 @@
+import type { MessageDescriptor } from 'react-intl'
+
+import { defineMessages } from 'react-intl'
+
+import { intl } from '../../i18n'
+
 type Person = { name: string, image?: string | null, url?: string | null, language?: string | null }
 type Character = { name: string, image?: string | null, url?: string | null, role?: string | null, voiceActors: readonly Person[] }
 
@@ -25,12 +31,19 @@ export const creditLanguages = (characters: readonly Character[]): { options: st
 export const castIn = <T extends Character>(characters: readonly T[], language: string | undefined): (T & { actors: T['voiceActors'][number][] })[] =>
   characters.map(character => ({ ...character, actors: character.voiceActors.filter(actor => (actor.language ?? undefined) === language) }))
 
-const ROLES: Record<string, string> = { MAIN: 'Main', SUPPORTING: 'Supporting', BACKGROUND: 'Background' }
+const ROLES: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  MAIN: { id: 'Main#character role', defaultMessage: 'Main', description: 'character role' },
+  SUPPORTING: { id: 'Supporting#character role', defaultMessage: 'Supporting', description: 'character role' },
+  BACKGROUND: { id: 'Background#character role', defaultMessage: 'Background', description: 'character role' },
+})
 
-export const roleLabel = (role: string | null | undefined): string | undefined => (role ? ROLES[role] ?? role : undefined)
+export const roleLabel = (role: string | null | undefined): string | undefined =>
+  !role ? undefined : ROLES[role] ? intl.formatMessage(ROLES[role]) : role
 
-const names = new Intl.DisplayNames(['en'], { type: 'language' })
-
-/** A language code's English name, or the source's own word when it is not a code. */
-export const languageLabel = (language: string): string =>
-  /^[a-z]{2,3}$/.test(language) ? names.of(language) ?? language : language
+/** A language code's name in the language shown, as a menu entry, or the source's own word when it is not a code. */
+export const languageLabel = (language: string): string => {
+  const name = /^[a-z]{2,3}$/.test(language) ? intl.formatDisplayName(language, { type: 'language' }) ?? language : language
+  // Intl.DisplayNames writes a name as inside a sentence (French japonais, Russian японский), where CLDR capitalizes a
+  // menu's entry; a code it has no name for stays as given
+  return name === language ? name : name.charAt(0).toLocaleUpperCase(intl.locale) + name.slice(1)
+}

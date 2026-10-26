@@ -8,6 +8,7 @@ import { FloatingFocusManager, FloatingOverlay, FloatingPortal, useClick, useDis
 import { Network, X } from 'lucide-react'
 import { createContext } from 'preact'
 import { useCallback, useContext, useMemo, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { Link, useSearch } from 'wouter'
 
 import { getRoutePath, Route } from '../router/path'
@@ -342,6 +343,7 @@ const Graph = (
   { franchise, currentUris, route }:
   { franchise: Franchise, currentUris: readonly string[], route: Route.MEDIA | Route.TITLE }
 ) => {
+  const intl = useIntl()
   // the session's engine flags, so a node clicked out of this graph lands on an address that
   // reproduces the page it came from (`carriedSearch`, and the relation cards do the same)
   const search = carriedSearch(useSearch())
@@ -391,7 +393,7 @@ const Graph = (
   return (
     <>
       <div className="bar">
-        <div className="title">Series</div>
+        <div className="title">{intl.formatMessage({ id: 'Series#every work of a franchise', defaultMessage: 'Series', description: 'every work of a franchise' })}</div>
       </div>
       <div className="canvas" data-canvas>
         {
@@ -403,7 +405,7 @@ const Graph = (
                    dragging the graph out from under the checkbox being aimed at */
                 onPointerDown={event => event.stopPropagation()}
               >
-                <div className="legend">Show</div>
+                <div className="legend">{intl.formatMessage({ id: 'Show#verb', defaultMessage: 'Show', description: 'verb' })}</div>
                 {
                   formats.map(format => (
                     <label key={format} className={shown.has(format) ? 'on' : undefined}>
@@ -431,7 +433,7 @@ const Graph = (
               fitView
               minZoom={0.05}
               maxZoom={20}
-              aria-label="Every work in this series, in order"
+              aria-label={intl.formatMessage({ id: 'Every work in this series, in order', defaultMessage: 'Every work in this series, in order' })}
             >
               <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255, 255, 255, 0.14)"/>
             </ReactFlow>
@@ -447,6 +449,7 @@ const MediaFranchise = (
   { franchise, currentUris, route = Route.MEDIA }:
   { franchise: Franchise | null | undefined, currentUris: readonly string[], route?: Route.MEDIA | Route.TITLE }
 ) => {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const { refs, context } = useFloating({ open, onOpenChange: setOpen })
   const { getReferenceProps, getFloatingProps } = useInteractions([
@@ -462,7 +465,7 @@ const MediaFranchise = (
     <>
       <button type="button" css={triggerStyle} ref={refs.setReference} {...getReferenceProps()} data-franchise-open>
         <Network/>
-        See detailed relation graph
+        {intl.formatMessage({ id: 'See detailed relation graph', defaultMessage: 'See detailed relation graph' })}
       </button>
       {
         open
@@ -472,7 +475,7 @@ const MediaFranchise = (
                 <FloatingFocusManager context={context}>
                   <div className="sheet" ref={refs.setFloating} {...getFloatingProps()}>
                     <Graph franchise={franchise} currentUris={currentUris} route={route}/>
-                    <button type="button" className="close" aria-label="Close" onClick={() => setOpen(false)}>
+                    <button type="button" className="close" aria-label={intl.formatMessage({ id: 'Close', defaultMessage: 'Close' })} onClick={() => setOpen(false)}>
                       <X/>
                     </button>
                   </div>

@@ -1,7 +1,8 @@
-import type { ComponentChild } from 'preact'
+import type { ComponentChild, ComponentType } from 'preact'
+import type { IntlShape } from 'react-intl'
 
 import { parseHTML } from 'linkedom'
-import { render } from 'preact'
+import { h, render } from 'preact'
 import { act } from 'preact/test-utils'
 
 /**
@@ -122,6 +123,14 @@ if (!(globalThis as { DOMMatrixReadOnly?: unknown }).DOMMatrixReadOnly) {
   // the identity, which is exactly where a freshly mounted graph sits anyway
   Object.assign(globalThis, { DOMMatrixReadOnly: class { m41 = 0; m42 = 0; a = 1; d = 1 } })
 }
+
+// imported once the document is in place: preact/compat, which react-intl loads, reads at module scope whether a
+// document exists
+const { RawIntlProvider } = await import('react-intl')
+const i18n = await import('../../../src/i18n')
+
+/** `vnode` under the page's react-intl object, as src/index.tsx renders the page: what a component calling useIntl() needs. */
+export const withIntl = (vnode: ComponentChild) => h(RawIntlProvider as ComponentType<{ value: IntlShape }>, { value: i18n.intl }, vnode)
 
 /** Renders into a fresh host element attached to the document, and flushes the render. */
 export const mount = (vnode: ComponentChild) => {
