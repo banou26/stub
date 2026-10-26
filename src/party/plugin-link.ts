@@ -1,3 +1,4 @@
+import type { MediaChapter } from '@banou/media-player'
 import type { PlaybackLink } from './bridge'
 import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
@@ -22,6 +23,16 @@ const bufferOf = (value: unknown): PlayerBuffer | undefined => {
   return valid ? { time, readyState, ranges } : undefined
 }
 
+/** A package's chapters, or nothing for a list of the wrong shape. */
+const chaptersOf = (value: unknown): MediaChapter[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  const chapters = value.map(chapter => {
+    const { start, end, title } = (chapter ?? {}) as Record<string, unknown>
+    return finite(start) && finite(end) && start >= 0 && end >= start && typeof title === 'string' ? { start, end, title } : undefined
+  })
+  return chapters.every(chapter => chapter !== undefined) ? chapters : undefined
+}
+
 /**
  * How long a package has to answer `buffer` before its answer is nothing. The package connection has
  * no time limit of its own, so a document that stopped answering would hold the call for good.
@@ -30,9 +41,12 @@ export const BUFFER_WAIT_MS = 1_000
 
 /** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
   buffer?: () => Promise<unknown>
+  onFullscreenRequest?: (listener: () => void) => Promise<void>
+  applyFullscreen?: (active: boolean) => Promise<void>
+  focus?: () => Promise<void>
 }
 
 /**
@@ -42,21 +56,26 @@ export type PlaybackSource = {
  * out; the party attaches and detaches its own ear through `onReport` without the package hearing
  * about it. Both calls cross the package connection, and a refusal or a dead connection there is
  * not the page's to surface: a player it cannot hear is a player it does not sync.
+ *
+ * `frame` is the package's frame on this page. The link's `focus` focuses it afresh first, which gives the package's
+ * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
  */
-export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undefined => {
-  const { onPlayback, applyPlayback, buffer } = source
+export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
+  const { onPlayback, applyPlayback, buffer, focus } = source
   if (!onPlayback || !applyPlayback) return undefined
 
   const listeners = new Set<(state: PlaybackState) => void>()
   let disposed = false
   let ended = false
   let duration: number | undefined
+  let chapters: MediaChapter[] | undefined
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (report: PlaybackState & { ended?: boolean, duration?: number }) => {
+  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => {
     if (disposed || !isPlaybackState(report)) return
     ended = report.ended === true
     duration = lengthOf(report.duration)
+    chapters = chaptersOf(report.chapters)
     const { paused, time, rate, at } = report
     for (const listener of listeners) listener({ paused, time, rate, at })
   }
@@ -75,6 +94,17 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
     onReport: listener => { listeners.add(listener); listen(); return () => { listeners.delete(listener) } },
     ended: () => ended,
     duration: () => duration,
+    chapters: () => chapters,
+    ...focus ? {
+      focus: () => {
+        if (disposed) return
+        // blurred first: once the package removed a player's frame that had the keys, Chromium 155 has taken the
+        // focus out of the package's document while this page still names its frame focused (2026-10-26)
+        frame?.blur()
+        frame?.focus()
+        focus().catch(() => {})
+      },
+    } : {},
     ...buffer ? {
       buffer: () => Promise.race([
         buffer().then(bufferOf, () => undefined),
@@ -82,5 +112,28 @@ export const pluginPlaybackLink = (source: PlaybackSource): PlaybackLink | undef
       ]),
     } : {},
     dispose: () => { disposed = true; listeners.clear() },
+  }
+}
+
+/**
+ * Keeps the fullscreen of a source package's player on `stage`, as ../embed-fullscreen.ts does for stub's own embed:
+ * the player asks through the package's `onFullscreenRequest`, within its press's activation, and the package is told
+ * the page's state through `applyFullscreen`, at once and on every change. A package without the pair, or a page
+ * that cannot fullscreen, leaves the player its own fullscreen. Returns the stop.
+ */
+export const servePluginFullscreen = (source: PlaybackSource, stage: HTMLElement, host: Window = window) => {
+  const { document } = host
+  const { onFullscreenRequest, applyFullscreen } = source
+  if (!document.fullscreenEnabled || !onFullscreenRequest || !applyFullscreen) return () => {}
+  let stopped = false
+  const tell = () => { applyFullscreen(Boolean(document.fullscreenElement)).catch(() => {}) }
+  onFullscreenRequest(() => {
+    if (!stopped) (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen()).catch(() => {})
+  }).catch(() => {})
+  document.addEventListener('fullscreenchange', tell)
+  tell()
+  return () => {
+    stopped = true
+    document.removeEventListener('fullscreenchange', tell)
   }
 }

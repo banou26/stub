@@ -49,10 +49,11 @@ const style = css`
 `
 
 /**
- * Next episode over the player, from the moment `nextOfferAt` reads off `chapters` and once the player
- * has ended. With autoplay on, the end counts down with Cancel beside it and opens `next` when
- * `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before the moment withdraws the
- * button, and a report that the player is no longer at its end (a seek back, a play) withdraws the countdown.
+ * Next episode over the player, from the moment `nextOfferAt` reads off the player's own chapters, else
+ * `chapters`, and once the player has ended. With autoplay on, the end counts down with Cancel beside it
+ * and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before the
+ * moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
+ * withdraws the countdown.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  */
 const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[], stage: RefObject<HTMLElement | null> }) => {
@@ -72,7 +73,8 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
   // the keys go back to the player, as the button they were on goes
   const cancel = () => {
     setShown(undefined)
-    stage.current?.querySelector('iframe')?.focus()
+    if (link?.focus) link.focus()
+    else stage.current?.querySelector('iframe')?.focus()
   }
   // read at each report rather than keyed on: chapters landing mid-episode must not reset what the reports said
   const marks = useRef(chapters)
@@ -100,7 +102,8 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
         return
       }
       played ||= !paused
-      const at = nextOfferAt(marks.current, link.duration?.())
+      const own = link.chapters?.()
+      const at = nextOfferAt(own?.length ? own : marks.current, link.duration?.())
       if (at !== undefined && time >= at) offer()
       // a stall reaches the page only as a playing report behind the timer, which keeps the button; one gone
       // back is a seek, and a paused one is where the player is

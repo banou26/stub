@@ -1,7 +1,9 @@
 // A source package's player as the same link the built-in embed produces, driven with a fake source.
+import type { Mock } from 'vite-plus/test'
+
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { BUFFER_WAIT_MS, pluginPlaybackLink } from '../../../src/party/plugin-link'
+import { BUFFER_WAIT_MS, pluginPlaybackLink, servePluginFullscreen } from '../../../src/party/plugin-link'
 
 const STATE = { paused: false, time: 42, rate: 1, at: 1 }
 
@@ -183,5 +185,152 @@ describe('a package\'s buffer', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// What the watch page reads to offer Next episode as a torrent's ending starts: the file's own chapters, vetted
+// like the rest of the report, and kept off what goes on to the party.
+describe('a package\'s chapters', () => {
+  const CHAPTERS = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+
+  test('are the last report\'s, nothing for a package that never says, and stay out of the playback state', () => {
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    const heard = vi.fn()
+    link.onReport(heard)
+    report()
+    expect(link.chapters?.()).toBeUndefined()
+    report({ ...STATE, chapters: CHAPTERS.map(chapter => ({ ...chapter, extra: 1 })) } as typeof STATE)
+    expect(link.chapters?.()).toEqual(CHAPTERS)
+    expect(heard).toHaveBeenLastCalledWith(STATE)
+    report({ ...STATE, chapters: [] } as typeof STATE)
+    expect(link.chapters?.()).toEqual([])
+  })
+
+  test('a list of the wrong shape is nothing', () => {
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    for (const junk of [
+      'ED', {}, [null], [{ start: 0, end: 1 }], [{ start: '0', end: 1, title: 'A' }], [{ start: -1, end: 1, title: 'A' }],
+      [{ start: 2, end: 1, title: 'A' }], [{ start: 0, end: Infinity, title: 'A' }], [CHAPTERS[0], { start: 0, end: NaN, title: 'B' }],
+    ]) {
+      report({ ...STATE, chapters: CHAPTERS } as typeof STATE)
+      report({ ...STATE, chapters: junk } as never)
+      expect(link.chapters?.(), JSON.stringify(junk)).toBeUndefined()
+    }
+  })
+})
+
+// two frames down, a focus on the package's frame stops in the package's document, so the package hands the keys on,
+// once its document holds the focus the page gave it
+describe('a package\'s focus', () => {
+  test('focuses the package\'s frame afresh, then asks the package to hand the keys on', () => {
+    const order: string[] = []
+    const frame = { blur: () => { order.push('blur') }, focus: () => { order.push('frame') } } as unknown as HTMLIFrameElement
+    const focus = vi.fn(async () => { order.push('package') })
+    pluginPlaybackLink({ ...fakeSource().source, focus }, frame)!.focus!()
+    expect(order).toEqual(['blur', 'frame', 'package'])
+  })
+
+  // a plain function, since a vi.fn handles the promise it returns and a refusal through it is never unhandled
+  test('is absent for a package without it, and does nothing once the link is disposed or refused', async () => {
+    expect(pluginPlaybackLink(fakeSource().source)!.focus).toBeUndefined()
+    let asked = 0
+    const focus = async () => { asked++; throw new Error('gone') }
+    const link = pluginPlaybackLink({ ...fakeSource().source, focus })!
+    expect(() => link.focus!()).not.toThrow()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    link.dispose()
+    link.focus!()
+    expect(asked).toBe(1)
+  })
+})
+
+// HOR-1014: a torrent's player two frames down asks the watch page for fullscreen through the package, and the page
+// fullscreens its stage, so the fullscreen outlasts the package's frame when the next episode's replaces it
+describe('a package\'s fullscreen, kept on the stage', () => {
+  const page = (enabled = true) => {
+    const events = new EventTarget()
+    const document = Object.assign(events, {
+      fullscreenEnabled: enabled,
+      fullscreenElement: null as Element | null,
+      exitFullscreen: vi.fn(async () => {}),
+    })
+    const stage = { requestFullscreen: vi.fn(async () => {}) } as unknown as HTMLElement & { requestFullscreen: Mock }
+    const change = (element: Element | null) => {
+      document.fullscreenElement = element
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    return { host: { document } as unknown as Window, document, stage, change }
+  }
+  const fullscreenSource = () => {
+    let ear: (() => void) | undefined
+    const told: boolean[] = []
+    return {
+      source: {
+        onFullscreenRequest: vi.fn(async (listener: () => void) => { ear = listener }),
+        applyFullscreen: vi.fn(async (active: boolean) => { told.push(active) }),
+      },
+      request: () => ear?.(),
+      told,
+    }
+  }
+
+  test('a request fullscreens the stage, and leaves fullscreen once in it', () => {
+    const { host, document, stage, change } = page()
+    const { source, request } = fullscreenSource()
+    servePluginFullscreen(source, stage, host)
+    expect(source.onFullscreenRequest).toHaveBeenCalledTimes(1)
+    request()
+    expect(stage.requestFullscreen).toHaveBeenCalledTimes(1)
+    expect(document.exitFullscreen).not.toHaveBeenCalled()
+    change(stage)
+    request()
+    expect(document.exitFullscreen).toHaveBeenCalledTimes(1)
+    expect(stage.requestFullscreen).toHaveBeenCalledTimes(1)
+  })
+
+  test('the package is told the page\'s state at once and on every change, until stopped', () => {
+    const { host, document, stage, change } = page()
+    const { source, request, told } = fullscreenSource()
+    const stop = servePluginFullscreen(source, stage, host)
+    expect(told).toEqual([false])
+    change(stage)
+    change(null)
+    expect(told).toEqual([false, true, false])
+    stop()
+    request()
+    expect(stage.requestFullscreen, 'no request acted on once stopped').not.toHaveBeenCalled()
+    change(stage)
+    request()
+    expect(document.exitFullscreen).not.toHaveBeenCalled()
+    expect(told, 'and nothing told').toEqual([false, true, false])
+  })
+
+  test('a page that cannot fullscreen, or a package without the pair, leaves the player its own', () => {
+    const cannot = page(false)
+    const { source } = fullscreenSource()
+    servePluginFullscreen(source, cannot.stage, cannot.host)
+    expect(source.onFullscreenRequest).not.toHaveBeenCalled()
+    expect(source.applyFullscreen).not.toHaveBeenCalled()
+    const { host, stage } = page()
+    const onFullscreenRequest = vi.fn(async () => {})
+    servePluginFullscreen({ onFullscreenRequest }, stage, host)
+    servePluginFullscreen({ applyFullscreen: vi.fn(async () => {}) }, stage, host)
+    expect(onFullscreenRequest).not.toHaveBeenCalled()
+  })
+
+  test('a refusal from the browser or the package does not take the page down', async () => {
+    const { host, stage } = page()
+    stage.requestFullscreen.mockImplementation(async () => { throw new TypeError('no activation') })
+    const failing = {
+      onFullscreenRequest: async (listener: () => void) => { listener() },
+      applyFullscreen: async () => { throw new Error('gone') },
+    }
+    expect(() => servePluginFullscreen(failing, stage, host)).not.toThrow()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(stage.requestFullscreen).toHaveBeenCalledTimes(1)
+    servePluginFullscreen({ onFullscreenRequest: async () => { throw new Error('gone') }, applyFullscreen: async () => {} }, stage, host)
+    await new Promise(resolve => setTimeout(resolve, 0))
   })
 })
