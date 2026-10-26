@@ -1,5 +1,7 @@
 import type { MediaChapter } from '@banou/media-player'
 
+import { classifyChapters } from '@banou/media-player/chapters'
+
 // What follows an ending, in aniskip's marks of 52 episodes (a middle one and the last one of 26 shows,
 // 2026-10-26): 0 to 6 s (nothing, an end card), 10 to 18 s (mostly a preview), 26 to 91 s (a scene),
 // then 179 and 211 s (story, an ending played mid-episode). Both bounds below sit in those gaps.
@@ -11,17 +13,18 @@ const NOTHING_S = 10
 /** More than this after an ending is the episode going on, so that ending is not its end. */
 const STORY_S = 120
 
-// the titles skip-events.ts gives Crunchyroll's credits and preview. A file's own chapters will need
-// media-player's classifier, not exported yet, which leaves a mixed ending (the song over the story) out too.
-const isEnding = (chapter: MediaChapter) => chapter.title === 'Ending'
+// the title skip-events.ts gives Crunchyroll's preview
 const isPreview = (chapter: MediaChapter) => chapter.title === 'Preview'
 
 const known = (duration: number | undefined): duration is number =>
   duration !== undefined && Number.isFinite(duration) && duration > 0
 
-/** The last ending, and how long what follows it runs. */
+/**
+ * The last ending, as the player's own Skip Ending reads one (Crunchyroll's credits, a file's ED or Credits, never
+ * a mixed ending, the song over the story), and how long what follows it runs.
+ */
 const lastEnding = (chapters: MediaChapter[], duration: number) => {
-  const ending = chapters.findLast(isEnding)
+  const ending = chapters[classifyChapters(chapters).lastIndexOf('ending')]
   // a preview is something after the ending, so it counts here
   return ending && { ending, after: duration - ending.end }
 }
