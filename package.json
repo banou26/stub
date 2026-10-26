@@ -87,6 +87,7 @@
     "osra": "^0.6.4",
     "preact": "^11.0.0-beta.0",
     "react-hook-form": "^7.62.0",
+    "react-intl": "^12.1.5",
     "react-window": "^2.0.1",
     "sacha": "^0.2.4",
     "sanitize-html": "^2.18.1",
