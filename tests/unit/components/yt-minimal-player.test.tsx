@@ -110,6 +110,7 @@ test('shows the trailer once the embed answers the handshake with onReady', () =
   expect(listening(embed())).toBe(1)
   expect(frame().style.display).toBe('')
   expect(commands(embed())).toEqual(['mute', 'playVideo'])
+  expect(frame().getAttribute('title')).toBe('Trailer')
 })
 
 // Every parent's onError is keyed on live data, so a new one arrives after the embed is ready.

@@ -73,3 +73,19 @@ describe('attaching the Netflix frame', () => {
     expect(host.textContent).not.toContain(NEEDS_EXTENSION)
   })
 })
+
+describe('its words over the frame', () => {
+  test('Loading Netflix player... while the frame attaches', () => {
+    lib.extension = true
+    lib.attachFrame.mockReturnValue(new Promise(() => {}))
+    expect(render().querySelector('.overlay')?.textContent).toBe('Loading Netflix player...')
+  })
+
+  test('signed out, a line asking to sign in to Netflix and the button opening its login page', async () => {
+    lib.extension = true
+    lib.attachFrame.mockResolvedValue({ goto: async () => {}, addStyleTag: async () => {}, locator: (selector: string) => ({ exists: async () => selector.includes('/login') }) })
+    const host = render()
+    await vi.waitFor(() => expect(host.querySelector('.overlay button')?.textContent).toBe('Open Netflix Login Page'))
+    expect(host.querySelector('.overlay')?.textContent).toBe('Sign in to Netflix to watch.Open Netflix Login Page')
+  })
+})

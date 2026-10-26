@@ -133,6 +133,18 @@ test('a source\'s card on the watch page shows its picture, its quality and its 
   expect(hulu.querySelector('img, .qualities, .languages')).toBeNull()
 })
 
+test('a card names each language in English by its language subtag, a code Intl cannot read as the source wrote it, and how many past three', () => {
+  const tags = ['ja-JP', 'en-US', 'fr-FR', 'de', 'it', 'ru-RU', 'ko', 'zh-Hans', 'zh-TW', 'pt-BR', 'es-419', 'tr', 'pl', 'ar', 'he', 'iw', 'xx', 'x!-1', 'JA']
+  const names = ['Japanese', 'English', 'French', 'German', 'Italian', 'Russian', 'Korean', 'Chinese', 'Portuguese', 'Spanish', 'Turkish', 'Polish', 'Arabic', 'Hebrew', 'xx', 'x!-1']
+  const { host } = selector({ sources: [{ ...sources[0]!, audioLanguages: tags, subtitleLanguages: ['ja', 'en', 'fr'] }] })
+  const [audio, subtitles] = card(host, 'Netflix').querySelectorAll('.languages')
+  expect(audio?.getAttribute('title')).toBe(`Audio: ${names.join(', ')}`)
+  expect(audio?.querySelector('.names')?.textContent).toBe(`Japanese, English, French, ${names.slice(3).join(', ')}`)
+  expect(audio?.querySelector('.rest')?.textContent).toBe(`, ${names.slice(3).join(', ')}`)
+  expect(audio?.querySelector('.more')?.textContent).toBe('+13')
+  expect([subtitles?.textContent, subtitles?.getAttribute('title')]).toEqual(['SubtitlesJapanese, English, French', 'Subtitles: Japanese, English, French'])
+})
+
 test('a card draws nothing for a fact its source did not give', () => {
   const { host } = selector({ sources: [{ ...sources[0]!, thumbnails: [{ url: 'https://img.example/episode.jpg' }] }] })
   const netflix = card(host, 'Netflix')

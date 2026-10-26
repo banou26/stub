@@ -33,6 +33,7 @@ test('a source whose picker fails to boot says so in one line, without FKN\'s me
   hosts.push(host)
   await settle()
   expect(host.querySelector('.fallback')?.textContent).toBe('This source could not open its picker.')
+  expect([host.querySelector('[role="dialog"]')?.getAttribute('aria-label'), host.querySelector('.close')?.textContent]).toEqual(['Choose a source from Nyaa', 'Close'])
 })
 
 test('a source whose player fails to boot says so in one line, without FKN\'s message', async () => {

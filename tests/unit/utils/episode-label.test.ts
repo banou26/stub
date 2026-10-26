@@ -9,3 +9,8 @@ test('an episode is named by its number and title, whichever of the two it has',
   expect(episodeLabel(5, undefined)).toBe('Episode 5')
   expect(episodeLabel(undefined, '')).toBeUndefined()
 })
+
+// One Piece's 1100 episodes and on, as the sources count them
+test('a number past a thousand reads as the sources write it, with no grouping', () => {
+  expect([episodeLabel(1180, 'Egghead'), episodeLabel(1180, undefined)]).toEqual(['E1180 - Egghead', 'Episode 1180'])
+})

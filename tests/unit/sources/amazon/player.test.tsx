@@ -335,6 +335,12 @@ describe('playing an episode', () => {
     expect(unplayable).not.toHaveBeenCalled()
   })
 
+  test('an attach refused with no message reads Failed to load player, with Retry and the link to Prime Video', async () => {
+    lib.attachFrame.mockRejectedValueOnce(new Error('')).mockReturnValue(new Promise(() => {}))
+    const host = render()
+    await vi.waitFor(() => expect(host.querySelector('.overlay')?.textContent).toBe('Failed to load playerRetryOpen on Prime Video'), { timeout: 5_000 })
+  })
+
   test('a seek is a currentTime write on Amazon\'s video, with no page code run for it', async () => {
     const page = amazon(SIGNED_IN_PAGE)
     await playing(page)

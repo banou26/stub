@@ -151,7 +151,7 @@ describe('while the episode loads', () => {
     await vi.waitFor(() => expect(frame.goto).toHaveBeenCalled(), { timeout: 5_000 })
 
     const overlay = host.querySelector('.overlay')!
-    expect(overlay.querySelector('.loading-spinner[role="status"]')).toBeTruthy()
+    expect(overlay.querySelector('.loading-spinner[role="status"]')?.getAttribute('aria-label')).toBe('Loading')
     expect(overlay.textContent).toBe('')
     expect(host.textContent).not.toContain('Loading Crunchyroll player')
     // Crunchyroll keeps loading in the frame, under a cover that is opaque and above it
