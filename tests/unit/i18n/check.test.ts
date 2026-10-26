@@ -108,14 +108,19 @@ describe('the plural forms each language needs', () => {
   })
 })
 
-// `#` groups a count where `{count}` writes it as given, and formatjs verify takes the two alike: a German # writes One
-// Piece's 1100 episodes as 1.100
-test('a translation writes # only where its English does', () => {
+// `#` and `{count, number}` group a count where `{count}` writes it as given, and formatjs verify takes them alike: a
+// German # writes One Piece's 1100 episodes as 1.100
+test('a translation writes # or {count, number} only where its English does', () => {
   const GIVEN = '{count, plural, one {{count} Episode} other {{count} Episodes}}'
   expect(said({ english: [GIVEN], catalogues: { de: { [GIVEN]: '{count, plural, one {{count} Folge} other {{count} Folgen}}' } } })).toEqual([])
   expect(said({ english: [GIVEN], catalogues: { de: { [GIVEN]: '{count, plural, one {eine Folge} other {# Folgen}}' } } })).toEqual([
     `src/locales/de.json "${GIVEN}" writes #, which groups a count, where its English does not`,
   ])
+  expect(said({ english: [GIVEN], catalogues: { de: { [GIVEN]: '{count, plural, one {{count, number} Folge} other {{count, number} Folgen}}' } } })).toEqual([
+    `src/locales/de.json "${GIVEN}" writes {count, number}, which groups a count, where its English does not`,
+  ])
+  const VIEWS = '{count, number} views'
+  expect(said({ english: [VIEWS], catalogues: { de: { [VIEWS]: '{count, number} Aufrufe' } } })).toEqual([])
 })
 
 describe('each message as the linter holds it, since no gate runs the linter', () => {

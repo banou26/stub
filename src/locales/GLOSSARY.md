@@ -19,7 +19,8 @@ same change, using the terms below, and runs `npm run i18n:check`.
   everything under it. The button is a noun phrase in most languages for that reason.
 - **Plurals** carry every form the language needs (the check names a missing one): Russian and Polish
   `one, few, many, other`; Japanese, Korean and Chinese `other` alone. A count is written as the English writes it:
-  `{count}` as given, never `#`, which groups it (`1.100 Folgen`); the check names a `#` the English lacks.
+  `{count}` as given, never `#` or `{count, number}`, which group it (`1.100 Folgen`); the check names either form
+  where the English lacks it.
 - **A date range** joins a year or a month alone as often as a day (`1998`, `avr. 1998`, `3 avr. 1998`), so its words
   fit all three: French and Italian write `{start} - {end}`, since du/au and dal/al fit a day alone.
 

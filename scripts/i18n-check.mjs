@@ -2,11 +2,11 @@
 // `npm run i18n:check`: stub's messages (src/i18n) through FormatJS's own tools, plus what they leave unchecked. It
 // lints src with MESSAGE_RULES, as vite.config.ts does, since no gate runs the linter, and runs `formatjs verify` on
 // each catalogue against the English `formatjs extract` reads from the code. It adds the plural forms each language
-// needs, `#` only where the English writes it, no dash, each catalogue sorted by id, and text outside a message,
-// which only the files of scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue, drops its keys no code
-// uses, printed beside the keys it lacks so a changed English string's old translations are edited rather than written
-// again, and drops listed files left with nothing to wrap. `-- --unwrapped` names every string the listed files hold,
-// by file and line.
+// needs, `#` and `{count, number}` only where the English writes them, no dash, each catalogue sorted by id, and text
+// outside a message, which only the files of scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue,
+// drops its keys no code uses, printed beside the keys it lacks so a changed English string's old translations are
+// edited rather than written again, and drops listed files left with nothing to wrap. `-- --unwrapped` names every
+// string the listed files hold, by file and line.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -108,11 +108,13 @@ const missingForms = (elements, language) => elements.flatMap(element => {
   return [...picked].sort().filter(form => !Object.hasOwn(element.options, form)).map(form => `${element.value}: ${form}`).concat(nested)
 })
 
-// whether `elements` write a count as `#`, which groups it (`1.100` in German) where `{count}` writes it as given;
-// formatjs verify takes the two alike
-const writesPound = elements => elements.some(element => element.type === TYPE.pound
-  || Object.values(element.options ?? {}).some(option => writesPound(option.value))
-  || writesPound(element.children ?? []))
+// the forms `elements` write a count in that group it (`1.100` in German), `#` and `{count, number}`, where `{count}`
+// writes it as given; formatjs verify takes the three alike
+const grouping = elements => elements.flatMap(element => [
+  ...element.type === TYPE.pound ? ['#'] : element.type === TYPE.number ? [`{${element.value}, number}`] : [],
+  ...Object.values(element.options ?? {}).flatMap(option => grouping(option.value)),
+  ...grouping(element.children ?? []),
+])
 
 const parsed = text => {
   try { return parse(text) } catch { return undefined }
@@ -127,7 +129,12 @@ const messageProblems = (file, id, text, language, english) => {
   if (!elements) return problems
   for (const form of missingForms(elements, language)) problems.push({ file, message: `${shown(id)} lacks the plural branch ${form}` })
   const source = english === undefined ? undefined : parsed(english)
-  if (source && writesPound(elements) && !writesPound(source)) problems.push({ file, message: `${shown(id)} writes #, which groups a count, where its English does not` })
+  if (source) {
+    const written = new Set(grouping(source))
+    for (const form of new Set(grouping(elements))) {
+      if (!written.has(form)) problems.push({ file, message: `${shown(id)} writes ${form}, which groups a count, where its English does not` })
+    }
+  }
   return problems
 }
 
