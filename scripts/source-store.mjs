@@ -107,9 +107,10 @@ export const anidbShows = xml => new Map([...xml.matchAll(/<anime aid="(\d+)">[\
  * Keeps what one run asked. `anidb` is AniDB's answer when it was asked (`{ outcome, fetchedAt }`, plus `xml`, the
  * gzip `file` and `lastModified` on a 200, which drops the lines of shows the file no longer lists); a 304 moves its
  * shows' `fetchedAt` and `writer` only. `kitsu` is Kitsu's answers as `{ id, fetchedAt, body }`, and `pulls` each
- * other source's, by source, as `{ answers, state }`, `state` joining its manifest entry. New files go up, then the
- * index, then manifest.json, then whatever only the previous manifest named is removed. Writes nothing when the
- * manifest would not change. Answers what it did, for the log.
+ * other source's, by source, as `{ answers, state, rows }`: `state` joins its manifest entry, and `rows`, when given,
+ * is its file's rows as `rowsOf` read them, so keeping it reads no file. New files go up, then the index, then
+ * manifest.json, then whatever only the previous manifest named is removed. Writes nothing when the manifest would
+ * not change. Answers what it did, for the log.
  */
 export const keepAnswers = async (client, stored, { anidb, kitsu = [], pulls = {}, writer }) => {
   const index = new Map(stored.index)
@@ -130,8 +131,8 @@ export const keepAnswers = async (client, stored, { anidb, kitsu = [], pulls = {
     for (const [key, line] of index) if (line.source === 'anidb-titles') index.set(key, { ...line, fetchedAt: anidb.fetchedAt, writer })
   }
 
-  const keep = async (source, answers, state) => {
-    const bodies = await rowsOf(client, job[source])
+  const keep = async (source, answers, state, rows) => {
+    const bodies = rows ?? await rowsOf(client, job[source])
     for (const { id, fetchedAt, body } of answers) {
       const hash = sha256(body)
       bodies.set(id, { source, id, form: 'upstream', type: TYPES[source], sha256: hash, body })
@@ -142,7 +143,7 @@ export const keepAnswers = async (client, stored, { anidb, kitsu = [], pulls = {
     files.push([job[source].name, text])
   }
   if (kitsu.length) await keep('kitsu', kitsu)
-  for (const [source, { answers, state }] of Object.entries(pulls)) await keep(source, answers, state)
+  for (const [source, { answers, state, rows }] of Object.entries(pulls)) await keep(source, answers, state, rows)
 
   const indexText = jsonl(ordered([...index.values()]))
   const manifest = { index: { name: `index-${short(indexText)}.jsonl.zst`, sha256: sha256(indexText), rows: index.size }, job }

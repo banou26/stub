@@ -491,35 +491,40 @@ const publish = async (gh, release, files, previousManifest) => {
 export const anidbSince = dates => (dates.every(Boolean) ? dates.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a)) : undefined)
 
 /**
- * Asks each source only the store keeps when its change signal says so, for `keepAnswers`'s `pulls`. One that throws
- * is skipped with a warning, and leaves the others, the release and the store's write as they are.
+ * Asks each source only the store keeps when its change signal says so, and keeps what came in one write. A source's
+ * stored rows are read within its own asking, so one that fails to be asked or read is skipped with a warning and
+ * leaves the others as they are. Answers what the write did, or undefined when nothing came.
  */
-const pullSources = async (store, stored, options) => {
+const keepSources = async (store, { writer, ...options }) => {
+  const stored = await readStore(store)
   const pulls = {}
   for (const [source, ask] of Object.entries({ tvmaze: askTvmaze, ann: askAnn, animethemes: askAnimethemes })) {
     const kept = stored.manifest.job[source]
+    let reading
+    const rows = () => (reading ??= rowsOf(store, kept))
     try {
-      const pulled = await ask({ ...options, kept, rows: () => rowsOf(store, kept) })
+      const pulled = await ask({ ...options, kept, rows })
       if (!pulled) {
         log(`${source}: not due`)
         continue
       }
       log(`${source}: ${pulled.answers.length} answers in ${pulled.requests} requests${pulled.stopped ? `, stopped on ${pulled.stopped}, the next run goes on` : ''}`)
-      if (pulled.answers.length || pulled.state) pulls[source] = pulled
+      if (pulled.answers.length || pulled.state) pulls[source] = { ...pulled, rows: await rows() }
     } catch (error) {
       warn(`${source} is skipped this run: ${errorText(error)}`)
     }
   }
-  return pulls
+  return Object.keys(pulls).length ? keepAnswers(store, stored, { pulls, writer }) : undefined
 }
 
 /**
  * One run: read the published history (a build from scratch only when the release answers 404), take the newest
  * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed. Then, when
- * `store` is given, ask the sources only the store keeps, and keep everything asked in the source store, as
- * `writer`'s run: a store that cannot be read or written is skipped with a warning, and never fails the run. AniDB's
- * file comes back to such a store with the next 200, but that run's Kitsu answers do not, since Kitsu is asked again
- * only for open seasons and unfinished shows; a warning counts them.
+ * `store` is given, keep what AniDB and Kitsu answered in the source store, as `writer`'s run, and only then ask the
+ * sources only the store keeps, which can take 20 minutes, and keep theirs in a second write. A store that cannot be
+ * read or written is skipped with a warning, and never fails the run. AniDB's file comes back to such a store with
+ * the next 200, but that run's Kitsu answers do not, since Kitsu is asked again only for open seasons and unfinished
+ * shows; a warning counts them.
  */
 export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
   const gh = github(token, get)
@@ -580,11 +585,14 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   }
 
   if (!store) return
-  const pulls = stored ? await pullSources(store, stored, { get, sleep, backoff, now }) : {}
-  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, pulls, writer })
+  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
     .catch(error => warn(`the source store was not written: ${errorText(error)}`))
   if (outcome) log(`the source store: ${outcome}`)
   else if (kitsuAnswers.length) warn(`the source store lacks the ${kitsuAnswers.length} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`)
+  if (!stored) return
+  const kept = await keepSources(store, { get, sleep, backoff, now, writer })
+    .catch(error => warn(`TVmaze, ANN and AnimeThemes were not kept this run: ${errorText(error)}`))
+  if (kept) log(`the source store: ${kept}`)
 }
 
 /** `runHistory`'s options from the workflow's environment: the store only when every secret of `SECRETS` is set. */

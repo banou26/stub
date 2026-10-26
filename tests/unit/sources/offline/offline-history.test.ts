@@ -10,13 +10,15 @@ import { expect, test, vi } from 'vite-plus/test'
 
 import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory, runOptions } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
-import { SECRETS, readStore } from '../../../../scripts/source-store.mjs'
+import { SECRETS, readStore, rowsOf } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
-import { annItem, fakeSources } from './fake-sources'
+import { RECORDED_SHOWS, annItem, fakeSources } from './fake-sources'
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 const HOUR = 3_600_000
+const DAY = 24 * HOUR
 const NOW = Date.parse('2026-10-25T05:41:00Z')
+const at = (ms: number) => new Date(ms).toISOString()
 const ANIDB = 'https://anidb.net/api/anime-titles.xml.gz'
 
 // Mutations: decode twice; keep other languages; read only one attribute order.
@@ -407,14 +409,23 @@ const wholeReport = (sources: ReturnType<typeof fakeSources>) => {
 }
 const bySource = (index: Map<string, { source: string }>) => [...index.values()].reduce<Record<string, number>>((counts, line) => ({ ...counts, [line.source]: (counts[line.source] ?? 0) + 1 }), {})
 
-// Mutations: publish nothing when a store is given; ask the store's own sources with no store.
+// Mutations: publish nothing when a store is given; ask the store's own sources with no store; keep AniDB's file and
+// Kitsu's answers only after the three are asked.
 test('with the source store, the release gets what it gets without one, and the store dates every show asked', async () => {
   const anidb = () => new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Mon, 19 Oct 2026 04:00:00 GMT' } })
   const plain = world({ release: false, anidb, sources: wholeReport(fakeSources()) })
   const without = await logged(() => run(plain))
-  const kept = world({ release: false, anidb, sources: wholeReport(fakeSources()) })
   const bucket = fakeBucket()
+  const sources = wholeReport(fakeSources())
+  // what the store held when the first of the three was asked, which takes up to 20 minutes
+  let heldFirst: string[] | undefined
+  const watched = { ...sources, get: async (url: string, init?: RequestInit) => {
+    heldFirst ??= Object.keys(JSON.parse(bucket.objects.get('manifest.json')?.toString() ?? '{"job":{}}').job)
+    return sources.get(url, init)
+  } }
+  const kept = world({ release: false, anidb, sources: watched })
   const lines = await logged(() => keeping(kept, bucket))
+  expect(heldFirst).toEqual(['anidb-titles', 'kitsu'])
   // control: both runs asked Kitsu, so each had answers a warning could have counted
   expect([plain.kitsuIds().length, kept.kitsuIds().length]).toEqual([6, 6])
   expect([...without, ...lines].filter(line => line.startsWith('::warning::'))).toEqual([])
@@ -465,6 +476,51 @@ test('a source a 429 stops after its waits is not kept that run, the others are,
   expect((await readStore(bucket.client)).manifest.job.ann).toMatchObject({ rows: 10_000, askedAt: '2026-10-25T06:41:00.000Z' })
 })
 
+// Mutations: compare TVmaze's updates with no stored shows, or with another source's rows; read the stored shows twice;
+// keep the shows asked without the ones the store held.
+test('TVmaze\'s updates are compared with the shows the store holds, read once, and kept beside them', async () => {
+  const bucket = fakeBucket()
+  const sources = wholeReport(fakeSources())
+  // in the week's updates on both days, unchanged
+  sources.shows.set(1, { ...RECORDED_SHOWS[0]!, updated: Math.floor((NOW - HOUR) / 1000) })
+  const first = world({ assets: await published(25), sources })
+  await keeping(first, bucket)
+  const held = (await readStore(bucket.client)).manifest.job.tvmaze
+  expect(held).toMatchObject({ rows: 2, nextPage: null })
+  sources.asked.length = 0
+  bucket.log.length = 0
+
+  sources.shows.set(2, { ...RECORDED_SHOWS[1]!, updated: Math.floor((NOW + 12 * HOUR) / 1000) })
+  await keeping(world({ assets: assetsOf(first), sources }), bucket, '2026-43', NOW + DAY)
+  expect(sources.asked.filter(line => line.startsWith('tvmaze '))).toEqual(['tvmaze /updates/shows?since=week', 'tvmaze /shows/2'])
+  expect(bucket.log.filter(line => line === `GET ${held.name}`)).toHaveLength(1)
+  const { manifest } = await readStore(bucket.client)
+  const shows = await rowsOf(bucket.client, manifest.job.tvmaze)
+  expect([[...shows.keys()], JSON.parse(shows.get('2')!.body).updated, manifest.job.tvmaze.askedAt]).toEqual([['1', '2'], Math.floor((NOW + 12 * HOUR) / 1000), at(NOW + DAY)])
+})
+
+// Mutations: keep the three in the write that keeps AniDB and Kitsu; read a pulled source's file in the write that
+// keeps the three.
+test('a source whose stored file cannot be read is skipped with a warning, and Kitsu\'s answers and the others are kept', async () => {
+  const bucket = fakeBucket()
+  const sources = wholeReport(fakeSources())
+  const first = world({ assets: await published(25), sources })
+  await keeping(first, bucket)
+  const before = await readStore(bucket.client)
+  bucket.objects.delete(before.manifest.job.ann.name)
+  // control: the store still reads, since only its manifest and index are read whole
+  expect((await readStore(bucket.client)).manifest).toEqual(before.manifest)
+
+  // a new dump, so Kitsu is asked again: the open seasons' three and One Piece, carried
+  const next = world({ assets: assetsOf(first), sources })
+  const lines = await logged(() => keeping(next, bucket, '2026-44', NOW + DAY))
+  expect(next.kitsuIds()).toEqual([4, 5, 6, 12])
+  expect(unsha(lines.filter(line => line.startsWith('::warning::')))).toEqual(['::warning::[offline-history] ann is skipped this run: the source store is unreadable: job/ann-<sha>.jsonl.zst is missing'])
+  const { manifest, index } = await readStore(bucket.client)
+  expect([...index.values()].filter(line => line.source === 'kitsu').map(line => line.id)).toEqual(['4', '5', '6', '12'])
+  expect([manifest.job.tvmaze.askedAt, manifest.job.ann]).toEqual([at(NOW + DAY), before.manifest.job.ann])
+})
+
 // Mutations: send the newer copy's date; send a date when a copy has none.
 test('If-Modified-Since is the older copy\'s date, and none when either copy has none', () => {
   expect(anidbSince(['Sat, 24 Oct 2026 04:00:00 GMT', 'Mon, 19 Oct 2026 04:00:00 GMT'])).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
@@ -495,7 +551,11 @@ test('a store that cannot be written leaves the release published and the run gr
   const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
   const bucket = fakeBucket({ fail: method => method === 'PUT' })
   const lines = await logged(() => keeping(w, bucket))
-  expect(unsha(lines.filter(line => line.startsWith('::warning::')))).toEqual(['::warning::[offline-history] the source store was not written: PUT job/anidb-titles-<sha>.xml.gz answered HTTP 500', lacking(6)])
+  expect(unsha(lines.filter(line => line.startsWith('::warning::')))).toEqual([
+    '::warning::[offline-history] the source store was not written: PUT job/anidb-titles-<sha>.xml.gz answered HTTP 500',
+    lacking(6),
+    '::warning::[offline-history] TVmaze, ANN and AnimeThemes were not kept this run: PUT job/tvmaze-<sha>.jsonl.zst answered HTTP 500',
+  ])
   expect(w.names()).toContain('manifest.json')
   expect(historyOf(w).anidb.titles.size).toBe(15_000)
   // control: the store was written to, and refused it
@@ -504,7 +564,7 @@ test('a store that cannot be written leaves the release published and the run gr
 })
 
 // Mutations: let a store read failure fail the run; read a store that answered 500 as an empty one; say nothing of
-// the Kitsu answers it lost.
+// the Kitsu answers it lost; ask the three when the store could not be read.
 test('a store that cannot be read is skipped for the run: AniDB gets the release\'s date and the store nothing', async () => {
   const sent: (string | undefined)[] = []
   const anidb = (init: RequestInit) => {
@@ -519,6 +579,7 @@ test('a store that cannot be read is skipped for the run: AniDB gets the release
   // a new dump, so Kitsu was asked again: the open seasons' three and One Piece, carried
   expect(w.kitsuIds()).toEqual([4, 5, 6, 12])
   expect(lines.filter(line => line.startsWith('::warning::'))).toEqual(['::warning::[offline-history] the source store is skipped this run: GET manifest.json answered HTTP 500', lacking(4)])
+  expect(w.sources.asked).toEqual([])
 })
 
 // Mutations: write manifest.json again when nothing was asked; ask TVmaze or ANN again the same UTC day.
