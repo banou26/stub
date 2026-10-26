@@ -3,11 +3,15 @@
 // data and dates only.
 //
 // manifest.json names each file with the sha256 of its decompressed text and its row count:
-//   job/anidb-titles-<sha>.xml.gz  AniDB's titles file as fetched, every language
-//   job/kitsu-<sha>.jsonl.zst      the newest Kitsu resource of each id asked, with its mappings, one line each
-//   index-<sha>.jsonl.zst          one line per (source, id, region, class): when the source last answered, when
-//                                  its answer last changed, the answer's sha256, and the run that last asked
-// Names are content addressed and manifest.json is written last, so a reader sees the old set or the new one.
+//   job/anidb-titles-<sha>.xml.gz   AniDB's titles file as fetched, every language
+//   job/kitsu-<sha>.jsonl.zst       the newest Kitsu resource of each id asked, with its mappings, one line each
+//   job/tvmaze-<sha>.jsonl.zst      the newest TVmaze show of each id, as its show index serves it
+//   job/ann-<sha>.jsonl.zst         the newest `<item>` of each id in ANN's title report
+//   job/animethemes-<sha>.jsonl.zst the newest AnimeThemes anime of each id, with its themes and external ids
+//   index-<sha>.jsonl.zst           one line per (source, id, region, class): when the source last answered, when
+//                                   its answer last changed, the answer's sha256, and the run that last asked
+// The last three entries also carry what their next ask starts from (`nextPage`, `askedAt`). Names are content
+// addressed and manifest.json is written last, so a reader sees the old set or the new one.
 
 import { AwsClient } from 'aws4fetch'
 import { constants, zstdCompressSync, zstdDecompressSync } from 'node:zlib'
@@ -19,6 +23,7 @@ export const MANIFEST = 'manifest.json'
 /** The workflow secrets the store is reached with. With any of them unset, the job skips the store. */
 export const SECRETS = ['STUB_SOURCES_ACCOUNT_ID', 'STUB_SOURCES_ACCESS_KEY_ID', 'STUB_SOURCES_SECRET_ACCESS_KEY']
 const TIMEOUT_MS = 120_000
+const TYPES = { kitsu: 'application/vnd.api+json', tvmaze: 'application/json', ann: 'text/xml', animethemes: 'application/json' }
 
 const short = text => sha256(text).slice(0, 16)
 const compress = text => zstdCompressSync(Buffer.from(text), { params: { [constants.ZSTD_c_compressionLevel]: 19 } })
@@ -62,6 +67,9 @@ const readText = async (client, file) => {
   return text
 }
 
+/** The rows of a job file by id, or none when `file` (its manifest entry) is undefined. */
+export const rowsOf = async (client, file) => new Map(file ? parsed(await readText(client, file)).map(row => [row.id, row]) : [])
+
 /**
  * The store as the last run left it: manifest.json's `text` and fields, and the index's lines by key. An empty
  * store when the bucket holds no manifest yet; throws when a file it names is missing or damaged.
@@ -98,11 +106,12 @@ export const anidbShows = xml => new Map([...xml.matchAll(/<anime aid="(\d+)">[\
 /**
  * Keeps what one run asked. `anidb` is AniDB's answer when it was asked (`{ outcome, fetchedAt }`, plus `xml`, the
  * gzip `file` and `lastModified` on a 200, which drops the lines of shows the file no longer lists); a 304 moves its
- * shows' `fetchedAt` and `writer` only. `kitsu` is Kitsu's answers as `{ id, fetchedAt, body }`. New files go up,
- * then the index, then manifest.json, then whatever only the previous manifest named is removed. Writes nothing when
- * the manifest would not change. Answers what it did, for the log.
+ * shows' `fetchedAt` and `writer` only. `kitsu` is Kitsu's answers as `{ id, fetchedAt, body }`, and `pulls` each
+ * other source's, by source, as `{ answers, state }`, `state` joining its manifest entry. New files go up, then the
+ * index, then manifest.json, then whatever only the previous manifest named is removed. Writes nothing when the
+ * manifest would not change. Answers what it did, for the log.
  */
-export const keepAnswers = async (client, stored, { anidb, kitsu = [], writer }) => {
+export const keepAnswers = async (client, stored, { anidb, kitsu = [], pulls = {}, writer }) => {
   const index = new Map(stored.index)
   const job = { ...stored.manifest.job }
   const files = []
@@ -121,17 +130,19 @@ export const keepAnswers = async (client, stored, { anidb, kitsu = [], writer })
     for (const [key, line] of index) if (line.source === 'anidb-titles') index.set(key, { ...line, fetchedAt: anidb.fetchedAt, writer })
   }
 
-  if (kitsu.length) {
-    const bodies = new Map(job.kitsu ? parsed(await readText(client, job.kitsu)).map(row => [row.id, row]) : [])
-    for (const { id, fetchedAt, body } of kitsu) {
+  const keep = async (source, answers, state) => {
+    const bodies = await rowsOf(client, job[source])
+    for (const { id, fetchedAt, body } of answers) {
       const hash = sha256(body)
-      bodies.set(id, { source: 'kitsu', id, form: 'upstream', type: 'application/vnd.api+json', sha256: hash, body })
-      date({ source: 'kitsu', id, sha256: hash, fetchedAt, writer })
+      bodies.set(id, { source, id, form: 'upstream', type: TYPES[source], sha256: hash, body })
+      date({ source, id, sha256: hash, fetchedAt, writer })
     }
     const text = jsonl(ordered([...bodies.values()]))
-    job.kitsu = { name: `job/kitsu-${short(text)}.jsonl.zst`, sha256: sha256(text), rows: bodies.size }
-    files.push([job.kitsu.name, text])
+    job[source] = { ...job[source], name: `job/${source}-${short(text)}.jsonl.zst`, sha256: sha256(text), rows: bodies.size, ...state }
+    files.push([job[source].name, text])
   }
+  if (kitsu.length) await keep('kitsu', kitsu)
+  for (const [source, { answers, state }] of Object.entries(pulls)) await keep(source, answers, state)
 
   const indexText = jsonl(ordered([...index.values()]))
   const manifest = { index: { name: `index-${short(indexText)}.jsonl.zst`, sha256: sha256(indexText), rows: index.size }, job }

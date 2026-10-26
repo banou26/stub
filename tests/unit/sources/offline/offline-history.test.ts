@@ -1,5 +1,6 @@
 // The Offline history workflow's job: AniDB at most once a day, Kitsu only for new shows and open seasons, and a
-// publish a reader can never catch half done. Driven against a fake GitHub, AniDB and Kitsu; nothing is asked.
+// publish a reader can never catch half done. Driven against a fake GitHub, AniDB, Kitsu, TVmaze, ANN and AnimeThemes;
+// nothing is asked.
 import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,6 +12,7 @@ import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, gith
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
 import { SECRETS, readStore } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
+import { annItem, fakeSources } from './fake-sources'
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 const HOUR = 3_600_000
@@ -166,7 +168,10 @@ test('a season closes four seasons after the cut, and an unfinished show in it i
   expect(refresh.sort((a: number, b: number) => a - b)).toEqual([3, 4, 5, 6, 12])
 })
 
-/** A fake GitHub release API, AniDB and Kitsu, recording every request in order. */
+/**
+ * A fake GitHub release API, AniDB and Kitsu, recording every request to them in order, and the sources only the
+ * source store keeps, which record their own.
+ */
 const world = ({
   release = true,
   assets = {} as Record<string, string | Buffer>,
@@ -174,6 +179,7 @@ const world = ({
   failUploads = (_name: string): boolean => false,
   kitsuAnswers = [] as (number | 'rows')[],
   gone = [] as string[],
+  sources = fakeSources(),
 } = {}) => {
   const log: string[] = []
   const store = new Map<string, { id: number, name: string, bytes: Buffer, created_at: string }>()
@@ -199,6 +205,7 @@ const world = ({
       log.push('kitsu')
       return kitsu.get(url)
     }
+    if (/^https:\/\/(api\.tvmaze\.com|cdn\.animenewsnetwork\.com|graphql\.animethemes\.moe)\//.test(url)) return sources.get(url, init)
     if (url === 'https://api.github.com/repos/banou26/stub/releases/tags/offline-history') {
       return exists ? Response.json({ id: 1, assets: listed() }) : new Response('{"message":"Not Found"}', { status: 404 })
     }
@@ -228,7 +235,7 @@ const world = ({
   const named = (name: string) => [...store.values()].find(asset => asset.name === name)?.bytes
   const kitsuIds = () => kitsu.asked.flatMap(url => new URL(url).searchParams.get('filter[id]')!.split(',').map(Number)).sort((a, b) => a - b)
   const kitsuOrder = () => kitsu.asked.flatMap(url => new URL(url).searchParams.get('filter[id]')!.split(',').map(Number))
-  return { log, get, named, kitsuIds, kitsuOrder, names: () => [...store.values()].map(asset => asset.name).sort() }
+  return { log, get, named, kitsuIds, kitsuOrder, sources, names: () => [...store.values()].map(asset => asset.name).sort() }
 }
 
 const dumpOf = (tag: string, entries = ENTRIES) => async () => ({ tag, meta: { lastUpdate: '2026-10-19' }, entries, sha256: `sha-of-${tag}` })
@@ -394,12 +401,18 @@ const logged = async (work: () => Promise<unknown>) => {
 }
 const lacking = (count: number) => `::warning::[offline-history] the source store lacks the ${count} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`
 
-// Mutation: publish nothing when a store is given.
+const wholeReport = (sources: ReturnType<typeof fakeSources>) => {
+  for (let id = 1; sources.titles.length < 10_000; id++) sources.titles.push(annItem(id))
+  return sources
+}
+const bySource = (index: Map<string, { source: string }>) => [...index.values()].reduce<Record<string, number>>((counts, line) => ({ ...counts, [line.source]: (counts[line.source] ?? 0) + 1 }), {})
+
+// Mutations: publish nothing when a store is given; ask the store's own sources with no store.
 test('with the source store, the release gets what it gets without one, and the store dates every show asked', async () => {
   const anidb = () => new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Mon, 19 Oct 2026 04:00:00 GMT' } })
-  const plain = world({ release: false, anidb })
+  const plain = world({ release: false, anidb, sources: wholeReport(fakeSources()) })
   const without = await logged(() => run(plain))
-  const kept = world({ release: false, anidb })
+  const kept = world({ release: false, anidb, sources: wholeReport(fakeSources()) })
   const bucket = fakeBucket()
   const lines = await logged(() => keeping(kept, bucket))
   // control: both runs asked Kitsu, so each had answers a warning could have counted
@@ -408,11 +421,48 @@ test('with the source store, the release gets what it gets without one, and the 
   expect(unsha(kept.log)).toEqual(unsha(plain.log))
   expect(historyOf(kept).anidb.titles).toEqual(historyOf(plain).anidb.titles)
   expect([...historyOf(kept).kitsu.keys()]).toEqual([...historyOf(plain).kitsu.keys()])
+  // the three sources only the store keeps, asked for it alone, each with its first ask
+  expect(plain.sources.asked).toEqual([])
+  expect(kept.sources.asked).toEqual(['tvmaze /shows?page=0', 'tvmaze /shows?page=1', 'ann /encyclopedia/reports.xml?id=155&type=anime&nlist=all', 'animethemes / page 1'])
   const { manifest, index } = await readStore(bucket.client)
-  const dated = [...index.values()]
-  expect([dated.filter(line => line.source === 'anidb-titles').length, dated.filter(line => line.source === 'kitsu').length]).toEqual([15_000, 6])
-  expect(new Set(dated.map(line => JSON.stringify(line.writer)))).toEqual(new Set([JSON.stringify(WRITER)]))
+  expect(bySource(index)).toEqual({ 'anidb-titles': 15_000, kitsu: 6, tvmaze: 2, ann: 10_000, animethemes: 2 })
+  expect(new Set([...index.values()].map(line => JSON.stringify(line.writer)))).toEqual(new Set([JSON.stringify(WRITER)]))
   expect(manifest.job['anidb-titles'].lastModified).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
+})
+
+// Mutations: let a source that throws end the others; let it fail the run.
+test('a source that fails is skipped with a warning, and the others, the release and the store are kept', async () => {
+  const sources = wholeReport(fakeSources())
+  const broken = { ...sources, get: async (url: string, init?: RequestInit) => (url.startsWith('https://api.tvmaze.com/') ? new Response('<html>Bad gateway</html>') : sources.get(url, init)) }
+  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources: broken })
+  const bucket = fakeBucket()
+  const lines = await logged(() => keeping(w, bucket))
+  expect(lines.filter(line => line.startsWith('::warning::'))).toEqual([expect.stringMatching(/^::warning::\[offline-history\] tvmaze is skipped this run: .*JSON/)])
+  expect(historyOf(w).anidb.titles.size).toBe(15_000)
+  const { manifest, index } = await readStore(bucket.client)
+  expect(manifest.job.tvmaze).toBeUndefined()
+  expect(bySource(index)).toEqual({ 'anidb-titles': 15_000, kitsu: 6, ann: 10_000, animethemes: 2 })
+})
+
+// Mutations: fail the run when a source is stopped; stop the other sources with it; keep the stopped source's entry.
+test('a source a 429 stops after its waits is not kept that run, the others are, and the next run asks it again', async () => {
+  const sources = wholeReport(fakeSources())
+  sources.refusing(line => (line.startsWith('ann ') ? 429 : undefined))
+  const bucket = fakeBucket()
+  const waits: number[] = []
+  const first = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources })
+  await runHistory({ token: 't', get: first.get, dump: dumpOf('2026-43'), now: () => NOW, sleep: async (ms: number) => { waits.push(ms) }, pauseMs: 0, backoff: [30_000, 60_000], store: bucket.client, writer: WRITER })
+  expect(sources.asked.filter(line => line.startsWith('ann '))).toHaveLength(3)
+  expect(waits.filter(ms => ms >= 30_000)).toEqual([30_000, 60_000])
+  expect(first.names()).toContain('manifest.json')
+  const stopped = await readStore(bucket.client)
+  expect(Object.keys(stopped.manifest.job).sort()).toEqual(['anidb-titles', 'animethemes', 'kitsu', 'tvmaze'])
+
+  sources.refusing(() => undefined)
+  sources.asked.length = 0
+  await keeping(world({ assets: assetsOf(first), sources }), bucket, '2026-43', NOW + HOUR)
+  expect(sources.asked).toEqual(['ann /encyclopedia/reports.xml?id=155&type=anime&nlist=all'])
+  expect((await readStore(bucket.client)).manifest.job.ann).toMatchObject({ rows: 10_000, askedAt: '2026-10-25T06:41:00.000Z' })
 })
 
 // Mutations: send the newer copy's date; send a date when a copy has none.
@@ -471,16 +521,20 @@ test('a store that cannot be read is skipped for the run: AniDB gets the release
   expect(lines.filter(line => line.startsWith('::warning::'))).toEqual(['::warning::[offline-history] the source store is skipped this run: GET manifest.json answered HTTP 500', lacking(4)])
 })
 
-// Mutation: write manifest.json again when nothing was asked.
+// Mutations: write manifest.json again when nothing was asked; ask TVmaze or ANN again the same UTC day.
 test('a rerun the same day asks nothing and writes nothing to the store', async () => {
   const bucket = fakeBucket()
-  const first = world({ assets: await published(25), anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  const sources = wholeReport(fakeSources())
+  const first = world({ assets: await published(25), anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources })
   await keeping(first, bucket)
+  // control: the first run asked each of the three
+  expect(new Set(sources.asked.map(line => line.split(' ')[0]))).toEqual(new Set(['tvmaze', 'ann', 'animethemes']))
   const objects = new Map(bucket.objects)
   bucket.log.length = 0
-  const rerun = world({ assets: assetsOf(first) })
+  sources.asked.length = 0
+  const rerun = world({ assets: assetsOf(first), sources })
   await keeping(rerun, bucket, '2026-43', NOW + HOUR)
-  expect(rerun.log).toEqual([])
+  expect([rerun.log, sources.asked]).toEqual([[], []])
   expect(bucket.log.filter(line => !line.startsWith('GET '))).toEqual([])
   expect(bucket.objects).toEqual(objects)
 })
@@ -535,11 +589,11 @@ const files = (dir: string): string[] =>
     return statSync(path).isDirectory() ? (name === 'generated' ? [] : files(path)) : [path]
   })
 
-// Mutation: name AniDB's address in another script.
-test('only the job names AniDB\'s titles address', () => {
-  const naming = [...files(join(ROOT, 'scripts')), ...files(join(ROOT, 'src'))]
-    .filter(path => readFileSync(path, 'utf8').includes('anidb.net/api/anime-titles'))
-    .map(path => path.slice(ROOT.length))
-  // control: the search does find it where it is
-  expect(naming).toEqual(['scripts/offline-history.mjs'])
+// Mutation: name AniDB's address, or the address of a whole catalogue of TVmaze, ANN or AnimeThemes, in another script.
+test('only the job names AniDB\'s titles address and the addresses of TVmaze\'s, ANN\'s and AnimeThemes\' whole catalogues', () => {
+  const texts = [...files(join(ROOT, 'scripts')), ...files(join(ROOT, 'src'))].map(path => [path.slice(ROOT.length), readFileSync(path, 'utf8')] as const)
+  for (const address of ['anidb.net/api/anime-titles', 'api.tvmaze.com/shows?page=', 'api.tvmaze.com/updates/shows', 'animenewsnetwork.com/encyclopedia/reports.xml', 'animePagination']) {
+    // control: the search does find it where it is
+    expect([address, texts.filter(([, text]) => text.includes(address)).map(([path]) => path)]).toEqual([address, ['scripts/offline-history.mjs']])
+  }
 })

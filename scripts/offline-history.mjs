@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // The Offline history workflow's job (HOR-915, .github/workflows/offline-history.yml): gathers what the offline
 // history holds and publishes it as release assets (./history-files.mjs), which every data build reads. What it asks
-// is also kept in the private source store (HOR-994, ./source-store.mjs) when the workflow has its secrets.
+// is also kept in the private source store (HOR-994, ./source-store.mjs) when the workflow has its secrets, with three
+// sources only the store keeps: TVmaze's show index, ANN's title report and AnimeThemes' catalogue.
 //
-// The only code that asks AniDB, and the only code that asks Kitsu for the history. It refuses to run outside that
-// workflow, so a local run, a test or a Pages build cannot reach AniDB through it.
+// The only code that asks AniDB, the only code that asks Kitsu for the history, and the only code that asks those
+// three for their whole catalogues. It refuses to run outside that workflow, so a local run, a test or a Pages build
+// cannot reach any of them through it.
 //
 // AniDB allows one download of its titles file a day, and asking again the same day can get the address refused.
 // So the attempt is recorded in an asset of its own BEFORE the request, and the next request waits until that
@@ -17,7 +19,7 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 import { SEASON_ORDER, catalogIds, downloadDump } from './build-anime-data.mjs'
 import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, manifestCopy, readManifest } from './history-files.mjs'
 import { errorText } from './season-popularity.mjs'
-import { SECRETS, keepAnswers, r2, readStore } from './source-store.mjs'
+import { SECRETS, keepAnswers, r2, readStore, rowsOf } from './source-store.mjs'
 
 const WORKFLOW = 'Offline history'
 const API = `https://api.github.com/repos/${REPOSITORY}`
@@ -38,7 +40,9 @@ const KITSU_IMAGES = { posterImage: ['original', 'large', 'medium'], coverImage:
 // Kitsu's largest page
 const KITSU_IDS = 20
 const KITSU_PAUSE_MS = 1_000
-const KITSU_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000]
+
+const BACKOFF_MS = [30_000, 60_000, 120_000, 240_000]
+const REQUEST_TIMEOUT_MS = 60_000
 
 // A checkpoint closes once the dump's cut is this many seasons after it, since Kitsu's synopses and posters keep
 // being edited while a show airs. One season would ask 32 requests a refresh on 2026-43 instead of 52.
@@ -47,6 +51,29 @@ const SEASONS_OPEN = 4
 const log = (...args) => console.log('[offline-history]', ...args)
 const warn = text => console.log(`::warning::[offline-history] ${text}`)
 const sleeping = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+const transient = status => typeof status !== 'number' || status === 429 || status >= 500
+
+/**
+ * One source's requests for a run, one at a time and `pauseMs` apart. `ask` asks a 429, a 5xx or a failed request
+ * again after each wait of `backoff`, and answers the last response, or `{ ok: false, status }` with the error's text
+ * for a request that failed. `requests` counts every attempt.
+ */
+export const asking = ({ get = fetch, sleep = sleeping, pauseMs, backoff = BACKOFF_MS }) => {
+  const asker = {
+    requests: 0,
+    ask: async (url, init) => {
+      if (asker.requests) await sleep(pauseMs)
+      for (let attempt = 0; ; attempt++) {
+        asker.requests++
+        const response = await get(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(error => ({ ok: false, status: errorText(error) }))
+        if (response.ok || !transient(response.status) || attempt >= backoff.length) return response
+        await sleep(backoff[attempt])
+      }
+    },
+  }
+  return asker
+}
 
 /* --------------------------------------------------------------------------------------------- */
 /* AniDB                                                                                            */
@@ -138,41 +165,171 @@ export const kitsuBody = (resource, included = []) => {
   return JSON.stringify({ data: resource, included: included.filter(({ type, id }) => linked.has(`${type}/${id}`)) })
 }
 
-const transient = status => typeof status !== 'number' || status === 429 || status >= 500
-
 /**
- * Kitsu's whole resources for `ids` with their mappings, 20 a request, one request at a time and `pauseMs` apart:
- * `rows` as the history keeps them, `answers` as the source store does. A 429, a 5xx or a failed request is asked
- * again after each wait of `backoff`, and after the last nothing more is asked this run: `complete` says whether
- * every id was asked.
+ * Kitsu's whole resources for `ids` with their mappings, 20 a request, as `asking` asks: `rows` as the history keeps
+ * them, `answers` as the source store does, and `complete`, whether every id was asked before Kitsu stopped it.
  */
-export const askKitsu = async (ids, { get = fetch, sleep = sleeping, pauseMs = KITSU_PAUSE_MS, backoff = KITSU_BACKOFF_MS } = {}) => {
+export const askKitsu = async (ids, { pauseMs = KITSU_PAUSE_MS, ...options } = {}) => {
+  const asker = asking({ pauseMs, ...options })
   const rows = []
   const answers = []
-  let requests = 0
   for (let start = 0; start < ids.length; start += KITSU_IDS) {
-    if (start) await sleep(pauseMs)
     const url = `${KITSU}?filter%5Bid%5D=${ids.slice(start, start + KITSU_IDS).join(',')}&page%5Blimit%5D=${KITSU_IDS}&include=mappings`
-    for (let attempt = 0; ; attempt++) {
-      requests++
-      const response = await get(url, {
-        headers: { accept: 'application/vnd.api+json', 'user-agent': USER_AGENT },
-        signal: AbortSignal.timeout(60_000),
-      }).catch(error => ({ ok: false, status: errorText(error) }))
-      if (response.ok) {
-        const fetchedAt = new Date().toISOString()
-        const { data, included } = await response.json()
-        for (const resource of data ?? []) {
-          rows.push(kitsuRow(resource, fetchedAt))
-          answers.push({ id: String(resource.id), fetchedAt, body: kitsuBody(resource, included) })
-        }
-        break
-      }
-      if (!transient(response.status) || attempt >= backoff.length) return { rows, answers, requests, complete: false, stopped: String(response.status) }
-      await sleep(backoff[attempt])
+    const response = await asker.ask(url, { headers: { accept: 'application/vnd.api+json', 'user-agent': USER_AGENT } })
+    if (!response.ok) return { rows, answers, requests: asker.requests, complete: false, stopped: String(response.status) }
+    const fetchedAt = new Date().toISOString()
+    const { data, included } = await response.json()
+    for (const resource of data ?? []) {
+      rows.push(kitsuRow(resource, fetchedAt))
+      answers.push({ id: String(resource.id), fetchedAt, body: kitsuBody(resource, included) })
     }
   }
-  return { rows, answers, requests, complete: true }
+  return { rows, answers, requests: asker.requests, complete: true }
+}
+
+/* --------------------------------------------------------------------------------------------- */
+/* the sources only the source store keeps                                                          */
+/* --------------------------------------------------------------------------------------------- */
+
+const TVMAZE_INDEX = 'https://api.tvmaze.com/shows?page='
+const TVMAZE_UPDATES = 'https://api.tvmaze.com/updates/shows'
+const TVMAZE_SHOW = 'https://api.tvmaze.com/shows/'
+// TVmaze allows at least 20 calls every 10 seconds
+const TVMAZE_PAUSE_MS = 500
+// about 13 minutes of asking; the rest stay older than the updates list, so the next run asks them
+const TVMAZE_SHOWS = 1_000
+
+const ANN_REPORT = 'https://cdn.animenewsnetwork.com/encyclopedia/reports.xml?id=155&type=anime&nlist='
+// the whole report listed 12,863 anime on 2026-10-25, so one far shorter is not ANN's report
+const ANN_MIN_TITLES = 10_000
+
+const ANIMETHEMES = 'https://graphql.animethemes.moe/'
+// AnimeThemes allows 90 requests a minute
+const ANIMETHEMES_PAUSE_MS = 1_000
+// the animethemes source's own selection, plus each anime's titles, season and external ids
+const ANIMETHEMES_CATALOGUE = `
+  query ($page: Int!) {
+    animePagination(first: 100, page: $page, sort: ID) {
+      paginatorInfo { hasMorePages }
+      data {
+        id
+        slug
+        title { romaji english native }
+        format
+        season
+        year
+        synopsis
+        updatedAt
+        resources { nodes { site externalId link } }
+        animethemes {
+          id
+          type
+          sequence
+          slug
+          song {
+            title { romaji native }
+            performances { as alias artist { name { main } } }
+          }
+          animethemeentries {
+            version
+            episodes
+            nsfw
+            spoiler
+            videos { nodes { link resolution } }
+          }
+        }
+      }
+    }
+  }
+`
+
+/** How many UTC days have begun since `at`, Infinity when there is none. */
+export const daysSince = (at, now) => (at ? Math.floor(now / DAY_MS) - Math.floor(Date.parse(at) / DAY_MS) : Infinity)
+
+const stamp = now => new Date(now()).toISOString()
+const ACCEPT_JSON = { accept: 'application/json', 'user-agent': USER_AGENT }
+
+/**
+ * TVmaze's show index, as `asking` asks, given `kept`, its manifest entry, and `rows`, which reads the stored shows.
+ * Until a page answers the 404 that ends the index, its pages from `nextPage` on, 250 show ids each. After that, once
+ * a UTC day, the updates list, and each show it dates later than the stored copy's `updated`, or that the store
+ * lacks, at most TVMAZE_SHOWS a run. `askedAt` is when what the store holds was known current: the index read's first
+ * page, or the last list whose every show was asked. The list is the last week's while that is fewer than 6 UTC days
+ * back, which leaves a day for the index's 24 hours of caching, and the whole one otherwise. Answers
+ * `{ answers, state }` and `stopped` when TVmaze stopped it, or undefined when not due.
+ */
+export const askTvmaze = async ({ kept, rows, now, ...options }) => {
+  const asker = asking({ pauseMs: TVMAZE_PAUSE_MS, ...options })
+  const answers = []
+  const stopped = (response, state) => ({ answers, state, stopped: String(response.status), requests: asker.requests })
+  if (!kept || kept.nextPage !== null) {
+    const askedAt = kept?.askedAt ?? stamp(now)
+    for (let page = kept?.nextPage ?? 0; ; page++) {
+      const response = await asker.ask(`${TVMAZE_INDEX}${page}`, { headers: ACCEPT_JSON })
+      if (response.status === 404) return { answers, state: { nextPage: null, askedAt }, requests: asker.requests }
+      if (!response.ok) return stopped(response, { nextPage: page, askedAt })
+      const fetchedAt = stamp(now)
+      for (const show of await response.json()) answers.push({ id: String(show.id), fetchedAt, body: JSON.stringify(show) })
+    }
+  }
+  const days = daysSince(kept.askedAt, now())
+  if (days < 1) return undefined
+  const updated = new Map([...await rows()].map(([id, row]) => [id, JSON.parse(row.body).updated]))
+  const listedAt = stamp(now)
+  const listed = await asker.ask(`${TVMAZE_UPDATES}${days < 6 ? '?since=week' : ''}`, { headers: ACCEPT_JSON })
+  if (!listed.ok) return stopped(listed)
+  const changed = Object.entries(await listed.json())
+    .filter(([id, at]) => !(updated.get(id) >= at))
+    .map(([id]) => id)
+    .sort((a, b) => a - b)
+  for (const id of changed.slice(0, TVMAZE_SHOWS)) {
+    const response = await asker.ask(`${TVMAZE_SHOW}${id}`, { headers: ACCEPT_JSON })
+    // gone since the list was made
+    if (response.status === 404) continue
+    if (!response.ok) return stopped(response)
+    answers.push({ id, fetchedAt: stamp(now), body: JSON.stringify(await response.json()) })
+  }
+  return { answers, state: changed.length > TVMAZE_SHOWS ? undefined : { askedAt: listedAt }, requests: asker.requests }
+}
+
+/**
+ * ANN's title report, given `kept`, its manifest entry: the whole report first, then once a UTC day the titles added
+ * since, 50 a day as ANN's API page asks (`nlist`). Each `<item>` is an answer, by its id. Answers `{ answers, state }`
+ * and `stopped` when ANN stopped it, or undefined when not due.
+ */
+export const askAnn = async ({ kept, now, ...options }) => {
+  const days = daysSince(kept?.askedAt, now())
+  if (days < 1) return undefined
+  const asker = asking({ pauseMs: 0, ...options })
+  const response = await asker.ask(`${ANN_REPORT}${kept ? 50 * days : 'all'}`, { headers: { accept: 'text/xml', 'user-agent': USER_AGENT } })
+  if (!response.ok) return { answers: [], stopped: String(response.status), requests: asker.requests }
+  const fetchedAt = stamp(now)
+  const answers = [...(await response.text()).matchAll(/<item><id>(\d+)<\/id>[\s\S]*?<\/item>/g)].map(([body, id]) => ({ id, fetchedAt, body }))
+  if (!kept && answers.length < ANN_MIN_TITLES) return { answers: [], stopped: `only ${answers.length} titles`, requests: asker.requests }
+  return { answers, state: { askedAt: fetchedAt }, requests: asker.requests }
+}
+
+/**
+ * AnimeThemes' whole catalogue, given `kept`, its manifest entry: every anime in id order, 100 a request, once every
+ * 7 UTC days. A pull cut short keeps what came and is asked whole again the next run. Answers `{ answers, state }`
+ * and `stopped` when AnimeThemes stopped it, or undefined when not due.
+ */
+export const askAnimethemes = async ({ kept, now, ...options }) => {
+  if (daysSince(kept?.askedAt, now()) < 7) return undefined
+  const asker = asking({ pauseMs: ANIMETHEMES_PAUSE_MS, ...options })
+  const answers = []
+  const headers = { ...ACCEPT_JSON, 'content-type': 'application/json' }
+  for (let page = 1; ; page++) {
+    const response = await asker.ask(ANIMETHEMES, { method: 'POST', headers, body: JSON.stringify({ query: ANIMETHEMES_CATALOGUE, variables: { page } }) })
+    if (!response.ok) return { answers, stopped: String(response.status), requests: asker.requests }
+    // GraphQL answers its errors with a 200
+    const { data, errors } = await response.json()
+    const listing = data?.animePagination
+    if (errors?.length || !listing) return { answers, stopped: errors?.[0]?.message ?? 'no data', requests: asker.requests }
+    const fetchedAt = stamp(now)
+    for (const anime of listing.data) answers.push({ id: String(anime.id), fetchedAt, body: JSON.stringify(anime) })
+    if (!listing.paginatorInfo.hasMorePages || !listing.data.length) return { answers, state: { askedAt: fetchedAt }, requests: asker.requests }
+  }
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -334,12 +491,35 @@ const publish = async (gh, release, files, previousManifest) => {
 export const anidbSince = dates => (dates.every(Boolean) ? dates.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a)) : undefined)
 
 /**
+ * Asks each source only the store keeps when its change signal says so, for `keepAnswers`'s `pulls`. One that throws
+ * is skipped with a warning, and leaves the others, the release and the store's write as they are.
+ */
+const pullSources = async (store, stored, options) => {
+  const pulls = {}
+  for (const [source, ask] of Object.entries({ tvmaze: askTvmaze, ann: askAnn, animethemes: askAnimethemes })) {
+    const kept = stored.manifest.job[source]
+    try {
+      const pulled = await ask({ ...options, kept, rows: () => rowsOf(store, kept) })
+      if (!pulled) {
+        log(`${source}: not due`)
+        continue
+      }
+      log(`${source}: ${pulled.answers.length} answers in ${pulled.requests} requests${pulled.stopped ? `, stopped on ${pulled.stopped}, the next run goes on` : ''}`)
+      if (pulled.answers.length || pulled.state) pulls[source] = pulled
+    } catch (error) {
+      warn(`${source} is skipped this run: ${errorText(error)}`)
+    }
+  }
+  return pulls
+}
+
+/**
  * One run: read the published history (a build from scratch only when the release answers 404), take the newest
  * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed. Then, when
- * `store` is given, keep what was asked in the source store, as `writer`'s run: a store that cannot be read or
- * written is skipped with a warning, and never fails the run. AniDB's file comes back to such a store with the next
- * 200, but that run's Kitsu answers do not, since Kitsu is asked again only for open seasons and unfinished shows; a
- * warning counts them.
+ * `store` is given, ask the sources only the store keeps, and keep everything asked in the source store, as
+ * `writer`'s run: a store that cannot be read or written is skipped with a warning, and never fails the run. AniDB's
+ * file comes back to such a store with the next 200, but that run's Kitsu answers do not, since Kitsu is asked again
+ * only for open seasons and unfinished shows; a warning counts them.
  */
 export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
   const gh = github(token, get)
@@ -400,7 +580,8 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   }
 
   if (!store) return
-  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
+  const pulls = stored ? await pullSources(store, stored, { get, sleep, backoff, now }) : {}
+  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, pulls, writer })
     .catch(error => warn(`the source store was not written: ${errorText(error)}`))
   if (outcome) log(`the source store: ${outcome}`)
   else if (kitsuAnswers.length) warn(`the source store lacks the ${kitsuAnswers.length} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`)
@@ -418,7 +599,7 @@ export const runOptions = env => {
 
 const main = async () => {
   if (process.env.GITHUB_WORKFLOW !== WORKFLOW) {
-    console.error(`[offline-history] REFUSING: this asks AniDB and Kitsu, so it runs only as the "${WORKFLOW}" workflow.`)
+    console.error(`[offline-history] REFUSING: this asks AniDB, Kitsu, TVmaze, ANN and AnimeThemes, so it runs only as the "${WORKFLOW}" workflow.`)
     process.exit(1)
   }
   if (!process.env.GH_TOKEN) {

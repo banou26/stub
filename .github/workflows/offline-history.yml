@@ -1,13 +1,15 @@
 # The offline history (HOR-915): AniDB's titles and Kitsu's rows for every show the offline database lists, kept as
 # release assets on the rolling `offline-history` tag, which every data build reads (scripts/history-files.mjs).
 #
-# The only place AniDB is asked from, and the only place Kitsu is asked from for the history:
-# scripts/offline-history.mjs, which refuses to run outside this workflow. AniDB allows one download of its titles
-# file a day, so the script records each attempt before it asks and waits 24 hours between two.
+# The only place AniDB is asked from, the only place Kitsu is asked from for the history, and the only place TVmaze's
+# show index, ANN's title report and AnimeThemes' catalogue are asked from: scripts/offline-history.mjs, which refuses
+# to run outside this workflow. AniDB allows one download of its titles file a day, so the script records each
+# attempt before it asks and waits 24 hours between two.
 #
 # What it asks is also kept in the private R2 bucket `stub-sources` (HOR-994, scripts/source-store.mjs), through R2's
-# S3 API with a token scoped to that bucket. While any of the three STUB_SOURCES_* secrets below is unset, the job
-# skips the bucket with a notice and does everything else as before.
+# S3 API with a token scoped to that bucket, and the three sources above are asked only for it: TVmaze's updates and
+# ANN's newest titles once a day, AnimeThemes once a week. While any of the three STUB_SOURCES_* secrets below is
+# unset, the job skips the bucket and those three with a notice and does everything else as before.
 #
 # DAILY, off the hour, since scheduled runs queue at the top of it. A day with no new dump asks Kitsu nothing, and a
 # day whose AniDB file is unchanged gets a 304 and publishes nothing. A `schedule` trigger runs only on the default
@@ -32,7 +34,8 @@ jobs:
     # a fork has no offline-history release, so it would start from scratch and ask AniDB and Kitsu for nothing
     if: github.repository == 'banou26/stub'
     runs-on: ubuntu-latest
-    # from scratch, Kitsu alone is about 1,120 requests at a second and a half each
+    # from scratch, Kitsu alone is about 1,120 requests at a second and a half each; the store's first day adds about
+    # 380 TVmaze pages and 51 AnimeThemes ones, about 20 minutes
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
