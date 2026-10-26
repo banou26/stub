@@ -77,8 +77,10 @@ const fullscreenAcrossEpisodes = async (page: Page) => {
   await serve(page)
   await page.goto(`${ORIGIN}${stageWatchPath(1)}`)
   const embed = page.frameLocator('.stage iframe')
-  await embed.locator('button.full-screen').click({ timeout: 30_000 })
+  const button = embed.locator('button.full-screen')
+  await button.click({ timeout: 30_000 })
   await expect.poll(() => fullscreenElement(page), { message: 'the player\'s button fullscreens the stage' }).toBe('stage')
+  await expect(button, 'the player is told the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
   // Firefox takes the fullscreen window to its headless screen's 1366x768, past the viewport set
   const screen = await page.evaluate(() => [innerWidth, innerHeight])
   const box = (await page.locator('.stage iframe').boundingBox())!
@@ -98,6 +100,12 @@ const fullscreenAcrossEpisodes = async (page: Page) => {
 
   await page.keyboard.press('k')
   await expect.poll(async () => await second()!.evaluate(() => (window as unknown as { keys: string[] }).keys), { message: 'a key reaches the next player' }).toContain('k')
+  await expect(button, 'the next player hears the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('f')
+  await expect.poll(() => fullscreenElement(page), { message: 'the next player\'s f leaves fullscreen' }).toBe(null)
+  await expect(button, 'the next player is told the stage left fullscreen').toHaveAttribute('aria-pressed', 'false')
+  await page.keyboard.press('f')
+  await expect.poll(() => fullscreenElement(page), { message: 'and fullscreens the stage again' }).toBe('stage')
 
   // an address naming a release the episode does not hold: a render with nothing to play keeps the stage, its
   // fullscreen, and the episode drawn in it

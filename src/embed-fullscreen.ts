@@ -22,7 +22,9 @@ const REQUEST = 'stub:embed-fullscreen-request'
 export const serveEmbedFullscreen = (iframe: HTMLIFrameElement, stage: HTMLElement, host: Window = window) => {
   const { document } = host
   if (!document.fullscreenEnabled) return () => {}
-  const send = () => iframe.contentWindow?.postMessage({ type: STATE, active: Boolean(document.fullscreenElement) }, host.location.origin)
+  // A block body, never a bare call: as a listener's tail call, JavaScriptCore drops this frame, and the message
+  // arrives with the embed's own window as its source, which the embed does not hear (WebKit 26.4, 2026-10-26)
+  const send = () => { iframe.contentWindow?.postMessage({ type: STATE, active: Boolean(document.fullscreenElement) }, host.location.origin) }
   const receive = (event: MessageEvent) => {
     if (event.source !== iframe.contentWindow || event.origin !== host.location.origin) return
     const type = (event.data as { type?: unknown } | null)?.type
