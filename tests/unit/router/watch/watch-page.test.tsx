@@ -2696,6 +2696,22 @@ test('a Crunchyroll signed in to before stays Play\'s pick when its player finds
   }
 })
 
+// the owner, 2026-10-26: "otherwise we wait for the free source"; on the cloud, the one backend with a sign out in
+// Settings, made in another tab while this page plays
+test('Play\'s own pick of a Crunchyroll signed in to before gives way to the release once the viewer signs out of it in Settings', async () => {
+  crAndRelease()
+  statuses.crunchyroll = 'signed-in'
+  const { rerender } = live()
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
+
+  params = { ...params, sourceUri: 'cr:GX1' }
+  await rerender()
+  await act(async () => { await wiring.crunchyroll.signOut() })
+  await settle()
+  expect(navigate.mock.calls.map(([to]) => to)).toEqual([toWatch('cr:GX1'), toWatch('nyaa:a')])
+})
+
 // the step 1 report of 2026-10-26: Crunchyroll showed until the added source answered, then the release
 test('for a viewer never signed in to Crunchyroll, Play opens nothing while the added source has not answered, and then the release', async () => {
   for (const [each, handles] of [['extension', [allHandles[0], allHandles[2]]], ['cloud', allHandles]] as const) {
