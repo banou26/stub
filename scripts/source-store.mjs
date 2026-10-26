@@ -97,9 +97,10 @@ export const anidbShows = xml => new Map([...xml.matchAll(/<anime aid="(\d+)">[\
 
 /**
  * Keeps what one run asked. `anidb` is AniDB's answer when it was asked (`{ outcome, fetchedAt }`, plus `xml`, the
- * gzip `file` and `lastModified` on a 200); a 304 moves its shows' `fetchedAt` only. `kitsu` is Kitsu's answers as
- * `{ id, fetchedAt, body }`. New files go up, then the index, then manifest.json, then whatever only the previous
- * manifest named is removed. Writes nothing when the manifest would not change. Answers what it did, for the log.
+ * gzip `file` and `lastModified` on a 200, which drops the lines of shows the file no longer lists); a 304 moves its
+ * shows' `fetchedAt` and `writer` only. `kitsu` is Kitsu's answers as `{ id, fetchedAt, body }`. New files go up,
+ * then the index, then manifest.json, then whatever only the previous manifest named is removed. Writes nothing when
+ * the manifest would not change. Answers what it did, for the log.
  */
 export const keepAnswers = async (client, stored, { anidb, kitsu = [], writer }) => {
   const index = new Map(stored.index)
@@ -112,6 +113,7 @@ export const keepAnswers = async (client, stored, { anidb, kitsu = [], writer })
 
   if (anidb?.xml) {
     const shows = anidbShows(anidb.xml)
+    for (const [key, line] of index) if (line.source === 'anidb-titles' && !shows.has(line.id)) index.delete(key)
     for (const [id, hash] of shows) date({ source: 'anidb-titles', id, sha256: hash, fetchedAt: anidb.fetchedAt, writer })
     job['anidb-titles'] = { name: `job/anidb-titles-${short(anidb.xml)}.xml.gz`, sha256: sha256(anidb.xml), rows: shows.size, lastModified: anidb.lastModified ?? null }
     files.push([job['anidb-titles'].name, anidb.file])

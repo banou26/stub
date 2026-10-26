@@ -122,6 +122,19 @@ test('a 304 moves fetchedAt only, the same file again keeps its name, and a chan
   expect(bucket.objects.has(file)).toBe(false)
 })
 
+// Mutations: keep the lines of shows AniDB's file no longer lists; drop another source's lines with them.
+test('a show AniDB\'s file no longer lists loses its line, so a later 304 dates only the shows the kept file holds', async () => {
+  const bucket = fakeBucket()
+  const keep = async (anidb: object, kitsu: object[] = []) => keepAnswers(bucket.client, await readStore(bucket.client), { anidb, kitsu, writer: WRITER })
+  await keep(anidb200(titlesFile(), T1), [{ id: '5', fetchedAt: T1, body: '{"data":{"id":"5","type":"anime"},"included":[]}' }])
+  const withoutNine = titlesFile().replace(/<anime aid="9242">.*\n/, '')
+  // control: the file the next 200 serves lists the first show only
+  expect([...anidbShows(withoutNine).keys()]).toEqual(['1'])
+  await keep(anidb200(withoutNine, T2))
+  await keep({ outcome: '304', fetchedAt: T3 })
+  expect((await state(bucket)).lines.map(line => [line.source, line.id, line.fetchedAt, line.changedAt])).toEqual([['anidb-titles', '1', T3, T1], ['kitsu', '5', T1, T1]])
+})
+
 const recorded = JSON.parse(readFileSync(new URL('../kitsu/__fixtures__/kitsu-season-summer-2026.json', import.meta.url), 'utf8')) as { data: { id: string }[], included: { id: string }[] }[]
 // Kitsu answering `filter[id]` from its recorded season pages, every page's mappings included as one page would
 const recordedKitsu = async (url: string) => {
