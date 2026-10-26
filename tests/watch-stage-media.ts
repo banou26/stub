@@ -9,6 +9,9 @@ export const TORRENT_ORIGIN = 'spec-torrent'
 export const STAGE_PLUGIN = 'npm:@spec/stage-player'
 export const torrentEpisode = (number: number) => `ag:(anilist:900091-${number})`
 export const torrentWatchPath = (number: number) => `/watch/${TORRENT_MEDIA}/${torrentEpisode(number)}/${TORRENT_ORIGIN}:${number}`
+/** The second torrent's file marks no ending, and its episode is on Crunchyroll too, at this address and as long. */
+export const CHAPTERLESS_TORRENT = 2
+export const CHAPTERLESS_ON_CRUNCHYROLL = 'https://www.crunchyroll.com/watch/GTORRENT2'
 
 /** Where the package's frame (./watch-stage-plugin.ts) and the player it frames (./watch-stage-ripple.ts) are served. */
 export const PLUGIN_ORIGIN = 'https://plugin.test'

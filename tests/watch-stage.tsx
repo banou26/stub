@@ -7,13 +7,14 @@ import { Route, Router } from 'wouter'
 
 import Watch from '../src/router/watch'
 import { getRouterRoutePath, Route as Routes } from '../src/router/path'
-import { STAGE_MEDIA, TORRENT_MEDIA, TORRENT_ORIGIN, stageEpisode, torrentEpisode } from './watch-stage-media'
+import { CHAPTERLESS_ON_CRUNCHYROLL, CHAPTERLESS_TORRENT, STAGE_MEDIA, TORRENT_MEDIA, TORRENT_ORIGIN, stageEpisode, torrentEpisode } from './watch-stage-media'
 
 // The watch page tests/watch-stage.spec.ts drives: the real page over a GraphQL client that answers a show of two
-// Crunchyroll episodes and a show of three torrents, all out, and nothing else. The embed it frames for the first is
-// ./watch-stage-player.tsx, the package it mounts for the second ./watch-stage-plugin.ts.
+// Crunchyroll episodes and a show of three torrents, all out, and nothing else; the second torrent's episode is on
+// Crunchyroll too. The embed it frames for the first is ./watch-stage-player.tsx, the package it mounts for the second
+// ./watch-stage-plugin.ts.
 
-const show = (uri: string, count: number, episodeUri: (number: number) => string, handle: (number: number) => object) => ({
+const show = (uri: string, count: number, episodeUri: (number: number) => string, handle: (number: number) => object[]) => ({
   uri,
   titles: [{ title: 'Spec Stage' }],
   type: 'ANIME',
@@ -30,12 +31,15 @@ const show = (uri: string, count: number, episodeUri: (number: number) => string
     releaseDate: '2020-01-01T00:00:00.000Z',
     titles: [{ title: `Stage ${number}` }],
     thumbnails: [],
-    handles: [{ relation: 'SAME_AS', node: handle(number) }],
+    handles: handle(number).map(node => ({ relation: 'SAME_AS', node })),
   })),
 })
 const shows: Record<string, object> = {
-  [STAGE_MEDIA]: show(STAGE_MEDIA, 2, stageEpisode, number => ({ uri: `cr:GSTAGE${number}`, origin: 'cr', id: `GSTAGE${number}`, url: `https://www.crunchyroll.com/watch/GSTAGE${number}` })),
-  [TORRENT_MEDIA]: show(TORRENT_MEDIA, 3, torrentEpisode, number => ({ uri: `${TORRENT_ORIGIN}:${number}`, origin: TORRENT_ORIGIN, id: String(number), url: `magnet:?xt=urn:btih:stage${number}` })),
+  [STAGE_MEDIA]: show(STAGE_MEDIA, 2, stageEpisode, number => [{ uri: `cr:GSTAGE${number}`, origin: 'cr', id: `GSTAGE${number}`, url: `https://www.crunchyroll.com/watch/GSTAGE${number}` }]),
+  [TORRENT_MEDIA]: show(TORRENT_MEDIA, 3, torrentEpisode, number => [
+    { uri: `${TORRENT_ORIGIN}:${number}`, origin: TORRENT_ORIGIN, id: String(number), url: `magnet:?xt=urn:btih:stage${number}` },
+    ...number === CHAPTERLESS_TORRENT ? [{ uri: 'cr:GTORRENT2', origin: 'cr', id: 'GTORRENT2', url: CHAPTERLESS_ON_CRUNCHYROLL }] : [],
+  ]),
 }
 const origins = {
   originPage: {
