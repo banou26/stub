@@ -1,7 +1,9 @@
 // Stub's text in the viewer's language, through react-intl. Each message is written in the code in English, its
 // defaultMessage, with that English as its id (`formatjs/enforce-id` with `[content]`, vite.config.ts, writes it), so
 // English loads no catalogue; src/locales/<tag>.json holds each other language's text by id, and
-// `npm run i18n:check` keeps the two in step.
+// `npm run i18n:check` keeps the two in step. A description is part of the id (`Play#verb`), which tells apart two
+// messages spelled alike. Components format with useIntl().formatMessage: <FormattedMessage> renders, but its React 19
+// type is no JSX element under preact/compat's (TS2786).
 
 import { createIntl, createIntlCache, type IntlShape } from 'react-intl'
 
@@ -14,7 +16,8 @@ export type Catalogue = Readonly<Record<string, string>>
 
 const cache = createIntlCache()
 
-// the English is formatted in the browser's own English when that is what is shown, else in plain `en`
+// English shown, the defaultLocale is the browser's own English: against plain `en`, react-intl reports each message
+// of an en-GB page missing and writes its numbers in `en`
 const intlOf = (language: string, locale: string, messages: Catalogue) =>
   createIntl({ locale, defaultLocale: language === 'en' ? locale : 'en', messages }, cache)
 
