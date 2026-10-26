@@ -118,6 +118,12 @@ export const offersSignIn = (origin: string, backend: FknBackend | undefined, st
   return Boolean(entry && backend === 'cloud' && entry.signsInOnCloud(entry.hostFor(viewerCountry())) && status.read(entry.site)?.state !== 'signed-in')
 }
 
+/** Whether stub last found the viewer signed in to the source's site, on either backend. Never for a site stub does not check, such as Netflix. */
+export const foundSignedIn = (origin: string, status: Pick<AccountsProps['status'], 'read'>): boolean => {
+  const entry = STREAMING_SITES.find(each => each.origin === origin)
+  return Boolean(entry && status.read(entry.site)?.state === 'signed-in')
+}
+
 /** Whether stub found the viewer signed out of the source's site under SIGNED_OUT_MS ago, on either backend. A state never learned is not. */
 export const foundSignedOut = (origin: string, status: Pick<AccountsProps['status'], 'read'>, now = Date.now()): boolean => {
   const entry = STREAMING_SITES.find(each => each.origin === origin)

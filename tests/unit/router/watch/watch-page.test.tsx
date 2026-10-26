@@ -2531,6 +2531,15 @@ test('a Crunchyroll ranked first that the viewer was found signed out of in the 
   }
 })
 
+// the address follows each pick, as the router does; returns every source Play named
+const followPicks = async (rerender: () => Promise<void>) => {
+  for (let at = 0; at < navigate.mock.calls.length; at++) {
+    params = { ...params, sourceUri: navigate.mock.calls[at]![0].split('/').at(-1) }
+    await rerender()
+  }
+  return navigate.mock.calls.map(([to]) => to.split('/').at(-1))
+}
+
 // the review of 2026-10-26: JustWatch lists Netflix beside Crunchyroll for 5 of 51 current and 20 of 50 older US shows
 test('on the cloud, Netflix ranked between them, which needs the extension, never takes the release\'s place', async () => {
   crAndRelease()
@@ -2538,13 +2547,61 @@ test('on the cloud, Netflix ranked between them, which needs the extension, neve
   Object.assign(episode, { handles: allHandles })
   const { rerender } = live()
   await settle()
-  // the address follows each pick, as the router does
-  for (let at = 0; at < navigate.mock.calls.length; at++) {
-    params = { ...params, sourceUri: navigate.mock.calls[at]![0].split('/').at(-1) }
-    await rerender()
+  const named = await followPicks(rerender)
+  expect(named.at(-1)).toBe('nyaa:a')
+  expect(named).not.toContain('nf:81')
+})
+
+// the review of 2026-10-26: stub never learns whether the viewer is signed in to Netflix, nor to Prime Video before its player says
+test('with the extension, a Netflix or Prime Video not known to be signed in never takes the place of a Crunchyroll found signed out', async () => {
+  const prime = handle(PRIME, 'amazon', PRIME_LINK)
+  for (const [others, picks] of [
+    [[allHandles[1]!], ['cr:GX1']],
+    [[prime], ['cr:GX1']],
+    [[allHandles[1]!, prime, allHandles[2]!], ['cr:GX1', 'nyaa:a']],
+  ] as const) {
+    crAndRelease()
+    backend = 'extension'
+    origins = ['cr', 'nf', 'amazon', 'nyaa']
+    foundOut('crunchyroll')
+    Object.assign(episode, { handles: [allHandles[0], ...others] })
+    const { rerender } = live()
+    await settle()
+    expect(await followPicks(rerender), others.map(each => each.node.origin).join(', ')).toEqual(picks)
+    navigate.mockClear()
+    params = { ...params, sourceUri: undefined }
+    while (hosts.length) unmount(hosts.pop()!)
   }
-  expect(navigate).toHaveBeenLastCalledWith(toWatch('nyaa:a'), { replace: true })
-  expect(navigate.mock.calls.map(([to]) => to)).not.toContain(toWatch('nf:81'))
+})
+
+test('a Crunchyroll found signed out gives way to a Prime Video the viewer was found signed in to, on the cloud and with the extension', async () => {
+  for (const each of ['cloud', 'extension']) {
+    crAndRelease()
+    backend = each
+    origins = ['cr', 'amazon', 'nyaa']
+    foundOut('crunchyroll')
+    statuses.prime = 'signed-in'
+    Object.assign(episode, { handles: [allHandles[0], handle(PRIME, 'amazon', PRIME_LINK), allHandles[2]] })
+    hosts.push(page())
+    await settle()
+    expect(navigate, each).toHaveBeenCalledExactlyOnceWith(toWatch(PRIME), { replace: true })
+    navigate.mockClear()
+    while (hosts.length) unmount(hosts.pop()!)
+  }
+})
+
+test('outside Japan on the cloud, a Prime Video the viewer was found signed in to needs the extension, so the release opens instead', async () => {
+  crAndRelease()
+  vi.stubEnv('TZ', 'America/Toronto')
+  origins = ['cr', 'amazon', 'nyaa']
+  foundOut('crunchyroll')
+  statuses.prime = 'signed-in'
+  Object.assign(episode, { handles: [allHandles[0], handle(CANADA, 'amazon', CANADA_LINK), allHandles[2]] })
+  const { rerender } = live()
+  await settle()
+  const named = await followPicks(rerender)
+  expect(named.at(-1)).toBe('nyaa:a')
+  expect(named).not.toContain(CANADA)
 })
 
 test('with nothing learned of Crunchyroll, Play opens it, and moves to the release once its player finds the viewer signed out', async () => {

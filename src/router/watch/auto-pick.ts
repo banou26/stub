@@ -54,7 +54,7 @@ export const bestSource = (handles: readonly Handle[], ways: Ways): { uri: strin
 export type Access = {
   /** Plays for the viewer here without a sign in, though it may still need the extension. */
   plays: (handle: Handle) => boolean
-  /** Plays here with nothing to fix, as far as stub knows: no sign in, no extension, and not a site the viewer was found signed out of. */
+  /** Plays here with nothing to fix, as far as stub knows: needs no extension, and no account or one stub found the viewer signed in to. */
   free: (handle: Handle) => boolean
   /** Of a site stub found the viewer signed out of lately; a state never learned is not. */
   signedOut: (handle: Handle) => boolean

@@ -36,7 +36,7 @@ import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggreg
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
-import { foundSignedOut, offersSignIn } from '../settings/accounts'
+import { foundSignedIn, foundSignedOut, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
 import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
@@ -690,7 +690,9 @@ const Watch = () => {
   // a stream that needs the extension plays nowhere on a browser that cannot add it
   const plays = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && (addable || !extensionOnly(handle))
   const signedOut = (handle: { origin: string }) => foundSignedOut(handle.origin, status)
-  const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => !owes(handle) && !extensionOnly(handle) && !signedOut(handle)
+  // stub's own players are all of paid sites, so one is free only once stub found the viewer signed in there
+  const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
+    !PLAYABLE_ORIGINS.has(handle.origin) || (foundSignedIn(handle.origin, status) && !extensionOnly(handle))
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
   // Play's own pick whose player has just found the viewer signed out gives way too, while a source plays with nothing to fix
   const cannotPlay = Boolean(selectedSourceUri && (unplayable.includes(selectedSourceUri)
