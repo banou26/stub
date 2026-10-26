@@ -52,9 +52,9 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-status',
     title: 'Site sign-in states',
-    what: 'Whether you were signed in to Crunchyroll, Prime Video, AniList and MyAnimeList when stub last learned it, and when. Never your name there.',
+    what: 'Whether you were signed in to Crunchyroll, Prime Video, AniList and MyAnimeList when stub last learned it, when, and whether you were signed in to it on this browser before. Never your name there.',
     where: LOCAL,
-    lasts: "Until stub learns it again, or you clear this site's data in your browser",
+    lasts: "Until stub learns it again, or you clear this site's data in your browser. That you were signed in before stays through the sign outs after it",
     keys: { store: 'local', names: [SITE_STATUS_KEY] },
   },
   {

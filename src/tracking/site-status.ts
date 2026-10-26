@@ -1,5 +1,5 @@
 // Whether the viewer was signed in to each site when stub last learned it, for each source's card in
-// Settings to show. Import free, so a test drives it over fake storage.
+// Settings to show and for Play to weigh. Import free, so a test drives it over fake storage.
 
 import type { FknBackend } from '../utils/fkn-backend'
 
@@ -11,8 +11,11 @@ export type StatusSite = 'crunchyroll' | 'prime' | 'anilist' | 'mal'
 
 export type SiteState = 'signed-in' | 'signed-out'
 
-/** A state and when stub learned it, in epoch milliseconds. Never an account name: that stays with the site. */
-export type SiteStatus = { state: SiteState, checkedAt: number }
+/**
+ * A state and when stub learned it, in epoch milliseconds, and on a `signed-out`, whether stub found the
+ * viewer signed in to the site before on this browser. Never an account name: that stays with the site.
+ */
+export type SiteStatus = { state: SiteState, checkedAt: number, signedInBefore?: true }
 
 export type SiteStatuses = {
   read: (site: StatusSite) => SiteStatus | undefined
@@ -46,13 +49,19 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
   const listeners = new Map<StatusSite, Set<() => void>>()
   const stored = () => entries(() => storage().getItem(SITE_STATUS_KEY))
   const tell = (site: string) => { for (const listener of listeners.get(site as StatusSite) ?? []) listener() }
-  return {
+  const statuses: SiteStatuses = {
     read: site => {
       const status = unsaved.get(site) ?? stored()[site]
-      return isStatus(status) ? { state: status.state, checkedAt: status.checkedAt } : undefined
+      if (!isStatus(status)) return undefined
+      return status.state === 'signed-out' && status.signedInBefore === true
+        ? { state: status.state, checkedAt: status.checkedAt, signedInBefore: true }
+        : { state: status.state, checkedAt: status.checkedAt }
     },
     record: (site, state, now = Date.now()) => {
-      const status = { state, checkedAt: now }
+      const last = statuses.read(site)
+      const status: SiteStatus = state === 'signed-out' && (last?.state === 'signed-in' || last?.signedInBefore)
+        ? { state, checkedAt: now, signedInBefore: true }
+        : { state, checkedAt: now }
       try {
         storage().setItem(SITE_STATUS_KEY, JSON.stringify({ ...stored(), [site]: status }))
         unsaved.delete(site)
@@ -75,6 +84,7 @@ export const createSiteStatuses = (storage: () => Pick<Storage, 'getItem' | 'set
       }
     },
   }
+  return statuses
 }
 
 /** This browser's remembered states. */

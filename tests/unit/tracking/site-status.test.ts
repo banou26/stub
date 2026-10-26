@@ -32,6 +32,41 @@ test('keeps the state and the time only, never anything the site said about the 
   expect(Object.keys(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).anilist).sort()).toEqual(['checkedAt', 'state'])
 })
 
+// HOR-1033: Play asks a viewer who signed in here before to sign in again, rather than opening a free source
+test('a sign out keeps that the viewer was signed in before, through every sign out after, until the next sign in', () => {
+  const storage = memory()
+  const statuses = createSiteStatuses(() => storage)
+  statuses.record('crunchyroll', 'signed-in', 1_000)
+  statuses.record('crunchyroll', 'signed-out', 2_000)
+
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: 2_000, signedInBefore: true })
+  expect(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).crunchyroll).toEqual({ state: 'signed-out', checkedAt: 2_000, signedInBefore: true })
+  statuses.record('crunchyroll', 'signed-out', 3_000)
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: 3_000, signedInBefore: true })
+  statuses.record('crunchyroll', 'signed-in', 4_000)
+  expect(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).crunchyroll).toEqual({ state: 'signed-in', checkedAt: 4_000 })
+  statuses.record('prime', 'signed-out', 5_000)
+  expect(statuses.read('prime'), 'never signed in').toEqual({ state: 'signed-out', checkedAt: 5_000 })
+})
+
+test('on a browser that blocks site data, keeps that the viewer was signed in before for this page', () => {
+  const statuses = createSiteStatuses(() => { throw new Error('SecurityError') })
+  statuses.record('prime', 'signed-in', 1_000)
+  statuses.record('prime', 'signed-out', 2_000)
+
+  expect(statuses.read('prime')).toEqual({ state: 'signed-out', checkedAt: 2_000, signedInBefore: true })
+})
+
+test('reads a signed in before only as true, and only beside a signed out', () => {
+  for (const [stored, read] of [
+    ['{"crunchyroll":{"state":"signed-out","checkedAt":1,"signedInBefore":true}}', { state: 'signed-out', checkedAt: 1, signedInBefore: true }],
+    ['{"crunchyroll":{"state":"signed-out","checkedAt":1,"signedInBefore":"yes"}}', { state: 'signed-out', checkedAt: 1 }],
+    ['{"crunchyroll":{"state":"signed-in","checkedAt":1,"signedInBefore":true}}', { state: 'signed-in', checkedAt: 1 }],
+  ] as const) {
+    expect(createSiteStatuses(() => memory({ [SITE_STATUS_KEY]: stored })).read('crunchyroll'), stored).toEqual(read)
+  }
+})
+
 test('reads storage on every call, so a state removed from storage is gone here too', () => {
   const storage = memory()
   const statuses = createSiteStatuses(() => storage)
@@ -141,7 +176,7 @@ test('a refresh asks a site stub knows nothing of or learned FRESH_MS ago, on th
 
   expect(ask.mock.calls).toEqual([['anilist', 'cloud'], ['crunchyroll', 'extension']])
   expect(statuses.read('anilist')).toEqual({ state: 'signed-out', checkedAt: now() })
-  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now() })
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now(), signedInBefore: true })
   expect(statuses.read('mal'), 'learned under FRESH_MS ago').toEqual({ state: 'signed-in', checkedAt: now() - FRESH_MS + 1 })
 })
 
@@ -178,5 +213,5 @@ test('an answer to an ask that a sign out landed during is dropped, and the sign
   answer('signed-in')
   await settled()
 
-  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now() })
+  expect(statuses.read('crunchyroll')).toEqual({ state: 'signed-out', checkedAt: now(), signedInBefore: true })
 })

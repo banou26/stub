@@ -77,6 +77,13 @@ test('names Prime Video among the sign-ins FKN keeps on the cloud, and among the
   expect(STORED.find(item => item.id === 'site-status')?.what).toContain('Prime Video')
 })
 
+// HOR-1033: Play asks a viewer signed in to a site here before to sign in again, so that mark is kept
+test('says the sign-in states keep whether you were signed in to each site before', () => {
+  const item = STORED.find(each => each.id === 'site-status')
+  expect(item?.what).toContain('whether you were signed in to it on this browser before')
+  expect(item?.lasts).toContain('That you were signed in before stays through the sign outs after it')
+})
+
 // a browser-asked host sees the viewer's address, so the page names exactly the hosts src/worker/direct-fetch.ts lists
 test('names every host stub asks from the browser, and of their services only AniList, whose fallback is relayed, as proxied', () => {
   const { host, text: page } = text()
