@@ -70,8 +70,9 @@ vi.mock('urql', async () => {
 })
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate], useSearch: () => search }))
 // the worker's answer to which origins play their own releases, held until `held` settles; and each added source's
-// `account`, by origin, asked as the worker asks it, with every origin the page asked about
-const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, account: {} as Record<string, () => Promise<unknown>>, asked: [] as string[] }))
+// `account`, by origin, asked as the worker asks it, with every origin the page asked about, or with the worker
+// unreachable while `down`
+const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, account: {} as Record<string, () => Promise<unknown>>, asked: [] as string[], down: false }))
 vi.mock('../../../../src/worker', async () => {
   const { askAccount } = await import('../../../../src/worker/plugin-sources')
   return {
@@ -82,6 +83,7 @@ vi.mock('../../../../src/worker', async () => {
     },
     remoteAccount: async (id: string) => {
       lookups.asked.push(id)
+      if (lookups.down) throw new Error('the worker is unreachable')
       const account = lookups.account[id]
       return account ? askAccount(account) : undefined
     },
@@ -304,6 +306,7 @@ afterEach(() => {
   lookups.held = Promise.resolve()
   lookups.account = {}
   lookups.asked = []
+  lookups.down = false
   said.reset()
   detecting.held = Promise.resolve()
   detecting.installs.mockClear()
@@ -2876,5 +2879,52 @@ test('an added source whose account never answers lists its release at once and 
     await settle()
     expect(navigate, to).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
     again()
+  }
+})
+
+// the route keeps one Watch across episodes (src/router/index.tsx), so the last episode's answer is still on hand
+const nextEpisode = () => {
+  navigate.mockClear()
+  params = { ...params, episodeUri: 'ag:(anilist:1-2,paid:b,nyaa:b)' }
+  Object.assign(episode, { uri: params.episodeUri })
+}
+
+test('on the next episode, Play opens nothing ranked below the source until its new answer, and not on the last one', async () => {
+  paidFirst('account', async () => 'signed-out')
+  const { rerender } = await answered()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+  let answer = (_: string) => {}
+  lookups.account.paid = () => new Promise(resolve => { answer = resolve })
+  nextEpisode()
+  await rerender()
+  expect(navigate, 'while it is asked').not.toHaveBeenCalled()
+  await act(async () => { answer('signed-in') })
+  await settle()
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('paid:a'), { replace: true })
+})
+
+test('no answer on the next episode is not signed in, though the source said so on the last one', async () => {
+  for (const [why, unanswered] of [
+    ['it never answers', () => { lookups.account.paid = () => new Promise(() => {}) }],
+    ['it rejects', () => { lookups.account.paid = async () => { throw new Error('no session') } }],
+    ['it answers no known value', () => { lookups.account.paid = async () => 'SIGNED-IN' }],
+    ['the worker is unreachable', () => { lookups.down = true }],
+  ] as const) {
+    paidFirst('account', async () => 'signed-in')
+    statuses = {}
+    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'nyaa', 'amazon', 'nf']))
+    params = { ...params, episodeUri: allUri }
+    Object.assign(episode, { uri: allUri, handles: [allHandles[0], paidRelease, allHandles[2]] })
+    const { rerender } = await answered()
+    expect(navigate, `${why}: the last episode`).toHaveBeenCalledExactlyOnceWith(toWatch('paid:a'), { replace: true })
+    unanswered()
+    nextEpisode()
+    await rerender()
+    await act(async () => { await vi.advanceTimersByTimeAsync(ACCOUNT_WAIT_MS) })
+    await settle()
+    expect(navigate, why).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+    again()
+    lookups.down = false
+    said.reset()
   }
 })

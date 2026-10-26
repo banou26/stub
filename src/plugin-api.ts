@@ -71,10 +71,11 @@ export type StubSource = {
    * Whether playing this source's releases needs an account with its site ('account') or a paid plan
    * there ('paid'). Optional and additive to stub-source@1: left out, or any other value, it is 'none',
    * and Play weighs the source exactly as before. A source that needs one plays with nothing to fix,
-   * for Play, only while `account` says the viewer is signed in. Ranked first otherwise, it gives way to
-   * a release that plays with nothing to fix, unless `account` said the viewer was signed in earlier in
-   * this page: then Play opens it, for its own player to ask them to sign in again. With nothing to give
-   * way to, Play opens it as before. Both levels route alike; 'paid' says a plan is part of the answer.
+   * for Play, only once `account` said for the episode that the viewer is signed in. Ranked first
+   * otherwise, it gives way to a release that plays with nothing to fix, unless `account` said the
+   * viewer was signed in earlier in this page: then Play opens it, for its own player to ask them to
+   * sign in again. With nothing to give way to, Play opens it as before. Both levels route alike;
+   * 'paid' says a plan is part of the answer.
    */
   access?: SourceAccess
   /**
@@ -82,7 +83,7 @@ export type StubSource = {
    * 'none', once for each episode the watch page opens, on the connection the source registered over.
    * Stub keeps the answer in the page's memory only: it is never stored and never sent anywhere.
    * 'no-plan' always gives way, since a sign in cannot fix it. Left out, not answered yet, or answered
-   * late (over 3 s), with a rejection or with any other value, the viewer counts as never signed in
+   * late (over 3 s), with a rejection or with any other value, the viewer counts as not signed in
    * there for that episode, and Play waits at most those 3 s for the answer.
    */
   account?: () => Promise<SourceAccount>

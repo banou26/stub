@@ -44,6 +44,17 @@ test('no plan is never free and always gives way, a sign in before it too, since
   expect(accounts.neverSignedIn('paid', 'paid')).toBe(true)
 })
 
+test('no answer is not signed in, and leaves a sign in before it standing', () => {
+  const accounts = createPluginAccounts()
+  accounts.record('paid', undefined)
+  expect(accounts.free('paid', 'account'), 'no answer yet').toBe(false)
+  expect(accounts.neverSignedIn('paid', 'account'), 'no answer yet').toBe(true)
+  accounts.record('paid', 'signed-in')
+  accounts.record('paid', undefined)
+  expect(accounts.free('paid', 'account'), 'no answer since a sign in').toBe(false)
+  expect(accounts.neverSignedIn('paid', 'account'), 'no answer since a sign in').toBe(false)
+})
+
 test('each source keeps its own answer', () => {
   const accounts = createPluginAccounts()
   accounts.record('first', 'signed-in')

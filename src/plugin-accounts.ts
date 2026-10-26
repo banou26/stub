@@ -4,7 +4,8 @@
 import type { SourceAccess, SourceAccount } from './plugin-api'
 
 export type PluginAccounts = {
-  record: (origin: string, state: SourceAccount) => void
+  /** What the source answered for this episode, undefined for no answer, which counts as not signed in. */
+  record: (origin: string, state: SourceAccount | undefined) => void
   /** The source's releases play with no account to fix: it needs none, or it said the viewer is signed in. */
   free: (origin: string, access: SourceAccess) => boolean
   /**
@@ -15,7 +16,7 @@ export type PluginAccounts = {
 }
 
 export const createPluginAccounts = (): PluginAccounts => {
-  const last = new Map<string, SourceAccount>()
+  const last = new Map<string, SourceAccount | undefined>()
   const signedIn = new Set<string>()
   return {
     record: (origin, state) => {

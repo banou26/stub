@@ -533,17 +533,18 @@ const Watch = () => {
     return () => { cancelled = true }
   }, [lookupOrigins])
 
-  // an added source that needs an account is asked for the viewer's on every episode, and is not settled until it answered
+  // an added source that needs an account is asked for the viewer's on every episode, and is neither settled nor
+  // free until it answered for this one
   const accountOrigins = added.filter(origin => accessOf(origin) !== 'none').join(',')
   const accountsKey = `${params.episodeUri} ${accountOrigins}`
   const [accountsFor, setAccountsFor] = useState<string>()
+  const accountKnown = (origin: string) => accessOf(origin) === 'none' || accountsFor === accountsKey
   useEffect(() => {
     if (!accountOrigins) return
     let cancelled = false
-    void Promise.all(accountOrigins.split(',').map(origin => remoteAccount(origin).then(
-      state => { if (state) pluginAccounts.record(origin, state) },
-      () => {},
-    ))).then(() => { if (!cancelled) setAccountsFor(accountsKey) })
+    void Promise.all(accountOrigins.split(',').map(origin => remoteAccount(origin).catch(() => undefined)
+      .then(state => { pluginAccounts.record(origin, state) })))
+      .then(() => { if (!cancelled) setAccountsFor(accountsKey) })
     return () => { cancelled = true }
   }, [accountsKey])
 
@@ -690,7 +691,7 @@ const Watch = () => {
       ? addable || !EXTENSION_ONLY_ORIGINS.has(origin)
       : connecting || added.includes(origin)),
     settled: origin => answered && (PLAYABLE_ORIGINS.has(origin) || (connectedOn.current.has(origin) && connectedOn.current.get(origin) !== media))
-      && (accessOf(origin) === 'none' || accountsFor === accountsKey),
+      && accountKnown(origin),
   }
   const guest = party.status === 'joining' || (party.status === 'active' && party.role === 'guest')
   const search = useSearch()
@@ -712,10 +713,10 @@ const Watch = () => {
   const neverSignedIn = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
     (neverSignedInTo(handle.origin, status) && !extensionOnly(handle)) || pluginAccounts.neverSignedIn(handle.origin, accessOf(handle.origin))
   // stub's own players are all of paid sites, so one is free only once stub found the viewer signed in there; an
-  // added source is free when it needs no account, or said in this page the viewer is signed in
+  // added source is free when it needs no account, or said for this episode the viewer is signed in
   const free = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) => PLAYABLE_ORIGINS.has(handle.origin)
     ? foundSignedIn(handle.origin, status) && !extensionOnly(handle)
-    : pluginAccounts.free(handle.origin, accessOf(handle.origin))
+    : accountKnown(handle.origin) && pluginAccounts.free(handle.origin, accessOf(handle.origin))
   const open = episodeHandles.filter(handle => !unplayable.includes(handle.uri))
   // Play's own pick of a site never signed in to gives way too, once a source plays with nothing to fix
   const cannotPlay = Boolean(selectedSourceUri && (unplayable.includes(selectedSourceUri)
