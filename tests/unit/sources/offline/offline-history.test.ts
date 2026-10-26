@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { expect, test } from 'vite-plus/test'
 
-import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory } from '../../../../scripts/offline-history.mjs'
+import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory, runOptions } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
 import { SECRETS, readStore } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
@@ -490,7 +490,16 @@ test('the job refuses to run anywhere but its workflow, before it asks anything'
   expect(workflow.stderr).toContain('FETCHED https://api.github.com/repos/banou26/stub/releases/tags/offline-history')
 })
 
-// Mutation: no notice when a secret is unset.
+// Mutations: hand the run no store; drop the run id or the commit from the writer.
+test('the workflow\'s environment gives the run its token, the store once every secret is set, and the writer its lines name', () => {
+  const env = { GH_TOKEN: 't', GITHUB_RUN_ID: '18800000001', GITHUB_SHA: '0dcc445515d01f83ed4f61a388e0530dcba472f7', ...STORE_ENV }
+  const { token, store, writer } = runOptions(env)
+  expect([token, Object.keys(store ?? {})]).toEqual(['t', ['get', 'put', 'remove']])
+  expect(writer).toEqual({ by: 'offline-history', run: '18800000001', stub: JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version, commit: '0dcc4455' })
+  for (const name of SECRETS) expect(runOptions({ ...env, [name]: '' }).store).toBeUndefined()
+})
+
+// Mutations: no notice when a secret is unset; a notice that reads the secrets while the run gets no store.
 test('without the source store\'s secrets the job says so in a notice and goes on as before', () => {
   const skipped = script({ GITHUB_WORKFLOW: 'Offline history', GH_TOKEN: 't' })
   expect(skipped.stdout).toContain(`::notice::[offline-history] the source store is skipped: ${SECRETS.join(', ')} not set`)

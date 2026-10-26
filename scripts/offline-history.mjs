@@ -403,6 +403,16 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   }
 }
 
+/** `runHistory`'s options from the workflow's environment: the store only when every secret of `SECRETS` is set. */
+export const runOptions = env => {
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  return {
+    token: env.GH_TOKEN,
+    store: r2(env),
+    writer: { by: 'offline-history', run: env.GITHUB_RUN_ID ?? null, stub: version, commit: env.GITHUB_SHA?.slice(0, 8) ?? null },
+  }
+}
+
 const main = async () => {
   if (process.env.GITHUB_WORKFLOW !== WORKFLOW) {
     console.error(`[offline-history] REFUSING: this asks AniDB and Kitsu, so it runs only as the "${WORKFLOW}" workflow.`)
@@ -412,11 +422,9 @@ const main = async () => {
     console.error('[offline-history] REFUSING: no GH_TOKEN to publish with.')
     process.exit(1)
   }
-  const missing = SECRETS.filter(name => !process.env[name])
-  if (missing.length) console.log(`::notice::[offline-history] the source store is skipped: ${missing.join(', ')} not set`)
-  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  const writer = { by: 'offline-history', run: process.env.GITHUB_RUN_ID ?? null, stub: version, commit: process.env.GITHUB_SHA?.slice(0, 8) ?? null }
-  await runHistory({ token: process.env.GH_TOKEN, store: r2(process.env), writer })
+  const options = runOptions(process.env)
+  if (!options.store) console.log(`::notice::[offline-history] the source store is skipped: ${SECRETS.filter(name => !process.env[name]).join(', ')} not set`)
+  await runHistory(options)
 }
 
 if (import.meta.main) await main()
