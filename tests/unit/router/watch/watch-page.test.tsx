@@ -1812,6 +1812,18 @@ test('a torrent with no next episode to offer asks for no ending', async () => {
   expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
 })
 
+test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1394.95
+  bridge.duration = 1395
+  const { host, rerender } = await atTheEnd()
+  Object.assign(media, { uri: 'ag:(anilist:1,mal:5,tvdb:1)' })
+  await rerender()
+  await report({ paused: false, time: 1290 })
+  await settle()
+  expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent('cr:GX2')}`)
+  expect([lengths.asked, direct.asked]).toEqual([[], []])
+})
+
 test('a torrent\'s player is put on the stage, which keeps its fullscreen', async () => {
   const { host } = await atTheEnd({}, 'nyaa:a')
   expect(pluginPlayers.stages).toEqual([host.querySelector('.stage')])
