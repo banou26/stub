@@ -111,6 +111,7 @@
     "@types/react-dom": "^19.1.7",
     "@types/sanitize-html": "^2.16.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "aws4fetch": "^1.0.20",
     "chai": "^5.2.1",
     "chai-as-promised": "^8.0.1",
     "chai-shallow-deep-equal": "^1.4.6",
