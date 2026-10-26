@@ -14,6 +14,8 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
     sources: [{ origin: 'spec-a', name: 'Spec Releases' }, { origin: 'spec-b', name: 'Spec Batches' }, { origin: 'spec-c', name: 'Spec Archive' }],
     rejected: [{ origin: 'spec-d', reason: 'declares no catalogue' }],
   },
+  // the package tests/watch-stage.spec.ts mounts to play its torrents
+  'npm:@spec/stage-player': { state: 'connected', sources: [{ origin: 'spec-torrent', name: 'Spec Torrents' }] },
   'npm:@spec/slow-source': { state: 'connecting' },
   'https:still.connecting.spec.test': { state: 'connecting' },
   'npm:@spec/broken-source': { state: 'error' },

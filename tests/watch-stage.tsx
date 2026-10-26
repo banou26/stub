@@ -7,32 +7,44 @@ import { Route, Router } from 'wouter'
 
 import Watch from '../src/router/watch'
 import { getRouterRoutePath, Route as Routes } from '../src/router/path'
-import { STAGE_MEDIA, stageEpisode } from './watch-stage-media'
+import { STAGE_MEDIA, TORRENT_MEDIA, TORRENT_ORIGIN, stageEpisode, torrentEpisode } from './watch-stage-media'
 
 // The watch page tests/watch-stage.spec.ts drives: the real page over a GraphQL client that answers a show of two
-// Crunchyroll episodes, both out, and nothing else. The embed it frames is ./watch-stage-player.tsx.
+// Crunchyroll episodes and a show of three torrents, all out, and nothing else. The embed it frames for the first is
+// ./watch-stage-player.tsx, the package it mounts for the second ./watch-stage-plugin.ts.
 
-const media = {
-  uri: STAGE_MEDIA,
+const show = (uri: string, count: number, episodeUri: (number: number) => string, handle: (number: number) => object) => ({
+  uri,
   titles: [{ title: 'Spec Stage' }],
   type: 'ANIME',
   categories: [],
-  episodeCount: 2,
+  episodeCount: count,
   status: 'FINISHED',
   settled: true,
   seasons: [],
   relations: [],
   handles: [],
-  episodes: [1, 2].map(number => ({
-    uri: stageEpisode(number),
+  episodes: Array.from({ length: count }, (_, index) => index + 1).map(number => ({
+    uri: episodeUri(number),
     episodeNumber: number,
     releaseDate: '2020-01-01T00:00:00.000Z',
     titles: [{ title: `Stage ${number}` }],
     thumbnails: [],
-    handles: [{ relation: 'SAME_AS', node: { uri: `cr:GSTAGE${number}`, origin: 'cr', id: `GSTAGE${number}`, url: `https://www.crunchyroll.com/watch/GSTAGE${number}` } }],
+    handles: [{ relation: 'SAME_AS', node: handle(number) }],
   })),
+})
+const shows: Record<string, object> = {
+  [STAGE_MEDIA]: show(STAGE_MEDIA, 2, stageEpisode, number => ({ uri: `cr:GSTAGE${number}`, origin: 'cr', id: `GSTAGE${number}`, url: `https://www.crunchyroll.com/watch/GSTAGE${number}` })),
+  [TORRENT_MEDIA]: show(TORRENT_MEDIA, 3, torrentEpisode, number => ({ uri: `${TORRENT_ORIGIN}:${number}`, origin: TORRENT_ORIGIN, id: String(number), url: `magnet:?xt=urn:btih:stage${number}` })),
 }
-const origins = { originPage: { nodes: [{ id: 'cr', url: 'https://www.crunchyroll.com', name: 'Crunchyroll', icon: null, color: null, isApiOnly: false }] } }
+const origins = {
+  originPage: {
+    nodes: [
+      { id: 'cr', url: 'https://www.crunchyroll.com', name: 'Crunchyroll', icon: null, color: null, isApiOnly: false },
+      { id: TORRENT_ORIGIN, url: 'https://torrents.spec.test', name: 'Spec Torrents', icon: null, color: null, isApiOnly: false },
+    ],
+  },
+}
 
 const answers: Exchange = () => operations => pipe(
   operations,
@@ -40,7 +52,8 @@ const answers: Exchange = () => operations => pipe(
   mergeMap(operation => {
     const definition = operation.query.definitions.find(node => node.kind === 'OperationDefinition')
     const name = definition && 'name' in definition ? definition.name?.value : undefined
-    const data = name === 'GetWatchMedia' && operation.variables?.input?.uri === STAGE_MEDIA ? { media }
+    const media = name === 'GetWatchMedia' ? shows[operation.variables?.input?.uri] : undefined
+    const data = media ? { media }
       : name === 'GetWatchOrigins' ? origins
       : undefined
     return data ? fromValue({ operation, data, stale: false, hasNext: false }) : never
