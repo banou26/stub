@@ -69,6 +69,9 @@ packages.onConnect(() => ({
   name: 'Example Source',
   isApiOnly: false,
   metadataOnly: true,
+  // what playing this source's releases needs; a source whose site needs a sign in says 'account' or 'paid', and
+  // serves `account: async () => 'signed-in'` (or 'signed-out', or 'no-plan') so Play knows whether the viewer has one
+  access: 'none',
   resolvers: {
     Query: {},
     Mutation: {},

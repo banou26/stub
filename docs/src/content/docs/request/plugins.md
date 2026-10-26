@@ -518,6 +518,44 @@ together only by a plugin's handle comes out of the export as two clusters. Note
 does not achieve: it keeps a plugin's claims out of the export, and it changes nothing about the live
 store, where the union already happened. See [exporting](/read/export/).
 
+## Whether a source needs an account
+
+Two optional fields on a source, additive to `stub-source@1` like `onPlayback` and `buffer`, so an older
+plugin needs no change and gets no new contract tag (`src/plugin-api.ts`):
+
+```ts
+access?: 'none' | 'account' | 'paid'
+account?: () => Promise<'signed-in' | 'signed-out' | 'no-plan'>
+```
+
+- **`access`** says what playing the source's releases needs. `readPluginSources` reads anything but
+  `'account'` or `'paid'` as `'none'`, so every plugin written before it routes as it did. The page
+  learns it with the registration (`RegisteredSource.access`), so it is known the moment the source joins
+  Play's order. Both levels route alike; `'paid'` says a plan is part of the answer.
+- **`account`** is asked, not pushed: stub asks when Play weighs the source, once for each episode the
+  watch page opens, as it asks `buffer` and `selectRelease`, so a plugin keeps no listener and stub keeps
+  no subscription. The worker asks it on the connection the source registered over, only when `access`
+  is not `'none'`, and waits `ACCOUNT_WAIT_MS = 3_000` at most (`src/worker/plugin-sources.ts`). A late
+  answer, a rejection or any other value is no answer.
+- **The answer stays in the page's memory** (`src/plugin-accounts.ts`). It is never written to storage,
+  never synced and never sent anywhere.
+
+Play reads it as it reads stub's own Crunchyroll and Prime Video, by the owner's rule of 2026-10-26: a
+viewer seen signed in before is asked to sign in again, and one never seen signed in gets the release
+that plays with nothing to fix.
+
+| what the source said in this page | plays with nothing to fix | as Play's favourite, it |
+| --- | --- | --- |
+| it needs no account | yes | opens |
+| `signed-in` | yes | opens |
+| `signed-out`, after a `signed-in` | no | opens, for its own player to ask the viewer to sign in again |
+| `signed-out` with no `signed-in` before; nothing yet; no `account`; no answer | no | gives way to a release that plays with nothing to fix, and with none, opens |
+| `no-plan` | no | gives way, since a sign in cannot fix it, and with none, opens |
+
+While its answer for the episode is out, the source is not settled, so Play opens nothing ranked below
+it, for `ACCOUNT_WAIT_MS` at most. The page does not wait: the source list's links come from the
+player lookup, which the ask never holds.
+
 ## What is not reduced
 
 Worth stating plainly, because the list of restrictions above can read as a sandbox and it is not one.
