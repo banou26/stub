@@ -73,5 +73,5 @@
   "Web novel#source material": "Web novel",
   "{count, plural, one {{count} Episode} other {{count} Episodes}}": "{count, plural, one {{count} episodio} other {{count} episodi}}",
   "{count} ep": "{count} ep.",
-  "{start} to {end}": "dal {start} al {end}"
+  "{start} to {end}": "{start} - {end}"
 }

@@ -1,5 +1,5 @@
 // The full page for one title, opened from the modal's More details link (HOR-348).
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
@@ -7,6 +7,9 @@ import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/grap
 import { startLanguage } from '../../../src/i18n'
 import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
 import { currentEpisode, playLabel, playTarget, ratingChips, releasedLabel, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
+
+const LANGUAGES = readdirSync(fileURLToPath(new URL('../../../src/locales', import.meta.url)))
+  .filter(name => name.endsWith('.json')).map(name => name.slice(0, -'.json'.length))
 
 // Frieren as AniList and the offline catalogue name it
 const FRIEREN = {
@@ -106,9 +109,10 @@ test('the source material reads as words', () => {
   expect(titleFacts({ sourceMaterial: 'LIGHT_NOVEL' })).toEqual([{ label: 'Source', value: 'Light novel' }])
 })
 
+const SOURCE_MATERIALS = ['ORIGINAL', 'MANGA', 'LIGHT_NOVEL', 'VISUAL_NOVEL', 'VIDEO_GAME', 'OTHER', 'NOVEL', 'DOUJINSHI', 'ANIME', 'WEB_NOVEL', 'LIVE_ACTION', 'GAME', 'COMIC', 'MULTIMEDIA_PROJECT', 'PICTURE_BOOK', 'AUDIO_DRAMA']
+
 test('each source material AniList names reads as words, and one it may add later as its own word', () => {
-  const sources = ['ORIGINAL', 'MANGA', 'LIGHT_NOVEL', 'VISUAL_NOVEL', 'VIDEO_GAME', 'OTHER', 'NOVEL', 'DOUJINSHI', 'ANIME', 'WEB_NOVEL', 'LIVE_ACTION', 'GAME', 'COMIC', 'MULTIMEDIA_PROJECT', 'PICTURE_BOOK', 'AUDIO_DRAMA']
-  expect(sources.map(sourceMaterial => titleFacts({ sourceMaterial })[0]?.value)).toEqual([
+  expect(SOURCE_MATERIALS.map(sourceMaterial => titleFacts({ sourceMaterial })[0]?.value)).toEqual([
     'Original', 'Manga', 'Light novel', 'Visual novel', 'Video game', 'Other', 'Novel', 'Doujinshi', 'Anime', 'Web novel', 'Live action', 'Game', 'Comic', 'Multimedia project', 'Picture book', 'Audio drama',
   ])
 })
@@ -161,6 +165,32 @@ describe('in German', () => {
       { label: 'Andere Titel', value: '葬送のフリーレン' },
     ])
   })
+})
+
+// French read "Œuvre originale: Œuvre originale" on an anime original
+test('in no language does a source material read as the label beside it', async () => {
+  expect(LANGUAGES.length).toBeGreaterThan(10)
+  try {
+    for (const language of LANGUAGES) {
+      await startLanguage({ language, languages: [language] })
+      const facts = SOURCE_MATERIALS.map(sourceMaterial => titleFacts({ sourceMaterial })[0]!)
+      expect(facts.filter(({ label, value }) => value === label), language).toEqual([])
+    }
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
+// a source may date a show to its year or month alone, where French read "du 1998 au 1999"
+test('French and Italian ranges read alike for years, months and days', async () => {
+  const ranges = (locale: string) => [['1998', '1999'], ['1998-04', '1999-03'], ['1998-04-03', '1999-04-24']]
+    .map(([startDate, endDate]) => titleFacts({ status: MediaStatus.Finished, startDate, endDate }, { locale }).at(-1)?.value)
+  try {
+    expect(ranges((await startLanguage({ language: 'fr', languages: ['fr-FR'] })).locale)).toEqual(['1998 - 1999', 'avr. 1998 - mars 1999', '3 avr. 1998 - 24 avr. 1999'])
+    expect(ranges((await startLanguage({ language: 'it', languages: ['it-IT'] })).locale)).toEqual(['1998 - 1999', 'apr 1998 - mar 1999', '3 apr 1998 - 24 apr 1999'])
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 test('an upcoming start reads Releases', () => {

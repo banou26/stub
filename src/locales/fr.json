@@ -36,7 +36,7 @@
   "ONA": "ONA",
   "OVA": "OVA",
   "One Shot": "One shot",
-  "Original#source material": "Œuvre originale",
+  "Original#source material": "Création originale",
   "Other#source material": "Autre",
   "Parent story": "Histoire principale",
   "Picture book#source material": "Livre illustré",
@@ -73,5 +73,5 @@
   "Web novel#source material": "Web novel",
   "{count, plural, one {{count} Episode} other {{count} Episodes}}": "{count, plural, one {{count} épisode} other {{count} épisodes}}",
   "{count} ep": "{count} ép.",
-  "{start} to {end}": "du {start} au {end}"
+  "{start} to {end}": "{start} - {end}"
 }

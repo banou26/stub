@@ -1,8 +1,10 @@
 // The failure this guards is a relation added to the schema and forgotten here, which renders as raw
 // SCREAMING_SNAKE in the middle of the page. Nothing throws, and it looks like a data problem.
 import { describe, expect, test } from 'vite-plus/test'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
+import { startLanguage } from '../../../src/i18n'
 import { relationLabel, relationRank, workFormatLabel } from '../../../src/utils/relation-labels'
 
 /** The enum as the schema actually declares it, read rather than restated so the two cannot drift. */
@@ -83,6 +85,22 @@ describe('workFormatLabel', () => {
     expect(workFormatLabel('ONA')).toBe('ONA')
     expect(workFormatLabel('MOVIE')).toBe('Movie')
     expect(workFormatLabel('TV_SHORT')).toBe('TV Short')
+  })
+
+  // src/locales/GLOSSARY.md never translates them, and Russian wrote ТВ
+  test('every language writes the codes TV, OVA and ONA as they are', async () => {
+    const languages = readdirSync(fileURLToPath(new URL('../../../src/locales', import.meta.url)))
+      .filter(name => name.endsWith('.json')).map(name => name.slice(0, -'.json'.length))
+    expect(languages.length).toBeGreaterThan(10)
+    try {
+      for (const language of languages) {
+        await startLanguage({ language, languages: [language] })
+        expect([workFormatLabel('TV'), workFormatLabel('OVA'), workFormatLabel('ONA')], language).toEqual(['TV', 'OVA', 'ONA'])
+        expect(workFormatLabel('TV_SHORT'), language).toContain('TV')
+      }
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
   })
 
   test('each format it knows, word for word', () => {
