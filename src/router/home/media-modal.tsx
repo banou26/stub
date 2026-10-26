@@ -27,6 +27,7 @@ import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { getRoutePath, Route } from '../path'
 import { releasedLabel } from '../title/facts'
+import { intl } from '../../i18n'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -349,7 +350,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const current = currentMedia({ data, operation }, uri)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
-  const released = data?.media && releasedLabel(data.media)
+  const released = data?.media && releasedLabel(data.media, { locale: intl.locale })
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
   const settled = useSettledOnce(uri, current?.settled && answered)

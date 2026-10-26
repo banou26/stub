@@ -1,7 +1,7 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from '../components/dom'
 
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { Route, Router } from 'wouter'
@@ -39,6 +39,7 @@ vi.mock('../../../src/components/media-franchise', () => ({ default: () => null 
 
 const { default: MediaModal } = await import('../../../src/router/home/media-modal')
 const { default: TitlePage } = await import('../../../src/router/title/index')
+const { startLanguage } = await import('../../../src/i18n')
 
 const work = (id: number, title: string) => ({
   _id: `cl:${id}`,
@@ -607,5 +608,35 @@ describe('Relations', () => {
     navigate(`/media/${next.uri}`)
     answer(next)
     expect(current(modal())).toBe('1')
+  })
+})
+
+// the title page's facts once wrote the shown language's dates while its episodes kept the browser's
+describe('every date, in the shown language as the browser writes it: British English here', () => {
+  beforeAll(() => startLanguage({ language: 'en', languages: ['en-GB'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const dated = () => {
+    const frieren = work(1, 'Frieren')
+    return { ...frieren, settled: true, episodes: frieren.episodes.map(episode => ({ ...episode, releaseDate: '2023-10-06' })) }
+  }
+  const british = (day: string) => releaseDateLabel(day, { locale: 'en-GB' })
+  const episodeDays = (root: Element) => [...root.querySelectorAll('.episode time')].map(time => time.textContent)
+
+  test('the control: British English writes a day otherwise than the runner\'s US English', () => {
+    expect(british('2023-10-06')).not.toBe(releaseDateLabel('2023-10-06'))
+  })
+
+  test('on the title page, its facts and its episodes', () => {
+    const { host, answer } = titlePage(dated().uri)
+    answer(dated())
+    expect(facts(host)).toContain(`Aired: ${british('2023-09-29')}`)
+    expect(episodeDays(host)).toEqual([british('2023-10-06'), british('2023-10-06')])
+  })
+
+  test('on the preview, its release date and its episodes', () => {
+    const { answer } = preview(dated().uri)
+    answer(dated())
+    expect(modal().querySelector('.header + .released')?.textContent).toBe(british('2023-09-29'))
+    expect(episodeDays(modal())).toEqual([british('2023-10-06'), british('2023-10-06')])
   })
 })

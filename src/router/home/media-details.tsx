@@ -25,6 +25,7 @@ import { isMovieMedia } from './movie'
 import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
+import { intl } from '../../i18n'
 import { formatCountdown } from '../../utils/countdown'
 import { useNow } from '../../utils/use-now'
 import { canPlay } from '../../sources/playable'
@@ -630,7 +631,7 @@ const Episode = (
   const thumbnail = nextThumbnail(episode.thumbnails, failedThumbnails)
   const releasedAt = airingAt ?? scheduled ?? releasedAtOf(episode)
   const airsIn = unreleased && airingAt ? formatCountdown(Date.parse(airingAt) - now) : undefined
-  const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt, { upcoming: unreleased })
+  const released = airsIn ? `in ${airsIn}` : releaseDateDisplay(releasedAt, { upcoming: unreleased, locale: intl.locale })
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
   const bar = unreleased ? undefined : progress ?? (watched ? 1 : undefined)
 
