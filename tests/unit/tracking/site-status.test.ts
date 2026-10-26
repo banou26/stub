@@ -33,7 +33,7 @@ test('keeps the state and the time only, never anything the site said about the 
 })
 
 // HOR-1033: Play asks a viewer who signed in here before to sign in again, rather than opening a free source
-test('a sign out keeps that the viewer was signed in before, through every sign out after, until the next sign in', () => {
+test('a sign out keeps that the viewer was signed in before, through every sign out after, until the next sign in, and sign outs alone keep none', () => {
   const storage = memory()
   const statuses = createSiteStatuses(() => storage)
   statuses.record('crunchyroll', 'signed-in', 1_000)
@@ -46,7 +46,8 @@ test('a sign out keeps that the viewer was signed in before, through every sign 
   statuses.record('crunchyroll', 'signed-in', 4_000)
   expect(JSON.parse(storage.values.get(SITE_STATUS_KEY)!).crunchyroll).toEqual({ state: 'signed-in', checkedAt: 4_000 })
   statuses.record('prime', 'signed-out', 5_000)
-  expect(statuses.read('prime'), 'never signed in').toEqual({ state: 'signed-out', checkedAt: 5_000 })
+  statuses.record('prime', 'signed-out', 6_000)
+  expect(statuses.read('prime'), 'never signed in').toEqual({ state: 'signed-out', checkedAt: 6_000 })
 })
 
 test('on a browser that blocks site data, keeps that the viewer was signed in before for this page', () => {
