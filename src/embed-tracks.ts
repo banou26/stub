@@ -6,6 +6,8 @@
  * Only this app's origin is heard or sent to: a source's own `embedUrl` sits on another origin, where
  * the browser drops the message instead of delivering it.
  */
+import { postMessage } from '@banou/ponyfill/web-messaging'
+
 const TRACKS = 'stub:embed-tracks'
 const ASK = 'stub:embed-tracks?'
 const PICK = 'stub:embed-track-pick'
@@ -27,7 +29,7 @@ export const serveEmbedTracks = (
   select: (kind: TrackKind, id: string | null) => void,
   host: Window = window,
 ) => {
-  const send = () => host.parent.postMessage({ type: TRACKS, tracks }, host.location.origin)
+  const send = () => postMessage(host.parent, { type: TRACKS, tracks }, host.location.origin)
   const receive = (event: MessageEvent) => {
     if (event.source !== host.parent || event.origin !== host.location.origin) return
     const { type, kind, id } = (event.data ?? {}) as Message
@@ -58,8 +60,11 @@ export const embedTracks = (iframe: HTMLIFrameElement, host: Window = window): T
     heard = tracks
     for (const listener of listeners) listener(tracks)
   }
+  const toEmbed = (message: unknown) => {
+    if (iframe.contentWindow) postMessage(iframe.contentWindow, message, host.location.origin)
+  }
   // asked on load, not now: until a new `src` commits, the iframe's window is still the old document, which would answer
-  const ask = () => iframe.contentWindow?.postMessage({ type: ASK }, host.location.origin)
+  const ask = () => toEmbed({ type: ASK })
   host.addEventListener('message', receive)
   iframe.addEventListener('load', ask)
   return {
@@ -68,7 +73,7 @@ export const embedTracks = (iframe: HTMLIFrameElement, host: Window = window): T
       if (heard) listener(heard)
       return () => { listeners.delete(listener) }
     },
-    select: (kind, id) => iframe.contentWindow?.postMessage({ type: PICK, kind, id }, host.location.origin),
+    select: (kind, id) => toEmbed({ type: PICK, kind, id }),
     dispose: () => {
       host.removeEventListener('message', receive)
       iframe.removeEventListener('load', ask)
