@@ -10,6 +10,10 @@ import { loadDevice, loadEnabled, saveDevice } from '../src/plugin-list'
 /** An added source that plays its own releases, with no sign in or extension. */
 export const FREE_RELEASES = 'npm:@spec/free-releases'
 
+/** An added source like FREE_RELEASES whose releases need an account, and whose `account` answers what SPEC_ACCOUNT_KEY holds. */
+export const ACCOUNT_RELEASES = 'npm:@spec/account-releases'
+export const SPEC_ACCOUNT_KEY = 'spec.account'
+
 export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   'npm:@spec/anime-source': { state: 'connected', sources: [{ origin: 'spec-anime', name: 'Spec Anime' }] },
   'npm:@spec/source-family': {
@@ -22,8 +26,9 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   'npm:@spec/broken-source': { state: 'error' },
   'https:dead.spec.test': { state: 'error' },
   'https:asourcewhosehostnamehasnowheretobreak.spec.test': { state: 'error' },
-  // connected once the worker has registered it, below
+  // connected once the worker has registered them, below
   [FREE_RELEASES]: { state: 'connecting' },
+  [ACCOUNT_RELEASES]: { state: 'connecting' },
 }
 
 const row = (origin: string, id: string, fields: object = {}) => ({
@@ -32,20 +37,21 @@ const row = (origin: string, id: string, fields: object = {}) => ({
   ...fields,
 })
 
-const release = (id: string, score: number) =>
-  row('spec-free', id, { mediaUri: 'spec-free:900070', episodeNumber: 1, url: `magnet:?xt=urn:btih:${id}`, score })
+const release = (origin: string, id: string, score: number) =>
+  row(origin, id, { mediaUri: `${origin}:900070`, episodeNumber: 1, url: `magnet:?xt=urn:btih:${id}`, score })
 
 // Registered in the worker itself while added, as src/plugins.ts registers a package's connection, so it is
 // asked like any source. It plays its own releases, as the stub plugin's Nyaa does, and answers Spec Prime
 // Film (anilist:900070, tests/fake-fetch.ts) with three releases of its one episode, each ranked in its score
 // as Nyaa ranks them, the first with the highest id.
-const freeReleases = {
-  origin: 'spec-free',
-  originUrl: 'https://spec-free.test',
-  name: 'Spec Free',
+const releasing = (origin: string, name: string, fields: object = {}) => ({
+  origin,
+  originUrl: `https://${origin}.test`,
+  name,
   isApiOnly: false,
   metadataOnly: false,
   play: async () => true,
+  ...fields,
   resolvers: {
     Query: {},
     Mutation: {},
@@ -54,16 +60,21 @@ const freeReleases = {
         subscribe: async function* (_: unknown, { input }: { input?: { uri?: string } }) {
           if (!/\banilist:900070\b/.test(input?.uri ?? '')) return yield { media: null }
           yield {
-            media: row('spec-free', '900070', {
+            media: row(origin, '900070', {
               categories: ['MOVIE'],
               handles: [{ relation: 'SAME_AS', node: row('anilist', '900070') }],
-              episodes: [release('900070-1', 0.3), release('900070-0b', 0.2999), release('900070-0a', 0.2998)],
+              episodes: [release(origin, '900070-1', 0.3), release(origin, '900070-0b', 0.2999), release(origin, '900070-0a', 0.2998)],
             }),
           }
         },
       },
     },
   },
+})
+
+const REGISTERED: Record<string, object> = {
+  [FREE_RELEASES]: releasing('spec-free', 'Spec Free'),
+  [ACCOUNT_RELEASES]: releasing('spec-paid', 'Spec Paid', { access: 'account', account: async () => localStorage.getItem(SPEC_ACCOUNT_KEY) }),
 }
 
 const listeners = new Set<() => void>()
@@ -104,12 +115,13 @@ export const disablePlugin = async (uri: string): Promise<void> => {
 
 export const addPlugins = async (): Promise<void> => {}
 
-if (loadEnabled().includes(FREE_RELEASES)) {
+for (const [uri, source] of Object.entries(REGISTERED)) {
+  if (!loadEnabled().includes(uri)) continue
   void Promise.all([import('@fkn/lib/packages'), import('../src/worker')]).then(async ([{ attach }, { registerRemoteSource }]) => {
     const { port1, port2 } = new MessageChannel()
-    void attach(port1, freeReleases)
-    const result = await registerRemoteSource(port2, FREE_RELEASES)
-    if ('ok' in result) SPEC_PLUGINS[FREE_RELEASES] = { state: 'connected', sources: result.ok.sources }
+    void attach(port1, source)
+    const result = await registerRemoteSource(port2, uri)
+    if ('ok' in result) SPEC_PLUGINS[uri] = { state: 'connected', sources: result.ok.sources }
     notify()
   })
 }

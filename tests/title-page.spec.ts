@@ -17,7 +17,7 @@ import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 import { SITE_STATUS_KEY } from '../src/tracking/site-status'
-import { FREE_RELEASES } from './fake-plugins'
+import { ACCOUNT_RELEASES, FREE_RELEASES, SPEC_ACCOUNT_KEY } from './fake-plugins'
 import { workerFakes } from './worker-fakes'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
@@ -1293,6 +1293,31 @@ test.describe('a viewer in Japan', () => {
       await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
       // nothing here plays on the cloud before the release, so this holds without Play's wait for it too: the wait is
       // pinned in tests/unit/router/watch/watch-page.test.tsx, on the extension
+      const named = await page.evaluate(() => (window as unknown as { addresses: string[] }).addresses
+        .map(address => decodeURIComponent(new URL(address, location.href).pathname).split('/')[4])
+        .filter(Boolean))
+      expect([...new Set(named)], 'the sources the address named').toEqual([sourceUri])
+    })
+  }
+
+  // HOR-1033, the owner, 2026-10-26, on whether an added source can say its releases need an account: "Yes, it should
+  // be able to." Its `access` and `account` cross the package connection to the worker, and Play reads the answer
+  for (const [account, sourceUri] of [['signed-in', 'spec-paid:900070-1'], ['signed-out', 'spec-free:900070-1']] as const) {
+    test(`an added source ranked first whose releases need an account, answering ${account}, opens ${sourceUri}`, async ({ page }) => {
+      test.setTimeout(120_000)
+      await page.addInitScript(([plugins, list, order, key, account]) => {
+        localStorage.setItem(list, JSON.stringify(plugins))
+        localStorage.setItem(order, JSON.stringify(['spec-paid', 'spec-free']))
+        localStorage.setItem(key, account)
+        const addresses: string[] = []
+        Object.assign(window, { addresses })
+        for (const name of ['pushState', 'replaceState'] as const) {
+          const original = history[name].bind(history)
+          history[name] = (data, unused, url) => { addresses.push(String(url)); original(data, unused, url) }
+        }
+      }, [[ACCOUNT_RELEASES, FREE_RELEASES], ENABLED_PLUGINS_KEY, PLAY_ORDER_KEY, SPEC_ACCOUNT_KEY, account] as const)
+      await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
+      await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
       const named = await page.evaluate(() => (window as unknown as { addresses: string[] }).addresses
         .map(address => decodeURIComponent(new URL(address, location.href).pathname).split('/')[4])
         .filter(Boolean))
