@@ -1,5 +1,5 @@
-// What src/worker.ts hands the worker before the page's first question, and again on every change: here, the
-// languages a source added in Settings is handed (src/viewer-languages.ts).
+// What src/worker.ts hands the worker before the page's first question, and again on every change: here, the merge
+// order (src/sources/merge-order.ts) and the languages a source added in Settings is handed (src/viewer-languages.ts).
 import { expect, test, vi } from 'vite-plus/test'
 
 const stored = new Map<string, string>()
@@ -24,8 +24,16 @@ vi.mock('osra', () => ({
 
 await import('../../src/worker')
 const { keepAudioLanguage, keepSubtitleLanguage } = await import('../../src/utils/track-languages')
+const { writeMergeOrder } = await import('../../src/sources/merge-order')
 
 const languagesHanded = () => handed.filter(([name]) => name === 'setViewerLanguages').map(([, [languages]]) => languages)
+const mergeOrdersHanded = () => handed.filter(([name]) => name === 'setMergeOrder').map(([, [order]]) => order)
+
+test('the merge order reaches the worker at start, and again on each change', () => {
+  expect(mergeOrdersHanded()).toEqual([[]])
+  writeMergeOrder(['anilist', 'mal'])
+  expect(mergeOrdersHanded()).toEqual([[], ['anilist', 'mal']])
+})
 
 test("the viewer's languages reach the worker at start, and again on each pick", () => {
   expect(languagesHanded()).toEqual([{ language: 'fr-FR' }])
