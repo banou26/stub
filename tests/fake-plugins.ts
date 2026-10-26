@@ -7,6 +7,9 @@ import { loadDevice, loadEnabled, saveDevice } from '../src/plugin-list'
 // once and stays in the state written beside it, any other added address reads as connecting, and an
 // install of an address not in the table is refused the way FKN refuses one.
 
+/** An added source that plays its own releases, with no sign in or extension. */
+export const FREE_RELEASES = 'npm:@spec/free-releases'
+
 export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   'npm:@spec/anime-source': { state: 'connected', sources: [{ origin: 'spec-anime', name: 'Spec Anime' }] },
   'npm:@spec/source-family': {
@@ -19,6 +22,44 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   'npm:@spec/broken-source': { state: 'error' },
   'https:dead.spec.test': { state: 'error' },
   'https:asourcewhosehostnamehasnowheretobreak.spec.test': { state: 'error' },
+  // connected once the worker has registered it, below
+  [FREE_RELEASES]: { state: 'connecting' },
+}
+
+const row = (origin: string, id: string, fields: object = {}) => ({
+  _id: `${origin}:${id}`, uri: `${origin}:${id}`, origin, id,
+  handles: [], categories: [], titles: [], descriptions: [], shortDescriptions: [], covers: [], banners: [], trailers: [], episodes: [], thumbnails: [],
+  ...fields,
+})
+
+// Registered in the worker itself while added, as src/plugins.ts registers a package's connection, so it is
+// asked like any source. It plays its own releases, as the stub plugin's Nyaa does, and answers Spec Prime
+// Film (anilist:900070, tests/fake-fetch.ts) with a release of its one episode.
+const freeReleases = {
+  origin: 'spec-free',
+  originUrl: 'https://spec-free.test',
+  name: 'Spec Free',
+  isApiOnly: false,
+  metadataOnly: false,
+  play: async () => true,
+  resolvers: {
+    Query: {},
+    Mutation: {},
+    Subscription: {
+      media: {
+        subscribe: async function* (_: unknown, { input }: { input?: { uri?: string } }) {
+          if (!/\banilist:900070\b/.test(input?.uri ?? '')) return yield { media: null }
+          yield {
+            media: row('spec-free', '900070', {
+              categories: ['MOVIE'],
+              handles: [{ relation: 'SAME_AS', node: row('anilist', '900070') }],
+              episodes: [row('spec-free', '900070-1', { mediaUri: 'spec-free:900070', episodeNumber: 1, url: 'magnet:?xt=urn:btih:900070' })],
+            }),
+          }
+        },
+      },
+    },
+  },
 }
 
 const listeners = new Set<() => void>()
@@ -58,3 +99,13 @@ export const disablePlugin = async (uri: string): Promise<void> => {
 }
 
 export const addPlugins = async (): Promise<void> => {}
+
+if (loadEnabled().includes(FREE_RELEASES)) {
+  void Promise.all([import('@fkn/lib/packages'), import('../src/worker')]).then(async ([{ attach }, { registerRemoteSource }]) => {
+    const { port1, port2 } = new MessageChannel()
+    void attach(port1, freeReleases)
+    const result = await registerRemoteSource(port2, FREE_RELEASES)
+    if ('ok' in result) SPEC_PLUGINS[FREE_RELEASES] = { state: 'connected', sources: result.ok.sources }
+    notify()
+  })
+}

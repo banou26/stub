@@ -9,11 +9,14 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import SEASONS from '../src/generated/anime-seasons'
+import { ENABLED_PLUGINS_KEY } from '../src/plugin-list'
 import { DISABLED_SOURCES_KEY } from '../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
+import { SITE_STATUS_KEY } from '../src/tracking/site-status'
+import { FREE_RELEASES } from './fake-plugins'
 import { workerFakes } from './worker-fakes'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
@@ -1262,6 +1265,24 @@ test.describe('a viewer in Japan', () => {
       expect(await overflowX(page)).toBe(0)
     }
   })
+
+  // HOR-1033: Prime Video plays the film once the viewer signs in, and an added source's release with nothing to fix
+  for (const [viewer, signedOut, sourceUri] of [
+    ['found signed out of Prime Video in the last day gets the added source\'s release', true, 'spec-free:900070-1'],
+    ['stub knows nothing of still gets Prime Video, for its player to learn the state', false, 'amazon:amzn1.dv.gti.900070'],
+  ] as const) {
+    test(`with a release that plays with nothing to fix, a viewer ${viewer}`, async ({ page }) => {
+      test.setTimeout(120_000)
+      await page.addInitScript(([plugin, list, key, out]) => {
+        localStorage.setItem(list, JSON.stringify([plugin]))
+        if (out) localStorage.setItem(key, JSON.stringify({ prime: { state: 'signed-out', checkedAt: Date.now() } }))
+      }, [FREE_RELEASES, ENABLED_PLUGINS_KEY, SITE_STATUS_KEY, signedOut] as const)
+      await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
+      await expect(page.locator('.list a[title="Spec Free"]'), 'the release joined the film').toBeVisible({ timeout: 60_000 })
+      // the address keeps the added sources' query, as every link here does
+      await expect(page).toHaveURL(new RegExp(`/jw:900070-1/${sourceUri.replaceAll('.', '\\.')}(\\?|$)`), { timeout: 60_000 })
+    })
+  }
 
   // HOR-1011: a fixed allowance for the row let a taller one, as the stacked buttons make it below 1100 px,
   // end 66 px under a 768 px screen (the review of 2026-10-26)
