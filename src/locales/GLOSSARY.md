@@ -11,9 +11,9 @@ same change, using the terms below, and runs `npm run i18n:check`.
 - **No em or en dash** (U+2014, U+2013), even where the language's typography uses one: restructure, or use a comma,
   a colon, a plain hyphen or the language's own range mark (`～` in Japanese, `~` in Korean, `至` in Chinese).
 - **French and Italian** write the typographic apostrophe `’`. French puts a no-break space (U+00A0) before `?` and `:`.
-- **Japanese and Chinese** put a space between their own text and a Latin name or value (`{name} にサインインしました。`,
-  `已登录 {name}。`), none beside full-width punctuation. Korean and Turkish add no particle or suffix that changes with
-  the name: `{name}에`, `{name} hesabına`.
+- **Japanese and Chinese** put a space between their own text and a Latin name (`{name} にサインインしました。`,
+  `已登录 {name}。`), none beside full-width punctuation and none beside a number (`{count}件のソース`, `共{count}集`).
+  Korean and Turkish add no particle or suffix that changes with the name: `{name}에`, `{name} hesabına`.
 - **Short labels.** On a 390 px phone a fact's label wraps past 11rem, and the Relations heading and the graph button
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
   everything under it. The button is a noun phrase in most languages for that reason.

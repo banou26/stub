@@ -137,13 +137,13 @@
   "Yes, disconnect": "是，断开",
   "Yes, sign out": "是，退出",
   "adding…": "正在添加…",
-  "{count, plural, one {All {count} on} other {All {count} on}}": "{count, plural, other {已全部启用（{count} 个）}}",
+  "{count, plural, one {All {count} on} other {All {count} on}}": "{count, plural, other {已全部启用（{count}个）}}",
   "{count, plural, one {{count} Episode} other {{count} Episodes}}": "{count, plural, other {共{count}集}}",
-  "{count, plural, one {{count} source} other {{count} sources}}": "{count, plural, other {{count} 个来源}}",
-  "{count, plural, one {{count} unavailable} other {{count} unavailable}}": "{count, plural, other {{count} 个不可用}}",
+  "{count, plural, one {{count} source} other {{count} sources}}": "{count, plural, other {{count}个来源}}",
+  "{count, plural, one {{count} unavailable} other {{count} unavailable}}": "{count, plural, other {{count}个不可用}}",
   "{count} ep": "{count}集",
   "{name} icon": "{name} 图标",
   "{name} source": "{name} 来源",
-  "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, other {已启用 {on}/{count}}}",
+  "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, other {已启用{on}/{count}}}",
   "{start} to {end}": "{start}至{end}"
 }
