@@ -62,7 +62,7 @@ const crunchyroll = (relay: string, url: string, init: RequestInit) => {
   return new Response(ANSWERS[minted]!.episode, { status: ANSWERS[minted]!.status })
 }
 
-const { unlistedRelays } = await import('../../../../src/sources/crunchyroll/relay-check')
+const { crunchyrollLength, unlistedRelays } = await import('../../../../src/sources/crunchyroll/relay-check')
 
 const mints = () => broker.calls.filter(({ url }) => url.endsWith('/auth/v1/token'))
 const episodes = () => broker.calls.filter(({ url }) => url.includes('/content/v2/cms/objects/'))
@@ -170,5 +170,52 @@ test('a url that names no episode asks nothing', async () => {
   broker.order = [HONG_KONG, PRAGUE]
 
   expect(await unlistedRelays('https://www.crunchyroll.com/series/G3KHEVDJ7/the-apothecary-diaries', [])).toEqual([])
+  expect(broker.calls).toEqual([])
+})
+
+// HOR-1014: a torrent takes Crunchyroll's skip events only when its length is Crunchyroll's, which Crunchyroll can
+// change by re-cutting the episode, so it is read when the torrent plays. Recorded through Prague on 2026-10-26 for
+// Saga of Tanya the Evil II e3 (GE00380133JAJP) and trimmed, its season listing's `duration_ms` the same.
+const WITH_LENGTH = recorded('episode-with-length-through-prague.json')
+const TANYA = 'https://www.crunchyroll.com/watch/GE00380133JAJP/well-intentioned-mediator'
+
+test('Crunchyroll\'s length of an episode is its object\'s, asked through the default relay with a token of its own each time', async () => {
+  broker.order = [PRAGUE, HONG_KONG]
+  broker.answer = (_, { url }) => url.includes('/objects/') ? new Response(WITH_LENGTH) : undefined
+
+  expect(await crunchyrollLength(TANYA)).toBe(1420.004)
+  expect(await crunchyrollLength(TANYA), 'asked again').toBe(1420.004)
+  expect(mints().map(({ init }) => init.relay)).toEqual([{}, {}])
+  expect(new Set(mints().map(({ init }) => init.body)).size, 'no two alike, so no cached answer serves one').toBe(2)
+  expect(episodes().map(({ url, init }) => [url, init.relay, (init.headers as Record<string, string>).authorization])).toEqual([
+    ['https://www.crunchyroll.com/content/v2/cms/objects/GE00380133JAJP?ratings=true&locale=en-US', { id: PRAGUE }, 'Bearer token-1'],
+    ['https://www.crunchyroll.com/content/v2/cms/objects/GE00380133JAJP?ratings=true&locale=en-US', { id: PRAGUE }, 'Bearer token-2'],
+  ])
+})
+
+test('no length where the default relay\'s country does not list the episode, which asks no other relay', async () => {
+  broker.order = [HONG_KONG, PRAGUE]
+
+  expect(await crunchyrollLength(EPISODE)).toBeUndefined()
+  expect(mints()).toHaveLength(1)
+})
+
+test('no length from an object that carries none', async () => {
+  broker.order = [PRAGUE, HONG_KONG]
+
+  expect(await crunchyrollLength(EPISODE)).toBeUndefined()
+  for (const duration of [0, -1, '1420004', null]) {
+    broker.answer = (_, { url }) => url.includes('/objects/') ? new Response(WITH_LENGTH.replace('1420004', JSON.stringify(duration))) : undefined
+    expect(await crunchyrollLength(TANYA), String(duration)).toBeUndefined()
+  }
+})
+
+test('a length check that fails rejects, and a url naming no episode asks nothing', async () => {
+  broker.order = [PRAGUE, HONG_KONG]
+  broker.answer = (_, { url }) => url.includes('/objects/') ? new Response('', { status: 503 }) : undefined
+
+  await expect(crunchyrollLength(TANYA)).rejects.toThrow('503')
+  broker.calls = []
+  expect(await crunchyrollLength('https://www.crunchyroll.com/series/G3KHEVDJ7/the-apothecary-diaries')).toBeUndefined()
   expect(broker.calls).toEqual([])
 })

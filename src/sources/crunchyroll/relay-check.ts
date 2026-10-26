@@ -17,7 +17,7 @@ const CHECK_BUDGET = 5_000
 // through Hong Kong it says HK and the episode is a 404, and Hong Kong's token is a 404 through Prague too
 // (2026-10-13). Crunchyroll keeps no device_id in the token, so a fresh one gives each check a request of
 // its own, which the cache the relays share never answers with another relay's token.
-const listedThrough = async (episodeId: string, relay: RelayChoice) => {
+const episodeThrough = async (episodeId: string, relay: RelayChoice) => {
   const minted = await cloud.fetch(`${CRUNCHYROLL_BASE_URL}/auth/v1/token`, {
     method: 'POST',
     headers: { authorization: `Basic ${btoa('cr_web:')}`, 'content-type': 'application/x-www-form-urlencoded' },
@@ -32,7 +32,27 @@ const listedThrough = async (episodeId: string, relay: RelayChoice) => {
     relay: { id: served },
   })
   if (!episode.ok && episode.status !== 404) throw new Error(`Crunchyroll episode through ${served}: ${episode.status}`)
+  return { relay: served, episode }
+}
+
+const listedThrough = async (episodeId: string, relay: RelayChoice) => {
+  const { relay: served, episode } = await episodeThrough(episodeId, relay)
   return { relay: served, listed: episode.ok }
+}
+
+/**
+ * Crunchyroll's length of the episode at `url`, in seconds, asked as the check asks, through the default relay and
+ * with a fresh token, so never answered from a cache. Undefined where that relay's country does not list the episode,
+ * or its object carries no length. Rejects on a failed request.
+ */
+export const crunchyrollLength = async (url: string): Promise<number | undefined> => {
+  const episodeId = crunchyrollEpisodeId(url)
+  if (!episodeId) return undefined
+  const { episode } = await episodeThrough(episodeId, {})
+  if (!episode.ok) return undefined
+  const { data } = await episode.json() as { data?: { episode_metadata?: { duration_ms?: unknown } }[] }
+  const ms = data?.[0]?.episode_metadata?.duration_ms
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms / 1000 : undefined
 }
 
 /**
