@@ -1,5 +1,15 @@
+// FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
+import { mount, unmount } from '../../components/dom'
+
+import type { MediaChapter } from '@banou/media-player'
+import type { PlaybackLink } from '../../../../src/party/bridge'
+import type { PlaybackState } from '../../../../src/party/protocol'
+import type { EndingSources } from '../../../../src/router/watch/fallback-ending'
+
 import { readFileSync } from 'node:fs'
-import { beforeEach, expect, test, vi } from 'vite-plus/test'
+import { h, render } from 'preact'
+import { act } from 'preact/test-utils'
+import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 // HOR-1014: where a torrent whose file marks no ending takes one from, in order: Crunchyroll's skip events when
 // Crunchyroll's length of the episode is the same cut, then aniskip's ending. The lengths, events and answers are the
@@ -24,17 +34,23 @@ vi.mock('../../../../src/utils/fetch', () => ({
     return String(input) in relay.files ? Response.json(relay.files[String(input)]) : new Response('', { status: 403 })
   },
 }))
-const browser = vi.hoisted(() => ({ answers: {} as Record<string, unknown>, asked: [] as [string, RequestInit | undefined][], failing: false }))
+const browser = vi.hoisted(() => ({
+  answers: {} as Record<string, unknown>,
+  asked: [] as [string, RequestInit | undefined][],
+  failing: false,
+  held: undefined as Promise<void> | undefined,
+}))
 vi.mock('../../../../src/worker/browser-fetch', () => ({
   browserFetch: async (input: string, init?: RequestInit) => {
     browser.asked.push([String(input), init])
+    await browser.held
     if (browser.failing) throw new TypeError('Failed to fetch')
     const answer = browser.answers[String(input)]
     return answer ? Response.json(answer) : Response.json({ found: false, results: [] }, { status: 404 })
   },
 }))
 
-const { fallbackEnding, sameCut } = await import('../../../../src/router/watch/fallback-ending')
+const { fallbackEnding, sameCut, useFallbackEnding } = await import('../../../../src/router/watch/fallback-ending')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { aniskipUrl } = await import('../../../../src/sources/aniskip')
 const { nextOfferAt } = await import('../../../../src/utils/next-offer')
@@ -50,6 +66,11 @@ beforeEach(() => {
   browser.answers = {}
   browser.asked = []
   browser.failing = false
+  browser.held = undefined
+})
+const hosts: HTMLElement[] = []
+afterEach(() => {
+  while (hosts.length) unmount(hosts.pop()!)
 })
 
 const watchUrl = (id: string) => `https://www.crunchyroll.com/watch/${id}`
@@ -149,4 +170,59 @@ test('a failed request gives no ending, and Crunchyroll\'s goes on to aniskip', 
 
   browser.failing = true
   expect(await fallbackEnding(1440.11, { crunchyroll: watchUrl('GD9UEVK8N'), mal: FRIEREN })).toEqual([])
+})
+
+// the hook as the watch page holds it, on a player `length` s long that reports playing when told
+const player = (length: number) => {
+  const listeners = new Set<(state: PlaybackState) => void>()
+  const link: PlaybackLink = {
+    apply: () => {},
+    onReport: listener => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    duration: () => length,
+    dispose: () => {},
+  }
+  const plays = () => act(() => { for (const listener of listeners) listener({ paused: false, time: 0, rate: 1, at: 0 }) })
+  return { link, plays }
+}
+let found: MediaChapter[] = []
+const Hook = ({ link, sources }: { link: PlaybackLink, sources: EndingSources }) => {
+  found = useFallbackEnding(link, sources)
+  return null
+}
+const CREDITS = { start: 1338, end: 1438, title: 'Ending' }
+const settle = () => act(async () => { for (let turn = 0; turn < 5; turn++) await new Promise(resolve => setTimeout(resolve, 0)) })
+
+test('an answer for sources since changed is dropped, so a late aniskip 404 leaves Crunchyroll\'s credits', async () => {
+  let release = () => {}
+  browser.held = new Promise(resolve => { release = resolve })
+  const { link, plays } = player(1440.11)
+  const host = mount(h(Hook, { link, sources: { mal: FRIEREN } }))
+  hosts.push(host)
+  await plays()
+  expect(browser.asked, 'aniskip is out').toHaveLength(1)
+  // a Crunchyroll handle joins the episode before aniskip answers
+  const url = onCrunchyroll('GD9UEVK8N', 1440.024, { credits: { start: 1338, end: 1438 } })
+  act(() => { render(h(Hook, { link, sources: { crunchyroll: url, mal: FRIEREN } }), host) })
+  await plays()
+  await settle()
+  expect(ending(found)).toEqual(CREDITS)
+  release()
+  await settle()
+  expect(ending(found), 'still Crunchyroll\'s credits').toEqual(CREDITS)
+})
+
+test('the next player, with nowhere to ask, carries no ending over from the last', async () => {
+  const url = onCrunchyroll('GD9UEVK8N', 1440.024, { credits: { start: 1338, end: 1438 } })
+  const first = player(1440.11)
+  const host = mount(h(Hook, { link: first.link, sources: { crunchyroll: url } }))
+  hosts.push(host)
+  await first.plays()
+  await settle()
+  expect(ending(found)).toEqual(CREDITS)
+  // the next episode's, which has no Crunchyroll handle and no MyAnimeList id
+  act(() => { render(h(Hook, { link: player(1420).link, sources: {} }), host) })
+  expect(found).toEqual([])
 })
