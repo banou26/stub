@@ -1688,12 +1688,13 @@ test('a work the bundle lists in this season and an earlier one shows this seaso
   await expect(season).toHaveText(new RegExp(`^${now.season} ${now.year}$`, 'i'), { timeout: 30_000 })
 })
 
-// HOR-1026 (stub in the viewer's language): the page's own words, by where they are drawn, and the series graph's
+// HOR-1026 (stub in the viewer's language): the page's own words, by where they are drawn, and the series graph's. A staff
+// member's roles are AniList's words, which a message as Episode {number} reads as its own (Episode Director)
 const OWN_WORDS = {
   text: [
     '.chips > .chip', '.facts dt', '.facts dd', '.heading > .expand', '[data-relations] h2 > span', '[data-seasons] > h2', '[data-seasons] a',
     '[data-episodes] > h2', '[data-characters] h2 > span', '[data-staff] > h2', '[data-themes] > h2', '.relation-card .relation',
-    '.relation-card .meta', '.person .detail', '[data-themes] .artists', '[data-franchise-open]',
+    '.relation-card .meta', '[data-characters] .person .detail', '[data-themes] .artists', '[data-franchise-open]',
   ],
   labels: ['.actions .icon', '[data-characters] select', '[data-themes] button.toggle'],
 }
