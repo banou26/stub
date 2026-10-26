@@ -1,10 +1,12 @@
 import type { ComponentChildren, RefObject } from 'preact'
+import type { IntlShape } from 'react-intl'
 import type { WindowSignIn } from '../../sources/login-window'
 import type { TrackerSite } from '../../tracking/site-sessions'
 import type { SiteState, SiteStatus, StatusSite } from '../../tracking/site-status'
 import type { FknBackend } from '../../utils/fkn-backend'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { defineMessages, useIntl } from 'react-intl'
 
 import { siteAsks } from '../../site'
 import { ConfirmAction } from './confirm'
@@ -54,16 +56,41 @@ type Note = { text: string, error?: boolean }
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
-const signInNote = (name: string, outcome: WindowSignIn): Note => {
+const signInNote = (intl: IntlShape, name: string, outcome: WindowSignIn): Note => {
   switch (outcome) {
-    case 'authed': return { text: `Signed in to ${name}.` }
-    case 'closed': return { text: 'The sign-in window closed.' }
-    case 'blocked': return { text: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.', error: true }
-    case 'unsupported': return { text: `Connected to ${name}.` }
+    case 'authed': return { text: intl.formatMessage({ id: 'Signed in to {name}.', defaultMessage: 'Signed in to {name}.' }, { name }) }
+    case 'closed': return { text: intl.formatMessage({ id: 'The sign-in window closed.', defaultMessage: 'The sign-in window closed.' }) }
+    case 'blocked': return { text: intl.formatMessage({ id: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.', defaultMessage: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.' }), error: true }
+    case 'unsupported': return { text: intl.formatMessage({ id: 'Connected to {name}.', defaultMessage: 'Connected to {name}.' }, { name }) }
   }
 }
 
-const STATE_LABEL: Record<SiteState, string> = { 'signed-in': 'Signed in', 'signed-out': 'Signed out' }
+const STATE_LABEL = defineMessages<SiteState>({
+  'signed-in': { id: 'Signed in', defaultMessage: 'Signed in' },
+  'signed-out': { id: 'Signed out', defaultMessage: 'Signed out' },
+})
+
+const signOutLabels = (intl: IntlShape, name: string) => ({
+  label: intl.formatMessage({ id: 'Sign out', defaultMessage: 'Sign out' }),
+  name: intl.formatMessage({ id: 'Sign out of {name}', defaultMessage: 'Sign out of {name}' }, { name }),
+  confirmLabel: intl.formatMessage({ id: 'Yes, sign out', defaultMessage: 'Yes, sign out' }),
+  busyLabel: intl.formatMessage({ id: 'Signing out...', defaultMessage: 'Signing out...' }),
+  question: intl.formatMessage({ id: 'Sign out of {name} in every fkn.app app?', defaultMessage: 'Sign out of {name} in every fkn.app app?' }, { name }),
+})
+
+const disconnectLabels = (intl: IntlShape, name: string) => ({
+  label: intl.formatMessage({ id: 'Disconnect', defaultMessage: 'Disconnect' }),
+  name: intl.formatMessage({ id: 'Disconnect {name}', defaultMessage: 'Disconnect {name}' }, { name }),
+  confirmLabel: intl.formatMessage({ id: 'Yes, disconnect', defaultMessage: 'Yes, disconnect' }),
+  busyLabel: intl.formatMessage({ id: 'Disconnecting...', defaultMessage: 'Disconnecting...' }),
+  question: intl.formatMessage({ id: 'Disconnect {name} on this device?', defaultMessage: 'Disconnect {name} on this device?' }, { name }),
+})
+
+const openLabel = (intl: IntlShape, host: string) => intl.formatMessage({ id: 'Open {host}', defaultMessage: 'Open {host}' }, { host })
+const signInLabel = (intl: IntlShape, busy: boolean) => busy
+  ? intl.formatMessage({ id: 'Signing in...', defaultMessage: 'Signing in...' })
+  : intl.formatMessage({ id: 'Sign in', defaultMessage: 'Sign in' })
+const signedOutNote = (intl: IntlShape) => intl.formatMessage({ id: 'Signed out.', defaultMessage: 'Signed out.' })
 
 /** The site's remembered state, read again whenever stub records a new one. */
 const useSiteStatus = (status: AccountsProps['status'], site: StatusSite) => {
@@ -133,6 +160,7 @@ export const neverSignedIn = (origin: string, status: Pick<AccountsProps['status
 type StreamingProps = (typeof STREAMING_SITES)[number] & { account: StreamingAccount, heading: Heading } & Pick<AccountsProps, 'backend' | 'status'>
 
 const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, heading, backend, status }: StreamingProps) => {
+  const intl = useIntl()
   const host = hostFor(useViewerCountry())
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
@@ -147,14 +175,17 @@ const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, head
     setBusy(true)
     setNote(undefined)
     signingIn
-      .then(outcome => { if (mounted.current) setNote(signInNote(name, outcome)) })
+      .then(outcome => { if (mounted.current) setNote(signInNote(intl, name, outcome)) })
       .catch(error => { if (mounted.current) setNote({ text: messageOf(error), error: true }) })
       .finally(() => { if (mounted.current) setBusy(false) })
   }
 
   const signOut = () => account.signOut().then(
-    () => { if (mounted.current) setNote({ text: 'Signed out.' }) },
-    error => { if (mounted.current) setNote({ text: `Could not sign out of ${name}: ${messageOf(error)}. Try again.`, error: true }) },
+    () => { if (mounted.current) setNote({ text: signedOutNote(intl) }) },
+    error => {
+      const text = intl.formatMessage({ id: 'Could not sign out of {name}: {error}. Try again.', defaultMessage: 'Could not sign out of {name}: {error}. Try again.' }, { name, error: messageOf(error) })
+      if (mounted.current) setNote({ text, error: true })
+    },
   )
 
   const cloud = backend === 'cloud' && signsInOnCloud(host)
@@ -164,34 +195,24 @@ const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, head
   return (
     <Account
       id={site}
-      state={state && STATE_LABEL[state]}
+      state={state && intl.formatMessage(STATE_LABEL[state])}
       on={state === 'signed-in'}
     >
       {cloud
         ? (
           <div className="actions">
             {state === 'signed-in'
-              ? (
-                <ConfirmAction
-                  label="Sign out"
-                  name={`Sign out of ${name}`}
-                  home={heading}
-                  confirmLabel="Yes, sign out"
-                  busyLabel="Signing out..."
-                  question={`Sign out of ${name} in every fkn.app app?`}
-                  onConfirm={signOut}
-                />
-              )
-              : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : 'Sign in'}</button>}
+              ? <ConfirmAction {...signOutLabels(intl, name)} home={heading} onConfirm={signOut}/>
+              : <button type="button" disabled={busy} onClick={signIn}>{signInLabel(intl, busy)}</button>}
           </div>
         )
         : backend
           ? (
             <div className="actions">
-              <a className="link" href={`https://www.${host}`} target="_blank" rel="noreferrer">Open {host}</a>
+              <a className="link" href={`https://www.${host}`} target="_blank" rel="noreferrer">{openLabel(intl, host)}</a>
             </div>
           )
-          : <p>Loading...</p>}
+          : <p>{intl.formatMessage({ id: 'Loading...', defaultMessage: 'Loading...' })}</p>}
       <NoteLine note={note}/>
     </Account>
   )
@@ -203,6 +224,7 @@ const TRACKER_SITES = ([
 ] satisfies { site: TrackerSite, name: string, host: string }[]).filter(entry => siteAsks(entry.site))
 
 const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof TRACKER_SITES)[number] & { heading: Heading } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {
+  const intl = useIntl()
   const [connected, setConnected] = useState(() => sites.isConnected(site))
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<Note>()
@@ -224,7 +246,7 @@ const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof 
     setBusy(true)
     setNote(undefined)
     signingIn
-      .then(outcome => { if (mounted.current) setNote(signInNote(name, outcome)) })
+      .then(outcome => { if (mounted.current) setNote(signInNote(intl, name, outcome)) })
       .catch(error => { if (mounted.current) setNote({ text: messageOf(error), error: true }) })
       .finally(() => {
         if (mounted.current) setBusy(false)
@@ -234,11 +256,15 @@ const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof 
 
   const signOut = (current: FknBackend) => sites.signOut(site, current).then(
     () => {
-      if (mounted.current) setNote({ text: current === 'cloud' ? 'Signed out.' : 'Disconnected.' })
+      if (mounted.current) setNote({ text: current === 'cloud' ? signedOutNote(intl) : intl.formatMessage({ id: 'Disconnected.', defaultMessage: 'Disconnected.' }) })
       settle()
     },
     error => {
-      if (mounted.current) setNote({ text: `Could not finish signing out of ${name}: ${messageOf(error)}. Sign in and out again to retry.`, error: true })
+      const text = intl.formatMessage(
+        { id: 'Could not finish signing out of {name}: {error}. Sign in and out again to retry.', defaultMessage: 'Could not finish signing out of {name}: {error}. Sign in and out again to retry.' },
+        { name, error: messageOf(error) },
+      )
+      if (mounted.current) setNote({ text, error: true })
       settle()
     },
   )
@@ -246,28 +272,22 @@ const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof 
   return (
     <Account
       id={site}
-      state={!connected ? 'Not connected' : remembered && STATE_LABEL[remembered.state]}
+      state={!connected ? intl.formatMessage({ id: 'Not connected', defaultMessage: 'Not connected' }) : remembered && intl.formatMessage(STATE_LABEL[remembered.state])}
       on={signedIn}
     >
       {backend
         ? (
           <div className="actions">
             {signedIn
-              ? (
-                <ConfirmAction
-                  label={backend === 'cloud' ? 'Sign out' : 'Disconnect'}
-                  name={backend === 'cloud' ? `Sign out of ${name}` : `Disconnect ${name}`}
-                  home={heading}
-                  confirmLabel={backend === 'cloud' ? 'Yes, sign out' : 'Yes, disconnect'}
-                  busyLabel={backend === 'cloud' ? 'Signing out...' : 'Disconnecting...'}
-                  question={backend === 'cloud' ? `Sign out of ${name} in every fkn.app app?` : `Disconnect ${name} on this device?`}
-                  onConfirm={() => signOut(backend)}
-                />
-              )
+              ? <ConfirmAction {...backend === 'cloud' ? signOutLabels(intl, name) : disconnectLabels(intl, name)} home={heading} onConfirm={() => signOut(backend)}/>
               : backend === 'extension' && connected
                 // Connect again would do nothing: the extension opens no sign-in window, the viewer signs in on the site
-                ? <a className="link" href={`https://${host}`} target="_blank" rel="noreferrer">Open {host}</a>
-                : <button type="button" disabled={busy} onClick={signIn}>{busy ? 'Signing in...' : backend === 'cloud' ? 'Sign in' : 'Connect'}</button>}
+                ? <a className="link" href={`https://${host}`} target="_blank" rel="noreferrer">{openLabel(intl, host)}</a>
+                : (
+                  <button type="button" disabled={busy} onClick={signIn}>
+                    {busy || backend === 'cloud' ? signInLabel(intl, busy) : intl.formatMessage({ id: 'Connect', defaultMessage: 'Connect' })}
+                  </button>
+                )}
           </div>
         )
         : undefined}
@@ -276,13 +296,16 @@ const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof 
   )
 }
 
-const Netflix = ({ backend }: Pick<AccountsProps, 'backend'>) => (
-  <Account id="netflix">
-    {backend === 'extension'
-      ? <div className="actions"><a className="link" href="https://www.netflix.com" target="_blank" rel="noreferrer">Open netflix.com</a></div>
-      : <p>Needs the FKN browser extension.</p>}
-  </Account>
-)
+const Netflix = ({ backend }: Pick<AccountsProps, 'backend'>) => {
+  const intl = useIntl()
+  return (
+    <Account id="netflix">
+      {backend === 'extension'
+        ? <div className="actions"><a className="link" href="https://www.netflix.com" target="_blank" rel="noreferrer">{openLabel(intl, 'netflix.com')}</a></div>
+        : <p>{intl.formatMessage({ id: 'Needs the FKN browser extension.', defaultMessage: 'Needs the FKN browser extension.' })}</p>}
+    </Account>
+  )
+}
 
 /**
  * The sign-in a source's card holds, with its state and the way out of it where there is one, for the

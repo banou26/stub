@@ -1,10 +1,7 @@
-import { useEffect, useId, useState } from 'preact/hooks'
+import { useEffect, useId, useMemo, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { COUNTRIES, pickCountry, readPickedCountry, viewerCountry, watchPickedCountry, zoneCountry } from '../../sources/country'
-
-const regions = new Intl.DisplayNames(['en'], { type: 'region' })
-const nameOf = (country: string) => regions.of(country) ?? country
-const BY_NAME = [...COUNTRIES].sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
 
 /** The country picked in Settings, or undefined for Automatic, read again whenever it changes. */
 export const usePickedCountry = () => {
@@ -24,16 +21,22 @@ export const useViewerCountry = () => {
 
 /** The viewer's country, Automatic (the time zone's) until one is picked. */
 export const CountryRow = () => {
+  const intl = useIntl()
   const picked = usePickedCountry()
   const id = useId()
+  const nameOf = (country: string) => intl.formatDisplayName(country, { type: 'region' }) ?? country
+  const byName = useMemo(() => {
+    const { compare } = new Intl.Collator(intl.locale)
+    return COUNTRIES.map(country => ({ country, name: nameOf(country) })).sort((a, b) => compare(a.name, b.name))
+  }, [intl])
   return (
     <div className="row" data-setting="country">
       <div className="head">
-        <h3 id={id}>Country</h3>
+        <h3 id={id}>{intl.formatMessage({ id: 'Country', defaultMessage: 'Country' })}</h3>
       </div>
       <select aria-labelledby={id} value={picked ?? ''} onChange={event => pickCountry(event.currentTarget.value || undefined)}>
-        <option value="">Automatic ({nameOf(zoneCountry())})</option>
-        {BY_NAME.map(country => <option key={country} value={country}>{nameOf(country)}</option>)}
+        <option value="">{intl.formatMessage({ id: 'Automatic ({country})', defaultMessage: 'Automatic ({country})' }, { country: nameOf(zoneCountry()) })}</option>
+        {byName.map(({ country, name }) => <option key={country} value={country}>{name}</option>)}
       </select>
     </div>
   )

@@ -1,5 +1,6 @@
 import { css } from '@emotion/react'
 import { useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { acceptInvites, declineInvites, dismissInvite, onInvitesChange, pluginInvites, type PluginInvite } from '../plugin-invites'
 import { layer } from '../layers'
@@ -112,6 +113,7 @@ const style = css`
 `
 
 export const PluginPrompt = () => {
+  const intl = useIntl()
   const [invites, setInvites] = useState<PluginInvite[]>(pluginInvites)
 
   // read on subscribe as well as on notify: the url is ingested at import time, before this mounts
@@ -127,25 +129,31 @@ export const PluginPrompt = () => {
   return (
     <div css={style} role="dialog" aria-modal="true" aria-labelledby="plugin-prompt-title">
       <div className="dialog">
-        <h2 id="plugin-prompt-title">{invites.length > 1 ? 'Add these sources?' : 'Add this source?'}</h2>
+        <h2 id="plugin-prompt-title">
+          {invites.length > 1
+            ? intl.formatMessage({ id: 'Add these sources?', defaultMessage: 'Add these sources?' })
+            : intl.formatMessage({ id: 'Add this source?', defaultMessage: 'Add this source?' })}
+        </h2>
         <div className="list">
           {invites.map(invite => (
             <div className="invite" key={invite.uri}>
               <span className="uri">{invite.uri}</span>
-              {invite.state === 'installing' && <span className="state">adding…</span>}
+              {invite.state === 'installing' && <span className="state">{intl.formatMessage({ id: 'adding…', defaultMessage: 'adding…' })}</span>}
               {invite.state === 'error' && (
                 <div className="failure">
-                  <span className="error">Could not add this source.</span>
-                  <button type="button" className="dismiss" onClick={() => dismissInvite(invite.uri)}>Dismiss</button>
+                  <span className="error">{intl.formatMessage({ id: 'Could not add this source.', defaultMessage: 'Could not add this source.' })}</span>
+                  <button type="button" className="dismiss" onClick={() => dismissInvite(invite.uri)}>{intl.formatMessage({ id: 'Dismiss', defaultMessage: 'Dismiss' })}</button>
                 </div>
               )}
             </div>
           ))}
         </div>
         <div className="actions">
-          <button type="button" className="decline" disabled={busy} onClick={() => declineInvites()}>Not now</button>
+          <button type="button" className="decline" disabled={busy} onClick={() => declineInvites()}>{intl.formatMessage({ id: 'Not now', defaultMessage: 'Not now' })}</button>
           <button type="button" disabled={busy} onClick={() => { void acceptInvites() }}>
-            {invites.length > 1 ? 'Add sources' : 'Add source'}
+            {invites.length > 1
+              ? intl.formatMessage({ id: 'Add sources', defaultMessage: 'Add sources' })
+              : intl.formatMessage({ id: 'Add source', defaultMessage: 'Add source' })}
           </button>
         </div>
       </div>

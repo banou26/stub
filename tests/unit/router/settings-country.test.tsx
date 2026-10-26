@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 const render = () => {
-  const host = mount(<CountryRow/>)
+  const host = mount(withIntl(<CountryRow/>))
   hosts.push(host)
   const row = host.querySelector<HTMLElement>('[data-setting="country"]')!
   const select = row.querySelector('select')!

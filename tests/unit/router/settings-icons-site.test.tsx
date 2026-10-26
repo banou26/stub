@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from '../components/dom'
+import { button, mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -34,7 +34,7 @@ afterEach(() => {
 })
 
 test('a site that never asks the anime catalogues keeps a card for each icon it draws, with that switch alone and no sign-in', () => {
-  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  const host = mount(withIntl(<SourcesSection {...ACCOUNTS}/>))
   hosts.push(host)
   const labels = (origin: string) => [...host.querySelectorAll(`[data-source="${origin}"] .switches label`)].map(label => label.textContent)
   for (const origin of ['mal', 'anilist', 'cr']) {
@@ -55,7 +55,7 @@ test('Turn all on turns on the sources this site lists, and leaves an anime cata
     setItem: (key: string, value: string) => { stored.set(key, value) },
     removeItem: (key: string) => { stored.delete(key) },
   })
-  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  const host = mount(withIntl(<SourcesSection {...ACCOUNTS}/>))
   hosts.push(host)
   await act(() => { button(host, 'Turn all on')!.click() })
   expect(JSON.parse(stored.get(DISABLED_SOURCES_KEY)!)).toEqual(['mal'])
@@ -70,7 +70,7 @@ test('a move steps past a source this site does not rank, so the card always mov
     setItem: (key: string, value: string) => { stored.set(key, value) },
     removeItem: (key: string) => { stored.delete(key) },
   })
-  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  const host = mount(withIntl(<SourcesSection {...ACCOUNTS}/>))
   hosts.push(host)
   await act(() => { host.querySelector<HTMLButtonElement>('[aria-label="Move Netflix up"]')!.click() })
   expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['nf', 'amazon', 'cr'])
@@ -84,7 +84,7 @@ test('Merge order ranks the sources this site asks, and a move keeps where the a
     setItem: (key: string, value: string) => { stored.set(key, value) },
     removeItem: (key: string) => { stored.delete(key) },
   })
-  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  const host = mount(withIntl(<SourcesSection {...ACCOUNTS}/>))
   hosts.push(host)
   const ranked = () => [...host.querySelectorAll('ol.merge-order > li')].map(card => card.getAttribute('data-source'))
   expect(ranked()).toEqual(['omdb', 'simkl', 'tmdb', 'trakt', 'tvdb', 'tvmaze', 'watchmode', 'ann', 'appletv', 'jw', 'nf', 'paramount'])

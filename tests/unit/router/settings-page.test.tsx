@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -62,7 +62,7 @@ afterEach(() => {
 
 const open = async (hash = '') => {
   at.hash = hash
-  const host = mount(<Settings/>)
+  const host = mount(withIntl(<Settings/>))
   hosts.push(host)
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
   return host

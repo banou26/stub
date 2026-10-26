@@ -1,12 +1,15 @@
 import type { ComponentChildren } from 'preact'
+import type { MessageDescriptor } from 'react-intl'
 import type { AccountsProps } from './accounts'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { defineMessages, useIntl } from 'react-intl'
 
 import OriginIcon from '../../components/origin-icon'
 import { switchStyle } from '../../components/switch-style'
+import { NAME_LIST } from '../../i18n'
 import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources, drawnAs } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
@@ -285,11 +288,31 @@ const style = css`
   .by-address .note { font-size: 1.35rem; overflow-wrap: anywhere; }
 `
 
-const STATE_LABEL: Record<PluginStatus['state'], string> = { connected: 'Connected', connecting: 'Connecting', error: 'Error' }
+const STATE_LABEL = defineMessages<PluginStatus['state']>({
+  connected: { id: 'Connected#state of an added source', defaultMessage: 'Connected', description: 'state of an added source' },
+  connecting: { id: 'Connecting#state of an added source', defaultMessage: 'Connecting', description: 'state of an added source' },
+  error: { id: 'Error#state of an added source', defaultMessage: 'Error', description: 'state of an added source' },
+})
+
+const MOVE = defineMessages({
+  up: { id: 'Move {name} up', defaultMessage: 'Move {name} up' },
+  down: { id: 'Move {name} down', defaultMessage: 'Move {name} down' },
+  mergeUp: { id: 'Move {name} up in the merge order', defaultMessage: 'Move {name} up in the merge order' },
+  mergeDown: { id: 'Move {name} down in the merge order', defaultMessage: 'Move {name} down in the merge order' },
+})
+
+// an address's own form, the same in every language
+const ADDRESS_EXAMPLE = 'npm:@scope/package'
 
 const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () => void }) => {
+  const intl = useIntl()
   const sources = plugin.sources ?? []
-  const name = sources.length ? sources.map(source => source.name).join(', ') : plugin.uri.replace(/^npm:/, '')
+  const name = sources.length ? intl.formatList(sources.map(source => source.name), NAME_LIST) : plugin.uri.replace(/^npm:/, '')
+  // a package may register a family of sources, and some of them and not others
+  const counts = [
+    sources.length > 1 ? intl.formatMessage({ id: '{count, plural, one {{count} source} other {{count} sources}}', defaultMessage: '{count, plural, one {{count} source} other {{count} sources}}' }, { count: sources.length }) : undefined,
+    plugin.rejected?.length ? intl.formatMessage({ id: '{count, plural, one {{count} unavailable} other {{count} unavailable}}', defaultMessage: '{count, plural, one {{count} unavailable} other {{count} unavailable}}' }, { count: plugin.rejected.length }) : undefined,
+  ].filter(Boolean).map(part => ` · ${part}`).join('')
   return (
     <li className="row plugin" data-plugin={plugin.uri}>
       <div className="info">
@@ -299,16 +322,16 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
           ? (
             <span className="meta">
               <span className="uri">{plugin.uri}</span>
-              {/* a package may register a family of sources, and some of them and not others */}
-              {sources.length > 1 ? ` · ${sources.length} sources` : ''}
-              {plugin.rejected?.length ? ` · ${plugin.rejected.length} unavailable` : ''}
+              {counts}
             </span>
           )
           : undefined}
       </div>
-      <span className="pill" data-state={plugin.state}><span className="dot" aria-hidden="true"/>{STATE_LABEL[plugin.state]}</span>
-      <button type="button" className="secondary small" aria-label={`Remove ${name}`} onClick={onRemove}>Remove</button>
-      {plugin.state === 'error' ? <p className="failure">Could not connect to this source.</p> : undefined}
+      <span className="pill" data-state={plugin.state}><span className="dot" aria-hidden="true"/>{intl.formatMessage(STATE_LABEL[plugin.state])}</span>
+      <button type="button" className="secondary small" aria-label={intl.formatMessage({ id: 'Remove {name}', defaultMessage: 'Remove {name}' }, { name })} onClick={onRemove}>
+        {intl.formatMessage({ id: 'Remove', defaultMessage: 'Remove' })}
+      </button>
+      {plugin.state === 'error' ? <p className="failure">{intl.formatMessage({ id: 'Could not connect to this source.', defaultMessage: 'Could not connect to this source.' })}</p> : undefined}
     </li>
   )
 }
@@ -345,6 +368,7 @@ const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap
  * one, its switches and sign-in on its first.
  */
 const SourceCard = ({ card, on, shown, accounts, place, brief, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, brief?: boolean, children?: ComponentChildren }) => {
+  const intl = useIntl()
   const heading = useRef<HTMLHeadingElement>(null)
   return (
     <li className={`card${brief ? ' brief' : ''}${on ? '' : ' off'}`} data-source={card.origin}>
@@ -367,16 +391,16 @@ const SourceCard = ({ card, on, shown, accounts, place, brief, children }: { car
               {card.asked
                 ? (
                   <label>
-                    Source
-                    <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} source`} checked={on} onChange={event => setSourceEnabled(card.origin, (event.target as HTMLInputElement).checked)}/>
+                    {intl.formatMessage({ id: 'Source#switch using a source', defaultMessage: 'Source', description: 'switch using a source' })}
+                    <input type="checkbox" role="switch" css={switchStyle} aria-label={intl.formatMessage({ id: '{name} source', defaultMessage: '{name} source' }, { name: card.name })} checked={on} onChange={event => setSourceEnabled(card.origin, (event.target as HTMLInputElement).checked)}/>
                   </label>
                 )
                 : undefined}
               {card.drawn
                 ? (
                   <label>
-                    Icon
-                    <input type="checkbox" role="switch" css={switchStyle} aria-label={`${card.name} icon`} checked={shown} onChange={event => setIconShown(card.drawn!, (event.target as HTMLInputElement).checked)}/>
+                    {intl.formatMessage({ id: 'Icon#switch showing a source icon', defaultMessage: 'Icon', description: 'switch showing a source icon' })}
+                    <input type="checkbox" role="switch" css={switchStyle} aria-label={intl.formatMessage({ id: '{name} icon', defaultMessage: '{name} icon' }, { name: card.name })} checked={shown} onChange={event => setIconShown(card.drawn!, (event.target as HTMLInputElement).checked)}/>
                   </label>
                 )
                 : undefined}
@@ -395,6 +419,7 @@ const SourceCard = ({ card, on, shown, accounts, place, brief, children }: { car
  * added packages and the two ways to add more.
  */
 export const SourcesSection = (accounts: AccountsProps) => {
+  const intl = useIntl()
   const [plugins, setPlugins] = useState<PluginStatus[]>(pluginStatuses)
   const [disabled, setDisabled] = useState(() => new Set(readDisabledSources()))
   const [kept, setKept] = useState(readPlayOrder)
@@ -434,9 +459,9 @@ export const SourcesSection = (accounts: AccountsProps) => {
     pressed.current = undefined
   })
 
-  type Ranking = { cards: Card[], order: string[], write: (order: string[]) => void, named: string }
-  const play: Ranking = { cards: ranked, order, write: writePlayOrder, named: '' }
-  const merge: Ranking = { cards: merged, order: merging, write: writeMergeOrder, named: ' in the merge order' }
+  type Ranking = { cards: Card[], order: string[], write: (order: string[]) => void, up: MessageDescriptor, down: MessageDescriptor }
+  const play: Ranking = { cards: ranked, order, write: writePlayOrder, up: MOVE.up, down: MOVE.down }
+  const merge: Ranking = { cards: merged, order: merging, write: writeMergeOrder, up: MOVE.mergeUp, down: MOVE.mergeDown }
 
   const move = (card: Card, step: -1 | 1, at: number, ranking: Ranking) => {
     const end = step < 0 ? at === 0 : at === ranking.cards.length - 1
@@ -444,7 +469,7 @@ export const SourcesSection = (accounts: AccountsProps) => {
       <button
         type="button"
         className="secondary"
-        aria-label={`Move ${card.name} ${step < 0 ? 'up' : 'down'}${ranking.named}`}
+        aria-label={intl.formatMessage(step < 0 ? ranking.up : ranking.down, { name: card.name })}
         aria-disabled={end ? true : undefined}
         onClick={event => {
           if (end) return
@@ -473,7 +498,7 @@ export const SourcesSection = (accounts: AccountsProps) => {
       .then(installed => { if (installed) setUri('') })
       .catch(error => {
         console.warn(`Source '${trimmed}' could not be added:`, error)
-        setAddError('Could not add this source. Check the address.')
+        setAddError(intl.formatMessage({ id: 'Could not add this source. Check the address.', defaultMessage: 'Could not add this source. Check the address.' }))
       })
       .finally(() => {
         setAdding(false)
@@ -488,42 +513,50 @@ export const SourcesSection = (accounts: AccountsProps) => {
         <CountryRow/>
       </div>
       <div className="part-head">
-        <span className="count">{off ? `${switched.length - off} of ${switched.length} on` : `All ${switched.length} on`}</span>
-        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(switched.map(card => card.origin)) }}>Turn all on</button>
+        <span className="count">
+          {off
+            ? intl.formatMessage({ id: '{on, plural, one {{on} of {count} on} other {{on} of {count} on}}', defaultMessage: '{on, plural, one {{on} of {count} on} other {{on} of {count} on}}' }, { on: switched.length - off, count: switched.length })
+            : intl.formatMessage({ id: '{count, plural, one {All {count} on} other {All {count} on}}', defaultMessage: '{count, plural, one {All {count} on} other {All {count} on}}' }, { count: switched.length })}
+        </span>
+        <button type="button" className="link-button" aria-disabled={off ? undefined : true} onClick={() => { if (off) turnSourcesOn(switched.map(card => card.origin)) }}>
+          {intl.formatMessage({ id: 'Turn all on', defaultMessage: 'Turn all on' })}
+        </button>
       </div>
-      <h3 className="part">Play order</h3>
+      <h3 className="part">{intl.formatMessage({ id: 'Play order', defaultMessage: 'Play order' })}</h3>
       <ol className="cards play-order">{ranked.map((card, at) => cardOf(card, play, at))}</ol>
-      <h3 className="part">Merge order</h3>
+      <h3 className="part">{intl.formatMessage({ id: 'Merge order', defaultMessage: 'Merge order' })}</h3>
       <ol className="cards merge-order">{merged.map((card, at) => cardOf(card, merge, at))}</ol>
-      <h3 className="part">Other sources</h3>
+      <h3 className="part">{intl.formatMessage({ id: 'Other sources', defaultMessage: 'Other sources' })}</h3>
       <ul className="cards">{others.map(card => cardOf(card))}</ul>
-      <h3 className="part">Added</h3>
+      <h3 className="part">{intl.formatMessage({ id: 'Added#sources the viewer added', defaultMessage: 'Added', description: 'sources the viewer added' })}</h3>
       {plugins.length
         ? (
           <ul className="rows">
             {plugins.map(plugin => <PluginRow key={plugin.uri} plugin={plugin} onRemove={() => { void disablePlugin(plugin.uri).then(refresh) }}/>)}
           </ul>
         )
-        : <p className="row empty">No sources added yet.</p>}
+        : <p className="row empty">{intl.formatMessage({ id: 'No sources added yet.', defaultMessage: 'No sources added yet.' })}</p>}
       <div className="add">
         <div className="browse">
-          <button type="button" onClick={() => { void addPlugins().finally(refresh) }}>Browse sources</button>
+          <button type="button" onClick={() => { void addPlugins().finally(refresh) }}>{intl.formatMessage({ id: 'Browse sources', defaultMessage: 'Browse sources' })}</button>
         </div>
         <form className="by-address" onSubmit={onAdd}>
-          <label for={`${id}-address`}>Or add one by its address</label>
+          <label for={`${id}-address`}>{intl.formatMessage({ id: 'Or add one by its address', defaultMessage: 'Or add one by its address' })}</label>
           <div className={`group${addError ? ' invalid' : ''}`}>
             <input
               id={`${id}-address`}
               type="text"
               autoComplete="off"
               spellcheck={false}
-              placeholder="npm:@scope/package"
+              placeholder={ADDRESS_EXAMPLE}
               aria-invalid={addError ? true : undefined}
               aria-describedby={`${id}-error`}
               value={uri}
               onInput={event => setUri((event.target as HTMLInputElement).value)}
             />
-            <button type="submit" disabled={adding}>{adding ? 'Adding...' : 'Add'}</button>
+            <button type="submit" disabled={adding}>
+              {adding ? intl.formatMessage({ id: 'Adding...', defaultMessage: 'Adding...' }) : intl.formatMessage({ id: 'Add', defaultMessage: 'Add' })}
+            </button>
           </div>
           {/* always mounted, empty until there is an error: an alert inserted with its text is not announced by every screen reader */}
           <p className="note error" id={`${id}-error`} role="alert">{addError}</p>

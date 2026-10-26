@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from '../components/dom'
+import { button, mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -67,7 +67,7 @@ const flush = () => act(async () => { await new Promise(resolve => setTimeout(re
 
 const render = (statuses: PluginStatus[] = []) => {
   fake.statuses = statuses
-  const host = mount(<SourcesSection {...ACCOUNTS}/>)
+  const host = mount(withIntl(<SourcesSection {...ACCOUNTS}/>))
   hosts.push(host)
   const row = (uri: string) => host.querySelector<HTMLElement>(`[data-plugin="${uri}"]`)!
   return { host, row }

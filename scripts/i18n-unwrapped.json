@@ -7,15 +7,6 @@
     "src/router/search/index.tsx",
     "src/router/search/scene.tsx"
   ],
-  "settings": [
-    "src/components/plugin-prompt.tsx",
-    "src/router/settings/accounts.tsx",
-    "src/router/settings/confirm.tsx",
-    "src/router/settings/country.tsx",
-    "src/router/settings/index.tsx",
-    "src/router/settings/playback.tsx",
-    "src/router/settings/sources.tsx"
-  ],
   "home-cards": [
     "src/components/media-card.tsx",
     "src/components/media-preview.tsx",

@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from '../components/dom'
+import { button, mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -75,7 +75,7 @@ const render = (overrides: Partial<AccountsProps> = {}) => {
     status: fakeStatus().status,
     ...overrides,
   }
-  const host = mount(<SourcesSection {...props}/>)
+  const host = mount(withIntl(<SourcesSection {...props}/>))
   hosts.push(host)
   const row = (id: string) => host.querySelector<HTMLElement>(`[data-account="${id}"]`)!
   return { host, props, row }
@@ -413,7 +413,7 @@ describe('the sign-in states', () => {
       known = setBackend
       return <SourcesSection backend={backend} crunchyroll={{ signIn: async () => 'authed', signOut: async () => {} }} prime={{ signIn: async () => 'authed', signOut: async () => {} }} sites={fakeSites(['anilist', 'mal'])} status={status}/>
     }
-    hosts.push(mount(<Harness/>))
+    hosts.push(mount(withIntl(<Harness/>)))
     await flush()
     expect(ask, 'what a check does depends on the backend').not.toHaveBeenCalled()
 

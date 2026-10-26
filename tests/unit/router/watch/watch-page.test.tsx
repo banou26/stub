@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from '../../components/dom'
+import { button, mount, unmount, withIntl } from '../../components/dom'
 
 import type { Mock } from 'vite-plus/test'
 import type { SiteStatus, StatusSite } from '../../../../src/tracking/site-status'
@@ -263,7 +263,7 @@ const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positi
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
 const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
 const { Router } = await import('wouter')
-const page = () => mount(<Router hook={memoryLocation().hook}><Watch/></Router>)
+const page = () => mount(withIntl(<Router hook={memoryLocation().hook}><Watch/></Router>))
 
 const NYAA_PACKAGE = 'https:stub.plugins.banou.dev'
 const connectedNyaa = { uri: NYAA_PACKAGE, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }
@@ -424,7 +424,7 @@ test('a release the address names before the episode holds it plays once its han
   Object.assign(episode, { handles: [] })
   params = { ...params, sourceUri: 'nyaa:a' }
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -811,7 +811,7 @@ test('the relays a show was unavailable through reach its next episode\'s player
   origins = ['cr']
   params = { ...params, sourceUri: 'cr:GX1' }
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -841,7 +841,7 @@ test('the languages last picked, the account\'s when signed in, reach the next e
   params = { ...params, sourceUri: 'cr:GX1' }
   stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [AUDIO_LANGUAGE_KEY]: 'Japanese' }))
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -1018,7 +1018,7 @@ test('another episode gets a fresh player, so Back leaves the page rather than t
   for (const [origin, player] of [['cr', 'iframe'], ['nyaa', '.plugin-player']] as const) {
     series({}, origin === 'cr' ? 'cr:GX2' : 'nyaa:a')
     const location = memoryLocation()
-    const tree = () => <Router hook={location.hook}><Watch/></Router>
+    const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
     const host = mount(tree())
     hosts.push(host)
     await settle()
@@ -1038,7 +1038,7 @@ const atTheEnd = async (third: object = {}) => {
   origins = ['cr', 'nyaa']
   series(third, 'cr:GX2')
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -1725,7 +1725,7 @@ test('a film marked Watched and unmarked is still Completed once watched, and un
   })
   tracking = film('PLANNING', 0)
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -1786,7 +1786,7 @@ test('a film marked Watched at the start, watched, then unmarked, stays unmarked
   })
   tracking = film('PLANNING', 0)
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -2052,7 +2052,7 @@ test('a run that has not answered yet is never read from the one asked before it
   lastOf({ relations: [SEQUEL] }, 'cr:GX3')
   nextRun('anilist:2')
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   await settle()
@@ -2070,7 +2070,7 @@ test('a run that has not answered yet is never read from the one asked before it
 test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it', () => {
   origins = undefined
   const { hook } = memoryLocation()
-  const tree = () => <Router hook={hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={hook}><Watch/></Router>)
   media = undefined as unknown as object
   const host = mount(tree())
   hosts.push(host)
@@ -2096,7 +2096,7 @@ const pluginsChange = async (...statuses: object[]) => {
 }
 const live = () => {
   const location = memoryLocation()
-  const tree = () => <Router hook={location.hook}><Watch/></Router>
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
   hosts.push(host)
   return { host, rerender: async () => { act(() => { render(tree(), host) }); await settle() } }

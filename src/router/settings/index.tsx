@@ -2,6 +2,7 @@ import type { FknBackend } from '../../utils/fkn-backend'
 
 import { css } from '@emotion/react'
 import { useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useLocationProperty } from 'wouter/use-browser-location'
 
 import { detectBackend } from '../../utils/fkn-backend'
@@ -82,6 +83,7 @@ const currentHash = () => location.hash
 // through wouter's location subscription because a <Link to="/settings"> drops it with a pushState,
 // which sends no hashchange.
 const Settings = () => {
+  const intl = useIntl()
   const [backend, setBackend] = useState<FknBackend>()
   const id = sectionFromHash(useLocationProperty(currentHash))
   const current = SETTINGS_SECTIONS.find(section => section.id === id)!
@@ -94,14 +96,14 @@ const Settings = () => {
 
   return (
     <div css={style}>
-      <h1>Settings</h1>
-      <nav className="index" aria-label="Settings categories">
+      <h1>{intl.formatMessage({ id: 'Settings', defaultMessage: 'Settings' })}</h1>
+      <nav className="index" aria-label={intl.formatMessage({ id: 'Settings categories', defaultMessage: 'Settings categories' })}>
         {SETTINGS_SECTIONS.map(section => (
-          <a key={section.id} href={`#${section.id}`} aria-current={current === section ? 'true' : undefined} onClick={scrollToTop}>{section.title}</a>
+          <a key={section.id} href={`#${section.id}`} aria-current={current === section ? 'true' : undefined} onClick={scrollToTop}>{intl.formatMessage(section.title)}</a>
         ))}
       </nav>
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
-        <h2 id="settings-section-title">{current.title}</h2>
+        <h2 id="settings-section-title">{intl.formatMessage(current.title)}</h2>
         {current.id === 'sources'
           ? <SourcesSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
           : <PlaybackSection/>}

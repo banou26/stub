@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from '../components/dom'
+import { button, mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { createRef } from 'preact'
@@ -16,9 +16,9 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
 const render = () => {
   const onConfirm = vi.fn()
-  const host = mount(
+  const host = mount(withIntl(
     <ConfirmAction label="Clear" name="Clear watch history" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every watched episode?" onConfirm={onConfirm}/>,
-  )
+  ))
   hosts.push(host)
   return { host, onConfirm }
 }
@@ -41,7 +41,7 @@ test('the question names what it acts on, and both answers are described by it',
 })
 
 test('a name left out is the label', () => {
-  const host = mount(<ConfirmAction label="Sign out" confirmLabel="Yes" busyLabel="..." question="Sure?" onConfirm={() => {}}/>)
+  const host = mount(withIntl(<ConfirmAction label="Sign out" confirmLabel="Yes" busyLabel="..." question="Sure?" onConfirm={() => {}}/>))
   hosts.push(host)
   expect(button(host, 'Sign out')!.getAttribute('aria-label')).toBeNull()
 })
@@ -55,12 +55,12 @@ const flush = () => act(async () => { await new Promise(resolve => setTimeout(re
 
 const withHome = (onConfirm: () => Promise<unknown> | void) => {
   const home = createRef<HTMLHeadingElement>()
-  const host = mount(
+  const host = mount(withIntl(
     <div>
       <h3 ref={home} tabIndex={-1}>Watch history</h3>
       <ConfirmAction label="Clear" name="Clear watch history" confirmLabel="Yes, clear" busyLabel="Clearing..." question="Clear every watched episode?" onConfirm={onConfirm} home={home}/>
     </div>,
-  )
+  ))
   hosts.push(host)
   return { host, home }
 }

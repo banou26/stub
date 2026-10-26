@@ -1,7 +1,14 @@
-/** The settings page's categories, in the order its list shows them. */
+import { defineMessages } from 'react-intl'
+
+const TITLES = defineMessages({
+  sources: { id: 'Sources', defaultMessage: 'Sources' },
+  playback: { id: 'Playback', defaultMessage: 'Playback' },
+})
+
+/** The settings page's categories, in the order its list shows them, each titled by its message. */
 export const SETTINGS_SECTIONS = [
-  { id: 'sources', title: 'Sources' },
-  { id: 'playback', title: 'Playback' },
+  { id: 'sources', title: TITLES.sources },
+  { id: 'playback', title: TITLES.playback },
 ] as const
 
 type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']

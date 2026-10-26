@@ -1,6 +1,7 @@
 import type { RefObject } from 'preact'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 /**
  * A button whose action runs only once the viewer answered yes to `question`, asked in place under it.
@@ -24,6 +25,7 @@ export const ConfirmAction = ({ label, name = label, confirmLabel, busyLabel, qu
   onConfirm: () => Promise<unknown> | void
   home?: RefObject<HTMLElement | null>
 }) => {
+  const intl = useIntl()
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -84,7 +86,7 @@ export const ConfirmAction = ({ label, name = label, confirmLabel, busyLabel, qu
       <p id={questionId}>{question}</p>
       <div className="actions">
         <button type="button" className="danger" aria-describedby={questionId} disabled={busy} onClick={confirm}>{busy ? busyLabel : confirmLabel}</button>
-        <button ref={cancel} type="button" className="secondary" aria-describedby={questionId} disabled={busy} onClick={close}>Cancel</button>
+        <button ref={cancel} type="button" className="secondary" aria-describedby={questionId} disabled={busy} onClick={close}>{intl.formatMessage({ id: 'Cancel', defaultMessage: 'Cancel' })}</button>
       </div>
     </div>
   )
