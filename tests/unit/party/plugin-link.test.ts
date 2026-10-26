@@ -320,16 +320,24 @@ describe('a package\'s fullscreen, kept on the stage', () => {
     expect(onFullscreenRequest).not.toHaveBeenCalled()
   })
 
+  // plain functions, since a vi.fn handles the promise it returns and a refusal through it is never unhandled
   test('a refusal from the browser or the package does not take the page down', async () => {
-    const { host, stage } = page()
-    stage.requestFullscreen.mockImplementation(async () => { throw new TypeError('no activation') })
+    const { host, document, change } = page()
+    let refused = 0
+    const refuse = async () => { refused++; throw new TypeError('no activation') }
+    const stage = { requestFullscreen: refuse } as unknown as HTMLElement
+    Object.assign(document, { exitFullscreen: refuse })
+    let request = () => {}
     const failing = {
-      onFullscreenRequest: async (listener: () => void) => { listener() },
+      onFullscreenRequest: async (listener: () => void) => { request = listener },
       applyFullscreen: async () => { throw new Error('gone') },
     }
     expect(() => servePluginFullscreen(failing, stage, host)).not.toThrow()
+    request()
+    change(stage)
+    request()
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(stage.requestFullscreen).toHaveBeenCalledTimes(1)
+    expect(refused, 'a request and an exit, both refused').toBe(2)
     servePluginFullscreen({ onFullscreenRequest: async () => { throw new Error('gone') }, applyFullscreen: async () => {} }, stage, host)
     await new Promise(resolve => setTimeout(resolve, 0))
   })
