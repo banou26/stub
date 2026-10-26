@@ -337,7 +337,9 @@ export const anidbSince = dates => (dates.every(Boolean) ? dates.reduce((a, b) =
  * One run: read the published history (a build from scratch only when the release answers 404), take the newest
  * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed. Then, when
  * `store` is given, keep what was asked in the source store, as `writer`'s run: a store that cannot be read or
- * written is skipped with a warning, and never fails the run.
+ * written is skipped with a warning, and never fails the run. AniDB's file comes back to such a store with the next
+ * 200, but that run's Kitsu answers do not, since Kitsu is asked again only for open seasons and unfinished shows; a
+ * warning counts them.
  */
 export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
   const gh = github(token, get)
@@ -397,10 +399,11 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
     log(`published ${Object.keys(files.assets).join(', ')} and ${MANIFEST}`)
   }
 
-  if (stored) {
-    await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
-      .then(outcome => log(`the source store: ${outcome}`), error => warn(`the source store was not written: ${errorText(error)}`))
-  }
+  if (!store) return
+  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
+    .catch(error => warn(`the source store was not written: ${errorText(error)}`))
+  if (outcome) log(`the source store: ${outcome}`)
+  else if (kitsuAnswers.length) warn(`the source store lacks the ${kitsuAnswers.length} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`)
 }
 
 /** `runHistory`'s options from the workflow's environment: the store only when every secret of `SECRETS` is set. */

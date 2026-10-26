@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync, gzipSync } from 'node:zlib'
-import { expect, test } from 'vite-plus/test'
+import { expect, test, vi } from 'vite-plus/test'
 
 import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory, runOptions } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
@@ -382,22 +382,36 @@ const keeping = (w: ReturnType<typeof world>, bucket: ReturnType<typeof fakeBuck
 const assetsOf = (w: ReturnType<typeof world>) => Object.fromEntries(w.names().map(name => [name, w.named(name)!]))
 const historyOf = (w: ReturnType<typeof world>) => decodeHistory({ manifest: w.named('manifest.json')!.toString(), assets: assetsOf(w) })
 const unsha = (lines: string[]) => lines.map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
+// the run's own log lines, `::warning::` ones included
+const logged = async (work: () => Promise<unknown>) => {
+  const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  try {
+    await work()
+    return spy.mock.calls.map(args => args.join(' '))
+  } finally {
+    spy.mockRestore()
+  }
+}
+const lacking = (count: number) => `::warning::[offline-history] the source store lacks the ${count} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`
 
 // Mutation: publish nothing when a store is given.
 test('with the source store, the release gets what it gets without one, and the store dates every show asked', async () => {
   const anidb = () => new Response(new Uint8Array(anidbFile(15_000)), { headers: { 'last-modified': 'Mon, 19 Oct 2026 04:00:00 GMT' } })
   const plain = world({ release: false, anidb })
-  await run(plain)
+  const without = await logged(() => run(plain))
   const kept = world({ release: false, anidb })
   const bucket = fakeBucket()
-  await keeping(kept, bucket)
+  const lines = await logged(() => keeping(kept, bucket))
+  // control: both runs asked Kitsu, so each had answers a warning could have counted
+  expect([plain.kitsuIds().length, kept.kitsuIds().length]).toEqual([6, 6])
+  expect([...without, ...lines].filter(line => line.startsWith('::warning::'))).toEqual([])
   expect(unsha(kept.log)).toEqual(unsha(plain.log))
   expect(historyOf(kept).anidb.titles).toEqual(historyOf(plain).anidb.titles)
   expect([...historyOf(kept).kitsu.keys()]).toEqual([...historyOf(plain).kitsu.keys()])
   const { manifest, index } = await readStore(bucket.client)
-  const lines = [...index.values()]
-  expect([lines.filter(line => line.source === 'anidb-titles').length, lines.filter(line => line.source === 'kitsu').length]).toEqual([15_000, 6])
-  expect(new Set(lines.map(line => JSON.stringify(line.writer)))).toEqual(new Set([JSON.stringify(WRITER)]))
+  const dated = [...index.values()]
+  expect([dated.filter(line => line.source === 'anidb-titles').length, dated.filter(line => line.source === 'kitsu').length]).toEqual([15_000, 6])
+  expect(new Set(dated.map(line => JSON.stringify(line.writer)))).toEqual(new Set([JSON.stringify(WRITER)]))
   expect(manifest.job['anidb-titles'].lastModified).toBe('Mon, 19 Oct 2026 04:00:00 GMT')
 })
 
@@ -426,11 +440,12 @@ test('a store with no AniDB file is sent no If-Modified-Since, so it gets the wh
   expect((await readStore(bucket.client)).manifest.job['anidb-titles']).toMatchObject({ rows: 15_000, lastModified: 'Sat, 24 Oct 2026 04:00:00 GMT' })
 })
 
-// Mutation: let a store write failure fail the run.
-test('a store that cannot be written leaves the release published and the run green', async () => {
+// Mutations: let a store write failure fail the run; say nothing of the Kitsu answers it lost.
+test('a store that cannot be written leaves the release published and the run green, and counts the Kitsu answers it lacks', async () => {
   const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
   const bucket = fakeBucket({ fail: method => method === 'PUT' })
-  await keeping(w, bucket)
+  const lines = await logged(() => keeping(w, bucket))
+  expect(unsha(lines.filter(line => line.startsWith('::warning::')))).toEqual(['::warning::[offline-history] the source store was not written: PUT job/anidb-titles-<sha>.xml.gz answered HTTP 500', lacking(6)])
   expect(w.names()).toContain('manifest.json')
   expect(historyOf(w).anidb.titles.size).toBe(15_000)
   // control: the store was written to, and refused it
@@ -438,7 +453,8 @@ test('a store that cannot be written leaves the release published and the run gr
   expect(bucket.objects.size).toBe(0)
 })
 
-// Mutations: let a store read failure fail the run; read a store that answered 500 as an empty one.
+// Mutations: let a store read failure fail the run; read a store that answered 500 as an empty one; say nothing of
+// the Kitsu answers it lost.
 test('a store that cannot be read is skipped for the run: AniDB gets the release\'s date and the store nothing', async () => {
   const sent: (string | undefined)[] = []
   const anidb = (init: RequestInit) => {
@@ -446,9 +462,13 @@ test('a store that cannot be read is skipped for the run: AniDB gets the release
     return new Response(null, { status: 304 })
   }
   const bucket = fakeBucket({ fail: method => method === 'GET' })
-  await keeping(world({ assets: await published(25), anidb }), bucket)
+  const w = world({ assets: await published(25), anidb })
+  const lines = await logged(() => keeping(w, bucket, '2026-44'))
   expect(sent).toEqual(['Mon, 19 Oct 2026 04:00:00 GMT'])
   expect(bucket.log).toEqual(['GET manifest.json'])
+  // a new dump, so Kitsu was asked again: the open seasons' three and One Piece, carried
+  expect(w.kitsuIds()).toEqual([4, 5, 6, 12])
+  expect(lines.filter(line => line.startsWith('::warning::'))).toEqual(['::warning::[offline-history] the source store is skipped this run: GET manifest.json answered HTTP 500', lacking(4)])
 })
 
 // Mutation: write manifest.json again when nothing was asked.
