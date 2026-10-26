@@ -1,9 +1,11 @@
 import { isExtensionExposed, shell } from '@fkn/lib'
 import { render } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
+import { RawIntlProvider } from 'react-intl'
 import { trackLanguagesOf } from './embed-languages'
 import { triedRelaysOf } from './embed-relays'
 import { receiveEmbedTitle } from './embed-title'
+import { startLanguage } from './i18n'
 import { unlistedRelays } from './sources/crunchyroll/relay-check'
 import { getPlayer } from './sources/players'
 import { fromUri } from './utils/uri'
@@ -34,4 +36,6 @@ const App = () => {
   return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} title={title} triedRelays={triedRelays} unlistedRelays={unlisted} languages={languages} />
 }
 
-render(<App />, document.getElementById('app')!)
+const intl = await startLanguage()
+
+render(<RawIntlProvider value={intl}><App /></RawIntlProvider>, document.getElementById('app')!)

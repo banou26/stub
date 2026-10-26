@@ -85,7 +85,7 @@ export default defineConfig({
     // CommonJS icon and tooltip libraries still cannot be, so that test mocks those two.
     //
     // @floating-ui/react likewise, so the tracking row's chip cards render here: externalized, its
-    // `import 'react'` dies with "Cannot find package 'react'".
-    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//, /@floating-ui\//] } },
+    // `import 'react'` dies with "Cannot find package 'react'". react-intl the same.
+    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//, /@floating-ui\//, /react-intl/] } },
   },
 })

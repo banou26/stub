@@ -1,6 +1,7 @@
 import './update'
 import { css, Global } from '@emotion/react'
 import { render } from 'preact'
+import { RawIntlProvider } from 'react-intl'
 import { Provider } from 'urql'
 
 import './worker.ts'
@@ -9,6 +10,7 @@ import { watchAccountFiles } from './settings-account'
 import client from './urql'
 import Router from './router'
 import ErrorBoundary from './components/error-boundary'
+import { startLanguage } from './i18n'
 import { party } from './party'
 import './plugin-url.ts'
 import './store-export.ts'
@@ -89,13 +91,17 @@ void party.resume()
 const root = document.createElement('div')
 root.id = 'stub-root'
 
+const intl = await startLanguage()
+
 render(
-  <Provider value={client}>
-    {/* outside the boundary, so the base styles the fallback renders against survive a caught error */}
-    <Global styles={style}/>
-    <ErrorBoundary>
-      <Router/>
-    </ErrorBoundary>
-  </Provider>,
+  <RawIntlProvider value={intl}>
+    <Provider value={client}>
+      {/* outside the boundary, so the base styles the fallback renders against survive a caught error */}
+      <Global styles={style}/>
+      <ErrorBoundary>
+        <Router/>
+      </ErrorBoundary>
+    </Provider>
+  </RawIntlProvider>,
   document.body.appendChild(root)
 )
