@@ -154,7 +154,12 @@ const torrentAcrossEpisodes = async (page: Page) => {
   await serve(page)
   await page.goto(`${ORIGIN}${torrentWatchPath(1)}`)
   const button = page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.full-screen')
-  await button.click({ timeout: 30_000 })
+  // in Chromium an early click can reach the page instead, on the package's frame, and never the player (Chrome 155,
+  // 2026-10-26), so it is clicked until the player hears it
+  await expect(async () => {
+    await button.click()
+    await expect(button).toHaveAttribute('data-clicked', { timeout: 1_000 })
+  }).toPass({ timeout: 30_000 })
   await expect.poll(() => fullscreenElement(page), { message: 'the player\'s button two frames down fullscreens the stage' }).toBe('stage')
   await expect(button, 'the player is told the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
 
