@@ -55,6 +55,7 @@
     "gql-generate": "graphql-codegen --config codegen.ts",
     "gql-generate-watch": "graphql-codegen --config codegen.ts --watch",
     "type-check": "tsc --noEmit",
+    "i18n:check": "node scripts/i18n-check.mjs",
     "test:unit": "vitest run",
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },

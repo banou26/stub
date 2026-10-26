@@ -1,0 +1,80 @@
+{
+  "header-search": [
+    "src/components/account-widget.tsx",
+    "src/components/display-mode-toggle.tsx",
+    "src/components/filter-select.tsx",
+    "src/components/header.tsx",
+    "src/router/search/index.tsx",
+    "src/router/search/scene.tsx"
+  ],
+  "settings": [
+    "src/components/plugin-prompt.tsx",
+    "src/router/settings/accounts.tsx",
+    "src/router/settings/confirm.tsx",
+    "src/router/settings/country.tsx",
+    "src/router/settings/index.tsx",
+    "src/router/settings/playback.tsx",
+    "src/router/settings/sources.tsx"
+  ],
+  "home-cards": [
+    "src/components/media-card.tsx",
+    "src/components/media-preview.tsx",
+    "src/components/media-row.tsx",
+    "src/components/media-score.tsx",
+    "src/router/home/index.tsx",
+    "src/router/home/media-details.tsx",
+    "src/router/home/media-modal.tsx",
+    "src/router/home/movie-play.tsx"
+  ],
+  "title-page": [
+    "src/components/media-franchise.tsx",
+    "src/components/media-relations.tsx",
+    "src/components/media-seasons.tsx",
+    "src/router/title/index.tsx"
+  ],
+  "watch-players": [
+    "src/components/player/video-surface.tsx",
+    "src/components/plugin-player.tsx",
+    "src/components/source-popup.tsx",
+    "src/components/source-selector.tsx",
+    "src/components/yt-minimal-player.tsx",
+    "src/embed.tsx",
+    "src/router/watch/index.tsx",
+    "src/router/watch/no-source.tsx",
+    "src/router/watch/up-next.tsx",
+    "src/sources/amazon/player.tsx",
+    "src/sources/crunchyroll/player.tsx",
+    "src/sources/unogs/player.tsx"
+  ],
+  "watch-together": [
+    "src/components/party-chat.tsx",
+    "src/components/party-cursor.tsx",
+    "src/components/party-grants.tsx",
+    "src/components/party-tracks.tsx",
+    "src/components/party-widget.tsx",
+    "src/router/party/index.tsx"
+  ],
+  "tracking": [
+    "src/components/save-problems.tsx",
+    "src/components/score-picker.tsx",
+    "src/components/stub-list-notice.tsx",
+    "src/components/tracking-compact.tsx"
+  ],
+  "rest": [
+    "src/components/collapsible.tsx",
+    "src/components/error-boundary.tsx",
+    "src/components/footer.tsx",
+    "src/components/paged.tsx",
+    "src/router/index.tsx"
+  ],
+  "kept-in-english": [
+    "src/router/debug/episodes.tsx",
+    "src/router/debug/graph.tsx",
+    "src/router/debug/index.tsx",
+    "src/router/debug/inspector.tsx",
+    "src/router/debug/link.tsx",
+    "src/router/debug/value.tsx",
+    "src/router/legal/index.tsx",
+    "src/router/privacy/index.tsx"
+  ]
+}
