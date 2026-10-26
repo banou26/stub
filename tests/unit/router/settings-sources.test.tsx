@@ -224,6 +224,16 @@ test('a package registering several sources says how many, and how many could no
   expect(row(FAMILY.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/family · 3 sources · 1 unavailable')
 })
 
+test('a package of two sources is named by both, and one of one source counts only those it could not register', () => {
+  const PAIR: PluginStatus = { uri: 'npm:@spec/pair', state: 'connected', sources: [{ origin: 'a', name: 'Alpha' }, { origin: 'b', name: 'Beta' }] }
+  const PARTLY: PluginStatus = { ...CONNECTED, rejected: [{ origin: 'x', reason: 'no catalogue' }, { origin: 'y', reason: 'no catalogue' }] }
+  const { row } = render([PAIR, PARTLY])
+  expect(row(PAIR.uri).querySelector('.name')!.textContent).toBe('Alpha, Beta')
+  expect(row(PAIR.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/pair · 2 sources')
+  expect(row(PAIR.uri).querySelector('button')!.getAttribute('aria-label')).toBe('Remove Alpha, Beta')
+  expect(row(PARTLY.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/one · 2 unavailable')
+})
+
 test('Remove is named for its source and removes that one', async () => {
   const { row } = render([CONNECTED, FAILED])
   const remove = button(row(FAILED.uri), 'Remove')!

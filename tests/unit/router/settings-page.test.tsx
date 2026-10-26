@@ -83,6 +83,12 @@ test('lists every category as a link whose fragment picks it', async () => {
   expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Playback', '#playback']])
 })
 
+test('names the page and its list of categories', async () => {
+  const host = await open()
+  expect(host.querySelector('h1')!.textContent).toBe('Settings')
+  expect(host.querySelector('nav')!.getAttribute('aria-label')).toBe('Settings categories')
+})
+
 test('with no fragment, shows Sources and only Sources, its cards holding the sign-ins', async () => {
   expect(shown(await open())).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
 })

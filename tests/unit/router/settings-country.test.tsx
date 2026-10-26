@@ -55,6 +55,17 @@ test('Country offers Automatic, naming the time zone\'s country, then every coun
   expect(row.querySelector('p'), 'a label and a select, nothing to read').toBeNull()
 })
 
+test('each country reads by its English name, in English order, accented names among the rest', () => {
+  viewerIn('America/Toronto')
+  const options = [...render().select.querySelectorAll('option')].slice(1)
+  const name = (code: string) => options.find(option => option.value === code)?.textContent
+  expect(options.slice(0, 4).map(option => option.textContent)).toEqual(['Afghanistan', 'Åland Islands', 'Albania', 'Algeria'])
+  expect(options.slice(-4).map(option => option.textContent)).toEqual(['Western Sahara', 'Yemen', 'Zambia', 'Zimbabwe'])
+  expect(['CI', 'KN', 'VI', 'HK', 'KR', 'TR', 'MM'].map(name)).toEqual(['Côte d’Ivoire', 'St. Kitts & Nevis', 'U.S. Virgin Islands', 'Hong Kong SAR China', 'South Korea', 'Türkiye', 'Myanmar (Burma)'])
+  const cuba = options.findIndex(option => option.value === 'CU')
+  expect(options.slice(cuba - 1, cuba + 3).map(option => option.textContent)).toEqual(['Croatia', 'Cuba', 'Curaçao', 'Cyprus'])
+})
+
 test('a country picked is kept on this device, and Automatic keeps nothing', async () => {
   viewerIn('Asia/Tokyo')
   const { select, pick } = render()

@@ -594,3 +594,55 @@ describe('a connected tracking site whose session stub learned is signed out', (
     expect(button(row(site), `Sign out of ${title}`)).toBeFalsy()
   })
 })
+
+// HOR-1026 (stub in the viewer's language): each line a card writes, pinned before it moved into messages
+describe('in English, word for word', () => {
+  const note = (row: HTMLElement) => row.querySelector('[role="status"]')!.textContent
+  const action = (row: HTMLElement) => row.querySelector('.actions button')!.textContent
+
+  test.each([
+    ['authed', 'Signed in to Crunchyroll.'],
+    ['closed', 'The sign-in window closed.'],
+    ['blocked', 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.'],
+    ['unsupported', 'Connected to Crunchyroll.'],
+  ] as const)('a sign in ending %s says so', async (outcome, said) => {
+    const { row } = render({ crunchyroll: { signIn: async () => outcome, signOut: async () => {} } })
+    await act(async () => { button(row('crunchyroll'), 'Sign in')!.click() })
+    await flush()
+    expect(note(row('crunchyroll'))).toBe(said)
+  })
+
+  test('a sign in, a sign out and a disconnect each name what they wait on', async () => {
+    const pending = () => new Promise<never>(() => {})
+    const cloud = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: pending, signOut: pending }, prime: { signIn: pending, signOut: pending } })
+    await act(async () => { button(cloud.row('prime'), 'Sign in')!.click() })
+    expect(action(cloud.row('prime'))).toBe('Signing in...')
+    await act(async () => { button(cloud.row('crunchyroll'), 'Sign out')!.click() })
+    await act(async () => { button(cloud.row('crunchyroll'), 'Yes, sign out')!.click() })
+    expect(action(cloud.row('crunchyroll'))).toBe('Signing out...')
+
+    const extension = render({ backend: 'extension', sites: { ...fakeSites(['mal']), signOut: pending } })
+    await act(async () => { button(extension.row('mal'), 'Disconnect')!.click() })
+    expect(extension.row('mal').querySelector('.confirm p')!.textContent).toBe('Disconnect MyAnimeList on this device?')
+    await act(async () => { button(extension.row('mal'), 'Yes, disconnect')!.click() })
+    expect(action(extension.row('mal'))).toBe('Disconnecting...')
+  })
+
+  test('a sign out that failed says what went wrong and what to do', async () => {
+    const failing = async () => { throw new Error('FKN did not answer') }
+    const { row } = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: async () => 'authed', signOut: failing }, sites: { ...fakeSites(['anilist']), signOut: failing } })
+    for (const site of ['crunchyroll', 'anilist']) {
+      await act(async () => { button(row(site), 'Sign out')!.click() })
+      await act(async () => { button(row(site), 'Yes, sign out')!.click() })
+      await flush()
+    }
+    expect(note(row('crunchyroll'))).toBe('Could not sign out of Crunchyroll: FKN did not answer. Try again.')
+    expect(note(row('anilist'))).toBe('Could not finish signing out of AniList: FKN did not answer. Sign in and out again to retry.')
+  })
+
+  test('Netflix, and a site while the extension is not known yet', () => {
+    expect(render().row('netflix').textContent).toBe('Needs the FKN browser extension.')
+    expect(render({ backend: 'extension' }).row('netflix').textContent).toBe('Open netflix.com')
+    expect(render({ backend: undefined }).row('crunchyroll').textContent).toBe('Loading...')
+  })
+})
