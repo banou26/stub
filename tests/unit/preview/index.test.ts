@@ -1,7 +1,10 @@
+import type { AnswerRow } from '../../../src/worker/graph'
+
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { gunzipSync } from 'node:zlib'
 
-import { beforeAll, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { answer, previewOf } from '../../../src/preview'
 import { site } from '../../../src/site'
@@ -25,11 +28,21 @@ vi.mock('../../../src/worker/resolvers', async () => {
     },
   }
 })
-const graph = vi.hoisted(() => ({ boots: (): Promise<void> => Promise.resolve(), episodesKept: undefined as boolean | undefined }))
+const graph = vi.hoisted(() => ({
+  boots: (): Promise<void> => Promise.resolve(),
+  episodesKept: undefined as boolean | undefined,
+  // the copy's answer log, as `exportAnswers` reads it back
+  answers: [] as AnswerRow[],
+  exports: 0,
+}))
 vi.mock('../../../src/worker/graph', () => ({
   enableGraph: () => graph.boots(),
   setReadStore: () => {},
   keepEpisodes: (kept: boolean) => { graph.episodesKept = kept },
+  exportAnswers: async () => {
+    graph.exports++
+    return graph.answers
+  },
 }))
 
 const ROOT = resolve(import.meta.dirname, '../../..')
@@ -44,10 +57,19 @@ const media = (title: string, settled = false) => ({
   titles: [{ language: 'en', title, score: 1 }], descriptions: [], covers: [{ url: 'https://cover.jpg', color: null }], banners: [], settled,
 })
 
+const handle = (origin: string, id: string) => ({ _id: `${origin}:${id}`, uri: `${origin}:${id}`, origin, id, url: null })
+
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 let asked: { uri: string, details?: boolean, site: string }[]
 let ended: boolean
+
+const answerRow = (seq: number, origin: string, id: string, raw: object): AnswerRow => ({
+  key: `sha-${seq}`, seq, uri: `${origin}:${id}`, origin, kind: 'media', operation: 'MEDIA', selection: Object.keys(raw).sort(), raw: JSON.stringify(raw),
+})
+
+/** The lines of what `inbox()` gave, gunzipped. */
+const linesOf = (body: ArrayBuffer) => gunzipSync(Buffer.from(body)).toString('utf8').trimEnd().split('\n').map(line => JSON.parse(line))
 
 // a copy boots on its first answer, importing the GraphQL server and the sources, which a loaded run can take longer
 // than a test's deadline over
@@ -59,6 +81,18 @@ beforeAll(async () => {
 beforeEach(() => {
   asked = []
   ended = false
+  graph.answers = []
+  graph.exports = 0
+  // as the preview build defines them
+  vi.stubGlobal('__STUB_VERSION__', '0.0.62')
+  vi.stubGlobal('__STUB_COMMIT__', 'bdd2430')
+  // a Worker's zone, which JustWatch reads its offer country off
+  vi.stubEnv('TZ', 'UTC')
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 const feeding = (run: () => AsyncGenerator<object>): Feed => async function* (input, served) {
@@ -152,6 +186,64 @@ test('once the copy is done its relay calls are stopped, and last waits for what
     vi.unstubAllGlobals()
   }
 }, 5_000)
+
+test('a settled run\'s inbox holds every media answer its sources gave, dated when it settled, under the card\'s address', async () => {
+  const card = {
+    ...media('Frieren: Beyond Journey\'s End', true),
+    uri: 'ag:(anilist:154587,jw:364792-373583)',
+    handles: [{ relation: 'SAME_AS', node: handle('anilist', '154587') }, { relation: 'PART_OF', node: handle('jw', '364792') }],
+  }
+  feed.current = feeding(async function* () {
+    await wait(50)
+    yield card
+  })
+  graph.answers = [
+    answerRow(1, 'anilist', '154587', { id: '154587', titles: [] }),
+    answerRow(2, 'jw', '364792', { id: '364792', scope: 'CONTAINER' }),
+    answerRow(3, 'kitsu', '46474', { id: '46474' }),
+  ]
+  const asking = Date.now()
+  const { last, inbox } = answer('ag:(anilist:154587)', 'anime', WASM, { deadline: 1_000 })
+  await last
+  const object = (await inbox())!
+  expect(object.key).toMatch(/^inbox\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.jsonl\.gz$/)
+  const lines = linesOf(object.body)
+  expect(lines.map(({ index }) => [index.source, index.id, index.region, index.class, index.role, index.partial])).toEqual([
+    ['anilist', '154587', null, 'full', 'member', false],
+    ['jw', '364792', 'US', 'full', 'related', false],
+    ['kitsu', '46474', null, 'full', null, false],
+  ])
+  expect(lines.map(({ body }) => body.body)).toEqual(graph.answers.map(row => row.raw))
+  expect(new Set(lines.map(({ body }) => body.run))).toEqual(new Set([card.uri]))
+  expect(new Set(lines.map(({ index }) => JSON.stringify(index.writer)))).toEqual(new Set([JSON.stringify({ by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430' })]))
+  const fetchedAt = Date.parse(lines[0].index.fetchedAt)
+  expect(fetchedAt).toBeGreaterThanOrEqual(asking + 50)
+  expect(fetchedAt).toBeLessThan(asking + 900)
+  expect(object.key.slice(6, 16)).toBe(lines[0].index.fetchedAt.slice(0, 10))
+})
+
+test('a run cut at settleBy has its finished sources\' lines marked partial, under the last card\'s address', async () => {
+  feed.current = feeding(async function* () {
+    yield { ...media('Kaguya-sama: Love is War'), uri: 'ag:(cr:GRJ0J828Y,mal:37999)' }
+    await new Promise(() => {})
+  })
+  graph.answers = [answerRow(1, 'cr', 'GRJ0J828Y', { id: 'GRJ0J828Y' }), answerRow(2, 'mal', '37999', { id: '37999' })]
+  const { inbox } = answer('ag:(cr:GRJ0J828Y)', 'anime', WASM, { deadline: 50, settleBy: 200 })
+  const lines = linesOf((await inbox())!.body)
+  expect(lines.map(({ index }) => [index.source, index.partial])).toEqual([['cr', true], ['mal', true]])
+  expect(lines.map(({ body }) => body.run)).toEqual(['ag:(cr:GRJ0J828Y,mal:37999)', 'ag:(cr:GRJ0J828Y,mal:37999)'])
+}, 5_000)
+
+test('the answer log is read only when the inbox is asked for, and a run with no media answer has no object', async () => {
+  feed.current = feeding(async function* () {
+    yield media('Coyote vs. Acme', true)
+  })
+  const { last, inbox } = answer('ag:(jw:985864)', 'movie', WASM, { deadline: 1_000 })
+  await last
+  expect(graph.exports).toBe(0)
+  expect(await inbox()).toBeUndefined()
+  expect(graph.exports).toBe(1)
+})
 
 test('a read that fails ends both with what was read, and rejects neither', async () => {
   feed.current = feeding(async function* () {

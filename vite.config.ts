@@ -11,7 +11,7 @@ import { MESSAGE_RULES } from './scripts/i18n-check.mjs'
 import { pageScript } from './scripts/page-script'
 
 // read rather than imported so the manifest does not end up in the bundle
-const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
+export const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
 
 // Cloudflare Pages hands the sha in as an env var, and its checkout may carry no usable git metadata, so
 // that is the source to trust there. Falls back to git for a local build, and to 'dev' when neither

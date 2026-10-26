@@ -2,6 +2,8 @@
 // stub's own worker (the GraphQL server, the graph engine and every built-in source) answering one title's media
 // subscription in a Pages Function, with src/preview/fetch.ts in place of the page's cloud.fetch.
 import type { Site } from '../site'
+import type { ExtractorDefinition } from '../worker/extractor'
+import type { InboxObject } from './inbox'
 
 import initFrizbee from 'frizbee'
 import initSacha from 'sacha'
@@ -9,6 +11,7 @@ import initSacha from 'sacha'
 import { setSite, siteAsks } from '../site'
 import { getMedia, origin as offline } from '../sources/offline/extractor'
 import { stop } from './fetch'
+import { inboxLines, inboxObject } from './inbox'
 
 export type Preview = { title: string, description?: string, image?: string, wide?: boolean, color?: string }
 
@@ -68,6 +71,8 @@ const plain = (html?: string, max = 200) => {
 }
 
 type Media = {
+  uri?: string
+  handles?: { relation: string, node: { uri: string } }[]
   titles: { title: string }[]
   descriptions?: { description: string }[]
   covers: { url: string, color?: string | null }[]
@@ -103,6 +108,11 @@ export type Answer = {
    * every source still asking and let them unwind. Until it settles the copy is still working.
    */
   last: Promise<Preview | undefined>
+  /**
+   * What the run's sources answered, as one object for the private source store's inbox (src/preview/inbox.ts), once
+   * `last` has settled, or undefined when no source answered. Reads the run's answer log only when called.
+   */
+  inbox: () => Promise<InboxObject | undefined>
 }
 
 /**
@@ -144,8 +154,10 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   // a timer rather than the abort alone: aborted, the request left its read waiting for the subscription's next
   // payload, which sources that have gone quiet never send (measured under vitest, 2026-10-23)
   let giveUp: ReturnType<typeof setTimeout> | undefined
+  let endedAt = ''
   const ended = Promise.race([reading.catch(() => {}), new Promise(resolve => { giveUp = setTimeout(resolve, settleBy) })])
     .then(() => {
+      endedAt = new Date().toISOString()
       clearTimeout(giveUp)
       controller.abort()
       void reader?.cancel().catch(() => {})
@@ -157,5 +169,18 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   const first = Promise.race([ended, new Promise(resolve => { late = setTimeout(resolve, deadline) })])
     .then(() => previewOf(media))
     .finally(() => clearTimeout(late))
-  return { first, last }
+  const inbox = () => last.then(async () => {
+    const [{ exportAnswers }, sources] = await Promise.all([import('../worker/graph'), import('../sources')])
+    const regions = new Map(Object.values(sources).map(source => [source.origin, (source as Partial<ExtractorDefinition>).region]))
+    const lines = inboxLines(await exportAnswers(), {
+      run: media?.uri ?? uri,
+      handles: media?.handles ?? [],
+      settled: media?.settled === true,
+      fetchedAt: endedAt,
+      writer: { by: 'stub-preview', stub: __STUB_VERSION__, commit: __STUB_COMMIT__ },
+      regionOf: origin => regions.get(origin)?.() ?? null,
+    })
+    return inboxObject(lines, endedAt)
+  })
+  return { first, last, inbox }
 }

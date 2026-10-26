@@ -6,7 +6,13 @@ import { createPreview } from '../functions-lib/preview.js'
 import frizbee from '../functions-lib/frizbee_wasm_bg.wasm'
 import sacha from '../functions-lib/sacha_bg.wasm'
 
-type Context = { request: Request, next: () => Promise<Response>, waitUntil: (promise: Promise<unknown>) => void }
+/** As much of an R2 bucket binding as the Function uses. */
+type Bucket = { put: (key: string, value: ArrayBuffer, options: { httpMetadata: { contentType: string } }) => Promise<unknown> }
+
+/** `STUB_SOURCES`, bound on the Pages project, is the private source store's bucket; unbound, nothing is kept there. */
+type Env = { STUB_SOURCES?: Bucket }
+
+type Context = { request: Request, next: () => Promise<Response>, waitUntil: (promise: Promise<unknown>) => void, env: Env }
 
 const CRAWLER = /discordbot|slackbot|telegrambot|twitterbot|facebookexternalhit|whatsapp|linkedinbot|redditbot|mastodon|skypeuripreview|microsoftpreview|embedly|vkshare|pinterestbot|pinterest\/0\./i
 const TITLE_PATH = /^\/(?:title|media|watch)\/([^/]+)/
@@ -44,7 +50,7 @@ const take = (now: number) => {
 const keep = (cache: Cache, key: Request, preview?: Preview) =>
   cache.put(key, new Response(JSON.stringify(preview ?? null), { headers: { 'cache-control': `max-age=${preview ? DAY_S : PLAIN_S}` } }))
 
-const lookup = async (segment: string, site: Site, started: number, waitUntil: Context['waitUntil']): Promise<Preview | undefined> => {
+const lookup = async (segment: string, site: Site, started: number, waitUntil: Context['waitUntil'], bucket?: Bucket): Promise<Preview | undefined> => {
   const uri = routeMediaUri(segment)
   const copy = createPreview()
   const known = await copy.offlinePreview(uri, site)
@@ -62,8 +68,16 @@ const lookup = async (segment: string, site: Site, started: number, waitUntil: C
     release()
     throw error
   }
-  const { first, last } = answer
-  waitUntil(last.then(async preview => keep(cache, key, preview ?? await first)).catch(() => {}).finally(release))
+  const { first, last, inbox } = answer
+  // the run's answers go to the store once the card is kept, and the copy's turn is held until they have, so two
+  // copies never meet in the isolate; a store that refuses them costs that run's answers, never the card
+  waitUntil(last.then(async preview => keep(cache, key, preview ?? await first)).catch(() => {})
+    .then(async () => {
+      const object = bucket && await inbox()
+      if (object) await bucket.put(object.key, object.body, { httpMetadata: { contentType: 'application/gzip' } })
+    })
+    .catch(() => {})
+    .finally(release))
   return await first
 }
 
@@ -94,17 +108,17 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
  * Gives a link-preview crawler's GET on a title, media or watch address the title, description and art stub itself
  * draws for it, and every other request the page untouched: from stub's offline data alone when it holds a title and
  * a cover for the address, asking nothing, else from stub's own sources run here (src/preview). Reads nothing about
- * the requester but its user agent, logs nothing about it, and keeps only a title's public preview in the edge
- * cache. Any failure answers the page as is.
+ * the requester but its user agent, logs nothing about it, and keeps only public show data: a title's preview in the
+ * edge cache, and what the sources answered for it in the private source store. Any failure answers the page as is.
  */
-export const onRequest = async ({ request, next, waitUntil }: Context) => {
+export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const started = Date.now()
   const url = new URL(request.url)
   const segment = TITLE_PATH.exec(url.pathname)?.[1]
   if (request.method !== 'GET' || !segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
   try {
     const site = siteOf(url.hostname)
-    const preview = await lookup(segment, site, started, waitUntil)
+    const preview = await lookup(segment, site, started, waitUntil, env.STUB_SOURCES)
     return await withPreview(await next(), url, site, preview)
   } catch {
     return next()

@@ -2,6 +2,8 @@ import { copyFileSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig } from 'vite-plus'
 
+import { commit, version } from './vite.config'
+
 const OUT = resolve(__dirname, 'functions-lib')
 const WORKER_FETCH = resolve(__dirname, 'src/worker/fetch.ts')
 const WASM = {
@@ -21,8 +23,9 @@ const WASM = {
 export default defineConfig({
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
-    __STUB_VERSION__: JSON.stringify('preview'),
-    __STUB_COMMIT__: JSON.stringify('preview'),
+    // what the source store's inbox names as its writer (src/preview/inbox.ts)
+    __STUB_VERSION__: JSON.stringify(version),
+    __STUB_COMMIT__: JSON.stringify(commit),
   },
   publicDir: false,
   // urql's entry names react, as in the app's build

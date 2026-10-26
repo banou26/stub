@@ -1,11 +1,15 @@
 import type { Answer, Preview } from '../../../src/preview'
+import type { InboxObject, Run } from '../../../src/preview/inbox'
+import type { AnswerRow } from '../../../src/worker/graph'
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { gunzipSync } from 'node:zlib'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { offlinePreview } from '../../../src/preview'
+import { inboxLines, inboxObject } from '../../../src/preview/inbox'
 import wasmModule from './stub-wasm'
 
 // stub's offline data as the build bundles it: Cowboy Bebop with a title, MyAnimeList's cover, and Kitsu's banner and
@@ -44,6 +48,10 @@ const INTERIM: Preview = { ...SETTLED, title: 'Black Clover Second Season' }
 
 type Options = { deadline: number, settleBy?: number }
 type Asked = Options & { uri: string, site: string, wasm: unknown }
+type Put = { key: string, value: ArrayBuffer, options: unknown, cached: string[] }
+
+// what a copy hands the inbox, as src/preview/inbox.ts builds it
+const OBJECT: InboxObject = { key: 'inbox/2026-10-26/6f1c2a4e-9b0d-4e8a-a1f3-5c7d9e2b4a60.jsonl.gz', body: new Uint8Array([31, 139, 8]).buffer }
 
 let onRequest: typeof import('../../../functions/_middleware').onRequest
 let createPreview: ReturnType<typeof vi.fn>
@@ -53,6 +61,7 @@ let cacheCalls: number
 let matching: () => Promise<void>
 let putting: () => Promise<void>
 let fetched: ReturnType<typeof vi.fn>
+let inboxes: number
 
 const deferred = <T>() => {
   let settle!: (value: T) => void
@@ -60,14 +69,35 @@ const deferred = <T>() => {
   return { promise, settle }
 }
 
-/** A copy of stub's worker with its own offline answer, whose sources' answer is the one given. */
-const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first) => ({
+/** A copy of stub's worker with its own offline answer, whose sources' answer is the one given, and its inbox `object` (null: none). */
+const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first, object: InboxObject | null = OBJECT) => ({
   offlinePreview,
   answer: (uri: string, site: string, wasm: unknown, options: Options): Answer => {
     asked.push({ uri, site, wasm, ...options })
-    return { first: Promise.resolve(first), last: Promise.resolve(last) }
+    const settled = Promise.resolve(last)
+    return {
+      first: Promise.resolve(first),
+      last: settled,
+      inbox: async () => {
+        await settled
+        inboxes++
+        return object ?? undefined
+      },
+    }
   },
 })
+
+/** A `STUB_SOURCES` binding whose puts are kept in `puts`, each with the edge cache's keys at the time, and answered by `answer`. */
+const bucket = (answer: () => Promise<unknown> = async () => ({})) => {
+  const puts: Put[] = []
+  const STUB_SOURCES = {
+    put: async (key: string, value: ArrayBuffer, options: unknown) => {
+      puts.push({ key, value, options, cached: [...cache.keys()] })
+      return answer()
+    },
+  }
+  return { puts, env: { STUB_SOURCES } }
+}
 
 beforeEach(async () => {
   vi.resetModules()
@@ -75,6 +105,7 @@ beforeEach(async () => {
   ;({ createPreview } = await import('./stub-preview'))
   createPreview.mockImplementation(() => copy(SETTLED))
   asked = []
+  inboxes = 0
   cache = new Map()
   cacheCalls = 0
   matching = async () => {}
@@ -102,7 +133,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const call = async (address: string, userAgent = DISCORD, method = 'GET') => {
+const call = async (address: string, userAgent = DISCORD, method = 'GET', env: Parameters<typeof onRequest>[0]['env'] = {}) => {
   const pages: Response[] = []
   const next = vi.fn(async () => {
     const page = new Response(SHELL, { headers: { 'content-type': 'text/html; charset=utf-8' } })
@@ -111,7 +142,7 @@ const call = async (address: string, userAgent = DISCORD, method = 'GET') => {
   })
   const pending: Promise<unknown>[] = []
   const request = new Request(address, { method, headers: { 'user-agent': userAgent } })
-  const response = await onRequest({ request, next, waitUntil: promise => { pending.push(promise) } })
+  const response = await onRequest({ request, next, waitUntil: promise => { pending.push(promise) }, env })
   return { response, html: await response.clone().text(), next, pages, kept: Promise.all(pending) }
 }
 
@@ -302,6 +333,7 @@ test('the copy\'s work is handed to waitUntil before the crawler is answered, so
     request: new Request('https://anime.fkn.app/title/ag:(anilist:195604)', { headers: { 'user-agent': DISCORD } }),
     next: async () => new Response(SHELL),
     waitUntil: promise => { handed.push(promise) },
+    env: {},
   })
   await vi.waitFor(() => expect(asked).toHaveLength(1))
   expect(handed).toHaveLength(1)
@@ -352,7 +384,7 @@ test('an edge cache that will not keep the preview still has the turn given back
 test.each([
   ['building the copy throws', () => { throw new Error('the copy failed') }],
   ['its answer throws', () => ({ offlinePreview, answer: () => { throw new Error('the answer failed') } })],
-  ['its reads reject', () => ({ offlinePreview, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')) }) })],
+  ['its reads reject', () => ({ offlinePreview, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')), inbox: () => Promise.reject(new Error('read')) }) })],
 ])('when %s, the crawler gets the page as is and the turn is given back', async (_, failing) => {
   createPreview.mockImplementationOnce(failing).mockImplementationOnce(failing)
   for (const id of [1, 2]) {
@@ -382,6 +414,96 @@ test('an edge cache that fails answers the page as is', async () => {
   const { html, pages, response } = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
   expect(response).toBe(pages.at(-1))
   expect(html).toBe(SHELL)
+})
+
+test('with the STUB_SOURCES binding, a run\'s object goes to the inbox once its preview is kept, and the card is the same', async () => {
+  createPreview.mockImplementation(() => copy(INTERIM, SETTLED))
+  const plain = await call('https://anime.fkn.app/title/ag:(anilist:1)')
+  await plain.kept
+  const { puts, env } = bucket()
+  const kept = await call('https://anime.fkn.app/title/ag:(anilist:2)', DISCORD, 'GET', env)
+  expect(kept.html).toBe(plain.html.replace('ag:(anilist:1)', 'ag:(anilist:2)'))
+  await kept.kept
+  expect(puts).toEqual([{ key: OBJECT.key, value: OBJECT.body, options: { httpMetadata: { contentType: 'application/gzip' } }, cached: expect.arrayContaining(['https://preview.cache/anime/ag:(anilist:2)']) }])
+})
+
+test('without the binding the run\'s answers are never read, and the card is the same', async () => {
+  createPreview.mockImplementation(() => copy(INTERIM, SETTLED))
+  const { html, kept: done } = await call('https://anime.fkn.app/title/ag:(anilist:1)')
+  await done
+  expect(inboxes).toBe(0)
+  expect(meta(html, 'og:title')).toEqual(['Black Clover Second Season'])
+  expect(await kept('anime', 'ag:(anilist:1)')!.json()).toEqual(SETTLED)
+})
+
+test('a run whose sources answered no media puts nothing', async () => {
+  createPreview.mockImplementation(() => copy(SETTLED, SETTLED, null))
+  const { puts, env } = bucket()
+  await (await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)).kept
+  expect(inboxes).toBe(1)
+  expect(puts).toEqual([])
+})
+
+test.each([
+  ['refuses the object', () => Promise.reject(new Error('put'))],
+  ['throws as it is called', () => { throw new Error('put') }],
+])('a store that %s leaves the card and the kept preview, and gives the turn back', async (_, answer) => {
+  createPreview.mockImplementation(() => copy(SETTLED))
+  const { puts, env } = bucket(answer as () => Promise<unknown>)
+  const { html, response, kept: done } = await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)
+  expect(response.status).toBe(200)
+  expect(meta(html, 'og:title')).toEqual(['Black Clover Season 2'])
+  await done
+  expect(puts).toHaveLength(1)
+  expect(await kept('anime', 'ag:(anilist:1)')!.json()).toEqual(SETTLED)
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+})
+
+test('the crawler is answered while the object is still being put, and the copy holds its turn until it is', async () => {
+  const stored = deferred<unknown>()
+  createPreview.mockImplementation(() => copy(SETTLED))
+  const { puts, env } = bucket(() => stored.promise)
+  const one = await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)
+  expect(meta(one.html, 'og:title')).toEqual(['Black Clover Season 2'])
+  await vi.waitFor(() => expect(puts).toHaveLength(1))
+
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Stub Anime'])
+  stored.settle({})
+  await one.kept
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
+})
+
+test('nothing from the request reaches the copy, the object or its key', async () => {
+  const run: Run = { run: 'ag:(anilist:195604)', handles: [], settled: true, fetchedAt: '2026-10-26T14:05:31.000Z', writer: { by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430' }, regionOf: () => null }
+  const rows: AnswerRow[] = [{ key: 'sha-1', seq: 1, uri: 'anilist:195604', origin: 'anilist', kind: 'media', operation: 'MEDIA', selection: ['id'], raw: '{"id":"195604"}' }]
+  const object = (await inboxObject(inboxLines(rows, run), run.fetchedAt))!
+  createPreview.mockImplementation(() => copy(SETTLED, SETTLED, object))
+  const { puts, env } = bucket()
+  const requester = {
+    'user-agent': 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com) requester-agent',
+    'cf-connecting-ip': '203.0.113.71',
+    'x-forwarded-for': '198.51.100.23',
+    'x-real-ip': '192.0.2.45',
+    'cf-ipcountry': 'NZ',
+    cookie: 'session=requester-cookie',
+    authorization: 'Bearer requester-token',
+    'accept-language': 'mi-NZ',
+    referer: 'https://requester-referer.example/',
+  }
+  const pending: Promise<unknown>[] = []
+  await onRequest({
+    request: new Request('https://anime.fkn.app/title/ag:(anilist:195604)?ref=requester-query', { headers: requester }),
+    next: async () => new Response(SHELL),
+    waitUntil: promise => { pending.push(promise) },
+    env,
+  })
+  await Promise.all(pending)
+  expect(puts).toHaveLength(1)
+  const stored = `${puts[0]!.key}\n${gunzipSync(Buffer.from(puts[0]!.value)).toString('utf8')}\n${JSON.stringify(asked)}`
+  // control: what the run answered is there
+  expect(stored).toContain('"source":"anilist"')
+  for (const value of [...Object.values(requester), 'requester', 'NZ', 'mi-NZ', '203.0.113', '198.51.100', '192.0.2']) expect(stored).not.toContain(value)
 })
 
 test('the Function runs on title, media and watch addresses alone, so assets and the home never invoke it', () => {
