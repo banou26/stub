@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocation } from 'wouter'
 
 import { readAutoplay } from '../../utils/autoplay'
-import { nextOfferAt } from '../../utils/next-offer'
+import { hasEnding, nextOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
@@ -49,8 +49,8 @@ const style = css`
 `
 
 /**
- * Next episode over the player, from the moment `nextOfferAt` reads off the player's own chapters, else
- * `chapters`, and once the player has ended. With autoplay on, the end counts down with Cancel beside it
+ * Next episode over the player, from the moment `nextOfferAt` reads off the player's own chapters when they mark an
+ * ending, else `chapters`, and once the player has ended. With autoplay on, the end counts down with Cancel beside it
  * and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before the
  * moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
  * withdraws the countdown.
@@ -103,7 +103,7 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
       }
       played ||= !paused
       const own = link.chapters?.()
-      const at = nextOfferAt(own?.length ? own : marks.current, link.duration?.())
+      const at = nextOfferAt(own && hasEnding(own) ? own : marks.current, link.duration?.())
       if (at !== undefined && time >= at) offer()
       // a stall reaches the page only as a playing report behind the timer, which keeps the button; one gone
       // back is a seek, and a paused one is where the player is

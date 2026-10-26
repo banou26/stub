@@ -109,6 +109,10 @@ const Privacy = () => (
       <li>AniList <span className="host">graphql.anilist.co</span></li>
       <li>Anime News Network <span className="host">cdn.animenewsnetwork.com</span></li>
       <li>AnimeThemes <span className="host">graphql.animethemes.moe</span></li>
+      <li>
+        AniSkip <span className="host">api.aniskip.com</span>, for where a torrent's ending starts: it gets the show's
+        MyAnimeList id, the episode's number and its length
+      </li>
       <li>AniZip <span className="host">api.ani.zip</span></li>
       <li>Apple TV <span className="host">uts-api.itunes.apple.com</span></li>
       <li>Kitsu <span className="host">kitsu.io</span></li>

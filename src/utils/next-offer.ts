@@ -29,6 +29,9 @@ const lastEnding = (chapters: MediaChapter[], duration: number) => {
   return ending && { ending, after: duration - ending.end }
 }
 
+/** Whether `chapters` mark an ending, as the player's own Skip Ending reads one. */
+export const hasEnding = (chapters: MediaChapter[]) => classifyChapters(chapters).includes('ending')
+
 /**
  * When to offer the next episode, in seconds into the one playing, from its chapters: a second before
  * its last ending when less than 10 s follows it, a second before what follows when that runs 10 s to

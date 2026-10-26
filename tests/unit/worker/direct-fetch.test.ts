@@ -36,6 +36,8 @@ test('every host whose CORS lets a browser ask it is asked from the browser', ()
     'https://api.tvmaze.com/search/shows?q=breaking%20bad',
     'https://graphql.animethemes.moe/',
     'https://cdn.animenewsnetwork.com/encyclopedia/api.xml?anime=1',
+    // asked by the watch page itself, src/router/watch/fallback-ending.ts
+    'https://api.aniskip.com/v2/skip-times/59978/3?types=ed&episodeLength=1440.11',
   ]) {
     expect(asksViewerDirectly(url), url).toBe(true)
   }
@@ -75,6 +77,7 @@ test('every host a browser cannot ask still goes through the relay', () => {
 test('the list is the hosts measured open, not a rule that grew', () => {
   expect([...DIRECT_FETCH_ORIGINS]).toEqual([
     'https://api.ani.zip',
+    'https://api.aniskip.com',
     'https://api.trace.moe',
     'https://api.tvmaze.com',
     'https://api4.thetvdb.com',

@@ -3,7 +3,7 @@ import type { MediaChapter } from '@banou/media-player'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { skipEventsToChapters } from '../../../src/sources/crunchyroll/skip-events'
-import { chaptersBesideNext, nextOfferAt } from '../../../src/utils/next-offer'
+import { chaptersBesideNext, hasEnding, nextOfferAt } from '../../../src/utils/next-offer'
 import { CREDITS_KEY_ONLY, EVERY_EVENT, OPENING_ONLY } from '../sources/crunchyroll/skip-events-fixture'
 
 // an episode of `duration` s marked `title` from `start` to `end`, in the shape skip-events.ts hands chapters over
@@ -163,4 +163,14 @@ describe('the chapters stub hands its own player beside Next', () => {
       expect(chaptersBesideNext([...chapters], duration), String(duration)).toEqual(chapters)
     }
   })
+})
+
+// a file whose chapters mark no ending goes on to Crunchyroll's events and aniskip's, which a mixed ending does too
+test('chapters have an ending only where Skip Ending would read one', () => {
+  expect(hasEnding(marked(1300, 1390, 1395, 'ED'))).toBe(true)
+  expect(hasEnding(skipEventsToChapters(EVERY_EVENT, 1440))).toBe(true)
+  expect(hasEnding(marked(1300, 1390, 1395, 'Mixed ED'))).toBe(false)
+  expect(hasEnding([{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }])).toBe(false)
+  expect(hasEnding(skipEventsToChapters(OPENING_ONLY, 1440))).toBe(false)
+  expect(hasEnding([])).toBe(false)
 })
