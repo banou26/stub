@@ -1,5 +1,6 @@
-import { expect, test } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
+import { startLanguage } from '../../../../src/i18n'
 import { castIn, creditLanguages, languageLabel, roleLabel } from '../../../../src/router/title/credits'
 
 const actor = (name: string, language: string) => ({ name, language })
@@ -49,6 +50,22 @@ test('each role AniList names, and one it does not as the source wrote it', () =
 test('the languages AniList voices read in English', () => {
   expect(['ja', 'en', 'es', 'pt', 'fr', 'de', 'it', 'ko', 'zh', 'he', 'hu', 'fil'].map(languageLabel))
     .toEqual(['Japanese', 'English', 'Spanish', 'Portuguese', 'French', 'German', 'Italian', 'Korean', 'Chinese', 'Hebrew', 'Hungarian', 'Filipino'])
+})
+
+describe('in another language', () => {
+  afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('a language reads as a menu entry in it, capitalized where Intl writes it lowercase', async () => {
+    await startLanguage({ language: 'fr', languages: ['fr-FR'] })
+    expect(['ja', 'en', 'xx'].map(languageLabel)).toEqual(['Japonais', 'Anglais', 'xx'])
+    await startLanguage({ language: 'ru', languages: ['ru-RU'] })
+    expect(['ja', 'en'].map(languageLabel)).toEqual(['Японский', 'Английский'])
+  })
+
+  test('a role reads in its catalogue, and one it does not name as the source wrote it', async () => {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect(['MAIN', 'SUPPORTING', 'BACKGROUND', 'GUEST'].map(roleLabel)).toEqual(['Hauptrolle', 'Nebenrolle', 'Statist', 'GUEST'])
+  })
 })
 
 test('live action names no language: no picker, and every actor is drawn', () => {

@@ -3,6 +3,9 @@ import { mount, unmount } from '../components/dom'
 
 import type { ComponentChild } from 'preact'
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import { parseHTML } from 'linkedom'
 import { RawIntlProvider, useIntl } from 'react-intl'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -162,6 +165,18 @@ describe('starting a language', () => {
     expect([html.getAttribute('lang'), html.getAttribute('dir'), intl.formatMessage(message('Play'))]).toEqual(['ar', 'rtl', 'تشغيل'])
     await startLanguage({ language: 'fr', languages: ['fr-FR'], html, catalogues: { '../locales/fr.json': async () => ({}) } })
     expect([html.getAttribute('lang'), html.getAttribute('dir')]).toEqual(['fr', null])
+  })
+
+  test('a language\'s catalogue is its file in src/locales', async () => {
+    const de = await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect([de.locale, de.formatMessage(message('Staff'))]).toEqual(['de-DE', 'Stab'])
+  })
+
+  // Vitest 5's on-disk module cache keys a module by its own source, so it reuses a glob's matches from before a file was
+  // added; it leaves out a module whose source reads `import.meta.glob(`, which a type argument there hides
+  test('the catalogues are found by a glob Vitest never caches', () => {
+    const core = readFileSync(fileURLToPath(new URL('../../../src/i18n/index.ts', import.meta.url)), 'utf8')
+    expect(core).toContain("import.meta.glob('../locales/*.json'")
   })
 
   test('English leaves <html> exactly as index.html writes it', async () => {

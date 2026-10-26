@@ -1,9 +1,10 @@
 // The full page for one title, opened from the modal's More details link (HOR-348).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from 'vite-plus/test'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
+import { startLanguage } from '../../../src/i18n'
 import { getRoutePath, getRouterRoutePath, Route } from '../../../src/router/path'
 import { currentEpisode, playLabel, playTarget, ratingChips, releasedLabel, secondTitle, titleChips, titleFacts, watchedEpisode } from '../../../src/router/title/facts'
 
@@ -137,6 +138,29 @@ test('a percent rounds to a whole number and a score to one place, half up', () 
     { source: 'Rotten Tomatoes', value: 100, scale: 100 },
   ]
   expect(ratingChips({ ratings })).toEqual(['Rotten Tomatoes 15%', 'Rotten Tomatoes 92%', 'IMDb 7.3', 'TMDB 8.1', 'IMDb 0.0', 'Rotten Tomatoes 100%'])
+})
+
+describe('in German', () => {
+  beforeAll(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('the chips, the facts\' words, units, lists and dates are German', () => {
+    expect(titleChips({ episodeCount: 1100 })).toEqual(['1100 Folgen'])
+    expect(ratingChips({ ratings: [{ source: 'IMDb', value: 8.05, scale: 10 }, { source: 'Rotten Tomatoes', value: 92, scale: 100 }] })).toEqual(['IMDb 8,1', 'Rotten Tomatoes 92\u00a0%'])
+    expect(titleFacts(FRIEREN, { locale: 'de-DE' })).toEqual([
+      { label: 'Format', value: 'TV Show' },
+      { label: 'Folgen', value: '28' },
+      { label: 'Folgenlänge', value: '24 Min.' },
+      { label: 'Status', value: 'Finished' },
+      { label: 'Ausstrahlung', value: '29. Sept. 2023 bis 22. März 2024' },
+      { label: 'Saison', value: 'Fall 2023' },
+      { label: 'Studios', value: 'Madhouse' },
+      { label: 'Vorlage', value: 'Manga' },
+      { label: 'Genres', value: 'Adventure, Drama und Fantasy' },
+      { label: 'Tags', value: 'Elf und Travel' },
+      { label: 'Andere Titel', value: '葬送のフリーレン' },
+    ])
+  })
 })
 
 test('an upcoming start reads Releases', () => {
