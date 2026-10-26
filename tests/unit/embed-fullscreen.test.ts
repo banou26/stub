@@ -113,6 +113,24 @@ describe('the embed\'s fullscreen, kept by the watch page', () => {
     expect(stage.requestFullscreen).not.toHaveBeenCalled()
   })
 
+  test('the page hears only its embed, and the embed only the page, even from this origin', async () => {
+    const { page, embed, iframe, stage } = makePage()
+    const states: boolean[] = []
+    stops.push(watchHostFullscreen(state => states.push(state.active), embed))
+    await delivered()
+    stops.push(serveEmbedFullscreen(iframe, stage, page))
+    await vi.waitFor(() => expect(states).toEqual([false]))
+
+    const other = makeWindow(APP)
+    deliver(page as unknown as FakeWindow, other)({ type: 'stub:embed-fullscreen-request' }, APP)
+    deliver(embed as unknown as FakeWindow, other)({ type: 'stub:embed-fullscreen', active: true }, APP)
+    // the source WebKit gave the page's word when it was sent from a listener's tail call
+    deliver(embed as unknown as FakeWindow, embed as unknown as FakeWindow)({ type: 'stub:embed-fullscreen', active: true }, APP)
+    await delivered()
+    expect(stage.requestFullscreen).not.toHaveBeenCalled()
+    expect(states).toEqual([false])
+  })
+
   test('the stop leaves the embed\'s requests unheard', async () => {
     const { page, embed, iframe, stage } = makePage()
     const states: HostFullscreen[] = []
