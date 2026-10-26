@@ -14,6 +14,8 @@ import { DISABLED_SOURCES_KEY } from '../src/sources/disabled-sources'
 import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { PLAY_ORDER_KEY } from '../src/sources/play-order'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
+import { DISPLAY_MODE_KEY } from '../src/router/search/display'
+import { FORMAT_OPTIONS } from '../src/router/search/params'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 import { SITE_STATUS_KEY } from '../src/tracking/site-status'
@@ -1753,3 +1755,91 @@ test.describe('in a language stub does not offer yet', () => {
     expect(englishIn(words, english()).length).toBeGreaterThan(30)
   })
 })
+
+// HOR-1026, home and cards: the home rows and the hero's Play, the search page's cards and rows, the modal's episode rows
+// and its film line, and the title page's Play. A line joining several facts is read fact by fact
+const HOME_WORDS = {
+  text: [
+    '.theater .actions .play', ':has(> .list-container) > .title', '.detail .airing-label', '.detail .airing-value',
+    '.detail-top .value', '.column.score .secondary', '.column.format .secondary', '.column .airing', '.modal .header .more',
+    '.episode .title', '.episode .side time', '.actions .buttons .play', '.movie .facts', '.movie .play', '.movie .when',
+  ],
+  labels: ['.detail-top > span', '.column.score > span[aria-label]'],
+}
+// what Intl writes in English, which no message holds: a countdown's units and a relative day
+const INTL_ENGLISH = /\b(days?|hours?|mins?|secs?|today|yesterday|tomorrow|ago)\b/
+// a card's first fact, its format, is search/params.ts's word, which the search page's own change wraps
+const FORMATS = new Set<string>(FORMAT_OPTIONS.map(({ label }) => label))
+// a day within a month as RelativeTimeFormat writes it, which can read as a message: German "in 8 Tagen", "in {countdown}"
+const relativeDays = (locale: string) => new Set(Array.from({ length: 61 }, (_, day) => new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(day - 30, 'day')))
+
+/**
+ * Draws home, the season's search in card and list mode, Spec Airing's modal and page, and the modals of Spec Film and
+ * of a film dated by its year alone at `width`, and returns their overflow and their own words.
+ */
+const homeWords = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  const overflow: number[] = []
+  const words: string[] = []
+  const read = async () => {
+    overflow.push(await overflowX(page))
+    words.push(...(await wordsIn(page, HOME_WORDS)).flatMap(text => text.split(' · ')))
+    words.push(...(await wordsIn(page, { text: ['.detail .meta'], labels: [] })).flatMap(text => text.split(' • ')).filter(text => !FORMATS.has(text)))
+  }
+  await page.goto(`${origin}/`)
+  await expect(page.locator('.theater .actions .play')).toBeVisible({ timeout: 30_000 })
+  await read()
+  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href')
+  for (const mode of ['card', 'list']) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
+    await page.goto(`${origin}${season}`)
+    // a phone's list has no room for the format and score columns, which it hides
+    await expect(page.locator(mode === 'card' ? '.detail .meta' : '.column.format .secondary').first()).toBeAttached({ timeout: 30_000 })
+    await read()
+  }
+  await page.goto(`${origin}/media/${AIRING}`)
+  await expect(modal(page).locator('.episode .side time')).toHaveCount(6, { timeout: 30_000 })
+  await read()
+  await page.goto(`${origin}/title/${AIRING}`)
+  await expect(page.locator('.actions .buttons .play')).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('[data-episodes] .episode .side time')).toHaveCount(6, { timeout: 30_000 })
+  await read()
+  await page.goto(`${origin}/media/${FILM}`)
+  await expect(modal(page).locator('.movie .facts')).toBeVisible({ timeout: 30_000 })
+  await read()
+  // dated by its year alone, so its bar reads when it releases
+  await page.goto(`${origin}/media/ag:(anilist:900100,mal:900100)`)
+  await expect(modal(page).locator('.movie .when')).toBeVisible({ timeout: 30_000 })
+  await read()
+  return { overflow, words }
+}
+
+test.describe('home and cards in a language stub does not offer yet', () => {
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: no sideways scroll at 1440 and 390 px, and none of their own words in English`, async ({ page }) => {
+      test.setTimeout(300_000)
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      const code = english()
+      const translated = language === PSEUDO ? undefined : catalogues()[language]
+      for (const width of [1440, 390]) {
+        const { overflow, words } = await homeWords(page, width)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        expect(overflow, `${width} px`).toEqual([0, 0, 0, 0, 0, 0, 0])
+        expect(words.length, `${width} px: the control, the pages' words were read`).toBeGreaterThan(40)
+        const intlDays = relativeDays(language === PSEUDO ? 'en-US' : language)
+        expect(englishIn(words.filter(text => !intlDays.has(text)), code, translated), `${width} px`).toEqual([])
+        // the pseudo-language writes its numbers and dates in English
+        if (language !== PSEUDO) expect(words.filter(text => INTL_ENGLISH.test(text)), `${width} px`).toEqual([])
+      }
+    })
+  }
+
+  test('the control: in English the same reading finds their own words, and Intl\'s', async ({ page }) => {
+    test.setTimeout(180_000)
+    const { words } = await homeWords(page, 1440)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(englishIn(words, english()).length).toBeGreaterThan(30)
+    expect(words.filter(text => INTL_ENGLISH.test(text)).length).toBeGreaterThan(3)
+  })
+})
+
