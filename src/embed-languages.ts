@@ -7,6 +7,8 @@
  */
 import type { TrackKind } from './embed-tracks'
 
+import { postMessage } from '@banou/ponyfill/web-messaging'
+
 import { settings } from './settings-store'
 import { AUDIO_LANGUAGE_KEY, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY, type TrackLanguages } from './utils/track-languages'
 
@@ -38,5 +40,5 @@ export const hearTrackLanguages = (iframe: HTMLIFrameElement, host: Window = win
 
 /** In the embed: tells the page that frames it the language the viewer picked for `kind`, null for subtitles off. */
 export const tellTrackLanguage = (kind: TrackKind, language: string | null, host: Window = window) => {
-  if (host.parent !== host) host.parent.postMessage({ type: PICKED, kind, language }, host.location.origin)
+  if (host.parent !== host) postMessage(host.parent, { type: PICKED, kind, language }, host.location.origin)
 }

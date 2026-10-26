@@ -3,6 +3,8 @@
  * viewer nor stub can fix, so the page can open the next source Play ranks when Play picked this one.
  * Only this app's origin is heard or sent to, as in ./embed-title.ts.
  */
+import { postMessage } from '@banou/ponyfill/web-messaging'
+
 const UNPLAYABLE = 'stub:embed-unplayable'
 
 /** On the watch page: calls `listener` when the embed in `iframe` says it cannot play. Returns the stop. */
@@ -17,5 +19,5 @@ export const hearUnplayable = (iframe: HTMLIFrameElement, listener: () => void, 
 
 /** In the embed: tells the page that frames it that this source cannot play the episode here. */
 export const tellUnplayable = (host: Window = window) => {
-  if (host.parent !== host) host.parent.postMessage({ type: UNPLAYABLE }, host.location.origin)
+  if (host.parent !== host) postMessage(host.parent, { type: UNPLAYABLE }, host.location.origin)
 }

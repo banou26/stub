@@ -8,6 +8,8 @@
  * The embed is served from this app's own origin and nothing else is sent a title: a source's own
  * `embedUrl` sits on another origin, where the browser drops the message instead of delivering it.
  */
+import { postMessage } from '@banou/ponyfill/web-messaging'
+
 const TITLE = 'stub:embed-title'
 const ASK = 'stub:embed-title?'
 
@@ -15,7 +17,9 @@ type Message = { type?: unknown, title?: unknown }
 
 /** On the watch page: keeps the embed in `iframe` told `title`. Returns the stop. */
 export const serveEmbedTitle = (iframe: HTMLIFrameElement, title: string, host: Window = window) => {
-  const send = () => iframe.contentWindow?.postMessage({ type: TITLE, title }, host.location.origin)
+  const send = () => {
+    if (iframe.contentWindow) postMessage(iframe.contentWindow, { type: TITLE, title }, host.location.origin)
+  }
   const answer = (event: MessageEvent) => {
     if (event.source !== iframe.contentWindow || event.origin !== host.location.origin) return
     if ((event.data as Message | null)?.type === ASK) send()
@@ -33,6 +37,6 @@ export const receiveEmbedTitle = (listener: (title: string) => void, host: Windo
     if (type === TITLE && typeof title === 'string') listener(title)
   }
   host.addEventListener('message', receive)
-  if (host.parent !== host) host.parent.postMessage({ type: ASK }, host.location.origin)
+  if (host.parent !== host) postMessage(host.parent, { type: ASK }, host.location.origin)
   return () => host.removeEventListener('message', receive)
 }

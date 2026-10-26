@@ -5,6 +5,8 @@
  * The page hands them to the embed in its url, and the embed tells the page each relay it moved away
  * from once another one plays the episode. Only this app's origin is heard or sent to, as in ./embed-title.ts.
  */
+import { postMessage } from '@banou/ponyfill/web-messaging'
+
 const TRIED = 'stub:embed-relay-tried'
 const PARAM = 'triedRelays'
 
@@ -39,5 +41,5 @@ export const hearTriedRelays = (iframe: HTMLIFrameElement, sourceUri: string, ho
 
 /** In the embed: tells the page that frames it that the show was unavailable through `relay`. */
 export const tellTriedRelay = (relay: string, host: Window = window) => {
-  if (host.parent !== host) host.parent.postMessage({ type: TRIED, relay }, host.location.origin)
+  if (host.parent !== host) postMessage(host.parent, { type: TRIED, relay }, host.location.origin)
 }
