@@ -14,7 +14,8 @@ import { PLAYER_ORIGIN, PLUGIN_ORIGIN, STAGE_PLUGIN, stageWatchPath, torrentWatc
 // ends, Next opens the next one, whose frame replaces the first, and the stage is still what is fullscreen, with the
 // next player taking the keys. A torrent plays two frames down, as stub-plugin plays one in ripple: the page mounts a
 // source package (./watch-stage-plugin.ts) that frames its player (./watch-stage-ripple.ts), and the same holds, with
-// Next offered from the file's own chapters and the keys reaching the player after Next and after a countdown alike.
+// Next offered from the file's own chapters, or for a file that marks no ending from Crunchyroll's credits of the same
+// length, and the keys reaching the player after Next and after a countdown alike.
 // In Chromium, Firefox and WebKit, headless and muted: WebKit through Playwright's own run-server (PW_WEBKIT_WS, as
 // fkn-client's scripts/webkit-server.sh serves it), whose container has no audio device.
 
@@ -35,6 +36,8 @@ test.beforeAll(async () => {
   const swaps: Record<string, string> = {
     [join(ROOT, 'src', 'worker')]: join(ROOT, 'tests', 'watch-stage-worker.ts'),
     [join(ROOT, 'src', 'plugins')]: join(ROOT, 'tests', 'fake-plugins.ts'),
+    [join(ROOT, 'src', 'sources', 'crunchyroll', 'relay-check')]: join(ROOT, 'tests', 'watch-stage-crunchyroll.ts'),
+    [join(ROOT, 'src', 'utils', 'fetch')]: join(ROOT, 'tests', 'watch-stage-relay.ts'),
   }
   await build({
     configFile: join(ROOT, 'vite.config.ts'),
@@ -183,9 +186,15 @@ const torrentAcrossEpisodes = async (page: Page) => {
   const first = torrentPlayer(page)!
   await offered.click()
   const second = await nextPlayer(page, first)
+  await expect(offered, 'nothing offered before the next episode plays').toBeHidden()
   await expect(button, 'the next player hears the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
   await reachesPlayer(page, second, 'a key after Next reaches the next player')
   expect(await fullscreenElement(page), 'the stage is still fullscreen').toBe('stage')
+  // its file marks no ending, so Next episode comes from Crunchyroll's credits, armed at the report after they land
+  await expect.poll(async () => {
+    await page.keyboard.press('k')
+    return offered.isVisible()
+  }, { message: 'Next episode from Crunchyroll\'s credits, before the end' }).toBe(true)
 
   // no click on the page: the end counts down and opens the next episode by itself
   await page.keyboard.press('e')
