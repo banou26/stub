@@ -196,16 +196,24 @@ vi.mock('../../../../src/party/bridge', () => ({
     return link
   },
 }))
-// the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise
+// the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise, whose link
+// says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
+// each was put
+const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[] }))
 vi.mock('../../../../src/components/plugin-player', async () => {
   const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
   return {
-    default: ({ release, onUnplayable, onPlayback }: { release: { url?: string }, onUnplayable: () => void, onPlayback: (link?: object) => void }) => {
+    default: ({ release, onUnplayable, onPlayback, stage }: { release: { url?: string }, onUnplayable: () => void, onPlayback: (link?: object) => void, stage?: { current: unknown } }) => {
       useEffect(() => {
         if (!release.url?.startsWith('magnet:')) return onUnplayable()
-        const link = attachPlaybackBridge(document.createElement('iframe'))
-        onPlayback(link)
-        return () => { link.dispose(); onPlayback(undefined) }
+        pluginPlayers.stages.push(stage?.current)
+        const focus = vi.fn()
+        pluginPlayers.focus.push(focus)
+        const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), { chapters: () => pluginPlayers.chapters, focus })
+        // after the effects of the render that put it up, as the real one hands it over once the plugin has played
+        let gone = false
+        queueMicrotask(() => { if (!gone) onPlayback(link) })
+        return () => { gone = true; link.dispose(); onPlayback(undefined) }
       }, [release.url])
       return <div className="plugin-player" data-url={release.url}/>
     },
@@ -328,6 +336,9 @@ afterEach(() => {
   vi.mocked(wiring.prime.signIn).mockClear()
   fullscreens.served = []
   fullscreens.stopped = 0
+  pluginPlayers.chapters = undefined
+  pluginPlayers.focus = []
+  pluginPlayers.stages = []
 })
 
 const settle = async () => {
@@ -1214,7 +1225,9 @@ test('the row playing links the release playing, not the site\'s first', async (
 
 // Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's
 // history, so after Next one Back moved only the player back, and the page still named the next episode
-test('another episode gets a fresh player, so Back leaves the page rather than the frame', async () => {
+// A source package keeps its frame for its next releases instead, putting each in a frame of its own: WebKit lets its
+// document hand the keys on only once the viewer has clicked in it (WebKit 26.4 and 27.2, 2026-10-26)
+test('another episode gets a fresh player, so Back leaves the page rather than the frame, and a torrent the same package', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
   for (const [origin, player] of [['cr', 'iframe'], ['nyaa', '.plugin-player']] as const) {
@@ -1230,15 +1243,19 @@ test('another episode gets a fresh player, so Back leaves the page rather than t
     act(() => { render(tree(), host) })
     await settle()
     expect(host.querySelector(player), origin).not.toBeNull()
-    expect(host.querySelector(player), origin).not.toBe(before)
+    if (origin === 'cr') expect(host.querySelector(player), origin).not.toBe(before)
+    else {
+      expect(host.querySelector(player), origin).toBe(before)
+      expect(before?.getAttribute('data-url'), 'playing the next release').toBe('magnet:?xt=urn:btih:b')
+    }
   }
 })
 
-// the episode playing on Crunchyroll, whose next one Crunchyroll has too
-const atTheEnd = async (third: object = {}) => {
+// the episode playing on Crunchyroll, whose next one Crunchyroll has too, or on the source named
+const atTheEnd = async (third: object = {}, sourceUri = 'cr:GX2') => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
-  series(third, 'cr:GX2')
+  series(third, sourceUri)
   const location = memoryLocation()
   const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
@@ -1678,6 +1695,79 @@ test('Cancel gives the keys back to the player', async () => {
   const focus = vi.spyOn(host.querySelector('iframe')!, 'focus')
   await act(() => { host.querySelector<HTMLButtonElement>('.up-next-cancel')!.click() })
   expect(focus).toHaveBeenCalledTimes(1)
+})
+
+// HOR-1014: a torrent plays two frames down, ripple's player inside the plugin's frame
+test('a torrent\'s own chapters bring Next episode a second before its ending', async () => {
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+  bridge.duration = 1395
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  expect(host.querySelector('.plugin-player'), 'the plugin plays it').not.toBeNull()
+  await report({ paused: false, time: 1290 })
+  await wait(8_900)
+  expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
+  await wait(100)
+  expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
+})
+
+test('a torrent\'s player is put on the stage, which keeps its fullscreen', async () => {
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  expect(pluginPlayers.stages).toEqual([host.querySelector('.stage')])
+})
+
+test('the next torrent\'s player takes the keys through the plugin; the page\'s first, and keys left on a control of the page, stay where they are', async () => {
+  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  expect(pluginPlayers.focus[0], 'the page\'s first player').not.toHaveBeenCalled()
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+  rerender()
+  await settle()
+  expect(pluginPlayers.focus).toHaveLength(2)
+  expect(pluginPlayers.focus[1]).toHaveBeenCalledTimes(1)
+
+  const control = host.querySelector('.episode-step')!
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
+  try {
+    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+    rerender()
+    await settle()
+    expect(pluginPlayers.focus).toHaveLength(3)
+    expect(pluginPlayers.focus[2], 'keys on the page\'s own link').not.toHaveBeenCalled()
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+})
+
+// the package's frame stays for the next release, so keys left in it are still on the page's player
+test('keys left on the torrent\'s player go on to the next one', async () => {
+  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  const frame = host.querySelector('.stage .plugin-player')!
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => frame })
+  try {
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+    rerender()
+    await settle()
+    expect(pluginPlayers.focus).toHaveLength(2)
+    expect(pluginPlayers.focus[1]).toHaveBeenCalledTimes(1)
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+})
+
+test('a torrent after a Crunchyroll episode takes the keys as well', async () => {
+  const { rerender } = await atTheEnd()
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+  rerender()
+  await settle()
+  expect(pluginPlayers.focus).toHaveLength(1)
+  expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
+})
+
+test('Cancel hands the keys back to a torrent\'s player through the plugin', async () => {
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  await report(played, ended)
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next-cancel')!.click() })
+  expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
 })
 
 test('with no player in it yet, the stage holds the episode\'s picture and title, and with one, the player', async () => {

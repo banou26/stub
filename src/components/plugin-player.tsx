@@ -1,3 +1,7 @@
+import type { RefObject } from 'preact'
+
+import type { MountedPackage } from '@fkn/lib/packages'
+
 import { css } from '@emotion/react'
 import { packages } from '@fkn/lib'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -6,7 +10,7 @@ import { useIntl } from 'react-intl'
 import type { PlaybackLink } from '../party/bridge'
 
 import { STUB_SOURCE_PROTOCOL, type ViewerLanguages } from '../plugin-api'
-import { pluginPlaybackLink, type PlaybackSource } from '../party/plugin-link'
+import { pluginPlaybackLink, servePluginFullscreen, type PlaybackSource } from '../party/plugin-link'
 import { fromUri } from '../utils/uri'
 import { viewerLanguages } from '../viewer-languages'
 
@@ -46,12 +50,15 @@ type PlayableSource = PlaybackSource & {
 type PluginPayload = PlayableSource & { sources?: PlayableSource[] }
 
 export type PluginPlayerProps = {
+  /** the package, the same for the component's life: the page keys it on this */
   pluginUri: string
   /** the handle stub already holds for this release; the source reads whatever it put there */
   release: { uri: string, url?: string }
   onUnplayable: () => void
   /** the player's link once it is up, and undefined again when it goes; only for a source that serves one */
   onPlayback?: (link: PlaybackLink | undefined) => void
+  /** what goes fullscreen when the player asks, for a source that hands its player's fullscreen over */
+  stage?: RefObject<HTMLElement | null>
 }
 
 /**
@@ -64,21 +71,27 @@ export type PluginPlayerProps = {
  *
  * The connection is this component's own, separate from the worker's: they are two documents of one
  * package, so calling `play` on the worker's connection would render into a frame nobody can see.
+ *
+ * The package's document is mounted for the first release and kept for the next ones, each played in
+ * it in turn: WebKit lets a cross-origin frame move the keys only once the viewer has clicked in it or
+ * in a frame inside it (WebKit 26.4 and 27.2, 2026-10-26), so a package mounted afresh for each episode
+ * could never hand them on to the next one's player. A mount that failed is tried again for the next.
  */
-export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: PluginPlayerProps) => {
+export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage }: PluginPlayerProps) => {
   const intl = useIntl()
   const slot = useRef<HTMLIFrameElement>(null)
   const [failed, setFailed] = useState(false)
   // read at call time: the effect below is keyed on the release, and the page hands in new closures on every render
   const callbacks = useRef({ onUnplayable, onPlayback })
   callbacks.current = { onUnplayable, onPlayback }
+  const mounted = useRef<Promise<MountedPackage<PluginPayload>>>(undefined)
 
   useEffect(() => {
     const iframe = slot.current
     if (!iframe) return
     let done = false
-    let mounted: { unmount: () => void } | undefined
     let link: PlaybackLink | undefined
+    let stopFullscreen: (() => void) | undefined
     setFailed(false)
 
     const run = async () => {
@@ -87,12 +100,10 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         // this is the hop that renders the package into stub's own document, so it is the last one that
         // should arrive unnamed: a package reading `protocol` to decide what it serves would otherwise
         // see null here and have to guess.
-        const connection = await packages.mount<PluginPayload>(pluginUri, {
-          iframe,
-          protocol: STUB_SOURCE_PROTOCOL,
-        })
-        if (done) { connection.unmount(); return }
-        mounted = connection
+        mounted.current ??= packages.mount<PluginPayload>(pluginUri, { iframe, protocol: STUB_SOURCE_PROTOCOL })
+          .catch(error => { mounted.current = undefined; throw error })
+        const connection = await mounted.current
+        if (done) return
         // one package may ship a family of sources, so the one that owns this release is picked by the
         // origin its uri carries. The single-source shape is the same payload without the list, which
         // is what every plugin written before source families sends.
@@ -102,9 +113,10 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         const played = await source.play?.({ uri: release.uri, url: release.url, languages: viewerLanguages() })
         if (done) return
         // false is the source saying it cannot play THIS release, which is a fallback, not a failure
-        if (!played) { connection.unmount(); mounted = undefined; callbacks.current.onUnplayable(); return }
-        link = pluginPlaybackLink(source)
+        if (!played) { callbacks.current.onUnplayable(); return }
+        link = pluginPlaybackLink(source, iframe)
         if (link) callbacks.current.onPlayback?.(link)
+        if (stage?.current) stopFullscreen = servePluginFullscreen(source, stage.current)
       } catch (error) {
         if (done) return
         console.warn(`Source '${pluginUri}' could not start playback:`, error)
@@ -115,10 +127,11 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
 
     return () => {
       done = true
+      stopFullscreen?.()
       if (link) { link.dispose(); callbacks.current.onPlayback?.(undefined) }
-      mounted?.unmount()
     }
   }, [pluginUri, release.uri, release.url])
+  useEffect(() => () => { void mounted.current?.then(connection => connection.unmount(), () => {}) }, [])
 
   return (
     <div css={style}>

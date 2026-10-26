@@ -1,3 +1,4 @@
+import type { MediaChapter } from '@banou/media-player'
 import type { MediaPlayerHandle } from '@banou/media-player/remote'
 import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
@@ -31,6 +32,10 @@ export type PlaybackLink = {
   duration?: () => number | undefined
   /** Where the player is and what it has loaded, as of the call; absent for a source plugin's player that does not say. Never rejects or hangs. */
   buffer?: () => Promise<PlayerBuffer | undefined>
+  /** The player's own chapters as of its last report, undefined until it says; absent for stub's own embed, whose page reads its chapters itself. */
+  chapters?: () => MediaChapter[] | undefined
+  /** Give the keys to a player nested below the frame the page holds; absent where focusing that frame is enough. */
+  focus?: () => void
   dispose: () => void
 }
 

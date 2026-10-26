@@ -1,3 +1,4 @@
+import type { MediaChapter } from '@banou/media-player'
 import type { Resolvers } from './generated/schema/types.generated'
 import type { PlaybackState } from './party/protocol'
 
@@ -41,6 +42,10 @@ export type StubSource = {
    * layout and fullscreens with it. Stub never learns how the source plays anything, which is the
    * point: a torrent index can hand its release to a torrent client without stub knowing torrents
    * exist.
+   *
+   * Stub keeps the package's frame for the next releases of the source and plays each there in turn: a
+   * play replaces the player before it, in a new frame of its own rather than by loading another
+   * address in the old one, which would add a step to the tab's history.
    */
   play?: (release: { uri: string, url?: string, languages?: ViewerLanguages }) => Promise<boolean>
   /**
@@ -54,9 +59,10 @@ export type StubSource = {
    * `ended` is true once the player reached the end, where the browser paused it by itself.
    * `duration` is the media's length in seconds, 0 until the player knows it and Infinity for live media:
    * with a length an episode counts as watched at 85% played and its row shows how far in it stopped;
-   * without one, only its end counts.
+   * without one, only its end counts. `chapters` are the file's own, in seconds: with an ending among them,
+   * Next episode is offered as it starts rather than at the end.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
   /**
@@ -87,6 +93,23 @@ export type StubSource = {
    * there for that episode, and Play waits at most those 3 s for the answer.
    */
   account?: () => Promise<SourceAccount>
+  /**
+   * Hand the player's fullscreen to stub: from the first call on, its fullscreen controls call `listener`
+   * instead of fullscreening anything, within the press's activation, and stub fullscreens the box around
+   * the package's frame, which stays fullscreen as the next episode's player replaces this one. One listener; the
+   * next call replaces it. Stub calls it only where it can fullscreen that box, so a package must leave the
+   * player its own fullscreen until then. Optional and additive to stub-source@1, like the two below.
+   */
+  onFullscreenRequest?: (listener: () => void) => Promise<void>
+  /** Whether stub shows the player fullscreen, for its fullscreen controls to show: told at once and on every change. */
+  applyFullscreen?: (active: boolean) => Promise<void>
+  /**
+   * Hand the keys on to the player, after stub focused the package's frame: called once a release's player
+   * is up in place of another's, and after a press on stub's own buttons over the player. The player's
+   * document may not have loaded yet, and a focus given before it has does not reach it once it has
+   * (Chrome 155, 2026-10-26), so a package waits for the load.
+   */
+  focus?: () => Promise<void>
 }
 
 /**

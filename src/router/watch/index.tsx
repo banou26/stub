@@ -699,6 +699,16 @@ const Watch = () => {
     iframe.addEventListener('load', focus)
     return () => iframe.removeEventListener('load', focus)
   }, [viaPlugin, embedUrl])
+  // A source package's player takes them once it is up, through the package, which holds it a frame further down.
+  // The package's frame stays for its next release, so keys still on it, or on a button over it, go on as well.
+  const pluginLink = viaPlugin ? playbackLink : undefined
+  useEffect(() => {
+    if (!pluginLink) return
+    const replaced = framed.current
+    framed.current = true
+    const active = document.activeElement
+    if (replaced && (!active || active === document.body || stage.current?.contains(active))) pluginLink.focus?.()
+  }, [pluginLink])
 
   const [unplayable, setUnplayable] = useState<readonly string[]>([])
   useEffect(() => {
@@ -876,7 +886,8 @@ const Watch = () => {
           </div>
           {/*
             Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
-            place adds a step to the tab's history, and Back then moves the player rather than the page.
+            place adds a step to the tab's history, and Back then moves the player rather than the page. A
+            source package keeps its frame for its next releases instead, and puts each in a frame of its own.
           */}
           {noSource
             ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
@@ -886,11 +897,12 @@ const Watch = () => {
                 {viaPlugin && pluginPlayer
                   ? (
                     <PluginPlayer
-                      key={pluginPlayer.release.uri}
+                      key={pluginPlayer.pluginUri}
                       pluginUri={pluginPlayer.pluginUri}
                       release={pluginPlayer.release}
                       onUnplayable={() => setDeclined(selectedSourceUri)}
                       onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
+                      stage={stage}
                     />
                   )
                   : (
