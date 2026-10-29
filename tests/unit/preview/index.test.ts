@@ -234,6 +234,18 @@ test('a run cut at settleBy has its finished sources\' lines marked partial, und
   expect(lines.map(({ body }) => body.run)).toEqual(['ag:(cr:GRJ0J828Y,mal:37999)', 'ag:(cr:GRJ0J828Y,mal:37999)'])
 }, 5_000)
 
+test('a run cut before any card came has its sources\' lines under the address asked', async () => {
+  feed.current = feeding(async function* () {
+    await new Promise(() => {})
+    yield media('never sent')
+  })
+  graph.answers = [answerRow(1, 'anilist', '195604', { id: '195604' })]
+  const { last, inbox } = answer('ag:(anilist:195604,mal:61967)', 'anime', WASM, { deadline: 50, settleBy: 200 })
+  expect(await last).toBeUndefined()
+  const lines = linesOf((await inbox())!.body)
+  expect(lines.map(({ index, body }) => [index.source, index.role, index.partial, body.run])).toEqual([['anilist', null, true, 'ag:(anilist:195604,mal:61967)']])
+}, 5_000)
+
 test('the answer log is read only when the inbox is asked for, and a run with no media answer has no object', async () => {
   feed.current = feeding(async function* () {
     yield media('Coyote vs. Acme', true)
