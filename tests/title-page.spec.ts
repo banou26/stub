@@ -657,6 +657,51 @@ test('the watch page\'s episode buttons stand big at the two ends of its row, Ba
   expect(await overflowX(page)).toBe(0)
 })
 
+// a watch address's segments, decoded: its media, its episode and its source
+const watchSegments = (address: string | URL) => decodeURIComponent(new URL(address, origin).pathname).split('/').slice(2)
+const playingNumber = (page: Page) => page.locator('[data-episodes] .episode:has(> a.episode-link[aria-current="page"]) .number')
+
+// HOR-1058: any episode of the run from the watch page, on the source playing
+test('the watch page lists the run\'s episodes under its sources, the one playing marked, and a row opens its own on the source playing', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.addInitScript(([key, plugin]) => localStorage.setItem(key, JSON.stringify([plugin])), [ENABLED_PLUGINS_KEY, FREE_RELEASES] as const)
+  await page.goto(`${origin}/title/anilist:900040`)
+  const first = page.locator('[data-episodes] a.episode-link').first()
+  await expect(first).toBeVisible({ timeout: 30_000 })
+  await page.goto(`${origin}${await first.getAttribute('href')}`)
+  await expect.poll(() => watchSegments(page.url())[2], { message: 'Play opened the added source\'s release', timeout: 60_000 }).toBe('spec-free:900040-1')
+  const [media] = watchSegments(page.url())
+  await expect(page.locator('[data-episodes] h2')).toHaveText('Episodes')
+  await expect(playingNumber(page)).toHaveText('1')
+
+  const third = page.locator('[data-episodes] a.episode-link').nth(2)
+  await expect.poll(async () => watchSegments((await third.getAttribute('href'))!), { timeout: 30_000 }).toEqual([media, expect.stringMatching(/\S/), 'spec-free:900040-3'])
+  await third.click()
+  await expect(page.locator('.episode-title')).toHaveText(/^E3 - /)
+  expect(watchSegments(page.url())[2]).toBe('spec-free:900040-3')
+  await expect(playingNumber(page)).toHaveText('3')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await overflowX(page)).toBe(0)
+})
+
+// HOR-1058: a live-action show lists its seasons, and the watch page shows another one's episodes without leaving its own
+test('the watch page lists another season of a show in place, the episode staying on screen', async ({ page }) => {
+  await page.goto(`${origin}/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344`)
+  const seasons = page.locator('.watch-info [data-seasons] button')
+  await expect(seasons).toHaveText(['Season 1', 'Season 2', 'Season 3'], { timeout: 30_000 })
+  await expect(seasons.first()).toHaveAttribute('aria-pressed', 'true')
+  const rows = page.locator('[data-episodes] .episode')
+  await expect(rows.locator('.title')).toHaveText(['Red Light, Green Light'], { timeout: 30_000 })
+  const address = page.url()
+
+  await seasons.nth(1).click()
+  await expect(seasons.nth(1)).toHaveAttribute('aria-pressed', 'true')
+  await expect(rows.locator('.title')).toHaveText(['Bread and Lottery'], { timeout: 30_000 })
+  expect(watchSegments((await rows.locator('a.episode-link').getAttribute('href'))!)[0]).toBe('ag:(tmdb:93405-s2)')
+  expect(page.url()).toBe(address)
+  await expect(page.locator('.player-container.fix button')).toBeVisible()
+})
+
 // HOR-1011: between a phone and a wide window the two buttons squeezed the episode into a column 81 px
 // wide and the row 384 px tall (769 px, the review of 2026-10-26)
 test('the watch page\'s episode buttons leave the episode at least half its row, however long the episodes they name', async ({ page }) => {
@@ -1886,6 +1931,7 @@ const WATCH_WORDS = {
   text: [
     '.episode-step .step-label', '.episode-step .step-target', '.episode-title', '.watch-info .watch > .label', '.player-container.fix button',
     '.no-source > h2', '.no-source > button', '#app > div:not([class])', '.overlay', '.media-tooltip',
+    '.watch-info [data-seasons] h2', '.watch-info [data-seasons] button', '.watch-info [data-episodes] h2',
   ],
   labels: ['.watch-info .list [title]', '.overlay [aria-label]'],
 }

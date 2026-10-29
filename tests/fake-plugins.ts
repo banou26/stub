@@ -37,13 +37,14 @@ const row = (origin: string, id: string, fields: object = {}) => ({
   ...fields,
 })
 
-const release = (origin: string, id: string, score: number) =>
-  row(origin, id, { mediaUri: `${origin}:900070`, episodeNumber: 1, url: `magnet:?xt=urn:btih:${id}`, score })
+const release = (origin: string, id: string, score: number, media = '900070', episodeNumber = 1) =>
+  row(origin, id, { mediaUri: `${origin}:${media}`, episodeNumber, url: `magnet:?xt=urn:btih:${id}`, score })
 
 // Registered in the worker itself while added, as src/plugins.ts registers a package's connection, so it is
 // asked like any source. It plays its own releases, as the stub plugin's Nyaa does, and answers Spec Prime
 // Film (anilist:900070, tests/fake-fetch.ts) with three releases of its one episode, each ranked in its score
-// as Nyaa ranks them, the first with the highest id.
+// as Nyaa ranks them, the first with the highest id, and Spec Rated (anilist:900040) with one release of each
+// of its first three episodes.
 const releasing = (origin: string, name: string, fields: object = {}) => ({
   origin,
   originUrl: `https://${origin}.test`,
@@ -58,6 +59,14 @@ const releasing = (origin: string, name: string, fields: object = {}) => ({
     Subscription: {
       media: {
         subscribe: async function* (_: unknown, { input }: { input?: { uri?: string } }) {
+          if (/\banilist:900040\b/.test(input?.uri ?? '')) {
+            return yield {
+              media: row(origin, '900040', {
+                handles: [{ relation: 'SAME_AS', node: row('anilist', '900040') }],
+                episodes: [1, 2, 3].map(number => release(origin, `900040-${number}`, 0.3, '900040', number)),
+              }),
+            }
+          }
           if (!/\banilist:900070\b/.test(input?.uri ?? '')) return yield { media: null }
           yield {
             media: row(origin, '900070', {
