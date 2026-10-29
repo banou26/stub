@@ -63,7 +63,7 @@ describe('a short link', () => {
     expect(savings[0]).toBeGreaterThan(0.25)
   })
 
-  // a table row moved, or a format change, reads every link already shared as another address
+  // a format change reads every link already shared as another address
   test('of the issue\'s link is these exact characters', () => {
     expect(shortenPath(ISSUE)).toBe('CxUB4PwzArTzBAMDBARHVBGEuBcGLUdTEaG4FwQDAw2ktyACLQ355CIF3LEMBtDaDwcDAhHP38YnBC0xCLTzBAktAAqA6f4FEwsKji0SzP7JRY2XXSw5ojN3lAIJAQQtMQMRAwYtR0UR5LkXCEpBSlAMAuT8-_4bAEZerY4MDJ9EqdsEnP_6EwXEyWIHyP6angHIEdeghAECAQEBAQEBBQEBNTwOvgTxAo0HoQcWCkkBCi1zMWUxAgjogpEEAQ')
   })
@@ -146,6 +146,24 @@ describe('a code', () => {
     expect(expandPath(crafted)).toBeUndefined()
     // the same shape, short enough, opens
     expect(expandPath(code([1, 3, 65, 0, 3, ...suffix, 1, ...suffix]))).toBe(`/title/ag:(anilist:${'b'.repeat(100)},anilist:${'b'.repeat(200)})`)
+  })
+
+  // a copy of the tables as links were first shared: a row moved or removed opens those links as another address
+  test('names each row of stub\'s tables as it always has', () => {
+    const origins = [
+      'anilist', 'anizip', 'cr', 'jw', 'kitsu', 'mal', 'nf', 'nyaa', 'offline', 'simkl', 'amazon', 'disney', 'tvmaze',
+      'animethemes', 'ann', 'livechart', 'hoopla', 'plex', 'tubi', 'omdb', 'watchmode', 'imdb', 'tmdb', 'tvdb', 'trakt',
+      'fubo', 'anidb', 'appletv', 'hbo', 'hulu', 'hidive', 'paramount', 'peacock', 'philo', 'pluto', 'roku', 'starz',
+      'amcplus', 'unogs', 'yt', 'jikan', 'stub',
+    ]
+    expect(origins.map((_, row) => expandPath(code([1, 3, row + 1, 4])))).toEqual(origins.map(origin => `/title/ag:(${origin}:1)`))
+    expect(expandPath(code([1, 3, 1, 4]))).toBe('/title/ag:(anilist:1)')
+    expect(expandPath(code([5, 3, 1, 4]))).toBe('/media/ag:(anilist:1)')
+    expect(expandPath(code([10, 3, 1, 4, 3, 1, 4]))).toBe('/watch/ag:(anilist:1)/ag:(anilist:1)')
+    expect(expandPath(code([1, 3, 1, 4, 1]))).toBe('/title/ag:(anilist:1)?plugins=https:stub.plugins.banou.dev')
+    const uuid = Array<number>(16).fill(0xab)
+    expect(expandPath(code([1, 3, 12, 2, ...uuid]))).toBe('/title/ag:(disney:abababab-abab-abab-abab-abababababab)')
+    expect(expandPath(code([1, 3, 11, 10, ...uuid]))).toBe('/title/ag:(amazon:amzn1.dv.gti.abababab-abab-abab-abab-abababababab)')
   })
 
   test('with an origin given as text opens it', () => {
