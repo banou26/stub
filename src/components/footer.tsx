@@ -1,4 +1,5 @@
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { Link, useRoute } from 'wouter'
 
 import { getRouterRoutePath, getRoutePath, Route } from '../router/path'
@@ -52,7 +53,13 @@ const style = css`
   }
 `
 
+// the brand, never translated
+const WORDMARK = 'stub'
+
 export const Footer = () => {
+  const intl = useIntl()
+  // a version reads alike in every language
+  const version = `v${__STUB_VERSION__}`
   const [onWatch] = useRoute(getRouterRoutePath(Route.WATCH))
   const [onLoginCallback] = useRoute(getRouterRoutePath(Route.LOGIN_CALLBACK))
 
@@ -60,10 +67,16 @@ export const Footer = () => {
 
   return (
     <footer css={style}>
-      <Link to={getRoutePath(Route.HOME)} className="wordmark" onClick={askForTop}>stub</Link>
-      <Link to={getRoutePath(Route.LEGAL)} className="nav-link">Legal</Link>
-      <Link to={getRoutePath(Route.PRIVACY)} className="nav-link">Privacy</Link>
-      <span className="version" title={`stub v${__STUB_VERSION__}, commit ${__STUB_COMMIT__}`}>v{__STUB_VERSION__} <span className="commit">{__STUB_COMMIT__}</span></span>
+      <Link to={getRoutePath(Route.HOME)} className="wordmark" onClick={askForTop}>{WORDMARK}</Link>
+      <Link to={getRoutePath(Route.LEGAL)} className="nav-link">{intl.formatMessage({ id: 'Legal', defaultMessage: 'Legal' })}</Link>
+      <Link to={getRoutePath(Route.PRIVACY)} className="nav-link">{intl.formatMessage({ id: 'Privacy', defaultMessage: 'Privacy' })}</Link>
+      {/* a page with no commit meta reads `commit undefined` as before, where a missing value would fail the message */}
+      <span
+        className="version"
+        title={intl.formatMessage({ id: 'stub v{version}, commit {commit}', defaultMessage: 'stub v{version}, commit {commit}' }, { version: __STUB_VERSION__, commit: String(__STUB_COMMIT__) })}
+      >
+        {version} <span className="commit">{__STUB_COMMIT__}</span>
+      </span>
     </footer>
   )
 }

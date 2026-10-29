@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact'
 import { css } from '@emotion/react'
 import { Component } from 'preact'
 import { useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
 const style = css`
@@ -61,6 +62,7 @@ const details = (error: Error, route: string) =>
   `route: ${route}\nmessage: ${error.message}\nstack: ${error.stack ?? '(no stack)'}`
 
 const Fallback = ({ error, route }: { error: Error, route: string }) => {
+  const intl = useIntl()
   const [copied, setCopied] = useState(false)
 
   const copy = () => {
@@ -74,11 +76,13 @@ const Fallback = ({ error, route }: { error: Error, route: string }) => {
   return (
     <div css={style}>
       <div className="panel">
-        <h2>This page failed to render</h2>
-        <p className="message">{error.message || 'No message was given.'}</p>
+        <h2>{intl.formatMessage({ id: 'This page failed to render', defaultMessage: 'This page failed to render' })}</h2>
+        <p className="message">{error.message || intl.formatMessage({ id: 'No message was given.', defaultMessage: 'No message was given.' })}</p>
         <div className="actions">
-          <button type="button" onClick={() => globalThis.location?.reload()}>Reload</button>
-          <button type="button" onClick={copy}>{copied ? 'Copied' : 'Copy details'}</button>
+          <button type="button" onClick={() => globalThis.location?.reload()}>{intl.formatMessage({ id: 'Reload', defaultMessage: 'Reload' })}</button>
+          <button type="button" onClick={copy}>
+            {copied ? intl.formatMessage({ id: 'Copied', defaultMessage: 'Copied' }) : intl.formatMessage({ id: 'Copy details', defaultMessage: 'Copy details' })}
+          </button>
         </div>
       </div>
     </div>

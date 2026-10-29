@@ -16,7 +16,7 @@ import {
   YEAR_MIN, choiceLabel, genreLabel, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, scenePath, searchFiltersQuery,
   searchHeading, searchPath, yearMax,
 } from './params'
-import { PictureButton, SceneItem, usePictureInput, useScene } from './scene'
+import { PictureButton, SCENE_ERRORS, SceneItem, usePictureInput, useScene } from './scene'
 import { pictureCode } from '../../scene/code'
 import MediaTitle from '../../components/media-title'
 import MediaCard from '../../components/media-card'
@@ -594,7 +594,7 @@ const Search = () => {
             ? !sceneAnswer
               ? pendingItems
               : 'error' in sceneAnswer
-                ? <div className="status">{sceneAnswer.error}</div>
+                ? <div className="status">{intl.formatMessage(SCENE_ERRORS[sceneAnswer.error])}</div>
                 : sceneAnswer.matches.length
                   ? <div className={layout.className}>{sceneAnswer.matches.map(match => <SceneItem key={match.anilist} match={match} item={layout.item}/>)}</div>
                   : noResults

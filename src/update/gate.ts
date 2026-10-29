@@ -1,5 +1,6 @@
 import type { PartyState } from '../party/store'
 
+import { intl } from '../i18n'
 import { layer } from '../layers'
 
 /** This tab's automatic reloads, as timestamps, for the loop guard. */
@@ -46,7 +47,7 @@ const safe = (party: { getState: () => PartyState }) => {
 
 const showUpdating = () => {
   const page = document.createElement('div')
-  page.textContent = 'Updating Stub'
+  page.textContent = intl.formatMessage({ id: 'Updating Stub', defaultMessage: 'Updating Stub' })
   page.style.cssText = `position: fixed; inset: 0; z-index: ${layer.updating}; display: flex; align-items: center; justify-content: center; background: #0f0f0f; color: #fff; font-size: 2rem`
   document.body.append(page)
 }

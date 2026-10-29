@@ -2,6 +2,7 @@ import type { HTMLAttributes } from 'react'
 
 import { css } from '@emotion/react'
 import { useState, useRef, useEffect } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 const style = css`
 position: relative;
@@ -50,6 +51,7 @@ export const Collapsible = (
     collapsedHeight?: number
   }
 ) => {
+  const intl = useIntl()
   const [isExpanded, setIsExpanded] = useState(false)
   const [needsToggle, setNeedsToggle] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
@@ -94,7 +96,7 @@ export const Collapsible = (
             className="toggle-button"
             onClick={toggleExpanded}
           >
-            {isExpanded ? 'Collapse' : 'Expand'}
+            {isExpanded ? intl.formatMessage({ id: 'Collapse', defaultMessage: 'Collapse' }) : intl.formatMessage({ id: 'Expand', defaultMessage: 'Expand' })}
           </button>
         )
         : undefined

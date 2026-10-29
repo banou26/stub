@@ -19,7 +19,13 @@ export type SceneMoment = { episode: number | null, from: number }
 /** A show the picture is from, and each episode it matched in, most similar first. */
 export type SceneMatch = { anilist: number, moments: SceneMoment[] }
 
-export type SceneAnswer = { matches: SceneMatch[] } | { error: string }
+/**
+ * Why trace.moe gave no matches: its daily limit reached, too busy (a search at once, a full queue, no answer), or the
+ * picture refused. The page writes it in the viewer's language (src/router/search/scene.tsx).
+ */
+export type SceneError = 'limit' | 'busy' | 'failed'
+
+export type SceneAnswer = { matches: SceneMatch[] } | { error: SceneError }
 
 /** One result as trace.moe answers it, the fields read here only. */
 export type TraceMoeResult = {
@@ -57,23 +63,17 @@ export const scenesOf = (results: readonly TraceMoeResult[]): SceneMatch[] => {
   }))
 }
 
-export const SCENE_ERRORS = {
-  limit: "trace.moe's daily limit is reached. Try again tomorrow.",
-  busy: 'trace.moe is busy. Try again in a moment.',
-  failed: 'trace.moe could not search this picture.',
-}
-
 /**
  * What trace.moe's refusal means for the viewer. A free caller has 100 searches a day and one at a time, both
  * answered 402, and a full queue 503 (its docs, 2026-10-24).
  */
-const errorFor = (status: number, message: unknown): string =>
-  status === 402 && /quota/i.test(String(message)) ? SCENE_ERRORS.limit
-  : status === 402 || status === 429 || status >= 500 ? SCENE_ERRORS.busy
-  : SCENE_ERRORS.failed
+const errorFor = (status: number, message: unknown): SceneError =>
+  status === 402 && /quota/i.test(String(message)) ? 'limit'
+  : status === 402 || status === 429 || status >= 500 ? 'busy'
+  : 'failed'
 
 const ask = async (code: string, fetch: FetchLike): Promise<SceneAnswer> => {
-  if (!isSceneCode(code)) return { error: SCENE_ERRORS.failed }
+  if (!isSceneCode(code)) return { error: 'failed' }
   try {
     // a GET with no body and no content type, so the browser sends it with no preflight
     const response = await fetch(sceneSearchUrl(code), { credentials: 'omit' })
@@ -81,7 +81,7 @@ const ask = async (code: string, fetch: FetchLike): Promise<SceneAnswer> => {
     if (!response.ok) return { error: errorFor(response.status, body?.error) }
     return { matches: scenesOf(Array.isArray(body?.result) ? body.result : []) }
   } catch {
-    return { error: SCENE_ERRORS.busy }
+    return { error: 'busy' }
   }
 }
 
@@ -89,7 +89,7 @@ let last: Promise<unknown> = Promise.resolve()
 
 /**
  * Asks trace.moe about one color code, after the search before it has answered: a free caller's second search at
- * once is refused. Never rejects; a refusal is the one line `error` says.
+ * once is refused. Never rejects; a refusal is its one `error`.
  */
 export const searchScene = (code: string, fetch: FetchLike): Promise<SceneAnswer> => {
   const answer = last.then(() => ask(code, fetch))

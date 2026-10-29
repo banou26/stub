@@ -1,8 +1,8 @@
 // FIRST, and it has to stay first: ./dom installs the document that @emotion/react reads at module
 // scope. See the file for what happens when it does not.
-import { button, mount, unmount } from './dom'
+import { button, mount, unmount, withIntl } from './dom'
 
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router, useLocation } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -19,7 +19,7 @@ const Sibling = () => <p className="sibling">still here</p>
 const hosts: HTMLElement[] = []
 
 const mountTracked = (vnode: Parameters<typeof mount>[0]) => {
-  const host = mount(vnode)
+  const host = mount(withIntl(vnode))
   hosts.push(host)
   return host
 }

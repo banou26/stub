@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import type { TraceMoeResult } from '../../../src/scene/search'
 
-import { isSceneCode, momentTime, SCENE_ERRORS, sceneSearchUrl, scenesOf, searchScene } from '../../../src/scene/search'
+import { isSceneCode, momentTime, sceneSearchUrl, scenesOf, searchScene } from '../../../src/scene/search'
 import { asksViewerDirectly } from '../../../src/worker/direct-fetch'
 
 // the example code trace.moe's own docs search by (docs.md, "Search by color layout vector", 2026-10-24)
@@ -39,7 +39,7 @@ describe('the ask', () => {
 
   test('asks nothing for an address that holds no code', async () => {
     const fetch = vi.fn(async () => Response.json({ result: RABBIT }))
-    expect(await searchScene('not a code', fetch)).toEqual({ error: SCENE_ERRORS.failed })
+    expect(await searchScene('not a code', fetch)).toEqual({ error: 'failed' })
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -59,14 +59,13 @@ describe('the ask', () => {
     expect(await second).toEqual({ matches: [] })
   })
 
-  test('each refusal is one line', async () => {
+  test('each refusal is one kind, which the page writes', async () => {
     const answer = (status: number, body: unknown) => searchScene(DOCS_CODE, async () => Response.json(body, { status }))
-    expect(await answer(402, { quota: 100, quotaUsed: 100, error: 'Search quota depleted (quota per 24 hours: 100, used: 100)' }))
-      .toEqual({ error: "trace.moe's daily limit is reached. Try again tomorrow." })
-    expect(await answer(402, { error: 'Concurrency limit exceeded' })).toEqual({ error: SCENE_ERRORS.busy })
-    expect(await answer(503, { error: 'Search queue is full' })).toEqual({ error: SCENE_ERRORS.busy })
-    expect(await answer(400, { error: 'Failed to process image' })).toEqual({ error: SCENE_ERRORS.failed })
-    expect(await searchScene(DOCS_CODE, async () => { throw new TypeError('Failed to fetch') })).toEqual({ error: SCENE_ERRORS.busy })
+    expect(await answer(402, { quota: 100, quotaUsed: 100, error: 'Search quota depleted (quota per 24 hours: 100, used: 100)' })).toEqual({ error: 'limit' })
+    expect(await answer(402, { error: 'Concurrency limit exceeded' })).toEqual({ error: 'busy' })
+    expect(await answer(503, { error: 'Search queue is full' })).toEqual({ error: 'busy' })
+    expect(await answer(400, { error: 'Failed to process image' })).toEqual({ error: 'failed' })
+    expect(await searchScene(DOCS_CODE, async () => { throw new TypeError('Failed to fetch') })).toEqual({ error: 'busy' })
   })
 })
 

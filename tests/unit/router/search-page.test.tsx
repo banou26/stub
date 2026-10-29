@@ -395,10 +395,23 @@ describe('the scene search', () => {
     await flush()
     expect(page.status()).toBe('No results found.')
 
-    scenes.search.mockResolvedValue({ error: "trace.moe's daily limit is reached. Try again tomorrow." })
-    page.go('/search?scene=eOOEIPhB0IQhB8IQg-TPYQg-D0IQ')
+    for (const [error, said] of [
+      ['limit', "trace.moe's daily limit is reached. Try again tomorrow."],
+      ['busy', 'trace.moe is busy. Try again in a moment.'],
+      ['failed', 'trace.moe could not search this picture.'],
+    ] as const) {
+      scenes.search.mockResolvedValue({ error })
+      page.go(`/search?scene=${error.padEnd(28, '-')}`)
+      await flush()
+      expect(page.status(), error).toBe(said)
+    }
+  })
+
+  test('a search the worker cannot answer says trace.moe is busy', async () => {
+    scenes.search.mockRejectedValue(new Error('the worker closed'))
+    const page = open(`/search?scene=${CODE}`)
     await flush()
-    expect(page.status()).toBe("trace.moe's daily limit is reached. Try again tomorrow.")
+    expect(page.status()).toBe('trace.moe is busy. Try again in a moment.')
   })
 
   test('a pasted picture opens its scene address as a new step, and a paste of text is the field\'s', async () => {

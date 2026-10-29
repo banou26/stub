@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +21,7 @@ test("the description's Expand button draws in stub's font", () => {
 
 // clamped from the first frame: drawn open and closed once measured, it pushed everything under it up
 test('a description draws clamped from its first render, before anything has measured it', () => {
-  const host = mount(h(Collapsible, { collapsedHeight: 200, className: 'description', children: h('p', null, 'A long description. '.repeat(200)) }))
+  const host = mount(withIntl(h(Collapsible, { collapsedHeight: 200, className: 'description', children: h('p', null, 'A long description. '.repeat(200)) })))
   try {
     expect(host.querySelector('.description')!.classList.contains('collapsed')).toBe(true)
   } finally {

@@ -1,11 +1,4 @@
 {
-  "rest": [
-    "src/components/collapsible.tsx",
-    "src/components/error-boundary.tsx",
-    "src/components/footer.tsx",
-    "src/components/paged.tsx",
-    "src/router/index.tsx"
-  ],
   "kept-in-english": [
     "src/router/debug/episodes.tsx",
     "src/router/debug/graph.tsx",

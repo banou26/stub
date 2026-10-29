@@ -1,17 +1,18 @@
 import type { JSX } from 'preact'
 import type { SearchCardFragment } from '../../generated/graphql'
-import type { SceneAnswer, SceneMatch } from '../../scene/search'
+import type { MessageDescriptor } from 'react-intl'
+import type { SceneAnswer, SceneError, SceneMatch } from '../../scene/search'
 
 import { ImageIcon, LucidePlay } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { useIntl } from 'react-intl'
+import { defineMessages, useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
 import { gql } from '../../generated'
 import { MediaType } from '../../generated/graphql'
 import { searchScene } from '../../worker'
-import { momentTime, SCENE_ERRORS } from '../../scene/search'
+import { momentTime } from '../../scene/search'
 import Placeholder from '../../components/placeholder'
 import { getRoutePath, Route } from '../path'
 import { watchFrom } from '../watch/resume'
@@ -29,6 +30,13 @@ const SCENE_MEDIA = gql(`
   }
 `)
 
+/** What the page says of each refusal, in place of the matches. */
+export const SCENE_ERRORS: Readonly<Record<SceneError, MessageDescriptor>> = defineMessages({
+  limit: { id: "trace.moe's daily limit is reached. Try again tomorrow.", defaultMessage: "trace.moe's daily limit is reached. Try again tomorrow." },
+  busy: { id: 'trace.moe is busy. Try again in a moment.', defaultMessage: 'trace.moe is busy. Try again in a moment.' },
+  failed: { id: 'trace.moe could not search this picture.', defaultMessage: 'trace.moe could not search this picture.' },
+})
+
 /** trace.moe's answer for a color code, asked once each time the page opens it, and nothing while it is out. */
 export const useScene = (code: string | undefined): SceneAnswer | undefined => {
   const [answered, setAnswered] = useState<{ code: string, answer: SceneAnswer }>()
@@ -36,7 +44,7 @@ export const useScene = (code: string | undefined): SceneAnswer | undefined => {
     if (!code) return
     let current = true
     void searchScene(code)
-      .catch((): SceneAnswer => ({ error: SCENE_ERRORS.busy }))
+      .catch((): SceneAnswer => ({ error: 'busy' }))
       .then(answer => { if (current) setAnswered({ code, answer }) })
     return () => { current = false }
   }, [code])

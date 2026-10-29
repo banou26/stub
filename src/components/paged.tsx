@@ -3,6 +3,10 @@ import type { ComponentChildren } from 'preact'
 import { css } from '@emotion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
+
+// a gap's mark, the same in every language
+const GAP = '…'
 
 const style = css`
   /* below the fixed header when a page change scrolls the list back into view */
@@ -95,11 +99,12 @@ export const pageSlots = (page: number, pages: number): { page: number, gap: boo
 const Paged = <T,>({ items, size, label, start = 0, children }: {
   items: readonly T[]
   size: number
-  /** What the list is, naming its controls: "Characters" gives "Characters pages". */
+  /** What the list is, in the language shown, naming its controls: "Characters" gives "Characters pages". */
   label: string
   start?: number
   children: (page: T[], offset: number) => ComponentChildren
 }) => {
+  const intl = useIntl()
   const [picked, setPicked] = useState<number>()
   const [held, setHeld] = useState(0)
   const list = useRef<HTMLDivElement>(null)
@@ -125,21 +130,21 @@ const Paged = <T,>({ items, size, label, start = 0, children }: {
       {
         pages > 1
           ? (
-            <nav aria-label={`${label} pages`}>
-              <button type="button" aria-label="Previous page" aria-disabled={page === 0} onClick={() => go(page - 1)}>
+            <nav aria-label={intl.formatMessage({ id: '{list} pages', defaultMessage: '{list} pages' }, { list: label })}>
+              <button type="button" aria-label={intl.formatMessage({ id: 'Previous page', defaultMessage: 'Previous page' })} aria-disabled={page === 0} onClick={() => go(page - 1)}>
                 <ChevronLeft size={18} aria-hidden="true"/>
               </button>
               {pageSlots(page, pages).map(({ page: slot, gap }) => (
                 // keyed by page, so a gap picked is the button of the page it led to, focus and all
-                <button key={slot} type="button" className={gap ? 'gap' : undefined} aria-label={`Page ${slot + 1}`} aria-current={slot === page ? 'page' : undefined} onClick={() => go(slot)}>
-                  {gap ? '…' : slot + 1}
+                <button key={slot} type="button" className={gap ? 'gap' : undefined} aria-label={intl.formatMessage({ id: 'Page {page}', defaultMessage: 'Page {page}' }, { page: slot + 1 })} aria-current={slot === page ? 'page' : undefined} onClick={() => go(slot)}>
+                  {gap ? GAP : slot + 1}
                 </button>
               ))}
-              <button type="button" aria-label="Next page" aria-disabled={page === pages - 1} onClick={() => go(page + 1)}>
+              <button type="button" aria-label={intl.formatMessage({ id: 'Next page', defaultMessage: 'Next page' })} aria-disabled={page === pages - 1} onClick={() => go(page + 1)}>
                 <ChevronRight size={18} aria-hidden="true"/>
               </button>
               {/* quiet until a page is picked, so a list growing as sources answer announces nothing */}
-              <span role="status">{picked === undefined ? '' : `Page ${page + 1} of ${pages}`}</span>
+              <span role="status">{picked === undefined ? '' : intl.formatMessage({ id: 'Page {page} of {pages}', defaultMessage: 'Page {page} of {pages}' }, { page: page + 1, pages })}</span>
             </nav>
           )
           : undefined

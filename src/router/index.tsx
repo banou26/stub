@@ -3,6 +3,7 @@ import type { RouteParams } from './path'
 import { css } from '@emotion/react'
 import { Redirect, Router, Switch, Route as WRoute, useParams } from 'wouter'
 import { useEffect } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { getRouterRoutePath, Route } from './path'
 import { legacySearchTerm, searchPath } from './search/params'
@@ -36,8 +37,9 @@ const LegacySearch = () => {
 }
 
 const LoginCallback = () => {
+  const intl = useIntl()
   useEffect(() => { globalThis.close() }, [])
-  return <div>Logging in...</div>
+  return <div>{intl.formatMessage({ id: 'Logging in...', defaultMessage: 'Logging in...' })}</div>
 }
 
 const shellStyle = css`
@@ -54,6 +56,8 @@ const shellStyle = css`
 const notFoundStyle = css`
   padding: calc(var(--stub-header-height) + 3rem) 3rem 4rem;
 `
+
+const NotFound = () => <div css={notFoundStyle}>{useIntl().formatMessage({ id: '404 No page found', defaultMessage: '404 No page found' })}</div>
 
 const RouterRoot = () => (
   <Router hrefs={pluginHref}>
@@ -73,7 +77,7 @@ const RouterRoot = () => (
           <WRoute path={getRouterRoutePath(Route.PARTY)} component={Party}/>
           <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)}><Debug/></WRoute>
           <WRoute path={getRouterRoutePath(Route.LOGIN_CALLBACK)} component={LoginCallback}/>
-          <WRoute component={() => <div css={notFoundStyle}>404 No page found</div>}/>
+          <WRoute component={NotFound}/>
         </Switch>
       </div>
       <Footer/>

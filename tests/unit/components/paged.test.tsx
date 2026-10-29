@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -16,7 +16,7 @@ const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
 const list = (items: readonly number[], start?: number) =>
-  <Paged items={items} size={12} label="Characters" start={start}>{page => <ul>{page.map(item => <li key={item}>{item}</li>)}</ul>}</Paged>
+  withIntl(<Paged items={items} size={12} label="Characters" start={start}>{page => <ul>{page.map(item => <li key={item}>{item}</li>)}</ul>}</Paged>)
 
 const draw = (items: readonly number[] = ITEMS, start?: number) => {
   const host = mount(list(items, start))
