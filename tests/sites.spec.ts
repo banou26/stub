@@ -739,7 +739,10 @@ const areaDrawn = async (page: Page, width: number) => {
     await read(path)
   }
   await page.goto(at('stub.localhost', '/search?genre=Action&format=TV'))
-  for (const [index, control] of (await page.locator('.filters button.control').all()).entries()) {
+  // .all() does not wait, and before the worker boots it finds no picker at all
+  const pickers = page.locator('.filters button.control')
+  await expect(pickers).toHaveCount(6)
+  for (const [index, control] of (await pickers.all()).entries()) {
     await control.click()
     await expect(page.getByRole('listbox')).toBeVisible()
     await read(`picker ${index}`)
