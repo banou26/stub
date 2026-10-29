@@ -4,7 +4,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import SourceSelector from '../src/components/source-selector'
-import { intl } from '../src/i18n'
+import { startLanguage } from '../src/i18n'
 
 // The page tests/source-cards.spec.ts drives: the watch page's sources, one card naming five audio
 // languages and one subtitle language.
@@ -18,4 +18,5 @@ const crunchyroll = {
   audioLanguages: ['ja-JP', 'en-US', 'fr-FR', 'de-DE', 'es-419'],
   subtitleLanguages: ['en-US'],
 }
-render(<RawIntlProvider value={intl}><Router hook={hook}><SourceSelector sources={[crunchyroll]}/></Router></RawIntlProvider>, document.getElementById('sources')!)
+// in the language setting's language, which tests/source-cards.spec.ts's build offers
+void startLanguage().then(intl => render(<RawIntlProvider value={intl}><Router hook={hook}><SourceSelector sources={[crunchyroll]}/></Router></RawIntlProvider>, document.getElementById('sources')!))

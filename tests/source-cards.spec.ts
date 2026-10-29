@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
+import { LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
+
 // What a watch page card shows of its languages depends on hover, focus and layout, which linkedom has
 // none of. So this builds tests/source-cards.tsx with the app's JSX setup, and reads the real card. The
 // worker and @fkn/lib, which only a plugin's own release picker reaches, are left out, since they need
@@ -36,6 +38,7 @@ test.beforeAll(async () => {
     publicDir: false,
     logLevel: 'error',
     plugins: [
+      offerEveryLanguage(),
       preact({ jsxImportSource: '@emotion/react' }),
       {
         name: 'spec-no-worker',
@@ -106,4 +109,33 @@ test.describe('on a phone', () => {
     expect(await shown(audio(page))).toEqual({ rest: true, more: false })
     await expect(audio(page)).toContainText(ALL)
   })
+})
+
+// HOR-1026 (stub in the viewer's language): the card's label, its languages' names and how many more, in the language
+// shown; FormatJS's pseudo-language is English to Intl, so its names stay English
+test.describe('in a language stub does not offer yet', () => {
+  const SHOWN: Record<string, { label?: string, names: string[] }> = {
+    [PSEUDO]: { names: ['Japanese', 'English', 'French', 'German', 'Spanish'] },
+    de: { label: 'Audio', names: ['Japanisch', 'Englisch', 'Französisch', 'Deutsch', 'Spanisch'] },
+    ja: { label: '音声', names: ['日本語', '英語', 'フランス語', 'ドイツ語', 'スペイン語'] },
+  }
+  for (const [language, { label: expected, names }] of Object.entries(SHOWN)) {
+    for (const width of [1440, 390]) {
+      test(`${language} at ${width} px: a card names its languages in the language, within the card`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 844 })
+        await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+        await open(page)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        const line = audio(page)
+        const label = await line.locator('.languages-label').textContent()
+        if (expected) expect(label).toBe(expected)
+        else expect(label, 'the pseudo-language\'s').not.toBe('Audio')
+        for (const part of [label!, ...names]) expect(await line.getAttribute('title')).toContain(part)
+        await expect(line.locator('.more')).toHaveText('+2')
+        expect(await page.locator('#sources a').evaluate(card => [...card.querySelectorAll('*')]
+          .filter(element => element.getBoundingClientRect().right > card.getBoundingClientRect().right + 1 && element.getBoundingClientRect().width > 1)
+          .map(element => element.className)), 'nothing past the card').toEqual([])
+      })
+    }
+  }
 })

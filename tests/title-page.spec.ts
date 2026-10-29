@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { Locator, Page } from '@playwright/test'
+import type { Frame, Locator, Page } from '@playwright/test'
 
 import { expect, firefox, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
@@ -1884,3 +1884,101 @@ test.describe('home and cards in a language stub does not offer yet', () => {
   })
 })
 
+// HOR-1026: the watch page's own words and its players', by where they are drawn; the players' controls are
+// media-player's and videojs's own
+const WATCH_WORDS = {
+  text: [
+    '.episode-step .step-label', '.episode-step .step-target', '.episode-title', '.watch-info .watch > .label', '.player-container.fix button',
+    '.no-source > h2', '.no-source > button', '#app > div:not([class])', '.overlay', '.media-tooltip',
+  ],
+  labels: ['.watch-info .list [title]', '.overlay [aria-label]'],
+}
+// each of them but the episode's titles, which are cut short on purpose
+const FITTED = WATCH_WORDS.text.filter(selector => !selector.endsWith('.step-target') && selector !== '.episode-title')
+
+const watchWordsIn = (target: Page | Frame) => target.evaluate(({ text, labels }) => [
+  ...text.flatMap(selector => [...document.querySelectorAll(selector)].map(element => element.textContent!.trim())),
+  ...labels.flatMap(selector => [...document.querySelectorAll(selector)].flatMap(element => ['aria-label', 'title'].map(name => element.getAttribute(name)).filter(value => value !== null))),
+], WATCH_WORDS)
+
+// each of the area's words that runs past its own box or the window's right edge
+const unfitted = (target: Page | Frame) => target.evaluate(selectors => selectors.flatMap(selector => [...document.querySelectorAll(selector)]
+  .filter(element => element.scrollWidth > element.clientWidth + 1 || element.getBoundingClientRect().right > innerWidth + 1)
+  .map(element => `${selector}: ${element.textContent}`)), FITTED)
+
+const embedOf = (page: Page) => page.frames().find(frame => new URL(frame.url(), origin).pathname.endsWith('/embed.html'))
+
+/**
+ * Draws, at 1440 then 390 px: Squid Game's first episode, which only the extension plays, and the second season's
+ * first, the Prime film's player's place with nothing to play, then with an added source's three releases and its
+ * Prime Video player loading, and the player page alone, with nothing to play and with Netflix loading. Returns the
+ * area's words, each width's sideways scroll, and each word that runs past its box.
+ */
+const watchViews = async (page: Page) => {
+  const reading = { words: [] as string[], overflow: [] as number[], unfitted: [] as string[] }
+  const read = async (embed?: () => Frame | undefined) => {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const target of [page, embed?.()]) {
+        if (!target) continue
+        reading.words.push(...await watchWordsIn(target))
+        reading.unfitted.push(...(await unfitted(target)).map(text => `${width} px: ${text}`))
+      }
+      reading.overflow.push(await overflowX(page))
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344`)
+  await expect(page.locator('.player-container.fix button')).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('.episode-step.next')).toBeVisible({ timeout: 30_000 })
+  await read()
+  await page.locator('.episode-step.next').click()
+  await expect(page.locator('.episode-step.previous')).toBeVisible({ timeout: 30_000 })
+  await read()
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1`)
+  await expect(page.locator('.no-source > h2')).toBeVisible({ timeout: 60_000 })
+  await read()
+  await page.evaluate(([key, plugin]) => localStorage.setItem(key!, JSON.stringify([plugin])), [ENABLED_PLUGINS_KEY, FREE_RELEASES])
+  await page.goto(`${origin}/watch/${PRIME_FILM}/jw:900070-1/amazon:amzn1.dv.gti.900070`)
+  await expect(page.locator('.watch-info .list button.source')).toBeVisible({ timeout: 60_000 })
+  await expect.poll(() => embedOf(page)?.locator('.overlay [aria-label]').count(), { timeout: 30_000 }).toBe(1)
+  await read(() => embedOf(page))
+
+  await page.goto(`${origin}/embed.html`)
+  await expect(page.locator('#app > div:not([class])')).toBeVisible({ timeout: 30_000 })
+  await read()
+  await page.goto(`${origin}/embed.html?mediaUri=m&episodeUri=e&sourceUri=nf:1&url=${encodeURIComponent('https://www.netflix.com/watch/1')}`)
+  await expect(page.locator('.overlay')).not.toBeEmpty({ timeout: 30_000 })
+  // the loading line covers the controls; set aside, the pointer reaches the seek button's tooltip under it
+  await page.locator('.overlay').evaluate(overlay => { overlay.style.pointerEvents = 'none' })
+  await page.locator('.media-button--seek').first().hover()
+  await expect(page.locator('.media-tooltip').filter({ hasText: /\S/ })).toBeVisible()
+  await read()
+  return reading
+}
+
+test.describe('the watch page in a language stub does not offer yet', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: the watch page and its players have no sideways scroll, no word past its box, and none of their own words in English`, async ({ page }) => {
+      test.setTimeout(300_000)
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      const { words, overflow, unfitted } = await watchViews(page)
+      await expect(page.locator('html')).toHaveAttribute('lang', language)
+      expect.soft(overflow).toEqual(Array(overflow.length).fill(0))
+      expect.soft(unfitted).toEqual([])
+      expect(new Set(words).size, 'the control: the area\'s words were read').toBeGreaterThan(12)
+      expect.soft(englishIn(words, english(), language === PSEUDO ? undefined : catalogues()[language])).toEqual([])
+    })
+  }
+
+  test('the control: in English the same reading finds the area\'s own words', async ({ page }) => {
+    test.setTimeout(300_000)
+    const { words } = await watchViews(page)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(new Set(englishIn(words, english())).size).toBeGreaterThan(12)
+  })
+})
