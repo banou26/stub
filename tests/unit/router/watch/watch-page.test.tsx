@@ -937,7 +937,6 @@ test('the show\'s name under the episode\'s title opens the show\'s page', async
   expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}`])
 })
 
-// HOR-1065
 test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
