@@ -1719,17 +1719,31 @@ test('Cancel gives the keys back to the player', async () => {
 })
 
 // HOR-1014: a torrent plays two frames down, ripple's player inside the plugin's frame
-test('a torrent\'s own chapters bring Next episode a second before its ending', async () => {
-  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+test('a torrent\'s own ending brings Next episode a second before what follows it', async () => {
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1370, title: 'ED' }, { start: 1370, end: 1395, title: 'Part B' }]
   bridge.duration = 1395
   const { host } = await atTheEnd({}, 'nyaa:a')
   expect(host.querySelector('.plugin-player'), 'the plugin plays it').not.toBeNull()
-  await report({ paused: false, time: 1290 })
+  await report({ paused: false, time: 1360 })
   await wait(8_900)
-  expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
+  expect(nextShown(host), 'at 1368.9 s').toBeUndefined()
   await wait(100)
-  expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+  expect(nextShown(host), 'at 1369 s').toBe('E3 - Title 3')
   expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
+})
+
+// ripple's player offers Skip Ending from a second before it, in Next's corner
+test('a torrent\'s own ending with nothing after it leaves the player its Skip Ending, and Next episode comes at the end', async () => {
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+  bridge.duration = 1395
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  await report({ paused: false, time: 1290 })
+  await wait(9_000)
+  expect(nextShown(host), 'at 1299 s').toBeUndefined()
+  await wait(95_000)
+  expect(nextShown(host), 'at 1394 s').toBeUndefined()
+  await report({ ...ended, time: 1395 })
+  expect(nextShown(host), 'at the end').toBe('E3 - Title 3')
 })
 
 // HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,
@@ -1771,8 +1785,8 @@ test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor 
   await report({ paused: false, time: 1290 })
   await settle()
   await report({ paused: false, time: 1291 })
-  await wait(8_000)
-  expect(nextShown(host), 'from the file\'s own ending').toBe('E3 - Title 3')
+  await wait(30_000)
+  expect(nextShown(host), 'nor from Crunchyroll\'s credits').toBeUndefined()
   expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
 })
 

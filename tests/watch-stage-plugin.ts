@@ -5,11 +5,11 @@ import { CHAPTERLESS_TORRENT, PLAYER_ORIGIN } from './watch-stage-media'
 // The source package tests/watch-stage.spec.ts mounts for its torrents, two frames down as stub-plugin plays one: it
 // frames a player at another origin (./watch-stage-ripple.ts) as the plugin frames ripple, and answers stub's calls
 // as stub-plugin's src/ui/playback.ts does, its `focus` included, and reports first once the player is up, as
-// @banou/media-player's mirror does at `ready`. Each episode runs 40 s, its ending from 20 to 38 s, and plays from 18.5 s;
-// the second's file marks no ending.
+// @banou/media-player's mirror does at `ready`. Each episode runs 40 s, its ending from 2 to 20 s with a scene after
+// it, and plays from 18.5 s; the second's file marks no ending.
 
 const DURATION = 40
-const CHAPTERS = [{ start: 0, end: 20, title: 'Part A' }, { start: 20, end: 38, title: 'ED' }]
+const CHAPTERS = [{ start: 0, end: 2, title: 'Part A' }, { start: 2, end: 20, title: 'ED' }, { start: 20, end: 40, title: 'Part B' }]
 const CHAPTERLESS = [{ start: 0, end: 20, title: 'Part A' }, { start: 20, end: 40, title: 'Part B' }]
 
 let frame: HTMLIFrameElement | undefined
