@@ -20,6 +20,7 @@ vi.mock('../../../src/party', () => ({ party: new Proxy({}, { get: (_, key) => c
 Object.assign(Element.prototype, { scrollTo: () => {} })
 
 const { default: PartyChat } = await import('../../../src/components/party-chat')
+const { startLanguage } = await import('../../../src/i18n')
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -139,5 +140,37 @@ describe('the chat\'s English', () => {
     say('me', { t: 'chat', text: 'hey' })
     expect([...host.querySelectorAll('.line .who')].map(who => who.textContent)).toEqual(['host', 'Alex', 'sam123', 'you'])
     expect(host.querySelector('.empty')).toBeNull()
+  })
+})
+
+// what crosses the room is the ask: each app writes its sentence in the language it shows
+describe('in another language', () => {
+  afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const at = (s: Partial<PlaybackState>): PlaybackState => ({ paused: false, time: 0, rate: 1, at: 1, ...s })
+  const shown = async (language: string) => {
+    await startLanguage({ language, languages: [language] })
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.join(INVITE)
+    const host = mount(withIntl(<PartyChat/>))
+    hosts.push(host)
+    let seq = 0
+    const say = (from: string, message: PartyMessage) =>
+      act(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from, at: seq, text: encodePartyMessage(message) }, replayed: false }) })
+    say('host', { t: 'state', path: '/watch/a/b', y: 0, grants: { all: ['seek', 'rate', 'subs'], by: {} } })
+    say('alex', { t: 'name', name: 'Alex' })
+    say('alex', { t: 'ask', c: 'rate', path: '/watch/a/b', s: at({ rate: 1.5 }) })
+    say('me', { t: 'ask', c: 'seek', path: '/watch/a/b', s: at({ time: 3_725 }) })
+    say('host', { t: 'ask', c: 'subs', sub: 'English' })
+    act(() => { host.querySelector<HTMLButtonElement>('button.toggle')!.click() })
+    return [host.querySelector('.head')?.textContent, ...[...host.querySelectorAll('.line.action')].map(line => line.textContent)]
+  }
+
+  test('German writes its own sentences, numbers and names, the track as the player names it', async () => {
+    expect(await shown('de')).toEqual(['Party-Chat', 'Alex hat die Geschwindigkeit auf 1,5x gesetzt', 'du bist zu 1:02:05 gesprungen', 'Host hat die Untertitel auf English gestellt'])
+  })
+
+  test('Russian, with no past tense that would need the member\'s gender', async () => {
+    expect(await shown('ru')).toEqual(['Чат комнаты', 'Alex: скорость 1,5x', 'вы перешли к 1:02:05', 'ведущий: субтитры English'])
   })
 })

@@ -101,3 +101,26 @@ label, `E{number} - {title}`, keeps the mark streaming services write in the lan
 | `zh-Hant` | 版本 | 播放器 | 登入視窗 | 彈出式視窗 | 重試 | `第{number}集 {title}` |
 | `tr` | sürüm | oynatıcı | oturum açma penceresi | açılır pencere | Tekrar dene | `{number}. Bölüm - {title}` |
 | `pl` | wydanie | odtwarzacz | okno logowania | wyskakujące okno | Spróbuj ponownie | `Odc. {number} - {title}` |
+
+## Watch together
+
+A party is a few viewers watching together: the host steers, the others follow and may be given controls. A chat line
+about a member's action is written by each viewer's app in its own language, from the action and its values, so it
+names the member as `{member}` and the viewer by the `self` branch. Where a past tense would agree with the member's
+gender (Russian, Polish), the line is the member and a noun: `{member}: пауза`. Korean writes `{member} 님이` and
+`{track}(으)로`, whose particle no name changes.
+
+| | Watch together | party | host | the others | Catch up | Follow playback |
+| --- | --- | --- | --- | --- | --- | --- |
+| `es-419` | Ver juntos | grupo | anfitrión | participantes | Sincronizar | Seguir la reproducción |
+| `pt-BR` | Assistir juntos | grupo | anfitrião | participantes | Sincronizar | Acompanhar a reprodução |
+| `fr` | Regarder ensemble | groupe | hôte | participants | Rattraper | Suivre la lecture |
+| `de` | Gemeinsam schauen | Party | Host | Teilnehmende | Aufholen | Wiedergabe folgen |
+| `it` | Guarda insieme | gruppo | host | partecipanti | Sincronizza | Segui la riproduzione |
+| `ru` | Смотреть вместе | комната | ведущий | участники | Догнать | Следовать за воспроизведением |
+| `ja` | 一緒に見る | パーティー | ホスト | 参加者 | 追いつく | ホストの再生に合わせる |
+| `ko` | 함께 보기 | 파티 | 호스트 | 참여자 | 따라잡기 | 호스트 재생 따라가기 |
+| `zh-Hans` | 一起看 | 派对 | 主持人 | 成员 | 同步进度 | 跟随主持人播放 |
+| `zh-Hant` | 一起看 | 派對 | 主持人 | 成員 | 同步進度 | 跟隨主持人播放 |
+| `tr` | Birlikte izle | parti | ev sahibi | katılımcılar | Eşitle | Oynatmayı takip et |
+| `pl` | Oglądaj razem | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
