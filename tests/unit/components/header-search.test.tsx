@@ -6,7 +6,7 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-vi.mock('lucide-react', () => ({ ChevronDown: () => null, Search: () => null, Settings: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ListVideo: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
 
@@ -76,6 +76,8 @@ test('its English: the wordmark, the field and the buttons', () => {
   expect(host.querySelector('.logo')?.textContent).toBe('stub')
   expect(host.querySelector('.search-close')?.getAttribute('aria-label')).toBe('Close search')
   expect(host.querySelector('.search-toggle')?.getAttribute('aria-label')).toBe('Search')
-  const settings = host.querySelector('.actions a')!
+  const settings = host.querySelector('.actions a[href="/settings"]')!
   expect([settings.getAttribute('aria-label'), settings.getAttribute('title')]).toEqual(['Settings', 'Settings'])
+  const list = host.querySelector('.actions a[href="/list"]')!
+  expect([list.getAttribute('aria-label'), list.getAttribute('title')]).toEqual(['My list', 'My list'])
 })
