@@ -364,10 +364,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         margin: 0;
         padding: 0;
         list-style: none;
-
-        & > li {
-          min-width: 0;
-        }
       }
 
       & > .main > .sources .source {
