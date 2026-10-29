@@ -137,8 +137,9 @@ const Privacy = () => (
       Only the country is sent, never the time zone.
     </p>
     <p>
-      Sources you add in <Link to="/settings#sources">Settings</Link> are told your browser's language and the audio
-      and subtitle languages you last picked in a player, so they can offer releases in them.
+      Sources you add in <Link to="/settings#sources">Settings</Link> are told the language you picked there, or else
+      your browser's, and the audio and subtitle languages you last picked in a player, so they can offer releases in
+      them.
     </p>
 
     <h2>The optional browser extension</h2>

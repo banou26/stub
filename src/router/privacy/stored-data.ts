@@ -36,7 +36,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'settings',
     title: 'Settings',
-    what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country you picked, autoplay, the search layout, the trackers you chose not to save to and whether you expanded them, the play order, the merge order, and the audio and subtitle languages you last picked in a player. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
+    what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country and the language you picked, autoplay, the search layout, the trackers you chose not to save to and whether you expanded them, the play order, the merge order, and the audio and subtitle languages you last picked in a player. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
     lasts: "Until you change them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
     keys: { store: 'local', names: [...SETTINGS_KEYS, ACCOUNT_SETTINGS_KEY] },

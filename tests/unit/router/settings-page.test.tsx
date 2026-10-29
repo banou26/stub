@@ -14,6 +14,7 @@ vi.mock('../../../src/router/settings/wiring', () => ({
   prime: { signIn: async () => 'authed', signOut: async () => {} },
   sites: { isConnected: () => false, watch: () => () => {}, signIn: async () => 'authed', signOut: async () => {} },
   status: { read: () => undefined, watch: () => () => {}, check: async () => 'signed-in' },
+  settingsSaved: async () => {},
 }))
 const plugins = vi.hoisted(() => ({ statuses: [] as object[] }))
 vi.mock('../../../src/plugins', () => ({
@@ -80,7 +81,7 @@ const shown = (host: HTMLElement) => ({
 
 test('lists every category as a link whose fragment picks it', async () => {
   const host = await open()
-  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Playback', '#playback']])
+  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Playback', '#playback'], ['Language', '#language']])
 })
 
 test('names the page and its list of categories', async () => {
@@ -113,6 +114,14 @@ test('#playback shows Playback and its one switch, autoplay, on until turned off
   expect(stored.get('stub.player.autoplay')).toBe('off')
   unmount(hosts.pop()!)
   expect(isOn((await open('#playback')).querySelector<HTMLInputElement>('input[role="switch"]')!), 'kept').toBe(false)
+})
+
+test('#language shows Language and its one select, labelled by the heading', async () => {
+  const host = await open('#language')
+  expect(shown(host)).toEqual({ panels: ['language'], heading: 'Language', current: ['Language'], accountRows: 0 })
+  const selects = [...host.querySelectorAll('[data-section] select')]
+  expect(selects.map(select => document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Language'])
+  expect(host.querySelector('[data-section] p'), 'labels only').toBeNull()
 })
 
 test('an open Playback follows autoplay turned off in another tab or on the FKN account', async () => {

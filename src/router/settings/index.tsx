@@ -7,11 +7,12 @@ import { useLocationProperty } from 'wouter/use-browser-location'
 
 import { detectBackend } from '../../utils/fkn-backend'
 import { scrollToTop } from '../scroll-reset'
+import { LanguageSection } from './language'
 import { PlaybackSection } from './playback'
 import { SETTINGS_SECTIONS, sectionFromHash } from './sections'
 import { SourcesSection } from './sources'
 import { sectionStyle } from './style'
-import { crunchyroll, prime, sites, status } from './wiring'
+import { crunchyroll, prime, settingsSaved, sites, status } from './wiring'
 
 const style = css`
   display: grid;
@@ -104,9 +105,9 @@ const Settings = () => {
       </nav>
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
         <h2 id="settings-section-title">{intl.formatMessage(current.title)}</h2>
-        {current.id === 'sources'
-          ? <SourcesSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
-          : <PlaybackSection/>}
+        {current.id === 'sources' ? <SourcesSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
+          : current.id === 'playback' ? <PlaybackSection/>
+          : <LanguageSection saved={settingsSaved}/>}
       </section>
     </div>
   )

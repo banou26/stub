@@ -2,6 +2,7 @@ import type { AccountsProps } from './accounts'
 
 import { attachFrame, fetch } from '@fkn/lib'
 
+import { checkSettings } from '../../settings-account'
 import { clearCloudCookies } from '../../sources/cloud-sign-out'
 import { PRIME_DOMAINS, primeSignedIn, primeSignInUrl, primeSiteFor } from '../../sources/amazon/session'
 import { viewerCountry } from '../../sources/country'
@@ -39,3 +40,6 @@ export const status: AccountsProps['status'] = {
   refresh: createRefresh(siteStatuses, (_site, backend) =>
     checkCrunchyroll(backend, { attach: attachFrame, mount: () => mountHiddenFrame('Sign-in check'), fetch })),
 }
+
+/** Settles once the FKN account's settings step has run, with the edits this page made. */
+export const settingsSaved = checkSettings
