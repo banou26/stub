@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'vite-plus'
 
+import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
+
 // Where a tracker's card and its score menu land, and what a pointer or a finger does on a chip, need
 // layout and real event bubbling, which linkedom has neither of. So this builds tests/tracking-card.tsx
 // with the app's JSX setup and drives the real row, on a page that carries the app's global
@@ -26,7 +28,7 @@ test.beforeAll(async () => {
     root: ROOT,
     publicDir: false,
     logLevel: 'error',
-    plugins: [preact({ jsxImportSource: '@emotion/react' })],
+    plugins: [offerEveryLanguage(), preact({ jsxImportSource: '@emotion/react' })],
     build: { outDir: dir, rollupOptions: { input: join(ROOT, 'tests/tracking-card.tsx'), output: { entryFileNames: 'page.js' } } },
   })
 })
@@ -418,4 +420,73 @@ test('in Firefox too, the tiles are two high before the controls that end the ro
   } finally {
     await browser.close()
   }
+})
+
+// HOR-1026 (stub in the viewer's language): every word the row, its cards, its score menus, its notes and the lines about
+// stub's own list draw (tests/tracking-card.tsx's `?words`), and every name they give a screen reader
+const WORDS = ['anilist', 'kitsu', 'mal', 'stub', 'shiki', 'simkl', 'trakt', 'annict']
+
+// each element's own text and the names it gives, under `selector`, and what in it runs past the page or its own box
+const readOf = (page: Page, selector: string) => page.locator(selector).first().evaluate(root => {
+  const elements = [root, ...root.querySelectorAll('*')].filter(element => !element.closest('.sr-only') || element.matches('.sr-only'))
+  const words = elements.flatMap(element => [
+    [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('').trim(),
+    ...['aria-label', 'title'].map(name => element.getAttribute(name) ?? ''),
+  ]).filter(Boolean)
+  const shown = elements.filter(element => !element.matches('.sr-only') && element.getBoundingClientRect().width > 1)
+  const past = shown.filter(element => element.getBoundingClientRect().right > innerWidth + 1 || element.getBoundingClientRect().left < -1)
+  // a box whose own text runs past it, as a word too long for a button
+  const unfitted = shown.filter(element => [...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent!.trim())
+    && element.scrollWidth > element.clientWidth + 1 && element.tagName !== 'OPTION' && element.tagName !== 'SELECT')
+  const name = (element: Element) => `${element.tagName.toLowerCase()}.${element.className} ${JSON.stringify(element.textContent!.trim().slice(0, 40))}`
+  return { words, past: past.map(name), unfitted: unfitted.map(name) }
+})
+
+/** The words of `?words` at `width`, with each card and the score menus opened in turn, and what ran past its box. */
+const wordsOf = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.goto(`${ORIGIN}/?words`)
+  const row = page.locator('[data-words] > .tracking-compact').first()
+  await expect(row.locator('[data-chip="annict"]')).toBeVisible()
+  const reads = [await readOf(page, '[data-words]')]
+  for (const id of WORDS) {
+    await row.locator(`[data-chip="${id}"] .logo-button`).click()
+    await expect(row.locator(`[data-card="${id}"]`)).toBeVisible()
+    reads.push(await readOf(page, `[data-words] [data-card="${id}"]`))
+    if (id === 'kitsu') {
+      await row.locator('[data-card="kitsu"] .star').click()
+      reads.push(await readOf(page, '[data-card="kitsu"] .menu'))
+      await page.keyboard.press('Escape')
+    }
+    await page.keyboard.press('Escape')
+    await expect(row.locator(`[data-card="${id}"]`)).toBeHidden()
+  }
+  await row.locator('.row > .edit .star').click()
+  reads.push(await readOf(page, '[data-words] .menu'))
+  await page.keyboard.press('Escape')
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+  return { words: reads.flatMap(read => read.words), past: reads.flatMap(read => read.past), unfitted: reads.flatMap(read => read.unfitted), overflow }
+}
+
+test.describe('in a language stub does not offer yet', () => {
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    for (const width of [1440, 390]) {
+      test(`${language} at ${width} px: the tracking row, its cards and notes have no sideways scroll, nothing past its box, and none of their words in English`, async ({ page }) => {
+        await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+        const { words, past, unfitted, overflow } = await wordsOf(page, width)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        expect(words.length, 'the control: the area\'s words were read').toBeGreaterThan(150)
+        expect.soft(overflow).toBe(0)
+        expect.soft(past).toEqual([])
+        expect.soft(unfitted).toEqual([])
+        expect(englishIn(words, english(), language === PSEUDO ? undefined : catalogues()[language])).toEqual([])
+      })
+    }
+  }
+
+  test('the control: in English the same reading finds the area\'s own words', async ({ page }) => {
+    const { words } = await wordsOf(page, 1440)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(new Set(englishIn(words, english())).size).toBeGreaterThan(60)
+  })
 })
