@@ -1,4 +1,4 @@
-// A movie's page shows one line of facts and a play bar instead of a series' episode list (HOR-329).
+// A movie's page shows its release and a play bar instead of a series' episode list (HOR-329).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vite-plus/test'
@@ -6,7 +6,7 @@ import { expect, test } from 'vite-plus/test'
 import { startLanguage } from '../../../src/i18n'
 
 import { MediaCategory, MediaType } from '../../../src/generated/graphql'
-import { isMovieMedia, isUpcoming, movieFacts, releaseSide, runtimeText } from '../../../src/router/home/movie'
+import { filmDate, isMovieMedia, isUpcoming, releaseSide, runtimeText } from '../../../src/router/home/movie'
 import { releaseDateLabel } from '../../../src/utils/release-date'
 
 test('a runtime reads in hours and minutes, and none reads as nothing', () => {
@@ -27,29 +27,6 @@ test.each(['en-US', 'en-GB', 'en-CA', 'en-IN'])('%s writes a runtime as stub alw
   }
 })
 
-// HOR-1017: the release date under the preview's title, the film's as precisely as its sources date it
-test('the facts line names the format, the release date, the runtime and three genres at most', () => {
-  expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance', 'Historical'] }))
-    .toEqual(['Movie', releaseDateLabel('2026-12-11'), '1h 52m', 'Mystery, Drama, Romance'])
-  expect(movieFacts({ released: '2026-12' })).toEqual(['Movie', releaseDateLabel('2026-12')])
-  expect(movieFacts({ released: '2026' })).toEqual(['Movie', '2026'])
-})
-
-test('in German, the facts line is German, its runtime and genres the language\'s own way', async () => {
-  try {
-    await startLanguage({ language: 'de', languages: ['de-DE'] })
-    expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance'] })).toEqual(['Film', '11. Dez. 2026', '1h, 52 Min.', 'Mystery, Drama und Romance'])
-  } finally {
-    await startLanguage({ language: 'en', languages: ['en-US'] })
-  }
-})
-
-test('a fact a source did not give is left out rather than shown empty', () => {
-  expect(movieFacts({})).toEqual(['Movie'])
-  expect(movieFacts({ released: 'not a date', runtime: 0, genres: [] })).toEqual(['Movie'])
-  expect(movieFacts({ released: '2024-07-26T15:00:00.000Z' })).toEqual(['Movie', releaseDateLabel('2024-07-26T15:00:00.000Z')])
-})
-
 const TZ = process.env.TZ
 const inZone = <T>(zone: string, read: () => T): T => {
   process.env.TZ = zone
@@ -58,6 +35,29 @@ const inZone = <T>(zone: string, read: () => T): T => {
 // the first moment of 2021-12-24 in each zone
 const MIDNIGHT = { 'America/Los_Angeles': '2021-12-24T08:00:00Z', 'Asia/Tokyo': '2021-12-23T15:00:00Z' } as const
 const before = (iso: string) => new Date(Date.parse(iso) - 1000)
+
+// HOR-830: a film not out yet shows its date in large type, the day over its long form and how far off it is
+test('a film\'s large date is its day over its long form and the days left, a month or a year alone over its Releases line', () => {
+  const now = new Date('2026-10-30T12:00:00Z')
+  inZone('UTC', () => {
+    expect(filmDate('2026-12-11', now)).toEqual({ day: 'Dec 11', date: 'Friday, December 11, 2026', count: 'in 42 days', partial: false })
+    expect([filmDate('2026-10-31', now)?.count, filmDate('2026-10-30', now)?.count]).toEqual(['tomorrow', 'today'])
+    expect(filmDate('2027', now)).toEqual({ day: '2027', date: 'Releases 2027', partial: true })
+    expect(filmDate('2027-04', now)).toEqual({ day: 'April', date: `Releases ${releaseDateLabel('2027-04')}`, partial: true })
+    for (const none of [undefined, null, '', 'not a date']) expect(filmDate(none, now), String(none)).toBeUndefined()
+  })
+})
+
+test('in German, a film\'s large date is German', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    const now = new Date('2026-10-30T12:00:00Z')
+    expect(inZone('UTC', () => filmDate('2026-12-11', now))).toEqual({ day: '11. Dez.', date: 'Freitag, 11. Dezember 2026', count: 'in 42 Tagen', partial: false })
+    expect(filmDate('2027', now)?.date).toBe('Erscheint: 2027')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
 
 test('a day with no time is out from the start of that day where the viewer is, whatever the hour', () => {
   for (const [zone, midnight] of Object.entries(MIDNIGHT)) {
@@ -81,11 +81,14 @@ test('a year or a month alone is ahead before it begins, maybe out during it, an
   }
 })
 
-// AniList's schedule airing a film at 00:30 JST on New Year's Day 2027
-test('a film\'s date is the day its air time falls on where the viewer is, and a day\'s own day everywhere', () => {
-  expect(inZone('Asia/Tokyo', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', releaseDateLabel('2027-01-01')])
-  expect(inZone('America/Los_Angeles', () => movieFacts({ released: 'Thu, 31 Dec 2026 15:30:00 GMT' }))).toEqual(['Movie', releaseDateLabel('2026-12-31')])
-  expect(inZone('America/Los_Angeles', () => movieFacts({ released: '2027-01-01' })), 'the control: a day').toEqual(['Movie', releaseDateLabel('2027-01-01')])
+// AniList's schedule airing a film at 00:30 JST on New Year's Day 2027, seen on Dec 30 where the viewer is
+test('a film\'s large date is the day its air time falls on where the viewer is, and a day\'s own day everywhere', () => {
+  const tokyo = inZone('Asia/Tokyo', () => filmDate('Thu, 31 Dec 2026 15:30:00 GMT', new Date(2026, 11, 30, 12)))
+  expect([tokyo?.day, tokyo?.count]).toEqual(['Jan 1', 'in 2 days'])
+  const losAngeles = inZone('America/Los_Angeles', () => filmDate('Thu, 31 Dec 2026 15:30:00 GMT', new Date(2026, 11, 30, 12)))
+  expect([losAngeles?.day, losAngeles?.count]).toEqual(['Dec 31', 'tomorrow'])
+  const day = inZone('America/Los_Angeles', () => filmDate('2027-01-01', new Date(2026, 11, 30, 12)))
+  expect([day?.day, day?.date, day?.count], 'the control: a day').toEqual(['Jan 1', 'Friday, January 1, 2027', 'in 2 days'])
 })
 
 // anizip's `airDateUtc` for Jujutsu Kaisen 0: 00:30 JST on Dec 24

@@ -52,7 +52,8 @@ const SOURCES: Readonly<Record<string, MessageDescriptor>> = defineMessages({
   PICTURE_BOOK: { id: 'Picture book#source material', defaultMessage: 'Picture book', description: 'source material' },
 })
 
-const episodesLabel = (count: number | null | undefined) =>
+/** A count of episodes as the chips write it ("28 Episodes"), or nothing for none. */
+export const episodesLabel = (count: number | null | undefined) =>
   count ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count }) : undefined
 
 // a value AniList may add later reads as its own words: AUDIO_DRAMA as Audio drama

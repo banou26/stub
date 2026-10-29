@@ -13,16 +13,16 @@ import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
 import { releaseDateLabel } from '../../../src/utils/release-date'
 
 let origin = 'cr'
+let icon: string | null = null
 vi.mock('urql', () => ({
   useSubscription: ({ variables }: { variables: { input: { ids: string[] } } }) =>
-    [{ data: { originPage: { nodes: variables.input.ids.includes(origin) ? [{ id: origin, name: origin, icon: null, color: null }] : [] } } }],
+    [{ data: { originPage: { nodes: variables.input.ids.includes(origin) ? [{ id: origin, name: origin, icon, color: null }] : [] } } }],
 }))
 vi.mock('../../../src/worker', () => ({}))
 vi.mock('lucide-react', () => ({ LucidePlay: () => null }))
 
 const { default: MoviePlay } = await import('../../../src/router/home/movie-play')
 const { useWatchSources } = await import('../../../src/router/home/media-details')
-const { default: SourceSelector } = await import('../../../src/components/source-selector')
 const { startLanguage } = await import('../../../src/i18n')
 
 const episode = {
@@ -35,6 +35,7 @@ const TZ = process.env.TZ
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   origin = 'cr'
+  icon = null
   vi.useRealTimers()
   if (TZ === undefined) delete process.env.TZ
   else process.env.TZ = TZ
@@ -42,14 +43,13 @@ afterEach(() => {
 
 type Offers = Parameters<typeof useWatchSources>[2]
 
-// what the modal draws for a film: its play bar and, under the description, its sources, from one list of them
+// what the modal draws for a film under its title, the tracking it is handed beside Play
 const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEpisode | undefined, handles: Offers, startDate: string | null, status?: string, settled: boolean }) => {
   const { sources } = useWatchSources(movie, 'ag:(anilist:9)', handles)
   return (
-    <>
-      <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}/>
-      <SourceSelector film sources={sources}/>
-    </>
+    <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}>
+      <section className="tracking-compact"/>
+    </MoviePlay>
   )
 }
 
@@ -72,14 +72,28 @@ const seenAt = (now: string, zone: string, movie: DetailsEpisode | undefined, st
 
 const ZONES = ['UTC', 'Asia/Tokyo', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']
 
+// the line under a film's large date: its day written out, or Releases and a year or a month alone
+const when = (host: HTMLElement) => host.querySelector('.release > .date')?.textContent
+const longDay = (day: string) => new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(day))
+
 test('Play opens the watch page naming no source, even when Crunchyroll plays', () => {
   expect(render(episode).querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
 })
 
-test('the play bar draws no source icon, the buttons under it name each source', () => {
+test('Play\'s row draws no source icon, the list under it names each source and what a click does', () => {
   const host = render(episode)
   expect(host.querySelector('a.source[href="/watch/ag:(anilist:9)/ag:(cr:GX1)/cr:GX1"] .name')?.textContent).toBe('cr')
-  expect(host.querySelector('.play-bar')?.querySelectorAll('a:not(.play)')).toHaveLength(0)
+  expect(host.querySelector('a.source .how')?.textContent).toBe('Plays here')
+  expect(host.querySelector('.actions')?.querySelectorAll('a:not(.play)')).toHaveLength(0)
+})
+
+// HOR-1059: the owner did not want an empty band between the tracking and what is above it
+test('the tracking shares Play\'s row, and the row under the date of a film not out yet', () => {
+  const classes = (host: HTMLElement) => [...host.querySelector('.movie > .actions')!.children].map(child => child.className)
+  expect(classes(render(episode))).toEqual(['play', 'tracking-compact'])
+  const ahead = render(episode, [], '2099-01-01', 'NOT_YET_RELEASED')
+  expect([...ahead.querySelector('.movie')!.children].map(child => child.className)).toEqual(['release', 'actions', 'sources'])
+  expect(classes(ahead)).toEqual(['tracking-compact'])
 })
 
 // a browser cannot open a magnet, and the watch page plays a torrent plugin's release itself
@@ -133,32 +147,42 @@ test('a media-level offer the episode does not name links out from its button', 
   ])
   const link = host.querySelector('a.source[href="https://www.hidive.com/interstitial/715215"]')
   expect(link?.getAttribute('target')).toBe('_blank')
+  expect(link?.querySelector('.how')?.textContent).toBe('hidive.com')
   expect(host.querySelector('a.play')).toBeNull()
-  expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
+  expect(host.querySelector('.none'), 'and it does not read No sources yet').toBeNull()
 })
 
-test('until a source lands or the film\'s sources have all answered, the bar holds Play\'s place and does not read No sources yet', () => {
+test('until a source lands or the film\'s sources have all answered, Play\'s place is held and No sources yet is not read', () => {
   origin = 'none'
   const loading = render(episode, [], '2020-01-01', undefined, false)
-  expect(loading.querySelector('.play-bar')?.classList.contains('held')).toBe(true)
-  expect(loading.querySelector('.when')).toBeNull()
+  expect(loading.querySelector('.actions > .play-pending')).not.toBeNull()
+  expect(loading.querySelector('.none')).toBeNull()
   const settled = render(episode)
-  expect(settled.querySelector('.play-bar')?.classList.contains('held'), 'the control: settled, it fits what it holds').toBe(false)
-  expect(settled.querySelector('.when')?.textContent).toBe('No sources yet')
+  expect(settled.querySelector('.play-pending'), 'the control: settled, nothing is held').toBeNull()
+  expect(settled.querySelector('.movie > .none')?.textContent).toBe('No sources yet')
   origin = 'cr'
-  expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-bar')?.classList.contains('held'), 'Play has landed').toBe(false)
+  expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-pending'), 'Play has landed').toBeNull()
+})
+
+// Made in Abyss: Mezameru Shinpi Part 2, 2026-10-26: AniList lists it as not yet released, with no date
+test('a film not out yet with no date reads Coming soon, never No sources yet', () => {
+  origin = 'none'
+  const host = render(episode, [], null, 'NOT_YET_RELEASED')
+  expect([host.querySelector('.release > .day')?.textContent, when(host)]).toEqual(['Coming soon', 'No release date yet'])
+  expect(host.querySelector('.none')).toBeNull()
+  expect(host.querySelector('.play-pending'), 'and nothing is held').toBeNull()
+  expect(render(episode, [], null).querySelector('.movie > .none')?.textContent, 'the control: a film not known to be ahead').toBe('No sources yet')
 })
 
 // so a film whose services all link out, none of them one stub plays, loses the held place as its buttons land,
 // not when the media settles
-test('a source that links out ends the hold, and a bar with nothing in it is not drawn, settled or not', () => {
+test('a source that links out ends the hold, settled or not', () => {
   origin = 'hidive'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
   for (const settled of [false, true]) {
     const host = render(episode, offer, '2020-01-01', undefined, settled)
-    expect(host.querySelector('a.source'), `the control: its button, settled ${settled}`).not.toBeNull()
-    expect(host.querySelector('.movie > .facts'), `and the film's line, settled ${settled}`).not.toBeNull()
-    expect(host.querySelector('.play-bar'), `settled ${settled}`).toBeNull()
+    expect(host.querySelector('a.source'), `the control: its row, settled ${settled}`).not.toBeNull()
+    expect(host.querySelector('.play-pending, a.play'), `settled ${settled}`).toBeNull()
   }
 })
 
@@ -170,11 +194,11 @@ test('while a source stub plays still links out and the film has not settled, th
   const film = { uri: 'ag:(jw:403680-1)', handles: [] } as unknown as DetailsEpisode
   const early = render(film, offer, '2018-08-17', undefined, false)
   expect(early.querySelector('a.source')?.getAttribute('target'), 'the control: Netflix links out').toBe('_blank')
-  expect(early.querySelector('.play-bar')?.classList.contains('held')).toBe(true)
-  expect(render(film, offer, '2018-08-17').querySelector('.play-bar'), 'the control: settled, nothing to hold').toBeNull()
+  expect(early.querySelector('.play-pending')).not.toBeNull()
+  expect(render(film, offer, '2018-08-17').querySelector('.play-pending'), 'the control: settled, nothing to hold').toBeNull()
   vi.stubGlobal('localStorage', { getItem: (key: string) => key === DISABLED_SOURCES_KEY ? '["nf"]' : null })
   try {
-    expect(render(film, offer, '2018-08-17', undefined, false).querySelector('.play-bar'), 'turned off, Netflix never plays here').toBeNull()
+    expect(render(film, offer, '2018-08-17', undefined, false).querySelector('.play-pending'), 'turned off, Netflix never plays here').toBeNull()
   } finally {
     vi.unstubAllGlobals()
   }
@@ -185,11 +209,11 @@ test('while a source stub plays still links out and the film has not settled, th
   expect(render(played, offer, '2018-08-17', undefined, false).querySelector('a.play'), 'the control: its episode landed').not.toBeNull()
 })
 
-test('a film not out yet never holds the bar, so the line naming its release day does not move', () => {
+test('a film not out yet never holds Play\'s place', () => {
   origin = 'none'
   const host = render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false)
-  expect(host.querySelector('.when')?.textContent, 'the control: not out yet').toBe(`Releases ${releaseDateLabel('2099-01-01')}`)
-  expect(host.querySelector('.play-bar')?.classList.contains('held')).toBe(false)
+  expect(when(host), 'the control: not out yet').toBe(longDay('2099-01-01'))
+  expect(host.querySelector('.play-pending')).toBeNull()
 })
 
 // Simkl's `first_aired` for Blade Runner: Black Out 2022 (tests/fixtures/simkl/search-blade-runner.json),
@@ -197,7 +221,7 @@ test('a film not out yet never holds the bar, so the line naming its release day
 test('a film not out yet names its release day, the same day for every viewer', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     const host = seenAt('2017-09-01T12:00:00Z', zone, episode, '2017-09-26T00:00:00Z')
-    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2017-09-26')}`)
+    expect(when(host), zone).toBe(longDay('2017-09-26'))
   }
 })
 
@@ -207,22 +231,17 @@ const jujutsuKaisen0 = { ...episode, releaseDate: '2021-12-23T15:30:00Z' } as De
 test('a film\'s own release day stays put when its episode\'s air time arrives, the same day for every viewer', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     const host = seenAt('2021-12-01T12:00:00Z', zone, undefined, '2021-12-24T00:00:00Z')
-    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+    expect(when(host), zone).toBe(longDay('2021-12-24'))
     act(() => { rerender(tree(jujutsuKaisen0, [], '2021-12-24T00:00:00Z'), host) })
-    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+    expect(when(host), zone).toBe(longDay('2021-12-24'))
   }
-})
-
-test('a film\'s date is its own release day, whatever day its episode airs', () => {
-  const host = render({ ...episode, releaseDate: '2021-12-31T15:30:00Z' } as DetailsEpisode, [], '2022-01-01T00:00:00Z')
-  expect(host.querySelector('.facts')?.textContent).toBe(`Movie · ${releaseDateLabel('2022-01-01')}`)
 })
 
 // the title page and the hero decide by the episode's air time, so the modal does too
 test('a film is out when its episode airs within a day of its own release day, in every zone, its line naming its own day until then', () => {
   for (const zone of ZONES) {
     const early = seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0, '2021-12-24T00:00:00Z')
-    expect(early.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+    expect(when(early), zone).toBe(longDay('2021-12-24'))
     expect(early.querySelector('a.play'), zone).toBeNull()
     expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, '2021-12-24T00:00:00Z').querySelector('a.play'), zone).not.toBeNull()
   }
@@ -235,7 +254,7 @@ test('a film whose episode names only a day, or a time further off, is out from 
   for (const movie of dated) {
     for (const [zone, midnight] of [['America/Los_Angeles', '2021-12-24T08:00:00Z'], ['Asia/Tokyo', '2021-12-23T15:00:00Z']] as const) {
       const late = seenAt(new Date(Date.parse(midnight) - 60_000).toISOString(), zone, movie, '2021-12-24T00:00:00Z', 'NOT_YET_RELEASED')
-      expect(late.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel('2021-12-24')}`)
+      expect(when(late), zone).toBe(longDay('2021-12-24'))
       expect(late.querySelector('a.play'), zone).toBeNull()
       expect(seenAt(midnight, zone, movie, '2021-12-24T00:00:00Z', 'NOT_YET_RELEASED').querySelector('a.play'), `${zone} ${movie.releaseDate}`).not.toBeNull()
     }
@@ -254,7 +273,7 @@ test('a film whose start is an air time at midnight UTC is out at that time, not
 test('a film with no release day of its own is out at its episode\'s air time, in every zone', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     const early = seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0)
-    expect(early.querySelector('.when')?.textContent, zone).toMatch(/^Releases /)
+    expect(when(early), zone).toMatch(/December 2[34], 2021$/)
     expect(early.querySelector('a.play'), zone).toBeNull()
     expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0).querySelector('a.play'), zone).not.toBeNull()
   }
@@ -266,20 +285,20 @@ test('Play appears on the clock\'s next tick once the film\'s release day has st
   process.env.TZ = 'America/Los_Angeles'
   vi.useFakeTimers({ now: Date.parse('2026-10-17T06:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
   const host = render(episode, [], '2026-10-17')
-  expect(host.querySelector('.when')?.textContent, 'the control: not out yet').toBe(`Releases ${releaseDateLabel('2026-10-17')}`)
+  expect(when(host), 'the control: not out yet').toBe(longDay('2026-10-17'))
   expect(host.querySelector('a.play')).toBeNull()
 
   act(() => { vi.advanceTimersByTime(30_000) })
   expect(render(episode, [], '2026-10-17').querySelector('a.play'), 'the control: a bar drawn now has Play').not.toBeNull()
   expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
-  expect(host.querySelector('.when')).toBeNull()
+  expect(host.querySelector('.release')).toBeNull()
 })
 
 // AniList knows only December 2021 for Jujutsu Kaisen 0, so `airedDate` gives its schedule's first airing
 test('a film whose own start is an air time is out at that time, and names its day where the viewer is', () => {
   const startDate = 'Thu, 23 Dec 2021 15:30:00 GMT'
   for (const [zone, day] of [['America/Los_Angeles', '2021-12-23'], ['Asia/Tokyo', '2021-12-24']] as const) {
-    expect(seenAt('2021-12-22T12:00:00Z', zone, episode, startDate).querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel(day)}`)
+    expect(when(seenAt('2021-12-22T12:00:00Z', zone, episode, startDate)), zone).toBe(longDay(day))
     expect(seenAt('2021-12-23T15:29:00Z', zone, jujutsuKaisen0, startDate).querySelector('a.play'), zone).toBeNull()
     expect(seenAt('2021-12-23T15:30:00Z', zone, jujutsuKaisen0, startDate).querySelector('a.play'), zone).not.toBeNull()
   }
@@ -288,7 +307,7 @@ test('a film whose own start is an air time is out at that time, and names its d
 test('a film with no release day of its own names its episode\'s air time, where the viewer is', () => {
   for (const [zone, day] of [['America/Los_Angeles', '2021-12-23'], ['Asia/Tokyo', '2021-12-24']] as const) {
     const host = seenAt('2021-12-01T12:00:00Z', zone, jujutsuKaisen0)
-    expect(host.querySelector('.when')?.textContent, zone).toBe(`Releases ${releaseDateLabel(day)}`)
+    expect(when(host), zone).toBe(longDay(day))
   }
 })
 
@@ -297,8 +316,7 @@ test('a film known only to its year names the year, and a film not out yet stays
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     for (const now of ['2026-11-01T12:00:00Z', '2027-10-17T12:00:00Z']) {
       const host = seenAt(now, zone, episode, '2027', 'NOT_YET_RELEASED')
-      expect(host.querySelector('.when')?.textContent, `${zone} ${now}`).toBe('Releases 2027')
-      expect(host.querySelector('.facts')?.textContent, zone).toBe('Movie · 2027')
+      expect([host.querySelector('.release > .day')?.textContent, when(host)], `${zone} ${now}`).toEqual(['2027', 'Releases 2027'])
       expect(host.querySelector('a.play'), zone).toBeNull()
     }
   }
@@ -311,28 +329,19 @@ test('a film dated by a year or a month that has begun is out, unless it is know
       for (const status of [undefined, 'FINISHED']) {
         const out = seenAt('2026-10-17T12:00:00Z', zone, episode, startDate, status)
         expect(out.querySelector('a.play'), `${zone} ${startDate} ${status}`).not.toBeNull()
-        expect(out.querySelector('.when'), `${zone} ${startDate} ${status}`).toBeNull()
+        expect(out.querySelector('.release'), `${zone} ${startDate} ${status}`).toBeNull()
       }
       const ahead = seenAt('2026-10-17T12:00:00Z', zone, episode, startDate, 'NOT_YET_RELEASED')
-      expect(ahead.querySelector('.when')?.textContent, `${zone} ${startDate}`).toBe(`Releases ${releaseDateLabel(startDate)}`)
+      expect(when(ahead), `${zone} ${startDate}`).toBe(`Releases ${releaseDateLabel(startDate)}`)
       expect(ahead.querySelector('a.play'), `${zone} ${startDate}`).toBeNull()
     }
-  }
-})
-
-// AniList's schedule airing a film at 00:30 JST on New Year's Day 2027
-test('a film whose start is an air time names the day its Releases line names', () => {
-  for (const zone of ZONES) {
-    const host = seenAt('2026-12-01T00:00:00Z', zone, episode, 'Thu, 31 Dec 2026 15:30:00 GMT')
-    const day = host.querySelector('.when')!.textContent!.replace('Releases ', '')
-    expect(host.querySelector('.facts')?.textContent, `${zone}: ${day}`).toBe(`Movie · ${day}`)
   }
 })
 
 test('an episode\'s air time outranks a film\'s year or month alone', () => {
   for (const startDate of ['2027', '2027-07']) {
     const host = seenAt('2027-03-01T12:00:00Z', 'America/Los_Angeles', { ...episode, releaseDate: '2027-07-15T15:30:00Z' } as DetailsEpisode, startDate)
-    expect(host.querySelector('.when')?.textContent, startDate).toBe(`Releases ${releaseDateLabel('2027-07-15')}`)
+    expect(when(host), startDate).toBe(longDay('2027-07-15'))
     expect(host.querySelector('a.play'), startDate).toBeNull()
   }
 })
@@ -357,19 +366,36 @@ test('Play stays when the source that plays has its icon hidden', async () => {
     const host = render(episode)
     expect(host.querySelector('.source')).toBeNull()
     expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
-    expect(host.querySelector('.when'), 'and it does not read No sources yet').toBeNull()
+    expect(host.querySelector('.none'), 'and it does not read No sources yet').toBeNull()
   } finally {
     vi.unstubAllGlobals()
   }
 })
 
-test('in German, Play, its release line and No sources yet read German', async () => {
+// HOR-830: JustWatch's 100 px logos (src/sources/justwatch/logos.ts), sharper than the sites' favicons
+test('a service\'s row shows its sharp logo, the site\'s own icon when that fails, then the name\'s first letter', () => {
+  origin = 'nf'
+  icon = 'https://nf.test/favicon.ico'
+  const offer = [{ relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/81037598' } }]
+  const host = render(episode, offer)
+  const logo = () => host.querySelector('.source .logo')!
+  expect(logo().className).toBe('logo sharp')
+  expect(logo().querySelector('img')?.getAttribute('src')).toBe('https://images.justwatch.com/icon/207360008/s100/netflix.webp')
+  act(() => { logo().querySelector('img')!.dispatchEvent(new Event('error')) })
+  expect([logo().className, logo().querySelector('img')?.getAttribute('src')]).toEqual(['logo', 'https://nf.test/favicon.ico'])
+  act(() => { logo().querySelector('img')!.dispatchEvent(new Event('error')) })
+  expect([logo().querySelector('img'), logo().textContent]).toEqual([null, 'n'])
+})
+
+test('in German, Play, its release line, its rows, No sources yet and Coming soon read German', async () => {
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
     expect(render(episode).querySelector('a.play')?.textContent).toBe('Abspielen')
-    expect(render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false).querySelector('.when')?.textContent).toBe('Erscheint: 1. Jan. 2099')
+    expect(when(render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false))).toBe('Donnerstag, 1. Januar 2099')
+    expect(render(episode).querySelector('.source .how')?.textContent).toBe('Hier abspielbar')
     origin = 'none'
-    expect(render(episode).querySelector('.when')?.textContent).toBe('Noch keine Quellen')
+    expect(render(episode).querySelector('.none')?.textContent).toBe('Noch keine Quellen')
+    expect(when(render(episode, [], null, 'NOT_YET_RELEASED'))).toBe('Noch kein Erscheinungsdatum')
   } finally {
     await startLanguage({ language: 'en', languages: ['en-US'] })
   }

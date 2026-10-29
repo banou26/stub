@@ -94,7 +94,7 @@ const openModal = async (page: Page) => {
   const card = page.locator('a[href^="/media/"]').first()
   await expect(card).toBeVisible({ timeout: 30_000 })
   await page.goto(`${origin}${await card.getAttribute('href')}`)
-  const title = modal(page).locator('.header > span.title')
+  const title = modal(page).locator('h2.title')
   await expect(title).toHaveText(/\S/, { timeout: 30_000 })
   return (await title.textContent())!
 }
@@ -136,7 +136,7 @@ test('More details opens the page, and Back returns to the modal', async ({ page
   await expect(heading(page)).toHaveText(title)
   await page.goBack()
   await expect(page).toHaveURL(/\/media\/ag:\(/)
-  await expect(modal(page).locator('.header > span.title')).toHaveText(title)
+  await expect(modal(page).locator('h2.title')).toHaveText(title)
 })
 
 /**
@@ -161,7 +161,7 @@ test('Back pressed as the page draws the answer that grows its address returns t
   const back = backOnDraw(page, '/title/', { '[data-themes]': 'Yuusha' })
   await modal(page).getByRole('link', { name: 'More details' }).click()
   expect(await back).toMatch(/^\/media\//)
-  await expect(modal(page).locator('.header > span.title')).toHaveText(title)
+  await expect(modal(page).locator('h2.title')).toHaveText(title)
 })
 
 const SEQUEL = 'ag:(anilist:900001)'
@@ -253,30 +253,26 @@ const scrolls = (row: Element) => {
   return row.scrollLeft > 0
 }
 
-test('the preview\'s header and description are one size before the details answer and after, at 1440 and 390 px', async ({ page }) => {
+test('the preview\'s description is one size before the details answer and after, and its links wrap in its column, at 1440 and 390 px', async ({ page }) => {
   for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height: viewport })
-    const header = page.locator('.modal > .content > .header')
-    const description = page.locator('.modal > .content > .description')
+    const description = page.locator('.modal .columns > .main > .description')
     // an address no source answers for, so the preview stays as it first draws
     await page.goto(`${origin}/media/ag:(zz:1)`)
-    await expect(header.locator('.title-pending'), `${width}: held`).toBeVisible({ timeout: 30_000 })
-    const held = { header: await height(header), description: await height(description) }
+    await expect(modal(page).locator('.title-pending'), `${width}: held`).toBeVisible({ timeout: 30_000 })
+    const held = await height(description)
 
     // Spec Sequel, whose description is long enough to collapse at both widths: the placeholder holds the collapsed size
     await page.goto(`${origin}/media/${SEQUEL}`)
-    await expect(header.locator('span.title')).toHaveText('Spec Sequel', { timeout: 30_000 })
+    await expect(modal(page).locator('h2.title')).toHaveText('Spec Sequel', { timeout: 30_000 })
     await expect(description).toHaveClass(/collapsed/)
-    await expect(header.locator('.origins > .origin').first()).toBeVisible({ timeout: 30_000 })
-    await nineIcons(header.locator('.origins'))
-    expect({ header: await height(header), description: await height(description) }, `${width}`).toEqual(held)
-    if (width === 390) {
-      const middle = async (locator: Locator) => { const box = (await locator.boundingBox())!; return Math.round(box.y + box.height / 2) }
-      expect(await middle(header.locator('.origins')), 'the icons share More details\' line').toBe(await middle(header.locator('.more')))
-      expect(await header.locator('.origins').evaluate(scrolls), 'and scroll past its edge').toBe(true)
-      expect(await header.locator('.origins').evaluate(row => getComputedStyle(row).maskImage), 'fading there').toContain('linear-gradient')
-      expect(await overflowX(page)).toBe(0)
-    }
+    expect(await height(description), `${width}`).toBe(held)
+    const links = modal(page).locator('.links')
+    await expect(links.locator('.origins > .origin').first()).toBeVisible({ timeout: 30_000 })
+    await nineIcons(links.locator('.origins'))
+    const [row, modalBox] = await Promise.all([links.boundingBox(), modal(page).boundingBox()])
+    expect(row!.x + row!.width, `${width}: the icons wrap inside the modal`).toBeLessThanOrEqual(modalBox!.x + modalBox!.width)
+    expect(await overflowX(page)).toBe(0)
   }
 })
 
@@ -1044,26 +1040,25 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
   await expect(chips).toHaveText(RATED_CHIPS.slice(4))
 })
 
-// HOR-1059: the tracking at the right of the release date, where an empty band under More details was
-test('the preview\'s tracking sits level with its release date at 1440 px, under it at 390 px, and a long note under it moves neither', async ({ page }) => {
+// HOR-1059: no empty band between the title and the tracking; HOR-830 put it atop the description's column
+test('the preview\'s tracking starts its description\'s column level with the facts beside it at 1440 px, under the title at 390 px, and a long note under it moves neither', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${origin}/media/${RATED}`)
-  const released = modal(page).locator('.released-row > .released')
-  const tracking = modal(page).locator('.released-row > .tracking-compact')
+  const tracking = modal(page).locator('.columns > .main > .tracking-compact')
+  const facts = modal(page).locator('.columns > .side > .facts')
   const controls = tracking.locator('.group.edit')
-  await expect(released).toHaveText(/2023/, { timeout: 30_000 })
+  await expect(facts).toContainText(/2023/, { timeout: 30_000 })
   await expect(tracking.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
-  const [date, row, more] = await Promise.all([box(released), box(tracking), box(modal(page).locator('.header > .more'))])
-  expect(row.top, 'level with the date').toBe(date.top)
-  expect(Math.abs(row.right - more.right), 'ending under More details').toBeLessThan(1)
+  const [row, side] = await Promise.all([box(tracking), box(facts)])
+  expect(Math.abs(row.top - side.top), 'level with the facts').toBeLessThan(1)
 
   // a failed save's line longer than the whole row
   const held = (await box(controls)).top
   await tracking.locator('.notes').evaluate(notes => notes.insertAdjacentHTML('beforeend', `<div class="note">${'MyAnimeList did not save the status and episode 12 and the score. '.repeat(6)}<button type="button">Retry</button></div>`))
-  expect((await box(controls)).top, 'the controls stay level with the date').toBe(held)
+  expect((await box(controls)).top, 'the controls stay where they were').toBe(held)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect((await box(tracking)).top, 'on a phone, under the date').toBeGreaterThanOrEqual((await box(released)).bottom)
+  expect((await box(tracking)).top, 'on a phone, under the title').toBeGreaterThanOrEqual((await box(modal(page).locator('h2.title'))).bottom)
   expect(await overflowX(page)).toBe(0)
 })
 
@@ -1072,9 +1067,11 @@ test('the preview\'s tracking sits level with its release date at 1440 px, under
 const FILM = 'ag:(anilist:900050)'
 const FILM_SOURCES = ['HIDIVE', 'Hoopla', 'Philo', 'Plex', 'Pluto TV', 'The Roku Channel', 'Tubi']
 const FILM_VIEWS = [
-  { path: `/media/${FILM}`, row: '.modal .description + .watch', below: '.modal [data-relations]' },
+  { path: `/media/${FILM}`, row: '.modal .movie > .sources', below: '.modal [data-relations]' },
   { path: `/title/${FILM}`, row: '.heading > .description ~ .watch', below: '.body > .actions' },
 ]
+// the title page draws a film's places to watch as the watch page's buttons, the preview as a list of rows (HOR-830)
+const FILM_PAGE = FILM_VIEWS.filter(({ path }) => path.startsWith('/title/'))
 
 // what a film's button looks like: the watch page's 3.2rem icon, its name at 1.45rem weight 600, and ↗ for a site
 const look = (link: Element) => {
@@ -1104,9 +1101,9 @@ const packing = (buttons: Locator) => buttons.evaluateAll(links => {
   }
 })
 
-test('a film lists every place to watch it under its description as the watch page\'s buttons, side by side, in the modal and on its page, and with none in stub has no play bar', async ({ page }) => {
+test('a film\'s page lists every place to watch it under its description as the watch page\'s buttons, side by side', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  for (const { path, row } of FILM_VIEWS) {
+  for (const { path, row } of FILM_PAGE) {
     await page.goto(`${origin}${path}`)
     const buttons = page.locator(row).locator('a')
     await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
@@ -1122,37 +1119,47 @@ test('a film lists every place to watch it under its description as the watch pa
     expect(roomLeft, `${path}: a line holds every button that fits`).toBe(false)
     expect(lines, `${path}: side by side`).toBeLessThan(FILM_SOURCES.length)
     expect(inside, `${path}: none past the row's edge`).toBe(true)
-    if (path.startsWith('/media/')) {
-      await expect(modal(page).locator('.movie > .facts'), 'the control: the film\'s line').toHaveCount(1)
-      await expect(modal(page).locator('.movie .play-bar')).toHaveCount(0)
-    }
   }
 })
 
-// the modal's play bar holds Play's place until then, and no Play comes, so it goes as the buttons land
+// HOR-830: round 3's Minimal list, a row a service, what a click does named at rest
+test('a film\'s preview lists every place to watch it under Play\'s row, a row each naming the site it opens, and with none in stub holds no Play', async ({ page }) => {
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/media/${FILM}`)
+    const rows = modal(page).locator('.movie > .sources a.source')
+    await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    expect((await rows.locator('.name').allTextContents()).sort()).toEqual(FILM_SOURCES)
+    const row = (name: string) => rows.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await expect(row('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
+    await expect(row('Tubi').locator('.how')).toHaveText('tubitv.com')
+    expect(await rows.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), 'each opens its site in a new tab').toBe(true)
+    const heights = await rows.evaluateAll(links => [...new Set(links.map(link => Math.round(link.getBoundingClientRect().height)))])
+    expect(heights, `${width}: one line a row`).toHaveLength(1)
+    await expect(modal(page).locator('.movie > .actions > .play, .movie > .actions > .play-pending'), `${width}: no Play, nor its place`).toHaveCount(0)
+    expect(await overflowX(page)).toBe(0)
+  }
+})
+
 test('390 px wide, a film\'s buttons are as wide as what they hold, as many to a line as fit, the first line landing in the place held for it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const { path, row, below } of FILM_VIEWS) {
+  for (const { path, row, below } of FILM_PAGE) {
     await page.goto(`${origin}${path}`)
     const buttons = page.locator(row).locator('a')
-    const bar = page.locator('.modal .movie .play-bar')
     const pending = page.locator(row).locator('.pending')
     await expect(page.locator(below), path).toBeVisible({ timeout: 30_000 })
     await expect(pending, `${path}: the control: held while JustWatch has not answered`).toBeVisible()
     const placeholder = (await pending.boundingBox())!
     const heldRow = await height(page.locator(row))
     const held = await onPage(page.locator(below))
-    const film = await page.locator('.modal .movie').evaluateAll(blocks => blocks.map(block => Math.round(block.getBoundingClientRect().height)))
     const tops = await everyFrame(page, below)
     await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
     await page.evaluate(() => new Promise(requestAnimationFrame))
-    await expect(bar, path).toHaveCount(0)
-    const drop = film.length ? film[0]! - await height(page.locator('.modal .movie')) : 0
     const first = (await buttons.first().boundingBox())!
     expect(Math.round(first.height), `${path}: a button is as tall as the place held`).toBe(Math.round(placeholder.height))
-    expect(Math.round(first.y), `${path}: and lands in it`).toBe(Math.round(placeholder.y) - drop)
+    expect(Math.round(first.y), `${path}: and lands in it`).toBe(Math.round(placeholder.y))
     const grow = await height(page.locator(row)) - heldRow
-    expect(await tops(), `${path}: what is under them moves by the lines past the first`).toEqual([...new Set([held, held - drop + grow])])
+    expect(await tops(), `${path}: what is under them moves by the lines past the first`).toEqual([...new Set([held, held + grow])])
     const { lines, slack, roomLeft, inside } = await packing(buttons)
     expect(slack, `${path}: each as wide as what it holds`).toBe(0)
     expect(roomLeft, `${path}: a line holds every button that fits`).toBe(false)
@@ -1165,7 +1172,7 @@ test('390 px wide, a film\'s buttons are as wide as what they hold, as many to a
 
 test('390 px wide, a film\'s button with a name longer than its row wraps the name and stays inside, its marker shown', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const { path, row } of FILM_VIEWS) {
+  for (const { path, row } of FILM_PAGE) {
     await page.goto(`${origin}${path}`)
     const buttons = page.locator(row).locator('a')
     await expect(buttons, path).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
@@ -1178,6 +1185,18 @@ test('390 px wide, a film\'s button with a name longer than its row wraps the na
     expect((await packing(buttons)).inside, `${path}: none past the row's edge`).toBe(true)
     expect(await overflowX(page), `${path}: nothing runs past the page`).toBe(0)
   }
+})
+
+test('390 px wide, a film\'s row in the preview with a name longer than it stays one line, the site it opens shown inside it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}/media/${FILM}`)
+  const row = modal(page).locator('.movie > .sources a.source').first()
+  await expect(row).toBeVisible({ timeout: 30_000 })
+  const tall = await height(row)
+  await row.locator('.name').evaluate(name => { name.textContent = 'A Streaming Service With A Very Long Name, With Ads' })
+  expect(await height(row), 'one line still').toBe(tall)
+  expect(await row.evaluate(link => link.querySelector('.how')!.getBoundingClientRect().right <= link.getBoundingClientRect().right), 'the site inside').toBe(true)
+  expect(await overflowX(page)).toBe(0)
 })
 
 // every site the icon row at `row` draws from the first frame, however briefly
@@ -1207,13 +1226,13 @@ test('a film\'s title page keeps the catalogue sites beside Play, and none of th
   }
 })
 
-test('a film\'s modal keeps the catalogue sites next to its title, and none of the services its buttons name, at any point', async ({ page }) => {
+test('a film\'s modal keeps the catalogue sites in its links, and none of the services its rows name, at any point', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  const row = '.modal .content > .header .origins'
+  const row = '.modal .links > .origins'
   await recordSites(page, row)
   await page.goto(`${origin}/media/${FILM}`)
   await expect(page.locator(`${row} > [title="TMDB"]`), 'JustWatch has answered').toHaveCount(1, { timeout: 30_000 })
-  await expect(modal(page).locator('.description + .watch a'), 'the control: the services are the buttons').toHaveCount(FILM_SOURCES.length)
+  await expect(modal(page).locator('.movie > .sources a'), 'the control: the services are the rows').toHaveCount(FILM_SOURCES.length)
   const seen = await sitesSeen(page)
   expect(seen, 'the control: a catalogue site stays').toContain('AniList')
   expect(seen.filter(site => FILM_SOURCES.includes(site))).toEqual([])
@@ -1235,7 +1254,7 @@ test('a film opened at its bare AniList address lists every place to watch it, a
 // AniList names Spec Rated's official site and two places it streams (tests/fake-fetch.ts)
 test('the places AniList says a title streams are icons after its sources\', on its page and in its modal', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  for (const [path, row] of [[`/title/${RATED}`, '.body > .actions .origins'], [`/media/${RATED}`, '.modal .content > .header .origins']] as const) {
+  for (const [path, row] of [[`/title/${RATED}`, '.body > .actions .origins'], [`/media/${RATED}`, '.modal .links > .origins']] as const) {
     await page.goto(`${origin}${path}`)
     const sites = page.locator(`${row} > .origin`)
     await expect(sites.last(), path).toHaveAttribute('title', 'iQ', { timeout: 30_000 })
@@ -1264,25 +1283,30 @@ test.describe('a viewer in Japan', () => {
   test.use({ timezoneId: 'Asia/Tokyo' })
 
   test('a film Prime Video plays in stub has Play in the modal and its button opens the watch page; turned off, Play goes and it links out', async ({ page }) => {
-    const bar = modal(page).locator('.movie .play-bar')
-    const button = (name: string) => modal(page).locator('.description + .watch a').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    const bar = modal(page).locator('.movie > .actions')
+    const button = (name: string) => modal(page).locator('.movie > .sources a').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`${origin}/media/${PRIME_FILM}`)
-    await expect(bar.locator('a.play')).toBeVisible({ timeout: 30_000 })
+    await expect(bar.locator('> a.play')).toBeVisible({ timeout: 30_000 })
+    // HOR-1059's open point for films: the tracking shares Play's row rather than leaving a band under it
+    const middle = async (locator: Locator) => { const { y, height } = (await locator.boundingBox())!; return y + height / 2 }
+    expect(Math.abs(await middle(bar.locator('> a.play')) - await middle(bar.locator('.tracking-compact .group.edit'))), 'the tracking on Play\'s middle').toBeLessThan(1)
     await expect(button('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
     expect(await button('Prime Video').getAttribute('target')).toBeNull()
     await expect(button('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
-    await expect(bar.locator('a:not(.play), img'), 'no source beside Play').toHaveCount(0)
+    await expect(bar.locator('> a:not(.play), > img'), 'no source beside Play').toHaveCount(0)
+    await expect(button('Prime Video').locator('.how')).toHaveText('Plays here')
 
     await page.addInitScript(key => localStorage.setItem(key, '["amazon"]'), DISABLED_SOURCES_KEY)
     await page.goto(`${origin}/media/${PRIME_FILM}`)
     await expect(button('Prime Video')).toHaveAttribute('target', '_blank', { timeout: 30_000 })
     await expect(button('Prime Video')).toHaveAttribute('href', 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.900070')
-    await expect(bar).toHaveCount(0)
+    await expect(bar.locator('> a.play, > .play-pending')).toHaveCount(0)
   })
 
   test('a film Prime Video plays in stub has Play in the modal at its bare AniList address too', async ({ page }) => {
     await page.goto(`${origin}/media/anilist:900070`)
-    await expect(modal(page).locator('.movie .play-bar a.play')).toBeVisible({ timeout: 30_000 })
+    await expect(modal(page).locator('.movie > .actions > a.play')).toBeVisible({ timeout: 30_000 })
   })
 
   test('a film Prime Video plays in stub is on the watch page an old link opens by its bare AniList address', async ({ page }) => {
@@ -1478,12 +1502,11 @@ const LATE_FILM = 'ag:(anilist:900060)'
 test('390 px wide, a film\'s place to watch landing after its sources settled holds no place in the modal a second time', async ({ page }) => {
   test.setTimeout(120_000)
   await page.setViewportSize({ width: 390, height: 844 })
-  const row = page.locator('.modal .description + .watch')
+  const rows = page.locator('.modal .movie > .sources')
   await page.goto(`${origin}/media/${LATE_FILM}`)
-  await expect(row.locator('.pending'), 'the control: held while a source is out').toBeVisible({ timeout: 30_000 })
-  await expect(modal(page).locator('.movie .play-bar'), 'and Play\'s place').toHaveClass(/held/)
-  await expect(modal(page).locator('.movie .play-bar'), 'every source has answered with none').toHaveText('No sources yet', { timeout: 45_000 })
-  await expect(row).toHaveCount(0)
+  await expect(modal(page).locator('.movie > .actions > .play-pending'), 'the control: Play\'s place held while a source is out').toBeVisible({ timeout: 30_000 })
+  await expect(modal(page).locator('.movie > .none'), 'every source has answered with none').toHaveText('No sources yet', { timeout: 45_000 })
+  await expect(rows).toHaveCount(0)
   // every place held from now on, however briefly
   await page.evaluate(() => {
     const seen = new Set<string>()
@@ -1491,16 +1514,16 @@ test('390 px wide, a film\'s place to watch landing after its sources settled ho
       for (const record of records) {
         for (const node of record.type === 'attributes' ? [record.target] : [...record.addedNodes]) {
           if (!(node instanceof Element)) continue
-          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.watch .pending, .play-bar.held')) seen.add(element.className)
+          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.movie .play-pending')) seen.add(element.className)
         }
       }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
     Object.assign(window, { seen })
   })
-  await expect(row.locator('a .name')).toHaveText('Tubi', { timeout: 30_000 })
+  await expect(rows.locator('a .name')).toHaveText('Tubi', { timeout: 30_000 })
   await page.evaluate(() => new Promise(requestAnimationFrame))
   expect(await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])).toEqual([])
-  await expect(modal(page).locator('.movie .play-bar'), 'nothing left in the bar').toHaveCount(0)
+  await expect(modal(page).locator('.movie > .none'), 'No sources yet gone once one has').toHaveCount(0)
 })
 
 test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
@@ -1649,12 +1672,13 @@ test('the modal opens with focus on its box, unringed, not on More details', asy
 })
 
 // MAL outranks AniList on a start date, so its page has to keep the year alone too
-test('a film AniList and MAL date by its year alone reads Releases and the year, not a January 1', async ({ page }) => {
+test('a film AniList and MAL date by its year alone shows the year and reads Releases and the year, not a January 1', async ({ page }) => {
   await page.goto(`${origin}/media/ag:(anilist:900100,mal:900100)`)
   await expect(modal(page).locator('.description'), 'the control: MAL\'s page is in').toContainText('MyAnimeList describes', { timeout: 30_000 })
-  const movie = modal(page).locator('.movie')
-  await expect(movie.locator('.when')).toHaveText('Releases 2099')
-  await expect(movie.locator('.facts')).toHaveText(/^Movie · 2099\b/)
+  const release = modal(page).locator('.movie > .release')
+  await expect(release.locator('.day')).toHaveText('2099')
+  await expect(release.locator('.date')).toHaveText('Releases 2099')
+  await expect(modal(page).locator('.side .facts')).toContainText('Releases2099')
 })
 
 // the owner, 2026-10-26 (HOR-1030): "I feel like the card order should decide merge priority, yes, but by default,
@@ -1682,7 +1706,7 @@ test('a title page heads with AniList\'s title once Settings moves AniList above
 // AniList describes Spec Unsafe with a script, an image's onerror, a handler, a javascript: link, a style attribute, a
 // style sheet and a form, and a remote image (tests/fake-fetch.ts)
 test('a description draws its paragraphs, breaks, italics, bold, links and remote images, and none of its scripts, handlers, styles or forms, in the modal and on its page', async ({ page }) => {
-  for (const [path, selector] of [['/media/ag:(anilist:900110)', '.modal > .content > .description'], ['/title/ag:(anilist:900110)', '.heading > .description']] as const) {
+  for (const [path, selector] of [['/media/ag:(anilist:900110)', '.modal .columns > .main > .description'], ['/title/ag:(anilist:900110)', '.heading > .description']] as const) {
     await page.goto(`${origin}${path}`)
     const description = page.locator(selector)
     await expect(description, path).toContainText('A quiet town.Its sequel, a link and a span.', { timeout: 30_000 })
@@ -1704,14 +1728,15 @@ test('a description draws its paragraphs, breaks, italics, bold, links and remot
   }
 })
 
-test('a long title wraps beside the modal\'s links rather than pushing them under it', async ({ page }) => {
+test('a long title wraps over the trailer, beside the poster and inside the modal, with no sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openModal(page)
-  const title = modal(page).locator('.header > span.title')
+  const title = modal(page).locator('.hero h2.title')
   await title.evaluate(element => { element.textContent = 'A Long Light Novel Title '.repeat(8) })
-  const titleBox = (await title.boundingBox())!
-  const linkBox = (await modal(page).getByRole('link', { name: 'More details' }).boundingBox())!
-  expect(linkBox.y).toBeLessThan(titleBox.y + titleBox.height)
+  const [titleBox, posterBox, modalBox] = await Promise.all([title.boundingBox(), modal(page).locator('.hero .poster').boundingBox(), modal(page).boundingBox()])
+  expect(titleBox!.x, 'beside the poster').toBeGreaterThan(posterBox!.x + posterBox!.width)
+  expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(modalBox!.x + modalBox!.width)
+  expect(await overflowX(page)).toBe(0)
 })
 
 test('the white Play button shows its edge over a white backdrop, hovered too, in the hero, the modal and the title page', async ({ page }) => {
@@ -1731,7 +1756,7 @@ test('the white Play button shows its edge over a white backdrop, hovered too, i
   await expectEdge(page, hero, 'the hero hovered')
 
   await openModal(page)
-  const movie = await placePlay(page.locator('.modal > .content'), '<div class="movie"><div class="play-bar"><a class="play" href="#">Play</a></div></div>')
+  const movie = await placePlay(page.locator('.modal > .content'), '<div class="movie"><div class="actions"><a class="play" href="#">Play</a></div></div>')
   await expectEdge(page, movie, 'the modal')
   await movie.hover()
   await expectEdge(page, movie, 'the modal hovered')
@@ -1840,13 +1865,15 @@ test.describe('in a language stub does not offer yet', () => {
 })
 
 // HOR-1026, home and cards: the home rows, its category tabs and the hero's Play, the search page's cards and rows, the
-// modal's episode rows and its film line, and the title page's Play. A line joining several facts is read fact by fact
+// modal's episode rows, a series' line, its facts and a film's release, Play and rows, and the title page's Play. A line
+// joining several facts is read fact by fact
 const HOME_WORDS = {
   text: [
     '.theater .actions .play', '.category-bar .tab', ':has(> .list-container) > .title', '.detail .airing-label',
     '.detail .airing-value', '.detail-top .value', '.column.score .secondary', '.column.format .secondary',
-    '.column .airing', '.modal .header .more', '.episode .title', '.episode .side time', '.actions .buttons .play',
-    '.movie .facts', '.movie .play', '.movie .when',
+    '.column .airing', '.modal .links > .more', '.episode .title', '.episode .side time', '.actions .buttons .play',
+    '.modal .hero .line', '.modal .side .facts dt', '.movie .actions > .play', '.movie .release > .date', '.movie .sources .how',
+    '.movie > .none',
   ],
   labels: ['.detail-top > span', '.column.score > span[aria-label]'],
 }
@@ -1887,11 +1914,11 @@ const homeWords = async (page: Page, width: number) => {
   await expect(page.locator('[data-episodes] .episode .side time')).toHaveCount(6, { timeout: 30_000 })
   await read()
   await page.goto(`${origin}/media/${FILM}`)
-  await expect(modal(page).locator('.movie .facts')).toBeVisible({ timeout: 30_000 })
+  await expect(modal(page).locator('.movie > .sources a')).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
   await read()
-  // dated by its year alone, so its bar reads when it releases
+  // dated by its year alone, so it reads when it releases
   await page.goto(`${origin}/media/ag:(anilist:900100,mal:900100)`)
-  await expect(modal(page).locator('.movie .when')).toBeVisible({ timeout: 30_000 })
+  await expect(modal(page).locator('.movie > .release > .date')).toBeVisible({ timeout: 30_000 })
   await read()
   return { overflow, words }
 }

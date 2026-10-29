@@ -181,7 +181,7 @@ export const GET_MEDIA_DETAILS = gql(`
         episodeNumber
         airingAt
       }
-      duration @include(if: $details)
+      duration
       sourceMaterial @include(if: $details)
       studios @include(if: $details)
       characters @include(if: $details) {

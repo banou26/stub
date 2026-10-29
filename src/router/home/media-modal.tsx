@@ -1,5 +1,6 @@
 import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import type { RouteParams } from '../path'
+import type { DetailsMedia } from './media-details'
 
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -18,7 +19,6 @@ import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
-import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
 import ShareButton from '../../components/share-button'
 import { carriedSearch } from '../debug/trace'
@@ -27,8 +27,9 @@ import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
+import { previewFacts, seriesLine } from './preview-facts'
 import { getRoutePath, Route } from '../path'
-import { releasedLabel } from '../title/facts'
+import { useNow } from '../../utils/use-now'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { layer } from '../../layers'
 
@@ -82,9 +83,19 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       overflow: hidden;
       user-select: none;
     }
+    /* a film's picture fades into the box under it; a series' darkens behind its title (.hero) */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent 55%, rgb(35, 35, 35));
+    }
     .player-controls {
       position: absolute;
-      bottom: 0rem;
+      top: 0;
+      right: 0;
+      z-index: 1;
       padding: 2.5rem;
       display: flex;
       align-items: center;
@@ -112,54 +123,169 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     }
   }
 
-  & > .content {
-    padding: 2.5rem;
-    & > .header {
+  /* a series' poster, line and title over the foot of its trailer */
+  & > .hero {
+    position: relative;
+
+    &:not(.film) > .trailer::after {
+      background:
+        linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.9) 20%, rgba(35, 35, 35, 0.3) 50%, transparent 70%),
+        linear-gradient(to right, rgba(0, 0, 0, 0.5) 0%, transparent 55%);
+    }
+
+    & > .over {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
       display: flex;
-      gap: 1rem;
-      /* the source icons' height, so the header is one height before and after they land */
-      min-height: 4rem;
+      align-items: flex-end;
+      gap: 2.8rem;
+      padding: 0 4rem 3.2rem;
+    }
 
-      & > .title {
-        font-size: 3rem;
-        font-weight: 600;
-        cursor: default;
-      }
+    .poster {
+      flex-shrink: 0;
+      width: 17rem;
+      aspect-ratio: 2 / 3;
+      object-fit: cover;
+      border-radius: 0.8rem;
+      border: 0.1rem solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.6);
+    }
 
-      & > .title-pending {
-        align-self: center;
-        width: 30rem;
-        height: 3.6rem;
-      }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      min-width: 0;
+      max-width: 86rem;
+    }
 
-      & > .origins {
+    .line {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    }
+
+    .title {
+      margin: 0;
+      font-size: 5.6rem;
+      line-height: 1.05;
+      font-weight: 800;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .title-pending {
+      width: 40rem;
+      max-width: 100%;
+      height: 5.6rem;
+    }
+  }
+
+  & > .content {
+    padding: 3rem 4rem 4rem;
+
+    /* the description's column and the facts', whose class names the episode rows below use too */
+    & > .columns {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 36rem;
+      gap: 5rem;
+      align-items: start;
+
+      & > .main {
         display: flex;
-        gap: 1rem;
+        flex-direction: column;
+        gap: 2.4rem;
+        min-width: 0;
+      }
+
+      & > .side {
+        display: flex;
+        flex-direction: column;
+        gap: 1.6rem;
+        min-width: 0;
+      }
+
+      .tracking-compact {
+        margin-top: 0;
+      }
+
+      & > .main > .tracking-compact .row, & > .main > .tracking-compact .platforms {
+        justify-content: flex-start;
+      }
+
+      & > .main > .description {
+        white-space: pre-wrap;
+        cursor: default;
+
+        &.collapsed {
+          max-height: 20rem;
+        }
+      }
+
+      /* the collapsed description's size, five lines in it */
+      & > .main > .description.pending {
+        height: 20rem;
+        font-size: 1.6rem;
+      }
+
+      & > .side > .facts {
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        margin: 0;
+        font-size: 1.5rem;
+        line-height: 1.5;
+
+        dt {
+          color: rgba(255, 255, 255, 0.55);
+          font-size: 1.3rem;
+        }
+
+        dd {
+          margin: 0;
+          overflow-wrap: anywhere;
+        }
+      }
+
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.2rem;
+      }
+
+      .links > .origins {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
         align-items: center;
 
         & > .origin {
-          height: 4rem;
+          display: flex;
+          height: 3.2rem;
           & > img {
-            height: 4rem;
-            width: 4rem;
+            height: 3.2rem;
+            width: 3.2rem;
           }
           & > .letter {
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 4rem;
-            width: 4rem;
-            border-radius: 0.6rem;
+            height: 3.2rem;
+            width: 3.2rem;
+            border-radius: 0.5rem;
             background: rgba(255, 255, 255, 0.1);
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 700;
           }
         }
       }
 
-      & > .more {
-        align-self: center;
-        margin-left: auto;
+      .links > .more {
         padding: 0.8rem 1.4rem;
         border-radius: 0.6rem;
         border: 0.1rem solid rgba(255, 255, 255, 0.18);
@@ -171,37 +297,137 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         white-space: nowrap;
       }
 
-      & > .more:hover { background: rgba(255, 255, 255, 0.12); }
+      .links > .more:hover { background: rgba(255, 255, 255, 0.12); }
     }
 
-    /* the tracking at the right of the date, wrapping under it when both do not fit */
-    & > .released-row {
+    & > .relations, & > .seasons, & > .episode-list {
+      margin-top: 4rem;
+    }
+  }
+
+  /* a film: one centred column under its trailer, its facts beside it */
+  & > .content.film {
+    padding-top: 1rem;
+
+    & > .columns {
+      grid-template-columns: minmax(0, 1fr) 24rem;
+      gap: 4rem;
+    }
+
+    & > .columns > .main {
+      align-items: center;
+      text-align: center;
+
+      & > .title {
+        margin: 0;
+        font-size: 4.4rem;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      & > .description {
+        align-self: stretch;
+        text-align: start;
+      }
+
+      & > .links {
+        justify-content: center;
+      }
+    }
+  }
+
+  .movie {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+
+    & > .release {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+
+      & > .day {
+        font-size: 13rem;
+        font-weight: 800;
+        line-height: 0.9;
+        letter-spacing: -0.03em;
+        text-transform: uppercase;
+      }
+
+      /* a year, a month or Coming soon */
+      & > .day.partial {
+        font-size: 8rem;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        text-transform: none;
+      }
+
+      & > .date {
+        font-size: 2rem;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      & > .count {
+        padding: 0.4rem 1rem;
+        border-radius: 0.4rem;
+        background: rgb(229, 9, 20);
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+    }
+
+    & > .none {
+      font-size: 4.4rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    /* Play and the tracking share a row, wrapping onto two when both do not fit */
+    & > .actions {
       display: flex;
       flex-wrap: wrap;
+      justify-content: center;
       align-items: flex-start;
       gap: 1rem 1.6rem;
-      margin-top: 1rem;
 
-      /* the tracking's 3.4rem controls, so the date sits level with them however many notes show under them */
-      & > .released {
-        font-size: 1.5rem;
-        line-height: 3.4rem;
-        color: rgba(255, 255, 255, 0.65);
+      & > .play {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+        height: 4.4rem;
+        padding: 0 2.4rem 0 2rem;
+        border-radius: 0.6rem;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+        color: #000;
+        font-size: 1.7rem;
+        font-weight: 700;
+        text-decoration: none;
       }
 
-      & > .released.pending {
-        width: 12rem;
-        height: 2rem;
-        margin: 0.7rem 0;
+      & > .play:hover { background: rgba(255, 255, 255, 0.85); }
+      & > .play:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+
+      /* Play's place while a source may still bring it */
+      & > .play-pending {
+        width: 11rem;
+        height: 4.4rem;
+        border-radius: 0.6rem;
       }
 
+      /* the tracking's 3.4rem controls on Play's 4.4rem middle */
       & > .tracking-compact {
-        margin: 0 0 0 auto;
+        margin-top: 0.5rem;
       }
 
-      /* a note wraps to the controls' width, or a long one widens the tracking and drops it under the date */
-      & > .tracking-compact > .notes {
-        contain: inline-size;
+      & > .tracking-compact .row, & > .tracking-compact .platforms {
+        justify-content: center;
       }
 
       & > .stub-list-notice {
@@ -210,75 +436,95 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
-    & > .movie {
+    & > .sources {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
+      text-align: start;
+    }
+
+    & > .sources .source {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 1.4rem;
-      margin: 1rem 0 2rem;
+      height: 6rem;
+      padding: 0 0.4rem;
+      border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      text-decoration: none;
 
-      & > .facts {
-        font-size: 1.5rem;
-        color: rgba(255, 255, 255, 0.65);
-      }
+      &:hover { background: rgba(255, 255, 255, 0.04); }
 
-      & > .play-bar {
+      .logo {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 1rem 1.6rem;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 3.6rem;
+        height: 3.6rem;
+        border-radius: 0.7rem;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 1.5rem;
+        font-weight: 700;
 
-        & > .play {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.8rem;
-          height: 4.4rem;
-          padding: 0 2.4rem 0 2rem;
-          border-radius: 0.6rem;
-          background: #fff;
-          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-          color: #000;
-          font-size: 1.7rem;
-          font-weight: 700;
-          text-decoration: none;
-        }
-
-        & > .play:hover { background: rgba(255, 255, 255, 0.85); }
-        & > .play:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
-
-        & > .when {
-          font-size: 1.5rem;
-          color: rgba(255, 255, 255, 0.8);
-        }
-
-        /* Play's height, while no source has landed or one stub plays still links out, until every source has answered */
-        &.held {
-          min-height: 4.4rem;
+        & > img {
+          box-sizing: border-box;
+          width: 100%;
+          height: 100%;
+          padding: 12%;
+          object-fit: contain;
         }
       }
-    }
 
-    & > .description {
-      white-space: pre-wrap;
-      margin-top: 2.5rem;
-      cursor: default;
-
-      &.collapsed {
-        max-height: 20rem;
+      /* JustWatch's logos are whole app tiles, drawn edge to edge */
+      .logo.sharp {
+        background: none;
+        & > img {
+          padding: 0;
+          object-fit: cover;
+        }
       }
-    }
 
-    /* the collapsed description's size, five lines in it */
-    & > .description.pending {
-      height: 20rem;
-      font-size: 1.6rem;
-    }
+      .name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 1.7rem;
+        font-weight: 600;
+      }
 
-    & > .watch {
-      margin-top: 1.6rem;
-    }
+      .count {
+        padding: 0.1rem 0.7rem;
+        border-radius: 0.4rem;
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
 
-    & > .relations, & > .seasons, & > .episode-list {
-      margin-top: 4rem;
+      .how {
+        flex-shrink: 0;
+        margin-left: auto;
+        font-size: 1.4rem;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .how::after { content: ' ↗'; }
+      &.plays .how::after { content: ' ▶'; }
+    }
+  }
+}
+
+/* a film's column centred in the box, its facts in the width beside it */
+@media (min-width: 1440px) {
+  .modal > .content.film > .columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 70rem) minmax(0, 1fr);
+
+    & > .main {
+      grid-column: 2;
     }
   }
 }
@@ -293,50 +539,47 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
+    & > .hero {
+      &:not(.film) > .trailer::after {
+        background: linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.6) 25%, transparent 50%);
+      }
+
+      /* under the picture rather than over it, its foot overlapping the picture's */
+      & > .over {
+        position: relative;
+        margin-top: -5rem;
+        padding: 0 1.6rem;
+        gap: 1.4rem;
+      }
+
+      .poster {
+        width: 8.4rem;
+        border-radius: 0.6rem;
+      }
+
+      .line {
+        font-size: 1.3rem;
+      }
+
+      .title {
+        font-size: 2.8rem;
+      }
+
+      .title-pending {
+        height: 2.8rem;
+      }
+    }
+
     & > .content {
-      padding: 1.5rem;
+      padding: 2rem 1.6rem;
 
-      & > .header {
-        flex-wrap: wrap;
+      /* the facts under the description */
+      &.film > .columns, & > .columns {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2.4rem;
       }
 
-      /* a line of its own, so the source icons landing beside it never wrap the header to a second */
-      & > .header > .title {
-        flex-basis: 100%;
-        font-size: 2.2rem;
-      }
-
-      & > .header > .title-pending {
-        width: 60%;
-        height: 2.6rem;
-        margin-right: 40%;
-      }
-
-      /* and the icons scroll beside More details rather than wrapping it to a third line as they land,
-         fading at the edge so a row cut between two icons still shows there are more */
-      & > .header > .origins {
-        flex: 1 1 0;
-        min-width: 0;
-        overflow-x: auto;
-        scrollbar-width: none;
-        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
-      }
-
-      & > .header > .origins > .origin {
-        height: 3rem;
-        & > img {
-          height: 3rem;
-          width: 3rem;
-        }
-      }
-
-      /* a line of its own under the date: the whole tracking never fits beside it here */
-      & > .released-row > .tracking-compact {
-        flex-basis: 100%;
-      }
-
-      & > .description {
-        margin-top: 1.5rem;
+      & > .columns > .main > .description {
         font-size: 1.4rem;
       }
 
@@ -344,9 +587,62 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         margin-top: 2.5rem;
       }
     }
+
+    & > .content.film {
+      padding-top: 0;
+
+      & > .columns > .main > .title {
+        font-size: 2.8rem;
+      }
+    }
+
+    .movie {
+      & > .release {
+        & > .day {
+          font-size: 8.4rem;
+        }
+
+        & > .day.partial {
+          font-size: 4.4rem;
+        }
+
+        & > .date {
+          font-size: 1.6rem;
+        }
+      }
+
+      & > .none {
+        font-size: 2.8rem;
+      }
+
+      & > .actions > .play, & > .actions > .play-pending {
+        flex-basis: 100%;
+        height: 4.8rem;
+      }
+
+      & > .sources .source {
+        height: 5.4rem;
+
+        .name {
+          font-size: 1.5rem;
+        }
+
+        .how {
+          font-size: 1.3rem;
+        }
+      }
+    }
   }
 }
 `
+
+const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
+  const now = useNow()
+  const facts = previewFacts(media, movie, new Date(now))
+  return facts.length
+    ? <dl className="facts">{facts.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    : null
+}
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const intl = useIntl()
@@ -381,7 +677,6 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const current = currentMedia({ data, operation }, uri)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
-  const released = data?.media && releasedLabel(data.media, { locale: intl.locale })
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
   const settled = useSettledOnce(uri, current?.settled && answered)
@@ -458,100 +753,121 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     }
   }, [media?.uri, params.uri])
 
+  const tracking = (
+    <MediaTracking
+      work={uri}
+      address={params.uri}
+      uri={current?.uri}
+      title={title}
+      cover={coverUrl}
+      episodeCount={current?.episodeCount}
+      movie={isMovie}
+    />
+  )
+  const links = (
+    <div className="links">
+      {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
+          address the store has grown to, which is the one the graph knows this work by. */}
+      <TraceLink uri={media?.uri}/>
+      <SourceLinks uri={data?.media?.uri} handles={media?.handles} links={data?.media?.streamingLinks} except={watchOriginIds(film, media?.handles)}/>
+      <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })} title={title}/>
+      <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
+    </div>
+  )
+  const heading = title || settled ? <h2 className="title">{title}</h2> : <Placeholder className="title-pending"/>
+
   if (!open) return <Redirect to="/" />
 
   return (
     /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party
        has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
     <ModalBackdrop data-party-scroll css={style} onClose={() => onOpenChange(false)}>
-      <div className="trailer" style={!selectedTrailer?.url && headerUrl ? { backgroundImage: `url(${headerUrl})` } : {}}>
-        {
-          selectedTrailer?.url
-            ? (
-              <YoutubeMinimalPlayer
-                key={selectedTrailer.url}
-                url={selectedTrailer.url}
-                className="player"
-                onError={onTrailerError}
-                paused={playerPaused}
-                volume={playerMuted ? 0 : playerVolume}
-              />
-            )
-            : undefined
-        }
-        <div className={`player-controls ${!selectedTrailer?.url ? 'hidden' : ''}`}>
-          <span className="playback">
-            {
-              playerPaused
-                ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(false)} />
-                : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(true)} />
-            }
-            {
-              playerPaused
-                ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
-                : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
-            }
-          </span>
-          <VolumeControl
-            defaultMuted={playerMuted}
-            onMutedUpdate={setPlayerMuted}
-            defaultVolume={playerVolume}
-            onVolumeUpdate={volume => setPlayerVolume(volume)}
-          />
-        </div>
-      </div>
-      <div className="content">
-        <div className="header">
-          {title || settled ? <span className="title">{title}</span> : <Placeholder className="title-pending"/>}
-          {/* 7.5's trace, behind `?trace=1`: nothing at all without the flag. The uri is the
-              address the store has grown to, which is the one the graph knows this work by. */}
-          <TraceLink uri={media?.uri}/>
-          <SourceLinks uri={data?.media?.uri} handles={media?.handles} links={data?.media?.streamingLinks} except={watchOriginIds(film, media?.handles)}/>
-          <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })} title={title}/>
-          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
-        </div>
-        {
-          isMovie && media
-            ? (
-              <MoviePlay
-                episode={film}
-                mediaUri={media.uri}
-                sources={sources}
-                settled={settled}
-                startDate={'startDate' in media ? media.startDate : undefined}
-                status={'status' in media ? media.status : undefined}
-                genres={'genres' in media ? media.genres : undefined}
-              />
-            )
-            : undefined
-        }
-        <div className="released-row">
-          {/* a film's line under its title names its day (MoviePlay) */}
+      {/* until the details say it is a film, the preview draws a series' */}
+      <div className={isMovie ? 'hero film' : 'hero'}>
+        <div className="trailer" style={!selectedTrailer?.url && headerUrl ? { backgroundImage: `url(${headerUrl})` } : {}}>
           {
-            isMovie ? undefined
-            : released ? <div className="released">{released}</div>
-            : settled ? undefined : <Placeholder className="released pending"/>
+            selectedTrailer?.url
+              ? (
+                <YoutubeMinimalPlayer
+                  key={selectedTrailer.url}
+                  url={selectedTrailer.url}
+                  className="player"
+                  onError={onTrailerError}
+                  paused={playerPaused}
+                  volume={playerMuted ? 0 : playerVolume}
+                />
+              )
+              : undefined
           }
-          <MediaTracking
-            work={uri}
-            address={params.uri}
-            uri={current?.uri}
-            title={title}
-            cover={coverUrl}
-            episodeCount={current?.episodeCount}
-            movie={isMovie}
-          />
+          <div className={`player-controls ${!selectedTrailer?.url ? 'hidden' : ''}`}>
+            <span className="playback">
+              {
+                playerPaused
+                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(false)} />
+                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(true)} />
+              }
+              {
+                playerPaused
+                  ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
+                  : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
+              }
+            </span>
+            <VolumeControl
+              defaultMuted={playerMuted}
+              onMutedUpdate={setPlayerMuted}
+              defaultVolume={playerVolume}
+              onVolumeUpdate={volume => setPlayerVolume(volume)}
+            />
+          </div>
         </div>
         {
-          description
-            ? (
-              <Collapsible collapsedHeight={200} className="description">
-                <div dangerouslySetInnerHTML={{ __html: description }}/>
-              </Collapsible>
-            )
-            : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
+          isMovie ? undefined : (
+            <div className="over">
+              {coverUrl ? <img className="poster" src={coverUrl} alt=""/> : undefined}
+              <div className="stack">
+                {data?.media ? <span className="line">{seriesLine(data.media)}</span> : undefined}
+                {heading}
+              </div>
+            </div>
+          )
         }
-        {isMovie ? <SourceSelector film sources={sources} pending={!settled}/> : undefined}
+      </div>
+      <div className={isMovie ? 'content film' : 'content'}>
+        <div className="columns">
+          <div className="main">
+            {isMovie ? heading : undefined}
+            {
+              isMovie && media
+                ? (
+                  <MoviePlay
+                    episode={film}
+                    mediaUri={media.uri}
+                    sources={sources}
+                    settled={settled}
+                    startDate={'startDate' in media ? media.startDate : undefined}
+                    status={'status' in media ? media.status : undefined}
+                  >
+                    {tracking}
+                  </MoviePlay>
+                )
+                : tracking
+            }
+            {
+              description
+                ? (
+                  <Collapsible collapsedHeight={200} className="description">
+                    <div dangerouslySetInnerHTML={{ __html: description }}/>
+                  </Collapsible>
+                )
+                : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
+            }
+            {isMovie ? links : undefined}
+          </div>
+          <aside className="side">
+            {data?.media ? <SideFacts media={data.media} movie={isMovie}/> : undefined}
+            {isMovie ? undefined : links}
+          </aside>
+        </div>
         <MediaRelations
           key={uri}
           relations={media && 'relations' in media ? media.relations ?? [] : []}

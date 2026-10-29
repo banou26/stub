@@ -23,7 +23,7 @@
  * measured), rather than here where a seconds-for-milliseconds mixup would be a silent 1970.
  */
 
-const DAY_MS = 86_400_000
+export const DAY_MS = 86_400_000
 
 /** `YYYY`, `YYYY-MM` or `YYYY-MM-DD`: a year, a month or a day rather than an instant. */
 const DATE_ONLY = /^\d{4}(-\d{2}){0,2}$/
@@ -120,7 +120,7 @@ export const RELATIVE_WITHIN_DAYS = 30
  * `utc` picks the frame: a source that named a DAY named it in no timezone at all, so its own day is
  * read, while a moment is read where the viewer is.
  */
-const civilDay = (date: Date, utc: boolean): number =>
+export const civilDay = (date: Date, utc: boolean): number =>
   utc
     ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
     : Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())

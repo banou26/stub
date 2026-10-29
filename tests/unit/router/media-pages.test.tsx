@@ -140,55 +140,63 @@ const facts = (root: Element) => [...root.querySelectorAll('.facts > div')]
 describe('the preview', () => {
   test('holds its title and description until the worker answers, then draws them', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
-    expect(pending(modal())).toEqual(['title-pending', 'released.pending', 'description.pending'])
+    expect(pending(modal())).toEqual(['title-pending', 'description.pending'])
 
     answer(work(1, 'Frieren'))
     expect(pending(modal())).toEqual([])
-    expect(modal().querySelector('.header > .title')!.textContent).toBe('Frieren')
+    expect(modal().querySelector('.hero .stack > .title')!.textContent).toBe('Frieren')
     expect(modal().querySelectorAll('.episode')).toHaveLength(2)
   })
 
   test('holds each until its own field arrives, or every source has answered without it', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(partial(1))
-    expect(pending(modal())).toEqual(['title-pending', 'released.pending', 'description.pending', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
+    expect(pending(modal())).toEqual(['title-pending', 'description.pending', 'episode.placeholder', 'episode.placeholder', 'episode.placeholder'])
 
     answer({ ...partial(1), settled: true })
     expect(pending(modal())).toEqual([])
   })
 
-  // HOR-1017: the owner, "Probably put the release date somewhere like, under the titles"
-  test('draws the release date under the title, its season without a day, and nothing without either', () => {
+  // HOR-1017: the owner, "Probably put the release date somewhere like, under the titles"; HOR-830 moved it into
+  // the line over a series' title, round 3's Cinematic
+  test('draws a series\' release date in the line over its title and beside its description, its season without a day, and nothing without either', () => {
     const frieren = work(1, 'Frieren')
     const { answer } = preview(frieren.uri)
+    const line = () => modal().querySelector('.hero .stack > .line + .title')?.previousElementSibling?.textContent
     answer(frieren)
-    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe(releaseDateLabel('2023-09-29'))
+    expect(line()).toBe(`TV Show · ${releaseDateLabel('2023-09-29')} · 2 Episodes`)
+    expect(facts(modal())).toEqual(['Genres: Fantasy', 'Tags: Travel', `Aired: ${releaseDateLabel('2023-09-29')}`])
     const seasonOnly = { ...frieren, startDate: null, settled: true }
     answer(seasonOnly)
-    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe('Fall 2023')
+    expect(line()).toBe('TV Show · Fall 2023 · 2 Episodes')
+    expect(facts(modal())).toContain('Aired: Fall 2023')
     const undated = { ...seasonOnly, season: null, seasonYear: null }
     answer(undated)
-    expect(modal().querySelector('.released')).toBeNull()
+    expect(line()).toBe('TV Show · 2 Episodes')
+    expect(facts(modal())).toEqual(['Genres: Fantasy', 'Tags: Travel'])
   })
 
   // HOR-1059: the owner, "there's spacing between "More details" and the tracking elements. I don't want that."
-  test('draws the tracking on the release date\'s row', () => {
+  test('draws a series\' tracking first in its description\'s column, beside the facts and links', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
-    expect(classes(modal().querySelector('.header + .released-row')!.children)).toEqual(['released', 'tracking-compact'])
+    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['tracking-compact', 'description.collapsed'])
+    expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['facts', 'links'])
   })
 
-  test('draws a film\'s tracking alone on its row, under Play', () => {
+  test('draws a film\'s title and tracking in its column, the tracking on Play\'s row, and no title over its trailer', () => {
     const { answer } = preview(film(3).uri)
     answer(film(3))
-    expect(classes(modal().querySelector('.header + .movie + .released-row')!.children)).toEqual(['tracking-compact'])
+    expect(modal().querySelector('.hero > .over')).toBeNull()
+    expect(classes(modal().querySelector('.content.film > .columns > .main')!.children)).toEqual(['title', 'movie', 'description.collapsed', 'links'])
+    expect(modal().querySelector('.main > .title')!.textContent).toBe('Spirited Away')
+    expect(classes(modal().querySelector('.movie > .actions')!.children)).toEqual(['play-pending', 'tracking-compact'])
   })
 
-  test('draws a film\'s release date in its line of facts under the title', () => {
+  test('draws a film\'s facts beside its column: format, release, length and categories', () => {
     const { answer } = preview(film(3).uri)
     answer(film(3))
-    expect(modal().querySelector('.released')).toBeNull()
-    expect(modal().querySelector('.header + .movie > .facts')?.textContent).toBe(`Movie · ${releaseDateLabel('2023-09-29')} · Fantasy`)
+    expect(facts(modal())).toEqual(['Format: Movie', `Released: ${releaseDateLabel('2023-09-29')}`, 'Length: 24m', 'Genres: Fantasy', 'Tags: Travel'])
   })
 
   // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does
@@ -196,14 +204,13 @@ describe('the preview', () => {
     const late = { ...partial(3), type: 'MOVIE' }
     const { answer } = preview(late.uri)
     answer(late)
-    expect(pending(modal()), 'the control: held while a source is out').toEqual(['title-pending', 'description.pending', 'pending'])
-    expect(modal().querySelector('.play-bar.held'), 'and Play\'s place').not.toBeNull()
+    expect(pending(modal()), 'the control: held while a source is out').toEqual(['title-pending', 'play-pending', 'description.pending'])
 
     answer({ ...late, settled: true })
     expect(pending(modal())).toEqual([])
     answer({ ...late, settled: false })
     expect(pending(modal())).toEqual([])
-    expect(modal().querySelector('.play-bar')!.textContent).toBe('No sources yet')
+    expect(modal().querySelector('.movie > .none')!.textContent).toBe('No sources yet')
   })
 
   test('a film settled before its sources\' origins answer holds Play\'s place, and never reads No sources yet', () => {
@@ -211,16 +218,16 @@ describe('the preview', () => {
     answers.origins = crunchyroll(() => ready)
     const { answer } = preview(film(3).uri)
     answer(streamed(false))
-    expect(modal().querySelector('.play-bar.held'), 'the control: held while a source is out').not.toBeNull()
+    expect(modal().querySelector('.play-pending'), 'the control: held while a source is out').not.toBeNull()
 
     answer(streamed(true))
-    expect(modal().querySelector('.play-bar .when')).toBeNull()
-    expect(modal().querySelector('.play-bar.held')).not.toBeNull()
+    expect(modal().querySelector('.movie > .none')).toBeNull()
+    expect(modal().querySelector('.play-pending')).not.toBeNull()
 
     ready = true
     answer(streamed(true))
-    expect(modal().querySelector('.play-bar > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
-    expect(modal().querySelector('.play-bar .when')).toBeNull()
+    expect(modal().querySelector('.actions > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
+    expect(modal().querySelector('.movie > .none')).toBeNull()
   })
 
   test('a film whose answered source gives none holds Play\'s place while a source named later is out', () => {
@@ -231,12 +238,12 @@ describe('the preview', () => {
     const { answer } = preview(film(3).uri)
     answer(naming(false, anilist))
     answer(naming(true, anilist, ...streamed(true).episodes[0]!.handles))
-    expect(modal().querySelector('.play-bar .when')).toBeNull()
-    expect(modal().querySelector('.play-bar.held')).not.toBeNull()
+    expect(modal().querySelector('.movie > .none')).toBeNull()
+    expect(modal().querySelector('.play-pending')).not.toBeNull()
 
     ready = true
     answer(naming(true, anilist, ...streamed(true).episodes[0]!.handles))
-    expect(modal().querySelector('.play-bar > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
+    expect(modal().querySelector('.actions > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
   })
 
   // the worker answers no origins for an empty list of ids
@@ -244,7 +251,7 @@ describe('the preview', () => {
     answers.origins = ids => ids.length ? [] : undefined
     const { answer } = preview(film(3).uri)
     answer({ ...streamed(false), settled: true })
-    expect(modal().querySelector('.play-bar')!.textContent).toBe('No sources yet')
+    expect(modal().querySelector('.movie > .none')!.textContent).toBe('No sources yet')
   })
 
   test('draws no episode rows for a film, nor their placeholders before the worker says it is one', () => {
@@ -696,7 +703,8 @@ describe('every date, in the shown language as the browser writes it: British En
   test('on the preview, its release date and its episodes', () => {
     const { answer } = preview(dated().uri)
     answer(dated())
-    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe(british('2023-09-29'))
+    expect(modal().querySelector('.hero .line')?.textContent).toBe(`TV Show · ${british('2023-09-29')} · 2 Episodes`)
+    expect(facts(modal())).toContain(`Aired: ${british('2023-09-29')}`)
     expect(episodeDays(modal())).toEqual([british('2023-10-06'), british('2023-10-06')])
   })
 })
@@ -718,8 +726,8 @@ describe('Share', () => {
   test('on the preview, just before More details, a short link to the work\'s title page', async () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
-    expect(modal().querySelectorAll('.header > button[aria-label="Share"] + .more')).toHaveLength(1)
-    const { link, opens } = await share(modal().querySelector('.header > button[aria-label="Share"]'), `https://anime.fkn.app/media/ag:(anilist:1)${PLUGINS}`)
+    expect(modal().querySelectorAll('.links > button[aria-label="Share"] + .more')).toHaveLength(1)
+    const { link, opens } = await share(modal().querySelector('.links > button[aria-label="Share"]'), `https://anime.fkn.app/media/ag:(anilist:1)${PLUGINS}`)
     expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
     expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)${PLUGINS}`)
   })

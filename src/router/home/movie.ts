@@ -1,10 +1,9 @@
-// What a movie's page shows in place of a series' episode list: one line of facts and a release that
-// may still be ahead. No component imports, so the rules are tested without rendering the modal (which
-// cannot load under vitest, see tests/unit/router/modal-media.test.ts).
+// What a movie's page shows in place of a series' episode list: its length and a release that may still be
+// ahead. No component imports, so the rules are tested without rendering the modal.
 
-import { intl, NAME_LIST } from '../../i18n'
+import { intl } from '../../i18n'
 import { durationLocale } from '../../utils/countdown'
-import { isDateOnly, parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
+import { civilDay, DAY_MS, isDateOnly, isPartialDate, parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
 
 /** "1h 52m" for 112 minutes, "45m" under an hour, in the language shown, undefined for none. */
 export const runtimeText = (minutes: number | null | undefined): string | undefined => {
@@ -12,16 +11,35 @@ export const runtimeText = (minutes: number | null | undefined): string | undefi
   return new Intl.DurationFormat(durationLocale(), { style: 'narrow' }).format({ hours: Math.floor(minutes / 60), minutes: Math.round(minutes % 60) })
 }
 
-/** The line under a movie's title: "Movie", its release date, its runtime and up to three genres. */
-export const movieFacts = (
-  { released, runtime, genres }: { released?: string | null, runtime?: number | null, genres?: readonly string[] | null }
-): string[] =>
-  [
-    intl.formatMessage({ id: 'Movie', defaultMessage: 'Movie' }),
-    releaseDateLabel(released, { locale: intl.locale }),
-    runtimeText(runtime),
-    genres?.length ? intl.formatList(genres.slice(0, 3), NAME_LIST) : undefined,
-  ].filter((fact): fact is string => !!fact)
+/**
+ * A film not out yet's date in large type: the day (`Dec 11`) over its long form and the days left (`in 46 days`), or a
+ * month or a year alone over its Releases line. A named day is read in UTC, an air time where the viewer is, as
+ * `releaseDateLabel` reads them. Undefined for no date.
+ */
+export const filmDate = (
+  released: string | null | undefined,
+  now = new Date()
+): { day: string, date: string, count?: string, partial: boolean } | undefined => {
+  const date = parseReleaseDate(released)
+  if (!date) return undefined
+  const utc = isDateOnly(released)
+  const format = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(intl.locale, { ...options, ...utc ? { timeZone: 'UTC' } : {} }).format(date)
+  if (isPartialDate(released)) {
+    return {
+      day: format(released!.length === 4 ? { year: 'numeric' } : { month: 'long' }),
+      date: intl.formatMessage({ id: 'Releases {day}', defaultMessage: 'Releases {day}' }, { day: releaseDateLabel(released, { locale: intl.locale }) }),
+      partial: true,
+    }
+  }
+  const days = Math.round((civilDay(date, utc) - civilDay(now, false)) / DAY_MS)
+  return {
+    day: format({ month: 'short', day: 'numeric' }),
+    date: format({ weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+    count: days < 0 ? undefined : new Intl.RelativeTimeFormat(intl.locale, { numeric: 'auto' }).format(days, 'day'),
+    partial: false,
+  }
+}
 
 /** Whether a media draws as a film: by its format when known, else its categories, however many parts a source lists it in. */
 export const isMovieMedia = (
