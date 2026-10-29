@@ -1070,7 +1070,7 @@ const FILM_VIEWS = [
   { path: `/media/${FILM}`, row: '.modal .main > .sources', below: '.modal [data-relations]' },
   { path: `/title/${FILM}`, row: '.heading > .description ~ .watch', below: '.body > .actions' },
 ]
-// the title page draws a film's places to watch as the watch page's buttons, the preview as a list of rows (HOR-830)
+// the title page draws a film's places to watch as the watch page's buttons, the preview as cards (HOR-830)
 const FILM_PAGE = FILM_VIEWS.filter(({ path }) => path.startsWith('/title/'))
 
 // what a film's button looks like: the watch page's 3.2rem icon, its name at 1.45rem weight 600, and ↗ for a site
@@ -1122,48 +1122,62 @@ test('a film\'s page lists every place to watch it under its description as the 
   }
 })
 
-// HOR-830: round 3's Minimal list, a row a service, what a click does named at rest, atop the description (the owner,
-// 2026-10-30: "the minimal sources [...] taking most of the space and having the description under them")
-test('a film\'s preview lists every place to watch it atop its description, a row each naming the site it opens, and with none in stub holds no Play', async ({ page }) => {
-  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+// how many of `cards` each line holds, and whether every one is inside the list
+const cardLines = (cards: Locator) => cards.evaluateAll(cards => {
+  const { left, right } = cards[0]!.closest('ul')!.getBoundingClientRect()
+  const tops = cards.map(card => Math.round(card.getBoundingClientRect().top))
+  return {
+    counts: [...new Set(tops)].map(top => tops.filter(other => other === top).length),
+    inside: cards.every(card => card.getBoundingClientRect().left >= left && card.getBoundingClientRect().right <= right),
+  }
+})
+
+// HOR-830: design 3's service cards atop the description, smaller (the owner, 2026-10-30: "change the sources row to be
+// the same as the 3: service cards please? but make them a bit smaller, not the same size as they are on the 3")
+test('a film\'s preview draws every place to watch it atop its description as cards naming the site each opens, four to a line on a desktop and two on a phone, and with none in stub holds no Play', async ({ page }) => {
+  for (const [width, height, counts] of [[1440, 900, [4, 3]], [390, 844, [2, 2, 2, 1]]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${FILM}`)
-    const rows = modal(page).locator('.columns > .main > .sources:first-child a.source')
-    await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
-    expect((await rows.locator('.name').allTextContents()).sort()).toEqual(FILM_SOURCES)
-    const row = (name: string) => rows.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
-    await expect(row('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
-    await expect(row('Tubi').locator('.how')).toHaveText('tubitv.com')
-    expect(await rows.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), 'each opens its site in a new tab').toBe(true)
-    const heights = await rows.evaluateAll(links => [...new Set(links.map(link => Math.round(link.getBoundingClientRect().height)))])
-    expect(heights, `${width}: one line a row`).toHaveLength(1)
+    const cards = modal(page).locator('.columns > .main > .sources:first-child a.source')
+    await expect(cards, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    expect((await cards.locator('.name').allTextContents()).sort()).toEqual(FILM_SOURCES)
+    const card = (name: string) => cards.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    await expect(card('Tubi')).toHaveAttribute('href', 'https://tubitv.com/movies/900051')
+    await expect(card('Tubi').locator('.how')).toHaveText('tubitv.com')
+    await expect(card('Tubi').locator('.mark')).toHaveText('↗')
+    expect(await cards.evaluateAll(links => links.every(link => link.getAttribute('target') === '_blank')), 'each opens its site in a new tab').toBe(true)
+    const sizes = await cards.evaluateAll(links => [...new Set(links.map(link => `${Math.round(link.getBoundingClientRect().width)}x${Math.round(link.getBoundingClientRect().height)}`))])
+    expect(sizes, `${width}: one size`).toHaveLength(1)
+    expect(await cardLines(cards), `${width}`).toEqual({ counts, inside: true })
     await expect(modal(page).locator('.movie > .actions > .play, .movie > .actions > .play-pending'), `${width}: no Play, nor its place`).toHaveCount(0)
     expect(await overflowX(page)).toBe(0)
   }
 })
 
-test('a film\'s preview holds three rows\' place while JustWatch has not answered, so the list grows only by the rows past the third', async ({ page }) => {
+test('a film\'s preview holds three cards\' place while JustWatch has not answered, so the list grows only by the lines past theirs', async ({ page }) => {
   for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height: viewport })
     await page.goto(`${origin}/media/${FILM}`)
     const list = modal(page).locator('.main > .sources')
     const content = page.locator('.modal > .content')
     const slots = list.locator('.source-pending')
-    const rows = list.locator('a.source')
+    const cards = list.locator('a.source')
     const description = '.modal .columns > .main > .description'
     await expect(page.locator(`${description}:not(.pending)`), `${width}`).toBeVisible({ timeout: 30_000 })
     await expect(slots, `${width}: the control: held while JustWatch has not answered`).toHaveCount(3)
     await expect(modal(page).locator('.movie > .actions > .play-pending'), `${width}: the control: and Play's place`).toBeVisible()
     const slot = await box(slots.first())
+    const heldLines = (await cardLines(slots)).counts.length
     const held = { list: await height(list), content: await onPage(content), description: await onPage(page.locator(description)) }
     const tops = await everyFrame(page, description)
-    await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    await expect(cards, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
     await page.evaluate(() => new Promise(requestAnimationFrame))
     await expect(slots).toHaveCount(0)
-    const row = Math.round((await box(rows.first())).height)
-    expect(row, `${width}: a row as tall as a place held`).toBe(Math.round(slot.height))
+    const card = await box(cards.first())
+    expect([card.width, card.height], `${width}: a card the size of a place held`).toEqual([slot.width, slot.height])
+    const gap = await list.evaluate(list => parseFloat(getComputedStyle(list).rowGap))
     const grow = await height(list) - held.list
-    expect(grow, `${width}`).toBe((FILM_SOURCES.length - 3) * row)
+    expect(grow, `${width}`).toBe(Math.round(((await cardLines(cards)).counts.length - heldLines) * (card.height + gap)))
     // none of Spec Film's services plays in stub, so Play's held place goes with them: over the trailer on a desktop, on
     // its own line under the poster on a phone
     const shift = await onPage(content) - held.content
@@ -1240,15 +1254,18 @@ test('390 px wide, a film\'s button with a name longer than its row wraps the na
   }
 })
 
-test('390 px wide, a film\'s row in the preview with a name longer than it stays one line, the site it opens shown inside it', async ({ page }) => {
+test('390 px wide, a film\'s card in the preview with a name longer than it keeps its size, the name on one line and the site it opens inside it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`${origin}/media/${FILM}`)
-  const row = modal(page).locator('.main > .sources a.source').first()
-  await expect(row).toBeVisible({ timeout: 30_000 })
-  const tall = await height(row)
-  await row.locator('.name').evaluate(name => { name.textContent = 'A Streaming Service With A Very Long Name, With Ads' })
-  expect(await height(row), 'one line still').toBe(tall)
-  expect(await row.evaluate(link => link.querySelector('.how')!.getBoundingClientRect().right <= link.getBoundingClientRect().right), 'the site inside').toBe(true)
+  const card = modal(page).locator('.main > .sources a.source').first()
+  await expect(card).toBeVisible({ timeout: 30_000 })
+  const size = async () => { const { width, height } = await box(card); return [width, height] }
+  const held = await size()
+  await card.locator('.name').evaluate(name => { name.textContent = 'A Streaming Service With A Very Long Name, With Ads' })
+  expect(await size(), 'as tall, as wide').toEqual(held)
+  // a name wrapped in the card's fixed height is cut through its second line rather than shown as one
+  expect(await card.locator('.name').evaluate(name => [name.scrollHeight <= name.clientHeight, name.scrollWidth > name.clientWidth]), 'one whole line, cut short').toEqual([true, true])
+  expect(await card.evaluate(link => ['.name', '.how'].every(part => link.querySelector(part)!.getBoundingClientRect().right <= link.getBoundingClientRect().right)), 'the name and the site inside').toBe(true)
   expect(await overflowX(page)).toBe(0)
 })
 
@@ -1279,13 +1296,13 @@ test('a film\'s title page keeps the catalogue sites beside Play, and none of th
   }
 })
 
-test('a film\'s modal keeps the catalogue sites in its links, and none of the services its rows name, at any point', async ({ page }) => {
+test('a film\'s modal keeps the catalogue sites in its links, and none of the services its cards name, at any point', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const row = '.modal .links > .origins'
   await recordSites(page, row)
   await page.goto(`${origin}/media/${FILM}`)
   await expect(page.locator(`${row} > [title="TMDB"]`), 'JustWatch has answered').toHaveCount(1, { timeout: 30_000 })
-  await expect(modal(page).locator('.main > .sources a'), 'the control: the services are the rows').toHaveCount(FILM_SOURCES.length)
+  await expect(modal(page).locator('.main > .sources a'), 'the control: the services are the cards').toHaveCount(FILM_SOURCES.length)
   const seen = await sitesSeen(page)
   expect(seen, 'the control: a catalogue site stays').toContain('AniList')
   expect(seen.filter(site => FILM_SOURCES.includes(site))).toEqual([])
@@ -1947,7 +1964,7 @@ test.describe('in a language stub does not offer yet', () => {
 })
 
 // HOR-1026, home and cards: the home rows, its category tabs and the hero's Play, the search page's cards and rows, the
-// modal's episode rows, a series' line, its facts and a film's release, Play and rows, and the title page's Play. A line
+// modal's episode rows, a series' line, its facts and a film's release, Play and cards, and the title page's Play. A line
 // joining several facts is read fact by fact
 const HOME_WORDS = {
   text: [
