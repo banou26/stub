@@ -115,22 +115,24 @@ gender (Russian, Polish), the line is the member and a noun: `{member}: пауз
 `{track}(으)로`, whose particle no name changes. A host with no name is `host` as a label (a badge, who said a
 line) and a message of its own as who did what a line says, which takes the article: `der Host`, `l’hôte`,
 `el anfitrión`, `l’host`, `o anfitrião`. The grants' first row, All followers, shares the menu's width with six
-controls, so it is one word where the language's phrase runs long: `Alle`, `Todos`, `Tous`, `Все`.
+controls, so it is one word where the language's phrase runs long: `Alle`, `Todos`, `Tous`, `Все`. Watch party is the
+header's button, renamed from Watch together to take less room, so a language keeps whichever of the two is shorter:
+`Watch-Party` in German, the words for watching together everywhere else.
 
 | | Watch party | party | host | the others | Catch up | Follow playback |
 | --- | --- | --- | --- | --- | --- | --- |
-| `es-419` | Ver en grupo | grupo | anfitrión | participantes | Sincronizar | Seguir la reproducción |
-| `pt-BR` | Assistir em grupo | grupo | anfitrião | participantes | Sincronizar | Acompanhar a reprodução |
-| `fr` | Regarder en groupe | groupe | hôte | participants | Rattraper | Suivre la lecture |
+| `es-419` | Ver juntos | grupo | anfitrión | participantes | Sincronizar | Seguir la reproducción |
+| `pt-BR` | Assistir juntos | grupo | anfitrião | participantes | Sincronizar | Acompanhar a reprodução |
+| `fr` | Regarder ensemble | groupe | hôte | participants | Rattraper | Suivre la lecture |
 | `de` | Watch-Party | Party | Host | Teilnehmende | Aufholen | Wiedergabe folgen |
-| `it` | Guarda in gruppo | gruppo | host | partecipanti | Sincronizza | Segui la riproduzione |
-| `ru` | Совместный просмотр | комната | ведущий | участники | Догнать | Следовать за воспроизведением |
-| `ja` | ウォッチパーティー | パーティー | ホスト | 参加者 | 追いつく | ホストの再生に合わせる |
-| `ko` | 워치 파티 | 파티 | 호스트 | 참여자 | 따라잡기 | 호스트 재생 따라가기 |
-| `zh-Hans` | 观影派对 | 派对 | 主持人 | 成员 | 同步进度 | 跟随主持人播放 |
-| `zh-Hant` | 觀影派對 | 派對 | 主持人 | 成員 | 同步進度 | 跟隨主持人播放 |
-| `tr` | İzleme partisi | parti | ev sahibi | katılımcılar | Eşitle | Oynatmayı takip et |
-| `pl` | Wspólne oglądanie | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
+| `it` | Guarda insieme | gruppo | host | partecipanti | Sincronizza | Segui la riproduzione |
+| `ru` | Смотреть вместе | комната | ведущий | участники | Догнать | Следовать за воспроизведением |
+| `ja` | 一緒に見る | パーティー | ホスト | 参加者 | 追いつく | ホストの再生に合わせる |
+| `ko` | 함께 보기 | 파티 | 호스트 | 참여자 | 따라잡기 | 호스트 재생 따라가기 |
+| `zh-Hans` | 一起看 | 派对 | 主持人 | 成员 | 同步进度 | 跟随主持人播放 |
+| `zh-Hant` | 一起看 | 派對 | 主持人 | 成員 | 同步進度 | 跟隨主持人播放 |
+| `tr` | Birlikte izle | parti | ev sahibi | katılımcılar | Eşitle | Oynatmayı takip et |
+| `pl` | Oglądaj razem | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
 
 ## Header and search
 

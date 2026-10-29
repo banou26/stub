@@ -140,3 +140,35 @@ test.describe('in a language stub does not offer yet', () => {
     expect(found.size).toBeGreaterThan(60)
   })
 })
+
+// HOR-1066: the owner renamed the button to make it smaller, so in no language may it grow past its old name
+const BEFORE: Record<string, string> = {
+  en: 'Watch together', de: 'Gemeinsam schauen', 'es-419': 'Ver juntos', fr: 'Regarder ensemble', it: 'Guarda insieme',
+  ja: '一緒に見る', ko: '함께 보기', pl: 'Oglądaj razem', 'pt-BR': 'Assistir juntos', ru: 'Смотреть вместе',
+  tr: 'Birlikte izle', 'zh-Hans': '一起看', 'zh-Hant': '一起看',
+}
+
+test('in every language the header\'s party button is no wider than it was as Watch together', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${ORIGIN}${WATCH}?${VIEWS.idle}`)
+  const grown: Record<string, number> = {}
+  for (const [language, before] of Object.entries(BEFORE)) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('lang', language)
+    await expect(page.locator('header > button .label')).toBeVisible()
+    const [now, then, twice] = await page.evaluate(before => {
+      const button = document.querySelector('header > button')!
+      const label = button.querySelector('.label')!
+      return [label.textContent!, before, `${before} ${before}`].map(text => {
+        label.textContent = text
+        return button.getBoundingClientRect().width
+      })
+    }, before)
+    // the control: a longer label does widen the button
+    expect(twice, language).toBeGreaterThan(then!)
+    if (now! > then! + 0.5) grown[language] = Math.round(now! - then!)
+  }
+  expect(grown).toEqual({})
+})
