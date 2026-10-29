@@ -144,3 +144,90 @@ describe('the host\'s count of where followers stand', () => {
     expect(tally()).toBeUndefined()
   })
 })
+
+describe('the widget\'s English', () => {
+  const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)))
+  /** The widget over a store `start` moved, at HOST_PAGE, its menu open when it has one. */
+  const shown = async (start: (store: PartyStore) => Promise<unknown> | void) => {
+    const location = memoryLocation({ path: HOST_PAGE })
+    await start(current.store)
+    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    hosts.push(host)
+    await settle()
+    const trigger = host.querySelector('button')!
+    if (trigger.hasAttribute('aria-expanded') && trigger.getAttribute('aria-expanded') !== 'true') act(() => { trigger.click() })
+    const menu = () => [...document.body.querySelectorAll('.title, .hint, .can, .follow, .actions button')].map(element => element.textContent)
+    return { host, trigger, menu }
+  }
+  const room = (self: string, members: string[], joinError?: Parameters<typeof api>[1]) => {
+    const fake = fakeRoom({ self, owner: 'host', members })
+    current.store = createPartyStore(api(fake.room, joinError), memoryStorage())
+    return fake
+  }
+
+  test('with no party, one button', async () => {
+    room('host', ['host'])
+    const { trigger } = await shown(() => {})
+    expect([trigger.getAttribute('title'), trigger.textContent]).toEqual(['Watch together', 'Watch together'])
+  })
+
+  test('joining', async () => {
+    current.store = createPartyStore({ available: async () => true, create: () => new Promise(() => {}), join: () => new Promise(() => {}) } as unknown as Parameters<typeof createPartyStore>[0], memoryStorage())
+    const { trigger, menu } = await shown(store => { void store.join(INVITE) })
+    expect(trigger.textContent).toBe('Joining…')
+    expect(menu()).toEqual(['Joining the party…'])
+  })
+
+  test('the host, alone, then with one and with two followers', async () => {
+    const fake = room('host', ['host'])
+    const { trigger, menu } = await shown(store => store.create())
+    expect(trigger.textContent).toBe('Hosting1')
+    expect(menu()).toEqual(['You are hosting', 'Nobody has joined yet.', ' Party', ' End party'])
+    expect([...document.body.querySelectorAll('.link [aria-label]')].map(element => element.getAttribute('aria-label'))).toEqual(['Invite link', 'Copy invite link'])
+    for (const [id, hint] of [['ann', '1 person is following you.'], ['sam', '2 people are following you.']]) {
+      fake.join(id!)
+      act(() => { fake.emit({ type: 'joined', member: { id: id! } } as Parameters<typeof fake.emit>[0]) })
+      await settle()
+      expect(document.body.querySelector('.hint')?.textContent).toBe(hint)
+    }
+  })
+
+  test('a follower, with every control', async () => {
+    const fake = room('me', ['host', 'me'])
+    const { trigger, menu } = await shown(async store => {
+      await store.join(INVITE)
+      fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: '/watch/a/c', y: 0, grants: { all: ['play', 'seek', 'go', 'rate', 'subs', 'audio'], by: {} } }) }, replayed: false })
+    })
+    expect(trigger.textContent).toBe('Following2')
+    expect(menu()).toEqual([
+      'You are following the host', '2 in the party.', 'Follow playback', 'You can Play/pauseSeekEpisodeSpeedSubtitlesAudio',
+      ` ${PLAY}`, 'Catch up', ' Party', ' Leave',
+    ])
+  })
+
+  test('why a party ended, and why one could not start', async () => {
+    const ended = [['left', 'You left the party.'], ['removed', 'You were removed from the party.'], ['blocked', 'You were removed from the party.'], ['ended', 'The party ended.'], ['unavailable', 'The party was lost. Parties are unavailable right now.']] as const
+    for (const [reason, title] of ended) {
+      const fake = room('me', ['host', 'me'])
+      const { trigger, menu, host } = await shown(async store => { await store.join(INVITE); fake.end(reason) })
+      expect([trigger.textContent, ...menu()], reason).toEqual(['Party over', title, 'OK'])
+      unmount(hosts.splice(hosts.indexOf(host), 1)[0]!)
+    }
+    const fake = room('me', ['host', 'me'])
+    const { trigger, menu, host } = await shown(async store => { await store.join(INVITE); fake.emit({ type: 'left', id: 'host' } as Parameters<typeof fake.emit>[0]) })
+    expect([trigger.textContent, ...menu()]).toEqual(['Party over', 'The host left the party.', 'OK'])
+    unmount(hosts.splice(hosts.indexOf(host), 1)[0]!)
+
+    const failed = [
+      ['not-found', 'That party has ended.'], ['bad-key', 'That invite link is not valid.'], ['invalid', 'That invite link is broken.'],
+      ['full', 'That party is full.'], ['blocked', 'You cannot join that party.'], ['unavailable', 'Parties are not available right now. Is FKN connected?'],
+      ['rate-limited', 'Too many attempts. Try again in a moment.'], ['denied', 'The party could not start.'],
+    ] as const
+    for (const [code, title] of failed) {
+      room('me', ['host', 'me'], code)
+      const { trigger, menu, host } = await shown(store => store.join(INVITE))
+      expect([trigger.textContent, ...menu()], code).toEqual(['Party failed', title, 'OK'])
+      unmount(hosts.splice(hosts.indexOf(host), 1)[0]!)
+    }
+  })
+})

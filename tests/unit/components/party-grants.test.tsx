@@ -99,6 +99,16 @@ describe('the host hands out controls', () => {
   })
 
   // the store is the only copy: a grid keeping its own would hand a departed member's entry back
+  test('a cell\'s title says whether it follows all followers, and its name is the control and whose it is', async () => {
+    const { click, cell } = await hosting()
+    expect(cell('Ann').getAttribute('title')).toBe('Same as all followers')
+    click('Ann')
+    expect(cell('Ann').getAttribute('title')).toBe('On')
+    click('Ann')
+    expect(cell('Ann').getAttribute('title')).toBe('Off')
+    expect(cell('All followers').getAttribute('title')).toBeNull()
+  })
+
   test('a member who left is not put back by the next click', async () => {
     const { fake, members, click } = await hosting()
     click('sam123')

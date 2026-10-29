@@ -2,7 +2,7 @@
 // so the decoder is the one place that decides what a host can make a follower do.
 import { describe, expect, test } from 'vite-plus/test'
 
-import { CHAT_MAX_CHARS, NAME_MAX_CHARS, actionText, allowed, chatText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
+import { CHAT_MAX_CHARS, NAME_MAX_CHARS, actionText, allowed, chatText, clockText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
 
 const PLAYBACK = { paused: false, time: 421.5, rate: 1, at: 1_788_700_000_000 }
 
@@ -159,6 +159,11 @@ describe('grants', () => {
     expect(allowed(grants, 'sam', 'play')).toBe(false)
     expect(allowed({ all: [], by: { sam: { play: true } } }, 'sam', 'play')).toBe(true)
     expect(allowed({ all: [], by: { sam: { play: true } } }, 'bob', 'play')).toBe(false)
+  })
+
+  test('a player\'s time reads as a clock, its hours shown past the first', () => {
+    expect([0, 9, 59.9, 60, 599, 754.9, 3_599, 3_600, 3_725, 36_000, 90_061].map(seconds => clockText(seconds)))
+      .toEqual(['0:00', '0:09', '0:59', '1:00', '9:59', '12:34', '59:59', '1:00:00', '1:02:05', '10:00:00', '25:01:01'])
   })
 
   test('an ask reads as what it did', () => {
