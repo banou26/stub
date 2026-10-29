@@ -600,8 +600,8 @@ const main = async () => {
 
   const { runnerImport } = await import('vite-plus')
   const { module: pick } = await runnerImport(resolve(ROOT, 'scripts/offline-pick.ts'), { root: ROOT, configFile: false, logLevel: 'error' })
-  const { sets, counts } = pick.historyShards(manami.history, history.anidb.titles, history.kitsu)
-  log(`history: ${counts.records} records, AniDB titles of ${history.anidb.fetchedAt}, Kitsu rows refreshed for ${history.manifest.kitsu?.refreshedFor}`)
+  const { sets, counts } = pick.historyShards(manami.history, history.anidb.titles, history.kitsu, history.previews)
+  log(`history: ${counts.records} records, AniDB titles of ${history.anidb.fetchedAt}, Kitsu rows refreshed for ${history.manifest.kitsu?.refreshedFor}, ${counts.previewed} with an answer kept from a link preview`)
   log(`history: titles from AniDB ${counts.anidbTitles}, Kitsu ${counts.kitsuTitles}, the dump ${counts.records - counts.anidbTitles - counts.kitsuTitles}; Kitsu covers ${counts.kitsuCovers}, banners ${counts.banners}, descriptions ${counts.descriptions}`)
   emitHistory(sets, pick.shardName, provenance)
 

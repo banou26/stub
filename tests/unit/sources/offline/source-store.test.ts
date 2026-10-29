@@ -7,8 +7,9 @@ import { gzipSync, zstdCompressSync, zstdDecompressSync } from 'node:zlib'
 import { expect, test } from 'vite-plus/test'
 
 import { askKitsu } from '../../../../scripts/offline-history.mjs'
-import { SECRETS, anidbShows, dated, keepAnswers, r2, readStore } from '../../../../scripts/source-store.mjs'
+import { SECRETS, anidbShows, dated, keepAnswers, r2, readInbox, readStore } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
+import { FRIEREN_KITSU, answer, frierenRun, inboxEntry } from './fake-inbox'
 
 const WRITER = { by: 'offline-history', run: '42', stub: '0.0.62', commit: '0dcc4455' }
 const T1 = '2026-10-25T05:41:00.000Z'
@@ -33,9 +34,9 @@ const state = async (bucket: ReturnType<typeof fakeBucket>) => {
   return { manifest, lines: [...index.values()] }
 }
 const unsha = (lines: string[]) => lines.map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
-// the bucket holds what manifest.json names and nothing else
-const holdsOnly = (bucket: ReturnType<typeof fakeBucket>, manifest: { index: { name: string }, job: Record<string, { name: string }> }) =>
-  expect(new Set(bucket.objects.keys())).toEqual(new Set(['manifest.json', manifest.index.name, ...Object.values(manifest.job).map(file => file.name)]))
+// the bucket holds what manifest.json names and nothing else, but the previews' inbox
+const holdsOnly = (bucket: ReturnType<typeof fakeBucket>, manifest: { index: { name: string }, job: Record<string, { name: string }>, answers?: Record<string, { name: string }> }) =>
+  expect(new Set([...bucket.objects.keys()].filter(name => !name.startsWith('inbox/')))).toEqual(new Set(['manifest.json', manifest.index.name, ...[manifest.job, manifest.answers ?? {}].flatMap(files => Object.values(files).map(file => file.name))]))
 
 // Mutations: build a client with a secret unset; send a request unsigned; address another endpoint.
 test('the bucket is reached only with all three secrets, at R2\'s S3 endpoint, each request signed for its auto region', async () => {
@@ -60,7 +61,7 @@ test('the bucket is reached only with all three secrets, at R2\'s S3 endpoint, e
 // Mutation: set changedAt to fetchedAt on every answer.
 test('a first answer is its own change, an unchanged hash keeps its changedAt, and a changed one moves it', () => {
   const first = dated(undefined, { source: 'kitsu', id: '1', sha256: 'a', fetchedAt: T1, writer: WRITER })
-  expect(first).toEqual({ source: 'kitsu', id: '1', region: null, class: 'full', sha256: 'a', fetchedAt: T1, changedAt: T1, partial: false, role: null, body: true, writer: WRITER })
+  expect(first).toEqual({ source: 'kitsu', id: '1', region: null, class: 'full', form: 'upstream', sha256: 'a', fetchedAt: T1, changedAt: T1, partial: false, role: null, body: true, writer: WRITER })
   const same = dated(first, { source: 'kitsu', id: '1', sha256: 'a', fetchedAt: T2, writer: WRITER })
   expect([same.fetchedAt, same.changedAt]).toEqual([T2, T1])
   const changed = dated(same, { source: 'kitsu', id: '1', sha256: 'b', fetchedAt: T3, writer: WRITER })
@@ -194,4 +195,104 @@ test('a store whose index does not match its manifest is unreadable, never read 
   await expect(readStore(bucket.client)).rejects.toThrow(/does not match its sha256/)
   bucket.objects.delete(manifest.index.name)
   await expect(readStore(bucket.client)).rejects.toThrow(/is missing/)
+})
+
+// Mutations: list without the prefix; read every list as complete.
+test('the inbox is listed under its prefix, signed, at most 1,000 keys a request, and a longer list says so', async () => {
+  const seen: Request[] = []
+  const client = r2(STORE_ENV, async (request: Request) => {
+    seen.push(request)
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>stub-sources</Name><IsTruncated>true</IsTruncated><Contents><Key>inbox/2026-10-29/a.jsonl.gz</Key></Contents><Contents><Key>inbox/2026-10-30/b.jsonl.gz</Key></Contents></ListBucketResult>')
+  })
+  expect(await client.list('inbox/', 1000)).toEqual({ keys: ['inbox/2026-10-29/a.jsonl.gz', 'inbox/2026-10-30/b.jsonl.gz'], more: true })
+  expect(seen.map(request => `${request.method} ${request.url}`)).toEqual(['GET https://acct.r2.cloudflarestorage.com/stub-sources?list-type=2&prefix=inbox%2F&max-keys=1000'])
+  expect(seen[0]!.headers.get('authorization')).toMatch(/^AWS4-HMAC-SHA256 Credential=key-id\/\d{8}\/auto\/s3\/aws4_request, /)
+})
+
+// Mutations: read an object that is no preview's as an empty one; let it stop the others being read.
+test('an object in the inbox that is no preview\'s is left out, and the others are read', async () => {
+  const bucket = fakeBucket()
+  const [key, bytes] = await inboxEntry(frierenRun(T1))
+  bucket.objects.set(key, bytes)
+  bucket.objects.set('inbox/2026-10-25/not-gzip.jsonl.gz', Buffer.from('{}'))
+  bucket.objects.set('inbox/2026-10-25/no-line.jsonl.gz', gzipSync('{"index":{"source":"kitsu"},"body":{}}\n'))
+  // outside the inbox, so never listed
+  bucket.objects.set('manifest.json', Buffer.from('{}'))
+  const inbox = await readInbox(bucket.client)
+  expect(inbox.keys).toEqual([key])
+  expect(inbox.unreadable).toEqual(['inbox/2026-10-25/no-line.jsonl.gz', 'inbox/2026-10-25/not-gzip.jsonl.gz'])
+  expect(inbox.lines.map(line => `${line.index.source}:${line.index.id}`)).toEqual(['anilist:154587', 'anizip:17617', 'kitsu:46474', 'nf:81726714', 'kitsu:49240', 'jw:364792-373583'])
+  expect(inbox.more).toBe(false)
+})
+
+const answerLines = async (bucket: ReturnType<typeof fakeBucket>) => [...(await readStore(bucket.client)).index.values()].filter(line => line.form === 'answer')
+const fold = async (bucket: ReturnType<typeof fakeBucket>) => keepAnswers(bucket.client, await readStore(bucket.client), { inbox: await readInbox(bucket.client), writer: WRITER })
+
+// Mutations: key the answers without their class; date them with the job's writer; drop their role, region or partial.
+test('a preview\'s answers join the store with their own writer, region, partial and role, a later list hit beside the full answer', async () => {
+  const bucket = fakeBucket()
+  const frieren = frierenRun(T1)
+  // a later run, cut before it settled, that saw Frieren's Kitsu entry only as a list hit
+  const later = { rows: [answer(1, 'kitsu', '46474', 'MEDIA_PAGE', { ...FRIEREN_KITSU, descriptions: [] })], run: frierenRun(T2, false).run }
+  for (const run of [frieren, later]) bucket.objects.set(...await inboxEntry(run))
+  await fold(bucket)
+  expect((await answerLines(bucket)).map(line => [line.source, line.id, line.region, line.class, line.role, line.partial, line.fetchedAt, line.changedAt, line.writer.by])).toEqual([
+    ['anilist', '154587', null, 'full', 'member', false, T1, T1, 'stub-preview'],
+    ['anizip', '17617', null, 'full', 'member', false, T1, T1, 'stub-preview'],
+    ['jw', '364792-373583', 'US', 'full', 'member', false, T1, T1, 'stub-preview'],
+    ['kitsu', '46474', null, 'full', 'member', false, T1, T1, 'stub-preview'],
+    ['kitsu', '46474', null, 'list', 'member', true, T2, T2, 'stub-preview'],
+    ['kitsu', '49240', null, 'list', null, false, T1, T1, 'stub-preview'],
+    // Netflix's show the run is part of stays a related answer, as the page merged it
+    ['nf', '81726714', null, 'full', 'related', false, T1, T1, 'stub-preview'],
+  ])
+  const { manifest } = await readStore(bucket.client)
+  expect(Object.keys(manifest.answers).sort()).toEqual(['anilist', 'anizip', 'jw', 'kitsu', 'nf'])
+  expect(lines(bucket.objects.get(manifest.answers.jw.name)!).map(row => [row.id, row.region])).toEqual([['364792-373583', 'US']])
+  const kitsu = lines(bucket.objects.get(manifest.answers.kitsu.name)!)
+  expect(kitsu.map(row => [row.id, row.class, row.operation])).toEqual([['46474', 'full', 'MEDIA'], ['46474', 'list', 'MEDIA_PAGE'], ['49240', 'list', 'MEDIA_PAGE']])
+  expect(kitsu[0]).toEqual({ source: 'kitsu', id: '46474', region: null, class: 'full', form: 'answer', sha256: frieren.rows[2]!.key, run: frieren.run.run, operation: 'MEDIA', selection: frieren.rows[2]!.selection, body: frieren.rows[2]!.raw })
+  expect(manifest.answers.kitsu).toEqual({ name: expect.stringMatching(/^answers\/kitsu-[0-9a-f]{16}\.jsonl\.zst$/), sha256: expect.any(String), rows: 3 })
+})
+
+// Mutations: read the answers file back by id, as the job's files are; let an answer folded late replace a newer one;
+// keep an answers file no manifest names any more.
+test('folding the same inbox twice gives the same files, and an older answer folded late never replaces a newer one', async () => {
+  const bucket = fakeBucket()
+  const frieren = await inboxEntry(frierenRun(T2))
+  // a later run that saw Frieren's Kitsu entry as a list hit, so Kitsu's file holds two answers of one id
+  const listed = await inboxEntry({ rows: [answer(1, 'kitsu', '46474', 'MEDIA_PAGE', FRIEREN_KITSU)], run: frierenRun(T3).run })
+  for (const entry of [frieren, listed]) bucket.objects.set(...entry)
+  await fold(bucket)
+  const once = new Map(bucket.objects)
+  expect(await fold(bucket)).toBe('nothing changed')
+  expect(bucket.objects).toEqual(once)
+
+  // folded, the job removes them; then a run of the day before writes late, with another answer of Kitsu's
+  for (const [key] of [frieren, listed]) bucket.objects.delete(key)
+  const late = await inboxEntry({ rows: [answer(1, 'kitsu', '46474', 'MEDIA', { ...FRIEREN_KITSU, titles: [] })], run: frierenRun(T1).run })
+  bucket.objects.set(...late)
+  // control: the late object is read
+  expect((await readInbox(bucket.client)).keys).toEqual([late[0]])
+  expect(await fold(bucket)).toBe('nothing changed')
+
+  // a newer answer replaces Kitsu's file, and the one it replaced goes
+  bucket.objects.delete(late[0])
+  const kitsuFile = (await readStore(bucket.client)).manifest.answers.kitsu.name
+  bucket.objects.set(...await inboxEntry({ rows: [answer(1, 'kitsu', '46474', 'MEDIA', { ...FRIEREN_KITSU, titles: [] })], run: frierenRun(T4).run }))
+  await fold(bucket)
+  const { manifest } = await readStore(bucket.client)
+  expect(manifest.answers.kitsu.name).not.toBe(kitsuFile)
+  holdsOnly(bucket, manifest)
+})
+
+// Mutation: key the index without the form, so the job's Kitsu resource and a preview's Kitsu answer share a line.
+test('the job\'s Kitsu resource and a preview\'s Kitsu answer of one show keep a line each, neither moving the other\'s changedAt', async () => {
+  const bucket = fakeBucket()
+  const resource = { id: '46474', fetchedAt: T1, body: '{"data":{"id":"46474","type":"anime"},"included":[]}' }
+  await keepAnswers(bucket.client, await readStore(bucket.client), { kitsu: [resource], writer: WRITER })
+  bucket.objects.set(...await inboxEntry(frierenRun(T2)))
+  await keepAnswers(bucket.client, await readStore(bucket.client), { kitsu: [{ ...resource, fetchedAt: T3 }], inbox: await readInbox(bucket.client), writer: WRITER })
+  const frieren = [...(await readStore(bucket.client)).index.values()].filter(line => line.source === 'kitsu' && line.id === '46474')
+  expect(frieren.map(line => [line.form, line.fetchedAt, line.changedAt, line.writer.by])).toEqual([['answer', T2, T2, 'stub-preview'], ['upstream', T3, T1, 'offline-history']])
 })

@@ -1,7 +1,8 @@
 // The offline history's titles, covers, banners and descriptions, chosen by stub's own rules (HOR-915): each
-// gathered input becomes the media stub's own source answers for it (offline, kitsu, anizip), and stub's own
-// `aggregateFields` merges them as it merges a page's members. Loaded by ./build-anime-data.mjs through vite's
-// module runner, since node cannot load these modules on its own (enums, extensionless imports).
+// gathered input becomes the media stub's own source answers for it (offline, kitsu, anizip), or is one, kept from a
+// link preview, and stub's own `aggregateFields` merges them as it merges a page's members. Loaded by
+// ./build-anime-data.mjs through vite's module runner, since node cannot load these modules on its own (enums,
+// extensionless imports).
 
 import type { Media as GQLMedia } from '../src/generated/schema/types.generated'
 
@@ -16,8 +17,12 @@ export { SHARDS, shardName }
 
 /** One AniDB title as the history keeps it, in its file's order. */
 export type AnidbTitle = [type: string, language: string, title: string]
-/** A Kitsu row as the history keeps it: the resource kitsu's `normalizeMedia` reads. */
-export type KitsuRow = Parameters<typeof kitsuMedia>[0]
+/** A Kitsu row as the history keeps it: the resource kitsu's `normalizeMedia` reads, and when Kitsu answered it. */
+export type KitsuRow = Parameters<typeof kitsuMedia>[0] & { fetchedAt?: string }
+/** A link preview's answer of anizip or Kitsu as the history keeps it (scripts/history-files.mjs's `foldPreviews`). */
+export type PreviewAnswer = { source: string, id: string, class: 'full' | 'list', fetchedAt: string, media: Partial<GQLMedia> }
+/** A record's kept answers, by source. */
+export type Kept = { anizip?: PreviewAnswer, kitsu?: PreviewAnswer }
 /** A dump record as the data build extracts it, with its AniDB id. */
 export type HistoryRecord = ManamiRecord & { ad?: number }
 
@@ -38,8 +43,14 @@ export const anizipTitles = (titles: readonly AnidbTitle[]) => {
   return out
 }
 
-/** The media stub's sources would answer for a record from the gathered inputs. */
-export const members = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow): GQLMedia[] => {
+const keptMedia = ({ source, id, media }: PreviewAnswer) => makeMedia({ ...media, origin: source, id })
+
+/**
+ * The media stub's sources would answer for a record from the gathered inputs. A kept anizip answer stands for the
+ * titles AniDB's file gives, since it is api.ani.zip's own choice of them, and a kept Kitsu answer for Kitsu's row
+ * when Kitsu answered it later.
+ */
+export const members = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow, kept: Kept = {}): GQLMedia[] => {
   const offline = seasonMedia(record)
   if (!offline) return []
   const media = [offline]
@@ -50,9 +61,11 @@ export const members = (record: HistoryRecord, anidb?: readonly AnidbTitle[], ki
   if (record.ml && cover?.url.startsWith(MAL_CDN)) {
     media.push(makeMedia({ origin: 'mal', id: String(record.ml), score: 0.9, covers: [{ ...cover, score: 0.9 }] }))
   }
-  if (kitsu) media.push(kitsuMedia(kitsu))
+  if (kept.kitsu && !(kitsu?.fetchedAt && kitsu.fetchedAt >= kept.kitsu.fetchedAt)) media.push(keptMedia(kept.kitsu))
+  else if (kitsu) media.push(kitsuMedia(kitsu))
+  if (kept.anizip) media.push(keptMedia(kept.anizip))
   // the live anizip source answers only an address carrying a mal id
-  if (record.ml && record.ad && anidb?.length) {
+  else if (record.ml && record.ad && anidb?.length) {
     media.push(anizipMedia({
       mappings: { anidb_id: record.ad, mal_id: record.ml, anilist_id: record.al, type: record.ty },
       titles: anizipTitles(anidb),
@@ -69,8 +82,8 @@ const CLUSTER: ClusterFacts = { id: 'history', aggUri: 'ag:()', scope: 'RUN', ru
 const VALUE = { titles: 'title', covers: 'url', banners: 'url', descriptions: 'description' } as const
 
 /** What stub's page heads a record with from these inputs: the first title, cover, banner and description, each with the source that gave it. */
-export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow) => {
-  const media = members(record, anidb, kitsu)
+export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow, kept?: Kept) => {
+  const media = members(record, anidb, kitsu, kept)
   const row = aggregateFields({
     cluster: CLUSTER,
     members: media.map(member => ({ uri: member.uri, origin: member.origin, id: member.id, owned: true, score: member.score ?? null, raw: member as unknown as Record<string, unknown>, fieldSeq: {} })),
@@ -91,19 +104,20 @@ export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu
  * The history's shards: for each set, `SHARDS` objects of key to entry (see src/sources/offline/history.ts), and
  * how many entries each source gave. A key two records share keeps the first. A record with no MyAnimeList id
  * that names a Kitsu id is also reached from `kitsu-K`, which the id index cannot do, since it holds no row
- * without a MyAnimeList id.
+ * without a MyAnimeList id. `previews` holds the kept answers by uri, joined to a record by its AniDB and Kitsu ids.
  */
 export const historyShards = (
   records: readonly HistoryRecord[],
   anidb: ReadonlyMap<number, readonly AnidbTitle[]>,
   kitsu: ReadonlyMap<number, KitsuRow>,
+  previews: ReadonlyMap<string, PreviewAnswer> = new Map(),
 ) => {
   const sets: Record<HistorySet, Record<string, unknown>[]> = {
     dump: Array.from({ length: SHARDS }, () => ({})),
     anidb: Array.from({ length: SHARDS }, () => ({})),
     kitsu: Array.from({ length: SHARDS }, () => ({})),
   }
-  const counts = { records: 0, anidbTitles: 0, kitsuTitles: 0, kitsuCovers: 0, banners: 0, descriptions: 0 }
+  const counts = { records: 0, anidbTitles: 0, kitsuTitles: 0, kitsuCovers: 0, banners: 0, descriptions: 0, previewed: 0 }
   const pointers = new Map<string, string>()
   for (const record of records) {
     const key = recordId(record)
@@ -114,7 +128,9 @@ export const historyShards = (
     sets.dump[shard]![key] = dump
     counts.records++
 
-    const chosen = pick(record, record.ad ? anidb.get(record.ad) : undefined, record.ku ? kitsu.get(record.ku) : undefined)
+    const kept = { anizip: record.ad ? previews.get(`anizip:${record.ad}`) : undefined, kitsu: record.ku ? previews.get(`kitsu:${record.ku}`) : undefined }
+    counts.previewed += Number(Boolean(kept.anizip || kept.kitsu))
+    const chosen = pick(record, record.ad ? anidb.get(record.ad) : undefined, record.ku ? kitsu.get(record.ku) : undefined, kept)
     const fromKitsu: KitsuEntry = {}
     const title = chosen.title
     // a title that reads as the dump's is the dump's entry already

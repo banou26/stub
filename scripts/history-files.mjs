@@ -1,9 +1,10 @@
 // The offline history's release assets (HOR-915): what the Offline history workflow publishes
 // (./offline-history.mjs) and every data build reads (./build-anime-data.mjs).
 //
-// Two assets of gathered inputs, each a file of its own and neither holding any ODbL data: AniDB's titles and
-// Kitsu's rows. A manifest names them with their sha256 and row count, which dump the checkpoints came from, and the
-// YEAR-SEASON checkpoints themselves. Asset names are content addressed and the manifest is replaced last, so a
+// Three assets of gathered inputs, each a file of its own and none holding any ODbL data: AniDB's titles, Kitsu's
+// rows, and what link previews' answers of anizip and Kitsu may add, folded from the private source store's inbox
+// (./source-store.mjs). A manifest names them with their sha256 and row count, which dump the checkpoints came from, and
+// the YEAR-SEASON checkpoints themselves. Asset names are content addressed and the manifest is replaced last, so a
 // reader sees the old set or the new one, never a mix.
 
 import { createHash } from 'node:crypto'
@@ -28,24 +29,51 @@ const compress = text => zstdCompressSync(Buffer.from(text), { params: { [consta
 
 const asset = (prefix, extension, bytes, rows) => ({ name: `${prefix}-${sha256(bytes).slice(0, 16)}${extension}`, sha256: sha256(bytes), bytes: bytes.length, rows })
 
+// The fields of a link preview's answer the history may publish, by source: only the sources whose terms allow
+// publishing their data, and of anizip its titles alone, since its images are TheTVDB's, whose terms do not.
+const PREVIEW_FIELDS = { anizip: ['score', 'titles'], kitsu: ['score', 'titles', 'covers', 'banners', 'descriptions'] }
+const rank = kind => (kind === 'full' ? 1 : 0)
+const newer = (line, held) => !held || rank(line.class) > rank(held.class) || (line.class === held.class && line.fetchedAt > held.fetchedAt)
+
+/**
+ * `previews`, a Map by uri of `{ source, id, class, fetchedAt, media }`, with the inbox `lines` of the private source
+ * store (scripts/source-store.mjs's `readInbox`) folded in: per uri the newest full answer, else the newest list hit,
+ * of PREVIEW_FIELDS' sources only, with only their fields.
+ */
+export const foldPreviews = (previews, lines) => {
+  const folded = new Map(previews)
+  for (const { index, body } of lines) {
+    const fields = PREVIEW_FIELDS[index.source]
+    if (!fields) continue
+    const uri = `${index.source}:${index.id}`
+    if (!newer(index, folded.get(uri))) continue
+    const media = JSON.parse(body.body)
+    folded.set(uri, { source: index.source, id: index.id, class: index.class, fetchedAt: index.fetchedAt, media: Object.fromEntries(fields.filter(field => field in media).map(field => [field, media[field]])) })
+  }
+  return folded
+}
+
 /**
  * The files of one history: `{ manifest, assets }`, the manifest as text and each asset's bytes by name.
  *
  * `anidb` is `{ fetchedAt, lastModified, titles }`, `titles` a Map of AniDB id to its English and Japanese
  * titles as `[type, language, title]` in the file's order. `kitsu` is a Map of Kitsu id to `{ id, fetchedAt,
- * attributes }`. `fields` is the rest of the manifest: `dump`, `kitsu`, `checkpoints`, `open`.
+ * attributes }`. `previews` is a Map as `foldPreviews` answers it. `fields` is the rest of the manifest: `dump`,
+ * `kitsu`, `checkpoints`, `open`.
  */
-export const encodeHistory = ({ anidb, kitsu, fields }) => {
+export const encodeHistory = ({ anidb, kitsu, previews = new Map(), fields }) => {
   const titles = Object.fromEntries([...anidb.titles].sort(([a], [b]) => a - b))
   const anidbBytes = compress(JSON.stringify({ fetchedAt: anidb.fetchedAt ?? null, lastModified: anidb.lastModified ?? null, titles }))
   const kitsuBytes = compress([...kitsu.values()].sort((a, b) => Number(a.id) - Number(b.id)).map(row => `${JSON.stringify(row)}\n`).join(''))
+  const previewsBytes = compress([...previews.values()].sort((a, b) => a.source.localeCompare(b.source) || Number(a.id) - Number(b.id)).map(row => `${JSON.stringify(row)}\n`).join(''))
   const assets = {
     anidb: asset('anidb-titles', '.json.zst', anidbBytes, anidb.titles.size),
     kitsu: asset('kitsu', '.jsonl.zst', kitsuBytes, kitsu.size),
+    previews: asset('previews', '.jsonl.zst', previewsBytes, previews.size),
   }
   return {
     manifest: `${JSON.stringify({ assets, ...fields }, null, 1)}\n`,
-    assets: { [assets.anidb.name]: anidbBytes, [assets.kitsu.name]: kitsuBytes },
+    assets: { [assets.anidb.name]: anidbBytes, [assets.kitsu.name]: kitsuBytes, [assets.previews.name]: previewsBytes },
   }
 }
 
@@ -59,7 +87,8 @@ export const readManifest = text => {
   } catch {
     throw unreadable(`${MANIFEST} is not JSON`)
   }
-  for (const kind of ['anidb', 'kitsu']) {
+  // a history published before previews were kept names none
+  for (const kind of ['anidb', 'kitsu', ...(manifest?.assets?.previews ? ['previews'] : [])]) {
     const entry = manifest?.assets?.[kind]
     if (typeof entry?.name !== 'string' || typeof entry.sha256 !== 'string' || !Number.isInteger(entry.rows)) throw unreadable(`${MANIFEST} names no ${kind} asset`)
   }
@@ -82,27 +111,32 @@ const rowsChecked = (entry, size) => {
 }
 
 /**
- * A history read back from its files: `{ manifest, anidb, kitsu }` as `encodeHistory` takes them. Fails loudly on
- * any asset that is missing, does not match its sha256, does not parse, or holds another row count than its own
- * manifest entry records, so a damaged history is never read as a smaller one.
+ * A history read back from its files: `{ manifest, anidb, kitsu, previews }` as `encodeHistory` takes them. Fails
+ * loudly on any asset that is missing, does not match its sha256, does not parse, or holds another row count than its
+ * own manifest entry records, so a damaged history is never read as a smaller one.
  */
 export const decodeHistory = files => {
   const manifest = readManifest(files.manifest)
+  const lines = entry => assetText(files, entry).split('\n').filter(Boolean).map(line => JSON.parse(line))
   let anidb
   let kitsu
+  let previews
   try {
     anidb = JSON.parse(assetText(files, manifest.assets.anidb))
-    kitsu = assetText(files, manifest.assets.kitsu).split('\n').filter(Boolean).map(line => JSON.parse(line))
+    kitsu = lines(manifest.assets.kitsu)
+    previews = manifest.assets.previews ? lines(manifest.assets.previews) : []
   } catch (error) {
     throw error.message.startsWith('the offline history') ? error : unreadable(`an asset does not parse (${error.message})`)
   }
   const titles = new Map(Object.entries(anidb.titles ?? {}).map(([aid, list]) => [Number(aid), list]))
   rowsChecked(manifest.assets.anidb, titles.size)
   rowsChecked(manifest.assets.kitsu, kitsu.length)
+  if (manifest.assets.previews) rowsChecked(manifest.assets.previews, previews.length)
   return {
     manifest,
     anidb: { fetchedAt: anidb.fetchedAt, lastModified: anidb.lastModified, titles },
     kitsu: new Map(kitsu.map(row => [Number(row.id), row])),
+    previews: new Map(previews.map(row => [`${row.source}:${row.id}`, row])),
   }
 }
 

@@ -5,13 +5,14 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gunzipSync, gzipSync } from 'node:zlib'
+import { gunzipSync, gzipSync, zstdDecompressSync } from 'node:zlib'
 import { expect, test, vi } from 'vite-plus/test'
 
 import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory, runOptions } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
 import { SECRETS, readStore, rowsOf } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
+import { FRIEREN_ANILIST, FRIEREN_ANIZIP, FRIEREN_KITSU, frierenRun, inboxEntry } from './fake-inbox'
 import { RECORDED_SHOWS, annItem, fakeSources } from './fake-sources'
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -258,7 +259,7 @@ test('from scratch, only on a 404: the release is made, the attempt recorded bef
   await run(w)
   const uploads = w.log.filter(line => line.startsWith('upload')).map(line => line.replace(/-[0-9a-f]{16}\./, '-<sha>.'))
   expect(w.log.slice(0, 3)).toEqual(['create', `upload ${ATTEMPT}`, 'anidb'])
-  expect(uploads).toEqual([`upload ${ATTEMPT}`, `upload ${ATTEMPT}`, 'upload anidb-titles-<sha>.json.zst', 'upload kitsu-<sha>.jsonl.zst', 'upload manifest-<sha>.json', 'upload manifest.json'])
+  expect(uploads).toEqual([`upload ${ATTEMPT}`, `upload ${ATTEMPT}`, 'upload anidb-titles-<sha>.json.zst', 'upload kitsu-<sha>.jsonl.zst', 'upload previews-<sha>.jsonl.zst', 'upload manifest-<sha>.json', 'upload manifest.json'])
   const history = decodeHistory({ manifest: w.named('manifest.json')!.toString(), assets: Object.fromEntries(w.names().map(name => [name, w.named(name)!])) })
   expect([history.anidb.titles.size, history.kitsu.size, history.manifest.kitsu.refreshedFor]).toEqual([15_000, 6, '2026-43'])
   expect(JSON.parse(w.named(ATTEMPT)!.toString())).toMatchObject({ attemptedAt: '2026-10-25T05:41:00.000Z', outcome: '200' })
@@ -582,6 +583,59 @@ test('a store that cannot be read is skipped for the run: AniDB gets the release
   expect(w.sources.asked).toEqual([])
 })
 
+// Mutations: remove the folded objects before manifest.json names what they held; leave them; remove one that is no
+// preview's, or say nothing of it; publish a restricted source's answer or anizip's images.
+test('a run folds the previews\' inbox: every answer into the store, anizip\'s titles and Kitsu\'s fields into the release, then removes it', async () => {
+  const bucket = fakeBucket()
+  const [key, bytes] = await inboxEntry(frierenRun(at(NOW - HOUR)))
+  bucket.objects.set(key, bytes)
+  const stray = 'inbox/2026-10-25/stray.jsonl.gz'
+  bucket.objects.set(stray, Buffer.from('not gzip'))
+  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources: wholeReport(fakeSources()) })
+  const lines = await logged(() => keeping(w, bucket))
+  expect(lines.filter(line => line.startsWith('::warning::'))).toEqual([`::warning::[offline-history] ${stray} is no inbox object, left in the store`])
+
+  const { previews } = historyOf(w)
+  expect([...previews.keys()]).toEqual(['anizip:17617', 'kitsu:46474', 'kitsu:49240'])
+  expect(previews.get('anizip:17617')).toEqual({ source: 'anizip', id: '17617', class: 'full', fetchedAt: at(NOW - HOUR), media: { titles: FRIEREN_ANIZIP.titles } })
+  const { id: _, status: __, ...fields } = FRIEREN_KITSU
+  expect(previews.get('kitsu:46474')!.media).toEqual(fields)
+  const released = w.names().filter(name => name.startsWith('previews-')).map(name => zstdDecompressSync(w.named(name)!).toString()).join('')
+  const kept = await readStore(bucket.client)
+  const store = Object.values(kept.manifest.answers as Record<string, { name: string }>).map(({ name }) => zstdDecompressSync(bucket.objects.get(name)!).toString()).join('')
+  for (const text of ['artworks.thetvdb.com', FRIEREN_ANILIST.descriptions[0]!.description, '81726714', '364792-373583']) {
+    // control: the store keeps it
+    expect(store).toContain(text)
+    expect(released).not.toContain(text)
+  }
+  expect(Object.keys(kept.manifest.answers).sort()).toEqual(['anilist', 'anizip', 'jw', 'kitsu', 'nf'])
+
+  const order = bucket.log.filter(line => /^(PUT manifest\.json|DELETE inbox\/)/.test(line))
+  expect(order.slice(0, 2)).toEqual(['PUT manifest.json', `DELETE ${key}`])
+  expect([...bucket.objects.keys()].filter(name => name.startsWith('inbox/'))).toEqual([stray])
+})
+
+// Mutations: remove the folded objects when the store was not written; publish the same fold again as a change.
+test('an inbox the store did not keep stays for the next run, whose fold of it changes nothing in the release', async () => {
+  let refusing = true
+  const bucket = fakeBucket({ fail: method => refusing && method === 'PUT' })
+  const [key, bytes] = await inboxEntry(frierenRun(at(NOW - HOUR)))
+  bucket.objects.set(key, bytes)
+  const first = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources: wholeReport(fakeSources()) })
+  await logged(() => keeping(first, bucket))
+  expect([...historyOf(first).previews.keys()]).toEqual(['anizip:17617', 'kitsu:46474', 'kitsu:49240'])
+  expect(bucket.objects.has(key)).toBe(true)
+
+  refusing = false
+  const next = world({ assets: assetsOf(first), sources: first.sources })
+  await logged(() => keeping(next, bucket, '2026-43', NOW + DAY))
+  // control: the run did ask AniDB, which answered 304, and kept the store
+  expect(next.log).toContain('anidb')
+  expect(next.log.filter(line => line.startsWith('upload'))).toEqual([`upload ${ATTEMPT}`, `upload ${ATTEMPT}`])
+  expect(Object.keys((await readStore(bucket.client)).manifest.answers).sort()).toEqual(['anilist', 'anizip', 'jw', 'kitsu', 'nf'])
+  expect(bucket.objects.has(key)).toBe(false)
+})
+
 // Mutations: write manifest.json again when nothing was asked; ask TVmaze or ANN again the same UTC day.
 test('a rerun the same day asks nothing and writes nothing to the store', async () => {
   const bucket = fakeBucket()
@@ -596,7 +650,7 @@ test('a rerun the same day asks nothing and writes nothing to the store', async 
   const rerun = world({ assets: assetsOf(first), sources })
   await keeping(rerun, bucket, '2026-43', NOW + HOUR)
   expect([rerun.log, sources.asked]).toEqual([[], []])
-  expect(bucket.log.filter(line => !line.startsWith('GET '))).toEqual([])
+  expect(bucket.log.filter(line => !/^(GET|LIST) /.test(line))).toEqual([])
   expect(bucket.objects).toEqual(objects)
 })
 
@@ -629,7 +683,7 @@ test('the job refuses to run anywhere but its workflow, before it asks anything'
 test('the workflow\'s environment gives the run its token, the store once every secret is set, and the writer its lines name', () => {
   const env = { GH_TOKEN: 't', GITHUB_RUN_ID: '18800000001', GITHUB_SHA: '0dcc445515d01f83ed4f61a388e0530dcba472f7', ...STORE_ENV }
   const { token, store, writer } = runOptions(env)
-  expect([token, Object.keys(store ?? {})]).toEqual(['t', ['get', 'put', 'remove']])
+  expect([token, Object.keys(store ?? {})]).toEqual(['t', ['get', 'put', 'remove', 'list']])
   expect(writer).toEqual({ by: 'offline-history', run: '18800000001', stub: JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version, commit: '0dcc4455' })
   for (const name of SECRETS) expect(runOptions({ ...env, [name]: '' }).store).toBeUndefined()
 })

@@ -266,7 +266,7 @@ test('each source\'s answers keep their changedAt while unchanged and move it wh
     return readStore(bucket.client)
   }
   const dates = (store: Awaited<ReturnType<typeof readStore>>, source: string, id: string) => {
-    const line = store.index.get([source, id, null, 'full'].join('\t'))
+    const line = store.index.get([source, id, null, 'full', 'upstream'].join('\t'))
     return [line.fetchedAt, line.changedAt]
   }
 

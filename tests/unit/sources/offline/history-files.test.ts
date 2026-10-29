@@ -5,12 +5,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vite-plus/test'
 
-import { DOWNLOAD, decodeHistory, downloadManifest, encodeHistory, manifestCopy } from '../../../../scripts/history-files.mjs'
+import { DOWNLOAD, decodeHistory, downloadManifest, encodeHistory, foldPreviews, manifestCopy } from '../../../../scripts/history-files.mjs'
 import { loadHistory } from '../../../../scripts/build-anime-data.mjs'
+import { FRIEREN_ANILIST, FRIEREN_ANIZIP, FRIEREN_KITSU } from './fake-inbox'
 
-const history = () => encodeHistory({
+const history = (previews?: Map<string, unknown>) => encodeHistory({
   anidb: { fetchedAt: '2026-10-23T18:29:29.677Z', lastModified: null, titles: new Map([[23, [['official', 'en', 'Cowboy Bebop']]], [1, [['official', 'ja', 'エクスカイザー']]]]) },
   kitsu: new Map([[1, { id: '1', fetchedAt: '2026-10-23T19:19:32Z', attributes: { canonicalTitle: 'Cowboy Bebop', status: 'finished' } }]]),
+  previews,
   fields: { dump: { tag: '2026-43', sha256: 'abc' }, kitsu: { refreshedFor: '2026-43' }, checkpoints: {}, open: [] },
 })
 
@@ -35,7 +37,7 @@ const release = (files: { manifest: string, assets: Record<string, Buffer> } | u
 test('the history round trips through its files, under content addressed names', () => {
   const files = history()
   const names = Object.keys(files.assets)
-  expect(names).toEqual([expect.stringMatching(/^anidb-titles-[0-9a-f]{16}\.json\.zst$/), expect.stringMatching(/^kitsu-[0-9a-f]{16}\.jsonl\.zst$/)])
+  expect(names).toEqual([expect.stringMatching(/^anidb-titles-[0-9a-f]{16}\.json\.zst$/), expect.stringMatching(/^kitsu-[0-9a-f]{16}\.jsonl\.zst$/), expect.stringMatching(/^previews-[0-9a-f]{16}\.jsonl\.zst$/)])
   expect(Object.keys(history().assets)).toEqual(names)
   const read = decodeHistory(files)
   expect([...read.anidb.titles.keys()]).toEqual([1, 23])
@@ -53,6 +55,67 @@ test('a damaged history fails loudly rather than reading as a smaller one', () =
   expect(() => decodeHistory({ ...files, assets: { [anidb]: files.assets[anidb]! } })).toThrow(new RegExp(`${kitsu} is missing`))
   expect(() => decodeHistory({ ...files, manifest: files.manifest.replace('"rows": 2', '"rows": 3') })).toThrow(/holds 2 rows, its manifest says 3/)
   expect(() => decodeHistory({ ...files, manifest: '{' })).toThrow(/manifest.json is not JSON/)
+})
+
+const T1 = '2026-10-25T05:41:00.000Z'
+const T2 = '2026-10-26T05:41:00.000Z'
+// an inbox line as the source store's `readInbox` hands it on, with what the fold reads of it
+const line = (source: string, id: string, kind: 'full' | 'list', fetchedAt: string, media: object) => ({ index: { source, id, class: kind, fetchedAt }, body: { body: JSON.stringify(media) } })
+const kitsu = (title: string) => ({ score: 0.3, titles: [{ language: 'en', title, score: 0.3 }], status: 'FINISHED' })
+const LINES = [
+  // only a list hit: it stands for the show
+  line('kitsu', '1', 'list', T1, kitsu('Cowboy Bebop')),
+  // a full answer, then a later list hit, which does not replace it
+  line('kitsu', '2', 'full', T1, kitsu('Trigun')),
+  line('kitsu', '2', 'list', T2, kitsu('Trigun Stampede')),
+  // a list hit, then a later full answer, which does
+  line('kitsu', '3', 'list', T1, kitsu('Excel Saga')),
+  line('kitsu', '3', 'full', T2, kitsu('Excel Saga (TV)')),
+  line('anizip', '17617', 'full', T1, FRIEREN_ANIZIP),
+  // an offline answer carrying MyAnimeList's synopsis, and the restricted sources' own
+  line('offline', 'mal-52991', 'full', T1, { titles: [{ language: 'en', title: 'Sousou no Frieren', score: 0.2 }], descriptions: [{ language: 'en', description: 'MyAnimeList\'s synopsis', score: 0.2 }] }),
+  line('anilist', '154587', 'full', T1, FRIEREN_ANILIST),
+  line('mal', '52991', 'list', T1, { titles: [{ language: 'en', title: 'Frieren', score: 0.9 }] }),
+]
+
+// Mutations: read full answers only; let the newest answer win whatever its class; publish every source; publish
+// anizip's images or the fields Kitsu answers beyond the four the history picks.
+test('previews add to the history per show the newest full answer, else the newest list hit, of anizip and Kitsu only', () => {
+  const folded = foldPreviews(new Map(), LINES)
+  expect([...folded.values()].map(({ source, id, class: kind, fetchedAt, media }) => [`${source}:${id}`, kind, fetchedAt, (media.titles as { title: string }[])[0]!.title])).toEqual([
+    ['kitsu:1', 'list', T1, 'Cowboy Bebop'],
+    ['kitsu:2', 'full', T1, 'Trigun'],
+    ['kitsu:3', 'full', T2, 'Excel Saga (TV)'],
+    ['anizip:17617', 'full', T1, 'Frieren: Beyond Journey\'s End'],
+  ])
+  expect(folded.get('anizip:17617')!.media).toEqual({ titles: FRIEREN_ANIZIP.titles })
+  const { id, status, ...fields } = FRIEREN_KITSU
+  // control: Kitsu answered an id and a status, which the history does not pick
+  expect([id, status]).toEqual(['46474', 'FINISHED'])
+  expect(foldPreviews(new Map(), [line('kitsu', '46474', 'full', T1, FRIEREN_KITSU)]).get('kitsu:46474')!.media).toEqual(fields)
+  const published = JSON.stringify([...folded.values()])
+  for (const text of ['artworks.thetvdb.com', 'MyAnimeList\'s synopsis', FRIEREN_ANILIST.descriptions[0]!.description]) expect(published).not.toContain(text)
+})
+
+// Mutation: read the published previews back under another key than the fold's.
+test('folding the same lines into the history read back from its files gives the same files', () => {
+  const once = history(foldPreviews(new Map(), LINES))
+  const read = decodeHistory(once).previews
+  expect(Object.keys(history(foldPreviews(read, LINES)).assets)).toEqual(Object.keys(once.assets))
+  // control: a later answer does change them
+  const later = foldPreviews(read, [line('kitsu', '1', 'list', T2, kitsu('Cowboy Bebop: The Movie'))])
+  expect(Object.keys(history(later).assets)).not.toEqual(Object.keys(once.assets))
+})
+
+// Mutations: require a previews asset of every manifest; skip its row count check.
+test('a history published before previews were kept reads with none, and kept ones round trip', () => {
+  const files = history(foldPreviews(new Map(), LINES))
+  expect([...decodeHistory(files).previews.keys()]).toEqual(['anizip:17617', 'kitsu:1', 'kitsu:2', 'kitsu:3'])
+  expect(decodeHistory(files).previews.get('kitsu:2')).toEqual(foldPreviews(new Map(), LINES).get('kitsu:2'))
+  const manifest = JSON.parse(files.manifest)
+  expect(() => decodeHistory({ ...files, manifest: JSON.stringify({ ...manifest, assets: { ...manifest.assets, previews: { ...manifest.assets.previews, rows: 5 } } }) })).toThrow(/holds 4 rows, its manifest says 5/)
+  const { previews: _, ...before } = manifest.assets
+  expect(decodeHistory({ ...files, manifest: JSON.stringify({ ...manifest, assets: before }) }).previews).toEqual(new Map())
 })
 
 // Mutation: ask the manifest only once.

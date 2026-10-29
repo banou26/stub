@@ -2,7 +2,9 @@
 // The Offline history workflow's job (HOR-915, .github/workflows/offline-history.yml): gathers what the offline
 // history holds and publishes it as release assets (./history-files.mjs), which every data build reads. What it asks
 // is also kept in the private source store (HOR-994, ./source-store.mjs) when the workflow has its secrets, with three
-// sources only the store keeps: TVmaze's show index, ANN's title report and AnimeThemes' catalogue.
+// sources only the store keeps: TVmaze's show index, ANN's title report and AnimeThemes' catalogue. It also folds the
+// store's inbox, what link previews' sources answered, into the store, and what anizip and Kitsu answered there into
+// the history.
 //
 // The only code that asks AniDB, the only code that asks Kitsu for the history, and the only code that asks those
 // three for their whole catalogues. It refuses to run outside that workflow, so a local run, a test or a Pages build
@@ -17,9 +19,9 @@ import { readFileSync } from 'node:fs'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
 import { SEASON_ORDER, catalogIds, downloadDump } from './build-anime-data.mjs'
-import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, manifestCopy, readManifest } from './history-files.mjs'
+import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, foldPreviews, manifestCopy, readManifest } from './history-files.mjs'
 import { errorText } from './season-popularity.mjs'
-import { SECRETS, keepAnswers, r2, readStore, rowsOf } from './source-store.mjs'
+import { SECRETS, keepAnswers, r2, readInbox, readStore, rowsOf } from './source-store.mjs'
 
 const WORKFLOW = 'Offline history'
 const API = `https://api.github.com/repos/${REPOSITORY}`
@@ -519,12 +521,13 @@ const keepSources = async (store, { writer, ...options }) => {
 
 /**
  * One run: read the published history (a build from scratch only when the release answers 404), take the newest
- * dump, ask AniDB when its turn has come and Kitsu when a new dump has, and publish only what changed. Then, when
- * `store` is given, keep what AniDB and Kitsu answered in the source store, as `writer`'s run, and only then ask the
- * sources only the store keeps, which can take 20 minutes, and keep theirs in a second write. A store that cannot be
- * read or written is skipped with a warning, and never fails the run. AniDB's file comes back to such a store with
- * the next 200, but that run's Kitsu answers do not, since Kitsu is asked again only for open seasons and unfinished
- * shows; a warning counts them.
+ * dump, ask AniDB when its turn has come and Kitsu when a new dump has, fold in what the store's inbox holds of anizip
+ * and Kitsu, and publish only what changed. Then, when `store` is given, keep what AniDB and Kitsu answered and the
+ * inbox in the source store, as `writer`'s run, remove the inbox objects it folded, and only then ask the sources
+ * only the store keeps, which can take 20 minutes, and keep theirs in a second write. A store that cannot be read or
+ * written is skipped with a warning, and never fails the run; an inbox it did not keep stays for the next run, whose
+ * fold gives the same history. AniDB's file comes back to such a store with the next 200, but that run's Kitsu
+ * answers do not, since Kitsu is asked again only for open seasons and unfinished shows; a warning counts them.
  */
 export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
   const gh = github(token, get)
@@ -533,6 +536,11 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   const { tag, meta, entries, sha256 } = await dump()
   log(`dump ${tag}, ${previous ? `history of dump ${previous.history.manifest.dump?.tag}` : 'no history yet, from scratch'}`)
   const stored = store && await readStore(store).catch(error => warn(`the source store is skipped this run: ${errorText(error)}`))
+  const inbox = stored && await readInbox(store).catch(error => warn(`the previews' inbox is skipped this run: ${errorText(error)}`))
+  if (inbox) {
+    log(`the previews' inbox: ${inbox.lines.length} answers in ${inbox.keys.length} objects${inbox.more ? ', more the next run' : ''}`)
+    for (const key of inbox.unreadable) warn(`${key} is no inbox object, left in the store`)
+  }
 
   let anidb = previous?.history.anidb ?? { fetchedAt: null, lastModified: null, titles: new Map() }
   let anidbAnswer
@@ -575,7 +583,8 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   }
 
   const plan = checkpointsOf({ entries, cut, tag, kitsu, previous: checkpoints })
-  const files = encodeHistory({ anidb, kitsu, fields: { dump: { tag, sha256 }, kitsu: { refreshedFor }, checkpoints: plan.checkpoints, open: plan.open } })
+  const previews = foldPreviews(previous?.history.previews ?? new Map(), inbox?.lines ?? [])
+  const files = encodeHistory({ anidb, kitsu, previews, fields: { dump: { tag, sha256 }, kitsu: { refreshedFor }, checkpoints: plan.checkpoints, open: plan.open } })
   if (files.manifest === previous?.files.manifest) {
     log('nothing changed, nothing published')
   } else {
@@ -585,11 +594,19 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   }
 
   if (!store) return
-  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, writer })
+  const outcome = stored && await keepAnswers(store, stored, { anidb: anidbAnswer, kitsu: kitsuAnswers, inbox, writer })
     .catch(error => warn(`the source store was not written: ${errorText(error)}`))
   if (outcome) log(`the source store: ${outcome}`)
   else if (kitsuAnswers.length) warn(`the source store lacks the ${kitsuAnswers.length} Kitsu answers this run asked, and only open seasons and unfinished shows are asked again`)
   if (!stored) return
+  if (outcome && inbox?.keys.length) {
+    try {
+      for (const key of inbox.keys) await store.remove(key)
+      log(`the previews' inbox: removed the ${inbox.keys.length} objects folded`)
+    } catch (error) {
+      warn(`the previews' inbox keeps objects already folded, which the next run folds again: ${errorText(error)}`)
+    }
+  }
   const kept = await keepSources(store, { get, sleep, backoff, now, writer })
     .catch(error => warn(`TVmaze, ANN and AnimeThemes were not kept this run: ${errorText(error)}`))
   if (kept) log(`the source store: ${kept}`)

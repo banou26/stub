@@ -2,7 +2,7 @@
 // it, and stub's own merge picks the title, cover, banner and description, as it picks them for a page.
 import { expect, test } from 'vite-plus/test'
 
-import { anizipTitles, historyShards, pick, type AnidbTitle, type HistoryRecord, type KitsuRow } from '../../../../scripts/offline-pick'
+import { anizipTitles, historyShards, pick, type AnidbTitle, type HistoryRecord, type KitsuRow, type PreviewAnswer } from '../../../../scripts/offline-pick'
 
 const GUNDAM: HistoryRecord = { t: 'Kidou Senshi Gundam', ty: 'TV', p: '1426/112393.jpg', ml: 80, ku: 80, ad: 63 }
 const GUNDAM_ANIDB: AnidbTitle[] = [['syn', 'en', 'MSG'], ['official', 'en', 'Mobile Suit Gundam'], ['official', 'ja', '機動戦士ガンダム']]
@@ -77,7 +77,7 @@ test('each set holds only what stub\'s rules took from its source', () => {
   expect(sets.dump[1]).toEqual({ 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] })
   expect(sets.anidb[1]).toEqual({})
   expect(sets.kitsu[1]).toEqual({})
-  expect(counts).toEqual({ records: 3, anidbTitles: 1, kitsuTitles: 0, kitsuCovers: 0, banners: 1, descriptions: 1 })
+  expect(counts).toEqual({ records: 3, anidbTitles: 1, kitsuTitles: 0, kitsuCovers: 0, banners: 1, descriptions: 1, previewed: 0 })
 })
 
 // Mutations: drop the pointers; point every record's Kitsu id.
@@ -92,4 +92,40 @@ test('a record with no MyAnimeList id is also reached from its Kitsu id, and onl
 test('the ODbL set holds the dump\'s own title and picture, never AniDB\'s or Kitsu\'s content', () => {
   const dump = JSON.stringify(shardsOf().sets.dump)
   for (const text of ['Mobile Suit Gundam', 'Universal Century', 'cover_images']) expect(dump).not.toContain(text)
+})
+
+const T1 = '2026-10-25T05:41:00.000Z'
+const T2 = '2026-10-26T05:41:00.000Z'
+const T3 = '2026-10-27T05:41:00.000Z'
+const kept = (source: string, id: string, fetchedAt: string, media: PreviewAnswer['media']): PreviewAnswer => ({ source, id, class: 'full', fetchedAt, media })
+
+// Mutations: leave a kept anizip answer out; build the anizip member from AniDB's file when one is kept; join a kept
+// answer by the show's MyAnimeList id rather than its AniDB id.
+test('an anizip answer kept from a preview heads a show with api.ani.zip\'s own title, over the one AniDB\'s file gives', () => {
+  const answer = kept('anizip', '63', T2, { titles: [{ language: 'en', title: 'Mobile Suit Gundam 0079', score: 0.9 }] })
+  // control: AniDB's file alone heads it with its official English title
+  expect(pick(GUNDAM, GUNDAM_ANIDB, GUNDAM_KITSU).title).toEqual({ value: 'Mobile Suit Gundam', origin: 'anizip' })
+  expect(pick(GUNDAM, GUNDAM_ANIDB, GUNDAM_KITSU, { anizip: answer }).title).toEqual({ value: 'Mobile Suit Gundam 0079', origin: 'anizip' })
+  // api.ani.zip answered no English or Japanese title, so the page heads it with Kitsu's, and so does the history
+  expect(pick(GUNDAM, GUNDAM_ANIDB, GUNDAM_KITSU, { anizip: { ...answer, media: { titles: [] } } }).title).toEqual({ value: 'Mobile Suit Gundam (TV)', origin: 'kitsu' })
+  const { sets, counts } = historyShards([GUNDAM], new Map([[63, GUNDAM_ANIDB]]), new Map([[80, GUNDAM_KITSU]]), new Map([['anizip:63', answer]]))
+  expect(sets.anidb[80]).toEqual({ 'mal-80': 'Mobile Suit Gundam 0079' })
+  expect(counts.previewed).toBe(1)
+})
+
+// Mutations: take a kept Kitsu answer over a later row; never take one.
+test('a Kitsu answer kept from a preview stands for Kitsu\'s row when Kitsu answered it later, and not when the row is newer', () => {
+  const row = { ...GUNDAM_KITSU, fetchedAt: T2 }
+  const answer = (fetchedAt: string) => kept('kitsu', '80', fetchedAt, {
+    score: 0.3,
+    titles: [{ language: 'en', title: 'Mobile Suit Gundam (TV)', score: 0.3 }],
+    descriptions: [{ language: 'en', description: 'An edited synopsis.', score: 0.3 }],
+    covers: [{ url: 'https://media.kitsu.app/anime/80/poster_image/b.jpg', score: 0.3 }],
+    banners: [],
+  })
+  expect(pick(GUNDAM, undefined, row, { kitsu: answer(T3) }).description).toEqual({ value: 'An edited synopsis.', origin: 'kitsu' })
+  expect(pick(GUNDAM, undefined, row, { kitsu: answer(T1) }).description).toEqual({ value: 'The year is Universal Century 0079.', origin: 'kitsu' })
+  expect(pick(GUNDAM, undefined, undefined, { kitsu: answer(T1) }).description).toEqual({ value: 'An edited synopsis.', origin: 'kitsu' })
+  const { sets } = historyShards([GUNDAM], new Map(), new Map([[80, row]]), new Map([['kitsu:80', answer(T3)]]))
+  expect(sets.kitsu[80]).toEqual({ 'mal-80': { t: 'Mobile Suit Gundam (TV)', d: 'An edited synopsis.' } })
 })

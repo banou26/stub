@@ -8,7 +8,7 @@ import { origin as offline } from '../sources/offline/extractor'
 /** Who wrote a line: the preview Function, at stub's version and 8 characters of its commit, as the job's writer. */
 export type Writer = { by: 'stub-preview', stub: string, commit: string }
 
-/** The index line of one answer, every field of scripts/source-store.mjs's but `changedAt`, which the fold dates. */
+/** The index line of one answer: scripts/source-store.mjs's fields but `changedAt` and `form`, which the fold adds. */
 export type IndexLine = {
   source: string
   id: string
