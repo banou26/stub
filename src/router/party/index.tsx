@@ -1,9 +1,11 @@
+import type { MessageDescriptor } from 'react-intl'
 import type { PartyMember } from '../../party'
 
 import { css } from '@emotion/react'
 import { Ban, Check, Copy, LogOut, UserX } from 'lucide-react'
 import { Link } from 'wouter'
 import { useEffect, useState } from 'preact/hooks'
+import { defineMessages, useIntl } from 'react-intl'
 
 import { party, partyLink } from '../../party'
 import { inviteFromHash } from '../../party/invite'
@@ -127,14 +129,14 @@ const style = css`
   .field input:focus { border-color: rgba(255, 255, 255, 0.4); }
 `
 
-const FAILURE: Record<string, string> = {
-  'not-found': 'That party has ended.',
-  'bad-key': 'The invite link is not valid.',
-  invalid: 'The invite link is broken.',
-  full: 'The party is full.',
-  blocked: 'You cannot join this party.',
-  unavailable: 'Parties are not available right now. Is FKN connected?',
-}
+const FAILURE: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  'not-found': { id: 'That party has ended.', defaultMessage: 'That party has ended.' },
+  'bad-key': { id: 'The invite link is not valid.', defaultMessage: 'The invite link is not valid.' },
+  invalid: { id: 'The invite link is broken.', defaultMessage: 'The invite link is broken.' },
+  full: { id: 'The party is full.', defaultMessage: 'The party is full.' },
+  blocked: { id: 'You cannot join this party.', defaultMessage: 'You cannot join this party.' },
+  unavailable: { id: 'Parties are not available right now. Is FKN connected?', defaultMessage: 'Parties are not available right now. Is FKN connected?' },
+})
 
 /**
  * The party's own page: who is in it, what to call yourself, the invite, and for the host, the door.
@@ -146,6 +148,7 @@ const FAILURE: Record<string, string> = {
  * door is not the party going anywhere.
  */
 const Party = () => {
+  const intl = useIntl()
   const state = useParty()
   const [invite] = useState(() => inviteFromHash(location.hash, location.origin))
   // a fragment that is not an invite is a broken link, which is not the same as no link at all
@@ -182,69 +185,82 @@ const Party = () => {
     if (!link) return
     try { await navigator.clipboard.writeText(link); setCopied(true) } catch {}
   }
+  const nameLabel = intl.formatMessage({ id: 'Your name', defaultMessage: 'Your name' })
+  const linkLabel = intl.formatMessage({ id: 'Invite link', defaultMessage: 'Invite link' })
   const saveName = (event: Event) => {
     event.preventDefault()
     party.setName(displayName(name))
   }
 
+  const broke = intl.formatMessage({ id: 'This invite link is broken. Ask the host for a new one.', defaultMessage: 'This invite link is broken. Ask the host for a new one.' })
+  const joining = intl.formatMessage({ id: 'Joining the party…', defaultMessage: 'Joining the party…' })
+  const ended = intl.formatMessage({ id: 'The party ended.', defaultMessage: 'The party ended.' })
+  const failed = state.status === 'failed' ? intl.formatMessage({ id: 'Could not join. {reason}', defaultMessage: 'Could not join. {reason}' }, {
+    reason: FAILURE[state.code] ? intl.formatMessage(FAILURE[state.code]!) : intl.formatMessage({ id: 'Something went wrong.', defaultMessage: 'Something went wrong.' }),
+  }) : undefined
+
   return (
     <div css={style}>
-      <div className="heading">Watch together</div>
+      <div className="heading">{intl.formatMessage({ id: 'Watch together', defaultMessage: 'Watch together' })}</div>
       <div className="status">
         {
-          broken ? <>This invite link is broken. Ask the host for a new one.</>
+          broken ? broke
           : !invite && !active && state.status !== 'joining'
             ? (
-              state.status === 'failed' ? <>Could not join. {FAILURE[state.code] ?? 'Something went wrong.'}</>
-              : state.status === 'ended' ? <>The party ended.</>
-              : <>You are not in a party. Start one from the header.</>
+              state.status === 'failed' ? failed
+              : state.status === 'ended' ? ended
+              : intl.formatMessage({ id: 'You are not in a party. Start one from the header.', defaultMessage: 'You are not in a party. Start one from the header.' })
             )
-          : !invite && state.status === 'joining' ? <>Joining the party…</>
+          : !invite && state.status === 'joining' ? joining
           : invite && !active ? (
-            state.status === 'joining' ? <>Joining the party…</>
-            : state.status === 'failed' ? <>Could not join. {FAILURE[state.code] ?? 'Something went wrong.'}</>
-            : state.status === 'ended' ? <>The party ended.</>
-            : <>This invite link is broken. Ask the host for a new one.</>
+            state.status === 'joining' ? joining
+            : state.status === 'failed' ? failed
+            : state.status === 'ended' ? ended
+            : broke
           )
-          : active && state.role === 'guest' && invite ? <>You are in. Waiting for the host…</>
-          : active && state.role === 'guest' ? <>You are following the host. <Link to={getRoutePath(Route.HOME)}>Go home</Link></>
-          : <>You are hosting.</>
+          : active && state.role === 'guest' && invite ? intl.formatMessage({ id: 'You are in. Waiting for the host…', defaultMessage: 'You are in. Waiting for the host…' })
+          : active && state.role === 'guest'
+            ? intl.formatMessage(
+              { id: 'You are following the host. <home>Go home</home>', defaultMessage: 'You are following the host. <home>Go home</home>' },
+              { home: text => <Link to={getRoutePath(Route.HOME)}>{text}</Link> },
+            )
+          : intl.formatMessage({ id: 'You are hosting.', defaultMessage: 'You are hosting.' })
         }
         {!invite && !active && state.status !== 'joining' && (state.status === 'failed' || state.status === 'ended')
-          ? <> <button type="button" className="action" onClick={() => party.dismiss()}>OK</button></>
+          ? <> <button type="button" className="action" onClick={() => party.dismiss()}>{intl.formatMessage({ id: 'OK', defaultMessage: 'OK' })}</button></>
           : null}
       </div>
 
       {active && (
         <>
           <div className="section">
-            <div className="label">Your name</div>
+            <div className="label">{nameLabel}</div>
             <form className="field" onSubmit={saveName}>
-              <input value={name} maxLength={32} placeholder="What the party should call you" aria-label="Your name" onInput={event => setName(event.currentTarget.value)}/>
-              <button type="submit" className="action"><Check size={14}/> Save</button>
+              <input value={name} maxLength={32} placeholder={intl.formatMessage({ id: 'What the party should call you', defaultMessage: 'What the party should call you' })} aria-label={nameLabel} onInput={event => setName(event.currentTarget.value)}/>
+              <button type="submit" className="action"><Check size={14}/> {intl.formatMessage({ id: 'Save', defaultMessage: 'Save' })}</button>
             </form>
           </div>
 
           <div className="section">
-            <div className="label">Invite link</div>
+            <div className="label">{linkLabel}</div>
             <div className="field">
-              <input readOnly value={link} aria-label="Invite link" onFocus={event => event.currentTarget.select()}/>
-              <button type="button" className="action" onClick={() => { void copy() }}>{copied ? <Check size={14}/> : <Copy size={14}/>} Copy</button>
+              <input readOnly value={link} aria-label={linkLabel} onFocus={event => event.currentTarget.select()}/>
+              <button type="button" className="action" onClick={() => { void copy() }}>{copied ? <Check size={14}/> : <Copy size={14}/>} {intl.formatMessage({ id: 'Copy', defaultMessage: 'Copy' })}</button>
             </div>
           </div>
 
           <div className="section">
-            <div className="label">In the party ({members.length})</div>
+            <div className="label">{intl.formatMessage({ id: 'In the party ({count})', defaultMessage: 'In the party ({count})' }, { count: members.length })}</div>
             {members.map(member => (
               <div key={member.id} className="row" data-member={member.id}>
                 {member.name ? <span className="name">{member.name}</span> : null}
                 <span className="id" title={member.id}>{member.id}</span>
-                {member.host && <span className="badge">host</span>}
-                {member.self && <span className="badge you">you</span>}
+                {member.host && <span className="badge">{intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>}
+                {member.self && <span className="badge you">{intl.formatMessage({ id: 'you#the viewer, among the party', defaultMessage: 'you', description: 'the viewer, among the party' })}</span>}
                 {state.role === 'host' && !member.self && (
                   <>
-                    <button type="button" className="action danger" onClick={() => { void party.kick(member.id) }}><UserX size={14}/> Kick</button>
-                    <button type="button" className="action danger" onClick={() => { void party.ban(member.id) }}><Ban size={14}/> Ban</button>
+                    <button type="button" className="action danger" onClick={() => { void party.kick(member.id) }}><UserX size={14}/> {intl.formatMessage({ id: 'Kick', defaultMessage: 'Kick' })}</button>
+                    <button type="button" className="action danger" onClick={() => { void party.ban(member.id) }}><Ban size={14}/> {intl.formatMessage({ id: 'Ban', defaultMessage: 'Ban' })}</button>
                   </>
                 )}
               </div>
@@ -253,7 +269,7 @@ const Party = () => {
 
           <div className="section">
             <button type="button" className="action" onClick={() => { void party.leave() }}>
-              <LogOut size={14}/> {state.role === 'host' ? 'End party' : 'Leave party'}
+              <LogOut size={14}/> {state.role === 'host' ? intl.formatMessage({ id: 'End party', defaultMessage: 'End party' }) : intl.formatMessage({ id: 'Leave party', defaultMessage: 'Leave party' })}
             </button>
           </div>
         </>

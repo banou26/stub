@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { PartyMessage, PlaybackState } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
@@ -29,7 +29,7 @@ describe('an action line', () => {
     const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex'] })
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.join(INVITE)
-    const host = mount(<PartyChat/>)
+    const host = mount(withIntl(<PartyChat/>))
     hosts.push(host)
     let seq = 0
     const say = (from: string, message: PartyMessage) =>
@@ -64,7 +64,7 @@ describe('the chat\'s English', () => {
     const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex', 'sam1234567'] })
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.join(INVITE)
-    const host = mount(<PartyChat/>)
+    const host = mount(withIntl(<PartyChat/>))
     hosts.push(host)
     let seq = 0
     const say = (from: string, message: PartyMessage) =>

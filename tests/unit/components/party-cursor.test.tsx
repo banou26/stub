@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { PartyMessage } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
@@ -27,7 +27,7 @@ test('a follower sees the host\'s pointer tagged with the host\'s name, else as 
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.join(INVITE)
   const location = memoryLocation({ path: PAGE })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>))
   hosts.push(host)
   let seq = 0
   const says = (message: PartyMessage) => act(() => {

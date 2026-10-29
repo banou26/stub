@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from './dom'
+import { button, mount, unmount, withIntl } from './dom'
 
 import type { Grants, PartyMessage } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
@@ -40,7 +40,7 @@ const following = async (page: string, grants: Grants) => {
   await current.store.join(INVITE)
   fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: HOST_PAGE, y: 0, grants }) }, replayed: false })
   const location = memoryLocation({ path: page })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
   hosts.push(host)
   act(() => { button(host, 'Following2')!.click() })
   const asks = () => fake.sent.map(text => decodePartyMessage(text)).filter(message => message?.t === 'ask')
@@ -101,7 +101,7 @@ describe('Follow playback', () => {
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.create()
     const location = memoryLocation({ path: HOST_PAGE })
-    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
     hosts.push(host)
     act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
     expect(document.body.textContent).toContain('You are hosting')
@@ -115,7 +115,7 @@ describe('the host\'s count of where followers stand', () => {
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.create()
     const location = memoryLocation({ path: page })
-    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
     hosts.push(host)
     await act(() => new Promise(resolve => setTimeout(resolve, 0)))
     act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
@@ -151,7 +151,7 @@ describe('the widget\'s English', () => {
   const shown = async (start: (store: PartyStore) => Promise<unknown> | void) => {
     const location = memoryLocation({ path: HOST_PAGE })
     await start(current.store)
-    const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>)
+    const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
     hosts.push(host)
     await settle()
     const trigger = host.querySelector('button')!

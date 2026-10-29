@@ -7,14 +7,6 @@
     "src/router/search/index.tsx",
     "src/router/search/scene.tsx"
   ],
-  "watch-together": [
-    "src/components/party-chat.tsx",
-    "src/components/party-cursor.tsx",
-    "src/components/party-grants.tsx",
-    "src/components/party-tracks.tsx",
-    "src/components/party-widget.tsx",
-    "src/router/party/index.tsx"
-  ],
   "tracking": [
     "src/components/save-problems.tsx",
     "src/components/score-picker.tsx",

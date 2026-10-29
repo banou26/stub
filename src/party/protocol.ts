@@ -76,6 +76,8 @@ export type PartyMessage =
   | { t: 'pong', n: number, at: number, host: number }
   | { t: 'status', s: FollowerState, path?: string, time?: number, rate?: number }
 
+/** A follower asking the host to use a control. */
+export type Ask = Extract<PartyMessage, { t: 'ask' }>
 /** An ask about the follower's player, as opposed to where the party is. */
 export type PlayerAsk = Extract<PartyMessage, { t: 'ask', c: PlayerControl }>
 
@@ -218,23 +220,22 @@ const trackId = (value: unknown): string | null | undefined => {
   return id && id.length <= 64 ? id : undefined
 }
 
-/** What an ask did, as a chat line says it after the member's name. */
-export const actionText = (ask: Extract<PartyMessage, { t: 'ask' }>): string =>
-  ask.c === 'go' ? 'changed the episode'
-  : ask.c === 'subs' ? trackText('subtitles', ask.sub)
-  : ask.c === 'audio' ? trackText('audio', ask.audio)
-  : ask.c === 'seek' ? `skipped to ${clockText(ask.s.time)}`
-  : ask.c === 'rate' ? `set speed to ${Number(ask.s.rate.toFixed(2))}x`
-  : ask.s.paused ? 'paused' : 'resumed'
+const clocks = new Map<string, readonly [Intl.DurationFormat, Intl.DurationFormat]>()
 
-const trackText = (noun: string, id: string | null) => id === null ? `turned ${noun} off` : `set ${noun} to ${id}`
-
-/** A player's time as a clock reads it: 4:05, or 1:02:05 past the hour. */
-export const clockText = (seconds: number): string => {
+/** A player's time as a clock reads it in `locale`: 4:05, or 1:02:05 past the hour. */
+export const clockText = (seconds: number, locale: string): string => {
+  // a format per side of the hour, since the digital style pads the minutes under it too (00:09, Node 26, Chrome)
+  if (!clocks.has(locale)) {
+    clocks.set(locale, [
+      new Intl.DurationFormat(locale, { minutes: 'numeric', seconds: '2-digit' }),
+      new Intl.DurationFormat(locale, { hours: 'numeric', minutes: '2-digit', seconds: '2-digit' }),
+    ])
+  }
+  const [short, long] = clocks.get(locale)!
   const total = Math.floor(seconds)
-  const pad = (value: number) => String(value).padStart(2, '0')
-  const minutes = Math.floor(total / 60) % 60
-  return total >= 3600 ? `${Math.floor(total / 3600)}:${pad(minutes)}:${pad(total % 60)}` : `${minutes}:${pad(total % 60)}`
+  return total >= 3600
+    ? long.format({ hours: Math.floor(total / 3600), minutes: Math.floor(total / 60) % 60, seconds: total % 60 })
+    : short.format({ minutes: Math.floor(total / 60), seconds: total % 60 })
 }
 
 /**

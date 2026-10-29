@@ -1,9 +1,13 @@
+import type { MessageDescriptor } from 'react-intl'
+import type { FollowerState } from '../party/protocol'
+
 import { css } from '@emotion/react'
 import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useClick, useDismiss, useFloating, useInteractions, useRole,
 } from '@floating-ui/react'
 import { Check, Copy, LogOut, Play, Radio, Users } from 'lucide-react'
+import { defineMessages, useIntl } from 'react-intl'
 import { useLocation, useSearch } from 'wouter'
 
 import { getRoutePath, Route } from '../router/path'
@@ -172,24 +176,31 @@ const menuStyle = css`
   button.primary { background: rgba(255, 255, 255, 0.1); }
 `
 
-const FAILURE: Record<string, string> = {
-  'not-found': 'That party has ended.',
-  'bad-key': 'That invite link is not valid.',
-  invalid: 'That invite link is broken.',
-  full: 'That party is full.',
-  blocked: 'You cannot join that party.',
-  unavailable: 'Parties are not available right now. Is FKN connected?',
-  'rate-limited': 'Too many attempts. Try again in a moment.',
-}
+const FAILURE: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  'not-found': { id: 'That party has ended.', defaultMessage: 'That party has ended.' },
+  'bad-key': { id: 'That invite link is not valid.', defaultMessage: 'That invite link is not valid.' },
+  invalid: { id: 'That invite link is broken.', defaultMessage: 'That invite link is broken.' },
+  full: { id: 'That party is full.', defaultMessage: 'That party is full.' },
+  blocked: { id: 'You cannot join that party.', defaultMessage: 'You cannot join that party.' },
+  unavailable: { id: 'Parties are not available right now. Is FKN connected?', defaultMessage: 'Parties are not available right now. Is FKN connected?' },
+  'rate-limited': { id: 'Too many attempts. Try again in a moment.', defaultMessage: 'Too many attempts. Try again in a moment.' },
+})
 
-const ENDED: Record<string, string> = {
-  'host-left': 'The host left the party.',
-  removed: 'You were removed from the party.',
-  blocked: 'You were removed from the party.',
-  ended: 'The party ended.',
-  unavailable: 'The party was lost. Parties are unavailable right now.',
-  left: 'You left the party.',
-}
+const ENDED: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  'host-left': { id: 'The host left the party.', defaultMessage: 'The host left the party.' },
+  removed: { id: 'You were removed from the party.', defaultMessage: 'You were removed from the party.' },
+  blocked: { id: 'You were removed from the party.', defaultMessage: 'You were removed from the party.' },
+  ended: { id: 'The party ended.', defaultMessage: 'The party ended.' },
+  unavailable: { id: 'The party was lost. Parties are unavailable right now.', defaultMessage: 'The party was lost. Parties are unavailable right now.' },
+  left: { id: 'You left the party.', defaultMessage: 'You left the party.' },
+})
+
+// how many followers stand where, as the host's menu counts them
+const TALLY: Readonly<Record<FollowerState, MessageDescriptor>> = defineMessages({
+  ready: { id: '{count, plural, one {{count} ready} other {{count} ready}}#followers ready to play', defaultMessage: '{count, plural, one {{count} ready} other {{count} ready}}', description: 'followers ready to play' },
+  loading: { id: '{count, plural, one {{count} loading} other {{count} loading}}#followers whose player is loading', defaultMessage: '{count, plural, one {{count} loading} other {{count} loading}}', description: 'followers whose player is loading' },
+  away: { id: '{count, plural, one {{count} away} other {{count} away}}#followers off the host\'s page', defaultMessage: '{count, plural, one {{count} away} other {{count} away}}', description: 'followers off the host\'s page' },
+})
 
 /**
  * The party, as a button in the header: start one, share it, see who is in it, leave it.
@@ -198,6 +209,7 @@ const ENDED: Record<string, string> = {
  * reader learns one spot to look at.
  */
 const PartyWidget = () => {
+  const intl = useIntl()
   const state = useParty()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -233,10 +245,11 @@ const PartyWidget = () => {
   }
 
   if (state.status === 'idle') {
+    const start = intl.formatMessage({ id: 'Watch together', defaultMessage: 'Watch together' })
     return (
-      <button type="button" css={buttonStyle} onClick={() => { void party.create() }} title="Watch together">
+      <button type="button" css={buttonStyle} onClick={() => { void party.create() }} title={start}>
         <Users size={16}/>
-        <span className="label">Watch together</span>
+        <span className="label">{start}</span>
       </button>
     )
   }
@@ -250,10 +263,11 @@ const PartyWidget = () => {
     : []
   const playHere = can.includes('go') && isWatchPath(here) && here !== party.hostPath()
   const label =
-    state.status === 'joining' ? 'Joining…'
-    : state.status === 'active' ? (state.role === 'host' ? 'Hosting' : 'Following')
-    : state.status === 'ended' ? 'Party over'
-    : 'Party failed'
+    state.status === 'joining' ? intl.formatMessage({ id: 'Joining…', defaultMessage: 'Joining…' })
+    : state.status === 'active' ? (state.role === 'host' ? intl.formatMessage({ id: 'Hosting', defaultMessage: 'Hosting' }) : intl.formatMessage({ id: 'Following#following the host', defaultMessage: 'Following', description: 'following the host' }))
+    : state.status === 'ended' ? intl.formatMessage({ id: 'Party over', defaultMessage: 'Party over' })
+    : intl.formatMessage({ id: 'Party failed', defaultMessage: 'Party failed' })
+  const toPartyLabel = intl.formatMessage({ id: 'Party#opens the party page', defaultMessage: 'Party', description: 'opens the party page' })
 
   return (
     <>
@@ -266,72 +280,87 @@ const PartyWidget = () => {
       >
         {live && state.role === 'host' ? <Radio size={16}/> : <Users size={16}/>}
         <span className="label">{label}</span>
-        {live && <span className="count">{state.members}</span>}
+        {live && <span className="count">{intl.formatNumber(state.members)}</span>}
       </button>
       {open && (
         <FloatingPortal>
           <FloatingFocusManager context={context} modal={false}>
             <div ref={refs.setFloating} css={menuStyle} style={floatingStyles} {...getFloatingProps()}>
-              {state.status === 'joining' && <div className="title">Joining the party…</div>}
+              {state.status === 'joining' && <div className="title">{intl.formatMessage({ id: 'Joining the party…', defaultMessage: 'Joining the party…' })}</div>}
               {state.status === 'active' && state.role === 'host' && (
                 <>
-                  <div className="title">You are hosting</div>
+                  <div className="title">{intl.formatMessage({ id: 'You are hosting', defaultMessage: 'You are hosting' })}</div>
                   <div className="hint">
-                    {state.members === 1 ? 'Nobody has joined yet.' : `${state.members - 1} ${state.members === 2 ? 'person is' : 'people are'} following you.`}
+                    {
+                      state.members === 1
+                        ? intl.formatMessage({ id: 'Nobody has joined yet.', defaultMessage: 'Nobody has joined yet.' })
+                        : intl.formatMessage({ id: '{count, plural, one {{count} person is following you.} other {{count} people are following you.}}', defaultMessage: '{count, plural, one {{count} person is following you.} other {{count} people are following you.}}' }, { count: state.members - 1 })
+                    }
                   </div>
                   {standing.length > 0 && (
                     <div className="tally">
                       {FOLLOWER_STATES.map(s => {
                         const count = standing.filter(other => other === s).length
-                        return count > 0 && <span key={s}><StatusIcon s={s}/>{count} {s}</span>
+                        return count > 0 && <span key={s}><StatusIcon s={s}/>{intl.formatMessage(TALLY[s], { count })}</span>
                       })}
                     </div>
                   )}
                   <div className="link">
-                    <input readOnly value={link} aria-label="Invite link" onFocus={event => event.currentTarget.select()}/>
-                    <button type="button" onClick={() => { void copy() }} aria-label="Copy invite link">
+                    <input readOnly value={link} aria-label={intl.formatMessage({ id: 'Invite link', defaultMessage: 'Invite link' })} onFocus={event => event.currentTarget.select()}/>
+                    <button type="button" onClick={() => { void copy() }} aria-label={intl.formatMessage({ id: 'Copy invite link', defaultMessage: 'Copy invite link' })}>
                       {copied ? <Check size={14}/> : <Copy size={14}/>}
                     </button>
                   </div>
                   <PartyGrants page={watching}/>
                   <PartyTracks/>
                   <div className="actions">
-                    <button type="button" className="primary" onClick={toParty}><Users size={14}/> Party</button>
-                    <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> End party</button>
+                    <button type="button" className="primary" onClick={toParty}><Users size={14}/> {toPartyLabel}</button>
+                    <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> {intl.formatMessage({ id: 'End party', defaultMessage: 'End party' })}</button>
                   </div>
                 </>
               )}
               {state.status === 'active' && state.role === 'guest' && (
                 <>
-                  <div className="title">You are following the host</div>
+                  <div className="title">{intl.formatMessage({ id: 'You are following the host', defaultMessage: 'You are following the host' })}</div>
                   <div className="hint">
-                    {state.members} in the party.
+                    {intl.formatMessage({ id: '{count, plural, one {{count} in the party.} other {{count} in the party.}}', defaultMessage: '{count, plural, one {{count} in the party.} other {{count} in the party.}}' }, { count: state.members })}
                   </div>
                   <label className="follow">
-                    Follow playback
+                    {intl.formatMessage({ id: 'Follow playback', defaultMessage: 'Follow playback' })}
                     <input type="checkbox" role="switch" css={switchStyle} checked={party.following()} onChange={event => party.setFollowing(event.currentTarget.checked)}/>
                   </label>
                   {can.length > 0 && (
-                    <div className="can">You can {can.map(control => <span key={control} className="badge">{CONTROL_LABEL[control]}</span>)}</div>
+                    <div className="can">
+                      {intl.formatMessage(
+                        { id: 'You can {controls}#the controls the host gave', defaultMessage: 'You can {controls}', description: 'the controls the host gave' },
+                        { controls: can.map(control => <span key={control} className="badge">{intl.formatMessage(CONTROL_LABEL[control])}</span>) },
+                      )}
+                    </div>
                   )}
                   <PartyTracks/>
                   {playHere && (
                     <div className="actions">
-                      <button type="button" onClick={() => { party.send({ t: 'ask', c: 'go', path: here }); setOpen(false) }}><Play size={14}/> Play for everyone</button>
+                      <button type="button" onClick={() => { party.send({ t: 'ask', c: 'go', path: here }); setOpen(false) }}><Play size={14}/> {intl.formatMessage({ id: 'Play for everyone', defaultMessage: 'Play for everyone' })}</button>
                     </div>
                   )}
                   <div className="actions">
-                    <button type="button" className="primary" onClick={() => { party.replay(); setOpen(false) }}>Catch up</button>
-                    <button type="button" onClick={toParty}><Users size={14}/> Party</button>
-                    <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> Leave</button>
+                    <button type="button" className="primary" onClick={() => { party.replay(); setOpen(false) }}>{intl.formatMessage({ id: 'Catch up', defaultMessage: 'Catch up' })}</button>
+                    <button type="button" onClick={toParty}><Users size={14}/> {toPartyLabel}</button>
+                    <button type="button" onClick={() => { void party.leave(); setOpen(false) }}><LogOut size={14}/> {intl.formatMessage({ id: 'Leave#the party', defaultMessage: 'Leave', description: 'the party' })}</button>
                   </div>
                 </>
               )}
               {(state.status === 'ended' || state.status === 'failed') && (
                 <>
-                  <div className="title">{state.status === 'ended' ? ENDED[state.reason] ?? 'The party ended.' : FAILURE[state.code] ?? 'The party could not start.'}</div>
+                  <div className="title">
+                    {
+                      state.status === 'ended' ? intl.formatMessage(ENDED[state.reason] ?? ENDED.ended!)
+                      : FAILURE[state.code] ? intl.formatMessage(FAILURE[state.code]!)
+                      : intl.formatMessage({ id: 'The party could not start.', defaultMessage: 'The party could not start.' })
+                    }
+                  </div>
                   <div className="actions">
-                    <button type="button" className="primary" onClick={() => { party.dismiss(); setOpen(false) }}>OK</button>
+                    <button type="button" className="primary" onClick={() => { party.dismiss(); setOpen(false) }}>{intl.formatMessage({ id: 'OK', defaultMessage: 'OK' })}</button>
                   </div>
                 </>
               )}

@@ -1,9 +1,11 @@
+import type { MessageDescriptor } from 'react-intl'
 import type { PartyMember } from '../party'
 import type { Control, FollowerState, Grants } from '../party/protocol'
 
 import { css } from '@emotion/react'
 import { AudioLines, Captions, Check, CircleCheck, CircleDashed, Clapperboard, FastForward, Gauge, LoaderCircle, Play, X } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
+import { defineMessages, useIntl } from 'react-intl'
 
 import { party } from '../party'
 import { clockText, CONTROLS } from '../party/protocol'
@@ -11,10 +13,21 @@ import { shownStatus } from '../party/status'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { memberLabel } from './party-chat'
 
-export const CONTROL_LABEL: Record<Control, string> = { play: 'Play/pause', seek: 'Seek', go: 'Episode', rate: 'Speed', subs: 'Subtitles', audio: 'Audio' }
+export const CONTROL_LABEL: Readonly<Record<Control, MessageDescriptor>> = defineMessages({
+  play: { id: 'Play/pause', defaultMessage: 'Play/pause' },
+  seek: { id: 'Seek', defaultMessage: 'Seek' },
+  go: { id: 'Episode#a party control, which changes it', defaultMessage: 'Episode', description: 'a party control, which changes it' },
+  rate: { id: 'Speed', defaultMessage: 'Speed' },
+  subs: { id: 'Subtitles', defaultMessage: 'Subtitles' },
+  audio: { id: 'Audio', defaultMessage: 'Audio' },
+})
 const CONTROL_ICON: Record<Control, typeof Play> = { play: Play, seek: FastForward, go: Clapperboard, rate: Gauge, subs: Captions, audio: AudioLines }
 
-const STATUS_LABEL: Record<FollowerState, string> = { ready: 'Ready', loading: 'Loading', away: 'Away' }
+const STATUS_LABEL: Readonly<Record<FollowerState, MessageDescriptor>> = defineMessages({
+  ready: { id: 'Ready#a follower\'s player', defaultMessage: 'Ready', description: 'a follower\'s player' },
+  loading: { id: 'Loading', defaultMessage: 'Loading' },
+  away: { id: 'Away#a follower off the host\'s page', defaultMessage: 'Away', description: 'a follower off the host\'s page' },
+})
 const STATUS_ICON: Record<FollowerState, typeof Play> = { ready: CircleCheck, loading: LoaderCircle, away: CircleDashed }
 
 const statusStyle = css`
@@ -28,7 +41,8 @@ const statusStyle = css`
 /** Where a follower stands, as an icon named for it. */
 export const StatusIcon = ({ s }: { s: FollowerState }) => {
   const Icon = STATUS_ICON[s]
-  return <span css={statusStyle} className={s} role="img" aria-label={STATUS_LABEL[s]} title={STATUS_LABEL[s]}><Icon size={13}/></span>
+  const label = useIntl().formatMessage(STATUS_LABEL[s])
+  return <span css={statusStyle} className={s} role="img" aria-label={label} title={label}><Icon size={13}/></span>
 }
 
 const style = css`
@@ -76,6 +90,7 @@ const withMember = (grants: Grants, id: string, control: Control, value: boolean
  * the host's watch page, each follower's row also says where it stands and where its player is.
  */
 const PartyGrants = ({ page }: { page?: string }) => {
+  const intl = useIntl()
   const state = useParty()
   const [members, setMembers] = useState<PartyMember[]>([])
   const [, tick] = useState(0)
@@ -98,6 +113,9 @@ const PartyGrants = ({ page }: { page?: string }) => {
 
   if (state.status !== 'active') return null
   const grants = party.issued()
+  const everyone = intl.formatMessage({ id: 'All followers', defaultMessage: 'All followers' })
+  const cellLabel = (control: Control, member: string) =>
+    intl.formatMessage({ id: '{control}, {member}#a grant\'s cell: the control, then whose it is', defaultMessage: '{control}, {member}', description: 'a grant\'s cell: the control, then whose it is' }, { control: intl.formatMessage(CONTROL_LABEL[control]), member })
 
   return (
     <div css={style}>
@@ -107,13 +125,14 @@ const PartyGrants = ({ page }: { page?: string }) => {
             <th/>
             {CONTROLS.map(control => {
               const Icon = CONTROL_ICON[control]
-              return <th key={control} title={CONTROL_LABEL[control]}><Icon size={14} aria-label={CONTROL_LABEL[control]}/></th>
+              const label = intl.formatMessage(CONTROL_LABEL[control])
+              return <th key={control} title={label}><Icon size={14} aria-label={label}/></th>
             })}
           </tr>
         </thead>
         <tbody>
           <tr>
-            <th scope="row">All followers</th>
+            <th scope="row">{everyone}</th>
             {CONTROLS.map(control => {
               const on = grants.all.includes(control)
               return (
@@ -121,7 +140,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
                   <button
                     type="button"
                     className="cell"
-                    aria-label={`${CONTROL_LABEL[control]}, All followers`}
+                    aria-label={cellLabel(control, everyone)}
                     aria-pressed={on}
                     onClick={() => party.setGrants({ ...grants, all: on ? grants.all.filter(other => other !== control) : [...grants.all, control] })}
                   >
@@ -132,7 +151,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
             })}
           </tr>
           {members.filter(member => !member.host).map(member => {
-            const label = memberLabel({ from: member.id, name: member.name, self: member.self }, state.owner)
+            const label = memberLabel(intl, { from: member.id, name: member.name, self: member.self }, state.owner)
             const heard = page ? party.statuses().get(member.id) : undefined
             const shown = page && heard ? shownStatus(heard.status, Date.now() - heard.at, page) : undefined
             return (
@@ -141,7 +160,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
                   <span className="who">
                     {shown && <StatusIcon s={shown.s}/>}
                     <span className="name">{label}</span>
-                    {shown?.time !== undefined && <span className="time">{clockText(shown.time)}</span>}
+                    {shown?.time !== undefined && <span className="time">{clockText(shown.time, intl.locale)}</span>}
                   </span>
                 </th>
                 {CONTROLS.map(control => {
@@ -154,8 +173,12 @@ const PartyGrants = ({ page }: { page?: string }) => {
                         type="button"
                         className="cell"
                         data-grant={own === undefined ? 'all' : own ? 'on' : 'off'}
-                        title={own === undefined ? 'Same as all followers' : own ? 'On' : 'Off'}
-                        aria-label={`${CONTROL_LABEL[control]}, ${label}`}
+                        title={
+                          own === undefined ? intl.formatMessage({ id: 'Same as all followers', defaultMessage: 'Same as all followers' })
+                          : own ? intl.formatMessage({ id: 'On#a follower\'s own grant', defaultMessage: 'On', description: 'a follower\'s own grant' })
+                          : intl.formatMessage({ id: 'Off#a follower\'s own grant', defaultMessage: 'Off', description: 'a follower\'s own grant' })
+                        }
+                        aria-label={cellLabel(control, label)}
                         aria-pressed={on}
                         onClick={() => party.setGrants(withMember(grants, member.id, control, nextGrant(own, inherited)))}
                       >

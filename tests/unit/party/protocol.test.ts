@@ -2,7 +2,7 @@
 // so the decoder is the one place that decides what a host can make a follower do.
 import { describe, expect, test } from 'vite-plus/test'
 
-import { CHAT_MAX_CHARS, NAME_MAX_CHARS, actionText, allowed, chatText, clockText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
+import { CHAT_MAX_CHARS, NAME_MAX_CHARS, allowed, chatText, clockText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
 
 const PLAYBACK = { paused: false, time: 421.5, rate: 1, at: 1_788_700_000_000 }
 
@@ -162,20 +162,13 @@ describe('grants', () => {
   })
 
   test('a player\'s time reads as a clock, its hours shown past the first', () => {
-    expect([0, 9, 59.9, 60, 599, 754.9, 3_599, 3_600, 3_725, 36_000, 90_061].map(seconds => clockText(seconds)))
+    expect([0, 9, 59.9, 60, 599, 754.9, 3_599, 3_600, 3_725, 36_000, 90_061].map(seconds => clockText(seconds, 'en-US')))
       .toEqual(['0:00', '0:09', '0:59', '1:00', '9:59', '12:34', '59:59', '1:00:00', '1:02:05', '10:00:00', '25:01:01'])
   })
 
-  test('an ask reads as what it did', () => {
-    expect(actionText({ t: 'ask', c: 'play', path: '/', s: { ...PLAYBACK, paused: true } })).toBe('paused')
-    expect(actionText({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe('resumed')
-    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 754.9 } })).toBe('skipped to 12:34')
-    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 3_725 } })).toBe('skipped to 1:02:05')
-    expect(actionText({ t: 'ask', c: 'seek', path: '/', s: { ...PLAYBACK, time: 9 } })).toBe('skipped to 0:09')
-    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.5 } })).toBe('set speed to 1.5x')
-    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 2 } })).toBe('set speed to 2x')
-    expect(actionText({ t: 'ask', c: 'rate', path: '/', s: { ...PLAYBACK, rate: 1.2999999 } })).toBe('set speed to 1.3x')
-    expect(actionText({ t: 'ask', c: 'go', path: '/watch/a/b' })).toBe('changed the episode')
+  test('and as the language writes a clock', () => {
+    expect([9, 3_725].map(seconds => clockText(seconds, 'fi'))).toEqual(['0.09', '1.02.05'])
+    expect([9, 3_725].map(seconds => clockText(seconds, 'ar-EG'))).toEqual(['٠:٠٩', '١:٠٢:٠٥'])
   })
 })
 
@@ -219,11 +212,6 @@ describe('the party\'s tracks', () => {
     expect(wire({ t: 'ask', c: 'audio', path: '/watch/a/b', s: PLAYBACK })).toBeUndefined()
   })
 
-  test('an ask reads as what it did', () => {
-    expect(actionText({ t: 'ask', c: 'subs', sub: 'English' })).toBe('set subtitles to English')
-    expect(actionText({ t: 'ask', c: 'subs', sub: null })).toBe('turned subtitles off')
-    expect(actionText({ t: 'ask', c: 'audio', audio: 'Japanese' })).toBe('set audio to Japanese')
-  })
 
   test('Subtitles and Audio are grants like any other control', () => {
     expect(wire({ t: 'state', path: '/', y: 0, grants: { all: ['subs'], by: { sam: { audio: true, subs: false } } } }))

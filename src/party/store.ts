@@ -1,10 +1,10 @@
 import type { rooms } from '@fkn/lib'
 import type { EmbedTracks, TrackKind } from '../embed-tracks'
-import type { Control, Grants, PartyMessage, PlaybackState } from './protocol'
+import type { Ask, Control, Grants, PartyMessage, PlaybackState } from './protocol'
 import type { MyTrack } from './tracks'
 import type { FollowerStatus } from './status'
 
-import { actionText, allowed, decodePartyMessage, encodePartyMessage, isHostOnly, isWatchPath, NO_GRANTS, TRACK_CONTROL } from './protocol'
+import { allowed, decodePartyMessage, encodePartyMessage, isHostOnly, isWatchPath, NO_GRANTS, TRACK_CONTROL } from './protocol'
 import { advance } from './playback'
 import { statusMoved, statusTime } from './status'
 import { bestSample, clockSample, MAX_USABLE_RTT_MS, type ClockSample } from './clock'
@@ -33,10 +33,11 @@ export type PartyState =
 export type PartyMember = { id: string, name?: string, host: boolean, self: boolean }
 
 /**
- * One line of the room's chat. `seq` is the api's, so two tabs order it the same way. `action` marks a
- * member's granted ask ("paused"), whose `text` follows the member's name.
+ * One line of the room's chat. `seq` is the api's, so two tabs order it the same way. A line is what a member typed,
+ * `text`, or a granted ask of theirs, `ask`, which the chat writes in the language it shows ("paused").
  */
-export type PartyChatLine = { seq: number, from: string, name?: string, text: string, at: number, self: boolean, action?: Control }
+export type PartyChatLine = { seq: number, from: string, name?: string, at: number, self: boolean }
+  & ({ text: string, ask?: undefined } | { ask: Ask, text?: undefined })
 
 /** What a message listener is told beside the message. */
 export type PartyMessageMeta = { replayed: boolean, from: string, self: boolean }
@@ -450,7 +451,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
             if (!allowed(grants, from, message.c)) return
             // the same member using the same control again replaces its line, so a scrub reads as one
             const last = lines.at(-1)
-            if (last?.from === from && last.action === message.c) lines.pop()
+            if (last?.from === from && last.ask?.c === message.c) lines.pop()
             // here rather than on the watch page, so the party's track is set from any page
             if (role === 'host' && message.c === 'subs') choose('subtitles', message.sub)
             if (role === 'host' && message.c === 'audio') choose('audio', message.audio)
@@ -461,7 +462,7 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
             statuses.set(from, { status: told, at: Date.now() })
           }
           if (message.t === 'chat' || message.t === 'ask') {
-            const said = message.t === 'chat' ? { text: message.text } : { text: actionText(message), action: message.c }
+            const said = message.t === 'chat' ? { text: message.text } : { ask: message }
             lines.push({ seq: event.message.seq, from, name: names.get(from), at: event.message.at, self, ...said })
             if (lines.length > CHAT_KEEP) lines.splice(0, lines.length - CHAT_KEEP)
           }

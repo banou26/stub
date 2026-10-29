@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { PartyStore } from '../../../src/party/store'
 
@@ -28,7 +28,7 @@ const hosting = async () => {
   current.store = createPartyStore(api(fake.room), memoryStorage())
   await current.store.create()
   fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'ann', at: 1, text: encodePartyMessage({ t: 'name', name: 'Ann' }) }, replayed: false })
-  const host = mount(<PartyGrants/>)
+  const host = mount(withIntl(<PartyGrants/>))
   hosts.push(host)
   await act(() => new Promise(resolve => setTimeout(resolve, 0)))
   const cell = (label: string, control = 'Play/pause') => host.querySelector<HTMLButtonElement>(`button[aria-label="${control}, ${label}"]`)!
@@ -131,7 +131,7 @@ describe('the host sees each follower\'s status', () => {
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.create()
     said.forEach(([from, message], index) => fake.emit({ type: 'message', message: { envelope: null, seq: index + 1, from, at: index + 1, text: encodePartyMessage(message) }, replayed: false }))
-    const host = mount(<PartyGrants page={page}/>)
+    const host = mount(withIntl(<PartyGrants page={page}/>))
     hosts.push(host)
     await tick(0)
     const row = (label: string) => [...host.querySelectorAll('tbody tr')].find(tr => tr.querySelector('th')?.title === label)!

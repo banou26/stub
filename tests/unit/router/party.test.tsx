@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import type { PartyStore } from '../../../src/party/store'
 
@@ -33,7 +33,7 @@ const page = async (hash: string, start: (store: PartyStore) => Promise<unknown>
   Object.assign(globalThis, { location: { origin: 'https://stub.test', hash } })
   await start(current.store)
   const location = memoryLocation({ path: '/party' })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><Party/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Party/></Router>))
   hosts.push(host)
   await settle()
   return host

@@ -632,10 +632,10 @@ describe('grants', () => {
 
     party.setGrants({ all: [], by: {} })
     say(fake, 3, 'g1', ask)
-    expect(party.chat().map(line => line.text)).toEqual(['paused'])
+    expect(party.chat().map(line => line.ask)).toEqual([ask])
     say(fake, 4, 'me', lastSent(fake.sent)!)
     say(fake, 5, 'g1', { ...ask, s: { ...PLAYED, paused: false } })
-    expect(party.chat().map(line => line.text)).toEqual(['paused'])
+    expect(party.chat().map(line => line.ask)).toEqual([ask])
   })
 
   test('the grants ride every state: at once when set, to a joiner, and on the heartbeat', async () => {
@@ -680,7 +680,7 @@ describe('grants', () => {
 
     say(fake, 4, 'ann', ask)
     expect(heard).toHaveBeenCalledWith(ask, { replayed: false, from: 'ann', self: false })
-    expect(party.chat()).toEqual([{ seq: 4, from: 'ann', name: 'Ann', text: 'paused', at: 4, self: false, action: 'play' }])
+    expect(party.chat()).toEqual([{ seq: 4, from: 'ann', name: 'Ann', at: 4, self: false, ask }])
   })
 
   test('the same member using the same control again replaces its line', async () => {
@@ -689,11 +689,12 @@ describe('grants', () => {
     await party.join(INVITE)
     say(fake, 1, 'host', granted(['play']))
     say(fake, 2, 'ann', ask)
-    say(fake, 3, 'ann', { ...ask, s: { ...PLAYED, paused: false } })
-    expect(party.chat().map(line => [line.from, line.text])).toEqual([['ann', 'resumed']])
+    const resumed = { ...ask, s: { ...PLAYED, paused: false } }
+    say(fake, 3, 'ann', resumed)
+    expect(party.chat().map(line => [line.from, line.ask])).toEqual([['ann', resumed]])
     say(fake, 4, 'sam', ask)
     say(fake, 5, 'ann', ask)
-    expect(party.chat().map(line => [line.from, line.text])).toEqual([['ann', 'resumed'], ['sam', 'paused'], ['ann', 'paused']])
+    expect(party.chat().map(line => [line.from, line.ask])).toEqual([['ann', resumed], ['sam', ask], ['ann', ask]])
   })
 
   // A kick or a block arrives as `left` too. Kept, the entries of everyone who ever came and went
@@ -790,7 +791,7 @@ describe('the party\'s tracks', () => {
     expect(lastSent(fake.sent)).toMatchObject({ t: 'state', sub: 'English' })
     say(fake, 5, 'ann', { t: 'ask', c: 'audio', audio: 'Japanese' })
     expect(lastSent(fake.sent)).toMatchObject({ t: 'state', sub: 'English', audio: 'Japanese' })
-    expect(party.chat().map(line => line.text)).toEqual(['set subtitles to English', 'set audio to Japanese'])
+    expect(party.chat().map(line => line.ask)).toEqual([{ t: 'ask', c: 'subs', sub: 'English' }, { t: 'ask', c: 'audio', audio: 'Japanese' }])
   })
 
   test('a follower knows them from the owner only, and asks for one only when granted', async () => {

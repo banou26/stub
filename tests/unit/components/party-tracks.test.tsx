@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { PartyMessage } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
@@ -35,7 +35,7 @@ const render = async (self: string, said: PartyMessage[] = []) => {
     fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: seq, text: encodePartyMessage(message) }, replayed: false })
   })
   for (const message of said) say(message)
-  const host = mount(<PartyTracks/>)
+  const host = mount(withIntl(<PartyTracks/>))
   hosts.push(host)
   act(() => { current.store.setPlayerTracks(TRACKS) })
   const select = (label: string) => [...host.querySelectorAll('label')].find(candidate => candidate.textContent?.startsWith(label))?.querySelector('select') ?? undefined

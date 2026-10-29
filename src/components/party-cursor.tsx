@@ -1,5 +1,6 @@
 import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useLocation, useSearch } from 'wouter'
 
 import { party } from '../party'
@@ -43,6 +44,7 @@ const style = css`
 `
 
 const PartyCursor = () => {
+  const intl = useIntl()
   const state = useParty()
   const role = state.status === 'active' ? state.role : undefined
   const [location] = useLocation()
@@ -113,7 +115,7 @@ const PartyCursor = () => {
       <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
         <path d="M2 2 L2 17 L6.5 13 L9.5 20 L12 19 L9 12.5 L15 12 Z" fill="#4ade80" stroke="#06120a" strokeWidth="1.2" strokeLinejoin="round"/>
       </svg>
-      <span className="tag">{name ?? 'host'}</span>
+      <span className="tag">{name ?? intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>
     </div>
   )
 }
