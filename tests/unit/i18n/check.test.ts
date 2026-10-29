@@ -123,6 +123,20 @@ test('a translation writes # or {count, number} only where its English does', ()
   expect(said({ english: [VIEWS], catalogues: { de: { [VIEWS]: '{count, number} Aufrufe' } } })).toEqual([])
 })
 
+// formatjs verify counts a message's values across all its branches and reads no select key
+test('a translation keeps each select branch of its English, naming the values that branch names', () => {
+  const AUDIO = '{who, select, self {you set audio to {track}} other {{member} set audio to {track}}}'
+  const PAUSED = '{who, select, self {you paused} other {{member} paused}}'
+  expect(said({ english: [AUDIO, PAUSED], catalogues: { pl: { [PAUSED]: '{who, select, self {ty: pauza} other {{member}: pauza}}', [AUDIO]: '{who, select, other {{member}: dźwięk {track}} self {ty: dźwięk {track}}}' } } })).toEqual([])
+  expect(said({ english: [AUDIO], catalogues: { ko: { [AUDIO]: '{who, select, self {오디오를 바꿨어요} other {{member} 님이 오디오를 {track}(으)로 바꿨어요}}' } } })).toEqual([
+    `src/locales/ko.json "${AUDIO}" names no value in the select branch who: self, where its English names {track}`,
+  ])
+  expect(said({ english: [PAUSED], catalogues: { ja: { [PAUSED]: '{who, select, me {あなたが一時停止しました} other {{member} が一時停止しました}}' } } })).toEqual([
+    `src/locales/ja.json "${PAUSED}" lacks the select branch who: self`,
+    `src/locales/ja.json "${PAUSED}" has the select branch who: me, which its English lacks`,
+  ])
+})
+
 describe('each message as the linter holds it, since no gate runs the linter', () => {
   // each problem's file, line and rule
   const rules = (call: string) => problems({ code: { [VIEW]: formatting(call) } }).map(({ file, line, message }) => `${file}:${line} ${message.slice(0, message.indexOf(':'))}`)

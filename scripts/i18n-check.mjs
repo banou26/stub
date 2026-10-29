@@ -2,11 +2,11 @@
 // `npm run i18n:check`: stub's messages (src/i18n) through FormatJS's own tools, plus what they leave unchecked. It
 // lints src with MESSAGE_RULES, as vite.config.ts does, since no gate runs the linter, and runs `formatjs verify` on
 // each catalogue against the English `formatjs extract` reads from the code. It adds the plural forms each language
-// needs, `#` and `{count, number}` only where the English writes them, no dash, each catalogue sorted by id, and text
-// outside a message, which only the files of scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue,
-// drops its keys no code uses, printed beside the keys it lacks so a changed English string's old translations are
-// edited rather than written again, and drops listed files left with nothing to wrap. `-- --unwrapped` names every
-// string the listed files hold, by file and line.
+// needs, each select branch of the English naming the values it names there, `#` and `{count, number}` only where the
+// English writes them, no dash, each catalogue sorted by id, and text outside a message, which only the files of
+// scripts/i18n-unwrapped.json may hold. `-- --fix` sorts each catalogue, drops its keys no code uses, printed beside the
+// keys it lacks so a changed English string's old translations are edited rather than written again, and drops listed
+// files left with nothing to wrap. `-- --unwrapped` names every string the listed files hold, by file and line.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -116,6 +116,25 @@ const grouping = elements => elements.flatMap(element => [
   ...grouping(element.children ?? []),
 ])
 
+const VALUE_TYPES = new Set([TYPE.argument, TYPE.number, TYPE.date, TYPE.time, TYPE.select, TYPE.plural])
+
+const named = elements => elements.flatMap(element => [
+  ...VALUE_TYPES.has(element.type) ? [element.value] : [],
+  ...Object.values(element.options ?? {}).flatMap(option => named(option.value)),
+  ...named(element.children ?? []),
+])
+
+// the values `elements` name, each once, as a sorted list of `{name}`
+const valuesIn = elements => [...new Set(named(elements))].sort((a, b) => a.localeCompare(b)).map(name => `{${name}}`).join(' ') || 'no value'
+
+// each select branch of `elements` as `name: key`, beside the values it names; formatjs verify counts values across the
+// whole message and reads no select key, so a branch that drops one, or a renamed key, passes it
+const selectBranches = elements => elements.flatMap(element => [
+  ...element.type === TYPE.select ? Object.entries(element.options).map(([key, option]) => [`${element.value}: ${key}`, valuesIn(option.value)]) : [],
+  ...Object.values(element.options ?? {}).flatMap(option => selectBranches(option.value)),
+  ...selectBranches(element.children ?? []),
+])
+
 const parsed = text => {
   try { return parse(text) } catch { return undefined }
 }
@@ -134,6 +153,13 @@ const messageProblems = (file, id, text, language, english) => {
     for (const form of new Set(grouping(elements))) {
       if (!written.has(form)) problems.push({ file, message: `${shown(id)} writes ${form}, which groups a count, where its English does not` })
     }
+    const want = new Map(selectBranches(source))
+    const got = new Map(selectBranches(elements))
+    for (const [branch, values] of want) {
+      if (!got.has(branch)) problems.push({ file, message: `${shown(id)} lacks the select branch ${branch}` })
+      else if (got.get(branch) !== values) problems.push({ file, message: `${shown(id)} names ${got.get(branch)} in the select branch ${branch}, where its English names ${values}` })
+    }
+    for (const branch of got.keys()) if (!want.has(branch)) problems.push({ file, message: `${shown(id)} has the select branch ${branch}, which its English lacks` })
   }
   return problems
 }
