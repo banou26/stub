@@ -7,12 +7,12 @@ const EDGE = 48
 const SCROLL = 8
 
 /**
- * The pointerdown handler of a grip inside a list item: the item follows the pointer, the item of the same list
- * under it is marked `data-over`, and a release there calls `drop` with that item's index, once. Escape, a
- * cancelled pointer or a lost capture puts it back with no call, and near the top or bottom of the window the page
- * scrolls. The item's style gives `[data-dragging]` `pointer-events: none`, or the item under the pointer is never
- * found. The list is reordered only by `drop`: a keyed move during the drag would remove the node, and its pointer
- * capture with it.
+ * The pointerdown handler of a grip inside a list item: the item follows the pointer, through any scroll of the
+ * page, the item of the same list under it is marked `data-over`, and a release there calls `drop` with that item's
+ * index, once. Escape, a cancelled pointer or a lost capture puts it back with no call, and near the top or bottom of
+ * the window the page scrolls. The item's style gives `[data-dragging]` `pointer-events: none`, or the item under the
+ * pointer is never found. The list is reordered only by `drop`: a keyed move during the drag would remove the node,
+ * and its pointer capture with it.
  */
 export const reorder = (drop: (onto: number) => void) => (event: PointerEvent) => {
   if (event.button || !event.isPrimary) return
@@ -38,14 +38,17 @@ export const reorder = (drop: (onto: number) => void) => (event: PointerEvent) =
     mark(under?.parentElement === list ? under : undefined)
     cancelAnimationFrame(frame)
     const step = last.clientY < EDGE ? -SCROLL : last.clientY > innerHeight - EDGE ? SCROLL : 0
-    if (step) frame = requestAnimationFrame(() => { scrollBy(0, step); follow() })
+    if (step) frame = requestAnimationFrame(() => scrollBy(0, step))
   }
   const move = (moved: PointerEvent) => {
     last = moved
     if (item.hasAttribute('data-dragging') || Math.hypot(moved.clientX - event.clientX, moved.clientY - event.clientY) > SLOP) follow()
   }
+  // a scroll moves the page under a pointer that stays put, and fires no pointermove
+  const scrolled = () => move(last)
   const end = (dropped: boolean) => {
     cancelAnimationFrame(frame)
+    removeEventListener('scroll', scrolled)
     grip.removeEventListener('pointermove', move)
     grip.removeEventListener('pointerup', up)
     grip.removeEventListener('pointercancel', cancel)
@@ -66,4 +69,5 @@ export const reorder = (drop: (onto: number) => void) => (event: PointerEvent) =
   grip.addEventListener('pointercancel', cancel)
   grip.addEventListener('lostpointercapture', cancel)
   addEventListener('keydown', key)
+  addEventListener('scroll', scrolled, { passive: true })
 }

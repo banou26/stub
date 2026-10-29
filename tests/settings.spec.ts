@@ -389,11 +389,13 @@ const dragOnto = async (page: Page, from: Locator, onto: Locator) => {
   await page.mouse.down()
   await page.mouse.move(end.x, end.y, { steps: 10 })
 }
-// the window scrolled so Play order starts 100px down, both lists' first rows clear of the edges that scroll the page
+// the window scrolled so Play order starts 100px down, both lists' first rows clear of the edges that scroll the page,
+// once Crunchyroll's card has its state: until then it is a line shorter, and the cards below it move when it comes
 const openRanked = async (page: Page) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await countOrderWrites(page)
   await page.goto(`${origin}/settings#sources`)
+  await expect(page.locator('[data-account="crunchyroll"] .state')).toBeVisible()
   await page.locator('ol.play-order').evaluate(list => window.scrollBy({ top: list.getBoundingClientRect().top - 100, behavior: 'instant' }))
 }
 
@@ -442,6 +444,39 @@ test('Escape, a release over the other list and a plain click on a grip move not
   await expect(merge).toHaveText(before)
   await expect(play).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix'])
   expect(await orderWrites(page)).toEqual([])
+})
+
+test('a wheel turned mid-drag carries the card with the pointer, and the release drops it on the card then under it', async ({ page }) => {
+  await openRanked(page)
+  const cards = page.locator('ol.merge-order > li')
+  const names = () => cards.evaluateAll(all => all.map(card => card.getAttribute('data-source')!))
+  const order = await names()
+  const [source, first] = [order.at(-1)!, order.at(-3)!]
+  const moving = page.locator(`ol.merge-order [data-source="${source}"]`)
+  await moving.evaluate(card => window.scrollBy({ top: card.getBoundingClientRect().top - 500, behavior: 'instant' }))
+  const target = page.locator(`ol.merge-order [data-source="${first}"]`)
+  const pointer = await centre(target)
+
+  await dragOnto(page, grip(page, source), target)
+  await expect(page.locator('[data-over]')).toHaveAttribute('data-source', first)
+  const [held, scrolled] = [await centre(moving), await scrollY(page)]
+  await page.mouse.wheel(0, -300)
+  await expect.poll(() => scrollY(page), 'the wheel scrolls the page up').toBe(scrolled - 300)
+
+  const under = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('ol.merge-order > li')?.getAttribute('data-source'), pointer)
+  expect(under, 'the scroll put another card of Merge order under the pointer').toBeTruthy()
+  expect(under).not.toBe(first)
+  expect((await centre(moving)).y, 'the card stays under the pointer').toBeCloseTo(held.y, 0)
+  await expect(page.locator('[data-over]'), 'the card under the pointer is marked').toHaveAttribute('data-source', under!)
+  await page.mouse.up()
+
+  expect((await names()).indexOf(source), 'it takes that card\'s place').toBe(order.indexOf(under!))
+  expect(await orderWrites(page)).toEqual(['stub.sources.merge-order'])
+  const dropped = await scrollY(page)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(() => scrollY(page)).toBe(dropped + 300)
+  await expect(page.locator('[data-dragging], [data-over]'), 'a scroll after the drop moves nothing').toHaveCount(0)
+  expect(await moving.evaluate(card => card.style.transform)).toBe('')
 })
 
 test.describe('on a touch screen', () => {
