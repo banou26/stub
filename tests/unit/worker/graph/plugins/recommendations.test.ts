@@ -1,4 +1,4 @@
-// A title's Recommendations: every member's picks as one list (HOR-1062).
+// A title's Recommendations: every member's picks as one list.
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
