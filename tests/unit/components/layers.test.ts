@@ -90,6 +90,10 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
     values: [0, 1],
     why: 'inside one episode row: the full-row link under the source chips that sit on top of it',
   },
+  'src/router/home/media-modal.tsx': {
+    values: [1],
+    why: "inside the preview's trailer: its controls, and a series' poster and title, over the picture's fade",
+  },
   'src/components/media-franchise.tsx': {
     values: [1],
     why: "the kind filter over the graph canvas, inside the dialog's own sheet",
