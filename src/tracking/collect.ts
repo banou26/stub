@@ -27,10 +27,14 @@ const messageOf = (error: unknown) =>
  * The answer for a read that threw. A fetch that got no answer rejects with a TypeError however the
  * engine words it (Chrome "Failed to fetch", Firefox "NetworkError when attempting to fetch resource.",
  * Safari "Load failed"), and osra keeps the class across the session page's port, so the class decides
- * and the chip says so in stub's words. Every tracker reads again after a failed read.
+ * and the chip says so in stub's words, while the error itself goes to the console: a bug thrown as a
+ * TypeError looks the same on the chip. Every tracker reads again after a failed read.
  */
-export const failedReadAnswer = (uri: string, tracker: Tracker, error: unknown): TrackerAnswer =>
-  errorAnswer(uri, tracker, error instanceof TypeError ? `Could not reach ${tracker.name}, retrying` : messageOf(error))
+export const failedReadAnswer = (uri: string, tracker: Tracker, error: unknown): TrackerAnswer => {
+  if (!(error instanceof TypeError)) return errorAnswer(uri, tracker, messageOf(error))
+  console.warn(`tracking: ${tracker.name} read got no answer`, error)
+  return errorAnswer(uri, tracker, `Could not reach ${tracker.name}, retrying`)
+}
 
 /**
  * Wakes on every `subscribe` notification, coalescing a burst into one wake, until `signal` aborts.
