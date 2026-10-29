@@ -48,7 +48,7 @@ export type StubSource = {
    * heartbeat every few seconds while it plays. One listener; the next call replaces it.
    *
    * Optional and ADDITIVE to stub-source@1, so it needs no new contract tag: a package without it
-   * plays exactly as before and is simply not synced. Stub reads it for watch together, where a host's
+   * plays exactly as before and is simply not synced. Stub reads it for a watch party, where a host's
    * player is what every follower's player is made to match. `at` is the PLAYER's clock, whatever
    * document that player lives in, passed through untouched; stub trusts it only within a bound.
    * `ended` is true once the player reached the end, where the browser paused it by itself.
@@ -62,7 +62,7 @@ export type StubSource = {
   /**
    * Where the player `play` put up is, how far it can play on its own (`readyState`, as a media
    * element's) and the ranges it holds, in seconds; undefined with nothing playing. Optional and
-   * additive to stub-source@1 like the two above: in watch together a follower reads it to tell the
+   * additive to stub-source@1 like the two above: in a watch party a follower reads it to tell the
    * host whether it is ready to play, and without it, or with no answer within a second, a follower
    * on that source reads as loading.
    */

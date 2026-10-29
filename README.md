@@ -21,7 +21,7 @@ rooms for watch parties, so stub has no server of its own.
 - **Movies get a page of their own**, with the runtime, the release date and one Play button.
 - **Track as you watch.** One row updates AniList, MyAnimeList, Crunchyroll and stub's own list
   together; hover a tracker to change just that one. A movie is a single Watched button.
-- **Watch together.** Share a party link and every guest's player follows the host's, with a chat.
+- **Watch party.** Share a party link and every guest's player follows the host's, with a chat.
 - **Your sources, your way.** Turn any built-in source off in Settings, or add community sources
   published on npm, each running isolated from stub.
 - **No API keys, no stub account, no analytics.** Your settings stay in your browser, and your list

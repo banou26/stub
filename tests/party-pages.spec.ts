@@ -9,7 +9,7 @@ import { build } from 'vite-plus'
 
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
-// HOR-1026 (stub in the viewer's language): watch together's words in a language stub does not offer yet, which only
+// HOR-1026 (stub in the viewer's language): the watch party's words in a language stub does not offer yet, which only
 // a laid out page can show running past its box. So this builds tests/party-pages.tsx the way tests/party-grid.spec.ts
 // builds its page, with every catalogue and the pseudo-language offered (tests/languages.ts).
 
