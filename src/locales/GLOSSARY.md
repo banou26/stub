@@ -66,17 +66,17 @@ stub only connects to the browser's own session, so its words differ from signin
 
 ## Watching
 
-| | a source (where a title plays) | Continue (resume watching) | Rewatch | Watched (how far) |
-| --- | --- | --- | --- | --- |
-| `es-419` | fuente | Continuar | Volver a ver | Visto |
-| `pt-BR` | fonte | Continuar | Assistir de novo | Assistido |
-| `fr` | source | Reprendre | Revoir | Visionné |
-| `de` | Quelle | Weiterschauen | Erneut ansehen | Gesehen |
-| `it` | fonte | Riprendi | Riguarda | Visto |
-| `ru` | источник | Продолжить | Пересмотреть | Просмотрено |
-| `ja` | ソース | 続きから再生 | もう一度見る | 視聴進捗 |
-| `ko` | 소스 | 이어 보기 | 다시 보기 | 시청 진행률 |
-| `zh-Hans` | 片源 | 继续观看 | 重新观看 | 观看进度 |
-| `zh-Hant` | 片源 | 繼續觀看 | 重新觀看 | 觀看進度 |
-| `tr` | kaynak | Devam et | Yeniden izle | İzlendi |
-| `pl` | źródło | Kontynuuj | Obejrzyj ponownie | Obejrzano |
+| | Continue (resume watching) | Rewatch | Watched (how far) |
+| --- | --- | --- | --- |
+| `es-419` | Continuar | Volver a ver | Visto |
+| `pt-BR` | Continuar | Assistir de novo | Assistido |
+| `fr` | Reprendre | Revoir | Visionné |
+| `de` | Weiterschauen | Erneut ansehen | Gesehen |
+| `it` | Riprendi | Riguarda | Visto |
+| `ru` | Продолжить | Пересмотреть | Просмотрено |
+| `ja` | 続きから再生 | もう一度見る | 視聴進捗 |
+| `ko` | 이어 보기 | 다시 보기 | 시청 진행률 |
+| `zh-Hans` | 继续观看 | 重新观看 | 观看进度 |
+| `zh-Hant` | 繼續觀看 | 重新觀看 | 觀看進度 |
+| `tr` | Devam et | Yeniden izle | İzlendi |
+| `pl` | Kontynuuj | Obejrzyj ponownie | Obejrzano |
