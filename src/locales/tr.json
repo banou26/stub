@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}: ilerlemeyi kendi kartında ayarlayın",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}: {state, select, loading {yükleniyor} login {oturum kapalı} cannot {bu yapımı takip edemiyor} busy {güncelleniyor} error {hata} paused {duraklatıldı} on {bağlı} other {kapalı}}",
-  "{name}: {values}": "{name}: {values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, one {{count} kaynaktan {on} tanesi açık} other {{count} kaynaktan {on} tanesi açık}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, one {{progress} bölüm} other {{progress} bölüm}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

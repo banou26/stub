@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}：カードで進捗を設定してください",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}：{state, select, loading {読み込み中} login {サインアウト済み} cannot {この作品を記録できません} busy {更新中} error {エラー} paused {一時停止中} on {接続済み} other {オフ}}",
-  "{name}: {values}": "{name}：{values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, other {{count}件中{on}件が有効}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, other {{progress}話}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}: imposta il progresso sulla sua scheda",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}: {state, select, loading {caricamento} login {disconnesso} cannot {non può monitorare questo titolo} busy {aggiornamento} error {errore} paused {in pausa} on {collegato} other {disattivato}}",
-  "{name}: {values}": "{name}: {values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, one {{on} di {count} attiva} other {{on} di {count} attive}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, one {{progress} episodio} other {{progress} episodi}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

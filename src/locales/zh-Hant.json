@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}：請在它的卡片上設定進度",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}：{state, select, loading {載入中} login {已登出} cannot {無法追蹤這部作品} busy {更新中} error {錯誤} paused {已暫停} on {已連線} other {已關閉}}",
-  "{name}: {values}": "{name}：{values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, other {已啟用{on}/{count}}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, other {{progress}集}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

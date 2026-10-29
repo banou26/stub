@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}: укажите прогресс в его карточке",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}: {state, select, loading {загрузка} login {выход выполнен} cannot {не может отслеживать этот тайтл} busy {обновление} error {ошибка} paused {приостановлено} on {подключено} other {выключено}}",
-  "{name}: {values}": "{name}: {values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, one {{on} из {count} включён} few {{on} из {count} включены} many {{on} из {count} включено} other {{on} из {count} включено}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, one {{progress} серия} few {{progress} серии} many {{progress} серий} other {{progress} серии}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

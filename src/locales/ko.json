@@ -532,7 +532,6 @@
   "{name} {value}": "{name} {value}",
   "{name}: set progress on its card": "{name}: 해당 카드에서 진행도를 설정해 주세요",
   "{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}": "{name}: {state, select, loading {불러오는 중} login {로그아웃됨} cannot {이 작품을 기록할 수 없음} busy {업데이트 중} error {오류} paused {일시 중지됨} on {연결됨} other {꺼짐}}",
-  "{name}: {values}": "{name}: {values}",
   "{on, plural, one {{on} of {count} on} other {{on} of {count} on}}": "{on, plural, other {{count}개 중 {on}개 켜짐}}",
   "{progress, plural, one {{progress} episode} other {{progress} episodes}}": "{progress, plural, other {{progress}화}}",
   "{score, number} / {max, number}": "{score, number} / {max, number}",

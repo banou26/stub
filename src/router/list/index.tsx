@@ -264,16 +264,20 @@ const style = css`
   }
 `
 
-/** Each tracker's own value of each field the row's trackers differ on, a line per tracker. */
-const differences = (intl: IntlShape, row: Row) =>
-  row.answers.map(({ tracker, entry }) => intl.formatMessage({ id: '{name}: {values}', defaultMessage: '{name}: {values}' }, {
-    name: tracker.name,
-    values: intl.formatList(row.disagreements.flatMap(field =>
-      field === 'STATUS' ? (entry?.status ? [intl.formatMessage(STATUS_LABELS[entry.status])] : [])
-      : field === 'PROGRESS' ? [intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: entry?.progress ?? 0 })]
-      : entry?.score != null ? [intl.formatMessage({ id: '{score, number} / {max, number}', defaultMessage: '{score, number} / {max, number}' }, { score: entry.score / 10, max: 10 })]
-      : []), NAME_LIST),
-  })).join('\n')
+/** Each tracker's own value of each field the row's trackers differ on, a line per field, and none where it holds none. */
+const differences = (intl: IntlShape, row: Row) => {
+  const valueOf = (field: string, entry: Row['answers'][number]['entry']) =>
+    field === 'STATUS' ? (entry?.status ? intl.formatMessage(STATUS_LABELS[entry.status]) : undefined)
+    : field === 'PROGRESS' ? (entry?.progress != null ? intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: entry.progress }) : undefined)
+    : entry?.score != null ? intl.formatMessage({ id: '{score, number} / {max, number}', defaultMessage: '{score, number} / {max, number}' }, { score: entry.score / 10, max: 10 })
+    : undefined
+  return row.disagreements.map(field => intl.formatList(row.answers.map(({ tracker: { name }, entry }) => {
+    const value = valueOf(field, entry)
+    return value === undefined
+      ? intl.formatMessage({ id: '{name} none', defaultMessage: '{name} none' }, { name })
+      : intl.formatMessage({ id: '{name} {value}', defaultMessage: '{name} {value}' }, { name, value })
+  }), NAME_LIST)).join('\n')
+}
 
 /** The trackers that take the same fields, together, so one save goes for each set of fields. */
 const byFields = (patches: Record<string, Fields>) => {
