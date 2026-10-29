@@ -87,6 +87,11 @@ describe('what stub keeps per viewer', () => {
     expect(byId('settings').what).toContain('the audio and subtitle languages you last picked in a player')
   })
 
+  // HOR-1026 (stub in the viewer's language): the Language setting follows the account as the country does
+  test('names the language picked in Settings among the settings', () => {
+    expect(byId('settings').what).toContain('the country and the language you picked')
+  })
+
   test("says a removed entry stays in stub's list, with its title and last values", () => {
     expect(byId('stub-list').lasts).toContain('a removed entry stays in it, with its title and last values')
     expect(byId('stub-list').what).toContain("each title's name and cover")
