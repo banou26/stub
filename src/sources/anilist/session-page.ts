@@ -2,7 +2,7 @@
 // request the page makes. It is built into one self-contained function (scripts/page-script.ts) and
 // installed with `frame.evaluate`, once per document, by the session frame (tracking/session-frames.ts).
 // It imports nothing that needs the app: the shared install of tracking/page-install.ts (osra and the
-// port protocol) and the token reader of ./frontend.ts, which imports nothing at runtime.
+// port protocol), the token reader of ./frontend.ts, which imports nothing at runtime, and i18n/said.ts.
 //
 // It asks the way the site's own client does, measured in anilist.co's bundle (main.1dc97617.js,
 // 2026-09-27): `new GraphQLClient("/graphql", { credentials: "include" })` with the headers
@@ -11,6 +11,7 @@
 
 import type { ServeArg } from '../../tracking/session-frames'
 
+import { forPage, saidError } from '../../i18n/said'
 import { installSessionServer, randomNonce } from '../../tracking/page-install'
 import { extractAlToken, isGateRejection, type AnilistBody } from './frontend'
 
@@ -84,7 +85,7 @@ export const createPageApi = (
   const graphql = async ({ query, variables }: SessionRequest): Promise<SessionResponse> => {
     for (let attempt = 0; ; attempt++) {
       const current = await csrf(attempt > 0)
-      if (!current) throw new Error('anilist.co served no CSRF token to this page')
+      if (!current) throw saidError(forPage.formatMessage({ id: 'anilist.co served no CSRF token to this page', defaultMessage: 'anilist.co served no CSRF token to this page' }))
       const response = await fetch('/graphql', {
         method: 'POST',
         credentials: 'include',

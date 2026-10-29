@@ -119,9 +119,10 @@ describe('what the Crunchyroll tracker answers', () => {
     expect(answerOf(await watch(setup([{ status: 400, body: SIGNED_OUT }]).target).next()).state).toBe('SIGNED_OUT')
   })
 
-  test('ERROR with what Crunchyroll answered, and reads again after a while', async () => {
+  test('ERROR with what Crunchyroll answered, in the viewer\'s words, and reads again after a while', async () => {
     const { target, waits } = setup([{ status: 403, body: null }])
-    expect(answerOf(await watch(target).next())).toMatchObject({ state: 'ERROR', error: 'Crunchyroll answered 403', tracker: { canWrite: false } })
+    expect(answerOf(await watch(target).next()))
+      .toMatchObject({ state: 'ERROR', error: { message: 'Crunchyroll answered {status}', values: { status: 403 } }, tracker: { canWrite: false } })
     await vi.waitFor(() => expect(waits).toEqual([RETRY_MS]))
   })
 

@@ -7,11 +7,11 @@ import type { ServeArg } from '../../tracking/session-frames'
 import type { SeasonIds } from './season-id'
 import type { PageFetch, TokenAnswer, TokenGrant } from './sign-in-check'
 
-import { forPage } from '../../i18n/said'
+import { forPage, saidError } from '../../i18n/said'
 import { installSessionServer, randomNonce } from '../../tracking/page-install'
 import { findSeason, resolveSeasonId } from './season-id'
 import { CRUNCHYROLL_BASE_URL } from './session'
-import { askForToken, TOKEN_REQUEST } from './sign-in-check'
+import { answeredError, askForToken, TOKEN_REQUEST } from './sign-in-check'
 
 /** A season as a `cr:` id names it: its series, and the season as the id carries it. */
 export type WatchedRequest = { seriesId: string, seasonId: string }
@@ -68,19 +68,19 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
     const response = await send(`${CRUNCHYROLL_BASE_URL}${path}${path.includes('?') ? '&' : '?'}_=${randomNonce()}`, body
       ? { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }
       : { method, headers: { authorization: `Bearer ${token}` } })
-    if (!response.ok && !done.includes(response.status)) throw new Error(`Crunchyroll answered ${response.status}`)
+    if (!response.ok && !done.includes(response.status)) throw answeredError(response.status)
     return response
   }
   const list = async <T>(path: string): Promise<T[]> => {
     const { data } = await (await ask(path)).json() as { data?: unknown }
-    if (!Array.isArray(data)) throw new Error('Crunchyroll answered with no list')
+    if (!Array.isArray(data)) throw saidError(forPage.formatMessage({ id: 'Crunchyroll answered with no list', defaultMessage: 'Crunchyroll answered with no list' }))
     return data as T[]
   }
 
   const numbered = async ({ seriesId, seasonId }: WatchedRequest): Promise<Numbered[]> => {
     const seasons = await list<SeasonIds>(`/content/v2/cms/series/${encodeURIComponent(seriesId)}/seasons?force_locale=&preferred_audio_language=ja-JP&locale=en-US`)
     const season = findSeason(seasons, seasonId)
-    if (!season) throw new Error('Crunchyroll lists no such season')
+    if (!season) throw saidError(forPage.formatMessage({ id: 'Crunchyroll lists no such season', defaultMessage: 'Crunchyroll lists no such season' }))
     // the Japanese season, so each episode's own id is its Japanese version's
     const episodes = await list<Episode>(`/content/v2/cms/seasons/${encodeURIComponent(resolveSeasonId(season))}/episodes?preferred_audio_language=ja-JP&locale=en-US`)
     const ids = [...new Set(episodes.flatMap(idsOf))]

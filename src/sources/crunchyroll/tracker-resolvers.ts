@@ -5,7 +5,7 @@ import type { ListEntryInput, ListStatus, Resolvers, Tracker, TrackerAnswer, Tra
 import type { PageApi, SiteSession } from '../../tracking/site-session'
 import type { CrunchyrollPageApi, Held, SaveRequest } from './session-page'
 
-import { forPage, type Said } from '../../i18n/said'
+import { forPage, saidOf, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, failedReadAnswer, rereads } from '../../tracking/collect'
 import { isScored, nativeScore } from '../../tracking/score-scale'
@@ -25,8 +25,6 @@ export const SCORE_SCALE = 'POINT_5'
 
 /** The one status Crunchyroll keeps a place for: its Watchlist. */
 export const STATUSES: ListStatus[] = ['PLANNING']
-
-const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
@@ -123,7 +121,7 @@ export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: numb
       }
       return result.response.refused ? outcome('REFUSED', result.response.refused) : outcome('SAVED')
     } catch (error) {
-      return outcome('FAILED', messageOf(error))
+      return outcome('FAILED', saidOf(error))
     } finally {
       for (const listener of written) listener()
     }

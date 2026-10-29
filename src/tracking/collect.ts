@@ -5,7 +5,7 @@
 import type { Tracker, TrackerAnswer, WriteOutcome } from '../generated/schema/types.generated'
 import type { Said } from '../i18n/said'
 
-import { forPage } from '../i18n/said'
+import { forPage, saidOf } from '../i18n/said'
 
 export const answerId = (tracker: string, uri: string) => `answer:${tracker}:${uri}`
 
@@ -22,9 +22,7 @@ const loadingAnswer = (uri: string, tracker: Tracker): TrackerAnswer =>
   ({ _id: answerId(tracker.id, uri), tracker, state: 'LOADING', entry: null, candidates: [], error: null })
 
 const messageOf = (error: unknown) =>
-  (error as { graphQLErrors?: { message: string }[] })?.graphQLErrors?.[0]?.message
-  ?? (error as { message?: string })?.message
-  ?? String(error)
+  (error as { graphQLErrors?: { message: string }[] })?.graphQLErrors?.[0]?.message ?? saidOf(error)
 
 /**
  * The answer for a read that threw. A fetch that got no answer rejects with a TypeError however the

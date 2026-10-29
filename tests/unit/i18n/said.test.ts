@@ -1,10 +1,11 @@
+import { expose } from 'osra'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Catalogue } from '../../../src/i18n'
 import type { Tracker } from '../../../src/generated/schema/types.generated'
 
 import { startLanguage, wordsOf } from '../../../src/i18n'
-import { forPage } from '../../../src/i18n/said'
+import { forPage, saidError, saidOf } from '../../../src/i18n/said'
 import { failedReadAnswer } from '../../../src/tracking/collect'
 
 // HOR-1026 (stub in the viewer's language): what the worker writes travels as a message and its values, and the page
@@ -69,5 +70,38 @@ describe('in another language', () => {
   test('a message its catalogue lacks is written in English', async () => {
     await start('de', {})
     expect(wordsOf(said('MyAnimeList still lists it'))).toBe('MyAnimeList still lists it')
+  })
+})
+
+describe('an error', () => {
+  const NO_LIST = said('Crunchyroll answered with no list')
+
+  // a site's page script throws it, and the worker shows it, a port between them
+  test('carries its words across a port, which keeps an error\'s cause and drops any other field of it', async () => {
+    const { port1, port2 } = new MessageChannel()
+    try {
+      void expose({ read: async () => { throw saidError(NO_LIST) } }, { transport: port1 })
+      const remote = await expose<{ read: () => Promise<never> }>({}, { transport: port2 })
+      const thrown = await remote.read().catch((error: unknown) => error)
+      expect(thrown).toMatchObject({ message: 'Crunchyroll answered with no list' })
+      expect(saidOf(thrown)).toEqual(NO_LIST)
+    } finally {
+      port1.close()
+      port2.close()
+    }
+  })
+
+  test('without words of its own says its message as it came, a cause of its own aside', () => {
+    const answered = said('Crunchyroll answered {status}', { status: 403 })
+    expect(saidError(answered, 'Crunchyroll answered 403')).toMatchObject({ message: 'Crunchyroll answered 403', cause: answered })
+    expect(saidOf(new Error('Load failed'))).toBe('Load failed')
+    expect(saidOf(new Error('Load failed', { cause: new TypeError('offline') }))).toBe('Load failed')
+    expect(saidOf('offline')).toBe('offline')
+  })
+
+  test('the failed read shows them in the page\'s language', async () => {
+    await start('de', { 'Crunchyroll answered with no list': 'Crunchyroll hat ohne Liste geantwortet' })
+    expect(wordsOf(failedReadAnswer('cr:1', ANILIST, saidError(NO_LIST)).error)).toBe('Crunchyroll hat ohne Liste geantwortet')
+    expect(wordsOf(failedReadAnswer('cr:1', ANILIST, new Error('Load failed')).error)).toBe('Load failed')
   })
 })

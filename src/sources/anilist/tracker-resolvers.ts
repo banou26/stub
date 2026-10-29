@@ -6,7 +6,7 @@ import type { CatalogLookup, CatalogueTarget } from '../../tracking/identity'
 import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/site-session'
 import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
 
-import { forPage, type Said } from '../../i18n/said'
+import { forPage, saidOf, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
@@ -29,8 +29,6 @@ export type AnilistTrackerContext = {
 export const READ_MEMORY_MS = 60_000
 
 type Remembered = { read: Promise<Read<TrackingData>>, at?: number }
-
-const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
@@ -162,7 +160,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           try {
             target = await targetOf(uri, ctx)
           } catch (error) {
-            yield trackingOf(uri, errorAnswer(uri, anilistTracker(viewer), messageOf(error)))
+            yield trackingOf(uri, errorAnswer(uri, anilistTracker(viewer), saidOf(error)))
             return
           }
           if (target.kind === 'none') {
@@ -224,7 +222,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           changed()
           return outcome('SAVED', null, saved.media ? listEntryOf(saved.media, saved) : null)
         } catch (error) {
-          return outcome('FAILED', messageOf(error))
+          return outcome('FAILED', saidOf(error))
         }
       },
       deleteListEntry: async (_parent: unknown, { input }: { input: { uri: string } }, ctx: AnilistTrackerContext): Promise<WriteOutcome[]> => {
@@ -243,7 +241,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           changed()
           return outcome('SAVED', null)
         } catch (error) {
-          return outcome('FAILED', messageOf(error))
+          return outcome('FAILED', saidOf(error))
         }
       },
     },

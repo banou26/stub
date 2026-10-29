@@ -1,8 +1,9 @@
 // The page script's half, as it runs inside anilist.co's page: its GraphQL against a fake fetch and CSRF
 // token. The port it serves on is tracking/page-install.ts's, pinned in tests/unit/tracking.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { createPageApi, hasViewer } from '../../../../src/sources/anilist/session-page'
+import { inEnglish } from '../../in-english'
 
 const TOKEN = 'T0kenRenderedForThisSession0000000000000'
 const FRESH = 'FreshT0kenAfterTheSiteRotatedIt000000000'
@@ -85,7 +86,10 @@ describe("the page's graphql", () => {
     const { fetch, calls } = fakeFetch([unavailable, homePage(TOKEN), json({ data: { a: 1 } }), json({ data: { b: 1 } })])
     const api = createPageApi({ fetch, pageToken: () => undefined, nonce: counter() })
 
-    await expect(api.graphql({ query: 'query { a }' })).rejects.toThrow('served no CSRF token')
+    await expect(api.graphql({ query: 'query { a }' })).rejects.toMatchObject({
+      message: 'anilist.co served no CSRF token to this page',
+      cause: inEnglish('anilist.co served no CSRF token to this page'),
+    })
     expect((await api.graphql({ query: 'query { a }' })).body).toEqual({ data: { a: 1 } })
     expect((await api.graphql({ query: 'query { b }' })).body).toEqual({ data: { b: 1 } })
     expect(calls.map(call => call.input)).toEqual(['/?_=n1', '/?_=n2', '/graphql', '/graphql'])

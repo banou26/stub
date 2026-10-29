@@ -1,10 +1,12 @@
 // Whether the viewer is signed in to Crunchyroll, asked of crunchyroll.com without loading any of its
-// pages. Import free apart from types and ./session.ts, so a test drives it over a fake frame.
+// pages. Import free apart from types, ./session.ts and the import free i18n/said.ts, so a test drives it over a fake
+// frame.
 
 import type { AttachFrameOptions, Frame } from '@fkn/lib'
 import type { SiteState } from '../../tracking/site-status'
 import type { FknBackend } from '../../utils/fkn-backend'
 
+import { forPage, saidError } from '../../i18n/said'
 import { CRUNCHYROLL_BASE_URL, CRUNCHYROLL_SESSION_URL, CRUNCHYROLL_SSO_CLIENT_ID } from './session'
 
 /**
@@ -58,6 +60,10 @@ export const askForToken = async <Read = never>(
   return { status: response.status, body: null, read: await withToken(body as TokenGrant) }
 }
 
+/** Crunchyroll answering `status` where stub expected another, in the viewer's words. */
+export const answeredError = (status: number) =>
+  saidError(forPage.formatMessage({ id: 'Crunchyroll answered {status}', defaultMessage: 'Crunchyroll answered {status}' }, { status }), `Crunchyroll answered ${status}`)
+
 const missesRefreshCookie = (body: unknown) =>
   ((body as { context?: { code?: unknown, field?: unknown }[] } | null)?.context ?? [])
     .some(entry => entry.field === 'etp_rt' && entry.code === 'auth.obtain_access_token.missing_required_field')
@@ -66,7 +72,7 @@ const missesRefreshCookie = (body: unknown) =>
 export const crunchyrollSignInState = ({ status, body }: TokenAnswer): SiteState => {
   if (status === 200) return 'signed-in'
   if (status === 400 && missesRefreshCookie(body)) return 'signed-out'
-  throw new Error(`Crunchyroll answered ${status}`)
+  throw answeredError(status)
 }
 
 type Attach = (options: Pick<AttachFrameOptions, 'iframe' | 'blank' | 'cookies' | 'permissions'>) => Promise<Pick<Frame, 'evaluate'>>

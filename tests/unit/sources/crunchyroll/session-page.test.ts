@@ -17,6 +17,9 @@ const pathOf = ({ url }: Asked) => new URL(url).pathname
 // every request ends in its own `_=<nonce>`
 const bare = (url: string) => url.replace(/[?&]_=[^&]+$/, '')
 
+/** A failure the page throws: `english` for the console, and the same words for the viewer, which cross the port. */
+const failure = (english: string) => ({ message: english, cause: inEnglish(english) })
+
 describe('a read', () => {
   test("finds the season in its series as the source does, then reads its episodes and their playheads, the series' stars and Watchlist, with the viewer's own token", async () => {
     const { send, asked } = fakeCrunchyroll()
@@ -76,16 +79,16 @@ describe('a read', () => {
   // Crunchyroll's error bodies carry no `data`, which read as an empty list would say nothing was watched
   test('a read answering anything but a list is a failure, never a season with nothing watched', async () => {
     await expect(readWatched(SEASON, fakeCrunchyroll({ playheads: { __class__: 'error', code: 'rate_limited' } }).send))
-      .rejects.toThrow('Crunchyroll answered with no list')
+      .rejects.toMatchObject(failure('Crunchyroll answered with no list'))
     const missing = fakeCrunchyroll()
     const refusing = async (url: string, init: RequestInit) =>
       url.includes('/playheads') ? { status: 403, ok: false, json: async () => ({}) } : missing.send(url, init)
-    await expect(readWatched(SEASON, refusing)).rejects.toThrow('Crunchyroll answered 403')
+    await expect(readWatched(SEASON, refusing)).rejects.toMatchObject(failure('Crunchyroll answered 403'))
   })
 
   test('a season its series no longer lists is a failure, never a season with nothing watched', async () => {
     const { send } = fakeCrunchyroll({ seasons: { total: 0, data: [], meta: {} } })
-    await expect(readWatched(SEASON, send)).rejects.toThrow('Crunchyroll lists no such season')
+    await expect(readWatched(SEASON, send)).rejects.toMatchObject(failure('Crunchyroll lists no such season'))
   })
 
   test('a long season asks its playheads a part at a time, and an episode in a later part still counts', async () => {
@@ -150,7 +153,7 @@ describe('a save', () => {
 
   test('a mark Crunchyroll refuses fails the save; one it already holds (409) counts as done', async () => {
     const failing = fakeCrunchyroll({ marks: () => 503 })
-    await expect(saveWatched({ ...SEASON, progress: 3 }, failing.send)).rejects.toThrow('Crunchyroll answered 503')
+    await expect(saveWatched({ ...SEASON, progress: 3 }, failing.send)).rejects.toMatchObject(failure('Crunchyroll answered 503'))
     expect(failing.writes().map(pathOf)).toEqual([markOf('GJAEP0003')])
 
     const held = fakeCrunchyroll({ marks: () => 409 })
