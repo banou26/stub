@@ -10,13 +10,16 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import config from '../playwright.config'
+import { layer } from '../src/layers'
+import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 import { workerFakes } from './worker-fakes'
 
 // Stub's own update, end to end: the real app, built as tests/sites.spec.ts builds it (with
 // tests/party-grid-party.ts in place of the party module, so a party starts without FKN), served the
 // way Pages serves it (`max-age=0, must-revalidate`, etags and 304s, any missing path answering the
 // app's html). A deploy is the server's `/` naming a renamed stylesheet and a marker, which is how a
-// page tells one build from the next.
+// page tells one build from the next. Every catalogue and the pseudo-language are offered (tests/languages.ts), and a
+// browser in English gets English.
 
 const expect = baseExpect.configure({ timeout: 30_000 })
 // every request that leaves the server is refused by name, since a route would turn the browser's
@@ -67,7 +70,7 @@ test.beforeAll(async () => {
       logLevel: 'error',
       worker: { plugins: workerFakes },
       build: { outDir, emptyOutDir: true },
-      plugins: [{
+      plugins: [offerEveryLanguage(), {
         name: 'spec-fakes',
         enforce: 'pre',
         resolveId: (source, importer) => {
@@ -267,4 +270,40 @@ test('a page off stub\'s own hosts, as in an FKN tenant, never checks', async ({
   await look(page)
   await page.waitForTimeout(3_000)
   expect(asked.filter(({ path }) => path === '/' || path === renamed(1))).toEqual([])
+})
+
+// HOR-1026 (stub in the viewer's language)
+test.describe('Updating Stub in a language stub does not offer yet', () => {
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: reads in that language and fits the screen at 1440 and 390 px`, async ({ page }) => {
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      await page.addInitScript(zIndex => {
+        new MutationObserver(records => {
+          for (const { addedNodes } of records) for (const node of addedNodes) {
+            if (!(node instanceof HTMLElement) || node.style.zIndex !== String(zIndex)) continue
+            const html = document.documentElement
+            sessionStorage.setItem('spec-updating-text', JSON.stringify({
+              text: node.textContent,
+              fits: node.scrollWidth <= node.clientWidth && node.getBoundingClientRect().width === html.clientWidth,
+            }))
+          }
+        }).observe(document, { childList: true, subtree: true })
+      }, layer.updating)
+      const translated = language === PSEUDO ? undefined : catalogues()[language]
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 })
+        deployed = 0
+        await open(page)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        deployed = 1
+        await look(page)
+        await expect(marker(page)).toHaveAttribute('content', '1')
+        const shown = JSON.parse(await page.evaluate(() => sessionStorage.getItem('spec-updating-text')) ?? 'null') as { text: string, fits: boolean } | null
+        expect(shown?.text, `${width} px: the control, the page was drawn`).toBeTruthy()
+        expect(shown?.fits, `${width} px`).toBe(true)
+        expect(englishIn([shown!.text], english(), translated), `${width} px`).toEqual([])
+        await page.evaluate(() => sessionStorage.removeItem('spec-updating-text'))
+      }
+    })
+  }
 })
