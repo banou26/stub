@@ -7,6 +7,7 @@ import { askForTop } from '../router/scroll-reset'
 
 const style = css`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2rem;
   margin-top: 4rem;
