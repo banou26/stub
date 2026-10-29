@@ -9,6 +9,7 @@ import { useIntl } from 'react-intl'
 
 import { party } from '../party'
 import { chatText, clockText } from '../party/protocol'
+import { durationLocale } from '../utils/countdown'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
 
@@ -164,7 +165,7 @@ const actionText = (intl: IntlShape, ask: Ask, member: string, self: boolean): s
         ? intl.formatMessage({ id: '{who, select, self {you turned audio off} other {{member} turned audio off}}', defaultMessage: '{who, select, self {you turned audio off} other {{member} turned audio off}}' }, who)
         : intl.formatMessage({ id: '{who, select, self {you set audio to {track}} other {{member} set audio to {track}}}', defaultMessage: '{who, select, self {you set audio to {track}} other {{member} set audio to {track}}}' }, { ...who, track: ask.audio })
     )
-    : ask.c === 'seek' ? intl.formatMessage({ id: '{who, select, self {you skipped to {time}} other {{member} skipped to {time}}}', defaultMessage: '{who, select, self {you skipped to {time}} other {{member} skipped to {time}}}' }, { ...who, time: clockText(ask.s.time, intl.locale) })
+    : ask.c === 'seek' ? intl.formatMessage({ id: '{who, select, self {you skipped to {time}} other {{member} skipped to {time}}}', defaultMessage: '{who, select, self {you skipped to {time}} other {{member} skipped to {time}}}' }, { ...who, time: clockText(ask.s.time, durationLocale()) })
     : ask.c === 'rate' ? intl.formatMessage({ id: '{who, select, self {you set speed to {rate}x} other {{member} set speed to {rate}x}}', defaultMessage: '{who, select, self {you set speed to {rate}x} other {{member} set speed to {rate}x}}' }, { ...who, rate: intl.formatNumber(ask.s.rate, { maximumFractionDigits: 2 }) })
     : ask.s.paused ? intl.formatMessage({ id: '{who, select, self {you paused} other {{member} paused}}', defaultMessage: '{who, select, self {you paused} other {{member} paused}}' }, who)
     : intl.formatMessage({ id: '{who, select, self {you resumed} other {{member} resumed}}', defaultMessage: '{who, select, self {you resumed} other {{member} resumed}}' }, who)

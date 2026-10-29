@@ -11,6 +11,7 @@ import { party } from '../party'
 import { clockText, CONTROLS } from '../party/protocol'
 import { shownStatus } from '../party/status'
 import { useParty, usePartyMessages } from '../party/use-party'
+import { durationLocale } from '../utils/countdown'
 import { memberLabel } from './party-chat'
 
 export const CONTROL_LABEL: Readonly<Record<Control, MessageDescriptor>> = defineMessages({
@@ -160,7 +161,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
                   <span className="who">
                     {shown && <StatusIcon s={shown.s}/>}
                     <span className="name">{label}</span>
-                    {shown?.time !== undefined && <span className="time">{clockText(shown.time, intl.locale)}</span>}
+                    {shown?.time !== undefined && <span className="time">{clockText(shown.time, durationLocale())}</span>}
                   </span>
                 </th>
                 {CONTROLS.map(control => {

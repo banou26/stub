@@ -147,8 +147,8 @@ describe('the chat\'s English', () => {
 describe('in another language', () => {
   afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
   const at = (s: Partial<PlaybackState>): PlaybackState => ({ paused: false, time: 0, rate: 1, at: 1, ...s })
-  const shown = async (language: string) => {
-    await startLanguage({ language, languages: [language] })
+  const shown = async (language: string, languages = [language]) => {
+    await startLanguage({ language, languages })
     const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alex'] })
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.join(INVITE)
@@ -168,6 +168,10 @@ describe('in another language', () => {
 
   test('German writes its own sentences, numbers and names, the track as the player names it', async () => {
     expect(await shown('de')).toEqual(['Party-Chat', 'Alex hat die Geschwindigkeit auf 1,5x gesetzt', 'du bist zu 1:02:05 gesprungen', 'Host hat die Untertitel auf English gestellt'])
+  })
+
+  test('an English browser outside the US writes the clock as stub always has, and the speed in its own English', async () => {
+    expect(await shown('en', ['en-DK'])).toEqual(['Party chat', 'Alex set speed to 1,5x', 'you skipped to 1:02:05', 'host set subtitles to English'])
   })
 
   test('Russian, with no past tense that would need the member\'s gender', async () => {
