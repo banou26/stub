@@ -1,7 +1,7 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from './dom'
 
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -9,11 +9,20 @@ import { memoryLocation } from 'wouter/memory-location'
 vi.mock('lucide-react', () => ({ ChevronDown: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
+// the real mark needs a browser's CSS and popover API, which lib's own browser tests cover
+vi.mock('@fkn/lib/react', async () => {
+  const { h } = await import('preact')
+  return {
+    PoweredByFkn: ({ className, label, linkLabel }: Record<string, string>) =>
+      h('span', { className, 'data-label': label, 'data-link-label': linkLabel }),
+  }
+})
 vi.mock('../../../src/site', async importOriginal => {
   const real = await importOriginal<typeof import('../../../src/site')>()
   return { ...real, site: 'movie', siteLinks: real.siteLinksOf(new URL('https://movies.fkn.app/')) }
 })
 
+const { startLanguage } = await import('../../../src/i18n')
 const { Header } = await import('../../../src/components/header')
 
 const hosts: HTMLElement[] = []
@@ -136,4 +145,24 @@ test('its English: the field, the arrow and the four sites in the bar and the me
   expect([...host.querySelectorAll('nav.sites a')].map(link => link.textContent)).toEqual(['Movies', 'Series', 'Anime', 'All'])
   act(() => { host.querySelector<HTMLElement>('.sites-toggle')!.click() })
   expect([...menu()!.querySelectorAll('a')].map(link => link.textContent)).toEqual(['Movies', 'Series', 'Anime', 'All'])
+})
+
+// HOR-1066 (FKN's logo beside the wordmark)
+const mark = () => {
+  open()
+  const powered = hosts.at(-1)!.querySelector('.start > .wordmark + .powered')
+  return [powered?.getAttribute('data-label'), powered?.getAttribute('data-link-label')]
+}
+
+test('FKN\'s mark comes right after the wordmark, named "Powered by FKN" with its "How it works" link', () => {
+  expect(mark()).toEqual(['Powered by FKN', 'How it works'])
+})
+
+describe('in German, from its catalogue', () => {
+  beforeAll(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('FKN\'s mark and its link', () => {
+    expect(mark()).toEqual(['Bereitgestellt von FKN', 'So funktioniert es'])
+  })
 })

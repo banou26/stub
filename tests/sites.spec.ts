@@ -417,6 +417,46 @@ test('below 1024 px the bar is one row with no visible site links', async ({ pag
   }
 })
 
+// HOR-1066 (FKN's logo beside the wordmark)
+test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, its card opens on hover, and it leaves the search its room', async ({ page }) => {
+  const mark = page.getByRole('button', { name: 'Powered by FKN' })
+  const card = page.getByRole('group', { name: 'Powered by FKN' })
+  for (const [width, height] of [[1440, 900], [1024, 800], [390, 844], [360, 800]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto(at('movies.localhost'))
+    await expect(width < 480 ? searchButton(page) : searchField(page), `${width}: the control, the row is drawn`).toBeVisible()
+    const { start, search } = await page.evaluate(() => ({
+      start: document.querySelector('header .start')!.getBoundingClientRect().right,
+      search: [...document.querySelectorAll('header .search, header .search-toggle')]
+        .map(element => element.getBoundingClientRect()).find(box => box.width > 0)!.left,
+    }))
+    expect(start, `${width}: clear of the search`).toBeLessThanOrEqual(search)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}`).toBeLessThanOrEqual(width)
+    if (width < 380) {
+      await expect(mark, `${width}`).toBeHidden()
+      continue
+    }
+    const { svg, line } = await mark.evaluate(button => {
+      // an empty inline block sits on the baseline, so its bottom is the wordmark's baseline and its height the cap height
+      const probe = document.createElement('span')
+      probe.style.cssText = 'display: inline-block; width: 0; height: 1cap'
+      document.querySelector('header .logo')!.append(probe)
+      const line = probe.getBoundingClientRect().toJSON()
+      probe.remove()
+      return { svg: button.querySelector('svg')!.getBoundingClientRect().toJSON(), line }
+    })
+    expect(Math.abs(svg.bottom - line.bottom), `${width}: on the baseline`).toBeLessThanOrEqual(1)
+    expect(Math.abs(svg.height - line.height), `${width}: as tall as a capital`).toBeLessThanOrEqual(0.5)
+    await mark.hover()
+    await expect(card, `${width}`).toBeVisible()
+    await expect(card.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', 'https://docs.fkn.dev/')
+    const box = (await card.boundingBox())!
+    expect([box.x >= 0, box.x + box.width <= width], `${width}: the card in view`).toEqual([true, true])
+    await page.mouse.move(width / 2, height / 2)
+    await expect(card, `${width}`).toBeHidden()
+  }
+})
+
 const siteMenu = (page: Page) => page.getByRole('menu')
 const pressWordmark = async (page: Page) => {
   const logo = (await page.locator('header .logo').boundingBox())!

@@ -3,6 +3,7 @@ import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useDismiss, useFloating, useInteractions, useRole
 } from '@floating-ui/react'
+import { PoweredByFkn } from '@fkn/lib/react'
 import { ChevronDown, ListVideo, Search, Settings, X } from 'lucide-react'
 import { defineMessages, useIntl } from 'react-intl'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
@@ -83,13 +84,20 @@ const style = css`
     justify-self: start;
     display: flex;
     align-items: baseline;
-    gap: 2.4rem;
+    gap: 0.6rem;
     text-shadow: rgb(0 0 0 / 80%) -1px -1px 0, rgb(0 0 0 / 80%) -1px 1px 0, rgb(0 0 0 / 80%) 1px -1px 0, rgb(0 0 0 / 80%) 1px 1px 0;
+
+    /* the site links hide here and the arrow before the wordmark shows, which would give the row ITS baseline;
+       centred, FKN's mark, as tall a box as the wordmark's, still sits on the wordmark's */
+    @media (max-width: 1023px) {
+      align-items: center;
+    }
   }
 
   .sites {
     display: flex;
     gap: 1.6rem;
+    margin-inline-start: 1.4rem;
     font-size: 1.5rem;
     font-weight: 600;
 
@@ -143,8 +151,13 @@ const style = css`
     }
   }
 
-  .logo {
+  /* FKN's mark is 1cap of its own font size, so it takes the wordmark's to stand as tall as its letters */
+  .logo,
+  .powered {
     font-size: 2.4rem;
+  }
+
+  .logo {
     font-weight: 800;
     letter-spacing: 0.05em;
     color: #fff;
@@ -240,7 +253,8 @@ const style = css`
     gap: 1rem;
     padding: 0 1.5rem;
 
-    .logo {
+    .logo,
+    .powered {
       font-size: 2rem;
     }
 
@@ -284,7 +298,8 @@ const style = css`
     gap: 0.4rem;
     padding: 0 1rem;
 
-    .logo {
+    .logo,
+    .powered {
       font-size: 1.7rem;
     }
 
@@ -331,6 +346,13 @@ const style = css`
       border: none;
       background: transparent;
       color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  /* below this the search button would cover FKN's mark */
+  @media (max-width: 379px) {
+    .powered {
+      display: none;
     }
   }
 `
@@ -517,6 +539,11 @@ export const Header = () => {
     <header css={style} className={[onWatch && 'docked', searchOpen && 'searching'].filter(Boolean).join(' ') || undefined}>
       <div className="start">
         <Wordmark/>
+        <PoweredByFkn
+          className="powered"
+          label={intl.formatMessage({ id: 'Powered by FKN', defaultMessage: 'Powered by FKN' })}
+          linkLabel={intl.formatMessage({ id: 'How it works', defaultMessage: 'How it works' })}
+        />
         {siteLinks.length > 0 && (
           <nav className="sites">
             <SiteLinks/>

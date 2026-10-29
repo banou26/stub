@@ -10,6 +10,7 @@ import { memoryLocation } from 'wouter/memory-location'
 vi.mock('lucide-react', () => ({ ChevronDown: () => null, ListVideo: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
+vi.mock('@fkn/lib/react', () => ({ PoweredByFkn: () => null }))
 const where = vi.hoisted(() => ({ site: 'anime' }))
 vi.mock('../../../src/site', async importOriginal => {
   const real = await importOriginal<typeof import('../../../src/site')>()
