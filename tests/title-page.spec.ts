@@ -1000,6 +1000,29 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
   await expect(chips).toHaveText(RATED_CHIPS.slice(4))
 })
 
+// HOR-1059: the tracking at the right of the release date, where an empty band under More details was
+test('the preview\'s tracking sits level with its release date at 1440 px, under it at 390 px, and a long note under it moves neither', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/media/${RATED}`)
+  const released = modal(page).locator('.released-row > .released')
+  const tracking = modal(page).locator('.released-row > .tracking-compact')
+  const controls = tracking.locator('.group.edit')
+  await expect(released).toHaveText(/2023/, { timeout: 30_000 })
+  await expect(tracking.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+  const [date, row, more] = await Promise.all([box(released), box(tracking), box(modal(page).locator('.header > .more'))])
+  expect(row.top, 'level with the date').toBe(date.top)
+  expect(Math.abs(row.right - more.right), 'ending under More details').toBeLessThan(1)
+
+  // a failed save's line longer than the whole row
+  const held = (await box(controls)).top
+  await tracking.locator('.notes').evaluate(notes => notes.insertAdjacentHTML('beforeend', `<div class="note">${'MyAnimeList did not save the status and episode 12 and the score. '.repeat(6)}<button type="button">Retry</button></div>`))
+  expect((await box(controls)).top, 'the controls stay level with the date').toBe(held)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect((await box(tracking)).top, 'on a phone, under the date').toBeGreaterThanOrEqual((await box(released)).bottom)
+  expect(await overflowX(page)).toBe(0)
+})
+
 // AniList answers Spec Film, a film with a description and one relation, and JustWatch, finding it by that title, five
 // seconds later with its TMDB id and seven services that link out (tests/fake-fetch.ts)
 const FILM = 'ag:(anilist:900050)'

@@ -198,6 +198,11 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         margin: 0 0 0 auto;
       }
 
+      /* a note wraps to the controls' width, or a long one widens the tracking and drops it under the date */
+      & > .tracking-compact > .notes {
+        contain: inline-size;
+      }
+
       & > .stub-list-notice {
         flex-basis: 100%;
         margin-top: 0;
