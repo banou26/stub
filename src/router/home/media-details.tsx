@@ -432,17 +432,19 @@ export const SourceLinks = (
     ])
   ]
   const hidden = useHiddenIcons()
-  // the hidden ones too, so a link to a site whose icon the viewer hid stays hidden with it
+  // the hidden ones too, so a link to a site whose icon the viewer hid stays hidden with it, and unfiltered, so the
+  // answer names every source here
   const ids = [...new Set([...originIds, ...hidden])]
   const [{ data: originData, operation }] = useSubscription({
     query: GET_MEDIA_ORIGINS,
-    variables: { input: { ids, filters: [OriginFilter.IsNotApiOnly] } },
+    variables: { input: { ids } },
   })
   const answered = originData?.originPage?.nodes
-  // the answer shown is the last one's until the worker answers for a source just named, so the links wait for it: drawn
-  // before, the modal's stood beside no icon at all (2026-10-29), and one could stand for a site whose icon is on its way
+  // The links wait for the answer naming every source here, as until then the sites they must not stand on are not all
+  // known. The answer shown is the last one's until the worker answers for a source just named (the modal's links drew
+  // beside no icon, 2026-10-29), and a cold worker's first comes before its sources have said who they are (2026-10-30).
   const asked = operation?.variables.input.ids
-  const current = answered && ids.every(id => asked?.includes(id))
+  const ready = answered && ids.every(id => asked?.includes(id)) && originIds.every(id => answered.some(origin => origin.id === id))
   return (
     <span className="origins">
       {
@@ -457,7 +459,7 @@ export const SourceLinks = (
             // while the SAME_AS `cr:<seriesId>-<seasonId>` for this very cour sat later in the list.
             const forOrigin = handles?.filter(handle => handle.node.origin === origin.id && handle.node.url) ?? []
             const link = (forOrigin.find(handle => handle.relation === 'SAME_AS') ?? forOrigin.at(0))?.node.url
-            if (!origin.icon || hidden.has(origin.id) || except.includes(origin.id)) return undefined
+            if (!origin.icon || origin.isApiOnly || hidden.has(origin.id) || except.includes(origin.id)) return undefined
             return (
               link
                 ? (
@@ -475,7 +477,7 @@ export const SourceLinks = (
           .filter(Boolean)
       }
       {
-        current && linksToDraw(links ?? [], answered.flatMap(origin => hostOf(origin.url) ?? [])).map(link => (
+        ready && linksToDraw(links ?? [], answered.flatMap(origin => hostOf(origin.url) ?? [])).map(link => (
           <a className="origin" href={link.url} target="_blank" rel="noreferrer" title={link.site} key={link.host}>
             <OriginIcon icon={link.icon} name={link.site}/>
           </a>

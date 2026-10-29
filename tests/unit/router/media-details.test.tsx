@@ -664,37 +664,43 @@ describe('the streaming links after the source icons', () => {
   })
   afterEach(() => { vi.unstubAllGlobals() })
 
-  // the worker's answer for the ids asked, and only those
   const ORIGINS = [
     { id: 'anilist', name: 'AniList', icon: 'https://anilist.co/i.png', url: 'https://anilist.co' },
     { id: 'nf', name: 'Netflix', icon: 'https://www.netflix.com/i.png', url: 'https://www.netflix.com' },
+    { id: 'kitsu', name: 'Kitsu', icon: 'https://kitsu.io/i.png', url: 'https://kitsu.io', isApiOnly: true },
   ]
+  const idsOf = (request: { variables?: unknown }) => (request.variables as { input: { ids: string[] } }).input.ids
+  // the worker's answer for the ids asked, and only those
+  const answer = (ids: readonly string[]) =>
+    ({ data: { originPage: { nodes: ORIGINS.filter(origin => ids.includes(origin.id)).map(origin => ({ color: null, isApiOnly: false, ...origin })) } }, hasNext: true })
   const answering = () => new Client({
     url: 'http://test/graphql',
     exchanges: [subscriptionExchange({
       forwardSubscription: request => ({
         subscribe: sink => {
-          const ids = (request.variables as { input: { ids: string[] } }).input.ids
-          sink.next({ data: { originPage: { nodes: ORIGINS.filter(origin => ids.includes(origin.id)).map(origin => ({ color: null, isApiOnly: false, ...origin })) } }, hasNext: true })
+          sink.next(answer(idsOf(request)))
           return { unsubscribe: () => {} }
         },
       }),
     })],
   })
-  const draw = async (handles: { relation: string, node: { origin: string, url: string } }[], links: { site: string, url: string, icon?: string, country?: string }[]) => {
-    const host = mount(<Provider value={answering()}><SourceLinks uri="ag:(anilist:191656)" handles={handles} links={links}/></Provider>)
-    hosts.push(host)
+  const drawnIn = async (host: HTMLElement) => {
     await act(() => new Promise(resolve => setTimeout(resolve, 10)))
     return [...host.querySelectorAll<HTMLAnchorElement>('.origin')].map(origin => `${origin.title} ${origin.href}`)
   }
+  const draw = (handles: { relation: string, node: { origin: string, url: string } }[], links: { site: string, url: string, icon?: string, country?: string }[]) => {
+    const host = mount(<Provider value={answering()}><SourceLinks uri="ag:(anilist:191656)" handles={handles} links={links}/></Provider>)
+    hosts.push(host)
+    return drawnIn(host)
+  }
   const ANILIST = { relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/191656' } }
+  const NETFLIX = { relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/82616221' } }
 
   // as JustWatch, AniList and MyAnimeList name Even the Student Council Has Its Holes! for a viewer in Japan, with a
   // Netflix link and a Netflix icon beside
   test('are the viewer\'s country\'s and those naming none, one per site, and none on a source icon\'s site', async () => {
     viewerIn('Asia/Tokyo')
-    const netflix = { relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/82616221' } }
-    expect(await draw([ANILIST, netflix], [
+    expect(await draw([ANILIST, NETFLIX], [
       { site: 'Hulu', url: 'https://www.hulu.jp/watch/100276501', icon: 'https://images.justwatch.com/icon/116305230/s100/hulu.webp', country: 'JP' },
       { site: 'OceanVeil', url: 'https://oceanveil.net/anime_titles/542' },
       { site: 'Netflix', url: 'https://www.netflix.com/title/1' },
@@ -720,10 +726,9 @@ describe('the streaming links after the source icons', () => {
       exchanges: [subscriptionExchange({
         forwardSubscription: request => ({
           subscribe: sink => {
-            const ids = (request.variables as { input: { ids: string[] } }).input.ids
-            const answer = () => sink.next({ data: { originPage: { nodes: ORIGINS.filter(origin => ids.includes(origin.id)).map(origin => ({ color: null, isApiOnly: false, ...origin })) } }, hasNext: true })
-            if (ids.includes('nf')) held.push(answer)
-            else answer()
+            const ids = idsOf(request)
+            if (ids.includes('nf')) held.push(() => sink.next(answer(ids)))
+            else sink.next(answer(ids))
             return { unsubscribe: () => {} }
           },
         }),
@@ -737,15 +742,36 @@ describe('the streaming links after the source icons', () => {
     }
     const host = mount(<Provider value={holding}><Named/></Provider>)
     hosts.push(host)
-    const drawn = async () => {
-      await act(() => new Promise(resolve => setTimeout(resolve, 10)))
-      return [...host.querySelectorAll<HTMLAnchorElement>('.origin')].map(origin => `${origin.title} ${origin.href}`)
-    }
-    expect(await drawn(), 'the control: no Netflix icon, so the link').toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/1'])
-    act(() => name([ANILIST, { relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/82616221' } }]))
-    expect(await drawn(), 'while Netflix is asked about').toEqual(['AniList https://anilist.co/anime/191656'])
+    expect(await drawnIn(host), 'the control: no Netflix icon, so the link').toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/1'])
+    act(() => name([ANILIST, NETFLIX]))
+    expect(await drawnIn(host), 'while Netflix is asked about').toEqual(['AniList https://anilist.co/anime/191656'])
     act(() => { for (const answer of held) answer() })
-    expect(await drawn()).toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/82616221'])
+    expect(await drawnIn(host)).toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/82616221'])
+  })
+
+  // A worker just started answers before its sources have said who they are, then again once they have, on their 50 ms
+  // batch (src/worker/store/db.ts findOrigins, src/worker/extractor.ts originInserter); the title page drew its links
+  // before its icons that way (tests/title-page.spec.ts, 2026-10-30)
+  test('wait for every source\'s row, so none is drawn before the icons or on a source\'s own site', async () => {
+    const later: (() => void)[] = []
+    const cold = new Client({
+      url: 'http://test/graphql',
+      exchanges: [subscriptionExchange({
+        forwardSubscription: request => ({
+          subscribe: sink => {
+            sink.next(answer([]))
+            later.push(() => sink.next(answer(idsOf(request))))
+            return { unsubscribe: () => {} }
+          },
+        }),
+      })],
+    })
+    const links = [{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }, { site: 'iQ', url: 'https://www.iq.com/album/1' }]
+    const host = mount(<Provider value={cold}><SourceLinks uri="ag:(anilist:191656)" handles={[ANILIST, NETFLIX]} links={links}/></Provider>)
+    hosts.push(host)
+    expect(await drawnIn(host), 'before the sources have answered').toEqual([])
+    act(() => { for (const answer of later) answer() })
+    expect(await drawnIn(host)).toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/82616221', 'iQ https://www.iq.com/album/1'])
   })
 
   test('none is on the site of a source whose icon the viewer hid', async () => {
@@ -755,6 +781,14 @@ describe('the streaming links after the source icons', () => {
     ])
     setIconShown('nf', false)
     expect(await draw([ANILIST], links)).toEqual(['AniList https://anilist.co/anime/191656', 'iQ https://www.iq.com/album/28ki6pjn6a1'])
+  })
+
+  // the rows are asked unfiltered, so the links can wait for every one
+  test('an API-only source has no icon', async () => {
+    const kitsu = { relation: 'SAME_AS', node: { origin: 'kitsu', url: 'https://kitsu.io/anime/1' } }
+    expect(await draw([ANILIST, kitsu], [{ site: 'iQ', url: 'https://www.iq.com/album/1' }])).toEqual([
+      'AniList https://anilist.co/anime/191656', 'iQ https://www.iq.com/album/1',
+    ])
   })
 })
 
