@@ -120,6 +120,19 @@ describe('stepVideoFrame', () => {
     expect(media.writes.at(-1)).toBeCloseTo(50 + PAL, 9)
   })
 
+  // a frame can still be shown while a seek is under way, and the seek's own frame after it carries the seek's target in Firefox
+  test('steps from where a seek made while playing lands, past a frame shown before it landed', async () => {
+    const realm = page()
+    const media = video(realm)
+    await realm.evaluate(watchVideoFrames, VIDEO)
+    media.play(evenly(10, PAL, 30))
+    media.element.currentTime = 50
+    media.present(10 + 30 * PAL)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    await realm.evaluate(stepVideoFrame, { ...VIDEO, direction: 1 })
+    expect(media.writes.at(-1)).toBeCloseTo(50 + PAL, 9)
+  })
+
   test('learns again from frames played after a seek', async () => {
     const realm = page()
     const media = video(realm)
