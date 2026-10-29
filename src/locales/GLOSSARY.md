@@ -157,3 +157,28 @@ two (`Titel`, `タイトル`). The genre picker's filter box holds 11 Japanese c
 | `zh-Hant` | 搜尋 | 影集 | 篩選, 清除篩選 | 不限 | 播出狀態 |
 | `tr` | Ara | Diziler | filtrele, Filtreleri temizle | Tümü | Yayın durumu |
 | `pl` | Szukaj | Seriale | Filtruj, Wyczyść filtry | Dowolne | Status emisji |
+
+## Tracking
+
+A tracker is a site that keeps the viewer's list (AniList, MyAnimeList, Crunchyroll, Stub), each list holding an entry
+per title with a status, a progress and a score. The six statuses are the list's own words, also inside MyAnimeList's
+`it as {status, select, ...}`, which reads `the status Watching` in most languages. A tracker that did not save is
+named without a verb agreeing with it in Russian and Polish (`Не удалось сохранить в {name}`, `Nie zapisano w
+{name}`), since the name's gender is unknown; Korean puts a particle that follows the word before it inside each select
+branch (`{kind, select, removal {삭제를} other {저장을}}`). A site's own words in `{said}` and `{error}` come as the site
+wrote them.
+
+| | tracker | list, entry | score | Watching | Rewatching | Plan to watch | Completed | Paused | Dropped | Quick tracking |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `es-419` | rastreador | lista, entrada | puntuación | Viendo | Volviendo a ver | Por ver | Completado | En pausa | Abandonado | Seguimiento rápido |
+| `pt-BR` | rastreador | lista, entrada | nota | Assistindo | Revendo | Para assistir | Completo | Pausado | Abandonado | Acompanhamento rápido |
+| `fr` | tracker | liste, entrée | note | En cours | Revisionnage | À voir | Terminé | En pause | Abandonné | Suivi rapide |
+| `de` | Tracker | Liste, Eintrag | Bewertung | Am Schauen | Erneut am Schauen | Geplant | Abgeschlossen | Pausiert | Abgebrochen | Schnelles Tracking |
+| `it` | tracker | lista, voce | voto | In corso | Rivedendo | Da vedere | Completato | In pausa | Abbandonato | Monitoraggio rapido |
+| `ru` | трекер | список, запись | оценка | Смотрю | Пересматриваю | Запланировано | Просмотрено | Отложено | Брошено | Быстрое отслеживание |
+| `ja` | トラッカー | リスト、エントリー | スコア | 視聴中 | 再視聴中 | 視聴予定 | 視聴完了 | 一時停止中 | 視聴中止 | クイック記録 |
+| `ko` | 트래커 | 목록, 항목 | 점수 | 보는 중 | 다시 보는 중 | 볼 예정 | 완료 | 일시 중지 | 중단 | 빠른 기록 |
+| `zh-Hans` | 追踪器 | 列表、条目 | 评分 | 在看 | 重看中 | 想看 | 看过 | 搁置 | 抛弃 | 快速记录 |
+| `zh-Hant` | 追蹤器 | 清單、項目 | 評分 | 在看 | 重看中 | 想看 | 看過 | 擱置 | 拋棄 | 快速記錄 |
+| `tr` | takip aracı | liste, kayıt | puan | İzleniyor | Yeniden izleniyor | İzlenecek | Tamamlandı | Ara verildi | Bırakıldı | Hızlı takip |
+| `pl` | tracker | lista, wpis | ocena | Oglądam | Oglądam ponownie | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |

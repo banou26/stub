@@ -4,7 +4,7 @@ import { button, mount, unmount, withIntl } from './dom'
 import type { ComponentChild } from 'preact'
 
 import { act } from 'preact/test-utils'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { WindowSignIn } from '../../../src/sources/login-window'
 import type { CompactAnswer, CompactTracking, QueueState, SaveQueue } from '../../../src/tracking/compact'
@@ -17,6 +17,9 @@ const { default: TrackingCompact } = await import('../../../src/components/track
 const { default: SaveProblems } = await import('../../../src/components/save-problems')
 const { default: ScorePicker } = await import('../../../src/components/score-picker')
 const { default: StubListNotice } = await import('../../../src/components/stub-list-notice')
+const { startLanguage, wordsOf } = await import('../../../src/i18n')
+const { failedReadAnswer } = await import('../../../src/tracking/collect')
+const { mismatchOf } = await import('../../../src/sources/mal/list-api')
 
 // HOR-1026 (stub in the viewer's language): every word the tracking row, its cards, its score menu, its notes and the
 // lines about stub's own list show, and every name they give a screen reader, in English
@@ -297,6 +300,51 @@ describe('stub\'s own list', () => {
       'Stub: 1 entry saved on this device before you signed in', 'Add to my FKN account',
       'Stub: 3 entries saved on this device before you signed in', 'Add to my FKN account',
       'Stub: some changes have not reached your FKN account yet.', 'Stub: FKN storage did not answer',
+    ])
+  })
+})
+
+describe('in German', () => {
+  beforeAll(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('the row, a card, the score menu and a save that did not land read German', async () => {
+    // stub's tracker names its list as the worker hands it, a message
+    const own = { ...stub, tracker: { ...stub.tracker, account: { message: 'This device' } } }
+    const host = row({ tracking: { ...tracking, answers: tracking.answers.map(answer => answer === stub ? own : answer) } })
+    expect(words(host)).toEqual(expect.arrayContaining([
+      'Schnelles Tracking', 'Tracker einklappen', 'Eintrag bei AniList', 'In AniList speichern', 'Bei MyAnimeList anmelden',
+      'Shikimori kann diesen Titel nicht tracken: Nennt shiki:1 und shiki:2, nicht eindeutig', 'Simkl wird geladen',
+      'Eine Weile pausiert', 'Keine Antwort', 'Bewertung, 8 von 10', 'AniList 6 / 10 und Kitsu 7,5 / 10', 'Am Schauen', 'Geplant',
+      'Von der Liste entfernen', 'AniList Pausiert und Kitsu Am Schauen', 'Folgen', 'Eine Folge mehr',
+    ]))
+    expect(words(await cardOf(host, 'stub'))).toEqual(expect.arrayContaining(['Dieses Gerät', 'Zur Liste hinzufügen']))
+    const queue = { retry: () => {}, dismiss: () => {} } as unknown as SaveQueue
+    const unreachable = failedReadAnswer('ag:(anilist:1)', anilist.tracker as never, new TypeError('Failed to fetch')).error
+    const failed = { busy: false, failed: { fields: { status: 'WATCHING', progress: 5 }, error: unreachable } }
+    expect(words(shown(<SaveProblems answer={anilist} state={failed} queue={queue}/>)))
+      .toEqual(['AniList hat den Status und Folge 5 nicht gespeichert: AniList nicht erreichbar, neuer Versuch läuft', 'Erneut versuchen'])
+  })
+
+  test('what MyAnimeList shows apart from a save, and a site\'s own words, as they came', () => {
+    const before = { animeId: 1, status: 2, rewatching: false, score: 8, progress: 3, episodes: 12, title: null, url: '', cover: null, updatedAt: null }
+    expect(wordsOf(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, { ...before, status: 3, progress: 2, score: 7 }, before)!))
+      .toBe('MyAnimeList zeigt den Status Pausiert, 2 Folgen und eine Bewertung von 7 / 10')
+    expect(wordsOf('invalid request')).toBe('invalid request')
+  })
+})
+
+describe('in Russian', () => {
+  beforeAll(() => startLanguage({ language: 'ru', languages: ['ru-RU'] }))
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('the entries kept before signing in take each of the plural forms', () => {
+    const storage = { location: 'ACCOUNT' as const, signedIn: true, locked: false, waiting: false }
+    expect([1, 3, 5, 21].map(held => words(shown(<StubListNotice storage={{ ...storage, held }} onUnlock={async () => {}} onAdd={async () => {}}/>))[0])).toEqual([
+      'Stub: на этом устройстве до входа сохранена 1 запись',
+      'Stub: на этом устройстве до входа сохранены 3 записи',
+      'Stub: на этом устройстве до входа сохранено 5 записей',
+      'Stub: на этом устройстве до входа сохранена 21 запись',
     ])
   })
 })
