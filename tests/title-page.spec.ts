@@ -1141,6 +1141,32 @@ test('a film\'s preview lists every place to watch it under Play\'s row, a row e
   }
 })
 
+test('a film\'s preview holds three rows\' place while JustWatch has not answered, so the list grows only by the rows past the third', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    await page.goto(`${origin}/media/${FILM}`)
+    const list = modal(page).locator('.movie > .sources')
+    const actions = modal(page).locator('.movie > .actions')
+    const slots = list.locator('.source-pending')
+    const rows = list.locator('a.source')
+    const description = '.modal .columns > .main > .description'
+    await expect(page.locator(`${description}:not(.pending)`), `${width}`).toBeVisible({ timeout: 30_000 })
+    await expect(slots, `${width}: the control: held while JustWatch has not answered`).toHaveCount(3)
+    const slot = await box(slots.first())
+    const held = { list: await height(list), actions: await height(actions), description: await onPage(page.locator(description)) }
+    const tops = await everyFrame(page, description)
+    await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+    await expect(slots).toHaveCount(0)
+    const row = Math.round((await box(rows.first())).height)
+    expect(row, `${width}: a row as tall as a place held`).toBe(Math.round(slot.height))
+    const grow = await height(list) - held.list
+    expect(grow, `${width}`).toBe((FILM_SOURCES.length - 3) * row)
+    // none of Spec Film's services plays in stub, so Play's held place goes with them, on its own line on a phone
+    expect(await tops(), `${width}: the description moves once`).toEqual([held.description, held.description + grow + await height(actions) - held.actions])
+  }
+})
+
 test('390 px wide, a film\'s buttons are as wide as what they hold, as many to a line as fit, the first line landing in the place held for it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   for (const { path, row, below } of FILM_PAGE) {
@@ -1514,7 +1540,7 @@ test('390 px wide, a film\'s place to watch landing after its sources settled ho
       for (const record of records) {
         for (const node of record.type === 'attributes' ? [record.target] : [...record.addedNodes]) {
           if (!(node instanceof Element)) continue
-          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.movie .play-pending')) seen.add(element.className)
+          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.movie .play-pending, .movie .source-pending')) seen.add(element.className)
         }
       }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })

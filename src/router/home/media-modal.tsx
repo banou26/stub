@@ -515,6 +515,12 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       .how::after { content: ' ↗'; }
       &.plays .how::after { content: ' ▶'; }
     }
+
+    & > .sources .source-pending {
+      height: 6rem;
+      border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+      border-radius: 0;
+    }
   }
 }
 
@@ -620,7 +626,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         height: 4.8rem;
       }
 
-      & > .sources .source {
+      & > .sources .source, & > .sources .source-pending {
         height: 5.4rem;
 
         .name {

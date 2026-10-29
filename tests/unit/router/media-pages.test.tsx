@@ -204,7 +204,7 @@ describe('the preview', () => {
     const late = { ...partial(3), type: 'MOVIE' }
     const { answer } = preview(late.uri)
     answer(late)
-    expect(pending(modal()), 'the control: held while a source is out').toEqual(['title-pending', 'play-pending', 'description.pending'])
+    expect(pending(modal()), 'the control: held while a source is out').toEqual(['title-pending', 'play-pending', ...Array<string>(3).fill('source-pending'), 'description.pending'])
 
     answer({ ...late, settled: true })
     expect(pending(modal())).toEqual([])

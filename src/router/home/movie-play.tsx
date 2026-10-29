@@ -16,6 +16,8 @@ import { getRoutePath, Route } from '../path'
 import { filmRelease } from './episodes'
 import { filmDate } from './movie'
 
+const HELD_ROWS = 3
+
 const hostOf = (href: string | undefined) => {
   try {
     return new URL(href ?? '').hostname.replace(/^www\./, '')
@@ -58,8 +60,8 @@ const Service = ({ source }: { source: WatchSource }) => {
  * ("Coming soon" while its status says it is not out and nothing dates it); then Play, opening the watch page, beside
  * `children` (the tracking), and every place it plays or can be watched, or "No sources yet" once `settled` with none.
  * Play is drawn when one of `sources` plays in stub, or would with the extension, as the watch page's pick counts it.
- * Until the media has `settled`, Play's place is held while no source has landed, or while one stub plays still links
- * out because its episode has not landed.
+ * Until the media has `settled`, three rows' place is held for the list, each landing row taking one, and Play's place
+ * is held while no source has landed, or while one stub plays still links out because its episode has not landed.
  */
 const MoviePlay = (
   { episode, mediaUri, sources, settled, startDate, status, children }:
@@ -84,9 +86,11 @@ const MoviePlay = (
     : undefined
   const none = !upcoming && !sources.length
   const announced = none && !released && status === 'NOT_YET_RELEASED'
-  const held = !play && !upcoming && !announced && !settled && (none || sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
+  const holding = !upcoming && !announced && !settled
+  const held = !play && holding && (none || sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
   const date = upcoming ? filmDate(released, new Date(now)) : undefined
   const shown = sources.filter(source => !hidden.has(source.id))
+  const slots = holding ? Math.max(0, HELD_ROWS - shown.length) : 0
   return (
     <div className="movie">
       {
@@ -116,7 +120,16 @@ const MoviePlay = (
         }
         {children}
       </div>
-      {shown.length ? <ul className="sources">{shown.map(source => <li key={source.id}><Service source={source}/></li>)}</ul> : undefined}
+      {
+        shown.length || slots
+          ? (
+            <ul className="sources">
+              {shown.map(source => <li key={source.id}><Service source={source}/></li>)}
+              {Array.from({ length: slots }, (_, index) => <li key={index}><Placeholder className="source-pending"/></li>)}
+            </ul>
+          )
+          : undefined
+      }
     </div>
   )
 }

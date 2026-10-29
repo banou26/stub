@@ -165,13 +165,33 @@ test('until a source lands or the film\'s sources have all answered, Play\'s pla
 })
 
 // Made in Abyss: Mezameru Shinpi Part 2, 2026-10-26: AniList lists it as not yet released, with no date
-test('a film not out yet with no date reads Coming soon, never No sources yet', () => {
+test('a film not out yet with no date reads Coming soon, never No sources yet, and holds nothing while its sources answer', () => {
   origin = 'none'
-  const host = render(episode, [], null, 'NOT_YET_RELEASED')
-  expect([host.querySelector('.release > .day')?.textContent, when(host)]).toEqual(['Coming soon', 'No release date yet'])
-  expect(host.querySelector('.none')).toBeNull()
-  expect(host.querySelector('.play-pending'), 'and nothing is held').toBeNull()
-  expect(render(episode, [], null).querySelector('.movie > .none')?.textContent, 'the control: a film not known to be ahead').toBe('No sources yet')
+  for (const settled of [false, true]) {
+    const host = render(episode, [], null, 'NOT_YET_RELEASED', settled)
+    expect([host.querySelector('.release > .day')?.textContent, when(host)], `settled ${settled}`).toEqual(['Coming soon', 'No release date yet'])
+    expect(host.querySelector('.none')).toBeNull()
+    expect(host.querySelector('.play-pending, .source-pending'), `settled ${settled}: nothing is held`).toBeNull()
+  }
+  expect(render(episode, [], null, undefined, false).querySelector('.play-pending'), 'the control: a film not known to be ahead is held').not.toBeNull()
+  expect(render(episode, [], null).querySelector('.movie > .none')?.textContent, 'the control: and reads No sources yet once settled').toBe('No sources yet')
+})
+
+// what the list under Play holds, a row or a row's place
+const rows = (host: HTMLElement) => [...host.querySelector('.movie > .sources')?.children ?? []]
+  .map(row => row.firstElementChild!.className.split(' ').filter(name => !name.startsWith('css-')).join('.'))
+
+// so the description under the list keeps its place while the services land
+test('until a film settles, the list holds three rows\' place, each row landing in one', () => {
+  origin = 'none'
+  expect(rows(render(episode, [], '2020-01-01', undefined, false))).toEqual(['source-pending', 'source-pending', 'source-pending'])
+  expect(render(episode).querySelector('.movie > .sources'), 'the control: settled with none, no list').toBeNull()
+  origin = 'hidive'
+  const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
+  expect(rows(render(episode, offer, '2020-01-01', undefined, false))).toEqual(['source', 'source-pending', 'source-pending'])
+  expect(rows(render(episode, offer)), 'settled, the rest let go').toEqual(['source'])
+  origin = 'none'
+  expect(render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false).querySelector('.source-pending'), 'a film not out yet holds none').toBeNull()
 })
 
 // so a film whose services all link out, none of them one stub plays, loses the held place as its buttons land,
