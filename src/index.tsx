@@ -1,3 +1,4 @@
+import './share-link-open'
 import './update'
 import { css, Global } from '@emotion/react'
 import { render } from 'preact'

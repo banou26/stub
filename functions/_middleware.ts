@@ -2,6 +2,7 @@ import type { Answer, Preview } from '../src/preview'
 
 import { siteOf, type Site } from '../src/site'
 import { routeMediaUri } from '../src/utils/uri'
+import { expandPath, SHORT_PATH } from '../src/utils/share-link'
 import { createPreview } from '../functions-lib/preview.js'
 import frizbee from '../functions-lib/frizbee_wasm_bg.wasm'
 import sacha from '../functions-lib/sacha_bg.wasm'
@@ -105,16 +106,19 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
 }
 
 /**
- * Gives a link-preview crawler's GET on a title, media or watch address the title, description and art stub itself
- * draws for it, and every other request the page untouched: from stub's offline data alone when it holds a title and
- * a cover for the address, asking nothing, else from stub's own sources run here (src/preview). Reads nothing about
- * the requester but its user agent, logs nothing about it, and keeps only public show data: a title's preview in the
- * edge cache, and what the sources answered for it in the private source store. Any failure answers the page as is.
+ * Gives a link-preview crawler's GET on a title, media or watch address, or a short link to one, the title,
+ * description and art stub itself draws for it, and every other request the page untouched: from stub's offline data
+ * alone when it holds a title and a cover for the address, asking nothing, else from stub's own sources run here
+ * (src/preview). Reads nothing about the requester but its user agent, logs nothing about it, and keeps only public
+ * show data: a title's preview in the edge cache, and what the sources answered for it in the private source store.
+ * Any failure answers the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const started = Date.now()
   const url = new URL(request.url)
-  const segment = TITLE_PATH.exec(url.pathname)?.[1]
+  // a short link gets its address's card, kept under the same key
+  const short = url.pathname.startsWith(SHORT_PATH) ? expandPath(url.pathname.slice(SHORT_PATH.length)) : undefined
+  const segment = TITLE_PATH.exec(short ? new URL(short, url).pathname : url.pathname)?.[1]
   if (request.method !== 'GET' || !segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
   try {
     const site = siteOf(url.hostname)

@@ -9,6 +9,7 @@ import { gunzipSync } from 'node:zlib'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { offlinePreview } from '../../../src/preview'
+import { shortenPath, SHORT_PATH } from '../../../src/utils/share-link'
 import { inboxLines, inboxObject } from '../../../src/preview/inbox'
 import wasmModule from './stub-wasm'
 
@@ -508,6 +509,24 @@ test('nothing from the request reaches the copy, the object or its key', async (
   for (const value of [...Object.values(requester), 'requester', 'NZ', 'mi-NZ', '203.0.113', '198.51.100', '192.0.2']) expect(stored).not.toContain(value)
 })
 
-test('the Function runs on title, media and watch addresses alone, so assets and the home never invoke it', () => {
-  expect(JSON.parse(readFileSync(resolve(ROOT, 'public/_routes.json'), 'utf8'))).toEqual({ version: 1, include: ['/title/*', '/media/*', '/watch/*'], exclude: [] })
+test('the Function runs on title, media and watch addresses and short links alone, so assets and the home never invoke it', () => {
+  expect(JSON.parse(readFileSync(resolve(ROOT, 'public/_routes.json'), 'utf8'))).toEqual({ version: 1, include: ['/title/*', '/media/*', '/watch/*', '/s/*'], exclude: [] })
+})
+
+test('a crawler on a short link gets its address\'s card, kept under the same key, with the short link as its url', async () => {
+  const watch = '/watch/ag:(anilist:195604,mal:61967)/ag:(anizip:19444-1)/nyaa:2166874?plugins=https:stub.plugins.banou.dev'
+  const address = `https://anime.fkn.app${SHORT_PATH}${shortenPath(watch)}`
+  const { html, kept: done } = await call(address)
+  await done
+  expect(asked.map(({ uri, site }) => ({ uri, site }))).toEqual([{ uri: 'ag:(anilist:195604,mal:61967)', site: 'anime' }])
+  expect(meta(html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(meta(html, 'og:url')).toEqual([address])
+  expect(kept('anime', 'ag:(anilist:195604,mal:61967)')).toBeDefined()
+})
+
+test('a short link that does not open gets the page untouched', async () => {
+  const { html, next } = await call(`https://anime.fkn.app${SHORT_PATH}AAAA`)
+  expect(next).toHaveBeenCalledTimes(1)
+  expect(html).toBe(SHELL)
+  expect(asked).toEqual([])
 })

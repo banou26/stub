@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
+import { shortenPath, SHORT_PATH } from '../src/utils/share-link'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
 const ALL = builtInSources.length
@@ -621,6 +622,18 @@ for (const [width, height] of [[1920, 1080], [390, 844]] as const) {
     expect(stateBox!.y, 'adding… is under the address').toBeGreaterThanOrEqual(uriBox!.y + uriBox!.height - 1)
   })
 }
+
+// HOR-1065: plugin-url.ts reads the sources a link offers once, as it loads, so a short link opened after it loses them
+test('a short link opens its address and offers the source it names, and a code that opens nothing is no page', async ({ page }) => {
+  const address = '/title/ag:(anilist:1,mal:1)?plugins=https:dead.spec.test'
+  await page.goto(`${origin}${SHORT_PATH}${shortenPath(address)}`)
+  await expect(page.getByRole('dialog', { name: 'Add this source?' }).getByText('https:dead.spec.test', { exact: true })).toBeVisible()
+  expect(page.url()).toBe(`${origin}${address}`)
+
+  await page.goto(`${origin}${SHORT_PATH}AAAA`)
+  await expect(page.getByText('404 No page found')).toBeVisible()
+  expect(page.url()).toBe(`${origin}${SHORT_PATH}AAAA`)
+})
 
 test('at 390x844 a source whose long host has nowhere to break keeps its error inside the prompt', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
