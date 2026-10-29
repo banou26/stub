@@ -1,7 +1,7 @@
 import type { IntlShape } from 'react-intl'
 import type { ViewerListsSubscription } from '../../generated/graphql'
 import type { DisplayMode } from '../search/display'
-import type { Fields } from '../../tracking/compact'
+import type { Fields, TrackerOutcome } from '../../tracking/compact'
 import type { Sort, Tab } from './model'
 
 import { css } from '@emotion/react'
@@ -19,7 +19,7 @@ import Paged from '../../components/paged'
 import Placeholder from '../../components/placeholder'
 import { useSaveEntry } from '../../components/media-tracking-query'
 import { VIEWER_LISTS } from '../../components/viewer-lists-query'
-import { NAME_LIST } from '../../i18n'
+import { NAME_LIST, wordsOf } from '../../i18n'
 import { viewerPrefs } from '../../tracking/compact-prefs'
 import { SORTS, TABS, offersOneMore, oneMore, shownRows, tabCounts } from './model'
 
@@ -291,7 +291,7 @@ const Item = ({ row }: { row: Row }) => {
   const own = row.summary.progress ?? 0
   // the + shows from the click, until the lists hold it or a tracker did not take it
   const [pending, setPending] = useState<number>()
-  const [missed, setMissed] = useState<{ name: string, outcome: string }[]>([])
+  const [missed, setMissed] = useState<(TrackerOutcome & { name: string })[]>([])
   useEffect(() => { if (pending !== undefined && own >= pending) setPending(undefined) }, [own, pending])
 
   const progress = pending ?? own
@@ -304,11 +304,15 @@ const Item = ({ row }: { row: Row }) => {
   const more = async () => {
     setPending(progress + 1)
     setMissed([])
-    const outcomes = (await Promise.all(byFields(patches).map(({ fields, trackers }) => save(trackers, fields)))).flat()
+    // a write that reached no tracker answers one outcome naming none, for every tracker it went to
+    const outcomes = (await Promise.all(byFields(patches).map(async ({ fields, trackers }) => {
+      const answered = await save(trackers, fields)
+      return trackers.map(tracker => ({ outcome: 'FAILED', ...answered.find(outcome => outcome.tracker === tracker || !outcome.tracker), tracker }))
+    }))).flat()
     const failed = outcomes.filter(({ outcome }) => outcome !== 'SAVED' && outcome !== 'QUEUED')
     if (!failed.length) return
     setPending(undefined)
-    setMissed(failed.map(({ tracker, outcome }) => ({ name: row.answers.find(answer => answer.tracker.id === tracker)?.tracker.name ?? tracker, outcome })))
+    setMissed(failed.map(outcome => ({ ...outcome, name: row.answers.find(answer => answer.tracker.id === outcome.tracker)?.tracker.name ?? outcome.tracker })))
   }
 
   return (
@@ -342,9 +346,13 @@ const Item = ({ row }: { row: Row }) => {
         }
       </div>
       {total ? <div className="bar"><span style={{ width: `${Math.min(100, (progress / total) * 100)}%` }}/></div> : undefined}
-      {missed.map(({ name, outcome }) => (
+      {missed.map(({ name, outcome, error }) => (
         <div key={name} className="missed">
-          {intl.formatMessage({ id: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}', defaultMessage: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}' }, { name, outcome })}
+          {
+            error
+              ? intl.formatMessage({ id: '{name} did not save: {error}', defaultMessage: '{name} did not save: {error}' }, { name, error: wordsOf(error) })
+              : intl.formatMessage({ id: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}', defaultMessage: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}' }, { name, outcome })
+          }
         </div>
       ))}
     </div>
