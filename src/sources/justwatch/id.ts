@@ -85,6 +85,15 @@ export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
   stz: 'starz', acp: 'amcplus', phl: 'philo'
 }
 
+/** The platform's own address behind a JustWatch click link (`u` or `r`), or undefined for any other address. */
+export const extractRealUrl = (affiliateUrl: string): string | undefined => {
+  try {
+    const url = new URL(affiliateUrl)
+    return url.searchParams.get('u') ?? url.searchParams.get('r') ?? undefined
+  } catch {}
+  return undefined
+}
+
 const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
 const OBJECT_ID = /^[0-9a-f]{24}$/
 

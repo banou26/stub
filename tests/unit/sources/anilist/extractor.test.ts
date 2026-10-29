@@ -123,6 +123,27 @@ test('a refusal leaves the media with its other handles', async () => {
   expect(handleUris(media)).toEqual(['mal:59193'])
 })
 
+// anilist:191656's links on 2026-10-29, and a streaming one marked disabled
+const ICON = 'https://s4.anilist.co/file/anilistcdn/link/icon'
+const LINKS_191656 = [
+  { site: 'Official Site', siteId: 1, url: 'https://nama-anaru.com/', type: 'INFO', icon: null, isDisabled: false },
+  { site: 'Twitter', siteId: 219, url: 'https://x.com/nama_anaru', type: 'SOCIAL', icon: `${ICON}/219-EwrfceXsqIWg.png`, isDisabled: false },
+  { site: 'OceanVeil', siteId: 249, url: 'https://oceanveil.net/anime_titles/542', type: 'STREAMING', icon: `${ICON}/249-CFCxdC7MiNX3.png`, isDisabled: false },
+  { site: 'Bilibili TV', siteId: 119, url: 'https://www.bilibili.tv/en/media/2433041', type: 'STREAMING', icon: `${ICON}/119-NCwGvCjFADGQ.png`, isDisabled: false },
+  { site: 'iQ', siteId: 122, url: 'https://www.iq.com/album/28ki6pjn6a1', type: 'STREAMING', icon: `${ICON}/122-EPBJ2E0oPt5C.png`, isDisabled: false },
+  { site: 'Netflix', siteId: 10, url: 'https://www.netflix.com/title/1', type: 'STREAMING', icon: `${ICON}/10-rVGPom8RCiwH.png`, isDisabled: true },
+]
+
+test('AniList\'s streaming links are the media\'s, and its other links and a disabled one are not', async () => {
+  const fetch = async () => ({ status: 200, json: async () => ({ data: { Media: { ...MEDIA_178789, externalLinks: LINKS_191656 } } }) })
+  const { media } = await openMedia({ fetch, similarMedia: async () => undefined } as never)
+  expect(media.streamingLinks).toEqual([
+    { site: 'OceanVeil', url: 'https://oceanveil.net/anime_titles/542', icon: `${ICON}/249-CFCxdC7MiNX3.png` },
+    { site: 'Bilibili TV', url: 'https://www.bilibili.tv/en/media/2433041', icon: `${ICON}/119-NCwGvCjFADGQ.png` },
+    { site: 'iQ', url: 'https://www.iq.com/album/28ki6pjn6a1', icon: `${ICON}/122-EPBJ2E0oPt5C.png` },
+  ])
+})
+
 // The browse path, driven through the real `mediaPage` subscription. Every request body is kept, so a
 // test reads the exact variables the resolver built rather than a helper's idea of them: the argument
 // NAMES are AniList's (`format_in`, `genre_in`), and a wrong one costs the whole document.
@@ -494,18 +515,19 @@ const sha256 = (body: string) => createHash('sha256').update(body).digest('hex')
 
 // The relay caches on the whole request body, so a change to the modal's or the listing's body sends
 // every title's cached answer cold once. Hashes taken from 0.0.53's GET_MEDIA and BROWSE_QUERY plus the
-// `nextAiringEpisode` field, the listing's `isAdult`, and the modal's `upcoming` schedule.
+// `nextAiringEpisode` field, the listing's `isAdult`, the modal's `upcoming` schedule, and `externalLinks`
+// with what a streaming link needs, moved to the modal's alone since nothing reads them off a listing.
 test('the details query goes out only when asked, and the modal and listing bodies are pinned', async () => {
   const { ctx, bodies } = creditsContext()
   await openBebop(ctx)
   await openBebop(ctx, true)
   expect(bodies).toHaveLength(2)
   expect(JSON.parse(bodies[0]!).query, 'the next airing is asked, not read off the schedule').toMatch(/nextAiringEpisode \{\s*airingAt\s*episode\s*\}/)
-  expect(sha256(bodies[0]!), 'the modal body').toBe('57a5f7bd279d7144bbb3fbe810422fe753e0f1f7ebfacb3855e887538f5640d1')
+  expect(sha256(bodies[0]!), 'the modal body').toBe('d4f99cb31a675fc35d282850848443bfd00935847d52df6d2a8eb20a18231de2')
   expect(bodies[1], 'the page body').toContain('characters(page: 1, perPage: 25')
   expect(bodies[1]).not.toBe(bodies[0])
 
   const browse = browseContext({ lastPage: 1 })
   await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
-  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('86179607bc94ddb693bb4f83eeab1757c4f9c54cdc1dd62baa092fd0c0620110')
+  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('75c4edd6d344fdfabcb3cb3a5ff85c34105e4262b9a46b696277f563f2f78804')
 })

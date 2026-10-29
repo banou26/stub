@@ -429,6 +429,13 @@ type Media {
   """Each rating site's score, one per site, from the first source in score order that has it."""
   ratings: [MediaRating!]
   """
+  Where the title streams, as each source names it: every member's links, JustWatch's first and AniList's
+  next, then the rest in score order. Not deduplicated: a view keeps the viewer's country's, one per site.
+  Not a handle and no claim of identity, so a platform no source module knows still shows. Null where no
+  source names one.
+  """
+  streamingLinks: [MediaStreamingLink!]
+  """
   Every season of the show this run is part of, or of the show itself, in order, each its own run.
   Null where no source lists them, and for anime.
   """
@@ -445,6 +452,16 @@ type Media {
 type MediaSeasonLink {
   number: Int!
   uri: String!
+}
+
+"""A platform's page for a title, opened in a new tab."""
+type MediaStreamingLink {
+  """The platform's name, as the source spells it."""
+  site: String!
+  url: String!
+  icon: String
+  """The ISO 3166 country the link plays in, where the source says; null where nobody does."""
+  country: String
 }
 
 """One rating site's score for a title, out of `scale`: IMDb 8.4 of 10, Rotten Tomatoes 92 of 100."""

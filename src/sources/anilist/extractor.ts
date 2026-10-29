@@ -4,7 +4,7 @@ import { percentScore } from '../average-score'
 import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } from '../../generated/schema/types.generated'
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
-import { Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './types'
+import { ExternalLinkType, Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './types'
 import { desc, img, makeMedia, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
@@ -68,11 +68,6 @@ const MEDIA_FIELDS = `
     id
     site
     thumbnail
-  }
-  externalLinks {
-    site
-    siteId
-    url
   }
   airingSchedule {
     edges {
@@ -172,7 +167,7 @@ const RELATION_NODE_FIELDS = `
 `
 
 /**
- * Relations ride on the SINGLE media query only, never on the browse query.
+ * Relations and external links ride on the SINGLE media query only, never on the browse query.
  *
  * The browse query runs for every card of a season listing, and none of them draws a relation. Asking
  * there would multiply a listing's payload by the size of each franchise for something nothing reads.
@@ -184,6 +179,14 @@ const mediaQuery = (credits: string) => `
   query GetMedia ($id: Int, $idMal: Int, $type: MediaType) {
     Media(idMal: $idMal, id: $id, type: $type) {
       ${MEDIA_FIELDS.split('\n').join('\n    ')}
+      externalLinks {
+        site
+        siteId
+        url
+        type
+        icon
+        isDisabled
+      }
       upcoming: airingSchedule(notYetAired: true, perPage: 25) {
         nodes {
           episode
@@ -767,6 +770,10 @@ const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, e
       : undefined,
     startDate,
     endDate,
+    // a page and no identity, Crunchyroll's too, which `siteMappings` also turns into a handle; none of the 86 over
+    // Fall 2026's 50 most popular names a country or a language (2026-10-29)
+    streamingLinks: (media.externalLinks ?? []).flatMap(link =>
+      link?.type === ExternalLinkType.Streaming && !link.isDisabled && link.url ? [{ site: link.site, url: link.url, icon: link.icon }] : []),
     trailers:
       media.trailer?.site === 'youtube' && media.trailer.id
         ? [{

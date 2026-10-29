@@ -125,6 +125,7 @@ const pageMedia = (id: string, page: MalAnime) => {
       url: `https://www.youtube.com/watch?v=${page.trailer}`,
       language: 'en',
     }] : [],
+    streamingLinks: page.streamingLinks,
   })
 }
 

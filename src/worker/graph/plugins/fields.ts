@@ -302,6 +302,15 @@ const nonAnimeFilm = (member: MemberRow): boolean => {
 
 const ANIME_CATALOGUES = new Set(['anilist', 'mal', 'kitsu', 'anidb', 'offline'])
 
+// JustWatch's streaming links are the viewer's own catalogue's and AniList's open the title, where MyAnimeList's own
+// can open a platform's home page or an ad (OceanVeil's for mal:61578, 2026-10-29), so the two lead whatever the merge
+// order, and a view keeping one link per site keeps theirs
+const LINKS_FIRST = ['jw', 'anilist']
+const linkPlace = (origin: string) => {
+  const place = LINKS_FIRST.indexOf(origin)
+  return place === -1 ? LINKS_FIRST.length : place
+}
+
 /** The parenthesized member list an `ag:(...)` address carries, and the address itself. */
 export const aggregatedIdentity = (uris: readonly string[]): { uri: string, id: string } => {
   // one uri carrying a ',' or a '/' would split the list or the route path and make the whole watch
@@ -516,6 +525,10 @@ export const aggregateFields = (options: {
   for (const member of owned) {
     if (listOf(member.raw.ratings).length) provenance.push({ field: 'ratings', uri: member.uri, rule: 'dedupe' })
   }
+
+  const linkers = owned.filter(member => listOf(member.raw.streamingLinks).length).sort((a, b) => linkPlace(a.origin) - linkPlace(b.origin))
+  if (linkers.length) row.streamingLinks = linkers.flatMap(member => listOf(member.raw.streamingLinks))
+  for (const member of linkers) provenance.push({ field: 'streamingLinks', uri: member.uri, rule: 'concat' })
 
   // the narrative axis: deduped on the pair, and every edge pointing back inside the cluster dropped,
   // because a media drawn as its own alternative navigates to the page it is on (`aggregate.ts:243-247`)

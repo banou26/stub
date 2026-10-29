@@ -978,3 +978,32 @@ test('the ratings keep one value per site, from the highest scored source that h
   })
   expect(row.ratings).toEqual([{ source: 'IMDb', value: 8.5, scale: 10 }, { source: 'Rotten Tomatoes', value: 92, scale: 100 }])
 })
+
+// MyAnimeList outscores AniList and JustWatch, and its own OceanVeil link is an ad where AniList's opens the title: a
+// view keeps the first link per site, so JustWatch's and AniList's come first whatever the scores.
+// Mutation: drop the sort on `linkPlace` and MyAnimeList's come first.
+test('the streaming links are every member\'s, JustWatch\'s then AniList\'s then the rest by score', () => {
+  const member = (uri: string, score: number, site?: string) => ({
+    uri, origin: uri.slice(0, uri.indexOf(':')), id: uri.slice(uri.indexOf(':') + 1), owned: true, score, fieldSeq: {},
+    raw: site ? { streamingLinks: [{ site, url: `https://${uri.replace(':', '.')}.example/` }] } : {},
+  })
+  const row = aggregateFields({
+    cluster: {
+      id: 'cl:anilist:191656', aggUri: 'ag:(anilist:191656,jw:471256-500395,kitsu:49877,mal:61578)', scope: 'RUN', runLength: null, runLengthTier: null,
+      runLengthWitnesses: 0, runLengthFrom: [], anomalies: [],
+    },
+    members: [
+      member('mal:61578', 0.9, 'OceanVeil'),
+      member('kitsu:49877', 0.3, 'Kitsu Stream'),
+      member('anilist:191656', 0.8, 'OceanVeil'),
+      member('livechart:13150', 0.6),
+      member('jw:471256-500395', 0.2, 'Hulu'),
+    ],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect((row.streamingLinks as { url: string }[]).map(link => link.url)).toEqual([
+    'https://jw.471256-500395.example/', 'https://anilist.191656.example/', 'https://mal.61578.example/', 'https://kitsu.49877.example/',
+  ])
+})

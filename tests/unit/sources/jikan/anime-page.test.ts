@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { airedDates, parseMalAnime } from '../../../../src/sources/jikan/anime-page'
 
 // Real bytes from myanimelist.net title pages, 2026-10-13, cut from the title to the end of the
-// synopsis. Jikan, which read these same pages for this source until it shut down on 2026-10-01,
+// synopsis (mal:61578 on 2026-10-29, to the end of its Streaming Platforms list). Jikan, which read these same pages for this source until it shut down on 2026-10-01,
 // answered mal:1 with the values asserted below (its record archived on 2024-04-11), apart from
 // figures that moved since.
 const page = (id: number) =>
@@ -84,6 +84,35 @@ describe('parseMalAnime', () => {
   test('the no-synopsis placeholder is no synopsis', () => {
     expect(page(64028)!.title).toBe('Tanuki to Kitsune (TV)')
     expect(page(64028)!.synopsis).toBeUndefined()
+  })
+
+  // mal:61578 as MyAnimeList answered from Japan on 2026-10-29: a JustWatch entry links through click.justwatch.com
+  // with the country it was found in, and MyAnimeList's own (OceanVeil, Bahamut) link the platform with none
+  test('the Streaming Platforms list, a JustWatch entry as the platform\'s own address and its country', () => {
+    expect(page(61578)!.streamingLinks).toEqual([
+      { site: 'Hulu', url: 'https://www.hulu.jp/watch/100276501', icon: 'https://images.justwatch.com/icon/116305230/s100', country: 'JP' },
+      { site: 'OceanVeil', url: 'https://oceanveil.net/ad?agn=2&src=8&pattern=MAL&url=/lp', icon: 'https://cdn.myanimelist.net/resources/streaming_platforms/oceanveil/100x100-07345239.png' },
+      { site: 'Watcha', url: 'https://watcha.com/contents/tRzLxAV', icon: 'https://images.justwatch.com/icon/2538290/s100', country: 'KR' },
+      {
+        site: 'Animation Digital Network',
+        url: 'https://animationdigitalnetwork.com/de/video/1428-even-the-student-council-has-its-holes/32946-folge-1',
+        icon: 'https://cdn.myanimelist.net/resources/streaming_platforms/anime-digital-network/100x100-21a8e2d0.png',
+        country: 'DE',
+      },
+      { site: 'Bahamut Anime Crazy', url: 'https://ani.gamer.com.tw/', icon: 'https://cdn.myanimelist.net/resources/streaming_platforms/bahamut-anime-crazy/100x100-4363938d.png' },
+    ])
+  })
+
+  // Spirited Away's 31, every one marked unavailable where the page was read, Netflix found in Andorra
+  test('a film lists its platforms the same way, each in a country of its own', () => {
+    const links = page(199)!.streamingLinks
+    expect(links).toHaveLength(31)
+    expect(links[0]).toEqual({ site: 'Netflix', url: 'https://www.netflix.com/title/60023642', icon: 'https://images.justwatch.com/icon/207360008/s100', country: 'AD' })
+    expect(links.filter(link => !link.country)).toEqual([])
+    expect(page(1)!.streamingLinks.map(link => `${link.site} ${link.country ?? '-'}`)).toEqual([
+      'Netflix JP', 'Amazon Prime Video JP', 'FOD JP', 'U-NEXT JP', 'Google Play Movies JP', 'Crunchyroll AG', 'Apple TV Store AU',
+      'Watcha KR', 'Fandango At Home US', 'Tubi TV -', 'Neon TV NZ',
+    ])
   })
 
   test('a page that names no show is nothing, not an empty record', () => {

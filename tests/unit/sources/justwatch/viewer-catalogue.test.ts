@@ -56,3 +56,25 @@ test('the viewer\'s catalogue is asked in the same request, and only outside the
   expect(home!.variables).toMatchObject({ country: 'US', offerCountry: 'US' })
   expect(home!.query).not.toContain('viewerTitles')
 })
+
+test('an offer naming no source stub has, or an address it reads no id from, is a plain link of the viewer\'s country', async () => {
+  viewerIn('Asia/Tokyo')
+  const { media } = await open()
+  expect(media.streamingLinks).toEqual([
+    { site: 'Hulu', url: 'https://www.hulu.jp/watch/100276501', icon: 'https://images.justwatch.com/icon/116305230/s100/hulu.webp', country: 'JP' },
+    {
+      site: 'Anime Times Amazon Channel',
+      url: 'https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.5f65e2b4-aa55-4eb2-9f77-5f607c9756a8',
+      icon: 'https://images.justwatch.com/icon/318290968/s100/amazonanimetimes.webp',
+      country: 'JP',
+    },
+  ])
+})
+
+test('the country asked beside the viewer\'s adds no link', async () => {
+  viewerIn('Asia/Tokyo')
+  const moved = { data: { node: { ...NODE.data.node, offers: [], extraOffers: NODE.data.node.offers } } }
+  const { media } = await open({ node: moved })
+  expect(media.uri, 'the control: the show is still found').toBe('jw:471256-500395')
+  expect(media.streamingLinks).toEqual([])
+})

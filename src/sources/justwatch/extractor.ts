@@ -1,10 +1,10 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
-import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaPageInput, MediaRating, SimilarMediaInput } from '../../generated/schema/types.generated'
+import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode , MediaHandle as GQLMediaHandle, MediaCategory, MediaPageInput, MediaRating, MediaStreamingLink as GQLMediaStreamingLink, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, originsOfUri, toUri } from '../../utils/uri'
 import { site, type Site } from '../../site'
 import { resolveEpisodeToSeriesId } from '../crunchyroll/extractor'
 import { crunchyrollId } from '../crunchyroll/season-id'
-import { PACKAGE_ORIGIN_MAP, extractContentId, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
+import { PACKAGE_ORIGIN_MAP, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
 import { JUSTWATCH_GENRES } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
@@ -68,6 +68,9 @@ const offerCountries = () => {
 /** The offer country, which also decides the country asked beside it. */
 export const region = () => offerCountries().offerCountry
 
+// subscriptions, free and with ads; renting and buying are not watching
+const WATCHABLE = ['FLATRATE', 'FLATRATE_AND_BUY', 'FREE', 'ADS']
+
 const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: JWOffer[] }) =>
   [...offers ?? [], ...extraOffers ?? []].filter(offer =>
     PACKAGE_ORIGIN_MAP[offer.package.shortName] !== 'amazon' || isViewersPrime(offer.deeplinkURL ?? offer.standardWebURL ?? ''))
@@ -121,14 +124,6 @@ const episodeOffers = (country: string) => `
                   shortName
                 }
               }`
-
-const extractRealUrl = (affiliateUrl: string): string | undefined => {
-  try {
-    const url = new URL(affiliateUrl)
-    return url.searchParams.get('u') ?? url.searchParams.get('r') ?? undefined
-  } catch {}
-  return undefined
-}
 
 const extractCrunchyrollEpisodeId = (url: string): string | undefined => {
   try {
@@ -372,7 +367,8 @@ interface JWOffer {
   /** absent on an episode's offer, which asks only for the deep link */
   standardWebURL?: string | null
   deeplinkURL?: string | null
-  package: { shortName: string }
+  /** `clearName` and `icon`, a path ending `.{format}`, absent on an episode's offer */
+  package: { shortName: string, clearName?: string, icon?: string | null }
   /** `OFFER_FACTS`, which the search query does not ask for */
   presentationType?: string | null
   videoTechnology?: string[] | null
@@ -573,7 +569,7 @@ const buildOffersAsHandles = async (
   const handles: GQLMediaHandle[] = []
 
   for (const offer of offers) {
-    if (!['FLATRATE', 'FLATRATE_AND_BUY', 'FREE', 'ADS'].includes(offer.monetizationType)) continue
+    if (!WATCHABLE.includes(offer.monetizationType)) continue
     const shortName = offer.package.shortName
 
     const mappedOrigin = PACKAGE_ORIGIN_MAP[shortName]
@@ -648,6 +644,22 @@ const buildOffersAsHandles = async (
   }
 
   return handles
+}
+
+/**
+ * The offer country's offers that name no handle, as plain links: a platform stub has no source for (Anime Times
+ * Amazon Channel), or an address whose id `extractContentId` does not read (Hulu on hulu.jp, where it reads
+ * hulu.com's). The country beside, which is asked for what plays through stub, adds none.
+ */
+const streamingLinksOf = (offers: JWOffer[] = []): GQLMediaStreamingLink[] => {
+  const links = new Map<string, GQLMediaStreamingLink>()
+  for (const { monetizationType, standardWebURL, package: { shortName, clearName, icon } } of offers) {
+    const url = standardWebURL && (extractRealUrl(standardWebURL) ?? standardWebURL)
+    if (!url || !clearName || links.has(shortName) || !WATCHABLE.includes(monetizationType)) continue
+    if (PACKAGE_ORIGIN_MAP[shortName] && extractContentId(url)) continue
+    links.set(shortName, { site: clearName, url, icon: resolveImageUrl(icon?.replace('{format}', 'webp')), country: region() })
+  }
+  return [...links.values()]
 }
 
 /**
@@ -808,6 +820,7 @@ const normalizeMedia = async (
     banners: bannersOf(node),
     trailers: trailersOf(node),
     ratings: ratingsOf(node.content.scoring),
+    streamingLinks: streamingLinksOf(node.offers),
     ...node.content.credits ? { credits: parseCredits(node.content.credits) } : {},
   })
 

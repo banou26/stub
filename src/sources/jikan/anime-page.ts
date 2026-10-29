@@ -1,6 +1,10 @@
 import { decodeEntities } from '../entities'
+import { extractRealUrl } from '../justwatch/id'
 import { malLargeImage } from '../mal-image'
 import { genresOf, num, one, synopsisText, text } from './season-scrape'
+
+/** A platform the page lists under Streaming Platforms. */
+export type MalStreamingLink = { site: string, url: string, icon: string, country?: string }
 
 /** One show as its myanimelist.net title page describes it. Every field but the title may be missing. */
 export type MalAnime = {
@@ -26,6 +30,7 @@ export type MalAnime = {
   trailer?: string
   /** The AniDB link the page lists under its resources. */
   anidb?: string
+  streamingLinks: MalStreamingLink[]
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -49,6 +54,20 @@ export const airedDates = (aired?: string) => {
   const [from, to] = aired?.split(' to ') ?? []
   return { startDate: airedDay(from), endDate: airedDay(to) }
 }
+
+const BROADCAST = /<a href="([^"]+)"[^>]*\btitle="([^"]+)"[^>]*\bclass="broadcast-item[^>]*>\s*<img[^>]*\bsrc="([^"]+)"/g
+
+// The anchors, since a film's page carries no other form of the list. A platform JustWatch names links through
+// click.justwatch.com, with its address in `r` and the country it was found in, lower case, in `uct_country`
+// (mal:61578 and mal:199, 2026-10-29).
+const streamingLinksOf = (html: string): MalStreamingLink[] =>
+  [...html.matchAll(BROADCAST)].flatMap(([, href, site, icon]) => {
+    const link = decodeEntities(href!)
+    const viaJustWatch = link.startsWith('https://click.justwatch.com/')
+    const url = viaJustWatch ? extractRealUrl(link) : link
+    const country = viaJustWatch ? new URL(link).searchParams.get('uct_country')?.toUpperCase() : undefined
+    return url ? [{ site: decodeEntities(site!), url, icon: decodeEntities(icon!), ...country ? { country } : {} }] : []
+  })
 
 const row = (html: string, label: string) =>
   text(one(html, new RegExp(`<span class="dark_text">${label}:</span>([\\s\\S]*?)</div>`)))
@@ -78,5 +97,6 @@ export const parseMalAnime = (html: string): MalAnime | undefined => {
     genres: genresOf(html),
     trailer: one(html, /video-promotion"><a[^>]*\/embed\/([\w-]{11})/),
     anidb: anidb && decodeEntities(anidb),
+    streamingLinks: streamingLinksOf(html),
   }
 }
