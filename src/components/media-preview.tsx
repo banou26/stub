@@ -11,8 +11,10 @@ import { getRoutePath, Route } from '../router/path'
 import YoutubeMinimalPlayer from './yt-minimal-player'
 import { useCoverUrl } from '../utils/use-cover-url'
 import TextEllipsis from '../components/text-ellipsis'
+import ShareButton from './share-button'
 
 const style = css`
+position: relative;
 display: grid;
 background-color: rgb(35, 35, 35);
 border-radius: 1rem;
@@ -51,6 +53,15 @@ a {
     font-weight: 500;
     max-height: 5rem;
   }
+}
+
+/* over the trailer, since the card's text is all one link */
+& > .share {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .title-hovercard-player {
@@ -144,6 +155,7 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
           </TextEllipsis>
         </div>
       </Link>
+      <ShareButton className="share" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title}/>
     </div>
   )
 }

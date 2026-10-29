@@ -23,6 +23,7 @@ import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
+import ShareButton from '../../components/share-button'
 import MediaTracking from '../../components/media-tracking'
 import MediaSeasons from '../../components/media-seasons'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
@@ -302,9 +303,13 @@ const style = css`
   }
 
   .episode-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem 1rem;
+
+    & > .share {
+      grid-area: 1 / 2 / span 2;
+    }
 
     .episode-title {
       font-size: 1.8rem;
@@ -317,7 +322,7 @@ const style = css`
     }
 
     .media-title {
-      align-self: flex-start;
+      justify-self: start;
       font-size: 1.4rem;
       color: rgba(255, 255, 255, 0.6);
 
@@ -855,6 +860,7 @@ const Watch = () => {
               <div className="episode-info">
                 <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
                 {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri })}>{mediaTitle}</Link> : undefined}
+                <ShareButton className="share" path={getRoutePath(Route.WATCH, params)} title={mediaTitle}/>
               </div>
               <div className="tracking">
                 <MediaTracking

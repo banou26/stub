@@ -11,6 +11,8 @@ import { act } from 'preact/test-utils'
 import { print } from 'graphql'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { share } from '../../components/share'
+
 const navigate = vi.fn()
 const allUri = 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a)'
 let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
@@ -245,7 +247,7 @@ vi.mock('../../../../src/embed-unplayable', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Share2', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,
@@ -933,6 +935,19 @@ test('the show\'s name under the episode\'s title opens the show\'s page', async
   await settle()
   const show = host.querySelector('.episode-info > a.media-title')
   expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}`])
+})
+
+// HOR-1065
+test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  params = { ...params, sourceUri: 'nyaa:a' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  const { link, opens } = await share(host.querySelector('.episode-info > button.share'), 'https://anime.fkn.app/watch/ag:(anilist:1)/x/y?plugins=https:stub.plugins.banou.dev&t=12')
+  expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
+  expect(opens).toBe(`https://anime.fkn.app/watch/ag:(anilist:1)/${allUri}/nyaa:a?plugins=https:stub.plugins.banou.dev`)
 })
 
 test('an episode not out yet is not linked as the next one', async () => {

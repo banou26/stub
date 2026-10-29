@@ -20,6 +20,7 @@ import ModalBackdrop from '../../components/modal-backdrop'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import SourceSelector from '../../components/source-selector'
 import TraceLink from '../debug/link'
+import ShareButton from '../../components/share-button'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
@@ -507,6 +508,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           <TraceLink uri={media?.uri}/>
           <SourceLinks uri={data?.media?.uri} handles={media?.handles} links={data?.media?.streamingLinks} except={watchOriginIds(film, media?.handles)}/>
           <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
+          <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })} title={title}/>
         </div>
         {
           isMovie && media

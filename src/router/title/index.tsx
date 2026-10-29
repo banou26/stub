@@ -1,7 +1,7 @@
 import type { RouteParams } from '../path'
 
 import { css } from '@emotion/react'
-import { Check, Clapperboard, LucidePlay, Share2, Square } from 'lucide-react'
+import { Clapperboard, LucidePlay, Square } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
@@ -16,6 +16,7 @@ import MediaTracking from '../../components/media-tracking'
 import { NAME_LIST } from '../../i18n'
 import Paged from '../../components/paged'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
+import ShareButton from '../../components/share-button'
 import SourceSelector from '../../components/source-selector'
 import { carriedSearch } from '../debug/trace'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from '../home/media-details'
@@ -731,19 +732,7 @@ const TitlePage = () => {
   // a relation opens the next title in this same page, so what was opened on the last one closes again, and the
   // lists, keyed on it, open on their first page; the held uri, which a wider spelling of the same work leaves alone
   useEffect(() => { setOpen(false) }, [uri])
-  const [copied, setCopied] = useState(false)
-  const share = async () => {
-    if (!media) return
-    const url = `${location.origin}${getRoutePath(Route.TITLE, { uri: media.uri })}`
-    if (navigator.share) return navigator.share({ title, url }).catch(() => {})
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1_500)
-    } catch {}
-  }
   const trailer = media?.trailers.at(0)?.url
-  const shareLabel = copied ? intl.formatMessage({ id: 'Copied', defaultMessage: 'Copied' }) : intl.formatMessage({ id: 'Share', defaultMessage: 'Share' })
   const trailerLabel = intl.formatMessage({ id: 'Trailer', defaultMessage: 'Trailer' })
 
   return (
@@ -790,9 +779,7 @@ const TitlePage = () => {
               ? (
                 <div className="buttons">
                   <MediaPlay media={media}/>
-                  <button type="button" className="icon" onClick={share} aria-label={shareLabel} title={shareLabel}>
-                    {copied ? <Check size={20}/> : <Share2 size={20}/>}
-                  </button>
+                  <ShareButton className="icon" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title}/>
                   {
                     trailer
                       ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label={trailerLabel} title={trailerLabel}><Clapperboard size={20}/></a>

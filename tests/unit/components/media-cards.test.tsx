@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { share } from './share'
+
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ Frown: () => null, Meh: () => null, Smile: () => null }))
+vi.mock('lucide-react', () => ({ Check: () => null, Frown: () => null, Meh: () => null, Share2: () => null, Smile: () => null }))
 
 const { default: CategoryTabs } = await import('../../../src/components/category-tabs')
 const { MediaCategory } = await import('../../../src/generated/graphql')
@@ -66,6 +68,16 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
     draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [], episodeCount } as never}/>).text('.episodes')
   // a lone episode read "1 Episodes" until the plural was a message
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
+})
+
+// HOR-1065: the card's text is one link to the preview, so Share sits beside it rather than in it
+test('a row\'s preview shares a short link to the work\'s title page', async () => {
+  const { host } = draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [] } as never}/>)
+  const button = host.querySelector('.title-hovercard > button.share')
+  expect(button?.closest('a')).toBeNull()
+  const { link, opens } = await share(button, 'https://anime.fkn.app/?plugins=https:stub.plugins.banou.dev')
+  expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
+  expect(opens).toBe('https://anime.fkn.app/title/anilist:21?plugins=https:stub.plugins.banou.dev')
 })
 
 test('the home page\'s category tabs read in English, each handing its category', () => {

@@ -8,6 +8,7 @@ import { Route, Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { releaseDateLabel } from '../../../src/utils/release-date'
+import { share } from '../components/share'
 
 // The preview and the title page against the details the worker has answered for each uri, the origins `origins`
 // answers for each list of ids (undefined while that answer is out), and nothing for every other subscription. As urql
@@ -697,5 +698,28 @@ describe('every date, in the shown language as the browser writes it: British En
     answer(dated())
     expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe(british('2023-09-29'))
     expect(episodeDays(modal())).toEqual([british('2023-10-06'), british('2023-10-06')])
+  })
+})
+
+// HOR-1065: the title page and the preview share the title page's own address, with the sources the address names
+describe('Share', () => {
+  const PLUGINS = '?plugins=https:stub.plugins.banou.dev'
+
+  // an address naming more than the work is never narrowed (shouldRewriteAddress), and Share names the work
+  test('on the title page, a short link to the work it shows, with the sources the address names', async () => {
+    const { host, answer } = titlePage('ag:(anilist:1,kitsu:1,mal:1)')
+    answer({ ...work(1, 'Frieren'), uri: 'ag:(anilist:1,mal:1)' }, 'ag:(anilist:1,kitsu:1,mal:1)')
+    const { link, opens } = await share(host.querySelector('.actions button[aria-label="Share"]'), `https://anime.fkn.app/title/ag:(anilist:1,kitsu:1,mal:1)${PLUGINS}&trace=1`)
+    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
+    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1,mal:1)${PLUGINS}`)
+  })
+
+  test('on the preview, beside More details, a short link to the work\'s title page', async () => {
+    const { answer } = preview(work(1, 'Frieren').uri)
+    answer(work(1, 'Frieren'))
+    expect(classes(modal().querySelectorAll('.header > .more + button'))).toEqual([''])
+    const { link, opens } = await share(modal().querySelector('.header > button[aria-label="Share"]'), `https://anime.fkn.app/media/ag:(anilist:1)${PLUGINS}`)
+    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
+    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)${PLUGINS}`)
   })
 })
