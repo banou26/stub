@@ -308,7 +308,8 @@ export const mismatchOf = (expect: MalExpect, after: MalListRow | undefined, bef
     }, { status: status ?? 'unknown' }))
   }
   if (expect.progress !== undefined && after.progress !== expect.progress) {
-    shown.push(forPage.formatMessage({ id: '{count, plural, one {{count} episode} other {{count} episodes}}', defaultMessage: '{count, plural, one {{count} episode} other {{count} episodes}}' }, { count: after.progress }))
+    // `progress`, not `count`: another message than the episode count every page shows, which reads as a total
+    shown.push(forPage.formatMessage({ id: '{progress, plural, one {{progress} episode} other {{progress} episodes}}', defaultMessage: '{progress, plural, one {{progress} episode} other {{progress} episodes}}' }, { progress: after.progress }))
   }
   if (expect.score !== undefined && after.score !== expect.score) {
     shown.push(after.score
