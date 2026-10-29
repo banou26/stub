@@ -204,7 +204,7 @@
   "MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net": "MyAnimeList tiene una marca de nuevo visionado en esta entrada: cámbiala en myanimelist.net",
   "MyAnimeList kept it as Completed, so the rewatch did not start": "MyAnimeList lo mantuvo como Completado, así que el nuevo visionado no comenzó",
   "MyAnimeList lists it under a status stub does not know: change it on myanimelist.net": "MyAnimeList lo tiene en un estado que Stub no conoce: cámbialo en myanimelist.net",
-  "MyAnimeList shows {shown}": "MyAnimeList muestra {shown}",
+  "MyAnimeList shows {shown}": "MyAnimeList muestra: {shown}",
   "MyAnimeList starts a rewatch on a completed entry: save it as Completed first": "MyAnimeList solo empieza un nuevo visionado en una entrada completada: primero guárdala como Completado",
   "MyAnimeList still lists it": "MyAnimeList todavía lo tiene en la lista",
   "MyAnimeList takes status, progress and score from stub": "MyAnimeList solo toma de Stub el estado, el progreso y la puntuación",

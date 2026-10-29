@@ -348,3 +348,23 @@ describe('in Russian', () => {
     ])
   })
 })
+
+describe('what MyAnimeList shows apart from a save', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const before = { animeId: 1, status: 1, rewatching: false, score: 8, progress: 3, episodes: 24, title: null, url: '', cover: null, updatedAt: null }
+  const shows = (after: Partial<typeof before>) => wordsOf(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, { ...before, ...after }, before)!)
+
+  // each item is a message of its own: after the verb alone Russian would decline the count, and French and Italian
+  // would negate the verb before `no score`
+  test.each([
+    ['ru', ['MyAnimeList показывает: 1 серия, оценка 7 / 10', 'MyAnimeList показывает: 21 серия, оценка 7 / 10', 'MyAnimeList показывает: без оценки']],
+    ['fr', ['MyAnimeList affiche\u00a0: 1 épisode, une note de 7 / 10', 'MyAnimeList affiche\u00a0: 21 épisodes, une note de 7 / 10', 'MyAnimeList affiche\u00a0: aucune note']],
+    ['it', ['MyAnimeList mostra: 1 episodio e un voto di 7 / 10', 'MyAnimeList mostra: 21 episodi e un voto di 7 / 10', 'MyAnimeList mostra: nessun voto']],
+    ['es-419', ['MyAnimeList muestra: 1 episodio y una puntuación de 7 / 10', 'MyAnimeList muestra: 21 episodios y una puntuación de 7 / 10', 'MyAnimeList muestra: sin puntuación']],
+    ['pt-BR', ['O MyAnimeList mostra: 1 episódio, uma nota de 7 / 10', 'O MyAnimeList mostra: 21 episódios, uma nota de 7 / 10', 'O MyAnimeList mostra: sem nota']],
+    ['pl', ['MyAnimeList pokazuje 1 odcinek i ocenę 7 / 10', 'MyAnimeList pokazuje 21 odcinków i ocenę 7 / 10', 'MyAnimeList pokazuje brak oceny']],
+  ])('in %s, each item as the words before it let it read', async (language, expected) => {
+    await startLanguage({ language, languages: [language] })
+    expect([shows({ progress: 1, score: 7 }), shows({ progress: 21, score: 7 }), shows({ score: 0 })]).toEqual(expected)
+  })
+})
