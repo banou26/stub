@@ -10,6 +10,7 @@ vi.mock('../../../src/worker', () => ({}))
 
 const { default: SourceSelector } = await import('../../../src/components/source-selector')
 const { HIDDEN_ICONS_KEY, setIconShown } = await import('../../../src/sources/hidden-icons')
+const { startLanguage } = await import('../../../src/i18n')
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -143,6 +144,22 @@ test('a card names each language in English by its language subtag, a code Intl 
   expect(audio?.querySelector('.rest')?.textContent).toBe(`, ${names.slice(3).join(', ')}`)
   expect(audio?.querySelector('.more')?.textContent).toBe('+13')
   expect([subtitles?.textContent, subtitles?.getAttribute('title')]).toEqual(['SubtitlesJapanese, English, French', 'Subtitles: Japanese, English, French'])
+})
+
+test('in German, a card names its languages in German, joined as German joins them, its rest after the third, and its releases', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    const { host } = selector({ sources: [{ ...sources[0]!, audioLanguages: ['ja', 'en', 'fr', 'de', 'it'], subtitleLanguages: ['ja', 'en'] }, sources[2]!] })
+    const [audio, subtitles] = card(host, 'Netflix').querySelectorAll('.languages')
+    expect(audio?.getAttribute('title')).toBe('Audio: Japanisch, Englisch, Französisch, Deutsch und Italienisch')
+    expect([audio?.querySelector('.names')?.textContent, audio?.querySelector('.rest')?.textContent, audio?.querySelector('.more')?.textContent])
+      .toEqual(['Japanisch, Englisch, Französisch, Deutsch und Italienisch', ', Deutsch und Italienisch', '+2'])
+    expect([subtitles?.textContent, subtitles?.querySelector('.rest')]).toEqual(['UntertitelJapanisch und Englisch', null])
+    expect(host.querySelector('.label')?.textContent).toBe('Ansehen auf')
+    expect(host.querySelector('button.source')?.getAttribute('title')).toBe('2 Releases auf Nyaa')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 test('a card draws nothing for a fact its source did not give', () => {
