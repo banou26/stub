@@ -2,7 +2,7 @@
 // to look at results rather than what they asked for, so it has to survive the next search and must
 // not travel with a shared link. That makes storage the codec, and a codec nobody pins is one that
 // silently resets everyone's choice the day a value is renamed.
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import {
   DEFAULT_DISPLAY_MODE, DISPLAY_MODES, DISPLAY_MODE_KEY,
