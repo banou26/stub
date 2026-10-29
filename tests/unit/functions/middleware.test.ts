@@ -373,10 +373,12 @@ test('a crawler answered from the edge cache takes no turn, its preview or its p
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
 })
 
-test('an edge cache that will not keep the preview still has the turn given back', async () => {
+test('an edge cache that will not keep the preview still has the run\'s object put, and the turn given back', async () => {
   putting = async () => { throw new Error('put') }
-  await (await call('https://anime.fkn.app/title/ag:(anilist:1)')).kept
+  const { puts, env } = bucket()
+  await (await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)).kept
   expect(cache.size).toBe(0)
+  expect(puts.map(({ key }) => key)).toEqual([OBJECT.key])
   createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Black Clover Season 2'])
 })
