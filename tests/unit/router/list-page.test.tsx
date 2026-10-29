@@ -61,8 +61,8 @@ const FRIEREN = row('anilist:154587', 'Frieren', 'WATCHING', 5, [
 ], ['PROGRESS'])
 const BEBOP = row('anilist:1', 'Cowboy Bebop', 'COMPLETED', 12, [answer('mal', 'MyAnimeList', { status: 'COMPLETED', progress: 12 })])
 
-const show = (lists: { state: string, name: string }[] = [{ state: 'LISTED', name: 'AniList' }]) => {
-  urql.data = { viewerLists: { _id: 'viewerLists', lists: lists.map(({ state, name }) => ({ _id: `list:${name}`, state, tracker: { id: name, name } })), rows: [FRIEREN, BEBOP] } }
+const show = (lists: { state: string, name: string }[] = [{ state: 'LISTED', name: 'AniList' }], rows: unknown[] = [FRIEREN, BEBOP]) => {
+  urql.data = { viewerLists: { _id: 'viewerLists', lists: lists.map(({ state, name }) => ({ _id: `list:${name}`, state, tracker: { id: name, name } })), rows } }
   const location = memoryLocation({ path: '/list' })
   const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><List/></Router>))
   hosts.push(host)
@@ -97,7 +97,16 @@ test('an item shows how far, its score and format, and a mark naming each tracke
   expect(item.querySelector('.progress')?.textContent).toBe('5/ 12')
   expect(item.querySelector('.score')?.textContent).toBe('8.5')
   expect(item.querySelector('.title')?.getAttribute('href')).toBe('/media/anilist:154587')
-  expect(item.querySelector('.differs')?.getAttribute('title')).toBe('AniList: Episode 5\nMyAnimeList: Episode 4')
+  expect(item.querySelector('.differs')?.getAttribute('title')).toBe('AniList Episode 5, MyAnimeList Episode 4')
+})
+
+test('the mark says none of a tracker that holds no value of a field the others differ on, a line per field', () => {
+  const host = show(undefined, [row('anilist:154587', 'Frieren', 'WATCHING', 5, [
+    answer('anilist', 'AniList', { progress: 5, score: 80 }),
+    answer('mal', 'MyAnimeList', { progress: 4, score: 60 }),
+    answer('stub', 'Stub', { progress: null }),
+  ], ['PROGRESS', 'SCORE'])])
+  expect(host.querySelector('.differs')?.getAttribute('title')).toBe('AniList Episode 5, MyAnimeList Episode 4, Stub none\nAniList 8 / 10, MyAnimeList 6 / 10, Stub none')
 })
 
 test('the + sends one more episode to every tracker holding it at once, and shows it before they answer', async () => {
