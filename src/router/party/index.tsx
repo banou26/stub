@@ -70,6 +70,9 @@ const style = css`
   }
 
   .row .name {
+    min-width: 0;
+    /* a name is up to 32 characters with no space to wrap at */
+    overflow-wrap: anywhere;
     font-size: 1.4rem;
     font-weight: 600;
     color: #fff;

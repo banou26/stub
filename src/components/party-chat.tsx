@@ -99,10 +99,10 @@ const style = css`
     line-height: 1.4;
   }
 
-  .line { display: flex; flex-direction: column; gap: 0.1rem; }
+  /* a name is up to 32 characters with no space to wrap at */
+  .line { display: flex; flex-direction: column; gap: 0.1rem; overflow-wrap: anywhere; }
   .line .who { font-size: 1.1rem; color: rgba(255, 255, 255, 0.45); }
   .line.self .who { color: #4ade80; }
-  .line .text { overflow-wrap: anywhere; }
   .line.action { color: rgba(255, 255, 255, 0.5); font-size: 1.2rem; font-style: italic; }
   .empty { color: rgba(255, 255, 255, 0.4); }
 
