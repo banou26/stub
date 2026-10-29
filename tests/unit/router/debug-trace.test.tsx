@@ -919,7 +919,7 @@ describe('the query string an in-app link carries', () => {
       'utf-8',
     )
     expect(source, 'the card appends it to the path it opens')
-      .toContain('to={`${getRoutePath(route, { uri: asAggregatedUri(edge.node.uri) })}${search}`}')
+      .toContain('to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri) })}${search}`}')
     expect(source, 'and the flags are the session\'s, since the media view rewrites its own url')
       .toContain('carriedSearch(useSearch())')
     expect(source, 'the control: this probe can miss').not.toContain('carriedSearchThatIsNotThere')

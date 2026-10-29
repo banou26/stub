@@ -214,6 +214,22 @@ export const GET_MEDIA_DETAILS = gql(`
         value
         scale
       }
+      recommendations @include(if: $details) {
+        rating
+        node {
+          ...MediaFragment
+          type
+          status
+          startDate
+          titles {
+            title
+          }
+          covers {
+            url
+            color
+          }
+        }
+      }
       streamingLinks {
         site
         url

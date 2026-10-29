@@ -9,7 +9,7 @@ import { useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
-import MediaRelations from '../../components/media-relations'
+import MediaRelations, { MediaRecommendations } from '../../components/media-relations'
 import MediaScore from '../../components/media-score'
 import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
@@ -840,6 +840,7 @@ const TitlePage = () => {
               )
               : undefined
           }
+          <MediaRecommendations recommendations={media?.recommendations ?? []} route={Route.TITLE}/>
           {media?.characters?.length ? <Characters characters={media.characters}/> : undefined}
           {media?.staff?.length ? <Staff staff={media.staff}/> : undefined}
           {media?.themes?.length ? <Themes themes={media.themes}/> : undefined}

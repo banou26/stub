@@ -88,6 +88,14 @@ const streamed = (settled: boolean) => ({
 const crunchyroll = (ready: () => boolean) => (ids: string[]) =>
   !ids.includes('cr') ? [] : ready() ? [{ id: 'cr', name: 'Crunchyroll', icon: null, color: null }] : undefined
 const sequel = { relation: 'SEQUEL', format: 'TV', node: { _id: 'anilist:9', uri: 'anilist:9', titles: [{ title: 'Frieren 2' }], covers: [] } }
+// the worker's merged card for AniList's first pick beside Frieren, 2026-10-29
+const violet = {
+  rating: 1209,
+  node: {
+    _id: 'ag:(anilist:21827,mal:33352)', uri: 'ag:(anilist:21827,mal:33352)', origin: 'ag', id: '(anilist:21827,mal:33352)', url: null, handles: [],
+    type: 'TV', status: 'FINISHED', startDate: '2018-01-11', titles: [{ title: 'Violet Evergarden' }], covers: [],
+  },
+}
 
 beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
 const hosts: HTMLElement[] = []
@@ -371,6 +379,7 @@ describe('the title page', () => {
     const credited = {
       ...work(1, 'Frieren'),
       relations: [sequel],
+      recommendations: [violet],
       trailers: [{ uri: 'yt:a', origin: 'yt', id: 'a', url: 'https://www.youtube.com/watch?v=a' }],
       characters: [
         { name: 'Frieren', role: 'MAIN', image: null, url: null, voiceActors: [voice('Atsumi Tanezaki', 'ja'), voice('Mallorie Rodak', 'en')] },
@@ -385,9 +394,9 @@ describe('the title page', () => {
     const texts = (selector: string) => [...host.querySelectorAll(selector)].map(element => element.textContent)
     const attributes = (selector: string, name: string) => [...host.querySelectorAll(selector)].map(element => element.getAttribute(name))
     expect(texts('.chips > .chip')).toEqual(['2 Episodes', 'TV Show', 'Finished'])
-    expect(texts('[data-relations] h2 > span, [data-episodes] > h2, [data-characters] h2 > span, [data-staff] > h2, [data-themes] > h2'))
-      .toEqual(['Relations', 'Episodes', 'Characters', 'Staff', 'Themes'])
-    expect(texts('.relation-card .relation')).toEqual(['Sequel'])
+    expect(texts('[data-relations] h2 > span, [data-episodes] > h2, [data-recommendations] h2 > span, [data-characters] h2 > span, [data-staff] > h2, [data-themes] > h2'))
+      .toEqual(['Relations', 'Episodes', 'Recommendations', 'Characters', 'Staff', 'Themes'])
+    expect(texts('[data-relations] .relation-card .relation')).toEqual(['Sequel'])
     expect(attributes('[data-characters] select', 'aria-label')).toEqual(['Language'])
     expect(texts('[data-characters] option')).toEqual(['Japanese', 'English'])
     expect(texts('.person:not(.actor) .detail')).toEqual(['Main', 'Supporting', 'Background', 'Director, Storyboard'])
@@ -623,6 +632,30 @@ describe('Relations', () => {
     navigate(`/media/${next.uri}`)
     answer(next)
     expect(current(modal())).toBe('1')
+  })
+})
+
+describe('Recommendations', () => {
+  const frieren = { ...work(1, 'Frieren'), recommendations: [violet] }
+
+  test('the title page draws each as a card: its kind and year over its title, its status under it, opening its whole cluster', () => {
+    const { host, answer } = titlePage(frieren.uri)
+    answer(frieren)
+    const card = host.querySelector('[data-recommendations] a.relation-card')!
+    expect(card.getAttribute('href')).toBe('/title/ag:(anilist:21827,mal:33352)')
+    expect([...card.querySelectorAll('.relation, .title, .meta')].map(line => line.textContent)).toEqual(['TV · 2018', 'Violet Evergarden', 'Finished'])
+  })
+
+  test('none is no section, on the title page and in the preview, which draws them nowhere', () => {
+    const none = { ...frieren, recommendations: null }
+    const { host, answer } = titlePage(none.uri)
+    answer(none)
+    expect(host.querySelector('h1')!.textContent, 'the control: answered').toBe('Frieren')
+    expect(host.querySelector('[data-recommendations], .recommendations')).toBeNull()
+
+    preview(frieren.uri).answer(frieren)
+    expect(modal().textContent, 'the control: the preview drew').toContain('Frieren')
+    expect(modal().querySelector('[data-recommendations]')).toBeNull()
   })
 })
 

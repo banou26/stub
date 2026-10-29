@@ -1,4 +1,6 @@
 import type { ComponentChildren } from 'preact'
+import type { GetMediaDetailsSubscription } from '../generated/graphql'
+import type { CoverOwner } from '../utils/use-cover-url'
 
 import { css } from '@emotion/react'
 import { useIntl } from 'react-intl'
@@ -125,48 +127,44 @@ const cardStyle = css`
   }
 `
 
-const RelationCard = ({ edge, search, route }: { edge: RelationEdge, search: string, route: Route.MEDIA | Route.TITLE }) => {
-  const cover = useCoverUrl(edge.node.covers, edge.node)
-  const title = edge.node.titles?.at(0)?.title
-  // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
-  // franchise's relations are mostly not anime. See the schema's own note on the field.
-  const meta = [workFormatLabel(edge.format), statusLabel(edge.node.status)].filter(Boolean).join(' · ')
+type Recommendation = NonNullable<NonNullable<GetMediaDetailsSubscription['media']>['recommendations']>[number]
+
+/** One card: the work it opens, the accented line over its title and the line under it. */
+type Card = { key: string, node: Pick<RelationEdge['node'], 'uri' | 'titles' | 'covers'> & CoverOwner, label?: string, meta?: string }
+
+const WorkCard = ({ card, search, route }: { card: Card, search: string, route: Route.MEDIA | Route.TITLE }) => {
+  const cover = useCoverUrl(card.node.covers, card.node)
+  const title = card.node.titles?.at(0)?.title
 
   return (
-    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(route, { uri: asAggregatedUri(edge.node.uri) })}${search}`}>
+    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri) })}${search}`}>
       {cover ? <img className="cover" src={cover} alt=""/> : <div className="cover"/>}
       <div className="body">
-        <div className="relation">{relationLabel(edge.relation)}</div>
-        <div className="title">{title ?? edge.node.uri}</div>
-        {meta ? <div className="meta">{meta}</div> : undefined}
+        {card.label ? <div className="relation">{card.label}</div> : undefined}
+        <div className="title">{title ?? card.node.uri}</div>
+        {card.meta ? <div className="meta">{card.meta}</div> : undefined}
       </div>
     </Link>
   )
 }
 
 /**
- * A work's relations, on the title page and in the preview alike: the related works this app can play, ranked by what
- * the relation is, three a row (one on a phone) a page at a time. `action` sits beside the heading, a card opens on
- * `route`, and `pending` holds a full page's place while a source that names relations has yet to answer.
+ * A titled row of work cards, three a row (one on a phone) a page at a time, as `name` (its class and data attribute).
+ * Nothing at all when there are none, unless `pending` holds a full page's place.
  */
-const MediaRelations = (
-  { relations, action, route = Route.MEDIA, pending = false }:
-  { relations: readonly RelationEdge[], action?: ComponentChildren, route?: Route.MEDIA | Route.TITLE, pending?: boolean }
+const WorkCards = (
+  { name, heading, cards, action, route, pending }:
+  { name: 'relations' | 'recommendations', heading: string, cards: Card[], action?: ComponentChildren, route: Route.MEDIA | Route.TITLE, pending: boolean }
 ) => {
   // THE SESSION'S ENGINE FLAGS RIDE ALONG. Read above the early return, because a hook is, and once
   // per list rather than once per card. A click here is a client-side navigation, so the worker and
   // its engine survive it either way; what the query buys is an ADDRESS that reproduces this page
   // when it is reloaded or pasted (`carriedSearch`).
   const search = carriedSearch(useSearch())
-  const heading = useIntl().formatMessage({ id: 'Relations', defaultMessage: 'Relations' })
-  // Nothing at all rather than an empty heading: only some sources name relations, so most media have
-  // none and a "Relations" heading over blank space reads as a page that failed to load. The action
-  // goes with it: whatever it opens is built from the same source that named these.
-  const shown = sortRelations(watchableRelations(relations))
-  if (!shown.length) {
+  if (!cards.length) {
     return pending
       ? (
-        <section className="relations placeholder" css={style} aria-hidden="true">
+        <section className={`${name} placeholder`} css={style} aria-hidden="true">
           <h2><Placeholder className="pending"/></h2>
           <div className="grid">{Array.from({ length: ROW }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>
           <Placeholder className="pages"/>
@@ -176,20 +174,56 @@ const MediaRelations = (
   }
 
   return (
-    <section className="relations" css={style} data-relations>
+    <section className={name} css={style} {...{ [`data-${name}`]: true }}>
       <h2>
         <span>{heading}</span>
         {action}
       </h2>
-      <Paged items={shown} size={ROW} label={heading}>
+      <Paged items={cards} size={ROW} label={heading}>
         {page => (
           <div className="grid">
-            {page.map(edge => <RelationCard key={`${edge.relation}:${edge.node.uri}`} edge={edge} search={search} route={route}/>)}
+            {page.map(card => <WorkCard key={card.key} card={card} search={search} route={route}/>)}
           </div>
         )}
       </Paged>
     </section>
   )
+}
+
+/**
+ * A work's relations, on the title page and in the preview alike: the related works this app can play, ranked by what
+ * the relation is. `action` sits beside the heading, a card opens on `route`, and `pending` holds a full page's place
+ * while a source that names relations has yet to answer.
+ */
+const MediaRelations = (
+  { relations, action, route = Route.MEDIA, pending = false }:
+  { relations: readonly RelationEdge[], action?: ComponentChildren, route?: Route.MEDIA | Route.TITLE, pending?: boolean }
+) => {
+  const heading = useIntl().formatMessage({ id: 'Relations', defaultMessage: 'Relations' })
+  // Nothing at all rather than an empty heading: only some sources name relations, so most media have
+  // none and a "Relations" heading over blank space reads as a page that failed to load. The action
+  // goes with it: whatever it opens is built from the same source that named these.
+  const cards = sortRelations(watchableRelations(relations)).map(edge => ({
+    key: `${edge.relation}:${edge.node.uri}`,
+    node: edge.node,
+    label: relationLabel(edge.relation),
+    // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
+    // franchise's relations are mostly not anime. See the schema's own note on the field.
+    meta: [workFormatLabel(edge.format), statusLabel(edge.node.status)].filter(Boolean).join(' · '),
+  }))
+  return <WorkCards name="relations" heading={heading} cards={cards} action={action} route={route} pending={pending}/>
+}
+
+/** The works the sources' users recommend beside this one, drawn as the relations are, its kind and year over its title. */
+export const MediaRecommendations = ({ recommendations, route }: { recommendations: readonly Recommendation[], route: Route.MEDIA | Route.TITLE }) => {
+  const heading = useIntl().formatMessage({ id: 'Recommendations', defaultMessage: 'Recommendations' })
+  const cards = recommendations.map(({ node }) => ({
+    key: node.uri,
+    node,
+    label: [workFormatLabel(node.type), node.startDate?.slice(0, 4)].filter(Boolean).join(' · '),
+    meta: statusLabel(node.status),
+  }))
+  return <WorkCards name="recommendations" heading={heading} cards={cards} route={route} pending={false}/>
 }
 
 export default MediaRelations
