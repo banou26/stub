@@ -14,6 +14,7 @@ import { asAggregatedUri } from '../utils/uri'
 import { sortRelations, watchableRelations, type RelationEdge } from '../utils/relations'
 import { relationLabel, workFormatLabel } from '../utils/relation-labels'
 import { statusLabel } from '../router/search/params'
+import { releaseDateLabel } from '../utils/release-date'
 import { useCoverUrl } from '../utils/use-cover-url'
 
 const ROW = 3
@@ -216,11 +217,12 @@ const MediaRelations = (
 
 /** The works the sources' users recommend beside this one, drawn as the relations are, its kind and year over its title. */
 export const MediaRecommendations = ({ recommendations, route }: { recommendations: readonly Recommendation[], route: Route.MEDIA | Route.TITLE }) => {
-  const heading = useIntl().formatMessage({ id: 'Recommendations', defaultMessage: 'Recommendations' })
+  const intl = useIntl()
+  const heading = intl.formatMessage({ id: 'Recommendations', defaultMessage: 'Recommendations' })
   const cards = recommendations.map(({ node }) => ({
     key: node.uri,
     node,
-    label: [workFormatLabel(node.type), node.startDate?.slice(0, 4)].filter(Boolean).join(' · '),
+    label: [workFormatLabel(node.type), releaseDateLabel(node.startDate?.slice(0, 4), { locale: intl.locale })].filter(Boolean).join(' · '),
     meta: statusLabel(node.status),
   }))
   return <WorkCards name="recommendations" heading={heading} cards={cards} route={route} pending={false}/>

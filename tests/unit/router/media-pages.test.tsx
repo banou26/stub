@@ -646,6 +646,17 @@ describe('Recommendations', () => {
     expect([...card.querySelectorAll('.relation, .title, .meta')].map(line => line.textContent)).toEqual(['TV · 2018', 'Violet Evergarden', 'Finished'])
   })
 
+  describe('in Japanese', () => {
+    beforeAll(() => startLanguage({ language: 'ja', languages: ['ja-JP'] }))
+    afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+    test('the year is written as the shown language writes a year alone', () => {
+      const { host, answer } = titlePage(frieren.uri)
+      answer(frieren)
+      expect(host.querySelector('[data-recommendations] a.relation-card .relation')!.textContent).toBe('TV · 2018年')
+    })
+  })
+
   test('none is no section, on the title page and in the preview, which draws them nowhere', () => {
     const none = { ...frieren, recommendations: null }
     const { host, answer } = titlePage(none.uri)
