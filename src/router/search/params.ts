@@ -1,8 +1,12 @@
-// The search page's whole state, as a url and back. Pure and preact-free so it can be tested: the
-// page itself reaches wouter and preact, and a codec nobody can pin is a codec that silently drops a
-// filter the day a param is renamed.
+// The search page's whole state, as a url and back. Pure so it can be tested: the page itself reaches
+// wouter, and a codec nobody can pin is a codec that silently drops a filter the day a param is renamed.
+
+import type { MessageDescriptor } from 'react-intl'
+
+import { defineMessage, defineMessages } from 'react-intl'
 
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../generated/graphql'
+import { intl } from '../../i18n'
 import { JUSTWATCH_GENRES } from '../../sources/justwatch/genres'
 import type { Site } from '../../site'
 
@@ -58,15 +62,18 @@ export const EMPTY_SEARCH_FILTERS: SearchFilters = {
   tags: [],
 }
 
+/** One choice of a picker: its value in the url, and its label as a message, shown in the page's language. */
+export type FilterChoice<T extends string> = { value: T, label: MessageDescriptor }
+
 /** The formats the page offers, in the order the picker lists them. */
-export const FORMAT_OPTIONS = [
-  { value: MediaType.Tv, label: 'TV Show' },
-  { value: MediaType.Movie, label: 'Movie' },
-  { value: MediaType.TvShort, label: 'TV Short' },
-  { value: MediaType.Special, label: 'Special' },
-  { value: MediaType.Ova, label: 'OVA' },
-  { value: MediaType.Ona, label: 'ONA' },
-] as const
+export const FORMAT_OPTIONS: readonly FilterChoice<MediaType>[] = [
+  { value: MediaType.Tv, label: defineMessage({ id: 'TV Show', defaultMessage: 'TV Show' }) },
+  { value: MediaType.Movie, label: defineMessage({ id: 'Movie', defaultMessage: 'Movie' }) },
+  { value: MediaType.TvShort, label: defineMessage({ id: 'TV Short', defaultMessage: 'TV Short' }) },
+  { value: MediaType.Special, label: defineMessage({ id: 'Special', defaultMessage: 'Special' }) },
+  { value: MediaType.Ova, label: defineMessage({ id: 'OVA', defaultMessage: 'OVA' }) },
+  { value: MediaType.Ona, label: defineMessage({ id: 'ONA', defaultMessage: 'ONA' }) },
+]
 
 /**
  * The statuses the page offers.
@@ -75,26 +82,51 @@ export const FORMAT_OPTIONS = [
  * RELEASING and FINISHED until CANCELLED and HIATUS were added alongside this page, so a picker
  * offering either would have matched nothing.
  */
-export const STATUS_OPTIONS = [
-  { value: MediaStatus.Releasing, label: 'Airing' },
-  { value: MediaStatus.Finished, label: 'Finished' },
-  { value: MediaStatus.NotYetReleased, label: 'Not yet aired' },
-  { value: MediaStatus.Cancelled, label: 'Cancelled' },
-  { value: MediaStatus.Hiatus, label: 'Hiatus' },
-] as const
+export const STATUS_OPTIONS: readonly FilterChoice<MediaStatus>[] = [
+  { value: MediaStatus.Releasing, label: defineMessage({ id: 'Airing#airing status', defaultMessage: 'Airing', description: 'airing status' }) },
+  { value: MediaStatus.Finished, label: defineMessage({ id: 'Finished#airing status', defaultMessage: 'Finished', description: 'airing status' }) },
+  { value: MediaStatus.NotYetReleased, label: defineMessage({ id: 'Not yet aired#airing status', defaultMessage: 'Not yet aired', description: 'airing status' }) },
+  { value: MediaStatus.Cancelled, label: defineMessage({ id: 'Cancelled#airing status', defaultMessage: 'Cancelled', description: 'airing status' }) },
+  { value: MediaStatus.Hiatus, label: defineMessage({ id: 'Hiatus#airing status', defaultMessage: 'Hiatus', description: 'airing status' }) },
+]
 
-export const SEASON_OPTIONS = [
-  { value: MediaSeason.Winter, label: 'Winter' },
-  { value: MediaSeason.Spring, label: 'Spring' },
-  { value: MediaSeason.Summer, label: 'Summer' },
-  { value: MediaSeason.Fall, label: 'Fall' },
-] as const
+/**
+ * The seasons, each with the two headings it takes as a whole message (`Fall 2026`, `Fall seasons`), so a language
+ * orders and inflects them its own way (`2026年秋`, `Herbstsaisons`).
+ */
+export const SEASON_OPTIONS: readonly (FilterChoice<MediaSeason> & { inYear: MessageDescriptor, everyYear: MessageDescriptor })[] = [
+  {
+    value: MediaSeason.Winter,
+    label: defineMessage({ id: 'Winter#season of the year', defaultMessage: 'Winter', description: 'season of the year' }),
+    inYear: defineMessage({ id: 'Winter {year}', defaultMessage: 'Winter {year}' }),
+    everyYear: defineMessage({ id: 'Winter seasons', defaultMessage: 'Winter seasons' }),
+  },
+  {
+    value: MediaSeason.Spring,
+    label: defineMessage({ id: 'Spring#season of the year', defaultMessage: 'Spring', description: 'season of the year' }),
+    inYear: defineMessage({ id: 'Spring {year}', defaultMessage: 'Spring {year}' }),
+    everyYear: defineMessage({ id: 'Spring seasons', defaultMessage: 'Spring seasons' }),
+  },
+  {
+    value: MediaSeason.Summer,
+    label: defineMessage({ id: 'Summer#season of the year', defaultMessage: 'Summer', description: 'season of the year' }),
+    inYear: defineMessage({ id: 'Summer {year}', defaultMessage: 'Summer {year}' }),
+    everyYear: defineMessage({ id: 'Summer seasons', defaultMessage: 'Summer seasons' }),
+  },
+  {
+    value: MediaSeason.Fall,
+    label: defineMessage({ id: 'Fall#season of the year', defaultMessage: 'Fall', description: 'season of the year' }),
+    inYear: defineMessage({ id: 'Fall {year}', defaultMessage: 'Fall {year}' }),
+    everyYear: defineMessage({ id: 'Fall seasons', defaultMessage: 'Fall seasons' }),
+  },
+]
 
-export const CATEGORY_OPTIONS = [
-  { value: MediaCategory.Anime, label: 'Anime' },
-  { value: MediaCategory.Series, label: 'Series' },
-  { value: MediaCategory.Movie, label: 'Movies' },
-] as const
+/** The categories stub.fkn.app filters by, in the words of home's category tabs and the header's sites. */
+export const CATEGORY_OPTIONS: readonly FilterChoice<MediaCategory>[] = [
+  { value: MediaCategory.Anime, label: defineMessage({ id: 'Anime#category', defaultMessage: 'Anime', description: 'category' }) },
+  { value: MediaCategory.Series, label: defineMessage({ id: 'Series#category', defaultMessage: 'Series', description: 'category' }) },
+  { value: MediaCategory.Movie, label: defineMessage({ id: 'Movies#category', defaultMessage: 'Movies', description: 'category' }) },
+]
 
 /**
  * AniList's genres, the ones it lists by.
@@ -126,6 +158,45 @@ export const SITE_GENRES: Record<Site, readonly string[]> = {
   series: Object.keys(JUSTWATCH_GENRES),
   stub: [...new Set([...ANILIST_GENRES, ...Object.keys(JUSTWATCH_GENRES)])],
 }
+
+// each genre of SITE_GENRES by its name in the url and in its sources' answers
+const GENRE_LABELS: Readonly<Record<string, MessageDescriptor>> = defineMessages({
+  Action: { id: 'Action#genre', defaultMessage: 'Action', description: 'genre' },
+  'Action & Adventure': { id: 'Action & Adventure#genre', defaultMessage: 'Action & Adventure', description: 'genre' },
+  Adventure: { id: 'Adventure#genre', defaultMessage: 'Adventure', description: 'genre' },
+  Animation: { id: 'Animation#genre', defaultMessage: 'Animation', description: 'genre' },
+  Comedy: { id: 'Comedy#genre', defaultMessage: 'Comedy', description: 'genre' },
+  Crime: { id: 'Crime#genre', defaultMessage: 'Crime', description: 'genre' },
+  Documentary: { id: 'Documentary#genre', defaultMessage: 'Documentary', description: 'genre' },
+  Drama: { id: 'Drama#genre', defaultMessage: 'Drama', description: 'genre' },
+  Ecchi: { id: 'Ecchi#genre', defaultMessage: 'Ecchi', description: 'genre' },
+  Fantasy: { id: 'Fantasy#genre', defaultMessage: 'Fantasy', description: 'genre' },
+  History: { id: 'History#genre', defaultMessage: 'History', description: 'genre' },
+  Horror: { id: 'Horror#genre', defaultMessage: 'Horror', description: 'genre' },
+  'Kids & Family': { id: 'Kids & Family#genre', defaultMessage: 'Kids & Family', description: 'genre' },
+  'Mahou Shoujo': { id: 'Mahou Shoujo#genre', defaultMessage: 'Mahou Shoujo', description: 'genre' },
+  Mecha: { id: 'Mecha#genre', defaultMessage: 'Mecha', description: 'genre' },
+  Music: { id: 'Music#genre', defaultMessage: 'Music', description: 'genre' },
+  'Music & Musical': { id: 'Music & Musical#genre', defaultMessage: 'Music & Musical', description: 'genre' },
+  Mystery: { id: 'Mystery#genre', defaultMessage: 'Mystery', description: 'genre' },
+  'Mystery & Thriller': { id: 'Mystery & Thriller#genre', defaultMessage: 'Mystery & Thriller', description: 'genre' },
+  Psychological: { id: 'Psychological#genre', defaultMessage: 'Psychological', description: 'genre' },
+  'Reality TV': { id: 'Reality TV#genre', defaultMessage: 'Reality TV', description: 'genre' },
+  Romance: { id: 'Romance#genre', defaultMessage: 'Romance', description: 'genre' },
+  'Sci-Fi': { id: 'Sci-Fi#genre', defaultMessage: 'Sci-Fi', description: 'genre' },
+  'Science-Fiction': { id: 'Science-Fiction#genre', defaultMessage: 'Science-Fiction', description: 'genre' },
+  'Slice of Life': { id: 'Slice of Life#genre', defaultMessage: 'Slice of Life', description: 'genre' },
+  Sport: { id: 'Sport#genre', defaultMessage: 'Sport', description: 'genre' },
+  Sports: { id: 'Sports#genre', defaultMessage: 'Sports', description: 'genre' },
+  Supernatural: { id: 'Supernatural#genre', defaultMessage: 'Supernatural', description: 'genre' },
+  Thriller: { id: 'Thriller#genre', defaultMessage: 'Thriller', description: 'genre' },
+  'War & Military': { id: 'War & Military#genre', defaultMessage: 'War & Military', description: 'genre' },
+  Western: { id: 'Western#genre', defaultMessage: 'Western', description: 'genre' },
+})
+
+/** A genre in the page's language when a site offers it, else as its source writes it ("Award Winning"). */
+export const genreLabel = (genre: string): string =>
+  Object.hasOwn(GENRE_LABELS, genre) ? intl.formatMessage(GENRE_LABELS[genre]!) : genre
 
 const memberOf = <T extends string>(values: readonly T[], raw: string | null): T | null =>
   values.find(value => value === raw) ?? null
@@ -271,21 +342,27 @@ export const sceneOf = (search: string): string | undefined => {
  * at all, and what the reader wants to see confirmed is the season.
  */
 export const searchHeading = (filters: SearchFilters): string => {
-  if (filters.query) return `Results for \u201C${filters.query}\u201D`
-  const season = SEASON_OPTIONS.find(option => option.value === filters.season)?.label
-  if (season && filters.year) return `${season} ${filters.year}`
-  if (season) return `${season} seasons`
+  if (filters.query) return intl.formatMessage({ id: 'Results for “{query}”', defaultMessage: 'Results for “{query}”' }, { query: filters.query })
+  const season = SEASON_OPTIONS.find(option => option.value === filters.season)
+  if (season && filters.year) return intl.formatMessage(season.inYear, { year: filters.year })
+  if (season) return intl.formatMessage(season.everyYear)
   if (filters.year) return String(filters.year)
-  return hasSearchFilters(filters) ? 'Browsing' : 'Search'
+  return hasSearchFilters(filters)
+    ? intl.formatMessage({ id: 'Browsing', defaultMessage: 'Browsing' })
+    : intl.formatMessage({ id: 'Search', defaultMessage: 'Search' })
+}
+
+/** The label of a picker's choice `value`, in the page's language, or nothing when it offers no such choice. */
+export const choiceLabel = <T extends string>(options: readonly FilterChoice<T>[], value: T | null | undefined): string | undefined => {
+  const label = options.find(option => option.value === value)?.label
+  return label && intl.formatMessage(label)
 }
 
 /** A format as the picker labels it ("TV Show"), or nothing for a media whose format no source named. */
-export const formatLabel = (type: MediaType | null | undefined): string | undefined =>
-  FORMAT_OPTIONS.find(option => option.value === type)?.label
+export const formatLabel = (type: MediaType | null | undefined): string | undefined => choiceLabel(FORMAT_OPTIONS, type)
 
 /** A release status as the picker labels it ("Airing"). */
-export const statusLabel = (status: MediaStatus | null | undefined): string | undefined =>
-  STATUS_OPTIONS.find(option => option.value === status)?.label
+export const statusLabel = (status: MediaStatus | null | undefined): string | undefined => choiceLabel(STATUS_OPTIONS, status)
 
 /**
  * A broadcast window as one label ("Fall 2026"), from whichever half is known.
@@ -294,8 +371,8 @@ export const statusLabel = (status: MediaStatus | null | undefined): string | un
  * a window in every year at once, which is worse than saying nothing.
  */
 export const seasonLabel = (season: MediaSeason | null | undefined, year: number | null | undefined): string | undefined => {
-  const name = SEASON_OPTIONS.find(option => option.value === season)?.label
-  if (name && year) return `${name} ${year}`
+  const option = SEASON_OPTIONS.find(entry => entry.value === season)
+  if (option && year) return intl.formatMessage(option.inYear, { year })
   return year ? String(year) : undefined
 }
 

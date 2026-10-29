@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -27,7 +27,7 @@ afterEach(() => {
 const open = () => {
   vi.useFakeTimers()
   const location = memoryLocation({ path: '/settings', record: true })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><Header/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Header/></Router>))
   hosts.push(host)
   const logo = host.querySelector<HTMLElement>('.logo')!
   const fire = (type: string) => act(() => {

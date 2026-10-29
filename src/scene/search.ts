@@ -97,13 +97,12 @@ export const searchScene = (code: string, fetch: FetchLike): Promise<SceneAnswer
   return answer
 }
 
-/** A moment as the page says it: "Episode 1, 4:32", or "4:32" alone without an episode. */
-export const momentLabel = ({ episode, from }: SceneMoment): string => {
+/** A moment's time as the page writes it, `4:32`, or `1:02:03` past an hour. */
+export const momentTime = (from: number): string => {
   const seconds = Math.floor(from)
   const pad = (value: number) => String(value).padStart(2, '0')
   const minutes = Math.floor(seconds / 60)
-  const clock = minutes >= 60
+  return minutes >= 60
     ? `${Math.floor(minutes / 60)}:${pad(minutes % 60)}:${pad(seconds % 60)}`
     : `${minutes}:${pad(seconds % 60)}`
-  return episode == null ? clock : `Episode ${episode}, ${clock}`
 }

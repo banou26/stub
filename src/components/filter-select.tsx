@@ -1,8 +1,11 @@
 import type { ComponentChildren } from 'preact'
 
 import { css } from '@emotion/react'
-import { useMemo, useState } from 'preact/hooks'
+import { useId, useMemo, useState } from 'preact/hooks'
 import { Check, ChevronDown, Search } from 'lucide-react'
+import { useIntl } from 'react-intl'
+
+import { NAME_LIST } from '../i18n'
 import { layer } from '../layers'
 import {
   autoUpdate, flip, offset, shift, size,
@@ -141,15 +144,13 @@ export type FilterOption = { value: string, label: string }
 
 type Props = {
   label: string
-  /** What the closed control reads when nothing is picked. AniList's own word for it is "Any". */
-  placeholder?: string
   options: readonly FilterOption[]
   /** Everything currently picked. A single-select control simply never holds more than one. */
   selected: readonly string[]
   onChange: (selected: string[]) => void
   multiple?: boolean
-  /** Show a type-to-narrow box. Worth it above roughly twenty options, pointless below. */
-  searchable?: boolean
+  /** A type-to-narrow box, by its label (`Filter year`). Worth it above roughly twenty options, pointless below. */
+  searchable?: string
   /** Offer values the option list does not contain, so a url can carry a genre this build never saw. */
   allowCustom?: boolean
 }
@@ -164,12 +165,13 @@ type Props = {
  * again, which is how the row of chips below the bar can be the only affordance for clearing.
  */
 const FilterSelect = ({
-  label, placeholder = 'Any', options, selected, onChange,
-  multiple = false, searchable = false, allowCustom = false,
+  label, options, selected, onChange,
+  multiple = false, searchable, allowCustom = false,
 }: Props) => {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState('')
-  const labelId = `filter-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`
+  const labelId = useId()
 
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -194,7 +196,7 @@ const FilterSelect = ({
   ])
 
   const labelOf = (value: string) => options.find(option => option.value === value)?.label ?? value
-  const summary = selected.map(labelOf).join(', ')
+  const summary = intl.formatList(selected.map(labelOf), NAME_LIST)
 
   const shown = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -225,23 +227,25 @@ const FilterSelect = ({
         aria-labelledby={labelId}
         {...getReferenceProps()}
       >
-        <span className={selected.length ? 'value' : 'value any'}>{selected.length ? summary : placeholder}</span>
+        <span className={selected.length ? 'value' : 'value any'}>
+          {selected.length ? summary : intl.formatMessage({ id: 'Any#no filter picked', defaultMessage: 'Any', description: 'no filter picked' })}
+        </span>
         <ChevronDown size={16} className="chevron"/>
       </button>
       {
         open && (
           <FloatingPortal>
-            <FloatingFocusManager context={context} modal={false} initialFocus={searchable ? 0 : -1}>
+            <FloatingFocusManager context={context} modal={false} initialFocus={searchable === undefined ? -1 : 0}>
               <div ref={refs.setFloating} css={menuStyle} style={floatingStyles} {...getFloatingProps()}>
                 {
-                  searchable && (
+                  searchable !== undefined && (
                     <div className="filter">
                       <Search size={15}/>
                       <input
                         type="text"
                         value={term}
-                        placeholder={`Filter ${label.toLowerCase()}`}
-                        aria-label={`Filter ${label.toLowerCase()}`}
+                        placeholder={searchable}
+                        aria-label={searchable}
                         onInput={event => setTerm(event.currentTarget.value)}
                       />
                     </div>
@@ -263,7 +267,7 @@ const FilterSelect = ({
                           <span>{option.label}</span>
                         </button>
                       ))
-                      : <div className="empty">Nothing matches “{term}”.</div>
+                      : <div className="empty">{intl.formatMessage({ id: 'Nothing matches “{term}”.', defaultMessage: 'Nothing matches “{term}”.' }, { term })}</div>
                   }
                 </div>
               </div>

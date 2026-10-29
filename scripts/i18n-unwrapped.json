@@ -1,12 +1,4 @@
 {
-  "header-search": [
-    "src/components/account-widget.tsx",
-    "src/components/display-mode-toggle.tsx",
-    "src/components/filter-select.tsx",
-    "src/components/header.tsx",
-    "src/router/search/index.tsx",
-    "src/router/search/scene.tsx"
-  ],
   "tracking": [
     "src/components/save-problems.tsx",
     "src/components/score-picker.tsx",

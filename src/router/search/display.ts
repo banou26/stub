@@ -12,11 +12,7 @@ import { settings } from '../../settings-store'
 export type DisplayMode = 'grid' | 'card' | 'list'
 
 /** The modes the toggle offers, in the order it renders them: densest first. */
-export const DISPLAY_MODES = [
-  { value: 'grid', label: 'Covers' },
-  { value: 'card', label: 'Cards' },
-  { value: 'list', label: 'List' },
-] as const satisfies readonly { value: DisplayMode, label: string }[]
+export const DISPLAY_MODES: readonly DisplayMode[] = ['grid', 'card', 'list']
 
 export const DEFAULT_DISPLAY_MODE: DisplayMode = 'grid'
 
@@ -29,11 +25,9 @@ export const DEFAULT_DISPLAY_MODE: DisplayMode = 'grid'
  */
 export const DISPLAY_MODE_KEY = 'stub-search-display-mode'
 
-const MODE_VALUES: readonly string[] = DISPLAY_MODES.map(mode => mode.value)
-
 /** A stored or hand-edited value as a mode, falling back to the default rather than throwing. */
 export const parseDisplayMode = (raw: string | null | undefined): DisplayMode =>
-  MODE_VALUES.includes(raw as DisplayMode) ? raw as DisplayMode : DEFAULT_DISPLAY_MODE
+  DISPLAY_MODES.includes(raw as DisplayMode) ? raw as DisplayMode : DEFAULT_DISPLAY_MODE
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
 

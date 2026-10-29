@@ -1,9 +1,10 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { afterAll, describe, expect, test } from 'vite-plus/test'
 
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../../src/generated/graphql'
+import { startLanguage } from '../../../src/i18n'
 import {
   EMPTY_SEARCH_FILTERS, SITE_GENRES, YEAR_MIN,
-  formatLabel, hasSearchFilters, legacySearchTerm, namesAQuery, parseSearchFilters, sceneOf, scenePath,
+  formatLabel, genreLabel, hasSearchFilters, legacySearchTerm, namesAQuery, parseSearchFilters, sceneOf, scenePath,
   searchFiltersQuery, searchHeading, searchPath, seasonLabel, seasonValue, statusLabel, yearMax,
 } from '../../../src/router/search/params'
 import type { SearchFilters } from '../../../src/router/search/params'
@@ -248,6 +249,19 @@ describe('formatLabel, statusLabel and seasonLabel', () => {
     // "Fall" alone names a window in every year at once, which says less than nothing.
     expect(seasonLabel(MediaSeason.Fall, null)).toBeUndefined()
     expect(seasonLabel(null, null)).toBeUndefined()
+  })
+})
+
+describe('genreLabel', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('every genre a site offers is a message, and any other stays as its source writes it', async () => {
+    const genres = SITE_GENRES.stub
+    expect(genres.map(genreLabel), 'English, as the sources write them').toEqual(genres)
+    const catalogue = Object.fromEntries(genres.map(genre => [`${genre}#genre`, `[${genre}]`]))
+    await startLanguage({ language: 'de', languages: ['de-DE'], catalogues: { '../locales/de.json': async () => catalogue } })
+    expect(genres.map(genreLabel)).toEqual(genres.map(genre => `[${genre}]`))
+    expect(['Award Winning', 'constructor', 'toString'].map(genreLabel)).toEqual(['Award Winning', 'constructor', 'toString'])
   })
 })
 

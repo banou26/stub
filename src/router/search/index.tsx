@@ -1,7 +1,8 @@
 import type { SearchCardFragment } from '../../generated/graphql'
-import type { SearchFilters } from './params'
+import type { FilterChoice, SearchFilters } from './params'
 
 import { css } from '@emotion/react'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { useLocation, useSearch } from 'wouter'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -12,8 +13,8 @@ import { MediaSort } from '../../generated/graphql'
 import { getRoutePath, Route } from '../path'
 import {
   CATEGORY_OPTIONS, FORMAT_OPTIONS, SEASON_OPTIONS, SITE_GENRES, STATUS_OPTIONS,
-  YEAR_MIN, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, scenePath, searchFiltersQuery, searchHeading,
-  searchPath, yearMax,
+  YEAR_MIN, choiceLabel, genreLabel, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, scenePath, searchFiltersQuery,
+  searchHeading, searchPath, yearMax,
 } from './params'
 import { PictureButton, SceneItem, usePictureInput, useScene } from './scene'
 import { pictureCode } from '../../scene/code'
@@ -304,6 +305,7 @@ const variablesFor = (filters: SearchFilters) => ({
 })
 
 const Search = () => {
+  const intl = useIntl()
   const search = useSearch()
   const [, navigate] = useLocation()
   const filters = useMemo(() => parseSearchFilters(search), [search])
@@ -414,11 +416,11 @@ const Search = () => {
     }
     if (seasonal) for (const node of nodes) for (const genre of node.genres ?? []) offer(genres, genre)
     for (const node of nodes) for (const tag of node.tags ?? []) offer(tags, tag)
-    const byLabel = (a: string, b: string) => a.localeCompare(b)
+    const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, intl.locale)
     return {
       genreKeys: new Set(genres.keys()),
-      genreOptions: [...genres.values()].sort(byLabel).map(genre => ({ value: genre, label: genre })),
-      tagOptions: [...tags.values()].sort(byLabel).map(tag => ({ value: tag, label: tag })),
+      genreOptions: [...genres.values()].map(genre => ({ value: genre, label: genreLabel(genre) })).sort(byLabel),
+      tagOptions: [...tags.values()].map(tag => ({ value: tag, label: tag })).sort(byLabel),
     }
   }, [nodes, filters.genres, filters.tags, seasonal])
 
@@ -455,36 +457,50 @@ const Search = () => {
 
   const chips: { key: string, label: string, clear: Partial<SearchFilters> }[] = [
     ...filters.year ? [{ key: 'year', label: String(filters.year), clear: { year: null } }] : [],
-    ...filters.season ? [{ key: 'season', label: SEASON_OPTIONS.find(option => option.value === filters.season)!.label, clear: { season: null } }] : [],
-    ...filters.status ? [{ key: 'status', label: STATUS_OPTIONS.find(option => option.value === filters.status)!.label, clear: { status: null } }] : [],
-    ...filters.category ? [{ key: 'category', label: CATEGORY_OPTIONS.find(option => option.value === filters.category)!.label, clear: { category: null } }] : [],
+    ...filters.season ? [{ key: 'season', label: choiceLabel(SEASON_OPTIONS, filters.season)!, clear: { season: null } }] : [],
+    ...filters.status ? [{ key: 'status', label: choiceLabel(STATUS_OPTIONS, filters.status)!, clear: { status: null } }] : [],
+    ...filters.category ? [{ key: 'category', label: choiceLabel(CATEGORY_OPTIONS, filters.category)!, clear: { category: null } }] : [],
     ...filters.formats.map(format => ({
       key: `format:${format}`,
-      label: FORMAT_OPTIONS.find(option => option.value === format)!.label,
+      label: choiceLabel(FORMAT_OPTIONS, format)!,
       clear: { formats: filters.formats.filter(entry => entry !== format) },
     })),
-    ...filters.genres.map(genre => ({ key: `genre:${genre}`, label: genre, clear: { genres: filters.genres.filter(entry => entry !== genre) } })),
+    ...filters.genres.map(genre => ({ key: `genre:${genre}`, label: genreLabel(genre), clear: { genres: filters.genres.filter(entry => entry !== genre) } })),
     ...filters.tags.map(tag => ({ key: `tag:${tag}`, label: tag, clear: { tags: filters.tags.filter(entry => entry !== tag) } })),
   ]
+  const choices = <T extends string>(options: readonly FilterChoice<T>[]) =>
+    options.map(({ value, label }) => ({ value, label: intl.formatMessage(label) }))
+  const noResults = <div className="status">{intl.formatMessage({ id: 'No results found.', defaultMessage: 'No results found.' })}</div>
 
   return (
     <div css={style}>
       <div className="heading-row">
-        <div className="heading">{scene ? 'Scene search' : searchHeading(filters)}</div>
+        <div className="heading">{scene ? intl.formatMessage({ id: 'Scene search', defaultMessage: 'Scene search' }) : searchHeading(filters)}</div>
         <DisplayModeToggle mode={displayMode} onChange={pickDisplayMode}/>
       </div>
-      {scene ? <div className="credit">Scenes found by <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">trace.moe</a></div> : undefined}
+      {
+        scene
+          ? (
+            <div className="credit">
+              {intl.formatMessage(
+                { id: 'Scenes found by <link>trace.moe</link>', defaultMessage: 'Scenes found by <link>trace.moe</link>' },
+                { link: chunks => <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">{chunks}</a> },
+              )}
+            </div>
+          )
+          : undefined
+      }
 
       <div className="filters">
-        <FilterField label="Search">
+        <FilterField label={intl.formatMessage({ id: 'Search', defaultMessage: 'Search' })}>
           <div className="text-field">
             <SearchIcon size={17}/>
             <input
               ref={termRef}
               type="text"
               value={term}
-              placeholder="Any title"
-              aria-label="Search by title"
+              placeholder={intl.formatMessage({ id: 'Any title', defaultMessage: 'Any title' })}
+              aria-label={intl.formatMessage({ id: 'Search by title', defaultMessage: 'Search by title' })}
               onInput={event => {
                 const value = event.currentTarget.value
                 setTerm(value)
@@ -495,39 +511,43 @@ const Search = () => {
           </div>
         </FilterField>
         <FilterSelect
-          label={LIVE_ACTION_SITE ? 'Genres' : 'Genres & Tags'}
+          label={LIVE_ACTION_SITE ? intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }) : intl.formatMessage({ id: 'Genres & Tags', defaultMessage: 'Genres & Tags' })}
           options={[...genreOptions, ...tagOptions]}
           selected={labels}
           onChange={setLabels}
           multiple
-          searchable
+          searchable={
+            LIVE_ACTION_SITE
+              ? intl.formatMessage({ id: 'Filter genres', defaultMessage: 'Filter genres' })
+              : intl.formatMessage({ id: 'Filter genres & tags', defaultMessage: 'Filter genres & tags' })
+          }
           allowCustom={!LIVE_ACTION_SITE}
         />
         <FilterSelect
-          label="Year"
+          label={intl.formatMessage({ id: 'Year', defaultMessage: 'Year' })}
           options={YEAR_OPTIONS}
           selected={filters.year ? [String(filters.year)] : []}
           onChange={picked => setFilters({ year: picked.length ? Number(picked[0]) : null })}
-          searchable
+          searchable={intl.formatMessage({ id: 'Filter year', defaultMessage: 'Filter year' })}
         />
         {LIVE_ACTION_SITE ? undefined : (
           <>
             <FilterSelect
-              label="Season"
-              options={SEASON_OPTIONS}
+              label={intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' })}
+              options={choices(SEASON_OPTIONS)}
               selected={filters.season ? [filters.season] : []}
               onChange={picked => setFilters({ season: (picked[0] as SearchFilters['season']) ?? null })}
             />
             <FilterSelect
-              label="Format"
-              options={FORMAT_OPTIONS}
+              label={intl.formatMessage({ id: 'Format', defaultMessage: 'Format' })}
+              options={choices(FORMAT_OPTIONS)}
               selected={filters.formats}
               onChange={picked => setFilters({ formats: picked as SearchFilters['formats'] })}
               multiple
             />
             <FilterSelect
-              label="Airing Status"
-              options={STATUS_OPTIONS}
+              label={intl.formatMessage({ id: 'Airing Status', defaultMessage: 'Airing Status' })}
+              options={choices(STATUS_OPTIONS)}
               selected={filters.status ? [filters.status] : []}
               onChange={picked => setFilters({ status: (picked[0] as SearchFilters['status']) ?? null })}
             />
@@ -535,8 +555,8 @@ const Search = () => {
         )}
         {site === 'stub' ? (
           <FilterSelect
-            label="Category"
-            options={CATEGORY_OPTIONS}
+            label={intl.formatMessage({ id: 'Category', defaultMessage: 'Category' })}
+            options={choices(CATEGORY_OPTIONS)}
             selected={filters.category ? [filters.category] : []}
             onChange={picked => setFilters({ category: (picked[0] as SearchFilters['category']) ?? null })}
           />
@@ -545,7 +565,13 @@ const Search = () => {
 
       <div className="chips">
         {chips.map(chip => (
-          <button key={chip.key} type="button" className="chip" aria-label={`Remove ${chip.label}`} onClick={() => setFilters(chip.clear)}>
+          <button
+            key={chip.key}
+            type="button"
+            className="chip"
+            aria-label={intl.formatMessage({ id: 'Remove {filter}', defaultMessage: 'Remove {filter}' }, { filter: chip.label })}
+            onClick={() => setFilters(chip.clear)}
+          >
             {chip.label}
             <X size={14}/>
           </button>
@@ -556,14 +582,14 @@ const Search = () => {
             className="chip-clear"
             onClick={() => setFilters({ category: null, status: null, season: null, year: null, formats: [], genres: [], tags: [] })}
           >
-            Clear filters
+            {intl.formatMessage({ id: 'Clear filters', defaultMessage: 'Clear filters' })}
           </button>
         )}
       </div>
 
       {
         unreadable
-          ? <div className="status">This picture could not be read.</div>
+          ? <div className="status">{intl.formatMessage({ id: 'This picture could not be read.', defaultMessage: 'This picture could not be read.' })}</div>
           : scene
             ? !sceneAnswer
               ? pendingItems
@@ -571,14 +597,22 @@ const Search = () => {
                 ? <div className="status">{sceneAnswer.error}</div>
                 : sceneAnswer.matches.length
                   ? <div className={layout.className}>{sceneAnswer.matches.map(match => <SceneItem key={match.anilist} match={match} item={layout.item}/>)}</div>
-                  : <div className="status">No results found.</div>
+                  : noResults
             : nodes.length
               ? <div className={layout.className}>{nodes.map(layout.item)}</div>
               : asked
                 ? graceElapsed
-                  ? <div className="status">No results found.</div>
+                  ? noResults
                   : pendingItems
-                : <div className="status">{hasSearchFilters(filters) ? 'Add a title or another filter.' : 'Search by title, or pick a filter.'}</div>
+                : (
+                  <div className="status">
+                    {
+                      hasSearchFilters(filters)
+                        ? intl.formatMessage({ id: 'Add a title or another filter.', defaultMessage: 'Add a title or another filter.' })
+                        : intl.formatMessage({ id: 'Search by title, or pick a filter.', defaultMessage: 'Search by title, or pick a filter.' })
+                    }
+                  </div>
+                )
       }
     </div>
   )

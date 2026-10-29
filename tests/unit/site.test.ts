@@ -43,14 +43,14 @@ test('movie and series never ask the anime catalogues, and anime and stub ask ev
   expect(SITES.map(site => siteAsks('jw', site))).toEqual([true, true, true, true])
 })
 
-const links = (address: string) => siteLinksOf(new URL(address)).map(({ label, href }) => [label, href])
+const links = (address: string) => siteLinksOf(new URL(address)).map(({ site, href }) => [site, href])
 
 test('the four sites link to each other\'s homes on fkn.app, from each of them', () => {
   const fknApp = [
-    ['Movies', 'https://movies.fkn.app/'],
-    ['Series', 'https://series.fkn.app/'],
-    ['Anime', 'https://anime.fkn.app/'],
-    ['All', 'https://stub.fkn.app/'],
+    ['movie', 'https://movies.fkn.app/'],
+    ['series', 'https://series.fkn.app/'],
+    ['anime', 'https://anime.fkn.app/'],
+    ['stub', 'https://stub.fkn.app/'],
   ]
   for (const host of ['anime.fkn.app', 'movies.fkn.app', 'series.fkn.app', 'stub.fkn.app']) {
     expect(links(`https://${host}/watch/x?plugins=y`), host).toEqual(fknApp)
@@ -59,10 +59,10 @@ test('the four sites link to each other\'s homes on fkn.app, from each of them',
 
 test('on localhost the links keep the protocol and the port, stub.localhost standing for All', () => {
   const local = [
-    ['Movies', 'http://movies.localhost:4173/'],
-    ['Series', 'http://series.localhost:4173/'],
-    ['Anime', 'http://anime.localhost:4173/'],
-    ['All', 'http://stub.localhost:4173/'],
+    ['movie', 'http://movies.localhost:4173/'],
+    ['series', 'http://series.localhost:4173/'],
+    ['anime', 'http://anime.localhost:4173/'],
+    ['stub', 'http://stub.localhost:4173/'],
   ]
   expect(links('http://movies.localhost:4173/search')).toEqual(local)
   expect(links('http://stub.localhost:4173/')).toEqual(local)

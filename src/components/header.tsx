@@ -4,6 +4,7 @@ import {
   useDismiss, useFloating, useInteractions, useRole
 } from '@floating-ui/react'
 import { ChevronDown, Search, Settings, X } from 'lucide-react'
+import { defineMessages, useIntl } from 'react-intl'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -17,12 +18,23 @@ import { site, siteLinks } from '../site'
 import { loadDevice } from '../plugin-list'
 import { writePluginUris } from '../utils/plugin-links'
 
-const PLACEHOLDERS = {
-  anime: 'Search anime…',
-  movie: 'Search movies…',
-  series: 'Search shows…',
-  stub: 'Search anime, shows, movies…',
-}
+const PLACEHOLDERS = defineMessages({
+  anime: { id: 'Search anime…', defaultMessage: 'Search anime…' },
+  movie: { id: 'Search movies…', defaultMessage: 'Search movies…' },
+  series: { id: 'Search shows…', defaultMessage: 'Search shows…' },
+  stub: { id: 'Search anime, shows, movies…', defaultMessage: 'Search anime, shows, movies…' },
+})
+
+// each site by what it keeps, as home's category tabs name it (category-tabs.tsx)
+const SITE_NAMES = defineMessages({
+  movie: { id: 'Movies#category', defaultMessage: 'Movies', description: 'category' },
+  series: { id: 'Series#category', defaultMessage: 'Series', description: 'category' },
+  anime: { id: 'Anime#category', defaultMessage: 'Anime', description: 'category' },
+  stub: { id: 'All#category', defaultMessage: 'All', description: 'category' },
+})
+
+// the brand, never translated
+const WORDMARK = 'stub'
 
 const LONG_PRESS = 500
 
@@ -323,26 +335,30 @@ const currentSiteStyle = css`
 
 // a link offers the next site only this device's own sources: an FKN account's list reaches it through
 // the account, and offering those too would raise the invite dialog there before the list arrives
-const SiteLinks = ({ className }: { className?: string }) => (
-  <>
-    {siteLinks.map(link => (
-      <a
-        key={link.site}
-        className={className}
-        href={writePluginUris(link.href, loadDevice(), link.href)}
-        aria-current={link.site === site ? 'page' : undefined}
-      >
-        {link.label}
-      </a>
-    ))}
-  </>
-)
+const SiteLinks = ({ className }: { className?: string }) => {
+  const intl = useIntl()
+  return (
+    <>
+      {siteLinks.map(link => (
+        <a
+          key={link.site}
+          className={className}
+          href={writePluginUris(link.href, loadDevice(), link.href)}
+          aria-current={link.site === site ? 'page' : undefined}
+        >
+          {intl.formatMessage(SITE_NAMES[link.site])}
+        </a>
+      ))}
+    </>
+  )
+}
 
 /**
  * The wordmark goes home on a tap. On a host with site links, the arrow before it opens them as a menu, and so do a
  * long press or a right click on the wordmark itself.
  */
 const Wordmark = () => {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const press = useRef<{ at: number, timer: ReturnType<typeof setTimeout>, opened?: true }>(undefined)
   // Escape hands focus back to whichever of the arrow and the wordmark opened the menu
@@ -409,7 +425,7 @@ const Wordmark = () => {
         else askForTop()
       }}
     >
-      stub
+      {WORDMARK}
     </Link>
   )
   if (!hasMenu) return wordmark
@@ -419,7 +435,7 @@ const Wordmark = () => {
       <button
         type="button"
         className="sites-toggle"
-        aria-label="Sites"
+        aria-label={intl.formatMessage({ id: 'Sites', defaultMessage: 'Sites' })}
         {...getReferenceProps({
           onClick: (event: MouseEvent) => {
             if (open) setOpen(false)
@@ -449,6 +465,7 @@ const Wordmark = () => {
 }
 
 export const Header = () => {
+  const intl = useIntl()
   const [, navigate] = useLocation()
   const [onLoginCallback] = useRoute(getRouterRoutePath(Route.LOGIN_CALLBACK))
   const [onWatch] = useRoute(getRouterRoutePath(Route.WATCH))
@@ -484,6 +501,8 @@ export const Header = () => {
   // A header there would mount the account broker's cross-origin iframe and a subscription that are
   // torn down milliseconds later, so it stays bare. Every route a user actually browses gets the bar.
   if (onLoginCallback) return null
+  const searchLabel = intl.formatMessage({ id: 'Search', defaultMessage: 'Search' })
+  const settingsLabel = intl.formatMessage({ id: 'Settings', defaultMessage: 'Settings' })
 
   return (
     <header css={style} className={[onWatch && 'docked', searchOpen && 'searching'].filter(Boolean).join(' ') || undefined}>
@@ -508,8 +527,8 @@ export const Header = () => {
           ref={inputRef}
           type="text"
           value={query}
-          placeholder={PLACEHOLDERS[site]}
-          aria-label="Search"
+          placeholder={intl.formatMessage(PLACEHOLDERS[site])}
+          aria-label={searchLabel}
           onInput={event => {
             const value = event.currentTarget.value
             setQuery(value)
@@ -527,7 +546,7 @@ export const Header = () => {
         <button
           type="button"
           className="search-close"
-          aria-label="Close search"
+          aria-label={intl.formatMessage({ id: 'Close search', defaultMessage: 'Close search' })}
           // keeps the field focused through the press, so its blur does not close the row under the finger
           onPointerDown={event => event.preventDefault()}
           onClick={() => setSearchOpen(false)}
@@ -538,7 +557,7 @@ export const Header = () => {
       <button
         type="button"
         className="icon-button search-toggle"
-        aria-label="Search"
+        aria-label={searchLabel}
         aria-expanded={searchOpen}
         onClick={() => setSearchOpen(true)}
       >
@@ -546,7 +565,7 @@ export const Header = () => {
       </button>
       <div className="actions">
         <PartyWidget/>
-        <Link to={getRoutePath(Route.SETTINGS)} className="icon-button" aria-label="Settings" title="Settings">
+        <Link to={getRoutePath(Route.SETTINGS)} className="icon-button" aria-label={settingsLabel} title={settingsLabel}>
           <Settings size={20}/>
         </Link>
         <AccountWidget/>

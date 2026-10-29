@@ -10,7 +10,7 @@ import { defineMessages } from 'react-intl'
 
 import { MediaStatus, MediaType } from '../../generated/graphql'
 import { intl, NAME_LIST } from '../../i18n'
-import { formatLabel, seasonLabel, statusLabel } from '../search/params'
+import { formatLabel, genreLabel, seasonLabel, statusLabel } from '../search/params'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
 
 export type TitleMedia = {
@@ -121,7 +121,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     { label: intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' }), value: seasonLabel(media.season, media.seasonYear) },
     { label: intl.formatMessage({ id: 'Studios', defaultMessage: 'Studios' }), value: names(media.studios) },
     { label: intl.formatMessage({ id: 'Source#adapted from', defaultMessage: 'Source', description: 'adapted from' }), value: sourceLabel(media.sourceMaterial) },
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(media.genres) },
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(media.genres?.map(genreLabel)) },
     { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(media.tags) },
     { label: intl.formatMessage({ id: 'Also known as', defaultMessage: 'Also known as' }), value: names(others) },
   ].flatMap(({ label, value }): Fact[] => value ? [{ label, value }] : held ? [{ label }] : [])

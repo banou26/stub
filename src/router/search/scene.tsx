@@ -4,13 +4,14 @@ import type { SceneAnswer, SceneMatch } from '../../scene/search'
 
 import { ImageIcon, LucidePlay } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
 import { gql } from '../../generated'
 import { MediaType } from '../../generated/graphql'
 import { searchScene } from '../../worker'
-import { momentLabel, SCENE_ERRORS } from '../../scene/search'
+import { momentTime, SCENE_ERRORS } from '../../scene/search'
 import Placeholder from '../../components/placeholder'
 import { getRoutePath, Route } from '../path'
 import { watchFrom } from '../watch/resume'
@@ -80,10 +81,11 @@ export const usePictureInput = (onPicture: (file: File) => void, enabled: boolea
 
 /** The search field's button that picks a picture to search by. */
 export const PictureButton = ({ onPicture }: { onPicture: (file: File) => void }) => {
+  const label = useIntl().formatMessage({ id: 'Search by picture', defaultMessage: 'Search by picture' })
   const input = useRef<HTMLInputElement>(null)
   return (
     <>
-      <button type="button" className="picture" aria-label="Search by picture" title="Search by picture" onClick={() => input.current?.click()}>
+      <button type="button" className="picture" aria-label={label} title={label} onClick={() => input.current?.click()}>
         <ImageIcon size={17}/>
       </button>
       <input
@@ -106,6 +108,7 @@ export const PictureButton = ({ onPicture }: { onPicture: (file: File) => void }
  * the episode at the scene. A film plays from the time alone; a moment with no episode, a special, opens only the show.
  */
 export const SceneItem = ({ match, item }: { match: SceneMatch, item: (media: SearchCardFragment) => JSX.Element }) => {
+  const intl = useIntl()
   const [{ data }] = useSubscription({
     query: SCENE_MEDIA,
     variables: { input: { uri: `anilist:${match.anilist}` }, shortDescriptionInput: { count: 1 } },
@@ -119,7 +122,10 @@ export const SceneItem = ({ match, item }: { match: SceneMatch, item: (media: Se
       <div className="moments">
         {match.moments.map(moment => {
           if (moment.episode == null && !film) return undefined
-          const label = momentLabel(film ? { ...moment, episode: null } : moment)
+          const time = momentTime(moment.from)
+          const label = film || moment.episode == null
+            ? time
+            : intl.formatMessage({ id: 'Episode {number}, {time}', defaultMessage: 'Episode {number}, {time}' }, { number: moment.episode, time })
           const episode = media.episodes.find(entry => entry.episodeNumber === moment.episode) ?? (film ? media.episodes[0] : undefined)
           return episode
             ? (

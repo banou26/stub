@@ -6,6 +6,7 @@ import {
 import { ConnectButton } from '@fkn/lib/react'
 import { ChevronDown, ExternalLink, LogOut } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { useAccount } from '../utils/use-account'
 import { layer } from '../layers'
@@ -119,6 +120,7 @@ const placeholderStyle = css`
 `
 
 export const AccountWidget = () => {
+  const intl = useIntl()
   const { info, ready, logout } = useAccount()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -166,6 +168,7 @@ export const AccountWidget = () => {
   if (!ready) return <div css={placeholderStyle}/>
 
   if (!info) return <ConnectButton style={{ flex: 'none', width: CONNECT_WIDTH, height: CONNECT_HEIGHT }}/>
+  const name = info.name || intl.formatMessage({ id: 'Account', defaultMessage: 'Account' })
 
   return (
     <>
@@ -173,12 +176,18 @@ export const AccountWidget = () => {
         ref={refs.setReference}
         css={style}
         type="button"
-        aria-label={`FKN account: ${info.name || 'Account'}`}
+        aria-label={intl.formatMessage({ id: 'FKN account: {name}', defaultMessage: 'FKN account: {name}' }, { name })}
         {...getReferenceProps()}
       >
         <span className="who">
-          <span className="name">{info.name || 'Account'}</span>
-          <span className={`tier ${info.premium ? 'premium' : 'free'}`}>{info.premium ? 'Premium' : 'Free'}</span>
+          <span className="name">{name}</span>
+          <span className={`tier ${info.premium ? 'premium' : 'free'}`}>
+            {
+              info.premium
+                ? intl.formatMessage({ id: 'Premium#account tier', defaultMessage: 'Premium', description: 'account tier' })
+                : intl.formatMessage({ id: 'Free#account tier', defaultMessage: 'Free', description: 'account tier' })
+            }
+          </span>
         </span>
         <ChevronDown size={16} className="chevron"/>
       </button>
@@ -189,11 +198,15 @@ export const AccountWidget = () => {
               <div ref={refs.setFloating} style={floatingStyles} css={menuStyle} {...getFloatingProps()}>
                 <a className="item" href={MANAGE_URL} target="_blank" rel="noreferrer">
                   <ExternalLink size={16}/>
-                  Manage account
+                  {intl.formatMessage({ id: 'Manage account', defaultMessage: 'Manage account' })}
                 </a>
                 <button className="item" type="button" disabled={busy} onClick={onDisconnect}>
                   <LogOut size={16}/>
-                  {busy ? 'Disconnecting...' : 'Disconnect'}
+                  {
+                    busy
+                      ? intl.formatMessage({ id: 'Disconnecting...#the FKN account', defaultMessage: 'Disconnecting...', description: 'the FKN account' })
+                      : intl.formatMessage({ id: 'Disconnect#the FKN account', defaultMessage: 'Disconnect', description: 'the FKN account' })
+                  }
                 </button>
               </div>
             </FloatingFocusManager>

@@ -52,14 +52,14 @@ test('an account with no name reads as Account, and a free one as Free', () => {
 const GENRES = [{ value: 'Action', label: 'Action' }, { value: 'Comedy', label: 'Comedy' }, { value: 'Drama', label: 'Drama' }]
 
 test('a filter menu reads Any with nothing picked, and lists what is picked', () => {
-  const none = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={[]} onChange={() => {}} multiple searchable/>)
+  const none = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={[]} onChange={() => {}} multiple/>)
   expect([none.querySelector('.label')?.textContent, none.querySelector('.value')?.textContent]).toEqual(['Genres & Tags', 'Any'])
-  const picked = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={['Action', 'Drama', 'Comedy']} onChange={() => {}} multiple searchable/>)
+  const picked = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={['Action', 'Drama', 'Comedy']} onChange={() => {}} multiple/>)
   expect(picked.querySelector('.value')?.textContent).toBe('Action, Drama, Comedy')
 })
 
 test('a filter menu\'s box is named for what it narrows, and says when nothing matches', () => {
-  const host = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={[]} onChange={() => {}} multiple searchable/>)
+  const host = show(<FilterSelect label="Genres & Tags" options={GENRES} selected={[]} onChange={() => {}} multiple searchable="Filter genres & tags"/>)
   click(host.querySelector('.control'))
   const box = document.querySelector<HTMLInputElement>('.filter input')!
   expect([box.getAttribute('placeholder'), box.getAttribute('aria-label')]).toEqual(['Filter genres & tags', 'Filter genres & tags'])
@@ -69,7 +69,7 @@ test('a filter menu\'s box is named for what it narrows, and says when nothing m
   })
   expect(document.querySelector('.empty')?.textContent).toBe('Nothing matches “zzz”.')
   click(host.querySelector('.control'))
-  const year = show(<FilterSelect label="Year" options={[{ value: '2026', label: '2026' }]} selected={[]} onChange={() => {}} searchable/>)
+  const year = show(<FilterSelect label="Year" options={[{ value: '2026', label: '2026' }]} selected={[]} onChange={() => {}} searchable="Filter year"/>)
   click(year.querySelector('.control'))
   expect(document.querySelector('.filter input')?.getAttribute('placeholder')).toBe('Filter year')
 })

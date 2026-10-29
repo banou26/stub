@@ -15,7 +15,6 @@ import { HIDDEN_ICONS_KEY } from '../src/sources/hidden-icons'
 import { PLAY_ORDER_KEY } from '../src/sources/play-order'
 import { PLAYER_VOLUME_KEY } from '../src/utils/player-volume'
 import { DISPLAY_MODE_KEY } from '../src/router/search/display'
-import { FORMAT_OPTIONS } from '../src/router/search/params'
 import { recordId, seasonKey } from '../src/sources/offline/normalize'
 import { mediaSeasonNow } from '../src/sources/season'
 import { SITE_STATUS_KEY } from '../src/tracking/site-status'
@@ -1748,8 +1747,7 @@ const wordsIn = (page: Page, words: typeof OWN_WORDS) => page.evaluate(({ text, 
 
 /**
  * Draws Cowboy Bebop's title page, its series graph and Squid Game's second season's page at `width`, and returns
- * their own words. Its format and status, TV Show and Finished, are search/params.ts's words, which no message of the
- * page shares.
+ * their own words.
  */
 const drawnWords = async (page: Page, width: number) => {
   await page.setViewportSize({ width, height: 900 })
@@ -1809,8 +1807,6 @@ const HOME_WORDS = {
 }
 // what Intl writes in English, which no message holds: a countdown's units and a relative day
 const INTL_ENGLISH = /\b(days?|hours?|mins?|secs?|today|yesterday|tomorrow|ago)\b/
-// a card's first fact, its format, is search/params.ts's word, which the search page's own change wraps
-const FORMATS = new Set<string>(FORMAT_OPTIONS.map(({ label }) => label))
 // a day within a month as RelativeTimeFormat writes it, which can read as a message: German "in 8 Tagen", "in {countdown}"
 const relativeDays = (locale: string) => new Set(Array.from({ length: 61 }, (_, day) => new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(day - 30, 'day')))
 
@@ -1825,7 +1821,7 @@ const homeWords = async (page: Page, width: number) => {
   const read = async () => {
     overflow.push(await overflowX(page))
     words.push(...(await wordsIn(page, HOME_WORDS)).flatMap(text => text.split(' · ')))
-    words.push(...(await wordsIn(page, { text: ['.detail .meta'], labels: [] })).flatMap(text => text.split(' • ')).filter(text => !FORMATS.has(text)))
+    words.push(...(await wordsIn(page, { text: ['.detail .meta'], labels: [] })).flatMap(text => text.split(' • ')))
   }
   await page.goto(`${origin}/`)
   await expect(page.locator('.theater .actions .play')).toBeVisible({ timeout: 30_000 })

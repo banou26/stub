@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, describe, expect, test, vi, type Mock } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -13,7 +13,7 @@ const stream = vi.hoisted(() => ({
   started: [] as Record<string, unknown>[],
   running: undefined as string | undefined,
   listeners: new Set<() => void>(),
-  pickers: {} as Record<string, { options: { value: string }[], onChange: (labels: string[]) => void }>,
+  pickers: {} as Record<string, { options: { value: string }[], onChange: (labels: string[]) => void, searchable?: string }>,
 }))
 vi.mock('urql', async () => {
   const { useEffect, useState } = await import('preact/hooks')
@@ -89,7 +89,7 @@ const typingInHeader = () => {
 const open = (path: string) => {
   vi.useFakeTimers()
   const location = memoryLocation({ path, record: true })
-  const host = mount(<Router hook={location.hook} searchHook={location.searchHook}><Search/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Search/></Router>))
   hosts.push(host)
   const field = host.querySelector<HTMLInputElement>('input[aria-label="Search by title"]')!
   return {
@@ -271,6 +271,7 @@ describe('its English', () => {
     ]
     expect(options('Genres & Tags')).toEqual(genres.map(genre => [genre, genre]))
     expect(options('Year').at(0)).toEqual([String(new Date().getFullYear() + 5), String(new Date().getFullYear() + 5)])
+    expect([stream.pickers['Genres & Tags']!.searchable, stream.pickers['Year']!.searchable]).toEqual(['Filter genres & tags', 'Filter year'])
     const field = hosts.at(-1)!.querySelector('.text-field input')!
     expect([field.getAttribute('placeholder'), field.getAttribute('aria-label')]).toEqual(['Any title', 'Search by title'])
     expect(text('.heading')).toEqual(['Search'])

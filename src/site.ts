@@ -26,11 +26,11 @@ export let site: Site = siteOf(globalThis.location?.hostname ?? '')
 /** Serves `next` from here on, for the link preview, whose one isolate answers all four sites' hosts. */
 export const setSite = (next: Site) => { site = next }
 
-const SITE_LINKS: { site: Site, host: string, label: string }[] = [
-  { site: 'movie', host: 'movies', label: 'Movies' },
-  { site: 'series', host: 'series', label: 'Series' },
-  { site: 'anime', host: 'anime', label: 'Anime' },
-  { site: 'stub', host: 'stub', label: 'All' },
+const SITE_LINKS: { site: Site, host: string }[] = [
+  { site: 'movie', host: 'movies' },
+  { site: 'series', host: 'series' },
+  { site: 'anime', host: 'anime' },
+  { site: 'stub', host: 'stub' },
 ]
 
 /**
@@ -42,7 +42,7 @@ const SITE_LINKS: { site: Site, host: string, label: string }[] = [
 export const siteLinksOf = ({ protocol, hostname, port }: Pick<URL, 'protocol' | 'hostname' | 'port'>) => {
   const domain = hostname.match(SITE_HOST)?.[2]
   if (!domain) return []
-  return SITE_LINKS.map(({ site: to, host, label }) => ({ site: to, label, href: `${protocol}//${host}.${domain}${port ? `:${port}` : ''}/` }))
+  return SITE_LINKS.map(({ site: to, host }) => ({ site: to, href: `${protocol}//${host}.${domain}${port ? `:${port}` : ''}/` }))
 }
 
 export const siteLinks = globalThis.location ? siteLinksOf(globalThis.location) : []

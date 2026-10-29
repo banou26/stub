@@ -20,7 +20,7 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
 
 describe('parseDisplayMode', () => {
   test('every mode the toggle offers round-trips', () => {
-    for (const mode of DISPLAY_MODES) expect(parseDisplayMode(mode.value)).toBe(mode.value)
+    for (const mode of DISPLAY_MODES) expect(parseDisplayMode(mode)).toBe(mode)
   })
 
   test('a stale or hand-edited value falls back rather than rendering nothing', () => {

@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import type { TraceMoeResult } from '../../../src/scene/search'
 
-import { isSceneCode, momentLabel, SCENE_ERRORS, sceneSearchUrl, scenesOf, searchScene } from '../../../src/scene/search'
+import { isSceneCode, momentTime, SCENE_ERRORS, sceneSearchUrl, scenesOf, searchScene } from '../../../src/scene/search'
 import { asksViewerDirectly } from '../../../src/worker/direct-fetch'
 
 // the example code trace.moe's own docs search by (docs.md, "Search by color layout vector", 2026-10-24)
@@ -113,8 +113,9 @@ describe('scenesOf', () => {
   })
 })
 
-test('a moment reads as its episode and its time', () => {
-  expect(momentLabel({ episode: 1, from: 272.19 })).toBe('Episode 1, 4:32')
-  expect(momentLabel({ episode: 12, from: 5 })).toBe('Episode 12, 0:05')
-  expect(momentLabel({ episode: null, from: 3723.9 })).toBe('1:02:03')
+// the episode before it is the page's message (tests/unit/router/search-page.test.tsx)
+test('a moment\'s time reads in minutes, and in hours past one', () => {
+  expect(momentTime(272.19)).toBe('4:32')
+  expect(momentTime(5)).toBe('0:05')
+  expect(momentTime(3723.9)).toBe('1:02:03')
 })
