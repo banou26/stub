@@ -79,10 +79,11 @@ test('a series\' line names its format, release and episodes', () => {
   expect(seriesLine({})).toBe('')
 })
 
-test('in German, the side column\'s labels are German', async () => {
+test('in German, the side column\'s labels and a series\' line are German', async () => {
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
     expect(previewFacts(penguin, true).map(({ label }) => label)).toEqual(['Format', 'Erschienen', 'Länge', 'Genres', 'Tags', 'Bewertung'])
+    expect(seriesLine({ type: MediaType.Tv, startDate: '2023-09-29', episodeCount: 28 })).toBe(`TV-Serie · ${releaseDateLabel('2023-09-29', { locale: 'de' })} · 28 Folgen`)
   } finally {
     await startLanguage({ language: 'en', languages: ['en-US'] })
   }
