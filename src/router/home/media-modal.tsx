@@ -354,36 +354,93 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.6rem;
       }
 
+      /* a card a service, each about two thirds of the watch page's, four to a line here and two on a phone */
       & > .main > .sources {
+        --picture: 11rem;
+        --body: 5.6rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+        gap: 1rem;
         margin: 0;
         padding: 0;
         list-style: none;
-        border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
+
+        & > li {
+          min-width: 0;
+        }
       }
 
       & > .main > .sources .source {
         display: flex;
-        align-items: center;
-        gap: 1.4rem;
-        height: 6rem;
-        padding: 0 0.4rem;
-        border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+        flex-direction: column;
+        border-radius: 0.8rem;
+        overflow: hidden;
+        background: rgb(28, 28, 30);
         color: #fff;
         text-decoration: none;
 
-        &:hover { background: rgba(255, 255, 255, 0.04); }
+        &:hover { outline: 0.2rem solid color-mix(in srgb, var(--brand) 60%, transparent); }
+        &:focus-visible { outline: 0.2rem solid rgba(255, 255, 255, 0.8); outline-offset: 0.2rem; }
+
+        .picture {
+          position: relative;
+          display: block;
+          height: var(--picture);
+          background: rgb(40, 40, 40);
+
+          &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent 55%);
+          }
+
+          & > .still {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          & > .logo {
+            position: absolute;
+            left: 0.8rem;
+            bottom: 0.8rem;
+            z-index: 1;
+            box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.5);
+          }
+        }
+
+        /* no picture of its own: its logo, large, on its own colour */
+        .picture.logo-led {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background:
+            radial-gradient(90% 120% at 50% 100%, color-mix(in srgb, var(--brand) 45%, transparent), transparent 70%),
+            color-mix(in srgb, var(--brand) 14%, rgb(28, 28, 30));
+
+          &::after { display: none; }
+
+          & > .logo {
+            position: static;
+            width: 5.2rem;
+            height: 5.2rem;
+            border-radius: 1.1rem;
+            font-size: 2.4rem;
+          }
+        }
 
         .logo {
           display: flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
-          width: 3.6rem;
-          height: 3.6rem;
-          border-radius: 0.7rem;
+          width: 3rem;
+          height: 3rem;
+          border-radius: 0.6rem;
           overflow: hidden;
-          background: rgba(255, 255, 255, 0.08);
-          font-size: 1.5rem;
+          background: rgba(255, 255, 255, 0.12);
+          font-size: 1.4rem;
           font-weight: 700;
 
           & > img {
@@ -404,38 +461,68 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           }
         }
 
-        .name {
+        .mark {
+          position: absolute;
+          right: 0.8rem;
+          bottom: 0.8rem;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.4rem;
+          height: 2.4rem;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.92);
+          color: #000;
+          font-size: 1.1rem;
+        }
+
+        .body {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.2rem;
+          height: var(--body);
+          padding: 0 1rem;
+        }
+
+        .head {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          min-width: 0;
+        }
+
+        .name, .how {
           min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-size: 1.7rem;
-          font-weight: 600;
+        }
+
+        .name {
+          font-size: 1.4rem;
+          font-weight: 700;
         }
 
         .count {
-          padding: 0.1rem 0.7rem;
+          flex-shrink: 0;
+          padding: 0 0.6rem;
           border-radius: 0.4rem;
           background: rgba(255, 255, 255, 0.1);
-          font-size: 1.2rem;
+          font-size: 1.1rem;
           font-weight: 700;
         }
 
         .how {
-          flex-shrink: 0;
-          margin-left: auto;
-          font-size: 1.4rem;
-          color: rgba(255, 255, 255, 0.55);
+          font-size: 1.2rem;
+          color: rgba(255, 255, 255, 0.6);
         }
-
-        .how::after { content: ' ↗'; }
-        &.plays .how::after { content: ' ▶'; }
       }
 
       & > .main > .sources .source-pending {
-        height: 6rem;
-        border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
-        border-radius: 0;
+        height: calc(var(--picture) + var(--body));
+        border-radius: 0.8rem;
       }
 
       & > .main > .none {
@@ -623,17 +710,10 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       & > .columns > .main > .sources {
-        .source, .source-pending {
-          height: 5.4rem;
-        }
-
-        .source .name {
-          font-size: 1.5rem;
-        }
-
-        .source .how {
-          font-size: 1.3rem;
-        }
+        --picture: 9.4rem;
+        --body: 5.2rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
       }
 
       & > .relations, & > .seasons, & > .episode-list {

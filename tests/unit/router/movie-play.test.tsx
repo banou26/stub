@@ -181,19 +181,19 @@ test('a film not out yet with no date reads Coming soon, never No sources yet, a
   expect(render(episode, [], null).querySelector('.none')?.textContent, 'the control: and reads No sources yet once settled').toBe('No sources yet')
 })
 
-// what the list under Play holds, a row or a row's place
-const rows = (host: HTMLElement) => [...host.querySelector('.sources')?.children ?? []]
-  .map(row => row.firstElementChild!.className.split(' ').filter(name => !name.startsWith('css-')).join('.'))
+// what the list over the description holds, a card or a card's place
+const cards = (host: HTMLElement) => [...host.querySelector('.sources')?.children ?? []]
+  .map(card => card.firstElementChild!.className.split(' ').filter(name => !name.startsWith('css-')).join('.'))
 
 // so the description under the list keeps its place while the services land
-test('until a film settles, the list holds three rows\' place, each row landing in one', () => {
+test('until a film settles, the list holds three cards\' place, each card landing in one', () => {
   origin = 'none'
-  expect(rows(render(episode, [], '2020-01-01', undefined, false))).toEqual(['source-pending', 'source-pending', 'source-pending'])
+  expect(cards(render(episode, [], '2020-01-01', undefined, false))).toEqual(['source-pending', 'source-pending', 'source-pending'])
   expect(render(episode).querySelector('.sources'), 'the control: settled with none, no list').toBeNull()
   origin = 'hidive'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
-  expect(rows(render(episode, offer, '2020-01-01', undefined, false))).toEqual(['source', 'source-pending', 'source-pending'])
-  expect(rows(render(episode, offer)), 'settled, the rest let go').toEqual(['source'])
+  expect(cards(render(episode, offer, '2020-01-01', undefined, false))).toEqual(['source', 'source-pending', 'source-pending'])
+  expect(cards(render(episode, offer)), 'settled, the rest let go').toEqual(['source'])
   origin = 'none'
   expect(render(episode, [], '2099-01-01', 'NOT_YET_RELEASED', false).querySelector('.source-pending'), 'a film not out yet holds none').toBeNull()
 })
@@ -397,7 +397,7 @@ test('Play stays when the source that plays has its icon hidden', async () => {
 })
 
 // HOR-830: JustWatch's 100 px logos (src/sources/justwatch/logos.ts), sharper than the sites' favicons
-test('a service\'s row shows its sharp logo, the site\'s own icon when that fails, then the name\'s first letter', () => {
+test('a service\'s card shows its sharp logo, the site\'s own icon when that fails, then the name\'s first letter', () => {
   origin = 'nf'
   icon = 'https://nf.test/favicon.ico'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/81037598' } }]
@@ -411,7 +411,34 @@ test('a service\'s row shows its sharp logo, the site\'s own icon when that fail
   expect([logo().querySelector('img'), logo().textContent]).toEqual([null, 'n'])
 })
 
-test('in German, Play, its release line, its rows, No sources yet and Coming soon read German', async () => {
+// HOR-830: design 3's service cards (the owner, 2026-10-30: "the same as the 3: service cards [...] but make them a bit
+// smaller"), a picture the service has of the film, else its logo on its own colour
+test('a service\'s card leads with its own picture of the film, its logo in a corner, else with its logo alone, and marks what a click does', () => {
+  const pictured = {
+    uri: 'ag:(cr:GX1)',
+    thumbnails: [{ url: 'https://film.test/still.jpg' }],
+    handles: [{ relation: 'SAME_AS', node: { uri: 'cr:GX1', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX1', thumbnails: [{ url: 'https://cr.test/a.jpg' }, { url: 'https://cr.test/b.jpg' }] } }],
+  } as unknown as DetailsEpisode
+  const host = render(pictured)
+  const card = () => host.querySelector('a.source')!
+  const still = () => card().querySelector('.picture > img.still')
+  expect([card().querySelector('.picture')!.className, still()?.getAttribute('src')]).toEqual(['picture', 'https://cr.test/a.jpg'])
+  expect(card().querySelector('.picture > .logo'), 'its logo over the picture').not.toBeNull()
+  expect(card().querySelector('.mark')?.textContent, 'stub plays it').toBe('▶')
+  act(() => { still()!.dispatchEvent(new Event('error')) })
+  expect(still()?.getAttribute('src'), 'its next picture').toBe('https://cr.test/b.jpg')
+  act(() => { still()!.dispatchEvent(new Event('error')) })
+  expect([card().querySelector('.picture')!.className, still()], 'none loads: its logo alone').toEqual(['picture logo-led', null])
+
+  // HIDIVE names no picture, and Crunchyroll's and the film's own are not its
+  origin = 'hidive'
+  const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
+  const linked = render(pictured, offer).querySelector('a.source')!
+  expect([linked.querySelector('.picture')!.className, linked.querySelector('img.still')]).toEqual(['picture logo-led', null])
+  expect(linked.querySelector('.mark')?.textContent, 'it opens its site').toBe('↗')
+})
+
+test('in German, Play, its release line, its cards, No sources yet and Coming soon read German', async () => {
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
     expect(render(episode).querySelector('a.play')?.textContent).toBe('Abspielen')

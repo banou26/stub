@@ -68,7 +68,8 @@ const BRAND_COLORS: Record<string, string> = {
 
 const FALLBACK_COLOR = '#9aa0a6'
 
-const brandColor = (source: WatchSource) => source.color || BRAND_COLORS[source.id] || FALLBACK_COLOR
+/** The colour a source is drawn in: its own, else its brand's, else a neutral grey. */
+export const brandColor = (source: WatchSource) => source.color || BRAND_COLORS[source.id] || FALLBACK_COLOR
 
 const style = css`
   display: flex;
@@ -514,8 +515,8 @@ const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | 
   )
 }
 
-// drawn the same in every language
-const MARKS = { external: '↗', play: '▶', picker: '›', open: '▾', closed: '▸' } as const
+/** What a click on a source does, drawn the same in every language. */
+export const MARKS = { external: '↗', play: '▶', picker: '›', open: '▾', closed: '▸' } as const
 
 const detailed = (source: WatchSource) =>
   Boolean(source.thumbnails?.length || source.videoQualities?.length || source.audioQualities?.length || source.audioLanguages?.length || source.subtitleLanguages?.length)
