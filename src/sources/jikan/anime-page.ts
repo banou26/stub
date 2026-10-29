@@ -31,7 +31,11 @@ export type MalAnime = {
   /** The AniDB link the page lists under its resources. */
   anidb?: string
   streamingLinks: MalStreamingLink[]
+  recommendations: MalRecommendation[]
 }
+
+/** A show the page's users recommend beside this one, with how many of them did. */
+export type MalRecommendation = { id: string, title: string, cover?: string, users: number }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -81,11 +85,24 @@ const streamingLinksOf = (html: string): MalStreamingLink[] =>
     return [{ site: decodeEntities(site!), url, icon: decodeEntities(icon!), ...country ? { country } : {} }]
   })
 
+// each card links the pair, `recommendations/anime/33352-52991`, with the page's own id first or second (mal:52991,
+// 2026-10-29)
+const recommendationsOf = (html: string, id: string): MalRecommendation[] =>
+  (one(html, /id="anime_recommendation"([\s\S]*?)<\/ul>/) ?? '').split('<li ').flatMap(card => {
+    const [, a, b] = /recommendations\/anime\/(\d+)-(\d+)"/.exec(card) ?? []
+    const other = a === id ? b : b === id ? a : undefined
+    const title = text(one(card, /<span class="title fs10">([\s\S]*?)<\/span>/))
+    const cover = one(card, /data-src="([^"]+)"/)
+    return other && title
+      ? [{ id: other, title, cover: cover && malLargeImage(decodeEntities(cover)), users: num(one(card, /class="users">(\d+) Users?</)) ?? 0 }]
+      : []
+  })
+
 const row = (html: string, label: string) =>
   text(one(html, new RegExp(`<span class="dark_text">${label}:</span>([\\s\\S]*?)</div>`)))
 
-/** A myanimelist.net title page, or undefined when the page names no show. */
-export const parseMalAnime = (html: string): MalAnime | undefined => {
+/** myanimelist.net's title page for `id`, or undefined when the page names no show. */
+export const parseMalAnime = (html: string, id: string): MalAnime | undefined => {
   const title = text(one(html, /<h1 class="title-name[^"]*"><strong>([\s\S]*?)<\/strong>/))
   if (!title) return undefined
   const premiered = row(html, 'Premiered')?.match(/^(Winter|Spring|Summer|Fall) (\d{4})$/)
@@ -110,5 +127,6 @@ export const parseMalAnime = (html: string): MalAnime | undefined => {
     trailer: one(html, /video-promotion"><a[^>]*\/embed\/([\w-]{11})/),
     anidb: anidb && decodeEntities(anidb),
     streamingLinks: streamingLinksOf(html),
+    recommendations: recommendationsOf(html, id),
   }
 }

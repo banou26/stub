@@ -126,6 +126,13 @@ const pageMedia = (id: string, page: MalAnime) => {
       language: 'en',
     }] : [],
     streamingLinks: page.streamingLinks,
+    recommendations: page.recommendations.map(pick => ({
+      rating: pick.users,
+      node: malMedia(pick.id, undefined, {
+        titles: [{ language: 'jp-en', title: pick.title, score: JAPANESE_TITLE_SCORE }],
+        covers: pick.cover ? [{ language: 'en', url: pick.cover, score: SCORE }] : [],
+      }),
+    })),
   })
 }
 
@@ -146,7 +153,7 @@ const fetchCredits = (id: number, context: ExtractorServerContext) =>
 
 const fetchMedia = async ({ id }: { id: number }, context: ExtractorServerContext) => {
   const response = await context.fetch(`https://myanimelist.net/anime/${id}`)
-  const page = parseMalAnime(await response.text())
+  const page = parseMalAnime(await response.text(), String(id))
   return page && pageMedia(String(id), page)
 }
 

@@ -268,6 +268,23 @@ const GET_MEDIA_CREDITS = mediaQuery(`
         nodes {
           name
         }
+      }
+      recommendations(perPage: 12, sort: [RATING_DESC, ID]) {
+        nodes {
+          rating
+          mediaRecommendation {
+            ${RELATION_NODE_FIELDS.split('\n').join('\n            ')}
+            isAdult
+            relations {
+              edges {
+                relationType(version: 2)
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
       }`)
 
 /**
@@ -528,30 +545,77 @@ const normalizeRelations = (media: Media) =>
       return [{
         relation: (RELATIONS.has(relation) ? relation : 'OTHER') as GQLMediaRelation,
         format: node.format ?? undefined,
-        node: makeMedia({
-          origin,
-          id: node.id.toString(),
-          url: node.siteUrl ?? undefined,
-          score: SCORE,
-          episodeCount: node.episodes ?? undefined,
-          startDate: franchiseDate(node.startDate),
-          titles: [
-            ...node.title?.english ? [{ language: 'en', title: node.title.english, score: SCORE }] : [],
-            ...node.title?.romaji ? [{ language: 'jp-en', title: node.title.romaji, score: SCORE }] : [],
-            ...node.title?.native ? [{ language: 'jp', title: node.title.native, score: SCORE }] : [],
-          ],
-          covers:
-            node.coverImage?.large
-              ? [{ language: 'jp', url: node.coverImage.large, color: node.coverImage.color ?? undefined, score: SCORE }]
-              : [],
-          status:
-            node.status === MediaStatus.NotYetReleased ? GQLMediaStatus.NotYetReleased
-            : node.status === MediaStatus.Releasing ? GQLMediaStatus.Releasing
-            : node.status === MediaStatus.Finished ? GQLMediaStatus.Finished
-            : undefined,
-        }),
+        node: makeMedia(snapshotOf(node)),
       }]
     })
+
+/** Another work as a card draws it, out of `RELATION_NODE_FIELDS`. */
+const snapshotOf = (node: Media) => ({
+  origin,
+  id: node.id.toString(),
+  url: node.siteUrl ?? undefined,
+  score: SCORE,
+  episodeCount: node.episodes ?? undefined,
+  startDate: franchiseDate(node.startDate),
+  titles: [
+    ...node.title?.english ? [{ language: 'en', title: node.title.english, score: SCORE }] : [],
+    ...node.title?.romaji ? [{ language: 'jp-en', title: node.title.romaji, score: SCORE }] : [],
+    ...node.title?.native ? [{ language: 'jp', title: node.title.native, score: SCORE }] : [],
+  ],
+  covers:
+    node.coverImage?.large
+      ? [{ language: 'jp', url: node.coverImage.large, color: node.coverImage.color ?? undefined, score: SCORE }]
+      : [],
+  status:
+    node.status === MediaStatus.NotYetReleased ? GQLMediaStatus.NotYetReleased
+    : node.status === MediaStatus.Releasing ? GQLMediaStatus.Releasing
+    : node.status === MediaStatus.Finished ? GQLMediaStatus.Finished
+    : undefined,
+})
+
+/**
+ * The works AniList's users recommend beside this one, best rated first, a franchise once.
+ *
+ * Picks reaching one work by `FRANCHISE_EDGES` are one franchise, drawn as its earliest work at its best rated pick's
+ * place: Mushoku Tensei's twelve hold Slime's first season, its second and the second's part two, which name one
+ * manga as their SOURCE where no anime relation joins the first to the others (108465, 2026-10-29). Each carries its
+ * MyAnimeList id, which the merge joins MyAnimeList's own picks on.
+ */
+const normalizeRecommendations = (media: Media) => {
+  const picks = (media.recommendations?.nodes ?? []).flatMap(node => {
+    const pick = node?.mediaRecommendation
+    return pick?.id && !pick.isAdult && node?.rating && node.rating > 0 ? [{ pick, rating: node.rating }] : []
+  })
+  const group = picks.map((_, index) => index)
+  const root = (index: number): number => group[index] === index ? index : (group[index] = root(group[index]!))
+  const reachedBy = new Map<number, number>()
+  picks.forEach(({ pick }, index) => {
+    const reached = [pick.id, ...(pick.relations?.edges ?? []).flatMap(edge =>
+      edge?.node?.id && FRANCHISE_EDGES.has(String(edge.relationType)) ? [edge.node.id] : [])]
+    for (const id of reached) {
+      const other = reachedBy.get(id)
+      if (other === undefined) reachedBy.set(id, index)
+      else group[Math.max(root(other), root(index))] = Math.min(root(other), root(index))
+    }
+  })
+  const groups = new Map<number, typeof picks>()
+  picks.forEach((entry, index) => groups.set(root(index), [...groups.get(root(index)) ?? [], entry]))
+  return [...groups.values()].map(([best, ...rest]) => {
+    const { pick } = rest.reduce((earliest, entry) => {
+      const date = franchiseDate(entry.pick.startDate)
+      const held = franchiseDate(earliest.pick.startDate)
+      return date && (!held || date < held) ? entry : earliest
+    }, best!)
+    return {
+      rating: best!.rating,
+      node: makeMedia({
+        ...snapshotOf(pick),
+        type: mediaType(pick.format),
+        handles: pick.idMal ? [makeMedia({ origin: 'mal', id: String(pick.idMal), url: `https://myanimelist.net/anime/${pick.idMal}` })] : [],
+      }),
+    }
+  })
+}
 
 /**
  * The relations a franchise WALK may follow, which is not all of them.
@@ -694,6 +758,15 @@ const normalizeCredits = (media: Media): SourceCredits | undefined => {
   }
 }
 
+const mediaType = (format: Media['format']) =>
+  format === 'TV' ? GQLMediaType.Tv
+  : format === 'TV_SHORT' ? GQLMediaType.TvShort
+  : format === 'MOVIE' ? GQLMediaType.Movie
+  : format === 'SPECIAL' ? GQLMediaType.Special
+  : format === 'OVA' ? GQLMediaType.Ova
+  : format === 'ONA' ? GQLMediaType.Ona
+  : undefined
+
 const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, extraHandles: GQLMedia[] = []) => {
   const malHandle =
     media.idMal
@@ -721,20 +794,14 @@ const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, e
     tags: (media.tags ?? []).filter(isPublicTag).map(tag => tag.name),
     season: knownSeason(media.season),
     seasonYear: media.seasonYear,
-    type:
-      media.format === 'TV' ? GQLMediaType.Tv
-      : media.format === 'TV_SHORT' ? GQLMediaType.TvShort
-      : media.format === 'MOVIE' ? GQLMediaType.Movie
-      : media.format === 'SPECIAL' ? GQLMediaType.Special
-      : media.format === 'OVA' ? GQLMediaType.Ova
-      : media.format === 'ONA' ? GQLMediaType.Ona
-      : undefined,
+    type: mediaType(media.format),
     handles: [
       ...extraHandles,
       ...malHandle ? [malHandle] : []
     ],
     relations: normalizeRelations(media),
     franchise: buildFranchise(media),
+    ...media.recommendations ? { recommendations: normalizeRecommendations(media) } : {},
     score: SCORE,
     averageScore: percentScore(media.averageScore, 100),
     // not read off `airingSchedule`, whose page holds AniList's 25 oldest entries: all aired on a long run

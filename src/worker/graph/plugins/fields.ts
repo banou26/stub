@@ -311,6 +311,39 @@ const linkPlace = (origin: string) => {
   return place === -1 ? LINKS_FIRST.length : place
 }
 
+/** How many cards a title's Recommendations hold: AniList's twelve, which MyAnimeList's fill up to and never push out. */
+const RECOMMENDATIONS = 12
+
+const votesOf = (pick: Record<string, unknown>) => (typeof pick.rating === 'number' ? pick.rating : 0)
+
+/**
+ * Every member's recommendations as one list: AniList's in its own order, then the rest by votes, a work once, and none
+ * inside `skip`. Two picks are one work when they share a uri, which an AniList pick's MyAnimeList handle gives them,
+ * and the card is addressed by every uri joined, so it opens the work's whole cluster rather than one source's page.
+ */
+const mergeRecommendations = (owned: readonly MemberRow[], skip: ReadonlySet<string>) => {
+  const picks = owned
+    .flatMap(member => listOf(member.raw.recommendations).filter(isRecord).map(pick => ({ anilist: member.origin === 'anilist', pick })))
+    .sort((a, b) => Number(b.anilist) - Number(a.anilist) || (a.anilist ? 0 : votesOf(b.pick) - votesOf(a.pick)))
+  const cards: { uris: Set<string>, rating: unknown, node: Record<string, unknown> }[] = []
+  for (const { pick } of picks) {
+    const node = pick.node
+    if (!isRecord(node) || typeof node.uri !== 'string') continue
+    const uris = [node.uri, ...listOf(node.handles).flatMap(handle =>
+      isRecord(handle) && handle.relation === 'SAME_AS' && isRecord(handle.node) && typeof handle.node.uri === 'string' ? [handle.node.uri] : [])]
+    const card = cards.find(held => uris.some(uri => held.uris.has(uri)))
+    if (card) for (const uri of uris) card.uris.add(uri)
+    else cards.push({ uris: new Set(uris), rating: pick.rating ?? null, node })
+  }
+  return cards
+    .filter(card => ![...card.uris].some(uri => skip.has(uri)))
+    .slice(0, RECOMMENDATIONS)
+    .map(({ uris, rating, node }) => {
+      const { uri, id } = aggregatedIdentity([...uris])
+      return { rating, node: { titles: [], covers: [], ...node, _id: uri, uri, origin: 'ag', id, handles: [] } }
+    })
+}
+
 /** The parenthesized member list an `ag:(...)` address carries, and the address itself. */
 export const aggregatedIdentity = (uris: readonly string[]): { uri: string, id: string } => {
   // one uri carrying a ',' or a '/' would split the list or the route path and make the whole watch
@@ -350,6 +383,7 @@ const nodeOf = (member: MemberRow): Record<string, unknown> => ({
   episodes: [],
   credits: undefined,
   themes: undefined,
+  recommendations: undefined,
 })
 
 const SCALARS = [
@@ -551,6 +585,15 @@ export const aggregateFields = (options: {
       // same way a missing `origin` does
       node: { titles: [], covers: [], ...edge.node, _id: edge.toUri, uri: edge.toUri, ...addressOf(edge.toUri, edge.node) },
     }))
+
+  const franchise = isRecord(row.franchise)
+    ? listOf(row.franchise.nodes).flatMap(node => isRecord(node) && typeof node.uri === 'string' ? [node.uri] : [])
+    : []
+  const recommendations = mergeRecommendations(owned, new Set([...inside, ...franchise]))
+  if (recommendations.length) {
+    row.recommendations = recommendations
+    provenance.push({ field: 'recommendations', uris: owned.filter(member => listOf(member.raw.recommendations).length).map(member => member.uri), rule: 'merged' })
+  }
 
   row.handles = [
     ...members.map((member): AggregatedHandle => ({

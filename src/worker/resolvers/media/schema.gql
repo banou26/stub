@@ -329,6 +329,11 @@ type Media {
   """
   relations: [MediaRelationEdge!]!
   """
+  Other works the sources' users recommend to someone who liked this one, best first, one card per work and none
+  from this work's own series. Null where no source names one. Never clustered on, as `relations` is not.
+  """
+  recommendations: [MediaRecommendation!]
+  """
   The whole series this work belongs to, as a graph. Null where no source could supply one, which is
   most of them. NULLABLE deliberately: a non-null list that a source omits nulls the media carrying
   it, taking the rest of the payload with it.
@@ -446,6 +451,16 @@ type Media {
   has just been found under is asked.
   """
   settled: Boolean
+}
+
+"""
+One work a source's users recommend beside another. The node is a snapshot, as a relation's is: what a card draws.
+A source's own node names it by that source's uri; the aggregated one names it by every uri the sources joined it on.
+"""
+type MediaRecommendation {
+  node: Media!
+  """How many of the source's users recommend it. Orders the list and is never shown."""
+  rating: Int
 }
 
 """One season of a show: its number and the uri of its own run."""

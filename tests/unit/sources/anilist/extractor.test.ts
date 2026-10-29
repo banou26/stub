@@ -17,6 +17,7 @@ import { unreleasedEpisodes } from '../../../../src/router/home/episodes'
 import { neighbours } from '../../../../src/router/watch/neighbours'
 import BEBOP from '../../../fixtures/credits/anilist-bebop.json'
 import SAMPLES from '../../../fixtures/descriptions/samples.json'
+import MUSHOKU from './__fixtures__/anilist-recommendations-108465.json'
 
 const ANILIST = 'https://graphql.anilist.co/'
 
@@ -446,15 +447,15 @@ test('AniList\'s banner comes after every other source\'s', async () => {
   expect((row.banners as { url: string }[]).map(({ url }) => url)).toEqual(['bundle-kitsu-banner', 'jw-backdrop', banner])
 })
 
-// Cowboy Bebop as AniList's details query answers it, trimmed to three characters and three staff
-const creditsContext = () => {
+// Cowboy Bebop as AniList's details query answers it, trimmed to three characters and three staff, with `details` on it
+const creditsContext = (details: Record<string, unknown> = {}) => {
   const bodies: string[] = []
   const fetch = async (url: string, init?: { body?: string }) => {
     if (url !== ANILIST) throw new Error(`fixture has no route for ${url}`)
     bodies.push(init?.body ?? '')
     const { query } = JSON.parse(init?.body ?? '{}') as { query: string }
     const { characters, staff, studios, ...media } = BEBOP
-    return { status: 200, json: async () => ({ data: { Media: query.includes('characters(') ? BEBOP : media } }) }
+    return { status: 200, json: async () => ({ data: { Media: query.includes('characters(') ? { ...BEBOP, ...details } : media } }) }
   }
   return { ctx: { fetch, similarMedia: async () => undefined } as never, bodies }
 }
@@ -489,6 +490,36 @@ test('length and source ride on every answer, and the credits only on a details 
   expect(media.sourceMaterial).toBe('ORIGINAL')
   expect(media.credits).toBeUndefined()
   expect(media.studios).toBeUndefined()
+})
+
+type Pick = { rating: number, node: { uri: string, type?: string, startDate?: string, titles: { title: string }[], handles: { node: { uri: string } }[] } }
+const picksOf = async (recommendations: unknown): Promise<Pick[]> => (await openBebop(creditsContext({ recommendations }).ctx, true)).recommendations
+
+// Mushoku Tensei's twelve as AniList answered them (108465, 2026-10-29), three of them Slime: the first season reaches
+// the others through the manga all three name as their SOURCE. Mutation: give each pick a group of its own.
+test('one franchise\'s picks are one card, its earliest work at its best pick\'s place, carrying its MyAnimeList id', async () => {
+  const picks = await picksOf(MUSHOKU.data.mushoku.recommendations)
+  expect(picks.map(({ node }) => node.uri)).toEqual([
+    'anilist:101280', 'anilist:99263', 'anilist:129898', 'anilist:21355', 'anilist:130298',
+    'anilist:183161', 'anilist:108268', 'anilist:132473', 'anilist:154587', 'anilist:21428',
+  ])
+  expect(picks[0]).toMatchObject({ rating: 457, node: { type: 'TV', startDate: '2018-10-02' } })
+  expect(picks[0]!.node.titles[0]!.title).toBe('That Time I Got Reincarnated as a Slime')
+  expect(handleUris(picks[0]!.node)).toEqual(['mal:37430'])
+})
+
+test('an adult pick and a pick nobody voted for are left out', async () => {
+  const [, , shieldHero, assassin, reZero] = MUSHOKU.data.mushoku.recommendations.nodes
+  const picks = await picksOf({ nodes: [
+    { ...shieldHero, mediaRecommendation: { ...shieldHero!.mediaRecommendation, isAdult: true } },
+    { ...assassin, rating: 0 },
+    reZero,
+  ] })
+  expect(picks.map(({ node }) => node.uri)).toEqual(['anilist:21355'])
+})
+
+test('the modal\'s answer carries no recommendations', async () => {
+  expect((await openBebop(creditsContext({ recommendations: MUSHOKU.data.mushoku.recommendations }).ctx)).recommendations).toBeUndefined()
 })
 
 // AniList's own schedule page holds a run's 25 oldest entries, all aired on a long one such as One Piece

@@ -22,6 +22,8 @@ export const keyResolvers = {
   MediaHandle: () => null,
   // a narrative edge, keyed no more than a structural one: the work it points at carries its own `_id`
   MediaRelationEdge: () => null,
+  // one source's pick beside this media: the work it points at carries its own `_id`
+  MediaRecommendation: () => null,
   // A franchise graph is one media's whole account of its series, so it is embedded in that media
   // rather than normalised: its nodes are thin snapshots keyed by uri, not rows the store holds.
   MediaFranchise: () => null,

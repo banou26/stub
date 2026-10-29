@@ -8,7 +8,7 @@ import { airedDates, parseMalAnime } from '../../../../src/sources/jikan/anime-p
 // answered mal:1 with the values asserted below (its record archived on 2024-04-11), apart from
 // figures that moved since.
 const page = (id: number) =>
-  parseMalAnime(readFileSync(new URL(`./__fixtures__/mal-anime-${id}.html`, import.meta.url), 'utf8'))
+  parseMalAnime(readFileSync(new URL(`./__fixtures__/mal-anime-${id}.html`, import.meta.url), 'utf8'), String(id))
 
 describe('parseMalAnime', () => {
   test('reads every field Jikan answered for a finished TV show', () => {
@@ -117,9 +117,23 @@ describe('parseMalAnime', () => {
     ])
   })
 
+  // Frieren's 21, 2026-10-29: each card links the pair, its own id first or second (`52991-59459`, Silent Witch)
+  test('the recommendations are the other id of each pair, with its title, its large cover and its votes', () => {
+    const picks = page(52991)!.recommendations
+    expect(picks).toHaveLength(21)
+    expect(picks[0]).toEqual({ id: '33352', title: 'Violet Evergarden', cover: 'https://cdn.myanimelist.net/images/anime/1795/95088l.webp', users: 30 })
+    expect(picks.slice(0, 5).map(({ id, users }) => `${id} ${users}`)).toEqual(['33352 30', '41025 19', '35851 15', '52701 14', '40571 12'])
+    expect(picks.map(({ id }) => id)).toContain('59459')
+    expect(picks.map(({ id }) => id)).not.toContain('52991')
+  })
+
+  test('a page with no Recommendations block lists none', () => {
+    expect(page(1)!.recommendations).toEqual([])
+  })
+
   test('a page that names no show is nothing, not an empty record', () => {
-    expect(parseMalAnime('')).toBeUndefined()
-    expect(parseMalAnime('<html><body><h1>404 Not Found</h1></body></html>')).toBeUndefined()
+    expect(parseMalAnime('', '1')).toBeUndefined()
+    expect(parseMalAnime('<html><body><h1>404 Not Found</h1></body></html>', '1')).toBeUndefined()
   })
 })
 
