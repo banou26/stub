@@ -730,7 +730,6 @@ describe('Share', () => {
     expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1,mal:1)${PLUGINS}`)
   })
 
-  // before More details, so More details keeps the row's right edge the tracker lines up under
   test('on the preview, just before More details, a short link to the work\'s title page', async () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
