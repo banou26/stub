@@ -47,6 +47,7 @@ vi.mock('@banou/media-player', () => ({
 }))
 
 const { default: PrimeVideoPlayer } = await import('../../../../src/sources/amazon/player')
+const { startLanguage } = await import('../../../../src/i18n')
 
 const GTI = 'amzn1.dv.gti.fe903f64-0000-0000-0000-000000000002'
 const DEEP_LINK = `https://watch.amazon.co.jp/watch?gti=${GTI}`
@@ -472,6 +473,17 @@ describe('an episode Prime Video offers only to rent or buy', () => {
       expect(remembered()).toBe('signed-in')
       expect(unplayable, 'the watch page is told, once').toHaveBeenCalledOnce()
     })
+  }
+})
+
+test('in German, the rent line and its link read German', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    lib.attachFrame.mockResolvedValue(amazon(RENT_ONLY_PAGES.English).frame)
+    const host = render()
+    await vi.waitFor(() => expect(host.querySelector('.overlay')?.textContent).toBe('Prime Video bietet diese Folge hier nur zum Leihen oder Kaufen an.Auf Prime Video öffnen'), { timeout: 5_000 })
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
   }
 })
 

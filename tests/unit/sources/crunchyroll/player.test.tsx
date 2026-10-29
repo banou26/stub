@@ -67,6 +67,7 @@ vi.mock('../../../../src/sources/crunchyroll/cr-native-controls', async importOr
 const Channel = fakeBroadcastChannel()
 vi.stubGlobal('BroadcastChannel', Channel)
 const { default: CrunchyrollPlayer } = await import('../../../../src/sources/crunchyroll/player')
+const { startLanguage } = await import('../../../../src/i18n')
 const { siteStatuses } = await import('../../../../src/tracking/site-status')
 
 const EPISODE = 'https://www.crunchyroll.com/watch/GXXXXXXXX/an-episode'
@@ -160,6 +161,17 @@ describe('while the episode loads', () => {
     expect(ruleOf('overlay')).toMatch(/background:#000;/)
     expect(ruleOf('overlay')).toMatch(/z-index:30;/)
     held.resolve()
+  })
+
+  test('in German, the sign-in line and its button read German', async () => {
+    try {
+      await startLanguage({ language: 'de', languages: ['de-DE'] })
+      const host = await render()
+      await vi.waitFor(() => expect(button(host, 'Bei Crunchyroll anmelden')).toBeTruthy(), { timeout: 5_000 })
+      expect(host.querySelector('.overlay')?.textContent).toBe('Melde dich bei Crunchyroll an, um zu schauen.Bei Crunchyroll anmelden')
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
   })
 
   test('a page that settles signed out swaps the spinner for the sign-in, and keeps Play on it', async () => {

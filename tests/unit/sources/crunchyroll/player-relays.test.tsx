@@ -42,6 +42,7 @@ vi.mock('../../../../src/sources/crunchyroll/cr-videojs-player', () => ({
 }))
 
 const { default: CrunchyrollPlayer } = await import('../../../../src/sources/crunchyroll/player')
+const { startLanguage } = await import('../../../../src/i18n')
 
 const EPISODE = 'https://www.crunchyroll.com/watch/GXXXXXXXX/an-episode'
 const UNAVAILABLE_NOTE = 'This episode is not available on Crunchyroll in your region. Try another source.'
@@ -88,6 +89,17 @@ beforeEach(() => {
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   vi.restoreAllMocks()
+})
+
+test('in German, the region line reads German', async () => {
+  try {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    lib.attachFrame.mockResolvedValueOnce(regionPage('r1')).mockRejectedValueOnce(Object.assign(new Error('attachFrame: none-left'), { name: 'RelayUnavailableError' }))
+    const host = render()
+    await vi.waitFor(() => expect(host.querySelector('.overlay')?.textContent).toBe('Diese Folge ist auf Crunchyroll in deiner Region nicht verfügbar. Versuch eine andere Quelle.'), { timeout: 5_000 })
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 test('an episode on the region page through the default relay plays through another one', async () => {

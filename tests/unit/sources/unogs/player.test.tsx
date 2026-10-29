@@ -23,6 +23,7 @@ vi.mock('../../../../src/sources/unogs/nf-videojs-player', () => ({
 }))
 
 const { default: NetflixPlayer } = await import('../../../../src/sources/unogs/player')
+const { startLanguage } = await import('../../../../src/i18n')
 
 const EPISODE = 'https://www.netflix.com/watch/80000000'
 const NEEDS_EXTENSION = 'Netflix playback currently needs the FKN browser extension.'
@@ -87,5 +88,17 @@ describe('its words over the frame', () => {
     const host = render()
     await vi.waitFor(() => expect(host.querySelector('.overlay button')?.textContent).toBe('Open Netflix Login Page'))
     expect(host.querySelector('.overlay')?.textContent).toBe('Sign in to Netflix to watch.Open Netflix Login Page')
+  })
+
+  test('in German, the sign-in line and its button read German', async () => {
+    try {
+      await startLanguage({ language: 'de', languages: ['de-DE'] })
+      lib.extension = true
+      lib.attachFrame.mockResolvedValue({ goto: async () => {}, addStyleTag: async () => {}, locator: (selector: string) => ({ exists: async () => selector.includes('/login') }) })
+      const host = render()
+      await vi.waitFor(() => expect(host.querySelector('.overlay')?.textContent).toBe('Melde dich bei Netflix an, um zu schauen.Anmeldeseite von Netflix öffnen'))
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
   })
 })
