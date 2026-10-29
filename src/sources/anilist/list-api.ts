@@ -2,7 +2,7 @@
 // the viewer's own anilist.co session and how their answers map onto stub's list entries. Import free
 // apart from types, the score scales and the messages it writes, so every mapping is pinned under vitest.
 
-import type { FuzzyDate, FuzzyDateInput, ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
+import type { FuzzyDate, FuzzyDateInput, ListEntry, ListEntryInput, ListItem, ListStatus, MediaStatus, MediaType, Tracker } from '../../generated/schema/types.generated'
 import type { Said } from '../../i18n/said'
 import type { AnilistBody } from './frontend'
 import type { SessionRequest } from './session-page'
@@ -74,6 +74,49 @@ export const TRACKING_QUERY = `
 `
 
 export type TrackingData = { Viewer: AnilistViewer | null, Media: (AnilistMedia & { mediaListEntry: AnilistEntry | null }) | null }
+
+export const VIEWER_QUERY = `
+  query StubViewer {
+    Viewer { id name mediaListOptions { scoreFormat } }
+  }
+`
+
+export type ViewerData = { Viewer: AnilistViewer | null }
+
+/**
+ * One chunk of the viewer's whole anime list, every status and custom list, with the media's airing
+ * status, format and next episode beside each entry. A list of 125 entries came in one chunk with
+ * `hasNextChunk` false (a public list, 2026-10-29); the chunks after the first were not measured.
+ */
+export const LIST_QUERY = `
+  query StubList($userId: Int, $chunk: Int, $perChunk: Int) {
+    MediaListCollection(userId: $userId, type: ANIME, chunk: $chunk, perChunk: $perChunk) {
+      hasNextChunk
+      lists {
+        entries {
+          ${ENTRY_FIELDS}
+          media {
+            ${MEDIA_FIELDS}
+            status
+            format
+            nextAiringEpisode { episode airingAt }
+          }
+        }
+      }
+    }
+  }
+`
+
+export type AnilistListMedia = AnilistMedia & {
+  status: string | null
+  format: string | null
+  /** `airingAt` in unix seconds. */
+  nextAiringEpisode: { episode: number, airingAt: number } | null
+}
+
+export type ListData = {
+  MediaListCollection: { hasNextChunk: boolean | null, lists: { entries: (AnilistEntry & { media: AnilistListMedia })[] | null }[] | null } | null
+}
 
 /** DeleteMediaListEntry takes the entry's own id, not the anime's, so a delete looks it up first. */
 export const ENTRY_ID_QUERY = `
@@ -206,6 +249,20 @@ export const listEntryOf = (media: AnilistMedia, entry: AnilistEntry): ListEntry
   title: media.title?.userPreferred ?? null,
   cover: media.coverImage?.large ?? null,
   episodeCount: media.episodes ?? null,
+})
+
+const MEDIA_STATUSES = new Set<string>(['FINISHED', 'RELEASING', 'NOT_YET_RELEASED', 'CANCELLED', 'HIATUS'])
+const ANIME_TYPES = new Set<string>(['TV', 'TV_SHORT', 'MOVIE', 'SPECIAL', 'OVA', 'ONA'])
+
+/** One entry of the whole list as an item, with what AniList says of its media. */
+export const listItemOf = (media: AnilistListMedia, entry: AnilistEntry): ListItem => ({
+  entry: listEntryOf(media, entry),
+  episodeCount: media.episodes ?? null,
+  mediaStatus: media.status && MEDIA_STATUSES.has(media.status) ? media.status as MediaStatus : null,
+  type: media.format && ANIME_TYPES.has(media.format) ? media.format as MediaType : null,
+  nextAiringEpisode: media.nextAiringEpisode
+    ? { episodeNumber: media.nextAiringEpisode.episode, airingAt: new Date(media.nextAiringEpisode.airingAt * 1_000).toISOString() }
+    : null,
 })
 
 /** The tracker as its answers name it, from the viewer the last read found (none: signed out). */

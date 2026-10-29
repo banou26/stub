@@ -3,7 +3,7 @@
 // takes. Import free apart from types, ./page-text.ts and the messages it writes, so every mapping is pinned under
 // vitest.
 
-import type { ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
+import type { ListEntry, ListEntryInput, ListItem, ListStatus, MediaStatus, MediaType, Tracker } from '../../generated/schema/types.generated'
 import type { Said, SaidMessage } from '../../i18n/said'
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
@@ -25,7 +25,8 @@ export const LIST_PAGE_SIZE = 300
 
 /**
  * One row of load.json as the tracker keeps it. `status` is MyAnimeList's own number, `rewatching` its
- * raw flag whatever the status, `score` 0 to 10 (0 is no score), `updatedAt` unix seconds.
+ * raw flag whatever the status, `score` 0 to 10 (0 is no score), `updatedAt` unix seconds, `airing`
+ * its `anime_airing_status` and `mediaType` its `anime_media_type_string`.
  */
 export type MalListRow = {
   animeId: number
@@ -38,6 +39,8 @@ export type MalListRow = {
   url: string
   cover: string | null
   updatedAt: number | null
+  airing: number | null
+  mediaType: string | null
 }
 
 const whole = (value: unknown): number | undefined =>
@@ -69,6 +72,8 @@ export const rowOf = (raw: unknown): MalListRow | undefined => {
     url: `${MAL_URL}${path}`,
     cover: typeof row.anime_image_path === 'string' && row.anime_image_path ? row.anime_image_path : null,
     updatedAt: whole(row.updated_at) || null,
+    airing: whole(row.anime_airing_status) ?? null,
+    mediaType: typeof row.anime_media_type_string === 'string' ? row.anime_media_type_string : null,
   }
 }
 
@@ -200,6 +205,24 @@ export const listEntryOf = (user: string, row: MalListRow): ListEntry => ({
   title: row.title,
   cover: row.cover,
   episodeCount: row.episodes,
+})
+
+/**
+ * `anime_airing_status` as stub's status: 1 airing and 2 finished, the two values 191 Watching rows of a
+ * public list held (measured 2026-10-29). Any other is left unsaid.
+ */
+const AIRING: Record<number, MediaStatus> = { 1: 'RELEASING', 2: 'FINISHED' }
+
+/** `anime_media_type_string` as stub's format: the five those rows held. */
+const MEDIA_TYPES: Record<string, MediaType> = { TV: 'TV', Movie: 'MOVIE', OVA: 'OVA', ONA: 'ONA', 'TV Special': 'SPECIAL' }
+
+/** One row as an item of the viewer's whole list. MyAnimeList's list states no schedule. */
+export const listItemOf = (user: string, row: MalListRow): ListItem => ({
+  entry: listEntryOf(user, row),
+  episodeCount: row.episodes,
+  mediaStatus: row.airing == null ? null : AIRING[row.airing] ?? null,
+  type: row.mediaType ? MEDIA_TYPES[row.mediaType] ?? null : null,
+  nextAiringEpisode: null,
 })
 
 /** What the list should show once a phase of a save landed. */

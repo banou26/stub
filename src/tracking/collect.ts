@@ -102,32 +102,43 @@ export const rereads = (wakes: AsyncIterator<void>, wait: (ms: number) => Promis
 }
 
 /**
- * Each tracker's latest answer about one media, in the order the trackers were given, and a LOADING
- * one for a tracker that has not answered yet, so the page can draw every tracker at once.
+ * Each tracker's latest answer to one question, in the order the trackers were given, and `loading`'s
+ * for a tracker that has not answered yet, so the page can draw every tracker at once.
  *
- * `onResult` is the fan-out hook. A tracker that errors is kept as an ERROR answer rather than
- * dropped, so the page shows the tracker failed instead of showing nothing for it; a tracker that
- * answers null (the default a provider yields when it implements nothing) is left out.
+ * `onResult` is the fan-out hook. A tracker that errors is kept as `failed`'s answer rather than
+ * dropped, so the page shows the tracker failed instead of showing nothing for it; a tracker whose
+ * `read` is null (the default a provider yields when it implements nothing) is left out.
  */
-export const answerCollector = <E>(uri: string, order: readonly E[], trackerOf: (entry: E) => Tracker) => {
-  const answers = new Map<E, TrackerAnswer | null>()
+export const latestCollector = <E, T>(
+  order: readonly E[],
+  { read, failed, loading }: { read: (data: any) => T | null | undefined, failed: (entry: E, error: unknown) => T, loading: (entry: E) => T },
+) => {
+  const latest = new Map<E, T | null>()
   const listeners = new Set<() => void>()
   return {
-    onResult: (entry: E, result: { data?: { tracking?: { answers?: TrackerAnswer[] } | null } | null, error?: unknown }) => {
-      answers.set(entry, result?.error
-        ? errorAnswer(uri, trackerOf(entry), messageOf(result.error))
-        : result?.data?.tracking?.answers?.[0] ?? null)
+    onResult: (entry: E, result: { data?: unknown, error?: unknown }) => {
+      latest.set(entry, result?.error ? failed(entry, result.error) : read(result?.data) ?? null)
       for (const listener of listeners) listener()
     },
-    answers: () => order.flatMap(entry => {
-      const answer = answers.get(entry)
-      return answer === undefined ? loadingAnswer(uri, trackerOf(entry)) : answer ?? []
+    latest: () => order.flatMap(entry => {
+      const answer = latest.get(entry)
+      return answer === undefined ? [loading(entry)] : answer === null ? [] : [answer]
     }),
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }
     },
   }
+}
+
+/** Each tracker's latest answer about one media, as `latestCollector` gathers them. */
+export const answerCollector = <E>(uri: string, order: readonly E[], trackerOf: (entry: E) => Tracker) => {
+  const { latest, ...collector } = latestCollector<E, TrackerAnswer>(order, {
+    read: (data: { tracking?: { answers?: TrackerAnswer[] } | null } | null | undefined) => data?.tracking?.answers?.[0],
+    failed: (entry, error) => errorAnswer(uri, trackerOf(entry), messageOf(error)),
+    loading: entry => loadingAnswer(uri, trackerOf(entry)),
+  })
+  return { ...collector, answers: latest }
 }
 
 const outcome = (tracker: string, state: WriteOutcome['outcome'], error: Said): WriteOutcome =>

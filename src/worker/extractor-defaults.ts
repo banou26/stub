@@ -63,6 +63,7 @@ export const defaultResolvers = (originData: Origin) => ({
     // reads a refusal rather than waiting out a 204
     containingMedia: { subscribe: async function* (_parent) { yield { containingMedia: null } } },
     // a media source is never asked this, and a tracker that is asked and implements nothing says so
-    tracking: { subscribe: async function* (_parent) { yield { tracking: null } } }
+    tracking: { subscribe: async function* (_parent) { yield { tracking: null } } },
+    viewerLists: { subscribe: async function* (_parent) { yield { viewerLists: null } } },
   }
 } satisfies Resolvers)

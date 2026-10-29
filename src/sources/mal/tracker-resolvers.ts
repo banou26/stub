@@ -11,8 +11,9 @@ import { forPage, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
+import { ownList } from '../../tracking/lists'
 import {
-  LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
+  LIST_PAGE_SIZE, MAL_TRACKER_ID, listEntryOf, listItemOf, listsFor, listsHolding, malTracker, mismatchOf, planWrite,
   readCard, readListPage, readWhoAmI, readWriteAnswer, replaceLists, showsNoChange, upsertRows,
   type MalExpect, type MalListRow, type MalRead, type MalRows,
 } from './list-api'
@@ -273,6 +274,21 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
       : answer(uri, 'NOT_LISTED', { episodeCount: cards.get(animeId) ?? null }, user)
   }
 
+  /** The whole list as `viewerLists` answers it, read as `read` reads it. */
+  const readList = async (ctx: MalTrackerContext) => {
+    let result: MalRead<ListIndex>
+    try {
+      result = await indexOf(ctx, INDEX_TTL_MS, ctx.request.signal)
+    } catch {
+      return ownList(malTracker(userOf()), 'ERROR')
+    }
+    if (result.kind === 'signed-out') return ownList(malTracker(), 'SIGNED_OUT')
+    if (result.kind === 'blocked') return ownList(malTracker(userOf()), 'PAUSED')
+    if (result.kind === 'error') return ownList(malTracker(userOf()), 'ERROR')
+    const { user, rows } = result.data
+    return ownList(malTracker(user), 'LISTED', [...rows.values()].map(row => listItemOf(user, row)))
+  }
+
   /** Posts one phase of a save, once: a write the page lost is never sent again. */
   const send = async (ctx: MalTrackerContext, user: string, steps: MalWrite[]): Promise<Sent> => {
     try {
@@ -481,6 +497,35 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
                 }
               }
               if (!await next(last.state === 'PAUSED' || last.state === 'ERROR')) return
+            }
+          } finally {
+            await wakes.return?.()
+          }
+        },
+      },
+      // read and read again exactly as `tracking` is, off the same index
+      viewerLists: {
+        subscribe: async function* (_parent: unknown, _args: unknown, ctx: MalTrackerContext) {
+          watchSession(ctx)
+          const own = session(ctx)
+          const wakes = changes(listener => {
+            const stop = own.onChange(listener)
+            written.add(listener)
+            return () => { stop(); written.delete(listener) }
+          }, { signal: ctx.request.signal })
+          const next = rereads(wakes, wait)
+          let last: TrackerState | undefined
+          try {
+            for (;;) {
+              if (pacer.pausedUntil() && last !== 'PAUSED') {
+                last = 'PAUSED'
+                yield ownList(malTracker(userOf()), 'PAUSED')
+              }
+              const list = await readList(ctx)
+              last = list.viewerLists.lists[0]!.state
+              yield list
+              if (last === 'PAUSED' && pacer.pausedUntil() !== undefined) continue
+              if (!await next(last === 'PAUSED' || last === 'ERROR')) return
             }
           } finally {
             await wakes.return?.()

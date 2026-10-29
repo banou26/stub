@@ -220,8 +220,59 @@ type StubTrackerStorage {
   error: JSON
 }
 
+"""One entry of a tracker's whole list, with what that tracker says of the media beside it."""
+type ListItem {
+  entry: ListEntry!
+  """The media's episode count as the tracker last saw it, when its entry does not count its own (stub's)."""
+  episodeCount: Int
+  """Whether the media still airs, as the tracker states it. Null when it does not say."""
+  mediaStatus: MediaStatus
+  type: MediaType
+  """AniList's next scheduled episode, which rides in its list read."""
+  nextAiringEpisode: MediaAiringEpisode
+}
+
+"""One tracker's whole list, or where it stands when it has none to give."""
+type TrackerList {
+  _id: ID!
+  tracker: Tracker!
+  """LISTED once the list is read, whatever it holds; SIGNED_OUT, PAUSED, ERROR or LOADING otherwise."""
+  state: TrackerState!
+  items: [ListItem!]!
+}
+
+"""
+One work on the viewer's lists: each tracker's entry for it, joined through the bundled id table, and
+the summary a title's tracking shows.
+"""
+type ListRow {
+  _id: ID!
+  """The address the title opens at and a write names: its AniList id, else its MyAnimeList id, else the entry's own."""
+  uri: ID!
+  """Every tracker that lists it, LISTED, each with its own entry."""
+  answers: [TrackerAnswer!]!
+  summary: ListEntry!
+  disagreements: [TrackingField!]!
+  """The episodes the summary counts to, else the count a tracker last saw."""
+  episodeCount: Int
+  mediaStatus: MediaStatus
+  type: MediaType
+  nextAiringEpisode: MediaAiringEpisode
+}
+
+"""
+The viewer's lists. A tracker answers its own alone in `lists`, with no rows; the app answers every
+tracker it asked in `lists`, and their entries joined in `rows`.
+"""
+type ViewerLists {
+  _id: ID!
+  lists: [TrackerList!]!
+  rows: [ListRow!]!
+}
+
 extend type Subscription {
   tracking(input: TrackingInput!): Tracking
+  viewerLists: ViewerLists
   stubTrackerStorage: StubTrackerStorage!
 }
 

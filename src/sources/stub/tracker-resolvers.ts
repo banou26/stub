@@ -1,7 +1,7 @@
 // The stub tracker's resolvers over a journal it is handed, so a test can serve them over a journal
 // kept in memory. ./tracker.ts hands them this device's.
 
-import type { ListEntry, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
+import type { ListEntry, ListItem, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
 import type { SessionScope } from '../../tracking/account-link'
 import type { Found, Journal, JournalEntry } from '../../tracking/journal'
 
@@ -10,6 +10,7 @@ import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { trackingId } from '../../tracking/aggregate'
 import { catalogFor, entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
 import { liveValues, patchFrom } from '../../tracking/journal'
+import { ownList } from '../../tracking/lists'
 
 export const STUB_TRACKER_ID = 'stub'
 
@@ -80,6 +81,26 @@ const failed = (error: unknown): WriteOutcome[] =>
 
 type Writable = Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>
 
+/**
+ * Every listed media of the journal, each as its title row reads it: the entries for one media, from
+ * whichever devices, combined. An entry is matched on the ids it keeps, which a save widened through the
+ * catalogue already.
+ */
+const listItemsOf = (journal: Journal): ListItem[] => {
+  const seen = new Set<string>()
+  const items: ListItem[] = []
+  for (const entry of journal.listEntries()) {
+    const uri = entryMediaUri(entry)
+    if (seen.has(entry.id) || !uri) continue
+    const found = journal.find(entry.ids.length ? { kind: 'catalogue', ids: entry.ids, keys: [] } : { kind: 'keys', keys: [entry.key!] })
+    if (!('entries' in found)) continue
+    for (const one of found.entries) seen.add(one.id)
+    const listed = answerFor(uri, found).entry
+    if (listed) items.push({ entry: listed, episodeCount: found.values.episodeCount ?? null, mediaStatus: null, type: null, nextAiringEpisode: null })
+  }
+  return items
+}
+
 /** Why an identity cannot take a write, or undefined when it can. */
 const refusal = (identity: MediaIdentity): Said | undefined =>
   identity.kind === 'none' ? forPage.formatMessage({ id: 'This media names no id stub can track', defaultMessage: 'This media names no id stub can track' })
@@ -108,6 +129,20 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => 
         for await (const _ of changes(journal.onChange, { signal: ctx.request.signal })) {
           yield { tracking: trackingOf(uri, await answer()) }
         }
+      }
+    },
+    viewerLists: {
+      subscribe: async function* (_parent: unknown, _args: unknown, ctx: StubTrackerContext) {
+        let journal: Journal
+        try {
+          journal = await open()
+        } catch {
+          yield ownList(stubTracker, 'ERROR')
+          return
+        }
+        const list = async () => ownList(stubTrackerAt(await where().catch(() => 'device' as const)), 'LISTED', listItemsOf(journal))
+        yield await list()
+        for await (const _ of changes(journal.onChange, { signal: ctx.request.signal })) yield await list()
       }
     }
   },

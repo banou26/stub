@@ -55,6 +55,26 @@ export const TRACKING_DOCUMENT = `
   }
 `
 
+export const LISTS_DOCUMENT = `
+  subscription TrackerLists {
+    viewerLists {
+      _id
+      lists {
+        _id
+        state
+        tracker { ${TRACKER} }
+        items {
+          entry { ${ENTRY} }
+          episodeCount
+          mediaStatus
+          type
+          nextAiringEpisode { episodeNumber airingAt }
+        }
+      }
+    }
+  }
+`
+
 export const SAVE_LIST_ENTRY_DOCUMENT = `
   mutation TrackerSaveListEntry($input: SaveListEntryInput!) {
     saveListEntry(input: $input) {

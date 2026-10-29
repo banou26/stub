@@ -282,6 +282,8 @@ export const journalOver = (
     get device() { return device },
     /** This device's own entries, as its file holds them. */
     entries: () => file.entries,
+    /** Every entry of the list: this device's file merged with the other devices'. */
+    listEntries: () => viewOf().entries,
     find,
     /** Write `patch` to the entry this media is tracked under, creating it when there is none. */
     save: (identity: Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>, patch: Patch) =>

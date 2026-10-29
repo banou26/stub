@@ -329,7 +329,7 @@ describe('in German', () => {
   })
 
   test('what MyAnimeList shows apart from a save, and a site\'s own words, as they came', () => {
-    const before = { animeId: 1, status: 2, rewatching: false, score: 8, progress: 3, episodes: 12, title: null, url: '', cover: null, updatedAt: null }
+    const before = { animeId: 1, status: 2, rewatching: false, score: 8, progress: 3, episodes: 12, title: null, url: '', cover: null, updatedAt: null, airing: null, mediaType: null }
     expect(wordsOf(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, { ...before, status: 3, progress: 2, score: 7 }, before)!))
       .toBe('MyAnimeList zeigt den Status Pausiert, 2 Folgen und eine Bewertung von 7 / 10')
     expect(wordsOf('invalid request')).toBe('invalid request')
@@ -353,7 +353,7 @@ describe('in Russian', () => {
 
 describe('what MyAnimeList shows apart from a save', () => {
   afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
-  const before = { animeId: 1, status: 1, rewatching: false, score: 8, progress: 3, episodes: 24, title: null, url: '', cover: null, updatedAt: null }
+  const before = { animeId: 1, status: 1, rewatching: false, score: 8, progress: 3, episodes: 24, title: null, url: '', cover: null, updatedAt: null, airing: null, mediaType: null }
   const shows = (after: Partial<typeof before>) => wordsOf(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, { ...before, ...after }, before)!)
 
   // each item is a message of its own: after the verb alone Russian would decline the count, and French and Italian

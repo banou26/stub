@@ -1,7 +1,7 @@
 // The AniList tracker's resolvers over whatever session and clock they are handed, so a test serves
 // them over recorded answers; ./tracker.ts hands them the worker's.
 
-import type { Resolvers, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
+import type { ListItem, Resolvers, TrackerAnswer, TrackerState, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
 import type { CatalogLookup, CatalogueTarget } from '../../tracking/identity'
 import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/site-session'
 import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
@@ -10,10 +10,11 @@ import { forPage, saidOf, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
+import { ownList } from '../../tracking/lists'
 import {
-  ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, TRACKING_QUERY,
-  anilistTracker, listEntryOf, readResponse, saveRequest,
-  type AnilistViewer, type DeleteData, type EntryIdData, type Read, type SaveData, type TrackingData,
+  ANILIST_TRACKER_ID, DELETE_MUTATION, ENTRY_ID_QUERY, LIST_QUERY, TRACKING_QUERY, VIEWER_QUERY,
+  anilistTracker, listEntryOf, listItemOf, readResponse, saveRequest,
+  type AnilistViewer, type DeleteData, type EntryIdData, type ListData, type Read, type SaveData, type TrackingData, type ViewerData,
 } from './list-api'
 import { createPacer } from './pacing'
 
@@ -27,6 +28,17 @@ export type AnilistTrackerContext = {
 
 /** How long one read of a media answers every later ask for it. */
 export const READ_MEMORY_MS = 60_000
+
+/** How long one read of the whole list answers every later ask for it, as MyAnimeList's index does. */
+export const LIST_MEMORY_MS = 10 * 60_000
+
+/**
+ * A whole list is read 500 entries a chunk, chunks counted from 1, and at most 20 chunks, so an answer that
+ * always says there is more cannot read on for ever. Neither the size nor the count from 1 was measured: only
+ * a first chunk was (LIST_QUERY).
+ */
+const PER_CHUNK = 500
+const MAX_CHUNKS = 20
 
 type Remembered = { read: Promise<Read<TrackingData>>, at?: number }
 
@@ -63,9 +75,14 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   // by AniList id, the read on its way or the last one answered with data: a title's address grows a
   // few times while its modal opens, and each growth subscribes again
   const remembered = new Map<number, Remembered>()
+  // the whole list, as `remembered` holds one media's read
+  let listed: { read: Promise<Read<ListItem[]>>, at?: number } | undefined
   let watching = false
 
-  const forget = () => remembered.clear()
+  const forget = () => {
+    remembered.clear()
+    listed = undefined
+  }
 
   const answer = (uri: string, state: TrackerState, extra: Partial<TrackerAnswer> = {}): TrackerAnswer =>
     ({ _id: answerId(ANILIST_TRACKER_ID, uri), tracker: anilistTracker(viewer), state, entry: null, candidates: [], error: null, ...extra })
@@ -144,6 +161,57 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     return answer(uri, 'LISTED', { episodeCount, entry: listEntryOf(media, media.mediaListEntry) })
   }
 
+  const readWholeList = async (ctx: AnilistTrackerContext): Promise<Read<ListItem[]>> => {
+    const who = await ask<ViewerData>(ctx, { query: VIEWER_QUERY }, ctx.request.signal)
+    if (who.kind !== 'data') return who
+    const found = who.data.Viewer
+    if (!found) return { kind: 'signed-out' }
+    viewer = found
+    // by entry id: a custom list holds entries its status list holds too
+    const items = new Map<number, ListItem>()
+    for (let chunk = 1; chunk <= MAX_CHUNKS; chunk++) {
+      const page = await ask<ListData>(ctx, { query: LIST_QUERY, variables: { userId: found.id, chunk, perChunk: PER_CHUNK } }, ctx.request.signal)
+      if (page.kind !== 'data') return page
+      const collection = page.data.MediaListCollection
+      for (const list of collection?.lists ?? []) {
+        for (const entry of list.entries ?? []) if (entry.media) items.set(entry.id, listItemOf(entry.media, entry))
+      }
+      if (!collection?.hasNextChunk) break
+    }
+    return { kind: 'data', data: [...items.values()] }
+  }
+
+  // one read of the whole list at a time, kept as `trackingRead` keeps one media's
+  const listRead = async (ctx: AnilistTrackerContext): Promise<Read<ListItem[]>> => {
+    for (;;) {
+      const held = listed
+      if (!held || (held.at !== undefined && now() - held.at >= LIST_MEMORY_MS)) break
+      try {
+        return await held.read
+      } catch {
+        // given up by the subscription that sent it: read again
+      }
+    }
+    const mine: { read: Promise<Read<ListItem[]>>, at?: number } = { read: readWholeList(ctx) }
+    listed = mine
+    const drop = () => { if (listed === mine) listed = undefined }
+    mine.read.then(result => { if (result.kind === 'data') mine.at = now(); else drop() }, drop)
+    return await mine.read
+  }
+
+  const readList = async (ctx: AnilistTrackerContext) => {
+    let result: Read<ListItem[]>
+    try {
+      result = await listRead(ctx)
+    } catch {
+      return ownList(anilistTracker(viewer), 'ERROR')
+    }
+    if (result.kind === 'signed-out') return ownList(anilistTracker(undefined), 'SIGNED_OUT')
+    if (result.kind === 'rate-limited') return ownList(anilistTracker(viewer), 'PAUSED')
+    if (result.kind === 'error') return ownList(anilistTracker(viewer), 'ERROR')
+    return ownList(anilistTracker(viewer), 'LISTED', result.data)
+  }
+
   const notWritten = (result: Exclude<Read<unknown>, { kind: 'data' }>): WriteOutcome[] =>
     result.kind === 'signed-out' ? outcome('REFUSED', SIGN_IN)
     : result.kind === 'rate-limited' ? outcome('FAILED', waitMessage(pacer.pausedUntil()))
@@ -201,7 +269,36 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
             await wakes.return?.()
           }
         }
-      }
+      },
+      // read and read again exactly as `tracking` is
+      viewerLists: {
+        subscribe: async function* (_parent: unknown, _args: unknown, ctx: AnilistTrackerContext) {
+          watchSession(ctx)
+          const session = ctx.session(ANILIST_TRACKER_ID)
+          const wakes = changes(listener => {
+            const stop = session.onChange(listener)
+            written.add(listener)
+            return () => { stop(); written.delete(listener) }
+          }, { signal: ctx.request.signal })
+          const next = rereads(wakes, wait)
+          let last: TrackerState | undefined
+          try {
+            for (;;) {
+              if (pacer.pausedUntil() && last !== 'PAUSED') {
+                last = 'PAUSED'
+                yield ownList(anilistTracker(viewer), 'PAUSED')
+              }
+              const list = await readList(ctx)
+              last = list.viewerLists.lists[0]!.state
+              yield list
+              if (last === 'PAUSED' && pacer.pausedUntil() !== undefined) continue
+              if (!await next(last === 'PAUSED' || last === 'ERROR')) return
+            }
+          } finally {
+            await wakes.return?.()
+          }
+        },
+      },
     },
     Mutation: {
       saveListEntry: async (
