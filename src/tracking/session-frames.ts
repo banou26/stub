@@ -77,7 +77,8 @@ export type SessionFrames<Api> = {
    * document cut short runs once more on the page installed there, and a call whose fetch failed (a
    * TypeError) runs once more on the next document, or after `retryMs` on the same page, unless `once`
    * says it may not. A call that fails that way twice drops the frame, without telling the watchers, so
-   * the next use loads the page afresh. Anything else the call threw, and a page that did not answer in
+   * the next use loads the page afresh. A page that did not load in time rejects with a TypeError too, as
+   * a fetch that got no answer does. Anything else the call threw, and a page that did not answer in
    * time, rejects.
    */
   use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
@@ -189,7 +190,13 @@ export const createSessionFrames = <Api>(
       controller.signal.addEventListener('abort', remove, { once: true })
       const frame = await attach({ iframe, url: site.url, domains: site.domains, permissions: [{ category: 'evaluation', reason: site.reason }] })
       frame.on('document', () => { void settle(entry, site, frame) }, { signal: controller.signal })
-      if (frame.url() !== new URL(site.url).href) await frame.goto(site.url, { waitUntil: 'commit' })
+      if (frame.url() !== new URL(site.url).href) {
+        // a site that cannot be reached commits the browser's error page, where the extension runs nothing,
+        // so the goto runs out at its deadline rather than failing as a fetch does
+        await frame.goto(site.url, { waitUntil: 'commit' }).catch((error: unknown) => {
+          throw error instanceof Error && error.name === 'TimeoutError' ? new TypeError(`${site.url} did not load`, { cause: error }) : error
+        })
+      }
       return frame
     })()
     // a frame that could not attach is forgotten, so the next use tries again

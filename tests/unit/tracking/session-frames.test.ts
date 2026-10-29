@@ -43,6 +43,11 @@ const newRealm = () => createContext() as Context & Record<symbol, unknown>
 // what a page's fetch rejects with on Firefox when the request is dropped, or the page starts to leave
 const FIREFOX_FETCH_FAILED = 'NetworkError when attempting to fetch resource.'
 
+// what @fkn/lib's goto rejects with past its deadline, as the extension's does for a site it cannot reach
+class TimeoutError extends Error {
+  override name = 'TimeoutError'
+}
+
 const runInPage = (source: string, realm: Context, arg: unknown) =>
   (runInContext(`(${source}\n)`, realm) as (arg: unknown) => unknown)(arg)
 
@@ -353,6 +358,29 @@ describe('the session frame', () => {
     attach.mockResolvedValue(frame)
     expect(await ask('second')).toBe('second from document 0')
     expect(attach).toHaveBeenCalledTimes(2)
+  })
+
+  test('a page that did not load in time rejects as a fetch that got no answer, and the next use loads it again', async () => {
+    const { goto, attach, removed, ask } = setup()
+    const timedOut = new TimeoutError('frame goto: documentstart timed out')
+    goto.mockRejectedValueOnce(timedOut)
+
+    const failure = await ask('offline').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(TypeError)
+    expect((failure as Error).cause).toBe(timedOut)
+    expect(removed).toEqual([1])
+
+    expect(await ask('back')).toBe('back from document 0')
+    expect(attach).toHaveBeenCalledTimes(2)
+  })
+
+  test('the control: a goto refused for another reason rejects with its own error', async () => {
+    const { goto, ask } = setup()
+    goto.mockRejectedValueOnce(new Error('frame goto: the viewer declined'))
+
+    const failure = await ask('declined').catch((error: unknown) => error)
+    expect(failure).not.toBeInstanceOf(TypeError)
+    expect((failure as Error).message).toBe('frame goto: the viewer declined')
   })
 
   test('a page that never answers on its port fails by name, and the next use installs again', async () => {
