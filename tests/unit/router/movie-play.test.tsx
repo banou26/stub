@@ -21,7 +21,7 @@ vi.mock('urql', () => ({
 vi.mock('../../../src/worker', () => ({}))
 vi.mock('lucide-react', () => ({ LucidePlay: () => null }))
 
-const { default: MoviePlay } = await import('../../../src/router/home/movie-play')
+const { default: MoviePlay, FilmSources } = await import('../../../src/router/home/movie-play')
 const { useWatchSources } = await import('../../../src/router/home/media-details')
 const { startLanguage } = await import('../../../src/i18n')
 
@@ -43,13 +43,17 @@ afterEach(() => {
 
 type Offers = Parameters<typeof useWatchSources>[2]
 
-// what the modal draws for a film under its title, the tracking it is handed beside Play
+// what the modal draws for a film under its title, the tracking it is handed beside Play, and its services
 const Film = ({ movie, handles, startDate, status, settled }: { movie: DetailsEpisode | undefined, handles: Offers, startDate: string | null, status?: string, settled: boolean }) => {
   const { sources } = useWatchSources(movie, 'ag:(anilist:9)', handles)
+  const film = { episode: movie, mediaUri: 'ag:(anilist:9)', sources, settled, startDate, status }
   return (
-    <MoviePlay episode={movie} mediaUri="ag:(anilist:9)" sources={sources} settled={settled} startDate={startDate} status={status}>
-      <section className="tracking-compact"/>
-    </MoviePlay>
+    <>
+      <MoviePlay {...film}>
+        <section className="tracking-compact"/>
+      </MoviePlay>
+      <FilmSources {...film}/>
+    </>
   )
 }
 
@@ -80,7 +84,7 @@ test('Play opens the watch page naming no source, even when Crunchyroll plays', 
   expect(render(episode).querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(cr:GX1)')
 })
 
-test('Play\'s row draws no source icon, the list under it names each source and what a click does', () => {
+test('Play\'s row draws no source icon, the list names each source and what a click does', () => {
   const host = render(episode)
   expect(host.querySelector('a.source[href="/watch/ag:(anilist:9)/ag:(cr:GX1)/cr:GX1"] .name')?.textContent).toBe('cr')
   expect(host.querySelector('a.source .how')?.textContent).toBe('Plays here')
@@ -92,7 +96,7 @@ test('the tracking shares Play\'s row, and the row under the date of a film not 
   const classes = (host: HTMLElement) => [...host.querySelector('.movie > .actions')!.children].map(child => child.className)
   expect(classes(render(episode))).toEqual(['play', 'tracking-compact'])
   const ahead = render(episode, [], '2099-01-01', 'NOT_YET_RELEASED')
-  expect([...ahead.querySelector('.movie')!.children].map(child => child.className)).toEqual(['release', 'actions', 'sources'])
+  expect([...ahead.querySelector('.movie')!.children].map(child => child.className)).toEqual(['release', 'actions'])
   expect(classes(ahead)).toEqual(['tracking-compact'])
 })
 
@@ -159,7 +163,7 @@ test('until a source lands or the film\'s sources have all answered, Play\'s pla
   expect(loading.querySelector('.none')).toBeNull()
   const settled = render(episode)
   expect(settled.querySelector('.play-pending'), 'the control: settled, nothing is held').toBeNull()
-  expect(settled.querySelector('.movie > .none')?.textContent).toBe('No sources yet')
+  expect(settled.querySelector('.none')?.textContent).toBe('No sources yet')
   origin = 'cr'
   expect(render(episode, [], '2020-01-01', undefined, false).querySelector('.play-pending'), 'Play has landed').toBeNull()
 })
@@ -174,18 +178,18 @@ test('a film not out yet with no date reads Coming soon, never No sources yet, a
     expect(host.querySelector('.play-pending, .source-pending'), `settled ${settled}: nothing is held`).toBeNull()
   }
   expect(render(episode, [], null, undefined, false).querySelector('.play-pending'), 'the control: a film not known to be ahead is held').not.toBeNull()
-  expect(render(episode, [], null).querySelector('.movie > .none')?.textContent, 'the control: and reads No sources yet once settled').toBe('No sources yet')
+  expect(render(episode, [], null).querySelector('.none')?.textContent, 'the control: and reads No sources yet once settled').toBe('No sources yet')
 })
 
 // what the list under Play holds, a row or a row's place
-const rows = (host: HTMLElement) => [...host.querySelector('.movie > .sources')?.children ?? []]
+const rows = (host: HTMLElement) => [...host.querySelector('.sources')?.children ?? []]
   .map(row => row.firstElementChild!.className.split(' ').filter(name => !name.startsWith('css-')).join('.'))
 
 // so the description under the list keeps its place while the services land
 test('until a film settles, the list holds three rows\' place, each row landing in one', () => {
   origin = 'none'
   expect(rows(render(episode, [], '2020-01-01', undefined, false))).toEqual(['source-pending', 'source-pending', 'source-pending'])
-  expect(render(episode).querySelector('.movie > .sources'), 'the control: settled with none, no list').toBeNull()
+  expect(render(episode).querySelector('.sources'), 'the control: settled with none, no list').toBeNull()
   origin = 'hidive'
   const offer = [{ relation: 'SAME_AS', node: { origin: 'hidive', url: 'https://www.hidive.com/interstitial/715215' } }]
   expect(rows(render(episode, offer, '2020-01-01', undefined, false))).toEqual(['source', 'source-pending', 'source-pending'])

@@ -1,5 +1,5 @@
-// The preview's words beside its description: a series' line over its title and either view's side column. Pure, so
-// they are tested without rendering the modal.
+// The preview's words around its description: the line over its title and the side column. Pure, so they are tested
+// without rendering the modal.
 
 import type { Fact, TitleMedia } from '../title/facts'
 
@@ -54,38 +54,41 @@ export const categories = (allGenres: readonly string[] = [], allTags: readonly 
   return { genres, tags }
 }
 
+const scoreText = (score: number | null | undefined) =>
+  score ? intl.formatNumber(score, { style: 'unit', unit: 'percent', maximumFractionDigits: 0 }) : undefined
+
 /** The line over a series' title: its format, its release and its episodes, each left out when no source named it. */
 export const seriesLine = (media: PreviewMedia): string =>
   [formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media.episodeCount)].filter(Boolean).join(' · ')
 
 /**
- * The side column, each fact left out when no source gave it. A film's: its format, release (as of `now`, by the rule
- * the modal's Play goes by), length, categories and score; a series': its categories, when it aired and its score.
+ * The line over a film's title: Movie, its release once it is out as of `now` (by the rule the modal's Play goes by;
+ * until then the date under the title names it), and its length, each left out when no source named it.
  */
-export const previewFacts = (media: PreviewMedia, movie: boolean, now = new Date()): Fact[] => {
-  const names = (list: string[]) => list.length ? intl.formatList(list, NAME_LIST) : undefined
-  const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  const shared = [
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(genres) },
-    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(tags) },
-  ]
-  const score = {
-    label: intl.formatMessage({ id: 'Score', defaultMessage: 'Score' }),
-    value: media.averageScore ? intl.formatNumber(media.averageScore, { style: 'unit', unit: 'percent', maximumFractionDigits: 0 }) : undefined,
-  }
+export const filmLine = (media: PreviewMedia, now = new Date()): string => {
   const film = media.episodes?.at(0)
   const { released, upcoming } = filmRelease({ startDate: media.startDate, status: media.status, episode: film }, now)
-  const facts = movie
-    ? [
-      { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: intl.formatMessage({ id: 'Movie', defaultMessage: 'Movie' }) },
-      {
-        label: upcoming ? intl.formatMessage({ id: 'Releases#verb', defaultMessage: 'Releases', description: 'verb' }) : intl.formatMessage({ id: 'Released', defaultMessage: 'Released' }),
-        value: releaseDateLabel(released, { locale: intl.locale }),
-      },
-      { label: intl.formatMessage({ id: 'Length', defaultMessage: 'Length' }), value: runtimeText(film?.runtime ?? media.duration) },
-      ...shared,
-      score,
-    ]
-    : [...shared, { label: intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }), value: releasedLabel(media, { locale: intl.locale }) }, score]
-  return facts.flatMap(({ label, value }) => value ? [{ label, value }] : [])
+  return [
+    intl.formatMessage({ id: 'Movie', defaultMessage: 'Movie' }),
+    upcoming ? undefined : releaseDateLabel(released, { locale: intl.locale }),
+    runtimeText(film?.runtime ?? media.duration),
+  ].filter(Boolean).join(' · ')
+}
+
+/** A series' side column: its categories, when it aired and its score, each left out when no source gave it. */
+export const seriesFacts = (media: PreviewMedia): Fact[] => {
+  const names = (list: string[]) => list.length ? intl.formatList(list, NAME_LIST) : undefined
+  const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
+  return [
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(genres) },
+    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(tags) },
+    { label: intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }), value: releasedLabel(media, { locale: intl.locale }) },
+    { label: intl.formatMessage({ id: 'Score', defaultMessage: 'Score' }), value: scoreText(media.averageScore) },
+  ].flatMap(({ label, value }) => value ? [{ label, value }] : [])
+}
+
+/** A film's side column: its score, and its categories drawn as chips. */
+export const filmFacts = (media: PreviewMedia): { score: string | undefined, genres: string[], tags: string[] } => {
+  const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
+  return { score: scoreText(media.averageScore), genres, tags }
 }

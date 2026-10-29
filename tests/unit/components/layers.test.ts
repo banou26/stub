@@ -92,7 +92,7 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
   },
   'src/router/home/media-modal.tsx': {
     values: [1],
-    why: "inside the preview's trailer: its controls, and a series' poster and title, over the picture's fade",
+    why: "inside the preview's trailer: its controls, and the poster, title and a film's Play over the picture's fade",
   },
   'src/components/media-franchise.tsx': {
     values: [1],

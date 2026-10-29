@@ -10,7 +10,7 @@ import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
-import { LucidePause, LucidePlay } from 'lucide-react'
+import { LucidePause, LucidePlay, LucideStar } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
 import Collapsible from '../../components/collapsible'
 import MediaRelations from '../../components/media-relations'
@@ -25,9 +25,9 @@ import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { currentMedia, listedMediaFor } from './modal-media'
 import { isMovieMedia } from './movie'
-import MoviePlay from './movie-play'
+import MoviePlay, { FilmSources } from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
-import { previewFacts, seriesLine } from './preview-facts'
+import { filmFacts, filmLine, seriesFacts, seriesLine } from './preview-facts'
 import { getRoutePath, Route } from '../path'
 import { useNow } from '../../utils/use-now'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
@@ -83,13 +83,15 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       overflow: hidden;
       user-select: none;
     }
-    /* a film's picture fades into the box under it; a series' darkens behind its title (.hero) */
+    /* darker behind the title over its foot */
     &::after {
       content: '';
       position: absolute;
       inset: 0;
       pointer-events: none;
-      background: linear-gradient(to bottom, transparent 55%, rgb(35, 35, 35));
+      background:
+        linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.9) 20%, rgba(35, 35, 35, 0.3) 50%, transparent 70%),
+        linear-gradient(to right, rgba(0, 0, 0, 0.5) 0%, transparent 55%);
     }
     .player-controls {
       position: absolute;
@@ -123,26 +125,45 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     }
   }
 
-  /* a series' poster, line and title over the foot of its trailer */
+  /* the poster, line and title over the foot of the trailer, a film's date or Play under them */
   & > .hero {
-    position: relative;
+    display: grid;
 
-    &:not(.film) > .trailer::after {
-      background:
-        linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.9) 20%, rgba(35, 35, 35, 0.3) 50%, transparent 70%),
-        linear-gradient(to right, rgba(0, 0, 0, 0.5) 0%, transparent 55%);
+    /* one cell, so a block taller than the picture grows the hero rather than being cut at the modal's top */
+    & > .trailer, & > .over {
+      grid-area: 1 / 1;
+    }
+
+    & > .trailer {
+      align-self: start;
     }
 
     & > .over {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      align-self: end;
+      position: relative;
       z-index: 1;
       display: flex;
       align-items: flex-end;
       gap: 2.8rem;
       padding: 0 4rem 3.2rem;
+    }
+
+    /* the poster's foot level with the film's, the line and title on top of the film's date or Play */
+    &.film > .over {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: 1fr auto;
+      align-items: end;
+      gap: 1.6rem 0;
+
+      & > .poster {
+        grid-row: 1 / 3;
+        margin-right: 2.8rem;
+      }
+
+      & > .stack, & > .movie {
+        grid-column: 2;
+      }
     }
 
     .poster {
@@ -181,7 +202,107 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
     .title-pending {
       width: 40rem;
       max-width: 100%;
-      height: 5.6rem;
+      height: calc(5.6rem * 1.05);
+    }
+  }
+
+  .movie {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.6rem;
+    min-width: 0;
+
+    & > .release {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.6rem;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+
+      & > .day {
+        font-size: 4.8rem;
+        font-weight: 800;
+        line-height: 1.05;
+        text-transform: uppercase;
+      }
+
+      /* a year, a month or Coming soon */
+      & > .day.partial {
+        text-transform: none;
+      }
+
+      & > .date {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      & > .count {
+        margin-top: 0.4rem;
+        padding: 0.4rem 1rem;
+        border-radius: 0.4rem;
+        background: rgb(229, 9, 20);
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-shadow: none;
+      }
+    }
+
+    /* Play and the tracking share a row, wrapping onto two when both do not fit */
+    & > .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 1rem 1.6rem;
+      max-width: 100%;
+
+      & > .play {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+        height: 4.4rem;
+        padding: 0 2.4rem 0 2rem;
+        border-radius: 0.6rem;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+        color: #000;
+        font-size: 1.7rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      & > .play:hover { background: rgba(255, 255, 255, 0.85); }
+      & > .play:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+
+      /* Play's place while a source may still bring it */
+      & > .play-pending {
+        width: 11rem;
+        height: 4.4rem;
+        border-radius: 0.6rem;
+      }
+
+      /* the tracking's 3.4rem controls on Play's 4.4rem middle */
+      & > .tracking-compact {
+        margin-top: 0.5rem;
+      }
+
+      & > .tracking-compact .row, & > .tracking-compact .platforms {
+        justify-content: flex-start;
+      }
+
+      /* a note wraps to the controls' width, or a long one widens the tracking and drops it under Play */
+      & > .tracking-compact > .notes {
+        contain: inline-size;
+      }
+
+      & > .stub-list-notice {
+        flex-basis: 100%;
+        margin-top: 0;
+      }
     }
   }
 
@@ -230,6 +351,130 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       & > .main > .description.pending {
         height: 20rem;
         font-size: 1.6rem;
+      }
+
+      & > .main > .sources {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
+      }
+
+      & > .main > .sources .source {
+        display: flex;
+        align-items: center;
+        gap: 1.4rem;
+        height: 6rem;
+        padding: 0 0.4rem;
+        border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        text-decoration: none;
+
+        &:hover { background: rgba(255, 255, 255, 0.04); }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 3.6rem;
+          height: 3.6rem;
+          border-radius: 0.7rem;
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.08);
+          font-size: 1.5rem;
+          font-weight: 700;
+
+          & > img {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            padding: 12%;
+            object-fit: contain;
+          }
+        }
+
+        /* JustWatch's logos are whole app tiles, drawn edge to edge */
+        .logo.sharp {
+          background: none;
+          & > img {
+            padding: 0;
+            object-fit: cover;
+          }
+        }
+
+        .name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 1.7rem;
+          font-weight: 600;
+        }
+
+        .count {
+          padding: 0.1rem 0.7rem;
+          border-radius: 0.4rem;
+          background: rgba(255, 255, 255, 0.1);
+          font-size: 1.2rem;
+          font-weight: 700;
+        }
+
+        .how {
+          flex-shrink: 0;
+          margin-left: auto;
+          font-size: 1.4rem;
+          color: rgba(255, 255, 255, 0.55);
+        }
+
+        .how::after { content: ' ↗'; }
+        &.plays .how::after { content: ' ▶'; }
+      }
+
+      & > .main > .sources .source-pending {
+        height: 6rem;
+        border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
+        border-radius: 0;
+      }
+
+      & > .main > .none {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      & > .side > .score {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f5c518;
+      }
+
+      & > .side > .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+
+        & > .chip {
+          display: inline-flex;
+          align-items: center;
+          max-width: 100%;
+          height: 2.8rem;
+          padding: 0 1.1rem;
+          border-radius: 0.6rem;
+          font-size: 1.3rem;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        & > .genre { background: rgba(255, 255, 255, 0.12); color: #fff; }
+        & > .tag { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); }
       }
 
       & > .side > .facts {
@@ -304,246 +549,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       margin-top: 4rem;
     }
   }
-
-  /* a film: one centred column under its trailer, its facts beside it */
-  & > .content.film {
-    padding-top: 1rem;
-
-    & > .columns {
-      grid-template-columns: minmax(0, 1fr) 24rem;
-      gap: 4rem;
-    }
-
-    & > .columns > .main {
-      align-items: center;
-      text-align: center;
-
-      & > .title {
-        margin: 0;
-        font-size: 4.4rem;
-        font-weight: 700;
-        line-height: 1.1;
-      }
-
-      & > .title-pending {
-        width: 40rem;
-        max-width: 100%;
-        height: calc(4.4rem * 1.1);
-      }
-
-      & > .description {
-        align-self: stretch;
-        text-align: start;
-      }
-
-      & > .links {
-        justify-content: center;
-      }
-    }
-  }
-
-  .movie {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rem;
-
-    & > .release {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-
-      & > .day {
-        font-size: 13rem;
-        font-weight: 800;
-        line-height: 0.9;
-        letter-spacing: -0.03em;
-        text-transform: uppercase;
-      }
-
-      /* a year, a month or Coming soon */
-      & > .day.partial {
-        font-size: 8rem;
-        line-height: 1;
-        letter-spacing: -0.02em;
-        text-transform: none;
-      }
-
-      & > .date {
-        font-size: 2rem;
-        color: rgba(255, 255, 255, 0.75);
-      }
-
-      & > .count {
-        padding: 0.4rem 1rem;
-        border-radius: 0.4rem;
-        background: rgb(229, 9, 20);
-        font-size: 1.4rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-      }
-    }
-
-    & > .none {
-      font-size: 4.4rem;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.85);
-    }
-
-    /* Play and the tracking share a row, wrapping onto two when both do not fit */
-    & > .actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 1rem 1.6rem;
-
-      & > .play {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.8rem;
-        height: 4.4rem;
-        padding: 0 2.4rem 0 2rem;
-        border-radius: 0.6rem;
-        background: #fff;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-        color: #000;
-        font-size: 1.7rem;
-        font-weight: 700;
-        text-decoration: none;
-      }
-
-      & > .play:hover { background: rgba(255, 255, 255, 0.85); }
-      & > .play:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
-
-      /* Play's place while a source may still bring it */
-      & > .play-pending {
-        width: 11rem;
-        height: 4.4rem;
-        border-radius: 0.6rem;
-      }
-
-      /* the tracking's 3.4rem controls on Play's 4.4rem middle */
-      & > .tracking-compact {
-        margin-top: 0.5rem;
-      }
-
-      & > .tracking-compact .row, & > .tracking-compact .platforms {
-        justify-content: center;
-      }
-
-      /* a note wraps to the controls' width, or a long one widens the tracking and drops it under Play */
-      & > .tracking-compact > .notes {
-        contain: inline-size;
-      }
-
-      & > .stub-list-notice {
-        flex-basis: 100%;
-        margin-top: 0;
-      }
-    }
-
-    & > .sources {
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
-      text-align: start;
-    }
-
-    & > .sources .source {
-      display: flex;
-      align-items: center;
-      gap: 1.4rem;
-      height: 6rem;
-      padding: 0 0.4rem;
-      border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
-      color: #fff;
-      text-decoration: none;
-
-      &:hover { background: rgba(255, 255, 255, 0.04); }
-
-      .logo {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        width: 3.6rem;
-        height: 3.6rem;
-        border-radius: 0.7rem;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.08);
-        font-size: 1.5rem;
-        font-weight: 700;
-
-        & > img {
-          box-sizing: border-box;
-          width: 100%;
-          height: 100%;
-          padding: 12%;
-          object-fit: contain;
-        }
-      }
-
-      /* JustWatch's logos are whole app tiles, drawn edge to edge */
-      .logo.sharp {
-        background: none;
-        & > img {
-          padding: 0;
-          object-fit: cover;
-        }
-      }
-
-      .name {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 1.7rem;
-        font-weight: 600;
-      }
-
-      .count {
-        padding: 0.1rem 0.7rem;
-        border-radius: 0.4rem;
-        background: rgba(255, 255, 255, 0.1);
-        font-size: 1.2rem;
-        font-weight: 700;
-      }
-
-      .how {
-        flex-shrink: 0;
-        margin-left: auto;
-        font-size: 1.4rem;
-        color: rgba(255, 255, 255, 0.55);
-      }
-
-      .how::after { content: ' ↗'; }
-      &.plays .how::after { content: ' ▶'; }
-    }
-
-    & > .sources .source-pending {
-      height: 6rem;
-      border-bottom: 0.1rem solid rgba(255, 255, 255, 0.1);
-      border-radius: 0;
-    }
-  }
-}
-
-/* a film's column centred in the box, its facts in the width beside it */
-@media (min-width: 1440px) {
-  .modal > .content.film > .columns {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 70rem) minmax(0, 1fr);
-
-    & > .main {
-      grid-column: 2;
-    }
-  }
 }
 
 @media (max-width: 768px) {
@@ -556,17 +561,33 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
     }
 
+    .trailer::after {
+      background: linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.6) 25%, transparent 50%);
+    }
+
     & > .hero {
-      &:not(.film) > .trailer::after {
-        background: linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.6) 25%, transparent 50%);
-      }
+      display: block;
 
       /* under the picture rather than over it, its foot overlapping the picture's */
       & > .over {
-        position: relative;
         margin-top: -5rem;
         padding: 0 1.6rem;
         gap: 1.4rem;
+      }
+
+      /* a film's date or Play the whole width under the poster */
+      &.film > .over {
+        grid-template-rows: auto auto;
+        gap: 1.6rem 0;
+
+        & > .poster {
+          grid-row: 1;
+          margin-right: 1.4rem;
+        }
+
+        & > .movie {
+          grid-column: 1 / -1;
+        }
       }
 
       .poster {
@@ -583,7 +604,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .title-pending {
-        height: 2.8rem;
+        height: calc(2.8rem * 1.05);
       }
     }
 
@@ -591,7 +612,7 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       padding: 2rem 1.6rem;
 
       /* the facts under the description */
-      &.film > .columns, & > .columns {
+      & > .columns {
         grid-template-columns: minmax(0, 1fr);
         gap: 2.4rem;
       }
@@ -600,69 +621,92 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.4rem;
       }
 
+      & > .columns > .main > .sources {
+        .source, .source-pending {
+          height: 5.4rem;
+        }
+
+        .source .name {
+          font-size: 1.5rem;
+        }
+
+        .source .how {
+          font-size: 1.3rem;
+        }
+      }
+
       & > .relations, & > .seasons, & > .episode-list {
         margin-top: 2.5rem;
-      }
-    }
-
-    & > .content.film {
-      padding-top: 0;
-
-      & > .columns > .main > .title {
-        font-size: 2.8rem;
-      }
-
-      & > .columns > .main > .title-pending {
-        height: calc(2.8rem * 1.1);
       }
     }
 
     .movie {
       & > .release {
         & > .day {
-          font-size: 8.4rem;
-        }
-
-        & > .day.partial {
-          font-size: 4.4rem;
+          font-size: 3.4rem;
         }
 
         & > .date {
-          font-size: 1.6rem;
+          font-size: 1.5rem;
+        }
+
+        & > .count {
+          font-size: 1.2rem;
         }
       }
 
-      & > .none {
-        font-size: 2.8rem;
+      & > .actions {
+        align-self: stretch;
       }
 
       & > .actions > .play, & > .actions > .play-pending {
         flex-basis: 100%;
         height: 4.8rem;
       }
-
-      & > .sources .source, & > .sources .source-pending {
-        height: 5.4rem;
-
-        .name {
-          font-size: 1.5rem;
-        }
-
-        .how {
-          font-size: 1.3rem;
-        }
-      }
     }
   }
 }
 `
 
-const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
+const Line = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
   const now = useNow()
-  const facts = previewFacts(media, movie, new Date(now))
+  return <span className="line">{movie ? filmLine(media, new Date(now)) : seriesLine(media)}</span>
+}
+
+const SeriesFacts = ({ media }: { media: DetailsMedia }) => {
+  const facts = seriesFacts(media)
   return facts.length
     ? <dl className="facts">{facts.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     : null
+}
+
+const FilmFacts = ({ media }: { media: DetailsMedia }) => {
+  const intl = useIntl()
+  const { score, genres, tags } = filmFacts(media)
+  return (
+    <>
+      {
+        score
+          ? (
+            <span className="score">
+              <LucideStar size={15} fill="currentColor" role="img" aria-label={intl.formatMessage({ id: 'Score', defaultMessage: 'Score' })}/>
+              {score}
+            </span>
+          )
+          : undefined
+      }
+      {
+        genres.length || tags.length
+          ? (
+            <div className="chips">
+              {genres.map(genre => <span key={genre} className="chip genre">{genre}</span>)}
+              {tags.map(tag => <span key={tag} className="chip tag">{tag}</span>)}
+            </div>
+          )
+          : undefined
+      }
+    </>
+  )
 }
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
@@ -701,6 +745,9 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
   const settled = useSettledOnce(uri, current?.settled && answered)
+  const movie = isMovie && data?.media
+    ? { episode: film, mediaUri: data.media.uri, sources, settled, startDate: data.media.startDate, status: data.media.status }
+    : undefined
   const tracked = useTrackingSummary(data?.media?.uri)
   // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
   const description = useMemo(
@@ -804,7 +851,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
        has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
     <ModalBackdrop data-party-scroll css={style} onClose={() => onOpenChange(false)}>
       {/* until the details say it is a film, the preview draws a series' */}
-      <div className={isMovie ? 'hero film' : 'hero'}>
+      <div className={movie ? 'hero film' : 'hero'}>
         <div className="trailer" style={!selectedTrailer?.url && headerUrl ? { backgroundImage: `url(${headerUrl})` } : {}}>
           {
             selectedTrailer?.url
@@ -841,38 +888,19 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             />
           </div>
         </div>
-        {
-          isMovie ? undefined : (
-            <div className="over">
-              {coverUrl ? <img className="poster" src={coverUrl} alt=""/> : undefined}
-              <div className="stack">
-                {data?.media ? <span className="line">{seriesLine(data.media)}</span> : undefined}
-                {heading}
-              </div>
-            </div>
-          )
-        }
+        <div className="over">
+          {coverUrl ? <img className="poster" src={coverUrl} alt=""/> : undefined}
+          <div className="stack">
+            {data?.media ? <Line media={data.media} movie={isMovie}/> : undefined}
+            {heading}
+          </div>
+          {movie ? <MoviePlay {...movie}>{tracking}</MoviePlay> : undefined}
+        </div>
       </div>
-      <div className={isMovie ? 'content film' : 'content'}>
+      <div className="content">
         <div className="columns">
           <div className="main">
-            {isMovie ? heading : undefined}
-            {
-              isMovie && media
-                ? (
-                  <MoviePlay
-                    episode={film}
-                    mediaUri={media.uri}
-                    sources={sources}
-                    settled={settled}
-                    startDate={'startDate' in media ? media.startDate : undefined}
-                    status={'status' in media ? media.status : undefined}
-                  >
-                    {tracking}
-                  </MoviePlay>
-                )
-                : tracking
-            }
+            {movie ? <FilmSources {...movie}/> : tracking}
             {
               description
                 ? (
@@ -882,11 +910,10 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
                 )
                 : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
             }
-            {isMovie ? links : undefined}
           </div>
           <aside className="side">
-            {data?.media ? <SideFacts media={data.media} movie={isMovie}/> : undefined}
-            {isMovie ? undefined : links}
+            {data?.media ? isMovie ? <FilmFacts media={data.media}/> : <SeriesFacts media={data.media}/> : undefined}
+            {links}
           </aside>
         </div>
         <MediaRelations

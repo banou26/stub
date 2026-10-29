@@ -30,7 +30,7 @@ vi.mock('urql', async () => {
   }
 })
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Clapperboard', 'Frown', 'LoaderCircle', 'LucidePause', 'LucidePlay', 'Meh', 'Minus', 'Network', 'Plus', 'Share2', 'Smile', 'Square', 'Star', 'Volume', 'Volume1', 'Volume2', 'VolumeX', 'X']
+  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Clapperboard', 'Frown', 'LoaderCircle', 'LucidePause', 'LucidePlay', 'LucideStar', 'Meh', 'Minus', 'Network', 'Plus', 'Share2', 'Smile', 'Square', 'Star', 'Volume', 'Volume1', 'Volume2', 'VolumeX', 'X']
     .map(name => [name, () => null])))
 vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
 vi.mock('../../../src/tracking/site-sessions', () => ({ trackerSignIns: {}, isSiteConnected: () => false }))
@@ -184,19 +184,27 @@ describe('the preview', () => {
     expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['facts', 'links'])
   })
 
-  test('draws a film\'s title and tracking in its column, the tracking on Play\'s row, and no title over its trailer', () => {
+  // the owner, 2026-10-30: "for the movie, I think in the end I actually prefer the same as series, so 1: cinematic"
+  test('draws a film\'s title over its trailer with Play and the tracking on one row under it, its services atop its description', () => {
     const { answer } = preview(film(3).uri)
     answer(film(3))
-    expect(modal().querySelector('.hero > .over')).toBeNull()
-    expect(classes(modal().querySelector('.content.film > .columns > .main')!.children)).toEqual(['title', 'movie', 'description.collapsed', 'links'])
-    expect(modal().querySelector('.main > .title')!.textContent).toBe('Spirited Away')
-    expect(classes(modal().querySelector('.movie > .actions')!.children)).toEqual(['play-pending', 'tracking-compact'])
+    expect(classes(modal().querySelector('.hero.film > .over')!.children)).toEqual(['stack', 'movie'])
+    expect(modal().querySelector('.over > .stack > .title')!.textContent).toBe('Spirited Away')
+    expect(classes(modal().querySelector('.over > .movie > .actions')!.children)).toEqual(['play-pending', 'tracking-compact'])
+    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['sources', 'description.collapsed'])
+    expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['chips', 'links'])
   })
 
-  test('draws a film\'s facts beside its column: format, release, length and categories', () => {
-    const { answer } = preview(film(3).uri)
-    answer(film(3))
-    expect(facts(modal())).toEqual(['Format: Movie', `Released: ${releaseDateLabel('2023-09-29')}`, 'Length: 24m', 'Genres: Fantasy', 'Tags: Travel'])
+  // "could we keep the same tag looking categories, same looking score as the 2: Split header example"
+  test('draws a film\'s format, release and length over its title, its score and categories as chips beside its column', () => {
+    const scored = { ...film(3), averageScore: 81 }
+    const { answer } = preview(scored.uri)
+    answer(scored)
+    expect(modal().querySelector('.over > .stack > .line')!.textContent).toBe(`Movie · ${releaseDateLabel('2023-09-29')} · 24m`)
+    expect(modal().querySelector('.side > .score')!.textContent).toBe('81%')
+    expect(classes(modal().querySelectorAll('.side > .chips > *'))).toEqual(['chip.genre', 'chip.tag'])
+    expect([...modal().querySelectorAll('.side > .chips > *')].map(chip => chip.textContent)).toEqual(['Fantasy', 'Travel'])
+    expect(modal().querySelector('.facts'), 'no series facts').toBeNull()
   })
 
   // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does
@@ -210,7 +218,7 @@ describe('the preview', () => {
     expect(pending(modal())).toEqual([])
     answer({ ...late, settled: false })
     expect(pending(modal())).toEqual([])
-    expect(modal().querySelector('.movie > .none')!.textContent).toBe('No sources yet')
+    expect(modal().querySelector('.main > .none')!.textContent).toBe('No sources yet')
   })
 
   test('a film settled before its sources\' origins answer holds Play\'s place, and never reads No sources yet', () => {
@@ -221,13 +229,13 @@ describe('the preview', () => {
     expect(modal().querySelector('.play-pending'), 'the control: held while a source is out').not.toBeNull()
 
     answer(streamed(true))
-    expect(modal().querySelector('.movie > .none')).toBeNull()
+    expect(modal().querySelector('.main > .none')).toBeNull()
     expect(modal().querySelector('.play-pending')).not.toBeNull()
 
     ready = true
     answer(streamed(true))
     expect(modal().querySelector('.actions > a.play'), 'the control: Play, once its origin answers').not.toBeNull()
-    expect(modal().querySelector('.movie > .none')).toBeNull()
+    expect(modal().querySelector('.main > .none')).toBeNull()
   })
 
   test('a film whose answered source gives none holds Play\'s place while a source named later is out', () => {
@@ -238,7 +246,7 @@ describe('the preview', () => {
     const { answer } = preview(film(3).uri)
     answer(naming(false, anilist))
     answer(naming(true, anilist, ...streamed(true).episodes[0]!.handles))
-    expect(modal().querySelector('.movie > .none')).toBeNull()
+    expect(modal().querySelector('.main > .none')).toBeNull()
     expect(modal().querySelector('.play-pending')).not.toBeNull()
 
     ready = true
@@ -251,7 +259,7 @@ describe('the preview', () => {
     answers.origins = ids => ids.length ? [] : undefined
     const { answer } = preview(film(3).uri)
     answer({ ...streamed(false), settled: true })
-    expect(modal().querySelector('.movie > .none')!.textContent).toBe('No sources yet')
+    expect(modal().querySelector('.main > .none')!.textContent).toBe('No sources yet')
   })
 
   test('draws no episode rows for a film, nor their placeholders before the worker says it is one', () => {

@@ -18,6 +18,28 @@ import { filmDate } from './movie'
 
 const HELD_ROWS = 3
 
+/** What a film's preview draws its release, Play and services from: `settled` once every source has answered. */
+export type FilmProps = {
+  episode: DetailsEpisode | undefined
+  mediaUri: string
+  sources: WatchSource[]
+  settled: boolean
+  startDate?: string | null
+  status?: string | null
+}
+
+const filmState = ({ episode, mediaUri, sources, settled, startDate, status }: FilmProps, now: number) => {
+  const { released, upcoming } = filmRelease({ startDate, status, episode }, new Date(now))
+  const plays = (source: WatchSource) => !source.external || Boolean(episode?.handles?.some(({ relation, node }) =>
+    relation === 'SAME_AS' && node.origin === source.id && canPlay(node.origin, node.url, 'extension')))
+  const play = !upcoming && episode?.uri && sources.some(plays)
+    ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
+    : undefined
+  const none = !upcoming && !sources.length
+  const announced = none && !released && status === 'NOT_YET_RELEASED'
+  return { released, upcoming, play, none, announced, holding: !upcoming && !announced && !settled }
+}
+
 const hostOf = (href: string | undefined) => {
   try {
     return new URL(href ?? '').hostname.replace(/^www\./, '')
@@ -58,39 +80,16 @@ const Service = ({ source }: { source: WatchSource }) => {
 /**
  * What a film shows under its title in place of a series' episode list: until it is out, its date in large type
  * ("Coming soon" while its status says it is not out and nothing dates it); then Play, opening the watch page, beside
- * `children` (the tracking), and every place it plays or can be watched, or "No sources yet" once `settled` with none.
- * Play is drawn when one of `sources` plays in stub, or would with the extension, as the watch page's pick counts it.
- * Until the media has `settled`, three rows' place is held for the list, each landing row taking one, and Play's place
- * is held while no source has landed, or while one stub plays still links out because its episode has not landed.
+ * `children` (the tracking). Play is drawn when one of `sources` plays in stub, or would with the extension, as the
+ * watch page's pick counts it. Until the media has `settled`, Play's place is held while no source has landed, or while
+ * one stub plays still links out because its episode has not landed.
  */
-const MoviePlay = (
-  { episode, mediaUri, sources, settled, startDate, status, children }:
-  {
-    episode: DetailsEpisode | undefined
-    mediaUri: string
-    sources: WatchSource[]
-    settled: boolean
-    startDate?: string | null
-    status?: string | null
-    children?: ComponentChildren
-  }
-) => {
+const MoviePlay = ({ children, ...film }: FilmProps & { children?: ComponentChildren }) => {
   const intl = useIntl()
   const now = useNow()
-  const hidden = useHiddenIcons()
-  const { released, upcoming } = filmRelease({ startDate, status, episode }, new Date(now))
-  const plays = (source: WatchSource) => !source.external || Boolean(episode?.handles?.some(({ relation, node }) =>
-    relation === 'SAME_AS' && node.origin === source.id && canPlay(node.origin, node.url, 'extension')))
-  const play = !upcoming && episode?.uri && sources.some(plays)
-    ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })
-    : undefined
-  const none = !upcoming && !sources.length
-  const announced = none && !released && status === 'NOT_YET_RELEASED'
-  const holding = !upcoming && !announced && !settled
-  const held = !play && holding && (none || sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
+  const { released, upcoming, play, none, announced, holding } = filmState(film, now)
+  const held = !play && holding && (none || film.sources.some(source => source.external && canPlay(source.id, source.href, 'extension')))
   const date = upcoming ? filmDate(released, new Date(now)) : undefined
-  const shown = sources.filter(source => !hidden.has(source.id))
-  const slots = holding ? Math.max(0, HELD_ROWS - shown.length) : 0
   return (
     <div className="movie">
       {
@@ -109,7 +108,6 @@ const MoviePlay = (
                 <span className="date">{intl.formatMessage({ id: 'No release date yet', defaultMessage: 'No release date yet' })}</span>
               </div>
             )
-            : none && settled ? <span className="none">{intl.formatMessage({ id: 'No sources yet', defaultMessage: 'No sources yet' })}</span>
             : undefined
       }
       <div className="actions">
@@ -120,18 +118,29 @@ const MoviePlay = (
         }
         {children}
       </div>
-      {
-        shown.length || slots
-          ? (
-            <ul className="sources">
-              {shown.map(source => <li key={source.id}><Service source={source}/></li>)}
-              {Array.from({ length: slots }, (_, index) => <li key={index}><Placeholder className="source-pending"/></li>)}
-            </ul>
-          )
-          : undefined
-      }
     </div>
   )
+}
+
+/**
+ * Every place a film plays or can be watched, a row each naming what a click does, or "No sources yet" once it has
+ * `settled` with none while out. Until then three rows' place is held, each landing row taking one.
+ */
+export const FilmSources = (film: FilmProps) => {
+  const intl = useIntl()
+  const hidden = useHiddenIcons()
+  const { none, announced, holding } = filmState(film, useNow())
+  const shown = film.sources.filter(source => !hidden.has(source.id))
+  const slots = holding ? Math.max(0, HELD_ROWS - shown.length) : 0
+  return shown.length || slots
+    ? (
+      <ul className="sources">
+        {shown.map(source => <li key={source.id}><Service source={source}/></li>)}
+        {Array.from({ length: slots }, (_, index) => <li key={index}><Placeholder className="source-pending"/></li>)}
+      </ul>
+    )
+    : none && film.settled && !announced ? <p className="none">{intl.formatMessage({ id: 'No sources yet', defaultMessage: 'No sources yet' })}</p>
+    : null
 }
 
 export default MoviePlay

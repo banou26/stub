@@ -128,7 +128,9 @@ const page = read('router/title/index.tsx')
 
 test('a movie of one episode gets the play bar and the Watched toggle, and no episode list', () => {
   expect(modal).toContain('const isMovie = Boolean(data?.media && isMovieMedia(data.media))')
-  expect(modal).toMatch(/isMovie && media\s*\?\s*\(\s*<MoviePlay/)
+  expect(modal).toContain('const movie = isMovie && data?.media')
+  expect(modal).toMatch(/\{movie \? <MoviePlay \{\.\.\.movie\}>/)
+  expect(modal).toMatch(/\{movie \? <FilmSources \{\.\.\.movie\}\/> : tracking\}/)
   // the offers have a default, so dropping the media's handles would still compile
   expect(modal, 'a film\'s offers hang off the media').toContain('useWatchSources(film, media?.uri ?? \'\', media?.handles)')
   expect(modal).toMatch(/<MediaTracking[^>]*movie=\{isMovie\}/)

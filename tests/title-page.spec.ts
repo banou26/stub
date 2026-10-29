@@ -1067,7 +1067,7 @@ test('the preview\'s tracking starts its description\'s column level with the fa
 const FILM = 'ag:(anilist:900050)'
 const FILM_SOURCES = ['HIDIVE', 'Hoopla', 'Philo', 'Plex', 'Pluto TV', 'The Roku Channel', 'Tubi']
 const FILM_VIEWS = [
-  { path: `/media/${FILM}`, row: '.modal .movie > .sources', below: '.modal [data-relations]' },
+  { path: `/media/${FILM}`, row: '.modal .main > .sources', below: '.modal [data-relations]' },
   { path: `/title/${FILM}`, row: '.heading > .description ~ .watch', below: '.body > .actions' },
 ]
 // the title page draws a film's places to watch as the watch page's buttons, the preview as a list of rows (HOR-830)
@@ -1122,12 +1122,13 @@ test('a film\'s page lists every place to watch it under its description as the 
   }
 })
 
-// HOR-830: round 3's Minimal list, a row a service, what a click does named at rest
-test('a film\'s preview lists every place to watch it under Play\'s row, a row each naming the site it opens, and with none in stub holds no Play', async ({ page }) => {
+// HOR-830: round 3's Minimal list, a row a service, what a click does named at rest, atop the description (the owner,
+// 2026-10-30: "the minimal sources [...] taking most of the space and having the description under them")
+test('a film\'s preview lists every place to watch it atop its description, a row each naming the site it opens, and with none in stub holds no Play', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${FILM}`)
-    const rows = modal(page).locator('.movie > .sources a.source')
+    const rows = modal(page).locator('.columns > .main > .sources:first-child a.source')
     await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
     expect((await rows.locator('.name').allTextContents()).sort()).toEqual(FILM_SOURCES)
     const row = (name: string) => rows.filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
@@ -1145,15 +1146,16 @@ test('a film\'s preview holds three rows\' place while JustWatch has not answere
   for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height: viewport })
     await page.goto(`${origin}/media/${FILM}`)
-    const list = modal(page).locator('.movie > .sources')
-    const actions = modal(page).locator('.movie > .actions')
+    const list = modal(page).locator('.main > .sources')
+    const content = modal(page).locator('.content')
     const slots = list.locator('.source-pending')
     const rows = list.locator('a.source')
     const description = '.modal .columns > .main > .description'
     await expect(page.locator(`${description}:not(.pending)`), `${width}`).toBeVisible({ timeout: 30_000 })
     await expect(slots, `${width}: the control: held while JustWatch has not answered`).toHaveCount(3)
+    await expect(modal(page).locator('.movie > .actions > .play-pending'), `${width}: the control: and Play's place`).toBeVisible()
     const slot = await box(slots.first())
-    const held = { list: await height(list), actions: await height(actions), description: await onPage(page.locator(description)) }
+    const held = { list: await height(list), content: await onPage(content), description: await onPage(page.locator(description)) }
     const tops = await everyFrame(page, description)
     await expect(rows, `${width}`).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
     await page.evaluate(() => new Promise(requestAnimationFrame))
@@ -1162,22 +1164,25 @@ test('a film\'s preview holds three rows\' place while JustWatch has not answere
     expect(row, `${width}: a row as tall as a place held`).toBe(Math.round(slot.height))
     const grow = await height(list) - held.list
     expect(grow, `${width}`).toBe((FILM_SOURCES.length - 3) * row)
-    // none of Spec Film's services plays in stub, so Play's held place goes with them, on its own line on a phone
-    expect(await tops(), `${width}: the description moves once`).toEqual([held.description, held.description + grow + await height(actions) - held.actions])
+    // none of Spec Film's services plays in stub, so Play's held place goes with them: over the trailer on a desktop, on
+    // its own line under the poster on a phone
+    const shift = await onPage(content) - held.content
+    if (width === 1440) expect(shift, 'Play\'s place going over the trailer moves nothing under it').toBe(0)
+    expect(await tops(), `${width}: the description moves once`).toEqual([held.description, held.description + grow + shift])
   }
 })
 
 // a film's details can say it is one before a source names its title
-test('a film\'s preview holds one line of its title in its column, at 1440 and 390 px', async ({ page }) => {
+test('a film\'s preview holds one line of its title over its trailer, at 1440 and 390 px', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${FILM}`)
-    const title = modal(page).locator('.content.film > .columns > .main > h2.title')
+    const title = modal(page).locator('.hero.film > .over > .stack > h2.title')
     await expect(title, `${width}`).toHaveText('Spec Film', { timeout: 30_000 })
-    await expect(modal(page).locator('.movie .source-pending').first(), `${width}: a placeholder to copy, while JustWatch is out`).toBeVisible()
-    // the title's placeholder in the title's place, as the column draws it before the title lands
+    await expect(modal(page).locator('.sources .source-pending').first(), `${width}: a placeholder to copy, while JustWatch is out`).toBeVisible()
+    // the title's placeholder in the title's place, as the hero draws it before the title lands
     const [held, line] = await title.evaluate(title => {
-      const placeholder = title.ownerDocument.querySelector('.modal .movie .source-pending')!.cloneNode() as Element
+      const placeholder = title.ownerDocument.querySelector('.modal .sources .source-pending')!.cloneNode() as Element
       placeholder.className = placeholder.className.replace('source-pending', 'title-pending')
       title.replaceWith(placeholder)
       const { width, height } = placeholder.getBoundingClientRect()
@@ -1238,7 +1243,7 @@ test('390 px wide, a film\'s button with a name longer than its row wraps the na
 test('390 px wide, a film\'s row in the preview with a name longer than it stays one line, the site it opens shown inside it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`${origin}/media/${FILM}`)
-  const row = modal(page).locator('.movie > .sources a.source').first()
+  const row = modal(page).locator('.main > .sources a.source').first()
   await expect(row).toBeVisible({ timeout: 30_000 })
   const tall = await height(row)
   await row.locator('.name').evaluate(name => { name.textContent = 'A Streaming Service With A Very Long Name, With Ads' })
@@ -1280,7 +1285,7 @@ test('a film\'s modal keeps the catalogue sites in its links, and none of the se
   await recordSites(page, row)
   await page.goto(`${origin}/media/${FILM}`)
   await expect(page.locator(`${row} > [title="TMDB"]`), 'JustWatch has answered').toHaveCount(1, { timeout: 30_000 })
-  await expect(modal(page).locator('.movie > .sources a'), 'the control: the services are the rows').toHaveCount(FILM_SOURCES.length)
+  await expect(modal(page).locator('.main > .sources a'), 'the control: the services are the rows').toHaveCount(FILM_SOURCES.length)
   const seen = await sitesSeen(page)
   expect(seen, 'the control: a catalogue site stays').toContain('AniList')
   expect(seen.filter(site => FILM_SOURCES.includes(site))).toEqual([])
@@ -1332,7 +1337,7 @@ test.describe('a viewer in Japan', () => {
 
   test('a film Prime Video plays in stub has Play in the modal and its button opens the watch page; turned off, Play goes and it links out', async ({ page }) => {
     const bar = modal(page).locator('.movie > .actions')
-    const button = (name: string) => modal(page).locator('.movie > .sources a').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
+    const button = (name: string) => modal(page).locator('.main > .sources a').filter({ has: page.locator('.name', { hasText: new RegExp(`^${name}$`) }) })
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`${origin}/media/${PRIME_FILM}`)
     await expect(bar.locator('> a.play')).toBeVisible({ timeout: 30_000 })
@@ -1555,10 +1560,10 @@ const LATE_FILM = 'ag:(anilist:900060)'
 test('390 px wide, a film\'s place to watch landing after its sources settled holds no place in the modal a second time', async ({ page }) => {
   test.setTimeout(120_000)
   await page.setViewportSize({ width: 390, height: 844 })
-  const rows = page.locator('.modal .movie > .sources')
+  const rows = page.locator('.modal .main > .sources')
   await page.goto(`${origin}/media/${LATE_FILM}`)
   await expect(modal(page).locator('.movie > .actions > .play-pending'), 'the control: Play\'s place held while a source is out').toBeVisible({ timeout: 30_000 })
-  await expect(modal(page).locator('.movie > .none'), 'every source has answered with none').toHaveText('No sources yet', { timeout: 45_000 })
+  await expect(modal(page).locator('.main > .none'), 'every source has answered with none').toHaveText('No sources yet', { timeout: 45_000 })
   await expect(rows).toHaveCount(0)
   // every place held from now on, however briefly
   await page.evaluate(() => {
@@ -1567,7 +1572,7 @@ test('390 px wide, a film\'s place to watch landing after its sources settled ho
       for (const record of records) {
         for (const node of record.type === 'attributes' ? [record.target] : [...record.addedNodes]) {
           if (!(node instanceof Element)) continue
-          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.movie .play-pending, .movie .source-pending')) seen.add(element.className)
+          for (const element of [node, ...node.querySelectorAll('*')]) if (element.matches('.movie .play-pending, .sources .source-pending')) seen.add(element.className)
         }
       }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
@@ -1576,7 +1581,7 @@ test('390 px wide, a film\'s place to watch landing after its sources settled ho
   await expect(rows.locator('a .name')).toHaveText('Tubi', { timeout: 30_000 })
   await page.evaluate(() => new Promise(requestAnimationFrame))
   expect(await page.evaluate(() => [...(window as unknown as { seen: Set<string> }).seen])).toEqual([])
-  await expect(modal(page).locator('.movie > .none'), 'No sources yet gone once one has').toHaveCount(0)
+  await expect(modal(page).locator('.main > .none'), 'No sources yet gone once one has').toHaveCount(0)
 })
 
 test('390 px wide, Relations\' held place goes once every source has answered and AniList named none', async ({ page }) => {
@@ -1731,7 +1736,9 @@ test('a film AniList and MAL date by its year alone shows the year and reads Rel
   const release = modal(page).locator('.movie > .release')
   await expect(release.locator('.day')).toHaveText('2099')
   await expect(release.locator('.date')).toHaveText('Releases 2099')
-  await expect(modal(page).locator('.side .facts')).toContainText('Releases2099')
+  const line = modal(page).locator('.hero .line')
+  await expect(line).toHaveText(/^Movie\b/)
+  await expect(line, 'the year said once, under the title').not.toContainText('2099')
 })
 
 // the owner, 2026-10-26 (HOR-1030): "I feel like the card order should decide merge priority, yes, but by default,
@@ -1789,6 +1796,26 @@ test('a long title wraps over the trailer, beside the poster and inside the moda
   const [titleBox, posterBox, modalBox] = await Promise.all([title.boundingBox(), modal(page).locator('.hero .poster').boundingBox(), modal(page).boundingBox()])
   expect(titleBox!.x, 'beside the poster').toBeGreaterThan(posterBox!.x + posterBox!.width)
   expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(modalBox!.x + modalBox!.width)
+  expect(await overflowX(page)).toBe(0)
+})
+
+// a film's date and Play under its title make the block taller than a narrow window's picture
+test('a film\'s title block sits on its trailer\'s foot, and one taller than the trailer grows the preview\'s head rather than being cut at its top', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/media/${FILM}`)
+  const title = modal(page).locator('.hero.film h2.title')
+  await expect(title).toHaveText('Spec Film', { timeout: 30_000 })
+  const parts = () => Promise.all(['.modal', '.modal > .hero > .trailer', '.modal > .hero > .over', '.modal > .content'].map(selector => box(page.locator(selector))))
+  const [, picture, block, content] = await parts()
+  expect(Math.round(block.bottom), 'on the picture\'s foot').toBe(Math.round(picture.bottom))
+  expect(Math.round(content.top)).toBe(Math.round(picture.bottom))
+
+  await page.setViewportSize({ width: 800, height: 900 })
+  await title.evaluate(element => { element.textContent = 'A Long Light Novel Title '.repeat(8) })
+  const [frame, trailer, over, below] = await parts()
+  expect(over.height, 'the control: taller than the picture').toBeGreaterThan(trailer.height)
+  expect(over.top, 'nothing cut at the top').toBeGreaterThanOrEqual(frame.top)
+  expect(Math.round(below.top), 'the description\'s column under it').toBe(Math.round(over.bottom))
   expect(await overflowX(page)).toBe(0)
 })
 
@@ -1925,10 +1952,10 @@ const HOME_WORDS = {
     '.theater .actions .play', '.category-bar .tab', ':has(> .list-container) > .title', '.detail .airing-label',
     '.detail .airing-value', '.detail-top .value', '.column.score .secondary', '.column.format .secondary',
     '.column .airing', '.modal .links > .more', '.episode .title', '.episode .side time', '.actions .buttons .play',
-    '.modal .hero .line', '.modal .side .facts dt', '.movie .actions > .play', '.movie .release > .date', '.movie .sources .how',
-    '.movie > .none',
+    '.modal .hero .line', '.modal .side .facts dt', '.movie .actions > .play', '.movie .release > .date', '.modal .sources .how',
+    '.modal .main > .none', '.modal .side > .chips > .genre',
   ],
-  labels: ['.detail-top > span', '.column.score > span[aria-label]'],
+  labels: ['.detail-top > span', '.column.score > span[aria-label]', '.modal .side > .score > [aria-label]'],
 }
 // what Intl writes in English, which no message holds: a countdown's units and a relative day
 const INTL_ENGLISH = /\b(days?|hours?|mins?|secs?|today|yesterday|tomorrow|ago)\b/
@@ -1967,7 +1994,7 @@ const homeWords = async (page: Page, width: number) => {
   await expect(page.locator('[data-episodes] .episode .side time')).toHaveCount(6, { timeout: 30_000 })
   await read()
   await page.goto(`${origin}/media/${FILM}`)
-  await expect(modal(page).locator('.movie > .sources a')).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
+  await expect(modal(page).locator('.main > .sources a')).toHaveCount(FILM_SOURCES.length, { timeout: 30_000 })
   await read()
   // dated by its year alone, so it reads when it releases
   await page.goto(`${origin}/media/ag:(anilist:900100,mal:900100)`)
