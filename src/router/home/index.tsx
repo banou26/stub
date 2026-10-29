@@ -7,6 +7,7 @@ import { gql } from '../../generated'
 import { MediaCategory, MediaSort, type MediaPageInput } from '../../generated/graphql'
 import HomeTheater from './theater'
 import MediaSection from './media-section'
+import NewEpisodes from './new-episodes-row'
 import { useRoute } from 'wouter'
 import { getRouterRoutePath, Route } from '../path'
 import MediaModal from './media-modal'
@@ -135,6 +136,8 @@ const Index = () => {
   return (
     <div css={style}>
       <HomeTheater mediaNodes={nodes[rows[0]!]} />
+      {/* the trackers keep anime alone */}
+      {site === 'anime' || site === 'stub' ? <NewEpisodes/> : undefined}
       {
         site === 'stub'
           ? (
