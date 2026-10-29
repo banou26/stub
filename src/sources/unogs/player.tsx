@@ -5,6 +5,7 @@ import type { PlayerProps } from '../players'
 import { css } from '@emotion/react'
 import { attachFrame, isExtensionExposed } from '@fkn/lib'
 import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import NetflixVideoJSPlayer from './nf-videojs-player'
 
@@ -160,6 +161,7 @@ const styles = css`
 `
 
 const NetflixPlayer = ({ url }: PlayerProps) => {
+  const intl = useIntl()
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
   const [loading, setLoading] = useState(true)
@@ -183,13 +185,13 @@ const NetflixPlayer = ({ url }: PlayerProps) => {
           if (cancelled) return
           // with no extension the lib already showed its install prompt, so no retry shows it again
           if (!isExtensionExposed()) {
-            setError('Netflix playback currently needs the FKN browser extension.')
+            setError(intl.formatMessage({ id: 'Netflix playback currently needs the FKN browser extension.', defaultMessage: 'Netflix playback currently needs the FKN browser extension.' }))
             setLoading(false)
             return
           }
           if (attempt >= 4) {
             console.error('Failed to attach Netflix frame', err)
-            setError(err instanceof Error ? err.message : 'Failed to load player')
+            setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
             setLoading(false)
             return
           }
@@ -225,7 +227,7 @@ const NetflixPlayer = ({ url }: PlayerProps) => {
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Netflix player', err)
-      setError(err?.message ?? 'Failed to load player')
+      setError(err?.message ?? intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -245,14 +247,14 @@ const NetflixPlayer = ({ url }: PlayerProps) => {
     <div className="overlay">
       {loggedOut && (
         <>
-          Sign in to Netflix to watch.
+          {intl.formatMessage({ id: 'Sign in to {name} to watch.', defaultMessage: 'Sign in to {name} to watch.' }, { name: 'Netflix' })}
           <button className="login-button" onClick={openLogin}>
-            Open Netflix Login Page
+            {intl.formatMessage({ id: 'Open {name} Login Page', defaultMessage: 'Open {name} Login Page' }, { name: 'Netflix' })}
           </button>
         </>
       )}
       {error && !loggedOut && error}
-      {loading && !error && !loggedOut && 'Loading Netflix player...'}
+      {loading && !error && !loggedOut && intl.formatMessage({ id: 'Loading Netflix player...', defaultMessage: 'Loading Netflix player...' })}
     </div>
   )
 

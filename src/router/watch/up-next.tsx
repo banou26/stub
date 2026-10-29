@@ -3,6 +3,7 @@ import type { PlaybackLink } from '../../party/bridge'
 
 import { css, keyframes } from '@emotion/react'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
 import { readAutoplay } from '../../utils/autoplay'
@@ -54,6 +55,7 @@ const style = css`
  * button, and a report that the player is no longer at its end (a seek back, a play) withdraws the countdown.
  */
 const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[] }) => {
+  const intl = useIntl()
   const [, navigate] = useLocation()
   const [shown, setShown] = useState<'counting' | 'offered'>()
   const href = next?.href
@@ -107,8 +109,8 @@ const UpNext = ({ link, next, chapters }: { link: PlaybackLink | undefined, next
   if (!shown || !href) return null
   return (
     <div css={style}>
-      <button type="button" className={`up-next ${shown}`} title={next?.title} onClick={() => navigate(href)}>Next episode</button>
-      {shown === 'counting' ? <button type="button" className="up-next-cancel" onClick={() => setShown(undefined)}>Cancel</button> : undefined}
+      <button type="button" className={`up-next ${shown}`} title={next?.title} onClick={() => navigate(href)}>{intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })}</button>
+      {shown === 'counting' ? <button type="button" className="up-next-cancel" onClick={() => setShown(undefined)}>{intl.formatMessage({ id: 'Cancel', defaultMessage: 'Cancel' })}</button> : undefined}
     </div>
   )
 }

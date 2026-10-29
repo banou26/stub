@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
@@ -35,7 +35,7 @@ const settle = () => act(async () => { await new Promise(resolve => setTimeout(r
 test("the source's player is handed the release and the viewer's languages", async () => {
   keepAudioLanguage('Japanese')
   keepSubtitleLanguage(null)
-  hosts.push(mount(<PluginPlayer pluginUri="https:nyaa.spec.test" release={{ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1' }} onUnplayable={() => {}}/>))
+  hosts.push(mount(withIntl(<PluginPlayer pluginUri="https:nyaa.spec.test" release={{ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1' }} onUnplayable={() => {}}/>)))
   await settle()
   expect(play).toHaveBeenCalledWith({ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null } })
 })

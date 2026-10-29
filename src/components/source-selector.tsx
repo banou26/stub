@@ -1,9 +1,12 @@
 import type { ComponentChildren } from 'preact'
+import type { IntlShape } from 'react-intl'
 
 import { css } from '@emotion/react'
 import { useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 
+import { NAME_LIST } from '../i18n'
 import { useHiddenIcons } from '../sources/hidden-icons'
 import { nextThumbnail } from '../utils/thumbnails'
 import Placeholder from './placeholder'
@@ -481,38 +484,43 @@ const compactStyle = css`
   }
 `
 
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })
-
-// a card names the language, not the region or script it is in: es-419 and es-ES are both Spanish
-const languageName = (tag: string) => {
-  try {
-    return languageNames.of(tag.split('-')[0]!) ?? tag
-  } catch {
-    return tag
-  }
+// a card names the language, not the region or script it is in: es-419 and es-ES are both Spanish. A language
+// subtag Intl cannot read leaves the tag as the source wrote it
+const languageName = (intl: IntlShape, tag: string) => {
+  const language = tag.split('-')[0]!
+  return /^(?:[a-z]{2,3}|[a-z]{5,8})$/i.test(language) ? intl.formatDisplayName(language, { type: 'language' }) ?? tag : tag
 }
 
 const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | null }) => {
-  const names = [...new Set((tags ?? []).map(languageName))]
+  const intl = useIntl()
+  const names = [...new Set((tags ?? []).map(tag => languageName(intl, tag)))]
   if (!names.length) return null
-  const rest = names.slice(3)
+  // the list as the language joins it, cut before its fourth name: the rest is drawn only where the card has room
+  const parts = intl.formatListToParts(names, NAME_LIST)
+  const fourth = parts.filter(part => part.type === 'element')[3]
+  const cut = fourth ? parts.indexOf(fourth) - 1 : parts.length
+  const text = (from: number, to?: number) => parts.slice(from, to).map(part => part.value).join('')
   return (
-    <span className="languages" title={`${label}: ${names.join(', ')}`}>
+    <span className="languages" title={intl.formatMessage({ id: '{label}: {names}', defaultMessage: '{label}: {names}' }, { label, names: text(0) })}>
       <span className="languages-label">{label}</span>
       <span className="names">
-        {names.slice(0, 3).join(', ')}
-        {rest.length ? <span className="rest">, {rest.join(', ')}</span> : undefined}
+        {text(0, cut)}
+        {fourth ? <span className="rest">{text(cut)}</span> : undefined}
       </span>
-      {rest.length ? <span className="more" aria-hidden="true">+{rest.length}</span> : undefined}
+      {fourth ? <span className="more" aria-hidden="true">{intl.formatNumber(names.length - 3, { signDisplay: 'always' })}</span> : undefined}
     </span>
   )
 }
+
+// drawn the same in every language
+const MARKS = { external: '↗', play: '▶', picker: '›', open: '▾', closed: '▸' } as const
 
 const detailed = (source: WatchSource) =>
   Boolean(source.thumbnails?.length || source.videoQualities?.length || source.audioQualities?.length || source.audioLanguages?.length || source.subtitleLanguages?.length)
 
 /** The watch page's card: the source's picture over its usual row, then what its stream offers. */
 const Details = ({ source, head }: { source: WatchSource, head: ComponentChildren }) => {
+  const intl = useIntl()
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set())
   const thumbnail = nextThumbnail(source.thumbnails, failed)
   const qualities = [...source.videoQualities ?? [], ...source.audioQualities ?? []]
@@ -522,8 +530,8 @@ const Details = ({ source, head }: { source: WatchSource, head: ComponentChildre
       <span className="body">
         <span className="head">{head}</span>
         {qualities.length ? <span className="qualities">{qualities.map(quality => <span key={quality} className="count">{quality}</span>)}</span> : undefined}
-        <Languages label="Audio" tags={source.audioLanguages}/>
-        <Languages label="Subtitles" tags={source.subtitleLanguages}/>
+        <Languages label={intl.formatMessage({ id: 'Audio', defaultMessage: 'Audio' })} tags={source.audioLanguages}/>
+        <Languages label={intl.formatMessage({ id: 'Subtitles', defaultMessage: 'Subtitles' })} tags={source.subtitleLanguages}/>
       </span>
     </>
   )
@@ -558,6 +566,7 @@ export const SourceSelector = (
   { sources, compact = false, film = false, pending = false, onPickRelease }:
   { sources: WatchSource[], compact?: boolean, film?: boolean, pending?: boolean, onPickRelease?: (uri: string) => void }
 ) => {
+  const intl = useIntl()
   const [picking, setPicking] = useState<WatchSource | null>(null)
   const hidden = useHiddenIcons()
   const shown = film ? sources.filter(source => !hidden.has(source.id)) : sources
@@ -574,7 +583,7 @@ export const SourceSelector = (
             style={{ '--brand': brandColor(source) }}
             href={source.href}
             external={source.external}
-            title={`Watch on ${source.name}`}
+            title={intl.formatMessage({ id: 'Watch on {name}', defaultMessage: 'Watch on {name}' }, { name: source.name })}
           >
             <SourceIcon source={source} />
           </SourceLink>
@@ -585,7 +594,7 @@ export const SourceSelector = (
 
   return (
     <div css={style} className={film ? 'watch film' : 'watch'}>
-      {film ? undefined : <div className="label">Watch on</div>}
+      {film ? undefined : <div className="label">{intl.formatMessage({ id: 'Watch on', defaultMessage: 'Watch on' })}</div>}
       <div className="list">
         {shown.length ? undefined : <Placeholder className="pending"/>}
         {shown.map(source => {
@@ -600,8 +609,8 @@ export const SourceSelector = (
               {source.active
                 ? <span className="playing"><i/><i/><i/></span>
                 : source.external
-                  ? <span className="ext">↗</span>
-                  : <span className="play">▶</span>}
+                  ? <span className="ext">{MARKS.external}</span>
+                  : <span className="play">{MARKS.play}</span>}
             </>
           )
           const card = !film && detailed(source)
@@ -636,6 +645,7 @@ export const SourceSelector = (
 }
 
 const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onOpenPicker: () => void }) => {
+  const intl = useIntl()
   const releases = source.releases ?? []
   const [open, setOpen] = useState(releases.some(release => release.active))
   // a plugin that renders its own picker replaces the inline list entirely: it knows what its releases
@@ -646,7 +656,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
       <SourceIcon source={source} />
       <span className="name">{source.name}</span>
       <span className="count">{releases.length}</span>
-      <span className="chevron">{owned ? '›' : open ? '▾' : '▸'}</span>
+      <span className="chevron">{owned ? MARKS.picker : open ? MARKS.open : MARKS.closed}</span>
     </>
   )
   const card = detailed(source)
@@ -657,7 +667,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
         className={`source${card ? ' detailed' : ''}${source.active ? ' active' : ''}`}
         style={{ '--brand': brandColor(source) }}
         onClick={() => owned ? onOpenPicker() : setOpen(value => !value)}
-        title={`${releases.length} releases on ${source.name}`}
+        title={intl.formatMessage({ id: '{count, plural, one {{count} release on {name}} other {{count} releases on {name}}}', defaultMessage: '{count, plural, one {{count} release on {name}} other {{count} releases on {name}}}' }, { count: releases.length, name: source.name })}
         aria-expanded={owned ? undefined : open}
         aria-haspopup={owned ? 'dialog' : undefined}
       >
@@ -678,8 +688,8 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
                 {release.active
                   ? <span className="playing"><i/><i/><i/></span>
                   : release.external
-                    ? <span className="ext">↗</span>
-                    : <span className="play">▶</span>}
+                    ? <span className="ext">{MARKS.external}</span>
+                    : <span className="play">{MARKS.play}</span>}
               </SourceLink>
             ))}
           </div>

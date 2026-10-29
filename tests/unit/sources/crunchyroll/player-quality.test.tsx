@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { DelegatedTracks } from '@banou/media-player'
 import type { ComponentChildren } from 'preact'
@@ -68,7 +68,7 @@ afterEach(() => {
 })
 
 test('the media player is handed Crunchyroll\'s qualities, and its pick switches Crunchyroll\'s', async () => {
-  hosts.push(mount(<CrunchyrollPlayer url="https://www.crunchyroll.com/watch/GAAAAAAAA/one" mediaUri="" episodeUri="" sourceUri="" />))
+  hosts.push(mount(withIntl(<CrunchyrollPlayer url="https://www.crunchyroll.com/watch/GAAAAAAAA/one" mediaUri="" episodeUri="" sourceUri="" />)))
 
   await vi.waitFor(() => expect(player.quality?.selection).toMatchObject(TRACKS.quality!), { timeout: 5_000 })
   await player.quality!.selection.select('Moderate')

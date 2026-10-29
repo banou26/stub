@@ -7,6 +7,7 @@ import type { PrimePageSelectors, PrimeQualityRow, PrimeQualitySelectors } from 
 import { css, keyframes } from '@emotion/react'
 import { attachFrame } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { tellUnplayable } from '../../embed-unplayable'
 import { siteStatuses } from '../../tracking/site-status'
@@ -175,6 +176,7 @@ const styles = css`
 `
 
 const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
+  const intl = useIntl()
   const site = primeSiteOf(url)!
   const [mode, setMode] = useState<'detecting' | FknBackend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
@@ -217,7 +219,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       .catch(err => {
         if (cancelled) return
         console.error('Failed to attach Prime Video frame', err)
-        setError(err?.message || 'Failed to load player')
+        setError(err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
         setLoading(false)
       })
     return () => { cancelled = true }
@@ -252,14 +254,14 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
         tellUnplayable()
         return
       }
-      if (!page) throw new Error('Prime Video shows no Play button for this episode.')
+      if (!page) throw new Error(intl.formatMessage({ id: 'Prime Video shows no Play button for this episode.', defaultMessage: 'Prime Video shows no Play button for this episode.' }))
       await frame.evaluate(pressPrimePlay, PAGE)
       const video = await poll(async () => {
         const index = await frame.evaluate(findPrimeVideo, { videos: VIDEOS })
         return index < 0 ? undefined : frame.locator(VIDEOS).nth(index).videoElement()
       }, isCancelled, VIDEO_TIMEOUT)
       if (cancelled) return
-      if (!video) throw new Error('The episode did not load a player.')
+      if (!video) throw new Error(intl.formatMessage({ id: 'The episode did not load a player.', defaultMessage: 'The episode did not load a player.' }))
       // only now: a Play that loads a new document would drop a style added before it
       await frame.addStyleTag({ content: PRIME_OUTER_CSS })
       if (cancelled) return
@@ -271,7 +273,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Prime Video player', err)
-      setError(err?.message || 'Failed to load player')
+      setError(err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -326,18 +328,18 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
       .then(outcome => {
         if (!mounted.current) return
         if (outcome === 'blocked') return setBlocked(true)
-        if (outcome === 'unsupported') return setError('The Prime Video sign-in window could not open here.')
+        if (outcome === 'unsupported') return setError(intl.formatMessage({ id: 'The Prime Video sign-in window could not open here.', defaultMessage: 'The Prime Video sign-in window could not open here.' }))
         if (outcome === 'authed') return remount()
         setReloadKey(key => key + 1)
       }, err => {
         if (!mounted.current) return
         console.error('Prime Video sign-in window failed', err)
-        setError(err?.message || 'The sign-in window failed')
+        setError(err?.message || intl.formatMessage({ id: 'The sign-in window failed', defaultMessage: 'The sign-in window failed' }))
       })
       .finally(() => { if (mounted.current) setSigningIn(false) })
   }, [mode, remount, site])
 
-  const openOnPrime = <a className="login-button" href={detailUrl(url)} target="_blank" rel="noreferrer">Open on Prime Video</a>
+  const openOnPrime = <a className="login-button" href={detailUrl(url)} target="_blank" rel="noreferrer">{intl.formatMessage({ id: 'Open on Prime Video', defaultMessage: 'Open on Prime Video' })}</a>
 
   const overlay = (loading || error || loggedOut || rentOnly) && (
     <div className="overlay">
@@ -345,27 +347,27 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
         ? (
           <>
             {error}
-            <button className="login-button" onClick={remount}>Retry</button>
+            <button className="login-button" onClick={remount}>{intl.formatMessage({ id: 'Retry', defaultMessage: 'Retry' })}</button>
             {openOnPrime}
           </>
         )
         : loggedOut
         ? (
           <>
-            {blocked ? 'Allow popups for this page to sign in.' : 'Sign in to Prime Video to watch.'}
+            {blocked ? intl.formatMessage({ id: 'Allow popups for this page to sign in.', defaultMessage: 'Allow popups for this page to sign in.' }) : intl.formatMessage({ id: 'Sign in to {name} to watch.', defaultMessage: 'Sign in to {name} to watch.' }, { name: 'Prime Video' })}
             <button className="login-button" onClick={signIn} disabled={signingIn}>
-              {signingIn ? 'Finish signing in the window...' : 'Sign in to Prime Video'}
+              {signingIn ? intl.formatMessage({ id: 'Finish signing in the window...', defaultMessage: 'Finish signing in the window...' }) : intl.formatMessage({ id: 'Sign in to {name}', defaultMessage: 'Sign in to {name}' }, { name: 'Prime Video' })}
             </button>
           </>
         )
         : rentOnly
         ? (
           <>
-            Prime Video offers this episode only to rent or buy here.
+            {intl.formatMessage({ id: 'Prime Video offers this episode only to rent or buy here.', defaultMessage: 'Prime Video offers this episode only to rent or buy here.' })}
             {openOnPrime}
           </>
         )
-        : <div className="loading-spinner" role="status" aria-label="Loading" />}
+        : <div className="loading-spinner" role="status" aria-label={intl.formatMessage({ id: 'Loading', defaultMessage: 'Loading' })} />}
     </div>
   )
 

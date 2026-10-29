@@ -4,6 +4,7 @@ import type { HTMLAttributes } from 'react'
 import { css } from '@emotion/react'
 import { Link } from 'wouter'
 import { useState, useCallback, useEffect, useRef } from 'preact/compat'
+import { useIntl } from 'react-intl'
 
 import { youtubeVideoId } from './youtube-url'
 
@@ -106,6 +107,7 @@ export const YoutubeMinimalPlayer = (
     onError?: () => void
   }
 ) => {
+  const intl = useIntl()
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const loadedFrameRef = useRef<HTMLIFrameElement | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -212,7 +214,7 @@ export const YoutubeMinimalPlayer = (
       onLoad={event => { loadedFrameRef.current = event.currentTarget }}
       css={youtubeStyle}
       src={embedSrc(videoId)}
-      title="Trailer"
+      title={intl.formatMessage({ id: 'Trailer', defaultMessage: 'Trailer' })}
       // autoplay has to be granted explicitly to a cross-origin frame, and a nested frame can never
       // re-grant what an ancestor withheld: inside an FKN tenant this depends on the tenant frame
       // carrying `autoplay` too

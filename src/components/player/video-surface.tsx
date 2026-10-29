@@ -2,6 +2,7 @@ import type { ComponentChildren, FunctionComponent } from 'preact'
 import type { PlayerCapabilities, PlayerSelection } from './types'
 
 import { useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import {
   AlertDialog,
   BufferingIndicator,
@@ -203,160 +204,163 @@ export type VideoSurfaceProps = {
   className?: string
 } & Record<string, unknown>
 
-const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfaceProps) => (
-  <ContainerC className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
-    {children}
-    <BufferingIndicatorC
-      render={(props: Record<string, unknown>) => (
-        <div {...props} className="media-buffering-indicator">
-          <div className="media-surface">
-            <SpinnerIcon className="media-icon" />
-          </div>
-        </div>
-      )}
-    />
-    <ErrorDialogRoot>
-      <AlertDialogPopup className="media-error">
-        <div className="media-error__dialog media-surface">
-          <div className="media-error__content">
-            <AlertDialogTitle className="media-error__title">Something went wrong.</AlertDialogTitle>
-            <ErrorDialogDescription className="media-error__description" />
-          </div>
-          <div className="media-error__actions">
-            <AlertDialogClose className="media-button media-button--primary">OK</AlertDialogClose>
-          </div>
-        </div>
-      </AlertDialogPopup>
-    </ErrorDialogRoot>
-    <ControlsRoot className="media-surface media-controls">
-      <TooltipProvider>
-        <div className="media-button-group">
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <PlayButtonC className="media-button--play" render={<IconButton />}>
-                  <RestartIcon className="media-icon media-icon--restart" />
-                  <PlayIcon className="media-icon media-icon--play" />
-                  <PauseIcon className="media-icon media-icon--pause" />
-                </PlayButtonC>
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip" />
-          </TooltipRoot>
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <SeekButtonC seconds={-SEEK_TIME} className="media-button--seek" render={<IconButton />}>
-                  <span className="media-icon__container">
-                    <SeekIcon className="media-icon media-icon--seek media-icon--flipped" />
-                    <span className="media-icon__label">{SEEK_TIME}</span>
-                  </span>
-                </SeekButtonC>
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip">Seek backward {SEEK_TIME} seconds</TooltipPopup>
-          </TooltipRoot>
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <SeekButtonC seconds={SEEK_TIME} className="media-button--seek" render={<IconButton />}>
-                  <span className="media-icon__container">
-                    <SeekIcon className="media-icon media-icon--seek" />
-                    <span className="media-icon__label">{SEEK_TIME}</span>
-                  </span>
-                </SeekButtonC>
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip">Seek forward {SEEK_TIME} seconds</TooltipPopup>
-          </TooltipRoot>
-        </div>
-        <div className="media-time-controls">
-          <TimeValue type="current" className="media-time" />
-          <TimeSliderRoot className="media-slider">
-            <SliderTrack className="media-slider__track">
-              <SliderFill className="media-slider__fill" />
-              <SliderBuffer className="media-slider__buffer" />
-            </SliderTrack>
-            <SliderThumb className="media-slider__thumb" />
-            {/* media-thumbnail, not media-preview: videojs beta.26 renamed the block, and the old
-                name matches nothing, which costs the readout its positioning and its backdrop */}
-            <div className="media-surface media-thumbnail media-slider__preview">
-              <SliderValue type="pointer" className="media-time media-thumbnail__time" />
+const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfaceProps) => {
+  const intl = useIntl()
+  return (
+    <ContainerC className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
+      {children}
+      <BufferingIndicatorC
+        render={(props: Record<string, unknown>) => (
+          <div {...props} className="media-buffering-indicator">
+            <div className="media-surface">
+              <SpinnerIcon className="media-icon" />
             </div>
-          </TimeSliderRoot>
-          <TimeValue type="duration" className="media-time" />
-        </div>
-        <div className="media-button-group">
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <PlaybackRateButtonC className="media-button--playback-rate" render={<IconButton />} />
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip">Toggle playback rate</TooltipPopup>
-          </TooltipRoot>
-          <VolumePopover />
-          {capabilities?.subtitles && (
-            <SelectionMenu
-              key="subtitles"
-              selection={capabilities.subtitles}
-              icon={capabilities.subtitles.selectedId
-                ? <CaptionsOnIcon className="media-icon" />
-                : <CaptionsOffIcon className="media-icon" />}
-            />
-          )}
-          {capabilities?.audioTracks && (
-            <SelectionMenu key="audio" selection={capabilities.audioTracks} icon={<AudioTracksIcon className="media-icon" />} />
-          )}
-          {capabilities?.qualityLevels && (
-            <SelectionMenu key="quality" selection={capabilities.qualityLevels} icon={<QualityIcon className="media-icon" />} />
-          )}
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <PiPButtonC className="media-button--pip" render={<IconButton />}>
-                  <PipEnterIcon className="media-icon media-icon--pip-enter" />
-                  <PipExitIcon className="media-icon media-icon--pip-exit" />
-                </PiPButtonC>
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip" />
-          </TooltipRoot>
-          <TooltipRoot side="top">
-            <TooltipTrigger
-              render={
-                <FullscreenButtonC className="media-button--fullscreen" render={<IconButton />}>
-                  <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
-                  <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
-                </FullscreenButtonC>
-              }
-            />
-            <TooltipPopup className="media-surface media-tooltip" />
-          </TooltipRoot>
-        </div>
-      </TooltipProvider>
-    </ControlsRoot>
-    <div className="media-overlay" />
-    <MediaHotkeyC keys="Space" action="togglePaused" />
-    <MediaHotkeyC keys="k" action="togglePaused" />
-    <MediaHotkeyC keys="m" action="toggleMuted" />
-    <MediaHotkeyC keys="f" action="toggleFullscreen" />
-    <MediaHotkeyC keys="i" action="togglePictureInPicture" />
-    <MediaHotkeyC keys="ArrowRight" action="seekStep" value={5} />
-    <MediaHotkeyC keys="ArrowLeft" action="seekStep" value={-5} />
-    <MediaHotkeyC keys="l" action="seekStep" value={10} />
-    <MediaHotkeyC keys="j" action="seekStep" value={-10} />
-    <MediaHotkeyC keys="ArrowUp" action="volumeStep" value={0.05} />
-    <MediaHotkeyC keys="ArrowDown" action="volumeStep" value={-0.05} />
-    <MediaHotkeyC keys="0-9" action="seekToPercent" />
-    <MediaHotkeyC keys="Home" action="seekToPercent" value={0} />
-    <MediaHotkeyC keys="End" action="seekToPercent" value={100} />
-    <MediaGestureC type="tap" action="togglePaused" pointer="mouse" region="center" />
-    <MediaGestureC type="tap" action="toggleControls" pointer="touch" />
-    <MediaGestureC type="doubletap" action="seekStep" value={-10} region="left" />
-    <MediaGestureC type="doubletap" action="toggleFullscreen" region="center" />
-    <MediaGestureC type="doubletap" action="seekStep" value={10} region="right" />
-  </ContainerC>
-)
+          </div>
+        )}
+      />
+      <ErrorDialogRoot>
+        <AlertDialogPopup className="media-error">
+          <div className="media-error__dialog media-surface">
+            <div className="media-error__content">
+              <AlertDialogTitle className="media-error__title">{intl.formatMessage({ id: 'Something went wrong.', defaultMessage: 'Something went wrong.' })}</AlertDialogTitle>
+              <ErrorDialogDescription className="media-error__description" />
+            </div>
+            <div className="media-error__actions">
+              <AlertDialogClose className="media-button media-button--primary">{intl.formatMessage({ id: 'OK', defaultMessage: 'OK' })}</AlertDialogClose>
+            </div>
+          </div>
+        </AlertDialogPopup>
+      </ErrorDialogRoot>
+      <ControlsRoot className="media-surface media-controls">
+        <TooltipProvider>
+          <div className="media-button-group">
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <PlayButtonC className="media-button--play" render={<IconButton />}>
+                    <RestartIcon className="media-icon media-icon--restart" />
+                    <PlayIcon className="media-icon media-icon--play" />
+                    <PauseIcon className="media-icon media-icon--pause" />
+                  </PlayButtonC>
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip" />
+            </TooltipRoot>
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <SeekButtonC seconds={-SEEK_TIME} className="media-button--seek" render={<IconButton />}>
+                    <span className="media-icon__container">
+                      <SeekIcon className="media-icon media-icon--seek media-icon--flipped" />
+                      <span className="media-icon__label">{SEEK_TIME}</span>
+                    </span>
+                  </SeekButtonC>
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip">{intl.formatMessage({ id: '{seconds, plural, one {Seek backward {seconds} second} other {Seek backward {seconds} seconds}}', defaultMessage: '{seconds, plural, one {Seek backward {seconds} second} other {Seek backward {seconds} seconds}}' }, { seconds: SEEK_TIME })}</TooltipPopup>
+            </TooltipRoot>
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <SeekButtonC seconds={SEEK_TIME} className="media-button--seek" render={<IconButton />}>
+                    <span className="media-icon__container">
+                      <SeekIcon className="media-icon media-icon--seek" />
+                      <span className="media-icon__label">{SEEK_TIME}</span>
+                    </span>
+                  </SeekButtonC>
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip">{intl.formatMessage({ id: '{seconds, plural, one {Seek forward {seconds} second} other {Seek forward {seconds} seconds}}', defaultMessage: '{seconds, plural, one {Seek forward {seconds} second} other {Seek forward {seconds} seconds}}' }, { seconds: SEEK_TIME })}</TooltipPopup>
+            </TooltipRoot>
+          </div>
+          <div className="media-time-controls">
+            <TimeValue type="current" className="media-time" />
+            <TimeSliderRoot className="media-slider">
+              <SliderTrack className="media-slider__track">
+                <SliderFill className="media-slider__fill" />
+                <SliderBuffer className="media-slider__buffer" />
+              </SliderTrack>
+              <SliderThumb className="media-slider__thumb" />
+              {/* media-thumbnail, not media-preview: videojs beta.26 renamed the block, and the old
+                  name matches nothing, which costs the readout its positioning and its backdrop */}
+              <div className="media-surface media-thumbnail media-slider__preview">
+                <SliderValue type="pointer" className="media-time media-thumbnail__time" />
+              </div>
+            </TimeSliderRoot>
+            <TimeValue type="duration" className="media-time" />
+          </div>
+          <div className="media-button-group">
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <PlaybackRateButtonC className="media-button--playback-rate" render={<IconButton />} />
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip">{intl.formatMessage({ id: 'Toggle playback rate', defaultMessage: 'Toggle playback rate' })}</TooltipPopup>
+            </TooltipRoot>
+            <VolumePopover />
+            {capabilities?.subtitles && (
+              <SelectionMenu
+                key="subtitles"
+                selection={capabilities.subtitles}
+                icon={capabilities.subtitles.selectedId
+                  ? <CaptionsOnIcon className="media-icon" />
+                  : <CaptionsOffIcon className="media-icon" />}
+              />
+            )}
+            {capabilities?.audioTracks && (
+              <SelectionMenu key="audio" selection={capabilities.audioTracks} icon={<AudioTracksIcon className="media-icon" />} />
+            )}
+            {capabilities?.qualityLevels && (
+              <SelectionMenu key="quality" selection={capabilities.qualityLevels} icon={<QualityIcon className="media-icon" />} />
+            )}
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <PiPButtonC className="media-button--pip" render={<IconButton />}>
+                    <PipEnterIcon className="media-icon media-icon--pip-enter" />
+                    <PipExitIcon className="media-icon media-icon--pip-exit" />
+                  </PiPButtonC>
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip" />
+            </TooltipRoot>
+            <TooltipRoot side="top">
+              <TooltipTrigger
+                render={
+                  <FullscreenButtonC className="media-button--fullscreen" render={<IconButton />}>
+                    <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
+                    <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+                  </FullscreenButtonC>
+                }
+              />
+              <TooltipPopup className="media-surface media-tooltip" />
+            </TooltipRoot>
+          </div>
+        </TooltipProvider>
+      </ControlsRoot>
+      <div className="media-overlay" />
+      <MediaHotkeyC keys="Space" action="togglePaused" />
+      <MediaHotkeyC keys="k" action="togglePaused" />
+      <MediaHotkeyC keys="m" action="toggleMuted" />
+      <MediaHotkeyC keys="f" action="toggleFullscreen" />
+      <MediaHotkeyC keys="i" action="togglePictureInPicture" />
+      <MediaHotkeyC keys="ArrowRight" action="seekStep" value={5} />
+      <MediaHotkeyC keys="ArrowLeft" action="seekStep" value={-5} />
+      <MediaHotkeyC keys="l" action="seekStep" value={10} />
+      <MediaHotkeyC keys="j" action="seekStep" value={-10} />
+      <MediaHotkeyC keys="ArrowUp" action="volumeStep" value={0.05} />
+      <MediaHotkeyC keys="ArrowDown" action="volumeStep" value={-0.05} />
+      <MediaHotkeyC keys="0-9" action="seekToPercent" />
+      <MediaHotkeyC keys="Home" action="seekToPercent" value={0} />
+      <MediaHotkeyC keys="End" action="seekToPercent" value={100} />
+      <MediaGestureC type="tap" action="togglePaused" pointer="mouse" region="center" />
+      <MediaGestureC type="tap" action="toggleControls" pointer="touch" />
+      <MediaGestureC type="doubletap" action="seekStep" value={-10} region="left" />
+      <MediaGestureC type="doubletap" action="toggleFullscreen" region="center" />
+      <MediaGestureC type="doubletap" action="seekStep" value={10} region="right" />
+    </ContainerC>
+  )
+}
 
 export default VideoSurface as FunctionComponent<VideoSurfaceProps>

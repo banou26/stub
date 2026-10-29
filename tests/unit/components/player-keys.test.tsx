@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { Frame } from '@fkn/lib'
 
@@ -39,7 +39,7 @@ afterEach(() => {
 describe("the Netflix player's keys", () => {
   test('leave "<" and ">" to the frame steps, and keep speed to its control', async () => {
     const { remote } = makeRemoteVideo()
-    const host = mount(<NetflixVideoJSPlayer remote={remote} frame={frame}/>)
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame}/>))
     hosts.push(host)
     await vi.waitFor(() => expect(host.querySelector('.media-button--playback-rate'), 'the store has the media').toBeTruthy())
     const container = host.querySelector('.media-default-skin')!

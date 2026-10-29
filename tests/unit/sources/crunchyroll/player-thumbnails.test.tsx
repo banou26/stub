@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { ExternalThumbnails } from '@banou/media-player'
 import type { ComponentChildren } from 'preact'
@@ -61,7 +61,7 @@ const makeFrame = (evaluate: (...args: unknown[]) => Promise<unknown>) => ({
   evaluate: vi.fn(evaluate),
 })
 
-const element = (url: string) => <CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" />
+const element = (url: string) => withIntl(<CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" />)
 
 const THREE_FRAMES = { bytes: buildBif({ timestamps: [10_000, 20_000, 30_000] }), via: 'named' }
 

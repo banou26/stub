@@ -1,6 +1,7 @@
 import { css } from '@emotion/react'
 import { packages } from '@fkn/lib'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { selectRemoteRelease } from '../worker'
 import { layer } from '../layers'
@@ -92,6 +93,7 @@ export type SourcePopupProps = {
  * channel, so there is one thing to await and one place the interaction can end.
  */
 export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: SourcePopupProps) => {
+  const intl = useIntl()
   const slot = useRef<HTMLDivElement>(null)
   const [failed, setFailed] = useState(false)
 
@@ -135,15 +137,15 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
   }, [onClose])
 
   return (
-    <div css={style} role="dialog" aria-modal="true" aria-label={`Choose a source from ${name}`} onClick={onClose}>
+    <div css={style} role="dialog" aria-modal="true" aria-label={intl.formatMessage({ id: 'Choose a source from {name}', defaultMessage: 'Choose a source from {name}' }, { name })} onClick={onClose}>
       <div className="wrap" onClick={event => event.stopPropagation()}>
         <div className="bar">
           <span>{name}</span>
           <span className="spacer"/>
-          <button type="button" className="close" onClick={onClose}>Close</button>
+          <button type="button" className="close" onClick={onClose}>{intl.formatMessage({ id: 'Close', defaultMessage: 'Close' })}</button>
         </div>
         {failed
-          ? <div className="fallback">This source could not open its picker.</div>
+          ? <div className="fallback">{intl.formatMessage({ id: 'This source could not open its picker.', defaultMessage: 'This source could not open its picker.' })}</div>
           : <div className="slot" ref={slot}/>}
       </div>
     </div>

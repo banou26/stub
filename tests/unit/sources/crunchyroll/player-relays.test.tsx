@@ -1,6 +1,6 @@
 // FIRST, and it has to stay first: ../../components/dom installs the document that @emotion/react
 // reads at module scope. See the file for what happens when it does not.
-import { button, mount, unmount } from '../../components/dom'
+import { button, mount, unmount, withIntl } from '../../components/dom'
 
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import type { ComponentChildren } from 'preact'
@@ -70,7 +70,7 @@ const relayChoices = () => lib.attachFrame.mock.calls.map(([options]) => (option
 
 const hosts: HTMLElement[] = []
 const render = (triedRelays?: string[], unlistedRelays?: Promise<readonly string[]>) => {
-  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" triedRelays={triedRelays} unlistedRelays={unlistedRelays} />)
+  const host = mount(withIntl(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" triedRelays={triedRelays} unlistedRelays={unlistedRelays} />))
   hosts.push(host)
   return host
 }

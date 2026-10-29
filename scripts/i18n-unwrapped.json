@@ -7,20 +7,6 @@
     "src/router/search/index.tsx",
     "src/router/search/scene.tsx"
   ],
-  "watch-players": [
-    "src/components/player/video-surface.tsx",
-    "src/components/plugin-player.tsx",
-    "src/components/source-popup.tsx",
-    "src/components/source-selector.tsx",
-    "src/components/yt-minimal-player.tsx",
-    "src/embed.tsx",
-    "src/router/watch/index.tsx",
-    "src/router/watch/no-source.tsx",
-    "src/router/watch/up-next.tsx",
-    "src/sources/amazon/player.tsx",
-    "src/sources/crunchyroll/player.tsx",
-    "src/sources/unogs/player.tsx"
-  ],
   "watch-together": [
     "src/components/party-chat.tsx",
     "src/components/party-cursor.tsx",

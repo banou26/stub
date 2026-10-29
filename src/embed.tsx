@@ -1,7 +1,7 @@
 import { isExtensionExposed, shell } from '@fkn/lib'
 import { render } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
-import { RawIntlProvider } from 'react-intl'
+import { RawIntlProvider, useIntl } from 'react-intl'
 import { trackLanguagesOf } from './embed-languages'
 import { triedRelaysOf } from './embed-relays'
 import { receiveEmbedTitle } from './embed-title'
@@ -28,10 +28,11 @@ const Player = origin ? getPlayer(origin) : undefined
 const unlisted = origin === 'cr' && url && !isExtensionExposed() ? unlistedRelays(url, triedRelays) : undefined
 
 const App = () => {
+  const intl = useIntl()
   const [title, setTitle] = useState<string>()
   useEffect(() => receiveEmbedTitle(setTitle), [])
   if (!mediaUri || !episodeUri || !sourceUri || !url || !Player) {
-    return <div>Unsupported or missing parameters</div>
+    return <div>{intl.formatMessage({ id: 'Unsupported or missing parameters', defaultMessage: 'Unsupported or missing parameters' })}</div>
   }
   return <Player url={url} mediaUri={mediaUri} episodeUri={episodeUri} sourceUri={sourceUri} title={title} triedRelays={triedRelays} unlistedRelays={unlisted} languages={languages} />
 }

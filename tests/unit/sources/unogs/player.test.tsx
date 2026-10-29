@@ -1,6 +1,6 @@
 // FIRST, and it has to stay first: ../../components/dom installs the document that @emotion/react
 // reads at module scope. See the file for what happens when it does not.
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { ComponentChildren } from 'preact'
 
@@ -31,7 +31,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const hosts: HTMLElement[] = []
 const render = () => {
-  const host = mount(<NetflixPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" />)
+  const host = mount(withIntl(<NetflixPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" />))
   hosts.push(host)
   return host
 }

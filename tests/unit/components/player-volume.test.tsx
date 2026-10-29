@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 import type { FunctionComponent } from 'preact'
@@ -92,7 +92,7 @@ const memoryStorage = () => {
 
 const hosts: HTMLElement[] = []
 const play = (Component: FunctionComponent<{ remote: RemoteVideoElement | null, frame: Frame | null }>, remote: RemoteVideoElement, inFrame = frame) => {
-  const host = mount(<Component remote={remote} frame={inFrame}/>)
+  const host = mount(withIntl(<Component remote={remote} frame={inFrame}/>))
   hosts.push(host)
   return host
 }

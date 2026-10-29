@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -46,7 +46,7 @@ let episode: ReturnType<typeof makeRemoteVideo>
 const hosts: HTMLElement[] = []
 
 const watch = async () => {
-  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" />)
+  const host = mount(withIntl(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" />))
   hosts.push(host)
   await vi.waitFor(() => expect(muteControl(host)).toBeTruthy(), { timeout: 5_000 })
   return host

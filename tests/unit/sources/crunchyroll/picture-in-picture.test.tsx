@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { PassThroughPictureInPicture } from '@banou/media-player'
 import type { ComponentChildren } from 'preact'
@@ -63,7 +63,7 @@ const installs = (frame: ReturnType<typeof makeFrame>) =>
   frame.evaluate.mock.calls.filter(([pageFunction]) => pageFunction === enterPictureInPictureOnClick)
 
 const element = (url: string, title?: string) =>
-  <CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" title={title} />
+  withIntl(<CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" title={title} />)
 
 const hosts: HTMLElement[] = []
 let warn: ReturnType<typeof vi.spyOn>

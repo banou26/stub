@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { MediaChapter } from '@banou/media-player'
 import type { ComponentChildren } from 'preact'
@@ -84,7 +84,7 @@ const makeFrame = (duration = DURATION) => {
   }
 }
 
-const element = (url: string) => <CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" />
+const element = (url: string) => withIntl(<CrunchyrollPlayer url={url} mediaUri="" episodeUri="" sourceUri="" />)
 // the chapters the player is handed for `events`, beside the Next episode the watch page offers
 const handed = (events: unknown, duration = DURATION) => chaptersBesideNext(skipEventsToChapters(events, duration), duration)
 const answer = (events: unknown) => new Response(JSON.stringify(events))

@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
@@ -62,7 +62,7 @@ const signedIn = {
 }
 
 const element = (title?: string) =>
-  <CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" title={title} />
+  withIntl(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" title={title} />)
 
 const drawnTitle = (host: HTMLElement) => host.querySelector('.title')?.textContent
 

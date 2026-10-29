@@ -1,6 +1,7 @@
 import { css } from '@emotion/react'
 import { packages } from '@fkn/lib'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import type { PlaybackLink } from '../party/bridge'
 
@@ -65,6 +66,7 @@ export type PluginPlayerProps = {
  * package, so calling `play` on the worker's connection would render into a frame nobody can see.
  */
 export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: PluginPlayerProps) => {
+  const intl = useIntl()
   const slot = useRef<HTMLIFrameElement>(null)
   const [failed, setFailed] = useState(false)
   // read at call time: the effect below is keyed on the release, and the page hands in new closures on every render
@@ -153,7 +155,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback }: P
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         allow="fullscreen; autoplay; encrypted-media; cross-origin-isolated"
       />
-      {failed ? <div className="failed">This source could not start playback.</div> : null}
+      {failed ? <div className="failed">{intl.formatMessage({ id: 'This source could not start playback.', defaultMessage: 'This source could not start playback.' })}</div> : null}
     </div>
   )
 }

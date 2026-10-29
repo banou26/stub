@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -23,7 +23,7 @@ const sources = [
 
 const selector = (props: Partial<Parameters<typeof SourceSelector>[0]> = {}) => {
   const location = memoryLocation({ path: '/watch/m/e/cr:1', record: true })
-  const host = mount(<Router hook={location.hook}><SourceSelector sources={sources} {...props}/></Router>)
+  const host = mount(withIntl(<Router hook={location.hook}><SourceSelector sources={sources} {...props}/></Router>))
   hosts.push(host)
   const click = (selector: string) => {
     const event = Object.assign(new Event('click', { bubbles: true, cancelable: true }), { button: 0 })

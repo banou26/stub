@@ -10,6 +10,7 @@ import { preferredSelection } from '@banou/media-player/language'
 import { css, keyframes } from '@emotion/react'
 import { attachFrame, isRelayUnavailable, relayOf } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { tellTriedRelay } from '../../embed-relays'
 import { tellUnplayable } from '../../embed-unplayable'
@@ -83,8 +84,6 @@ const CRUNCHYROLL_OUTER_CSS = `
 
 // the layout is picked BEFORE the iframe mounts: moving the iframe between parents would tear the attached frame down
 type Backend = 'detecting' | FknBackend
-
-const UNAVAILABLE_NOTE = 'This episode is not available on Crunchyroll in your region. Try another source.'
 
 const VIDEO_TIMEOUT = 30_000
 const waitForVideoElement = async (frame: Frame, isCancelled: () => boolean) => {
@@ -182,6 +181,7 @@ const styles = css`
 `
 
 const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, languages = {} }: PlayerProps) => {
+  const intl = useIntl()
   const [mode, setMode] = useState<Backend>('detecting')
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -272,7 +272,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
           return tellUnplayable()
         }
         console.error('Failed to attach Crunchyroll frame', err)
-        setError(err?.message || 'Failed to load player')
+        setError(err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
       })
     return () => { cancelled = true }
   }, [iframe, mode])
@@ -336,14 +336,14 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
         setLoggedOut(true)
         return
       }
-      if (!outcome) throw new Error('The episode did not load a player.')
+      if (!outcome) throw new Error(intl.formatMessage({ id: 'The episode did not load a player.', defaultMessage: 'The episode did not load a player.' }))
       // only once another relay plays it: an episode no relay serves says nothing about the show's next one
       for (const relay of excluded.current) if (!triedRelays.includes(relay)) tellTriedRelay(relay)
       setRemoteVideo(outcome)
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Crunchyroll player', err)
-      setError(err?.message || 'Failed to load player')
+      setError(err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -541,7 +541,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
         }
         // Retry re-attaches, which moves the player to the extension if that is what refused
         if (outcome === 'unsupported') {
-          setError('The Crunchyroll sign-in window could not be opened here.')
+          setError(intl.formatMessage({ id: 'The Crunchyroll sign-in window could not be opened here.', defaultMessage: 'The Crunchyroll sign-in window could not be opened here.' }))
           return
         }
         // the window is closed and its cookies committed by now, so the whole player iframe reloads
@@ -556,7 +556,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
       }, err => {
         if (!mounted.current) return
         console.error('Crunchyroll sign-in window failed', err)
-        setError(err?.message || 'The sign-in window failed')
+        setError(err?.message || intl.formatMessage({ id: 'The sign-in window failed', defaultMessage: 'The sign-in window failed' }))
       })
       .finally(() => {
         windowPending.current = false
@@ -597,19 +597,19 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
 
   const overlay = (loading || error || popupBlocked || loggedOut || unavailable) && (
     <div className="overlay">
-      {unavailable && UNAVAILABLE_NOTE}
+      {unavailable && intl.formatMessage({ id: 'This episode is not available on Crunchyroll in your region. Try another source.', defaultMessage: 'This episode is not available on Crunchyroll in your region. Try another source.' })}
       {loggedOut && !error && !popupBlocked && (
         <>
-          Sign in to Crunchyroll to watch.
+          {intl.formatMessage({ id: 'Sign in to {name} to watch.', defaultMessage: 'Sign in to {name} to watch.' }, { name: 'Crunchyroll' })}
           {mode === 'extension'
             ? (
               <button className="login-button" onClick={openLogin} disabled={popupOpen}>
-                {popupOpen ? 'Finish signing in the popup...' : 'Open Crunchyroll Login Page'}
+                {popupOpen ? intl.formatMessage({ id: 'Finish signing in the popup...', defaultMessage: 'Finish signing in the popup...' }) : intl.formatMessage({ id: 'Open {name} Login Page', defaultMessage: 'Open {name} Login Page' }, { name: 'Crunchyroll' })}
               </button>
             )
             : (
               <button className="login-button" onClick={openLoginWindow} disabled={windowOpen}>
-                {windowOpen ? 'Finish signing in the window...' : 'Sign in to Crunchyroll'}
+                {windowOpen ? intl.formatMessage({ id: 'Finish signing in the window...', defaultMessage: 'Finish signing in the window...' }) : intl.formatMessage({ id: 'Sign in to {name}', defaultMessage: 'Sign in to {name}' }, { name: 'Crunchyroll' })}
               </button>
             )
           }
@@ -617,17 +617,17 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
       )}
       {popupBlocked && !error && (
         <>
-          The login popup was blocked. Allow popups for this page and try again.
-          <button className="login-button" onClick={mode === 'extension' ? openLogin : openLoginWindow}>Open Crunchyroll Login Page</button>
+          {intl.formatMessage({ id: 'The login popup was blocked. Allow popups for this page and try again.', defaultMessage: 'The login popup was blocked. Allow popups for this page and try again.' })}
+          <button className="login-button" onClick={mode === 'extension' ? openLogin : openLoginWindow}>{intl.formatMessage({ id: 'Open {name} Login Page', defaultMessage: 'Open {name} Login Page' }, { name: 'Crunchyroll' })}</button>
         </>
       )}
       {error && (
         <>
           {error}
-          <button className="login-button" onClick={retry}>Retry</button>
+          <button className="login-button" onClick={retry}>{intl.formatMessage({ id: 'Retry', defaultMessage: 'Retry' })}</button>
         </>
       )}
-      {loading && !error && !loggedOut && <div className="loading-spinner" role="status" aria-label="Loading" />}
+      {loading && !error && !loggedOut && <div className="loading-spinner" role="status" aria-label={intl.formatMessage({ id: 'Loading', defaultMessage: 'Loading' })} />}
     </div>
   )
 

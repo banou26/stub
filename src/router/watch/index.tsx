@@ -4,6 +4,7 @@ import type { WatchSource } from '../../components/source-selector'
 import { css } from '@emotion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
 
@@ -385,18 +386,24 @@ const style = css`
 
 type EpisodeLink = { href: string, title?: string }
 
-const EpisodeStep = ({ link, previous = false }: { link: EpisodeLink, previous?: boolean }) => (
-  <Link className={`episode-step ${previous ? 'previous' : 'next'}`} href={link.href} title={link.title}>
-    {previous ? <ChevronLeft/> : undefined}
-    <span className="step">
-      <span className="step-label">{previous ? 'Previous episode' : 'Next episode'}</span>
-      {link.title ? <span className="step-target">{link.title}</span> : undefined}
-    </span>
-    {previous ? undefined : <ChevronRight/>}
-  </Link>
-)
+const EpisodeStep = ({ link, previous = false }: { link: EpisodeLink, previous?: boolean }) => {
+  const intl = useIntl()
+  return (
+    <Link className={`episode-step ${previous ? 'previous' : 'next'}`} href={link.href} title={link.title}>
+      {previous ? <ChevronLeft/> : undefined}
+      <span className="step">
+        <span className="step-label">
+          {previous ? intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' }) : intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })}
+        </span>
+        {link.title ? <span className="step-target">{link.title}</span> : undefined}
+      </span>
+      {previous ? undefined : <ChevronRight/>}
+    </Link>
+  )
+}
 
 const Watch = () => {
+  const intl = useIntl()
   const rawParams = useParams<RouteParams['WATCH']>()
   // wouter hands the segments through undecoded, and an encoded uri is a page that never subscribes
   const params = {
@@ -801,7 +808,7 @@ const Watch = () => {
           ? (
             <div className="player-container fix">
               <button type="button" onClick={() => { void addExtension().then(installed => { if (installed) setBackend('extension') }) }}>
-                Install the FKN extension to play {needsExtension}
+                {intl.formatMessage({ id: 'Install the FKN extension to play {name}', defaultMessage: 'Install the FKN extension to play {name}' }, { name: needsExtension })}
               </button>
             </div>
           )

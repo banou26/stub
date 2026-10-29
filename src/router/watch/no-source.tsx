@@ -2,6 +2,7 @@ import type { AccountsProps } from '../settings/accounts'
 
 import { css } from '@emotion/react'
 import { useRef } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import OriginIcon from '../../components/origin-icon'
 import { addPlugins } from '../../plugins'
@@ -101,10 +102,11 @@ const style = css`
  * in `signIns` as its card in Settings holds it, then FKN's package browser, to add a source.
  */
 const NoSource = ({ signIns, accounts }: { signIns: readonly string[], accounts: AccountsProps }) => {
+  const intl = useIntl()
   const heading = useRef<HTMLHeadingElement>(null)
   return (
     <div className="player-container no-source" css={style}>
-      <h2 ref={heading} tabIndex={-1}>No source you can play here yet</h2>
+      <h2 ref={heading} tabIndex={-1}>{intl.formatMessage({ id: 'No source you can play here yet', defaultMessage: 'No source you can play here yet' })}</h2>
       {signIns.length
         ? (
           <ul>
@@ -124,7 +126,7 @@ const NoSource = ({ signIns, accounts }: { signIns: readonly string[], accounts:
           </ul>
         )
         : undefined}
-      <button type="button" onClick={() => { void addPlugins() }}>Browse sources</button>
+      <button type="button" onClick={() => { void addPlugins() }}>{intl.formatMessage({ id: 'Browse sources', defaultMessage: 'Browse sources' })}</button>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 // FIRST, and it has to stay first: ../../components/dom installs the document that @emotion/react
 // reads at module scope. See the file for what happens when it does not.
-import { button, mount, unmount } from '../../components/dom'
+import { button, mount, unmount, withIntl } from '../../components/dom'
 
 import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, GotoOptions } from '@fkn/lib'
@@ -94,7 +94,7 @@ const makeFrame = () => {
 const hosts: HTMLElement[] = []
 
 const render = async (languages?: TrackLanguages) => {
-  const host = mount(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" languages={languages} />)
+  const host = mount(withIntl(<CrunchyrollPlayer url={EPISODE} mediaUri="" episodeUri="" sourceUri="" languages={languages} />))
   hosts.push(host)
   return host
 }
@@ -574,7 +574,7 @@ describe('the tracks served to the watch page', () => {
         const host = await load({ audio: 'Japanese' })
         await vi.waitFor(() => expect(controls.discover).toHaveBeenCalledTimes(1), { timeout: 5_000 })
         const replaced = skin.remote
-        act(() => { renderInto(<CrunchyrollPlayer url={`${EPISODE}-next`} mediaUri="" episodeUri="" sourceUri="" languages={{ audio: 'Japanese' }} />, host) })
+        act(() => { renderInto(withIntl(<CrunchyrollPlayer url={`${EPISODE}-next`} mediaUri="" episodeUri="" sourceUri="" languages={{ audio: 'Japanese' }} />), host) })
         await vi.waitFor(() => {
           expect(skin.remote).toBeTruthy()
           expect(skin.remote).not.toBe(replaced)

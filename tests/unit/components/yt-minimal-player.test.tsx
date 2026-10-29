@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -85,11 +85,11 @@ afterEach(() => {
 type Props = Parameters<typeof YoutubeMinimalPlayer>[0]
 
 const player = (props: Props) => {
-  const host = mount(<YoutubeMinimalPlayer {...props}/>)
+  const host = mount(withIntl(<YoutubeMinimalPlayer {...props}/>))
   hosts.push(host)
   return {
     host,
-    rerender: (next: Props) => act(() => { render(<YoutubeMinimalPlayer {...next}/>, host) }),
+    rerender: (next: Props) => act(() => { render(withIntl(<YoutubeMinimalPlayer {...next}/>), host) }),
     frame: () => host.querySelector('iframe')!,
     embed: () => host.querySelector('iframe')!.contentWindow as unknown as FakeEmbed,
     /** The frame's `load`, which linkedom never fires on its own. */
@@ -177,7 +177,7 @@ test('a frame that loaded before the effects ran still starts the budget', () =>
   const host = document.body.appendChild(document.createElement('div'))
   hosts.push(host)
   act(() => {
-    render(<YoutubeMinimalPlayer url={TRAILER} onError={onError}/>, host)
+    render(withIntl(<YoutubeMinimalPlayer url={TRAILER} onError={onError}/>), host)
     const frame = host.querySelector('iframe')!
     ;(frame.contentWindow as unknown as FakeEmbed).running = false
     frame.dispatchEvent(new Event('load'))

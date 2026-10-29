@@ -1,6 +1,6 @@
 // FIRST, and it has to stay first: ../../components/dom installs the document that @emotion/react
 // reads at module scope. See the file for what happens when it does not.
-import { button, mount, unmount } from '../../components/dom'
+import { button, mount, unmount, withIntl } from '../../components/dom'
 
 import type { DelegatedTracks } from '@banou/media-player'
 import type { Frame, GotoOptions, RemoteVideoElement } from '@fkn/lib'
@@ -127,7 +127,7 @@ const amazon = (html: string, { url = DETAIL, surfaces = EPISODE_SURFACE, idle =
 }
 
 const hosts: HTMLElement[] = []
-const player = (url: string) => <PrimeVideoPlayer url={url} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />
+const player = (url: string) => withIntl(<PrimeVideoPlayer url={url} mediaUri="" episodeUri="" sourceUri={`amazon:${GTI}`} />)
 const render = (url = DEEP_LINK) => {
   const host = mount(player(url))
   hosts.push(host)
