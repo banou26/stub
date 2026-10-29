@@ -613,6 +613,7 @@ describe('in English, word for word', () => {
   })
 
   test('a sign in, a sign out and a disconnect each name what they wait on', async () => {
+    viewerIn('Asia/Tokyo')
     const pending = () => new Promise<never>(() => {})
     const cloud = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: pending, signOut: pending }, prime: { signIn: pending, signOut: pending } })
     await act(async () => { button(cloud.row('prime'), 'Sign in')!.click() })
