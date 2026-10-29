@@ -271,6 +271,7 @@
   "Your name": "Adınız",
   "adding…": "ekleniyor…",
   "host#the party's host": "ev sahibi",
+  "host#the party's host, as who did what a chat line says": "ev sahibi",
   "in {countdown}": "{countdown} sonra",
   "you#the viewer, among the party": "siz",
   "{control}, {member}#a grant's cell: the control, then whose it is": "{control}, {member}",

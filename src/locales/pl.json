@@ -271,6 +271,7 @@
   "Your name": "Twoja nazwa",
   "adding…": "dodawanie…",
   "host#the party's host": "prowadzący",
+  "host#the party's host, as who did what a chat line says": "prowadzący",
   "in {countdown}": "jeszcze {countdown}",
   "you#the viewer, among the party": "ty",
   "{control}, {member}#a grant's cell: the control, then whose it is": "{control}, {member}",

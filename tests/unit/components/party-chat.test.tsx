@@ -162,19 +162,33 @@ describe('in another language', () => {
     say('alex', { t: 'ask', c: 'rate', path: '/watch/a/b', s: at({ rate: 1.5 }) })
     say('me', { t: 'ask', c: 'seek', path: '/watch/a/b', s: at({ time: 3_725 }) })
     say('host', { t: 'ask', c: 'subs', sub: 'English' })
+    say('host', { t: 'chat', text: 'hi' })
     act(() => { host.querySelector<HTMLButtonElement>('button.toggle')!.click() })
-    return [host.querySelector('.head')?.textContent, ...[...host.querySelectorAll('.line.action')].map(line => line.textContent)]
+    return [
+      host.querySelector('.head')?.textContent,
+      ...[...host.querySelectorAll('.line.action')].map(line => line.textContent),
+      ...[...host.querySelectorAll('.line .who')].map(who => who.textContent),
+    ]
   }
 
   test('German writes its own sentences, numbers and names, the track as the player names it', async () => {
-    expect(await shown('de')).toEqual(['Party-Chat', 'Alex hat die Geschwindigkeit auf 1,5x gesetzt', 'du bist zu 1:02:05 gesprungen', 'Host hat die Untertitel auf English gestellt'])
+    expect(await shown('de')).toEqual(['Party-Chat', 'Alex hat die Geschwindigkeit auf 1,5x gesetzt', 'du bist zu 1:02:05 gesprungen', 'der Host hat die Untertitel auf English gestellt', 'Host'])
+  })
+
+  test.each([
+    ['fr', 'l’hôte a choisi les sous-titres English'],
+    ['es-419', 'el anfitrión puso los subtítulos en English'],
+    ['it', 'l’host ha impostato i sottotitoli su English'],
+    ['pt-BR', 'o anfitrião mudou as legendas para English'],
+  ])('a host with no name does something in %s with the article its sentence needs', async (language, line) => {
+    expect((await shown(language)).at(-2)).toBe(line)
   })
 
   test('an English browser outside the US writes the clock as stub always has, and the speed in its own English', async () => {
-    expect(await shown('en', ['en-DK'])).toEqual(['Party chat', 'Alex set speed to 1,5x', 'you skipped to 1:02:05', 'host set subtitles to English'])
+    expect(await shown('en', ['en-DK'])).toEqual(['Party chat', 'Alex set speed to 1,5x', 'you skipped to 1:02:05', 'host set subtitles to English', 'host'])
   })
 
   test('Russian, with no past tense that would need the member\'s gender', async () => {
-    expect(await shown('ru')).toEqual(['Чат комнаты', 'Alex: скорость 1,5x', 'вы перешли к 1:02:05', 'ведущий: субтитры English'])
+    expect(await shown('ru')).toEqual(['Чат комнаты', 'Alex: скорость 1,5x', 'вы перешли к 1:02:05', 'ведущий: субтитры English', 'ведущий'])
   })
 })

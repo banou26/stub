@@ -271,6 +271,7 @@
   "Your name": "名前",
   "adding…": "追加中…",
   "host#the party's host": "ホスト",
+  "host#the party's host, as who did what a chat line says": "ホスト",
   "in {countdown}": "あと{countdown}",
   "you#the viewer, among the party": "あなた",
   "{control}, {member}#a grant's cell: the control, then whose it is": "{control}、{member}",

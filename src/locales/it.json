@@ -271,6 +271,7 @@
   "Your name": "Il tuo nome",
   "adding…": "aggiunta in corso…",
   "host#the party's host": "host",
+  "host#the party's host, as who did what a chat line says": "l’host",
   "in {countdown}": "tra {countdown}",
   "you#the viewer, among the party": "tu",
   "{control}, {member}#a grant's cell: the control, then whose it is": "{control}, {member}",

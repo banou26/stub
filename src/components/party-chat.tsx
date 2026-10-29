@@ -148,6 +148,13 @@ export const memberLabel = (intl: IntlShape, line: { from: string, name?: string
   line.self ? intl.formatMessage({ id: 'you#the viewer, among the party', defaultMessage: 'you', description: 'the viewer, among the party' })
   : line.name ?? (line.from === owner ? intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' }) : line.from.slice(0, 6))
 
+// who an action line says did it: a host with no name is its own message there, since the sentence starts with it and
+// takes an article the label does not (der Host hat pausiert)
+const actor = (intl: IntlShape, line: PartyChatLine, owner: string): string =>
+  !line.self && line.name === undefined && line.from === owner
+    ? intl.formatMessage({ id: 'host#the party\'s host, as who did what a chat line says', defaultMessage: 'host', description: 'the party\'s host, as who did what a chat line says' })
+    : memberLabel(intl, line, owner)
+
 /**
  * What a member's ask did, as its chat line says it in the language shown: each app writes the sentence from the ask
  * it heard, so a viewer reads another's action in their own language. `who` tells the viewer's own from another's.
@@ -220,7 +227,7 @@ const PartyChat = () => {
           <div className="lines" ref={list}>
             {lines.length === 0 && <div className="empty">{intl.formatMessage({ id: 'Nothing said yet.', defaultMessage: 'Nothing said yet.' })}</div>}
             {lines.map(line => line.ask
-              ? <div key={line.seq} className="line action">{actionText(intl, line.ask, memberLabel(intl, line, owner), line.self)}</div>
+              ? <div key={line.seq} className="line action">{actionText(intl, line.ask, actor(intl, line, owner), line.self)}</div>
               : (
                 <div key={line.seq} className={`line${line.self ? ' self' : ''}`}>
                   <span className="who">{memberLabel(intl, line, owner)}</span>
