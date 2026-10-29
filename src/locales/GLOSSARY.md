@@ -108,7 +108,8 @@ A party is a few viewers watching together: the host steers, the others follow a
 about a member's action is written by each viewer's app in its own language, from the action and its values, so it
 names the member as `{member}` and the viewer by the `self` branch. Where a past tense would agree with the member's
 gender (Russian, Polish), the line is the member and a noun: `{member}: пауза`. Korean writes `{member} 님이` and
-`{track}(으)로`, whose particle no name changes.
+`{track}(으)로`, whose particle no name changes. The grants' first row, All followers, shares the menu's width with six
+controls, so it is one word where the language's phrase runs long: `Alle`, `Todos`, `Tous`, `Все`.
 
 | | Watch together | party | host | the others | Catch up | Follow playback |
 | --- | --- | --- | --- | --- | --- | --- |

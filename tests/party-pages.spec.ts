@@ -99,6 +99,14 @@ const drawn = async (page: Page, view: keyof typeof VIEWS, width: number) => {
         if (scrolls && !['INPUT', 'SELECT'].includes(element.tagName) && element.scrollWidth > element.clientWidth + 1) past.push(`${named(element)} scrolls`)
       }
     }
+    // the grants' first row is cut with an ellipsis as a member's name is, but a word of the page has no reason to be;
+    // a table cell's scrollWidth leaves the cut out, the text's own box does not
+    const everyone = document.querySelector('tbody tr:first-child th')
+    if (everyone) {
+      const text = document.createRange()
+      text.selectNodeContents(everyone)
+      if (text.getBoundingClientRect().right > everyone.getBoundingClientRect().right - parseFloat(getComputedStyle(everyone).paddingRight) + 1) past.push(`${named(everyone)} is cut`)
+    }
     return { words, past, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }
   })
 }
