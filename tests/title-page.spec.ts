@@ -1147,7 +1147,7 @@ test('a film\'s preview holds three rows\' place while JustWatch has not answere
     await page.setViewportSize({ width, height: viewport })
     await page.goto(`${origin}/media/${FILM}`)
     const list = modal(page).locator('.main > .sources')
-    const content = modal(page).locator('.content')
+    const content = page.locator('.modal > .content')
     const slots = list.locator('.source-pending')
     const rows = list.locator('a.source')
     const description = '.modal .columns > .main > .description'
@@ -1344,11 +1344,13 @@ test.describe('a viewer in Japan', () => {
     // HOR-1059's open point for films: the tracking shares Play's row rather than leaving a band under it
     const middle = async (locator: Locator) => { const { y, height } = (await locator.boundingBox())!; return y + height / 2 }
     expect(Math.abs(await middle(bar.locator('> a.play')) - await middle(bar.locator('.tracking-compact .group.edit'))), 'the tracking on Play\'s middle').toBeLessThan(1)
-    // a failed save's line longer than the whole row
-    const places = () => Promise.all([box(bar.locator('> a.play')), box(bar.locator('.tracking-compact .group.edit'))]).then(boxes => boxes.map(({ top, left }) => [top, left]))
-    const held = await places()
+    // a failed save's line longer than the whole row; the block sits on the trailer's foot, so the line under it lifts
+    // Play and the tracking together
+    const beside = () => Promise.all([box(bar.locator('> a.play')), box(bar.locator('.tracking-compact .group.edit'))])
+      .then(([play, controls]) => [controls.top - play.top, controls.left - play.left])
+    const held = await beside()
     await bar.locator('.tracking-compact > .notes').evaluate(notes => notes.insertAdjacentHTML('beforeend', `<div class="note">${'MyAnimeList did not save the status and episode 12 and the score. '.repeat(6)}<button type="button">Retry</button></div>`))
-    expect(await places(), 'Play and the tracking stay side by side where they were').toEqual(held)
+    expect(await beside(), 'the tracking stays beside Play').toEqual(held)
     await expect(button('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
     expect(await button('Prime Video').getAttribute('target')).toBeNull()
     await expect(button('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
@@ -1805,7 +1807,7 @@ test('a film\'s title block sits on its trailer\'s foot, and one taller than the
   await page.goto(`${origin}/media/${FILM}`)
   const title = modal(page).locator('.hero.film h2.title')
   await expect(title).toHaveText('Spec Film', { timeout: 30_000 })
-  const parts = () => Promise.all(['.modal', '.modal > .hero > .trailer', '.modal > .hero > .over', '.modal > .content'].map(selector => box(page.locator(selector))))
+  const parts = () => Promise.all([box(modal(page)), box(page.locator('.modal > .hero > .trailer')), box(page.locator('.modal > .hero > .over')), box(page.locator('.modal > .content'))])
   const [, picture, block, content] = await parts()
   expect(Math.round(block.bottom), 'on the picture\'s foot').toBe(Math.round(picture.bottom))
   expect(Math.round(content.top)).toBe(Math.round(picture.bottom))
