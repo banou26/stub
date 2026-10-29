@@ -113,7 +113,7 @@ test.describe('on a phone', () => {
 
 // HOR-1026 (stub in the viewer's language): the card's label, its languages' names and how many more, in the language
 // shown; FormatJS's pseudo-language is English to Intl, so its names stay English
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   const SHOWN: Record<string, { label?: string, names: string[] }> = {
     [PSEUDO]: { names: ['Japanese', 'English', 'French', 'German', 'Spanish'] },
     de: { label: 'Audio', names: ['Japanisch', 'Englisch', 'Französisch', 'Deutsch', 'Spanisch'] },

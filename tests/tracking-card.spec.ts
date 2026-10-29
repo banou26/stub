@@ -468,7 +468,7 @@ const wordsOf = async (page: Page, width: number) => {
   return { words: reads.flatMap(read => read.words), past: reads.flatMap(read => read.past), unfitted: reads.flatMap(read => read.unfitted), overflow }
 }
 
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     for (const width of [1440, 390]) {
       test(`${language} at ${width} px: the tracking row, its cards and notes have no sideways scroll, nothing past its box, and none of their words in English`, async ({ page }) => {

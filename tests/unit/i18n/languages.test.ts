@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { bestLanguage, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, readPickedLanguage, uiLanguage } from '../../../src/i18n/languages'
+import { automaticLanguage, bestLanguage, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, pickLanguage, readPickedLanguage, uiLanguage } from '../../../src/i18n/languages'
 
 // the planned list: wave 1, then the right to left pair, and two whose old tags browsers still send
 const PLANNED = ['en', 'es-419', 'pt-BR', 'fr', 'de', 'it', 'ru', 'ja', 'ko', 'zh-Hans', 'zh-Hant', 'tr', 'pl', 'ar', 'he', 'id', 'fil']
@@ -50,22 +50,63 @@ describe('the best match of the browser\'s languages', () => {
 })
 
 describe('the language shown', () => {
-  test('nothing is offered but English yet', () => {
-    expect(OFFERED).toEqual(['en'])
-    expect(uiLanguage()).toBe('en')
+  test('wave 1 is offered, so a browser asking for one of its languages gets it', () => {
+    expect([...OFFERED].sort()).toEqual(['de', 'en', 'es-419', 'fr', 'it', 'ja', 'ko', 'pl', 'pt-BR', 'ru', 'tr', 'zh-Hans', 'zh-Hant'])
+    expect(uiLanguage()).toBe('fr')
+    expect(['es-MX', 'pt-PT', 'zh-TW', 'zh-CN', 'de-AT', 'ja-JP'].map(tag => uiLanguage([tag]))).toEqual(['es-419', 'pt-BR', 'zh-Hant', 'zh-Hans', 'de', 'ja'])
   })
 
   test('the best match among the offered, else English', () => {
     expect(uiLanguage(['fr-CA', 'en'], PLANNED)).toBe('fr')
     expect(uiLanguage(['th'], PLANNED)).toBe('en')
+    expect(uiLanguage(['th', 'ar'])).toBe('en')
   })
 
-  test('a language picked wins once offered, and one not offered is not read', () => {
+  test('a language picked wins, and one not offered is not read', () => {
     stored.set(LANGUAGE_KEY, 'en')
     expect(readPickedLanguage()).toBe('en')
     expect(uiLanguage(['fr-CA'], PLANNED)).toBe('en')
-    stored.set(LANGUAGE_KEY, 'fr')
+    stored.set(LANGUAGE_KEY, 'ar')
     expect(readPickedLanguage()).toBeUndefined()
+    expect(uiLanguage()).toBe('fr')
+  })
+
+  test('Automatic is the browser\'s best match whatever is picked', () => {
+    stored.set(LANGUAGE_KEY, 'de')
+    expect(automaticLanguage()).toBe('fr')
+    expect(automaticLanguage(['th'])).toBe('en')
+  })
+})
+
+describe('picking a language', () => {
+  test('writes the setting, and reloads the tab once the account\'s step settles', async () => {
+    const order: string[] = []
+    let settle = () => {}
+    const saved = () => new Promise<void>(resolve => { order.push(`saved with ${stored.get(LANGUAGE_KEY)}`); settle = resolve })
+    const picking = pickLanguage('de', { saved, reload: () => order.push('reload') })
+    expect(stored.get(LANGUAGE_KEY)).toBe('de')
+    await Promise.resolve()
+    expect(order, 'no reload before the account has it').toEqual(['saved with de'])
+    settle()
+    await picking
+    expect(order).toEqual(['saved with de', 'reload'])
+    expect(uiLanguage()).toBe('de')
+  })
+
+  test('Automatic keeps nothing, so the browser\'s language is shown again', async () => {
+    stored.set(LANGUAGE_KEY, 'de')
+    const reload = vi.fn()
+    await pickLanguage(undefined, { saved: async () => {}, reload })
+    expect(stored.has(LANGUAGE_KEY)).toBe(false)
+    expect(reload).toHaveBeenCalledOnce()
+    expect(uiLanguage()).toBe('fr')
+  })
+
+  test('a storage that refuses the write still reloads', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('quota') }, removeItem: () => {} })
+    const reload = vi.fn()
+    await pickLanguage('de', { saved: async () => {}, reload })
+    expect(reload).toHaveBeenCalledOnce()
   })
 })
 

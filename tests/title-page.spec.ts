@@ -1939,7 +1939,7 @@ const drawnWords = async (page: Page, width: number) => {
   return { overflow, words }
 }
 
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     test(`${language}: the title page and its series graph have no sideways scroll at 1440 and 390 px, and none of their own words in English`, async ({ page }) => {
       test.setTimeout(240_000)
@@ -2023,7 +2023,7 @@ const homeWords = async (page: Page, width: number) => {
   return { overflow, words }
 }
 
-test.describe('home and cards in a language stub does not offer yet', () => {
+test.describe('home and cards in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     test(`${language}: no sideways scroll at 1440 and 390 px, and none of their own words in English`, async ({ page }) => {
       test.setTimeout(300_000)
@@ -2128,7 +2128,7 @@ const watchViews = async (page: Page) => {
   return reading
 }
 
-test.describe('the watch page in a language stub does not offer yet', () => {
+test.describe('the watch page in German, Japanese and the pseudo-language', () => {
   test.use({ timezoneId: 'Asia/Tokyo' })
 
   for (const language of [PSEUDO, 'de', 'ja']) {

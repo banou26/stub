@@ -37,8 +37,9 @@ const pseudoCatalogue = () => {
 }
 
 /**
- * A spec build's plugin offering, before stub does, every catalogue in src/locales and the pseudo-language, so a test
- * shows one by writing its tag to the language setting (LANGUAGE_KEY). A browser in English still gets English.
+ * A spec build's plugin offering every catalogue in src/locales, one stub does not offer yet included, and the
+ * pseudo-language, so a test shows one by writing its tag to the language setting (LANGUAGE_KEY). A browser in English
+ * still gets English.
  */
 export const offerEveryLanguage = (): Plugin => {
   const offered = join(ROOT, 'src', 'i18n', 'offered.json')

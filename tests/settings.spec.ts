@@ -946,7 +946,7 @@ const drawnWords = async (page: Page, width: number) => {
   return { words, past, overflow }
 }
 
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   test.use({ timezoneId: 'America/Toronto' })
 
   for (const language of [PSEUDO, 'de', 'ja']) {

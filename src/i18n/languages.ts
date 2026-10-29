@@ -54,9 +54,24 @@ export const readPickedLanguage = (): string | undefined => {
   return kept && OFFERED.includes(kept) ? kept : undefined
 }
 
-/** The language stub's text is shown in: the one picked, else the offered one best serving the browser's, else English. */
-export const uiLanguage = (languages = browserLanguages(), offered = OFFERED) =>
-  readPickedLanguage() ?? bestLanguage(languages, offered) ?? 'en'
+/**
+ * Picks `language`, or Automatic with undefined, then reloads the tab once `saved` (the FKN account's settings step)
+ * settles, so the next load shows it and the account's older copy cannot win over it.
+ */
+export const pickLanguage = async (language: string | undefined, { saved, reload }: { saved: () => Promise<unknown>, reload: () => void }) => {
+  try {
+    if (language) settings.setItem(LANGUAGE_KEY, language)
+    else settings.removeItem(LANGUAGE_KEY)
+  } catch {}
+  await saved()
+  reload()
+}
+
+/** The language Automatic shows: the offered one best serving the browser's, else English. */
+export const automaticLanguage = (languages = browserLanguages(), offered = OFFERED) => bestLanguage(languages, offered) ?? 'en'
+
+/** The language stub's text is shown in: the one picked, else Automatic's. */
+export const uiLanguage = (languages = browserLanguages(), offered = OFFERED) => readPickedLanguage() ?? automaticLanguage(languages, offered)
 
 /**
  * The locale dates, numbers and lists are written in: the browser's first language in `shown`'s language and

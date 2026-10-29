@@ -57,10 +57,10 @@ const style = css`
     height: 100vh;
     width: 100%;
     font-size: 1.6rem;
-    font-family: Fira Sans;
     background-color: #0f0f0f;
     color: #fff;
-    font-family: Montserrat;
+    /* Montserrat draws Latin and Cyrillic; every other script falls to the system's own sans-serif */
+    font-family: Montserrat, system-ui, sans-serif;
   }
 
   #stub-root {

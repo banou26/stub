@@ -9,9 +9,9 @@ import { build } from 'vite-plus'
 
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
-// HOR-1026 (stub in the viewer's language): the watch party's words in a language stub does not offer yet, which only
-// a laid out page can show running past its box. So this builds tests/party-pages.tsx the way tests/party-grid.spec.ts
-// builds its page, with every catalogue and the pseudo-language offered (tests/languages.ts).
+// HOR-1026 (stub in the viewer's language): the watch party's words in German, Japanese and the pseudo-language, which
+// only a laid out page can show running past its box. So this builds tests/party-pages.tsx the way
+// tests/party-grid.spec.ts builds its page, with every catalogue and the pseudo-language offered (tests/languages.ts).
 
 const ROOT = join(import.meta.dirname, '..')
 const ORIGIN = 'http://party.test'
@@ -111,7 +111,7 @@ const drawn = async (page: Page, view: keyof typeof VIEWS, width: number) => {
   })
 }
 
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     test(`${language}: the party's button, menu, page and chat run past nothing at 1440 and 390 px, with none of their words in English`, async ({ page }) => {
       test.setTimeout(120_000)

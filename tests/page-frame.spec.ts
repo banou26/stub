@@ -11,9 +11,10 @@ import { build } from 'vite-plus'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 import { workerFakes } from './worker-fakes'
 
-// HOR-1026 (stub in the viewer's language): the text around a page's own, in a language stub does not offer yet. The
-// app is built as tests/title-page.spec.ts builds it, with every catalogue and the pseudo-language offered
-// (tests/languages.ts) and the legal page swapped for one that throws while it renders, so /legal draws the error page.
+// HOR-1026 (stub in the viewer's language): the text around a page's own, in German, Japanese and the
+// pseudo-language. The app is built as tests/title-page.spec.ts builds it, with every catalogue and the pseudo-language
+// offered (tests/languages.ts) and the legal page swapped for one that throws while it renders, so /legal draws the
+// error page.
 // Spec Sequel (anilist:900001) has a long description and lists of 14 (tests/fake-fetch.ts).
 
 const ROOT = join(import.meta.dirname, '..')
@@ -154,7 +155,7 @@ const areaDrawn = async (page: Page, width: number) => {
   return { words, problems }
 }
 
-test.describe('in a language stub does not offer yet', () => {
+test.describe('in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     test(`${language}: the footer, paging, toggle, error and refusal lines fit at 1440 and 390 px, with none of their words in English`, async ({ page }) => {
       test.setTimeout(240_000)

@@ -845,7 +845,7 @@ const areaDrawn = async (page: Page, width: number) => {
   return { words, problems }
 }
 
-test.describe('the header and search in a language stub does not offer yet', () => {
+test.describe('the header and search in German, Japanese and the pseudo-language', () => {
   test.beforeEach(async ({ page }) => {
     for (const routes of [page, page.context()]) {
       await routes.route('https://api.trace.moe/**', route => route.fulfill({ json: SCENE_ANSWER, headers: { 'access-control-allow-origin': '*' } }))

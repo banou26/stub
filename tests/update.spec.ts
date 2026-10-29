@@ -273,7 +273,7 @@ test('a page off stub\'s own hosts, as in an FKN tenant, never checks', async ({
 })
 
 // HOR-1026 (stub in the viewer's language)
-test.describe('Updating Stub in a language stub does not offer yet', () => {
+test.describe('Updating Stub in German, Japanese and the pseudo-language', () => {
   for (const language of [PSEUDO, 'de', 'ja']) {
     test(`${language}: reads in that language and fits the screen at 1440 and 390 px`, async ({ page }) => {
       await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
