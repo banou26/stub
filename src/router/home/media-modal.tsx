@@ -507,8 +507,8 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
               address the store has grown to, which is the one the graph knows this work by. */}
           <TraceLink uri={media?.uri}/>
           <SourceLinks uri={data?.media?.uri} handles={media?.handles} links={data?.media?.streamingLinks} except={watchOriginIds(film, media?.handles)}/>
-          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
           <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })} title={title}/>
+          <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
         </div>
         {
           isMovie && media

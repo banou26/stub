@@ -714,10 +714,11 @@ describe('Share', () => {
     expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1,mal:1)${PLUGINS}`)
   })
 
-  test('on the preview, beside More details, a short link to the work\'s title page', async () => {
+  // before More details, so More details keeps the row's right edge the tracker lines up under
+  test('on the preview, just before More details, a short link to the work\'s title page', async () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
-    expect(classes(modal().querySelectorAll('.header > .more + button'))).toEqual([''])
+    expect(modal().querySelectorAll('.header > button[aria-label="Share"] + .more')).toHaveLength(1)
     const { link, opens } = await share(modal().querySelector('.header > button[aria-label="Share"]'), `https://anime.fkn.app/media/ag:(anilist:1)${PLUGINS}`)
     expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
     expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)${PLUGINS}`)
