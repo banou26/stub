@@ -667,6 +667,8 @@ describe('the streaming links after the source icons', () => {
   const ORIGINS = [
     { id: 'anilist', name: 'AniList', icon: 'https://anilist.co/i.png', url: 'https://anilist.co' },
     { id: 'nf', name: 'Netflix', icon: 'https://www.netflix.com/i.png', url: 'https://www.netflix.com' },
+    { id: 'amazon', name: 'Prime Video', icon: 'https://www.primevideo.com/i.png', url: 'https://www.primevideo.com' },
+    { id: 'hbo', name: 'HBO Max', icon: 'https://www.max.com/i.png', url: 'https://www.max.com' },
     { id: 'kitsu', name: 'Kitsu', icon: 'https://kitsu.io/i.png', url: 'https://kitsu.io', isApiOnly: true },
   ]
   const idsOf = (request: { variables?: unknown }) => (request.variables as { input: { ids: string[] } }).input.ids
@@ -714,6 +716,27 @@ describe('the streaming links after the source icons', () => {
       'Hulu https://www.hulu.jp/watch/100276501',
       'OceanVeil https://oceanveil.net/anime_titles/542',
       'Bahamut Anime Crazy https://ani.gamer.com.tw/',
+    ])
+  })
+
+  // Prime Video's and HBO Max's own addresses are on primevideo.com and max.com, and their icons link to handles on
+  // watch.amazon.com and play.hbomax.com (tests/fixtures/justwatch), where MyAnimeList links them too; AniList links
+  // Prime Video on www.amazon.com
+  test('none is on the site a source\'s icon links to, or a part of that site', async () => {
+    viewerIn('America/New_York')
+    expect(await draw([
+      ANILIST,
+      { relation: 'PART_OF', node: { origin: 'amazon', url: 'https://watch.amazon.com/detail?gti=amzn1.dv.gti.1' } },
+      { relation: 'SAME_AS', node: { origin: 'hbo', url: 'https://play.hbomax.com/show/1' } },
+    ], [
+      { site: 'Amazon Prime Video', url: 'https://www.amazon.com/gp/video/detail/B01' },
+      { site: 'HBO Max', url: 'https://play.hbomax.com/show/1', country: 'US' },
+      { site: 'iQ', url: 'https://www.iq.com/album/1' },
+    ])).toEqual([
+      'AniList https://anilist.co/anime/191656',
+      'Prime Video https://watch.amazon.com/detail?gti=amzn1.dv.gti.1',
+      'HBO Max https://play.hbomax.com/show/1',
+      'iQ https://www.iq.com/album/1',
     ])
   })
 

@@ -389,17 +389,21 @@ const hostOf = (url: string | null | undefined) => {
   }
 }
 
+// a site's other hosts are parents or parts of it: AniList links Prime Video on www.amazon.com, and its icon a handle on
+// watch.amazon.com (2026-10-30)
+const sameSite = (host: string, other: string) => host === other || host.endsWith(`.${other}`) || other.endsWith(`.${host}`)
+
 /**
- * The streaming links to draw: the viewer's country's and those naming none, one per site, and none on a site in
- * `taken`, the sites of the source icons, drawn or hidden.
+ * The streaming links to draw: the viewer's country's and those naming none, one per site, and none on a site of
+ * `taken`, the addresses of the sources and of their handles, drawn or hidden.
  */
-const linksToDraw = (links: readonly StreamingLink[], taken: Iterable<string>) => {
+const linksToDraw = (links: readonly StreamingLink[], taken: readonly (string | null | undefined)[]) => {
   const country = viewerCountry()
-  const seen = new Set(taken)
+  const seen = taken.flatMap(url => hostOf(url) ?? [])
   return links.flatMap(link => {
     const host = hostOf(link.url)
-    if (!host || seen.has(host) || (link.country && link.country !== country)) return []
-    seen.add(host)
+    if (!host || seen.some(site => sameSite(site, host)) || (link.country && link.country !== country)) return []
+    seen.push(host)
     return [{ ...link, host }]
   })
 }
@@ -477,7 +481,7 @@ export const SourceLinks = (
           .filter(Boolean)
       }
       {
-        ready && linksToDraw(links ?? [], answered.flatMap(origin => hostOf(origin.url) ?? [])).map(link => (
+        ready && linksToDraw(links ?? [], [...answered.map(origin => origin.url), ...handles?.map(handle => handle.node.url) ?? []]).map(link => (
           <a className="origin" href={link.url} target="_blank" rel="noreferrer" title={link.site} key={link.host}>
             <OriginIcon icon={link.icon} name={link.site}/>
           </a>
