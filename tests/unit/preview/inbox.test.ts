@@ -37,7 +37,7 @@ const RUN: Run = {
   ],
   settled: true,
   fetchedAt: '2026-10-26T14:05:31.000Z',
-  writer: { by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430' },
+  writer: { by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430e' },
   regionOf: origin => origin === 'jw' ? 'US' : null,
 }
 

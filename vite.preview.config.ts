@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig } from 'vite-plus'
 
-import { commit, version } from './vite.config'
+import { commitOf, version } from './vite.config'
 
 const OUT = resolve(__dirname, 'functions-lib')
 const WORKER_FETCH = resolve(__dirname, 'src/worker/fetch.ts')
@@ -23,9 +23,10 @@ const WASM = {
 export default defineConfig({
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
-    // what the source store's inbox names as its writer (src/preview/inbox.ts)
+    // what the source store's inbox names as its writer (src/preview/inbox.ts), the commit at 8 characters as the
+    // Offline history job's writer has it (scripts/offline-history.mjs), where the page names 7
     __STUB_VERSION__: JSON.stringify(version),
-    __STUB_COMMIT__: JSON.stringify(commit),
+    __STUB_COMMIT__: JSON.stringify(commitOf(8)),
   },
   publicDir: false,
   // urql's entry names react, as in the app's build

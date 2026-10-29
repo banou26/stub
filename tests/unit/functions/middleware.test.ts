@@ -477,7 +477,7 @@ test('the crawler is answered while the object is still being put, and the copy 
 })
 
 test('nothing from the request reaches the copy, the object or its key', async () => {
-  const run: Run = { run: 'ag:(anilist:195604)', handles: [], settled: true, fetchedAt: '2026-10-26T14:05:31.000Z', writer: { by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430' }, regionOf: () => null }
+  const run: Run = { run: 'ag:(anilist:195604)', handles: [], settled: true, fetchedAt: '2026-10-26T14:05:31.000Z', writer: { by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430e' }, regionOf: () => null }
   const rows: AnswerRow[] = [{ key: 'sha-1', seq: 1, uri: 'anilist:195604', origin: 'anilist', kind: 'media', operation: 'MEDIA', selection: ['id'], raw: '{"id":"195604"}' }]
   const object = (await inboxObject(inboxLines(rows, run), run.fetchedAt))!
   createPreview.mockImplementation(() => copy(SETTLED, SETTLED, object))

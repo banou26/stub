@@ -85,7 +85,7 @@ beforeEach(() => {
   graph.exports = 0
   // as the preview build defines them
   vi.stubGlobal('__STUB_VERSION__', '0.0.62')
-  vi.stubGlobal('__STUB_COMMIT__', 'bdd2430')
+  vi.stubGlobal('__STUB_COMMIT__', 'bdd2430e')
   // a Worker's zone, which JustWatch reads its offer country off
   vi.stubEnv('TZ', 'UTC')
 })
@@ -215,7 +215,7 @@ test('a settled run\'s inbox holds every media answer its sources gave, dated wh
   ])
   expect(lines.map(({ body }) => body.body)).toEqual(graph.answers.map(row => row.raw))
   expect(new Set(lines.map(({ body }) => body.run))).toEqual(new Set([card.uri]))
-  expect(new Set(lines.map(({ index }) => JSON.stringify(index.writer)))).toEqual(new Set([JSON.stringify({ by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430' })]))
+  expect(new Set(lines.map(({ index }) => JSON.stringify(index.writer)))).toEqual(new Set([JSON.stringify({ by: 'stub-preview', stub: '0.0.62', commit: 'bdd2430e' })]))
   const fetchedAt = Date.parse(lines[0].index.fetchedAt)
   expect(fetchedAt).toBeGreaterThanOrEqual(asking + 50)
   expect(fetchedAt).toBeLessThan(asking + 900)
