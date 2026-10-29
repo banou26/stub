@@ -189,7 +189,9 @@ describe('searchHeading', () => {
     expect(of({ season: MediaSeason.Summer, year: 2026 })).toBe('Summer 2026')
     expect(of({ year: 2026 })).toBe('2026')
     expect(of({ season: MediaSeason.Summer })).toBe('Summer seasons')
+    expect(of({ season: MediaSeason.Winter })).toBe('Winter seasons')
     expect(of({ genres: ['Action'] })).toBe('Browsing')
+    expect(of({ season: MediaSeason.Fall, year: 2026, genres: ['Action'] })).toBe('Fall 2026')
   })
 
   test('free text wins, because it is what the reader typed', () => {
@@ -227,6 +229,17 @@ describe('formatLabel, statusLabel and seasonLabel', () => {
     expect(formatLabel(null)).toBeUndefined()
     expect(formatLabel(undefined)).toBeUndefined()
     expect(statusLabel(null)).toBeUndefined()
+  })
+
+  // HOR-1026 (stub in the viewer's language): each label's English, pinned before the labels move into messages
+  test('every format, status and season reads as its picker has always written it', () => {
+    expect([MediaType.Tv, MediaType.Movie, MediaType.TvShort, MediaType.Special, MediaType.Ova, MediaType.Ona].map(formatLabel))
+      .toEqual(['TV Show', 'Movie', 'TV Short', 'Special', 'OVA', 'ONA'])
+    expect([MediaStatus.Releasing, MediaStatus.Finished, MediaStatus.NotYetReleased, MediaStatus.Cancelled, MediaStatus.Hiatus].map(statusLabel))
+      .toEqual(['Airing', 'Finished', 'Not yet aired', 'Cancelled', 'Hiatus'])
+    expect([MediaSeason.Winter, MediaSeason.Spring, MediaSeason.Summer, MediaSeason.Fall].map(season => seasonLabel(season, 2026)))
+      .toEqual(['Winter 2026', 'Spring 2026', 'Summer 2026', 'Fall 2026'])
+    expect(formatLabel(MediaType.LiveAction), 'a format the picker does not offer').toBeUndefined()
   })
 
   test('a season needs its year, a year does not need its season', () => {

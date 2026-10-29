@@ -249,6 +249,58 @@ describe('the search page', () => {
   })
 })
 
+// HOR-1026 (stub in the viewer's language): the page's English on stub.fkn.app, pinned before it moves into messages
+describe('its English', () => {
+  const options = (label: string) => (stream.pickers[label]!.options as { value: string, label: string }[]).map(option => [option.value, option.label])
+  const text = (selector: string) => [...hosts.at(-1)!.querySelectorAll(selector)].map(element => element.textContent)
+
+  test('the pickers, their options and the field', () => {
+    open('/search')
+    expect(Object.keys(stream.pickers)).toEqual(['Genres & Tags', 'Year', 'Season', 'Format', 'Airing Status', 'Category'])
+    expect(options('Season')).toEqual([['WINTER', 'Winter'], ['SPRING', 'Spring'], ['SUMMER', 'Summer'], ['FALL', 'Fall']])
+    expect(options('Format')).toEqual([['TV', 'TV Show'], ['MOVIE', 'Movie'], ['TV_SHORT', 'TV Short'], ['SPECIAL', 'Special'], ['OVA', 'OVA'], ['ONA', 'ONA']])
+    expect(options('Airing Status')).toEqual([
+      ['RELEASING', 'Airing'], ['FINISHED', 'Finished'], ['NOT_YET_RELEASED', 'Not yet aired'], ['CANCELLED', 'Cancelled'], ['HIATUS', 'Hiatus'],
+    ])
+    expect(options('Category')).toEqual([['ANIME', 'Anime'], ['SERIES', 'Series'], ['MOVIE', 'Movies']])
+    const genres = [
+      'Action', 'Action & Adventure', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Ecchi', 'Fantasy',
+      'History', 'Horror', 'Kids & Family', 'Mahou Shoujo', 'Mecha', 'Music', 'Music & Musical', 'Mystery', 'Mystery & Thriller',
+      'Psychological', 'Reality TV', 'Romance', 'Sci-Fi', 'Science-Fiction', 'Slice of Life', 'Sport', 'Sports', 'Supernatural',
+      'Thriller', 'War & Military', 'Western',
+    ]
+    expect(options('Genres & Tags')).toEqual(genres.map(genre => [genre, genre]))
+    expect(options('Year').at(0)).toEqual([String(new Date().getFullYear() + 5), String(new Date().getFullYear() + 5)])
+    const field = hosts.at(-1)!.querySelector('.text-field input')!
+    expect([field.getAttribute('placeholder'), field.getAttribute('aria-label')]).toEqual(['Any title', 'Search by title'])
+    expect(text('.heading')).toEqual(['Search'])
+    expect(text('.status')).toEqual(['Search by title, or pick a filter.'])
+  })
+
+  test('each heading the filters give', () => {
+    const headings = [
+      ['/search?q=frieren&season=FALL&year=2026', 'Results for “frieren”'],
+      ['/search?season=FALL&year=2026', 'Fall 2026'],
+      ['/search?season=SPRING', 'Spring seasons'],
+      ['/search?year=2026', '2026'],
+      ['/search?category=ANIME', 'Browsing'],
+    ]
+    for (const [path, heading] of headings) {
+      open(path!)
+      expect(text('.heading'), path).toEqual([heading])
+    }
+    expect(text('.status'), 'the category alone asks nothing').toEqual(['Add a title or another filter.'])
+  })
+
+  test('the chips, what they clear and their Clear filters', () => {
+    open('/search?q=x&year=2026&season=FALL&status=RELEASING&category=ANIME&format=TV&format=OVA&genre=Action&tag=Isekai')
+    expect(text('.chips > button')).toEqual(['2026', 'Fall', 'Airing', 'Anime', 'TV Show', 'OVA', 'Action', 'Isekai', 'Clear filters'])
+    expect([...hosts.at(-1)!.querySelectorAll('.chip')].map(chip => chip.getAttribute('aria-label'))).toEqual([
+      'Remove 2026', 'Remove Fall', 'Remove Airing', 'Remove Anime', 'Remove TV Show', 'Remove OVA', 'Remove Action', 'Remove Isekai',
+    ])
+  })
+})
+
 // a picture's color code asked of trace.moe, its address /search?scene=<code>
 describe('the scene search', () => {
   const rabbit = { matches: [{ anilist: 21034, moments: [{ episode: 1, from: 272.19 }, { episode: 2, from: 5 }] }] }

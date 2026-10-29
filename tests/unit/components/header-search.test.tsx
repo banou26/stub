@@ -66,3 +66,16 @@ describe('the header search box', () => {
     expect(history).toEqual(['/'])
   })
 })
+
+// HOR-1026 (stub in the viewer's language): the bar's English on stub.fkn.app, pinned before it moves into messages
+test('its English: the wordmark, the field and the buttons', () => {
+  open('/')
+  const host = hosts.at(-1)!
+  const box = host.querySelector('form input')!
+  expect([box.getAttribute('placeholder'), box.getAttribute('aria-label')]).toEqual(['Search anime, shows, movies…', 'Search'])
+  expect(host.querySelector('.logo')?.textContent).toBe('stub')
+  expect(host.querySelector('.search-close')?.getAttribute('aria-label')).toBe('Close search')
+  expect(host.querySelector('.search-toggle')?.getAttribute('aria-label')).toBe('Search')
+  const settings = host.querySelector('.actions a')!
+  expect([settings.getAttribute('aria-label'), settings.getAttribute('title')]).toEqual(['Settings', 'Settings'])
+})

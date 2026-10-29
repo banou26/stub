@@ -126,3 +126,14 @@ test('a press that leaves the wordmark opens nothing, even released back on it a
   expect(menu()).toBeNull()
   expect(history).toEqual(['/settings', '/'])
 })
+
+// HOR-1026 (stub in the viewer's language): the four sites' English on movies.fkn.app, pinned before it moves into messages
+test('its English: the field, the arrow and the four sites in the bar and the menu', () => {
+  open()
+  const host = hosts.at(-1)!
+  expect(host.querySelector('form input')?.getAttribute('placeholder')).toBe('Search movies…')
+  expect(host.querySelector('.sites-toggle')?.getAttribute('aria-label')).toBe('Sites')
+  expect([...host.querySelectorAll('nav.sites a')].map(link => link.textContent)).toEqual(['Movies', 'Series', 'Anime', 'All'])
+  act(() => { host.querySelector<HTMLElement>('.sites-toggle')!.click() })
+  expect([...menu()!.querySelectorAll('a')].map(link => link.textContent)).toEqual(['Movies', 'Series', 'Anime', 'All'])
+})
