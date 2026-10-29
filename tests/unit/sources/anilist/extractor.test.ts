@@ -508,11 +508,12 @@ test('one franchise\'s picks are one card, its earliest work at its best pick\'s
   expect(handleUris(picks[0]!.node)).toEqual(['mal:37430'])
 })
 
-test('an adult pick and a pick nobody voted for are left out', async () => {
-  const [, , shieldHero, assassin, reZero] = MUSHOKU.data.mushoku.recommendations.nodes
+test('an adult pick and a pick rated 0 or below are left out', async () => {
+  const [, , shieldHero, assassin, reZero, eminence] = MUSHOKU.data.mushoku.recommendations.nodes
   const picks = await picksOf({ nodes: [
     { ...shieldHero, mediaRecommendation: { ...shieldHero!.mediaRecommendation, isAdult: true } },
     { ...assassin, rating: 0 },
+    { ...eminence, rating: -3 },
     reZero,
   ] })
   expect(picks.map(({ node }) => node.uri)).toEqual(['anilist:21355'])
