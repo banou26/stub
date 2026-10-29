@@ -311,6 +311,19 @@ test('folding the same inbox twice gives the same files, and an older answer fol
   holdsOnly(bucket, manifest)
 })
 
+// Mutations: fold the inbox in key order; fold it newest first.
+test('one day\'s objects fold in the order their runs asked, not by key, so changedAt is when an answer was first seen', async () => {
+  const bucket = fakeBucket()
+  const morning = '2026-10-29T09:00:00.000Z'
+  const evening = '2026-10-29T18:00:00.000Z'
+  // a key's id is random, so the evening's object can list first
+  bucket.objects.set('inbox/2026-10-29/0000.jsonl.gz', (await inboxEntry(frierenRun(evening)))[1])
+  bucket.objects.set('inbox/2026-10-29/ffff.jsonl.gz', (await inboxEntry(frierenRun(morning)))[1])
+  await fold(bucket)
+  const kitsu = (await answerLines(bucket)).filter(line => line.source === 'kitsu' && line.id === '46474')
+  expect(kitsu.map(line => [line.fetchedAt, line.changedAt])).toEqual([[evening, morning]])
+})
+
 // Mutation: key the index without the form, so the job's Kitsu resource and a preview's Kitsu answer share a line.
 test('the job\'s Kitsu resource and a preview\'s Kitsu answer of one show keep a line each, neither moving the other\'s changedAt', async () => {
   const bucket = fakeBucket()
