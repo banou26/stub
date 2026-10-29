@@ -3,7 +3,7 @@ import {
   autoUpdate, flip, FloatingFocusManager, FloatingPortal, offset, shift,
   useDismiss, useFloating, useInteractions, useRole
 } from '@floating-ui/react'
-import { ChevronDown, Search, Settings, X } from 'lucide-react'
+import { ChevronDown, ListVideo, Search, Settings, X } from 'lucide-react'
 import { defineMessages, useIntl } from 'react-intl'
 import { Link, useLocation, useRoute, useSearch } from 'wouter'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -270,6 +270,14 @@ const style = css`
     display: none;
   }
 
+  /* the row's one optional button: below this it leaves the search field under 200 px from 480 px, and below 480 it
+     pushes the search button into the wordmark (24 px over at 360, measured 2026-10-30) */
+  @media (max-width: 599px) {
+    .list-link {
+      display: none;
+    }
+  }
+
   /* below this the row has no room for a field beside the wordmark and the actions, so the field
      waits behind a button and opens over the whole row */
   @media (max-width: 479px) {
@@ -503,6 +511,7 @@ export const Header = () => {
   if (onLoginCallback) return null
   const searchLabel = intl.formatMessage({ id: 'Search', defaultMessage: 'Search' })
   const settingsLabel = intl.formatMessage({ id: 'Settings', defaultMessage: 'Settings' })
+  const listLabel = intl.formatMessage({ id: 'My list', defaultMessage: 'My list' })
 
   return (
     <header css={style} className={[onWatch && 'docked', searchOpen && 'searching'].filter(Boolean).join(' ') || undefined}>
@@ -565,6 +574,14 @@ export const Header = () => {
       </button>
       <div className="actions">
         <PartyWidget/>
+        {/* the trackers keep anime alone */}
+        {site === 'anime' || site === 'stub'
+          ? (
+            <Link to={getRoutePath(Route.LIST)} className="icon-button list-link" aria-label={listLabel} title={listLabel}>
+              <ListVideo size={20}/>
+            </Link>
+          )
+          : undefined}
         <Link to={getRoutePath(Route.SETTINGS)} className="icon-button" aria-label={settingsLabel} title={settingsLabel}>
           <Settings size={20}/>
         </Link>

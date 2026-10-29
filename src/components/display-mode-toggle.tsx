@@ -44,12 +44,12 @@ const style = css`
   }
 `
 
-/** The three layouts, as the segmented control that picks between them. */
-const DisplayModeToggle = ({ mode, onChange }: { mode: DisplayMode, onChange: (mode: DisplayMode) => void }) => {
+/** The layouts, all three unless `modes` names fewer, as the segmented control that picks between them. */
+const DisplayModeToggle = ({ mode, modes = DISPLAY_MODES, onChange }: { mode: DisplayMode, modes?: readonly DisplayMode[], onChange: (mode: DisplayMode) => void }) => {
   const intl = useIntl()
   return (
     <div css={style} role="group" aria-label={intl.formatMessage({ id: 'Result layout', defaultMessage: 'Result layout' })}>
-      {DISPLAY_MODES.map(value => {
+      {modes.map(value => {
         const Icon = ICONS[value]
         const label = intl.formatMessage(LABELS[value])
         return (

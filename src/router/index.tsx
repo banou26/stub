@@ -17,6 +17,7 @@ import Search from './search'
 import Legal from './legal'
 import Privacy from './privacy'
 import Settings from './settings'
+import List from './list'
 import Watch from './watch'
 import Party from './party'
 import Debug from './debug'
@@ -73,6 +74,7 @@ const RouterRoot = () => (
           <WRoute path={getRouterRoutePath(Route.LEGAL)} component={Legal}/>
           <WRoute path={getRouterRoutePath(Route.PRIVACY)} component={Privacy}/>
           <WRoute path={getRouterRoutePath(Route.SETTINGS)} component={Settings}/>
+          <WRoute path={getRouterRoutePath(Route.LIST)} component={List}/>
           <WRoute path={getRouterRoutePath(Route.WATCH)} component={Watch}/>
           <WRoute path={getRouterRoutePath(Route.PARTY)} component={Party}/>
           <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)}><Debug/></WRoute>
