@@ -148,7 +148,8 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       padding: 0 4rem 3.2rem;
     }
 
-    /* the poster's foot level with the film's, the line and title on top of the film's date or Play */
+    /* the poster spans both rows and the first takes its extra height, so its foot is level with Play's row and the
+       title sits right on the date or Play however short the two are */
     &.film > .over {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);

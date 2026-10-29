@@ -78,8 +78,8 @@ const Service = ({ source }: { source: WatchSource }) => {
 }
 
 /**
- * What a film shows under its title in place of a series' episode list: until it is out, its date in large type
- * ("Coming soon" while its status says it is not out and nothing dates it); then Play, opening the watch page, beside
+ * What a film shows under its title, over the foot of its trailer: until it is out, its date in large type ("Coming
+ * soon" while its status says it is not out and nothing dates it), then Play, opening the watch page, beside
  * `children` (the tracking). Play is drawn when one of `sources` plays in stub, or would with the extension, as the
  * watch page's pick counts it. Until the media has `settled`, Play's place is held while no source has landed, or while
  * one stub plays still links out because its episode has not landed.
