@@ -1317,6 +1317,11 @@ test.describe('a viewer in Japan', () => {
     // HOR-1059's open point for films: the tracking shares Play's row rather than leaving a band under it
     const middle = async (locator: Locator) => { const { y, height } = (await locator.boundingBox())!; return y + height / 2 }
     expect(Math.abs(await middle(bar.locator('> a.play')) - await middle(bar.locator('.tracking-compact .group.edit'))), 'the tracking on Play\'s middle').toBeLessThan(1)
+    // a failed save's line longer than the whole row
+    const places = () => Promise.all([box(bar.locator('> a.play')), box(bar.locator('.tracking-compact .group.edit'))]).then(boxes => boxes.map(({ top, left }) => [top, left]))
+    const held = await places()
+    await bar.locator('.tracking-compact > .notes').evaluate(notes => notes.insertAdjacentHTML('beforeend', `<div class="note">${'MyAnimeList did not save the status and episode 12 and the score. '.repeat(6)}<button type="button">Retry</button></div>`))
+    expect(await places(), 'Play and the tracking stay side by side where they were').toEqual(held)
     await expect(button('Prime Video')).toHaveAttribute('href', /^\/watch\/.+\/amazon:amzn1\.dv\.gti\.900070$/)
     expect(await button('Prime Video').getAttribute('target')).toBeNull()
     await expect(button('Tubi'), 'the control: a service that links out').toHaveAttribute('target', '_blank')
