@@ -49,3 +49,31 @@ export const LISTED_BODY = { data: { Viewer: VIEWER, Media: { ...FRIEREN, mediaL
 
 /** The tracking query's answer signed in, with nothing listed. */
 export const NOT_LISTED_BODY = { data: { Viewer: VIEWER, Media: { ...FRIEREN, mediaListEntry: null } } }
+
+/**
+ * Two entries of the whole list as `MediaListCollection(userName, type: ANIME, status_in: [CURRENT, REPEATING])`
+ * answered for a public list, signed out, 2026-10-29: the entry's progress and updatedAt and the media's id,
+ * status, episodes, format and nextAiringEpisode RECORDED; that read asked for nothing else, so the entry's other
+ * fields and the media's titles, cover and page are SHAPED from the schema.
+ */
+const SHAPED_ENTRY = { status: 'CURRENT', scoreRaw: 0, repeat: 0, private: false, startedAt: { year: null, month: null, day: null }, completedAt: { year: null, month: null, day: null } }
+const shapedMedia = (id: number) => ({ siteUrl: `https://anilist.co/anime/${id}`, title: { userPreferred: `Anime ${id}` }, coverImage: { large: `https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx${id}.jpg` } })
+
+export const AIRING_LIST_ENTRY = {
+  ...SHAPED_ENTRY,
+  id: 501_212_888,
+  progress: 5,
+  updatedAt: 1793039474,
+  media: { ...shapedMedia(212888), id: 212888, status: 'RELEASING', episodes: 12, format: 'ONA', nextAiringEpisode: { episode: 6, airingAt: 1793543400 } },
+}
+
+export const FINISHED_LIST_ENTRY = {
+  ...SHAPED_ENTRY,
+  id: 501_159_559,
+  progress: 0,
+  updatedAt: 0,
+  media: { ...shapedMedia(159559), id: 159559, status: 'FINISHED', episodes: 13, format: 'TV', nextAiringEpisode: null },
+}
+
+export const listBody = (entries: unknown[], hasNextChunk = false) =>
+  ({ data: { MediaListCollection: { hasNextChunk, lists: [{ entries }] } } })

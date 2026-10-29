@@ -262,3 +262,67 @@ test('a tracker whose latest answer is nothing is left out, even after it answer
   retract()
   expect(states((await tracking.until(settled(1), 1_000)).data.tracking.answers)).toEqual([['stub', 'NOT_LISTED']])
 })
+
+// HOR-1064 (a My list page): every tracker's whole list, joined
+const LISTS = `
+  subscription {
+    viewerLists {
+      _id
+      lists { state tracker { id } }
+      rows { uri disagreements summary { progress } answers { tracker { id } entry { progress } } }
+    }
+  }
+`
+
+const listed = providerServer('listed', {
+  Subscription: {
+    viewerLists: {
+      subscribe: async function* () {
+        yield {
+          viewerLists: {
+            _id: 'viewerLists',
+            lists: [{
+              _id: 'list:listed',
+              tracker: { ...OTHER, id: 'listed' },
+              state: 'LISTED',
+              items: [{ entry: { _id: 'listed:10', tracker: 'listed', mediaUri: 'mal:10', status: 'WATCHING', progress: 7, updatedAt: '2026-09-01T00:00:00.000Z' }, episodeCount: 12, mediaStatus: 'FINISHED', type: 'TV', nextAiringEpisode: null }],
+            }],
+            rows: [],
+          },
+        }
+      },
+    },
+  },
+})
+
+const unlisted = providerServer('unlisted', {
+  Subscription: {
+    viewerLists: { subscribe: () => { throw new Error('The list service answered 503') } },
+  },
+})
+
+test("every tracker's list comes joined, one row per work, beside where each tracker stands", async () => {
+  const own = providerServer('stub', stubTrackerResolvers((() => {
+    let opened: Promise<Journal> | undefined
+    return () => (opened ??= openJournal(memoryStore(), { now: () => (now += 1_000), uuid: () => crypto.randomUUID() }))
+  })()), { catalog: async () => ({ lookup: () => undefined }) })
+  await yogaClient(own).mutation(SAVE, { input: { uri: 'ag:(anilist:1)', trackers: ['stub'], entry: { status: 'WATCHING', progress: 3 } } }).toPromise()
+  const catalog = { lookup: (origin: string, id: number) => ({ anilist: 1, mal: 10 } as Record<string, number>)[origin] === id ? { anilist: 1, mal: 10 } : undefined }
+  const withLists = providerServer('app', trackingResolvers(
+    [entry('stub', own), entry('listed', listed), entry('silent', silent), entry('unlisted', unlisted)],
+    trackerOf,
+    async () => catalog as never,
+  ))
+  const lists = subscribe(withLists, LISTS, {})
+  live.push(lists)
+
+  const joined = (await lists.until(result => result.data.viewerLists.lists.every((list: { state: string }) => list.state !== 'LOADING'))).data.viewerLists
+  expect(joined.lists.map((list: { tracker: { id: string }, state: string }) => [list.tracker.id, list.state]), 'a tracker with no list is left out')
+    .toEqual([['stub', 'LISTED'], ['listed', 'LISTED'], ['unlisted', 'ERROR']])
+  expect(joined.rows).toEqual([{
+    uri: 'anilist:1',
+    disagreements: ['PROGRESS'],
+    summary: { progress: 7 },
+    answers: [{ tracker: { id: 'stub' }, entry: { progress: 3 } }, { tracker: { id: 'listed' }, entry: { progress: 7 } }],
+  }])
+})

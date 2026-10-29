@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import type { MalPageAnswer } from '../../../../src/sources/mal/session-page'
 
 import {
-  listEntryOf, malScore, malTracker, mismatchOf, planWrite, readCard, readListPage, readWhoAmI, readWriteAnswer,
+  listEntryOf, listItemOf, malScore, malTracker, mismatchOf, planWrite, readCard, readListPage, readWhoAmI, readWriteAnswer,
   replaceLists, rowOf, showsNoChange, statusOf, upsertRows, type MalListRow,
 } from '../../../../src/sources/mal/list-api'
 import { onScale } from '../../../../src/tracking/score-scale'
@@ -40,6 +40,15 @@ describe('a list row', () => {
     expect(row(AIR_GEAR)).toMatchObject({ progress: 18, episodes: 25 })
     expect(rowOf({ anime_title: 'no id' })).toBeUndefined()
     expect(rowOf(null)).toBeUndefined()
+  })
+
+  // HOR-1074 (new episodes of shows being watched) reads whether a show still airs off the list itself
+  test("as an item of the whole list: MyAnimeList's airing status and type beside the entry", () => {
+    expect(listItemOf('viewer', row(ONE_PIECE))).toMatchObject({ entry: { mediaUri: 'mal:21', progress: 623 }, episodeCount: null, mediaStatus: 'RELEASING', type: 'TV', nextAiringEpisode: null })
+    expect(listItemOf('viewer', row(COWBOY_BEBOP))).toMatchObject({ episodeCount: 26, mediaStatus: 'FINISHED', type: 'TV' })
+    expect(listItemOf('viewer', row({ ...COWBOY_BEBOP, anime_media_type_string: 'Movie', anime_airing_status: 3 })), 'a status those rows never held is left unsaid')
+      .toMatchObject({ mediaStatus: null, type: 'MOVIE' })
+    expect(listItemOf('viewer', row({ ...COWBOY_BEBOP, anime_media_type_string: 'TV Special' })).type).toBe('SPECIAL')
   })
 
   test("as a stub entry: the score on 0 to 100, MyAnimeList's own count and page, and no dates", () => {

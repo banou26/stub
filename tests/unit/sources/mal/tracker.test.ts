@@ -7,7 +7,7 @@ import type { CatalogLookup } from '../../../../src/tracking/identity'
 import { BLOCKED_PAUSE_MS, WRITE_GAP_MS } from '../../../../src/sources/mal/pacing'
 import { CONFIRM_RETRY_MS, FULL_TTL_MS, INDEX_TTL_MS, malTrackerResolvers } from '../../../../src/sources/mal/tracker-resolvers'
 import { RETRY_MS } from '../../../../src/tracking/collect'
-import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
+import { DELETE_LIST_ENTRY_DOCUMENT, LISTS_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { answerOf, fakeMal, type FakeMalOptions, type RawRow } from './fake-mal'
 import { AIR_GEAR, COWBOY_BEBOP, COWBOY_BEBOP_REWATCHING, ERRORS_400, ROWS } from './list-fixtures'
@@ -583,5 +583,41 @@ describe('when MyAnimeList refuses stub', () => {
     interrupt('after')
     script.list = ({ order }) => order === 5 ? answerOf('', { status: 429 }) : undefined
     expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList did not confirm the save: check again in a few minutes') })
+  })
+})
+
+// HOR-1064 (a My list page): the whole list, off the index every media is answered from
+describe('the whole list', () => {
+  const lists = (target: Target) => {
+    const subscription = subscribe(target, LISTS_DOCUMENT, {})
+    live.push(subscription)
+    return subscription
+  }
+  const listOf = (result: any) => result.data.viewerLists.lists[0]
+
+  test('is every row of the index the media are answered from, with no read of its own', async () => {
+    const { target, log } = setup()
+    await first(target, BEBOP)
+
+    const list = listOf(await lists(target).next())
+    expect(list).toMatchObject({ state: 'LISTED', tracker: { id: 'mal', account: 'viewer' } })
+    expect(list.items.map((item: any) => item.entry.mediaUri).sort()).toEqual(ROWS.map(raw => `mal:${raw.anime_id}`).sort())
+    expect(list.items.find((item: any) => item.entry.mediaUri === 'mal:21')).toMatchObject({ mediaStatus: 'RELEASING', type: 'TV', entry: { status: 'WATCHING' } })
+    expect(log, 'the index the media read is the one the list reads').toEqual(READ_ALL)
+  })
+
+  test('is SIGNED_OUT with nothing in it when MyAnimeList names nobody', async () => {
+    const { target } = setup({ user: null })
+    expect(listOf(await lists(target).next())).toMatchObject({ state: 'SIGNED_OUT', items: [], tracker: { signedIn: false } })
+  })
+
+  test('comes again after a save through the tracker, holding it', async () => {
+    const { target } = setup()
+    const list = lists(target)
+    await list.next()
+
+    await save(target, HACK, { status: 'COMPLETED', progress: 26, score: 85 })
+    const after = listOf(await list.next())
+    expect(after.items.find((item: any) => item.entry.mediaUri === 'mal:48').entry).toMatchObject({ score: 80 })
   })
 })

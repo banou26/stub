@@ -8,7 +8,7 @@ import { aggregateTracking } from '../../../../src/tracking/aggregate'
 import { patchFor, rowOf, rowOfEntry } from '../../../../src/tracking/compact'
 import { openJournal, type Journal } from '../../../../src/tracking/journal'
 import { stubTrackerResolvers } from '../../../../src/sources/stub/tracker-resolvers'
-import { SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT, DELETE_LIST_ENTRY_DOCUMENT } from '../../../../src/worker/tracking-document'
+import { SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT, DELETE_LIST_ENTRY_DOCUMENT, LISTS_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { memoryStore } from '../../tracking/memory-store'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { inEnglish } from '../../in-english'
@@ -144,5 +144,49 @@ describe('the stub tracker', () => {
 
     expect(deleted.data.deleteListEntry).toMatchObject([{ tracker: 'stub', outcome: 'SAVED' }])
     expect(answerOf(await watch(target, 'ag:(anilist:1)').next()).state).toBe('NOT_LISTED')
+  })
+})
+
+// HOR-1064 (a My list page): the whole list, each media as its title row reads it
+describe("the stub tracker's whole list", () => {
+  const lists = (target: ReturnType<typeof stubServer>['target']) => {
+    const subscription = subscribe(target, LISTS_DOCUMENT, {})
+    live.push(subscription)
+    return subscription
+  }
+  const itemsOf = (result: any) => result.data.viewerLists.lists[0].items
+
+  test('holds each listed media once, with the count the page showed beside it, and not one taken off the list', async () => {
+    const { target, open } = stubServer()
+    await save(target, 'ag:(anilist:1)', { status: 'WATCHING', progress: 3 }, { title: 'Frieren', cover: 'https://example.test/frieren.jpg', episodeCount: 28 })
+    await save(target, 'ag:(anilist:2)', { status: 'PLANNING' })
+    await yogaClient(target).mutation(DELETE_LIST_ENTRY_DOCUMENT, { input: { uri: 'ag:(anilist:2)', trackers: ['stub'] } }).toPromise()
+    // another device of the account: the same media's entry, written later, and a media listed there alone
+    const journal = await open()
+    journal.absorb(journal.device, [{ version: 1, device: 'phone', clock: 0, entries: [
+      { id: 'made-there', ids: ['anilist:1'], fields: { progress: { value: 9, stamp: { at: 1e12, by: 'phone' } } } },
+      { id: 'only-there', ids: ['anilist:3'], fields: { status: { value: 'PLANNING', stamp: { at: 1e12, by: 'phone' } } } },
+    ] }])
+
+    const list = (await lists(target).next()).data.viewerLists.lists[0]
+    expect(list).toMatchObject({ state: 'LISTED', tracker: { id: 'stub' } })
+    expect(list.items).toMatchObject([
+      {
+        entry: { tracker: 'stub', mediaUri: 'anilist:1', status: 'WATCHING', progress: 9, title: 'Frieren', cover: 'https://example.test/frieren.jpg', episodeCount: null },
+        episodeCount: 28,
+        mediaStatus: null,
+      },
+      { entry: { mediaUri: 'anilist:3', status: 'PLANNING' } },
+    ])
+    expect(list.items).toHaveLength(2)
+  })
+
+  test('comes again with a save', async () => {
+    const { target } = stubServer()
+    const list = lists(target)
+    expect(itemsOf(await list.next())).toEqual([])
+
+    await save(target, 'ag:(anilist:1)', { status: 'WATCHING', progress: 1 })
+    expect(itemsOf(await list.next())).toMatchObject([{ entry: { progress: 1 } }])
   })
 })

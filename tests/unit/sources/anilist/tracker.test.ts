@@ -8,11 +8,11 @@ import type { CatalogLookup } from '../../../../src/tracking/identity'
 import type { SiteSessionResult } from '../../../../src/tracking/site-session'
 
 import { TIMEOUT_AFTER_429_MS } from '../../../../src/sources/anilist/pacing'
-import { READ_MEMORY_MS, anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
+import { LIST_MEMORY_MS, READ_MEMORY_MS, anilistTrackerResolvers } from '../../../../src/sources/anilist/tracker-resolvers'
 import { RETRY_MS } from '../../../../src/tracking/collect'
-import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
+import { DELETE_LIST_ENTRY_DOCUMENT, LISTS_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
-import { FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY, VIEWER } from './list-fixtures'
+import { AIRING_LIST_ENTRY, FINISHED_LIST_ENTRY, FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY, VIEWER, listBody } from './list-fixtures'
 import { inEnglish } from '../../in-english'
 
 const ROWS = [
@@ -520,5 +520,87 @@ describe('one read of a media serves every ask for it a short while', () => {
     release()
     expect(answerOf(await grown.next())).toMatchObject({ state: 'LISTED', entry: { progress: 12 } })
     expect(operations()).toEqual(['StubTracking', 'StubTracking'])
+  })
+})
+
+// HOR-1064 (a My list page) and HOR-1074 (new episodes of shows being watched): the whole list in one read
+describe('the whole list', () => {
+  const lists = (target: ReturnType<typeof setup>['target']) => {
+    const subscription = subscribe(target, LISTS_DOCUMENT, {})
+    live.push(subscription)
+    return subscription
+  }
+  const listOf = (result: any) => result.data.viewerLists.lists[0]
+  const VIEWER_BODY = { data: { Viewer: VIEWER } }
+
+  test("is the viewer's whole list in one read after the viewer, each item with its media's airing status, format and schedule", async () => {
+    const { target, asked } = setup({ StubViewer: () => response(VIEWER_BODY), StubList: () => response(listBody([AIRING_LIST_ENTRY, FINISHED_LIST_ENTRY])) })
+
+    const list = listOf(await lists(target).next())
+
+    expect(asked.map(({ operation, variables }) => [operation, variables])).toEqual([['StubViewer', {}], ['StubList', { userId: VIEWER.id, chunk: 1, perChunk: 500 }]])
+    expect(list).toMatchObject({ state: 'LISTED', tracker: { id: 'anilist', account: 'viewer', scoreScale: 'POINT_10_DECIMAL' } })
+    expect(list.items).toMatchObject([
+      {
+        entry: { _id: 'anilist:501212888', mediaUri: 'anilist:212888', status: 'WATCHING', progress: 5, episodeCount: 12 },
+        mediaStatus: 'RELEASING',
+        type: 'ONA',
+        nextAiringEpisode: { episodeNumber: 6, airingAt: new Date(1793543400 * 1_000).toISOString() },
+      },
+      { entry: { mediaUri: 'anilist:159559', progress: 0 }, mediaStatus: 'FINISHED', type: 'TV', nextAiringEpisode: null },
+    ])
+  })
+
+  test('is read once for LIST_MEMORY_MS, then read again', async () => {
+    const { target, operations, advance } = setup({ StubViewer: () => response(VIEWER_BODY), StubList: () => response(listBody([AIRING_LIST_ENTRY])) })
+    const once = async () => {
+      const list = lists(target)
+      const answer = listOf(await list.next())
+      list.close()
+      return answer
+    }
+
+    await once()
+    advance(LIST_MEMORY_MS - 1)
+    await once()
+    expect(operations()).toEqual(['StubViewer', 'StubList'])
+
+    advance(1)
+    expect((await once()).state).toBe('LISTED')
+    expect(operations()).toEqual(['StubViewer', 'StubList', 'StubViewer', 'StubList'])
+  })
+
+  test('is read again after a save, and comes again holding it', async () => {
+    let progress = 5
+    const { target, operations } = setup({
+      StubViewer: () => response(VIEWER_BODY),
+      StubList: () => response(listBody([{ ...AIRING_LIST_ENTRY, progress }])),
+      StubSaveListEntry: () => { progress = 6; return response({ data: { SaveMediaListEntry: { ...AIRING_LIST_ENTRY, progress } } }) },
+    })
+    const list = lists(target)
+    await list.next()
+
+    await save(target, 'anilist:212888', { progress: 6 })
+
+    expect(listOf(await list.next()).items[0].entry.progress).toBe(6)
+    expect(operations()).toEqual(['StubViewer', 'StubList', 'StubSaveListEntry', 'StubViewer', 'StubList'])
+  })
+
+  test('is SIGNED_OUT, and nothing more is asked, when anilist.co answers the viewer 401', async () => {
+    const { target, operations } = setup({ StubViewer: () => response(SIGNED_OUT_BODY, 401) })
+    expect(listOf(await lists(target).next())).toMatchObject({ state: 'SIGNED_OUT', items: [], tracker: { signedIn: false } })
+    expect(operations()).toEqual(['StubViewer'])
+  })
+
+  test('reads every chunk AniList says there is, and an entry a custom list holds again is one item', async () => {
+    const { target, asked } = setup({
+      StubViewer: () => response(VIEWER_BODY),
+      StubList: ({ chunk }) => response(chunk === 1 ? listBody([AIRING_LIST_ENTRY, AIRING_LIST_ENTRY], true) : listBody([FINISHED_LIST_ENTRY])),
+    })
+
+    const list = listOf(await lists(target).next())
+
+    expect(asked.filter(({ operation }) => operation === 'StubList').map(({ variables }) => variables.chunk)).toEqual([1, 2])
+    expect(list.items.map((item: any) => item.entry.mediaUri)).toEqual(['anilist:212888', 'anilist:159559'])
   })
 })
