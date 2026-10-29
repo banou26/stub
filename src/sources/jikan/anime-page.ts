@@ -1,5 +1,5 @@
 import { decodeEntities } from '../entities'
-import { extractRealUrl } from '../justwatch/id'
+import { WATCHABLE, extractRealUrl } from '../justwatch/id'
 import { malLargeImage } from '../mal-image'
 import { genresOf, num, one, synopsisText, text } from './season-scrape'
 
@@ -57,6 +57,17 @@ export const airedDates = (aired?: string) => {
 
 const BROADCAST = /<a href="([^"]+)"[^>]*\btitle="([^"]+)"[^>]*\bclass="broadcast-item[^>]*>\s*<img[^>]*\bsrc="([^"]+)"/g
 
+// How JustWatch found a platform, which its click link's `cx` names in a clickout context, base64 JSON: 22 of Spirited
+// Away's 31 are to rent and 3 of Cowboy Bebop's 11 to buy (mal:199 and mal:1, 2026-10-30).
+const watchable = (link: string) => {
+  try {
+    const type = /"monetizationType":"(\w+)"/.exec(atob(new URL(link).searchParams.get('cx') ?? ''))?.[1]
+    return !type || WATCHABLE.includes(type.toUpperCase())
+  } catch {
+    return true
+  }
+}
+
 // The anchors, since a film's page carries no other form of the list. A platform JustWatch names links through
 // click.justwatch.com, with its address in `r` and the country it was found in, lower case, in `uct_country`
 // (mal:61578 and mal:199, 2026-10-29).
@@ -65,8 +76,9 @@ const streamingLinksOf = (html: string): MalStreamingLink[] =>
     const link = decodeEntities(href!)
     const viaJustWatch = link.startsWith('https://click.justwatch.com/')
     const url = viaJustWatch ? extractRealUrl(link) : link
+    if (!url || (viaJustWatch && !watchable(link))) return []
     const country = viaJustWatch ? new URL(link).searchParams.get('uct_country')?.toUpperCase() : undefined
-    return url ? [{ site: decodeEntities(site!), url, icon: decodeEntities(icon!), ...country ? { country } : {} }] : []
+    return [{ site: decodeEntities(site!), url, icon: decodeEntities(icon!), ...country ? { country } : {} }]
   })
 
 const row = (html: string, label: string) =>

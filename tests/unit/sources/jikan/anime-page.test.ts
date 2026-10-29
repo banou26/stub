@@ -103,15 +103,17 @@ describe('parseMalAnime', () => {
     ])
   })
 
-  // Spirited Away's 31, every one marked unavailable where the page was read, Netflix found in Andorra
-  test('a film lists its platforms the same way, each in a country of its own', () => {
+  // Spirited Away's 31, every one marked unavailable where the page was read, Netflix found in Andorra. JustWatch's click
+  // link says how it found each: 22 of them to rent, and 3 of Cowboy Bebop's 11 to buy (Google Play Movies, Apple TV
+  // Store, Fandango At Home)
+  test('a film lists its platforms the same way, each in a country of its own, and none only to rent or buy', () => {
     const links = page(199)!.streamingLinks
-    expect(links).toHaveLength(31)
+    expect(links.map(link => `${link.site} ${link.country}`)).toEqual([
+      'Netflix AD', 'Catchplay TW', 'Okko RU', 'MovistarTV AR', 'HBO Max US', 'Cineasterna NO', 'Filmoteket NO', 'TriArt Play SE', 'Filmstriben DK',
+    ])
     expect(links[0]).toEqual({ site: 'Netflix', url: 'https://www.netflix.com/title/60023642', icon: 'https://images.justwatch.com/icon/207360008/s100', country: 'AD' })
-    expect(links.filter(link => !link.country)).toEqual([])
     expect(page(1)!.streamingLinks.map(link => `${link.site} ${link.country ?? '-'}`)).toEqual([
-      'Netflix JP', 'Amazon Prime Video JP', 'FOD JP', 'U-NEXT JP', 'Google Play Movies JP', 'Crunchyroll AG', 'Apple TV Store AU',
-      'Watcha KR', 'Fandango At Home US', 'Tubi TV -', 'Neon TV NZ',
+      'Netflix JP', 'Amazon Prime Video JP', 'FOD JP', 'U-NEXT JP', 'Crunchyroll AG', 'Watcha KR', 'Tubi TV -', 'Neon TV NZ',
     ])
   })
 

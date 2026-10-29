@@ -4,7 +4,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri, originsOfUri, toUri
 import { site, type Site } from '../../site'
 import { resolveEpisodeToSeriesId } from '../crunchyroll/extractor'
 import { crunchyrollId } from '../crunchyroll/season-id'
-import { PACKAGE_ORIGIN_MAP, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
+import { PACKAGE_ORIGIN_MAP, WATCHABLE, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
 import { JUSTWATCH_GENRES } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
@@ -67,9 +67,6 @@ const offerCountries = () => {
 
 /** The offer country, which also decides the country asked beside it. */
 export const region = () => offerCountries().offerCountry
-
-// subscriptions, free and with ads; renting and buying are not watching
-const WATCHABLE = ['FLATRATE', 'FLATRATE_AND_BUY', 'FREE', 'ADS']
 
 const offersOf = ({ offers, extraOffers }: { offers?: JWOffer[], extraOffers?: JWOffer[] }) =>
   [...offers ?? [], ...extraOffers ?? []].filter(offer =>

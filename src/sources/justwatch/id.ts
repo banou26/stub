@@ -85,6 +85,9 @@ export const PACKAGE_ORIGIN_MAP: Record<string, string> = {
   stz: 'starz', acp: 'amcplus', phl: 'philo'
 }
 
+/** The monetizations an offer is watched under: subscriptions, free and with ads. Renting and buying are not watching. */
+export const WATCHABLE = ['FLATRATE', 'FLATRATE_AND_BUY', 'FREE', 'ADS']
+
 /** The platform's own address behind a JustWatch click link (`u` or `r`), or undefined for any other address. */
 export const extractRealUrl = (affiliateUrl: string): string | undefined => {
   try {

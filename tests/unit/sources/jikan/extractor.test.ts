@@ -78,8 +78,8 @@ test('a title is read off its myanimelist.net page, with every field Jikan answe
   // the credit goes and the paragraphs stay
   expect(media.descriptions[0].description).toMatch(/revenge for his old wounds\.$/)
   expect(media.descriptions[0].description).toContain('corgi.\n\nWhile')
-  // every platform the page lists, whatever country, which a view picks from
-  expect(media.streamingLinks).toHaveLength(11)
+  // every platform the page lists to watch on, whatever country, which a view picks from
+  expect(media.streamingLinks).toHaveLength(8)
   expect(media.streamingLinks[0]).toEqual({ site: 'Netflix', url: 'https://www.netflix.com/title/80001305', icon: 'https://images.justwatch.com/icon/207360008/s100', country: 'JP' })
 })
 
