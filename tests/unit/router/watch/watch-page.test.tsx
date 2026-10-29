@@ -1110,6 +1110,66 @@ describe('a show\'s other seasons', () => {
     expect(seasonButtons(host)).toEqual([['Season 1', 'false'], ['Season 2', 'true']])
     expect(listRows(host).map(([number, , current]) => [number, current])).toEqual([[1, undefined], [2, 'page']])
   })
+
+  test('the season picked gives way to the playing one once another episode plays', async () => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    const first = { media, params }
+    const location = memoryLocation()
+    const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
+    const host = mount(tree())
+    hosts.push(host)
+    await settle()
+    const marked = () => listRows(host).map(([number, , current]) => [number, current])
+    const play = async (next: { media: object, params: typeof params }) => {
+      media = next.media
+      params = next.params
+      act(() => { render(tree(), host) })
+      await settle()
+    }
+
+    act(() => { button(host, 'Season 2')!.click() })
+    await settle()
+    await play({ media: first.media, params: { ...first.params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' } })
+    expect(seasonButtons(host), 'Next in the same run').toEqual([['Season 1', 'true'], ['Season 2', 'false']])
+    expect(marked()).toEqual([[1, undefined], [2, undefined], [3, 'page']])
+
+    act(() => { button(host, 'Season 2')!.click() })
+    await settle()
+    expect(seasonButtons(host), 'the control: picked again').toEqual([['Season 1', 'false'], ['Season 2', 'true']])
+    await play({ media: runs[SEASON_2]!, params: { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e1)', sourceUri: 'nyaa:s2e1' } })
+    await play(first)
+    expect(seasonButtons(host), 'back into the first season').toEqual([['Season 1', 'true'], ['Season 2', 'false']])
+    expect(marked()).toEqual([[1, undefined], [2, 'page'], [3, undefined]])
+  })
+
+  test('another season picked opens on its first page', async () => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    const three = [...seasons, { number: 3, uri: 'tmdb:9-s3' }]
+    const run = (season: number) => ({
+      uri: `ag:(tmdb:9-s${season})`,
+      seasons: three,
+      handles: [{ relation: 'SAME_AS', node: { uri: `tmdb:9-s${season}` } }],
+      episodes: Array.from({ length: 14 }, (_, at) => ({ uri: `ag:(tmdb:9-s${season}e${at + 1})`, episodeNumber: at + 1, handles: [release(`s${season}e${at + 1}`)] })),
+    })
+    media = { ...media, seasons: three }
+    runs = { [SEASON_2]: run(2), 'ag:(tmdb:9-s3)': run(3) }
+    const host = page()
+    hosts.push(host)
+    await settle()
+    const numbers = () => listRows(host).map(([number]) => number)
+
+    act(() => { button(host, 'Season 2')!.click() })
+    await settle()
+    act(() => { host.querySelector<HTMLElement>('[data-episodes] button[aria-label="Page 2"]')!.click() })
+    await settle()
+    expect(numbers(), 'the control: the second page').toEqual([13, 14])
+    act(() => { button(host, 'Season 3')!.click() })
+    await settle()
+    expect(listRows(host)[0]?.[1]).toBe('/watch/ag:(tmdb:9-s3)/ag:(tmdb:9-s3e1)/nyaa:s3e1')
+    expect(numbers()).toEqual(Array.from({ length: 12 }, (_, at) => at + 1))
+  })
 })
 
 // Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's

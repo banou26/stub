@@ -786,11 +786,11 @@ const Watch = () => {
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
 
-  // the episode list shows the run playing, or another season of the show the viewer picked for it
-  const [season, setSeason] = useState<string>()
+  // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
+  const [season, setSeason] = useState<{ uri: string, on: string }>()
   const playing = currentMedia(watchMedia, params.mediaUri)
   const playingUris = playing?.handles.map(handle => handle.node.uri) ?? []
-  const picked = playing?.seasons?.find(each => each.uri === season && !playingUris.includes(each.uri))
+  const picked = season?.on === params.episodeUri ? playing?.seasons?.find(each => each.uri === season.uri && !playingUris.includes(each.uri)) : undefined
   const pickedUri = picked && asAggregatedUri(picked.uri)
   const pickedRun = useRun(pickedUri)
   const listed = picked ? pickedRun : playing
@@ -892,13 +892,18 @@ const Watch = () => {
         media && !isMovieMedia(media)
           ? (
             <div className="watch-info episodes">
-              <MediaSeasons seasons={playing?.seasons} currentUris={picked ? [picked.uri] : playingUris} onPick={setSeason}/>
+              <MediaSeasons
+                seasons={playing?.seasons}
+                currentUris={picked ? [picked.uri] : playingUris}
+                onPick={uri => setSeason({ uri, on: params.episodeUri })}
+              />
               <section data-episodes>
                 <h2>{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</h2>
                 {
                   listed
                     ? (
                       <Episodes
+                        key={pickedUri ?? params.mediaUri}
                         media={listed}
                         tracked={tracked}
                         current={picked || index < 0 ? undefined : index}
