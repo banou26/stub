@@ -64,6 +64,16 @@ describe("what stub's merged data is asked", () => {
     expect(releasedInStore(media, NOW)).toEqual({ count: 2, at: ago(7 * DAY) })
   })
 
+  test('counts no episode a source leaves undated while nothing dates one ahead', () => {
+    const episodes = Array.from({ length: 12 }, (_, n) => ({ episodeNumber: n + 1, releaseDate: n < 5 ? ago((10 - n) * DAY) : null }))
+    const airing: StoredWork = { status: 'RELEASING', episodeCount: 12, nextAiringEpisode: null, episodes }
+    expect(releasedInStore(airing, NOW)).toEqual({ count: 5, at: ago(6 * DAY) })
+    const watched = work('mal:21', { mediaStatus: 'RELEASING', episodeCount: null }, { progress: 5 })
+    expect(newEpisodes([watched], listed => releasedOf(listed, airing, NOW), NOW), 'no card for episodes not out').toEqual([])
+    expect(releasedInStore({ ...airing, status: 'FINISHED' }, NOW), 'the control: a show that ended has them all out').toEqual({ count: 12 })
+    expect(releasedInStore({ ...airing, nextAiringEpisode: { episodeNumber: 13, airingAt: ahead(DAY) } }, NOW), "the control: AniList's schedule says they are out").toEqual({ count: 12 })
+  })
+
   test("goes by AniList's schedule when it knows no episode's date", () => {
     expect(releasedInStore({ status: 'RELEASING', episodes: [], nextAiringEpisode: { episodeNumber: 9, airingAt: ahead(DAY) } }, NOW)).toEqual({ count: 8 })
   })
