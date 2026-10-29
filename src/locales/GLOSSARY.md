@@ -169,7 +169,8 @@ branch (`{kind, select, removal {삭제를} other {저장을}}`). A site's own w
 wrote them. `MyAnimeList shows {shown}` lists messages of their own (the status, `{progress}` episodes, the score or
 `no score`), so where the verb would ask a case of them or a negation of itself it ends in a colon and each item reads as
 a label (Russian `показывает: 1 серия, оценка 7 / 10`, French `affiche : aucune note`); German and Polish write every
-item in the accusative their verb asks.
+item in the accusative their verb asks. A film's `Watched` toggle sits beside the status and is on exactly when it reads
+Completed, so the two are different words (Russian `Смотрели` and `Просмотрено`, Polish `Widziane` and `Obejrzane`).
 
 | | tracker | list, entry | score | Watching | Rewatching | Plan to watch | Completed | Paused | Dropped | Quick tracking |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

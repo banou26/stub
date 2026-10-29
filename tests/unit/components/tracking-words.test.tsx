@@ -3,6 +3,8 @@ import { button, mount, unmount, withIntl } from './dom'
 
 import type { ComponentChild } from 'preact'
 
+import { readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { act } from 'preact/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -366,5 +368,21 @@ describe('what MyAnimeList shows apart from a save', () => {
   ])('in %s, each item as the words before it let it read', async (language, expected) => {
     await startLanguage({ language, languages: [language] })
     expect([shows({ progress: 1, score: 7 }), shows({ progress: 21, score: 7 }), shows({ score: 0 })]).toEqual(expected)
+  })
+})
+
+describe('in every language', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const LANGUAGES = readdirSync(fileURLToPath(new URL('../../../src/locales', import.meta.url)))
+    .filter(file => file.endsWith('.json')).map(file => file.slice(0, -'.json'.length))
+
+  // the toggle is on exactly when the status beside it reads Completed
+  test.each(LANGUAGES)('%s: a completed film reads its status and its Watched toggle in two different words', async language => {
+    await startLanguage({ language, languages: [language] })
+    const film = { ...tracking, summary: { status: 'COMPLETED', progress: 1, episodeCount: 1 }, disagreements: [], answers: [anilist] } as CompactTracking
+    const host = row({ tracking: film, movie: true, episodeCount: 1 })
+    const toggle = host.querySelector('button.watched')!
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(toggle.textContent).not.toBe(host.querySelector('option[value="COMPLETED"]')!.textContent)
   })
 })
