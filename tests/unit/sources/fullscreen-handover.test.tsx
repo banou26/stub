@@ -41,7 +41,7 @@ afterEach(() => {
 
 describe.each([
   ['Crunchyroll', () => <CrunchyrollVideoJSPlayer remote={null} frame={null}/>],
-  ['Prime Video', () => <PrimeMediaPlayer remote={null}/>],
+  ['Prime Video', () => <PrimeMediaPlayer remote={null} frame={null} video={{ video: 'video' }}/>],
 ])('the %s player', (_, element) => {
   test('keeps its own fullscreen until the page says it keeps it, then follows the page and asks it', async () => {
     hosts.push(mount(element()))
