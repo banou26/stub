@@ -68,7 +68,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const CATEGORIES = ['Sources', 'Playback']
+const CATEGORIES = ['Sources', 'Playback', 'Language']
 const HOUR = 3_600_000
 
 // what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
@@ -99,7 +99,7 @@ const overflowX = (page: Page) => page.evaluate(() => document.documentElement.s
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
 // the owner, 2026-10-25 (HOR-1019): "I think we can completely remove that Accounts category and also merge it with the Sources category"
-test('the page lists its two categories and shows Sources alone, its cards holding the sign-ins, without the FKN row, Data or Tracking', async ({ page }) => {
+test('the page lists its three categories and shows Sources alone, its cards holding the sign-ins, without the FKN row, Data or Tracking', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
   await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
