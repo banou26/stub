@@ -50,11 +50,20 @@ export const releasedByTrackers = (work: ListedWork, now: Date): Released | unde
 export const askedOfStore = <W extends ListedWork>(works: readonly W[], now: Date): W[] =>
   works.filter(work => isWatching(work) && !releasedByTrackers(work, now) && (airs(work) || isRecent(work, now)))
 
-/** What stub's merged data says is out of a work, by the rule the title page dims unreleased episodes with. */
+/**
+ * What stub's merged data says is out of a work, by the rule the title page dims unreleased episodes with, save that
+ * an episode no source dates counts only when the show ended or an episode ahead is known: that rule lets it through,
+ * which counted would be every episode listed.
+ */
 export const releasedInStore = (media: StoredWork, now: Date): Released | undefined => {
   const unreleased = unreleasedEpisodes(media, now)
+  const undatedOut = ENDED.has(media.status ?? '') || firstUnreleased({
+    status: media.status,
+    nextAiringEpisode: media.nextAiringEpisode,
+    episodes: media.episodes.map(episode => ({ episodeNumber: episode.episodeNumber, releaseDate: releasedAtOf(episode) })),
+  }, now) !== undefined
   const newest = media.episodes
-    .filter((episode, index) => !unreleased[index] && episode.episodeNumber != null)
+    .filter((episode, index) => !unreleased[index] && episode.episodeNumber != null && (undatedOut || releasedAtOf(episode)))
     .reduce<typeof media.episodes[number] | undefined>((best, episode) => !best || episode.episodeNumber! > best.episodeNumber! ? episode : best, undefined)
   if (newest) {
     const at = releasedAtOf(newest)
