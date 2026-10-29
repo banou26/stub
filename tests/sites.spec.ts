@@ -618,6 +618,39 @@ test('below 480 px the search waits behind a button, and opens focused over the 
   }
 })
 
+// HOR-1064 (a My list page): the anime site's row has room for its My list link from 600 px, and below that keeps
+// the room it had without it
+test('the anime site\'s My list link sits beside Settings from 600 px, and below it the row keeps its room', async ({ page }) => {
+  const link = page.getByRole('link', { name: 'My list' })
+  for (const width of [360, 390, 479, 599]) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto(at('anime.localhost', '/settings'))
+    await expect(page.getByRole('link', { name: 'Settings' }), `${width}: the control, the row is drawn`).toBeVisible()
+    await expect(link, `${width}`).toBeHidden()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    if (width >= 480) continue
+    const start = (await page.locator('header .start').boundingBox())!
+    const button = (await searchButton(page).boundingBox())!
+    expect(button.x - (start.x + start.width), `${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
+  }
+  for (const width of [600, 768, 1024]) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto(at('anime.localhost', '/settings'))
+    await expect(link, `${width}`).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    // measured as the language test below measures a placeholder; the rig's wordmark is 11.3 px narrower than the live one
+    const spare = await searchField(page).evaluate(input => {
+      const style = getComputedStyle(input)
+      const pen = document.createElement('canvas').getContext('2d')!
+      pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+      return input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - pen.measureText((input as HTMLInputElement).placeholder).width
+    })
+    expect(spare, `${width}: the search field holds its placeholder`).toBeGreaterThanOrEqual(12)
+    const settings = (await page.getByRole('link', { name: 'Settings' }).boundingBox())!
+    expect((await link.boundingBox())!.x, `${width}: beside Settings`).toBeLessThan(settings.x)
+  }
+})
+
 test('the phone search closes on its own button or a tap away, and is open on the search page', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('movies.localhost', '/settings'))
