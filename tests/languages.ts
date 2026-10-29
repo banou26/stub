@@ -68,12 +68,16 @@ const patternOf = (elements: MessageFormatElement[]): string => elements.map(ele
 
 /**
  * What `language` leaves in English: each text the page shows that reads as a message of the code whose `language`
- * text differs from its English. `english` is english()'s, `translated` the language's catalogue (the pseudo-language's
- * differs everywhere).
+ * text differs from its English. A message with no word of its own, such as `{label}: {names}`, is no English and is
+ * skipped, since it reads as any text of its shape. `english` is english()'s, `translated` the language's catalogue
+ * (the pseudo-language's differs everywhere).
  */
 export const englishIn = (shown: readonly string[], english: Record<string, string>, translated?: Record<string, string>) => {
   const patterns = Object.entries(english)
     .filter(([id, text]) => !translated || translated[id] !== text)
-    .map(([id, text]) => [id, new RegExp(`^${patternOf(parse(text))}$`)] as const)
+    .map(([id, text]) => [id, patternOf(parse(text))] as const)
+    // a value reads as `.+`, so a letter in the pattern is one of the message's own
+    .filter(([, pattern]) => /\p{L}/u.test(pattern))
+    .map(([id, pattern]) => [id, new RegExp(`^${pattern}$`)] as const)
   return shown.flatMap(text => patterns.filter(([, pattern]) => pattern.test(text)).map(([id]) => `${JSON.stringify(text)} (${id})`))
 }
