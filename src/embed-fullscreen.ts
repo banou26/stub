@@ -1,5 +1,6 @@
 import type { HostFullscreen } from '@banou/media-player'
 
+import { postMessage } from '@banou/ponyfill/web-messaging'
 import { useEffect, useState } from 'preact/hooks'
 
 /**
@@ -22,9 +23,9 @@ const REQUEST = 'stub:embed-fullscreen-request'
 export const serveEmbedFullscreen = (iframe: HTMLIFrameElement, stage: HTMLElement, host: Window = window) => {
   const { document } = host
   if (!document.fullscreenEnabled) return () => {}
-  // A block body, never a bare call: as a listener's tail call, JavaScriptCore drops this frame, and the message
-  // arrives with the embed's own window as its source, which the embed does not hear (WebKit 26.4, 2026-10-26)
-  const send = () => { iframe.contentWindow?.postMessage({ type: STATE, active: Boolean(document.fullscreenElement) }, host.location.origin) }
+  const send = () => {
+    if (iframe.contentWindow) postMessage(iframe.contentWindow, { type: STATE, active: Boolean(document.fullscreenElement) }, host.location.origin)
+  }
   const receive = (event: MessageEvent) => {
     if (event.source !== iframe.contentWindow || event.origin !== host.location.origin) return
     const type = (event.data as { type?: unknown } | null)?.type
@@ -43,14 +44,14 @@ export const serveEmbedFullscreen = (iframe: HTMLIFrameElement, stage: HTMLEleme
 
 /** In the embed: each state the page that frames it keeps its fullscreen in, with the request that asks it to change. Returns the unsubscribe. */
 export const watchHostFullscreen = (listener: (fullscreen: HostFullscreen) => void, host: Window = window) => {
-  const request = () => host.parent.postMessage({ type: REQUEST }, host.location.origin)
+  const request = () => postMessage(host.parent, { type: REQUEST }, host.location.origin)
   const receive = (event: MessageEvent) => {
     if (event.source !== host.parent || event.origin !== host.location.origin) return
     const { type, active } = (event.data ?? {}) as { type?: unknown, active?: unknown }
     if (type === STATE && typeof active === 'boolean') listener({ active, request })
   }
   host.addEventListener('message', receive)
-  if (host.parent !== host) host.parent.postMessage({ type: ASK }, host.location.origin)
+  if (host.parent !== host) postMessage(host.parent, { type: ASK }, host.location.origin)
   return () => host.removeEventListener('message', receive)
 }
 
