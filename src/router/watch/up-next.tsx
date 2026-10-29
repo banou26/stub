@@ -8,7 +8,7 @@ import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
 import { readAutoplay } from '../../utils/autoplay'
-import { hasEnding, nextOfferAt } from '../../utils/next-offer'
+import { chaptersBesideNext, hasEnding, nextOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
@@ -51,9 +51,10 @@ const style = css`
 
 /**
  * Next episode over the player, from the moment `nextOfferAt` reads off the player's own chapters when they mark an
- * ending, else `chapters`, and once the player has ended. With autoplay on, the end counts down with Cancel beside it
- * and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before the
- * moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
+ * ending, else `chapters`, and once the player has ended. A player's own ending with nothing after it keeps the
+ * player's Skip Ending, in Next's corner, so there Next waits for the end. With autoplay on, the end counts down with
+ * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before
+ * the moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
  * withdraws the countdown.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  */
@@ -105,7 +106,9 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
       }
       played ||= !paused
       const own = link.chapters?.()
-      const at = nextOfferAt(own && hasEnding(own) ? own : marks.current, link.duration?.())
+      const duration = link.duration?.()
+      // stub cannot take an ending out of a player's own chapters, as it does for its own player
+      const at = own && hasEnding(own) ? nextOfferAt(chaptersBesideNext(own, duration), duration) : nextOfferAt(marks.current, duration)
       if (at !== undefined && time >= at) offer()
       // a stall reaches the page only as a playing report behind the timer, which keeps the button; one gone
       // back is a seek, and a paused one is where the player is
