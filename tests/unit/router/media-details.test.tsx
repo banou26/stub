@@ -950,7 +950,7 @@ describe('in German', () => {
   })
 
   test('the list\'s pages and an empty list read German', () => {
-    expect(render(media).querySelector('nav')?.getAttribute('aria-label')).toMatch(/^Folgen /)
+    expect(render(media).querySelector('nav')?.getAttribute('aria-label')).toBe('Seiten: Folgen')
     expect(render({ uri: 'ag:(anilist:1)', episodes: [], settled: true } as unknown as DetailsMedia).querySelector('.episodes')!.textContent).toBe('Keine Folgen gefunden')
   })
 })

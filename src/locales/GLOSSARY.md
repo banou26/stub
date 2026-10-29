@@ -186,3 +186,24 @@ Completed, so the two are different words (Russian `Смотрели` and `Пр�
 | `zh-Hant` | 追蹤器 | 清單、項目 | 評分 | 在看 | 重看中 | 想看 | 看過 | 擱置 | 拋棄 | 快速記錄 |
 | `tr` | takip aracı | liste, kayıt | puan | İzleniyor | Yeniden izleniyor | İzlenecek | Tamamlandı | Ara verildi | Bırakıldı | Hızlı takip |
 | `pl` | tracker | lista, wpis | ocena | Oglądam | Oglądam ponownie | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
+
+## Footer, paging and errors
+
+A long list's controls are named after its heading (`{list} pages`), which arrives in the nominative, so German,
+Russian and Polish write it after a colon (`Seiten: {list}`). Japanese, Korean and Chinese put the 404 after the words
+(`ページが見つかりません（404）`), since a number beside their own text takes no space.
+
+| | Legal | Privacy | page (of a list) | Reload |
+| --- | --- | --- | --- | --- |
+| `es-419` | Aviso legal | Privacidad | página | Recargar |
+| `pt-BR` | Aviso legal | Privacidade | página | Recarregar |
+| `fr` | Mentions légales | Confidentialité | page | Recharger |
+| `de` | Rechtliches | Datenschutz | Seite | Neu laden |
+| `it` | Note legali | Privacy | pagina | Ricarica |
+| `ru` | Правовая информация | Конфиденциальность | страница | Перезагрузить |
+| `ja` | 法的情報 | プライバシー | ページ | 再読み込み |
+| `ko` | 법적 고지 | 개인정보 보호 | 페이지 | 새로고침 |
+| `zh-Hans` | 法律声明 | 隐私 | 页 | 重新加载 |
+| `zh-Hant` | 法律聲明 | 隱私權 | 頁 | 重新載入 |
+| `tr` | Yasal bilgiler | Gizlilik | sayfa | Yeniden yükle |
+| `pl` | Informacje prawne | Prywatność | strona | Odśwież |
