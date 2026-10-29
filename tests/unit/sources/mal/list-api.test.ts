@@ -233,6 +233,7 @@ describe('the writes a save takes', () => {
 
   test("progress past MyAnimeList's own count is refused, and a count it does not know refuses nothing", () => {
     expect(planWrite(857, airGear, { progress: 26 })).toEqual({ error: inEnglish('MyAnimeList counts 25 episodes for this anime') })
+    expect(planWrite(857, { ...airGear, episodes: 1 }, { progress: 2 })).toEqual({ error: inEnglish('MyAnimeList counts 1 episode for this anime') })
     expect(planWrite(21, onePiece, { progress: 1200 })).toMatchObject({ phases: [{}] })
   })
 
