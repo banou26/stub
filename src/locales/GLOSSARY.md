@@ -127,3 +127,27 @@ controls, so it is one word where the language's phrase runs long: `Alle`, `Todo
 | `zh-Hant` | 一起看 | 派對 | 主持人 | 成員 | 同步進度 | 跟隨主持人播放 |
 | `tr` | Birlikte izle | parti | ev sahibi | katılımcılar | Eşitle | Oynatmayı takip et |
 | `pl` | Oglądaj razem | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
+
+## Header and search
+
+The four sites are named by what they keep, the words of home's category tabs and the search page's Category: Movies,
+Series (TV shows), Anime, and All for stub.fkn.app. A season and its year (`Fall 2026`) and every year's season (`Fall seasons`) are a
+message per season, never a season name joined to a year, so each language orders and builds them its own way
+(`2026年秋`, `Herbstsaisons`). Genres keep the word the language's own streaming sites use; AniList's anime words stay
+as fans write them where the language has none (Ecchi, Mahou Shoujo, Mecha). The FKN account's Disconnect is its own
+message, as French says `Se déconnecter` where the extension's `Dissocier` would not fit an account.
+
+| | search | Series (TV shows) | filter, clear filters | Any (nothing picked) | airing status |
+| --- | --- | --- | --- | --- | --- |
+| `es-419` | Buscar | Series | Filtrar, Borrar filtros | Cualquiera | Estado de emisión |
+| `pt-BR` | Buscar | Séries | Filtrar, Limpar filtros | Qualquer | Status de exibição |
+| `fr` | Rechercher | Séries | Filtrer, Effacer les filtres | Tous | Statut de diffusion |
+| `de` | Suche | Serien | filtern, Filter zurücksetzen | Beliebig | Sendestatus |
+| `it` | Cerca | Serie | Filtra, Cancella filtri | Qualsiasi | Stato di trasmissione |
+| `ru` | Поиск | Сериалы | Фильтр, Сбросить фильтры | Любой | Статус выхода |
+| `ja` | 検索 | テレビ番組 | 絞り込む, フィルターをクリア | 指定なし | 放送状況 |
+| `ko` | 검색 | TV 시리즈 | 필터, 필터 초기화 | 전체 | 방영 상태 |
+| `zh-Hans` | 搜索 | 电视剧 | 筛选, 清除筛选 | 不限 | 播出状态 |
+| `zh-Hant` | 搜尋 | 影集 | 篩選, 清除篩選 | 不限 | 播出狀態 |
+| `tr` | Ara | Diziler | filtrele, Filtreleri temizle | Tümü | Yayın durumu |
+| `pl` | Szukaj | Seriale | Filtruj, Wyczyść filtry | Dowolne | Status emisji |

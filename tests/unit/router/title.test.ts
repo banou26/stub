@@ -152,15 +152,15 @@ describe('in German', () => {
     expect(titleChips({ episodeCount: 1100 })).toEqual(['1100 Folgen'])
     expect(ratingChips({ ratings: [{ source: 'IMDb', value: 8.05, scale: 10 }, { source: 'Rotten Tomatoes', value: 92, scale: 100 }] })).toEqual(['IMDb 8,1', 'Rotten Tomatoes 92\u00a0%'])
     expect(titleFacts(FRIEREN, { locale: 'de-DE' })).toEqual([
-      { label: 'Format', value: 'TV Show' },
+      { label: 'Format', value: 'TV-Serie' },
       { label: 'Folgen', value: '28' },
       { label: 'Folgenlänge', value: '24 Min.' },
-      { label: 'Status', value: 'Finished' },
+      { label: 'Status', value: 'Abgeschlossen' },
       { label: 'Ausstrahlung', value: '29. Sept. 2023 bis 22. März 2024' },
-      { label: 'Saison', value: 'Fall 2023' },
+      { label: 'Saison', value: 'Herbst 2023' },
       { label: 'Studios', value: 'Madhouse' },
       { label: 'Vorlage', value: 'Manga' },
-      { label: 'Genres', value: 'Adventure, Drama und Fantasy' },
+      { label: 'Genres', value: 'Abenteuer, Drama und Fantasy' },
       { label: 'Tags', value: 'Elf und Travel' },
       { label: 'Andere Titel', value: '葬送のフリーレン' },
     ])

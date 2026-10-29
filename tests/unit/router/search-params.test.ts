@@ -265,6 +265,26 @@ describe('genreLabel', () => {
   })
 })
 
+describe('the labels and headings from their catalogues', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const of = (filters: Partial<SearchFilters>) => searchHeading({ ...EMPTY_SEARCH_FILTERS, ...filters })
+
+  test('German', async () => {
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect([formatLabel(MediaType.Tv), statusLabel(MediaStatus.Releasing), seasonLabel(MediaSeason.Fall, 2026), genreLabel('Adventure')])
+      .toEqual(['TV-Serie', 'Läuft', 'Herbst 2026', 'Abenteuer'])
+    expect([of({ query: 'frieren' }), of({ season: MediaSeason.Spring }), of({ year: 2026 }), of({ category: MediaCategory.Anime }), of({})])
+      .toEqual(['Ergebnisse für \u201Efrieren\u201C', 'Frühlingssaisons', '2026', 'Stöbern', 'Suche'])
+  })
+
+  // a season's year goes first, and a year is never grouped
+  test('Japanese', async () => {
+    await startLanguage({ language: 'ja', languages: ['ja-JP'] })
+    expect([seasonLabel(MediaSeason.Fall, 2026), of({ season: MediaSeason.Winter, year: 2026 }), of({ query: 'フリーレン' })])
+      .toEqual(['2026年秋', '2026年冬', '「フリーレン」の検索結果'])
+  })
+})
+
 // a scene search's address holds the picture's color code alone, so Back, a reload and a party all reopen it
 describe('the scene address', () => {
   test('round-trips a color code, and reads nothing else as one', () => {
