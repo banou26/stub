@@ -689,8 +689,9 @@ const SCENE_ANSWER = {
 
 /**
  * The area's words as drawn now, and each of them that runs past the viewport, its filter field or its own box (a filter's
- * label is as wide as its field, and a long word spills out of it), with each row that scrolls sideways. A summary that
- * ends in an ellipsis is cut on purpose.
+ * label is as wide as its field, and a long word spills out of it), and each placeholder wider than its field, which
+ * the field cuts with no scroll to show it, with each row that scrolls sideways. A summary that ends in an ellipsis is
+ * cut on purpose.
  */
 const drawnNow = (page: Page) => page.evaluate(({ text, labels }) => {
   const words = [
@@ -705,6 +706,14 @@ const drawnNow = (page: Page) => page.evaluate(({ text, labels }) => {
     return box.width && (spills || box.left < -0.5 || box.right > innerWidth + 0.5 || (field && box.right > field.right + 0.5))
       ? [`${selector}: ${element.textContent!.trim()}`] : []
   }))
+  const pen = document.createElement('canvas').getContext('2d')!
+  outside.push(...labels.flatMap(selector => [...document.querySelectorAll(selector)].flatMap(input => {
+    if (!(input instanceof HTMLInputElement) || !input.placeholder || input.value || !input.clientWidth) return []
+    const style = getComputedStyle(input)
+    pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    const room = input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    return pen.measureText(input.placeholder).width > room + 0.5 ? [`${selector}'s placeholder: ${input.placeholder}`] : []
+  })))
   const scrolled = ['html', 'header', '.chips', '.heading-row', '[role="listbox"] .options'].flatMap(selector =>
     [...document.querySelectorAll(selector)].filter(element => element.scrollWidth > element.clientWidth + 1).map(() => selector))
   return { words, outside, scrolled }

@@ -139,7 +139,7 @@ message per season, never a season name joined to a year, so each language order
 as fans write them where the language has none (Ecchi, Mahou Shoujo, Mecha). The FKN account's Disconnect is its own
 message, as French says `Se déconnecter` where the extension's `Dissocier` would not fit an account. On a 390 px phone
 the search page's title field is half the width, and a field clips its placeholder silently, so `Any title` is a word or
-two (`Titel`, `タイトル`).
+two (`Titel`, `タイトル`). The genre picker's filter box holds 11 Japanese characters at most (`ジャンル・タグ絞り込み`).
 
 | | search | Series (TV shows) | filter, clear filters | Any (nothing picked) | airing status |
 | --- | --- | --- | --- | --- | --- |
