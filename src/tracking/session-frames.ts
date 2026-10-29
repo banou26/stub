@@ -76,7 +76,9 @@ export type SessionFrames<Api> = {
    * Runs `call` against the site's page, attaching the frame on the first use. A call the page's next
    * document cut short runs once more on the page installed there, and a call whose fetch failed (a
    * TypeError) runs once more on the next document, or after `retryMs` on the same page, unless `once`
-   * says it may not. Anything else the call threw, and a page that did not answer in time, rejects.
+   * says it may not. A call that fails that way twice drops the frame, without telling the watchers, so
+   * the next use loads the page afresh. Anything else the call threw, and a page that did not answer in
+   * time, rejects.
    */
   use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
   /** Drops the site's frame, so the next use loads the page afresh (after a sign in), and tells the watchers. */
@@ -205,6 +207,13 @@ export const createSessionFrames = <Api>(
     entry.current = undefined
   }
 
+  const discard = (id: string, entry: Entry<Api> | undefined) => {
+    if (!entry || entries.get(id) !== entry) return
+    entries.delete(id)
+    entry.current?.retire()
+    entry.controller.abort()
+  }
+
   const use = async <T>(id: string, call: (api: Api) => Promise<T>, { once = false }: UseOptions = {}): Promise<T> => {
     const site = siteOf(id)
     let moved = false
@@ -243,7 +252,9 @@ export const createSessionFrames = <Api>(
         // itself, an HTTP status say, is a plain Error and is not sent again.
         // Firefox's leaving page keeps running, so the run after retryMs can land on it, and a next document
         // reported during that run still gets the call.
-        if (failed || once || !(error instanceof TypeError)) throw error
+        if (once || !(error instanceof TypeError)) throw error
+        // the watchers are not told, so the trackers read again on their own backoff rather than all at once
+        if (failed) { discard(site.id, entry); throw error }
         failed = true
         await Promise.race([current.gone, sleep(retryMs)]).catch(() => {})
       }
@@ -251,12 +262,7 @@ export const createSessionFrames = <Api>(
   }
 
   const reload = (id: string) => {
-    const entry = entries.get(id)
-    if (entry) {
-      entries.delete(id)
-      entry.current?.retire()
-      entry.controller.abort()
-    }
+    discard(id, entries.get(id))
     for (const listener of watchers.get(id) ?? []) listener()
   }
 

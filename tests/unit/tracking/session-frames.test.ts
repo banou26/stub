@@ -284,22 +284,31 @@ describe('the session frame', () => {
     expect(reached.filter(question => question === 'cut short')).toHaveLength(3)
   })
 
-  test('a call that failed on a page that stays runs once more on it', async () => {
-    const { fail, reached, ask } = setup({ retryMs: 20 })
+  test('a call that failed on a page that stays runs once more on it, and the page is kept', async () => {
+    const { fail, reached, attach, removed, ask } = setup({ retryMs: 20 })
     await ask('warm')
 
     fail()
     expect(await ask('dropped')).toBe('dropped from document 0')
     expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
+    expect(removed).toEqual([])
+    expect(attach).toHaveBeenCalledTimes(1)
   })
 
-  test('a call that fails twice rejects with what the page said', async () => {
-    const { fail, reached, ask } = setup({ retryMs: 20 })
+  test('a call that fails twice rejects with what the page said, and the next use loads a fresh page without telling the watchers', async () => {
+    const { frames, fail, reached, attach, removed, ask } = setup({ retryMs: 20 })
+    const watcher = vi.fn()
+    frames.watch('anilist', watcher)
     await ask('warm')
 
     fail(2)
     await expect(ask('dropped')).rejects.toThrow(FIREFOX_FETCH_FAILED)
     expect(reached.filter(question => question === 'dropped')).toHaveLength(2)
+    expect(removed, 'the page whose fetches kept failing is taken out').toEqual([1])
+
+    expect(await ask('after')).toBe('after from document 1')
+    expect(attach).toHaveBeenCalledTimes(2)
+    expect(watcher, 'no tracker is woken, so none reads before its own retry').not.toHaveBeenCalled()
   })
 
   test('a call the page script refused is not run again', async () => {
@@ -456,12 +465,13 @@ describe('a call that must not run twice', () => {
   })
 
   test('a once call that failed is not run again', async () => {
-    const { frames, fail, reached, ask } = setup({ retryMs: 20 })
+    const { frames, fail, reached, removed, ask } = setup({ retryMs: 20 })
     await ask('warm')
 
     fail()
     await expect(write(frames)).rejects.toThrow(FIREFOX_FETCH_FAILED)
     expect(reached.filter(question => question === 'write')).toHaveLength(1)
+    expect(removed, 'the page is kept').toEqual([])
   })
 
   test('a once call whose frame was reloaded before the call was made runs, once, on the new one', async () => {
