@@ -152,9 +152,9 @@ const jwFetch = async <T>(query: string, variables: Record<string, unknown>, ctx
   return res.json() as T
 }
 
-const titlesQuery = (extra: string) => `
-  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {
-    popularTitles(country: $country, filter: $searchTitlesFilter, first: $first, sortBy: POPULAR, sortRandomSeed: 0) {
+// one catalogue's most popular titles under `field`, every one read in the US
+const titlesIn = (field: string, country: string, extra: string) => `
+    ${field}(country: ${country}, filter: $searchTitlesFilter, first: $first, sortBy: POPULAR, sortRandomSeed: 0) {
       edges {
         node {
           id
@@ -192,20 +192,27 @@ const titlesQuery = (extra: string) => `
           }
         }
       }
-    }
+    }`
+
+const titlesQuery = (catalogues: string) => `
+  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {${catalogues}
   }
 `
 
-const SEARCH_QUERY = titlesQuery('')
+const SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', ''))
+// A title the US catalogue does not carry is searched in the offer country's too, in the same request: Even the
+// Student Council Has Its Holes! is none of the US search's ten and first of Japan's (2026-10-29). A US viewer's two
+// would be one, so they ask SEARCH_QUERY.
+const VIEWER_SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', '') + titlesIn('viewerTitles: popularTitles', '$offerCountry', ''))
 // the home hero's wide image and trailer, which nothing reading a search draws. On the 40 most popular US shows and
 // films, 7 to 10 KB of backdrops and 4 to 5 KB of clips on a 177 to 204 KB answer, and a clip on 79 of the 80 (2026-10-26)
-const POPULAR_QUERY = titlesQuery(`
+const POPULAR_QUERY = titlesQuery(titlesIn('popularTitles', '$country', `
             backdrops(profile: S1920, format: JPG) {
               backdropUrl
             }
             clips(providers: [YOUTUBE]) {
               externalId
-            }`)
+            }`))
 
 const nodeQuery = (details: string) => `
   query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!) {
@@ -307,12 +314,17 @@ const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<
   return promise
 }
 
-const searchTitles = (query: string, ctx: ExtractorServerContext) =>
-  deduplicatedFetch(`search:${query}`, () =>
-    jwFetch<JWSearchResponse>(SEARCH_QUERY, {
-      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...offerCountries()
+/** What a search finds in the US catalogue, then what only the offer country's names. */
+const searchTitles = async (query: string, ctx: ExtractorServerContext): Promise<JWSearchNode[]> => {
+  const countries = offerCountries()
+  const { data } = await deduplicatedFetch(`search:${query}`, () =>
+    jwFetch<JWSearchResponse>(countries.offerCountry === COUNTRY ? SEARCH_QUERY : VIEWER_SEARCH_QUERY, {
+      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...countries
     }, ctx)
   )
+  const nodes = [...data?.popularTitles?.edges ?? [], ...data?.viewerTitles?.edges ?? []].map(edge => edge.node)
+  return nodes.filter((node, index) => nodes.findIndex(other => other.id === node.id) === index)
+}
 
 const POPULAR_FIRST = 40
 
@@ -452,7 +464,13 @@ interface JWEpisode {
 
 interface JWCredit { role: string, name: string, characterName: string | null, personId: number }
 interface JWShowNode extends JWSearchNode { seasons: JWSeason[] }
-interface JWSearchResponse { data: { popularTitles: { edges: { node: JWSearchNode }[] } } }
+interface JWSearchResponse {
+  data: {
+    popularTitles: { edges: { node: JWSearchNode }[] }
+    /** the offer country's catalogue, which only VIEWER_SEARCH_QUERY asks */
+    viewerTitles?: { edges: { node: JWSearchNode }[] }
+  }
+}
 interface JWNodeResponse { data: { node: JWShowNode } }
 
 /** JustWatch's credits as `mergeCredits` reads them: each actor under their part, every other role as staff. */
@@ -976,8 +994,7 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   let container: GQLMedia | null = null
 
   for (const query of searchQueries(primary)) {
-    const searchRes = await searchTitles(query, ctx)
-    const results = (searchRes.data?.popularTitles?.edges ?? []).map(edge => edge.node)
+    const results = await searchTitles(query, ctx)
     if (!results.length) continue
 
     // gate on title BEFORE spending a detail request: the search payload already carries everything
@@ -1098,11 +1115,8 @@ export const resolvers: Resolvers = {
           return yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
         }
         if (!search) return yield { mediaPage: { nodes: [] } }
-        const searchRes = await searchTitles(search, ctx)
         // the search query does not fetch seasons, so normalizeMedia declines every series result and only movies come through
-        const nodes = await Promise.all(
-          (searchRes.data?.popularTitles?.edges ?? []).map(e => normalizeMedia(e.node, {}, ctx, policy))
-        )
+        const nodes = await Promise.all((await searchTitles(search, ctx)).map(node => normalizeMedia(node, {}, ctx, policy)))
         yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
       }
     }

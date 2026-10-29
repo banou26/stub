@@ -1,0 +1,351 @@
+{
+  "data": {
+    "node": {
+      "id": "ts471256",
+      "objectId": 471256,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Even the Student Council Has Its Holes!",
+        "fullPath": "",
+        "originalReleaseYear": 2026,
+        "originalReleaseDate": "2026-10-04",
+        "shortDescription": "In a student council filled with weirdos, one new member is about to have a hell of a school year! Mizunoe Ume just wanted to avoid repeating a grade when he joined the student council. After all, it seemed like an easy fix to his current academic problems. But then, he met his fellow council members. Each of them is eccentric in their own way: one's an airhead, another's scary, one's secretly a pervert, but all in all, they're just really weird! Yet somehow, they're also oddly cute and endearing. Which means Mizunoe is stuck with them and all the chaos they bring to the table. Get ready for a slice-of-life story that's irresistibly charming, quirky, and a little bit naughty!",
+        "posterUrl": "/poster/355553724/s718/.jpg",
+        "externalIds": {
+          "imdbId": null
+        },
+        "genres": [
+          {
+            "shortName": "ani",
+            "translation": "Animation"
+          }
+        ],
+        "productionCountries": [
+          "JP"
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.disneyplus.com/browse/entity-5c5f29e8-4417-44b0-aacd-391dbf1726d1",
+          "deeplinkURL": "https://www.disneyplus.com/play/9e44af6c-38f1-4277-bad1-edc6952029f9",
+          "package": {
+            "id": "cGF8MzM3",
+            "packageId": 337,
+            "clearName": "Disney Plus",
+            "technicalName": "disneyplus",
+            "shortName": "dnp",
+            "icon": "/icon/313118777/s100/disneyplus.{format}"
+          },
+          "videoTechnology": [],
+          "audioTechnology": [],
+          "audioLanguages": [
+            "ja"
+          ],
+          "subtitleLanguages": []
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.hulu.jp/watch/100276501",
+          "deeplinkURL": "https://www.hulu.jp/watch/100276501",
+          "package": {
+            "id": "cGF8MTU=",
+            "packageId": 15,
+            "clearName": "Hulu",
+            "technicalName": "hulu",
+            "shortName": "hlu",
+            "icon": "/icon/116305230/s100/hulu.{format}"
+          },
+          "videoTechnology": [],
+          "audioTechnology": [],
+          "audioLanguages": [],
+          "subtitleLanguages": []
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.5f65e2b4-aa55-4eb2-9f77-5f607c9756a8",
+          "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.5f65e2b4-aa55-4eb2-9f77-5f607c9756a8",
+          "package": {
+            "id": "cGF8MjE4Mg==",
+            "packageId": 2182,
+            "clearName": "Anime Times Amazon Channel",
+            "technicalName": "amazonanimetimes",
+            "shortName": "aam",
+            "icon": "/icon/318290968/s100/amazonanimetimes.{format}"
+          },
+          "videoTechnology": [
+            ""
+          ],
+          "audioTechnology": [],
+          "audioLanguages": [
+            "ja"
+          ],
+          "subtitleLanguages": []
+        }
+      ],
+      "extraOffers": [],
+      "totalSeasonCount": 1,
+      "seasons": [
+        {
+          "id": "tss500395",
+          "objectId": 500395,
+          "totalEpisodeCount": 12,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "",
+            "posterUrl": "/poster/355149591/{profile}/.{format}",
+            "originalReleaseYear": 2026,
+            "originalReleaseDate": "2026-10-04",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse9221891",
+              "objectId": 9221891,
+              "content": {
+                "title": "Even High School Boys Have Their Holes… / Ume Takes Responsibility",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Ume Mizunoe joins the student council so he doesn't have to repeat a year, but everyone there has such unique personalities. He nervously starts working there and gets thrown around by the council's strong personalities!",
+                "originalReleaseDate": "2026-10-04",
+                "runtime": 24
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/9e44af6c-38f1-4277-bad1-edc6952029f9",
+                  "presentationType": "HD",
+                  "videoTechnology": [],
+                  "audioTechnology": [],
+                  "audioLanguages": [
+                    "ja"
+                  ],
+                  "subtitleLanguages": [],
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014380",
+              "objectId": 11014380,
+              "content": {
+                "title": "Savior Tan / The Seven Mysteries of the Academy and the Council’s Night Patrol / Komaro Is Here!",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Ume drops by the student council room as he takes care of something early in the morning. He then finds a young girl covered in blood slumped over a desk! And it seems the girl has become quite attached to Ume!?",
+                "originalReleaseDate": "2026-10-11",
+                "runtime": 24
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/1b637cb8-b11c-471e-9bc6-a9f576b0f87d",
+                  "presentationType": "HD",
+                  "videoTechnology": [],
+                  "audioTechnology": [],
+                  "audioLanguages": [
+                    "ja"
+                  ],
+                  "subtitleLanguages": [],
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014375",
+              "objectId": 11014375,
+              "content": {
+                "title": "I'm Happy For You / Pool Cleaning and the Swimsuit Episode",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Watch the episode now.",
+                "originalReleaseDate": "2026-10-18",
+                "runtime": 24
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/4daceb13-9434-40e2-8255-4b0796a7171c",
+                  "presentationType": "HD",
+                  "videoTechnology": [],
+                  "audioTechnology": [],
+                  "audioLanguages": [
+                    "ja"
+                  ],
+                  "subtitleLanguages": [],
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014379",
+              "objectId": 11014379,
+              "content": {
+                "title": "Episode 4",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Watch the episode now.",
+                "originalReleaseDate": "2026-10-25",
+                "runtime": 24
+              },
+              "offers": [
+                {
+                  "monetizationType": "FLATRATE",
+                  "deeplinkURL": "https://www.disneyplus.com/play/9be39e15-0b6f-4fc5-b9a4-1bc73c9acbf9",
+                  "presentationType": "HD",
+                  "videoTechnology": [],
+                  "audioTechnology": [],
+                  "audioLanguages": [
+                    "ja"
+                  ],
+                  "subtitleLanguages": [],
+                  "package": {
+                    "shortName": "dnp"
+                  }
+                }
+              ],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014371",
+              "objectId": 11014371,
+              "content": {
+                "title": "Episode 5",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-11-01",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014377",
+              "objectId": 11014377,
+              "content": {
+                "title": "Episode 6",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-11-08",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014374",
+              "objectId": 11014374,
+              "content": {
+                "title": "Episode 7",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-11-15",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014376",
+              "objectId": 11014376,
+              "content": {
+                "title": "Episode 8",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-11-22",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014381",
+              "objectId": 11014381,
+              "content": {
+                "title": "Episode 9",
+                "episodeNumber": 9,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-11-29",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014373",
+              "objectId": 11014373,
+              "content": {
+                "title": "Episode 10",
+                "episodeNumber": 10,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-12-06",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014378",
+              "objectId": 11014378,
+              "content": {
+                "title": "Episode 11",
+                "episodeNumber": 11,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-12-13",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse11014372",
+              "objectId": 11014372,
+              "content": {
+                "title": "Episode 12",
+                "episodeNumber": 12,
+                "seasonNumber": 1,
+                "isReleased": false,
+                "shortDescription": "",
+                "originalReleaseDate": "2026-12-20",
+                "runtime": 24
+              },
+              "offers": [],
+              "extraOffers": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

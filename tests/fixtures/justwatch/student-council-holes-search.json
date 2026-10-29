@@ -1,0 +1,675 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "ts36579",
+            "objectId": 36579,
+            "objectType": "SHOW",
+            "content": {
+              "title": "My Wife is the Student Council President",
+              "fullPath": "/us/tv-show/my-wife-is-the-student-council-president",
+              "originalReleaseYear": 2015,
+              "originalReleaseDate": "2015-07-02",
+              "shortDescription": "The story begins with Izumi Hayato running to be student body president. But when a beautiful girl swings in promising the liberalization of love while flinging condoms into the audience, he ends up losing to her and becoming the vice president. At the student council meeting, the newly-elected president invites herself over to Izumi's house, where she promptly announces she is to become Izumi's wife thanks to an agreement that their parents had made, a drunken promise decades ago that their children would one day become husband and wife. Naturally Hayato is against this, but Ui has the complete opposite reaction, and even wants to live with him!\n\nWill the upset Hayato and the overenthusiastic Ui be able to manage their school and marital life while keeping it a secret from the other students? Or will the two never come to understand each other's feelings?",
+              "posterUrl": "/poster/300671146/s718/my-wife-is-the-student-council-president.jpg",
+              "externalIds": {
+                "imdbId": "tt5373222"
+              },
+              "genres": [
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "rma",
+                  "translation": "Romance"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/episode/SID0038707/ED00220684",
+                "deeplinkURL": "https://video.unext.jp/episode/SID0038707/ED00220684",
+                "package": {
+                  "id": "cGF8ODQ=",
+                  "packageId": 84,
+                  "clearName": "U-NEXT",
+                  "technicalName": "unext",
+                  "shortName": "unx",
+                  "icon": "/icon/304760702/s100/unext.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.0e5473e3-3543-4c7c-a197-2767aef6a21a",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0e5473e3-3543-4c7c-a197-2767aef6a21a",
+                "package": {
+                  "id": "cGF8MjQ5NA==",
+                  "packageId": 2494,
+                  "clearName": "dAnime Amazon Channel",
+                  "technicalName": "amazondanime",
+                  "shortName": "dan",
+                  "icon": "/icon/330853507/s100/amazondanime.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FG6Q4QPZPR&subId3=justappsvod",
+                "deeplinkURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FG6Q4QPZPR&subId3=justappsvod",
+                "package": {
+                  "id": "cGF8Mjgz",
+                  "packageId": 283,
+                  "clearName": "Crunchyroll",
+                  "technicalName": "crunchyroll",
+                  "shortName": "cru",
+                  "icon": "/icon/324213205/s100/crunchyroll.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.ebe816ab-7c5c-4c55-b3ff-0656fc562172",
+                "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.ebe816ab-7c5c-4c55-b3ff-0656fc562172",
+                "package": {
+                  "id": "cGF8MTk2OA==",
+                  "packageId": 1968,
+                  "clearName": "Crunchyroll Amazon Channel",
+                  "technicalName": "amazoncrunchyroll",
+                  "shortName": "cra",
+                  "icon": "/icon/324213165/s100/amazoncrunchyroll.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 56582,
+                "totalEpisodeCount": 13,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 70321,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 2,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "tm1313223",
+            "objectId": 1313223,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Even Hell Has Its Heroes",
+              "fullPath": "/us/movie/even-hell-has-its-heroes",
+              "originalReleaseYear": 2023,
+              "originalReleaseDate": null,
+              "shortDescription": "Since 1989, the world's slowest metal band has brought about some of the most striking tectonic shifts in music.",
+              "posterUrl": "/poster/313206047/s718/even-hell-has-its-heroes.jpg",
+              "externalIds": {
+                "imdbId": "tt26915017"
+              },
+              "genres": [
+                {
+                  "shortName": "doc",
+                  "translation": "Documentary"
+                },
+                {
+                  "shortName": "msc",
+                  "translation": "Music & Musical"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [],
+            "extraOffers": [
+              {
+                "monetizationType": "CINEMA",
+                "presentationType": "CANVAS",
+                "standardWebURL": "https://www.fandango.com/even-hell-has-its-heroes-2023-234426/movie-overview",
+                "deeplinkURL": "https://www.fandango.com/even-hell-has-its-heroes-2023-234426/movie-overview",
+                "package": {
+                  "id": "cGF8NjA=",
+                  "packageId": 60,
+                  "clearName": "Fandango",
+                  "technicalName": "fandango",
+                  "shortName": "fad",
+                  "icon": "/icon/811323/s100/fandango.{format}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "tm72333",
+            "objectId": 72333,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "John Carter",
+              "fullPath": "/us/movie/john-carter",
+              "originalReleaseYear": 2012,
+              "originalReleaseDate": "2012-03-07",
+              "shortDescription": "John Carter is a war-weary, former military captain who's inexplicably transported to the mysterious and exotic planet of Barsoom (Mars) and reluctantly becomes embroiled in an epic conflict. It's a world on the brink of collapse, and Carter rediscovers his humanity when he realizes the survival of Barsoom and its people rests in his hands.",
+              "posterUrl": "/poster/302521426/s718/john-carter.jpg",
+              "externalIds": {
+                "imdbId": "tt0401729"
+              },
+              "genres": [
+                {
+                  "shortName": "act",
+                  "translation": "Action & Adventure"
+                },
+                {
+                  "shortName": "scf",
+                  "translation": "Science-Fiction"
+                },
+                {
+                  "shortName": "eur",
+                  "translation": "Made in Europe"
+                }
+              ],
+              "productionCountries": [
+                "US"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.disneyplus.com/browse/entity-c0c84036-c65f-44f6-9a1e-4b0e873e5ce1",
+                "deeplinkURL": "https://www.disneyplus.com/play/c0c84036-c65f-44f6-9a1e-4b0e873e5ce1",
+                "package": {
+                  "id": "cGF8MzM3",
+                  "packageId": 337,
+                  "clearName": "Disney Plus",
+                  "technicalName": "disneyplus",
+                  "shortName": "dnp",
+                  "icon": "/icon/313118777/s100/disneyplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://fod.fujitv.co.jp/title/f0wc/",
+                "deeplinkURL": "https://fod.fujitv.co.jp/title/f0wc/",
+                "package": {
+                  "id": "cGF8MjY4Mw==",
+                  "packageId": 2683,
+                  "clearName": "FOD",
+                  "technicalName": "fod",
+                  "shortName": "fuj",
+                  "icon": "/icon/342951136/s100/fod.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.82a9f519-8e8a-a253-940b-aeb4e9efd2ca",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.82a9f519-8e8a-a253-940b-aeb4e9efd2ca",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://tv.apple.com/jp/movie/%E3%82%B7%E3%83%A7%E3%83%B3%E3%82%AB%E3%83%BC%E3%82%BF%E3%83%BC/umc.cmc.m7qorcdrcgmhy1ii0aek1p6i?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A536054590",
+                "deeplinkURL": "https://tv.apple.com/jp/movie/%E3%82%B7%E3%83%A7%E3%83%B3%E3%82%AB%E3%83%BC%E3%82%BF%E3%83%BC/umc.cmc.m7qorcdrcgmhy1ii0aek1p6i?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A536054590",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.disneyplus.com/browse/entity-c0c84036-c65f-44f6-9a1e-4b0e873e5ce1",
+                "deeplinkURL": "https://www.disneyplus.com/play/c0c84036-c65f-44f6-9a1e-4b0e873e5ce1",
+                "package": {
+                  "id": "cGF8MzM3",
+                  "packageId": 337,
+                  "clearName": "Disney Plus",
+                  "technicalName": "disneyplus",
+                  "shortName": "dnp",
+                  "icon": "/icon/313118777/s100/disneyplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.0cb780ed-95e4-3bfe-0988-86eec85ffe9e",
+                "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.0cb780ed-95e4-3bfe-0988-86eec85ffe9e",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://tv.apple.com/us/movie/john-carter/umc.cmc.m7qorcdrcgmhy1ii0aek1p6i?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A508656568",
+                "deeplinkURL": "https://tv.apple.com/us/movie/john-carter/umc.cmc.m7qorcdrcgmhy1ii0aek1p6i?at=1000l3V2&ct=app_tv&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.9001%3A508656568",
+                "package": {
+                  "id": "cGF8Mg==",
+                  "packageId": 2,
+                  "clearName": "Apple TV Store",
+                  "technicalName": "itunes",
+                  "shortName": "itu",
+                  "icon": "/icon/338253243/s100/itunes.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://athome.fandango.com/content/browse/details/John-Carter/211888",
+                "deeplinkURL": "https://athome.fandango.com/content/browse/details/John-Carter/211888",
+                "package": {
+                  "id": "cGF8Nw==",
+                  "packageId": 7,
+                  "clearName": "Fandango At Home",
+                  "technicalName": "vudu",
+                  "shortName": "vdu",
+                  "icon": "/icon/346744144/s100/vudu.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.barnesandnoble.com/w/dvd-john-carter-andrew-stanton/17827434",
+                "deeplinkURL": "https://www.barnesandnoble.com/w/dvd-john-carter-andrew-stanton/17827434",
+                "package": {
+                  "id": "cGF8MjU0Mg==",
+                  "packageId": 2542,
+                  "clearName": "Barnes & Noble",
+                  "technicalName": "barnesandnoble",
+                  "shortName": "bnb",
+                  "icon": "/icon/335089140/s100/barnesandnoble.{format}"
+                }
+              },
+              {
+                "monetizationType": "BUY",
+                "presentationType": "DVD",
+                "standardWebURL": "https://www.amazon.com/dp/B006VDNDQI?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "deeplinkURL": "https://www.amazon.com/dp/B006VDNDQI?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+                "package": {
+                  "id": "cGF8NTA=",
+                  "packageId": 50,
+                  "clearName": "Amazon DVD / Blu-ray",
+                  "technicalName": "amazondvdbr",
+                  "shortName": "adb",
+                  "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "viewerTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "ts471256",
+            "objectId": 471256,
+            "objectType": "SHOW",
+            "content": {
+              "title": "Even the Student Council Has Its Holes!",
+              "fullPath": "",
+              "originalReleaseYear": 2026,
+              "originalReleaseDate": "2026-10-04",
+              "shortDescription": "In a student council filled with weirdos, one new member is about to have a hell of a school year! Mizunoe Ume just wanted to avoid repeating a grade when he joined the student council. After all, it seemed like an easy fix to his current academic problems. But then, he met his fellow council members. Each of them is eccentric in their own way: one's an airhead, another's scary, one's secretly a pervert, but all in all, they're just really weird! Yet somehow, they're also oddly cute and endearing. Which means Mizunoe is stuck with them and all the chaos they bring to the table. Get ready for a slice-of-life story that's irresistibly charming, quirky, and a little bit naughty!",
+              "posterUrl": "/poster/355553724/s718/.jpg",
+              "externalIds": {
+                "imdbId": null
+              },
+              "genres": [
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.disneyplus.com/browse/entity-5c5f29e8-4417-44b0-aacd-391dbf1726d1",
+                "deeplinkURL": "https://www.disneyplus.com/play/9e44af6c-38f1-4277-bad1-edc6952029f9",
+                "package": {
+                  "id": "cGF8MzM3",
+                  "packageId": 337,
+                  "clearName": "Disney Plus",
+                  "technicalName": "disneyplus",
+                  "shortName": "dnp",
+                  "icon": "/icon/313118777/s100/disneyplus.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.hulu.jp/watch/100276501",
+                "deeplinkURL": "https://www.hulu.jp/watch/100276501",
+                "package": {
+                  "id": "cGF8MTU=",
+                  "packageId": 15,
+                  "clearName": "Hulu",
+                  "technicalName": "hulu",
+                  "shortName": "hlu",
+                  "icon": "/icon/116305230/s100/hulu.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.5f65e2b4-aa55-4eb2-9f77-5f607c9756a8",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.5f65e2b4-aa55-4eb2-9f77-5f607c9756a8",
+                "package": {
+                  "id": "cGF8MjE4Mg==",
+                  "packageId": 2182,
+                  "clearName": "Anime Times Amazon Channel",
+                  "technicalName": "amazonanimetimes",
+                  "shortName": "aam",
+                  "icon": "/icon/318290968/s100/amazonanimetimes.{format}"
+                }
+              }
+            ],
+            "extraOffers": [],
+            "seasons": [
+              {
+                "objectId": 500395,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "ts557257",
+            "objectId": 557257,
+            "objectType": "SHOW",
+            "content": {
+              "title": "生徒会にも穴はある！",
+              "fullPath": "",
+              "originalReleaseYear": 2026,
+              "originalReleaseDate": "2026-10-03",
+              "shortDescription": "",
+              "posterUrl": "/poster/355189900/s718/.jpg",
+              "externalIds": {
+                "imdbId": null
+              },
+              "genres": [
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/82616221",
+                "deeplinkURL": "https://www.netflix.com/watch/82616225",
+                "package": {
+                  "id": "cGF8OA==",
+                  "packageId": 8,
+                  "clearName": "Netflix",
+                  "technicalName": "netflix",
+                  "shortName": "nfx",
+                  "icon": "/icon/207360008/s100/netflix.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "package": {
+                  "id": "cGF8OQ==",
+                  "packageId": 9,
+                  "clearName": "Amazon Prime Video",
+                  "technicalName": "amazonprime",
+                  "shortName": "amp",
+                  "icon": "/icon/322992749/s100/amazonprime.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://www.netflix.com/title/82616221",
+                "deeplinkURL": "https://www.netflix.com/watch/82616225",
+                "package": {
+                  "id": "cGF8MTc5Ng==",
+                  "packageId": 1796,
+                  "clearName": "Netflix Standard with Ads",
+                  "technicalName": "netflixbasicwithads",
+                  "shortName": "nfa",
+                  "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "package": {
+                  "id": "cGF8MjQ5NA==",
+                  "packageId": 2494,
+                  "clearName": "dAnime Amazon Channel",
+                  "technicalName": "amazondanime",
+                  "shortName": "dan",
+                  "icon": "/icon/330853507/s100/amazondanime.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "package": {
+                  "id": "cGF8MjEwMA==",
+                  "packageId": 2100,
+                  "clearName": "Amazon Prime Video with Ads",
+                  "technicalName": "amazonprimevideowithads",
+                  "shortName": "pva",
+                  "icon": "/icon/322992746/s100/amazonprimevideowithads.{format}"
+                }
+              },
+              {
+                "monetizationType": "RENT",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.c6aec7e6-74fb-4049-a715-5216f484d6bc",
+                "package": {
+                  "id": "cGF8MTA=",
+                  "packageId": 10,
+                  "clearName": "Amazon Video",
+                  "technicalName": "amazon",
+                  "shortName": "amz",
+                  "icon": "/icon/340823436/s100/amazon.{format}"
+                }
+              }
+            ],
+            "extraOffers": [],
+            "seasons": [
+              {
+                "objectId": 608589,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "node": {
+            "id": "ts36579",
+            "objectId": 36579,
+            "objectType": "SHOW",
+            "content": {
+              "title": "My Wife is the Student Council President",
+              "fullPath": "/us/tv-show/my-wife-is-the-student-council-president",
+              "originalReleaseYear": 2015,
+              "originalReleaseDate": "2015-07-02",
+              "shortDescription": "The story begins with Izumi Hayato running to be student body president. But when a beautiful girl swings in promising the liberalization of love while flinging condoms into the audience, he ends up losing to her and becoming the vice president. At the student council meeting, the newly-elected president invites herself over to Izumi's house, where she promptly announces she is to become Izumi's wife thanks to an agreement that their parents had made, a drunken promise decades ago that their children would one day become husband and wife. Naturally Hayato is against this, but Ui has the complete opposite reaction, and even wants to live with him!\n\nWill the upset Hayato and the overenthusiastic Ui be able to manage their school and marital life while keeping it a secret from the other students? Or will the two never come to understand each other's feelings?",
+              "posterUrl": "/poster/300671146/s718/my-wife-is-the-student-council-president.jpg",
+              "externalIds": {
+                "imdbId": "tt5373222"
+              },
+              "genres": [
+                {
+                  "shortName": "ani",
+                  "translation": "Animation"
+                },
+                {
+                  "shortName": "cmy",
+                  "translation": "Comedy"
+                },
+                {
+                  "shortName": "rma",
+                  "translation": "Romance"
+                }
+              ],
+              "productionCountries": [
+                "JP"
+              ]
+            },
+            "offers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://video.unext.jp/episode/SID0038707/ED00220684",
+                "deeplinkURL": "https://video.unext.jp/episode/SID0038707/ED00220684",
+                "package": {
+                  "id": "cGF8ODQ=",
+                  "packageId": 84,
+                  "clearName": "U-NEXT",
+                  "technicalName": "unext",
+                  "shortName": "unx",
+                  "icon": "/icon/304760702/s100/unext.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.0e5473e3-3543-4c7c-a197-2767aef6a21a",
+                "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.0e5473e3-3543-4c7c-a197-2767aef6a21a",
+                "package": {
+                  "id": "cGF8MjQ5NA==",
+                  "packageId": 2494,
+                  "clearName": "dAnime Amazon Channel",
+                  "technicalName": "amazondanime",
+                  "shortName": "dan",
+                  "icon": "/icon/330853507/s100/amazondanime.{format}"
+                }
+              }
+            ],
+            "extraOffers": [
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FG6Q4QPZPR&subId3=justappsvod",
+                "deeplinkURL": "https://crunchyroll.pxf.io/xk92Nv?u=https%3A%2F%2Fwww.crunchyroll.com%2Fwatch%2FG6Q4QPZPR&subId3=justappsvod",
+                "package": {
+                  "id": "cGF8Mjgz",
+                  "packageId": 283,
+                  "clearName": "Crunchyroll",
+                  "technicalName": "crunchyroll",
+                  "shortName": "cru",
+                  "icon": "/icon/324213205/s100/crunchyroll.{format}"
+                }
+              },
+              {
+                "monetizationType": "FLATRATE",
+                "presentationType": "HD",
+                "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.ebe816ab-7c5c-4c55-b3ff-0656fc562172",
+                "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.ebe816ab-7c5c-4c55-b3ff-0656fc562172",
+                "package": {
+                  "id": "cGF8MTk2OA==",
+                  "packageId": 1968,
+                  "clearName": "Crunchyroll Amazon Channel",
+                  "technicalName": "amazoncrunchyroll",
+                  "shortName": "cra",
+                  "icon": "/icon/324213165/s100/amazoncrunchyroll.{format}"
+                }
+              }
+            ],
+            "seasons": [
+              {
+                "objectId": 56582,
+                "totalEpisodeCount": 13,
+                "content": {
+                  "seasonNumber": 1,
+                  "isReleased": true
+                }
+              },
+              {
+                "objectId": 70321,
+                "totalEpisodeCount": 12,
+                "content": {
+                  "seasonNumber": 2,
+                  "isReleased": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
