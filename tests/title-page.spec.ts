@@ -1188,6 +1188,22 @@ test('a film opened at its bare AniList address lists every place to watch it, a
   }
 })
 
+// AniList names Spec Rated's official site and two places it streams (tests/fake-fetch.ts)
+test('the places AniList says a title streams are icons after its sources\', on its page and in its modal', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  for (const [path, row] of [[`/title/${RATED}`, '.body > .actions .origins'], [`/media/${RATED}`, '.modal .content > .header .origins']] as const) {
+    await page.goto(`${origin}${path}`)
+    const sites = page.locator(`${row} > .origin`)
+    await expect(sites.last(), path).toHaveAttribute('title', 'iQ', { timeout: 30_000 })
+    const titles = await sites.evaluateAll(links => links.map(link => link.getAttribute('title')))
+    expect(titles.slice(-2), path).toEqual(['Bilibili TV', 'iQ'])
+    expect(titles, `${path}: the control: the sources' icons are drawn`).toContain('AniList')
+    expect(titles, path).not.toContain('Official Site')
+    await expect(sites.last()).toHaveAttribute('href', 'https://www.iq.com/album/spec-rated')
+    await expect(sites.last()).toHaveAttribute('target', '_blank')
+  }
+})
+
 test('a series opened at its bare AniList address shows the ratings JustWatch gives, and its address grows to name JustWatch, on its page and in the modal', async ({ page }) => {
   await page.goto(`${origin}/title/anilist:900040`)
   await expect(page.locator('.heading > .chips .chip')).toHaveText(RATED_CHIPS, { timeout: 30_000 })

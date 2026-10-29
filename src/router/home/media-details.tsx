@@ -30,6 +30,7 @@ import { formatCountdown } from '../../utils/countdown'
 import { useNow } from '../../utils/use-now'
 import { canPlay } from '../../sources/playable'
 import { useHiddenIcons } from '../../sources/hidden-icons'
+import { viewerCountry } from '../../sources/country'
 import { detectBackend } from '../../utils/fkn-backend'
 import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
@@ -213,6 +214,12 @@ export const GET_MEDIA_DETAILS = gql(`
         value
         scale
       }
+      streamingLinks {
+        site
+        url
+        icon
+        country
+      }
     }
   }
 `)
@@ -372,15 +379,41 @@ const watchSources = (
     .filter(source => source.href)
     .sort((a, b) => Number(a.external) - Number(b.external))
 
+type StreamingLink = NonNullable<DetailsMedia['streamingLinks']>[number]
+
+const hostOf = (url: string | null | undefined) => {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, '') : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The streaming links to draw: the viewer's country's and those naming none, one per site, and none on a site in
+ * `taken`, the sites of the source icons, drawn or hidden.
+ */
+const linksToDraw = (links: readonly StreamingLink[], taken: Iterable<string>) => {
+  const country = viewerCountry()
+  const seen = new Set(taken)
+  return links.flatMap(link => {
+    const host = hostOf(link.url)
+    if (!host || seen.has(host) || (link.country && link.country !== country)) return []
+    seen.add(host)
+    return [{ ...link, host }]
+  })
+}
+
 /**
  * The links to each site that names this media but the origins in `except`, as icons, unstyled: each view sizes them
- * itself. Nothing until the worker has answered for the media.
+ * itself, then `links` to a site no source icon stands for. Nothing until the worker has answered for the media.
  */
 export const SourceLinks = (
-  { uri, handles, except = [] }:
+  { uri, handles, links, except = [] }:
   {
     uri: string | undefined
     handles: readonly { relation: string, node: { origin: string, url?: string | null } }[] | undefined
+    links?: readonly StreamingLink[] | null
     except?: readonly string[]
   }
 ) => {
@@ -398,17 +431,22 @@ export const SourceLinks = (
       ...handles?.map(handle => handle.node.origin) ?? [],
     ])
   ]
-  const [{ data: originData }] = useSubscription({
-    query: GET_MEDIA_ORIGINS,
-    variables: { input: { ids: originIds, filters: [OriginFilter.IsNotApiOnly] } },
-  })
   const hidden = useHiddenIcons()
+  // the hidden ones too, so a link to a site whose icon the viewer hid stays hidden with it
+  const ids = [...new Set([...originIds, ...hidden])]
+  const [{ data: originData, operation }] = useSubscription({
+    query: GET_MEDIA_ORIGINS,
+    variables: { input: { ids, filters: [OriginFilter.IsNotApiOnly] } },
+  })
+  const answered = originData?.originPage?.nodes
+  // the answer shown is the last one's until the worker answers for a source just named, so the links wait for it: drawn
+  // before, the modal's stood beside no icon at all (2026-10-29), and one could stand for a site whose icon is on its way
+  const asked = operation?.variables.input.ids
+  const current = answered && ids.every(id => asked?.includes(id))
   return (
     <span className="origins">
       {
-        originData
-          ?.originPage
-          ?.nodes
+        answered
           ?.map(origin => {
             // BOTH RELATIONS, deliberately. This row wants a url and an origin and nothing else: no
             // sameness is assumed and nothing is merged across it. A PART_OF handle is exactly as
@@ -435,6 +473,13 @@ export const SourceLinks = (
             )
           })
           .filter(Boolean)
+      }
+      {
+        current && linksToDraw(links ?? [], answered.flatMap(origin => hostOf(origin.url) ?? [])).map(link => (
+          <a className="origin" href={link.url} target="_blank" rel="noreferrer" title={link.site} key={link.host}>
+            <OriginIcon icon={link.icon} name={link.site}/>
+          </a>
+        ))
       }
     </span>
   )

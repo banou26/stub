@@ -652,6 +652,112 @@ describe('a hidden source icon', () => {
   })
 })
 
+describe('the streaming links after the source icons', () => {
+  const stored = new Map<string, string>()
+  beforeEach(() => {
+    stored.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+      removeItem: (key: string) => { stored.delete(key) },
+    })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  // the worker's answer for the ids asked, and only those
+  const ORIGINS = [
+    { id: 'anilist', name: 'AniList', icon: 'https://anilist.co/i.png', url: 'https://anilist.co' },
+    { id: 'nf', name: 'Netflix', icon: 'https://www.netflix.com/i.png', url: 'https://www.netflix.com' },
+  ]
+  const answering = () => new Client({
+    url: 'http://test/graphql',
+    exchanges: [subscriptionExchange({
+      forwardSubscription: request => ({
+        subscribe: sink => {
+          const ids = (request.variables as { input: { ids: string[] } }).input.ids
+          sink.next({ data: { originPage: { nodes: ORIGINS.filter(origin => ids.includes(origin.id)).map(origin => ({ color: null, isApiOnly: false, ...origin })) } }, hasNext: true })
+          return { unsubscribe: () => {} }
+        },
+      }),
+    })],
+  })
+  const draw = async (handles: { relation: string, node: { origin: string, url: string } }[], links: { site: string, url: string, icon?: string, country?: string }[]) => {
+    const host = mount(<Provider value={answering()}><SourceLinks uri="ag:(anilist:191656)" handles={handles} links={links}/></Provider>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+    return [...host.querySelectorAll<HTMLAnchorElement>('.origin')].map(origin => `${origin.title} ${origin.href}`)
+  }
+  const ANILIST = { relation: 'SAME_AS', node: { origin: 'anilist', url: 'https://anilist.co/anime/191656' } }
+
+  // as JustWatch, AniList and MyAnimeList name Even the Student Council Has Its Holes! for a viewer in Japan, with a
+  // Netflix link and a Netflix icon beside
+  test('are the viewer\'s country\'s and those naming none, one per site, and none on a source icon\'s site', async () => {
+    viewerIn('Asia/Tokyo')
+    const netflix = { relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/82616221' } }
+    expect(await draw([ANILIST, netflix], [
+      { site: 'Hulu', url: 'https://www.hulu.jp/watch/100276501', icon: 'https://images.justwatch.com/icon/116305230/s100/hulu.webp', country: 'JP' },
+      { site: 'OceanVeil', url: 'https://oceanveil.net/anime_titles/542' },
+      { site: 'Netflix', url: 'https://www.netflix.com/title/1' },
+      { site: 'Hulu', url: 'https://www.hulu.jp/watch/100276501', country: 'JP' },
+      { site: 'OceanVeil', url: 'https://oceanveil.net/ad?agn=2&src=8&pattern=MAL&url=/lp' },
+      { site: 'Watcha', url: 'https://watcha.com/contents/tRzLxAV', country: 'KR' },
+      { site: 'Bahamut Anime Crazy', url: 'https://ani.gamer.com.tw/' },
+    ])).toEqual([
+      'AniList https://anilist.co/anime/191656',
+      'Netflix https://www.netflix.com/title/82616221',
+      'Hulu https://www.hulu.jp/watch/100276501',
+      'OceanVeil https://oceanveil.net/anime_titles/542',
+      'Bahamut Anime Crazy https://ani.gamer.com.tw/',
+    ])
+  })
+
+  // Until the worker answers for a source just named, the answer shown is the one before it: the modal drew its links
+  // beside no icon that way (tests/title-page.spec.ts, 2026-10-29)
+  test('wait for the answer naming every source asked, so none stands for a site whose icon is on its way', async () => {
+    const held: (() => void)[] = []
+    const holding = new Client({
+      url: 'http://test/graphql',
+      exchanges: [subscriptionExchange({
+        forwardSubscription: request => ({
+          subscribe: sink => {
+            const ids = (request.variables as { input: { ids: string[] } }).input.ids
+            const answer = () => sink.next({ data: { originPage: { nodes: ORIGINS.filter(origin => ids.includes(origin.id)).map(origin => ({ color: null, isApiOnly: false, ...origin })) } }, hasNext: true })
+            if (ids.includes('nf')) held.push(answer)
+            else answer()
+            return { unsubscribe: () => {} }
+          },
+        }),
+      })],
+    })
+    let name: (handles: { relation: string, node: { origin: string, url: string } }[]) => void = () => {}
+    const Named = () => {
+      const [handles, setHandles] = useState([ANILIST])
+      name = setHandles
+      return <SourceLinks uri="ag:(anilist:191656)" handles={handles} links={[{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }]}/>
+    }
+    const host = mount(<Provider value={holding}><Named/></Provider>)
+    hosts.push(host)
+    const drawn = async () => {
+      await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+      return [...host.querySelectorAll<HTMLAnchorElement>('.origin')].map(origin => `${origin.title} ${origin.href}`)
+    }
+    expect(await drawn(), 'the control: no Netflix icon, so the link').toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/1'])
+    act(() => name([ANILIST, { relation: 'SAME_AS', node: { origin: 'nf', url: 'https://www.netflix.com/title/82616221' } }]))
+    expect(await drawn(), 'while Netflix is asked about').toEqual(['AniList https://anilist.co/anime/191656'])
+    act(() => { for (const answer of held) answer() })
+    expect(await drawn()).toEqual(['AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/82616221'])
+  })
+
+  test('none is on the site of a source whose icon the viewer hid', async () => {
+    const links = [{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }, { site: 'iQ', url: 'https://www.iq.com/album/28ki6pjn6a1' }]
+    expect(await draw([ANILIST], links), 'the control: shown while no Netflix icon stands for it').toEqual([
+      'AniList https://anilist.co/anime/191656', 'Netflix https://www.netflix.com/title/1', 'iQ https://www.iq.com/album/28ki6pjn6a1',
+    ])
+    setIconShown('nf', false)
+    expect(await draw([ANILIST], links)).toEqual(['AniList https://anilist.co/anime/191656', 'iQ https://www.iq.com/album/28ki6pjn6a1'])
+  })
+})
+
 describe('in German', () => {
   beforeEach(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
   afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))

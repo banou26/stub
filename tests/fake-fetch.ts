@@ -77,7 +77,14 @@ const UNSAFE = {
 const ONE_PIECE_RELATIONS = many(61, number => ({ relationType: number % 4 ? 'SIDE_STORY' : 'SUMMARY', node: { id: 900030 + number, type: 'ANIME', format: 'SPECIAL', status: 'FINISHED', title: { english: `One Piece Special ${number}` } } }))
 // a page of relations and more, each title two lines on a card, as most are
 const LATE_RELATIONS = many(4, number => ({ relationType: 'SIDE_STORY', node: { id: 900010 + number, type: 'ANIME', format: 'OVA', status: 'FINISHED', title: { english: `Spec Late Side Story ${number}: The Long Way Round` } } }))
-const RATED = { id: 900040, idMal: 900040, type: 'ANIME', format: 'TV', status: 'FINISHED', episodes: 26, startDate: { year: 2023, month: 9, day: 29 }, averageScore: 82, title: { english: 'Spec Rated' } }
+const RATED = {
+  id: 900040, idMal: 900040, type: 'ANIME', format: 'TV', status: 'FINISHED', episodes: 26, startDate: { year: 2023, month: 9, day: 29 }, averageScore: 82, title: { english: 'Spec Rated' },
+  externalLinks: [
+    { site: 'Official Site', siteId: 1, url: 'https://spec-rated.example/', type: 'INFO', icon: null, isDisabled: false },
+    { site: 'Bilibili TV', siteId: 119, url: 'https://www.bilibili.tv/en/media/900040', type: 'STREAMING', icon: 'https://s4.anilist.co/file/anilistcdn/link/icon/119-NCwGvCjFADGQ.png', isDisabled: false },
+    { site: 'iQ', siteId: 122, url: 'https://www.iq.com/album/spec-rated', type: 'STREAMING', icon: 'https://s4.anilist.co/file/anilistcdn/link/icon/122-EPBJ2E0oPt5C.png', isDisabled: false },
+  ],
+}
 // JustWatch's show of it, with the four ratings it gives: its first season, and a second one listed with no episodes yet
 const RATED_NODE = {
   id: 'ts900040', objectId: 900040, objectType: 'SHOW', offers: [],
@@ -183,10 +190,10 @@ const TMDB: Record<string, string> = {
 // attribute, a style sheet and a form, and a remote image.
 // AniList schedules Spec Airing (anilist:900080, mal:900080) from its 4th episode a day out, weekly, when asked for
 // its schedule, and AniZip dates its first 3 episodes and lists 4 to 6 undated.
-// AniList answers Spec Rated (anilist:900040, mal:900040) with its score, and JustWatch finds its show by that title and
-// answers it five seconds later, with four ratings. AniList answers Spec Film (anilist:900050), a film with a description
-// and one relation, and JustWatch finds its film by that title and answers it five seconds later, with its TMDB id and
-// seven offers;
+// AniList answers Spec Rated (anilist:900040, mal:900040) with its score, its official site and two places it streams,
+// and JustWatch finds its show by that title and answers it five seconds later, with four ratings. AniList answers
+// Spec Film (anilist:900050), a film with a description and one relation, and JustWatch finds its film by that title
+// and answers it five seconds later, with its TMDB id and seven offers;
 // Spec Prime Film (anilist:900070) the same, with Prime Video on amazon.co.jp and Tubi, and Spec Late Film
 // (anilist:900060) with Tubi alone, forty seconds later.
 // TheTVDB's search finds none of these titles, so no ask with a body leaves the rig.

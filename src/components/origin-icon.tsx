@@ -6,9 +6,9 @@ import { useState } from 'preact/hooks'
  * outside the US to an HTML "unavailable" page, so a bare <img> drew a broken image beside every title
  * either one carries.
  */
-const OriginIcon = ({ icon, name }: { icon: string, name: string }) => {
+const OriginIcon = ({ icon, name }: { icon?: string | null, name: string }) => {
   const [failed, setFailed] = useState(false)
-  return failed
+  return failed || !icon
     ? <span className="letter" aria-hidden="true">{name.charAt(0)}</span>
     : <img src={icon} alt="" onError={() => setFailed(true)}/>
 }

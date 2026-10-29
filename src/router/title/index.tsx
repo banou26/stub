@@ -798,7 +798,7 @@ const TitlePage = () => {
                       ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label={trailerLabel} title={trailerLabel}><Clapperboard size={20}/></a>
                       : undefined
                   }
-                  <SourceLinks uri={media.uri} handles={media.handles} except={watchOriginIds(film, media.handles)}/>
+                  <SourceLinks uri={media.uri} handles={media.handles} links={media.streamingLinks} except={watchOriginIds(film, media.handles)}/>
                 </div>
               )
               : <div className="buttons"><Placeholder className="play-pending"/></div>
