@@ -259,6 +259,8 @@ describe('whether the list shows a save', () => {
   test('says what MyAnimeList shows instead', () => {
     expect(mismatchOf({ status: 'WATCHING', progress: 3 }, at({ status: 3, progress: 2 }), before)).toBe('MyAnimeList shows it as Paused, 2 episodes')
     expect(mismatchOf({ status: 'COMPLETED', score: 8 }, at({ score: 0, progress: 25 }), before)).toBe('MyAnimeList shows no score')
+    expect(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, at({ status: 99, progress: 2, score: 7 }), before))
+      .toBe('MyAnimeList shows it as a status stub does not know, 2 episodes, a score of 7 / 10')
   })
 
   test('an entry just as it was, or none at all, does not show the save yet', () => {

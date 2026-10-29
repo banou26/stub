@@ -136,6 +136,11 @@ describe('a save', () => {
     expect(writes()).toEqual([])
   })
 
+  test('a season of one episode says so in the singular', async () => {
+    const { send } = fakeCrunchyroll({ episodes: numberedSeason(1), playheads: fullyWatched() })
+    expect(await saveWatched({ ...SEASON, progress: 2 }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll lists 1 episode of this season' })
+  })
+
   test('a lower progress writes nothing, since Crunchyroll has no unmark, and says so', async () => {
     const { send, writes } = fakeCrunchyroll()
     expect(await saveWatched({ ...SEASON, progress: 1, stars: 3 }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll cannot unmark an episode' })

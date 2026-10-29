@@ -263,7 +263,7 @@ describe("AniList's rate limit", () => {
 
     const paused = answerOf(await tracking.next())
     expect(paused.state).toBe('PAUSED')
-    expect(paused.error).toContain('asked stub to wait')
+    expect(paused.error).toBe(`AniList asked stub to wait until ${new Date(now() + 40_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`)
     expect(answerOf(await tracking.next()).state).toBe('LISTED')
     expect(waits).toEqual([40_000])
     expect(calls).toBe(2)

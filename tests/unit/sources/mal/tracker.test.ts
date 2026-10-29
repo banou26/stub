@@ -482,7 +482,8 @@ describe('when MyAnimeList refuses stub', () => {
     script.list = () => refused ? undefined : (refused = true, answerOf('', { status: 429, retryAfter: 90 }))
     const tracking = watch(target, HACK)
 
-    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'PAUSED', error: expect.stringContaining('MyAnimeList asked stub to wait until') })
+    const until = new Date(1_790_000_090_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'PAUSED', error: `MyAnimeList asked stub to wait until ${until}` })
     expect(answerOfResult(await tracking.next()).state).toBe('LISTED')
     expect(waits).toEqual([90_000])
     expect(log).toEqual(['whoami', 'list 7/1@0', 'whoami', 'list 7/1@0', 'list 7/1@7'])
