@@ -13,6 +13,7 @@ const urql = vi.hoisted(() => ({
   data: undefined as unknown,
   saves: [] as { trackers: string[], entry: Record<string, unknown> }[],
   answer: { outcome: 'SAVED' } as { outcome: string },
+  reply: undefined as undefined | ((trackers: string[]) => unknown[]),
   rerender: new Set<() => void>(),
 }))
 vi.mock('urql', async () => {
@@ -29,7 +30,7 @@ vi.mock('urql', async () => {
     },
     useMutation: () => [{}, async ({ input }: { input: { trackers: string[], entry: Record<string, unknown> } }) => {
       urql.saves.push({ trackers: input.trackers, entry: input.entry })
-      return { data: { saveListEntry: input.trackers.map(tracker => ({ tracker, ...urql.answer })) } }
+      return { data: { saveListEntry: urql.reply?.(input.trackers) ?? input.trackers.map(tracker => ({ tracker, ...urql.answer })) } }
     }],
   }
 })
@@ -73,6 +74,7 @@ afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
   urql.saves.length = 0
   urql.answer = { outcome: 'SAVED' }
+  urql.reply = undefined
 })
 
 const titles = (host: HTMLElement) => [...host.querySelectorAll('.item .title')].map(title => title.textContent)
@@ -116,6 +118,28 @@ test('a tracker that did not take the + says so, and the item goes back to what 
   await settle()
   expect([...host.querySelectorAll('.missed')].map(line => line.textContent)).toEqual(['AniList did not save: failed', 'MyAnimeList did not save: failed'])
   expect(host.querySelector('.item .progress')?.textContent).toBe('5/ 12')
+})
+
+test("a tracker's own words for why it did not take the + are what the item says", async () => {
+  urql.reply = () => [
+    { tracker: 'anilist', outcome: 'FAILED', error: 'AniList asked stub to wait until 14:05' },
+    { tracker: 'mal', outcome: 'SAVED', error: null },
+  ]
+  const host = show()
+  click(host.querySelector('.item .more'))
+  await settle()
+  expect([...host.querySelectorAll('.missed')].map(line => line.textContent)).toEqual(['AniList did not save: AniList asked stub to wait until 14:05'])
+})
+
+test('a + that reached no tracker says so of every tracker it went to', async () => {
+  urql.reply = () => [{ tracker: '', outcome: 'FAILED', error: 'The write did not reach the trackers' }]
+  const host = show()
+  click(host.querySelector('.item .more'))
+  await settle()
+  expect([...host.querySelectorAll('.missed')].map(line => line.textContent)).toEqual([
+    'AniList did not save: The write did not reach the trackers',
+    'MyAnimeList did not save: The write did not reach the trackers',
+  ])
 })
 
 test('a list that could not be read says so in one line', () => {
