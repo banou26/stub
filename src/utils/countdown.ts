@@ -5,9 +5,15 @@ const COUNTDOWN: Intl.DurationFormatOptions = { style: 'short', days: 'long', ho
 
 const formats = new Map<string, Intl.DurationFormat>()
 
-// US English writes "42 min" where stub's English has always read "42 mins", as international English (en-001) does
+/**
+ * The tag a duration is written in: any English as international English (en-001), which reads as stub always has,
+ * where US English writes "42 min" for "42 mins" and Canadian English "1h 52min" for "1h 52m"; another language, the
+ * page's own.
+ */
+export const durationLocale = () => new Intl.Locale(intl.locale).language === 'en' ? 'en-001' : intl.locale
+
 const countdownFormat = () => {
-  const locale = new Intl.Locale(intl.locale).language === 'en' ? 'en-001' : intl.locale
+  const locale = durationLocale()
   if (!formats.has(locale)) formats.set(locale, new Intl.DurationFormat(locale, COUNTDOWN))
   return formats.get(locale)!
 }

@@ -17,6 +17,16 @@ test('a runtime reads in hours and minutes, and none reads as nothing', () => {
   for (const none of [0, -3, null, undefined]) expect(runtimeText(none), String(none)).toBeUndefined()
 })
 
+// Canadian English writes "1h 52min", whichever English the browser writes dates in
+test.each(['en-US', 'en-GB', 'en-CA', 'en-IN'])('%s writes a runtime as stub always did', async locale => {
+  try {
+    await startLanguage({ language: 'en', languages: [locale] })
+    expect([runtimeText(112), runtimeText(45), runtimeText(120)]).toEqual(['1h 52m', '45m', '2h'])
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
 // HOR-1017: the release date under the preview's title, the film's as precisely as its sources date it
 test('the facts line names the format, the release date, the runtime and three genres at most', () => {
   expect(movieFacts({ released: '2026-12-11', runtime: 112, genres: ['Mystery', 'Drama', 'Romance', 'Historical'] }))

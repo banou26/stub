@@ -3,12 +3,13 @@
 // cannot load under vitest, see tests/unit/router/modal-media.test.ts).
 
 import { intl, NAME_LIST } from '../../i18n'
+import { durationLocale } from '../../utils/countdown'
 import { isDateOnly, parseReleaseDate, releaseDateLabel } from '../../utils/release-date'
 
 /** "1h 52m" for 112 minutes, "45m" under an hour, in the language shown, undefined for none. */
 export const runtimeText = (minutes: number | null | undefined): string | undefined => {
   if (!minutes || minutes <= 0) return undefined
-  return new Intl.DurationFormat(intl.locale, { style: 'narrow' }).format({ hours: Math.floor(minutes / 60), minutes: Math.round(minutes % 60) })
+  return new Intl.DurationFormat(durationLocale(), { style: 'narrow' }).format({ hours: Math.floor(minutes / 60), minutes: Math.round(minutes % 60) })
 }
 
 /** The line under a movie's title: "Movie", its release date, its runtime and up to three genres. */
