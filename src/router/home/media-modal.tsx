@@ -354,12 +354,13 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         font-size: 1.6rem;
       }
 
-      /* a card a service, each about two thirds of the watch page's, four to a line here and two on a phone */
+      /* a card a service, each about two thirds of the watch page's, and at least two to a line: under 1024 px the facts
+         leave the description 26 to 31rem */
       & > .main > .sources {
         --picture: 11rem;
         --body: 5.6rem;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(16rem, calc(50% - 1rem)), 1fr));
         gap: 1rem;
         margin: 0;
         padding: 0;
@@ -708,7 +709,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       & > .columns > .main > .sources {
         --picture: 9.4rem;
         --body: 5.2rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.8rem;
       }
 

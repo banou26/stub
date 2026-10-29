@@ -1134,8 +1134,9 @@ const cardLines = (cards: Locator) => cards.evaluateAll(cards => {
 
 // HOR-830: design 3's service cards atop the description, smaller (the owner, 2026-10-30: "change the sources row to be
 // the same as the 3: service cards please? but make them a bit smaller, not the same size as they are on the 3")
-test('a film\'s preview draws every place to watch it atop its description as cards naming the site each opens, four to a line on a desktop and two on a phone, and with none in stub holds no Play', async ({ page }) => {
-  for (const [width, height, counts] of [[1440, 900, [4, 3]], [390, 844, [2, 2, 2, 1]]] as const) {
+// 769 px is the narrowest window with the facts beside the description, 768 the widest with them under it
+test('a film\'s preview draws every place to watch it atop its description as cards naming the site each opens, never fewer than two to a line, and with none in stub holds no Play', async ({ page }) => {
+  for (const [width, height, counts] of [[1440, 900, [4, 3]], [769, 1024, [2, 2, 2, 1]], [768, 1024, [4, 3]], [390, 844, [2, 2, 2, 1]]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${FILM}`)
     const cards = modal(page).locator('.columns > .main > .sources:first-child a.source')
