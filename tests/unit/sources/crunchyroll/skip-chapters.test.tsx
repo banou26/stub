@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
@@ -55,13 +55,13 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 const show = (duration: number, currentTime: number, events: unknown, chapters = skipEventsToChapters(events, duration)) => {
   const remote = makeRemote(duration, currentTime)
   const frame = makeFrame()
-  const host = mount(
+  const host = mount(withIntl(
     <CrunchyrollVideoJSPlayer
       remote={remote}
       frame={frame as unknown as Frame}
       chapters={chapters}
     />,
-  )
+  ))
   hosts.push(host)
   return { host, remote, frame }
 }

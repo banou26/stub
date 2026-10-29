@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { MediaPlayerRemoteOptions } from '@banou/media-player'
 import type { Frame } from '@fkn/lib'
@@ -7,6 +7,8 @@ import type { Frame } from '@fkn/lib'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+
+import { startLanguage } from '../../../../src/i18n'
 
 import { makeRemoteVideo } from '../../components/remote-video'
 
@@ -33,7 +35,7 @@ let host: HTMLElement
 beforeEach(() => {
   told.length = 0
   exposed.clear()
-  host = mount(<CrunchyrollVideoJSPlayer remote={null} frame={null} />)
+  host = mount(withIntl(<CrunchyrollVideoJSPlayer remote={null} frame={null} />))
 })
 afterEach(() => { unmount(host) })
 
@@ -48,8 +50,24 @@ test('tells the page the audio and subtitle languages the viewer picks, subtitle
 test('serves the watch page the player only once it may', () => {
   const { remote } = makeRemoteVideo()
   const frame = {} as Frame
-  act(() => { render(<CrunchyrollVideoJSPlayer remote={remote} frame={frame} expose={false} />, host) })
+  act(() => { render(withIntl(<CrunchyrollVideoJSPlayer remote={remote} frame={frame} expose={false} />), host) })
   expect(exposed.size).toBe(0)
-  act(() => { render(<CrunchyrollVideoJSPlayer remote={remote} frame={frame} expose />, host) })
+  act(() => { render(withIntl(<CrunchyrollVideoJSPlayer remote={remote} frame={frame} expose />), host) })
   expect(exposed.size).toBe(1)
+})
+
+// HOR-1026 (stub in the viewer's language): the player's own labels follow the page's, its numbers the page's locale
+test('hands the player the page\'s language, as dates and numbers are written', async () => {
+  const shownIn = async (language: string, languages: string[]) => {
+    await startLanguage({ language, languages })
+    act(() => { render(withIntl(<CrunchyrollVideoJSPlayer remote={null} frame={null} />), host) })
+    return player.props!.language
+  }
+  try {
+    expect(await shownIn('en', ['en-GB'])).toBe('en-GB')
+    expect(await shownIn('fr', ['fr-CA', 'en-US'])).toBe('fr-CA')
+    expect(await shownIn('de', ['en-US'])).toBe('de')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })

@@ -5,6 +5,7 @@ import type { ComponentChildren, FunctionComponent } from 'preact'
 import { MediaPlayer } from '@banou/media-player'
 import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellTrackLanguage } from '../../embed-languages'
@@ -33,6 +34,7 @@ const PAGE_VIDEO = { video: 'video' }
 // the iframe renders *inside* the chrome's `.video` div: the player fullscreens its container
 // element, and the `pointer-events: none` iframe lets taps land on the click region above it
 const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks, quality, thumbnails, chapters, pictureInPicture, expose = true, children }: Props) => {
+  const { locale } = useIntl()
   const volume = useMemo(() => (remote ? rememberPlayerVolume(remote) : null), [remote])
   useEffect(() => volume?.hold(), [volume])
   // memoized on both inputs: the player re-attaches whenever the media identity changes, so a fresh
@@ -65,6 +67,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
       onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
       onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
       stepFrame={stepFrame}
+      language={locale}
     >
       {children}
     </MediaPlayer>

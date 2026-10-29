@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import type { HostFullscreen } from '@banou/media-player'
 import type { ComponentChildren } from 'preact'
@@ -44,7 +44,7 @@ describe.each([
   ['Prime Video', () => <PrimeMediaPlayer remote={null} frame={null} video={{ video: 'video' }}/>],
 ])('the %s player', (_, element) => {
   test('keeps its own fullscreen until the page says it keeps it, then follows the page and asks it', async () => {
-    hosts.push(mount(element()))
+    hosts.push(mount(withIntl(element())))
     expect(player.fullscreen, 'its own').toBeUndefined()
 
     tell(false)

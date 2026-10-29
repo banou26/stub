@@ -1,5 +1,5 @@
 // FIRST: ../../components/dom installs the document @emotion/react reads at module scope
-import { mount, unmount } from '../../components/dom'
+import { mount, unmount, withIntl } from '../../components/dom'
 
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
@@ -63,7 +63,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 describe('the seek preview', () => {
   test('shows the storyboard image for the hovered time, over the time readout', async () => {
     const thumbnails = createBifThumbnails(parseBif(buildBif({ timestamps: [10_000, 20_000, 30_000] })))
-    const host = mount(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} thumbnails={thumbnails} />)
+    const host = mount(withIntl(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} thumbnails={thumbnails} />))
     hosts.push(host)
     await ready(host)
 
@@ -80,7 +80,7 @@ describe('the seek preview', () => {
   })
 
   test('with no storyboard the preview is the time alone', async () => {
-    const host = mount(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} />)
+    const host = mount(withIntl(<CrunchyrollVideoJSPlayer title={TITLE} remote={makeRemote()} frame={frame} />))
     hosts.push(host)
     await ready(host)
 
