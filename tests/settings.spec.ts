@@ -331,19 +331,21 @@ for (const [width, height] of [[1440, 900], [390, 844]] as const) {
   })
 }
 
-test('at 1440x900 Play order and Merge order are one column, so a move takes a card up or down and never sideways', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await withSources(page, SPEC_SOURCES)
-  const lefts = (cards: string) => page.locator(cards).evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().left)))
-  expect(new Set(await lefts('ul.cards > li')).size, 'the control: Other sources keeps two columns').toBe(2)
-  for (const list of ['ol.play-order', 'ol.merge-order']) {
-    const ranked = await page.locator(`${list} > li`).evaluateAll(items => items.map(item => item.getBoundingClientRect()).map(({ left, top, bottom }) => ({ left, top, bottom })))
-    expect(ranked.length, list).toBeGreaterThan(3)
-    expect(new Set(ranked.map(box => Math.round(box.left))).size, list).toBe(1)
-    expect(ranked.every((box, at) => !at || box.top >= ranked[at - 1]!.bottom), `each card under the one before it in ${list}`).toBe(true)
-  }
-  expect(new Set(await lefts('ol.merge-order > li .icon')).size, 'the icons line up past the ninth place').toBe(1)
-})
+for (const [width, height, columns] of [[1440, 900, 2], [390, 844, 1]] as const) {
+  test(`at ${width}x${height} Play order and Merge order are ${columns} per row in reading order, with the icons lined up in each column`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await withSources(page, SPEC_SOURCES)
+    for (const list of ['ol.play-order', 'ol.merge-order']) {
+      const boxes = await page.locator(`${list} > li`).evaluateAll(items => items.map(item => item.getBoundingClientRect()).map(({ left, top, bottom }) => ({ left: Math.round(left), top: Math.round(top), bottom: Math.round(bottom) })))
+      expect(boxes.length, list).toBeGreaterThan(3)
+      expect(new Set(boxes.map(box => box.left)).size, list).toBe(columns)
+      expect(boxes.every((box, at) => at < columns || (box.left === boxes[at - columns]!.left && box.top >= boxes[at - columns]!.bottom)), `each card under the one a row before it in ${list}`).toBe(true)
+      expect(boxes.slice(0, columns).every(box => box.top === boxes[0]!.top), `the first ${columns} on one row in ${list}`).toBe(true)
+      expect(boxes.slice(0, columns).every((box, at) => !at || box.left > boxes[at - 1]!.left), `place 2 right of place 1 in ${list}`).toBe(true)
+      expect(new Set(await page.locator(`${list} > li .icon`).evaluateAll(icons => icons.map(icon => Math.round(icon.getBoundingClientRect().left)))).size, `the icons line up past the ninth place in ${list}`).toBe(columns)
+    }
+  })
+}
 
 test('Merge order moves a card from the keyboard, keeps the focus on the button pressed, and is kept across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#sources`)
@@ -363,6 +365,128 @@ test('Merge order moves a card from the keyboard, keeps the focus on the button 
   await expect(page.locator('ol.play-order > li h4'), 'the play order stays').toHaveText(['Crunchyroll', 'Prime Video', 'Netflix'])
   await page.reload()
   await expect(rows.first(), 'kept in this browser').toHaveText('AniList')
+})
+
+// what every write of a source order wrote to, as the settings store writes it with no FKN account
+const countOrderWrites = (page: Page) => page.addInitScript(() => {
+  const set = Object.getOwnPropertyDescriptor(Storage.prototype, 'setItem')!.value as (this: Storage, key: string, value: string) => void
+  const writes: string[] = (window as unknown as { orderWrites: string[] }).orderWrites = []
+  Storage.prototype.setItem = function (key: string, value: string) {
+    if (/^stub\.sources\.(play|merge)-order$/.test(key)) writes.push(key)
+    set.call(this, key, value)
+  }
+})
+const orderWrites = (page: Page) => page.evaluate(() => (window as unknown as { orderWrites: string[] }).orderWrites)
+const centre = async (locator: Locator) => {
+  const box = (await locator.boundingBox())!
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+const grip = (page: Page, origin: string) => page.locator(`[data-source="${origin}"] .grip`)
+/** Presses the mouse on `from` and moves it onto `onto` in steps, leaving it pressed. */
+const dragOnto = async (page: Page, from: Locator, onto: Locator) => {
+  const [start, end] = [await centre(from), await centre(onto)]
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y, { steps: 10 })
+}
+// the window scrolled so Play order starts 100px down, both lists' first rows clear of the edges that scroll the page
+const openRanked = async (page: Page) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await countOrderWrites(page)
+  await page.goto(`${origin}/settings#sources`)
+  await page.locator('ol.play-order').evaluate(list => window.scrollBy({ top: list.getBoundingClientRect().top - 100, behavior: 'instant' }))
+}
+
+test('a card dragged by its grip onto another place in Merge order takes that place, from another column, with one write', async ({ page }) => {
+  await openRanked(page)
+  const rows = page.locator('ol.merge-order > li h4')
+  await expect(rows.nth(0)).toHaveText('MyAnimeList')
+  await expect(rows.nth(3)).toHaveText('LiveChart')
+  const [moving, onto] = [page.locator('[data-source="livechart"]'), page.locator('ol.merge-order [data-source="mal"]')]
+  expect((await moving.boundingBox())!.x, 'it starts in the other column').toBeGreaterThan((await onto.boundingBox())!.x)
+
+  await dragOnto(page, grip(page, 'livechart'), onto)
+  await expect(moving).toHaveAttribute('data-dragging')
+  await expect(page.locator('[data-over]'), 'the card under the pointer is marked').toHaveAttribute('data-source', 'mal')
+  await page.mouse.up()
+
+  await expect(rows.first()).toHaveText('LiveChart')
+  await expect(moving.locator('.place')).toHaveText('1')
+  await expect(rows.nth(1)).toHaveText('MyAnimeList')
+  await expect(page.locator('[data-dragging], [data-over]'), 'nothing stays marked').toHaveCount(0)
+  expect(await moving.evaluate(card => card.style.transform)).toBe('')
+  expect(await orderWrites(page), 'one write, of the merge order').toEqual(['stub.sources.merge-order'])
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('stub.sources.merge-order')))!).slice(0, 4)).toEqual(['livechart', 'mal', 'anizip', 'anilist'])
+  await expect(page.locator('ol.play-order > li h4'), 'the play order stays').toHaveText(['Crunchyroll', 'Prime Video', 'Netflix'])
+  await page.reload()
+  await expect(rows.first(), 'kept in this browser').toHaveText('LiveChart')
+})
+
+test('Escape, a release over the other list and a plain click on a grip move nothing and write nothing', async ({ page }) => {
+  await openRanked(page)
+  const merge = page.locator('ol.merge-order > li h4')
+  const play = page.locator('ol.play-order > li h4')
+  const before = await merge.allTextContents()
+
+  await dragOnto(page, grip(page, 'anilist'), page.locator('ol.merge-order [data-source="mal"]'))
+  await expect(page.locator('[data-over]')).toHaveAttribute('data-source', 'mal')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-dragging], [data-over]'), 'Escape puts it back').toHaveCount(0)
+  await page.mouse.up()
+
+  await dragOnto(page, grip(page, 'anizip'), page.locator('ol.play-order [data-source="nf"]'))
+  await expect(page.locator('[data-over]'), 'a card of the other list is never marked').toHaveCount(0)
+  await page.mouse.up()
+
+  await grip(page, 'nf').first().click()
+  await expect(merge).toHaveText(before)
+  await expect(play).toHaveText(['Crunchyroll', 'Prime Video', 'Netflix'])
+  expect(await orderWrites(page)).toEqual([])
+})
+
+test.describe('on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+  test.skip(({ browserName }) => browserName !== 'chromium')
+
+  // page.touchscreen has only a whole tap, so the touch goes through Chrome's own input
+  test('a swipe on a card scrolls the page, and the last card of Merge order dragged by its grip to the top scrolls there and takes place 1', async ({ page }) => {
+    await countOrderWrites(page)
+    await page.goto(`${origin}/settings#sources`)
+    const touch = await page.context().newCDPSession(page)
+    const at = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) => touch.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] })
+    const cards = page.locator('ol.merge-order > li')
+    const last = cards.last()
+    const name = await last.locator('h4').textContent()
+
+    await cards.first().evaluate(card => window.scrollBy({ top: card.getBoundingClientRect().top - 500, behavior: 'instant' }))
+    const scrolled = await scrollY(page)
+    const body = await centre(cards.first().locator('.title'))
+    await at('touchStart', body.x, body.y)
+    for (let step = 1; step <= 10; step++) await at('touchMove', body.x, body.y - step * 30)
+    await at('touchEnd')
+    await expect.poll(async () => await scrollY(page) - scrolled, 'a swipe on a card scrolls').toBeGreaterThan(100)
+
+    await last.scrollIntoViewIfNeeded()
+    const start = await centre(last.locator('.grip'))
+    await at('touchStart', start.x, start.y)
+    for (let step = 1; step <= 10; step++) await at('touchMove', start.x, start.y - (start.y - 20) * step / 10)
+    await expect(last).toHaveAttribute('data-dragging')
+    const top = await headerBottom(page)
+    // held at the top edge until place 1 is in sight below the header
+    for (let wait = 0; wait < 400 && (await cards.first().boundingBox())!.y < top + 60; wait++) {
+      await at('touchMove', start.x, 20 + wait % 2)
+      await page.waitForTimeout(16)
+    }
+    const first = await centre(cards.first())
+    await at('touchMove', start.x, first.y)
+    await expect(page.locator('[data-over]')).toHaveAttribute('data-source', 'mal')
+    await at('touchEnd')
+
+    await expect(cards.first().locator('h4')).toHaveText(name!)
+    await expect(cards.first().locator('.place')).toHaveText('1')
+    await expect(page.locator('[data-dragging], [data-over]')).toHaveCount(0)
+    expect(await orderWrites(page)).toEqual(['stub.sources.merge-order'])
+  })
 })
 
 test('adding by address shows a refused address\'s error under the group, and a good one is added', async ({ page }) => {

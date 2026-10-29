@@ -22,7 +22,7 @@ const calls = vi.hoisted(() => ({
   disablePlugin: vi.fn(async (_uri: string) => {}),
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null }))
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null, GripVertical: () => null }))
 vi.mock('../../../src/plugins', () => ({
   pluginStatuses: () => fake.statuses,
   onPluginsChange: (listener: () => void) => {

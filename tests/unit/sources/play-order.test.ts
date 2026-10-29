@@ -37,6 +37,18 @@ test('a move past a source the list does not show keeps how every other source r
   expect(moved(['nyaa', 'cr', 'amazon'], 'cr', -1, ['cr', 'amazon'])).toEqual(['nyaa', 'cr', 'amazon'])
 })
 
+// a card dropped onto another card's place
+test('a move of several places lands just past that source, keeps a source the list does not show where it was, and a drop on its own place moves nothing', () => {
+  const order = ['a', 'b', 'hidden', 'c', 'd', 'e']
+  const shown = ['a', 'b', 'c', 'd', 'e']
+  expect(moved(order, 'a', 3, shown)).toEqual(['b', 'hidden', 'c', 'd', 'a', 'e'])
+  expect(moved(order, 'd', -2, shown)).toEqual(['a', 'd', 'b', 'hidden', 'c', 'e'])
+  expect(moved(order, 'e', -4, shown)).toEqual(['e', 'a', 'b', 'hidden', 'c', 'd'])
+  expect(moved(order, 'b', 4, shown), 'past the end').toEqual(order)
+  expect(moved(order, 'c', 0, shown)).toEqual(order)
+  expect(moved(order, 'e', 0, shown)).toEqual(order)
+})
+
 test('an order written is read back, and a kept value stub cannot read keeps nothing', () => {
   expect(readPlayOrder()).toEqual([])
   writePlayOrder(['nyaa', 'cr'])

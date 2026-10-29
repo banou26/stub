@@ -4,7 +4,7 @@ import type { AccountsProps } from './accounts'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { css } from '@emotion/react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { defineMessages, useIntl } from 'react-intl'
 
 import OriginIcon from '../../components/origin-icon'
@@ -19,6 +19,7 @@ import { DEFAULT_PLAY_ORDER, moved, playOrder, readPlayOrder, watchPlayOrder, wr
 import { siteAsks } from '../../site'
 import { SourceAccount } from './accounts'
 import { CountryRow } from './country'
+import { reorder } from './reorder'
 
 const style = css`
   h3.part {
@@ -47,9 +48,6 @@ const style = css`
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));
     gap: 0.8rem;
   }
-
-  /* one column, so Move up and Move down never move a card sideways */
-  ol.cards > li { grid-column: 1; }
 
   .card {
     display: flex;
@@ -88,6 +86,35 @@ const style = css`
   /* two digits wide, so the icons of a list past nine line up */
   .card .place { flex: none; min-width: 2ch; text-align: end; font-size: 1.5rem; font-weight: 600; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
   .card .order { flex: none; display: flex; gap: 0.4rem; }
+
+  /* touch-action: none, or a touch on the grip scrolls the page and the drag never starts */
+  .card .grip {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+
+    svg { width: 1.6rem; height: 1.6rem; }
+  }
+
+  .card .grip:hover { color: rgba(255, 255, 255, 0.7); }
+
+  /* it takes no pointer, so the card under the pointer can be found */
+  .card[data-dragging] {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+    background: #181818;
+    box-shadow: 0 0.8rem 2.4rem rgba(0, 0, 0, 0.6);
+  }
+
+  .card[data-over] { outline: 2px solid #f47521; outline-offset: -1px; }
 
   .card .order button {
     display: grid;
@@ -364,15 +391,16 @@ const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap
   : [])
 
 /**
- * A source's card; in a ranked list it has its place and the buttons that move it. A `brief` card is a source's second
- * one, its switches and sign-in on its first.
+ * A source's card; in a ranked list it has its place, the grip that drags it and the buttons that move it. A `brief`
+ * card is a source's second one, its switches and sign-in on its first.
  */
-const SourceCard = ({ card, on, shown, accounts, place, brief, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, brief?: boolean, children?: ComponentChildren }) => {
+const SourceCard = ({ card, on, shown, accounts, place, grab, brief, children }: { card: Card, on: boolean, shown: boolean, accounts: AccountsProps, place?: number, grab?: (event: PointerEvent) => void, brief?: boolean, children?: ComponentChildren }) => {
   const intl = useIntl()
   const heading = useRef<HTMLHeadingElement>(null)
   return (
     <li className={`card${brief ? ' brief' : ''}${on ? '' : ' off'}`} data-source={card.origin}>
       <div className="top">
+        {grab ? <span className="grip" aria-hidden="true" onPointerDown={grab}><GripVertical/></span> : undefined}
         {place ? <span className="place" aria-hidden="true">{place}</span> : undefined}
         <span className="icon">
           {card.icon ? <OriginIcon icon={card.icon} name={card.name}/> : <span className="letter" aria-hidden="true">{card.name.charAt(0)}</span>}
@@ -481,8 +509,11 @@ export const SourcesSection = (accounts: AccountsProps) => {
       </button>
     )
   }
+  // the grip is for a pointer only: the buttons are how a keyboard or a screen reader moves a card
+  const drag = (card: Card, at: number, ranking: Ranking) =>
+    reorder(onto => ranking.write(moved(ranking.order, card.origin, onto - at, ranking.cards.map(other => other.origin))))
   const cardOf = (card: Card, ranking?: Ranking, at = 0) => (
-    <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts} place={ranking ? at + 1 : undefined} brief={ranking === merge && players.includes(card)}>
+    <SourceCard key={card.origin} card={card} on={!card.asked || !disabled.has(card.origin)} shown={!card.drawn || !hidden.has(card.drawn)} accounts={accounts} place={ranking ? at + 1 : undefined} grab={ranking ? drag(card, at, ranking) : undefined} brief={ranking === merge && players.includes(card)}>
       {ranking ? <>{move(card, -1, at, ranking)}{move(card, 1, at, ranking)}</> : undefined}
     </SourceCard>
   )

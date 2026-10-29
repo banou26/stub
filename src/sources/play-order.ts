@@ -33,12 +33,13 @@ export const playOrder = (kept: readonly string[], added: readonly string[]): st
   [...new Set([...kept, ...DEFAULT_PLAY_ORDER, ...added])]
 
 /**
- * `order` with `origin` moved just past the nearest origin of `shown` above it (`-1`) or below it (`1`), so
- * every other pair keeps its order, an origin the list does not show included. Unchanged at either end.
+ * `order` with `origin` moved just past the origin of `shown` `step` places above it (negative) or below it
+ * (positive), so every other pair keeps its order, an origin the list does not show included. Unchanged past
+ * either end, and for a step of 0.
  */
-export const moved = (order: readonly string[], origin: string, step: -1 | 1, shown: readonly string[] = order): string[] => {
+export const moved = (order: readonly string[], origin: string, step: number, shown: readonly string[] = order): string[] => {
   const past = shown[shown.indexOf(origin) + step]
-  if (!past || !shown.includes(origin)) return [...order]
+  if (!step || !past || !shown.includes(origin)) return [...order]
   const next = order.filter(other => other !== origin)
   next.splice(next.indexOf(past) + (step > 0 ? 1 : 0), 0, origin)
   return next

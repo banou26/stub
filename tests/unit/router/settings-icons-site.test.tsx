@@ -7,7 +7,7 @@ import { act } from 'preact/test-utils'
 import type { AccountsProps } from '../../../src/router/settings/accounts'
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null }))
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null, GripVertical: () => null }))
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 vi.mock('../../../src/site', async importOriginal => {
   const real = await importOriginal<typeof import('../../../src/site')>()

@@ -16,7 +16,7 @@ import { viewerIn } from '../sources/justwatch/viewer'
 
 // lucide-react is CommonJS and requires react under node; the tracking row draws its icons with it
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronDown', 'ChevronUp', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronDown', 'ChevronUp', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'GripVertical', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
