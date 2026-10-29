@@ -27,7 +27,7 @@ import { sha256 } from './history-files.mjs'
 export const BUCKET = 'stub-sources'
 export const MANIFEST = 'manifest.json'
 const INBOX = 'inbox/'
-// one list request's most; the rest wait for the next run
+// the objects a run folds at most, and one list request's most; the rest wait for the next run
 const INBOX_OBJECTS = 1_000
 /** The workflow secrets the store is reached with. With any of them unset, the job skips the store. */
 export const SECRETS = ['STUB_SOURCES_ACCOUNT_ID', 'STUB_SOURCES_ACCESS_KEY_ID', 'STUB_SOURCES_SECRET_ACCESS_KEY']
@@ -44,8 +44,9 @@ const names = manifest => new Set([manifest.index?.name, ...[manifest.job, manif
 
 /**
  * The bucket through R2's S3 API, or undefined when a secret of `SECRETS` is unset. `get` answers an object's
- * bytes, or null when the bucket holds no such key; `list` the first `max` keys under `prefix` in key order, and
- * `more` when there are others; every other answer that is not a success throws.
+ * bytes, or null when the bucket holds no such key; `list` at most `max` keys under `prefix` in key order, from where
+ * the list whose `next` is passed stopped, and `next` when there are others (R2 may answer fewer than `max`, even
+ * none, before the end); every other answer that is not a success throws.
  */
 export const r2 = (env, send = fetch) => {
   if (SECRETS.some(name => !env[name])) return undefined
@@ -64,12 +65,12 @@ export const r2 = (env, send = fetch) => {
     },
     put: async (key, bytes) => { await ask('PUT', key, bytes) },
     remove: async key => { await ask('DELETE', key) },
-    list: async (prefix, max) => {
-      const url = `${bucket}?list-type=2&prefix=${encodeURIComponent(prefix)}&max-keys=${max}`
+    list: async (prefix, max, next) => {
+      const url = `${bucket}?list-type=2&prefix=${encodeURIComponent(prefix)}&max-keys=${max}${next ? `&continuation-token=${encodeURIComponent(next)}` : ''}`
       const response = await send(await signer.sign(url, { signal: AbortSignal.timeout(TIMEOUT_MS) }))
       if (!response.ok) throw new Error(`the list of ${prefix} answered HTTP ${response.status}`)
       const xml = await response.text()
-      return { keys: [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map(([, key]) => key), more: xml.includes('<IsTruncated>true</IsTruncated>') }
+      return { keys: [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map(([, key]) => key), next: xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/)?.[1] }
     },
   }
 }
@@ -124,24 +125,29 @@ const inboxLine = ({ index, body }) =>
 /**
  * The link previews' inbox: the `lines` of the objects named in `keys`, each `{ index, body }` as
  * src/preview/inbox.ts writes them, at most INBOX_OBJECTS objects a run (`more` when there are others), and
- * `unreadable`, the keys of objects that are no inbox object, which stay in the bucket.
+ * `unreadable`, the keys of objects that are no inbox object, which stay in the bucket. Those are listed past, not
+ * counted, so however many there are, they never hold back the objects after them.
  */
 export const readInbox = async client => {
-  const { keys: listed, more } = await client.list(INBOX, INBOX_OBJECTS)
   const keys = []
   const lines = []
   const unreadable = []
-  for (const key of listed) {
-    try {
-      const own = parsed(gunzipSync(await client.get(key)).toString('utf8'))
-      if (!own.every(inboxLine)) throw new Error('not an inbox line')
-      lines.push(...own)
-      keys.push(key)
-    } catch {
-      unreadable.push(key)
+  let next
+  do {
+    const page = await client.list(INBOX, INBOX_OBJECTS - keys.length, next)
+    next = page.next
+    for (const key of page.keys) {
+      try {
+        const own = parsed(gunzipSync(await client.get(key)).toString('utf8'))
+        if (!own.every(inboxLine)) throw new Error('not an inbox line')
+        lines.push(...own)
+        keys.push(key)
+      } catch {
+        unreadable.push(key)
+      }
     }
-  }
-  return { keys, lines, unreadable, more }
+  } while (next && keys.length < INBOX_OBJECTS)
+  return { keys, lines, unreadable, more: Boolean(next) }
 }
 
 /** Each show's sha256 in AniDB's titles file, over the whole `<anime>` element, by AniDB id. */

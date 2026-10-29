@@ -197,15 +197,23 @@ test('a store whose index does not match its manifest is unreadable, never read 
   await expect(readStore(bucket.client)).rejects.toThrow(/is missing/)
 })
 
-// Mutations: list without the prefix; read every list as complete.
-test('the inbox is listed under its prefix, signed, at most 1,000 keys a request, and a longer list says so', async () => {
+// Mutations: list without the prefix; read every list as complete; ask the next page without the token.
+test('the inbox is listed under its prefix, signed, at most 1,000 keys a request, and a longer list goes on from its token', async () => {
   const seen: Request[] = []
+  const pages = [
+    '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>stub-sources</Name><IsTruncated>true</IsTruncated><Contents><Key>inbox/2026-10-29/a.jsonl.gz</Key></Contents><Contents><Key>inbox/2026-10-30/b.jsonl.gz</Key></Contents><NextContinuationToken>1x/b+Q=</NextContinuationToken></ListBucketResult>',
+    '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>stub-sources</Name><IsTruncated>false</IsTruncated><Contents><Key>inbox/2026-10-30/c.jsonl.gz</Key></Contents></ListBucketResult>',
+  ]
   const client = r2(STORE_ENV, async (request: Request) => {
     seen.push(request)
-    return new Response('<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>stub-sources</Name><IsTruncated>true</IsTruncated><Contents><Key>inbox/2026-10-29/a.jsonl.gz</Key></Contents><Contents><Key>inbox/2026-10-30/b.jsonl.gz</Key></Contents></ListBucketResult>')
+    return new Response(pages[seen.length - 1])
   })
-  expect(await client.list('inbox/', 1000)).toEqual({ keys: ['inbox/2026-10-29/a.jsonl.gz', 'inbox/2026-10-30/b.jsonl.gz'], more: true })
-  expect(seen.map(request => `${request.method} ${request.url}`)).toEqual(['GET https://acct.r2.cloudflarestorage.com/stub-sources?list-type=2&prefix=inbox%2F&max-keys=1000'])
+  expect(await client.list('inbox/', 1000)).toEqual({ keys: ['inbox/2026-10-29/a.jsonl.gz', 'inbox/2026-10-30/b.jsonl.gz'], next: '1x/b+Q=' })
+  expect(await client.list('inbox/', 998, '1x/b+Q=')).toEqual({ keys: ['inbox/2026-10-30/c.jsonl.gz'], next: undefined })
+  expect(seen.map(request => `${request.method} ${request.url}`)).toEqual([
+    'GET https://acct.r2.cloudflarestorage.com/stub-sources?list-type=2&prefix=inbox%2F&max-keys=1000',
+    'GET https://acct.r2.cloudflarestorage.com/stub-sources?list-type=2&prefix=inbox%2F&max-keys=998&continuation-token=1x%2Fb%2BQ%3D',
+  ])
   expect(seen[0]!.headers.get('authorization')).toMatch(/^AWS4-HMAC-SHA256 Credential=key-id\/\d{8}\/auto\/s3\/aws4_request, /)
 })
 
@@ -223,6 +231,23 @@ test('an object in the inbox that is no preview\'s is left out, and the others a
   expect(inbox.unreadable).toEqual(['inbox/2026-10-25/no-line.jsonl.gz', 'inbox/2026-10-25/not-gzip.jsonl.gz'])
   expect(inbox.lines.map(line => `${line.index.source}:${line.index.id}`)).toEqual(['anilist:154587', 'anizip:17617', 'kitsu:46474', 'nf:81726714', 'kitsu:49240', 'jw:364792-373583'])
   expect(inbox.more).toBe(false)
+})
+
+// Mutations: count the objects that are no preview's toward a run's 1,000; read the first list only; end the read on a
+// list shorter than asked; ask every list for 1,000 keys; say a read with no list left is not the whole inbox.
+test('a thousand objects that are no preview\'s at the head of the inbox never hold back the ones after them', async () => {
+  // R2 may answer fewer keys than asked
+  const bucket = fakeBucket({ page: 600 })
+  for (let n = 0; n < 1000; n++) bucket.objects.set(`inbox/2026-10-29/${String(n).padStart(4, '0')}.jsonl.gz`, Buffer.from('not gzip'))
+  const [, bytes] = await inboxEntry(frierenRun(T1))
+  const valid = Array.from({ length: 1001 }, (_, n) => `inbox/2026-10-30/${String(n).padStart(4, '0')}.jsonl.gz`)
+  for (const key of valid) bucket.objects.set(key, bytes)
+  const first = await readInbox(bucket.client)
+  expect([first.keys, first.unreadable.length, first.more]).toEqual([valid.slice(0, 1000), 1000, true])
+  // the job removes what it folded, and the next run reads the rest
+  for (const key of first.keys) bucket.objects.delete(key)
+  const second = await readInbox(bucket.client)
+  expect([second.keys, second.unreadable.length, second.more]).toEqual([valid.slice(1000), 1000, false])
 })
 
 const answerLines = async (bucket: ReturnType<typeof fakeBucket>) => [...(await readStore(bucket.client)).index.values()].filter(line => line.form === 'answer')
