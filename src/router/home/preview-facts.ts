@@ -6,7 +6,7 @@ import type { Fact, TitleMedia } from '../title/facts'
 import { intl, NAME_LIST } from '../../i18n'
 import { site } from '../../site'
 import { releaseDateLabel } from '../../utils/release-date'
-import { formatLabel } from '../search/params'
+import { formatLabel, genreLabel } from '../search/params'
 import { episodesLabel, releasedLabel } from '../title/facts'
 import { filmRelease } from './episodes'
 import { runtimeText } from './movie'
@@ -80,15 +80,15 @@ export const seriesFacts = (media: PreviewMedia): Fact[] => {
   const names = (list: string[]) => list.length ? intl.formatList(list, NAME_LIST) : undefined
   const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
   return [
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(genres) },
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(genres.map(genreLabel)) },
     { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(tags) },
     { label: intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }), value: releasedLabel(media, { locale: intl.locale }) },
     { label: intl.formatMessage({ id: 'Score', defaultMessage: 'Score' }), value: scoreText(media.averageScore) },
   ].flatMap(({ label, value }) => value ? [{ label, value }] : [])
 }
 
-/** A film's side column: its score, and its categories drawn as chips. */
+/** A film's side column: its score, and its categories drawn as chips, the genres in the language shown. */
 export const filmFacts = (media: PreviewMedia): { score: string | undefined, genres: string[], tags: string[] } => {
   const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  return { score: scoreText(media.averageScore), genres, tags }
+  return { score: scoreText(media.averageScore), genres: genres.map(genreLabel), tags }
 }
