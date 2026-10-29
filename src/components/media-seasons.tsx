@@ -16,19 +16,22 @@ const style = css`
     gap: 0.8rem;
   }
 
-  & > nav > a {
+  & > nav > * {
     padding: 0.5rem 1.3rem;
     border-radius: 2rem;
     border: 0.1rem solid rgba(255, 255, 255, 0.15);
+    background: none;
     color: rgba(255, 255, 255, 0.7);
+    font: inherit;
     font-size: 1.4rem;
     text-decoration: none;
     white-space: nowrap;
+    cursor: pointer;
   }
 
-  & > nav > a:hover { color: #fff; }
+  & > nav > *:hover { color: #fff; }
 
-  & > nav > a[aria-current] {
+  & > nav > [aria-current], & > nav > [aria-pressed='true'] {
     border-color: #fff;
     background: #fff;
     color: #000;
@@ -47,27 +50,30 @@ export const firstSeasonRedirect = (seasons: Seasons, currentUris: readonly stri
 
 /**
  * A show's seasons, each linking its own run as a cluster, the one on screen marked. Nothing for one season or none.
- * On the show's own page, where no season is on screen, it replaces the address with the first season.
+ * On the show's own page, where no season is on screen, it replaces the address with the first season. With `onPick`
+ * in place of `href`, each season is a button handing `onPick` its uri, and the address never changes.
  */
-const MediaSeasons = ({ seasons, currentUris, href }: {
+const MediaSeasons = (props: {
   seasons: Seasons
   /** Every uri the page's media answers to. */
   currentUris: readonly string[]
-  href: (uri: string) => string
-}) => {
+} & ({ href: (uri: string) => string } | { onPick: (uri: string) => void })) => {
+  const { seasons, currentUris } = props
   const intl = useIntl()
   const first = firstSeasonRedirect(seasons, currentUris)
   return !seasons || seasons.length < 2 ? null
-    : first ? <Redirect to={href(asAggregatedUri(first))} replace/>
+    : first && 'href' in props ? <Redirect to={props.href(asAggregatedUri(first))} replace/>
     : (
       <section className="seasons" css={style} data-seasons>
         <h2>{intl.formatMessage({ id: 'Seasons#of a show', defaultMessage: 'Seasons', description: 'of a show' })}</h2>
         <nav>
-          {seasons.map(season => (
-            <Link key={season.uri} href={href(asAggregatedUri(season.uri))} aria-current={currentUris.includes(season.uri) ? 'page' : undefined}>
-              {intl.formatMessage({ id: 'Season {number}', defaultMessage: 'Season {number}' }, { number: season.number })}
-            </Link>
-          ))}
+          {seasons.map(season => {
+            const label = intl.formatMessage({ id: 'Season {number}', defaultMessage: 'Season {number}' }, { number: season.number })
+            const current = currentUris.includes(season.uri)
+            return 'href' in props
+              ? <Link key={season.uri} href={props.href(asAggregatedUri(season.uri))} aria-current={current ? 'page' : undefined}>{label}</Link>
+              : <button key={season.uri} type="button" aria-pressed={current} onClick={() => props.onPick(season.uri)}>{label}</button>
+          })}
         </nav>
       </section>
     )

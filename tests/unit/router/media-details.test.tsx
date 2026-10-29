@@ -6,6 +6,7 @@ import type { Tracked } from '../../../src/router/title/facts'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { useState } from 'preact/hooks'
 import { Client, Provider, subscriptionExchange } from 'urql'
@@ -76,6 +77,105 @@ test('the list opens on the page holding the episode after the viewer\'s progres
   hosts.push(host)
   expect(host.querySelector('.episode .number')!.textContent).toBe('13')
   expect(host.querySelector('button[aria-current="page"]')!.textContent).toBe('2')
+})
+
+type ListProps = Omit<Parameters<typeof Episodes>[0], 'media'> & { media?: DetailsMedia }
+const list = ({ media: shown = media, ...props }: ListProps = {}) =>
+  withIntl(<Provider value={client()}><Router hook={memoryLocation({ path: '/' }).hook}><Episodes media={shown} {...props}/></Router></Provider>)
+const numbers = (host: HTMLElement) => [...host.querySelectorAll('.episode .number')].map(number => Number(number.textContent))
+const marked = (host: HTMLElement) =>
+  [...host.querySelectorAll('.episode-link[aria-current="page"]')].map(link => Number(link.closest('.episode')!.querySelector('.number')!.textContent))
+const from = (first: number, last: number) => Array.from({ length: last - first + 1 }, (_, index) => first + index)
+
+// HOR-1058: the watch page lists the run playing
+describe('beside the episode playing', () => {
+  test('the list opens on its page over the viewer\'s progress, and marks its row alone', () => {
+    const host = mount(list({ current: 19, tracked: { status: 'WATCHING', progress: 2 } }))
+    hosts.push(host)
+    expect(numbers(host)).toEqual(from(13, 24))
+    expect(marked(host)).toEqual([20])
+
+    const control = mount(list({ tracked: { status: 'WATCHING', progress: 2 } }))
+    hosts.push(control)
+    expect(numbers(control), 'the control: the progress decides with nothing playing').toEqual(from(1, 12))
+    expect(marked(control)).toEqual([])
+  })
+
+  test('each row opens on the source named for it, under the address\'s media, and where the Play pick decides without one', () => {
+    const host = mount(list({ current: 0, mediaUri: 'ag:(anilist:1,tvdb:1)', sourceOf: episode => episode.episodeNumber === 2 ? undefined : `nf:${episode.episodeNumber}` }))
+    hosts.push(host)
+    const links = [...host.querySelectorAll('a.episode-link')].slice(0, 3).map(link => link.getAttribute('href'))
+    expect(links).toEqual(['/watch/ag:(anilist:1,tvdb:1)/ag:(nf:1)/nf:1', '/watch/ag:(anilist:1,tvdb:1)/ag:(nf:2)', '/watch/ag:(anilist:1,tvdb:1)/ag:(nf:3)/nf:3'])
+
+    const control = mount(list())
+    hosts.push(control)
+    expect(control.querySelector('a.episode-link')!.getAttribute('href'), 'the control: the media\'s own uri and no source').toBe('/watch/ag:(anilist:1)/ag:(nf:1)')
+  })
+
+  test('the list goes back to it when another episode plays, though a page was picked', () => {
+    const host = mount(list({ current: 0 }))
+    hosts.push(host)
+    act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Page 3"]')!.click() })
+    expect(numbers(host), 'the control: the page picked').toEqual([25, 26])
+    act(() => { render(list({ current: 1 }), host) })
+    expect(numbers(host)).toEqual(from(1, 12))
+    expect(marked(host)).toEqual([2])
+  })
+})
+
+// HOR-1058: One Piece listed 1,410 episodes on 118 pages (2026-10-29)
+describe('the box for an episode\'s number', () => {
+  const long = (count: number) => ({
+    ...media,
+    episodes: Array.from({ length: count }, (_, index) => ({ ...media.episodes[0]!, uri: `ag:(nf:${index + 1})`, episodeNumber: index + 1, titles: [] })),
+  }) as DetailsMedia
+  const field = (host: HTMLElement) => host.querySelector<HTMLInputElement>('form input[type="number"]')
+  const type = (host: HTMLElement, value: string) => act(() => {
+    field(host)!.value = value
+    field(host)!.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+  })
+  const focused = (focus: { mock: { contexts: unknown[] } }) => (focus.mock.contexts.at(-1) as HTMLElement | undefined)?.closest('.episode')?.querySelector('.number')?.textContent
+
+  test('is there past seven pages alone, labelled Episode', () => {
+    const seven = mount(list({ media: long(84) }))
+    hosts.push(seven)
+    expect(field(seven), 'the control: seven pages').toBeNull()
+    const eight = mount(list({ media: long(85) }))
+    hosts.push(eight)
+    expect(field(eight)!.closest('label')!.textContent).toBe('Episode')
+  })
+
+  test('shows the page holding the number typed and focuses its row, the same number again after a page change too', () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    try {
+      const host = mount(list({ media: long(1410), current: 0 }))
+      hosts.push(host)
+      type(host, '700')
+      expect(numbers(host)).toEqual(from(697, 708))
+      expect(focused(focus)).toBe('700')
+      expect(marked(host), 'the episode playing is still the first').toEqual([])
+
+      act(() => { host.querySelector<HTMLButtonElement>('button[aria-label="Next page"]')!.click() })
+      expect(numbers(host), 'the control: paged on').toEqual(from(709, 720))
+      type(host, '700')
+      expect(numbers(host)).toEqual(from(697, 708))
+
+      type(host, '5000')
+      expect(numbers(host), 'past the last, the last page').toEqual(from(1405, 1410))
+      expect(focused(focus)).toBe('1410')
+    } finally {
+      focus.mockRestore()
+    }
+  })
+
+  test('is cleared of its page when another episode plays', () => {
+    const host = mount(list({ media: long(1410), current: 0 }))
+    hosts.push(host)
+    type(host, '700')
+    expect(numbers(host), 'the control: the page typed').toEqual(from(697, 708))
+    act(() => { render(list({ media: long(1410), current: 1 }), host) })
+    expect(numbers(host)).toEqual(from(1, 12))
+  })
 })
 
 describe('the bar on an episode\'s thumbnail', () => {
@@ -842,6 +942,11 @@ describe('in German', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  test('the box for an episode\'s number reads German', () => {
+    const long = { ...media, episodes: Array.from({ length: 85 }, (_, index) => ({ ...media.episodes[0]!, uri: `ag:(nf:${index + 1})`, episodeNumber: index + 1 })) } as DetailsMedia
+    expect(render(long).querySelector('form label')!.textContent).toBe('Folge')
   })
 
   test('the list\'s pages and an empty list read German', () => {

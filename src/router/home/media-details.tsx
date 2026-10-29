@@ -236,6 +236,12 @@ const GET_MEDIA_ORIGINS = gql(`
 
 export type DetailsMedia = NonNullable<GetMediaDetailsSubscription['media']>
 export type DetailsEpisode = DetailsMedia['episodes'][number]
+type DetailsHandle = DetailsEpisode['handles'][number]
+/** What an episode row reads, which the watch page's query asks for too. */
+type ListEpisode = Pick<DetailsEpisode, 'uri' | 'episodeNumber' | 'releaseDate' | 'titles' | 'shortDescriptions' | 'thumbnails'>
+  & { handles: { relation: string, node: Pick<DetailsHandle['node'], 'uri' | 'origin' | 'url' | 'releaseDate' | 'titles'> }[] }
+type ListMedia = Pick<DetailsMedia, 'uri' | 'status' | 'settled' | 'episodeCount' | 'nextAiringEpisode' | 'airingSchedule'>
+  & { episodes: readonly ListEpisode[] }
 
 /**
  * The viewer's tracking of a media, its status and progress, once the worker has answered for that
@@ -340,7 +346,7 @@ export const useSettledOnce = (uri: string | undefined, settled: boolean | null 
 }
 
 const watchSources = (
-  episode: DetailsEpisode, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, links: readonly Offer[] = []
+  episode: ListEpisode, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, links: readonly Offer[] = []
 ): WatchSource[] =>
   origins
     .map(origin => {
@@ -511,8 +517,20 @@ const episodesStyle = css`
       text-decoration: none;
     }
 
+    /* inside the row, which clips what is drawn past it */
+    & > .episode-link:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.8);
+      outline-offset: -2px;
+    }
+
     &:hover {
       background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* the episode playing */
+    &:has(> .episode-link[aria-current]) {
+      background-color: rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0.3rem 0 0 #fff;
     }
 
     &.unreleased {
@@ -678,10 +696,10 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, origins, backend, unreleased, airingAt, scheduled, now, watched, progress }:
+  { episode, index, mediaUri, sourceUri, current, origins, backend, unreleased, airingAt, scheduled, now, watched, progress }:
   {
-    episode: DetailsEpisode, index: number, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, unreleased: boolean, airingAt?: string
-    scheduled?: string, now: number, watched: boolean, progress?: number
+    episode: ListEpisode, index: number, mediaUri: string, sourceUri?: string, current: boolean, origins: readonly Origin[], backend: FknBackend | undefined
+    unreleased: boolean, airingAt?: string, scheduled?: string, now: number, watched: boolean, progress?: number
   }
 ) => {
   const intl = useIntl()
@@ -701,7 +719,8 @@ const Episode = (
           ? (
             <Link
               className="episode-link"
-              href={getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri })}
+              href={getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })}
+              aria-current={current ? 'page' : undefined}
             />
           )
           : undefined
@@ -748,7 +767,7 @@ const Episode = (
 const EPISODES_PAGE = 12
 
 // SAME_AS only, the sources that play this episode, as in `watchSources`
-const playableUris = (episode: DetailsEpisode) =>
+const playableUris = (episode: ListEpisode) =>
   (episode.handles ?? []).filter(handle => handle.relation === 'SAME_AS').map(handle => handle.node.uri)
 
 /** `count` rows' placeholders, for a list whose rows have not arrived. */
@@ -766,17 +785,63 @@ export const EpisodesPlaceholder = ({ count = 3 }: { count?: number }) => (
   </div>
 )
 
+// past seven pages, the box to type an episode's number in
+const JUMP_PAGES = 7
+
+const jumpStyle = css`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.2rem;
+
+  & > label {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  & input {
+    width: 9rem;
+    height: 3.2rem;
+    padding: 0 0.8rem;
+    border-radius: 0.6rem;
+    border: 0.1rem solid rgba(255, 255, 255, 0.18);
+    background: rgb(30, 30, 30);
+    color: #fff;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+`
+
 /**
- * A series' episode rows a page at a time, opening on the page holding the viewer's next episode by
- * `tracked`; an unreleased one dimmed, not linked and dated by AniList's schedule while that time is
- * ahead, before any source, the first of them counting down to its time when AniList or its best-ranked
- * source names one. Each thumbnail carries a bar for how far the viewer got: the share where they last
- * stopped in any of the episode's sources, else full once `tracked` says it is watched. With no rows,
- * rows' placeholders until every source has answered, then "No episodes found".
+ * A series' episode rows a page at a time, opening on the page holding `current`, else the viewer's next episode by
+ * `tracked`; an unreleased one dimmed, not linked and dated by AniList's schedule while that time is ahead, before any
+ * source, the first of them counting down to its time when AniList or its best-ranked source names one. Each thumbnail
+ * carries a bar for how far the viewer got: the share where they last stopped in any of the episode's sources, else
+ * full once `tracked` says it is watched. With no rows, rows' placeholders until every source has answered, then "No
+ * episodes found". Past seven pages a box takes an episode's number and shows its page.
+ *
+ * `current` is the index of the episode playing, its row marked, and the list goes back to it whenever it changes.
+ * Each row opens its episode under `mediaUri`, by default `media.uri`, on the source `sourceOf` names for it, or
+ * where the Play pick decides when it names none.
  */
-export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tracked }) => {
+export const Episodes = ({ media, tracked, current, mediaUri = media.uri, sourceOf }: {
+  media: ListMedia
+  tracked?: Tracked
+  current?: number
+  mediaUri?: string
+  sourceOf?: (episode: ListEpisode) => string | undefined
+}) => {
   const intl = useIntl()
   const now = useNow()
+  // the row the box last showed while the same episode played, and how often, so the same number typed again shows it again
+  const [jump, setJump] = useState<{ index: number, current?: number, times: number }>()
+  const box = useRef<HTMLInputElement>(null)
+  const rows = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (jump) rows.current?.children[jump.index % EPISODES_PAGE]?.querySelector<HTMLElement>('.episode-link')?.focus()
+  }, [jump])
   const unreleased = unreleasedEpisodes(media, new Date(now))
   const next = unreleased.indexOf(true)
   const schedule = new Map<number | null | undefined, string>(
@@ -791,33 +856,63 @@ export const Episodes = ({ media, tracked }: { media: DetailsMedia, tracked?: Tr
       ? <div className="episodes" css={episodesStyle}><div className="empty">{intl.formatMessage({ id: 'No episodes found', defaultMessage: 'No episodes found' })}</div></div>
       : <EpisodesPlaceholder count={Math.min(media.episodeCount || 3, EPISODES_PAGE)}/>
   }
+  const jumped = jump?.current === current ? jump : undefined
+  const show = (event: Event) => {
+    event.preventDefault()
+    const number = Number.parseInt(box.current!.value, 10)
+    if (Number.isNaN(number)) return
+    const at = media.episodes.findIndex(({ episodeNumber }) => episodeNumber != null && episodeNumber >= number)
+    setJump({ index: at < 0 ? media.episodes.length - 1 : at, current, times: (jumped?.times ?? 0) + 1 })
+  }
   return (
-    <Paged items={media.episodes} size={EPISODES_PAGE} label={intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })} start={currentEpisode(media.episodes, tracked)}>
-      {(page, offset) => (
-        <div className="episodes" css={episodesStyle}>
-          {page.map((episode, at) => {
-            const index = offset + at
-            const saved = newestPosition(playableUris(episode), positions)
-            const scheduled = unreleased[index] ? schedule.get(episode.episodeNumber) : undefined
-            return (
-              <Episode
-                key={episode.episodeNumber ?? episode.uri ?? index}
-                episode={episode}
-                index={index}
-                mediaUri={media.uri}
-                origins={origins}
-                backend={backend}
-                unreleased={unreleased[index]!}
-                airingAt={scheduledAt(episode, media.nextAiringEpisode) ?? (index === next ? scheduled ?? timedAt(episode) : undefined)}
-                scheduled={scheduled}
-                now={now}
-                watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
-                progress={saved?.[2] ? saved[1] / saved[2] : undefined}
-              />
-            )
-          })}
-        </div>
-      )}
-    </Paged>
+    <>
+      {
+        media.episodes.length > JUMP_PAGES * EPISODES_PAGE
+          ? (
+            <form css={jumpStyle} onSubmit={show}>
+              <label>
+                {intl.formatMessage({ id: 'Episode', defaultMessage: 'Episode' })}
+                <input ref={box} type="number" inputMode="numeric"/>
+              </label>
+            </form>
+          )
+          : undefined
+      }
+      <Paged
+        key={`${current} ${jumped?.times}`}
+        items={media.episodes}
+        size={EPISODES_PAGE}
+        label={intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}
+        start={jumped?.index ?? current ?? currentEpisode(media.episodes, tracked)}
+      >
+        {(page, offset) => (
+          <div className="episodes" css={episodesStyle} ref={rows}>
+            {page.map((episode, at) => {
+              const index = offset + at
+              const saved = newestPosition(playableUris(episode), positions)
+              const scheduled = unreleased[index] ? schedule.get(episode.episodeNumber) : undefined
+              return (
+                <Episode
+                  key={episode.episodeNumber ?? episode.uri ?? index}
+                  episode={episode}
+                  index={index}
+                  mediaUri={mediaUri}
+                  sourceUri={sourceOf?.(episode)}
+                  current={index === current}
+                  origins={origins}
+                  backend={backend}
+                  unreleased={unreleased[index]!}
+                  airingAt={scheduledAt(episode, media.nextAiringEpisode) ?? (index === next ? scheduled ?? timedAt(episode) : undefined)}
+                  scheduled={scheduled}
+                  now={now}
+                  watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
+                  progress={saved?.[2] ? saved[1] / saved[2] : undefined}
+                />
+              )
+            })}
+          </div>
+        )}
+      </Paged>
+    </>
   )
 }

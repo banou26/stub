@@ -4,7 +4,7 @@ import { button, mount, unmount, withIntl } from '../../components/dom'
 import type { Mock } from 'vite-plus/test'
 import type { SiteStatus, StatusSite } from '../../../../src/tracking/site-status'
 
-import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { act } from 'preact/test-utils'
@@ -23,7 +23,7 @@ const allHandles = [
   handle('nyaa:a', 'nyaa', 'magnet:?xt=urn:btih:a'),
 ]
 const episode = { uri: params.episodeUri, handles: allHandles }
-const single = { uri: params.mediaUri, episodes: [episode], settled: true }
+const single = { uri: params.mediaUri, handles: [], episodes: [episode], settled: true }
 let media: object = single
 // the other runs the page may ask for, by the uri it asks with, and every uri it asked for besides its own
 let runs: Record<string, object> = {}
@@ -52,7 +52,8 @@ vi.mock('urql', async () => {
       // as urql does, the last answer stays while paused, or while a new uri has none yet
       const last = useRef<object>({})
       const printed = print(query)
-      if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking } }]
+      // named as the worker names it, `tracking:<uri>`
+      if (printed.includes('subscription MediaTracking')) return [{ data: tracking && { tracking: { _id: `tracking:${variables!.input.uri}`, ...tracking } } }]
       if (printed.includes('subscription StubTrackerStorage')) return [{ data: !pause && storage ? { stubTrackerStorage: storage } : undefined }]
       const { uri, ids } = variables!.input
       if (uri === undefined) return [{ data: origins && { originPage: { nodes: origins.filter(id => ids?.includes(id)).map(id => ({ id, name: id })) } } }]
@@ -877,6 +878,7 @@ const SERIES = 'ag:(anilist:1,tvdb:1)'
 const series = (third: object = {}, sourceUri = 'nyaa:a') => {
   media = {
     uri: SERIES,
+    handles: [],
     episodes: [row(1, crunchyroll(1)), row(2, crunchyroll(2), release('a')), { ...row(3, crunchyroll(3), release('b')), ...third }],
   }
   params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri }
@@ -1008,6 +1010,106 @@ test('the watch query asks what decides whether an episode is out', async () => 
   expect(watchQuery).toMatch(/handles \{\s*relation\s*node \{[^}]*releaseDate/)
   expect(watchQuery).toMatch(/\bstatus\b/)
   expect(watchQuery).toMatch(/nextAiringEpisode \{\s*episodeNumber\s*airingAt\s*\}/)
+})
+
+// HOR-1058: any episode of the run, from the watch page
+const listRows = (host: HTMLElement) => [...host.querySelectorAll('[data-episodes] .episode')].map(episode => {
+  const link = episode.querySelector('a.episode-link')
+  return [Number(episode.querySelector('.number')!.textContent), link?.getAttribute('href'), link?.getAttribute('aria-current') ?? undefined]
+})
+
+test('the run\'s episodes are listed under the sources, the one playing marked, each on the site playing and the address\'s media', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series()
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('[data-episodes] h2')?.textContent).toBe('Episodes')
+  expect(listRows(host)).toEqual([
+    [1, watchPath(1), undefined],
+    [2, watchPath(2, 'nyaa:a'), 'page'],
+    [3, watchPath(3, 'nyaa:b'), undefined],
+  ])
+  expect(host.querySelector('.watch-info.sources + .watch-info [data-episodes]'), 'right after the sources').not.toBeNull()
+})
+
+test('a film lists no episodes', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const control = page()
+  hosts.push(control)
+  await settle()
+  expect(control.querySelector('[data-episodes]'), 'the control: a series of one').not.toBeNull()
+  media = { ...single, type: 'MOVIE' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('[data-episodes]')).toBeNull()
+})
+
+test('the watch query asks what the episode list reads', async () => {
+  vi.useFakeTimers()
+  hosts.push(page())
+  await settle()
+  expect(watchQuery).toMatch(/airingSchedule \{\s*episodeNumber\s*airingAt\s*\}/)
+  expect(watchQuery, 'the episode\'s own, not its releases\'').toMatch(/shortDescriptions \{\s*language\s*shortDescription\s*\}\s*thumbnails \{\s*url\s*\}\s*handles/)
+})
+
+describe('a show\'s other seasons', () => {
+  const SEASON_2 = 'ag:(tmdb:9-s2)'
+  const seasonRow = (n: number) => ({ uri: `ag:(tmdb:9-s2e${n})`, episodeNumber: n, titles: [{ title: `Second ${n}` }], handles: [release(`s2e${n}`)] })
+  const seasons = [{ number: 1, uri: 'tmdb:9-s1' }, { number: 2, uri: 'tmdb:9-s2' }]
+  beforeEach(() => {
+    series()
+    media = { ...media, seasons, handles: [{ relation: 'SAME_AS', node: { uri: 'tmdb:9-s1' } }] }
+    runs[SEASON_2] = { uri: 'ag:(tmdb:9-s2,tvmaze:1-s2)', seasons, handles: [{ relation: 'SAME_AS', node: { uri: 'tmdb:9-s2' } }], episodes: [seasonRow(1), seasonRow(2)] }
+  })
+  const seasonButtons = (host: HTMLElement) => [...host.querySelectorAll('[data-seasons] button')].map(season => [season.textContent, season.getAttribute('aria-pressed')])
+
+  test('are each a button that lists its season in place, on the site playing, while the episode plays on', async () => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    const host = page()
+    hosts.push(host)
+    await settle()
+    expect(seasonButtons(host)).toEqual([['Season 1', 'true'], ['Season 2', 'false']])
+    expect(asked, 'the control: the second season is not asked for yet').toEqual([])
+
+    act(() => { button(host, 'Season 2')!.click() })
+    await settle()
+    expect(seasonButtons(host)).toEqual([['Season 1', 'false'], ['Season 2', 'true']])
+    expect(listRows(host)).toEqual([
+      [1, `/watch/${SEASON_2}/ag:(tmdb:9-s2e1)/nyaa:s2e1`, undefined],
+      [2, `/watch/${SEASON_2}/ag:(tmdb:9-s2e2)/nyaa:s2e2`, undefined],
+    ])
+    expect(navigate).not.toHaveBeenCalled()
+    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'still playing').toBe('magnet:?xt=urn:btih:a')
+
+    act(() => { button(host, 'Season 1')!.click() })
+    await settle()
+    expect(listRows(host).map(([number, , current]) => [number, current])).toEqual([[1, undefined], [2, 'page'], [3, undefined]])
+  })
+
+  test('the season picked, once one of its episodes plays, lists it marked', async () => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    const location = memoryLocation()
+    const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
+    const host = mount(tree())
+    hosts.push(host)
+    await settle()
+    act(() => { button(host, 'Season 2')!.click() })
+    await settle()
+
+    media = runs[SEASON_2]!
+    params = { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e2)', sourceUri: 'nyaa:s2e2' }
+    act(() => { render(tree(), host) })
+    await settle()
+    expect(seasonButtons(host)).toEqual([['Season 1', 'false'], ['Season 2', 'true']])
+    expect(listRows(host).map(([number, , current]) => [number, current])).toEqual([[1, undefined], [2, 'page']])
+  })
 })
 
 // Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's
@@ -1950,6 +2052,7 @@ const NEXT_SEASON = '/watch/ag:(anilist:2)/ag:(anilist:2-1)'
 const nextRun = (uri: string, first: object = {}) => {
   runs[uri] = {
     uri: 'ag:(anilist:2)',
+    handles: [],
     episodes: [{ uri: 'ag:(anilist:2-1)', episodeNumber: 1, titles: [{ title: 'Second season' }], handles: [handle('cr:GY1', 'cr', 'https://www.crunchyroll.com/watch/GY1'), release('d')], ...first }],
   }
 }
@@ -2078,13 +2181,13 @@ test('the episode title holds its place until the episode is known, and reads it
   expect(title().querySelector('[aria-hidden="true"]'), 'held').not.toBeNull()
   expect(title().textContent).toBe('')
 
-  act(() => { media = { uri: params.mediaUri, episodes: [], settled: false }; render(tree(), host) })
+  act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: false }; render(tree(), host) })
   expect(title().textContent, 'a source is still out').toBe('')
 
-  act(() => { media = { uri: params.mediaUri, episodes: [], settled: true }; render(tree(), host) })
+  act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }; render(tree(), host) })
   expect(title().textContent).toBe(allUri)
 
-  act(() => { media = { uri: params.mediaUri, episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
+  act(() => { media = { uri: params.mediaUri, handles: [], episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
   expect(title().textContent).toMatch(/^E3 - Plan$/)
 })
 

@@ -85,6 +85,7 @@
   "End party": "结束派对",
   "Ep {episode} airing in": "距第{episode}集播出还有",
   "Ep {episode} airing in {countdown}": "距第{episode}集播出还有{countdown}",
+  "Episode": "集数",
   "Episode length": "单集时长",
   "Episode {number}": "第{number}集",
   "Episode {number}, {time}": "第{number}集，{time}",

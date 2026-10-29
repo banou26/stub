@@ -24,6 +24,7 @@ import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
 import MediaTracking from '../../components/media-tracking'
+import MediaSeasons from '../../components/media-seasons'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
@@ -35,6 +36,7 @@ import { episodeLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
 import { AggregatedUri, asAggregatedUri, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
+import { Episodes, EpisodesPlaceholder, useTrackingSummary } from '../home/media-details'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
@@ -83,6 +85,10 @@ const GET_WATCH_MEDIA = gql(`
         episodeNumber
         airingAt
       }
+      airingSchedule {
+        episodeNumber
+        airingAt
+      }
       seasons {
         number
         uri
@@ -101,6 +107,10 @@ const GET_WATCH_MEDIA = gql(`
         releaseDate
         titles {
           title
+        }
+        shortDescriptions {
+          language
+          shortDescription
         }
         thumbnails {
           url
@@ -249,6 +259,19 @@ const style = css`
     &.sources {
       padding-top: 0.8rem;
       padding-bottom: 4rem;
+    }
+
+    &.episodes {
+      display: flex;
+      flex-direction: column;
+      gap: 4rem;
+      padding-top: 0;
+      padding-bottom: 4rem;
+
+      h2 {
+        margin: 0 0 1.5rem;
+        font-size: 2rem;
+      }
     }
   }
 
@@ -763,6 +786,16 @@ const Watch = () => {
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
 
+  // the episode list shows the run playing, or another season of the show the viewer picked for it
+  const [season, setSeason] = useState<string>()
+  const playing = currentMedia(watchMedia, params.mediaUri)
+  const playingUris = playing?.handles.map(handle => handle.node.uri) ?? []
+  const picked = playing?.seasons?.find(each => each.uri === season && !playingUris.includes(each.uri))
+  const pickedUri = picked && asAggregatedUri(picked.uri)
+  const pickedRun = useRun(pickedUri)
+  const listed = picked ? pickedRun : playing
+  const tracked = useTrackingSummary(listed?.uri)
+
   return (
     <div css={style}>
       <div className="watch-container">
@@ -854,6 +887,32 @@ const Watch = () => {
             }))}
         />
       </div>
+
+      {
+        media && !isMovieMedia(media)
+          ? (
+            <div className="watch-info episodes">
+              <MediaSeasons seasons={playing?.seasons} currentUris={picked ? [picked.uri] : playingUris} onPick={setSeason}/>
+              <section data-episodes>
+                <h2>{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</h2>
+                {
+                  listed
+                    ? (
+                      <Episodes
+                        media={listed}
+                        tracked={tracked}
+                        current={picked || index < 0 ? undefined : index}
+                        mediaUri={pickedUri ?? params.mediaUri}
+                        sourceOf={row => sourceFor(playableHandlesOf(row.handles), playingOrigin, ways)}
+                      />
+                    )
+                    : <EpisodesPlaceholder/>
+                }
+              </section>
+            </div>
+          )
+          : undefined
+      }
     </div>
   )
 }
