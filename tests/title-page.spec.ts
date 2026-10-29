@@ -1167,6 +1167,28 @@ test('a film\'s preview holds three rows\' place while JustWatch has not answere
   }
 })
 
+// a film's details can say it is one before a source names its title
+test('a film\'s preview holds one line of its title in its column, at 1440 and 390 px', async ({ page }) => {
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/media/${FILM}`)
+    const title = modal(page).locator('.content.film > .columns > .main > h2.title')
+    await expect(title, `${width}`).toHaveText('Spec Film', { timeout: 30_000 })
+    await expect(modal(page).locator('.movie .source-pending').first(), `${width}: a placeholder to copy, while JustWatch is out`).toBeVisible()
+    // the title's placeholder in the title's place, as the column draws it before the title lands
+    const [held, line] = await title.evaluate(title => {
+      const placeholder = title.ownerDocument.querySelector('.modal .movie .source-pending')!.cloneNode() as Element
+      placeholder.className = placeholder.className.replace('source-pending', 'title-pending')
+      title.replaceWith(placeholder)
+      const { width, height } = placeholder.getBoundingClientRect()
+      placeholder.replaceWith(title)
+      return [{ width, height }, title.getBoundingClientRect().height]
+    })
+    expect(Math.round(held.height), `${width}: as tall as the title's line`).toBe(Math.round(line))
+    expect(held.width, `${width}`).toBeGreaterThan(0)
+  }
+})
+
 test('390 px wide, a film\'s buttons are as wide as what they hold, as many to a line as fit, the first line landing in the place held for it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   for (const { path, row, below } of FILM_PAGE) {

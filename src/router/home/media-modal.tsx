@@ -325,6 +325,12 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
         line-height: 1.1;
       }
 
+      & > .title-pending {
+        width: 40rem;
+        max-width: 100%;
+        height: calc(4.4rem * 1.1);
+      }
+
       & > .description {
         align-self: stretch;
         text-align: start;
@@ -604,6 +610,10 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
       & > .columns > .main > .title {
         font-size: 2.8rem;
+      }
+
+      & > .columns > .main > .title-pending {
+        height: calc(2.8rem * 1.1);
       }
     }
 
