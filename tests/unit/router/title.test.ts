@@ -246,7 +246,7 @@ test('Aired names one day when the run started and ended on it, and no end while
 })
 
 test('the second title is the first that reads differently from the main one', () => {
-  expect(secondTitle(FRIEREN.titles)).toBe('Sousou no Frieren')
+  expect(secondTitle(FRIEREN.titles)?.title).toBe('Sousou no Frieren')
   expect(secondTitle([{ title: 'Same' }, { title: 'Same' }])).toBeUndefined()
   expect(secondTitle(undefined)).toBeUndefined()
 })
@@ -259,12 +259,12 @@ test('the second title is in another language than the main one, not a second En
     { language: 'ja', title: '機動戦士ガンダム 鉄血のオルフェンズ' },
     { language: 'jp-en', title: 'Kidou Senshi Gundam: Tekketsu no Orphans' },
   ]
-  expect(secondTitle(titles)).toBe('機動戦士ガンダム 鉄血のオルフェンズ')
+  expect(secondTitle(titles)).toEqual({ language: 'ja', title: '機動戦士ガンダム 鉄血のオルフェンズ' })
   expect(titleFacts({ titles }).at(-1)).toEqual({
     label: 'Also known as',
     value: 'Mobile Suit Gundam: Iron Blooded Orphans, Kidou Senshi Gundam: Tekketsu no Orphans',
   })
-  expect(secondTitle([{ language: 'en', title: 'Monster' }, { language: 'jp-en', title: 'Monster' }, { language: 'en', title: 'MONSTER!' }]), 'a title reading the same is never second')
+  expect(secondTitle([{ language: 'en', title: 'Monster' }, { language: 'jp-en', title: 'Monster' }, { language: 'en', title: 'MONSTER!' }])?.title, 'a title reading the same is never second')
     .toBe('MONSTER!')
 })
 

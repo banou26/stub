@@ -27,6 +27,7 @@ import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
 import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
+import { titleLanguage } from '../../utils/title-language'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { ratingChips, secondTitle, titleChips, titleFacts } from './facts'
@@ -701,7 +702,7 @@ const TitlePage = () => {
 
   const bannerUrl = useCoverUrl(media?.banners, media)
   const coverUrl = useCoverUrl(media?.covers, media)
-  const title = media?.titles.at(0)?.title
+  const title = media?.titles.at(0)
   const second = secondTitle(media?.titles)
   // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)
@@ -748,10 +749,10 @@ const TitlePage = () => {
         {coverUrl ? <img className="cover" src={coverUrl} alt=""/> : <div className="cover"/>}
         <div className="heading">
           {season ? <div className="season">{season}</div> : settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
-          <h1>{title ?? (settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
+          <h1 lang={titleLanguage(title?.language)}>{title?.title ?? (settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
           {
             second
-              ? <div className="second">{second}</div>
+              ? <div className="second" lang={titleLanguage(second.language)}>{second.title}</div>
               : anime && !settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
           }
           {
@@ -779,7 +780,7 @@ const TitlePage = () => {
               ? (
                 <div className="buttons">
                   <MediaPlay media={media}/>
-                  <ShareButton className="icon" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title}/>
+                  <ShareButton className="icon" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title?.title}/>
                   {
                     trailer
                       ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label={trailerLabel} title={trailerLabel}><Clapperboard size={20}/></a>
@@ -791,7 +792,7 @@ const TitlePage = () => {
               : <div className="buttons"><Placeholder className="play-pending"/></div>
           }
           <div className="tracking">
-            <MediaTracking work={uri} address={routeUri} uri={current?.uri} title={title} cover={coverUrl} episodeCount={current?.episodeCount} movie={isMovie}/>
+            <MediaTracking work={uri} address={routeUri} uri={current?.uri} title={title?.title} cover={coverUrl} episodeCount={current?.episodeCount} movie={isMovie}/>
           </div>
         </div>
         {

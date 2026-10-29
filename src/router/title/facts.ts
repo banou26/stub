@@ -68,12 +68,12 @@ const ratingLabel = ({ source, value, scale }: NonNullable<TitleMedia['ratings']
   `${source} ${intl.formatNumber(value, scale === 100 ? { style: 'unit', unit: 'percent', maximumFractionDigits: 0 } : { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
 
 /**
- * The second title under the main one: the first that reads differently in another language, usually the
- * romaji or the native, else the first that reads differently.
+ * The second title under the main one, with its language: the first that reads differently in another language,
+ * usually the romaji or the native, else the first that reads differently.
  */
-export const secondTitle = (titles: TitleMedia['titles']): string | undefined => {
+export const secondTitle = (titles: TitleMedia['titles']): NonNullable<TitleMedia['titles']>[number] | undefined => {
   const others = titles?.filter(({ title }) => title !== titles[0]?.title) ?? []
-  return (others.find(({ language }) => language !== titles?.[0]?.language) ?? others[0])?.title
+  return others.find(({ language }) => language !== titles?.[0]?.language) ?? others[0]
 }
 
 /**
@@ -105,7 +105,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   // while it airs, a source's end is the last scheduled airing
   const airing = media.status === MediaStatus.Releasing || media.status === MediaStatus.NotYetReleased
   const end = airing ? undefined : releaseDateLabel(releaseDay(media.endDate), options)
-  const named = [media.titles?.[0]?.title, secondTitle(media.titles)]
+  const named = [media.titles?.[0]?.title, secondTitle(media.titles)?.title]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
   return [
     { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: formatLabel(media.type) },
