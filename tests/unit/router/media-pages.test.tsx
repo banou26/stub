@@ -116,10 +116,12 @@ const titlePage = (uri: string) => open(`/title/${uri}`, TitlePage)
 // the modal draws in a portal on the page's body
 const modal = () => document.body.querySelector('.modal')!
 
-// every placeholder drawn, by its own classes: the outermost element a reader is told to skip
-const pending = (root: Element) => [...root.querySelectorAll('[aria-hidden="true"]')]
-  .filter(element => !element.parentElement!.closest('[aria-hidden="true"]'))
+// each element's own classes, without emotion's
+const classes = (elements: Iterable<Element>) => [...elements]
   .map(element => element.className.split(' ').filter(name => name && !name.startsWith('css-')).join('.'))
+// every placeholder drawn, by its own classes: the outermost element a reader is told to skip
+const pending = (root: Element) => classes([...root.querySelectorAll('[aria-hidden="true"]')]
+  .filter(element => !element.parentElement!.closest('[aria-hidden="true"]')))
 // the lines of facts every anime has, each held until it arrives
 const HELD_FACTS = Array<string>(11).fill('fact.placeholder')
 // each fact's label, and its value or that it is held
@@ -151,13 +153,26 @@ describe('the preview', () => {
     const frieren = work(1, 'Frieren')
     const { answer } = preview(frieren.uri)
     answer(frieren)
-    expect(modal().querySelector('.header + .released')?.textContent).toBe(releaseDateLabel('2023-09-29'))
+    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe(releaseDateLabel('2023-09-29'))
     const seasonOnly = { ...frieren, startDate: null, settled: true }
     answer(seasonOnly)
-    expect(modal().querySelector('.header + .released')?.textContent).toBe('Fall 2023')
+    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe('Fall 2023')
     const undated = { ...seasonOnly, season: null, seasonYear: null }
     answer(undated)
     expect(modal().querySelector('.released')).toBeNull()
+  })
+
+  // HOR-1059: the owner, "there's spacing between "More details" and the tracking elements. I don't want that."
+  test('draws the tracking on the release date\'s row', () => {
+    const { answer } = preview(work(1, 'Frieren').uri)
+    answer(work(1, 'Frieren'))
+    expect(classes(modal().querySelector('.header + .released-row')!.children)).toEqual(['released', 'tracking-compact'])
+  })
+
+  test('draws a film\'s tracking alone on its row, under Play', () => {
+    const { answer } = preview(film(3).uri)
+    answer(film(3))
+    expect(classes(modal().querySelector('.header + .movie + .released-row')!.children)).toEqual(['tracking-compact'])
   })
 
   test('draws a film\'s release date in its line of facts under the title', () => {
@@ -636,7 +651,7 @@ describe('every date, in the shown language as the browser writes it: British En
   test('on the preview, its release date and its episodes', () => {
     const { answer } = preview(dated().uri)
     answer(dated())
-    expect(modal().querySelector('.header + .released')?.textContent).toBe(british('2023-09-29'))
+    expect(modal().querySelector('.header + .released-row > .released')?.textContent).toBe(british('2023-09-29'))
     expect(episodeDays(modal())).toEqual([british('2023-10-06'), british('2023-10-06')])
   })
 })

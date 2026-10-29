@@ -173,16 +173,35 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       & > .more:hover { background: rgba(255, 255, 255, 0.12); }
     }
 
-    & > .released {
+    /* the tracking at the right of the date, wrapping under it when both do not fit */
+    & > .released-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 1rem 1.6rem;
       margin-top: 1rem;
-      font-size: 1.5rem;
-      line-height: 2rem;
-      color: rgba(255, 255, 255, 0.65);
-    }
 
-    & > .released.pending {
-      width: 12rem;
-      height: 2rem;
+      /* the tracking's 3.4rem controls, so the date sits level with them however many notes show under them */
+      & > .released {
+        font-size: 1.5rem;
+        line-height: 3.4rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      & > .released.pending {
+        width: 12rem;
+        height: 2rem;
+        margin: 0.7rem 0;
+      }
+
+      & > .tracking-compact {
+        margin: 0 0 0 auto;
+      }
+
+      & > .stub-list-notice {
+        flex-basis: 100%;
+        margin-top: 0;
+      }
     }
 
     & > .movie {
@@ -303,6 +322,11 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
           height: 3rem;
           width: 3rem;
         }
+      }
+
+      /* a line of its own under the date: the whole tracking never fits beside it here */
+      & > .released-row > .tracking-compact {
+        flex-basis: 100%;
       }
 
       & > .description {
@@ -479,12 +503,6 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           <SourceLinks uri={data?.media?.uri} handles={media?.handles} except={watchOriginIds(film, media?.handles)}/>
           <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
         </div>
-        {/* a film's line under its title names its day (MoviePlay) */}
-        {
-          isMovie ? undefined
-          : released ? <div className="released">{released}</div>
-          : settled ? undefined : <Placeholder className="released pending"/>
-        }
         {
           isMovie && media
             ? (
@@ -500,15 +518,23 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             )
             : undefined
         }
-        <MediaTracking
-          work={uri}
-          address={params.uri}
-          uri={current?.uri}
-          title={title}
-          cover={coverUrl}
-          episodeCount={current?.episodeCount}
-          movie={isMovie}
-        />
+        <div className="released-row">
+          {/* a film's line under its title names its day (MoviePlay) */}
+          {
+            isMovie ? undefined
+            : released ? <div className="released">{released}</div>
+            : settled ? undefined : <Placeholder className="released pending"/>
+          }
+          <MediaTracking
+            work={uri}
+            address={params.uri}
+            uri={current?.uri}
+            title={title}
+            cover={coverUrl}
+            episodeCount={current?.episodeCount}
+            movie={isMovie}
+          />
+        </div>
         {
           description
             ? (
