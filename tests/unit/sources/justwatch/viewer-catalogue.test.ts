@@ -78,3 +78,14 @@ test('the country asked beside the viewer\'s adds no link', async () => {
   expect(media.uri, 'the control: the show is still found').toBe('jw:471256-500395')
   expect(media.streamingLinks).toEqual([])
 })
+
+// renting and buying are not watching, for a link as for a handle
+test('an offer to rent or buy is no link', async () => {
+  viewerIn('Asia/Tokyo')
+  for (const monetizationType of ['RENT', 'BUY']) {
+    const sold = { data: { node: { ...NODE.data.node, offers: NODE.data.node.offers.map(offer => ({ ...offer, monetizationType })) } } }
+    const { media } = await open({ node: sold })
+    expect(media.uri, `${monetizationType}: the control: the show is still found`).toBe('jw:471256-500395')
+    expect(media.streamingLinks, monetizationType).toEqual([])
+  }
+})
