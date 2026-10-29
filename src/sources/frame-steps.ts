@@ -9,7 +9,7 @@ import { stepVideoFrame, watchVideoFrames } from './frame-step-page'
  * @banou/media-player's remote `stepFrame` for a video playing in a service's page: the steps are made
  * inside `frame`'s page, on the element `{ video, index }` names there, which has to be the one `remote`
  * is a handle on. Undefined until there is a video. A frame that cannot run page code (an extension
- * older than ABI 3) leaves `<` and `>` doing nothing.
+ * older than ABI 3) rejects each step, which the player logs, so `<` and `>` do nothing.
  */
 export const usePageFrameStep = (frame: Frame | null, remote: RemoteVideoElement | null, { video, index }: PageVideo) => {
   // once per handle: every one comes from a freshly loaded document
@@ -22,13 +22,7 @@ export const usePageFrameStep = (frame: Frame | null, remote: RemoteVideoElement
 
   return useMemo(
     () => (frame && remote
-      ? async (direction: 1 | -1) => {
-        try {
-          await frame.evaluate(stepVideoFrame, { video, index, direction })
-        } catch (err) {
-          console.warn('[frame step] failed:', err)
-        }
-      }
+      ? (direction: 1 | -1) => frame.evaluate(stepVideoFrame, { video, index, direction })
       : undefined),
     [frame, remote, video, index],
   )

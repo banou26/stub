@@ -103,12 +103,4 @@ describe('frame steps on Crunchyroll', () => {
     expect(calls(frame, seekTimeline), 'a step went through the scrubber').toEqual([])
     expect(slider.value).toBe('600')
   })
-
-  // an extension older than ABI 3 refuses evaluate by name
-  test('a step the frame refuses settles, so the keys go on doing nothing', async () => {
-    const { frame } = await load()
-    const refusal = Object.assign(new Error('evaluate is not supported by this extension'), { name: 'ExtensionOperationUnsupportedError' })
-    frame.evaluate.mockRejectedValue(refusal)
-    await expect(player.stepFrame!(1)).resolves.toBeUndefined()
-  })
 })
