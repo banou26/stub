@@ -1,10 +1,12 @@
 import type { Exchange } from 'urql'
 
 import { render } from 'preact'
+import { RawIntlProvider } from 'react-intl'
 import { Client, Provider } from 'urql'
 import { filter, fromValue, mergeMap, never, pipe } from 'wonka'
 import { Route, Router } from 'wouter'
 
+import { intl } from '../src/i18n'
 import Watch from '../src/router/watch'
 import { getRouterRoutePath, Route as Routes } from '../src/router/path'
 import { CHAPTERLESS_ON_CRUNCHYROLL, CHAPTERLESS_TORRENT, STAGE_MEDIA, TORRENT_MEDIA, TORRENT_ORIGIN, stageEpisode, torrentEpisode } from './watch-stage-media'
@@ -67,10 +69,12 @@ const answers: Exchange = () => operations => pipe(
 const client = new Client({ url: 'https://stage.test/graphql', exchanges: [answers] })
 
 render(
-  <Provider value={client}>
-    <Router>
-      <Route path={getRouterRoutePath(Routes.WATCH)} component={Watch}/>
-    </Router>
-  </Provider>,
+  <RawIntlProvider value={intl}>
+    <Provider value={client}>
+      <Router>
+        <Route path={getRouterRoutePath(Routes.WATCH)} component={Watch}/>
+      </Router>
+    </Provider>
+  </RawIntlProvider>,
   document.getElementById('root')!,
 )
