@@ -78,6 +78,10 @@ describe('the layer order', () => {
  * not have to work that out again.
  */
 const LOCAL: Record<string, { values: number[], why: string }> = {
+  'src/components/media-preview.tsx': {
+    values: [1],
+    why: "the hover card's Share button, over the card's own trailer",
+  },
   'src/router/settings/sources.tsx': {
     values: [1],
     why: 'a source card being dragged, over its sibling cards in the same list while the pointer carries it',
