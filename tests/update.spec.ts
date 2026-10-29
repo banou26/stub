@@ -171,7 +171,7 @@ const open = async (page: Page, path = '/', host = 'anime.localhost') => {
 
 test('a page left open finds the new build, shows Updating Stub over everything and reloads onto it, warm', async ({ page }) => {
   await open(page)
-  await expect(page.getByRole('button', { name: 'Watch together' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Watch party' })).toBeVisible()
   deployed = 1
   await look(page)
   await reloadedOnto(page, 1, 0)
@@ -228,7 +228,7 @@ test('an update waits while the page is on /watch, and goes once it leaves', asy
 
 test('an update waits for a party to end', async ({ page }) => {
   await open(page)
-  await page.getByRole('button', { name: 'Watch together' }).click()
+  await page.getByRole('button', { name: 'Watch party' }).click()
   await expect(page.getByRole('button', { name: /Hosting/ })).toBeVisible()
   deployed = 1
   await look(page)

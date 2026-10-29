@@ -52,7 +52,7 @@ const until = async (read, want, timeout = 20_000) => {
   return last
 }
 
-const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
+const widget = page => page.getByRole('button', { name: /Watch party|Hosting|Following|Joining|Party/ })
 
 /**
  * Record a page's scroll position every frame, until it is read back.

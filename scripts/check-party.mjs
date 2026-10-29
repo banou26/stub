@@ -53,7 +53,7 @@ const until = async (read, want, timeout = 20_000) => {
   return last
 }
 
-const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
+const widget = page => page.getByRole('button', { name: /Watch party|Hosting|Following|Joining|Party/ })
 
 const pageIn = async browser => {
   const context = await browser.newContext({ serviceWorkers: 'block' })
@@ -84,12 +84,12 @@ const run = async () => {
 
   console.log('\nthe host starts a party')
   await host.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
-  await host.getByRole('button', { name: 'Watch together' }).waitFor({ timeout: 20_000 })
+  await host.getByRole('button', { name: 'Watch party' }).waitFor({ timeout: 20_000 })
   // Clicked until it takes. The broker's docked bar lands a moment after the page and pushes the
   // header down, so a click issued the instant the button exists can land where it no longer is.
   let hosting = ''
   for (let attempt = 0; attempt < 4 && !/Hosting|Joining/.test(hosting); attempt++) {
-    await host.getByRole('button', { name: 'Watch together' }).click().catch(() => {})
+    await host.getByRole('button', { name: 'Watch party' }).click().catch(() => {})
     hosting = await until(() => widget(host).innerText().catch(() => ''), text => /Hosting|Joining/.test(text), 4_000)
   }
   hosting = await until(() => widget(host).innerText().catch(() => ''), text => /Hosting/.test(text), 30_000)
@@ -281,10 +281,10 @@ const run = async () => {
   // can join, and the host, on the same bucket, is watched for being caught by its own ban.
   await host.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
   await guest2.getByRole('button', { name: 'OK' }).click().catch(() => {})
-  await host.getByRole('button', { name: 'Watch together' }).waitFor({ timeout: 20_000 })
+  await host.getByRole('button', { name: 'Watch party' }).waitFor({ timeout: 20_000 })
   let hosting2 = ''
   for (let attempt = 0; attempt < 4 && !/Hosting|Joining/.test(hosting2); attempt++) {
-    await host.getByRole('button', { name: 'Watch together' }).click().catch(() => {})
+    await host.getByRole('button', { name: 'Watch party' }).click().catch(() => {})
     hosting2 = await until(() => widget(host).innerText().catch(() => ''), text => /Hosting|Joining/.test(text), 4_000)
   }
   await until(() => widget(host).innerText().catch(() => ''), text => /Hosting/.test(text), 30_000)

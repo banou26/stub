@@ -18,7 +18,7 @@ const until = async (read, want, timeout = 20_000) => { const end = Date.now() +
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH, args: ['--mute-audio'] })
 const host = await browser.newContext().then(c => c.newPage())
 const guest = await browser.newContext().then(c => c.newPage())
-const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
+const widget = page => page.getByRole('button', { name: /Watch party|Hosting|Following|Joining|Party/ })
 const body = page => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '))
 // the dropdown toggles on a click, so open it only when its title is not on the page
 const guestMenu = async () => {

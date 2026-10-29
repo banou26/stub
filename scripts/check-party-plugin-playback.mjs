@@ -84,7 +84,7 @@ const videoOf = async page => {
   }).catch(() => undefined)
 }
 
-const widget = page => page.getByRole('button', { name: /Watch together|Hosting|Following|Joining|Party/ })
+const widget = page => page.getByRole('button', { name: /Watch party|Hosting|Following|Joining|Party/ })
 
 /**
  * Accept the source this link offers, which is what makes the plugin exist at all.
@@ -126,10 +126,10 @@ const run = async () => {
 
   console.log('\nthe host starts a party and opens the release through the plugin')
   await host.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
-  await host.getByRole('button', { name: 'Watch together' }).waitFor({ timeout: 20_000 })
+  await host.getByRole('button', { name: 'Watch party' }).waitFor({ timeout: 20_000 })
   let hosting = ''
   for (let attempt = 0; attempt < 4 && !/Hosting|Joining/.test(hosting); attempt++) {
-    await host.getByRole('button', { name: 'Watch together' }).click().catch(() => {})
+    await host.getByRole('button', { name: 'Watch party' }).click().catch(() => {})
     hosting = await until(() => widget(host).innerText(), text => /Hosting|Joining/.test(text), 4_000)
   }
   hosting = await until(() => widget(host).innerText(), text => /Hosting/.test(text), 30_000)

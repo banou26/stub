@@ -41,7 +41,7 @@ const openModal = async ({ party = false } = {}) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   await page.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' })
   if (party) {
-    await page.getByRole('button', { name: /Watch together/ }).first().click({ timeout: 60_000 })
+    await page.getByRole('button', { name: /Watch party/ }).first().click({ timeout: 60_000 })
     await page.waitForFunction(() => /Hosting/.test(document.querySelector('header')?.textContent ?? ''), null, { timeout: 60_000 })
   }
   await page.locator('a[href^="/media/"]').first().click({ timeout: 60_000 })

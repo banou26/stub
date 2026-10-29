@@ -204,7 +204,7 @@ const Party = () => {
 
   return (
     <div css={style}>
-      <div className="heading">{intl.formatMessage({ id: 'Watch together', defaultMessage: 'Watch together' })}</div>
+      <div className="heading">{intl.formatMessage({ id: 'Watch party', defaultMessage: 'Watch party' })}</div>
       <div className="status">
         {
           broken ? broke

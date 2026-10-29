@@ -245,7 +245,7 @@ const PartyWidget = () => {
   }
 
   if (state.status === 'idle') {
-    const start = intl.formatMessage({ id: 'Watch together', defaultMessage: 'Watch together' })
+    const start = intl.formatMessage({ id: 'Watch party', defaultMessage: 'Watch party' })
     return (
       <button type="button" css={buttonStyle} onClick={() => { void party.create() }} title={start}>
         <Users size={16}/>

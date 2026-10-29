@@ -168,7 +168,7 @@ describe('the widget\'s English', () => {
   test('with no party, one button', async () => {
     room('host', ['host'])
     const { trigger } = await shown(() => {})
-    expect([trigger.getAttribute('title'), trigger.textContent]).toEqual(['Watch together', 'Watch together'])
+    expect([trigger.getAttribute('title'), trigger.textContent]).toEqual(['Watch party', 'Watch party'])
   })
 
   test('joining', async () => {

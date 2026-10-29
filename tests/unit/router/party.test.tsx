@@ -49,7 +49,7 @@ describe('the party page\'s English', () => {
   test('out of a party, its heading, and why it is not in one', async () => {
     room('me', ['host', 'me'])
     const host = await page('')
-    expect(host.querySelector('.heading')?.textContent).toBe('Watch together')
+    expect(host.querySelector('.heading')?.textContent).toBe('Watch party')
     expect(status(host)).toBe('You are not in a party. Start one from the header.')
     unmount(hosts.pop()!)
     expect(status(await page('#not-an-invite'))).toBe('This invite link is broken. Ask the host for a new one.')
