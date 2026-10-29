@@ -1172,6 +1172,22 @@ describe('a show\'s other seasons', () => {
   })
 })
 
+test('the row playing links the release playing, not the site\'s first', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series({}, 'nyaa:z')
+  ;(media as { episodes: ReturnType<typeof row>[] }).episodes[1]!.handles.push(release('z'))
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: the second release plays').toBe('magnet:?xt=urn:btih:z')
+  expect(listRows(host)).toEqual([
+    [1, watchPath(1), undefined],
+    [2, watchPath(2, 'nyaa:z'), 'page'],
+    [3, watchPath(3, 'nyaa:b'), undefined],
+  ])
+})
+
 // Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's
 // history, so after Next one Back moved only the player back, and the page still named the next episode
 test('another episode gets a fresh player, so Back leaves the page rather than the frame', async () => {

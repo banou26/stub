@@ -908,7 +908,7 @@ const Watch = () => {
                         tracked={tracked}
                         current={picked || index < 0 ? undefined : index}
                         mediaUri={pickedUri ?? params.mediaUri}
-                        sourceOf={row => sourceFor(playableHandlesOf(row.handles), playingOrigin, ways)}
+                        sourceOf={row => row === episode ? selectedSourceUri : sourceFor(playableHandlesOf(row.handles), playingOrigin, ways)}
                       />
                     )
                     : <EpisodesPlaceholder/>
