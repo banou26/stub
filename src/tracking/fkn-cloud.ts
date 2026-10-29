@@ -5,6 +5,7 @@
 
 import type { CloudAvailability, CloudEntry, CloudResult, TrackerCloud } from './account-link'
 
+import { forPage } from '../i18n/said'
 import { CLOUD_ROOT } from './account-link'
 
 /** The slice of `@fkn/lib/cloud/fs` this adapter calls: `availability`, `list`, `encryption`, `promises`. */
@@ -25,7 +26,7 @@ const ACCOUNT_CHANGED = 'FKN_ACCOUNT_CHANGED'
 const ACCOUNT_CHANGED_MESSAGE = 'fkn:account-changed'
 const PIN_UNSUPPORTED = 'FKN_ACCOUNT_PIN_UNSUPPORTED'
 
-export const PIN_UNSUPPORTED_TEXT = 'FKN has to update before this list can reach your FKN account'
+export const PIN_UNSUPPORTED_TEXT = forPage.formatMessage({ id: 'FKN has to update before this list can reach your FKN account', defaultMessage: 'FKN has to update before this list can reach your FKN account' })
 
 const refusal = (error: unknown): Exclude<CloudResult<never>, { ok: never }> => {
   const code = (error as { code?: string } | null)?.code
@@ -57,7 +58,7 @@ export const fknTrackerCloud = (lib: FknStorage, { timeoutMs = 8_000 }: { timeou
 
   const settled = <T>(work: () => Promise<T>): Promise<CloudResult<T>> =>
     new Promise(resolve => {
-      const timer = setTimeout(() => resolve({ error: 'FKN storage did not answer' }), timeoutMs)
+      const timer = setTimeout(() => resolve({ error: forPage.formatMessage({ id: 'FKN storage did not answer', defaultMessage: 'FKN storage did not answer' }) }), timeoutMs)
       new Promise<T>(called => called(work())).then(
         ok => { clearTimeout(timer); resolve({ ok }) },
         error => { clearTimeout(timer); resolve(refusal(error)) },

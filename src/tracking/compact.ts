@@ -1,6 +1,9 @@
 // The compact tracking row as data: what it shows, where a change goes, and how saves are paced.
-// Import free but for the score scales, so every rule here is pinned under vitest.
+// Import free but for the score scales and the messages it writes, so every rule here is pinned under vitest.
 
+import type { Said } from '../i18n/said'
+
+import { forPage } from '../i18n/said'
 import { coarser, isScored, onScale } from './score-scale'
 
 export type CompactEntry = {
@@ -13,7 +16,7 @@ export type CompactEntry = {
 export type CompactAnswer = {
   state: string
   candidates: string[]
-  error?: string | null
+  error?: Said | null
   /** How many episodes the tracker counts for the media, listed or not. */
   episodeCount?: number | null
   tracker: {
@@ -27,7 +30,7 @@ export type CompactAnswer = {
     canClearScore?: boolean | null
     icon?: string | null
     color?: string | null
-    account?: string | null
+    account?: Said | null
   }
   entry?: CompactEntry | null
 }
@@ -39,14 +42,8 @@ export type CompactTracking = {
   answers: readonly CompactAnswer[]
 }
 
-export const STATUS_LABELS: Record<string, string> = {
-  WATCHING: 'Watching',
-  REWATCHING: 'Rewatching',
-  PLANNING: 'Plan to watch',
-  COMPLETED: 'Completed',
-  PAUSED: 'Paused',
-  DROPPED: 'Dropped',
-}
+/** The statuses a list holds, in the order the row offers them. */
+export const LIST_STATUSES = ['WATCHING', 'REWATCHING', 'PLANNING', 'COMPLETED', 'PAUSED', 'DROPPED'] as const
 
 /**
  * The fields a change touched. A null score clears it; an absent key is left as the tracker has it.
@@ -69,7 +66,8 @@ const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
 export const writable = (answer: CompactAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)
 
 /** Why a paused or failing tracker cannot write: its own words, or ours when it gave none. */
-export const whyNot = (answer: CompactAnswer) => answer.error || (answer.state === 'PAUSED' ? 'Paused for a while' : 'Could not answer')
+export const whyNot = (answer: CompactAnswer): Said =>
+  answer.error || (answer.state === 'PAUSED' ? forPage.formatMessage({ id: 'Paused for a while', defaultMessage: 'Paused for a while' }) : forPage.formatMessage({ id: 'Could not answer', defaultMessage: 'Could not answer' }))
 
 /** What the row shows: the worker's summary, which covers every listed tracker whether or not the viewer writes to it. */
 export const rowOf = (
@@ -120,7 +118,7 @@ export const unsettled = (mine: Fields, row: Row): Fields => {
 export type Target =
   | { kind: 'check', checked: boolean, sendable: boolean }
   | { kind: 'login' }
-  | { kind: 'cannot', reason: string }
+  | { kind: 'cannot', reason: Said }
   | { kind: 'loading' }
 
 /**
@@ -133,7 +131,7 @@ export const targetOf = (answer: CompactAnswer, stored: boolean | undefined): Ta
   switch (answer.state) {
     case 'LOADING': return { kind: 'loading' }
     case 'SIGNED_OUT': return { kind: 'login' }
-    case 'AMBIGUOUS': return { kind: 'cannot', reason: `Names ${answer.candidates.join(' and ')}, cannot tell which` }
+    case 'AMBIGUOUS': return { kind: 'cannot', reason: forPage.formatMessage({ id: 'Names {candidates}, cannot tell which', defaultMessage: 'Names {candidates}, cannot tell which' }, { candidates: { list: answer.candidates, join: 'and' } }) }
   }
   const checked = stored ?? true
   return { kind: 'check', checked, sendable: checked && writable(answer) }
@@ -216,11 +214,11 @@ export const pickerScale = (scales: readonly (string | null | undefined)[]) => {
 /** A pick on `scale`, as the 0 to 100 value that is written. */
 export const written = (score: number, scale: string) => onScale(score, scale)
 
-export type Outcome = { outcome: string, error?: string | null }
+export type Outcome = { outcome: string, error?: Said | null }
 /** How one tracker's write went, as `saveListEntry` reports it; a write that reached no tracker names none. */
 export type TrackerOutcome = Outcome & { tracker: string }
-export type Settled = { tracker: string, outcome: string, fields: Fields, error?: string | null }
-export type QueueState = { busy: boolean, failed?: { fields: Fields, error: string }, refused?: string }
+export type Settled = { tracker: string, outcome: string, fields: Fields, error?: Said | null }
+export type QueueState = { busy: boolean, failed?: { fields: Fields, error: Said }, refused?: Said }
 
 type Timers = { set: (run: () => void, ms: number) => unknown, clear: (handle: unknown) => void }
 
@@ -267,8 +265,8 @@ export const createSaveQueue = (
   const fromCards = new Map<string, Fields[]>()
   const released = new Set<string>()
   const flying = new Map<string, Fields>()
-  const failed = new Map<string, { saves: Fields[], error: string, unsent?: true }>()
-  const refused = new Map<string, string>()
+  const failed = new Map<string, { saves: Fields[], error: Said, unsent?: true }>()
+  const refused = new Map<string, Said>()
   let timer: unknown
 
   const line = (tracker: string, ...changes: (Fields | undefined)[]) => changes.reduce<Fields[]>((saves, fields) => {
@@ -294,14 +292,14 @@ export const createSaveQueue = (
       released.delete(tracker)
     }
     flying.set(tracker, fields)
-    const settle = (outcome: string, error?: string | null) => {
+    const settle = (outcome: string, error?: Said | null) => {
       flying.delete(tracker)
       if (outcome === 'SAVED' || outcome === 'QUEUED') failed.delete(tracker)
-      else if (outcome === 'REFUSED') refused.set(tracker, error ?? 'Refused')
+      else if (outcome === 'REFUSED') refused.set(tracker, error ?? forPage.formatMessage({ id: 'Refused', defaultMessage: 'Refused' }))
       else {
         const behind = steps(tracker) ? waiting.get(tracker) ?? [] : []
         if (behind.length) waiting.delete(tracker)
-        failed.set(tracker, { saves: [fields, ...behind], error: error ?? 'Did not save' })
+        failed.set(tracker, { saves: [fields, ...behind], error: error ?? forPage.formatMessage({ id: 'Did not save', defaultMessage: 'Did not save' }) })
         const later = waiting.get(tracker)
         if (later) waiting.set(tracker, line(tracker, fields, ...later))
       }
@@ -340,7 +338,7 @@ export const createSaveQueue = (
     },
     flush,
     /** Records fields that could not go at all, a paused or failing tracker, as a failed save. */
-    fail: (tracker: string, fields: Fields, error: string) => {
+    fail: (tracker: string, fields: Fields, error: Said) => {
       failed.set(tracker, { saves: line(tracker, ...failed.get(tracker)?.saves ?? [], fields), error, unsent: true })
       onChange({ tracker, outcome: 'FAILED', fields, error })
     },

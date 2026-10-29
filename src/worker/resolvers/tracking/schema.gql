@@ -67,8 +67,11 @@ type Tracker {
   icon: String
   color: String
   signedIn: Boolean!
-  """Whose list this is, as the tracker names it, or where it is kept."""
-  account: String
+  """
+  Whose list this is, as the tracker names it, or where it is kept: words for the viewer (src/i18n/said.ts), a
+  message the page writes in its language or the tracker's own name for the account.
+  """
+  account: JSON
   canWrite: Boolean!
   """
   The statuses it keeps, when it keeps only some: Crunchyroll keeps Plan to watch alone, as its
@@ -121,7 +124,11 @@ type TrackerAnswer {
   entry: ListEntry
   """The tracker's ids the media names, when `state` is AMBIGUOUS."""
   candidates: [String!]!
-  error: String
+  """
+  Why it cannot write, in words for the viewer (src/i18n/said.ts): a message the page writes in its language, or a
+  site's or an error's own words as they came.
+  """
+  error: JSON
   """
   How many episodes this tracker counts for the media, whether it lists it or not, so progress can be
   read on this tracker's own count, which need not be the media page's. Null when it does not say.
@@ -147,7 +154,8 @@ type WriteOutcome {
   tracker: String!
   outcome: WriteState!
   entry: ListEntry
-  error: String
+  """Why it did not save, in words for the viewer, as `TrackerAnswer.error`."""
+  error: JSON
 }
 
 input TrackingInput {
@@ -208,7 +216,8 @@ type StubTrackerStorage {
   viewer adds them to the account. They come back as this device's list on a sign out.
   """
   held: Int!
-  error: String
+  """What went wrong, in words for the viewer, as `TrackerAnswer.error`."""
+  error: JSON
 }
 
 extend type Subscription {

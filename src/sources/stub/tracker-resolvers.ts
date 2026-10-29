@@ -5,12 +5,15 @@ import type { ListEntry, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutco
 import type { SessionScope } from '../../tracking/account-link'
 import type { Found, Journal, JournalEntry } from '../../tracking/journal'
 
+import { forPage, type Said } from '../../i18n/said'
 import { answerId, changes, errorAnswer } from '../../tracking/collect'
 import { trackingId } from '../../tracking/aggregate'
 import { catalogFor, entryMediaUri, identify, type CatalogLookup, type MediaIdentity } from '../../tracking/identity'
 import { liveValues, patchFrom } from '../../tracking/journal'
 
 export const STUB_TRACKER_ID = 'stub'
+
+const ON_THIS_DEVICE = forPage.formatMessage({ id: 'This device', defaultMessage: 'This device' })
 
 /** What the tracker reads off its request context, beside what every provider gets. */
 export type StubTrackerContext = {
@@ -25,14 +28,14 @@ export const stubTracker: Tracker = {
   color: null,
   // nothing to sign in to: the list is this device's, or the FKN account's while one is signed in
   signedIn: true,
-  account: 'This device',
+  account: ON_THIS_DEVICE,
   canWrite: true,
   scoreScale: 'POINT_100',
 }
 
 /** The tracker as it answers, naming whose list it holds. */
 export const stubTrackerAt = (where: SessionScope): Tracker =>
-  ({ ...stubTracker, account: where === 'account' ? 'FKN account' : 'This device' })
+  ({ ...stubTracker, account: where === 'account' ? forPage.formatMessage({ id: 'FKN account', defaultMessage: 'FKN account' }) : ON_THIS_DEVICE })
 
 const iso = (at: number | undefined) => at ? new Date(at).toISOString() : null
 
@@ -71,16 +74,16 @@ export const answerFor = (uri: string, found: Found, tracker: Tracker = stubTrac
 const trackingOf = (uri: string, answer: TrackerAnswer): Tracking =>
   ({ _id: trackingId(uri), answers: [answer], summary: null, disagreements: [] })
 
-const refused = (error: string): WriteOutcome[] => [{ tracker: STUB_TRACKER_ID, outcome: 'REFUSED', entry: null, error }]
+const refused = (error: Said): WriteOutcome[] => [{ tracker: STUB_TRACKER_ID, outcome: 'REFUSED', entry: null, error }]
 const failed = (error: unknown): WriteOutcome[] =>
   [{ tracker: STUB_TRACKER_ID, outcome: 'FAILED', entry: null, error: error instanceof Error ? error.message : String(error) }]
 
 type Writable = Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>
 
 /** Why an identity cannot take a write, or undefined when it can. */
-const refusal = (identity: MediaIdentity): string | undefined =>
-  identity.kind === 'none' ? 'This media names no id stub can track'
-  : identity.kind === 'ambiguous' ? `This media names ${identity.candidates.join(' and ')}, and stub cannot tell which one is meant`
+const refusal = (identity: MediaIdentity): Said | undefined =>
+  identity.kind === 'none' ? forPage.formatMessage({ id: 'This media names no id stub can track', defaultMessage: 'This media names no id stub can track' })
+  : identity.kind === 'ambiguous' ? forPage.formatMessage({ id: 'This media names {candidates}, and stub cannot tell which one is meant', defaultMessage: 'This media names {candidates}, and stub cannot tell which one is meant' }, { candidates: { list: identity.candidates, join: 'and' } })
   : undefined
 
 export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => Promise<SessionScope> = async () => 'device') => ({

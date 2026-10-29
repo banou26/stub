@@ -3,10 +3,13 @@
 // providers; worker/resolvers/tracking wires it to the real ones.
 
 import type { Tracker, TrackerAnswer, WriteOutcome } from '../generated/schema/types.generated'
+import type { Said } from '../i18n/said'
+
+import { forPage } from '../i18n/said'
 
 export const answerId = (tracker: string, uri: string) => `answer:${tracker}:${uri}`
 
-export const errorAnswer = (uri: string, tracker: Tracker, error: string): TrackerAnswer => ({
+export const errorAnswer = (uri: string, tracker: Tracker, error: Said): TrackerAnswer => ({
   _id: answerId(tracker.id, uri),
   tracker,
   state: 'ERROR',
@@ -33,7 +36,7 @@ const messageOf = (error: unknown) =>
 export const failedReadAnswer = (uri: string, tracker: Tracker, error: unknown): TrackerAnswer => {
   if (!(error instanceof TypeError)) return errorAnswer(uri, tracker, messageOf(error))
   console.warn(`tracking: ${tracker.name} read got no answer`, error)
-  return errorAnswer(uri, tracker, `Could not reach ${tracker.name}, retrying`)
+  return errorAnswer(uri, tracker, forPage.formatMessage({ id: 'Could not reach {name}, retrying', defaultMessage: 'Could not reach {name}, retrying' }, { name: tracker.name }))
 }
 
 /**
@@ -129,7 +132,7 @@ export const answerCollector = <E>(uri: string, order: readonly E[], trackerOf: 
   }
 }
 
-const outcome = (tracker: string, state: WriteOutcome['outcome'], error: string): WriteOutcome =>
+const outcome = (tracker: string, state: WriteOutcome['outcome'], error: Said): WriteOutcome =>
   ({ tracker, outcome: state, entry: null, error })
 
 /**
@@ -144,12 +147,12 @@ export const writeToTargets = async <E>(
 ): Promise<WriteOutcome[]> =>
   await Promise.all([...new Set(targets)].map(async tracker => {
     const entry = find(tracker)
-    if (!entry) return outcome(tracker, 'REFUSED', `There is no tracker called ${tracker}`)
+    if (!entry) return outcome(tracker, 'REFUSED', forPage.formatMessage({ id: 'There is no tracker called {tracker}', defaultMessage: 'There is no tracker called {tracker}' }, { tracker }))
     try {
       const result = await send(entry, tracker)
       if (result.error) return outcome(tracker, 'FAILED', messageOf(result.error))
       return result.data?.[field]?.find(answer => answer.tracker === tracker)
-        ?? outcome(tracker, 'REFUSED', 'This tracker takes no writes')
+        ?? outcome(tracker, 'REFUSED', forPage.formatMessage({ id: 'This tracker takes no writes', defaultMessage: 'This tracker takes no writes' }))
     } catch (error) {
       return outcome(tracker, 'FAILED', messageOf(error))
     }

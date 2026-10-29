@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from './dom'
+import { button, mount, unmount, withIntl } from './dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -17,7 +17,7 @@ afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 const render = (storage: StubStorage) => {
   const onUnlock = vi.fn(async () => {})
   const onAdd = vi.fn(async () => {})
-  const host = mount(<StubListNotice storage={storage} onUnlock={onUnlock} onAdd={onAdd}/>)
+  const host = mount(withIntl(<StubListNotice storage={storage} onUnlock={onUnlock} onAdd={onAdd}/>))
   hosts.push(host)
   return { host, onUnlock, onAdd }
 }

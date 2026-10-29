@@ -4,14 +4,18 @@ import { css } from '@emotion/react'
 import { autoUpdate, flip, offset, safePolygon, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions } from '@floating-ui/react'
 import { Check, ChevronsLeftRight, ChevronsRightLeft, LoaderCircle, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { defineMessages, useIntl, type IntlShape } from 'react-intl'
 
+import type { Said } from '../i18n/said'
 import type { WindowSignIn } from '../sources/login-window'
 import type { CompactPrefs } from '../tracking/compact-prefs'
 import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
 import type { Watched } from '../tracking/watched'
 
+import { NAME_LIST, wordsOf } from '../i18n'
+import { forPage } from '../i18n/said'
 import {
-  STATUS_LABELS, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
+  LIST_STATUSES, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import { WATCHED_AT, watchedPatches } from '../tracking/watched'
@@ -21,9 +25,23 @@ import ScorePicker from './score-picker'
 /** The sign in a tracker offers, by tracker id. Called directly in the click, so a window can open. */
 export type SignIns = Record<string, () => Promise<WindowSignIn>>
 
-const SIGN_IN_NOTES: Partial<Record<WindowSignIn, (name: string) => string>> = {
-  blocked: () => 'The browser blocked the sign-in window: allow pop-ups, then press Log in again.',
-  unsupported: name => `Sign in to ${name} in this browser, then press Log in again.`,
+const SIGN_IN_NOTES: Partial<Record<WindowSignIn, (name: string) => Said>> = {
+  blocked: () => forPage.formatMessage({ id: 'The browser blocked the sign-in window: allow pop-ups, then press Log in again.', defaultMessage: 'The browser blocked the sign-in window: allow pop-ups, then press Log in again.' }),
+  unsupported: name => forPage.formatMessage({ id: 'Sign in to {name} in this browser, then press Log in again.', defaultMessage: 'Sign in to {name} in this browser, then press Log in again.' }, { name }),
+}
+
+const LIST_STATUS = defineMessages({
+  WATCHING: { id: 'Watching#list status', defaultMessage: 'Watching', description: 'list status' },
+  REWATCHING: { id: 'Rewatching#list status', defaultMessage: 'Rewatching', description: 'list status' },
+  PLANNING: { id: 'Plan to watch#list status', defaultMessage: 'Plan to watch', description: 'list status' },
+  COMPLETED: { id: 'Completed#list status', defaultMessage: 'Completed', description: 'list status' },
+  PAUSED: { id: 'Paused#list status', defaultMessage: 'Paused', description: 'list status' },
+  DROPPED: { id: 'Dropped#list status', defaultMessage: 'Dropped', description: 'list status' },
+})
+
+const statusLabel = (intl: IntlShape, status: string) => {
+  const label = LIST_STATUS[status as keyof typeof LIST_STATUS]
+  return label ? intl.formatMessage(label) : status
 }
 
 const style = css`
@@ -210,9 +228,9 @@ const style = css`
 
 const OUT_OF: Record<string, number> = { POINT_3: 3, POINT_5: 5, POINT_10: 10, POINT_10_DECIMAL: 10 }
 
-const scoreText = (score: number, scale?: string | null) => {
+const scoreText = (intl: IntlShape, score: number, scale?: string | null) => {
   const on = scale ?? 'POINT_100'
-  return `${nativeScore(score, on)} / ${OUT_OF[on] ?? 100}`
+  return intl.formatMessage({ id: '{score, number} / {max, number}', defaultMessage: '{score, number} / {max, number}' }, { score: nativeScore(score, on), max: OUT_OF[on] ?? 100 })
 }
 
 // the status menu's choice that takes the media off the lists instead of setting a status
@@ -226,19 +244,9 @@ const Logo = ({ answer }: { answer: CompactAnswer }) => (
   </span>
 )
 
-const problemOf = (answer: CompactAnswer) => answer.state === 'PAUSED' || answer.state === 'ERROR' ? whyNot(answer) : undefined
+const problemOf = (answer: CompactAnswer) => answer.state === 'PAUSED' || answer.state === 'ERROR' ? wordsOf(whyNot(answer)) : undefined
 
-const TILE_STATES = {
-  loading: 'loading',
-  login: 'signed out',
-  cannot: 'cannot track this media',
-  busy: 'updating',
-  error: 'error',
-  paused: 'paused',
-  on: 'connected',
-  off: 'off',
-} as const
-type TileState = keyof typeof TILE_STATES
+type TileState = 'loading' | 'login' | 'cannot' | 'busy' | 'error' | 'paused' | 'on' | 'off'
 
 const tileState = (answer: CompactAnswer, target: Target, { busy, failed }: { busy?: boolean, failed?: unknown }): TileState =>
   target.kind !== 'check' ? target.kind
@@ -248,7 +256,10 @@ const tileState = (answer: CompactAnswer, target: Target, { busy, failed }: { bu
   : target.checked ? 'on' : 'off'
 
 const Tile = ({ answer, state }: { answer: CompactAnswer, state: TileState }) => {
-  const label = `${answer.tracker.name}: ${TILE_STATES[state]}`
+  const label = useIntl().formatMessage({
+    id: '{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}',
+    defaultMessage: '{name}: {state, select, loading {loading} login {signed out} cannot {cannot track this media} busy {updating} error {error} paused {paused} on {connected} other {off}}',
+  }, { name: answer.tracker.name, state })
   return (
     <span className={`tile ${state}`} data-tile={answer.tracker.id} role="img" aria-label={label} title={label}>
       <Logo answer={answer}/>
@@ -256,6 +267,8 @@ const Tile = ({ answer, state }: { answer: CompactAnswer, state: TileState }) =>
     </span>
   )
 }
+
+const saved = ({ outcome }: { outcome: string }) => outcome === 'SAVED' || outcome === 'QUEUED'
 
 const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) =>
   failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/>
@@ -288,6 +301,7 @@ const Controls = (
     dots?: Partial<Record<'SCORE' | 'STATUS' | 'PROGRESS', ComponentChild>>
   }
 ) => {
+  const intl = useIntl()
   const [draft, setDraft] = useState<string>()
   const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const commitLatest = useRef(() => {})
@@ -325,7 +339,7 @@ const Controls = (
       {dots.SCORE}
       <select
         name={`${name}-status`}
-        aria-label="Status"
+        aria-label={intl.formatMessage({ id: 'Status', defaultMessage: 'Status' })}
         value={shown.status ?? ''}
         disabled={disabled}
         onChange={event => {
@@ -333,25 +347,25 @@ const Controls = (
           onChange(value === REMOVE ? { remove: true } : { status: value }, true)
         }}
       >
-        {shown.status ? undefined : <option value="" disabled>Add to list</option>}
-        {Object.entries(STATUS_LABELS)
-          .filter(([value]) => !statuses || statuses.includes(value))
-          .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        {removable ? <option value={REMOVE}>Remove from list</option> : undefined}
+        {shown.status ? undefined : <option value="" disabled>{intl.formatMessage({ id: 'Add to list', defaultMessage: 'Add to list' })}</option>}
+        {LIST_STATUSES
+          .filter(value => !statuses || statuses.includes(value))
+          .map(value => <option key={value} value={value}>{statusLabel(intl, value)}</option>)}
+        {removable ? <option value={REMOVE}>{intl.formatMessage({ id: 'Remove from list', defaultMessage: 'Remove from list' })}</option> : undefined}
       </select>
       {dots.STATUS}
       {movie
         ? (
           <>
             <button type="button" className={`watched${watched ? ' on' : ''}`} aria-pressed={watched} disabled={disabled} onClick={toggleWatched}>
-              <Check size={14} aria-hidden="true"/>Watched
+              <Check size={14} aria-hidden="true"/>{intl.formatMessage({ id: 'Watched#marked as seen', defaultMessage: 'Watched', description: 'marked as seen' })}
             </button>
             {dots.PROGRESS}
           </>
         )
         : (
       <span className="progress-field">
-        <label for={`${name}-progress`} className="word">Episodes</label>
+        <label for={`${name}-progress`} className="word">{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</label>
         <input
           id={`${name}-progress`}
           type="number"
@@ -376,12 +390,12 @@ const Controls = (
             }
           }}
         />
-        {total ? <span className="of">/ {total}</span> : undefined}
+        {total ? <span className="of">{intl.formatMessage({ id: '/ {total}', defaultMessage: '/ {total}' }, { total })}</span> : undefined}
         {dots.PROGRESS}
         <button
           type="button"
           className="more"
-          aria-label="One episode more"
+          aria-label={intl.formatMessage({ id: 'One episode more', defaultMessage: 'One episode more' })}
           disabled={disabled || (total != null && shown.progress >= total)}
           onClick={() => onChange({ progress: shown.progress + 1 }, false)}
         >
@@ -390,10 +404,10 @@ const Controls = (
       </span>
         )}
       {!movie && !disabled && total && shown.progress === total && shown.status !== 'COMPLETED' && (!statuses || statuses.includes('COMPLETED'))
-        ? <button type="button" onClick={() => onChange({ status: 'COMPLETED' }, true)}>Mark completed</button>
+        ? <button type="button" onClick={() => onChange({ status: 'COMPLETED' }, true)}>{intl.formatMessage({ id: 'Mark completed', defaultMessage: 'Mark completed' })}</button>
         : undefined}
       {!movie && !disabled && total && shown.status === 'COMPLETED' && shown.progress < total
-        ? <button type="button" onClick={() => onChange({ progress: total }, true)}>Set {total} / {total}</button>
+        ? <button type="button" onClick={() => onChange({ progress: total }, true)}>{intl.formatMessage({ id: 'Set {total} / {total}', defaultMessage: 'Set {total} / {total}' }, { total })}</button>
         : undefined}
     </div>
   )
@@ -446,16 +460,16 @@ const Chip = (
     useFocus(context),
     useDismiss(context),
   ])
-  const name = answer.tracker.name
+  const entry = useIntl().formatMessage({ id: '{name} entry', defaultMessage: '{name} entry' }, { name: answer.tracker.name })
   return (
     <span ref={refs.setReference} className={className} data-chip={answer.tracker.id} aria-busy={busy ? 'true' : undefined} {...getReferenceProps()}>
-      <button ref={logo} type="button" className="logo-button" aria-label={`${name} entry`} aria-haspopup="dialog" aria-expanded={open} {...getPressProps()}>
+      <button ref={logo} type="button" className="logo-button" aria-label={entry} aria-haspopup="dialog" aria-expanded={open} {...getPressProps()}>
         <Logo answer={answer}/>
       </button>
       {children}
       {open
         ? (
-          <div ref={refs.setFloating} style={floatingStyles} className="card" role="dialog" aria-label={`${name} entry`} data-card={answer.tracker.id} {...getFloatingProps()}>
+          <div ref={refs.setFloating} style={floatingStyles} className="card" role="dialog" aria-label={entry} data-card={answer.tracker.id} {...getFloatingProps()}>
             {card()}
           </div>
         )
@@ -504,12 +518,13 @@ const TrackingCompact = (
     onPrefs: (prefs: CompactPrefs) => void
   }
 ) => {
+  const intl = useIntl()
   const [, setTick] = useState(0)
   // the viewer's own values, by ROW or by the tracker whose card took them
   const [overrides, setOverrides] = useState<Record<string, Fields>>({})
-  const [announced, setAnnounced] = useState('')
+  const [announced, setAnnounced] = useState<Settled & { name: string }>()
   const [signingIn, setSigningIn] = useState<ReadonlySet<string>>(new Set())
-  const [notes, setNotes] = useState<Record<string, string>>({})
+  const [notes, setNotes] = useState<Record<string, Said>>({})
   // one card at a time: a card holding focus stays open when the pointer leaves, so a second card
   // opened beside it would be drawn under it
   const [openCard, setOpenCard] = useState<string>()
@@ -519,7 +534,8 @@ const TrackingCompact = (
   const queue = useMemo(() => createSaveQueue({
     send: async (tracker, fields) => {
       const outcomes = await (fields.remove ? latest.current.onRemove([tracker]) : latest.current.onSaveFields([tracker], fields))
-      return outcomes.find(outcome => outcome.tracker === tracker) ?? outcomes[0] ?? { outcome: 'FAILED', error: 'The write did not reach the trackers' }
+      return outcomes.find(outcome => outcome.tracker === tracker) ?? outcomes[0]
+        ?? { outcome: 'FAILED', error: forPage.formatMessage({ id: 'The write did not reach the trackers', defaultMessage: 'The write did not reach the trackers' }) }
     },
     shape: (tracker, fields) => {
       const { tracking, episodeCount } = latest.current
@@ -531,10 +547,9 @@ const TrackingCompact = (
       setTick(tick => tick + 1)
       if (!settled) return
       const name = latest.current.tracking?.answers.find(answer => answer.tracker.id === settled.tracker)?.tracker.name ?? settled.tracker
-      const saved = settled.outcome === 'SAVED' || settled.outcome === 'QUEUED'
-      setAnnounced(saved ? `${settled.fields.remove ? 'Removed from' : 'Saved to'} ${name}` : `${name} did not save: ${settled.error ?? settled.outcome.toLowerCase()}`)
+      setAnnounced({ ...settled, name })
       // a save that did not land falls back to what the trackers hold, beside its note
-      if (!saved && queue.idle()) setOverrides({})
+      if (!saved(settled) && queue.idle()) setOverrides({})
     },
   }), [])
   const staged = useRef(new Map<string, number>())
@@ -655,7 +670,7 @@ const TrackingCompact = (
     void signingInNow
       .then(
         outcome => SIGN_IN_NOTES[outcome]?.(answer.tracker.name),
-        error => error instanceof Error ? error.message : String(error),
+        (error): Said => error instanceof Error ? error.message : String(error),
       )
       .then(note => {
         if (note) setNotes(previous => ({ ...previous, [id]: note }))
@@ -667,15 +682,28 @@ const TrackingCompact = (
       })
   }
 
+  const cannotTrack = (name: string, reason: Said) =>
+    intl.formatMessage({ id: '{name} cannot track this media: {reason}', defaultMessage: '{name} cannot track this media: {reason}' }, { name, reason: wordsOf(reason) })
+  const trackersLoading = intl.formatMessage({ id: 'Trackers loading', defaultMessage: 'Trackers loading' })
+  // what a screen reader hears once a save settles
+  const heard = ({ name, outcome, fields, error }: Settled & { name: string }) =>
+    saved({ outcome })
+      ? fields.remove
+        ? intl.formatMessage({ id: 'Removed from {name}', defaultMessage: 'Removed from {name}' }, { name })
+        : intl.formatMessage({ id: 'Saved to {name}', defaultMessage: 'Saved to {name}' }, { name })
+      : error
+        ? intl.formatMessage({ id: '{name} did not save: {error}', defaultMessage: '{name} did not save: {error}' }, { name, error: wordsOf(error) })
+        : intl.formatMessage({ id: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}', defaultMessage: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}' }, { name, outcome })
+
   const loginButton = (answer: CompactAnswer, className?: string) => (
     <button
       type="button"
       className={className}
-      aria-label={`Log in to ${answer.tracker.name}`}
+      aria-label={intl.formatMessage({ id: 'Log in to {name}', defaultMessage: 'Log in to {name}' }, { name: answer.tracker.name })}
       disabled={!signIns[answer.tracker.id] || signingIn.has(answer.tracker.id)}
       onClick={() => signIn(answer)}
     >
-      {signingIn.has(answer.tracker.id) ? 'Logging in' : 'Log in'}
+      {signingIn.has(answer.tracker.id) ? intl.formatMessage({ id: 'Logging in', defaultMessage: 'Logging in' }) : intl.formatMessage({ id: 'Log in', defaultMessage: 'Log in' })}
     </button>
   )
 
@@ -686,12 +714,12 @@ const TrackingCompact = (
       <div className="head">
         <Logo answer={answer}/>
         {name}
-        {answer.tracker.account ? <span className="account">{answer.tracker.account}</span> : undefined}
+        {answer.tracker.account ? <span className="account">{wordsOf(answer.tracker.account)}</span> : undefined}
       </div>
     )
     if (target.kind === 'loading') return head
-    if (target.kind === 'login') return <>{head}<span className="why">Signed out</span>{loginButton(answer)}</>
-    if (target.kind === 'cannot') return <>{head}<span className="why">{name} cannot track this media: {target.reason}</span></>
+    if (target.kind === 'login') return <>{head}<span className="why">{intl.formatMessage({ id: 'Signed out', defaultMessage: 'Signed out' })}</span>{loginButton(answer)}</>
+    if (target.kind === 'cannot') return <>{head}<span className="why">{cannotTrack(name, target.reason)}</span></>
     const canWrite = writable(answer)
     const entry = rowOfEntry(answer, row.total)
     const scale = pickerScale([answer.tracker.scoreScale])!
@@ -711,26 +739,30 @@ const TrackingCompact = (
           removable={canWrite && canRemove(answer)}
           onChange={(fields, immediate) => changeOne(answer, fields, immediate)}
         />
-        {canWrite ? undefined : <span className="why">{whyNot(answer)}</span>}
+        {canWrite ? undefined : <span className="why">{wordsOf(whyNot(answer))}</span>}
       </>
     )
   }
 
-  const valuesOf = (read: (answer: CompactAnswer) => string | undefined) =>
-    answers.filter(answer => answer.state === 'LISTED').map(answer => `${answer.tracker.name} ${read(answer) ?? 'none'}`).join(', ')
+  const valuesOf = (read: (answer: CompactAnswer) => string | undefined) => intl.formatList(answers.filter(answer => answer.state === 'LISTED').map(answer => {
+    const value = read(answer)
+    return value === undefined
+      ? intl.formatMessage({ id: '{name} none', defaultMessage: '{name} none' }, { name: answer.tracker.name })
+      : intl.formatMessage({ id: '{name} {value}', defaultMessage: '{name} {value}' }, { name: answer.tracker.name, value })
+  }), NAME_LIST)
   const differs = (field: string, read: (answer: CompactAnswer) => string | undefined) =>
     row.differs.includes(field) ? <span className="differs" data-differs={field} title={valuesOf(read)}/> : undefined
 
   return (
-    <section css={style} className="tracking-compact" aria-label="Quick tracking">
+    <section css={style} className="tracking-compact" aria-label={intl.formatMessage({ id: 'Quick tracking', defaultMessage: 'Quick tracking' })}>
       <div className="row">
         <div className={`group platforms${expanded ? ' expanded' : ''}`}>
           <button
             type="button"
             className="expand"
             aria-expanded={expanded}
-            aria-label={expanded ? 'Trackers' : undefined}
-            title={expanded ? 'Collapse trackers' : undefined}
+            aria-label={expanded ? intl.formatMessage({ id: 'Trackers', defaultMessage: 'Trackers' }) : undefined}
+            title={expanded ? intl.formatMessage({ id: 'Collapse trackers', defaultMessage: 'Collapse trackers' }) : undefined}
             onClick={() => onPrefs({ ...prefs, expanded: !expanded })}
           >
             {expanded
@@ -740,7 +772,7 @@ const TrackingCompact = (
                   <span className="tiles">
                     {
                       tracking === undefined
-                        ? <span className="tile loading" role="img" aria-label="Trackers loading" title="Trackers loading"><LoaderCircle size={12} className="spin" aria-hidden="true"/></span>
+                        ? <span className="tile loading" role="img" aria-label={trackersLoading} title={trackersLoading}><LoaderCircle size={12} className="spin" aria-hidden="true"/></span>
                         : targets.map(({ answer, target }) => <Tile key={answer.tracker.id} answer={answer} state={tileState(answer, target, stateOf(answer))}/>)
                     }
                   </span>
@@ -750,7 +782,7 @@ const TrackingCompact = (
           </button>
           {
             expanded && tracking === undefined
-              ? <span className="chip loading"><span className="slot" role="img" aria-label="Trackers loading"><LoaderCircle size={14} className="spin" aria-hidden="true"/></span></span>
+              ? <span className="chip loading"><span className="slot" role="img" aria-label={trackersLoading}><LoaderCircle size={14} className="spin" aria-hidden="true"/></span></span>
               : undefined
           }
           {expanded && targets.map(({ answer, target }) => {
@@ -765,7 +797,7 @@ const TrackingCompact = (
             if (target.kind === 'loading') {
               return (
                 <Chip key={id} {...chip} className="chip loading" busy>
-                  <span className="slot" role="img" aria-label={`${name} loading`}><LoaderCircle size={14} className="spin" aria-hidden="true"/></span>
+                  <span className="slot" role="img" aria-label={intl.formatMessage({ id: '{name} loading', defaultMessage: '{name} loading' }, { name })}><LoaderCircle size={14} className="spin" aria-hidden="true"/></span>
                 </Chip>
               )
             }
@@ -775,7 +807,7 @@ const TrackingCompact = (
             if (target.kind === 'cannot') {
               return (
                 <Chip key={id} {...chip} className="chip cannot">
-                  <span className="slot" role="img" aria-label={`${name} cannot track this media: ${target.reason}`}><Minus size={14} aria-hidden="true"/></span>
+                  <span className="slot" role="img" aria-label={cannotTrack(name, target.reason)}><Minus size={14} aria-hidden="true"/></span>
                 </Chip>
               )
             }
@@ -788,7 +820,7 @@ const TrackingCompact = (
                     type="checkbox"
                     className="sr-only"
                     name={`compact-target-${id}`}
-                    aria-label={`Save to ${name}`}
+                    aria-label={intl.formatMessage({ id: 'Save to {name}', defaultMessage: 'Save to {name}' }, { name })}
                     aria-describedby={problem ? `compact-hint-${id}` : undefined}
                     checked={target.checked}
                     onChange={event => setChecked(id, event.currentTarget.checked)}
@@ -816,8 +848,8 @@ const TrackingCompact = (
           removable={sendable.some(canRemove)}
           onChange={change}
           dots={{
-            SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(answer.entry.score, answer.tracker.scoreScale) : undefined),
-            STATUS: differs('STATUS', answer => answer.entry?.status ? STATUS_LABELS[answer.entry.status] : undefined),
+            SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(intl, answer.entry.score, answer.tracker.scoreScale) : undefined),
+            STATUS: differs('STATUS', answer => answer.entry?.status ? statusLabel(intl, answer.entry.status) : undefined),
             PROGRESS: differs('PROGRESS', answer => answer.entry?.progress != null ? String(answer.entry.progress) : undefined),
           }}
         />
@@ -828,21 +860,21 @@ const TrackingCompact = (
           const name = answer.tracker.name
           return [
             notes[id] && answer.state === 'SIGNED_OUT'
-              ? <div key={`${id}-sign-in`} className="note" data-note={id}>{notes[id]}{expanded ? undefined : loginButton(answer)}</div>
+              ? <div key={`${id}-sign-in`} className="note" data-note={id}>{wordsOf(notes[id])}{expanded ? undefined : loginButton(answer)}</div>
               : undefined,
             <SaveProblems key={`${id}-problems`} answer={answer} state={stateOf(answer)} queue={queue}/>,
             target.kind === 'check' && target.sendable && countDiffers(answer, row.total)
               ? (
                 <div key={`${id}-count`} className="note" data-note={id}>
-                  {name}: set progress on its card
-                  {expanded ? undefined : <button type="button" aria-haspopup="dialog" onClick={() => reveal(id)}>Open</button>}
+                  {intl.formatMessage({ id: '{name}: set progress on its card', defaultMessage: '{name}: set progress on its card' }, { name })}
+                  {expanded ? undefined : <button type="button" aria-haspopup="dialog" onClick={() => reveal(id)}>{intl.formatMessage({ id: 'Open', defaultMessage: 'Open' })}</button>}
                 </div>
               )
               : undefined,
           ].filter(Boolean)
         })}
       </div>
-      <div className="sr-only" role="status">{announced}</div>
+      <div className="sr-only" role="status">{announced ? heard(announced) : ''}</div>
     </section>
   )
 }

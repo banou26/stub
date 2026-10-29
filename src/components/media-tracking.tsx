@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
+import { forPage } from '../i18n/said'
 import { TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
@@ -54,7 +55,8 @@ const ADD_HELD_STUB_ENTRIES = gql(`
   }
 `)
 
-const failed = (message?: string): TrackerOutcome[] => [{ tracker: '', outcome: 'FAILED', error: message ?? 'The write did not reach the trackers' }]
+const failed = (message?: string): TrackerOutcome[] =>
+  [{ tracker: '', outcome: 'FAILED', error: message ?? forPage.formatMessage({ id: 'The write did not reach the trackers', defaultMessage: 'The write did not reach the trackers' }) }]
 
 type Tracking = NonNullable<MediaTrackingSubscription['tracking']>
 

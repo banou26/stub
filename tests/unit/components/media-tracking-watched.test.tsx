@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -93,7 +93,7 @@ afterEach(() => {
 
 // the watch page's row, whose player comes up once the row is drawn
 const page = ({ link = fakeLink(1000) as Linked, episode = 5, prefs = memory(), movie = false } = {}) => {
-  const tree = (props: { link?: Linked, episode: number }) => (
+  const tree = (props: { link?: Linked, episode: number }) => withIntl(
     <MediaTracking
       work="ag:(anilist:1)"
       address="ag:(anilist:1)"
@@ -104,7 +104,7 @@ const page = ({ link = fakeLink(1000) as Linked, episode = 5, prefs = memory(), 
       movie={movie}
       prefsStore={prefs}
       {...props}
-    />
+    />,
   )
   const host = mount(tree({ episode }))
   hosts.push(host)

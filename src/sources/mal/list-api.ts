@@ -1,10 +1,13 @@
 // The viewer's MyAnimeList list as the MyAnimeList tracker reads and writes it: what each answer the
 // page script hands back means, how a list row maps onto stub's list entries, and which writes a save
-// takes. Import free apart from types and ./page-text.ts, so every mapping is pinned under vitest.
+// takes. Import free apart from types, ./page-text.ts and the messages it writes, so every mapping is pinned under
+// vitest.
 
 import type { ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
+import type { Said, SaidMessage } from '../../i18n/said'
 import type { MalListStatus, MalPageAnswer, MalWhoAmI, MalWrite } from './session-page'
 
+import { forPage } from '../../i18n/said'
 import { isScored, nativeScore } from '../../tracking/score-scale'
 import { episodesOf, isBlockPage } from './page-text'
 
@@ -74,7 +77,7 @@ export type MalRead<T> =
   | { kind: 'data', data: T }
   | { kind: 'signed-out' }
   | { kind: 'blocked', retryAfter: number | null }
-  | { kind: 'error', message: string }
+  | { kind: 'error', message: Said }
 
 const NOT_JSON = Symbol('not json')
 
@@ -92,10 +95,16 @@ const errorMessageOf = (body: unknown) => {
 
 const endedSignedOut = (url: string) => url.includes('/login.php')
 
+const answered = (status: number) =>
+  forPage.formatMessage({ id: 'MyAnimeList answered {status}', defaultMessage: 'MyAnimeList answered {status}' }, { status })
+// `said` is MyAnimeList's own words
+const refusedWith = (status: number, said: string) =>
+  forPage.formatMessage({ id: 'MyAnimeList answered {status}: {said}', defaultMessage: 'MyAnimeList answered {status}: {said}' }, { status, said })
+
 /** Who a fresh about.php says the session is. */
 export const readWhoAmI = (answer: MalWhoAmI): MalRead<string> =>
   answer.blocked ? { kind: 'blocked', retryAfter: answer.retryAfter }
-  : !answer.page ? { kind: 'error', message: `MyAnimeList answered ${answer.status} with a page stub could not read` }
+  : !answer.page ? { kind: 'error', message: forPage.formatMessage({ id: 'MyAnimeList answered {status} with a page stub could not read', defaultMessage: 'MyAnimeList answered {status} with a page stub could not read' }, { status: answer.status }) }
   : !answer.user ? { kind: 'signed-out' }
   : { kind: 'data', data: answer.user }
 
@@ -112,11 +121,11 @@ export const readListPage = (answer: MalPageAnswer): MalRead<MalListRow[]> => {
   if (body !== NOT_JSON) {
     if (isOk(answer.status) && Array.isArray(body)) return { kind: 'data', data: body.flatMap(raw => rowOf(raw) ?? []) }
     const said = errorMessageOf(body)
-    if (answer.status >= 400 && answer.status < 500 && said) return { kind: 'error', message: `MyAnimeList answered ${answer.status}: ${said}` }
-    return { kind: 'error', message: `MyAnimeList answered ${answer.status} with a list it could not read` }
+    if (answer.status >= 400 && answer.status < 500 && said) return { kind: 'error', message: refusedWith(answer.status, said) }
+    return { kind: 'error', message: forPage.formatMessage({ id: 'MyAnimeList answered {status} with a list it could not read', defaultMessage: 'MyAnimeList answered {status} with a list it could not read' }, { status: answer.status }) }
   }
   if (answer.status === 403 || isOk(answer.status) || isBlockPage(answer.text)) return { kind: 'blocked', retryAfter: answer.retryAfter }
-  return { kind: 'error', message: `MyAnimeList answered ${answer.status}` }
+  return { kind: 'error', message: answered(answer.status) }
 }
 
 /**
@@ -128,7 +137,7 @@ export const readCard = (answer: MalPageAnswer): MalRead<number | null> => {
   const episodes = isOk(answer.status) ? episodesOf(answer.text) : undefined
   if (episodes !== undefined) return { kind: 'data', data: episodes }
   if (answer.status === 403 || isBlockPage(answer.text)) return { kind: 'blocked', retryAfter: answer.retryAfter }
-  return { kind: 'error', message: `MyAnimeList answered ${answer.status} with no card stub could read` }
+  return { kind: 'error', message: forPage.formatMessage({ id: 'MyAnimeList answered {status} with no card stub could read', defaultMessage: 'MyAnimeList answered {status} with no card stub could read' }, { status: answer.status }) }
 }
 
 /**
@@ -143,8 +152,8 @@ export const readWriteAnswer = (answer: MalPageAnswer): MalRead<null> => {
   if (answer.status === 403 && body === NOT_JSON) return { kind: 'blocked', retryAfter: answer.retryAfter }
   if (isOk(answer.status)) return { kind: 'data', data: null }
   const said = body === NOT_JSON ? undefined : errorMessageOf(body)
-  if (answer.status >= 400 && answer.status < 500 && said) return { kind: 'error', message: `MyAnimeList answered ${answer.status}: ${said}` }
-  return { kind: 'error', message: `MyAnimeList answered ${answer.status}` }
+  if (answer.status >= 400 && answer.status < 500 && said) return { kind: 'error', message: refusedWith(answer.status, said) }
+  return { kind: 'error', message: answered(answer.status) }
 }
 
 const FROM_MAL: Record<number, ListStatus> = { 1: 'WATCHING', 2: 'COMPLETED', 3: 'PAUSED', 4: 'DROPPED', 6: 'PLANNING' }
@@ -165,15 +174,6 @@ export const TO_MAL: Record<ListStatus, Exclude<MalListStatus, 7>> = {
   PAUSED: 3,
   DROPPED: 4,
   PLANNING: 6,
-}
-
-const STATUS_WORDS: Record<ListStatus, string> = {
-  WATCHING: 'Watching',
-  REWATCHING: 'Rewatching',
-  COMPLETED: 'Completed',
-  PAUSED: 'Paused',
-  DROPPED: 'Dropped',
-  PLANNING: 'Plan to watch',
 }
 
 /**
@@ -208,9 +208,17 @@ export type MalExpect = { status: ListStatus, progress?: number, score?: number 
 /** Steps sent together, then checked against the list before anything after them goes out. */
 export type MalPhase = { steps: MalWrite[], expect: MalExpect }
 
-export type MalPlan = { phases: MalPhase[] } | { noop: true } | { error: string }
+export type MalPlan = { phases: MalPhase[] } | { noop: true } | { error: Said }
 
-const REWATCH_FROM_COMPLETED = 'MyAnimeList starts a rewatch on a completed entry: save it as Completed first'
+const REWATCH_FROM_COMPLETED = forPage.formatMessage({ id: 'MyAnimeList starts a rewatch on a completed entry: save it as Completed first', defaultMessage: 'MyAnimeList starts a rewatch on a completed entry: save it as Completed first' })
+const ON_THE_SITE = {
+  unknown: forPage.formatMessage({ id: 'MyAnimeList lists it under a status stub does not know: change it on myanimelist.net', defaultMessage: 'MyAnimeList lists it under a status stub does not know: change it on myanimelist.net' }),
+  flagged: forPage.formatMessage({ id: 'MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net', defaultMessage: 'MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net' }),
+  rewatching: forPage.formatMessage({ id: 'MyAnimeList ends a rewatch as Completed: save it as Completed, or change it on myanimelist.net', defaultMessage: 'MyAnimeList ends a rewatch as Completed: save it as Completed, or change it on myanimelist.net' }),
+}
+
+const NOT_A_PROGRESS = forPage.formatMessage({ id: 'Progress has to be a whole number of episodes', defaultMessage: 'Progress has to be a whole number of episodes' })
+const NOT_A_SCORE = forPage.formatMessage({ id: 'A score is a whole number from 0 to 100', defaultMessage: 'A score is a whole number from 0 to 100' })
 
 const isNamed = (input: ListEntryInput, field: keyof ListEntryInput) => field in input && input[field] !== undefined
 
@@ -226,15 +234,17 @@ const isNamed = (input: ListEntryInput, field: keyof ListEntryInput) => field in
  * finished rewatch. Dates and the rewatch count are refused, null included, so nothing is half written.
  */
 export const planWrite = (animeId: number, row: MalListRow | undefined, input: ListEntryInput): MalPlan => {
-  if (input.progress != null && !(Number.isInteger(input.progress) && input.progress >= 0)) return { error: 'Progress has to be a whole number of episodes' }
-  if (input.score != null && !(Number.isInteger(input.score) && input.score >= 0 && input.score <= 100)) return { error: 'A score is a whole number from 0 to 100' }
+  if (input.progress != null && !(Number.isInteger(input.progress) && input.progress >= 0)) return { error: NOT_A_PROGRESS }
+  if (input.score != null && !(Number.isInteger(input.score) && input.score >= 0 && input.score <= 100)) return { error: NOT_A_SCORE }
   if (isNamed(input, 'startedAt') || isNamed(input, 'completedAt') || isNamed(input, 'rewatchCount')) {
-    return { error: 'MyAnimeList takes status, progress and score from stub' }
+    return { error: forPage.formatMessage({ id: 'MyAnimeList takes status, progress and score from stub', defaultMessage: 'MyAnimeList takes status, progress and score from stub' }) }
   }
   const progress = isNamed(input, 'progress') ? input.progress ?? 0 : undefined
   const score = isNamed(input, 'score') ? malScore(input.score) : undefined
   // MyAnimeList's list page clamps to its count before it sends; the server takes more, so stub asks it the same
-  if (progress !== undefined && row?.episodes != null && progress > row.episodes) return { error: `MyAnimeList counts ${row.episodes} episodes for this anime` }
+  if (progress !== undefined && row?.episodes != null && progress > row.episodes) {
+    return { error: forPage.formatMessage({ id: 'MyAnimeList counts {count, plural, one {{count} episode} other {{count} episodes}} for this anime', defaultMessage: 'MyAnimeList counts {count, plural, one {{count} episode} other {{count} episodes}} for this anime' }, { count: row.episodes }) }
+  }
 
   const fields = { ...score === undefined ? {} : { score }, ...progress === undefined ? {} : { num_watched_episodes: progress } }
   const expectOf = (status: ListStatus): MalExpect =>
@@ -242,7 +252,7 @@ export const planWrite = (animeId: number, row: MalListRow | undefined, input: L
 
   if (!row) {
     const status = input.status
-    if (!status) return { error: 'Pick a status to add it to MyAnimeList' }
+    if (!status) return { error: forPage.formatMessage({ id: 'Pick a status to add it to MyAnimeList', defaultMessage: 'Pick a status to add it to MyAnimeList' }) }
     if (status === 'REWATCHING') return { error: REWATCH_FROM_COMPLETED }
     return {
       phases: [{
@@ -254,13 +264,13 @@ export const planWrite = (animeId: number, row: MalListRow | undefined, input: L
 
   const current = statusOf(row)
   const wanted = input.status ?? current
-  if (!wanted) return { error: 'MyAnimeList lists it under a status stub does not know: change it on myanimelist.net' }
+  if (!wanted) return { error: ON_THE_SITE.unknown }
   // MyAnimeList's own edit form hides the checkbox without clearing it, so the flag can sit under any status
   if (row.rewatching && row.status !== 2 && (wanted === 'COMPLETED' || wanted === 'REWATCHING')) {
-    return { error: 'MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net' }
+    return { error: ON_THE_SITE.flagged }
   }
   if (current === 'REWATCHING' && wanted !== 'REWATCHING' && wanted !== 'COMPLETED') {
-    return { error: 'MyAnimeList ends a rewatch as Completed: save it as Completed, or change it on myanimelist.net' }
+    return { error: ON_THE_SITE.rewatching }
   }
   if (wanted === 'REWATCHING' && current !== 'REWATCHING' && current !== 'COMPLETED') return { error: REWATCH_FROM_COMPLETED }
 
@@ -287,19 +297,30 @@ export const showsNoChange = (after: MalListRow | undefined, before: MalListRow 
   !after || (before !== undefined && sameState(after, before))
 
 /** What the list shows that a phase did not ask for, said as MyAnimeList shows it, or undefined when it matches. */
-export const mismatchOf = (expect: MalExpect, after: MalListRow | undefined, before: MalListRow | undefined): string | undefined => {
-  if (!after) return "MyAnimeList's list does not show this entry after the save"
+export const mismatchOf = (expect: MalExpect, after: MalListRow | undefined, before: MalListRow | undefined): Said | undefined => {
+  if (!after) return forPage.formatMessage({ id: "MyAnimeList's list does not show this entry after the save", defaultMessage: "MyAnimeList's list does not show this entry after the save" })
   const status = statusOf(after)
-  const shown: string[] = []
-  if (status !== expect.status) shown.push(`it as ${status ? STATUS_WORDS[status] : 'a status stub does not know'}`)
-  if (expect.progress !== undefined && after.progress !== expect.progress) shown.push(`${after.progress} episodes`)
-  if (expect.score !== undefined && after.score !== expect.score) shown.push(after.score ? `a score of ${after.score} / 10` : 'no score')
+  const shown: SaidMessage[] = []
+  if (status !== expect.status) {
+    shown.push(forPage.formatMessage({
+      id: 'it as {status, select, WATCHING {Watching} REWATCHING {Rewatching} COMPLETED {Completed} PAUSED {Paused} DROPPED {Dropped} PLANNING {Plan to watch} other {a status stub does not know}}',
+      defaultMessage: 'it as {status, select, WATCHING {Watching} REWATCHING {Rewatching} COMPLETED {Completed} PAUSED {Paused} DROPPED {Dropped} PLANNING {Plan to watch} other {a status stub does not know}}',
+    }, { status: status ?? 'unknown' }))
+  }
+  if (expect.progress !== undefined && after.progress !== expect.progress) {
+    shown.push(forPage.formatMessage({ id: '{count, plural, one {{count} episode} other {{count} episodes}}', defaultMessage: '{count, plural, one {{count} episode} other {{count} episodes}}' }, { count: after.progress }))
+  }
+  if (expect.score !== undefined && after.score !== expect.score) {
+    shown.push(after.score
+      ? forPage.formatMessage({ id: 'a score of {score} / 10', defaultMessage: 'a score of {score} / 10' }, { score: after.score })
+      : forPage.formatMessage({ id: 'no score', defaultMessage: 'no score' }))
+  }
   if (!shown.length) return undefined
   if (expect.status === 'REWATCHING' && before && statusOf(before) === 'COMPLETED' && status === 'COMPLETED') {
-    return 'MyAnimeList kept it as Completed, so the rewatch did not start'
+    return forPage.formatMessage({ id: 'MyAnimeList kept it as Completed, so the rewatch did not start', defaultMessage: 'MyAnimeList kept it as Completed, so the rewatch did not start' })
   }
-  if (before && sameState(after, before)) return "MyAnimeList's list does not show the save yet"
-  return `MyAnimeList shows ${shown.join(', ')}`
+  if (before && sameState(after, before)) return forPage.formatMessage({ id: "MyAnimeList's list does not show the save yet", defaultMessage: "MyAnimeList's list does not show the save yet" })
+  return forPage.formatMessage({ id: 'MyAnimeList shows {shown}', defaultMessage: 'MyAnimeList shows {shown}' }, { shown: { list: shown, join: 'names' } })
 }
 
 /** The rows the tracker holds, by anime id, and the newest `updated_at` among them. */

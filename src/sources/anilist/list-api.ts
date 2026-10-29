@@ -1,10 +1,13 @@
 // The viewer's AniList list as the AniList tracker reads and writes it: the documents it sends through
 // the viewer's own anilist.co session and how their answers map onto stub's list entries. Import free
-// apart from types and the score scales, so every mapping is pinned under vitest.
+// apart from types, the score scales and the messages it writes, so every mapping is pinned under vitest.
 
 import type { FuzzyDate, FuzzyDateInput, ListEntry, ListEntryInput, ListStatus, Tracker } from '../../generated/schema/types.generated'
+import type { Said } from '../../i18n/said'
 import type { AnilistBody } from './frontend'
 import type { SessionRequest } from './session-page'
+
+import { forPage } from '../../i18n/said'
 
 export const ANILIST_TRACKER_ID = 'anilist'
 export const ANILIST_ICON = 'https://anilist.co/img/icons/favicon-32x32.png'
@@ -114,6 +117,10 @@ const isCount = (value: unknown) => value == null || (Number.isInteger(value) &&
 const dateInput = (date: FuzzyDateInput | null | undefined): FuzzyDateInput =>
   ({ year: date?.year ?? null, month: date?.month ?? null, day: date?.day ?? null })
 
+const NOT_A_PROGRESS = forPage.formatMessage({ id: 'Progress has to be a whole number of episodes', defaultMessage: 'Progress has to be a whole number of episodes' })
+const NOT_A_SCORE = forPage.formatMessage({ id: 'A score is a whole number from 0 to 100', defaultMessage: 'A score is a whole number from 0 to 100' })
+const NOT_A_REWATCH_COUNT = forPage.formatMessage({ id: 'The rewatch count has to be a whole number', defaultMessage: 'The rewatch count has to be a whole number' })
+
 /**
  * SaveMediaListEntry carrying the fields `entry` names and no other, so everything else on the entry is
  * left as it is. A write is an absolute set, never an increment.
@@ -123,12 +130,10 @@ const dateInput = (date: FuzzyDateInput | null | undefined): FuzzyDateInput =>
  *   AniList, so a null one is left as it is.
  * - `private` is never sent, so an entry the viewer keeps private stays private.
  */
-export const saveRequest = (mediaId: number, entry: ListEntryInput): { request: SessionRequest } | { error: string } => {
-  if (!isCount(entry.progress)) return { error: 'Progress has to be a whole number of episodes' }
-  if (!isCount(entry.rewatchCount)) return { error: 'The rewatch count has to be a whole number' }
-  if (entry.score != null && !(Number.isInteger(entry.score) && entry.score >= 0 && entry.score <= 100)) {
-    return { error: 'A score is a whole number from 0 to 100' }
-  }
+export const saveRequest = (mediaId: number, entry: ListEntryInput): { request: SessionRequest } | { error: Said } => {
+  if (!isCount(entry.progress)) return { error: NOT_A_PROGRESS }
+  if (!isCount(entry.rewatchCount)) return { error: NOT_A_REWATCH_COUNT }
+  if (entry.score != null && !(Number.isInteger(entry.score) && entry.score >= 0 && entry.score <= 100)) return { error: NOT_A_SCORE }
   const named = (field: keyof ListEntryInput) => field in entry && entry[field] !== undefined
   const args: [name: string, type: string, value: unknown][] = [['mediaId', 'Int', mediaId]]
   if (entry.status != null) args.push(['status', 'MediaListStatus', TO_ANILIST[entry.status]])
@@ -155,13 +160,16 @@ export type Read<T> =
   | { kind: 'data', data: T }
   | { kind: 'signed-out' }
   | { kind: 'rate-limited' }
-  | { kind: 'error', message: string }
+  | { kind: 'error', message: Said }
 
+// `said` is AniList's own words
 const errorMessage = (status: number, errors: AnilistError[]) => {
   const said = errors
     .map(error => [error.message, ...Object.values(error.validation ?? {}).flat()].filter(Boolean).join(' '))
     .filter(Boolean)
-  return `AniList answered ${status}${said.length ? `: ${said.join('; ')}` : ' with nothing to read'}`
+  return said.length
+    ? forPage.formatMessage({ id: 'AniList answered {status}: {said}', defaultMessage: 'AniList answered {status}: {said}' }, { status, said: said.join('; ') })
+    : forPage.formatMessage({ id: 'AniList answered {status} with nothing to read', defaultMessage: 'AniList answered {status} with nothing to read' }, { status })
 }
 
 /** Whether AniList refused a call for its rate limit, in the status or only in the body. */

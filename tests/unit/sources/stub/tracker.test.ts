@@ -11,6 +11,7 @@ import { stubTrackerResolvers } from '../../../../src/sources/stub/tracker-resol
 import { SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT, DELETE_LIST_ENTRY_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { memoryStore } from '../../tracking/memory-store'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
+import { inEnglish } from '../../in-english'
 
 const ROWS = [
   { mal: 10, anilist: 1, kitsu: 5, anidb: 7 },
@@ -100,7 +101,7 @@ describe('the stub tracker', () => {
 
     const saved = await save(target, 'ag:(anilist:1,anilist:2)', { progress: 1 })
     expect(saved.data.saveListEntry).toMatchObject([{ tracker: 'stub', outcome: 'REFUSED' }])
-    expect(saved.data.saveListEntry[0].error).toContain('anilist:1 and anilist:2')
+    expect(saved.data.saveListEntry[0].error).toEqual(inEnglish(expect.stringContaining('anilist:1 and anilist:2')))
     expect((await open()).entries(), 'nothing was written').toEqual([])
   })
 
@@ -124,11 +125,11 @@ describe('the stub tracker', () => {
     let where: 'device' | 'account' = 'device'
     const { target } = stubServer(memoryStore(), async () => where)
     const tracking = watch(target, 'ag:(anilist:1)')
-    expect(answerOf(await tracking.next()).tracker.account).toBe('This device')
+    expect(answerOf(await tracking.next()).tracker.account).toEqual(inEnglish('This device'))
 
     where = 'account'
     await save(target, 'ag:(anilist:1)', { progress: 1 })
-    expect(answerOf(await tracking.until(result => answerOf(result).state === 'LISTED')).tracker.account).toBe('FKN account')
+    expect(answerOf(await tracking.until(result => answerOf(result).state === 'LISTED')).tracker.account).toEqual(inEnglish('FKN account'))
   })
 
   test('answers NO_ID for a media it cannot key', async () => {

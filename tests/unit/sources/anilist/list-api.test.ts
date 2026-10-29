@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { listEntryOf, readResponse, saveRequest } from '../../../../src/sources/anilist/list-api'
 import { FRIEREN, FRIEREN_ENTRY, SIGNED_OUT_BODY } from './list-fixtures'
+import { inEnglish } from '../../in-english'
 
 const argumentsOf = (query: string) => /SaveMediaListEntry\(([^)]*)\)/.exec(query)?.[1]?.split(', ').map(arg => arg.split(':')[0])
 
@@ -58,7 +59,7 @@ describe('a save as AniList takes it', () => {
     [{ rewatchCount: -2 }, 'rewatch'],
   ])('refuses %o before anything is sent', (entry, reason) => {
     const built = saveRequest(1, entry)
-    expect('error' in built && built.error).toContain(reason)
+    expect('error' in built && built.error).toEqual(inEnglish(expect.stringContaining(reason)))
   })
 })
 
@@ -101,8 +102,8 @@ describe('what an AniList answer said', () => {
 
   test('errors inside a 200 are errors, with what AniList said', () => {
     const validation = { errors: [{ message: 'validation', status: 400, validation: { id: ['The selected id is invalid.'] } }], data: { DeleteMediaListEntry: null } }
-    expect(readResponse(400, validation)).toEqual({ kind: 'error', message: 'AniList answered 400: validation The selected id is invalid.' })
-    expect(readResponse(200, { data: null })).toEqual({ kind: 'error', message: 'AniList answered 200 with nothing to read' })
+    expect(readResponse(400, validation)).toEqual({ kind: 'error', message: inEnglish('AniList answered 400: validation The selected id is invalid.') })
+    expect(readResponse(200, { data: null })).toEqual({ kind: 'error', message: inEnglish('AniList answered 200 with nothing to read') })
   })
 
   test('data is data', () => {

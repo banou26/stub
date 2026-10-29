@@ -11,6 +11,7 @@ import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { answerOf, fakeMal, type FakeMalOptions, type RawRow } from './fake-mal'
 import { AIR_GEAR, COWBOY_BEBOP, COWBOY_BEBOP_REWATCHING, ERRORS_400, ROWS } from './list-fixtures'
+import { inEnglish } from '../../in-english'
 
 const CATALOGUE = [
   { mal: 1, anilist: 1, kitsu: 1, anidb: 23 },
@@ -122,7 +123,7 @@ describe('what the MyAnimeList tracker answers', () => {
     const { target, log } = setup()
     const uri = 'ag:(mal:1,mal:48)'
     expect(await first(target, uri)).toMatchObject({ state: 'AMBIGUOUS', candidates: ['mal:1', 'mal:48'] })
-    expect(await save(target, uri, { progress: 1 })).toMatchObject({ outcome: 'REFUSED', error: expect.stringContaining('mal:1 and mal:48') })
+    expect(await save(target, uri, { progress: 1 })).toMatchObject({ outcome: 'REFUSED', error: inEnglish(expect.stringContaining('mal:1 and mal:48')) })
     expect(log).toEqual([])
   })
 
@@ -316,13 +317,13 @@ describe('what the MyAnimeList tracker writes', () => {
 
   test('a save while signed out is refused, saying so, and nothing is written', async () => {
     const { target, log } = setup({ user: null })
-    expect(await save(target, HACK, { progress: 1 })).toMatchObject({ outcome: 'REFUSED', error: 'Sign in to MyAnimeList to save to it' })
+    expect(await save(target, HACK, { progress: 1 })).toMatchObject({ outcome: 'REFUSED', error: inEnglish('Sign in to MyAnimeList to save to it') })
     expect(log).toEqual(['whoami'])
   })
 
   test('a date is refused, and nothing is written', async () => {
     const { target, writes } = setup()
-    expect(await save(target, HACK, { progress: 3, startedAt: { year: 2026 } })).toMatchObject({ outcome: 'REFUSED', error: 'MyAnimeList takes status, progress and score from stub' })
+    expect(await save(target, HACK, { progress: 3, startedAt: { year: 2026 } })).toMatchObject({ outcome: 'REFUSED', error: inEnglish('MyAnimeList takes status, progress and score from stub') })
     expect(writes()).toEqual([])
   })
 
@@ -339,7 +340,7 @@ describe('what the MyAnimeList tracker writes', () => {
     const tracking = watch(target, HACK)
     await tracking.next()
 
-    expect(await save(target, HACK, { progress: 25, score: 90 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList shows a score of 7 / 10' })
+    expect(await save(target, HACK, { progress: 25, score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList shows a score of 7 / 10') })
     expect(answerOfResult(await tracking.next())).toMatchObject({ entry: { progress: 25, score: 70 } })
   })
 
@@ -347,7 +348,7 @@ describe('what the MyAnimeList tracker writes', () => {
     const { target, log, waits, script } = setup()
     // MyAnimeList answers the edit and changes nothing
     script.write = ({ steps }) => ({ kind: 'sent', answers: steps.map(() => answerOf('{}')) })
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: "MyAnimeList's list does not show the save yet" })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish("MyAnimeList's list does not show the save yet") })
     expect(waits).toEqual([CONFIRM_RETRY_MS])
     expect(log.slice(3)).toEqual(['write edit', 'list 7/5@0', 'list 7/5@0'])
   })
@@ -369,7 +370,7 @@ describe('what the MyAnimeList tracker writes', () => {
 
     const lost = setup()
     lost.interrupt('before')
-    expect(await save(lost.target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: "MyAnimeList's list does not show the save yet" })
+    expect(await save(lost.target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish("MyAnimeList's list does not show the save yet") })
     expect(lost.writes()).toHaveLength(1)
   })
 
@@ -385,7 +386,7 @@ describe('what the MyAnimeList tracker writes', () => {
 
   test('a rewatch MyAnimeList did not start fails by name, and the rest of the save is not sent', async () => {
     const { target, writes, row } = setup({ ignoresRewatchFlag: true })
-    expect(await save(target, BEBOP, { status: 'REWATCHING', progress: 1 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList kept it as Completed, so the rewatch did not start' })
+    expect(await save(target, BEBOP, { status: 'REWATCHING', progress: 1 })).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList kept it as Completed, so the rewatch did not start') })
     expect(writes()).toHaveLength(1)
     expect(row(1)).toMatchObject({ status: 2, num_watched_episodes: 26, score: 10 })
   })
@@ -404,7 +405,7 @@ describe('what the MyAnimeList tracker writes', () => {
     await tracking.next()
 
     state.user = 'someone'
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'REFUSED', error: 'MyAnimeList is signed in to another account now' })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'REFUSED', error: inEnglish('MyAnimeList is signed in to another account now') })
     expect(answerOfResult(await tracking.next())).toMatchObject({ tracker: { account: 'someone' } })
     expect(log.filter(line => line.startsWith('write'))).toEqual(['write edit'])
   })
@@ -412,7 +413,7 @@ describe('what the MyAnimeList tracker writes', () => {
   test("MyAnimeList's refusal of a save is said in its words, and nothing is read back", async () => {
     const { target, script, log } = setup()
     script.write = () => ({ kind: 'sent', answers: [answerOf(ERRORS_400, { status: 400 })] })
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList answered 400: invalid request' })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList answered 400: invalid request') })
     expect(log.slice(3)).toEqual(['write edit'])
   })
 
@@ -471,7 +472,7 @@ describe('what the MyAnimeList tracker writes', () => {
 
   test('a delete MyAnimeList answered and did not do fails, saying so', async () => {
     const { target } = setup({ ignoresDelete: true })
-    expect(await remove(target, HACK)).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList still lists it' })
+    expect(await remove(target, HACK)).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList still lists it') })
   })
 })
 
@@ -483,7 +484,7 @@ describe('when MyAnimeList refuses stub', () => {
     const tracking = watch(target, HACK)
 
     const until = new Date(1_790_000_090_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'PAUSED', error: `MyAnimeList asked stub to wait until ${until}` })
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'PAUSED', error: inEnglish(`MyAnimeList asked stub to wait until ${until}`) })
     expect(answerOfResult(await tracking.next()).state).toBe('LISTED')
     expect(waits).toEqual([90_000])
     expect(log).toEqual(['whoami', 'list 7/1@0', 'whoami', 'list 7/1@0', 'list 7/1@7'])
@@ -502,9 +503,9 @@ describe('when MyAnimeList refuses stub', () => {
   test('a refused save fails, saying why, and is not sent again', async () => {
     const { target, script, writes } = setup()
     script.write = () => ({ kind: 'sent', answers: [answerOf('', { status: 429, retryAfter: 60 })] })
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: expect.stringContaining('asked stub to wait') })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish(expect.stringContaining('asked stub to wait')) })
     expect(writes()).toHaveLength(1)
-    expect(await save(target, HACK, { score: 90 }), 'nor while the pause holds').toMatchObject({ outcome: 'FAILED', error: expect.stringContaining('asked stub to wait') })
+    expect(await save(target, HACK, { score: 90 }), 'nor while the pause holds').toMatchObject({ outcome: 'FAILED', error: inEnglish(expect.stringContaining('asked stub to wait')) })
     expect(writes()).toHaveLength(1)
   })
 
@@ -539,7 +540,7 @@ describe('when MyAnimeList refuses stub', () => {
     const unreached = setup()
     unreached.script.whoami = () => { throw new TypeError('Load failed') }
     unreached.holdNextWait()
-    expect(answerOfResult(await watch(unreached.target, HACK).next())).toMatchObject({ state: 'ERROR', error: 'Could not reach MyAnimeList, retrying' })
+    expect(answerOfResult(await watch(unreached.target, HACK).next())).toMatchObject({ state: 'ERROR', error: inEnglish('Could not reach MyAnimeList, retrying') })
     const broken = setup()
     broken.script.whoami = () => { throw new Error('myanimelist.net did not answer within 30 s') }
     broken.holdNextWait()
@@ -553,7 +554,7 @@ describe('when MyAnimeList refuses stub', () => {
     const release = holdNextWait()
     const tracking = watch(target, HACK)
 
-    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'ERROR', error: 'MyAnimeList answered 502 with a page stub could not read' })
+    expect(answerOfResult(await tracking.next())).toMatchObject({ state: 'ERROR', error: inEnglish('MyAnimeList answered 502 with a page stub could not read') })
     await expect(tracking.next(100)).rejects.toThrow('no payload')
     expect(waits).toEqual([RETRY_MS])
     expect(log).toEqual(['whoami'])
@@ -573,7 +574,7 @@ describe('when MyAnimeList refuses stub', () => {
     const saved = await save(target, BEBOP, { status: 'COMPLETED', progress: 26 })
     expect(waits, 'the pause is not waited out').toEqual([])
     expect(log.slice(3)).toEqual(['write finish-rewatch+edit'])
-    expect(saved).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save: check again in a few minutes' })
+    expect(saved).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList did not confirm the save: check again in a few minutes') })
   })
 
   test('a lost write whose check was refused fails, as nothing says it arrived', async () => {
@@ -581,6 +582,6 @@ describe('when MyAnimeList refuses stub', () => {
     await first(target, HACK)
     interrupt('after')
     script.list = ({ order }) => order === 5 ? answerOf('', { status: 429 }) : undefined
-    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: 'MyAnimeList did not confirm the save: check again in a few minutes' })
+    expect(await save(target, HACK, { score: 90 })).toMatchObject({ outcome: 'FAILED', error: inEnglish('MyAnimeList did not confirm the save: check again in a few minutes') })
   })
 })

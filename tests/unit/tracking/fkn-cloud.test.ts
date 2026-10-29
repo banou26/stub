@@ -1,9 +1,10 @@
 // The stub tracker's adapter over @fkn/lib's storage calls. What it must never do is read a failure as
 // a sign out (that clears the list), retry a call FKN refused as another account's, or call @fkn/lib a
 // step later than it was called (the link's account check and the call would come apart).
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { fknTrackerCloud, PIN_UNSUPPORTED_TEXT, type FknStorage } from '../../../src/tracking/fkn-cloud'
+import { inEnglish } from '../in-english'
 
 const never = () => new Promise<never>(() => {})
 
@@ -76,7 +77,7 @@ describe('the tracker\'s FKN storage', () => {
     expect(await fknTrackerCloud(lib({ encryption: never }), quick).unlocked()).toBe(false)
     expect(await fknTrackerCloud(lib({ encryption: async () => ({ unlocked: true }) }), quick).unlocked()).toBe(true)
     expect(await fknTrackerCloud(lib({ list: async () => { throw new Error('storage: not connected') } }), quick).list()).toEqual({ error: 'storage: not connected' })
-    expect(await fknTrackerCloud(lib({ writeFile: never }), quick).write('x', '{}')).toEqual({ error: 'FKN storage did not answer' })
+    expect(await fknTrackerCloud(lib({ writeFile: never }), quick).write('x', '{}')).toEqual({ error: inEnglish('FKN storage did not answer') })
   })
 
   test('lists the tracker\'s own files only, with when each was last written', async () => {

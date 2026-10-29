@@ -13,6 +13,7 @@ import { RETRY_MS } from '../../../../src/tracking/collect'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { FRIEREN, FRIEREN_ENTRY, LISTED_BODY, NOT_LISTED_BODY, SIGNED_OUT_BODY, VIEWER } from './list-fixtures'
+import { inEnglish } from '../../in-english'
 
 const ROWS = [
   { mal: 52991, anilist: 154587, kitsu: 46474, anidb: 17617 },
@@ -129,7 +130,7 @@ describe('what the AniList tracker answers', () => {
     expect(answerOf(await watch(target, uri).next())).toMatchObject({ state: 'AMBIGUOUS', candidates: ['anilist:154587', 'anilist:182255'] })
     const saved = await save(target, uri, { progress: 1 })
     expect(saved.data.saveListEntry).toMatchObject([{ tracker: 'anilist', outcome: 'REFUSED' }])
-    expect(saved.data.saveListEntry[0].error).toContain('anilist:154587 and anilist:182255')
+    expect(saved.data.saveListEntry[0].error).toEqual(inEnglish(expect.stringContaining('anilist:154587 and anilist:182255')))
     expect(asked).toEqual([])
   })
 
@@ -174,7 +175,7 @@ describe('what the AniList tracker answers', () => {
 
   test('a read whose fetch got no answer says AniList could not be reached, and any other throw keeps its words', async () => {
     const unreached = setup({ StubTracking: () => { throw new TypeError('Failed to fetch') } }, { holdWaits: true })
-    expect(answerOf(await watch(unreached.target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'ERROR', error: 'Could not reach AniList, retrying' })
+    expect(answerOf(await watch(unreached.target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'ERROR', error: inEnglish('Could not reach AniList, retrying') })
     const broken = setup({ StubTracking: () => { throw new Error('anilist.co did not answer within 30 s') } }, { holdWaits: true })
     expect(answerOf(await watch(broken.target, 'ag:(anilist:154587)').next())).toMatchObject({ state: 'ERROR', error: 'anilist.co did not answer within 30 s' })
   })
@@ -229,7 +230,7 @@ describe('what the AniList tracker writes', () => {
   test('a save while signed out is refused, saying so', async () => {
     const { target } = setup({ StubSaveListEntry: () => response(SIGNED_OUT_BODY, 401) })
     expect((await save(target, 'ag:(anilist:154587)', { progress: 1 })).data.saveListEntry)
-      .toMatchObject([{ outcome: 'REFUSED', error: 'Sign in to AniList to save to it' }])
+      .toMatchObject([{ outcome: 'REFUSED', error: inEnglish('Sign in to AniList to save to it') }])
   })
 
   test("a delete looks the entry's own id up and deletes that", async () => {
@@ -263,7 +264,7 @@ describe("AniList's rate limit", () => {
 
     const paused = answerOf(await tracking.next())
     expect(paused.state).toBe('PAUSED')
-    expect(paused.error).toBe(`AniList asked stub to wait until ${new Date(now() + 40_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`)
+    expect(paused.error).toEqual(inEnglish(`AniList asked stub to wait until ${new Date(now() + 40_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`))
     expect(answerOf(await tracking.next()).state).toBe('LISTED')
     expect(waits).toEqual([40_000])
     expect(calls).toBe(2)
@@ -280,7 +281,7 @@ describe("AniList's rate limit", () => {
     const { target, waits, release } = setup({ StubTracking: rateLimitedUpTo(20, counted) }, { holdWaits: true })
     const tracking = watch(target, 'ag:(anilist:154587)')
 
-    expect(answerOf(await tracking.next())).toMatchObject({ state: 'PAUSED', error: expect.stringContaining('asked stub to wait until') })
+    expect(answerOf(await tracking.next())).toMatchObject({ state: 'PAUSED', error: inEnglish(expect.stringContaining('asked stub to wait until')) })
     await expect(tracking.next(100), 'nothing is asked while the pause holds').rejects.toThrow('no payload')
     expect(counted.calls).toBe(1)
     expect(waits).toEqual([TIMEOUT_AFTER_429_MS])
@@ -315,7 +316,7 @@ describe("AniList's rate limit", () => {
     })
     const result = await save(target, 'ag:(anilist:154587)', { progress: 3 })
     expect(result.data.saveListEntry).toMatchObject([{ outcome: 'FAILED' }])
-    expect(result.data.saveListEntry[0].error).toContain('asked stub to wait')
+    expect(result.data.saveListEntry[0].error).toEqual(inEnglish(expect.stringContaining('asked stub to wait')))
     expect(operations()).toEqual(['StubSaveListEntry'])
   })
 

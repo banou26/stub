@@ -5,13 +5,14 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { accountLink, cloudPath, deviceFile, HELD_FILE, joinedPath, journalStoreOver, REFRESH_MS } from '../../../src/tracking/account-link'
 import { fknTrackerCloud, PIN_UNSUPPORTED_TEXT, type FknStorage } from '../../../src/tracking/fkn-cloud'
 import { identify, type MediaIdentity } from '../../../src/tracking/identity'
 import { openJournal } from '../../../src/tracking/journal'
 import { fknWorld, memoryDisk, mutex } from './fkn-fake'
+import { inEnglish } from '../in-english'
 
 const writable = (uri: string) => identify(uri) as Extract<MediaIdentity, { kind: 'catalogue' | 'keys' }>
 const FRIEREN = writable('ag:(anilist:1)')
@@ -488,7 +489,7 @@ describe('a list kept while signed out', () => {
     await shared.link.check()
     expect(valuesOf(shared.journal.find(FRIEREN))).toEqual({ progress: 2 })
     expect(shared.link.status()).toMatchObject({ where: 'device', held: 0 })
-    expect(await shared.link.addHeld(), 'signed out there is no account to add it to').toContain('Sign in')
+    expect(await shared.link.addHeld(), 'signed out there is no account to add it to').toEqual(inEnglish(expect.stringContaining('Sign in')))
   })
 })
 

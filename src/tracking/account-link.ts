@@ -8,8 +8,10 @@
 // finding 17). So this device's file lives on @fkn/lib/opfs, and the only thing that ever uploads it
 // is this module, which first checks that the account signed in now is the one the file belongs to.
 
+import type { Said } from '../i18n/said'
 import type { JournalFile, JournalStore } from './journal'
 
+import { forPage } from '../i18n/said'
 import { emptyFile, listedCount, mergeFiles, parseJournal, type Journal } from './journal'
 
 export type SessionScope = 'device' | 'account'
@@ -82,7 +84,7 @@ export const journalStoreOver = (disk: TrackerDisk): JournalStore => ({
 export type CloudAvailability = 'connected' | 'disconnected' | 'unknown'
 export type CloudEntry = { path: string, updatedAt: string }
 /** `changed`: the account is not the one the check began with, so the call was not made. */
-export type CloudResult<T> = { ok: T } | { locked: true } | { missing: true } | { changed: true } | { error: string }
+export type CloudResult<T> = { ok: T } | { locked: true } | { missing: true } | { changed: true } | { error: Said }
 
 /**
  * FKN storage as the tracker reaches it, in the realm the tracker runs in. Every answer is a value
@@ -118,7 +120,7 @@ export type LinkStatus = {
   waiting: boolean
   /** Entries of this device's own list, set aside while the account's list is in use. */
   held: number
-  error: string | null
+  error: Said | null
 }
 
 // @fkn/lib's prefix for a file that is there and will never open: a retired key's generation, an
@@ -131,10 +133,10 @@ const UPLOAD_DELAY_MS = 1_500
 
 type Refusal = Exclude<CloudResult<unknown>, { ok: unknown }>
 const CHANGED = { changed: true } as const
-const refusalText = (refusal: Refusal) =>
-  'locked' in refusal ? 'The FKN account\'s storage is locked on this device'
-  : 'missing' in refusal ? 'The file was not in the FKN account'
-  : 'changed' in refusal ? 'The FKN account changed'
+const refusalText = (refusal: Refusal): Said =>
+  'locked' in refusal ? forPage.formatMessage({ id: "The FKN account's storage is locked on this device", defaultMessage: "The FKN account's storage is locked on this device" })
+  : 'missing' in refusal ? forPage.formatMessage({ id: 'The file was not in the FKN account', defaultMessage: 'The file was not in the FKN account' })
+  : 'changed' in refusal ? forPage.formatMessage({ id: 'The FKN account changed', defaultMessage: 'The FKN account changed' })
   : refusal.error
 
 /** Makes one storage call of a check, or answers `changed` without making it. */
@@ -329,7 +331,7 @@ export const accountLink = ({
         continue
       }
       if ('missing' in got) { others.delete(entry.path); continue }
-      if ('error' in got && got.error.startsWith(SEALED_FOR_GOOD)) {
+      if ('error' in got && typeof got.error === 'string' && got.error.startsWith(SEALED_FOR_GOOD)) {
         // sealed under a key the account has since reset, or corrupt: no retry opens it, so it is
         // skipped until it changes rather than shown as a problem on every refresh
         console.warn(`tracking: skipped ${entry.path}`, got.error)
@@ -438,9 +440,9 @@ export const accountLink = ({
      * The viewer chose to add the list this device kept before signing in to the account signed in
      * now. The only way that list ever reaches an account.
      */
-    addHeld: () => lock(async (): Promise<string | undefined> => {
+    addHeld: () => lock(async (): Promise<Said | undefined> => {
       const session = await disk.session()
-      if (session.scope !== 'account') return 'Sign in to an FKN account first'
+      if (session.scope !== 'account') return forPage.formatMessage({ id: 'Sign in to an FKN account first', defaultMessage: 'Sign in to an FKN account first' })
       const held = await readHeld()
       if (held.entries.length) {
         await journal.mergeIn(held)

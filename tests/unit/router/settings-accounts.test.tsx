@@ -539,7 +539,7 @@ describe('a connected tracking site whose session stub learned is signed out', (
     statuses.record(site, 'signed-in', NOW - HOUR)
     recordTrackerAnswers(answers, statuses, connected => connected === site)
 
-    const tracking = mount(
+    const tracking = mount(withIntl(
       <TrackingCompact
         tracking={{ summary: null, disagreements: [], answers }}
         episodeCount={12}
@@ -549,7 +549,7 @@ describe('a connected tracking site whose session stub learned is signed out', (
         prefs={{ targets: {}, expanded: true }}
         onPrefs={() => {}}
       />,
-    )
+    ))
     hosts.push(tracking)
     const { row } = render({ status, sites: fakeSites([site]) })
 

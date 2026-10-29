@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from './dom'
+import { mount, unmount, withIntl } from './dom'
 
 import { buildASTSchema, executeSync, type DocumentNode } from 'graphql'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -98,7 +98,7 @@ const render = (initial: Shown = { work: 'media:1', uri: 'media:1' }, store = ex
     shownBy = setShown
     return <MediaTracking work={work} address={address} uri={uri} title="A show" episodeCount={12} prefsStore={store}/>
   }
-  const host = mount(<Harness/>)
+  const host = mount(withIntl(<Harness/>))
   hosts.push(host)
   return { host, show: async (next: Shown) => { await act(async () => { shownBy({ ...next }) }) } }
 }
@@ -392,7 +392,7 @@ test('the media key stays while the uri grows, goes unknown or is drawn again, a
     keys.push(useMediaKey(uri))
     return null
   }
-  hosts.push(mount(<Probe/>))
+  hosts.push(mount(withIntl(<Probe/>)))
   for (const uri of [undefined, 'ag:(jw:1,tmdb:1)', 'ag:(appletv:2-s1,jw:1-10)', 'ag:(appletv:2-s1,jw:1-10,tmdb:1-1)', 'nameless', 'nameless']) {
     await act(async () => { showUri({ uri }) })
   }

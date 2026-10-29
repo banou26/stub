@@ -6,6 +6,7 @@ import type { CatalogLookup, CatalogueTarget } from '../../tracking/identity'
 import type { PageApi, SiteSession, SiteSessionResult } from '../../tracking/site-session'
 import type { SessionPageApi, SessionRequest, SessionResponse } from './session-page'
 
+import { forPage, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
@@ -36,13 +37,15 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
 const trackingOf = (uri: string, answer: TrackerAnswer): { tracking: Tracking } =>
   ({ tracking: { _id: trackingId(uri), answers: [answer], summary: null, disagreements: [] } })
 
-const outcome = (state: WriteOutcome['outcome'], error: string | null, entry: WriteOutcome['entry'] = null): WriteOutcome[] =>
+const outcome = (state: WriteOutcome['outcome'], error: Said | null, entry: WriteOutcome['entry'] = null): WriteOutcome[] =>
   [{ tracker: ANILIST_TRACKER_ID, outcome: state, entry, error }]
 
 const waitMessage = (until: number | undefined) =>
   until
-    ? `AniList asked stub to wait until ${new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    : 'AniList asked stub to wait a minute'
+    ? forPage.formatMessage({ id: 'AniList asked stub to wait until {time}', defaultMessage: 'AniList asked stub to wait until {time}' }, { time: { time: until } })
+    : forPage.formatMessage({ id: 'AniList asked stub to wait a minute', defaultMessage: 'AniList asked stub to wait a minute' })
+
+const SIGN_IN = forPage.formatMessage({ id: 'Sign in to AniList to save to it', defaultMessage: 'Sign in to AniList to save to it' })
 
 /**
  * The viewer's own AniList list, through the anilist.co page the main thread keeps open with their
@@ -72,8 +75,8 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   const targetOf = async (uri: string, ctx: AnilistTrackerContext) => catalogueTargetOf(uri, 'anilist', await catalogFor(uri, ctx.catalog))
 
   const refusalOf = (target: CatalogueTarget) =>
-    target.kind === 'none' ? 'This media names no AniList id'
-    : target.kind === 'ambiguous' ? `This media names ${target.candidates.join(' and ')}, and AniList cannot tell which one is meant`
+    target.kind === 'none' ? forPage.formatMessage({ id: 'This media names no AniList id', defaultMessage: 'This media names no AniList id' })
+    : target.kind === 'ambiguous' ? forPage.formatMessage({ id: 'This media names {candidates}, and AniList cannot tell which one is meant', defaultMessage: 'This media names {candidates}, and AniList cannot tell which one is meant' }, { candidates: { list: target.candidates, join: 'and' } })
     : undefined
 
   const ask = async <T>(ctx: AnilistTrackerContext, request: SessionRequest, signal?: AbortSignal): Promise<Read<T>> => {
@@ -136,7 +139,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
     viewer = result.data.Viewer ?? undefined
     if (!viewer) return answer(uri, 'SIGNED_OUT')
     const media = result.data.Media
-    if (!media) return errorAnswer(uri, anilistTracker(viewer), `AniList has no anime ${mediaId}`)
+    if (!media) return errorAnswer(uri, anilistTracker(viewer), forPage.formatMessage({ id: 'AniList has no anime {id}', defaultMessage: 'AniList has no anime {id}' }, { id: mediaId }))
     // AniList's count even with nothing listed, so the row can tell whether progress means the same there
     const episodeCount = media.episodes ?? null
     if (!media.mediaListEntry) return answer(uri, 'NOT_LISTED', { episodeCount })
@@ -144,7 +147,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
   }
 
   const notWritten = (result: Exclude<Read<unknown>, { kind: 'data' }>): WriteOutcome[] =>
-    result.kind === 'signed-out' ? outcome('REFUSED', 'Sign in to AniList to save to it')
+    result.kind === 'signed-out' ? outcome('REFUSED', SIGN_IN)
     : result.kind === 'rate-limited' ? outcome('FAILED', waitMessage(pacer.pausedUntil()))
     : outcome('FAILED', result.message)
 
@@ -217,7 +220,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           const result = await write<SaveData>(ctx, built.request)
           if (result.kind !== 'data') return notWritten(result)
           const saved = result.data.SaveMediaListEntry
-          if (!saved) return outcome('FAILED', 'AniList answered the save with no entry')
+          if (!saved) return outcome('FAILED', forPage.formatMessage({ id: 'AniList answered the save with no entry', defaultMessage: 'AniList answered the save with no entry' }))
           changed()
           return outcome('SAVED', null, saved.media ? listEntryOf(saved.media, saved) : null)
         } catch (error) {
@@ -236,7 +239,7 @@ export const anilistTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?
           if (id == null) return outcome('SAVED', null)
           const deleted = await write<DeleteData>(ctx, { query: DELETE_MUTATION, variables: { id } })
           if (deleted.kind !== 'data') return notWritten(deleted)
-          if (!deleted.data.DeleteMediaListEntry?.deleted) return outcome('FAILED', 'AniList did not delete the entry')
+          if (!deleted.data.DeleteMediaListEntry?.deleted) return outcome('FAILED', forPage.formatMessage({ id: 'AniList did not delete the entry', defaultMessage: 'AniList did not delete the entry' }))
           changed()
           return outcome('SAVED', null)
         } catch (error) {

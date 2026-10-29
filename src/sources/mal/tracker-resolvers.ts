@@ -7,6 +7,7 @@ import type { PageApi, SiteSession } from '../../tracking/site-session'
 import type { MalListRequest, MalListStatus, MalPageApi, MalWrite } from './session-page'
 import type { SaveTurn } from './pacing'
 
+import { forPage, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, errorAnswer, failedReadAnswer, rereads } from '../../tracking/collect'
 import { catalogFor, catalogueTargetOf } from '../../tracking/identity'
@@ -51,15 +52,22 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
 const trackingOf = (uri: string, answer: TrackerAnswer): { tracking: Tracking } =>
   ({ tracking: { _id: trackingId(uri), answers: [answer], summary: null, disagreements: [] } })
 
-const outcome = (state: WriteOutcome['outcome'], error: string | null, entry: WriteOutcome['entry'] = null): WriteOutcome[] =>
+const outcome = (state: WriteOutcome['outcome'], error: Said | null, entry: WriteOutcome['entry'] = null): WriteOutcome[] =>
   [{ tracker: MAL_TRACKER_ID, outcome: state, entry, error }]
 
 const waitMessage = (until: number | undefined) =>
   until
-    ? `MyAnimeList asked stub to wait until ${new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    : 'MyAnimeList asked stub to wait a few minutes'
+    ? forPage.formatMessage({ id: 'MyAnimeList asked stub to wait until {time}', defaultMessage: 'MyAnimeList asked stub to wait until {time}' }, { time: { time: until } })
+    : forPage.formatMessage({ id: 'MyAnimeList asked stub to wait a few minutes', defaultMessage: 'MyAnimeList asked stub to wait a few minutes' })
 
-const SIGN_IN = 'Sign in to MyAnimeList to save to it'
+const SIGN_IN = forPage.formatMessage({ id: 'Sign in to MyAnimeList to save to it', defaultMessage: 'Sign in to MyAnimeList to save to it' })
+
+const unconfirmed = (kind: 'save' | 'removal', after: Exclude<MalRead<unknown>, { kind: 'data' }>) =>
+  after.kind === 'blocked'
+    ? forPage.formatMessage({ id: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}: check again in a few minutes', defaultMessage: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}: check again in a few minutes' }, { kind })
+    : after.kind === 'error'
+      ? forPage.formatMessage({ id: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}: {error}', defaultMessage: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}: {error}' }, { kind, error: after.message })
+      : forPage.formatMessage({ id: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}', defaultMessage: 'MyAnimeList did not confirm the {kind, select, removal {removal} other {save}}' }, { kind })
 
 // one waiter giving up does not give up the read other waiters share
 const raced = <T>(promise: Promise<T>, signal?: AbortSignal) =>
@@ -111,8 +119,8 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   const targetOf = async (uri: string, ctx: MalTrackerContext) => catalogueTargetOf(uri, 'mal', await catalogFor(uri, ctx.catalog))
 
   const refusalOf = (target: CatalogueTarget) =>
-    target.kind === 'none' ? 'This media names no MyAnimeList id'
-    : target.kind === 'ambiguous' ? `This media names ${target.candidates.join(' and ')}, and MyAnimeList cannot tell which one is meant`
+    target.kind === 'none' ? forPage.formatMessage({ id: 'This media names no MyAnimeList id', defaultMessage: 'This media names no MyAnimeList id' })
+    : target.kind === 'ambiguous' ? forPage.formatMessage({ id: 'This media names {candidates}, and MyAnimeList cannot tell which one is meant', defaultMessage: 'This media names {candidates}, and MyAnimeList cannot tell which one is meant' }, { candidates: { list: target.candidates, join: 'and' } })
     : undefined
 
   const changed = () => { for (const listener of written) listener() }
@@ -274,7 +282,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
         const answered = result.response
         if (answered.kind === 'not-sent') return { kind: 'not-sent', read: readWhoAmI(answered.whoami) }
         const reads = answered.answers.map(readWriteAnswer)
-        const first = reads[0] ?? { kind: 'error', message: 'MyAnimeList was sent nothing' }
+        const first = reads[0] ?? { kind: 'error', message: forPage.formatMessage({ id: 'MyAnimeList was sent nothing', defaultMessage: 'MyAnimeList was sent nothing' }) }
         if (first.kind !== 'data') return { kind: 'refused', read: first }
         const stopped = reads.find(read => read.kind !== 'data')
         return stopped ? { kind: 'sent', complete: false, stopped } : { kind: 'sent', complete: reads.length === steps.length }
@@ -289,12 +297,12 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
   const unwritten = (read: Exclude<Sent, { kind: 'sent' | 'unknown' }>['read'], user: string): WriteOutcome[] => {
     if (read.kind === 'blocked') return outcome('FAILED', waitMessage(pacer.pausedUntil()))
     if (read.kind === 'error') return outcome('FAILED', read.message)
-    if (read.kind === 'data' && read.data === user) return outcome('FAILED', 'MyAnimeList did not take the save: try again')
+    if (read.kind === 'data' && read.data === user) return outcome('FAILED', forPage.formatMessage({ id: 'MyAnimeList did not take the save: try again', defaultMessage: 'MyAnimeList did not take the save: try again' }))
     // signed out, or somebody else signed in: every answer is read again, for whoever it is now
     forget()
     changed()
     return read.kind === 'data'
-      ? outcome('REFUSED', 'MyAnimeList is signed in to another account now')
+      ? outcome('REFUSED', forPage.formatMessage({ id: 'MyAnimeList is signed in to another account now', defaultMessage: 'MyAnimeList is signed in to another account now' }))
       : outcome('REFUSED', SIGN_IN)
   }
 
@@ -360,7 +368,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
         const sent = await send(ctx, user, phase.steps)
         if (sent.kind === 'not-sent' || sent.kind === 'refused') {
           if (!sentAny) return unwritten(sent.read, user)
-          return outcome('FAILED', sent.read.kind === 'error' ? sent.read.message : 'MyAnimeList took only part of the save')
+          return outcome('FAILED', sent.read.kind === 'error' ? sent.read.message : forPage.formatMessage({ id: 'MyAnimeList took only part of the save', defaultMessage: 'MyAnimeList took only part of the save' }))
         }
         sentAny = true
         if (sent.kind !== 'sent' || !sent.complete) accepted = false
@@ -368,9 +376,7 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
         if (after.kind !== 'data') {
           stale()
           if (accepted) return outcome('SAVED', null)
-          return outcome('FAILED', after.kind === 'blocked'
-            ? 'MyAnimeList did not confirm the save: check again in a few minutes'
-            : `MyAnimeList did not confirm the save${after.kind === 'error' ? `: ${after.message}` : ''}`)
+          return outcome('FAILED', unconfirmed('save', after))
         }
         const mismatch = mismatchOf(phase.expect, after.data, before)
         if (mismatch) return outcome('FAILED', mismatch)
@@ -411,12 +417,10 @@ export const malTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: ()
       }
       if (whole.kind !== 'data') {
         stale()
-        return outcome('FAILED', whole.kind === 'blocked'
-          ? 'MyAnimeList did not confirm the removal: check again in a few minutes'
-          : `MyAnimeList did not confirm the removal${whole.kind === 'error' ? `: ${whole.message}` : ''}`)
+        return outcome('FAILED', unconfirmed('removal', whole))
       }
       patch(mine, user, held => replaceLists(held, statuses, whole.data))
-      if (whole.data.some(row => row.animeId === animeId)) return outcome('FAILED', 'MyAnimeList still lists it')
+      if (whole.data.some(row => row.animeId === animeId)) return outcome('FAILED', forPage.formatMessage({ id: 'MyAnimeList still lists it', defaultMessage: 'MyAnimeList still lists it' }))
       return outcome('SAVED', null)
     } finally {
       changed()

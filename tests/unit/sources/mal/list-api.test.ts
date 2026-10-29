@@ -13,6 +13,7 @@ import {
   AIR_GEAR, A_CHANNEL, BLEACH, CLANNAD, COWBOY_BEBOP, COWBOY_BEBOP_CARD, COWBOY_BEBOP_REWATCHING, ERRORS_400, HACK_SIGN, ONE_PIECE,
   ROWS, cardOf,
 } from './list-fixtures'
+import { inEnglish } from '../../in-english'
 
 const row = (raw: unknown) => rowOf(raw)!
 
@@ -80,14 +81,14 @@ describe('what an answer says', () => {
   })
 
   test("MyAnimeList's JSON refusal is an error in its own words", () => {
-    expect(readListPage(answer(ERRORS_400, { status: 400 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 400: invalid request' })
+    expect(readListPage(answer(ERRORS_400, { status: 400 }))).toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 400: invalid request') })
   })
 
   test('a 429, a 403 page and a 200 that is not JSON are all read as blocked, with any Retry-After', () => {
     expect(readListPage(answer('', { status: 429, retryAfter: 120 }))).toEqual({ kind: 'blocked', retryAfter: 120 })
     expect(readListPage(answer('<html>Forbidden</html>', { status: 403 }))).toEqual({ kind: 'blocked', retryAfter: null })
     expect(readListPage(answer('<html>Just a moment...</html>'))).toEqual({ kind: 'blocked', retryAfter: null })
-    expect(readListPage(answer('<html>Bad gateway</html>', { status: 502 })), 'the control: an outage is an error').toEqual({ kind: 'error', message: 'MyAnimeList answered 502' })
+    expect(readListPage(answer('<html>Bad gateway</html>', { status: 502 })), 'the control: an outage is an error').toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 502') })
   })
 
   test('a list that ended on the sign-in page is signed out', () => {
@@ -105,11 +106,11 @@ describe('what an answer says', () => {
   test("a write's 2xx is accepted without reading its body, and its refusals read as the list's do", () => {
     const notesPage = '<html>the list page, with a note: Request blocked</html>'
     expect(readWriteAnswer(answer(notesPage, { url: 'https://myanimelist.net/animelist/viewer' }))).toEqual({ kind: 'data', data: null })
-    expect(readWriteAnswer(answer(ERRORS_400, { status: 400 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 400: invalid request' })
+    expect(readWriteAnswer(answer(ERRORS_400, { status: 400 }))).toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 400: invalid request') })
     expect(readWriteAnswer(answer('<html>Forbidden</html>', { status: 403 }))).toMatchObject({ kind: 'blocked' })
     expect(readWriteAnswer(answer('', { status: 429, retryAfter: 60 }))).toEqual({ kind: 'blocked', retryAfter: 60 })
     expect(readWriteAnswer(answer('', { url: 'https://myanimelist.net/login.php' }))).toEqual({ kind: 'signed-out' })
-    expect(readWriteAnswer(answer('<html>Not Found</html>', { status: 404 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 404' })
+    expect(readWriteAnswer(answer('<html>Not Found</html>', { status: 404 }))).toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 404') })
   })
 })
 
@@ -119,8 +120,8 @@ test('a hover card is its count, a refusal is a pause, and an answer that is no 
   expect(readCard(answer('', { status: 429, retryAfter: 30 }))).toEqual({ kind: 'blocked', retryAfter: 30 })
   expect(readCard(answer('<html>Request blocked</html>', { status: 403 }))).toEqual({ kind: 'blocked', retryAfter: null })
   expect(readCard(answer('<html>Request blocked</html>'))).toEqual({ kind: 'blocked', retryAfter: null })
-  expect(readCard(answer('<html>no such anime</html>'))).toEqual({ kind: 'error', message: 'MyAnimeList answered 200 with no card stub could read' })
-  expect(readCard(answer(COWBOY_BEBOP_CARD, { status: 500 }))).toEqual({ kind: 'error', message: 'MyAnimeList answered 500 with no card stub could read' })
+  expect(readCard(answer('<html>no such anime</html>'))).toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 200 with no card stub could read') })
+  expect(readCard(answer(COWBOY_BEBOP_CARD, { status: 500 }))).toEqual({ kind: 'error', message: inEnglish('MyAnimeList answered 500 with no card stub could read') })
 })
 
 describe('a score on ten points', () => {
@@ -171,7 +172,7 @@ describe('the writes a save takes', () => {
     expect(planWrite(9999, undefined, { status: 'WATCHING', progress: 2, score: 70 })).toMatchObject({
       phases: [{ steps: [{ kind: 'add', fields: { anime_id: 9999, status: 1, score: 7, num_watched_episodes: 2 } }] }],
     })
-    expect(planWrite(9999, undefined, { progress: 2 })).toEqual({ error: 'Pick a status to add it to MyAnimeList' })
+    expect(planWrite(9999, undefined, { progress: 2 })).toEqual({ error: inEnglish('Pick a status to add it to MyAnimeList') })
   })
 
   test('a save that changes nothing sends nothing', () => {
@@ -195,7 +196,7 @@ describe('the writes a save takes', () => {
   })
 
   test('a rewatch starts nowhere else', () => {
-    const refusal = { error: 'MyAnimeList starts a rewatch on a completed entry: save it as Completed first' }
+    const refusal = { error: inEnglish('MyAnimeList starts a rewatch on a completed entry: save it as Completed first') }
     expect(planWrite(21, onePiece, { status: 'REWATCHING' }), 'from watching').toEqual(refusal)
     expect(planWrite(269, row(BLEACH), { status: 'REWATCHING' }), 'from paused').toEqual(refusal)
     expect(planWrite(9999, undefined, { status: 'REWATCHING' }), 'not listed').toEqual(refusal)
@@ -213,7 +214,7 @@ describe('the writes a save takes', () => {
   // B3: leaving a rewatch any other way would leave the flag set under that status
   test('a rewatch does not end as anything else', () => {
     for (const status of ['WATCHING', 'PAUSED', 'DROPPED', 'PLANNING'] as const) {
-      expect(planWrite(1, rewatching, { status })).toEqual({ error: 'MyAnimeList ends a rewatch as Completed: save it as Completed, or change it on myanimelist.net' })
+      expect(planWrite(1, rewatching, { status })).toEqual({ error: inEnglish('MyAnimeList ends a rewatch as Completed: save it as Completed, or change it on myanimelist.net') })
     }
   })
 
@@ -225,26 +226,26 @@ describe('the writes a save takes', () => {
 
   test('a flag left under another status refuses Completed and a rewatch, and allows the rest', () => {
     const stray = row({ ...BLEACH, is_rewatching: 1 })
-    expect(planWrite(269, stray, { status: 'COMPLETED' })).toEqual({ error: 'MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net' })
-    expect(planWrite(269, stray, { status: 'REWATCHING' })).toMatchObject({ error: expect.stringContaining('rewatch flag') })
+    expect(planWrite(269, stray, { status: 'COMPLETED' })).toEqual({ error: inEnglish('MyAnimeList keeps a rewatch flag on this entry: change it on myanimelist.net') })
+    expect(planWrite(269, stray, { status: 'REWATCHING' })).toMatchObject({ error: inEnglish(expect.stringContaining('rewatch flag')) })
     expect(planWrite(269, stray, { status: 'WATCHING' })).toMatchObject({ phases: [{ steps: [{ fields: { status: 1 } }] }] })
   })
 
   test("progress past MyAnimeList's own count is refused, and a count it does not know refuses nothing", () => {
-    expect(planWrite(857, airGear, { progress: 26 })).toEqual({ error: 'MyAnimeList counts 25 episodes for this anime' })
+    expect(planWrite(857, airGear, { progress: 26 })).toEqual({ error: inEnglish('MyAnimeList counts 25 episodes for this anime') })
     expect(planWrite(21, onePiece, { progress: 1200 })).toMatchObject({ phases: [{}] })
   })
 
   test('dates and the rewatch count are refused, a null one too, and nothing is half written', () => {
-    const refusal = { error: 'MyAnimeList takes status, progress and score from stub' }
+    const refusal = { error: inEnglish('MyAnimeList takes status, progress and score from stub') }
     expect(planWrite(857, airGear, { progress: 20, startedAt: { year: 2026, month: 9, day: 1 } })).toEqual(refusal)
     expect(planWrite(857, airGear, { progress: 20, completedAt: null })).toEqual(refusal)
     expect(planWrite(857, airGear, { rewatchCount: 0 })).toEqual(refusal)
   })
 
   test('a progress or a score that is not a whole number is refused', () => {
-    expect(planWrite(857, airGear, { progress: 1.5 })).toMatchObject({ error: expect.stringContaining('whole number') })
-    expect(planWrite(857, airGear, { score: 101 })).toMatchObject({ error: expect.stringContaining('0 to 100') })
+    expect(planWrite(857, airGear, { progress: 1.5 })).toMatchObject({ error: inEnglish(expect.stringContaining('whole number')) })
+    expect(planWrite(857, airGear, { score: 101 })).toMatchObject({ error: inEnglish(expect.stringContaining('0 to 100')) })
   })
 })
 
@@ -257,22 +258,22 @@ describe('whether the list shows a save', () => {
   })
 
   test('says what MyAnimeList shows instead', () => {
-    expect(mismatchOf({ status: 'WATCHING', progress: 3 }, at({ status: 3, progress: 2 }), before)).toBe('MyAnimeList shows it as Paused, 2 episodes')
-    expect(mismatchOf({ status: 'COMPLETED', score: 8 }, at({ score: 0, progress: 25 }), before)).toBe('MyAnimeList shows no score')
+    expect(mismatchOf({ status: 'WATCHING', progress: 3 }, at({ status: 3, progress: 2 }), before)).toEqual(inEnglish('MyAnimeList shows it as Paused, 2 episodes'))
+    expect(mismatchOf({ status: 'COMPLETED', score: 8 }, at({ score: 0, progress: 25 }), before)).toEqual(inEnglish('MyAnimeList shows no score'))
     expect(mismatchOf({ status: 'WATCHING', progress: 3, score: 8 }, at({ status: 99, progress: 2, score: 7 }), before))
-      .toBe('MyAnimeList shows it as a status stub does not know, 2 episodes, a score of 7 / 10')
+      .toEqual(inEnglish('MyAnimeList shows it as a status stub does not know, 2 episodes, a score of 7 / 10'))
   })
 
   test('an entry just as it was, or none at all, does not show the save yet', () => {
-    expect(mismatchOf({ status: 'COMPLETED', score: 8 }, before, before)).toBe("MyAnimeList's list does not show the save yet")
+    expect(mismatchOf({ status: 'COMPLETED', score: 8 }, before, before)).toEqual(inEnglish("MyAnimeList's list does not show the save yet"))
     expect(showsNoChange(before, before)).toBe(true)
-    expect(mismatchOf({ status: 'PLANNING' }, undefined, undefined)).toBe("MyAnimeList's list does not show this entry after the save")
+    expect(mismatchOf({ status: 'PLANNING' }, undefined, undefined)).toEqual(inEnglish("MyAnimeList's list does not show this entry after the save"))
     expect(showsNoChange(undefined, undefined)).toBe(true)
     expect(showsNoChange(at({ score: 8 }), before), 'the control').toBe(false)
   })
 
   test('a rewatch start MyAnimeList ignored says so', () => {
-    expect(mismatchOf({ status: 'REWATCHING' }, before, before)).toBe('MyAnimeList kept it as Completed, so the rewatch did not start')
+    expect(mismatchOf({ status: 'REWATCHING' }, before, before)).toEqual(inEnglish('MyAnimeList kept it as Completed, so the rewatch did not start'))
   })
 })
 

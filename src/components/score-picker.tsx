@@ -2,12 +2,12 @@ import { css } from '@emotion/react'
 import { autoUpdate, flip, offset, useFloating, useMergeRefs } from '@floating-ui/react'
 import { Frown, Meh, Smile, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useIntl, type IntlShape } from 'react-intl'
 
 import { PICKS, written } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 
 const FACES = [Frown, Meh, Smile]
-const FACE_NAMES = ['bad', 'neutral', 'good']
 const OUT_OF: Record<string, number> = { POINT_3: 3, POINT_5: 5, POINT_10: 10, POINT_10_DECIMAL: 10, POINT_100: 100 }
 
 const style = css`
@@ -39,17 +39,23 @@ const style = css`
 
 /** A 0 to 100 score as the star shows it on `scale`: a number, or a face on three points. */
 export const ScoreFace = ({ score, scale, size = 16 }: { score: number, scale: string, size?: number }) => {
+  const intl = useIntl()
   const value = nativeScore(score, scale)
   if (scale === 'POINT_3') {
     const Face = FACES[value - 1] ?? Meh
     return <Face size={size} aria-hidden="true"/>
   }
-  return <span className="value">{value}</span>
+  return <span className="value">{intl.formatNumber(value)}</span>
 }
 
-const nameOf = (score: number, scale: string) => {
+const nameOf = (intl: IntlShape, score: number, scale: string) => {
   const value = nativeScore(score, scale)
-  return scale === 'POINT_3' ? `${value} out of 3 (${FACE_NAMES[value - 1]})` : `${value} out of ${OUT_OF[scale] ?? 100}`
+  return scale === 'POINT_3'
+    ? intl.formatMessage({
+      id: '{face, select, 1 {{value, number} out of 3 (bad)} 2 {{value, number} out of 3 (neutral)} other {{value, number} out of 3 (good)}}',
+      defaultMessage: '{face, select, 1 {{value, number} out of 3 (bad)} 2 {{value, number} out of 3 (neutral)} other {{value, number} out of 3 (good)}}',
+    }, { face: String(value), value })
+    : intl.formatMessage({ id: '{value, number} out of {max, number}', defaultMessage: '{value, number} out of {max, number}' }, { value, max: OUT_OF[scale] ?? 100 })
 }
 
 /**
@@ -61,6 +67,7 @@ const ScorePicker = (
   { score, scale, mixed, disabled, clearable = true, onPick }:
   { score: number | null, scale: string, mixed: boolean, disabled: boolean, clearable?: boolean, onPick: (score: number | null) => void }
 ) => {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const [exact, setExact] = useState('')
   const root = useRef<HTMLSpanElement>(null)
@@ -122,7 +129,9 @@ const ScorePicker = (
         ref={starRef}
         type="button"
         className="star"
-        aria-label={`Score, ${scored ? nameOf(score, scale) : 'none'}`}
+        aria-label={scored
+          ? intl.formatMessage({ id: 'Score, {score}', defaultMessage: 'Score, {score}' }, { score: nameOf(intl, score, scale) })
+          : intl.formatMessage({ id: 'Score, none', defaultMessage: 'Score, none' })}
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}
@@ -133,14 +142,14 @@ const ScorePicker = (
       </button>
       {open
         ? (
-          <div ref={refs.setFloating} style={floatingStyles} className="menu" role="dialog" aria-label="Score" onKeyDown={onKeyDown}>
+          <div ref={refs.setFloating} style={floatingStyles} className="menu" role="dialog" aria-label={intl.formatMessage({ id: 'Score', defaultMessage: 'Score' })} onKeyDown={onKeyDown}>
             <div className={`grid${scale === 'POINT_3' ? ' faces' : ''}`}>
               {PICKS[scale]!.map((value, index) => {
                 const native = nativeScore(value, scale)
                 const Face = FACES[index]
                 return (
-                  <button key={value} type="button" aria-label={nameOf(value, scale)} aria-pressed={current === native} onClick={() => pick(written(value, scale))}>
-                    {scale === 'POINT_3' && Face ? <Face size={16} aria-hidden="true"/> : scale === 'POINT_100' ? value / 10 : native}
+                  <button key={value} type="button" aria-label={nameOf(intl, value, scale)} aria-pressed={current === native} onClick={() => pick(written(value, scale))}>
+                    {scale === 'POINT_3' && Face ? <Face size={16} aria-hidden="true"/> : intl.formatNumber(scale === 'POINT_100' ? value / 10 : native)}
                   </button>
                 )
               })}
@@ -148,7 +157,7 @@ const ScorePicker = (
             {scale === 'POINT_100' || decimal
               ? (
                 <label className="exact">
-                  Exact
+                  {intl.formatMessage({ id: 'Exact#score', defaultMessage: 'Exact', description: 'score' })}
                   <input
                     type="number"
                     name="score-exact"
@@ -162,8 +171,8 @@ const ScorePicker = (
                 </label>
               )
               : undefined}
-            {mixed ? <span className="caption">Out of {OUT_OF[scale]}</span> : undefined}
-            {scored && clearable ? <button type="button" onClick={() => pick(null)}>No score</button> : undefined}
+            {mixed ? <span className="caption">{intl.formatMessage({ id: 'Out of {max, number}', defaultMessage: 'Out of {max, number}' }, { max: OUT_OF[scale] })}</span> : undefined}
+            {scored && clearable ? <button type="button" onClick={() => pick(null)}>{intl.formatMessage({ id: 'No score', defaultMessage: 'No score' })}</button> : undefined}
           </div>
         )
         : undefined}

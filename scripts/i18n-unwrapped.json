@@ -1,10 +1,4 @@
 {
-  "tracking": [
-    "src/components/save-problems.tsx",
-    "src/components/score-picker.tsx",
-    "src/components/stub-list-notice.tsx",
-    "src/components/tracking-compact.tsx"
-  ],
   "rest": [
     "src/components/collapsible.tsx",
     "src/components/error-boundary.tsx",

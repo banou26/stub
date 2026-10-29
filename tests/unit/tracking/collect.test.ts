@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 import type { Tracker } from '../../../src/generated/schema/types.generated'
 
 import { changes, failedReadAnswer, rereads, RETRY_MAX_MS, RETRY_MS } from '../../../src/tracking/collect'
+import { inEnglish } from '../in-english'
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -48,7 +49,7 @@ test('a read that got no answer says so on the chip, and its error goes to the c
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   const error = new TypeError('NetworkError when attempting to fetch resource.')
 
-  expect(failedReadAnswer('ag:(anilist:1)', ANILIST, error)).toMatchObject({ state: 'ERROR', error: 'Could not reach AniList, retrying' })
+  expect(failedReadAnswer('ag:(anilist:1)', ANILIST, error)).toMatchObject({ state: 'ERROR', error: inEnglish('Could not reach AniList, retrying') })
   expect(warn).toHaveBeenCalledExactlyOnceWith('tracking: AniList read got no answer', error)
 })
 

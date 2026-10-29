@@ -2,10 +2,12 @@
 // the site keeps ride along. Built into one self-contained function (scripts/page-script.ts) and
 // installed with `frame.evaluate`, once per document, by the session frame (tracking/session-frames.ts).
 
+import type { Said } from '../../i18n/said'
 import type { ServeArg } from '../../tracking/session-frames'
 import type { SeasonIds } from './season-id'
 import type { PageFetch, TokenAnswer, TokenGrant } from './sign-in-check'
 
+import { forPage } from '../../i18n/said'
 import { installSessionServer, randomNonce } from '../../tracking/page-install'
 import { findSeason, resolveSeasonId } from './season-id'
 import { CRUNCHYROLL_BASE_URL } from './session'
@@ -32,7 +34,7 @@ export type WatchedAnswer = TokenAnswer & { held?: Held }
 export type SaveRequest = WatchedRequest & { progress?: number, stars?: number | null, watchlist?: boolean }
 
 /** The token call's answer, and why nothing was written when the save was refused. */
-export type SaveAnswer = TokenAnswer & { refused?: string }
+export type SaveAnswer = TokenAnswer & { refused?: Said }
 
 /** What the page serves over its port. */
 export type CrunchyrollPageApi = {
@@ -108,15 +110,15 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
     return { episodes, stars, watchlisted: listed.some(item => item.id === request.seriesId) }
   }
 
-  const save = async ({ progress, stars, watchlist, ...request }: SaveRequest): Promise<string | undefined> => {
+  const save = async ({ progress, stars, watchlist, ...request }: SaveRequest): Promise<Said | undefined> => {
     const now = await held(request)
     if (progress !== undefined) {
       const count = now.episodes.length
-      if (progress > count) return `Crunchyroll lists ${count} episode${count === 1 ? '' : 's'} of this season`
-      if (progress < progressOf(now.episodes)) return 'Crunchyroll cannot unmark an episode'
+      if (progress > count) return forPage.formatMessage({ id: 'Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season', defaultMessage: 'Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season' }, { count })
+      if (progress < progressOf(now.episodes)) return forPage.formatMessage({ id: 'Crunchyroll cannot unmark an episode', defaultMessage: 'Crunchyroll cannot unmark an episode' })
     }
     // the site's star never takes a rating off, and its thumbs' DELETE, sent with no body, answered 409 on stars
-    if (stars === null && now.stars) return 'Crunchyroll cannot remove a rating'
+    if (stars === null && now.stars) return forPage.formatMessage({ id: 'Crunchyroll cannot remove a rating', defaultMessage: 'Crunchyroll cannot remove a rating' })
     // never the earlier ones the account left unmarked; 409 is an episode Crunchyroll already counts as watched
     const episode = progress ? now.episodes[progress - 1] : undefined
     if (episode && !episode.watched) {

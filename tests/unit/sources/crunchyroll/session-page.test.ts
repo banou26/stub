@@ -8,6 +8,7 @@ import { readWatched, saveWatched } from '../../../../src/sources/crunchyroll/se
 import {
   ACCESS_TOKEN, ACCOUNT_ID, SEASON_EPISODES, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, fullyWatched, numberedSeason, throughRelay,
 } from './watched-fixtures'
+import { inEnglish } from '../../in-english'
 
 const SEASON = { seriesId: SERIES_ID, seasonId: SEASON_ID }
 const BASE = 'https://www.crunchyroll.com'
@@ -132,18 +133,18 @@ describe('a save', () => {
 
   test('a progress past the numbered episodes writes nothing and says how many there are', async () => {
     const { send, writes } = fakeCrunchyroll()
-    expect(await saveWatched({ ...SEASON, progress: 5, stars: 3, watchlist: true }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll lists 4 episodes of this season' })
+    expect(await saveWatched({ ...SEASON, progress: 5, stars: 3, watchlist: true }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll lists 4 episodes of this season') })
     expect(writes()).toEqual([])
   })
 
   test('a season of one episode says so in the singular', async () => {
     const { send } = fakeCrunchyroll({ episodes: numberedSeason(1), playheads: fullyWatched() })
-    expect(await saveWatched({ ...SEASON, progress: 2 }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll lists 1 episode of this season' })
+    expect(await saveWatched({ ...SEASON, progress: 2 }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll lists 1 episode of this season') })
   })
 
   test('a lower progress writes nothing, since Crunchyroll has no unmark, and says so', async () => {
     const { send, writes } = fakeCrunchyroll()
-    expect(await saveWatched({ ...SEASON, progress: 1, stars: 3 }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll cannot unmark an episode' })
+    expect(await saveWatched({ ...SEASON, progress: 1, stars: 3 }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll cannot unmark an episode') })
     expect(writes()).toEqual([])
   })
 
@@ -176,7 +177,7 @@ describe('a save', () => {
   // the site's DELETE removes a thumb, its rating in the body; sent with no body on a series' stars it answered 409
   test('a rating once given is never taken off, since Crunchyroll has no request that does: clearing it writes nothing and says so', async () => {
     const { send, writes } = fakeCrunchyroll({ stars: '4s' })
-    expect(await saveWatched({ ...SEASON, stars: null, progress: 3, watchlist: true }, send)).toEqual({ status: 200, body: null, refused: 'Crunchyroll cannot remove a rating' })
+    expect(await saveWatched({ ...SEASON, stars: null, progress: 3, watchlist: true }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll cannot remove a rating') })
     expect(writes()).toEqual([])
   })
 

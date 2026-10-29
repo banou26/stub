@@ -1,5 +1,8 @@
 import { css } from '@emotion/react'
 import { useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
+
+import { wordsOf, type Said } from '../i18n'
 
 export type StubStorage = {
   location: 'DEVICE' | 'ACCOUNT'
@@ -7,7 +10,7 @@ export type StubStorage = {
   locked: boolean
   waiting: boolean
   held: number
-  error?: string | null
+  error?: Said | null
 }
 
 const style = css`
@@ -39,8 +42,6 @@ const style = css`
   }
 `
 
-const entries = (count: number) => count === 1 ? '1 entry' : `${count} entries`
-
 /**
  * What waits on the viewer about stub's own list: a list that cannot be opened on this device until
  * the viewer unlocks it, and the list this device kept before signing in, which reaches the account
@@ -50,6 +51,7 @@ const StubListNotice = (
   { storage, onUnlock, onAdd }:
   { storage: StubStorage | null | undefined, onUnlock: () => Promise<unknown>, onAdd: () => Promise<unknown> }
 ) => {
+  const intl = useIntl()
   const [busy, setBusy] = useState(false)
   if (!storage) return null
   const run = (action: () => Promise<unknown>) => async () => {
@@ -62,23 +64,28 @@ const StubListNotice = (
     locked
       ? (
         <div key="locked" className="line">
-          <span>Stub: your FKN account's list is locked on this device</span>
-          <button type="button" disabled={busy} onClick={run(onUnlock)}>Unlock</button>
+          <span>{intl.formatMessage({ id: "Stub: your FKN account's list is locked on this device", defaultMessage: "Stub: your FKN account's list is locked on this device" })}</span>
+          <button type="button" disabled={busy} onClick={run(onUnlock)}>{intl.formatMessage({ id: 'Unlock', defaultMessage: 'Unlock' })}</button>
         </div>
       )
       : undefined,
     account && !locked && storage.held > 0
       ? (
         <div key="held" className="line">
-          <span>Stub: {entries(storage.held)} saved on this device before you signed in</span>
-          <button type="button" disabled={busy} onClick={run(onAdd)}>Add to my FKN account</button>
+          <span>
+            {intl.formatMessage({
+              id: 'Stub: {count, plural, one {{count} entry} other {{count} entries}} saved on this device before you signed in',
+              defaultMessage: 'Stub: {count, plural, one {{count} entry} other {{count} entries}} saved on this device before you signed in',
+            }, { count: storage.held })}
+          </span>
+          <button type="button" disabled={busy} onClick={run(onAdd)}>{intl.formatMessage({ id: 'Add to my FKN account', defaultMessage: 'Add to my FKN account' })}</button>
         </div>
       )
       : undefined,
     account && !locked && storage.waiting
-      ? <div key="waiting" className="line">Stub: some changes have not reached your FKN account yet.</div>
+      ? <div key="waiting" className="line">{intl.formatMessage({ id: 'Stub: some changes have not reached your FKN account yet.', defaultMessage: 'Stub: some changes have not reached your FKN account yet.' })}</div>
       : undefined,
-    storage.error ? <div key="error" className="line problem">Stub: {storage.error}</div> : undefined,
+    storage.error ? <div key="error" className="line problem">{intl.formatMessage({ id: 'Stub: {error}', defaultMessage: 'Stub: {error}' }, { error: wordsOf(storage.error) })}</div> : undefined,
   ].filter(Boolean)
   if (!lines.length) return null
   return <div css={style} className="stub-list-notice" role="status">{lines}</div>

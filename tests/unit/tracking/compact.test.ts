@@ -5,6 +5,7 @@ import type { CompactAnswer, Fields, Outcome, Row } from '../../../src/tracking/
 
 import { aggregateTracking } from '../../../src/tracking/aggregate'
 import { createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, targetOf, written } from '../../../src/tracking/compact'
+import { inEnglish } from '../in-english'
 
 const answer = (id: string, state: string, entry?: CompactAnswer['entry'], extra: Partial<CompactAnswer> = {}): CompactAnswer =>
   ({ state, candidates: [], tracker: { id, name: id, canWrite: true, scoreScale: 'POINT_100' }, entry, ...extra })
@@ -57,7 +58,7 @@ describe('targetOf', () => {
   test('signed out is a log in, ambiguous cannot track', () => {
     expect(targetOf(answer('a', 'SIGNED_OUT'), undefined)).toEqual({ kind: 'login' })
     expect(targetOf(answer('a', 'AMBIGUOUS', null, { candidates: ['x', 'y'] }), true))
-      .toEqual({ kind: 'cannot', reason: 'Names x and y, cannot tell which' })
+      .toEqual({ kind: 'cannot', reason: inEnglish('Names x and y, cannot tell which') })
   })
 
   test('a tracker that has not answered yet has nothing to check or send to', () => {

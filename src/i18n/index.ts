@@ -7,9 +7,12 @@
 
 import { createIntl, createIntlCache, type IntlShape } from 'react-intl'
 
+import type { Said, SaidValue } from './said'
+
 import { formatLocale, isRightToLeft, uiLanguage } from './languages'
 
 export { LANGUAGE_KEY, OFFERED, bestLanguage, contentLanguage, formatLocale, isRightToLeft, readPickedLanguage, uiLanguage } from './languages'
+export type { Said } from './said'
 
 /** A language's text by message id. */
 export type Catalogue = Readonly<Record<string, string>>
@@ -32,6 +35,21 @@ const intlOf = (language: string, locale: string, messages: Catalogue) =>
  * a component. startLanguage() replaces it, so read it where the text is shown, never at module scope.
  */
 export let intl: IntlShape = intlOf('en', 'en', {})
+
+const written = (value: SaidValue): string | number =>
+  typeof value !== 'object' ? value
+  : 'time' in value ? intl.formatTime(value.time, { hour: '2-digit', minute: '2-digit' })
+  : 'list' in value ? intl.formatList(value.list.map(item => String(written(item))), value.join === 'and' ? { type: 'conjunction' } : NAME_LIST)
+  : wordsOf(value)
+
+/** `said` in the language shown: one of stub's messages with its values written in, or a site's own words as they came. */
+export const wordsOf = (said: Said): string => {
+  if (typeof said === 'string') return said
+  // a descriptor the linter and `formatjs extract` leave alone, held in a variable: each message is read where
+  // forPage.formatMessage writes it, and its id is its English
+  const descriptor = { id: said.message, defaultMessage: said.message }
+  return intl.formatMessage(descriptor, said.values && Object.fromEntries(Object.entries(said.values).map(([name, value]) => [name, written(value)])))
+}
 
 // one chunk per language, by its path as the pattern writes it. No type argument: Vitest 5 leaves a module out of its
 // on-disk cache only when its source reads `import.meta.glob(`, and `glob<Catalogue>(` kept the catalogues found

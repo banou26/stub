@@ -5,6 +5,7 @@ import type { ListEntryInput, ListStatus, Resolvers, Tracker, TrackerAnswer, Tra
 import type { PageApi, SiteSession } from '../../tracking/site-session'
 import type { CrunchyrollPageApi, Held, SaveRequest } from './session-page'
 
+import { forPage, type Said } from '../../i18n/said'
 import { trackingId } from '../../tracking/aggregate'
 import { answerId, changes, failedReadAnswer, rereads } from '../../tracking/collect'
 import { isScored, nativeScore } from '../../tracking/score-scale'
@@ -45,7 +46,7 @@ const crunchyrollTracker = (signedIn: boolean): Tracker => ({
 const trackingOf = (uri: string, answer: TrackerAnswer): { tracking: Tracking } =>
   ({ tracking: { _id: trackingId(uri), answers: [answer], summary: null, disagreements: [] } })
 
-const outcome = (state: WriteOutcome['outcome'], error: string | null = null): WriteOutcome[] =>
+const outcome = (state: WriteOutcome['outcome'], error: Said | null = null): WriteOutcome[] =>
   [{ tracker: CRUNCHYROLL_TRACKER_ID, outcome: state, entry: null, error }]
 
 type Season = { id: string, seriesId: string, seasonId: string }
@@ -112,12 +113,14 @@ export const crunchyrollTrackerResolvers = ({ wait = sleep }: { wait?: (ms: numb
 
   const write = async (ctx: CrunchyrollTrackerContext, uri: string, fields: Omit<SaveRequest, 'seriesId' | 'seasonId'>): Promise<WriteOutcome[]> => {
     const season = seasonOf(uri)
-    if (!season) return outcome('REFUSED', 'This media names no Crunchyroll season')
+    if (!season) return outcome('REFUSED', forPage.formatMessage({ id: 'This media names no Crunchyroll season', defaultMessage: 'This media names no Crunchyroll season' }))
     if (!Object.keys(fields).length) return outcome('SAVED')
     try {
       const result = await ctx.session<CrunchyrollPageApi>(CRUNCHYROLL_TRACKER_ID)
         .call('save', { seriesId: season.seriesId, seasonId: season.seasonId, ...fields }, { once: true })
-      if (result.kind === 'not-connected' || crunchyrollSignInState(result.response) === 'signed-out') return outcome('REFUSED', 'Sign in to Crunchyroll to save to it')
+      if (result.kind === 'not-connected' || crunchyrollSignInState(result.response) === 'signed-out') {
+        return outcome('REFUSED', forPage.formatMessage({ id: 'Sign in to Crunchyroll to save to it', defaultMessage: 'Sign in to Crunchyroll to save to it' }))
+      }
       return result.response.refused ? outcome('REFUSED', result.response.refused) : outcome('SAVED')
     } catch (error) {
       return outcome('FAILED', messageOf(error))

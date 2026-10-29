@@ -2116,7 +2116,7 @@ test('the watch page\'s row brings no line about stub\'s own list', async () => 
   const { host } = await atTheEnd()
   expect(host.querySelector('.watch-info .tracking-compact'), 'the control: the row is drawn').not.toBeNull()
   expect(host.querySelector('.stub-list-notice')).toBeNull()
-  const elsewhere = mount(<MediaTracking work={SERIES} address={SERIES} uri={SERIES}/>)
+  const elsewhere = mount(withIntl(<MediaTracking work={SERIES} address={SERIES} uri={SERIES}/>))
   hosts.push(elsewhere)
   expect(elsewhere.querySelector('.stub-list-notice')?.textContent, 'the control: the same row elsewhere has it').toBe('Stub: some changes have not reached your FKN account yet.')
 })

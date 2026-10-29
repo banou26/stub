@@ -2,11 +2,12 @@
 // so a test can hand it one over fakes. ./tracker.ts hands it this device's.
 
 import type { Resolvers, StubTrackerStorage } from '../../generated/schema/types.generated'
+import type { Said } from '../../i18n/said'
 import type { AccountLink, LinkStatus } from '../../tracking/account-link'
 
 import { changes } from '../../tracking/collect'
 
-const storageOf = (status: LinkStatus, error?: string): StubTrackerStorage => ({
+const storageOf = (status: LinkStatus, error?: Said): StubTrackerStorage => ({
   location: status.where === 'account' ? 'ACCOUNT' : 'DEVICE',
   signedIn: status.signedIn,
   locked: status.locked,

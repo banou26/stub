@@ -3,7 +3,9 @@
 // can be pinned under vitest.
 
 import type { FuzzyDate, ListEntryInput, ListStatus } from '../generated/schema/types.generated'
+import type { Said } from '../i18n/said'
 
+import { forPage } from '../i18n/said'
 import { entryMatches, newEntryIdentity, type EntryIdentity, type MediaIdentity } from './identity'
 
 /**
@@ -139,6 +141,10 @@ export const combine = (entries: JournalEntry[]) => {
 /** A write's fields: `undefined` leaves a field alone, `null` clears it. */
 export type Patch = Partial<EntryValues>
 
+const NOT_A_PROGRESS = forPage.formatMessage({ id: 'Progress has to be a whole number of episodes', defaultMessage: 'Progress has to be a whole number of episodes' })
+const NOT_A_SCORE = forPage.formatMessage({ id: 'A score is a whole number from 0 to 100', defaultMessage: 'A score is a whole number from 0 to 100' })
+const NOT_A_REWATCH_COUNT = forPage.formatMessage({ id: 'The rewatch count has to be a whole number', defaultMessage: 'The rewatch count has to be a whole number' })
+
 const isCount = (value: unknown) => value == null || (Number.isInteger(value) && (value as number) >= 0)
 
 /**
@@ -148,12 +154,10 @@ const isCount = (value: unknown) => value == null || (Number.isInteger(value) &&
 export const patchFrom = (
   input: ListEntryInput,
   snapshot: { title?: string | null, cover?: string | null, episodeCount?: number | null } = {}
-): { patch: Patch } | { error: string } => {
-  if (!isCount(input.progress)) return { error: 'Progress has to be a whole number of episodes' }
-  if (!isCount(input.rewatchCount)) return { error: 'The rewatch count has to be a whole number' }
-  if (input.score != null && !(Number.isInteger(input.score) && input.score >= 0 && input.score <= 100)) {
-    return { error: 'A score is a whole number from 0 to 100' }
-  }
+): { patch: Patch } | { error: Said } => {
+  if (!isCount(input.progress)) return { error: NOT_A_PROGRESS }
+  if (!isCount(input.rewatchCount)) return { error: NOT_A_REWATCH_COUNT }
+  if (input.score != null && !(Number.isInteger(input.score) && input.score >= 0 && input.score <= 100)) return { error: NOT_A_SCORE }
   const patch: Patch = {}
   for (const field of LIST_FIELDS) {
     if (field in input && input[field] !== undefined) (patch as Record<string, unknown>)[field] = input[field] ?? null

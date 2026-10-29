@@ -5,6 +5,7 @@ import { useRef } from 'preact/hooks'
 import { useMutation } from 'urql'
 
 import { gql } from '../generated'
+import { forPage } from '../i18n/said'
 import { namesSameWork } from '../router/home/modal-media'
 
 /** One media's tracking. Its own module, so media-details.tsx reads it without loading the tracking panel. */
@@ -87,7 +88,11 @@ export const useSaveEntry = (
         episodeCount: episodeCount ?? null,
       },
     })
-    return result.data?.saveListEntry ?? [{ tracker: '', outcome: 'FAILED', error: result.error?.message ?? 'The write did not reach the trackers' }]
+    return result.data?.saveListEntry ?? [{
+      tracker: '',
+      outcome: 'FAILED',
+      error: result.error?.message ?? forPage.formatMessage({ id: 'The write did not reach the trackers', defaultMessage: 'The write did not reach the trackers' }),
+    }]
   }
 }
 

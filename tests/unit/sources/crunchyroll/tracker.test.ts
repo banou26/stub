@@ -16,6 +16,7 @@ import { watchedPatches } from '../../../../src/tracking/watched'
 import { DELETE_LIST_ENTRY_DOCUMENT, SAVE_LIST_ENTRY_DOCUMENT, TRACKING_DOCUMENT } from '../../../../src/worker/tracking-document'
 import { providerServer, subscribe, yogaClient } from '../../worker/yoga-client'
 import { ACCOUNT_ID, SEASON_ID, SERIES_ID, SIGNED_OUT, fakeCrunchyroll, fullyWatched, numberedSeason } from './watched-fixtures'
+import { inEnglish } from '../../in-english'
 
 // the show-level id beside the season's, as a cluster holds them
 const URI = `ag:(anilist:154587,cr:${SERIES_ID},cr:${SERIES_ID}-${SEASON_ID})`
@@ -126,7 +127,7 @@ describe('what the Crunchyroll tracker answers', () => {
 
   test('a read whose fetch got no answer says Crunchyroll could not be reached, and any other throw keeps its words', async () => {
     const unreached = setup([new TypeError('NetworkError when attempting to fetch resource.')])
-    expect(answerOf(await watch(unreached.target).next())).toMatchObject({ state: 'ERROR', error: 'Could not reach Crunchyroll, retrying' })
+    expect(answerOf(await watch(unreached.target).next())).toMatchObject({ state: 'ERROR', error: inEnglish('Could not reach Crunchyroll, retrying') })
     const refused = setup([new Error('Crunchyroll answered 500')])
     expect(answerOf(await watch(refused.target).next())).toMatchObject({ state: 'ERROR', error: 'Crunchyroll answered 500' })
   })
@@ -192,7 +193,7 @@ describe('a write', () => {
   test('signed out, a save is refused with how to fix it', async () => {
     for (const reply of ['not-connected', { status: 400, body: SIGNED_OUT }] as const) {
       const { target } = setup([read(2)], [reply])
-      expect(await save(target, { progress: 3 }), JSON.stringify(reply)).toEqual([{ tracker: 'cr', outcome: 'REFUSED', error: 'Sign in to Crunchyroll to save to it', entry: null }])
+      expect(await save(target, { progress: 3 }), JSON.stringify(reply)).toEqual([{ tracker: 'cr', outcome: 'REFUSED', error: inEnglish('Sign in to Crunchyroll to save to it'), entry: null }])
     }
   })
 

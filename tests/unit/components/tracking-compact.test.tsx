@@ -1,5 +1,5 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
-import { button, mount, unmount } from './dom'
+import { button, mount, unmount, withIntl } from './dom'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
@@ -78,7 +78,7 @@ const render = (props: Props = {}, store = expandedStore()) => {
     const onPrefs = (next: CompactPrefs) => { store.write(next); setPrefs(next) }
     return <TrackingCompact episodeCount={14} onSaveFields={onSaveFields} onRemove={onRemove} prefs={prefs} onPrefs={onPrefs} {...props} tracking={live}/>
   }
-  const host = mount(<Harness/>)
+  const host = mount(withIntl(<Harness/>))
   hosts.push(host)
   // the trackers answering again, as the subscription does after a write
   const setTracking = async (next: CompactTracking) => { await act(async () => { answer(next) }) }
@@ -968,7 +968,7 @@ describe('the trackers, folded as the row starts', () => {
 
 describe('before the trackers have answered at all', () => {
   const draw = (tracking: CompactTracking | undefined, prefs: CompactPrefs = { targets: {} }) => {
-    const host = mount(<TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={async () => []} onRemove={async () => []} prefs={prefs} onPrefs={() => {}}/>)
+    const host = mount(withIntl(<TrackingCompact tracking={tracking} episodeCount={14} onSaveFields={async () => []} onRemove={async () => []} prefs={prefs} onPrefs={() => {}}/>))
     hosts.push(host)
     return host
   }
