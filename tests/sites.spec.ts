@@ -10,12 +10,14 @@ import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
 import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
+import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 import { workerFakes } from './worker-fakes'
 
 // One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movies.fkn.app and
 // series.fkn.app: `*.localhost` stands in for fkn.app, and 127.0.0.1 is any other host, which shows
 // everything. Built and served the way tests/title-page.spec.ts does, so JustWatch answers its four most
-// popular films and shows (tests/fake-fetch.ts) and every request that leaves the server is refused.
+// popular films and shows (tests/fake-fetch.ts) and every request that leaves the server is refused. Every
+// catalogue and the pseudo-language are offered (tests/languages.ts), and a browser in English gets English.
 
 // A site draws nothing, its header included, until its worker has booted (src/worker.ts awaits it): 0.3 s idle,
 // up to 3 s at a load average of 67, 13 to 17 s with the browser held to 10% of a CPU. So every check gets 30 s,
@@ -44,7 +46,7 @@ test.beforeAll(async () => {
     logLevel: 'error',
     worker: { plugins: workerFakes },
     build: { outDir: dir, emptyOutDir: true },
-    plugins: [{
+    plugins: [offerEveryLanguage(), {
       name: 'spec-fakes',
       enforce: 'pre',
       resolveId: (source, importer) => {
@@ -664,4 +666,127 @@ test('a Movies click on stub changes the hero at most once', async ({ page }) =>
     if (title && title !== shown.at(-1)) shown.push(title)
   }
   expect(shown.length - 1, shown.join(' > ')).toBeLessThanOrEqual(1)
+})
+
+// HOR-1026 (stub in the viewer's language): the header's and the search page's own words, by where they are drawn
+const AREA_WORDS = {
+  text: [
+    'header nav.sites a', '[role="menu"] a', '.heading-row .heading', '.credit', '.filters .label', '.filters .value',
+    '.chips > button', '.status', '.moment', '[role="listbox"] .option span', '[role="listbox"] .empty',
+  ],
+  labels: [
+    'header form input', 'header .search-close', 'header .search-toggle', 'header .sites-toggle', 'header .actions > a',
+    '.text-field input', '.text-field .picture', '.chips > .chip', '.heading-row [role="group"]', '.heading-row [role="group"] button',
+    '[role="listbox"] .filter input',
+  ],
+}
+// a trace.moe answer for a scene search: Spec Rated's episode 1 (tests/fake-fetch.ts), as tests/scene-search.spec.ts has it
+const SCENE_CODE = 'eOOEIPhB0IQhB8IQg-TPYQg-D0IQ'
+const SCENE_ANSWER = {
+  frameCount: 1, error: '', quota: 100, quotaUsed: 1,
+  result: [{ anilist: 900040, filename: 'Spec Rated - 01.mp4', episode: 1, episode_start: 1, episode_end: 1, from: 282.3, at: 289.8, to: 292.7, similarity: 0.99 }],
+}
+
+/**
+ * The area's words as drawn now, and each of them that runs past the viewport, its filter field or its own box (a filter's
+ * label is as wide as its field, and a long word spills out of it), with each row that scrolls sideways. A summary that
+ * ends in an ellipsis is cut on purpose.
+ */
+const drawnNow = (page: Page) => page.evaluate(({ text, labels }) => {
+  const words = [
+    ...text.flatMap(selector => [...document.querySelectorAll(selector)].map(element => element.textContent!.trim())),
+    ...labels.flatMap(selector => [...document.querySelectorAll(selector)]
+      .flatMap(element => ['aria-label', 'title', 'placeholder'].map(name => element.getAttribute(name)).filter(value => value !== null))),
+  ]
+  const outside = text.flatMap(selector => [...document.querySelectorAll(selector)].flatMap(element => {
+    const box = element.getBoundingClientRect()
+    const field = element.closest('.filters > *')?.getBoundingClientRect()
+    const spills = element.clientWidth > 0 && element.scrollWidth > element.clientWidth + 1 && getComputedStyle(element).textOverflow !== 'ellipsis'
+    return box.width && (spills || box.left < -0.5 || box.right > innerWidth + 0.5 || (field && box.right > field.right + 0.5))
+      ? [`${selector}: ${element.textContent!.trim()}`] : []
+  }))
+  const scrolled = ['html', 'header', '.chips', '.heading-row', '[role="listbox"] .options'].flatMap(selector =>
+    [...document.querySelectorAll(selector)].filter(element => element.scrollWidth > element.clientWidth + 1).map(() => selector))
+  return { words, outside, scrolled }
+}, AREA_WORDS)
+
+/** Draws the four sites' headers, the search page's states, each of its pickers and a scene search at `width`. */
+const areaDrawn = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  const words: string[] = []
+  const problems: string[] = []
+  const read = async (state: string) => {
+    const now = await drawnNow(page)
+    words.push(...now.words)
+    problems.push(...now.outside.map(text => `${state}: ${text} runs past its box`), ...now.scrolled.map(selector => `${state}: ${selector} scrolls sideways`))
+  }
+  for (const host of ['movies.localhost', 'series.localhost', 'anime.localhost', 'stub.localhost']) {
+    await page.goto(at(host))
+    await expect(page.locator('header .sites-toggle')).toBeAttached()
+    await read(host)
+    if (width >= 1024) continue
+    await page.locator('header .sites-toggle').click()
+    await expect(siteMenu(page)).toBeVisible()
+    await read(`${host}'s site menu`)
+    await page.keyboard.press('Escape')
+  }
+  await page.goto(at('stub.localhost', '/search?q=frieren&year=2026&season=FALL&status=RELEASING&category=ANIME&format=TV&format=OVA&genre=Action&genre=Science-Fiction&tag=Isekai'))
+  await expect(page.locator('.status')).toBeVisible()
+  await read('every filter')
+  for (const path of ['/search', '/search?season=SPRING', '/search?year=2026', '/search?category=ANIME']) {
+    await page.goto(at('stub.localhost', path))
+    await expect(page.locator('.heading')).not.toBeEmpty()
+    await read(path)
+  }
+  await page.goto(at('stub.localhost', '/search?genre=Action&format=TV'))
+  for (const [index, control] of (await page.locator('.filters button.control').all()).entries()) {
+    await control.click()
+    await expect(page.getByRole('listbox')).toBeVisible()
+    await read(`picker ${index}`)
+    const box = page.getByRole('listbox').locator('.filter input')
+    if (await box.count()) {
+      await box.fill('zzzq')
+      await read(`picker ${index}, nothing matching`)
+    }
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+  }
+  await page.goto(at('movies.localhost', '/search'))
+  await expect(page.locator('.status')).toBeVisible()
+  await read('movies.localhost/search')
+  await page.goto(at('anime.localhost', `/search?scene=${SCENE_CODE}`))
+  await expect(page.locator('.moment').first()).toBeVisible()
+  await read('a scene search')
+  return { words, problems }
+}
+
+test.describe('the header and search in a language stub does not offer yet', () => {
+  test.beforeEach(async ({ page }) => {
+    for (const routes of [page, page.context()]) {
+      await routes.route('https://api.trace.moe/**', route => route.fulfill({ json: SCENE_ANSWER, headers: { 'access-control-allow-origin': '*' } }))
+    }
+  })
+
+  for (const language of [PSEUDO, 'de', 'ja']) {
+    test(`${language}: the four sites' headers, the search page and its pickers fit at 1440 and 390 px, with none of their words in English`, async ({ page }) => {
+      test.setTimeout(400_000)
+      await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+      const code = english()
+      const translated = language === PSEUDO ? undefined : catalogues()[language]
+      for (const width of [1440, 390]) {
+        const { words, problems } = await areaDrawn(page, width)
+        await expect(page.locator('html')).toHaveAttribute('lang', language)
+        expect(problems, `${width} px`).toEqual([])
+        expect(words.length, `${width} px: the control, the area's words were read`).toBeGreaterThan(200)
+        expect(englishIn(words, code, translated), `${width} px`).toEqual([])
+      }
+    })
+  }
+
+  test('the control: in English the same reading finds the area\'s own words', async ({ page }) => {
+    test.setTimeout(240_000)
+    const { words } = await areaDrawn(page, 1440)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(englishIn(words, english()).length).toBeGreaterThan(150)
+  })
 })
