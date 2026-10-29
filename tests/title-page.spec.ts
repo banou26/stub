@@ -1757,13 +1757,14 @@ test.describe('in a language stub does not offer yet', () => {
   })
 })
 
-// HOR-1026, home and cards: the home rows and the hero's Play, the search page's cards and rows, the modal's episode rows
-// and its film line, and the title page's Play. A line joining several facts is read fact by fact
+// HOR-1026, home and cards: the home rows, its category tabs and the hero's Play, the search page's cards and rows, the
+// modal's episode rows and its film line, and the title page's Play. A line joining several facts is read fact by fact
 const HOME_WORDS = {
   text: [
-    '.theater .actions .play', ':has(> .list-container) > .title', '.detail .airing-label', '.detail .airing-value',
-    '.detail-top .value', '.column.score .secondary', '.column.format .secondary', '.column .airing', '.modal .header .more',
-    '.episode .title', '.episode .side time', '.actions .buttons .play', '.movie .facts', '.movie .play', '.movie .when',
+    '.theater .actions .play', '.category-bar .tab', ':has(> .list-container) > .title', '.detail .airing-label',
+    '.detail .airing-value', '.detail-top .value', '.column.score .secondary', '.column.format .secondary',
+    '.column .airing', '.modal .header .more', '.episode .title', '.episode .side time', '.actions .buttons .play',
+    '.movie .facts', '.movie .play', '.movie .when',
   ],
   labels: ['.detail-top > span', '.column.score > span[aria-label]'],
 }

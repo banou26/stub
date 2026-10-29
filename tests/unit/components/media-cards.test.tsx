@@ -8,6 +8,8 @@ import { memoryLocation } from 'wouter/memory-location'
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => ({ Frown: () => null, Meh: () => null, Smile: () => null }))
 
+const { default: CategoryTabs } = await import('../../../src/components/category-tabs')
+const { MediaCategory } = await import('../../../src/generated/graphql')
 const { default: MediaCard } = await import('../../../src/components/media-card')
 const { default: MediaRow } = await import('../../../src/components/media-row')
 const { MediaPreview } = await import('../../../src/components/media-preview')
@@ -66,6 +68,14 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
 })
 
+test('the home page\'s category tabs read in English, each handing its category', () => {
+  const picked: unknown[] = []
+  const tabs = draw(<CategoryTabs value={null} onChange={value => picked.push(value)}/>)
+  expect(tabs.text('.tab')).toEqual(['All', 'Anime', 'Series', 'Movies'])
+  for (const tab of tabs.host.querySelectorAll<HTMLButtonElement>('.tab')) tab.click()
+  expect(picked).toEqual([null, MediaCategory.Anime, MediaCategory.Series, MediaCategory.Movie])
+})
+
 describe('in German', () => {
   beforeEach(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
   afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
@@ -76,5 +86,9 @@ describe('in German', () => {
       .toEqual([['Bis Folge 1180:'], ['2 Tage, 3 Stunden'], 'Bewertung: 82 Prozent', ['82\u00a0%']])
     const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
     expect([row.text('.score .secondary'), row.text('.airing')]).toEqual([['115.797 Nutzer'], ['Bis Folge 1180: 2 Tage']])
+  })
+
+  test('the home page\'s category tabs read German', () => {
+    expect(draw(<CategoryTabs value={null} onChange={() => {}}/>).text('.tab')).toEqual(['Alle', 'Anime', 'Serien', 'Filme'])
   })
 })

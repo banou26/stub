@@ -1,12 +1,20 @@
 import { css } from '@emotion/react'
+import { defineMessages, useIntl } from 'react-intl'
 
 import { MediaCategory } from '../generated/graphql'
 
+const LABELS = defineMessages({
+  all: { id: 'All#category', defaultMessage: 'All', description: 'category' },
+  anime: { id: 'Anime#category', defaultMessage: 'Anime', description: 'category' },
+  series: { id: 'Series#category', defaultMessage: 'Series', description: 'category' },
+  movies: { id: 'Movies#category', defaultMessage: 'Movies', description: 'category' },
+})
+
 const TABS = [
-  { label: 'All', value: null },
-  { label: 'Anime', value: MediaCategory.Anime },
-  { label: 'Series', value: MediaCategory.Series },
-  { label: 'Movies', value: MediaCategory.Movie },
+  { label: LABELS.all, value: null },
+  { label: LABELS.anime, value: MediaCategory.Anime },
+  { label: LABELS.series, value: MediaCategory.Series },
+  { label: LABELS.movies, value: MediaCategory.Movie },
 ] as const
 
 const style = css`
@@ -38,18 +46,21 @@ type Props = {
   onChange: (value: MediaCategory | null) => void
 }
 
-const CategoryTabs = ({ value, onChange }: Props) => (
-  <div css={style}>
-    {TABS.map(tab => (
-      <button
-        key={tab.label}
-        className={value === tab.value ? 'tab active' : 'tab'}
-        onClick={() => onChange(tab.value)}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-)
+const CategoryTabs = ({ value, onChange }: Props) => {
+  const intl = useIntl()
+  return (
+    <div css={style}>
+      {TABS.map(tab => (
+        <button
+          key={tab.label.id}
+          className={value === tab.value ? 'tab active' : 'tab'}
+          onClick={() => onChange(tab.value)}
+        >
+          {intl.formatMessage(tab.label)}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export default CategoryTabs
