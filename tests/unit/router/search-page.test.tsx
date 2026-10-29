@@ -1,10 +1,12 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from '../components/dom'
 
-import { afterEach, describe, expect, test, vi, type Mock } from 'vite-plus/test'
+import { afterAll, afterEach, describe, expect, test, vi, type Mock } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
+
+import { startLanguage } from '../../../src/i18n'
 
 // urql is faked as one stream: `publish` answers whatever subscription is running, and `started`
 // records each one the page starts, by its input, in order.
@@ -300,6 +302,23 @@ describe('its English', () => {
       'Remove 2026', 'Remove Fall', 'Remove Airing', 'Remove Anime', 'Remove TV Show', 'Remove OVA', 'Remove Action', 'Remove Isekai',
     ])
   })
+})
+
+// a chip's value comes in the nominative, and a verb before it would ask another case of a feminine one
+describe('a chip\'s name in Russian and Polish', () => {
+  afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+  const named = {
+    ru: ['Убрать фильтр «Зима»', 'Убрать фильтр «Комедия»'],
+    pl: ['Usuń filtr „Zima”', 'Usuń filtr „Komedia”'],
+  }
+
+  for (const [language, names] of Object.entries(named)) {
+    test(language, async () => {
+      await startLanguage({ language, languages: [language] })
+      open('/search?season=WINTER&genre=Comedy')
+      expect([...hosts.at(-1)!.querySelectorAll('.chip')].map(chip => chip.getAttribute('aria-label'))).toEqual(names)
+    })
+  }
 })
 
 // a picture's color code asked of trace.moe, its address /search?scene=<code>

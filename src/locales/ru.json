@@ -221,7 +221,7 @@
   "Releases {day}": "Выходит: {day}",
   "Releases#verb": "Выходит",
   "Remove": "Удалить",
-  "Remove {filter}": "Убрать {filter}",
+  "Remove {filter}": "Убрать фильтр «{filter}»",
   "Remove {name}": "Удалить {name}",
   "Result layout": "Вид результатов",
   "Results for “{query}”": "Результаты по запросу «{query}»",

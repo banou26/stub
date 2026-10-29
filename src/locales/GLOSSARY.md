@@ -26,6 +26,8 @@ same change, using the terms below, and runs `npm run i18n:check`.
 - **A value Intl writes** (`{countdown}` is `2 Tage, 3 Stunden`, `{day}` a year, a month or a day) comes in the
   nominative, so the words around it ask no case of it: German `noch {countdown}` and `Bis Folge {episode}:` where
   `in` would want `Tagen`, Polish `jeszcze {countdown}` where `za` would want `godzinę`, and a colon before `{day}`.
+  So does a label another message gives, such as a chip's `{filter}` (`Зима`, `Komedia`): Russian `Убрать фильтр
+  «{filter}»` and Polish `Usuń filtr „{filter}”`, where the verb alone would want `Зиму` and `Komedię`.
 
 ## Register and terms
 

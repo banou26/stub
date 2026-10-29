@@ -221,7 +221,7 @@
   "Releases {day}": "Premiera: {day}",
   "Releases#verb": "Premiera",
   "Remove": "Usuń",
-  "Remove {filter}": "Usuń {filter}",
+  "Remove {filter}": "Usuń filtr „{filter}”",
   "Remove {name}": "Usuń {name}",
   "Result layout": "Układ wyników",
   "Results for “{query}”": "Wyniki dla „{query}”",
