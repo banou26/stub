@@ -87,22 +87,24 @@ stub only connects to the browser's own session, so its words differ from signin
 
 A release is one of a source's files for an episode (a torrent, a listing). The sign-in window is the one FKN opens,
 the pop-up the browser's own. A source is named as in Settings: Browse sources is the same button. An episode's short
-label, `E{number} - {title}`, keeps the mark streaming services write in the language (É, E), else the word.
+label, `E{number} - {title}`, keeps the mark streaming services write in the language (É, E), else the word. A
+source card's languages are named by Intl, except Multiple languages (the tag `mul`), which Chrome leaves unnamed: a
+noun phrase written in the case the language gives the names around it.
 
-| | release | player | sign-in window | pop-up | Retry | `E{number} - {title}` |
-| --- | --- | --- | --- | --- | --- | --- |
-| `es-419` | versión | reproductor | ventana de inicio de sesión | ventana emergente | Reintentar | `E{number} - {title}` |
-| `pt-BR` | versão | player | janela de login | pop-up | Tentar novamente | `E{number} - {title}` |
-| `fr` | version | lecteur | fenêtre de connexion | fenêtre pop-up | Réessayer | `É{number} - {title}` |
-| `de` | Release | Player | Anmeldefenster | Pop-up | Erneut versuchen | `Folge {number} - {title}` |
-| `it` | versione | player | finestra di accesso | pop-up | Riprova | `E{number} - {title}` |
-| `ru` | релиз | плеер | окно входа | всплывающее окно | Повторить | `Серия {number} - {title}` |
-| `ja` | リリース | プレーヤー | サインイン画面 | ポップアップ | 再試行 | `第{number}話 {title}` |
-| `ko` | 릴리스 | 플레이어 | 로그인 창 | 팝업 | 다시 시도 | `{number}화 {title}` |
-| `zh-Hans` | 版本 | 播放器 | 登录窗口 | 弹出窗口 | 重试 | `第{number}集 {title}` |
-| `zh-Hant` | 版本 | 播放器 | 登入視窗 | 彈出式視窗 | 重試 | `第{number}集 {title}` |
-| `tr` | sürüm | oynatıcı | oturum açma penceresi | açılır pencere | Tekrar dene | `{number}. Bölüm - {title}` |
-| `pl` | wydanie | odtwarzacz | okno logowania | wyskakujące okno | Spróbuj ponownie | `Odc. {number} - {title}` |
+| | release | player | sign-in window | pop-up | Retry | `E{number} - {title}` | Multiple languages |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `es-419` | versión | reproductor | ventana de inicio de sesión | ventana emergente | Reintentar | `E{number} - {title}` | varios idiomas |
+| `pt-BR` | versão | player | janela de login | pop-up | Tentar novamente | `E{number} - {title}` | vários idiomas |
+| `fr` | version | lecteur | fenêtre de connexion | fenêtre pop-up | Réessayer | `É{number} - {title}` | plusieurs langues |
+| `de` | Release | Player | Anmeldefenster | Pop-up | Erneut versuchen | `Folge {number} - {title}` | Mehrere Sprachen |
+| `it` | versione | player | finestra di accesso | pop-up | Riprova | `E{number} - {title}` | più lingue |
+| `ru` | релиз | плеер | окно входа | всплывающее окно | Повторить | `Серия {number} - {title}` | несколько языков |
+| `ja` | リリース | プレーヤー | サインイン画面 | ポップアップ | 再試行 | `第{number}話 {title}` | 複数言語 |
+| `ko` | 릴리스 | 플레이어 | 로그인 창 | 팝업 | 다시 시도 | `{number}화 {title}` | 여러 언어 |
+| `zh-Hans` | 版本 | 播放器 | 登录窗口 | 弹出窗口 | 重试 | `第{number}集 {title}` | 多种语言 |
+| `zh-Hant` | 版本 | 播放器 | 登入視窗 | 彈出式視窗 | 重試 | `第{number}集 {title}` | 多種語言 |
+| `tr` | sürüm | oynatıcı | oturum açma penceresi | açılır pencere | Tekrar dene | `{number}. Bölüm - {title}` | Birden fazla dil |
+| `pl` | wydanie | odtwarzacz | okno logowania | wyskakujące okno | Spróbuj ponownie | `Odc. {number} - {title}` | wiele języków |
 
 ## Watch together
 

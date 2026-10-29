@@ -487,6 +487,8 @@ const compactStyle = css`
 // a card names the language, not the region or script it is in: es-419 and es-ES are both Spanish. A language
 // subtag Intl cannot read leaves the tag as the source wrote it
 const languageName = (intl: IntlShape, tag: string) => {
+  // BCP 47's tag for several languages, which a Nyaa release saying Multi-Subs or MULTi carries: Chrome 156 names it 'mul'
+  if (tag === 'mul') return intl.formatMessage({ id: 'Multiple languages', defaultMessage: 'Multiple languages' })
   const language = tag.split('-')[0]!
   return /^(?:[a-z]{2,3}|[a-z]{5,8})$/i.test(language) ? intl.formatDisplayName(language, { type: 'language' }) ?? tag : tag
 }

@@ -146,6 +146,24 @@ test('a card names each language in English by its language subtag, a code Intl 
   expect([subtitles?.textContent, subtitles?.getAttribute('title')]).toEqual(['SubtitlesJapanese, English, French', 'Subtitles: Japanese, English, French'])
 })
 
+// a Nyaa release saying Multi-Subs or MULTi carries `mul`, which Chrome 156 names 'mul' where Node names it
+test('a card names several unlisted languages in the viewer\'s language where the browser has no name for them', async () => {
+  const of: (this: Intl.DisplayNames, code: string) => string | undefined = Reflect.get(Intl.DisplayNames.prototype, 'of')
+  const chrome = vi.spyOn(Intl.DisplayNames.prototype, 'of').mockImplementation(function (this: Intl.DisplayNames, code: string) {
+    return code === 'mul' ? code : of.call(this, code)
+  })
+  const titles = () => [...card(selector({ sources: [{ ...sources[0]!, audioLanguages: ['ja', 'en'], subtitleLanguages: ['mul'] }] }).host, 'Netflix')
+    .querySelectorAll('.languages')].map(line => line.getAttribute('title'))
+  try {
+    expect(titles()).toEqual(['Audio: Japanese, English', 'Subtitles: Multiple languages'])
+    await startLanguage({ language: 'de', languages: ['de-DE'] })
+    expect(titles()).toEqual(['Audio: Japanisch und Englisch', 'Untertitel: Mehrere Sprachen'])
+  } finally {
+    chrome.mockRestore()
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
 test('in German, a card names its languages in German, joined as German joins them, its rest after the third, and its releases', async () => {
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
