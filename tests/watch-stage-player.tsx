@@ -1,7 +1,9 @@
 import type { Frame, RemoteVideoElement } from '@fkn/lib'
 
 import { render } from 'preact'
+import { RawIntlProvider } from 'react-intl'
 
+import { intl } from '../src/i18n'
 import CrunchyrollVideoJSPlayer from '../src/sources/crunchyroll/cr-videojs-player'
 
 // The embed tests/watch-stage.spec.ts frames in place of Crunchyroll's: stub's own Crunchyroll player over a video
@@ -34,6 +36,8 @@ const video = Object.assign(target, {
 })
 
 render(
-  <CrunchyrollVideoJSPlayer remote={video as unknown as RemoteVideoElement} frame={{} as Frame} title="Spec Stage"/>,
+  <RawIntlProvider value={intl}>
+    <CrunchyrollVideoJSPlayer remote={video as unknown as RemoteVideoElement} frame={{} as Frame} title="Spec Stage"/>
+  </RawIntlProvider>,
   document.getElementById('app')!,
 )
