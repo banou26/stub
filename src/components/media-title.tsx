@@ -79,14 +79,6 @@ const style = css`
   &.full-title .information .title {
     max-height: none;
   }
-
-  /* over the cover, so a tag a later source names moves nothing */
-  & > .kind-tag {
-    position: absolute;
-    top: 0.8rem;
-    left: 0.8rem;
-    pointer-events: none;
-  }
 }
 
 /* On mobile the search grid wants fluid cards (it sets no inline size); the home

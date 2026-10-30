@@ -8,8 +8,9 @@ import { MediaSection } from '../src/router/home/media-section'
 
 // The page tests/media-section.spec.ts drives: `window.draw(count, typed)` draws a home row of that many cards, none
 // being the row before the worker has answered. Typed, the cards take turns being a film, a live-action show, an
-// anime show and a work no source typed; untyped, no source has named any format yet.
-const { hook } = memoryLocation({ path: '/' })
+// anime show and a work no source typed; untyped, no source has named any format yet. `window.visited` is where the
+// row's links have gone.
+const { hook, history } = memoryLocation({ path: '/', record: true })
 const FORMATS = [
   { type: 'MOVIE', categories: ['MOVIE'] },
   { type: null, categories: ['SERIES'] },
@@ -27,4 +28,4 @@ const draw = (count: number, typed = false) => render(
   </RawIntlProvider>,
   document.getElementById('row')!,
 )
-Object.assign(window, { draw })
+Object.assign(window, { draw, visited: history })

@@ -96,6 +96,12 @@ test('anime.fkn.app lists the current season alone, with no category tabs', asyn
   await expect(page.getByRole('textbox', { name: 'Search' })).toHaveAttribute('placeholder', 'Search anime…')
 })
 
+// every other test of the tag draws its cards by hand, so this is what reads the home query
+test('anime.fkn.app tags the season row\'s cards by the format the home query asks for', async ({ page }) => {
+  await page.goto(at('anime.localhost'))
+  await expect(page.locator('.category-item .kind-tag').first()).toHaveText(/^(Movie|Series)$/)
+})
+
 test('the header\'s site links read over a bright trailer: white with the theater title\'s dark outline', async ({ page }) => {
   await page.goto(at('anime.localhost'))
   const links = page.locator('header nav.sites a')
@@ -206,6 +212,15 @@ test('any other host lists all three rows under the category tabs, and a tab kee
   await tab(page, 'Series').click()
   await expect(row(page, 'Popular shows')).toBeVisible()
   await expect(row(page, 'Popular movies')).toHaveCount(0)
+})
+
+test('any other host tags JustWatch\'s films and shows, an anime show among them', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await page.goto(at('127.0.0.1'))
+  const tag = (title: string) => page.locator('.category-item', { hasText: title }).first().locator('.kind-tag')
+  await expect(tag('Practical Magic')).toHaveText('Movie')
+  await expect(tag('Ted Lasso')).toHaveText('Series')
+  await expect(tag('Spec Listed Anime')).toHaveText('Series')
 })
 
 test('movies.fkn.app\'s settings leave out the anime catalogues and their sign-ins', async ({ page }) => {

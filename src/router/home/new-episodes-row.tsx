@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { Kinded } from '../../components/kind-tag'
 import type { StoredWork } from './new-episodes'
 import type { RowCellProps } from './card-row'
 
@@ -11,6 +12,7 @@ import { Link } from 'wouter'
 import { gql } from '../../generated'
 import { getRoutePath, Route } from '../path'
 import { VIEWER_LISTS } from '../../components/viewer-lists-query'
+import KindTag from '../../components/kind-tag'
 import { useNow } from '../../utils/use-now'
 import RowTitle from './row-title'
 import CardRow from './card-row'
@@ -24,6 +26,9 @@ const RELEASES = gql(`
       uri
       status
       settled
+      type
+      categories
+      handles { node { _id origin } }
       episodeCount
       nextAiringEpisode { episodeNumber airingAt }
       episodes {
@@ -90,7 +95,7 @@ const rowStyle = css`
   }
 `
 
-type Answer = StoredWork & { settled?: boolean | null }
+type Answer = StoredWork & Kinded & { settled?: boolean | null }
 
 /** Asks stub's merged data what is out of one work, and hands each answer to `onAnswer`. */
 const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, media: Answer) => void }) => {
@@ -101,9 +106,9 @@ const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, medi
 }
 
 /**
- * Every new episode of the shows the viewer is watching, newest first (./new-episodes.ts), the asks of stub's merged
- * data that fill them in, to render beside whatever draws them, and whether the viewer's lists or those asks are still
- * being read.
+ * Every new episode of the shows the viewer is watching, newest first (./new-episodes.ts), each with what stub's merged
+ * data said of its work, the asks of that data that fill them in, to render beside whatever draws them, and whether the
+ * viewer's lists or those asks are still being read.
  */
 export const useNewEpisodes = () => {
   const now = new Date(useNow())
@@ -114,7 +119,7 @@ export const useNewEpisodes = () => {
   // settled once stays settled: a source joining later turns it false again (see useSettledOnce)
   const onAnswer = (uri: string, media: Answer) => setStored(held => ({ ...held, [uri]: { ...media, settled: media.settled || held[uri]?.settled } }))
   return {
-    episodes: newEpisodes(rows, row => releasedOf(row, stored[row.uri], now), now),
+    episodes: newEpisodes(rows, row => releasedOf(row, stored[row.uri], now), now).map(episode => ({ ...episode, stored: stored[episode.work.uri] })),
     asks: asked.map(row => <StoreAsk key={row.uri} uri={row.uri} onAnswer={onAnswer}/>),
     // a first answer can come before the sources that list the episodes, so an asked work is read until it settles
     reading: !data || Boolean(data.viewerLists?.lists.some(list => list.state === 'LOADING')) || asked.some(row => !stored[row.uri]?.settled),
@@ -124,7 +129,7 @@ export const useNewEpisodes = () => {
 type NewEpisode = ReturnType<typeof useNewEpisodes>['episodes'][number]
 
 /** One new episode's card, which opens its work: the cover, the title, the episode to watch next and how many are out. */
-export const NewEpisodeCard = ({ episode: { work, next, count }, style }: { episode: NewEpisode, style?: CSSProperties }) => {
+export const NewEpisodeCard = ({ episode: { work, next, count, stored }, style }: { episode: NewEpisode, style?: CSSProperties }) => {
   const intl = useIntl()
   return (
     <Link to={getRoutePath(Route.MEDIA, { uri: work.uri })} css={cardStyle} className="card" style={style}>
@@ -136,6 +141,8 @@ export const NewEpisodeCard = ({ episode: { work, next, count }, style }: { epis
           <span className="new">{intl.formatMessage({ id: '{count, plural, one {{count} new} other {{count} new}}#episodes out and not watched', defaultMessage: '{count, plural, one {{count} new} other {{count} new}}', description: 'episodes out and not watched' }, { count })}</span>
         </span>
       </div>
+      {/* a device's own list names no format */}
+      <KindTag media={work.type ? work : stored ?? work}/>
     </Link>
   )
 }

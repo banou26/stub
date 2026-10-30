@@ -78,6 +78,7 @@ const show = (rows: unknown[] | undefined, page = false) => {
 }
 
 const cards = (host: HTMLElement) => [...host.querySelectorAll('.card')].map(card => [card.getAttribute('href'), card.querySelector('.title')?.textContent, card.querySelector('.facts')?.textContent])
+const tags = (host: HTMLElement) => [...host.querySelectorAll('.card')].map(card => [card.querySelector('.title')?.textContent, card.querySelector('.kind-tag')?.textContent])
 
 test('is not drawn while nothing is new', () => {
   const host = show([row('mal:1', 'Cowboy Bebop', 'FINISHED', 12, ago(DAY))])
@@ -152,4 +153,30 @@ test('on the device\'s own list, which names no status or schedule, the page wai
   urql.media['stub:7'] = media(false, [1, 2])
   again()
   expect([status(), cards(host)]).toEqual([null, [['/media/stub:7', 'Frieren', 'Episode 21 new']]])
+})
+
+// AniList's and MyAnimeList's lists name a format, a device's own does not
+test('a card tags the format its list names, on the row and on its page, and a format nothing names not at all', () => {
+  const typed = (uri: string, title: string, type: string | null) => ({ ...row(uri, title, 'FINISHED', 1, ago(DAY)), type })
+  const rows = [typed('mal:199', 'Spirited Away', 'MOVIE'), typed('mal:1', 'Cowboy Bebop', 'TV'), typed('mal:2', 'Dandadan', 'ONA'), typed('mal:3', 'A Music Video', null)]
+  const shown = { 'Spirited Away': 'Movie', 'Cowboy Bebop': 'Series', Dandadan: 'Series', 'A Music Video': undefined }
+  expect(Object.fromEntries(tags(show(rows)))).toStrictEqual(shown)
+  expect(Object.fromEntries(tags(show(rows, true)))).toStrictEqual(shown)
+})
+
+test('a card on the device\'s own list, which names no format, tags what stub\'s merged data names', () => {
+  const answer = (uri: string, fields: object) => ({
+    _id: uri, uri, status: 'FINISHED', settled: true, episodeCount: 12, nextAiringEpisode: null,
+    episodes: [{ _id: `e:${uri}`, episodeNumber: 2, releaseDate: ago(DAY), handles: [] }], ...fields,
+  })
+  urql.media = {
+    'stub:1': answer('stub:1', { type: 'MOVIE', categories: ['ANIME', 'MOVIE'], handles: [] }),
+    'stub:2': answer('stub:2', { type: 'TV', categories: ['ANIME', 'SERIES'], handles: [] }),
+    'stub:3': answer('stub:3', { type: null, categories: ['ANIME', 'SERIES'], handles: [{ node: { _id: 'jw:3', origin: 'jw' } }] }),
+    'stub:4': answer('stub:4', { type: null, categories: ['ANIME', 'SERIES'], handles: [] }),
+  }
+  const device = (uri: string, title: string) => ({ ...row(uri, title, null, 0, ago(DAY)), type: null })
+  const host = show([device('stub:1', 'Your Name'), device('stub:2', 'Frieren'), device('stub:3', 'One Piece'), device('stub:4', 'Unknown')])
+  act(() => {})
+  expect(Object.fromEntries(tags(host))).toStrictEqual({ 'Your Name': 'Movie', Frieren: 'Series', 'One Piece': 'Series', Unknown: undefined })
 })

@@ -30,13 +30,16 @@ const AIRING = {
 }
 const FINISHED = { ...AIRING, status: 'FINISHED', nextAiringEpisode: null, episodeCount: 1, popularity: 1 }
 
-// HOR-1083's four: a film, a live-action show TVmaze lists with no format, an anime show, and the shelf an anime
+// A film, a live-action show TVmaze lists with no format, an anime show, and the shelf an anime
 // catalogue files a work under when it could not type it
 const MOVIE = { type: 'MOVIE', categories: ['MOVIE'] }
 const SERIES = { type: null, categories: ['SERIES'] }
 const ANIME_SERIES = { type: 'ONA', categories: ['ANIME', 'SERIES'] }
 const UNKNOWN = { type: null, categories: ['ANIME', 'SERIES'] }
-const KINDS = [MOVIE, SERIES, ANIME_SERIES, UNKNOWN]
+// JustWatch names an anime show by its shelf alone, and a film by its type
+const JUSTWATCH = { handles: [{ relation: 'SAME_AS', node: { origin: 'jw', uri: 'jw:1' } }] }
+const LISTED_ANIME = { ...UNKNOWN, ...JUSTWATCH }
+const KINDS = [MOVIE, SERIES, ANIME_SERIES, UNKNOWN, LISTED_ANIME]
 
 beforeEach(() => { vi.useFakeTimers({ now: NOW, toFake: ['Date'] }) })
 const hosts: HTMLElement[] = []
@@ -80,18 +83,22 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
 })
 
 test('a media is a movie or a series by its format, and neither while no source names one', () => {
-  expect(KINDS.map(kindOf)).toEqual(['MOVIE', 'SERIES', 'SERIES', undefined])
+  expect(KINDS.map(kindOf)).toEqual(['MOVIE', 'SERIES', 'SERIES', undefined, 'SERIES'])
   expect(['TV', 'TV_SHORT', 'OVA', 'SPECIAL'].map(type => kindOf({ type, categories: ['ANIME', 'SERIES'] })))
     .toEqual(['SERIES', 'SERIES', 'SERIES', 'SERIES'])
   // a live-action film a catalogue files under movies with no format, and a media nothing names
   expect([kindOf({ type: null, categories: ['MOVIE'] }), kindOf({ type: null, categories: [] })]).toEqual(['MOVIE', undefined])
+  expect(kindOf({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'], ...JUSTWATCH }), 'the type outranks JustWatch\'s shelf').toBe('MOVIE')
+  expect(kindOf({ ...UNKNOWN, handles: [{ node: { origin: 'cr' } }] }), 'Crunchyroll\'s shelf is the same on a film').toBeUndefined()
+  // a device's own list row names a format and no shelf, or neither
+  expect([kindOf({ type: 'ONA' }), kindOf({ type: null })]).toEqual(['SERIES', undefined])
 })
 
 const tagOf = (media: object) =>
   draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [], ...media } as never}/>).text('.top > .kind-tag')
 
 test('a row\'s preview tags a movie, a series and an anime series, and leaves a format no source named untagged', () => {
-  expect(KINDS.map(tagOf)).toEqual([['Movie'], ['Series'], ['Series'], []])
+  expect(KINDS.map(tagOf)).toEqual([['Movie'], ['Series'], ['Series'], [], ['Series']])
 })
 
 // HOR-1065: the card's text is one link to the preview, so Share sits beside it rather than in it

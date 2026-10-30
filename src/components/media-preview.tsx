@@ -1,6 +1,7 @@
 import type { HTMLAttributes, Ref } from 'react'
 
 import type { Media } from '../generated/schema/types.generated'
+import type { CoverOwner } from '../utils/use-cover-url'
 
 import { css } from '@emotion/react'
 import { useIntl } from 'react-intl'
@@ -12,7 +13,7 @@ import YoutubeMinimalPlayer from './yt-minimal-player'
 import { useCoverUrl } from '../utils/use-cover-url'
 import TextEllipsis from '../components/text-ellipsis'
 import ShareButton from './share-button'
-import KindTag from './kind-tag'
+import KindTag, { type Kinded } from './kind-tag'
 
 const style = css`
 position: relative;
@@ -38,11 +39,12 @@ a {
     font-weight: 600;
   }
 
-  /* as tall as the tag, so a tag a later source names moves nothing */
+  /* as tall as the tag, so a tag a later source names moves nothing; the tag stays by the count, as the card runs
+     past a narrow window */
   .top {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     min-height: 2rem;
     margin-bottom: 1rem;
     font-size: 1.5rem;
@@ -50,6 +52,7 @@ a {
   }
 
   .top > .kind-tag {
+    position: static;
     background: rgba(255, 255, 255, 0.1);
   }
 
@@ -99,7 +102,7 @@ a {
 }
 `
 
-export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElement> & { ref: Ref<HTMLDivElement>, media: Pick<Media, '_id' | 'uri' | 'titles' | 'shortDescriptions' | 'trailers' | 'covers' | 'episodeCount' | 'type' | 'categories'> }) => {
+export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElement> & { ref: Ref<HTMLDivElement>, media: Pick<Media, '_id' | 'uri' | 'titles' | 'shortDescriptions' | 'trailers' | 'covers' | 'episodeCount'> & CoverOwner & Kinded }) => {
   const intl = useIntl()
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const shortDescription = useMemo(() => media?.shortDescriptions?.at(0)?.shortDescription, [media])

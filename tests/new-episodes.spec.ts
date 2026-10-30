@@ -174,6 +174,11 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     const [ownCard, theirCard] = [await box(row.first()), await box(seasonRow.locator('.category-item').first())]
     expect([ownCard.width, ownCard.height], `${width}: a card is Current season's size`).toEqual([theirCard.width, theirCard.height])
     expect(ownCard.width, `${width}: the size of the viewport's cards`).toBe(width === 390 ? 150 : 250)
+    // the device's own list names no format, stub's merged data does
+    const tags = row.locator('.kind-tag')
+    await expect(tags, `${width}: every card is tagged`).toHaveCount(count)
+    const tag = await box(tags.first())
+    expect(tag.x > ownCard.x && tag.x + tag.width < ownCard.x + ownCard.width && tag.y > ownCard.y && tag.y + tag.height < ownCard.y + ownCard.height, `${width}: the tag sits inside its card`).toBe(true)
     expect(await seasonRow.locator('.category-item .information .title').first().evaluate(title => getComputedStyle(title).fontSize), `${width}: a card's title fits its card`).toBe(width === 390 ? '16px' : '22px')
     // the space above the row's heading, from the bottom of the row before it, both read at one scroll position
     const [headingNow, seasonNow] = [await box(heading(page)), await box(seasonRow)]

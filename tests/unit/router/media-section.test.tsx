@@ -119,7 +119,7 @@ test('a row reordered draws each card\'s own poster, and none on a card that has
   ])
 })
 
-// HOR-1083. Crunchyroll files every work it lists under series, a film too, so a card answered by it alone waits for a
+// Crunchyroll files every work it lists under series, a film too, so a card answered by it alone waits for a
 // format rather than reading Series and then Movie.
 test('a row card tags a movie, a series and an anime series, and waits for a format no source has named', async () => {
   const typed = (_id: string, title: string, type: string | null, categories: string[]) => ({ ...show(_id, title), type, categories })
@@ -134,4 +134,11 @@ test('a row card tags a movie, a series and an anime series, and waits for a for
 
   await update(cards({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'] }))
   expect(tags().at(-1)).toEqual(['Your Name', 'Movie'])
+})
+
+// JustWatch answers Popular shows alone, and types a film, so an anime show there has its shelf and no format
+test('a row card tags an anime show JustWatch lists as a series', async () => {
+  const onePiece = { ...show('cl:jw:12', 'One Piece'), type: null, categories: ['ANIME', 'SERIES'], handles: [{ relation: 'SAME_AS', node: { uri: 'jw:12', origin: 'jw' } }] }
+  const { tags } = await row([onePiece])
+  expect(tags()).toEqual([['One Piece', 'Series']])
 })

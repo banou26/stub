@@ -102,6 +102,13 @@ const RATED_NODE = {
     { objectId: 900042, totalEpisodeCount: 0, content: { seasonNumber: 2, isReleased: false }, episodes: [] },
   ],
 }
+// a show JustWatch files under anime and no anime catalogue lists, last among its popular shows
+const LISTED_ANIME = {
+  node: {
+    id: 'ts900300', objectId: 900300, objectType: 'SHOW', offers: [], seasons: [],
+    content: { title: 'Spec Listed Anime', fullPath: '/us/tv-show/spec-listed-anime', posterUrl: null, shortDescription: null, genres: [{ shortName: 'ani', translation: 'Animation' }], productionCountries: ['JP'] },
+  },
+}
 // a film, and JustWatch's node of it with its TMDB id and seven services that link out, so its chips run past a phone's
 // width
 const FILM = {
@@ -227,9 +234,9 @@ export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promis
     const { variables } = JSON.parse(init.body)
     const [objectType] = variables?.searchTitlesFilter?.objectTypes ?? []
     const genres: string[] = variables?.searchTitlesFilter?.genres ?? []
-    const popular = objectType === 'MOVIE' ? POPULAR_MOVIES : objectType === 'SHOW' ? POPULAR_SHOWS : undefined
+    const popular = objectType === 'MOVIE' ? POPULAR_MOVIES.data.popularTitles.edges : objectType === 'SHOW' ? [...POPULAR_SHOWS.data.popularTitles.edges, LISTED_ANIME] : undefined
     if (popular) {
-      const edges = popular.data.popularTitles.edges.filter(({ node }) => !genres.length || node.content.genres.some(genre => genres.includes(genre.shortName)))
+      const edges = popular.filter(({ node }) => !genres.length || node.content.genres.some(genre => genres.includes(genre.shortName)))
       return Response.json({ data: { popularTitles: { edges } } })
     }
     const theBoys = PRIME_COUNTRIES['the-boys'] as Record<string, unknown>

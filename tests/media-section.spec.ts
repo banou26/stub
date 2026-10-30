@@ -77,7 +77,6 @@ for (const [width, height] of [[1440, 900], [390, 844]] as const) {
 const draw = (page: Page, count: number, typed: boolean) =>
   page.evaluate(([count, typed]) => (window as unknown as { draw: (count: number, typed: boolean) => void }).draw(count, typed), [count, typed] as const)
 
-// HOR-1083
 for (const [width, height, cardWidth] of [[1440, 900, 250], [390, 844, 150]] as const) {
   test(`at ${width} wide, a home card's tag names a movie or a series inside its cover, and moves nothing landing`, async ({ page }) => {
     await page.setViewportSize({ width, height })
@@ -102,7 +101,19 @@ for (const [width, height, cardWidth] of [[1440, 900, 250], [390, 844, 150]] as 
       return { width: box.width, inside: left > box.left && right < box.right && top > box.top && bottom < box.bottom }
     }))
     expect(fits).toEqual(Array(3).fill({ width: cardWidth, inside: true }))
+    const tag = (await cards.first().locator('.kind-tag').boundingBox())!
+    await page.mouse.click(tag.x + tag.width / 2, tag.y + tag.height / 2)
+    expect(await page.evaluate(() => (window as unknown as { visited: string[] }).visited.at(-1)), 'a click on the tag opens the card').toMatch(/^\/media\//)
   })
+}
+
+// in steps: floating-ui opens on a move over the card after the one entering it, and closes on one after leaving
+const hover = async (page: Page, index: number) => {
+  await page.mouse.move(0, 0, { steps: 4 })
+  await expect(page.locator('.title-hovercard')).toHaveCount(0)
+  const { x, y, width, height } = (await page.locator('.category-item').nth(index).boundingBox())!
+  await page.mouse.move(x + width / 2, y + height / 2, { steps: 4 })
+  await page.mouse.move(x + width / 2 + 10, y + height / 2 + 10, { steps: 4 })
 }
 
 test('a home card\'s hover card tags it as the card does, its lines where an untagged one has them', async ({ page }) => {
@@ -110,21 +121,33 @@ test('a home card\'s hover card tags it as the card does, its lines where an unt
   await page.goto(`${ORIGIN}/`)
   await page.waitForFunction(() => 'draw' in window)
   await draw(page, 4, true)
-  const preview = page.locator('.title-hovercard')
-  // in steps: floating-ui opens on a move over the card after the one entering it, and closes on one after leaving
-  const hover = async (index: number) => {
-    await page.mouse.move(0, 0, { steps: 4 })
-    await expect(preview).toHaveCount(0)
-    const { x, y, width, height } = (await page.locator('.category-item').nth(index).boundingBox())!
-    await page.mouse.move(x + width / 2, y + height / 2, { steps: 4 })
-    await page.mouse.move(x + width / 2 + 10, y + height / 2 + 10, { steps: 4 })
+  const shownOn = async (index: number) => {
+    await hover(page, index)
     // offsetTop, which the card's opening scale leaves alone
-    return preview.evaluate(card => ({
+    return page.locator('.title-hovercard').evaluate(card => ({
       tag: card.querySelector('.kind-tag')?.textContent ?? null,
       description: card.querySelector<HTMLElement>('.description')!.offsetTop,
     }))
   }
-  const shown = [await hover(0), await hover(1), await hover(2), await hover(3)]
+  const shown = [await shownOn(0), await shownOn(1), await shownOn(2), await shownOn(3)]
   expect(shown.map(({ tag }) => tag)).toEqual(['Movie', 'Series', 'Series', null])
   expect(shown.map(({ description }) => description)).toEqual(Array(4).fill(shown[3]!.description))
+})
+
+test('a hover card wider than the window keeps its tag on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${ORIGIN}/`)
+  await page.waitForFunction(() => 'draw' in window)
+  await draw(page, 4, true)
+  await hover(page, 0)
+  const preview = page.locator('.title-hovercard')
+  // offsetWidth, which the card's opening scale leaves alone
+  expect(await preview.evaluate((card: HTMLElement) => card.offsetWidth), 'the control: the card runs past the window').toBeGreaterThan(390)
+  await expect(preview.locator('.kind-tag')).toBeInViewport({ ratio: 1 })
+  // read at once, under one moment of the card's opening scale
+  expect(await preview.evaluate(card => {
+    const tag = card.querySelector('.kind-tag')!.getBoundingClientRect()
+    const line = card.querySelector('.top')!.getBoundingClientRect()
+    return tag.top >= line.top && tag.bottom <= line.bottom
+  }), 'the tag sits on its count\'s line').toBe(true)
 })
