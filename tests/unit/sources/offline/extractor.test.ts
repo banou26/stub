@@ -37,8 +37,10 @@ vi.mock('../../../../src/sources/offline/history-shards', () => {
       44: { 'anilist-300': ['Daicon III Opening Animation', ''] },
       127: { 'mal-52991': ['Sousou no Frieren', ''] },
     },
-    anidb: { 5: { 'mal-5': 'Cowboy Bebop: The Movie' } },
-    kitsu: { 1: { 'mal-1': { d: 'In the year 2071, humanity has colonized several of the planets.' } } },
+    stub: {
+      1: { 'mal-1': { d: 'In the year 2071, humanity has colonized several of the planets.' } },
+      5: { 'mal-5': { t: 'Cowboy Bebop: The Movie' } },
+    },
   }
   return { loadShard: async (set: string, shard: number) => sets[set]?.[shard] && { records: sets[set]![shard] } }
 })

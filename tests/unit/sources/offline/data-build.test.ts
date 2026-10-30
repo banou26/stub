@@ -3,7 +3,7 @@
 import { expect, test } from 'vite-plus/test'
 
 import { buildExtract, refusal } from '../../../../scripts/build-anime-data.mjs'
-import { historyShards, type AnidbTitle } from '../../../../scripts/offline-pick'
+import { historyPicks, type AnidbTitle } from '../../../../scripts/offline-pick'
 
 const BEBOP = {
   title: 'Cowboy Bebop',
@@ -27,14 +27,14 @@ test('a history heading fewer than 10,000 shows with AniDB\'s title refuses the 
   expect(refusal(HEALTHY)).toBeUndefined()
   expect(refusal({ ...HEALTHY, anidbTitles: 9_999 })).toMatch(/only 9999 history titles from AniDB.*Run the Offline history workflow/)
   // an empty AniDB asset, as a first publish AniDB refused leaves it, gives no AniDB title at all
-  const { counts } = historyShards(
+  const { counts } = historyPicks(
     [{ t: 'Kidou Senshi Gundam', ty: 'TV', p: '', ml: 80, ad: 63 }],
     new Map<number, AnidbTitle[]>(),
     new Map(),
   )
   expect(refusal({ ...HEALTHY, anidbTitles: counts.anidbTitles })).toMatch(/only 0 history titles from AniDB/)
   // control: the same record with AniDB's titles counts one
-  expect(historyShards([{ t: 'Kidou Senshi Gundam', ty: 'TV', p: '', ml: 80, ad: 63 }], new Map([[63, [['official', 'en', 'Mobile Suit Gundam'] as AnidbTitle]]]), new Map()).counts.anidbTitles).toBe(1)
+  expect(historyPicks([{ t: 'Kidou Senshi Gundam', ty: 'TV', p: '', ml: 80, ad: 63 }], new Map([[63, [['official', 'en', 'Mobile Suit Gundam'] as AnidbTitle]]]), new Map()).counts.anidbTitles).toBe(1)
 })
 
 // Mutations: drop the index floor; drop the seasons floor.

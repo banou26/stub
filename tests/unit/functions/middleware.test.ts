@@ -22,7 +22,7 @@ vi.mock('../../../src/generated/anime-seasons', () => ({
 vi.mock('../../../src/sources/offline/history-shards', () => {
   const sets: Record<string, Record<number, Record<string, unknown>>> = {
     dump: { 1: { 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] }, 5: { 'mal-5': ['Cowboy Bebop: Tengoku no Tobira', ''] } },
-    kitsu: { 1: { 'mal-1': { b: 'cover_images/1/original.jpg', d: 'In the year 2071, humanity has colonized several of the planets.' } } },
+    stub: { 1: { 'mal-1': { b: 'cover_images/1/original.jpg', d: 'In the year 2071, humanity has colonized several of the planets.' } } },
   }
   return { loadShard: async (set: string, shard: number) => sets[set]?.[shard] && { records: sets[set]![shard] } }
 })

@@ -9,8 +9,8 @@ import type { Media as GQLMedia } from '../src/generated/schema/types.generated'
 import { aggregateFields, type ClusterFacts } from '../src/worker/graph/plugins/fields'
 import { normalizeMedia as anizipMedia } from '../src/sources/anizip/extractor'
 import { normalizeMedia as kitsuMedia } from '../src/sources/kitsu/extractor'
-import { recordId, seasonMedia, type ManamiRecord } from '../src/sources/offline/normalize'
-import { SHARDS, kitsuPath, shardName, shardOf, type DumpEntry, type HistorySet, type KitsuEntry } from '../src/sources/offline/history'
+import { coverUrl, recordId, seasonMedia, type ManamiRecord } from '../src/sources/offline/normalize'
+import { SHARDS, kitsuPath, shardName, shardOf, type DumpEntry, type HistorySet, type PickEntry } from '../src/sources/offline/history'
 import { makeMedia } from '../src/sources/utils'
 
 export { SHARDS, shardName }
@@ -106,23 +106,55 @@ export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu
 }
 
 /**
- * The history's shards: for each set, `SHARDS` objects of key to entry (see src/sources/offline/history.ts), and
- * how many entries each source gave. A key two records share keeps the first. A record with no MyAnimeList id
- * that names a Kitsu id is also reached from `kitsu-K`, which the id index cannot do, since it holds no row
- * without a MyAnimeList id. `previews` holds the kept answers by uri, joined to a record by its AniDB and Kitsu ids.
+ * Stub's merge of every record: `picks`, what it chose over the dump's title and picture, by key, leaving out a record
+ * it chose nothing else for, and how many entries each source gave. A key two records share keeps the first. `previews`
+ * holds the kept answers by uri, joined to a record by its AniDB and Kitsu ids.
  */
-export const historyShards = (
+export const historyPicks = (
   records: readonly HistoryRecord[],
   anidb: ReadonlyMap<number, readonly AnidbTitle[]>,
   kitsu: ReadonlyMap<number, KitsuRow>,
   previews: ReadonlyMap<string, PreviewAnswer> = new Map(),
 ) => {
+  const picks = new Map<string, PickEntry>()
+  const counts = { records: 0, anidbTitles: 0, kitsuTitles: 0, kitsuCovers: 0, banners: 0, descriptions: 0, previewed: 0 }
+  const seen = new Set<string>()
+  for (const record of records) {
+    const key = recordId(record)
+    if (!key || !record.t || seen.has(key)) continue
+    seen.add(key)
+    counts.records++
+
+    const kept = { anizip: record.ad ? previews.get(`anizip:${record.ad}`) : undefined, kitsu: record.ku ? previews.get(`kitsu:${record.ku}`) : undefined }
+    counts.previewed += Number(Boolean(kept.anizip || kept.kitsu))
+    const { title, cover, banner, description } = pick(record, record.ad ? anidb.get(record.ad) : undefined, record.ku ? kitsu.get(record.ku) : undefined, kept)
+    const entry: PickEntry = {}
+    // a value that reads as the dump's is the dump's entry already
+    if (title && title.value !== record.t) entry.t = title.value
+    if (cover && cover.value !== (record.p && coverUrl(record.p))) entry.p = kitsuPath(cover.value)
+    if (banner) entry.b = kitsuPath(banner.value)
+    if (description) entry.d = description.value
+    if (Object.keys(entry).length) picks.set(key, entry)
+    counts.anidbTitles += Number(Boolean(entry.t) && title?.origin === 'anizip')
+    counts.kitsuTitles += Number(Boolean(entry.t) && title?.origin === 'kitsu')
+    counts.kitsuCovers += Number(Boolean(entry.p) && cover?.origin === 'kitsu')
+    counts.banners += Number(Boolean(entry.b))
+    counts.descriptions += Number(Boolean(entry.d))
+  }
+  return { picks, counts }
+}
+
+/**
+ * The history's shards: for each set, `SHARDS` objects of key to entry (see src/sources/offline/history.ts), the dump's
+ * from `records` and stub's from `picks`, as `historyPicks` answers them. A key two records share keeps the first. A
+ * record with no MyAnimeList id that names a Kitsu id is also reached from `kitsu-K`, which the id index cannot do,
+ * since it holds no row without a MyAnimeList id.
+ */
+export const historyShards = (records: readonly HistoryRecord[], picks: ReadonlyMap<string, PickEntry>) => {
   const sets: Record<HistorySet, Record<string, unknown>[]> = {
     dump: Array.from({ length: SHARDS }, () => ({})),
-    anidb: Array.from({ length: SHARDS }, () => ({})),
-    kitsu: Array.from({ length: SHARDS }, () => ({})),
+    stub: Array.from({ length: SHARDS }, () => ({})),
   }
-  const counts = { records: 0, anidbTitles: 0, kitsuTitles: 0, kitsuCovers: 0, banners: 0, descriptions: 0, previewed: 0 }
   const pointers = new Map<string, string>()
   for (const record of records) {
     const key = recordId(record)
@@ -131,33 +163,13 @@ export const historyShards = (
     if (sets.dump[shard]![key]) continue
     const dump: DumpEntry = [record.t, record.p]
     sets.dump[shard]![key] = dump
-    counts.records++
-
-    const kept = { anizip: record.ad ? previews.get(`anizip:${record.ad}`) : undefined, kitsu: record.ku ? previews.get(`kitsu:${record.ku}`) : undefined }
-    counts.previewed += Number(Boolean(kept.anizip || kept.kitsu))
-    const chosen = pick(record, record.ad ? anidb.get(record.ad) : undefined, record.ku ? kitsu.get(record.ku) : undefined, kept)
-    const fromKitsu: KitsuEntry = {}
-    const title = chosen.title
-    // a title that reads as the dump's is the dump's entry already
-    if (title && title.value !== record.t) {
-      if (title.origin === 'anizip') sets.anidb[shard]![key] = title.value
-      if (title.origin === 'kitsu') fromKitsu.t = title.value
-    }
-    counts.anidbTitles += Number(Boolean(sets.anidb[shard]![key]))
-    counts.kitsuTitles += Number(Boolean(fromKitsu.t))
-    if (chosen.cover?.origin === 'kitsu') fromKitsu.p = kitsuPath(chosen.cover.value)
-    if (chosen.banner?.origin === 'kitsu') fromKitsu.b = kitsuPath(chosen.banner.value)
-    if (chosen.description?.origin === 'kitsu') fromKitsu.d = chosen.description.value
-    if (Object.keys(fromKitsu).length) sets.kitsu[shard]![key] = fromKitsu
-    counts.kitsuCovers += Number(Boolean(fromKitsu.p))
-    counts.banners += Number(Boolean(fromKitsu.b))
-    counts.descriptions += Number(Boolean(fromKitsu.d))
-
+    const entry = picks.get(key)
+    if (entry) sets.stub[shard]![key] = entry
     if (!record.ml && record.ku && key !== `kitsu-${record.ku}` && !pointers.has(`kitsu-${record.ku}`)) pointers.set(`kitsu-${record.ku}`, key)
   }
   for (const [pointer, key] of pointers) {
     const shard = sets.dump[shardOf(pointer)]!
     if (!shard[pointer]) shard[pointer] = key
   }
-  return { sets, counts }
+  return sets
 }

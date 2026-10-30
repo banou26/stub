@@ -121,12 +121,14 @@ const ARM = {
   notice: 'Copyright (c) P-Chan.',
 }
 
-// The history's shards credit one source each, so AniDB's and Kitsu's content is never presented as part of the
-// ODbL database (its section 4.4 d). Their terms could not be read (2026-10-23), so no license is named for them.
+// The dump's shards credit it alone, so nothing else in the history is presented as part of the ODbL database (its
+// section 4.4 d). AniDB's and Kitsu's terms could not be read (2026-10-23), so no license is named for them.
 const HISTORY_SOURCES = {
   dump: [OFFLINE_DATABASE],
-  anidb: [{ name: 'AniDB', url: 'https://anidb.net/', notice: 'Titles from its anime titles file, as api.ani.zip passes them on.' }],
-  kitsu: [{ name: 'Kitsu', url: 'https://kitsu.io/', notice: 'Titles, posters, banners and synopses from its API.' }],
+  stub: [
+    { name: 'AniDB', url: 'https://anidb.net/', notice: 'Titles from its anime titles file, as api.ani.zip passes them on.' },
+    { name: 'Kitsu', url: 'https://kitsu.io/', notice: 'Titles, posters, banners and synopses from its API.' },
+  ],
 }
 const HISTORY_DIR = resolve(OUT_DIR, 'history')
 
@@ -600,10 +602,10 @@ const main = async () => {
 
   const { runnerImport } = await import('vite-plus')
   const { module: pick } = await runnerImport(resolve(ROOT, 'scripts/offline-pick.ts'), { root: ROOT, configFile: false, logLevel: 'error' })
-  const { sets, counts } = pick.historyShards(manami.history, history.anidb.titles, history.kitsu, history.previews)
+  const { picks, counts } = pick.historyPicks(manami.history, history.anidb.titles, history.kitsu, history.previews)
   log(`history: ${counts.records} records, AniDB titles of ${history.anidb.fetchedAt}, Kitsu rows refreshed for ${history.manifest.kitsu?.refreshedFor}, ${counts.previewed} with an answer kept from a link preview`)
   log(`history: titles from AniDB ${counts.anidbTitles}, Kitsu ${counts.kitsuTitles}, the dump ${counts.records - counts.anidbTitles - counts.kitsuTitles}; Kitsu covers ${counts.kitsuCovers}, banners ${counts.banners}, descriptions ${counts.descriptions}`)
-  emitHistory(sets, pick.shardName, provenance)
+  emitHistory(pick.historyShards(manami.history, picks), pick.shardName, provenance)
 
   const refused = refusal({ indexRows: kept.length, seasons: Object.keys(seasons).length, anidbTitles: counts.anidbTitles })
   if (refused) refuse(refused)

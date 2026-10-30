@@ -14,12 +14,12 @@ vi.mock('../../../../src/generated/history/dump-005.ts', () => {
 test('a generated shard loads under the name the history reader asks for, Cowboy Bebop in dump-001', async () => {
   const dump = await loadShard('dump', 1)
   expect(dump?.records['mal-1']).toEqual(['Cowboy Bebop', expect.stringContaining('19644')])
-  for (const set of ['anidb', 'kitsu'] as const) expect(await loadShard(set, 1), set).toBeDefined()
+  expect(await loadShard('stub', 1)).toBeDefined()
 })
 
 // Mutation: drop the memo.
 test('a shard is imported once and kept', () => {
-  expect(loadShard('kitsu', 2)).toBe(loadShard('kitsu', 2))
+  expect(loadShard('stub', 2)).toBe(loadShard('stub', 2))
 })
 
 // Mutations: answer an empty shard for one this build does not hold; let a failed load reject.
@@ -31,9 +31,9 @@ test('a shard this build does not hold, or one that fails to load, answers nothi
 })
 
 // Mutation: write the `sources` field of another set into the dump's shards.
-test('each set credits its own source, and only the dump\'s shards carry the ODbL notice', async () => {
-  const sources = async (set: 'dump' | 'anidb' | 'kitsu') => ((await loadShard(set, 3)) as unknown as { sources: { name: string, license?: string }[] }).sources
+test('only the dump\'s shards carry the ODbL notice, and stub\'s credit what its merge took', async () => {
+  const sources = async (set: 'dump' | 'stub') => ((await loadShard(set, 3)) as unknown as { sources: { name: string, license?: string }[] }).sources
   expect((await sources('dump')).map(source => source.license)).toEqual(['ODbL-1.0'])
-  expect((await sources('anidb')).map(source => source.name)).toEqual(['AniDB'])
-  expect((await sources('kitsu')).map(source => source.name)).toEqual(['Kitsu'])
+  expect((await sources('stub')).map(source => source.name)).toEqual(expect.arrayContaining(['AniDB', 'Kitsu']))
+  expect((await sources('stub')).map(source => source.license)).not.toContain('ODbL-1.0')
 })

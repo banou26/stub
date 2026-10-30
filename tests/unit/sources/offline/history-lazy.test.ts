@@ -1,4 +1,4 @@
-// The history's shard map (384 chunks) is imported on the first lookup of an older show, so it stays out of the
+// The history's shard map (256 chunks) is imported on the first lookup of an older show, so it stays out of the
 // worker every page starts, and a failure to import it leaves the offline source's answer as it was without it.
 import { expect, test, vi } from 'vite-plus/test'
 

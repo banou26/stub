@@ -1,6 +1,6 @@
 import { shardName, type HistorySet, type HistoryShard } from './history'
 
-// one chunk per shard, so a page opening a title loads three small files rather than all of history
+// one chunk per shard, so a page opening a title loads two small files rather than all of history
 const shards = import.meta.glob<HistoryShard>('../../generated/history/*.ts', { import: 'default' })
 const loaded: Record<string, Promise<HistoryShard | undefined>> = {}
 

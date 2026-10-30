@@ -193,7 +193,7 @@ const keysOf = (refs: readonly { origin: string, id: number }[]) =>
  * the history pairs no ids, so only the index row's handles may join it to anything else.
  */
 const fromHistory = async (keys: readonly string[]): Promise<GQLMedia | undefined> => {
-  // Imported here, so its map of 384 shard chunks stays out of the worker every page starts. A failure answers
+  // Imported here, so its map of 256 shard chunks stays out of the worker every page starts. A failure answers
   // nothing, as a shard's does.
   const load: ShardLoader = await import('./history-shards').then(module => module.loadShard, error => {
     console.error('offline: the history could not be loaded', error)
