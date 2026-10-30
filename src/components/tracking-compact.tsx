@@ -130,7 +130,7 @@ const style = css`
     &.off .logo, &.login .logo { opacity: 0.45; }
     .mark {
       position: absolute;
-      right: -0.25rem;
+      inset-inline-end: -0.25rem;
       bottom: -0.2rem;
       display: flex;
       width: 0.7rem;
@@ -145,7 +145,7 @@ const style = css`
     &.error .mark { background: #f87171; }
     &.paused .mark { background: #fb923c; }
     &.cannot .mark { display: none; }
-    &.loading .mark, &.busy .mark { right: -0.4rem; bottom: -0.35rem; width: auto; height: auto; background: #17171a; }
+    &.loading .mark, &.busy .mark { inset-inline-end: -0.4rem; bottom: -0.35rem; width: auto; height: auto; background: #17171a; }
   }
 
   .logo {
@@ -174,7 +174,7 @@ const style = css`
     .slot { display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; }
     .check { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #4ade80; color: #000; display: flex; align-items: center; justify-content: center; }
     .ring { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 0.15rem solid rgba(255, 255, 255, 0.45); }
-    .badge { position: absolute; top: 0.2rem; left: 2.4rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; }
+    .badge { position: absolute; top: 0.2rem; inset-inline-start: 2.4rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; }
     .badge.amber { background: #fb923c; }
     .badge.red { background: #f87171; }
     &.off > .logo-button { opacity: 0.45; }
