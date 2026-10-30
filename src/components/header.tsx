@@ -39,6 +39,10 @@ const WORDMARK = 'stub'
 
 const LONG_PRESS = 500
 
+// below this the site links wait in the wordmark's menu: in Russian and the pseudo-language they left the search
+// under 300 px at 1024, with its placeholder cut (measured 2026-10-31 in Montserrat, DejaVu Sans and Noto Sans)
+const LINKS_FROM = 1200
+
 const style = css`
   position: fixed;
   /* the FKN broker's docked bar reserves the page's top strip with a root margin, which cannot
@@ -89,7 +93,7 @@ const style = css`
 
     /* the site links hide here and the arrow before the wordmark shows, which would give the row ITS baseline;
        centred, FKN's mark, as tall a box as the wordmark's, still sits on the wordmark's */
-    @media (max-width: 1023px) {
+    @media (max-width: ${LINKS_FROM - 1}px) {
       align-items: center;
     }
   }
@@ -110,7 +114,7 @@ const style = css`
       }
     }
 
-    @media (max-width: 1023px) {
+    @media (max-width: ${LINKS_FROM - 1}px) {
       display: none;
     }
   }
@@ -146,7 +150,7 @@ const style = css`
       transform: rotate(180deg);
     }
 
-    @media (max-width: 1023px) {
+    @media (max-width: ${LINKS_FROM - 1}px) {
       display: flex;
     }
   }
@@ -246,8 +250,8 @@ const style = css`
     }
   }
 
-  /* the row's words differ by font: with the party button's label gone (party-widget.tsx), this is what leaves the
-     search 300 px at 1024, in Montserrat and in a fallback alike */
+  /* the row's words differ by font and language: with the party button's label gone (party-widget.tsx), this is what
+     leaves the search its room where the site links show, in Montserrat and in a fallback alike */
   @media (max-width: 1359px) {
     gap: 1.2rem;
 

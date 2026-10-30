@@ -376,13 +376,13 @@ test('a site link offers this device\'s own sources to the next site, never the 
     .toHaveAttribute('href', `${at('movies.localhost')}?plugins=https:stub.plugins.banou.dev`)
 })
 
-test('from 1024 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
+test('from 1200 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
   const searchBox = async (host: string) => {
     await page.goto(at(host))
     await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
     return (await page.getByRole('textbox', { name: 'Search' }).boundingBox())!
   }
-  for (const width of [1024, 1280]) {
+  for (const width of [1200, 1280]) {
     await page.setViewportSize({ width, height: 800 })
     const plain = await searchBox('127.0.0.1')
     const search = await searchBox('series.localhost')
@@ -407,7 +407,7 @@ test('the header keeps its floors in a wider font, on every site', async ({ page
     await page.goto(at(host, '/settings'))
     await expect(searchField(page)).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
-    for (const width of [1024, 1280, 1440]) {
+    for (const width of [1024, 1199, 1200, 1280, 1440]) {
       await page.setViewportSize({ width, height: 800 })
       const [start, search, actions] = await Promise.all([page.locator('header .start'), searchField(page), page.locator('header .actions')].map(async box => (await box.boundingBox())!))
       expect(search!.width, `${host} at ${width}: the search's floor`).toBeGreaterThanOrEqual(300)
@@ -429,6 +429,46 @@ test('the header keeps its floors in a wider font, on every site', async ({ page
   }
 })
 
+// HOR-1026 (stub in the viewer's language): the site links run longest in Russian and the pseudo-language, and so does
+// the stub host's placeholder, so every catalogue is read where the links show and where they leave
+test('the header keeps its floors in every language, in a wider font, from 1024 px', async ({ page }) => {
+  test.setTimeout(600_000)
+  const problems: string[] = []
+  for (const language of ['en', ...Object.keys(catalogues()), PSEUDO]) {
+    await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    await page.setViewportSize({ width: 1440, height: 800 })
+    await page.goto(at('stub.localhost', '/settings'))
+    await expect(page.locator('html')).toHaveAttribute('lang', language)
+    await expect(page.locator('header form input')).toBeVisible()
+    await page.addStyleTag({ content: WIDER_FONT })
+    for (const width of [1024, 1199, 1200, 1359, 1360, 1440]) {
+      await page.setViewportSize({ width, height: 800 })
+      // the placeholder measured as the language test below measures one
+      const row = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+        const input = document.querySelector<HTMLInputElement>('header form input')!
+        const style = getComputedStyle(input)
+        const pen = document.createElement('canvas').getContext('2d')!
+        pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+        const search = input.getBoundingClientRect()
+        return {
+          links: document.querySelector('header nav.sites a')!.getBoundingClientRect().width > 0,
+          start: box('header .start').right, left: search.left, right: search.right, width: search.width, actions: box('header .actions').left,
+          spare: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - pen.measureText(input.placeholder).width,
+          scroll: document.documentElement.scrollWidth,
+        }
+      })
+      const where = `${language} at ${width}`
+      if (row.links !== width >= 1200) problems.push(`${where}: the site links ${row.links ? 'show' : 'are hidden'}`)
+      if (row.width < 300) problems.push(`${where}: the search is ${Math.round(row.width)} px`)
+      if (row.spare < -0.5) problems.push(`${where}: the placeholder runs ${Math.round(-row.spare)} px past its box`)
+      if (row.start > row.left || row.right > row.actions) problems.push(`${where}: the search overlaps its neighbours`)
+      if (row.scroll > width) problems.push(`${where}: the page scrolls sideways`)
+    }
+  }
+  expect(problems).toEqual([])
+})
+
 test('the home page\'s category tabs wrap in a wider font, where they would scroll the page sideways', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 })
   await page.goto(at('stub.localhost'))
@@ -440,8 +480,8 @@ test('the home page\'s category tabs wrap in a wider font, where they would scro
   await expect(tab(page, 'Movies'), 'the control: the wider row reached past the page').toBeInViewport({ ratio: 1 })
 })
 
-test('below 1024 px the bar is one row with no visible site links', async ({ page }) => {
-  for (const [width, height] of [[1023, 800], [844, 390], [390, 844]] as const) {
+test('below 1200 px the bar is one row with no visible site links', async ({ page }) => {
+  for (const [width, height] of [[1199, 800], [1024, 800], [844, 390], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(at('127.0.0.1'))
     const plain = (await page.locator('header').boundingBox())!.height
@@ -629,7 +669,7 @@ test.describe('on a touch screen', () => {
 
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
 
-test('below 1024 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
+test('below 1200 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('movies.localhost', '/settings'))
   const arrow = (await sitesArrow(page).boundingBox())!
@@ -854,7 +894,7 @@ const areaDrawn = async (page: Page, width: number) => {
     await page.goto(at(host))
     await expect(page.locator('header .sites-toggle')).toBeAttached()
     await read(host)
-    if (width >= 1024) continue
+    if (width >= 1200) continue
     await page.locator('header .sites-toggle').click()
     await expect(siteMenu(page)).toBeVisible()
     await read(`${host}'s site menu`)
