@@ -101,6 +101,8 @@ export const pluginStatuses = (): PluginStatus[] =>
 
 export const enabledPluginUris = (): string[] => loadEnabled()
 
+export const installedPluginUris = async (): Promise<string[]> => []
+
 export const installPlugin = async (uri: string): Promise<string | null> => {
   await new Promise(resolve => setTimeout(resolve, 500))
   if (!SPEC_PLUGINS[uri]) throw Object.assign(new Error(`'${uri}' is not an npm package or a local address FKN can install`), { code: 'invalid' })

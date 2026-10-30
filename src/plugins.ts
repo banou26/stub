@@ -36,6 +36,10 @@ export const pluginStatuses = (): PluginStatus[] =>
 
 export const enabledPluginUris = (): string[] => loadEnabled()
 
+/** The ids of the packages FKN holds installed for this app, whichever of its sites installed them. */
+export const installedPluginUris = async (): Promise<string[]> =>
+  (await packages.list()).map(installed => installed.uri)
+
 const setStatus = (uri: string, status: Omit<PluginStatus, 'uri'>) => {
   statuses.set(uri, { uri, ...status })
   notify()
@@ -111,7 +115,7 @@ const disconnect = (uri: string) => {
 
 // The list changed under this page: the account's list arrived, changed on another site, device or tab,
 // or left at sign out. A source new here is installed without FKN's confirm, since the viewer approved it
-// when they added it; FKN still shows its own notice.
+// when they added it; FKN shows its own notice only when no site of this app installed it on this device.
 const follow = (before: string[], after: string[]) => {
   for (const uri of before) {
     if (after.includes(uri)) continue

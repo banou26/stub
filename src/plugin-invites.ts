@@ -1,5 +1,5 @@
 import { comparablePluginUri } from './utils/plugin-links'
-import { enabledPluginUris, enablePlugin, onPluginsChange } from './plugins'
+import { enabledPluginUris, enablePlugin, installedPluginUris, installPlugin, onPluginsChange } from './plugins'
 
 export type PluginInvite = {
   uri: string
@@ -20,16 +20,43 @@ export const onInvitesChange = (listener: () => void): (() => void) => {
 
 export const pluginInvites = (): PluginInvite[] => [...invites.values()]
 
-export const pendingInviteUris = (): string[] => [...invites.keys()]
+// waiting on FKN's list, and kept on the url meanwhile
+const held = new Set<string>()
+
+export const pendingInviteUris = (): string[] => [...invites.keys(), ...held]
 
 const knownUris = () => new Set(enabledPluginUris().map(comparablePluginUri))
 
-export const offerInvites = (uris: string[]): void => {
-  const known = knownUris()
+// On production, 2026-10-31, FKN's list answered a sibling site's first call in 300 to 370 ms, and in 4 of
+// 8 loads about 25 ms after the dialog had rendered, so offering first would flash it up and away. A
+// broker that never answers costs this wait, then the offer as before.
+const LIST_WAIT_MS = 1_500
+
+const listed = (): Promise<Set<string>> => Promise.race([
+  installedPluginUris().then(uris => new Set(uris.map(comparablePluginUri)), () => new Set<string>()),
+  new Promise<Set<string>>(resolve => setTimeout(() => resolve(new Set()), LIST_WAIT_MS)),
+])
+
+const offerable = (uri: string) => {
+  const key = comparablePluginUri(uri)
+  return Boolean(key) && !knownUris().has(key) && !declined.has(key) && !invites.has(uri) && !held.has(uri)
+}
+
+// FKN keeps one install record for every site of an app, so a link can name a package another of its
+// sites installed: that one is added without asking, and FKN decides whether to say so
+export const offerInvites = async (uris: string[]): Promise<void> => {
+  const fresh = uris.filter(offerable)
+  if (!fresh.length) return
+  for (const uri of fresh) held.add(uri)
+  const installed = await listed()
   let added = false
-  for (const uri of uris) {
-    const key = comparablePluginUri(uri)
-    if (!key || known.has(key) || declined.has(key) || invites.has(uri)) continue
+  for (const uri of fresh) {
+    held.delete(uri)
+    if (!offerable(uri)) continue
+    if (installed.has(comparablePluginUri(uri))) {
+      installPlugin(uri).catch(error => console.warn(`Source '${uri}' could not be added:`, error))
+      continue
+    }
     invites.set(uri, { uri, state: 'offered' })
     added = true
   }

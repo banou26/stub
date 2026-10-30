@@ -10,7 +10,7 @@ const sync = () => {
   if (next !== location.href) history.replaceState(history.state, '', next)
 }
 
-const ingest = () => offerInvites(readPluginUris(location.href))
+const ingest = () => { void offerInvites(readPluginUris(location.href)) }
 
 // wouter applies this to the rendered attribute only and navigates with the raw path, so it does not
 // stack with the History patch below
