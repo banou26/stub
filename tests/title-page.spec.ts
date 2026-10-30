@@ -51,7 +51,8 @@ test.beforeAll(async () => {
     root: ROOT,
     logLevel: 'error',
     worker: { plugins: workerFakes },
-    build: { outDir: dir, emptyOutDir: true },
+    // the player page too, which `npm run build` leaves to the lib build
+    build: { outDir: dir, emptyOutDir: true, rollupOptions: { input: { main: join(ROOT, 'index.html'), embed: join(ROOT, 'embed.html') } } },
     plugins: [offerEveryLanguage(), {
       name: 'spec-fake-plugins',
       enforce: 'pre',

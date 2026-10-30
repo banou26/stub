@@ -98,8 +98,8 @@ for (const [locale, language] of [['de-DE', 'de'], ['es-MX', 'es-419']] as const
       urls => Promise.all(urls.map(async url => (await import(url) as { default: Record<string, string> }).default)),
       chunks.map(chunk => `${origin}${PREFIX}${chunk}`),
     )
-    expect(loaded.map(messages => messages['Unsupported or missing parameters'] !== undefined).sort()).toEqual([false, true])
-    expect(loaded.every(messages => Object.keys(messages).length > 0)).toBe(true)
+    expect(loaded.filter(messages => messages['Unsupported or missing parameters']), 'stub\'s catalogue').toHaveLength(1)
+    expect(loaded.filter(messages => Object.keys(messages).length > 0), 'and the player\'s labels').toHaveLength(2)
     await context.close()
   })
 }

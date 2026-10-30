@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { EMBED_PAGE, embedPage, embedPageExpression } from '../../scripts/embed-page'
 
