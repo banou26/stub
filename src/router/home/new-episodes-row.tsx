@@ -20,6 +20,7 @@ const RELEASES = gql(`
       _id
       uri
       status
+      settled
       episodeCount
       nextAiringEpisode { episodeNumber airingAt }
       episodes {
@@ -99,8 +100,10 @@ const rowStyle = css`
   }
 `
 
+type Answer = StoredWork & { settled?: boolean | null }
+
 /** Asks stub's merged data what is out of one work, and hands each answer to `onAnswer`. */
-const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, media: StoredWork) => void }) => {
+const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, media: Answer) => void }) => {
   const [{ data }] = useSubscription({ query: RELEASES, variables: { input: { uri } } })
   const media = data?.media
   useEffect(() => { if (media) onAnswer(uri, media) }, [media])
@@ -109,19 +112,22 @@ const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, medi
 
 /**
  * Every new episode of the shows the viewer is watching, newest first (./new-episodes.ts), the asks of stub's merged
- * data that fill them in, to render beside whatever draws them, and whether the viewer's lists are still being read.
+ * data that fill them in, to render beside whatever draws them, and whether the viewer's lists or those asks are still
+ * being read.
  */
 export const useNewEpisodes = () => {
   const now = new Date(useNow())
   const [{ data }] = useSubscription({ query: VIEWER_LISTS })
-  const [stored, setStored] = useState<Record<string, StoredWork>>({})
+  const [stored, setStored] = useState<Record<string, Answer>>({})
   const rows = data?.viewerLists?.rows ?? []
   const asked = useMemo(() => askedOfStore(rows, now), [rows])
-  const onAnswer = (uri: string, media: StoredWork) => setStored(held => ({ ...held, [uri]: media }))
+  // settled once stays settled: a source joining later turns it false again (see useSettledOnce)
+  const onAnswer = (uri: string, media: Answer) => setStored(held => ({ ...held, [uri]: { ...media, settled: media.settled || held[uri]?.settled } }))
   return {
     episodes: newEpisodes(rows, row => releasedOf(row, stored[row.uri], now), now),
     asks: asked.map(row => <StoreAsk key={row.uri} uri={row.uri} onAnswer={onAnswer}/>),
-    reading: !data || Boolean(data.viewerLists?.lists.some(list => list.state === 'LOADING')),
+    // a first answer can come before the sources that list the episodes, so an asked work is read until it settles
+    reading: !data || Boolean(data.viewerLists?.lists.some(list => list.state === 'LOADING')) || asked.some(row => !stored[row.uri]?.settled),
   }
 }
 
