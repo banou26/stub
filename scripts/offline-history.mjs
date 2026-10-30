@@ -431,8 +431,8 @@ export const github = (token, get = fetch) => {
 }
 
 /**
- * The published history as `{ files, history, picks }`, `picks` as `encodePicks` answers them when it names any, or
- * nothing when no publish ever finished. A manifest.json a failed publish left missing is restored from its newest
+ * The published history as `{ files, history, picks }`, `picks` as `encodePicks` answers them when it names any it can
+ * read, or nothing when no publish ever finished. A manifest.json a failed publish left missing is restored from its newest
  * copy first, so neither this job nor a data build is stuck on it.
  */
 const readPublished = async (gh, release) => {
@@ -456,8 +456,9 @@ const readPublished = async (gh, release) => {
   }
   const files = { manifest, assets }
   const history = decodeHistory(files)
+  if (history.picksUnread) warn(`the published picks are dropped: ${history.picksUnread}`)
   const entry = history.manifest.assets.picks
-  return { files, history, picks: entry && { entry, bytes: assets[entry.name] } }
+  return { files, history, picks: history.picks && { entry, bytes: assets[entry.name] } }
 }
 
 const readAttempt = async (gh, release) => {

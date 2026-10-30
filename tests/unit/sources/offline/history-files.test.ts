@@ -46,15 +46,22 @@ test('a history published before the first picks reads with none', () => {
   expect(decodeHistory(history()).picks).toBeUndefined()
 })
 
-// Mutations: skip the picks' row count; skip their sha256.
-test('damaged picks fail loudly, as any other asset does', () => {
+// Mutations: skip the picks' row count; skip their sha256; let picks that cannot be read fail the read.
+test('damaged picks read as none and say why, and leave the history readable, since a build holds its own merge', () => {
   const files = withPicks(history(), encodePicks(PICKS, STAMP))
   const manifest = JSON.parse(files.manifest)
+  const { name } = manifest.assets.picks
+  const asked = { merge: 'merge-1', dump: STAMP.dump }
   const miscounted = { ...manifest, assets: { ...manifest.assets, picks: { ...manifest.assets.picks, rows: 3 } } }
-  expect(() => decodeHistory({ ...files, manifest: JSON.stringify(miscounted) })).toThrow(/holds 2 rows, its manifest says 3/)
-  expect(() => decodeHistory({ ...files, assets: { ...files.assets, [manifest.assets.picks.name]: Buffer.from('x') } })).toThrow(/does not match its sha256/)
-  const { [manifest.assets.picks.name]: _, ...rest } = files.assets
-  expect(() => decodeHistory({ ...files, assets: rest })).toThrow(/is missing/)
+  const counted = decodeHistory({ ...files, manifest: JSON.stringify(miscounted) })
+  expect([counted.picks, picksFor(counted, asked).why]).toEqual([undefined, expect.stringContaining('holds 2 rows, its manifest says 3')])
+  expect(picksFor(decodeHistory({ ...files, assets: { ...files.assets, [name]: Buffer.from('x') } }), asked).why).toMatch(/does not match its sha256/)
+  const { [name]: _, ...rest } = files.assets
+  const missing = decodeHistory({ ...files, assets: rest })
+  expect(picksFor(missing, asked).why).toMatch(/is missing/)
+  expect(missing.anidb.titles.size).toBe(2)
+  // control: the same files with their picks
+  expect(picksFor(decodeHistory(files), asked).picks).toEqual(PICKS)
 })
 
 // Mutations: ship picks of another merge; ship picks of another dump; compare the dump's tag alone.
@@ -261,6 +268,18 @@ test('an asset the manifest names that answers 404 fails the build, even with a 
   await expect(loadHistory({ get: gone.get, pauseMs: 0, cache })).rejects.toThrow(/anidb-titles-[0-9a-f]{16}\.json\.zst answered HTTP 404/)
   // control: the same cache serves a build whose manifest cannot be fetched
   expect((await loadHistory({ get: release(undefined).get, pauseMs: 0, cache })).anidb.titles.size).toBe(2)
+})
+
+// Mutation: fail the build on picks that cannot be fetched.
+test('picks that answer 404 cost a build the picks alone, fresh and from its cache', async () => {
+  const files = withPicks(history(), encodePicks(PICKS, STAMP))
+  const { name } = JSON.parse(files.manifest).assets.picks
+  const { [name]: _, ...rest } = files.assets
+  const cache = cacheWith()
+  const asked = { merge: 'merge-1', dump: STAMP.dump }
+  const fresh = await loadHistory({ get: release({ manifest: files.manifest, assets: rest }).get, pauseMs: 0, cache })
+  expect([fresh.anidb.titles.size, picksFor(fresh, asked).why]).toEqual([2, expect.stringContaining(`${name} is missing`)])
+  expect(picksFor(await loadHistory({ offline: true, cache }), asked).why).toMatch(/is missing/)
 })
 
 // Mutation: build on with an empty history when there is neither a release nor a cache.

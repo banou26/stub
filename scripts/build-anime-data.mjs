@@ -477,7 +477,8 @@ const writeHistoryCache = (cache, { manifest, assets }) => {
  *
  * A manifest it cannot fetch falls back on the cache, as the dump does. Unreadable (an asset the manifest names
  * that cannot be fetched included), or with no cache, it throws, so the build FAILS: a build on the dump's titles
- * alone looks healthy while heading half of older shows unlike stub's page.
+ * alone looks healthy while heading half of older shows unlike stub's page. Picks are the one exception: without
+ * them the build ships its own merge, which `picksFor` says.
  */
 export const loadHistory = async ({ offline = false, get = fetch, pauseMs, cache = HISTORY_CACHE } = {}) => {
   if (!offline) {

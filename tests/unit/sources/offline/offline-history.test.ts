@@ -764,6 +764,23 @@ test('with no store, or one that cannot be read, no merge runs', async () => {
   expect(picksOf(plain)).toBeUndefined()
 })
 
+// Mutations: let picks that cannot be read fail the run; name them again in the run's first publish.
+test('picks the release cannot give back never stop a run, and leave the manifest, for this run\'s merge to replace', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const before = picksOf(w)
+  const { [before.name]: _, ...assets } = assetsOf(w)
+
+  const failing = world({ assets, sources })
+  const lines = await logged(() => merging(failing, bucket, { merge: async () => { throw new Error('no generated enums') }, now: NOW + HOUR }))
+  expect(lines).toContain(`::warning::[offline-history] the published picks are dropped: the offline history is unreadable: ${before.name} is missing`)
+  expect(picksOf(failing)).toBeUndefined()
+
+  const next = world({ assets, sources })
+  await logged(() => merging(next, bucket, { now: NOW + HOUR }))
+  expect(picksOf(next)).toEqual(before)
+  expect(historyOf(next).picks!.size).toBe(6)
+})
+
 // Mutation: keep the replaced picks in `publish`'s set for good.
 test('picks replaced are removed once neither the manifest nor the one before names them', async () => {
   const { w, bucket, sources } = await firstRun()

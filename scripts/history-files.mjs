@@ -109,12 +109,12 @@ export const withPicks = ({ manifest, assets }, { entry, bytes }) => {
  * them: `{ picks }`, or `{ why }` saying why not. Picks of another dump are keyed to records that may have moved, and
  * another merge's are not what this build's code would choose.
  */
-export const picksFor = ({ manifest, picks }, { merge, dump }) => {
+export const picksFor = ({ manifest, picks, picksUnread }, { merge, dump }) => {
   const entry = manifest.assets.picks
   if (!entry) return { why: 'no picks published yet' }
   if (entry.merge !== merge) return { why: `the picks are of merge ${entry.merge}, this build's is ${merge}` }
   if (entry.dump?.sha256 !== dump.sha256) return { why: `the picks are of dump ${entry.dump?.tag}, this build's is ${dump.tag}` }
-  return { picks }
+  return picks ? { picks } : { why: picksUnread }
 }
 
 /** A hash of `files` under `root`, by their path in it and their bytes, so any checkout of the same code gives the same. */
@@ -170,24 +170,34 @@ const rowsChecked = (entry, size) => {
   if (size !== entry.rows) throw unreadable(`${entry.name} holds ${size} rows, its manifest says ${entry.rows}`)
 }
 
+const lines = (files, entry) => assetText(files, entry).split('\n').filter(Boolean).map(line => JSON.parse(line))
+
+const readPicks = (files, entry) => {
+  try {
+    const picks = new Map(lines(files, entry))
+    rowsChecked(entry, picks.size)
+    return { picks }
+  } catch (error) {
+    return { picksUnread: error.message }
+  }
+}
+
 /**
- * A history read back from its files: `{ manifest, anidb, kitsu, previews }` as `encodeHistory` takes them, and `picks`,
- * a Map of key to entry, when the manifest names them. Fails loudly on any asset that is missing, does not match its
- * sha256, does not parse, or holds another row count than its own manifest entry records, so a damaged history is
- * never read as a smaller one.
+ * A history read back from its files: `{ manifest, anidb, kitsu, previews }` as `encodeHistory` takes them. Fails loudly
+ * on any of those that is missing, does not match its sha256, does not parse, or holds another row count than its own
+ * manifest entry records, so a damaged history is never read as a smaller one. When the manifest names picks, also
+ * `picks`, a Map of key to entry, or `picksUnread`, saying what is wrong with them, and nothing fails on those: a
+ * build holds its own merge, and the job makes them again.
  */
 export const decodeHistory = files => {
   const manifest = readManifest(files.manifest)
-  const lines = entry => assetText(files, entry).split('\n').filter(Boolean).map(line => JSON.parse(line))
   let anidb
   let kitsu
   let previews
-  let picks
   try {
     anidb = JSON.parse(assetText(files, manifest.assets.anidb))
-    kitsu = lines(manifest.assets.kitsu)
-    previews = manifest.assets.previews ? lines(manifest.assets.previews) : []
-    picks = manifest.assets.picks && new Map(lines(manifest.assets.picks))
+    kitsu = lines(files, manifest.assets.kitsu)
+    previews = manifest.assets.previews ? lines(files, manifest.assets.previews) : []
   } catch (error) {
     throw error.message.startsWith('the offline history') ? error : unreadable(`an asset does not parse (${error.message})`)
   }
@@ -195,13 +205,12 @@ export const decodeHistory = files => {
   rowsChecked(manifest.assets.anidb, titles.size)
   rowsChecked(manifest.assets.kitsu, kitsu.length)
   if (manifest.assets.previews) rowsChecked(manifest.assets.previews, previews.length)
-  if (picks) rowsChecked(manifest.assets.picks, picks.size)
   return {
     manifest,
     anidb: { fetchedAt: anidb.fetchedAt, lastModified: anidb.lastModified, titles },
     kitsu: new Map(kitsu.map(row => [Number(row.id), row])),
     previews: new Map(previews.map(row => [`${row.source}:${row.id}`, row])),
-    picks,
+    ...manifest.assets.picks && readPicks(files, manifest.assets.picks),
   }
 }
 
@@ -224,10 +233,15 @@ export const downloadManifest = async ({ get = fetch, pauseMs = MANIFEST_RETRY_M
   }
 }
 
-/** Each asset a manifest names, from github.com. Throws when one cannot be fetched. */
+/** Each asset a manifest names, from github.com. Throws when one cannot be fetched, other than the picks, left out. */
 export const downloadAssets = async (manifestText, get = fetch) => {
   const { assets } = readManifest(manifestText)
   const files = {}
-  for (const { name } of Object.values(assets)) files[name] = await download(get, `${DOWNLOAD}/${name}`)
+  for (const [kind, { name }] of Object.entries(assets)) {
+    const bytes = await download(get, `${DOWNLOAD}/${name}`).catch(error => {
+      if (kind !== 'picks') throw error
+    })
+    if (bytes) files[name] = bytes
+  }
   return files
 }
