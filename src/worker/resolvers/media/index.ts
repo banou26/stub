@@ -210,8 +210,8 @@ export const resolvers = {
             (result: { data: { mediaPage: MediaPage } }) => {
               const uris = result?.data?.mediaPage?.nodes?.map(({ uri }) => uri)
               // an answer the store already holds changes nothing and so fires no event, and a
-              // listing, which only ever draws what was answered, would never draw it
-              if (listing && uris?.length) iterator.wake()
+              // page, which draws what was answered, would never draw it
+              if (uris?.length) iterator.wake()
               return uris
             }
           )
