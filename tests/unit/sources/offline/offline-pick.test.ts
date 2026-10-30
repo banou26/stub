@@ -194,6 +194,18 @@ test('a stored description ships when it is the longest, whichever source gave i
   expect(picked([GUNDAM], answers).picks.get('mal-80')?.d).toBe('A synopsis AniList wrote at some length.')
 })
 
+// Mutation: ship only Kitsu's banners.
+test('a stored banner ships whichever source gave it, and a Kitsu one keeps its short form', () => {
+  const banner = 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/900.jpg'
+  const { picks, counts } = picked([GUNDAM], [stored('anilist', '900', { media: { banners: [{ url: banner, score: 0.05 }] } })])
+  expect(picks.get('mal-80')).toEqual({ b: banner })
+  expect(counts.banners).toBe(1)
+  const netflix = picked([GUNDAM], [stored('nf', '77', { media: { banners: [{ url: 'https://nflx.example/banner.jpg', score: 0.6 }] } })])
+  expect(netflix.picks.get('mal-80')).toEqual({ b: 'https://nflx.example/banner.jpg' })
+  const kitsu = picked([GUNDAM], [stored('kitsu', '80', { media: { banners: [{ url: 'https://media.kitsu.app/anime/cover_images/80/original.jpg', score: 0.3 }] } })])
+  expect(kitsu.picks.get('mal-80')).toEqual({ b: 'cover_images/80/original.jpg' })
+})
+
 // Mutations: take the newest answer of either class; read full answers only; take the oldest of a class.
 test('a source\'s newest full answer stands, else its newest list hit', () => {
   const answer = (cls: 'full' | 'list', fetchedAt: string, title: string) => stored('anilist', '900', { class: cls, fetchedAt, media: titled(title) })

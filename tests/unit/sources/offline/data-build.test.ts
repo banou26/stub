@@ -3,7 +3,7 @@
 // picks ship only with the merge and the dump they were made of.
 import { expect, test } from 'vite-plus/test'
 
-import { buildExtract, historySets, refusal } from '../../../../scripts/build-anime-data.mjs'
+import { HISTORY_SOURCES, buildExtract, historySets, refusal } from '../../../../scripts/build-anime-data.mjs'
 import { decodeHistory, encodeHistory, encodePicks, withPicks } from '../../../../scripts/history-files.mjs'
 import * as offlinePick from '../../../../scripts/offline-pick'
 import { historyPicks, historyShards, type AnidbTitle, type HistoryRecord } from '../../../../scripts/offline-pick'
@@ -26,6 +26,12 @@ test('a record outside the bundled seasons reaches the history with its ids, Ani
   const { history, seasons } = buildExtract({ entries: [BEBOP], meta: { lastUpdate: '2026-10-19' }, tag: '2026-43' })
   expect(history).toEqual([{ t: 'Cowboy Bebop', ty: 'TV', p: '4/19644.jpg', ml: 1, al: 1, ku: 1, ad: 23 }])
   expect(seasons).toEqual({})
+})
+
+// Mutations: rename a source; drop TVmaze's licence or its link back.
+test('the stub shards credit every source a pick can come from, TVmaze with its licence and a link back', () => {
+  expect(HISTORY_SOURCES.stub.map(({ name }) => name)).toEqual(['AniDB', 'Kitsu', 'TVmaze', 'The other sources stub reads'])
+  expect(HISTORY_SOURCES.stub[2]).toMatchObject({ url: 'https://www.tvmaze.com/', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/' })
 })
 
 const HEALTHY = { indexRows: 24_461, seasons: 6, anidbTitles: 12_075 }

@@ -718,6 +718,27 @@ test('a run\'s picks carry what the store keeps of every source, the inbox it fo
   expect(lines).toContain(`[offline-history] the picks: 7 of 7 shows, 1 of them with some of the store's 6 answers, merge merge-1`)
 })
 
+// Mutation: hand the merge no AniDB titles.
+test('a run\'s picks head a show with AniDB\'s title, with nothing about it in the store', async () => {
+  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  await logged(() => merging(w, fakeBucket(), { entries: [...ENTRIES, entry('Crest of the Stars', { mal: 7, anidb: 3 }, { year: 1999, season: 'WINTER' })] }))
+  expect(historyOf(w).picks!.get('mal-7')).toEqual({ t: 'Show 3' })
+})
+
+// Mutation: hand the merge no kept previews, so a Kitsu answer newer than Kitsu's row loses to the row.
+test('a Kitsu answer a preview kept after the job\'s row stands for Kitsu in the picks', async () => {
+  const bucket = fakeBucket()
+  const entries = [...ENTRIES, FRIEREN_ENTRY]
+  const first = world({ release: false })
+  await logged(() => merging(first, bucket, { entries }))
+  expect(historyOf(first).picks!.get('mal-52991')).toEqual({ t: 'Show 46474', p: 'o' })
+  // a Kitsu row carries the wall clock's date, which `now` does not move
+  bucket.objects.set(...await inboxEntry(frierenRun(at(Date.now() + HOUR))))
+  const next = world({ assets: assetsOf(first), sources: first.sources })
+  await logged(() => merging(next, bucket, { entries, now: NOW + HOUR }))
+  expect(historyOf(next).picks!.get('mal-52991')).toMatchObject({ p: '46474/poster_image/original-9d2e.jpg', b: 'cover_images/46474/original.jpg' })
+})
+
 // Mutation: leave the store's answers out of the second run's merge.
 test('what the store kept from an earlier run stays in the picks of a run with an empty inbox', async () => {
   const bucket = fakeBucket()

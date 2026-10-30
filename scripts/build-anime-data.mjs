@@ -125,7 +125,7 @@ const ARM = {
 // The dump's shards credit it alone, so nothing else in the history is presented as part of the ODbL database (its
 // section 4.4 d). AniDB's and Kitsu's terms could not be read (2026-10-23), so no license is named for them. The job's
 // picks can carry a value of any source stub reads, TVmaze's among them, whose license asks for a link back.
-const HISTORY_SOURCES = {
+export const HISTORY_SOURCES = {
   dump: [OFFLINE_DATABASE],
   stub: [
     { name: 'AniDB', url: 'https://anidb.net/', notice: 'Titles from its anime titles file, as api.ani.zip passes them on.' },
