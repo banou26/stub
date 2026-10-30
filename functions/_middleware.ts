@@ -51,35 +51,38 @@ const take = (now: number) => {
 const keep = (cache: Cache, key: Request, preview?: Preview) =>
   cache.put(key, new Response(JSON.stringify(preview ?? null), { headers: { 'cache-control': `max-age=${preview ? DAY_S : PLAIN_S}` } }))
 
-const lookup = async (segment: string, site: Site, started: number, waitUntil: Context['waitUntil'], bucket?: Bucket): Promise<Preview | undefined> => {
-  const uri = routeMediaUri(segment)
-  const copy = createPreview()
-  const known = await copy.offlinePreview(uri, site)
-  if (known) return known
+const lookup = async (segment: string, site: Site, started: number, answered: Promise<void>, waitUntil: Context['waitUntil'], bucket?: Bucket): Promise<Preview | undefined> => {
   const cache = (caches as CacheStorage & { default: Cache }).default
   const key = new Request(`https://preview.cache/${site}/${segment}`)
-  const cached = await cache.match(key)
-  if (cached) return (await cached.json() as Preview | null) ?? undefined
+  // `null`, a run with no card or a cache that cannot be read, says not to run: the offline card may still answer
+  const settled = await cache.match(key).then(hit => hit?.json() as Promise<Preview | null> | undefined).catch(() => null)
+  if (settled) return settled
+  const uri = routeMediaUri(segment)
+  const copy = createPreview()
+  const show = await copy.offlineShow(uri, site)
+  const known = show?.preview
+  if (settled === null) return known
   const release = take(Date.now())
-  if (!release) return undefined
+  if (!release) return known
   let answer: Answer
   try {
-    answer = copy.answer(uri, site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS })
+    answer = copy.answer(show?.address ?? uri, site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS, after: known && answered })
   } catch (error) {
     release()
+    if (known) return known
     throw error
   }
   const { first, last, inbox } = answer
   // the run's answers go to the store once the card is kept, and the copy's turn is held until they have, so two
   // copies never meet in the isolate; a store that refuses them costs that run's answers, never the card
-  waitUntil(last.then(async preview => keep(cache, key, preview ?? await first)).catch(() => {})
+  waitUntil(last.catch(() => undefined).then(async preview => keep(cache, key, preview ?? await first)).catch(() => {})
     .then(async () => {
       const object = bucket && await inbox()
       if (object) await bucket.put(object.key, object.body, { httpMetadata: { contentType: 'application/gzip' } })
     })
     .catch(() => {})
     .finally(release))
-  return await first
+  return known ?? await first
 }
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -107,11 +110,12 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
 
 /**
  * Gives a link-preview crawler's GET on a title, media or watch address, or a short link to one, the title,
- * description and art stub itself draws for it, and every other request the page untouched: from stub's offline data
- * alone when it holds a title and a cover for the address, asking nothing, else from stub's own sources run here
- * (src/preview). Reads nothing about the requester but its user agent, logs nothing about it, and keeps only public
- * show data: a title's preview in the edge cache, and what the sources answered for it in the private source store.
- * Any failure answers the page as is.
+ * description and art stub itself draws for it, and every other request the page untouched: the settled card the last
+ * run kept in the edge cache, else stub's offline data when it holds a title and a cover for the address, else stub's
+ * own sources run here (src/preview). On that cache miss the sources run behind the offline card too, holding the
+ * isolate's one turn, once the crawler has its answer, and what they settle on is kept for the next. Reads nothing
+ * about the requester but its user agent, logs nothing about it, and keeps only public show data: a title's preview in
+ * the edge cache, and what the sources answered for it in the private source store. Any failure answers the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const started = Date.now()
@@ -120,11 +124,15 @@ export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const short = url.pathname.startsWith(SHORT_PATH) ? expandPath(url.pathname.slice(SHORT_PATH.length)) : undefined
   const segment = TITLE_PATH.exec(short ? new URL(short, url).pathname : url.pathname)?.[1]
   if (request.method !== 'GET' || !segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
+  const { promise: answered, resolve } = Promise.withResolvers<void>()
   try {
     const site = siteOf(url.hostname)
-    const preview = await lookup(segment, site, started, waitUntil, env.STUB_SOURCES)
+    const preview = await lookup(segment, site, started, answered, waitUntil, env.STUB_SOURCES)
     return await withPreview(await next(), url, site, preview)
   } catch {
     return next()
+  } finally {
+    // a timer, since a microtask would boot the copy before the runtime had the response
+    setTimeout(resolve)
   }
 }

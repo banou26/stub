@@ -116,6 +116,23 @@ test('first is what is read at the deadline, last what is read once the sources 
   expect(asked).toEqual([{ uri: 'ag:(anilist:195604)', details: true, site: 'anime' }])
 })
 
+// Mutation: drop `await after`.
+test('a copy held back by after asks nothing until it settles, and still ends by settleBy', async () => {
+  feed.current = feeding(async function* () {
+    yield media('Cowboy Bebop', true)
+  })
+  const { promise: after, resolve } = Promise.withResolvers<void>()
+  const { first } = answer('ag:(offline:mal-1)', 'anime', WASM, { deadline: 60_000, after })
+  await wait(50)
+  expect(asked).toEqual([])
+  resolve()
+  expect((await first)?.title).toBe('Cowboy Bebop')
+  expect(asked).toEqual([{ uri: 'ag:(offline:mal-1)', details: true, site: 'anime' }])
+
+  const { last } = answer('ag:(offline:mal-1)', 'anime', WASM, { deadline: 60_000, settleBy: 100, after: new Promise(() => {}) })
+  expect(await last).toBeUndefined()
+})
+
 test('the copy keeps no episodes, which a preview never draws', async () => {
   feed.current = feeding(async function* () {
     yield media('One Piece', true)

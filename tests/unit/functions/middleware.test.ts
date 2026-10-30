@@ -8,7 +8,7 @@ import { gunzipSync } from 'node:zlib'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { offlinePreview } from '../../../src/preview'
+import { offlineShow } from '../../../src/preview'
 import { shortenPath, SHORT_PATH } from '../../../src/utils/share-link'
 import { inboxLines, inboxObject } from '../../../src/preview/inbox'
 import wasmModule from './stub-wasm'
@@ -51,7 +51,7 @@ const SETTLED: Preview = { title: 'Black Clover Season 2', description: 'Asta re
 // what the merge reads before every source has answered (measured 2026-10-23)
 const INTERIM: Preview = { ...SETTLED, title: 'Black Clover Second Season' }
 
-type Options = { deadline: number, settleBy?: number }
+type Options = { deadline: number, settleBy?: number, after?: Promise<unknown> }
 type Asked = Options & { uri: string, site: string, wasm: unknown }
 type Put = { key: string, value: ArrayBuffer, options: unknown, cached: string[] }
 
@@ -62,7 +62,6 @@ let onRequest: typeof import('../../../functions/_middleware').onRequest
 let createPreview: ReturnType<typeof vi.fn>
 let asked: Asked[]
 let cache: Map<string, Response>
-let cacheCalls: number
 let matching: () => Promise<void>
 let putting: () => Promise<void>
 let fetched: ReturnType<typeof vi.fn>
@@ -76,7 +75,7 @@ const deferred = <T>() => {
 
 /** A copy of stub's worker with its own offline answer, whose sources' answer is the one given, and its inbox `object` (null: none). */
 const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first, object: InboxObject | null = OBJECT) => ({
-  offlinePreview,
+  offlineShow,
   answer: (uri: string, site: string, wasm: unknown, options: Options): Answer => {
     asked.push({ uri, site, wasm, ...options })
     const settled = Promise.resolve(last)
@@ -112,18 +111,15 @@ beforeEach(async () => {
   asked = []
   inboxes = 0
   cache = new Map()
-  cacheCalls = 0
   matching = async () => {}
   putting = async () => {}
   vi.stubGlobal('caches', {
     default: {
       match: async (key: Request) => {
-        cacheCalls++
         await matching()
         return cache.get(key.url)?.clone()
       },
       put: async (key: Request, value: Response) => {
-        cacheCalls++
         await putting()
         cache.set(key.url, value)
       },
@@ -158,6 +154,9 @@ const title = (html: string) => /<title>([^<]*)<\/title>/.exec(html)?.[1]
 
 const kept = (site: string, segment: string) => cache.get(`https://preview.cache/${site}/${segment}`)
 
+const BEBOP = 'https://anime.fkn.app/title/ag:(mal:1)'
+const COPY = { wasm: { frizbee: wasmModule, sacha: wasmModule }, deadline: expect.any(Number), settleBy: 20_000 }
+
 test.each([
   { address: 'https://anime.fkn.app/title/ag:(anilist:195604,mal:61967)', uri: 'ag:(anilist:195604,mal:61967)', site: 'anime', name: 'Stub Anime' },
   { address: 'https://stub.fkn.app/media/ag:(mal:61469,offline:mal-61469)', uri: 'ag:(mal:61469,offline:mal-61469)', site: 'stub', name: 'Stub' },
@@ -179,47 +178,182 @@ test.each([
   expect(meta(html, 'theme-color')).toEqual(['#f1a143'])
 })
 
+// Mutation: restore `if (known) return known` ahead of the run.
 test.each([
-  ['its Kitsu id', 'https://anime.fkn.app/title/ag:(kitsu:1)', 'Stub Anime'],
-  ['its Kitsu id, percent-encoded', 'https://anime.fkn.app/title/ag%3A(kitsu%3A1)', 'Stub Anime'],
-  ['its offline record', 'https://stub.fkn.app/media/ag:(offline:mal-1)', 'Stub'],
-])('a show the offline data holds with a title and a cover, named by %s, is answered from it with nothing asked', async (_, address, name) => {
+  ['its Kitsu id', 'https://anime.fkn.app/title/ag:(kitsu:1)', 'anime', 'Stub Anime'],
+  ['its Kitsu id, percent-encoded', 'https://anime.fkn.app/title/ag%3A(kitsu%3A1)', 'anime', 'Stub Anime'],
+  ['its offline record', 'https://stub.fkn.app/media/ag:(offline:mal-1)', 'stub', 'Stub'],
+])('a show the offline data holds with a title and a cover, named by %s, is answered from it, its sources behind it', async (_, address, site, name) => {
   const { html } = await call(address)
   expect(title(html)).toBe(`Cowboy Bebop - ${name}`)
   expect(meta(html, 'og:title')).toEqual(['Cowboy Bebop'])
   expect(meta(html, 'og:description')).toEqual(['In the year 2071, humanity has colonized several of the planets.'])
   expect(meta(html, 'og:image')).toEqual(['https://media.kitsu.app/anime/cover_images/1/original.jpg'])
   expect(meta(html, 'twitter:card')).toEqual(['summary_large_image'])
-  expect(asked).toEqual([])
+  expect(asked).toEqual([{ uri: 'ag:(offline:mal-1)', site, ...COPY, after: expect.any(Promise) }])
   expect(fetched).not.toHaveBeenCalled()
-  expect(cacheCalls).toBe(0)
 })
 
 // Mutations: read only the dump's set in `historyEntry`; give the media the dump's title or picture over the pick's.
-test('a link preview draws what stub\'s merge chose, the same data a page starts from, with nothing asked', async () => {
+test('a link preview draws what stub\'s merge chose, the same data a page starts from, its sources behind it', async () => {
   const { html } = await call('https://anime.fkn.app/title/ag:(mal:6)')
   expect(meta(html, 'og:title')).toEqual(['Trigun as AniList titles it'])
   expect(meta(html, 'og:description')).toEqual(['A synopsis the job kept from AniList.'])
   expect(meta(html, 'og:image')).toEqual(['https://img.anili.st/media/6'])
-  expect([asked, cacheCalls]).toEqual([[], 0])
+  expect(asked.map(({ uri }) => uri)).toEqual(['ag:(offline:mal-6)'])
 })
 
-test('an offline answer boots none of what asks the sources', async () => {
+test('the offline card boots none of what asks the sources', async () => {
   expect(meta((await call('https://anime.fkn.app/title/ag:(mal:1)')).html, 'og:title')).toEqual(['Cowboy Bebop'])
   expect(booted).toEqual([])
 })
 
-test('an offline answer takes no turn, so it comes while a copy asks the sources', async () => {
-  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
-  await call('https://anime.fkn.app/title/ag:(anilist:195604)')
+// Mutation: read the offline data ahead of the edge cache, or skip the read.
+test('a cache hit answers the settled card and runs nothing, with no copy of stub built', async () => {
+  await (await call(BEBOP)).kept
+  expect(createPreview).toHaveBeenCalledTimes(1)
+  const again = await call(BEBOP, 'TelegramBot (like TwitterBot)')
+  expect(meta(again.html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(createPreview).toHaveBeenCalledTimes(1)
+  expect(asked).toHaveLength(1)
+})
+
+// Mutations: answer `await first`; keep nothing; put nothing; hand the run to nothing but the request.
+test('on a miss the offline card answers without waiting on the run, and the run keeps the card and writes the inbox', async () => {
+  const settles = deferred<Preview | undefined>()
+  createPreview.mockImplementation(() => copy(settles.promise))
+  const { puts, env } = bucket()
+  const started = performance.now()
+  const miss = await call(BEBOP, DISCORD, 'GET', env)
+  expect(performance.now() - started).toBeLessThan(2_000)
+  expect(meta(miss.html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(asked).toHaveLength(1)
+  expect(kept('anime', 'ag:(mal:1)')).toBeUndefined()
+  expect(puts).toEqual([])
+
+  settles.settle(SETTLED)
+  await miss.kept
+  expect(await kept('anime', 'ag:(mal:1)')!.clone().json()).toEqual(SETTLED)
+  expect(kept('anime', 'ag:(mal:1)')!.headers.get('cache-control')).toBe('max-age=86400')
+  expect(puts.map(({ key }) => key)).toEqual([OBJECT.key])
+  expect(meta((await call(BEBOP)).html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(asked).toHaveLength(1)
+})
+
+// Mutation: restore `if (known) return known` ahead of the run.
+test('a bundled-season show runs on a miss', async () => {
+  const { html, kept: done } = await call('https://anime.fkn.app/title/ag:(offline:mal-62312)')
+  expect(meta(html, 'og:title')).toEqual(['Sekiro: No Defeat'])
+  expect(asked).toEqual([{ uri: 'ag:(offline:mal-62312)', site: 'anime', ...COPY, after: expect.any(Promise) }])
+  await done
+  expect(await kept('anime', 'ag:(offline:mal-62312)')!.json()).toEqual(SETTLED)
+})
+
+// Mutations: answer no card when the turn is taken; take no turn for an offline card.
+test('a busy turn skips the run, and the offline card still answers', async () => {
+  const settles = deferred<Preview | undefined>()
+  createPreview.mockImplementationOnce(() => copy(SETTLED, settles.promise))
+  const one = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
   // control: the one turn is taken
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:2)')).html, 'og:title')).toEqual(['Stub Anime'])
-  expect(meta((await call('https://anime.fkn.app/title/ag:(mal:1)')).html, 'og:title')).toEqual(['Cowboy Bebop'])
+
+  const busy = await call(BEBOP)
+  expect(meta(busy.html, 'og:title')).toEqual(['Cowboy Bebop'])
+  await busy.kept
+  expect(asked).toHaveLength(1)
+  expect(kept('anime', 'ag:(mal:1)')).toBeUndefined()
+
+  settles.settle(SETTLED)
+  await one.kept
+  await call(BEBOP)
+  expect(asked).toHaveLength(2)
+})
+
+// Mutation: pass `uri` to `answer` rather than the show's address.
+test.each([
+  ['another catalogue\'s id, which names another show or none', 'https://anime.fkn.app/title/ag:(anilist:30,mal:1)', 'ag:(offline:mal-1)'],
+  ['another source\'s show', 'https://anime.fkn.app/title/ag:(jw:34435,mal:1)', 'ag:(offline:mal-1)'],
+  ['a season of another source', 'https://anime.fkn.app/title/ag:(mal:1,nf:80001305-1)', 'ag:(offline:mal-1)'],
+  ['a show it holds with no cover, and another source\'s show', 'https://anime.fkn.app/title/ag:(jw:34435,mal:5)', 'ag:(offline:mal-5)'],
+])('a run asks the show the offline data holds and nothing else the address names: %s', async (_, address, uri) => {
+  await call(address)
+  expect(asked.map(({ uri }) => uri)).toEqual([uri])
+})
+
+// Mutations: drop `after`; give the run its start with no timer.
+test('the run starts only once the crawler has its answer', async () => {
+  let page = false
+  let started = false
+  const answered = onRequest({
+    request: new Request(BEBOP, { headers: { 'user-agent': DISCORD } }),
+    next: async () => {
+      await new Promise(resolve => setTimeout(resolve, 5))
+      void asked[0]!.after!.then(() => { started = true })
+      await new Promise(resolve => setTimeout(resolve, 5))
+      page = !started
+      return new Response(SHELL)
+    },
+    waitUntil: () => {},
+    env: {},
+  })
+  await answered
+  expect(page).toBe(true)
+  expect(started).toBe(false)
+  await asked[0]!.after
+  expect(started).toBe(true)
+})
+
+// Mutation: hold back every copy of a show the offline data holds, with a card or not.
+test.each([
+  ['the offline data lacks', 'https://anime.fkn.app/title/ag:(anilist:195604)'],
+  ['it holds with no cover', 'https://anime.fkn.app/title/ag:(mal:5)'],
+])('a crawler waiting on the sources of a show %s is not held back', async (_, address) => {
+  await call(address)
+  expect(asked[0]!.after).toBeUndefined()
+})
+
+// Mutation: answer `undefined` on a kept `null`.
+test('a run that ends with no card leaves the offline card answering, with no second run for five minutes', async () => {
+  createPreview.mockImplementation(() => copy(undefined))
+  await (await call(BEBOP)).kept
+  expect(await kept('anime', 'ag:(mal:1)')!.clone().json()).toBeNull()
+  expect(kept('anime', 'ag:(mal:1)')!.headers.get('cache-control')).toBe('max-age=300')
+  expect(meta((await call(BEBOP)).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(asked).toHaveLength(1)
+})
+
+// Mutations: rethrow a failed answer; let `last`'s rejection skip `first`.
+test.each([
+  ['its answer throws', () => ({ offlineShow, answer: () => { throw new Error('the answer failed') } })],
+  ['its reads reject', () => ({ offlineShow, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')), inbox: () => Promise.reject(new Error('read')) }) })],
+])('when %s behind the offline card, the card answers and the turn is given back', async (_, failing) => {
+  createPreview.mockImplementationOnce(failing)
+  const { html, kept: done } = await call(BEBOP)
+  expect(meta(html, 'og:title')).toEqual(['Cowboy Bebop'])
+  await done
+  expect(cache.size).toBe(0)
+  await call(BEBOP)
+  expect(asked).toHaveLength(1)
+})
+
+test('a run the runtime cancels leaves the offline card answering, and the show runs again once its turn lapses', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  createPreview.mockImplementation(() => copy(SETTLED, new Promise(() => {})))
+  const { puts, env } = bucket()
+  await call(BEBOP, DISCORD, 'GET', env)
+  vi.setSystemTime(Date.now() + 34_000)
+  expect(meta((await call(BEBOP, DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(asked).toHaveLength(1)
+  vi.setSystemTime(Date.now() + 1_001)
+  expect(meta((await call(BEBOP, DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(asked).toHaveLength(2)
+  expect(cache.size).toBe(0)
+  expect(puts).toEqual([])
 })
 
 test.each([
   ['a show the offline data lacks', 'https://anime.fkn.app/title/ag:(mal:999)', 'ag:(mal:999)', 'anime'],
-  ['a show it holds with a title and no cover', 'https://anime.fkn.app/title/ag:(mal:5)', 'ag:(mal:5)', 'anime'],
+  ['a show it holds with a title and no cover', 'https://anime.fkn.app/title/ag:(mal:5)', 'ag:(offline:mal-5)', 'anime'],
   ['a film it holds, on movies, which never asks it', 'https://movies.fkn.app/title/ag:(offline:mal-62312)', 'ag:(offline:mal-62312)', 'movie'],
   ['a show it holds, on series, which never asks it', 'https://series.fkn.app/title/ag:(mal:1)', 'ag:(mal:1)', 'series'],
 ])('%s is answered by stub\'s sources, from the same copy', async (_, address, uri, site) => {
@@ -399,8 +533,8 @@ test('an edge cache that will not keep the preview still has the run\'s object p
 
 test.each([
   ['building the copy throws', () => { throw new Error('the copy failed') }],
-  ['its answer throws', () => ({ offlinePreview, answer: () => { throw new Error('the answer failed') } })],
-  ['its reads reject', () => ({ offlinePreview, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')), inbox: () => Promise.reject(new Error('read')) }) })],
+  ['its answer throws', () => ({ offlineShow, answer: () => { throw new Error('the answer failed') } })],
+  ['its reads reject', () => ({ offlineShow, answer: () => ({ first: Promise.reject(new Error('read')), last: Promise.reject(new Error('read')), inbox: () => Promise.reject(new Error('read')) }) })],
 ])('when %s, the crawler gets the page as is and the turn is given back', async (_, failing) => {
   createPreview.mockImplementationOnce(failing).mockImplementationOnce(failing)
   for (const id of [1, 2]) {
@@ -425,11 +559,12 @@ test('a turn whose work the runtime cancelled lapses on its own after 35 s', asy
   expect(asked).toHaveLength(2)
 })
 
-test('an edge cache that fails answers the page as is', async () => {
+// Mutation: let a failed read reach the crawler's catch.
+test('an edge cache that cannot be read runs nothing, and the offline card still answers', async () => {
   matching = async () => { throw new Error('cache') }
-  const { html, pages, response } = await call('https://anime.fkn.app/title/ag:(anilist:195604)')
-  expect(response).toBe(pages.at(-1))
-  expect(html).toBe(SHELL)
+  expect(meta((await call(BEBOP)).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:195604)')).html, 'og:title')).toEqual(['Stub Anime'])
+  expect(asked).toEqual([])
 })
 
 test('with the STUB_SOURCES binding, a run\'s object goes to the inbox once its preview is kept, and the card is the same', async () => {

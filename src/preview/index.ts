@@ -10,6 +10,7 @@ import initSacha from 'sacha'
 
 import { setSite, siteAsks } from '../site'
 import { getMedia, origin as offline } from '../sources/offline/extractor'
+import { asAggregatedUri } from '../utils/uri'
 import { stop } from './fetch'
 import { inboxLines, inboxObject } from './inbox'
 
@@ -42,7 +43,7 @@ const DRAIN_MS = 1_000
 export type Wasm = { frizbee: WebAssembly.Module, sacha: WebAssembly.Module }
 
 // Imported on the first answer rather than with this module, so a copy that only answers from the offline data
-// (`offlinePreview`) never builds them: a request building a copy took 183 ms with them and 2.4 ms without, a bare
+// (`offlineShow`) never builds them: a request building a copy took 183 ms with them and 2.4 ms without, a bare
 // request 1.3 ms (workerd, medians of 64, 2026-10-26)
 const start = async (wasm: Wasm) => {
   const [{ createSchema, createYoga }, { typeDefs }, { resolvers }, graph] = await Promise.all([
@@ -91,13 +92,18 @@ export const previewOf = (media?: Media): Preview | undefined => {
 }
 
 /**
- * The preview stub's offline data alone draws for `uri` on `site`, when it holds a title and a cover there, else
- * nothing. Reads only what the build bundled: it asks nothing of anyone, and boots none of what `answer` does.
+ * What stub's offline data alone says of `uri` on `site`, when it holds the show: the show's own `address`, and the
+ * `preview` it draws when it holds a title and a cover. Reads only what the build bundled: it asks nothing of anyone,
+ * and boots none of what `answer` does.
+ *
+ * `uri` may pick the show but only `address` may be run. Stub's asks read the old store, which unions everything an
+ * address names, so a made-up address welds across shows: `ag:(jw:34435,mal:6)` claimed Cowboy Bebop's JustWatch and
+ * Netflix seasons as Trigun's, and the inbox wrote them as its members (through the relays, 2026-10-31).
  */
-export const offlinePreview = async (uri: string, site: Site): Promise<Preview | undefined> => {
+export const offlineShow = async (uri: string, site: Site): Promise<{ address: string, preview?: Preview } | undefined> => {
   if (!siteAsks(offline, site)) return undefined
   const media = await getMedia(uri)
-  return media?.covers.length ? previewOf(media) : undefined
+  return media ? { address: asAggregatedUri(media.uri), preview: media.covers.length ? previewOf(media) : undefined } : undefined
 }
 
 export type Answer = {
@@ -118,14 +124,17 @@ export type Answer = {
 /**
  * The preview stub draws for `uri` on `site`, from the title page's own subscription. Both promises exist when this
  * returns, so a caller can hand `last` to `waitUntil` before it waits on anything, and must: a copy whose request ends
- * before `last` keeps its sources' unfinished answers, and with them the whole copy, in the isolate's memory. Once per
- * copy of this module (`createPreview()` in vite.preview.config.ts).
+ * before `last` keeps its sources' unfinished answers, and with them the whole copy, in the isolate's memory. `after`
+ * holds the copy back until it settles, for a caller answering without it, since a boot takes the isolate's one thread:
+ * a crawler's first byte came at 11 to 34 ms held back and 387 to 554 ms not (workerd, 3 runs each, 2026-10-31). The two
+ * limits still count from this call. Once per copy of this module (`createPreview()` in vite.preview.config.ts).
  */
-export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy = 20_000 }: { deadline: number, settleBy?: number }): Answer => {
+export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy = 20_000, after }: { deadline: number, settleBy?: number, after?: Promise<unknown> }): Answer => {
   const controller = new AbortController()
   let media: Media | undefined
   let reader: ReadableStreamDefaultReader<string> | undefined
   const reading = (async () => {
+    await after
     setSite(site)
     const yoga = await boot(wasm)
     const response = await yoga.handleRequest(new Request('http://preview/graphql', {
