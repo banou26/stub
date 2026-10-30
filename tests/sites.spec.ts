@@ -429,6 +429,17 @@ test('the header keeps its floors in a wider font, on every site', async ({ page
   }
 })
 
+test('the home page\'s category tabs wrap in a wider font, where they would scroll the page sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  await page.goto(at('stub.localhost'))
+  await expect(tab(page, 'Movies')).toBeVisible()
+  await page.addStyleTag({ content: '.tab { letter-spacing: 0.6em }' })
+  // the tabs ease to it
+  await expect(tab(page, 'Movies')).toHaveCSS('letter-spacing', '8.4px')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+  await expect(tab(page, 'Movies'), 'the control: the wider row reached past the page').toBeInViewport({ ratio: 1 })
+})
+
 test('below 1024 px the bar is one row with no visible site links', async ({ page }) => {
   for (const [width, height] of [[1023, 800], [844, 390], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
@@ -683,6 +694,11 @@ test('below 480 px the search waits behind a button, and opens focused over the 
     await expect(searchField(page), `${width}`).toBeFocused()
     await expect(page.locator('header .actions'), `${width}: the buttons under the open field are hidden`).toBeHidden()
     expect((await searchField(page).boundingBox())!.width, `${width}: the field takes the row`).toBeGreaterThan(width - 120)
+    const room = await searchField(page).evaluate(input => {
+      const style = getComputedStyle(input)
+      return input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    })
+    expect(room, `${width}: its text runs up to the close button`).toBeGreaterThanOrEqual(width - 98)
     await page.keyboard.press('Escape')
     await expect(searchField(page), `${width}: Escape closes it`).toBeHidden()
     await expect(searchButton(page)).toBeVisible()

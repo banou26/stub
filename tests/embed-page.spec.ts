@@ -89,9 +89,9 @@ for (const [locale, language] of [['de-DE', 'de'], ['es-MX', 'es-419']] as const
 
     const catalogue = JSON.parse(readFileSync(join(ROOT, 'src', 'locales', `${language}.json`), 'utf8')) as Record<string, string>
     await expect(page.locator('#app')).toHaveText(catalogue['Unsupported or missing parameters']!)
+
     expect(answered.filter(line => !line.startsWith('200 '))).toEqual([])
 
-    // one catalogue and one set of labels, each its own chunk of the lib build
     const chunks = packed.filter(path => path.startsWith(`build/assets/lib-${language}-`))
     expect(chunks).toHaveLength(2)
     const loaded = await page.evaluate(
@@ -99,7 +99,7 @@ for (const [locale, language] of [['de-DE', 'de'], ['es-MX', 'es-419']] as const
       chunks.map(chunk => `${origin}${PREFIX}${chunk}`),
     )
     expect(loaded.filter(messages => messages['Unsupported or missing parameters']), 'stub\'s catalogue').toHaveLength(1)
-    expect(loaded.filter(messages => Object.keys(messages).length > 0), 'and the player\'s labels').toHaveLength(2)
+    expect(loaded.filter(messages => messages['Play (k)']), 'the player\'s labels').toHaveLength(1)
     await context.close()
   })
 }

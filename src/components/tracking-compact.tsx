@@ -81,8 +81,9 @@ const style = css`
   button:disabled, select:disabled { opacity: 0.5; cursor: default; }
   .star .value { font-weight: 600; }
   select option { background: #17171a; }
-  /* the width "Plan to watch" gave it, so offering Remove from list never widens it and wraps the row */
-  select { width: 14rem; }
+  /* the width "Plan to watch" gave it, so offering Remove from list never widens it and wraps the row; the longest
+     status fits in it in DejaVu Sans only with this inset (Russian's Просмотрено, 2026-10-31) */
+  select { width: 14rem; padding: 0 0.6rem; }
 
   button.watched svg { opacity: 0.35; }
   button.watched.on { border-color: rgba(74, 222, 128, 0.5); background: rgba(74, 222, 128, 0.12); color: #4ade80; }

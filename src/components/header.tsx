@@ -356,6 +356,11 @@ const style = css`
       }
     }
 
+    /* the close button beside it is its right inset */
+    .search input {
+      padding-right: 0;
+    }
+
     .search-close {
       display: flex;
       flex-shrink: 0;

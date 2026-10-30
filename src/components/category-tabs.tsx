@@ -19,6 +19,7 @@ const TABS = [
 
 const style = css`
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
 
   .tab {
