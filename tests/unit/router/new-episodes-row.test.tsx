@@ -2,6 +2,7 @@
 import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
@@ -14,11 +15,17 @@ const urql = vi.hoisted(() => ({
   media: {} as Record<string, unknown>,
   asked: [] as string[],
 }))
+type Field = { name?: { value: string }, selectionSet: { selections: Field[] } }
 vi.mock('urql', () => ({
-  useSubscription: ({ query, variables }: { query: { definitions: { name?: { value: string } }[] }, variables?: { input: { uri: string } } }) => {
-    if (query.definitions[0]?.name?.value === 'ViewerLists') return [{ data: urql.lists }]
+  useSubscription: ({ query, variables }: { query: { definitions: Field[] }, variables?: { input: { uri: string } } }) => {
+    const operation = query.definitions[0]!
+    if (operation.name?.value === 'ViewerLists') return [{ data: urql.lists }]
     const uri = variables!.input.uri
     if (!urql.asked.includes(uri)) urql.asked.push(uri)
+    // a field the query does not ask for never reaches the page, so a fixture naming one would answer what the worker does not
+    const fields = operation.selectionSet.selections[0]!.selectionSet.selections.map(field => field.name?.value)
+    const unasked = Object.keys(urql.media[uri] ?? {}).filter(key => !fields.includes(key))
+    if (unasked.length) throw new Error(`the store ask does not select ${unasked.join(', ')}`)
     return [{ data: urql.media[uri] ? { media: urql.media[uri] } : undefined }]
   },
 }))
@@ -29,7 +36,7 @@ const { MOST } = await import('../../../src/router/home/new-episodes')
 
 const DAY = 86_400_000
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString()
-const row = (uri: string, title: string, mediaStatus: string, progress: number, updatedAt: string, episodeCount: number | null = 12) => ({
+const row = (uri: string, title: string, mediaStatus: string | null, progress: number, updatedAt: string, episodeCount: number | null = 12) => ({
   _id: `row:${uri}`,
   uri,
   episodeCount,
@@ -103,4 +110,32 @@ test('the page says there is none once the lists answer with nothing new, and no
     expect(host.querySelector('.status')?.textContent).toBe('No new episodes')
     expect(cards(host)).toEqual([])
   }
+})
+
+test('on the device\'s own list, which names no status or schedule, the page waits until stub\'s merged data has settled', () => {
+  const location = memoryLocation({ path: '/new' })
+  const tree = () => withIntl(<Router hook={location.hook}><NewEpisodesPage/></Router>)
+  const again = () => act(() => { render(tree(), host) })
+  const media = (settled: boolean, out: number[]) => ({
+    _id: 'm', uri: 'stub:7', status: 'RELEASING', settled, episodeCount: 12, nextAiringEpisode: null,
+    episodes: out.map(number => ({ _id: `e${number}`, episodeNumber: number, releaseDate: ago(DAY), handles: [] })),
+  })
+  urql.lists = { viewerLists: { _id: 'viewerLists', lists: [], rows: [row('stub:7', 'Frieren', null, 1, ago(DAY))] } }
+  const host = mount(tree())
+  hosts.push(host)
+  const status = () => host.querySelector('.status')?.textContent ?? null
+
+  expect([urql.asked, status()], 'not answered yet').toEqual([['stub:7'], null])
+  urql.media['stub:7'] = media(false, [1])
+  again()
+  expect(status(), 'answered before every source has, with nothing new so far').toBeNull()
+  urql.media['stub:7'] = media(true, [1])
+  again()
+  expect(status(), 'settled with nothing new').toBe('No new episodes')
+  urql.media['stub:7'] = media(false, [1])
+  again()
+  expect(status(), 'a source joining later does not take the line away again').toBe('No new episodes')
+  urql.media['stub:7'] = media(false, [1, 2])
+  again()
+  expect([status(), cards(host)]).toEqual([null, [['/media/stub:7', 'Frieren', 'Episode 21 new']]])
 })

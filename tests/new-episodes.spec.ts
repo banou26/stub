@@ -66,7 +66,15 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
+  // every load records whether the empty line was ever put on the page, however briefly
+  await page.addInitScript(() => {
+    new MutationObserver(records => {
+      if (records.some(record => [...record.addedNodes].some(node => node.textContent?.includes('No new episodes')))) Object.assign(window, { sawNone: true })
+    }).observe(document, { childList: true, subtree: true })
+  })
 })
+
+const sawNone = (page: Page) => page.evaluate(() => Boolean((window as { sawNone?: boolean }).sawNone))
 
 const season = (page: Page) => page.locator('.title', { hasText: /^Current season$/ })
 const heading = (page: Page) => page.getByRole('link', { name: 'New episodes', exact: true })
@@ -121,6 +129,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
   }
   await page.goto(`${origin}/new`)
   await expect(page.getByText('No new episodes', { exact: true }), 'nothing watched yet').toBeVisible({ timeout: 60_000 })
+  expect(await sawNone(page), 'the control: the record sees the line').toBe(true)
 
   await page.goto(`${origin}/`)
   const cards = page.locator('a[href^="/media/"]')
@@ -129,6 +138,11 @@ test('the New episodes row lands under Current season, headed as it is, and its 
   let watched = 0
   for (const uri of uris) if (watched < WATCHED && await watch(page, uri)) watched++
   expect(watched, 'the control: enough works tracked by episode').toBe(WATCHED)
+
+  // the device's own list names no status or schedule, so every card waits on stub's merged data
+  await page.goto(`${origin}/new`)
+  await expect(page.locator('a.card').first()).toBeVisible({ timeout: 30_000 })
+  expect(await sawNone(page), 'no empty line before the cards').toBe(false)
 
   for (const [width, height] of VIEWPORTS) {
     await page.setViewportSize({ width, height })
