@@ -269,6 +269,18 @@ test('a busy turn skips the run, and the offline card still answers', async () =
   expect(asked).toHaveLength(2)
 })
 
+// Mutation: keep the run's card whatever its inbox holds.
+test('a run behind the offline card that reached no source keeps no card, so the offline card answers with no run for five minutes', async () => {
+  createPreview.mockImplementation(() => copy(SETTLED, SETTLED, null))
+  const { puts, env } = bucket()
+  await (await call(BEBOP, DISCORD, 'GET', env)).kept
+  expect([inboxes, puts.length]).toEqual([1, 0])
+  expect(await kept('anime', 'ag:(mal:1)')!.clone().json()).toBeNull()
+  expect(kept('anime', 'ag:(mal:1)')!.headers.get('cache-control')).toBe('max-age=300')
+  expect(meta((await call(BEBOP, DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Cowboy Bebop'])
+  expect(asked).toHaveLength(1)
+})
+
 // Mutation: pass `uri` to `answer` rather than the show's address.
 test.each([
   ['another catalogue\'s id, which names another show or none', 'https://anime.fkn.app/title/ag:(anilist:30,mal:1)', 'ag:(offline:mal-1)'],
@@ -587,11 +599,21 @@ test('without the binding the run\'s answers are never read, and the card is the
   expect(await kept('anime', 'ag:(anilist:1)')!.json()).toEqual(SETTLED)
 })
 
-test('a run whose sources answered no media puts nothing', async () => {
+test('a run whose sources answered no media puts nothing, and with no offline card its card is still kept a day', async () => {
   createPreview.mockImplementation(() => copy(SETTLED, SETTLED, null))
   const { puts, env } = bucket()
   await (await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)).kept
   expect(inboxes).toBe(1)
+  expect(puts).toEqual([])
+  expect(kept('anime', 'ag:(anilist:1)')!.headers.get('cache-control')).toBe('max-age=86400')
+})
+
+// Mutation: let a failed read of the run's answers skip the keep.
+test('a run whose answers cannot be read still keeps its card, and puts nothing', async () => {
+  createPreview.mockImplementation(() => ({ offlineShow, answer: () => ({ first: Promise.resolve(SETTLED), last: Promise.resolve(SETTLED), inbox: () => Promise.reject(new Error('read')) }) }))
+  const { puts, env } = bucket()
+  await (await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)).kept
+  expect(await kept('anime', 'ag:(anilist:1)')!.json()).toEqual(SETTLED)
   expect(puts).toEqual([])
 })
 

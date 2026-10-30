@@ -31,7 +31,7 @@ const SETTLE_MS = 20_000
 const TURN_MS = 35_000
 const DAY_S = 86_400
 // short, since a copy that reached no source (the relays restarting, or metering this data centre's address) ends
-// the same way as a link stub cannot name
+// the same way as a link stub cannot name, and a run behind the offline card that reached none gathered nothing
 const PLAIN_S = 300
 
 let turns: number[] = []
@@ -54,7 +54,8 @@ const keep = (cache: Cache, key: Request, preview?: Preview) =>
 const lookup = async (segment: string, site: Site, started: number, answered: Promise<void>, waitUntil: Context['waitUntil'], bucket?: Bucket): Promise<Preview | undefined> => {
   const cache = (caches as CacheStorage & { default: Cache }).default
   const key = new Request(`https://preview.cache/${site}/${segment}`)
-  // `null`, a run with no card or a cache that cannot be read, says not to run: the offline card may still answer
+  // `null`, a run with no card or nothing gathered, or a cache that cannot be read, says not to run: the offline card
+  // may still answer
   const settled = await cache.match(key).then(hit => hit?.json() as Promise<Preview | null> | undefined).catch(() => null)
   if (settled) return settled
   const uri = routeMediaUri(segment)
@@ -75,13 +76,13 @@ const lookup = async (segment: string, site: Site, started: number, answered: Pr
   const { first, last, inbox } = answer
   // the run's answers go to the store once the card is kept, and the copy's turn is held until they have, so two
   // copies never meet in the isolate; a store that refuses them costs that run's answers, never the card
-  waitUntil(last.catch(() => undefined).then(async preview => keep(cache, key, preview ?? await first)).catch(() => {})
-    .then(async () => {
-      const object = bucket && await inbox()
-      if (object) await bucket.put(object.key, object.body, { httpMetadata: { contentType: 'application/gzip' } })
-    })
-    .catch(() => {})
-    .finally(release))
+  waitUntil(last.catch(() => undefined).then(async preview => {
+    const object = bucket && await inbox().catch(() => undefined)
+    // unbound, the run's answers are never read, so nothing says it gathered none
+    const gathered = !known || !bucket || object
+    await keep(cache, key, gathered ? preview ?? await first : undefined).catch(() => {})
+    if (object) await bucket.put(object.key, object.body, { httpMetadata: { contentType: 'application/gzip' } })
+  }).catch(() => {}).finally(release))
   return known ?? await first
 }
 
@@ -115,7 +116,9 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
  * own sources run here (src/preview). On that cache miss the sources run behind the offline card too, holding the
  * isolate's one turn, once the crawler has its answer, and what they settle on is kept for the next. Reads nothing
  * about the requester but its user agent, logs nothing about it, and keeps only public show data: a title's preview in
- * the edge cache, and what the sources answered for it in the private source store. Any failure answers the page as is.
+ * the edge cache, and what the sources answered for it in the private source store. An edge cache that cannot be read
+ * runs nothing, so the offline card or the plain one answers; any other failure answers the offline card when there is
+ * one, else the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const started = Date.now()
