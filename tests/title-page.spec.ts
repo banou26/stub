@@ -330,6 +330,7 @@ test('a preview\'s long description collapses to its row with a button, the page
     await expect(modal(page).locator('.facts')).toContainText('Spec Genre 60')
     await expect(toggles(page)).toHaveText('Expand')
     const folded = await fold(page)
+    expect(folded.drawn, `${width}: it hides what it folds`).toBeLessThan(folded.text)
     if (width === 1440) {
       expect(Math.abs(folded.aboveFoot), `${width}: it ends with the column beside it`).toBeLessThan(1)
       expect(folded.height, `${width}: the control: that column is past the height it would collapse to alone`).toBeGreaterThan(250)
