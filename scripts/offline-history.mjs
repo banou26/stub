@@ -4,7 +4,8 @@
 // is also kept in the private source store (HOR-994, ./source-store.mjs) when the workflow has its secrets, with three
 // sources only the store keeps: TVmaze's show index, ANN's title report and AnimeThemes' catalogue. It also folds the
 // store's inbox, what link previews' sources answered, into the store, and what anizip and Kitsu answered there into
-// the history.
+// the history. Last, it runs stub's own merge and publishes what it chose per show, the picks, which a data build ships
+// when they are of its own merge and dump (HOR-1029).
 //
 // The only code that asks AniDB, the only code that asks Kitsu for the history, and the only code that asks those
 // three for their whole catalogues. It refuses to run outside that workflow, so a local run, a test or a Pages build
@@ -16,10 +17,11 @@
 // two manual runs, can never ask twice in a day.
 
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
-import { SEASON_ORDER, catalogIds, downloadDump } from './build-anime-data.mjs'
-import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, foldPreviews, manifestCopy, readManifest } from './history-files.mjs'
+import { SEASON_ORDER, buildExtract, catalogIds, downloadDump } from './build-anime-data.mjs'
+import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, encodePicks, foldPreviews, loadMerge, manifestCopy, readManifest, withPicks } from './history-files.mjs'
 import { errorText } from './season-popularity.mjs'
 import { SECRETS, keepAnswers, r2, readInbox, readStore, rowsOf } from './source-store.mjs'
 
@@ -429,8 +431,9 @@ export const github = (token, get = fetch) => {
 }
 
 /**
- * The published history as `{ files, history }`, or nothing when no publish ever finished. A manifest.json a failed
- * publish left missing is restored from its newest copy first, so neither this job nor a data build is stuck on it.
+ * The published history as `{ files, history, picks }`, `picks` as `encodePicks` answers them when it names any, or
+ * nothing when no publish ever finished. A manifest.json a failed publish left missing is restored from its newest
+ * copy first, so neither this job nor a data build is stuck on it.
  */
 const readPublished = async (gh, release) => {
   let manifest
@@ -452,7 +455,9 @@ const readPublished = async (gh, release) => {
     if (asset) assets[name] = await gh.download(asset)
   }
   const files = { manifest, assets }
-  return { files, history: decodeHistory(files) }
+  const history = decodeHistory(files)
+  const entry = history.manifest.assets.picks
+  return { files, history, picks: entry && { entry, bytes: assets[entry.name] } }
 }
 
 const readAttempt = async (gh, release) => {
@@ -520,6 +525,16 @@ const keepSources = async (store, { writer, ...options }) => {
 }
 
 /**
+ * Stub's merge of what this run holds, as `encodePicks` answers it, stamped with the merge's version and `dump`.
+ */
+const makePicks = async ({ merge, dump, anidb, kitsu, previews }) => {
+  const { module, version } = await merge()
+  const { picks, counts } = module.historyPicks(buildExtract(dump).history, anidb.titles, kitsu, previews)
+  log(`the picks: ${picks.size} of ${counts.records} shows, merge ${version}`)
+  return encodePicks(picks, { merge: version, dump: { tag: dump.tag, sha256: dump.sha256 } })
+}
+
+/**
  * One run: read the published history (a build from scratch only when the release answers 404), take the newest
  * dump, ask AniDB when its turn has come and Kitsu when a new dump has, fold in what the store's inbox holds of anizip
  * and Kitsu, and publish only what changed. Then, when `store` is given, keep what AniDB and Kitsu answered and the
@@ -528,12 +543,16 @@ const keepSources = async (store, { writer, ...options }) => {
  * written is skipped with a warning, and never fails the run; an inbox it did not keep stays for the next run, whose
  * fold gives the same history. AniDB's file comes back to such a store with the next 200, but that run's Kitsu
  * answers do not, since Kitsu is asked again only for open seasons and unfinished shows; a warning counts them.
+ * Last, with `merge` and a store this run could read, run the merge over what the store now holds and publish its
+ * picks when they or their stamp changed. Until then the release keeps naming the last picks, and a merge that fails
+ * is skipped with a warning, so a data build goes on shipping those, or its own merge when they are stale.
  */
-export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer }) => {
+export const runHistory = async ({ token, get = fetch, dump = downloadDump, now = Date.now, sleep, pauseMs, backoff, store, writer, merge }) => {
   const gh = github(token, get)
   let release = await gh.release()
   const previous = release ? await readPublished(gh, release) : undefined
-  const { tag, meta, entries, sha256 } = await dump()
+  const newest = await dump()
+  const { tag, meta, entries, sha256 } = newest
   log(`dump ${tag}, ${previous ? `history of dump ${previous.history.manifest.dump?.tag}` : 'no history yet, from scratch'}`)
   const stored = store && await readStore(store).catch(error => warn(`the source store is skipped this run: ${errorText(error)}`))
   const inbox = stored && await readInbox(store).catch(error => warn(`the previews' inbox is skipped this run: ${errorText(error)}`))
@@ -584,7 +603,8 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
 
   const plan = checkpointsOf({ entries, cut, tag, kitsu, previous: checkpoints })
   const previews = foldPreviews(previous?.history.previews ?? new Map(), inbox?.lines ?? [])
-  const files = encodeHistory({ anidb, kitsu, previews, fields: { dump: { tag, sha256 }, kitsu: { refreshedFor }, checkpoints: plan.checkpoints, open: plan.open } })
+  const encoded = encodeHistory({ anidb, kitsu, previews, fields: { dump: { tag, sha256 }, kitsu: { refreshedFor }, checkpoints: plan.checkpoints, open: plan.open } })
+  const files = previous?.picks ? withPicks(encoded, previous.picks) : encoded
   if (files.manifest === previous?.files.manifest) {
     log('nothing changed, nothing published')
   } else {
@@ -610,7 +630,19 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   const kept = await keepSources(store, { get, sleep, backoff, now, writer })
     .catch(error => warn(`TVmaze, ANN and AnimeThemes were not kept this run: ${errorText(error)}`))
   if (kept) log(`the source store: ${kept}`)
+  const picks = merge && await makePicks({ merge, dump: newest, anidb, kitsu, previews })
+    .catch(error => warn(`the picks were not made this run: ${errorText(error)}`))
+  if (!picks) return
+  const picked = withPicks(encoded, picks)
+  if (picked.manifest === files.manifest) {
+    log('the picks did not change, nothing published')
+  } else {
+    await publish(gh, release, picked, files.manifest)
+    log(`published ${picks.entry.name} and ${MANIFEST}`)
+  }
 }
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 /** `runHistory`'s options from the workflow's environment: the store only when every secret of `SECRETS` is set. */
 export const runOptions = env => {
@@ -619,6 +651,7 @@ export const runOptions = env => {
     token: env.GH_TOKEN,
     store: r2(env),
     writer: { by: 'offline-history', run: env.GITHUB_RUN_ID ?? null, stub: version, commit: env.GITHUB_SHA?.slice(0, 8) ?? null },
+    merge: () => loadMerge(ROOT),
   }
 }
 

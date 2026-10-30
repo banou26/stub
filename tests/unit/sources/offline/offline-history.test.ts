@@ -10,6 +10,7 @@ import { expect, test, vi } from 'vite-plus/test'
 
 import { ATTEMPT, anidbSince, anidbTurn, askAnidb, askKitsu, checkpointsOf, github, kitsuRow, parseAnidbTitles, runHistory, runOptions } from '../../../../scripts/offline-history.mjs'
 import { decodeHistory } from '../../../../scripts/history-files.mjs'
+import * as offlinePick from '../../../../scripts/offline-pick'
 import { SECRETS, readStore, rowsOf } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
 import { FRIEREN_ANILIST, FRIEREN_ANIZIP, FRIEREN_KITSU, frierenRun, inboxEntry } from './fake-inbox'
@@ -654,6 +655,97 @@ test('a rerun the same day asks nothing and writes nothing to the store', async 
   expect(bucket.objects).toEqual(objects)
 })
 
+const MERGE = async () => ({ module: offlinePick, version: 'merge-1' })
+const merging = (w: ReturnType<typeof world>, bucket: ReturnType<typeof fakeBucket>, { merge = MERGE, tag = '2026-43', now = NOW, entries = ENTRIES } = {}) =>
+  runHistory({ token: 't', get: w.get, dump: dumpOf(tag, entries), now: () => now, sleep: async () => {}, pauseMs: 0, backoff: [], store: bucket.client, writer: WRITER, merge })
+const firstRun = async (bucket = fakeBucket(), merge = MERGE) => {
+  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources: wholeReport(fakeSources()) })
+  await logged(() => merging(w, bucket, { merge }))
+  return { w, bucket, sources: w.sources }
+}
+const picksOf = (w: ReturnType<typeof world>) => JSON.parse(w.named('manifest.json')!.toString()).assets.picks
+
+// Mutations: run the merge before the store's sources are kept; publish no second manifest; publish the manifest first.
+test('once the store is kept the job publishes stub\'s merge as picks, stamped with the merge and the dump, the manifest last', async () => {
+  const bucket = fakeBucket()
+  let held: string[] | undefined
+  const { w } = await firstRun(bucket, async () => {
+    held = Object.keys(JSON.parse(bucket.objects.get('manifest.json')!.toString()).job)
+    return MERGE()
+  })
+  expect(held).toEqual(['anidb-titles', 'kitsu', 'tvmaze', 'ann', 'animethemes'])
+  expect(picksOf(w)).toMatchObject({ name: expect.stringMatching(/^picks-/), rows: 6, merge: 'merge-1', dump: { tag: '2026-43', sha256: 'sha-of-2026-43' } })
+  const { picks } = historyOf(w)
+  expect(picks!.size).toBe(6)
+  expect(picks!.get('mal-21')).toEqual({ t: 'Show 12', p: 'o' })
+  expect(unsha(w.log.filter(line => line.startsWith('upload'))).slice(-3)).toEqual(['upload picks-<sha>.jsonl.zst', 'upload manifest-<sha>.json', 'upload manifest.json'])
+})
+
+// Mutation: publish on every run.
+test('a rerun with the same merge and the same data publishes nothing', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const rerun = world({ assets: assetsOf(w), sources })
+  const lines = await logged(() => merging(rerun, bucket, { now: NOW + HOUR }))
+  expect(rerun.log).toEqual([])
+  expect(lines).toContain('[offline-history] the picks did not change, nothing published')
+})
+
+// Mutations: compare the picks' bytes alone, so a new version never reaches the manifest; upload the same bytes again.
+test('a new merge version with the same picks publishes the new stamp and no new file', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const before = picksOf(w)
+  const next = world({ assets: assetsOf(w), sources })
+  await logged(() => merging(next, bucket, { merge: async () => ({ module: offlinePick, version: 'merge-2' }), now: NOW + HOUR }))
+  expect(picksOf(next)).toEqual({ ...before, merge: 'merge-2' })
+  expect(unsha(next.log.filter(line => line.startsWith('upload')))).toEqual(['upload manifest-<sha>.json', 'upload manifest.json'])
+})
+
+// Mutation: keep the first dump in the stamp.
+test('a new dump stamps new picks, which name the new dump', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const next = world({ assets: assetsOf(w), sources })
+  await logged(() => merging(next, bucket, { tag: '2026-44', now: NOW + DAY }))
+  expect(picksOf(next).dump).toEqual({ tag: '2026-44', sha256: 'sha-of-2026-44' })
+})
+
+// Mutations: let a failed merge fail the run; drop the last picks when the history changes before the merge.
+test('a merge that fails warns and leaves the run green, and the release keeps naming the last picks through its own publish', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const before = picksOf(w)
+  const next = world({ assets: assetsOf(w), sources })
+  const lines = await logged(() => merging(next, bucket, { merge: async () => { throw new Error('no generated enums') }, tag: '2026-44', now: NOW + DAY }))
+  expect(lines).toContain('::warning::[offline-history] the picks were not made this run: no generated enums')
+  // control: the new dump did publish a new manifest
+  expect(JSON.parse(next.named('manifest.json')!.toString()).dump.tag).toBe('2026-44')
+  expect(picksOf(next)).toEqual(before)
+  expect(next.named(before.name)).toBeDefined()
+})
+
+// Mutations: merge with no store; merge with a store this run could not read.
+test('with no store, or one that cannot be read, no merge runs', async () => {
+  const merge = vi.fn(MERGE)
+  const plain = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  await runHistory({ token: 't', get: plain.get, dump: dumpOf('2026-43'), now: () => NOW, sleep: async () => {}, pauseMs: 0, backoff: [], merge })
+  const unreadable = fakeBucket({ fail: method => method === 'GET' })
+  const failing = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  await logged(() => merging(failing, unreadable, { merge }))
+  expect(merge).not.toHaveBeenCalled()
+  expect(picksOf(plain)).toBeUndefined()
+})
+
+// Mutation: keep the replaced picks in `publish`'s set for good.
+test('picks replaced are removed once neither the manifest nor the one before names them', async () => {
+  const { w, bucket, sources } = await firstRun()
+  const first = picksOf(w).name
+  const changed = [...ENTRIES, entry('A new show', { mal: 77, kitsu: 77 }, { year: 2026, season: 'FALL' })]
+  const second = world({ assets: assetsOf(w), sources })
+  await logged(() => merging(second, bucket, { tag: '2026-44', now: NOW + DAY, entries: changed }))
+  const third = world({ assets: assetsOf(second), sources })
+  await logged(() => merging(third, bucket, { tag: '2026-44', now: NOW + 2 * DAY, entries: [...changed, entry('Another', { mal: 78, kitsu: 78 }, { year: 2026, season: 'FALL' })] }))
+  expect(third.names()).not.toContain(first)
+  expect(third.names()).toContain(picksOf(third).name)
+})
+
 // Mutation: a release answer of 500 read as no release.
 test('GitHub answering 404 for the tag is the one answer that means there is no release', async () => {
   const answering = (status: number) => async () => new Response('{}', { status })
@@ -679,13 +771,21 @@ test('the job refuses to run anywhere but its workflow, before it asks anything'
   expect(workflow.stderr).toContain('FETCHED https://api.github.com/repos/banou26/stub/releases/tags/offline-history')
 })
 
-// Mutations: hand the run no store; drop the run id or the commit from the writer.
-test('the workflow\'s environment gives the run its token, the store once every secret is set, and the writer its lines name', () => {
+// Mutations: hand the run no store; drop the run id or the commit from the writer; hand the run no merge.
+test('the workflow\'s environment gives the run its token, the store once every secret is set, the writer its lines name, and stub\'s merge', async () => {
   const env = { GH_TOKEN: 't', GITHUB_RUN_ID: '18800000001', GITHUB_SHA: '0dcc445515d01f83ed4f61a388e0530dcba472f7', ...STORE_ENV }
-  const { token, store, writer } = runOptions(env)
+  const { token, store, writer, merge } = runOptions(env)
   expect([token, Object.keys(store ?? {})]).toEqual(['t', ['get', 'put', 'remove', 'list']])
   expect(writer).toEqual({ by: 'offline-history', run: '18800000001', stub: JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version, commit: '0dcc4455' })
   for (const name of SECRETS) expect(runOptions({ ...env, [name]: '' }).store).toBeUndefined()
+  const { module, version } = await merge()
+  expect([typeof module.historyPicks, version]).toEqual(['function', expect.stringMatching(/^[0-9a-f]{16}$/)])
+}, 30_000)
+
+// Mutation: run the job before the enums it merges with are generated.
+test('the workflow generates the enums stub\'s merge imports before it runs the job', () => {
+  const steps = [...readFileSync(join(ROOT, '.github/workflows/offline-history.yml'), 'utf8').matchAll(/- run: (.+)/g)].map(([, step]) => step)
+  expect(steps).toEqual(['npm ci', 'npm run gql-generate', 'node scripts/offline-history.mjs'])
 })
 
 // Mutations: no notice when a secret is unset; a notice that reads the secrets while the run gets no store.

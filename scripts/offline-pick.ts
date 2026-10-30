@@ -13,7 +13,7 @@ import { coverUrl, recordId, seasonMedia, type ManamiRecord } from '../src/sourc
 import { SHARDS, kitsuPath, shardName, shardOf, type DumpEntry, type HistorySet, type PickEntry } from '../src/sources/offline/history'
 import { makeMedia } from '../src/sources/utils'
 
-export { SHARDS, shardName }
+export { SHARDS, shardName, type PickEntry }
 
 /** One AniDB title as the history keeps it, in its file's order. */
 export type AnidbTitle = [type: string, language: string, title: string]

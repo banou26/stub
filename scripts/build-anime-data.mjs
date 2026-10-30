@@ -67,7 +67,7 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
 import { errorText, seasonData } from './season-popularity.mjs'
-import { DOWNLOAD, MANIFEST, decodeHistory, downloadAssets, downloadManifest, readManifest, sha256 } from './history-files.mjs'
+import { DOWNLOAD, MANIFEST, decodeHistory, downloadAssets, downloadManifest, loadMerge, picksFor, readManifest, sha256 } from './history-files.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -343,8 +343,11 @@ const withPopularity = async (seasons, rows) => {
  *
  * It also lands the extract in nearly the shape the build wants, so the cache path exercises the
  * same code as the fresh path rather than a second one that could rot untested.
+ *
+ * Takes the dump as `downloadDump` answers it, and keeps its `tag` and `sha256`, which say what the job's picks may be
+ * shipped with.
  */
-export const buildExtract = (entries, meta, tag) => {
+export const buildExtract = ({ entries, meta, tag, sha256: dumpSha256 }) => {
   const cut = new Date(`${meta.lastUpdate}T00:00:00Z`)
   const anchor = { year: cut.getUTCFullYear(), season: SEASON_ORDER[Math.floor(cut.getUTCMonth() / 3)] }
   const from = seasonIndex(anchor) - SEASONS_BACK
@@ -385,7 +388,7 @@ export const buildExtract = (entries, meta, tag) => {
     )
   }
 
-  return { sources: [OFFLINE_DATABASE], tag, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons, history }
+  return { sources: [OFFLINE_DATABASE], tag, sha256: dumpSha256, updated: meta.lastUpdate, anchor: `${anchor.year}-${anchor.season}`, rows, seasons, history }
 }
 
 /** The newest dump: its dated tag, its metadata line, its entries and the sha256 of the file. Throws, saying why. */
@@ -414,13 +417,13 @@ export const downloadDump = async () => {
 }
 
 const refreshExtract = async () => {
-  const { tag, meta, entries } = await downloadDump()
-  const extract = buildExtract(entries, meta, tag)
+  const dump = await downloadDump()
+  const extract = buildExtract(dump)
   extract.seasons = await withPopularity(extract.seasons, extract.rows)
 
   mkdirSync(dirname(CACHE), { recursive: true })
   writeFileSync(CACHE, JSON.stringify(extract))
-  log(`${extract.rows.length} rows carrying an id, ${Object.keys(extract.seasons).length} seasons, cut ${meta.lastUpdate}`)
+  log(`${extract.rows.length} rows carrying an id, ${Object.keys(extract.seasons).length} seasons, cut ${extract.updated}`)
   return extract
 }
 
@@ -546,6 +549,21 @@ export default JSON.parse(${JSON.stringify(json)})
   }
 }
 
+/**
+ * The history's shards: of the job's picks when they are this merge's and this dump's, which carry every source the
+ * private store keeps, else of this build's own merge of the public assets. Its `counts` are that build's merge's either
+ * way, so `refusal` reads the same inputs however the shards were made, and `picked` says which it was, for the log.
+ */
+export const historySets = ({ module: pick, version }, history, manami) => {
+  const { picks, counts } = pick.historyPicks(manami.history, history.anidb.titles, history.kitsu, history.previews)
+  const job = picksFor(history, { merge: version, dump: { tag: manami.tag, sha256: manami.sha256 } })
+  return {
+    sets: pick.historyShards(manami.history, job.picks ?? picks),
+    counts,
+    picked: job.picks ? `the job's picks of ${job.picks.size} shows, merge ${version}, dump ${manami.tag}` : `this build's own merge, as ${job.why}`,
+  }
+}
+
 const refuse = line => {
   console.error(`[anime-data] REFUSING: ${line}`)
   process.exit(1)
@@ -600,12 +618,12 @@ const main = async () => {
 
   log(`${(total / 1024).toFixed(0)} KB brotli total, none of it in the initial bundle`)
 
-  const { runnerImport } = await import('vite-plus')
-  const { module: pick } = await runnerImport(resolve(ROOT, 'scripts/offline-pick.ts'), { root: ROOT, configFile: false, logLevel: 'error' })
-  const { picks, counts } = pick.historyPicks(manami.history, history.anidb.titles, history.kitsu, history.previews)
+  const merge = await loadMerge(ROOT)
+  const { sets, counts, picked } = historySets(merge, history, manami)
   log(`history: ${counts.records} records, AniDB titles of ${history.anidb.fetchedAt}, Kitsu rows refreshed for ${history.manifest.kitsu?.refreshedFor}, ${counts.previewed} with an answer kept from a link preview`)
   log(`history: titles from AniDB ${counts.anidbTitles}, Kitsu ${counts.kitsuTitles}, the dump ${counts.records - counts.anidbTitles - counts.kitsuTitles}; Kitsu covers ${counts.kitsuCovers}, banners ${counts.banners}, descriptions ${counts.descriptions}`)
-  emitHistory(pick.historyShards(manami.history, picks), pick.shardName, provenance)
+  log(`history: shipping ${picked}`)
+  emitHistory(sets, merge.module.shardName, provenance)
 
   const refused = refusal({ indexRows: kept.length, seasons: Object.keys(seasons).length, anidbTitles: counts.anidbTitles })
   if (refused) refuse(refused)

@@ -9,9 +9,10 @@
 # What it asks is also kept in the private R2 bucket `stub-sources` (HOR-994, scripts/source-store.mjs), through R2's
 # S3 API with a token scoped to that bucket, and the three sources above are asked only for it: TVmaze's updates and
 # ANN's newest titles once a day, AnimeThemes once a week. Each run also folds the bucket's inbox, what link previews'
-# sources answered, into it, and what anizip and Kitsu answered there into the release. While any of the three
-# STUB_SOURCES_* secrets below is unset, the job skips the bucket and those three with a notice and does everything
-# else as before.
+# sources answered, into it, and what anizip and Kitsu answered there into the release. Last, it runs stub's own merge
+# over everything the bucket keeps and publishes what it chose per show, the picks, which a data build ships when they
+# are of its own merge and dump. While any of the three STUB_SOURCES_* secrets below is unset, the job skips the bucket,
+# those three and the picks with a notice and does everything else as before.
 #
 # DAILY, off the hour, since scheduled runs queue at the top of it. A day with no new dump asks Kitsu nothing, and a
 # day whose AniDB file is unchanged gets a 304 and publishes nothing. A `schedule` trigger runs only on the default
@@ -46,6 +47,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      # the enums stub's merge imports (scripts/offline-pick.ts)
+      - run: npm run gql-generate
       - run: node scripts/offline-history.mjs
         env:
           GH_TOKEN: ${{ github.token }}

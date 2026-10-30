@@ -3,11 +3,14 @@
 //
 // Three assets of gathered inputs, each a file of its own and none holding any ODbL data: AniDB's titles, Kitsu's
 // rows, and what link previews' answers of anizip and Kitsu may add, folded from the private source store's inbox
-// (./source-store.mjs). A manifest names them with their sha256 and row count, which dump the checkpoints came from, and
-// the YEAR-SEASON checkpoints themselves. Asset names are content addressed and the manifest is replaced last, so a
-// reader sees the old set or the new one, never a mix.
+// (./source-store.mjs). A fourth, the picks (HOR-1029), is what stub's merge of all of that and of every answer the
+// store keeps chose per show, stamped with the merge's version and the dump it read. A manifest names them with their
+// sha256 and row count, which dump the checkpoints came from, and the YEAR-SEASON checkpoints themselves. Asset names
+// are content addressed and the manifest is replaced last, so a reader sees the old set or the new one, never a mix.
 
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { relative, resolve } from 'node:path'
 import { constants, zstdCompressSync, zstdDecompressSync } from 'node:zlib'
 
 export const REPOSITORY = 'banou26/stub'
@@ -77,6 +80,58 @@ export const encodeHistory = ({ anidb, kitsu, previews = new Map(), fields }) =>
   }
 }
 
+/**
+ * The picks' asset, for `withPicks`: `{ entry, bytes }`. `picks` is a Map of key to entry as scripts/offline-pick.ts's
+ * `historyPicks` answers it, and `stamp` is `{ merge, dump }`, which `entry` carries: the merge's version and the
+ * dump's `{ tag, sha256 }`. The same picks of the same merge and dump give the same entry, whatever commit made them.
+ */
+export const encodePicks = (picks, stamp) => {
+  const bytes = compress([...picks].sort(([a], [b]) => (a < b ? -1 : 1)).map(row => `${JSON.stringify(row)}\n`).join(''))
+  return { entry: { ...asset('picks', '.jsonl.zst', bytes, picks.size), ...stamp }, bytes }
+}
+
+/** `files`, as `encodeHistory` answers them, also naming `picks`, as `encodePicks` answers them. */
+export const withPicks = ({ manifest, assets }, { entry, bytes }) => {
+  const fields = JSON.parse(manifest)
+  return {
+    manifest: `${JSON.stringify({ ...fields, assets: { ...fields.assets, picks: entry } }, null, 1)}\n`,
+    assets: { ...assets, [entry.name]: bytes },
+  }
+}
+
+/**
+ * The job's picks in a history read back, when a build holding this merge's version and this dump's sha256 may ship
+ * them: `{ picks }`, or `{ why }` saying why not. Picks of another dump are keyed to records that may have moved, and
+ * another merge's are not what this build's code would choose.
+ */
+export const picksFor = ({ manifest, picks }, { merge, dump }) => {
+  const entry = manifest.assets.picks
+  if (!entry) return { why: 'no picks published yet' }
+  if (entry.merge !== merge) return { why: `the picks are of merge ${entry.merge}, this build's is ${merge}` }
+  if (entry.dump?.sha256 !== dump.sha256) return { why: `the picks are of dump ${entry.dump?.tag}, this build's is ${dump.tag}` }
+  return { picks }
+}
+
+/** A hash of `files` under `root`, by their path in it and their bytes, so any checkout of the same code gives the same. */
+export const mergeVersion = (root, files) => {
+  const hash = createHash('sha256')
+  const paths = [...new Set(files.map(file => relative(root, file)))].filter(path => !path.startsWith('src/generated/')).sort()
+  for (const path of paths) hash.update(path).update(readFileSync(resolve(root, path)))
+  return hash.digest('hex').slice(0, 16)
+}
+
+/**
+ * Stub's merge as a build and the job run it: `module`, scripts/offline-pick.ts, and `version`, `mergeVersion` over it
+ * and every file it loads but the generated ones. Through vite's module runner, since node cannot load those modules
+ * on its own (enums, extensionless imports), and after `npm run gql-generate`, whose enums they import.
+ */
+export const loadMerge = async root => {
+  const { runnerImport } = await import('vite-plus')
+  const entry = resolve(root, 'scripts/offline-pick.ts')
+  const { module, dependencies } = await runnerImport(entry, { root, configFile: false, logLevel: 'error' })
+  return { module, version: mergeVersion(root, [entry, ...dependencies]) }
+}
+
 const unreadable = detail => new Error(`the offline history is unreadable: ${detail}`)
 
 /** The manifest's own fields, or a loud failure when it is not one. */
@@ -87,8 +142,8 @@ export const readManifest = text => {
   } catch {
     throw unreadable(`${MANIFEST} is not JSON`)
   }
-  // a history published before previews were kept names none
-  for (const kind of ['anidb', 'kitsu', ...(manifest?.assets?.previews ? ['previews'] : [])]) {
+  // a history published before previews were kept names none, and one before the job's first picks names none of those
+  for (const kind of ['anidb', 'kitsu', ...['previews', 'picks'].filter(optional => manifest?.assets?.[optional])]) {
     const entry = manifest?.assets?.[kind]
     if (typeof entry?.name !== 'string' || typeof entry.sha256 !== 'string' || !Number.isInteger(entry.rows)) throw unreadable(`${MANIFEST} names no ${kind} asset`)
   }
@@ -111,9 +166,10 @@ const rowsChecked = (entry, size) => {
 }
 
 /**
- * A history read back from its files: `{ manifest, anidb, kitsu, previews }` as `encodeHistory` takes them. Fails
- * loudly on any asset that is missing, does not match its sha256, does not parse, or holds another row count than its
- * own manifest entry records, so a damaged history is never read as a smaller one.
+ * A history read back from its files: `{ manifest, anidb, kitsu, previews }` as `encodeHistory` takes them, and `picks`,
+ * a Map of key to entry, when the manifest names them. Fails loudly on any asset that is missing, does not match its
+ * sha256, does not parse, or holds another row count than its own manifest entry records, so a damaged history is
+ * never read as a smaller one.
  */
 export const decodeHistory = files => {
   const manifest = readManifest(files.manifest)
@@ -121,10 +177,12 @@ export const decodeHistory = files => {
   let anidb
   let kitsu
   let previews
+  let picks
   try {
     anidb = JSON.parse(assetText(files, manifest.assets.anidb))
     kitsu = lines(manifest.assets.kitsu)
     previews = manifest.assets.previews ? lines(manifest.assets.previews) : []
+    picks = manifest.assets.picks && new Map(lines(manifest.assets.picks))
   } catch (error) {
     throw error.message.startsWith('the offline history') ? error : unreadable(`an asset does not parse (${error.message})`)
   }
@@ -132,11 +190,13 @@ export const decodeHistory = files => {
   rowsChecked(manifest.assets.anidb, titles.size)
   rowsChecked(manifest.assets.kitsu, kitsu.length)
   if (manifest.assets.previews) rowsChecked(manifest.assets.previews, previews.length)
+  if (picks) rowsChecked(manifest.assets.picks, picks.size)
   return {
     manifest,
     anidb: { fetchedAt: anidb.fetchedAt, lastModified: anidb.lastModified, titles },
     kitsu: new Map(kitsu.map(row => [Number(row.id), row])),
     previews: new Map(previews.map(row => [`${row.source}:${row.id}`, row])),
+    picks,
   }
 }
 
