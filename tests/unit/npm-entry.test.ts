@@ -222,10 +222,9 @@ describe('the published file list', () => {
       'build/assets/main-BvIGtXtY.js',
       'build/assets/de-CKTRf7mS.js',
       'build/assets/es-419-BuWA9Mss.js',
-      'build/assets/anidb-042-Dk2Ab_c-.js',
-      'build/assets/lib-worker-anidb-042-Dk2Ab_c-.js',
+      'build/assets/stub-042-Dk2Ab_c-.js',
       'build/assets/lib-worker-dump-042-Dk2Ab_c-.js',
-      'build/assets/lib-worker-kitsu-042-Dk2Ab_c-.js',
+      'build/assets/lib-worker-stub-042-Dk2Ab_c-.js',
       'build/assets/lib-worker-history-shards--R5hLvQv.js',
     ]
     try {
