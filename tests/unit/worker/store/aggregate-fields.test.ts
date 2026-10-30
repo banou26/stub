@@ -103,6 +103,13 @@ test('genres and tags dedupe case-insensitively, keeping the highest-scored spel
   expect(aggregated.tags).toEqual(['Time Skip'])
 })
 
+// JustWatch's Sport and Science-Fiction are AniList's Sports and Sci-Fi, so a merged title lists each once
+test('a genre two sources spell two ways is listed once, in the highest-scored spelling', () => {
+  const anilist = row('anilist:1', { score: 0.9, genres: ['Comedy', 'Sports', 'Sci-Fi'] })
+  const justwatch = row('justwatch:2', { score: 0.5, genres: ['Animation', 'Sport', 'Science-Fiction'] })
+  expect(aggregateMedia([justwatch, anilist], 'https://x').genres).toEqual(['Comedy', 'Sports', 'Sci-Fi', 'Animation'])
+})
+
 // The three-edit rule this file opens with, applied to the field the search page's card and list modes
 // lead with. Only AniList publishes a schedule, and it is NOT the highest-scored source in a cluster
 // jikan also answered, so a field won by the top source alone would lose it on exactly the media that
