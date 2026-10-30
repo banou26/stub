@@ -97,7 +97,8 @@ const style = css`
     align-items: center;
     gap: 1.1rem;
     min-width: 17rem;
-    padding: 0.9rem 1.4rem 0.9rem 1.1rem;
+    padding-block: 0.9rem;
+    padding-inline: 1.1rem 1.4rem;
     background: rgb(28, 28, 30);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 1rem;
@@ -110,7 +111,7 @@ const style = css`
     &::before {
       content: '';
       position: absolute;
-      left: 0;
+      inset-inline-start: 0;
       top: 0;
       bottom: 0;
       width: 3px;
@@ -267,7 +268,8 @@ const style = css`
       flex-direction: column;
       gap: 0.7rem;
       min-width: 0;
-      padding: 0.9rem 1.4rem 1.1rem 1.1rem;
+      padding-block: 0.9rem 1.1rem;
+      padding-inline: 1.1rem 1.4rem;
     }
 
     .head {
@@ -345,7 +347,7 @@ const style = css`
         flex-shrink: 0;
         align-self: center;
         width: 12rem;
-        margin-left: 0.4rem;
+        margin-inline-start: 0.4rem;
         border-radius: 0.6rem;
       }
 
@@ -379,7 +381,7 @@ const style = css`
     .source {
       width: 100%;
       font: inherit;
-      text-align: left;
+      text-align: start;
     }
 
     .chevron {
@@ -393,8 +395,8 @@ const style = css`
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    padding-left: 1.2rem;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    padding-inline-start: 1.2rem;
+    border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
 
     .release {
       display: flex;

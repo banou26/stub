@@ -22,7 +22,7 @@ const fill = keyframes`
 
 const style = css`
   position: absolute;
-  right: 2.4rem;
+  inset-inline-end: 2.4rem;
   bottom: 8rem;
   display: flex;
   gap: 0.8rem;

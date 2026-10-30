@@ -37,7 +37,7 @@ const style = css`
     font-size: 1.3rem;
   }
 
-  .bar .spacer { margin-left: auto; }
+  .bar .spacer { margin-inline-start: auto; }
 
   .close {
     padding: 0.4rem 1.1rem;

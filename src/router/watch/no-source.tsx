@@ -74,7 +74,7 @@ const style = css`
   .note {
     flex-basis: 100%;
     font-size: 1.3rem;
-    text-align: right;
+    text-align: end;
 
     &:not(:empty) { margin-top: 0.6rem; }
     &.error { color: #f87171; }

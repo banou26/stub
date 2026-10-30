@@ -407,14 +407,14 @@ const style = css`
 
     &.previous {
       grid-area: prev;
-      margin-right: 2rem;
+      margin-inline-end: 2rem;
     }
 
     &.next {
       grid-area: next;
       justify-content: flex-end;
-      margin-left: 2rem;
-      text-align: right;
+      margin-inline-start: 2rem;
+      text-align: end;
     }
 
     svg {
