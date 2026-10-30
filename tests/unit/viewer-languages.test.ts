@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { LANGUAGE_KEY } from '../../src/i18n/languages'
+import { settings } from '../../src/settings-store'
 import { keepAudioLanguage, keepSubtitleLanguage } from '../../src/utils/track-languages'
 import { heldViewerLanguages, holdViewerLanguages, viewerLanguages, watchViewerLanguages } from '../../src/viewer-languages'
 
@@ -42,15 +43,18 @@ test("a pick naming no language, a track's own title, is left out", () => {
   expect(viewerLanguages()).toEqual({ language: 'fr-CA' })
 })
 
-test('a watcher hears each pick, and nothing once stopped', () => {
+test('a watcher hears each pick, the language picked in Settings included, and nothing once stopped', () => {
   const heard = vi.fn()
   const stop = watchViewerLanguages(heard)
   keepAudioLanguage('Japanese')
   keepSubtitleLanguage(null)
   expect(heard).toHaveBeenCalledTimes(2)
+  settings.setItem(LANGUAGE_KEY, 'ja')
+  expect(heard).toHaveBeenCalledTimes(3)
+  expect(viewerLanguages().language, 'what the worker is then handed').toBe('ja')
   stop()
   keepAudioLanguage('English')
-  expect(heard).toHaveBeenCalledTimes(2)
+  expect(heard).toHaveBeenCalledTimes(3)
 })
 
 test('the worker hands what the page held, else the browser\'s language alone', () => {

@@ -5,7 +5,7 @@ import type { ViewerLanguages } from './plugin-api'
 
 import { languageTag } from '@banou/media-player/language'
 
-import { contentLanguage } from './i18n/languages'
+import { contentLanguage, LANGUAGE_KEY } from './i18n/languages'
 import { settings } from './settings-store'
 import { AUDIO_LANGUAGE_KEY, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from './utils/track-languages'
 
@@ -21,9 +21,12 @@ export const viewerLanguages = (): ViewerLanguages => {
   }
 }
 
-/** Calls `listener` whenever a picked audio or subtitle language changes, here or on the account. Returns the stop. */
+/**
+ * Calls `listener` whenever the language picked in Settings, or a picked audio or subtitle language, changes, here, in
+ * another tab or on the account. Returns the stop.
+ */
 export const watchViewerLanguages = (listener: () => void): () => void => {
-  const stops = [AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY].map(key => settings.watch(key, listener))
+  const stops = [LANGUAGE_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY].map(key => settings.watch(key, listener))
   return () => { for (const stop of stops) stop() }
 }
 
