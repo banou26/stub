@@ -22,7 +22,8 @@ vi.stubGlobal('localStorage', {
 vi.spyOn(console, 'warn').mockImplementation(() => {})
 
 const GONE = 'https:stub.plugins.banou.dev'
-const HELD = 'npm:@banou/held'
+// a list kept before stub stored FKN's own ids still names the version FKN lists without
+const HELD = 'npm:@banou/held@1.2.3'
 const ACCOUNT = 'npm:@banou/account'
 
 const load = (device: string[], account?: string[]) => {
@@ -58,7 +59,7 @@ test("a source FKN no longer holds leaves this site's list unseen; one it holds,
   await vi.waitFor(() => expect(fkn.list).toHaveBeenCalledTimes(3))
   expect(page.pluginStatuses(), 'nothing shows as failed while FKN is asked').toEqual([ACCOUNT, GONE, HELD].map(uri => ({ uri, state: 'connecting' })))
 
-  answer([{ uri: HELD }])
+  answer([{ uri: 'npm:@banou/held' }])
   await vi.waitFor(() => expect(page.pluginStatuses()).toEqual([{ uri: ACCOUNT, state: 'error' }, { uri: HELD, state: 'error' }]))
   expect(stored.get(ENABLED_PLUGINS_KEY)).toBe(JSON.stringify([HELD]))
   expect(stored.get(ACCOUNT_PLUGINS_KEY)).toBe(JSON.stringify([ACCOUNT]))
