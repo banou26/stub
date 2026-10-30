@@ -122,6 +122,13 @@ describe("AniList's picks", () => {
   test('reject a failed request', async () => {
     await expect(askRecommended([FRIEREN], [], fakeAnilist({ status: 429 }).fetch)).rejects.toThrow('429')
   })
+
+  test.each([
+    ['an error and no page', { data: { Page: null }, errors: [{ message: 'Internal Server Error', status: 500 }] }],
+    ['no seed', { data: { Page: { media: [] } } }],
+  ])('reject a 200 holding %s', async (_, body) => {
+    await expect(askRecommended([FRIEREN], [], async () => Response.json(body))).rejects.toThrow('200')
+  })
 })
 
 describe('the picks shown', () => {

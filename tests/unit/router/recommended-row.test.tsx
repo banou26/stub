@@ -95,6 +95,14 @@ test('asks nothing and draws nothing while AniList is turned off in Settings', a
   expect(anilist.asked, 'nothing asked').toHaveLength(1)
 })
 
+test('keeps nothing of a 200 holding no seed, so the next load asks again', async () => {
+  fake.fetch = (async () => Response.json({ data: { Page: null }, errors: [{ message: 'Internal Server Error', status: 500 }] })) as typeof fetch
+  expect((await show([FRIEREN])).innerHTML).toBe('')
+  expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
+  fake.fetch = anilist.fetch as unknown as typeof fetch
+  expect(cards(await show([FRIEREN]))).toHaveLength(3)
+})
+
 test('draws nothing when AniList refuses', async () => {
   anilist = fakeAnilist({ status: 429 })
   fake.fetch = anilist.fetch as unknown as typeof fetch
