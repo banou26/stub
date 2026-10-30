@@ -12,12 +12,11 @@ import {
   useTransitionStyles
 } from '@floating-ui/react'
 
-import { Link } from 'wouter'
-
 import { getRoutePath, Route } from '../path'
 import MediaTitle from '../../components/media-title'
 import Draggable from '../../components/draggable'
 import { MediaPreview } from '../../components/media-preview'
+import RowTitle from './row-title'
 import Placeholder from '../../components/placeholder'
 import { layer } from '../../layers'
 
@@ -26,20 +25,6 @@ display: flex;
 flex-direction: column;
 position: relative;
 --card-gutter: 100px;
-& > .title {
-  position: relative;
-  /* The section is a flex COLUMN, which blockifies this <a> and stretches it across the viewport,
-     so the heading's box (and its hover and focus ring) ran the full width of the screen for a few
-     words of text. Cross-axis start keeps the box the size of the words in it. */
-  align-self: flex-start;
-  margin-left: 10rem;
-  font-size: 4rem;
-  font-weight: bold;
-  color: rgb(255, 255, 255);
-  text-shadow: rgba(0, 0, 0, 0.8) -1px -1px 0px, rgba(0, 0, 0, 0.8) -1px 1px 0px, rgba(0, 0, 0, 0.8) 1px -1px 0px, rgba(0, 0, 0, 0.8) 1px 1px 0px;
-  padding-bottom: 0.5rem;
-  user-select: none;
-}
 & > .list-container {
   position: relative;
   & > .scroll-button {
@@ -92,11 +77,6 @@ position: relative;
 
 @media (max-width: 768px) {
   --card-gutter: 1.5rem;
-
-  & > .title {
-    margin-left: 1.5rem;
-    font-size: 2.4rem;
-  }
 
   & > .list-container > .scroll-button {
     display: none;
@@ -215,13 +195,7 @@ export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, ti
 
   return (
     <div css={style}>
-      {
-        // A <Link> renders an <a class="title">, still a direct child, so the `& > .title` rule above
-        // keeps styling it and outranks the global `a` colour on specificity.
-        titleTo
-          ? <Link to={titleTo} className='title'>{title}</Link>
-          : <span className='title'>{title}</span>
-      }
+      <RowTitle title={title} to={titleTo}/>
       <div className='list-container'>
         {
           mediaNodes.length || waited

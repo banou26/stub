@@ -20,6 +20,7 @@ export type Released = { count: number, at?: string }
 
 /** A list entry changed this recently is in the row whether its show still airs or not. */
 export const RECENT_MS = 30 * 86_400_000
+/** How many of them home's row holds. Its page holds every one. */
 export const MOST = 20
 
 const WATCHING = new Set(['WATCHING', 'REWATCHING'])
@@ -86,9 +87,9 @@ export const releasedOf = (work: ListedWork, media: StoredWork | undefined, now:
 }
 
 /**
- * The row: Watching and Rewatching works with more episodes out than watched, that still air or changed in the
- * last RECENT_MS, the newest first (by the newest episode out when known, else the entry's last change), at most
- * MOST. `next` is the episode to watch, `count` how many are out past the watched ones.
+ * The new episodes: Watching and Rewatching works with more episodes out than watched, that still air or changed in
+ * the last RECENT_MS, the newest first (by the newest episode out when known, else the entry's last change). `next`
+ * is the episode to watch, `count` how many are out past the watched ones.
  */
 export const newEpisodes = <W extends ListedWork>(works: readonly W[], released: (work: W) => Released | undefined, now: Date) =>
   works
@@ -99,4 +100,3 @@ export const newEpisodes = <W extends ListedWork>(works: readonly W[], released:
       return [{ work, next: progress + 1, count: out.count - progress, at: Date.parse(out.at ?? work.summary.updatedAt ?? '') || 0 }]
     })
     .sort((a, b) => b.at - a.at)
-    .slice(0, MOST)

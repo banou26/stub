@@ -136,8 +136,6 @@ const Index = () => {
   return (
     <div css={style}>
       <HomeTheater mediaNodes={nodes[rows[0]!]} />
-      {/* the trackers keep anime alone */}
-      {site === 'anime' || site === 'stub' ? <NewEpisodes/> : undefined}
       {
         site === 'stub'
           ? (
@@ -148,6 +146,8 @@ const Index = () => {
           : undefined
       }
       {rows.includes('season') && <MediaSection title={intl.formatMessage({ id: 'Current season', defaultMessage: 'Current season' })} titleTo={CURRENT_SEASON_SEARCH} mediaNodes={nodes.season}/>}
+      {/* the trackers keep anime alone; under the season, which it would push down when the lists answer */}
+      {site === 'anime' || site === 'stub' ? <NewEpisodes/> : undefined}
       {rows.includes('movies') && (!category || category === MediaCategory.Movie) && <MediaSection title={intl.formatMessage({ id: 'Popular movies', defaultMessage: 'Popular movies' })} mediaNodes={nodes.movies}/>}
       {rows.includes('shows') && (!category || category === MediaCategory.Series) && <MediaSection title={intl.formatMessage({ id: 'Popular shows', defaultMessage: 'Popular shows' })} mediaNodes={nodes.shows}/>}
       {matchMediaRoute && <MediaModal mediaNodes={[...nodes.season, ...nodes.movies, ...nodes.shows]} />}

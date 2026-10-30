@@ -10,6 +10,7 @@ export enum Route {
   PRIVACY = 'PRIVACY',
   SETTINGS = 'SETTINGS',
   LIST = 'LIST',
+  NEW = 'NEW',
   WATCH = 'WATCH',
   PARTY = 'PARTY',
   DEBUG_TRACE = 'DEBUG_TRACE',
@@ -31,6 +32,7 @@ const ROUTES = {
   [Route.PRIVACY]: () => '/privacy',
   [Route.SETTINGS]: () => '/settings',
   [Route.LIST]: () => '/list',
+  [Route.NEW]: () => '/new',
   [Route.WATCH]: ({ mediaUri, episodeUri, sourceUri }: { mediaUri: string, episodeUri: string, sourceUri?: string }) =>
     `/watch/${mediaUri}/${episodeUri}${sourceUri ? `/${sourceUri}`: ''}`,
   // the invite rides in the FRAGMENT (see party/invite.ts), so the path itself names nothing
@@ -56,6 +58,7 @@ const RouterRoutes = {
   [Route.PRIVACY]: '/privacy',
   [Route.SETTINGS]: '/settings',
   [Route.LIST]: '/list',
+  [Route.NEW]: '/new',
   [Route.WATCH]: '/watch/:mediaUri/:episodeUri/:sourceUri?',
   [Route.PARTY]: '/party',
   [Route.DEBUG_TRACE]: '/debug/trace',

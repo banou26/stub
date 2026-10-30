@@ -10,7 +10,8 @@ import { gql } from '../../generated'
 import { getRoutePath, Route } from '../path'
 import { VIEWER_LISTS } from '../../components/viewer-lists-query'
 import { useNow } from '../../utils/use-now'
-import { askedOfStore, newEpisodes, releasedOf } from './new-episodes'
+import RowTitle from './row-title'
+import { MOST, askedOfStore, newEpisodes, releasedOf } from './new-episodes'
 
 /** What stub's merged data says is out of one work: the fields `unreleasedEpisodes` reads. */
 const RELEASES = gql(`
@@ -31,49 +32,21 @@ const RELEASES = gql(`
   }
 `)
 
-const style = css`
-  display: flex;
-  flex-direction: column;
-  --card-gutter: 100px;
+const cardStyle = css`
+  position: relative;
+  aspect-ratio: 5 / 7;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #191919;
+  color: #fff;
 
-  /* a column would stretch the link across the page, its hover and focus ring with it */
-  & > .heading {
-    align-self: flex-start;
-    margin-left: 10rem;
-    padding-bottom: 0.5rem;
-    font-size: 4rem;
-    font-weight: bold;
-    color: #fff;
-    text-shadow: rgba(0, 0, 0, 0.8) -1px -1px 0px, rgba(0, 0, 0, 0.8) -1px 1px 0px, rgba(0, 0, 0, 0.8) 1px -1px 0px, rgba(0, 0, 0, 0.8) 1px 1px 0px;
-    user-select: none;
-  }
-
-  & > .cards {
-    display: flex;
-    gap: 1rem;
-    padding: 0 var(--card-gutter) 1rem;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgb(134, 132, 141) rgb(15, 15, 15);
-  }
-
-  .card {
-    position: relative;
-    flex: 0 0 25rem;
-    aspect-ratio: 5 / 7;
-    border-radius: 1rem;
-    overflow: hidden;
-    background: #191919;
-    color: #fff;
-  }
-
-  .card img {
+  img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .card .about {
+  .about {
     position: absolute;
     inset: auto 0 0;
     display: flex;
@@ -84,7 +57,7 @@ const style = css`
     text-shadow: rgb(0 0 0 / 80%) 1px 1px 0;
   }
 
-  .card .title {
+  .title {
     font-size: 1.8rem;
     font-weight: bold;
     overflow: hidden;
@@ -93,24 +66,36 @@ const style = css`
     -webkit-box-orient: vertical;
   }
 
-  .card .facts {
+  .facts {
     display: flex;
     gap: 0.8rem;
     font-size: 1.4rem;
     color: rgba(255, 255, 255, 0.8);
   }
 
-  .card .new { color: #8fd18f; font-weight: 600; }
+  .new { color: #8fd18f; font-weight: 600; }
+`
+
+const rowStyle = css`
+  display: flex;
+  flex-direction: column;
+  --card-gutter: 100px;
+
+  & > .cards {
+    display: flex;
+    gap: 1rem;
+    padding: 0 var(--card-gutter) 1rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(134, 132, 141) rgb(15, 15, 15);
+  }
+
+  & > .cards > * { flex: 0 0 25rem; }
 
   @media (max-width: 768px) {
     --card-gutter: 1.5rem;
 
-    & > .heading {
-      margin-left: 1.5rem;
-      font-size: 2.4rem;
-    }
-
-    .card { flex-basis: 15rem; }
+    & > .cards > * { flex-basis: 15rem; }
   }
 `
 
@@ -122,38 +107,57 @@ const StoreAsk = ({ uri, onAnswer }: { uri: string, onAnswer: (uri: string, medi
   return null
 }
 
-/** Home's row of new episodes of the shows the viewer is watching. Nothing at all while it holds none. */
-const NewEpisodes = () => {
-  const intl = useIntl()
+/**
+ * Every new episode of the shows the viewer is watching, newest first (./new-episodes.ts), the asks of stub's merged
+ * data that fill them in, to render beside whatever draws them, and whether the viewer's lists are still being read.
+ */
+export const useNewEpisodes = () => {
   const now = new Date(useNow())
   const [{ data }] = useSubscription({ query: VIEWER_LISTS })
   const [stored, setStored] = useState<Record<string, StoredWork>>({})
   const rows = data?.viewerLists?.rows ?? []
   const asked = useMemo(() => askedOfStore(rows, now), [rows])
-  const shown = newEpisodes(rows, row => releasedOf(row, stored[row.uri], now), now)
   const onAnswer = (uri: string, media: StoredWork) => setStored(held => ({ ...held, [uri]: media }))
+  return {
+    episodes: newEpisodes(rows, row => releasedOf(row, stored[row.uri], now), now),
+    asks: asked.map(row => <StoreAsk key={row.uri} uri={row.uri} onAnswer={onAnswer}/>),
+    reading: !data || Boolean(data.viewerLists?.lists.some(list => list.state === 'LOADING')),
+  }
+}
 
+type NewEpisode = ReturnType<typeof useNewEpisodes>['episodes'][number]
+
+/** One new episode's card, which opens its work: the cover, the title, the episode to watch next and how many are out. */
+export const NewEpisodeCard = ({ episode: { work, next, count } }: { episode: NewEpisode }) => {
+  const intl = useIntl()
+  return (
+    <Link to={getRoutePath(Route.MEDIA, { uri: work.uri })} css={cardStyle} className="card">
+      {work.summary.cover ? <img src={work.summary.cover} alt="" loading="lazy"/> : undefined}
+      <div className="about">
+        <span className="title">{work.summary.title ?? work.uri}</span>
+        <span className="facts">
+          <span>{intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: next })}</span>
+          <span className="new">{intl.formatMessage({ id: '{count, plural, one {{count} new} other {{count} new}}#episodes out and not watched', defaultMessage: '{count, plural, one {{count} new} other {{count} new}}', description: 'episodes out and not watched' }, { count })}</span>
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+/** Home's row of the newest MOST, under a heading that opens the page of all of them. Nothing at all while none. */
+const NewEpisodes = () => {
+  const intl = useIntl()
+  const { episodes, asks } = useNewEpisodes()
   return (
     <>
-      {asked.map(row => <StoreAsk key={row.uri} uri={row.uri} onAnswer={onAnswer}/>)}
+      {asks}
       {
-        shown.length
+        episodes.length
           ? (
-            <section css={style}>
-              <Link to={getRoutePath(Route.LIST)} className="heading">{intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })}</Link>
+            <section css={rowStyle}>
+              <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.NEW)}/>
               <div className="cards">
-                {shown.map(({ work, next, count }) => (
-                  <Link key={work._id} to={getRoutePath(Route.MEDIA, { uri: work.uri })} className="card">
-                    {work.summary.cover ? <img src={work.summary.cover} alt="" loading="lazy"/> : undefined}
-                    <div className="about">
-                      <span className="title">{work.summary.title ?? work.uri}</span>
-                      <span className="facts">
-                        <span>{intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: next })}</span>
-                        <span className="new">{intl.formatMessage({ id: '{count, plural, one {{count} new} other {{count} new}}#episodes out and not watched', defaultMessage: '{count, plural, one {{count} new} other {{count} new}}', description: 'episodes out and not watched' }, { count })}</span>
-                      </span>
-                    </div>
-                  </Link>
-                ))}
+                {episodes.slice(0, MOST).map(episode => <NewEpisodeCard key={episode.work._id} episode={episode}/>)}
               </div>
             </section>
           )
