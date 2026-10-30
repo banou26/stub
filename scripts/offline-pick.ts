@@ -57,8 +57,9 @@ const CATALOGUES = [['mal', 'ml'], ['anilist', 'al'], ['kitsu', 'ku']] as const
  * Each record's stored answers, by key: per uri its newest full answer, else its newest list hit. An answer is about
  * the record of its own catalogue id, whatever run it came from. It also belongs to the records its run's address
  * names when it was a member of that run, the only join for a source no record has an id of: an answer only related
- * to the run, or a hit the run passed over, says nothing about those records. Two records the engine welded are one
- * show on a page, so each takes the run. An id two records share goes to the first, as a key does.
+ * to the run, or a hit the run passed over, says nothing about those records, and neither does a run with no card,
+ * whose address is whatever the link said. Two records the engine welded are one show on a page, so each takes the
+ * run. An id two records share goes to the first, as a key does.
  */
 export const storedAnswers = (records: readonly HistoryRecord[], answers: readonly StoredAnswer[]) => {
   const keys = new Map<string, string>()
@@ -82,10 +83,8 @@ export const storedAnswers = (records: readonly HistoryRecord[], answers: readon
   const shows = new Map<string, Map<string, StoredAnswer>>()
   for (const answer of answers) {
     const uri = `${answer.source}:${answer.id}`
-    // a run cut before its card arrived has the address the crawler asked for, and no roles
     const address = fromAggregatedUri(answer.run as AggregatedUri)?.handleUris ?? [answer.run]
-    const member = answer.role === 'member' || address.includes(uri)
-    for (const key of new Set([...named([uri]), ...member ? named(address) : []])) {
+    for (const key of new Set([...named([uri]), ...answer.role === 'member' ? named(address) : []])) {
       const own = shows.get(key) ?? shows.set(key, new Map()).get(key)!
       if (newer(answer, own.get(uri))) own.set(uri, answer)
     }

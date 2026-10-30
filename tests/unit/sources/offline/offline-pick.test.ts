@@ -220,10 +220,15 @@ test('of the sources no record has an id of, a member of a run\'s address counts
   expect(titleOf([GUNDAM], [{ ...member, role: null }])).toBeUndefined()
 })
 
-// Mutation: read the role alone, so a cut run's answers join nothing.
-test('a run cut before its card arrived has no roles, and its address joins the answers it names', () => {
-  const cut = stored('jw', '77', { role: null, run: 'ag:(jw:77,mal:80)', media: titled('Its JustWatch title') })
-  expect(titleOf([GUNDAM], [cut])).toBe('Its JustWatch title')
+// Mutation: let an address that names an answer stand for its role.
+test('an answer with no role joins by its own id alone, since a run with no card keeps the address the link gave', () => {
+  const other = { t: 'Another show', ty: 'TV', p: '', ml: 81 }
+  const named = stored('mal', '81', { role: null, run: 'ag:(mal:80,mal:81)', media: titled('The other show\'s title') })
+  const { picks } = picked([GUNDAM, other], [named])
+  expect([picks.has('mal-80'), picks.get('mal-81')?.t]).toEqual([false, 'The other show\'s title'])
+  expect(titleOf([GUNDAM], [stored('jw', '77', { role: null, run: 'ag:(jw:77,mal:80)', media: titled('Its JustWatch title') })])).toBeUndefined()
+  // control: a card's member joins the records its address names
+  expect(picked([GUNDAM, other], [{ ...named, role: 'member' }]).picks.get('mal-80')?.t).toBe('The other show\'s title')
 })
 
 // Mutation: read a plain uri as naming nothing.
