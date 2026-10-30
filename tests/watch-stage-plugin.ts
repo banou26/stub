@@ -6,11 +6,14 @@ import { CHAPTERLESS_TORRENT, PLAYER_ORIGIN } from './watch-stage-media'
 // frames a player at another origin (./watch-stage-ripple.ts) as the plugin frames ripple, and answers stub's calls
 // as stub-plugin's src/ui/playback.ts does, its `focus` included, and reports first once the player is up, as
 // @banou/media-player's mirror does at `ready`. Each episode runs 40 s, its ending from 2 to 20 s with a scene after
-// it, and plays from 18.5 s; the second's file marks no ending.
+// it, and plays from 18.5 s; the second's file marks no ending. With `stageEndingCloses` on the window the ending closes
+// the file instead, from 19 s, so Next and the player's Skip Ending are both due as it plays, and `offerEnding` goes to
+// the player, whose answer comes back as `endingOffered`.
 
 const DURATION = 40
 const CHAPTERS = [{ start: 0, end: 2, title: 'Part A' }, { start: 2, end: 20, title: 'ED' }, { start: 20, end: 40, title: 'Part B' }]
 const CHAPTERLESS = [{ start: 0, end: 20, title: 'Part A' }, { start: 20, end: 40, title: 'Part B' }]
+const CLOSING = [{ start: 0, end: 19, title: 'Part A' }, { start: 19, end: 37, title: 'ED' }]
 
 let frame: HTMLIFrameElement | undefined
 let loaded = false
@@ -20,9 +23,10 @@ let fullscreenEar: (() => void) | undefined
 let fullscreen = false
 let state = { paused: true, time: 0, ended: false }
 let chapters = CHAPTERS
+let endingOffered = true
 
 // block bodies throughout: a listener's tail call to postMessage loses its source in WebKit (HOR-1043)
-const report = () => { ear?.({ ...state, rate: 1, at: Date.now(), duration: DURATION, chapters }) }
+const report = () => { ear?.({ ...state, rate: 1, at: Date.now(), duration: DURATION, chapters, endingOffered }) }
 const tell = () => { frame?.contentWindow?.postMessage({ fullscreen }, PLAYER_ORIGIN) }
 
 addEventListener('message', event => {
@@ -43,12 +47,16 @@ addEventListener('message', event => {
   } else if (type === 'end') {
     state = { paused: true, time: DURATION, ended: true }
     report()
+  } else if (type === 'skip-gone') {
+    endingOffered = false
+    report()
   }
 })
 
 const api = {
   play: async ({ url }: { url?: string }) => {
-    chapters = url === `magnet:?xt=urn:btih:stage${CHAPTERLESS_TORRENT}` ? CHAPTERLESS : CHAPTERS
+    chapters = url === `magnet:?xt=urn:btih:stage${CHAPTERLESS_TORRENT}` ? CHAPTERLESS : 'stageEndingCloses' in window ? CLOSING : CHAPTERS
+    endingOffered = true
     frame = document.createElement('iframe')
     loaded = false
     ready = false
@@ -69,6 +77,9 @@ const api = {
   applyFullscreen: async (active: boolean) => {
     fullscreen = active
     tell()
+  },
+  offerEnding: async (offered: boolean) => {
+    frame?.contentWindow?.postMessage({ offered }, PLAYER_ORIGIN)
   },
   focus: async () => {
     const current = frame

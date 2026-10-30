@@ -4,7 +4,8 @@ import { PLUGIN_ORIGIN } from './watch-stage-media'
 // button and `f` ask the plugin, as @banou/media-player's do once the fullscreen is handed over, and show the state the
 // plugin tells; `k` plays and `e` ends. `keys` lists the keys this document heard, and the button is marked
 // `data-clicked` once a click has reached it. Its document's load waits for `/late.png`, which tests/watch-stage.spec.ts
-// can hold back.
+// can hold back. Its Skip Ending is up from the start and goes 300 ms after the plugin asks, as a far player's takes a
+// round trip and a render, leaving `skipGoneAt` and telling the plugin.
 
 const keys: string[] = []
 Object.assign(window, { keys })
@@ -20,7 +21,16 @@ button.addEventListener('click', () => {
   button.dataset.clicked = ''
   ask('fullscreen')
 })
-document.body.append(button)
+const skip = document.createElement('button')
+skip.className = 'skip-chapter'
+skip.textContent = 'Skip Ending'
+const leaveEnding = () => {
+  if (!skip.isConnected) return
+  skip.remove()
+  Object.assign(window, { skipGoneAt: Date.now() })
+  ask('skip-gone')
+}
+document.body.append(button, skip)
 const late = new Image()
 late.src = '/late.png'
 document.body.append(late)
@@ -32,7 +42,9 @@ addEventListener('keydown', event => {
   else if (event.key === 'e') ask('end')
 })
 addEventListener('message', event => {
-  const { fullscreen } = (event.data ?? {}) as { fullscreen?: unknown }
-  if (event.source === parent && event.origin === PLUGIN_ORIGIN && typeof fullscreen === 'boolean') button.setAttribute('aria-pressed', String(fullscreen))
+  if (event.source !== parent || event.origin !== PLUGIN_ORIGIN) return
+  const { fullscreen, offered } = (event.data ?? {}) as { fullscreen?: unknown, offered?: unknown }
+  if (typeof fullscreen === 'boolean') button.setAttribute('aria-pressed', String(fullscreen))
+  if (offered === false) setTimeout(leaveEnding, 300)
 })
 ask('ready')

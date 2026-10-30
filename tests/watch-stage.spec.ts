@@ -209,6 +209,34 @@ const torrentAcrossEpisodes = async (page: Page) => {
 
 const VIEWPORT = { width: 1280, height: 720 }
 
+// Both offers are due at the first report and both sit in one corner: Next must come after Skip Ending has gone, over
+// the real connection to the package. Compared by the time each document stamps, since a frame two down cannot be
+// sampled from the page in one instant.
+test('Next episode comes after the player\'s Skip Ending has gone, for a file its ending closes, in Chromium', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const page = await browser.newPage({ viewport: VIEWPORT })
+  try {
+    await serve(page)
+    await page.addInitScript(() => { Object.assign(window, { stageEndingCloses: true }) })
+    await page.goto(`${ORIGIN}${torrentWatchPath(1)}`)
+    await expect(page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.skip-chapter')).toBeVisible({ timeout: 30_000 })
+    const nextAt = page.evaluate(() => new Promise<number>(resolve => {
+      new MutationObserver((_, observer) => {
+        if (!document.querySelector('.stage .up-next')) return
+        observer.disconnect()
+        resolve(Date.now())
+      }).observe(document.body, { childList: true, subtree: true })
+    }))
+    await torrentPlayer(page)!.evaluate(() => { dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })) })
+    await expect(page.locator('.stage .up-next.offered')).toBeVisible()
+    const goneAt = await torrentPlayer(page)!.evaluate(() => (window as unknown as { skipGoneAt?: number }).skipGoneAt)
+    expect(goneAt, 'Skip Ending went').toBeDefined()
+    expect(await nextAt).toBeGreaterThanOrEqual(goneAt!)
+  } finally {
+    await page.close()
+  }
+})
+
 const launchFirefox = async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH
   const installed = browsers && existsSync(browsers) ? readdirSync(browsers).find(name => name.startsWith('firefox-')) : undefined
