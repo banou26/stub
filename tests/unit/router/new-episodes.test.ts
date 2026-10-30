@@ -111,10 +111,10 @@ describe('the row', () => {
     ])
   })
 
-  test(`holds at most ${MOST}`, () => {
+  test(`holds every one, more than the ${MOST} home's row shows`, () => {
     const recent = Array.from({ length: 30 }, (_, n) => work(`mal:${n}`, {}, { updatedAt: ago(n * 60_000), progress: 0 }))
     const row = newEpisodes(recent, listed => releasedByTrackers(listed, NOW), NOW)
-    expect(row).toHaveLength(MOST)
+    expect(row).toHaveLength(30)
     expect(row[0]!.work.uri).toBe('mal:0')
   })
 })
