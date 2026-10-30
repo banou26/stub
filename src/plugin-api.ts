@@ -110,6 +110,12 @@ export type StubSource = {
    * reach it once it has (Chrome 155, 2026-10-26), so a package waits for the load.
    */
   focus?: () => Promise<void>
+  /**
+   * Fetch ahead what a later `play` of `release`, the next episode's release Next opens, waits on before its first
+   * frame, beside the player up now. Stub asks once an episode's player is 80% through it. Resolves true when it was
+   * asked, false with no player up or a release the source cannot play. Optional and additive to stub-source@1.
+   */
+  prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
 /**

@@ -861,11 +861,13 @@ const Watch = () => {
   // the address's own spelling of this run, so a link inside it keeps the page's subscription
   const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index, new Date(now))
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
+  const playingUrl = episodeHandles.find(handle => handle.uri === selectedSourceUri)?.url ?? undefined
+  const sourceOf = (handles: Parameters<typeof sourceFor>[0]) => sourceFor(handles, playingOrigin, ways, playingUrl)
   const linkTo = (target: typeof next): EpisodeLink | undefined => target?.episode.uri ? {
     href: getRoutePath(Route.WATCH, {
       mediaUri: target.mediaUri,
       episodeUri: target.episode.uri,
-      sourceUri: sourceFor(playableHandlesOf(target.episode.handles), playingOrigin, ways),
+      sourceUri: sourceOf(playableHandlesOf(target.episode.handles)),
     }),
     title: episodeLabel(target.episode.episodeNumber, target.episode.titles?.at(0)?.title),
   } : undefined
@@ -873,6 +875,10 @@ const Watch = () => {
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
+  // the release Next opens, for the torrent player to prepare
+  const nextUri = upNext && viaPlugin ? sourceOf(playableHandlesOf(next?.episode.handles)) : undefined
+  const nextHandle = nextUri ? playableHandlesOf(next?.episode.handles).find(handle => handle.uri === nextUri) : undefined
+  const nextRelease = nextHandle ? { uri: nextHandle.uri, url: nextHandle.url ?? undefined } : undefined
   const malId = media?.uri ? extractAggregatedUriOrigin(media.uri, 'mal')?.id : undefined
   // asked only where there is a Next episode to time
   const fallback = useFallbackEnding(viaPlugin && upNext ? playbackLink : undefined, {
@@ -901,7 +907,7 @@ const Watch = () => {
           {/*
             Keyed, so another source or episode gets a fresh frame: a frame that loads another address in
             place adds a step to the tab's history, and Back then moves the player rather than the page. A
-            source package keeps its frame for its next releases instead, and puts each in a frame of its own.
+            source package keeps its frame for its next releases instead, and plays each in it.
           */}
           {noSource
             ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
@@ -935,7 +941,7 @@ const Watch = () => {
                       `}
                     />
                   )}
-                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : chapters} stage={stage}/>
+                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : chapters} stage={stage} episode={params.episodeUri} release={nextRelease}/>
               </div>
             )
             : needsExtension
@@ -1011,7 +1017,7 @@ const Watch = () => {
                         tracked={tracked}
                         current={picked || index < 0 ? undefined : index}
                         mediaUri={pickedUri ?? params.mediaUri}
-                        sourceOf={row => row === episode ? selectedSourceUri : sourceFor(playableHandlesOf(row.handles), playingOrigin, ways)}
+                        sourceOf={row => row === episode ? selectedSourceUri : sourceOf(playableHandlesOf(row.handles))}
                       />
                     )
                     : <EpisodesPlaceholder/>

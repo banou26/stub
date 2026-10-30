@@ -65,8 +65,13 @@ export const neighbours = <T extends Dated['episodes'][number]>(
 
 /**
  * The source another episode opens on: its best handle `origin` plays, so a viewer stays on the
- * site or the release they chose. Undefined when that origin has none, and the address then names
- * no source, so the Play pick decides there.
+ * site or the release they chose, and one at `playing`, the url of the release playing, first: the
+ * next file of the torrent playing, which its player holds the peers and the file list of already.
+ * Undefined when that origin has none, and the address then names no source, so the Play pick
+ * decides there.
  */
-export const sourceFor = (handles: Parameters<typeof bestSource>[0], origin: string | undefined, ways: Ways) =>
-  origin ? bestSource(handles.filter(handle => handle.origin === origin), ways)?.uri : undefined
+export const sourceFor = (handles: Parameters<typeof bestSource>[0], origin: string | undefined, ways: Ways, playing?: string) => {
+  if (!origin) return undefined
+  const own = handles.filter(handle => handle.origin === origin)
+  return (playing ? bestSource(own.filter(handle => handle.url === playing), ways) : undefined)?.uri ?? bestSource(own, ways)?.uri
+}

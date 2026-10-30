@@ -113,3 +113,11 @@ test('an origin the other episode lacks, or cannot play there, names no source',
   expect(sourceFor(third, undefined, ways)).toBeUndefined()
   expect(sourceFor(third, 'nyaa', { ...ways, off: origin => origin === 'nyaa' }), 'an origin turned off').toBeUndefined()
 })
+
+test('the next file of the torrent playing comes first, by its url, over a better release elsewhere', () => {
+  const pack = [...third, { uri: 'nyaa:a-3', origin: 'nyaa', url: 'magnet:?xt=urn:btih:a' }]
+  expect(sourceFor(pack, 'nyaa', ways, 'magnet:?xt=urn:btih:a')).toBe('nyaa:a-3')
+  expect(sourceFor(pack, 'nyaa', ways), 'the control: with nothing playing, the first release').toBe('nyaa:b')
+  expect(sourceFor(pack, 'nyaa', ways, 'magnet:?xt=urn:btih:z'), 'a torrent the episode is not in').toBe('nyaa:b')
+  expect(sourceFor(pack, 'nyaa', { ...ways, selfPlaying: () => false, builtIn: () => false }, 'magnet:?xt=urn:btih:a'), 'one that cannot play').toBeUndefined()
+})

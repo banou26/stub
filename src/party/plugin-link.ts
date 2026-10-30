@@ -47,6 +47,7 @@ export type PlaybackSource = {
   onFullscreenRequest?: (listener: () => void) => Promise<void>
   applyFullscreen?: (active: boolean) => Promise<void>
   focus?: () => Promise<void>
+  prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
 /**
@@ -61,7 +62,7 @@ export type PlaybackSource = {
  * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
  */
 export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
-  const { onPlayback, applyPlayback, buffer, focus } = source
+  const { onPlayback, applyPlayback, buffer, focus, prepare } = source
   if (!onPlayback || !applyPlayback) return undefined
 
   const listeners = new Set<(state: PlaybackState) => void>()
@@ -105,6 +106,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
         focus().catch(() => {})
       },
     } : {},
+    ...prepare ? { prepare: release => { if (!disposed) prepare(release).catch(() => {}) } } : {},
     ...buffer ? {
       buffer: () => Promise.race([
         buffer().then(bufferOf, () => undefined),

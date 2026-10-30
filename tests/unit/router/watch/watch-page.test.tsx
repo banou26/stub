@@ -199,7 +199,7 @@ vi.mock('../../../../src/party/bridge', () => ({
 // the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise, whose link
 // says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
 // each was put
-const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[] }))
+const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[] }))
 vi.mock('../../../../src/components/plugin-player', async () => {
   const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
   return {
@@ -209,7 +209,7 @@ vi.mock('../../../../src/components/plugin-player', async () => {
         pluginPlayers.stages.push(stage?.current)
         const focus = vi.fn()
         pluginPlayers.focus.push(focus)
-        const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), { chapters: () => pluginPlayers.chapters, focus })
+        const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), { chapters: () => pluginPlayers.chapters, focus, prepare: (next: object) => { pluginPlayers.prepared.push(next) } })
         // after the effects of the render that put it up, as the real one hands it over once the plugin has played
         let gone = false
         queueMicrotask(() => { if (!gone) onPlayback(link) })
@@ -290,7 +290,7 @@ vi.stubGlobal('localStorage', {
 const { default: Watch } = await import('../../../../src/router/watch/index')
 const wiring = await import('../../../../src/router/settings/wiring') as unknown as typeof import('../../../../src/router/settings/wiring') & { record: (site: string, state: string) => void }
 const { default: MediaTracking } = await import('../../../../src/components/media-tracking')
-const { UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
+const { PREPARE_AT, UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { aniskipUrl } = await import('../../../../src/sources/aniskip')
 const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
@@ -360,6 +360,7 @@ afterEach(() => {
   pluginPlayers.chapters = undefined
   pluginPlayers.focus = []
   pluginPlayers.stages = []
+  pluginPlayers.prepared = []
 })
 
 const settle = async () => {
@@ -1836,6 +1837,50 @@ test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async
   await settle()
   expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent('cr:GX2')}`)
   expect([lengths.asked, direct.asked]).toEqual([[], []])
+})
+
+test('a torrent\'s player is asked once, at PREPARE_AT of the episode, to prepare the release Next opens', async () => {
+  bridge.duration = 1000
+  await atTheEnd({}, 'nyaa:a')
+  await report({ paused: false, time: 1000 * PREPARE_AT - 1 })
+  expect(pluginPlayers.prepared).toEqual([])
+  await report({ paused: false, time: 1000 * PREPARE_AT })
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }])
+  await report({ paused: false, time: 900 }, played, ended)
+  expect(pluginPlayers.prepared).toHaveLength(1)
+})
+
+test('Next opens the next file of the torrent playing, which is what is prepared, over the episode\'s first release', async () => {
+  bridge.duration = 1000
+  const pack = handle('nyaa:a-3', 'nyaa', 'magnet:?xt=urn:btih:a')
+  const { host } = await atTheEnd({ handles: [crunchyroll(3), release('b'), pack] }, 'nyaa:a')
+  expect(episodeLinks(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
+  await report({ paused: false, time: 900 })
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' }])
+})
+
+test('a player that plays on into the next episode brings nothing of the last one\'s countdown with it', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  // one release holding episodes 2 and 3, so its player and link outlive the episode
+  media = { uri: SERIES, handles: [], episodes: [row(1, crunchyroll(1)), row(2, release('a')), row(3, release('a')), row(4, release('c'))] }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  const location = memoryLocation()
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+  await report(played, ended)
+  expect(host.querySelector('.up-next.counting')?.getAttribute('title')).toBe('E3 - Title 3')
+  await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:a'))
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:a' }
+  act(() => { render(tree(), host) })
+  await settle()
+  expect(bridge.links, 'the same player').toHaveLength(1)
+  expect(host.querySelector('.up-next')).toBeNull()
+  await wait(UP_NEXT_MS * 2)
+  expect(navigate).toHaveBeenCalledTimes(1)
 })
 
 test('a torrent\'s player is put on the stage, which keeps its fullscreen', async () => {

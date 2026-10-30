@@ -246,6 +246,22 @@ describe('a package\'s focus', () => {
   })
 })
 
+// the next episode's release, fetched ahead by the package's player
+describe('a package\'s prepare', () => {
+  test('hands the release to the package, is absent for a package without it, and does nothing once disposed or refused', async () => {
+    expect(pluginPlaybackLink(fakeSource().source)!.prepare).toBeUndefined()
+    const asked: object[] = []
+    const prepare = async (release: object) => { asked.push(release); throw new Error('gone') }
+    const link = pluginPlaybackLink({ ...fakeSource().source, prepare })!
+    const release = { uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }
+    expect(() => link.prepare!(release)).not.toThrow()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    link.dispose()
+    link.prepare!(release)
+    expect(asked).toEqual([release])
+  })
+})
+
 // HOR-1014: a torrent's player two frames down asks the watch page for fullscreen through the package, and the page
 // fullscreens its stage, so the fullscreen outlasts the package's frame when the next episode's replaces it
 describe('a package\'s fullscreen, kept on the stage', () => {

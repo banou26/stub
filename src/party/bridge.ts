@@ -36,6 +36,8 @@ export type PlaybackLink = {
   chapters?: () => MediaChapter[] | undefined
   /** Give the keys to a player nested below the frame the page holds; absent where focusing that frame is enough. */
   focus?: () => void
+  /** Fetch ahead what the player waits on to play `release`, a release of its own source, next; absent where it cannot. */
+  prepare?: (release: { uri: string, url?: string }) => void
   dispose: () => void
 }
 

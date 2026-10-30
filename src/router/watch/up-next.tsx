@@ -13,6 +13,9 @@ import { chaptersBesideNext, hasEnding, nextOfferAt } from '../../utils/next-off
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
 
+/** How far through an episode its player is asked to prepare the next one's release. */
+export const PREPARE_AT = 0.8
+
 const fill = keyframes`
   to { background-size: 100% 100%; }
 `
@@ -57,8 +60,17 @@ const style = css`
  * the moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
  * withdraws the countdown.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
+ * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
+ * `episode` carries into the next, whose player may be the same link.
  */
-const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefined, next: { href: string, title?: string } | undefined, chapters: MediaChapter[], stage: RefObject<HTMLElement | null> }) => {
+const UpNext = ({ link, next, chapters, stage, episode, release }: {
+  link: PlaybackLink | undefined
+  next: { href: string, title?: string } | undefined
+  chapters: MediaChapter[]
+  stage: RefObject<HTMLElement | null>
+  episode?: string
+  release?: { uri: string, url?: string }
+}) => {
   const intl = useIntl()
   const [, navigate] = useLocation()
   const [shown, setShown] = useState<'counting' | 'offered'>()
@@ -82,6 +94,8 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
   // read at each report rather than keyed on: chapters landing mid-episode must not reset what the reports said
   const marks = useRef(chapters)
   marks.current = chapters
+  const ahead = useRef(release)
+  ahead.current = release
 
   useEffect(() => {
     setShown(undefined)
@@ -89,6 +103,7 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
     // Only an end after a play counts, and once: a link tells every new ear where the player is,
     // and that repeat must not bring back a countdown the viewer cancelled.
     let played = false
+    let prepared = false
     let last: number | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
     // the early button waits for a press: only the end counts down
@@ -107,6 +122,10 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
       played ||= !paused
       const own = link.chapters?.()
       const duration = link.duration?.()
+      if (!prepared && ahead.current && link.prepare && duration && time >= duration * PREPARE_AT) {
+        prepared = true
+        link.prepare(ahead.current)
+      }
       // stub cannot take an ending out of a player's own chapters, as it does for its own player
       const at = own && hasEnding(own) ? nextOfferAt(chaptersBesideNext(own, duration), duration) : nextOfferAt(marks.current, duration)
       if (at !== undefined && time >= at) offer()
@@ -120,7 +139,7 @@ const UpNext = ({ link, next, chapters, stage }: { link: PlaybackLink | undefine
       clearTimeout(timer)
     }
     // whether there is a next, not its address: that grows as sources join the episode, mid-countdown too
-  }, [link, Boolean(href)])
+  }, [link, Boolean(href), episode])
 
   useEffect(() => {
     if (shown !== 'counting' || !href) return
