@@ -7,8 +7,8 @@ import { defineMessage, defineMessages } from 'react-intl'
 
 import { MediaCategory, MediaSeason, MediaStatus, MediaType } from '../../generated/graphql'
 import { intl } from '../../i18n'
-import { JUSTWATCH_GENRES } from '../../sources/justwatch/genres'
-import type { Site } from '../../site'
+import { JUSTWATCH_GENRES, genreKey } from '../../sources/justwatch/genres'
+import { site, type Site } from '../../site'
 
 import { isSceneCode } from '../../scene/search'
 
@@ -146,17 +146,19 @@ const ANILIST_GENRES = [
   'Thriller',
 ]
 
+const BOTH_GENRES = [...ANILIST_GENRES, ...Object.keys(JUSTWATCH_GENRES)]
+
 /**
  * The genres each site offers, those a source it asks lists by: AniList's on anime.fkn.app, JustWatch's on
- * movies.fkn.app and series.fkn.app, which never ask AniList, and both on stub.fkn.app. Any other genre a title
- * carries, such as Jikan's "Award Winning", lists titles only inside a season, where the search page offers it from
- * the results.
+ * movies.fkn.app and series.fkn.app, which never ask AniList, and both on stub.fkn.app, a genre the two spell two ways
+ * (`genreKey`) once by AniList's name. Any other genre a title carries, such as Jikan's "Award Winning", lists titles
+ * only inside a season, where the search page offers it from the results.
  */
 export const SITE_GENRES: Record<Site, readonly string[]> = {
   anime: ANILIST_GENRES,
   movie: Object.keys(JUSTWATCH_GENRES),
   series: Object.keys(JUSTWATCH_GENRES),
-  stub: [...new Set([...ANILIST_GENRES, ...Object.keys(JUSTWATCH_GENRES)])],
+  stub: BOTH_GENRES.filter((genre, index) => BOTH_GENRES.findIndex(other => genreKey(other) === genreKey(genre)) === index),
 }
 
 // each genre of SITE_GENRES by its name in the url and in its sources' answers
@@ -252,8 +254,10 @@ const parseYear = (raw: string | null, now = new Date()): number | null => {
  * screen, so an unknown enum value, a non-numeric year and a repeated single-valued key all resolve to
  * the same thing as absence.
  */
-export const parseSearchFilters = (search: string, now = new Date()): SearchFilters => {
+export const parseSearchFilters = (search: string, now = new Date(), current: Site = site): SearchFilters => {
   const params = new URLSearchParams(search)
+  // a genre as the site spells it, so an old stub.fkn.app link's `genre=Sport` reads as its Sports
+  const siteGenre = (genre: string) => SITE_GENRES[current].find(own => genreKey(own) === genreKey(genre.trim())) ?? genre
   return {
     query: (params.get(SEARCH_PARAMS.query) ?? '').trim(),
     category: memberOf(CATEGORY_VALUES, params.get(SEARCH_PARAMS.category)),
@@ -261,7 +265,7 @@ export const parseSearchFilters = (search: string, now = new Date()): SearchFilt
     season: memberOf(SEASON_VALUES, params.get(SEARCH_PARAMS.season)),
     year: parseYear(params.get(SEARCH_PARAMS.year), now),
     formats: membersOf(FORMAT_VALUES, params.getAll(SEARCH_PARAMS.format)),
-    genres: dedupeLabels(params.getAll(SEARCH_PARAMS.genre)),
+    genres: dedupeLabels(params.getAll(SEARCH_PARAMS.genre).map(siteGenre)),
     tags: dedupeLabels(params.getAll(SEARCH_PARAMS.tag)),
   }
 }

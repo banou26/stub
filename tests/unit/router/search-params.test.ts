@@ -21,6 +21,15 @@ describe('parseSearchFilters', () => {
     expect(parseSearchFilters('')).toEqual(EMPTY_SEARCH_FILTERS)
   })
 
+  // HOR-1081 (stub.fkn.app's genre picker offered Sport and Sports, Sci-Fi and Science-Fiction, as two options each)
+  test('a genre reads as the site spells it, so an old stub.fkn.app link to Sport is its Sports', () => {
+    expect(parseSearchFilters('genre=Sport&genre=Science-Fiction', AT, 'stub').genres).toEqual(['Sports', 'Sci-Fi'])
+    expect(parseSearchFilters('genre=Sport&genre=Sports', AT, 'stub').genres).toEqual(['Sports'])
+    expect(parseSearchFilters('genre=Sport&genre=Science-Fiction', AT, 'movie').genres).toEqual(['Sport', 'Science-Fiction'])
+    expect(parseSearchFilters('genre=Sports', AT, 'series').genres).toEqual(['Sport'])
+    expect(parseSearchFilters('genre=Award+Winning', AT, 'stub').genres).toEqual(['Award Winning'])
+  })
+
   test('every axis round-trips through the query string', () => {
     const filters = {
       query: 'mushoku tensei',
@@ -169,7 +178,17 @@ describe('SITE_GENRES', () => {
       expect(SITE_GENRES[site]).not.toContain('Mecha')
       expect(SITE_GENRES[site]).not.toContain('Made in Europe')
     }
-    expect(SITE_GENRES.stub).toEqual(expect.arrayContaining(['Mecha', 'Science-Fiction']))
+    expect(SITE_GENRES.stub).toEqual(expect.arrayContaining(['Mecha', 'Kids & Family']))
+  })
+
+  // HOR-1081 (stub.fkn.app's genre picker offered Sport and Sports, Sci-Fi and Science-Fiction, as two options each)
+  test('each site offers a genre its sources spell two ways once, stub.fkn.app by AniList\'s name', () => {
+    for (const [site, genres] of Object.entries(SITE_GENRES)) {
+      for (const pair of [['Sports', 'Sport'], ['Sci-Fi', 'Science-Fiction']]) {
+        expect(pair.filter(genre => genres.includes(genre)), `${site}: ${pair.join(', ')}`).toHaveLength(1)
+      }
+    }
+    expect(SITE_GENRES.stub).toEqual(expect.arrayContaining(['Sports', 'Sci-Fi']))
   })
 })
 
@@ -256,7 +275,7 @@ describe('genreLabel', () => {
   afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
 
   test('every genre a site offers is a message, and any other stays as its source writes it', async () => {
-    const genres = SITE_GENRES.stub
+    const genres = [...new Set(Object.values(SITE_GENRES).flat())]
     expect(genres.map(genreLabel), 'English, as the sources write them').toEqual(genres)
     const catalogue = Object.fromEntries(genres.map(genre => [`${genre}#genre`, `[${genre}]`]))
     await startLanguage({ language: 'de', languages: ['de-DE'], catalogues: { '../locales/de.json': async () => catalogue } })

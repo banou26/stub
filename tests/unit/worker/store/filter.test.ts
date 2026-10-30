@@ -80,6 +80,18 @@ describe('applyMediaFilters', () => {
     expect(uris(applyMediaFilters(page, { tags: ['TIME SKIP'] }))).toEqual(['kitsu:1', 'anilist:2'])
   })
 
+  // HOR-1081 (stub.fkn.app's genre picker offered Sport and Sports, Sci-Fi and Science-Fiction, as two options each)
+  test('AniList\'s Sports and Sci-Fi are JustWatch\'s Sport and Science-Fiction, whichever side carries which', () => {
+    const page = [
+      media('anilist:1', { genres: ['Sports', 'Sci-Fi'] }),
+      media('justwatch:2', { genres: ['Sport', 'Science-Fiction'] }),
+      media('tmdb:3', { genres: ['Drama'] }),
+    ]
+    for (const genres of [['Sports'], ['Sport'], ['sci-fi'], ['Science-Fiction'], ['Sports', 'Sci-Fi']]) {
+      expect(uris(applyMediaFilters(page, { genres })), String(genres)).toEqual(['anilist:1', 'justwatch:2'])
+    }
+  })
+
   test('season and seasonYear filter independently, and together name one season', () => {
     const page = [
       media('anilist:1', { season: 'SUMMER', seasonYear: 2026 }),

@@ -26,6 +26,7 @@ import DisplayModeToggle from '../../components/display-mode-toggle'
 import FilterSelect, { FilterField } from '../../components/filter-select'
 import { readDisplayMode, writeDisplayMode, type DisplayMode } from './display'
 import { site } from '../../site'
+import { genreKey } from '../../sources/justwatch/genres'
 
 const LIVE_ACTION_SITE = site === 'movie' || site === 'series'
 
@@ -407,12 +408,13 @@ const Search = () => {
    */
   const seasonal = Boolean(filters.season && filters.year)
   const { genreOptions, tagOptions, genreKeys } = useMemo(() => {
-    const genres = new Map<string, string>(SITE_GENRES[site].map(genre => [genre.toLowerCase(), genre]))
+    const genres = new Map<string, string>(SITE_GENRES[site].map(genre => [genreKey(genre), genre]))
     const tags = new Map<string, string>()
-    for (const genre of filters.genres) genres.set(genre.toLowerCase(), genre)
-    for (const tag of filters.tags) tags.set(tag.toLowerCase(), tag)
+    for (const genre of filters.genres) genres.set(genreKey(genre), genre)
+    for (const tag of filters.tags) tags.set(genreKey(tag), tag)
     const offer = (labels: Map<string, string>, label: string) => {
-      if (!genres.has(label.toLowerCase()) && !tags.has(label.toLowerCase())) labels.set(label.toLowerCase(), label)
+      const key = genreKey(label)
+      if (!genres.has(key) && !tags.has(key)) labels.set(key, label)
     }
     if (seasonal) for (const node of nodes) for (const genre of node.genres ?? []) offer(genres, genre)
     for (const node of nodes) for (const tag of node.tags ?? []) offer(tags, tag)
@@ -425,7 +427,7 @@ const Search = () => {
   }, [nodes, filters.genres, filters.tags, seasonal])
 
   const labels = [...filters.genres, ...filters.tags]
-  const isGenre = (label: string) => genreKeys.has(label.toLowerCase())
+  const isGenre = (label: string) => genreKeys.has(genreKey(label))
   const setLabels = (next: string[]) => setFilters({
     genres: next.filter(isGenre),
     tags: next.filter(label => !isGenre(label)),

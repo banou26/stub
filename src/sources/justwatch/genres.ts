@@ -23,3 +23,15 @@ export const JUSTWATCH_GENRES: Record<string, string> = {
   'War & Military': 'war',
   Western: 'wsn',
 }
+
+// JustWatch's names for two of AniList's genres
+const ANILIST_NAMES = new Map([['sport', 'sports'], ['science-fiction', 'sci-fi']])
+
+/**
+ * A genre's name as one key whichever source wrote it: lowercased, with JustWatch's Sport and Science-Fiction read as
+ * AniList's Sports and Sci-Fi. Two names with the same key are one genre to the picker, the store's filter and JustWatch's.
+ */
+export const genreKey = (name: string): string => {
+  const key = name.toLowerCase()
+  return ANILIST_NAMES.get(key) ?? key
+}

@@ -79,6 +79,12 @@ test('formats naming a film\'s still ask JustWatch, its films being typed films'
   expect(await browse('movie', { genres: ['Comedy'], formats: ['ONA', 'MOVIE'] })).toMatchObject({ titles: ['Practical Magic'] })
 })
 
+// HOR-1081 (stub.fkn.app's genre picker offered Sport and Sports, Sci-Fi and Science-Fiction, as two options each)
+test('stub.fkn.app\'s Sports and Sci-Fi ask JustWatch for its Sport and Science-Fiction, and keep the titles carrying them', async () => {
+  expect(await browse('stub', { genres: ['Sports'] })).toMatchObject({ asked: [{ objectTypes: [], genres: ['spt'] }], titles: ['Ted Lasso'] })
+  expect(await browse('stub', { genres: ['Sci-Fi'] })).toMatchObject({ asked: [{ objectTypes: [], genres: ['scf'] }], titles: ['Backrooms', 'Lanterns'] })
+})
+
 // JustWatch's filter keeps a title carrying any genre asked, and the page one carrying every genre picked
 test('two genres ask JustWatch for the first, and the page keeps the titles carrying both', async () => {
   expect(await browse('movie', { genres: ['Horror', 'Mystery & Thriller'] })).toEqual({

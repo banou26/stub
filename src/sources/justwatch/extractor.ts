@@ -5,7 +5,7 @@ import { site, type Site } from '../../site'
 import { resolveEpisodeToSeriesId } from '../crunchyroll/extractor'
 import { crunchyrollId } from '../crunchyroll/season-id'
 import { PACKAGE_ORIGIN_MAP, WATCHABLE, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
-import { JUSTWATCH_GENRES } from './genres'
+import { JUSTWATCH_GENRES, genreKey } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
 import { languageTags, qualityLabels } from '../stream-facts'
@@ -337,7 +337,7 @@ const genreKinds = (named: PopularFilter['objectTypes'] | undefined) =>
   site === 'movie' ? KINDS.MOVIE : site === 'series' ? KINDS.SERIES : site === 'stub' ? named ?? [] : undefined
 
 const genreCode = (label: string) =>
-  Object.entries(JUSTWATCH_GENRES).find(([name]) => name.toLowerCase() === label.toLowerCase())?.[1]
+  Object.entries(JUSTWATCH_GENRES).find(([name]) => genreKey(name) === genreKey(label))?.[1]
 
 // What JustWatch's most popular titles answer and no other source does: a home row, one category named, and a genre on
 // the sites that list by its genres. Never with a search, or a season, status or tag, which its titles never carry, nor

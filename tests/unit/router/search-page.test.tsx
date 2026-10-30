@@ -220,7 +220,7 @@ describe('the search page', () => {
     await publish({ _id: 'frieren', genres: ['Adventure', 'Award Winning', 'Isekai'], tags: ['Travel', 'Isekai'] })
     const picker = stream.pickers['Genres & Tags']!
     const offered = picker.options.map(option => option.value)
-    expect(offered).toEqual(expect.arrayContaining(['Adventure', 'Mecha', 'Science-Fiction', 'Travel', 'Isekai']))
+    expect(offered).toEqual(expect.arrayContaining(['Adventure', 'Mecha', 'Kids & Family', 'Travel', 'Isekai']))
     expect(offered).not.toContain('Award Winning')
     act(() => picker.onChange(['Isekai']))
     expect(page.history.at(-1)).toBe('/search?q=frieren&tag=Isekai')
@@ -242,6 +242,15 @@ describe('the search page', () => {
     const offered = stream.pickers['Genres & Tags']!.options.map(option => option.value)
     expect(offered, 'the control: the results landed').toContain('Time Manipulation')
     expect(offered).not.toContain('Suspense')
+  })
+
+  // HOR-1081 (stub.fkn.app's genre picker offered Sport and Sports, Sci-Fi and Science-Fiction, as two options each)
+  test('an old link to Sport asks every source for Sports, and a result\'s Science-Fiction is offered as Sci-Fi', async () => {
+    open('/search?season=FALL&year=2026&genre=Sport')
+    expect(stream.started.at(-1)).toEqual(expect.objectContaining({ genres: ['Sports'] }))
+    await publish({ _id: 'lanterns', genres: ['Science-Fiction', 'Sport'], tags: [] })
+    const offered = stream.pickers['Genres & Tags']!.options.map(option => option.value)
+    expect(offered.filter(genre => ['Sci-Fi', 'Science-Fiction', 'Sport', 'Sports'].includes(genre))).toEqual(['Sci-Fi', 'Sports'])
   })
 
   test('a genre the url names stays a genre when another label is picked', () => {
@@ -268,8 +277,8 @@ describe('its English', () => {
     const genres = [
       'Action', 'Action & Adventure', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Ecchi', 'Fantasy',
       'History', 'Horror', 'Kids & Family', 'Mahou Shoujo', 'Mecha', 'Music', 'Music & Musical', 'Mystery', 'Mystery & Thriller',
-      'Psychological', 'Reality TV', 'Romance', 'Sci-Fi', 'Science-Fiction', 'Slice of Life', 'Sport', 'Sports', 'Supernatural',
-      'Thriller', 'War & Military', 'Western',
+      'Psychological', 'Reality TV', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller', 'War & Military',
+      'Western',
     ]
     expect(options('Genres & Tags')).toEqual(genres.map(genre => [genre, genre]))
     expect(options('Year').at(0)).toEqual([String(new Date().getFullYear() + 5), String(new Date().getFullYear() + 5)])

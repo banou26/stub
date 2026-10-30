@@ -7,6 +7,7 @@
 import type { Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { site, siteAllows, type Site } from '../../site'
+import { genreKey } from '../../sources/justwatch/genres'
 
 /**
  * The subset of `MediaPageInput` decided here, as plain data.
@@ -26,8 +27,8 @@ export type MediaPageFilters = {
   tags?: readonly string[] | null
 }
 
-const labelSet = (labels: readonly string[] | null | undefined): Set<string> =>
-  new Set((labels ?? []).map(label => label.toLowerCase()))
+const labelSet = (labels: readonly string[] | null | undefined, key = (label: string) => label.toLowerCase()): Set<string> =>
+  new Set((labels ?? []).map(key))
 
 /**
  * The medias an aggregated page should keep, given the filters the caller set.
@@ -38,7 +39,8 @@ const labelSet = (labels: readonly string[] | null | undefined): Set<string> =>
  * which is the failure a user reads as broken.
  *
  * Genres and tags are ALL-match, case-insensitively: adding a second genre narrows, which is what
- * every browse UI does and what a user adding one expects. Formats and categories are ANY-match,
+ * every browse UI does and what a user adding one expects. A genre two sources spell two ways is one
+ * (`genreKey`), so Sports keeps a title JustWatch calls Sport. Formats and categories are ANY-match,
  * because they are alternatives rather than refinements.
  *
  * `status` IS filtered here, and it could only become filterable once the home page stopped using it
@@ -63,7 +65,7 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
 ): T[] => {
   const categories = filters.categories ?? []
   const formats = filters.formats ?? []
-  const genres = labelSet(filters.genres)
+  const genres = labelSet(filters.genres, genreKey)
   const tags = labelSet(filters.tags)
   const { status, season, seasonYear } = filters
 
@@ -75,7 +77,7 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
     if (season && media.season !== season) return false
     if (seasonYear && media.seasonYear !== seasonYear) return false
     if (genres.size) {
-      const carried = labelSet(media.genres)
+      const carried = labelSet(media.genres, genreKey)
       for (const genre of genres) if (!carried.has(genre)) return false
     }
     if (tags.size) {
