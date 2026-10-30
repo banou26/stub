@@ -122,7 +122,7 @@ export const summedPicks = (answer: Answer, works: readonly ListedWork[]): Summe
 
 /**
  * AniList's picks for `seeds`, as `summedPicks` sums them. `fetch` is the viewer's browser's own, as for every host
- * open to CORS. Rejects on a failed request and on an answer holding no seed, so neither is kept.
+ * open to CORS. Rejects on an answer holding no seed, a refusal among them, so that none is kept.
  */
 export const askRecommended = async (seeds: readonly number[], works: readonly ListedWork[], fetch: FetchLike): Promise<Summed> => {
   const response = await fetch('https://graphql.anilist.co/', {
@@ -132,7 +132,7 @@ export const askRecommended = async (seeds: readonly number[], works: readonly L
     body: JSON.stringify({ query: RECOMMENDED_QUERY, variables: { ids: seeds } }),
   })
   const answer = await response.json() as Answer
-  if (!response.ok || !answer.data?.Page?.media?.length) throw new Error(`AniList answered ${response.status}`)
+  if (!answer.data?.Page?.media?.length) throw new Error(`AniList answered ${response.status}`)
   return summedPicks(answer, works)
 }
 
