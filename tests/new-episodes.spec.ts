@@ -161,6 +161,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     const [ownCard, theirCard] = [await box(row.first()), await box(seasonRow.locator('.category-item').first())]
     expect([ownCard.width, ownCard.height], `${width}: a card is Current season's size`).toEqual([theirCard.width, theirCard.height])
     expect(ownCard.width, `${width}: the size of the viewport's cards`).toBe(width === 390 ? 150 : 250)
+    expect(await seasonRow.locator('.category-item .information .title').first().evaluate(title => getComputedStyle(title).fontSize), `${width}: a card's title fits its card`).toBe(width === 390 ? '16px' : '22px')
     // the space above the row's heading, from the bottom of the row before it, both read at one scroll position
     const [headingNow, seasonNow] = [await box(heading(page)), await box(seasonRow)]
     expect(headingNow.y - (seasonNow.y + seasonNow.height), `${width}: room between Current season and New episodes`).toBeGreaterThanOrEqual(width === 390 ? 25 : 40)

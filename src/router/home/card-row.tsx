@@ -59,12 +59,13 @@ const style = css`
       display: none;
     }
 
-    /* a 15rem card has room for less type than the 25rem one its title was sized for */
-    .card .information {
+    /* a 15rem card has room for less type than the 25rem one its title was sized for; .virtual-list outranks
+       media-title.tsx's own rule, which has the same weight and lands later */
+    .virtual-list .card .information {
       padding: 0.5rem 1rem 0;
     }
 
-    .card .information .title {
+    .virtual-list .card .information .title {
       font-size: 1.6rem;
     }
   }
