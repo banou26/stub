@@ -34,17 +34,25 @@ const DAY_S = 86_400
 // the same way as a link stub cannot name, and a run behind the offline card that reached none gathered nothing
 const PLAIN_S = 300
 
-let turns: number[] = []
+/** A copy's hold on the isolate; `cut` ends a run behind an offline card early and gives the end of its work. */
+type Turn = { until: number, cut?: () => Promise<void> }
 
-const take = (now: number) => {
-  turns = turns.filter(until => until > now)
-  if (turns.length >= AT_ONCE) return undefined
-  const until = now + TURN_MS
-  turns.push(until)
-  return () => {
-    const index = turns.indexOf(until)
-    if (index !== -1) turns.splice(index, 1)
+let turns: Turn[] = []
+
+const take = (now: number, cuts: boolean) => {
+  turns = turns.filter(({ until }) => until > now)
+  let ending: Promise<void> | undefined
+  if (turns.length >= AT_ONCE) {
+    // a crawler with no card of its own cuts a run behind an offline card short rather than lose the turn to it, and
+    // its copy waits for that run's end, so two copies still never meet
+    const behind = cuts ? turns.find(({ cut }) => cut) : undefined
+    if (!behind) return undefined
+    ending = behind.cut!()
+    behind.cut = undefined
   }
+  const turn: Turn = { until: now + TURN_MS }
+  turns.push(turn)
+  return { turn, ending, release: () => { turns = turns.filter(other => other !== turn) } }
 }
 
 // a title with no preview is kept too, as `null`, so a link stub cannot name does not take a turn on every fetch
@@ -63,26 +71,36 @@ const lookup = async (segment: string, site: Site, started: number, answered: Pr
   const show = await copy.offlineShow(uri, site)
   const known = show?.preview
   if (settled === null) return known
-  const release = take(Date.now())
-  if (!release) return known
+  const taken = take(Date.now(), !known)
+  if (!taken) return known
   let answer: Answer
   try {
-    answer = copy.answer(show?.address ?? uri, site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS, after: known && answered })
+    answer = copy.answer(show?.address ?? uri, site, { frizbee, sacha }, { deadline: DEADLINE_MS - (Date.now() - started), settleBy: SETTLE_MS, after: known ? answered : taken.ending })
   } catch (error) {
-    release()
+    taken.release()
     if (known) return known
     throw error
   }
-  const { first, last, inbox } = answer
+  const { first, last, inbox, stop } = answer
+  let cut = false
   // the run's answers go to the store once the card is kept, and the copy's turn is held until they have, so two
   // copies never meet in the isolate; a store that refuses them costs that run's answers, never the card
-  waitUntil(last.catch(() => undefined).then(async preview => {
+  const ended = last.catch(() => undefined).then(async preview => {
+    if (cut) return
     const object = bucket && await inbox().catch(() => undefined)
     // unbound, the run's answers are never read, so nothing says it gathered none
     const gathered = !known || !bucket || object
     await keep(cache, key, gathered ? preview ?? await first : undefined).catch(() => {})
     if (object) await bucket.put(object.key, object.body, { httpMetadata: { contentType: 'application/gzip' } })
-  }).catch(() => {}).finally(release))
+  }).catch(() => {}).finally(taken.release)
+  if (known) {
+    taken.turn.cut = () => {
+      cut = true
+      stop()
+      return ended
+    }
+  }
+  waitUntil(ended)
   return known ?? await first
 }
 
@@ -114,11 +132,11 @@ const withPreview = async (page: Response, url: URL, site: Site, preview?: Previ
  * description and art stub itself draws for it, and every other request the page untouched: the settled card the last
  * run kept in the edge cache, else stub's offline data when it holds a title and a cover for the address, else stub's
  * own sources run here (src/preview). On that cache miss the sources run behind the offline card too, holding the
- * isolate's one turn, once the crawler has its answer, and what they settle on is kept for the next. Reads nothing
- * about the requester but its user agent, logs nothing about it, and keeps only public show data: a title's preview in
- * the edge cache, and what the sources answered for it in the private source store. An edge cache that cannot be read
- * runs nothing, so the offline card or the plain one answers; any other failure answers the offline card when there is
- * one, else the page as is.
+ * isolate's one turn, once the crawler has its answer, and what they settle on is kept for the next; a crawler with no
+ * card of its own cuts such a run short rather than wait on it. Reads nothing about the requester but its user agent,
+ * logs nothing about it, and keeps only public show data: a title's preview in the edge cache, and what the sources
+ * answered for it in the private source store. An edge cache that cannot be read runs nothing, so the offline card or
+ * the plain one answers; any other failure answers the offline card when there is one, else the page as is.
  */
 export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const started = Date.now()

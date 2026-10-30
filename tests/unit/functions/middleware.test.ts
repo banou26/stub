@@ -66,6 +66,7 @@ let matching: () => Promise<void>
 let putting: () => Promise<void>
 let fetched: ReturnType<typeof vi.fn>
 let inboxes: number
+let stopped: string[]
 
 const deferred = <T>() => {
   let settle!: (value: T) => void
@@ -73,12 +74,16 @@ const deferred = <T>() => {
   return { promise, settle }
 }
 
-/** A copy of stub's worker with its own offline answer, whose sources' answer is the one given, and its inbox `object` (null: none). */
-const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first, object: InboxObject | null = OBJECT) => ({
+/**
+ * A copy of stub's worker with its own offline answer, whose sources' answer is the one given, and its inbox `object`
+ * (null: none). Stopped, it ends with no card once `unwound` settles.
+ */
+const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | undefined | Promise<Preview | undefined> = first, object: InboxObject | null = OBJECT, unwound: Promise<unknown> = Promise.resolve()) => ({
   offlineShow,
   answer: (uri: string, site: string, wasm: unknown, options: Options): Answer => {
     asked.push({ uri, site, wasm, ...options })
-    const settled = Promise.resolve(last)
+    const cut = deferred<undefined>()
+    const settled = Promise.race([Promise.resolve(last), cut.promise])
     return {
       first: Promise.resolve(first),
       last: settled,
@@ -86,6 +91,10 @@ const copy = (first?: Preview | Promise<Preview | undefined>, last: Preview | un
         await settled
         inboxes++
         return object ?? undefined
+      },
+      stop: () => {
+        stopped.push(uri)
+        void unwound.then(() => cut.settle(undefined))
       },
     }
   },
@@ -110,6 +119,7 @@ beforeEach(async () => {
   createPreview.mockImplementation(() => copy(SETTLED))
   asked = []
   inboxes = 0
+  stopped = []
   cache = new Map()
   matching = async () => {}
   putting = async () => {}
@@ -267,6 +277,44 @@ test('a busy turn skips the run, and the offline card still answers', async () =
   await one.kept
   await call(BEBOP)
   expect(asked).toHaveLength(2)
+})
+
+// Mutations: let a busy turn refuse every crawler; let a crawler with an offline card cut the run; start the cutting
+// copy at once; keep the cut run's card or answers; cut one run twice; let the cutting copy hold no turn of its own.
+test('a crawler with no card of its own cuts a run behind the offline card short, and its copy waits for that run to end', async () => {
+  const unwound = deferred<undefined>()
+  const settles = deferred<Preview | undefined>()
+  createPreview
+    .mockImplementationOnce(() => copy(SETTLED, new Promise(() => {}), OBJECT, unwound.promise))
+    .mockImplementationOnce(() => copy(SETTLED))
+    .mockImplementationOnce(() => copy(SETTLED, settles.promise))
+  const { puts, env } = bucket()
+  const SERIES = 'https://series.fkn.app/media/jw:131317'
+  const behind = await call(BEBOP, DISCORD, 'GET', env)
+  // control: a crawler the offline data answers leaves the run alone
+  expect(meta((await call('https://anime.fkn.app/title/ag:(mal:6)', DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Trigun as AniList titles it'])
+  expect(stopped).toEqual([])
+
+  const movie = await call('https://movies.fkn.app/title/ag%3A(nf%3A70125365)', DISCORD, 'GET', env)
+  expect(meta(movie.html, 'og:title')).toEqual(['Black Clover Season 2'])
+  expect(stopped).toEqual(['ag:(offline:mal-1)'])
+  expect(meta((await call(SERIES, DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Stub Series'])
+  expect(stopped).toHaveLength(1)
+  let started = false
+  void asked[1]!.after!.then(() => { started = true })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  expect(started).toBe(false)
+
+  unwound.settle(undefined)
+  await behind.kept
+  expect(started).toBe(true)
+  expect(meta((await call(SERIES, DISCORD, 'GET', env)).html, 'og:title')).toEqual(['Stub Series'])
+  settles.settle(SETTLED)
+  await movie.kept
+  expect(kept('anime', 'ag:(mal:1)')).toBeUndefined()
+  expect([inboxes, puts.length]).toEqual([1, 1])
+  await call(BEBOP)
+  expect(asked.map(({ uri }) => uri)).toEqual(['ag:(offline:mal-1)', 'ag:(nf:70125365)', 'ag:(offline:mal-1)'])
 })
 
 // Mutation: keep the run's card whatever its inbox holds.
@@ -610,7 +658,7 @@ test('a run whose sources answered no media puts nothing, and with no offline ca
 
 // Mutation: let a failed read of the run's answers skip the keep.
 test('a run whose answers cannot be read still keeps its card, and puts nothing', async () => {
-  createPreview.mockImplementation(() => ({ offlineShow, answer: () => ({ first: Promise.resolve(SETTLED), last: Promise.resolve(SETTLED), inbox: () => Promise.reject(new Error('read')) }) }))
+  createPreview.mockImplementation(() => ({ offlineShow, answer: () => ({ first: Promise.resolve(SETTLED), last: Promise.resolve(SETTLED), inbox: () => Promise.reject(new Error('read')), stop: () => {} }) }))
   const { puts, env } = bucket()
   await (await call('https://anime.fkn.app/title/ag:(anilist:1)', DISCORD, 'GET', env)).kept
   expect(await kept('anime', 'ag:(anilist:1)')!.json()).toEqual(SETTLED)

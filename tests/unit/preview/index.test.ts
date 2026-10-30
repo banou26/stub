@@ -133,6 +133,34 @@ test('a copy held back by after asks nothing until it settles, and still ends by
   expect(await last).toBeUndefined()
 })
 
+// Mutation: give `stop` nothing to end.
+test('a stopped copy ends as at settleBy, with what was read', async () => {
+  feed.current = feeding(async function* () {
+    yield media('Kaguya-sama: Love is War')
+    await new Promise(() => {})
+  })
+  const { first, last, stop } = answer('ag:(cr:GRJ0J828Y)', 'anime', WASM, { deadline: 50 })
+  await first
+  const stoppedAt = performance.now()
+  stop()
+  expect((await last)?.title).toBe('Kaguya-sama: Love is War')
+  expect(performance.now() - stoppedAt).toBeLessThan(2_000)
+}, 5_000)
+
+// Mutation: drop the check once `after` settles.
+test('a copy stopped while held back never asks', async () => {
+  feed.current = feeding(async function* () {
+    yield media('Cowboy Bebop', true)
+  })
+  const { promise: after, resolve } = Promise.withResolvers<void>()
+  const { last, stop } = answer('ag:(offline:mal-1)', 'anime', WASM, { deadline: 60_000, after })
+  stop()
+  resolve()
+  expect(await last).toBeUndefined()
+  await wait(50)
+  expect(asked).toEqual([])
+}, 5_000)
+
 test('the copy keeps no episodes, which a preview never draws', async () => {
   feed.current = feeding(async function* () {
     yield media('One Piece', true)

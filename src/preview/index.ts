@@ -119,6 +119,8 @@ export type Answer = {
    * `last` has settled, or undefined when no source answered. Reads the run's answer log only when called.
    */
   inbox: () => Promise<InboxObject | undefined>
+  /** Ends the copy now, as `settleBy` would; a copy still held back by `after` then never asks. */
+  stop: () => void
 }
 
 /**
@@ -133,8 +135,10 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   const controller = new AbortController()
   let media: Media | undefined
   let reader: ReadableStreamDefaultReader<string> | undefined
+  let over = false
   const reading = (async () => {
     await after
+    if (over) return
     setSite(site)
     const yoga = await boot(wasm)
     const response = await yoga.handleRequest(new Request('http://preview/graphql', {
@@ -163,8 +167,17 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
   // a timer rather than the abort alone: aborted, the request left its read waiting for the subscription's next
   // payload, which sources that have gone quiet never send (measured under vitest, 2026-10-23)
   let giveUp: ReturnType<typeof setTimeout> | undefined
+  let end!: () => void
   let endedAt = ''
-  const ended = Promise.race([reading.catch(() => {}), new Promise(resolve => { giveUp = setTimeout(resolve, settleBy) })])
+  // `over` is set at once, since a copy held back by `after` may resume before the abort below runs; `stop` only sets
+  // it and settles a promise, as another request may call it
+  const ended = Promise.race([reading.catch(() => {}), new Promise<void>(resolve => {
+    end = () => {
+      over = true
+      resolve()
+    }
+    giveUp = setTimeout(end, settleBy)
+  })])
     .then(() => {
       endedAt = new Date().toISOString()
       clearTimeout(giveUp)
@@ -191,5 +204,5 @@ export const answer = (uri: string, site: Site, wasm: Wasm, { deadline, settleBy
     })
     return inboxObject(lines, endedAt)
   })
-  return { first, last, inbox }
+  return { first, last, inbox, stop: end }
 }
