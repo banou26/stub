@@ -10,6 +10,7 @@ import { memoryLocation } from 'wouter/memory-location'
 
 import { createPartyStore } from '../../../src/party/store'
 import { encodePartyMessage } from '../../../src/party/protocol'
+import { inviteFromHash } from '../../../src/party/invite'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 // the REAL store, over a fake room each test builds, behind the module the page imports
@@ -21,16 +22,19 @@ vi.mock('../../../src/party', async () => ({
   partyLink: (await import('../../../src/party/invite')).partyLink,
 }))
 
+const added = vi.hoisted(() => ({ sources: [] as string[] }))
+vi.mock('../../../src/plugin-list', () => ({ loadEnabled: () => added.sources }))
+
 const { default: Party } = await import('../../../src/router/party')
 
 const hosts: HTMLElement[] = []
-afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
+afterEach(() => { while (hosts.length) unmount(hosts.pop()!); added.sources = [] })
 
 const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)))
 
 /** The party page at `hash`, over a store `start` moved. */
 const page = async (hash: string, start: (store: PartyStore) => Promise<unknown> | void = () => {}) => {
-  Object.assign(globalThis, { location: { origin: 'https://stub.test', hash } })
+  Object.assign(globalThis, { location: { origin: 'https://stub.test', href: `https://stub.test/party${hash}`, hash } })
   await start(current.store)
   const location = memoryLocation({ path: '/party' })
   const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Party/></Router>))
@@ -105,5 +109,25 @@ describe('the party page\'s English', () => {
     expect([...host.querySelectorAll('.row .badge')].map(badge => badge.textContent)).toEqual(['host', 'you'])
     expect([...host.querySelectorAll('.row')].at(-1)?.textContent).toBe('Annann Kick Ban')
     expect(host.querySelector('.section:last-child button')?.textContent).toBe(' End party')
+  })
+})
+
+// HOR-845: a follower without one of the host's sources had no player and was never offered it
+describe('the invite link on the host\'s page', () => {
+  const link = async () => {
+    room('host', ['host'])
+    const host = await page('', store => store.create())
+    return host.querySelectorAll<HTMLInputElement>('.field input')[1]!.value
+  }
+
+  test('offers every source the host added, and keeps the invite in the fragment', async () => {
+    added.sources = ['npm:@banou/stub-plugin', 'https:stub.plugins.banou.dev']
+    const value = await link()
+    expect(value).toBe(`https://stub.test/party?plugins=https:stub.plugins.banou.dev&plugins=npm:@banou/stub-plugin#${INVITE}`)
+    expect(inviteFromHash(new URL(value).hash, 'https://stub.test')).toBe(INVITE)
+  })
+
+  test('carries no query when the host added none', async () => {
+    expect(await link()).toBe(`https://stub.test/party#${INVITE}`)
   })
 })

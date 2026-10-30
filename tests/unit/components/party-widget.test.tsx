@@ -11,19 +11,22 @@ import { memoryLocation } from 'wouter/memory-location'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
+import { inviteFromHash } from '../../../src/party/invite'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 // the REAL store, over a fake room each test builds, behind the module every component imports
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => ({ AudioLines: () => null, Captions: () => null, Check: () => null, CircleCheck: () => null, CircleDashed: () => null, Clapperboard: () => null, Copy: () => null, FastForward: () => null, Gauge: () => null, LoaderCircle: () => null, LogOut: () => null, Play: () => null, Radio: () => null, Users: () => null, X: () => null }))
-vi.mock('../../../src/party', () => ({
+vi.mock('../../../src/party', async () => ({
   party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }),
-  partyLink: () => 'link',
+  partyLink: (await import('../../../src/party/invite')).partyLink,
 }))
+const added = vi.hoisted(() => ({ sources: [] as string[] }))
+vi.mock('../../../src/plugin-list', () => ({ loadEnabled: () => added.sources }))
 
-// the invite link reads the page's origin
-Object.assign(globalThis, { location: { origin: 'https://stub.test' } })
+// the invite link reads the page's address
+Object.assign(globalThis, { location: { origin: 'https://stub.test', href: 'https://stub.test/watch/a/b' } })
 
 const { default: PartyWidget } = await import('../../../src/components/party-widget')
 
@@ -31,7 +34,7 @@ const HOST_PAGE = '/watch/a/b'
 const PLAY = 'Play for everyone'
 
 const hosts: HTMLElement[] = []
-afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
+afterEach(() => { while (hosts.length) unmount(hosts.pop()!); added.sources = [] })
 
 /** A follower on `page` whose host is on HOST_PAGE, with the widget's menu open. */
 const following = async (page: string, grants: Grants) => {
@@ -155,6 +158,31 @@ describe('the host\'s count of where followers stand', () => {
     const { says, tally } = await hosting('/search?q=a')
     says('ann', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
     expect(tally()).toBeUndefined()
+  })
+})
+
+// HOR-845: a follower without one of the host's sources had no player and was never offered it
+describe('the invite link', () => {
+  const invite = async () => {
+    const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.create()
+    const location = memoryLocation({ path: HOST_PAGE })
+    const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
+    hosts.push(host)
+    act(() => { [...host.querySelectorAll('button')].find(candidate => candidate.textContent?.startsWith('Hosting'))!.click() })
+    return document.body.querySelector<HTMLInputElement>('input[aria-label="Invite link"]')!.value
+  }
+
+  test('offers every source the host added, and keeps the invite in the fragment', async () => {
+    added.sources = ['npm:@banou/stub-plugin', 'https:stub.plugins.banou.dev']
+    const link = await invite()
+    expect(link).toBe(`https://stub.test/party?plugins=https:stub.plugins.banou.dev&plugins=npm:@banou/stub-plugin#${INVITE}`)
+    expect(inviteFromHash(new URL(link).hash, 'https://stub.test')).toBe(INVITE)
+  })
+
+  test('carries no query when the host added none', async () => {
+    expect(await invite()).toBe(`https://stub.test/party#${INVITE}`)
   })
 })
 

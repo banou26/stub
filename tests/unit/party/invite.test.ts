@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { inviteFromHash, partyLink, PARTY_PATH } from '../../../src/party/invite'
+import { writePluginUris } from '../../../src/utils/plugin-links'
 
 const ORIGIN = 'https://anime.fkn.app'
 const KEY = 'Qm9yZWQtYnV0LWhhcHB5LWV2ZXJ5LWRheS1vay1va2F'
@@ -25,6 +26,15 @@ describe('partyLink and inviteFromHash', () => {
     expect(link).toBe(`${ORIGIN}${PARTY_PATH}#${elsewhere}`)
     // and it is NOT re-scoped to the origin reading it, which would silently open a different room
     expect(inviteFromHash(new URL(link).hash, ORIGIN)).toBe(elsewhere)
+  })
+
+  // HOR-845: the link the host shares carries the host's sources
+  test('a source list on the link leaves the invite as it was', () => {
+    for (const invite of [INVITE, `${KEY}.https://stub.plugins.banou.dev/${NAME}`]) {
+      const link = new URL(writePluginUris(partyLink(ORIGIN, invite), ['https:stub.plugins.banou.dev'], `${ORIGIN}/`))
+      expect(link.search).toBe('?plugins=https:stub.plugins.banou.dev')
+      expect(inviteFromHash(link.hash, ORIGIN)).toBe(invite)
+    }
   })
 
   test('a full invite still opens, since links already shared carry one', () => {

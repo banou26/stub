@@ -12,6 +12,8 @@ import { inviteFromHash } from '../../party/invite'
 import { displayName } from '../../party/protocol'
 import { useParty, usePartyMessages } from '../../party/use-party'
 import { getRoutePath, Route } from '../path'
+import { loadEnabled } from '../../plugin-list'
+import { writePluginUris } from '../../utils/plugin-links'
 
 const style = css`
   padding: calc(var(--stub-header-height) + 3rem) 3rem 4rem;
@@ -183,7 +185,7 @@ const Party = () => {
   })
   useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 1_500); return () => clearTimeout(timer) }, [copied])
 
-  const link = active ? partyLink(location.origin, state.invite) : undefined
+  const link = active ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href) : undefined
   const copy = async () => {
     if (!link) return
     try { await navigator.clipboard.writeText(link); setCopied(true) } catch {}
