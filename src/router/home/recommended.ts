@@ -115,7 +115,8 @@ export const summedPicks = (answer: Answer, works: readonly ListedWork[]): Summe
     }
   }
   const summed = [...votes.values()].sort((a, b) => b.rating - a.rating || a.pick.id - b.pick.id)
-  const left = new Set(unlisted(summed, works, new Set(seeds.flatMap(seed => franchiseOf(seed)))).flatMap(({ members }) => members.map(({ id }) => id)))
+  const seen = new Set(seeds.flatMap(seed => franchiseOf(seed)))
+  const left = new Set(unlisted(summed, works, seen).flatMap(({ members }) => members.map(({ id }) => id)))
   return summed.filter(({ pick }) => left.has(pick.id)).slice(0, KEPT_PICKS)
 }
 

@@ -35,7 +35,7 @@ export const franchiseDate = (date: Day | null | undefined): string | undefined 
   return `${date.year}-${pad(date.month)}-${pad(date.day)}`
 }
 
-/** A recommended work as far as these rules read it: AniList's `Media` with its relations' ids. */
+/** A work as far as these rules read it: AniList's `Media` with its relations' ids. */
 export type FranchisePick = {
   id: number
   isAdult?: boolean | null
