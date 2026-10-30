@@ -157,9 +157,27 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     expect.soft(own.y, `${width}: the row sits under Current season`).toBeGreaterThan(theirs.y)
     expect([own.x, own.height], `${width}: the heading is Current season's size and place`).toEqual([theirs.x, theirs.height])
     expect(await painted(heading(page)), `${width}: nothing paints over the heading`).toBe('itself')
+    const seasonRow = page.locator('.home-row', { has: season(page) })
+    const [ownCard, theirCard] = [await box(row.first()), await box(seasonRow.locator('.category-item').first())]
+    expect([ownCard.width, ownCard.height], `${width}: a card is Current season's size`).toEqual([theirCard.width, theirCard.height])
+    expect(ownCard.width, `${width}: the size of the viewport's cards`).toBe(width === 390 ? 150 : 250)
+    // the space above the row's heading, from the bottom of the row before it, both read at one scroll position
+    const [headingNow, seasonNow] = [await box(heading(page)), await box(seasonRow)]
+    expect(headingNow.y - (seasonNow.y + seasonNow.height), `${width}: room between Current season and New episodes`).toBeGreaterThanOrEqual(width === 390 ? 25 : 40)
     if (width === 390) {
       const last = await box(row.last())
       expect(last.x + last.width, 'the control: the row holds more than the phone shows').toBeGreaterThan(width)
+      const list = page.locator('.home-row', { has: heading(page) }).locator('.draggable > .virtual-list')
+      await row.first().scrollIntoViewIfNeeded()
+      const at = await box(row.first())
+      await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(at.x - 150, at.y + at.height / 2, { steps: 10 })
+      await page.mouse.up()
+      expect(await list.evaluate(element => element.scrollLeft), 'a drag scrolls the row, as it does Current season').toBeGreaterThan(100)
+      await expect(page, 'a drag opens nothing').toHaveURL(`${origin}/`)
+    } else {
+      await expect(page.locator('.home-row', { has: heading(page) }).locator('.scroll-button'), `${width}: the arrows`).toHaveCount(2)
     }
 
     await heading(page).click()

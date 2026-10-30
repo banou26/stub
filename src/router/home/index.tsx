@@ -56,6 +56,16 @@ const GET_RELEASING_MEDIA_PAGE = gql(`
 `)
 
 const style = css`
+  & > .home-row + .home-row {
+    margin-top: 4rem;
+  }
+
+  @media (max-width: 768px) {
+    & > .home-row + .home-row {
+      margin-top: 2.5rem;
+    }
+  }
+
   .category-bar {
     position: relative;
     z-index: ${layer.categoryBar};
