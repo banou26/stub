@@ -434,6 +434,21 @@ test('a preview\'s collapsed description shows whole once its text is no longer 
   await expect(toggles(page), 'the control: sixty pixels are worth hiding').toHaveText('Expand')
 })
 
+test('a preview\'s description wraps an address longer than its column, at 1440, 800 and 390 px', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [800, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    await preview(page, BRIEF, 'Spec Brief')
+    const past = await description(page).evaluate(box => {
+      const text = box.querySelector('.clip > div > div')!
+      text.textContent = `(Source: https://example.com/${'a'.repeat(400)})`
+      const range = document.createRange()
+      range.selectNodeContents(text)
+      return range.getBoundingClientRect().right - box.getBoundingClientRect().right
+    })
+    expect(past, `${width}: inside its column`).toBeLessThanOrEqual(0)
+  }
+})
+
 // Playwright hides scrollbars unless told not to. A column that widens without one could fit a description only then:
 // collapsing would take the scrollbar away, the text would fit and open, the scrollbar would come back, on every frame.
 test('a preview\'s description keeps its width when the modal\'s scrollbar goes', async ({ launchOptions }) => {

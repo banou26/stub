@@ -11,6 +11,7 @@ const style = css`
 display: flex;
 flex-direction: column;
 gap: 0.8rem;
+overflow-wrap: anywhere;
 
 &.collapsed > .clip {
   overflow: hidden;
