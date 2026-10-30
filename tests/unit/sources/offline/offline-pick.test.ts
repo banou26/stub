@@ -15,6 +15,11 @@ const GUNDAM_KITSU = kitsuRow(80, {
   coverImage: { original: 'https://media.kitsu.app/anime/cover_images/80/original.jpg' },
 })
 
+const T1 = '2026-10-25T05:41:00.000Z'
+const T2 = '2026-10-26T05:41:00.000Z'
+const T3 = '2026-10-27T05:41:00.000Z'
+const kept = (source: string, id: string, fetchedAt: string, media: PreviewAnswer['media']): PreviewAnswer => ({ source, id, class: 'full', fetchedAt, media })
+
 // Mutations: take the last unofficial title; take official titles only.
 test('AniDB\'s titles pass as api.ani.zip passes them: per language the official one, else the first in the file', () => {
   expect(anizipTitles([['syn', 'en', 'Space Cowboy'], ['official', 'en', 'Cowboy Bebop'], ['syn', 'ja', 'カウボーイ'], ['short', 'ja', 'CB']]))
@@ -47,11 +52,20 @@ test('a dump picture on MyAnimeList\'s CDN is the cover over Kitsu\'s poster, an
   expect(pick(planet, undefined, GUNDAM_KITSU).cover).toEqual({ value: 'https://media.kitsu.app/anime/80/poster_image/a.jpg', origin: 'kitsu' })
 })
 
-test('the banner and the description are the merge\'s first, here Kitsu\'s', () => {
+test('the banner is the merge\'s first, and the description its longest, both here Kitsu\'s', () => {
   const { banner, description } = pick(GUNDAM, GUNDAM_ANIDB, GUNDAM_KITSU)
   expect(banner).toEqual({ value: 'https://media.kitsu.app/anime/cover_images/80/original.jpg', origin: 'kitsu' })
   expect(description).toEqual({ value: 'The year is Universal Century 0079.', origin: 'kitsu' })
   expect(pick({ t: 'A', ty: 'TV', p: '' }).description).toBeUndefined()
+})
+
+// Mutations: take the first description by score; let a shorter one replace a longer one; take the last of two as long.
+test('the description is the longest of the merged ones, as a page and a preview show it, whatever its score', () => {
+  const answer = (descriptions: [string, number][]) => kept('kitsu', '80', T3, { descriptions: descriptions.map(([description, score]) => ({ language: 'en', description, score })) })
+  expect(pick(GUNDAM, undefined, undefined, { kitsu: answer([['Short.', 0.9], ['A far longer synopsis.', 0.1]]) }).description?.value).toBe('A far longer synopsis.')
+  expect(pick(GUNDAM, undefined, undefined, { kitsu: answer([['A far longer synopsis.', 0.1], ['Short.', 0.9]]) }).description?.value).toBe('A far longer synopsis.')
+  // of two as long, the better scored, as the page's stable sort keeps it
+  expect(pick(GUNDAM, undefined, undefined, { kitsu: answer([['Second.', 0.1], ['First..', 0.9], ['Other..', 0.5]]) }).description?.value).toBe('First..')
 })
 
 const shardsOf = () => historyShards(
@@ -93,11 +107,6 @@ test('the ODbL set holds the dump\'s own title and picture, never AniDB\'s or Ki
   const dump = JSON.stringify(shardsOf().sets.dump)
   for (const text of ['Mobile Suit Gundam', 'Universal Century', 'cover_images']) expect(dump).not.toContain(text)
 })
-
-const T1 = '2026-10-25T05:41:00.000Z'
-const T2 = '2026-10-26T05:41:00.000Z'
-const T3 = '2026-10-27T05:41:00.000Z'
-const kept = (source: string, id: string, fetchedAt: string, media: PreviewAnswer['media']): PreviewAnswer => ({ source, id, class: 'full', fetchedAt, media })
 
 // Mutations: leave a kept anizip answer out; build the anizip member from AniDB's file when one is kept; join a kept
 // answer by the show's MyAnimeList id rather than its AniDB id.

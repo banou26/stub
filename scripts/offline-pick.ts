@@ -81,7 +81,10 @@ const CLUSTER: ClusterFacts = { id: 'history', aggUri: 'ag:()', scope: 'RUN', ru
 // the field of each list's items that carries its value
 const VALUE = { titles: 'title', covers: 'url', banners: 'url', descriptions: 'description' } as const
 
-/** What stub's page heads a record with from these inputs: the first title, cover, banner and description, each with the source that gave it. */
+/**
+ * What stub's page heads a record with from these inputs, each with the source that gave it: the first title, cover and
+ * banner, and the longest description, the one a page and a link preview show whatever its score.
+ */
 export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu?: KitsuRow, kept?: Kept) => {
   const media = members(record, anidb, kitsu, kept)
   const row = aggregateFields({
@@ -92,12 +95,14 @@ export const pick = (record: HistoryRecord, anidb?: readonly AnidbTitle[], kitsu
     locationOrigin: '',
   })
   // the merge keeps each member's own item, so the item says which member gave it
-  const first = (field: keyof typeof VALUE): { value: string, origin: string } | undefined => {
-    const item = (row[field] as Record<string, string>[])[0]
+  const chosen = (field: keyof typeof VALUE, item?: Record<string, string>): { value: string, origin: string } | undefined => {
     const from = item && media.find(member => (member[field] as unknown[]).includes(item))
     return from ? { value: item[VALUE[field]]!, origin: from.origin } : undefined
   }
-  return { title: first('titles'), cover: first('covers'), banner: first('banners'), description: first('descriptions') }
+  const first = (field: keyof typeof VALUE) => chosen(field, (row[field] as Record<string, string>[])[0])
+  const longest = (row.descriptions as Record<string, string>[]).reduce<Record<string, string> | undefined>((best, item) =>
+    (best && best.description!.length >= item.description!.length ? best : item), undefined)
+  return { title: first('titles'), cover: first('covers'), banner: first('banners'), description: chosen('descriptions', longest) }
 }
 
 /**
