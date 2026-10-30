@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { EMBED_PAGE, embedPage, embedPageExpression, renderBuiltUrl } from '../../scripts/embed-page'
+import { EMBED_PAGE, embedPage, embedPageExpression } from '../../scripts/embed-page'
 
 // Under fkn.app/app the tenant serves the PACKAGE root, so stub's player page is /build/embed.html and
 // the origin-root /embed.html answers `502 not-listed` (measured on 0.0.27, 2026-09-26). anime.fkn.app
@@ -43,22 +43,5 @@ describe('the embed page url', () => {
     const config = embedPage().config as unknown as Config
     expect(config({}, { command: 'serve' })?.define?.[EMBED_PAGE]).toBe('"/embed.html"')
     expect(config({}, { command: 'build' })).toBeUndefined()
-  })
-})
-
-describe('the app build urls', () => {
-  // anime.fkn.app answers every route with index.html, so a relative url there would resolve under
-  // /watch/... and the app would not boot. undefined leaves it to the build's base, '/'.
-  test('index.html keeps origin-root urls', () => {
-    expect(renderBuiltUrl('assets/main-D0k.js', { hostType: 'html', hostId: 'index.html' })).toBeUndefined()
-  })
-
-  test('embed.html names its files relative to itself', () => {
-    expect(renderBuiltUrl('assets/embed-D1N.js', { hostType: 'html', hostId: 'embed.html' })).toBe('./assets/embed-D1N.js')
-  })
-
-  test('a chunk or a stylesheet names what it loads relative to itself', () => {
-    expect(renderBuiltUrl('assets/remote-CVV.js', { hostType: 'js', hostId: 'assets/embed-D1N.js' })).toEqual({ relative: true })
-    expect(renderBuiltUrl('assets/font-Bx1.woff2', { hostType: 'css', hostId: 'assets/embed-3a7.css' })).toEqual({ relative: true })
   })
 })

@@ -1,9 +1,12 @@
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
 // a plain .mjs beside the other build scripts, so its exports arrive untyped
-import { embedPageProblems, MAX_PACKED_FILES, npmEntryProblems, packedFilesProblems, packedPaths } from '../../scripts/check-npm-entry.mjs'
+import { embedPageProblems, MAX_PACKED_FILES, npmEntryProblems, packedFilesProblems, packedPaths, unpackedFilesProblems } from '../../scripts/check-npm-entry.mjs'
 import { EMBED_PAGE } from '../../scripts/embed-page'
 
 // package.json's `main` is the only thing the platform reads to load this app: the sandbox appends
@@ -76,6 +79,14 @@ describe('the npm entry check', () => {
   test('refuses a theme player chunk with a wasm file inlined in it', () => {
     const inlined = { ...FILES, 'build/assets/lib-theme-player-Cz4.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
     expect(npmEntryProblems(MANIFEST, treeOf(inlined)).join('\n')).toContain('build/assets/lib-theme-player-Cz4.js carries a wasm file inlined')
+  })
+
+  // the theme player's code now sits in a chunk it shares with the player page, and its own chunk holds an import
+  test('refuses a wasm file inlined in any chunk a page loads, and leaves a worker\'s to it', () => {
+    const shared = { ...FILES, 'build/assets/lib-dist-Dk2.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(shared)).join('\n')).toContain('build/assets/lib-dist-Dk2.js carries a wasm file inlined')
+    const worker = { ...FILES, 'build/assets/lib-worker-index-Dk2.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(worker))).toEqual([])
   })
 
   test('refuses a build with no theme player chunk to check', () => {
@@ -173,8 +184,60 @@ describe('the published file list', () => {
     expect(() => packedPaths({}), 'the control: no report is an error, not an empty list').toThrow()
   })
 
-  test('package.json leaves the offline history\'s shards and their maps out of the package', () => {
-    expect(pkg.files).toContain('!build/assets/*-[0-9][0-9][0-9]-*.js')
-    expect(pkg.files).toContain('!build/assets/*history-shards-*.js')
+  describe('what is left out', () => {
+    const PLAYER_PAGE = { 'build/embed.html': '<script type="module" src="./assets/lib-embed-Dk2.js"></script><link rel="stylesheet" href="https://fonts.example/a.css">' }
+    const PACKED = ['build/embed.html', 'build/assets/lib-embed-Dk2.js', 'build/assets/lib-de-Dk2.js', 'build/assets/lib-de-Dph-Dk2.js', 'build/assets/lib-es-419-Dk2.js']
+
+    test('passes a package with the player page\'s files and each language\'s chunks, English having none', () => {
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), PACKED, ['en', 'de', 'es-419'])).toEqual([])
+    })
+
+    test('refuses a package missing a file the player page names', () => {
+      const paths = PACKED.filter(path => !path.includes('lib-embed'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en']).join('\n')).toContain('build/embed.html names build/assets/lib-embed-Dk2.js')
+    })
+
+    // es-419's chunks fell to the pattern meant for the history's shards, `*-[0-9][0-9][0-9]-*.js`, and Spanish
+    // would have read as English in the package alone, with no error
+    test('refuses a package missing an offered language\'s chunks', () => {
+      const paths = PACKED.filter(path => !path.includes('es-419'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en', 'es-419']).join('\n')).toContain('leaves out es-419\'s chunks')
+    })
+  })
+
+  test('package.json publishes one build of the page and each language, and none of the history\'s shards', () => {
+    const root = mkdtempSync(join(tmpdir(), 'stub-npm-files-'))
+    const published = [
+      'build/index.js',
+      'build/embed.html',
+      'build/assets/lib-embed-Dk2Ab_c-.js',
+      'build/assets/lib-de-DQmxQTyn.js',
+      'build/assets/lib-de-DphEdq0O-BM5XdUtZ.js',
+      'build/assets/lib-es-419-D_M_JP1W.js',
+      'build/assets/lib-es-419-D6gsvnn8-VS3RU2S7.js',
+      'build/assets/lib-worker-index-B6VYNi0d.js',
+      'build/assets/lib-jassub-worker-CkfUMbe_.wasm',
+    ]
+    const left = [
+      'build/assets/main-BvIGtXtY.js',
+      'build/assets/de-CKTRf7mS.js',
+      'build/assets/es-419-BuWA9Mss.js',
+      'build/assets/anidb-042-Dk2Ab_c-.js',
+      'build/assets/lib-worker-anidb-042-Dk2Ab_c-.js',
+      'build/assets/lib-worker-dump-042-Dk2Ab_c-.js',
+      'build/assets/lib-worker-kitsu-042-Dk2Ab_c-.js',
+      'build/assets/lib-worker-history-shards--R5hLvQv.js',
+    ]
+    try {
+      for (const path of [...published, ...left]) {
+        mkdirSync(dirname(join(root, path)), { recursive: true })
+        writeFileSync(join(root, path), 'export {}\n')
+      }
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'fixture', version: '1.0.0', main: pkg.main, files: pkg.files }))
+      const paths = packedPaths(JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' })))
+      expect(paths.filter(path => path.startsWith('build/')).sort()).toEqual([...published].sort())
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

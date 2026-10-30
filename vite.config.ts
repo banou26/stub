@@ -6,7 +6,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import preact from '@preact/preset-vite'
 
 import { brokerFrame } from './scripts/broker-frame'
-import { embedPage, renderBuiltUrl } from './scripts/embed-page'
+import { embedPage } from './scripts/embed-page'
 import { MESSAGE_RULES } from './scripts/i18n-check.mjs'
 import { pageScript } from './scripts/page-script'
 
@@ -56,18 +56,11 @@ export default defineConfig(() => ({
       },
     ],
   },
-  experimental: {
-    // embed.html and every chunk name their files relative to themselves, index.html stays origin-root
-    renderBuiltUrl,
-  },
   build: {
     target: 'esnext',
     outDir: 'build',
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        embed: resolve(__dirname, 'embed.html'),
-      },
+      input: { main: resolve(__dirname, 'index.html') },
     },
   },
   worker: {

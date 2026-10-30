@@ -94,10 +94,11 @@ export const npmEntryProblems = (pkg, tree) => {
   }
 
   // a lib build inlines every asset, and jassub's wasm inlined made the first theme Play load 6.2 MB:
-  // see the stub-lib-wasm-files plugin in vite.lib.config.ts
-  const themePlayers = tree.list(assets).filter(name => /^lib-theme-player-.*\.js$/.test(name))
-  if (!themePlayers.length) problems.push(`${assets} has no lib-theme-player chunk to check for inlined wasm`)
-  for (const name of themePlayers) {
+  // see the stub-lib-wasm-files plugin in vite.lib.config.ts. Every chunk a page loads, since the player
+  // shares the theme player's code with the embed page, so that chunk holds only an import
+  const pageChunks = tree.list(assets).filter(name => /^lib-(?!worker-).*\.js$/.test(name))
+  if (!pageChunks.some(name => name.startsWith('lib-theme-player-'))) problems.push(`${assets} has no lib-theme-player chunk to check for inlined wasm`)
+  for (const name of pageChunks) {
     if (tree.read(join(assets, name))?.includes('data:application/wasm')) {
       problems.push(`${join(assets, name)} carries a wasm file inlined as base64, which the first theme Play would download`)
     }
@@ -263,13 +264,37 @@ export const packedFilesProblems = (paths) => paths.length > MAX_PACKED_FILES
   ? [`the package would publish ${paths.length} files, and its signature lists at most about ${MAX_PACKED_FILES}: leave generated data out of "files" in package.json`]
   : []
 
+/**
+ * Why `npm pack` would publish a package missing what it loads: a file the player page names, or an offered
+ * language's chunk. Either reads as a working app, the first on the disk `embedPageProblems` looks at, the second in
+ * English. Takes `npmEntryProblems`'s arguments, then what `packedPaths` read and the offered languages, English
+ * among them with no chunk.
+ *
+ * @returns {string[]} one line per problem, each naming the file it is about
+ */
+export const unpackedFilesProblems = (pkg, tree, paths, languages) => {
+  const dir = dirname(pkg.main)
+  const page = posix.join(dir, 'embed.html')
+  const named = [...(tree.read(page) ?? '').matchAll(FETCHED_URL)]
+    .map(([, url]) => url)
+    .filter(url => url && !ELSEWHERE.test(url))
+    .map(url => posix.join(dir, url.split(/[?#]/)[0]))
+  return [
+    ...named.filter(file => !paths.includes(file)).map(file => `${page} names ${file}, and package.json "files" leaves it out`),
+    ...languages
+      .filter(language => language !== 'en' && !paths.some(path => path.startsWith(posix.join(dir, 'assets', `lib-${language}-`))))
+      .map(language => `package.json "files" leaves out ${language}'s chunks, so a viewer of that language would read the package in English`),
+  ]
+}
+
 const isMain =process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   const tree = readTree(root)
   const packed = packedPaths(JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' })))
-  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree), ...packedFilesProblems(packed)]
+  const languages = JSON.parse(readFileSync(join(root, 'src/i18n/offered.json'), 'utf8'))
+  const problems = [...npmEntryProblems(pkg, tree), ...embedPageProblems(pkg, tree), ...appIconProblems(pkg, tree), ...packedFilesProblems(packed), ...unpackedFilesProblems(pkg, tree, packed, languages)]
   if (problems.length) {
     console.error(`the built package cannot be loaded as an app:\n${problems.map(line => `  - ${line}`).join('\n')}`)
     process.exit(1)

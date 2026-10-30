@@ -5,7 +5,7 @@ import { posix } from 'node:path'
 /**
  * Where stub's own player page, `embed.html`, is served from, as seen by whichever build is running.
  *
- * The app build writes the page at the root of `build/`. anime.fkn.app serves that directory as its
+ * The lib build writes the page at the root of `build/`. anime.fkn.app serves that directory as its
  * origin root, while fkn.app/app serves the PACKAGE root, so there the page is `/build/embed.html` and
  * an origin-root `/embed.html` answers `502 not-listed embed.html` (measured on 0.0.27). The document
  * cannot say which, since the router moves it to `/watch/...`, and neither can `BASE_URL`, which is
@@ -30,15 +30,3 @@ export const embedPage = (): Plugin => ({
       ? { code: code.replaceAll(EMBED_PAGE, embedPageExpression(chunk.fileName)), map: null }
       : null,
 })
-
-/**
- * `experimental.renderBuiltUrl` for the app build, whose base stays '/'.
- *
- * index.html keeps origin-root urls: anime.fkn.app answers every route with it, and at `/watch/...` a
- * relative `./assets/x` would ask for `/watch/.../assets/x`. embed.html is only ever loaded from the
- * directory it was built into, so its tags are relative to it. Everything a chunk or a stylesheet asks
- * for (a preloaded dependency, a worker) is relative to that file, which resolves to the same url at the
- * origin root and still works under `/build/`, where the embed page runs the app build's chunks.
- */
-export const renderBuiltUrl = (filename: string, { hostType, hostId }: { hostType: 'js' | 'css' | 'html', hostId: string }) =>
-  hostType !== 'html' ? { relative: true } : hostId === 'embed.html' ? `./${filename}` : undefined

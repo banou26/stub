@@ -7,10 +7,15 @@ import appConfig, { commit } from './vite.config'
  *
  * The platform loads an npm app by appending `<script type="module" src="<entry>">` to a sandbox
  * document, and the entry it reads is package.json's `main`. So the package has to ship a module that
- * mounts itself with no html around it, which `vp build` alone does not produce: that build's inputs
- * are index.html and embed.html, and its js is reachable only through them. anime.fkn.app serves
- * index.html and is unaffected either way, which is how 0.0.18 came to ship with no entry at all
- * while every check stayed green.
+ * mounts itself with no html around it, which `vp build` alone does not produce: that build's input
+ * is index.html, and its js is reachable only through it. anime.fkn.app serves index.html and is
+ * unaffected either way, which is how 0.0.18 came to ship with no entry at all while every check
+ * stayed green.
+ *
+ * The player page, embed.html, is built here and not by the app build: a package frames it too, and
+ * this way everything a package ever loads comes from this build alone. package.json's `files` leaves
+ * the app build's chunks out, so each language costs a release two files (stub's catalogue and the
+ * player's labels) and not four, against the file limit in scripts/check-npm-entry.mjs.
  *
  * Everything except the output shape is the app's, so the two builds cannot drift on aliases,
  * polyfills, `define` or dependency pre-bundling.
@@ -43,10 +48,10 @@ export default defineConfig(env => {
       // the app build ran first and owns build/; this one lands index.js next to its index.html
       emptyOutDir: false,
       lib: {
-        entry: 'src/index.tsx',
+        entry: { index: 'src/index.tsx', embed: 'embed.html' },
         formats: ['es'],
         // package.json's `main` is build/index.js, and this is the half that names it
-        fileName: 'index',
+        fileName: (_format, name) => name === 'index' ? 'index.js' : `assets/lib-${name}-[hash].js`,
       },
       // NOT a spread of the app's rollupOptions: its `input` names index.html and embed.html, and
       // vite lets rollupOptions.input win over lib.entry, so carrying it would build the app again
@@ -101,15 +106,21 @@ export default defineConfig(env => {
             const sheets = Object.values(bundle).filter(output => output.type === 'asset' && output.fileName.endsWith('.css'))
             if (!sheets.length) return
 
-            const entry = Object.values(bundle).find(output => output.type === 'chunk' && output.isEntry)
-            if (entry?.type !== 'chunk') throw new Error('the lib build emitted css but no entry chunk to carry it')
+            const entries = Object.values(bundle).filter(output => output.type === 'chunk' && output.isEntry)
+            if (!entries.length) throw new Error('the lib build emitted css but no entry chunk to carry it')
 
             const text = sheets.map(sheet => (sheet.type === 'asset' ? String(sheet.source) : '')).join('\n')
             for (const sheet of sheets) delete bundle[sheet.fileName]
 
             // prepended so the sheet is in the document before the entry's own render, and before
             // emotion's runtime styles, which is the order index.html gives it
-            entry.code = `(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(text)}; document.head.appendChild(s) })();\n${entry.code}`
+            for (const entry of entries) {
+              if (entry.type === 'chunk') entry.code = `(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(text)}; document.head.appendChild(s) })();\n${entry.code}`
+            }
+
+            // the player page's own link to the sheet deleted above
+            const page = bundle['embed.html']
+            if (page?.type === 'asset') page.source = String(page.source).replace(/\s*<link rel="stylesheet"[^>]*>/, '')
           },
         },
       },

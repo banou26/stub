@@ -28,8 +28,10 @@
   },
   "files": [
     "build",
-    "!build/assets/*history-shards-*.js",
-    "!build/assets/*-[0-9][0-9][0-9]-*.js",
+    "!build/assets/*",
+    "build/assets/lib-*",
+    "!build/assets/lib-worker-history-shards-*.js",
+    "!build/assets/lib-worker-@(anidb|dump|kitsu)-*.js",
     "fkn.json",
     "store"
   ],
