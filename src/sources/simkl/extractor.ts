@@ -73,8 +73,8 @@ interface SimklEpisode {
 
 // With no client id a detail or episode list answers only from Cloudflare's cache (measured 2026-10-10):
 // a record not in it answers 412 `client_id_failed`, as one asked under the wrong type does: a miss.
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
-  ctx.fetch(`${API}${path}`).then(r => r.json() as Promise<T>).catch(() => undefined)
+const api = <T>(path: string, ctx: ExtractorServerContext, init?: RequestInit): Promise<T | undefined> =>
+  ctx.fetch(`${API}${path}`, init).then(r => r.json() as Promise<T>).catch(() => undefined)
 
 // The api's /search is the one read that needs a client id, so search goes through the form simkl.com's
 // own search page posts (search.min.js, read 2026-10-07), sent as its jQuery sends it. The site answers
@@ -83,6 +83,7 @@ const siteSearch = (query: string, type: SimklType, ctx: ExtractorServerContext)
   ctx
     .fetch(`${SITE}/ajax/full/search.php`, {
       method: 'POST',
+      signal: ctx.request.signal,
       headers: {
         origin: SITE,
         referer: `${SITE}/search/`,
@@ -304,6 +305,13 @@ const SEARCH_ROWS_PER_TYPE = 10
 // opening the card is answered from the relay's cache.
 const DETAIL_READS_AT_ONCE = 10
 
+// The page starts a search for every prefix that holds for 350 ms, and the relay spends its per-viewer
+// burst (40, then 20 a second) before it reads its cache, so reads a replaced search has sent still count
+// against the search that replaced it. Measured 2026-10-31, "the morning show" at 400 ms a key: 840 relay
+// requests and 420 refused; stopping at the replacement alone left 200 and 20, as the first ten reads go
+// before the next key, and waiting this long too left 130 and none. Only this source's rows land later.
+const READS_AFTER_MS = 500
+
 const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<SiteRow[]> =>
   (await siteSearch(query, type, ctx))
     .map(siteRow)
@@ -319,10 +327,12 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
     seen.add(row.id)
     rows.push(row)
   }
+  await new Promise(resolve => setTimeout(resolve, READS_AFTER_MS))
+  const { signal } = ctx.request
   const out: GQLMedia[] = []
   for (let at = 0; at < rows.length; at += DETAIL_READS_AT_ONCE) {
     const read = await Promise.all(rows.slice(at, at + DETAIL_READS_AT_ONCE).map(async row =>
-      normalizeSearch(row, await api<SimklDetail>(`${detailPath(row.type)}/${row.id}?extended=full`, ctx))))
+      normalizeSearch(row, await api<SimklDetail>(`${detailPath(row.type)}/${row.id}?extended=full`, ctx, { signal }))))
     out.push(...read.filter((media): media is GQLMedia => !!media))
   }
   return out

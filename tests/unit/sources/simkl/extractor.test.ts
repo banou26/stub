@@ -8,9 +8,11 @@
 // sequences that both start at 1, measured 2026-09-04: themoviedb.org/movie/550 is Fight Club and
 // /tv/550 is Till Death Us Do Part. Stub's uri is `tmdb:550` for both.
 import { readFileSync } from 'node:fs'
-import { expect, test } from 'vite-plus/test'
+import { expect, test, vi } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/simkl/extractor'
+import { withBackoff } from '../../../../src/worker/backoff'
+import { providerServer, subscribe } from '../../worker/yoga-client'
 
 const API = 'https://api.simkl.com'
 
@@ -161,6 +163,15 @@ test('a special is not numbered as an episode of the run, nor counted in it', as
   expect(media.episodeCount).toBe(2)
 })
 
+// The reads wait for a search to hold, which only the tests at the end of this file are about.
+const searchFor = async (ctx: object, search = 'frieren') => {
+  vi.useFakeTimers({ toFake: ['setTimeout'] })
+  const answer = (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search } }, { request: new Request('http://d/graphql'), ...ctx }).next()
+  await vi.advanceTimersByTimeAsync(1_000)
+  vi.useRealTimers()
+  return (await answer).value.mediaPage.nodes as Row[]
+}
+
 // Search reads simkl.com's own form, whose rows name their type in their url.
 test('search rows are scoped by the type their url names', async () => {
   const hits: Record<string, unknown> = {
@@ -168,16 +179,13 @@ test('search rows are scoped by the type their url names', async () => {
     anime: { i2: { id: '2', url: '/anime/2/mushoku-tensei', titles: { m: 'Mushoku Tensei' } } },
     movies: { i3: { id: '3', url: '/movies/3/fight-club', titles: { m: 'Fight Club' } } },
   }
-  const ctx = {
+  const rows = await searchFor({
     fetch: async (url: string, init?: { body?: string }) => {
       if (url.startsWith(API)) return { json: async () => ({ title: 'x' }) }
       if (url !== `${SITE}/ajax/full/search.php`) throw new Error(`fixture has no route for ${url}`)
       return { json: async () => hits[new URLSearchParams(init?.body).get('type')!] }
     },
-  } as never
-  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
-  const { value } = await subscribe(undefined, { input: { search: 'x' } }, ctx).next()
-  const rows = value?.mediaPage?.nodes as Row[]
+  }, 'x')
   const byId = Object.fromEntries(rows.map(row => [row.uri, row]))
 
   expect(byId['simkl:1']!.scope).toBe('CONTAINER')
@@ -211,9 +219,7 @@ const recorded = (sent: Sent[]) => ({
 
 test('search posts simkl.com\'s own form, with its origin and referer and no client id', async () => {
   const sent: Sent[] = []
-  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
-  const { value } = await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
-  const rows = value.mediaPage.nodes as (Row & { titles: { title: string }[], covers: { url: string }[] })[]
+  const rows = await searchFor(recorded(sent)) as (Row & { titles: { title: string }[], covers: { url: string }[] })[]
 
   // the film 523278 is listed too, and dropped: its detail answered 412
   expect(rows.map(row => row.uri)).toEqual(['simkl:1990194', 'simkl:2595284', 'simkl:3063278'])
@@ -234,8 +240,7 @@ test('search posts simkl.com\'s own form, with its origin and referer and no cli
 // same-origin request and sends an undefined `more` as `more=`
 test('search sends the fields and headers simkl.com\'s own search sends', async () => {
   const sent: Sent[] = []
-  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
-  await subscribe(undefined, { input: { search: 'frieren' } }, recorded(sent)).next()
+  await searchFor(recorded(sent))
   const posted = sent.filter(request => request.url === `${SITE}/ajax/full/search.php`)
 
   expect(posted.length, 'control: search posted something').toBeGreaterThan(0)
@@ -267,21 +272,16 @@ test('search keeps the first ten rows simkl.com lists for each type', async () =
   const answer = (type: string, base: number, count: number) =>
     Object.fromEntries(Array.from({ length: count }, (_, i) => [`i${base + i}`, { id: String(base + i), url: `/${type}/${base + i}/greatest`, titles: { m: `Greatest ${i}` } }]))
   const answers: Record<string, object> = { tv: answer('tv', 1000, 150), anime: answer('anime', 2000, 16), movies: answer('movies', 3000, 150) }
-  const ctx = {
+  const rows = await searchFor({
     fetch: async (url: string, init?: { body?: string }) =>
       ({ json: async () => (url.startsWith(API) ? { title: 'Greatest' } : answers[new URLSearchParams(init?.body).get('type')!]) }),
-  } as never
-  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: 'greatest' } }, ctx).next()
-  const uris = (value.mediaPage.nodes as Row[]).map(row => row.uri)
+  }, 'greatest')
+  const uris = rows.map(row => row.uri)
 
   const first = (base: number) => Array.from({ length: 10 }, (_, i) => `simkl:${base + i}`)
   expect(uris).toEqual([...first(1000), ...first(2000), ...first(3000)])
 })
 
-const searchFor = async (ctx: unknown, search = 'frieren') => {
-  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search } }, ctx).next()
-  return value.mediaPage.nodes as Row[]
-}
 const handleUris = (row: Row) => row.handles.map(handle => handle.node.uri).sort((a, b) => a.localeCompare(b))
 
 // simkl.com's search rows carry no catalogue ids, and the keyed api search they replaced answered them:
@@ -421,4 +421,102 @@ test('search reads at most ten details at once, one for each of its thirty rows'
   expect(reads).toBe(30)
   expect(most).toBe(10)
   expect(handleUris(rows[29]!)).toEqual(['mal:3009'])
+})
+
+// The page starts a search for every prefix that holds, so these replace one as it does: through a server,
+// whose unsubscribe aborts the request the source reads its signal from, and through the real retries.
+const SEARCH = 'subscription Search($input: MediaPageInput!) { mediaPage(input: $input) { nodes { uri } } }'
+const elapsed = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// ten rows of each type, so a search reads in three batches, and each search has rows of its own
+const hits = (query: string, type: string) => Object.fromEntries(Array.from({ length: 10 }, (_, i) => {
+  const id = `${query.length}${['tv', 'anime', 'movies'].indexOf(type)}${i}`
+  return [`i${id}`, { id, url: `/${type}/${id}/${query}`, titles: { m: `${query} ${i}` } }]
+}))
+
+const closed = () => {
+  let open!: () => void
+  const gate = new Promise<void>(resolve => { open = resolve })
+  return { gate, open }
+}
+
+type Answers = { post?: () => Promise<Response>, read?: () => Promise<Response>, wait?: () => Promise<void> }
+
+const upstream = ({ post, read, wait = async () => {} }: Answers = {}) => {
+  const sent: string[] = []
+  const fetch = withBackoff(async (input, init) => {
+    const url = input as string
+    sent.push(url)
+    if (url.startsWith(API)) return await read?.() ?? Response.json({ title: url })
+    const form = new URLSearchParams(init?.body as string)
+    return await post?.() ?? Response.json(hits(form.get('s')!, form.get('type')!))
+  }, { wait })
+  return {
+    posts: () => sent.filter(url => url.startsWith(SITE)),
+    reads: () => sent.filter(url => url.startsWith(API)),
+    target: providerServer('simkl', resolvers, { fetch }),
+  }
+}
+
+test('a search replaced before its reads are due asks for no detail', async () => {
+  const { posts, reads, target } = upstream()
+  const search = subscribe(target, SEARCH, { input: { search: 'the' } })
+  await vi.waitFor(() => expect(posts()).toHaveLength(3))
+  search.close()
+  await elapsed(600)
+
+  expect(reads()).toEqual([])
+})
+
+test('a search replaced during its reads starts no more of them', async () => {
+  const { gate, open } = closed()
+  const { reads, target } = upstream({ read: async () => { await gate; return Response.json({ title: 'read' }) } })
+  const search = subscribe(target, SEARCH, { input: { search: 'the' } })
+  await vi.waitFor(() => expect(reads()).toHaveLength(10), { timeout: 5_000 })
+  search.close()
+  open()
+  await elapsed(50)
+
+  expect(reads()).toHaveLength(10)
+})
+
+test('a refused read is not asked again once its search is replaced', async () => {
+  const { gate, open } = closed()
+  const { reads, target } = upstream({ read: async () => new Response(null, { status: 429 }), wait: () => gate })
+  const search = subscribe(target, SEARCH, { input: { search: 'the' } })
+  await vi.waitFor(() => expect(reads()).toHaveLength(10), { timeout: 5_000 })
+  search.close()
+  open()
+  await elapsed(50)
+
+  expect(reads()).toHaveLength(10)
+})
+
+test('a refused site search is not asked again once its search is replaced', async () => {
+  const { gate, open } = closed()
+  const { posts, target } = upstream({ post: async () => new Response(null, { status: 429 }), wait: () => gate })
+  const search = subscribe(target, SEARCH, { input: { search: 'the' } })
+  await vi.waitFor(() => expect(posts()).toHaveLength(3))
+  search.close()
+  open()
+  await elapsed(50)
+
+  expect(posts()).toHaveLength(3)
+})
+
+test('the search that holds reads every row and answers what a lone search answers, however many came before it', async () => {
+  const lone = upstream()
+  const alone = await subscribe(lone.target, SEARCH, { input: { search: 'the morning' } }).until(result => !!result.data)
+
+  const { posts, reads, target } = upstream()
+  for (const [index, search] of ['t', 'th', 'the'].entries()) {
+    const replaced = subscribe(target, SEARCH, { input: { search } })
+    await vi.waitFor(() => expect(posts()).toHaveLength((index + 1) * 3))
+    replaced.close()
+  }
+  const settled = await subscribe(target, SEARCH, { input: { search: 'the morning' } }).until(result => !!result.data)
+
+  expect(settled.data).toEqual(alone.data)
+  expect(settled.data.mediaPage.nodes).toHaveLength(30)
+  expect(reads(), 'the replaced searches read nothing').toEqual(lone.reads())
 })

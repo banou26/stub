@@ -35,7 +35,7 @@ const simklAnswers = (recorded: Recorded) => async (url: string, init?: { body?:
 }
 
 const search = async (source: { resolvers: unknown }, fetch: unknown, query: string) => {
-  const context = { findAggregatedMedia: async () => null, listenForMediaChanges: async function* () {}, fetch }
+  const context = { request: new Request('http://d/graphql'), findAggregatedMedia: async () => null, listenForMediaChanges: async function* () {}, fetch }
   const { value } = await (source.resolvers as any).Subscription.mediaPage.subscribe(undefined, { input: { search: query } }, context).next()
   return value.mediaPage.nodes as { uri: string }[]
 }
