@@ -29,6 +29,16 @@ test('no longer says that everything else goes with the tab', () => {
   expect(text().text).not.toMatch(/stores nothing persistently/i)
 })
 
+// HOR-1026 (stub in the viewer's language): the page stays in English, so a French page must not read it as French
+test('is marked English', () => {
+  document.documentElement.setAttribute('lang', 'fr')
+  try {
+    expect(text().host.querySelector('h1')?.closest('[lang]')?.getAttribute('lang')).toBe('en')
+  } finally {
+    document.documentElement.removeAttribute('lang')
+  }
+})
+
 test('names everything stub keeps, from the list the completeness test pins', () => {
   const { text: page } = text()
   for (const item of STORED) expect(page, item.id).toContain(item.title)

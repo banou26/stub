@@ -11,9 +11,20 @@ const rendered = () => {
   const host = mount(<Router hook={memoryLocation({ path: '/legal' }).hook}><Legal/></Router>)
   const text = (host.textContent ?? '').replace(/\s+/g, ' ')
   const links = Object.fromEntries([...host.querySelectorAll('a')].map(link => [link.textContent?.trim(), link.getAttribute('href')]))
+  const lang = host.querySelector('h1')?.closest('[lang]')?.getAttribute('lang')
   unmount(host)
-  return { text, links }
+  return { text, links, lang }
 }
+
+// HOR-1026 (stub in the viewer's language): the page stays in English, so a French page must not read it as French
+test('the legal page is marked English', () => {
+  document.documentElement.setAttribute('lang', 'fr')
+  try {
+    expect(rendered().lang).toBe('en')
+  } finally {
+    document.documentElement.removeAttribute('lang')
+  }
+})
 
 // Mutations: unlink a database's name; unlink the licence. ODbL 4.3 a asks for the notice on what people see,
 // with the database's name linked to it and the licence named.
