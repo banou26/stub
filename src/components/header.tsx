@@ -52,7 +52,7 @@ const style = css`
   /* three tracks rather than a flex row: the search field stays centred on the VIEWPORT whatever the
      wordmark and the action cluster happen to measure, which auto margins on a flex item cannot promise */
   display: grid;
-  grid-template-columns: 1fr minmax(0, 32rem) 1fr;
+  grid-template-columns: 1fr minmax(0, 38rem) 1fr;
   align-items: center;
   gap: 2rem;
   /* an explicit height rather than padding, so --stub-header-height IS the bar rather than a number
@@ -246,6 +246,20 @@ const style = css`
     }
   }
 
+  /* the row's words differ by font: with the party button's label gone (party-widget.tsx), this is what leaves the
+     search 300 px at 1024, in Montserrat and in a fallback alike */
+  @media (max-width: 1359px) {
+    gap: 1.2rem;
+
+    .sites {
+      gap: 1.2rem;
+    }
+
+    .actions {
+      gap: 0.8rem;
+    }
+  }
+
   @media (max-width: 768px) {
     /* the outer tracks collapse to their content and the search takes what is left: centring it on
        the viewport costs more width than the viewport has */
@@ -296,11 +310,15 @@ const style = css`
      waits behind a button and opens over the whole row */
   @media (max-width: 479px) {
     gap: 0.4rem;
-    padding: 0 1rem;
+    padding: 0 0.8rem;
 
     .logo,
     .powered {
       font-size: 1.7rem;
+    }
+
+    .sites-toggle {
+      width: 2.4rem;
     }
 
     .actions {

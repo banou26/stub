@@ -65,9 +65,15 @@ const buttonStyle = css`
     opacity: 0.8;
   }
 
-  @media (max-width: 768px) {
-    padding: 0 1rem;
+  /* the header's longest word, in whatever font draws it, and the title says it instead */
+  @media (max-width: 1359px) {
     .label { display: none; }
+  }
+
+  /* the header's icon buttons' size, alone or with a count */
+  @media (max-width: 768px) {
+    height: 3.4rem;
+    padding: 0 0.8rem;
   }
 `
 
@@ -279,6 +285,7 @@ const PartyWidget = () => {
         ref={refs.setReference}
         css={buttonStyle}
         className={live ? 'live' : state.status === 'joining' ? undefined : 'over'}
+        title={label}
         {...getReferenceProps()}
       >
         {live && state.role === 'host' ? <Radio size={16}/> : <Users size={16}/>}

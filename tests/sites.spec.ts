@@ -397,6 +397,38 @@ test('from 1024 px the site links sit beside the wordmark, and a desktop keeps t
   }
 })
 
+// A wider font than the rig's. The header's words are wider in Montserrat, and on GitHub's runner system-ui is DejaVu
+// Sans: at 1024 and 360 px, this spacing widens them past either (measured 2026-10-30).
+const WIDER_FONT = 'header { letter-spacing: 0.06em } header .logo { letter-spacing: 0.12em !important }'
+
+test('the header keeps its floors in a wider font, on every site', async ({ page }) => {
+  for (const host of ['stub.localhost', 'anime.localhost', 'series.localhost', 'movies.localhost', '127.0.0.1']) {
+    await page.setViewportSize({ width: 1024, height: 800 })
+    await page.goto(at(host, '/settings'))
+    await expect(searchField(page)).toBeVisible()
+    await page.addStyleTag({ content: WIDER_FONT })
+    for (const width of [1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 800 })
+      const [start, search, actions] = await Promise.all([page.locator('header .start'), searchField(page), page.locator('header .actions')].map(async box => (await box.boundingBox())!))
+      expect(search!.width, `${host} at ${width}: the search's floor`).toBeGreaterThanOrEqual(300)
+      expect(start!.x + start!.width, `${host} at ${width}`).toBeLessThanOrEqual(search!.x)
+      expect(search!.x + search!.width, `${host} at ${width}`).toBeLessThanOrEqual(actions!.x)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${host} at ${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    }
+    for (const width of [360, 379, 380, 479]) {
+      await page.setViewportSize({ width, height: 800 })
+      await expect(searchButton(page), `${host} at ${width}`).toBeVisible()
+      // polled, since the icon buttons ease to their phone size
+      await expect.poll(async () => {
+        const start = (await page.locator('header .start').boundingBox())!
+        const button = (await searchButton(page).boundingBox())!
+        return button.x - (start.x + start.width)
+      }, `${host} at ${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${host} at ${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    }
+  }
+})
+
 test('below 1024 px the bar is one row with no visible site links', async ({ page }) => {
   for (const [width, height] of [[1023, 800], [844, 390], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
@@ -643,8 +675,8 @@ test('below 480 px the search waits behind a button, and opens focused over the 
     const start = (await page.locator('header .start').boundingBox())!
     const button = (await searchButton(page).boundingBox())!
     const actions = (await page.locator('header .actions').boundingBox())!
-    // the rig blocks Google Fonts, so the wordmark falls back to a font 11.3 px narrower than the live Montserrat
-    // (40.7 against 52 px at 360, measured 2026-10-13): the gap here has to cover that difference
+    // the rig blocks Google Fonts, so the wordmark falls back to a font 2.7 px narrower than the live Montserrat
+    // (41.7 against 44.4 px at 360, measured 2026-10-30): the gap here has to cover that difference
     expect(button.x - (start.x + start.width), `${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
     expect(button.x + button.width, `${width}: the button ends before the actions`).toBeLessThanOrEqual(actions.x)
     await searchButton(page).click()
@@ -678,7 +710,7 @@ test('the anime site\'s My list link sits beside Settings from 600 px, and below
     await page.goto(at('anime.localhost', '/settings'))
     await expect(link, `${width}`).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}: no sideways scroll`).toBeLessThanOrEqual(width)
-    // measured as the language test below measures a placeholder; the rig's wordmark is 11.3 px narrower than the live one
+    // measured as the language test below measures a placeholder
     const spare = await searchField(page).evaluate(input => {
       const style = getComputedStyle(input)
       const pen = document.createElement('canvas').getContext('2d')!
