@@ -58,9 +58,9 @@ const style = css`
  * has said it did. Until then, and for a player that cannot, Next waits for the end, so the two never show at once.
  */
 const ownOfferAt = (link: PlaybackLink, chapters: MediaChapter[], duration: number | undefined) => {
-  const beside = chaptersBesideNext(chapters, duration)
-  link.offerEnding?.(beside.length === chapters.length)
-  return nextOfferAt(link.endingOffered?.() === false ? chapters : beside, duration)
+  const closes = chaptersBesideNext(chapters, duration).length < chapters.length
+  link.offerEnding?.(!closes)
+  return closes && link.endingOffered?.() !== false ? undefined : nextOfferAt(chapters, duration)
 }
 
 /**

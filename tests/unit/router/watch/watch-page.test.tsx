@@ -1744,8 +1744,8 @@ test('a torrent\'s own ending brings Next episode a second before what follows i
 // ripple's player offers Skip Ending from a second before it, in Next's corner, 10 px away, so Next takes it only once
 // the player has said Skip Ending is gone
 const ENDS_THE_FILE = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
-const relayedEnding = async () => {
-  pluginPlayers.chapters = ENDS_THE_FILE
+const relayedEnding = async (chapters = ENDS_THE_FILE) => {
+  pluginPlayers.chapters = chapters
   pluginPlayers.ending = { asked: [], offered: true }
   bridge.duration = 1395
   return { ...await atTheEnd({}, 'nyaa:a'), ending: pluginPlayers.ending }
@@ -1805,6 +1805,42 @@ test('an ending with something after it stays the player\'s to offer', async () 
   await atTheEnd({}, 'nyaa:a')
   await report({ paused: false, time: 1290 })
   expect(pluginPlayers.ending.asked).not.toContain(false)
+})
+
+test('an ending that turns out to have something after it goes back to the player', async () => {
+  const { ending } = await relayedEnding()
+  await report({ paused: false, time: 1200 })
+  ending.offered = false
+  ending.asked.length = 0
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1370, title: 'ED' }, { start: 1370, end: 1395, title: 'Part B' }]
+  await report({ paused: false, time: 1210 })
+  expect(ending.asked).toEqual([true])
+})
+
+// the ending left beside the closing one ends 115 s before the end, which alone would read as what closes the episode
+const TWO_ENDINGS = [{ start: 0, end: 1200, title: 'Part A' }, { start: 1200, end: 1280, title: 'ED' }, { start: 1280, end: 1300, title: 'Part B' }, { start: 1300, end: 1390, title: 'ED' }]
+
+test('opened past an ending with the closing one still to come, Next episode waits for that one', async () => {
+  const { host, ending } = await relayedEnding(TWO_ENDINGS)
+  await report({ paused: false, time: 1285 })
+  expect(nextShown(host), 'before the player has said').toBeUndefined()
+  ending.offered = false
+  await report({ paused: false, time: 1286 })
+  expect(nextShown(host), 'once it has').toBeUndefined()
+  await wait(12_900)
+  expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
+  await wait(100)
+  expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+})
+
+test('a plugin with no such call brings no Next episode at an ending the closing one comes after', async () => {
+  pluginPlayers.chapters = TWO_ENDINGS
+  bridge.duration = 1395
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  await report({ paused: false, time: 1285 })
+  expect(nextShown(host), 'at 1285 s').toBeUndefined()
+  await report({ ...ended, time: 1395 })
+  expect(nextShown(host), 'at the end').toBe('E3 - Title 3')
 })
 
 test('with no next episode the player keeps its Skip Ending, and one left out for a Next that goes comes back', async () => {
