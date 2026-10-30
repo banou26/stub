@@ -38,10 +38,10 @@ const style = css`
       background: rgba(0, 0, 0, 0.9);
     }
     &.left {
-      left: 20px;
+      inset-inline-start: 20px;
     }
     &.right {
-      right: 20px;
+      inset-inline-end: 20px;
     }
   }
 

@@ -30,7 +30,7 @@ position: relative;
   display: flex;
   gap: 10px;
   height: ${ROW_CARD.height + 5}px;
-  padding-left: var(--card-gutter);
+  padding-inline-start: var(--card-gutter);
   overflow: hidden;
 
   & > * { flex: 0 0 ${ROW_CARD.width}px; height: ${ROW_CARD.height}px; border-radius: 1rem; }
@@ -106,7 +106,7 @@ const CellComponent = (
           ...style,
           width: card.width,
           height: card.height,
-          marginLeft: 'var(--card-gutter, 100px)'
+          marginInlineStart: 'var(--card-gutter, 100px)'
         }}
         onMouseEnter={(e) => {
           if (!(e.target instanceof HTMLElement)) return

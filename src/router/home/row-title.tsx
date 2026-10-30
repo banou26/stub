@@ -8,7 +8,7 @@ const titleStyle = css`
      (and its hover and focus ring) ran the full width of the screen for a few words of text. Cross-axis start keeps
      the box the size of the words in it. */
   align-self: flex-start;
-  margin-left: 10rem;
+  margin-inline-start: 10rem;
   font-size: 4rem;
   font-weight: bold;
   color: rgb(255, 255, 255);
@@ -17,7 +17,7 @@ const titleStyle = css`
   user-select: none;
 
   @media (max-width: 768px) {
-    margin-left: 1.5rem;
+    margin-inline-start: 1.5rem;
     font-size: 2.4rem;
   }
 `

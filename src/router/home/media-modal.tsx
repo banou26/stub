@@ -95,12 +95,12 @@ scrollbar-gutter: stable;
       pointer-events: none;
       background:
         linear-gradient(to top, rgb(35, 35, 35) 0%, rgba(35, 35, 35, 0.9) 20%, rgba(35, 35, 35, 0.3) 50%, transparent 70%),
-        linear-gradient(to right, rgba(0, 0, 0, 0.5) 0%, transparent 55%);
+        linear-gradient(to var(--inline-end, right), rgba(0, 0, 0, 0.5) 0%, transparent 55%);
     }
     .player-controls {
       position: absolute;
       top: 0;
-      right: 0;
+      inset-inline-end: 0;
       z-index: 1;
       padding: 2.5rem;
       display: flex;
@@ -163,7 +163,7 @@ scrollbar-gutter: stable;
 
       & > .poster {
         grid-row: 1 / 3;
-        margin-right: 2.8rem;
+        margin-inline-end: 2.8rem;
       }
 
       & > .stack, & > .movie {
@@ -270,7 +270,8 @@ scrollbar-gutter: stable;
         justify-content: center;
         gap: 0.8rem;
         height: 4.4rem;
-        padding: 0 2.4rem 0 2rem;
+        padding-block: 0;
+        padding-inline: 2rem 2.4rem;
         border-radius: 0.6rem;
         background: #fff;
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
@@ -401,7 +402,7 @@ scrollbar-gutter: stable;
 
           & > .logo {
             position: absolute;
-            left: 0.8rem;
+            inset-inline-start: 0.8rem;
             bottom: 0.8rem;
             z-index: 1;
             box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.5);
@@ -460,7 +461,7 @@ scrollbar-gutter: stable;
 
         .mark {
           position: absolute;
-          right: 0.8rem;
+          inset-inline-end: 0.8rem;
           bottom: 0.8rem;
           z-index: 1;
           display: flex;
@@ -667,7 +668,7 @@ scrollbar-gutter: stable;
 
         & > .poster {
           grid-row: 1;
-          margin-right: 1.4rem;
+          margin-inline-end: 1.4rem;
         }
 
         & > .movie {

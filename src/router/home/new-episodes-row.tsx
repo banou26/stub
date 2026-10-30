@@ -150,7 +150,7 @@ export const NewEpisodeCard = ({ episode: { work, next, count, stored }, style }
 const Cell = ({ style, columnIndex, card, episodes }: RowCellProps<{ episodes: NewEpisode[] }>) => {
   const episode = episodes[columnIndex]
   return episode
-    ? <NewEpisodeCard episode={episode} style={{ ...style, width: card.width, height: card.height, marginLeft: 'var(--card-gutter, 100px)' }}/>
+    ? <NewEpisodeCard episode={episode} style={{ ...style, width: card.width, height: card.height, marginInlineStart: 'var(--card-gutter, 100px)' }}/>
     : null
 }
 

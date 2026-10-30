@@ -571,7 +571,7 @@ const episodesStyle = css`
       aspect-ratio: 16 / 9;
       background-color: rgb(35, 35, 35);
       border-radius: .5rem;
-      margin-right: 2.5rem;
+      margin-inline-end: 2.5rem;
       /* decorative only, let the row link under it take hovers and clicks */
       pointer-events: none;
 
@@ -582,6 +582,7 @@ const episodesStyle = css`
         object-fit: cover;
       }
 
+      /* time runs left to right here too, as on the player's seek bar */
       & > .bar {
         position: absolute;
         left: 0;
@@ -608,7 +609,7 @@ const episodesStyle = css`
           z-index: 1;
           display: flex;
           align-items: center;
-          margin-left: 1rem;
+          margin-inline-start: 1rem;
         }
       }
 
@@ -627,12 +628,13 @@ const episodesStyle = css`
 
     .side {
       /* auto rather than a grown .content: the row's other children keep the widths they had, and
-         the date sits against the right edge however long the title and description turn out */
-      margin-left: auto;
+         the date sits against the end however long the title and description turn out */
+      margin-inline-start: auto;
       display: flex;
       align-items: center;
       flex-shrink: 0;
-      padding: 0 2.5rem 0 2rem;
+      padding-block: 0;
+      padding-inline: 2rem 2.5rem;
       /* decorative, like the thumbnail above it: the whole row is one link */
       pointer-events: none;
 
@@ -641,7 +643,7 @@ const episodesStyle = css`
         font-weight: 600;
         color: rgba(255, 255, 255, 0.8);
         white-space: nowrap;
-        text-align: right;
+        text-align: end;
       }
     }
   }
@@ -677,7 +679,7 @@ const episodesStyle = css`
       .thumbnail {
         grid-row: span 2;
         height: 5rem;
-        margin-right: 1rem;
+        margin-inline-end: 1rem;
       }
 
       .content {
@@ -694,7 +696,7 @@ const episodesStyle = css`
           }
           & > .origins {
             min-height: 2.8rem;
-            margin-left: 0;
+            margin-inline-start: 0;
           }
         }
         & > .description {
@@ -704,8 +706,9 @@ const episodesStyle = css`
       }
 
       .side {
-        margin-left: 0;
-        padding: 0.4rem 1rem 0 0;
+        margin-inline-start: 0;
+        padding-block: 0.4rem 0;
+        padding-inline: 0 1rem;
       }
     }
   }

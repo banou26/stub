@@ -30,8 +30,7 @@ height: 70vh;
   .shadow {
     position: absolute;
     bottom: 0;
-    left: 0;
-    right: 0;
+    inset-inline: 0;
     width: 100%;
     height: 30vh;
 
@@ -48,7 +47,7 @@ height: 70vh;
 .information {
   position: absolute;
   inset: 0;
-  left: 10rem;
+  inset-inline-start: 10rem;
   max-width: 75rem;
   display: flex;
   flex-direction: column;
@@ -120,7 +119,8 @@ height: 70vh;
     justify-content: center;
     gap: 0.8rem;
     height: 4.4rem;
-    padding: 0 2.4rem 0 2rem;
+    padding-block: 0;
+    padding-inline: 2rem 2.4rem;
     border-radius: 0.6rem;
     background: #fff;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
@@ -138,8 +138,7 @@ height: 70vh;
   height: 56vh;
 
   .information {
-    left: 1.5rem;
-    right: 1.5rem;
+    inset-inline: 1.5rem;
     max-width: none;
 
     .player-controls {

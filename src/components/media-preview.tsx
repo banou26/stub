@@ -69,7 +69,7 @@ a {
 & > .share {
   position: absolute;
   top: 1rem;
-  right: 1rem;
+  inset-inline-end: 1rem;
   z-index: 1;
   background: rgba(0, 0, 0, 0.6);
 }
