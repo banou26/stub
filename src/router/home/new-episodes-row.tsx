@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import type { StoredWork } from './new-episodes'
+import type { RowCellProps } from './card-row'
 
 import { css } from '@emotion/react'
 import { useEffect, useMemo, useState } from 'preact/hooks'
@@ -11,6 +13,7 @@ import { getRoutePath, Route } from '../path'
 import { VIEWER_LISTS } from '../../components/viewer-lists-query'
 import { useNow } from '../../utils/use-now'
 import RowTitle from './row-title'
+import CardRow from './card-row'
 import { MOST, askedOfStore, newEpisodes, releasedOf } from './new-episodes'
 
 /** What stub's merged data says is out of one work: the fields `unreleasedEpisodes` reads. */
@@ -82,21 +85,8 @@ const rowStyle = css`
   flex-direction: column;
   --card-gutter: 100px;
 
-  & > .cards {
-    display: flex;
-    gap: 1rem;
-    padding: 0 var(--card-gutter) 1rem;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgb(134, 132, 141) rgb(15, 15, 15);
-  }
-
-  & > .cards > * { flex: 0 0 25rem; }
-
   @media (max-width: 768px) {
     --card-gutter: 1.5rem;
-
-    & > .cards > * { flex-basis: 15rem; }
   }
 `
 
@@ -134,10 +124,10 @@ export const useNewEpisodes = () => {
 type NewEpisode = ReturnType<typeof useNewEpisodes>['episodes'][number]
 
 /** One new episode's card, which opens its work: the cover, the title, the episode to watch next and how many are out. */
-export const NewEpisodeCard = ({ episode: { work, next, count } }: { episode: NewEpisode }) => {
+export const NewEpisodeCard = ({ episode: { work, next, count }, style }: { episode: NewEpisode, style?: CSSProperties }) => {
   const intl = useIntl()
   return (
-    <Link to={getRoutePath(Route.MEDIA, { uri: work.uri })} css={cardStyle} className="card">
+    <Link to={getRoutePath(Route.MEDIA, { uri: work.uri })} css={cardStyle} className="card" style={style}>
       {work.summary.cover ? <img src={work.summary.cover} alt="" loading="lazy"/> : undefined}
       <div className="about">
         <span className="title">{work.summary.title ?? work.uri}</span>
@@ -150,6 +140,13 @@ export const NewEpisodeCard = ({ episode: { work, next, count } }: { episode: Ne
   )
 }
 
+const Cell = ({ style, columnIndex, card, episodes }: RowCellProps<{ episodes: NewEpisode[] }>) => {
+  const episode = episodes[columnIndex]
+  return episode
+    ? <NewEpisodeCard episode={episode} style={{ ...style, width: card.width, height: card.height, marginLeft: 'var(--card-gutter, 100px)' }}/>
+    : null
+}
+
 /** Home's row of the newest MOST, under a heading that opens the page of all of them. Nothing at all while none. */
 const NewEpisodes = () => {
   const intl = useIntl()
@@ -160,11 +157,9 @@ const NewEpisodes = () => {
       {
         episodes.length
           ? (
-            <section css={rowStyle}>
+            <section css={rowStyle} className='home-row'>
               <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.CONTINUE)}/>
-              <div className="cards">
-                {episodes.slice(0, MOST).map(episode => <NewEpisodeCard key={episode.work._id} episode={episode}/>)}
-              </div>
+              <CardRow count={Math.min(episodes.length, MOST)} cell={Cell} cellProps={{ episodes }}/>
             </section>
           )
           : undefined

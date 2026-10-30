@@ -30,6 +30,20 @@ vi.mock('urql', () => ({
   },
 }))
 
+vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
+// listens on the window, which node's globalThis is not
+vi.mock('../../../src/components/draggable', () => ({ default: ({ children }: { children: unknown }) => children }))
+// every column drawn, as tests/unit/router/media-section.test.tsx draws them
+vi.mock('react-window', async () => {
+  const { h } = await import('preact')
+  return {
+    useGridRef: () => ({ current: null }),
+    Grid: ({ cellComponent, cellProps, columnCount }: { cellComponent: (props: object) => null, cellProps: object, columnCount: number }) =>
+      h('div', null, Array.from({ length: columnCount }, (_, columnIndex) =>
+        h(cellComponent, { ...cellProps, key: `0-${columnIndex}`, columnIndex, rowIndex: 0, style: {} }))),
+  }
+})
+
 const { default: NewEpisodes } = await import('../../../src/router/home/new-episodes-row')
 const { default: NewEpisodesPage } = await import('../../../src/router/continue')
 const { MOST } = await import('../../../src/router/home/new-episodes')
