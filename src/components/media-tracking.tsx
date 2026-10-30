@@ -201,16 +201,17 @@ const WorkTracking = (
  * tracker loading and none of its values. On the watch page, an episode `link` plays raises the
  * trackers once watched (TrackingCompact's `watched`). Within one `work`, an episode counts once, for
  * the media the row is on as that episode passes 85% played: a row started over on a move under the
- * same `work` (a show's details that turn out to be its first season), or on the same work spelled by
- * other of its sources (a party guest taking the host's address), hears the player already up, and
- * shares what was counted with the row before it. A row on another `work` counts afresh, and hears only
- * a player that comes up after it.
+ * same `work` (a show's details that turn out to be its first season), or on a `work` naming a source
+ * of the one before or of the media the row was on (a party guest taking the host's address), hears the
+ * player already up, and shares what was counted with the row before it. A row on another `work` counts
+ * afresh, and hears only a player that comes up after it.
  */
 const MediaTracking = (props: Props) => {
   const media = useMediaKey(props.uri ?? props.work)
-  const marks = useRef({ work: props.work, counted: new Map<string, number | null | undefined>() })
-  const sameWork = marks.current.work === props.work || namesSameWork(marks.current.work, props.work)
-  marks.current = { work: props.work, counted: sameWork ? marks.current.counted : new Map() }
+  const marks = useRef({ work: props.work, uri: props.uri, counted: new Map<string, number | null | undefined>() })
+  const { work, uri, counted } = marks.current
+  const sameWork = work === props.work || namesSameWork(work, props.work) || namesSameWork(uri, props.work)
+  marks.current = { work: props.work, uri: props.uri, counted: sameWork ? counted : new Map() }
   return <WorkTracking key={`${props.work} ${media}`} {...props} sameWork={sameWork} counted={marks.current.counted}/>
 }
 

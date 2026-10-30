@@ -2183,6 +2183,31 @@ test('a party guest\'s torrent episode counts once as the page follows the host\
   }
 })
 
+// the guest's address is the show's, whose details are its first season; the host's is the season's own
+test('a party guest\'s torrent episode counts once as the page follows the host to the season its show\'s page was on', async () => {
+  const SEASON = 'ag:(tvdb:1-s1)'
+  for (const at of [100, 900]) {
+    bridge.links = []
+    bridge.greets = true
+    party = { status: 'active', role: 'guest' } as typeof party
+    tracking = stubOnly
+    params = { mediaUri: 'ag:(tvdb:1)', episodeUri: allUri }
+    const { rerender } = await atTheEnd({}, 'nyaa:a')
+    media = { ...media, uri: SEASON }
+    rerender()
+    await settle()
+    await report({ paused: false, time: at })
+    params = { ...params, mediaUri: SEASON }
+    rerender()
+    await settle()
+    expect(bridge.links, 'the control: the same player plays on').toHaveLength(1)
+    await report({ paused: false, time: 950 })
+    expect(sentSaves(), `followed at ${at}`).toEqual([[SEASON, 2]])
+    unmount(hosts.pop()!)
+    saved.length = 0
+  }
+})
+
 test('another release from the torrent\'s package within the episode counts the episode once', async () => {
   for (const at of [100, 900]) {
     bridge.links = []
