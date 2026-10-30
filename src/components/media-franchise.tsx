@@ -96,8 +96,9 @@ const overlayStyle = css`
     display: flex;
     align-items: center;
     gap: 2rem;
-    /* right padding clears the close button, which is positioned rather than in the flow */
-    padding: 1.5rem 7rem 1.5rem 2rem;
+    /* the end padding clears the close button, which is positioned rather than in the flow */
+    padding-block: 1.5rem;
+    padding-inline: 2rem 7rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
     & > .title {
@@ -112,7 +113,7 @@ const overlayStyle = css`
   .close {
     position: absolute;
     top: 1.4rem;
-    right: 2rem;
+    inset-inline-end: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -133,7 +134,7 @@ const overlayStyle = css`
   .kinds {
     position: absolute;
     top: 1.2rem;
-    left: 1.2rem;
+    inset-inline-start: 1.2rem;
     z-index: 1;
     display: flex;
     flex-direction: column;

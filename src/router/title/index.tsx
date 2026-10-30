@@ -168,10 +168,10 @@ const style = css`
       display: flex;
       gap: 0.8rem;
       margin-top: 0.4rem;
-      padding-right: 3rem;
+      padding-inline-end: 3rem;
       overflow-x: auto;
       scrollbar-width: none;
-      mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+      mask-image: linear-gradient(to var(--inline-end, right), #000 calc(100% - 3rem), transparent);
 
       & > * { flex-shrink: 0; }
     }
@@ -293,7 +293,7 @@ const style = css`
         flex-wrap: nowrap;
         overflow-x: auto;
         scrollbar-width: none;
-        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+        mask-image: linear-gradient(to var(--inline-end, right), #000 calc(100% - 3rem), transparent);
       }
       & > .buttons > *, .origins > * { flex-shrink: 0; }
       .origins { flex-wrap: nowrap; }
@@ -350,7 +350,7 @@ const style = css`
         white-space: nowrap;
         overflow-x: auto;
         scrollbar-width: none;
-        mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+        mask-image: linear-gradient(to var(--inline-end, right), #000 calc(100% - 3rem), transparent);
       }
     }
   }
@@ -417,7 +417,7 @@ const style = css`
 
     .person.actor {
       flex-direction: row-reverse;
-      text-align: right;
+      text-align: end;
     }
 
     .actors {
@@ -506,7 +506,7 @@ const style = css`
     .artists {
       flex: 1 1 0;
       min-width: 0;
-      text-align: right;
+      text-align: end;
       color: rgba(255, 255, 255, 0.55);
       overflow-wrap: anywhere;
     }
