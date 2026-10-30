@@ -157,8 +157,11 @@ const Index = () => {
           : undefined
       }
       {rows.includes('season') && <MediaSection title={intl.formatMessage({ id: 'Current season', defaultMessage: 'Current season' })} titleTo={CURRENT_SEASON_SEARCH} mediaNodes={nodes.season}/>}
-      {/* the trackers keep anime alone; under the season, which they would push down when the lists answer */}
-      {site === 'anime' || site === 'stub' ? <><NewEpisodes/><Recommended/></> : undefined}
+      {/*
+        the trackers keep anime alone; under the season, which they would push down when the lists answer. AniList's
+        picks are anime of every format, so neither the Series nor the Movies tab's
+      */}
+      {site === 'anime' || site === 'stub' ? <><NewEpisodes/>{(!category || category === MediaCategory.Anime) && <Recommended/>}</> : undefined}
       {rows.includes('movies') && (!category || category === MediaCategory.Movie) && <MediaSection title={intl.formatMessage({ id: 'Popular movies', defaultMessage: 'Popular movies' })} mediaNodes={nodes.movies}/>}
       {rows.includes('shows') && (!category || category === MediaCategory.Series) && <MediaSection title={intl.formatMessage({ id: 'Popular shows', defaultMessage: 'Popular shows' })} mediaNodes={nodes.shows}/>}
       {matchMediaRoute && <MediaModal mediaNodes={[...nodes.season, ...nodes.movies, ...nodes.shows]} />}

@@ -210,4 +210,16 @@ test('the New episodes row lands under Current season, headed as it is, and its 
   await first.click()
   await expect(page).toHaveURL(`${origin}${href}`)
   await expect(page.locator('.modal h2.title')).toHaveText(/\S/, { timeout: 30_000 })
+
+  // its picks are anime of every format, so it follows the tabs as Popular shows does
+  await page.goto(`${origin}/`)
+  const recommended = page.locator('[data-recommendations]')
+  await expect(recommended).toBeVisible({ timeout: 30_000 })
+  const asked = recommendedAsked.length
+  for (const [tab, shown] of [['Movies', false], ['Series', false], ['Anime', true], ['All', true]] as const) {
+    await page.locator('.category-bar').getByRole('button', { name: tab, exact: true }).click()
+    if (shown) await expect(recommended, `under ${tab}`).toBeVisible({ timeout: 30_000 })
+    else await expect(recommended, `under ${tab}`).toBeHidden()
+  }
+  expect(recommendedAsked, 'the kept answer serves every tab').toHaveLength(asked)
 })
