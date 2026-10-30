@@ -342,10 +342,6 @@ animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
       & > .main > .description {
         white-space: pre-wrap;
         cursor: default;
-
-        &.collapsed {
-          max-height: 20rem;
-        }
       }
 
       /* the collapsed description's size, five lines in it */
@@ -841,6 +837,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
     [media]
   )
   const coverUrl = useCoverUrl(media?.covers, media)
+  const side = useRef<HTMLElement>(null)
 
   const [bannedTrailerUris, setBannedTrailerUris] = useState<string[]>([])
   const [pinnedTrailerUri, setPinnedTrailerUri] = useState<string>()
@@ -981,14 +978,14 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             {
               description
                 ? (
-                  <Collapsible collapsedHeight={200} className="description">
+                  <Collapsible collapsedHeight={200} beside={side} className="description">
                     <div dangerouslySetInnerHTML={{ __html: description }}/>
                   </Collapsible>
                 )
                 : settled ? undefined : <PlaceholderLines count={5} className="description pending"/>
             }
           </div>
-          <aside className="side">
+          <aside ref={side} className="side">
             {data?.media ? isMovie ? <FilmFacts media={data.media}/> : <SeriesFacts media={data.media}/> : undefined}
             {links}
           </aside>

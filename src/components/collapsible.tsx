@@ -1,105 +1,106 @@
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, RefObject } from 'react'
 
 import { css } from '@emotion/react'
-import { useState, useRef, useEffect } from 'preact/hooks'
+import { useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
+// a collapse saving less hides text for nothing: Expand's own line takes about half of this
+const LEAST_GAIN = 40
+
 const style = css`
-position: relative;
-overflow: hidden;
-transition: max-height 0.3s ease-in-out;
+display: flex;
+flex-direction: column;
+gap: 0.8rem;
 
-& > .content {
-  padding-bottom: 5rem;
+&.collapsed > .clip {
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 6rem), transparent);
 }
 
-&.collapsed {
-  position: relative;
-}
-
-.fade-overlay {
-  position: absolute;
-  bottom: 2.5rem;
-  left: 0;
-  right: 0;
-  height: 10rem;
-  background: linear-gradient(to bottom, transparent, rgba(35, 35, 35, 1));
-  pointer-events: none;
-  transition: opacity 0.3s ease-in-out;
-}
-
-.toggle-button {
-  font-family: inherit;
-  font-size: 2.5rem;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1rem;
+& > .toggle-button {
+  align-self: flex-start;
+  padding: 0;
   border: none;
-  font-weight: 500;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.8rem;
   cursor: pointer;
-  width: 100%;
-  background-color: rgb(35, 35, 35);
 }
 `
 
+/**
+ * Text that hides what does not fit, only when hiding gains height. The height it has is `collapsedHeight`, or down to
+ * the foot of the `beside` column when that reaches further, since that column holds the row open either way. Text
+ * fitting in it, or past it by too little to be worth hiding, shows whole with no toggle; longer text collapses to
+ * exactly it, with Expand and Collapse. A column stacked under this one holds nothing open, so there
+ * `collapsedHeight` alone counts.
+ */
 export const Collapsible = (
-  { children, collapsedHeight = 200, ...rest }:
+  { children, collapsedHeight = 200, beside, ...rest }:
   HTMLAttributes<HTMLDivElement> & {
     children: React.ReactNode
     collapsedHeight?: number
+    beside?: RefObject<HTMLElement | null>
   }
 ) => {
   const intl = useIntl()
   const [isExpanded, setIsExpanded] = useState(false)
-  const [needsToggle, setNeedsToggle] = useState(false)
-  const contentRef = useRef<HTMLDivElement | null>(null)
-  const [contentHeight, setContentHeight] = useState(0)
+  // undefined while the text shows whole
+  const [foldedHeight, setFoldedHeight] = useState<number>()
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const textRef = useRef<HTMLDivElement | null>(null)
+  const collapsed = foldedHeight !== undefined && !isExpanded
 
-  useEffect(() => {
-    if (!contentRef.current) return
+  useLayoutEffect(() => {
+    const box = boxRef.current!
+    const text = textRef.current!
+    const column = beside?.current
+    const measure = () => {
+      const { top, bottom } = box.getBoundingClientRect()
+      const row = column?.getBoundingClientRect()
+      const height = Math.max(collapsedHeight, row && row.top < bottom ? row.bottom - top : 0)
+      setFoldedHeight(text.offsetHeight > height + LEAST_GAIN ? height : undefined)
+    }
 
+    // The parent resizes with the text and with what sits above this box. On the next frame, as folding resizes that
+    // parent too, which from inside the callback ends in "ResizeObserver loop completed with undelivered notifications"
+    let frame = 0
     const resizeObserver = new ResizeObserver(() => {
-      if (contentRef.current) {
-        const height = contentRef.current.scrollHeight
-        setContentHeight(height)
-        setNeedsToggle(height > collapsedHeight)
-      }
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(measure)
     })
+    resizeObserver.observe(box.parentElement!)
+    if (column) resizeObserver.observe(column)
+    measure()
 
-    resizeObserver.observe(contentRef.current)
-    return () => resizeObserver.disconnect()
-  }, [collapsedHeight])
-
-  const toggleExpanded = () => setIsExpanded(!isExpanded)
+    return () => {
+      cancelAnimationFrame(frame)
+      resizeObserver.disconnect()
+    }
+  }, [collapsedHeight, beside])
 
   return (
     <div
       {...rest}
-      ref={contentRef}
+      ref={boxRef}
       css={style}
-      className={`${rest.className || ''} ${isExpanded ? 'expanded' : 'collapsed'}`}
+      className={`${rest.className || ''} ${collapsed ? 'collapsed' : ''}`}
+      style={{ maxHeight: collapsed ? foldedHeight : undefined }}
     >
-      <div className="content">
-        {children}
+      <div className="clip">
+        <div ref={textRef}>{children}</div>
       </div>
-
       {
-        needsToggle && !isExpanded
-          ? <div className="fade-overlay" />
-          : undefined
-      }
-      {needsToggle
-        ? (
-          <button
-            className="toggle-button"
-            onClick={toggleExpanded}
-          >
-            {isExpanded ? intl.formatMessage({ id: 'Collapse', defaultMessage: 'Collapse' }) : intl.formatMessage({ id: 'Expand', defaultMessage: 'Expand' })}
-          </button>
-        )
-        : undefined
+        foldedHeight === undefined
+          ? undefined
+          : (
+            <button className="toggle-button" onClick={() => setIsExpanded(!isExpanded)}>
+              {isExpanded ? intl.formatMessage({ id: 'Collapse', defaultMessage: 'Collapse' }) : intl.formatMessage({ id: 'Expand', defaultMessage: 'Expand' })}
+            </button>
+          )
       }
     </div>
   )

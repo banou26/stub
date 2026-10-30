@@ -28,6 +28,14 @@ const LATE = {
   description: 'It comes late. '.repeat(60), duration: 24, source: 'MANGA', genres: ['Drama', 'Mystery', 'Psychological'], tags: many(30, number => ({ name: `Spec Tag ${number}` })),
 }
 const THIRD = { id: 900002, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Third' }, description: 'And on again. '.repeat(80) }
+// short lines, so a description is as tall at any width and in any font, the two last beside sixty genres
+const lines = (count: number) => many(count, number => `Line ${number}.`).join('<br>')
+const TALL_FACTS = { genres: many(60, number => `Spec Genre ${number}`) }
+const DESCRIBED = [
+  { id: 900140, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Brief' }, description: lines(9) },
+  { id: 900141, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Beside' }, description: lines(16), ...TALL_FACTS },
+  { id: 900142, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Over' }, description: lines(120), ...TALL_FACTS },
+]
 
 const SEQUEL_CREDITS = {
   characters: { edges: many(14, number => ({ role: 'SUPPORTING', node: { id: 900100 + number, name: { full: `Sequel Character ${number}` } }, voiceActors: [] })) },
@@ -186,6 +194,8 @@ const TMDB: Record<string, string> = {
 // AniList names The Apothecary Diaries season 3's relations for anilist:900020, and One Piece's for anilist:900030,
 // and AniList and MyAnimeList date Spec Year Film (anilist:900100, mal:900100) by its year alone, and name Spec Merge
 // (anilist:900130, mal:900130) in English differently.
+// AniList describes Spec Brief (anilist:900140) in 9 lines, Spec Beside (anilist:900141) in 16 and Spec Over
+// (anilist:900142) in 120, the last two with sixty genres.
 // AniList describes Spec Unsafe (anilist:900110) with a script, an onerror, a handler, a javascript: link, a style
 // attribute, a style sheet and a form, and a remote image.
 // AniList schedules Spec Airing (anilist:900080, mal:900080) from its 4th episode a day out, weekly, when asked for
@@ -250,6 +260,8 @@ export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promis
   if (variables.id === SEQUEL.id) return Response.json({ data: { Media: { ...SEQUEL, ...query.includes('characters(') ? SEQUEL_CREDITS : {}, relations: { edges: SEQUEL_RELATIONS } } } })
   if (variables.id === THIRD.id) return Response.json({ data: { Media: { ...THIRD, ...credits } } })
   if (variables.id === UNSAFE.id) return Response.json({ data: { Media: { ...UNSAFE, ...credits } } })
+  const described = DESCRIBED.find(({ id }) => id === variables.id)
+  if (described) return Response.json({ data: { Media: { ...described, ...credits } } })
   if (variables.id === YEAR_FILM.id || variables.idMal === YEAR_FILM.idMal) return Response.json({ data: { Media: { ...YEAR_FILM, ...credits } } })
   if (variables.id === MERGE.id || variables.idMal === MERGE.idMal) return Response.json({ data: { Media: { ...MERGE, ...credits } } })
   for (const [media, edges] of [[APOTHECARY, APOTHECARY_RELATIONS], [ONE_PIECE, ONE_PIECE_RELATIONS]] as const) {

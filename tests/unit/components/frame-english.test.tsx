@@ -36,7 +36,7 @@ test('the footer links Legal and Privacy, and names its version and commit', () 
 
 test('a description taller than its clamp reads Expand, and Collapse once open', async () => {
   const host = show(h(Collapsible, { collapsedHeight: 200, children: h('p', null, 'A long description.') }))
-  Object.defineProperty(host.firstElementChild!, 'scrollHeight', { value: 1000 })
+  Object.defineProperty(host.querySelector('.clip > div')!, 'offsetHeight', { value: 1000 })
   // the observer reports the first size a turn later (./dom)
   await act(() => new Promise(resolve => setTimeout(resolve, 10)))
   const toggle = host.querySelector('button')!

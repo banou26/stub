@@ -180,7 +180,7 @@ describe('the preview', () => {
   test('draws a series\' tracking first in its description\'s column, beside the facts and links', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
-    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['tracking-compact', 'description.collapsed'])
+    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['tracking-compact', 'description'])
     expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['facts', 'links'])
   })
 
@@ -191,7 +191,7 @@ describe('the preview', () => {
     expect(classes(modal().querySelector('.hero.film > .over')!.children)).toEqual(['stack', 'movie'])
     expect(modal().querySelector('.over > .stack > .title')!.textContent).toBe('Spirited Away')
     expect(classes(modal().querySelector('.over > .movie > .actions')!.children)).toEqual(['play-pending', 'tracking-compact'])
-    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['sources', 'description.collapsed'])
+    expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['sources', 'description'])
     expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['chips', 'links'])
   })
 

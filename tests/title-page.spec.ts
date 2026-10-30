@@ -277,6 +277,163 @@ test('the preview\'s description is one size before the details answer and after
   }
 })
 
+// nine lines, sixteen and 120, the last two beside sixty genres (tests/fake-fetch.ts)
+const BRIEF = 'ag:(anilist:900140)'
+const BESIDE = 'ag:(anilist:900141)'
+const OVER = 'ag:(anilist:900142)'
+
+const preview = async (page: Page, uri: string, title: string) => {
+  await page.goto(`${origin}/media/${uri}`)
+  await expect(modal(page).locator('h2.title')).toHaveText(title, { timeout: 30_000 })
+  await expect(modal(page).locator('.columns > .main > .description')).toContainText(/Line 9\./, { timeout: 30_000 })
+  await expect(modal(page).locator('.columns > .side .more')).toBeVisible()
+}
+
+const description = (page: Page) => modal(page).locator('.columns > .main > .description')
+const toggles = (page: Page) => description(page).getByRole('button')
+
+/** What the description's layout comes to: the text's own height, what it draws in, and how far that ends from the row's foot. */
+const fold = (page: Page) => description(page).evaluate(box => {
+  const { bottom, height } = box.getBoundingClientRect()
+  return {
+    text: box.querySelector('.clip > div')!.getBoundingClientRect().height,
+    height,
+    drawn: box.querySelector('.clip')!.clientHeight,
+    aboveFoot: box.parentElement!.nextElementSibling!.getBoundingClientRect().bottom - bottom,
+  }
+})
+
+test('a preview\'s description that fits shows whole with no button, at 1440 and 390 px', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    await preview(page, BRIEF, 'Spec Brief')
+    const brief = await fold(page)
+    expect(brief.drawn, `${width}: all of it`).toBeGreaterThanOrEqual(brief.text)
+    await expect(toggles(page), `${width}: no button`).toHaveCount(0)
+  }
+
+  // taller than the height it collapses to on its own, and under the sixty genres beside it
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await preview(page, BESIDE, 'Spec Beside')
+  await expect(modal(page).locator('.facts')).toContainText('Spec Genre 60')
+  await expect(toggles(page)).toHaveCount(0)
+  const beside = await fold(page)
+  expect(beside.drawn, 'all of it').toBeGreaterThanOrEqual(beside.text)
+  expect(beside.text, 'the control: past the height it would collapse to alone').toBeGreaterThan(250)
+  expect(beside.aboveFoot, 'the control: the row is taller still').toBeGreaterThan(50)
+})
+
+test('a preview\'s long description collapses to its row with a button, the page shrinking by what it hides, at 1440 and 390 px', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    await preview(page, OVER, 'Spec Over')
+    await expect(modal(page).locator('.facts')).toContainText('Spec Genre 60')
+    await expect(toggles(page)).toHaveText('Expand')
+    const folded = await fold(page)
+    if (width === 1440) {
+      expect(Math.abs(folded.aboveFoot), `${width}: it ends with the column beside it`).toBeLessThan(1)
+      expect(folded.height, `${width}: the control: that column is past the height it would collapse to alone`).toBeGreaterThan(250)
+    } else {
+      expect(folded.height, `${width}: the column is under it, and leaves it its own height`).toBe(200)
+    }
+    const collapsed = await height(modal(page))
+
+    await toggles(page).click()
+    await expect(toggles(page)).toHaveText('Collapse')
+    const open = await fold(page)
+    expect(open.drawn, `${width}: open, all of it`).toBeGreaterThanOrEqual(open.text)
+    expect(await height(modal(page)), `${width}: the page is taller by the text it hid`).toBeGreaterThan(collapsed + 500)
+
+    await toggles(page).click()
+    await expect(toggles(page)).toHaveText('Expand')
+    expect(await height(modal(page)), `${width}: and back`).toBe(collapsed)
+  }
+})
+
+test('a preview\'s long description is collapsed from the first frame it draws', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(() => {
+    const heights = new Set<number>()
+    const record = () => {
+      const box = document.querySelector('.modal .columns > .main > .description:not(.pending)')
+      if (box) heights.add(Math.round(box.getBoundingClientRect().height))
+      requestAnimationFrame(record)
+    }
+    requestAnimationFrame(record)
+    Object.assign(window, { heights })
+  })
+  await preview(page, OVER, 'Spec Over')
+  await expect(toggles(page)).toHaveText('Expand')
+  const folded = Math.round((await fold(page)).height)
+  expect(await page.evaluate(() => [...(window as unknown as { heights: Set<number> }).heights])).toEqual([folded])
+})
+
+test('a preview\'s description follows its row, its text and the window, and hides nothing for a gain under a button\'s height', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { loops: number }).loops = 0
+    addEventListener('error', event => { if (event.message.includes('ResizeObserver')) (window as unknown as { loops: number }).loops++ })
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await preview(page, BESIDE, 'Spec Beside')
+  await expect(toggles(page)).toHaveCount(0)
+  const { aboveFoot } = await fold(page)
+  const column = modal(page).locator('.columns > .side')
+  const tall = await height(column)
+  const shortOfText = (by: number) => column.evaluate((side, height) => { (side as HTMLElement).style.height = `${height}px` }, tall - aboveFoot - by)
+
+  await shortOfText(20)
+  await page.waitForTimeout(100)
+  await expect(toggles(page), 'twenty pixels saved are none').toHaveCount(0)
+  await shortOfText(50)
+  await expect(toggles(page), 'fifty are').toHaveText('Expand')
+  await expect.poll(async () => Math.abs((await fold(page)).aboveFoot), 'to the column\'s foot').toBeLessThan(1)
+
+  await modal(page).locator('.columns > .main > .tracking-compact').evaluate(tracking => { (tracking as HTMLElement).style.paddingBottom = '30px' })
+  await expect.poll(async () => Math.abs((await fold(page)).aboveFoot), 'what is above it grows').toBeLessThan(1)
+
+  await column.evaluate(side => { (side as HTMLElement).style.height = '' })
+  await expect(toggles(page), 'the column back').toHaveCount(0)
+
+  await description(page).locator('.clip > div > div').evaluate(text => { text.innerHTML = 'Line.<br>'.repeat(120) })
+  await expect(toggles(page), 'its text grows').toHaveText('Expand')
+  await expect.poll(async () => Math.abs((await fold(page)).aboveFoot), 'to the column\'s foot').toBeLessThan(1)
+  await description(page).locator('.clip > div > div').evaluate(text => { text.innerHTML = 'Line.' })
+  await expect(toggles(page), 'its text shrinks').toHaveCount(0)
+
+  await description(page).locator('.clip > div > div').evaluate(text => { text.innerHTML = 'Line.<br>'.repeat(16) })
+  await expect(toggles(page)).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(toggles(page), 'the column drops under it').toHaveText('Expand')
+  await expect.poll(async () => (await fold(page)).height).toBe(200)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(toggles(page), 'and comes back beside it').toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { loops: number }).loops), 'no ResizeObserver loop on the way').toBe(0)
+})
+
+test('a preview\'s Expand reads as the text around it, under it on the left, at 1440 and 390 px', async ({ page }) => {
+  for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height: viewport })
+    await preview(page, OVER, 'Spec Over')
+    const look = await description(page).evaluate(box => {
+      const toggle = box.querySelector('button')!
+      const { fontSize, fontFamily } = getComputedStyle(toggle)
+      const text = getComputedStyle(box)
+      return {
+        size: parseFloat(fontSize) / parseFloat(text.fontSize),
+        font: fontFamily === text.fontFamily,
+        left: toggle.getBoundingClientRect().left - box.getBoundingClientRect().left,
+        under: toggle.getBoundingClientRect().top - box.querySelector('.clip')!.getBoundingClientRect().bottom,
+        width: toggle.getBoundingClientRect().width / box.getBoundingClientRect().width,
+      }
+    })
+    expect(look.size, `${width}: no larger than the text`).toBeLessThanOrEqual(1)
+    expect(look.font, `${width}: in its font`).toBe(true)
+    expect(look.left, `${width}: at its left edge`).toBe(0)
+    expect(look.under, `${width}: under it`).toBeGreaterThanOrEqual(0)
+    expect(look.width, `${width}: not a bar across it`).toBeLessThan(0.5)
+  }
+})
+
 test('390 px wide, the title page holds two lines for its title, and its buttons are one row whatever its sources', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const buttons = page.locator('.actions > .buttons')

@@ -19,12 +19,30 @@ test("the description's Expand button draws in stub's font", () => {
   expect(toggle).toContain('font-family: inherit;')
 })
 
-// clamped from the first frame: drawn open and closed once measured, it pushed everything under it up
-test('a description draws clamped from its first render, before anything has measured it', () => {
+// a layout effect, so no frame draws it open: drawn open and closed once measured, it pushed everything under it up
+test('a long description is collapsed by the time it mounts, before the observer has reported anything', () => {
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 1000 })
   const host = mount(withIntl(h(Collapsible, { collapsedHeight: 200, className: 'description', children: h('p', null, 'A long description. '.repeat(200)) })))
   try {
-    expect(host.querySelector('.description')!.classList.contains('collapsed')).toBe(true)
+    const box = host.querySelector<HTMLElement>('.description')!
+    expect(box.classList.contains('collapsed')).toBe(true)
+    expect(box.style.maxHeight).toBe('200px')
   } finally {
     unmount(host)
+    delete (HTMLElement.prototype as { offsetHeight?: number }).offsetHeight
+  }
+})
+
+test('a short description shows whole, with no toggle', () => {
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 100 })
+  const host = mount(withIntl(h(Collapsible, { collapsedHeight: 200, className: 'description', children: h('p', null, 'A short description.') })))
+  try {
+    const box = host.querySelector<HTMLElement>('.description')!
+    expect(box.classList.contains('collapsed')).toBe(false)
+    expect(box.style.maxHeight).toBe('')
+    expect(host.querySelector('button')).toBe(null)
+  } finally {
+    unmount(host)
+    delete (HTMLElement.prototype as { offsetHeight?: number }).offsetHeight
   }
 })
