@@ -749,10 +749,10 @@ const TitlePage = () => {
         {coverUrl ? <img className="cover" src={coverUrl} alt=""/> : <div className="cover"/>}
         <div className="heading">
           {season ? <div className="season">{season}</div> : settled ? undefined : <div className="season"><Placeholder className="pending"/></div>}
-          <h1 lang={titleLanguage(title?.language)}>{title?.title ?? (settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
+          <h1 lang={title && titleLanguage(title)}>{title?.title ?? (settled ? undefined : <PlaceholderLines count={2} className="pending"/>)}</h1>
           {
             second
-              ? <div className="second" lang={titleLanguage(second.language)}>{second.title}</div>
+              ? <div className="second" lang={titleLanguage(second)}>{second.title}</div>
               : anime && !settled ? <div className="second"><Placeholder className="pending"/></div> : undefined
           }
           {
