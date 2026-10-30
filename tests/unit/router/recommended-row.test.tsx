@@ -12,8 +12,17 @@ import { fakeAnilist } from './recommended-fakes'
 // HOR-1087 (home's Recommended for you, from the viewer's list): the row over the joined lists, with urql faked as
 // the lists and the browser's fetch as AniList.
 
-const fake = vi.hoisted(() => ({ lists: undefined as unknown, fetch: undefined as unknown as typeof fetch }))
-vi.mock('urql', () => ({ useSubscription: () => [{ data: fake.lists }] }))
+const fake = vi.hoisted(() => ({ lists: undefined as unknown, fetch: undefined as unknown as typeof fetch, emit: (_: unknown) => {} }))
+vi.mock('urql', async () => {
+  const { useState } = await import('preact/hooks')
+  return {
+    useSubscription: () => {
+      const [lists, setLists] = useState(fake.lists)
+      fake.emit = setLists
+      return [{ data: lists }]
+    },
+  }
+})
 vi.mock('../../../src/worker/browser-fetch', () => ({ browserFetch: (input: RequestInfo | URL, init?: RequestInit) => fake.fetch(input, init) }))
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
@@ -44,8 +53,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+const listsOf = (rows: unknown[], state: string) =>
+  ({ viewerLists: { _id: 'viewerLists', lists: [{ _id: 'list:stub', state, tracker: { id: 'stub', name: 'Stub' } }], rows } })
+
 const show = async (rows: unknown[], state = 'LISTED') => {
-  fake.lists = { viewerLists: { _id: 'viewerLists', lists: [{ _id: 'list:stub', state, tracker: { id: 'stub', name: 'Stub' } }], rows } }
+  fake.lists = listsOf(rows, state)
   const location = memoryLocation({ path: '/' })
   const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Recommended/></Router>))
   hosts.push(host)
@@ -101,6 +113,14 @@ test('removes the kept answer once every list is read and none names a seed, and
   await show([], 'LOADING')
   expect(storage.store.has(RECOMMENDED_KEY), 'while a list is read').toBe(true)
   await show([row('anilist:1', 'PLANNING', 'Planned')])
+  expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
+})
+
+test('removes the kept answer when the lists it waited for name no seed', async () => {
+  await show([FRIEREN])
+  await show([], 'LOADING')
+  expect(storage.store.has(RECOMMENDED_KEY), 'the control: not while they are read').toBe(true)
+  await act(async () => { fake.emit(listsOf([], 'LISTED')) })
   expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
 })
 
