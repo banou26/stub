@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { comparablePluginUri, readPluginUris, writePluginUris } from '../../../src/utils/plugin-links'
+import { comparablePluginUri, readPluginUris, withoutPluginUris, writePluginUris } from '../../../src/utils/plugin-links'
 
 // These run on every navigation, so a throw or a non-idempotent write breaks routing, not just the query.
 
@@ -86,6 +86,24 @@ describe('readPluginUris', () => {
 
   test('a repeated address is offered once', () => {
     expect(readPluginUris(`https://stub.moe/?plugins=${NYAA}&plugins=${NYAA}`)).toEqual([NYAA])
+  })
+})
+
+// HOR-1106: a party compares the host's page with each follower's, and each address carries its own viewer's sources
+describe('withoutPluginUris', () => {
+  test('both names go, every other parameter and the fragment stay as written', () => {
+    expect(withoutPluginUris(`/search?season=FALL&plugins=${NYAA}&year=2026&plugin=${DEV}#top`)).toBe('/search?season=FALL&year=2026#top')
+    expect(withoutPluginUris('/search?q=a%20b+c&plugins_x=1')).toBe('/search?q=a%20b+c&plugins_x=1')
+  })
+
+  test('a query of sources only leaves no question mark', () => {
+    expect(withoutPluginUris(`/watch/a/b?plugins=${NYAA}&plugins=${DEV}`)).toBe('/watch/a/b')
+    expect(withoutPluginUris(`/watch/a/b?plugins=${NYAA}#t`)).toBe('/watch/a/b#t')
+  })
+
+  test('a path with no query, or a question mark only in the fragment, is untouched', () => {
+    expect(withoutPluginUris('/watch/a/b')).toBe('/watch/a/b')
+    expect(withoutPluginUris('/party#key.room?plugins=x')).toBe('/party#key.room?plugins=x')
   })
 })
 

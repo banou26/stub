@@ -6,6 +6,7 @@ import { useLocation, useSearch } from 'wouter'
 import { party } from '../party'
 import { useParty, usePartyMessages } from '../party/use-party'
 import { layer } from '../layers'
+import { withoutPluginUris } from '../utils/plugin-links'
 
 // Where the host is pointing, drawn on every follower's page. Mounted once at the router root.
 
@@ -49,7 +50,7 @@ const PartyCursor = () => {
   const role = state.status === 'active' ? state.role : undefined
   const [location] = useLocation()
   const search = useSearch()
-  const path = search ? `${location}?${search}` : location
+  const path = withoutPluginUris(search ? `${location}?${search}` : location)
 
   // The host: where the pointer is, as fractions of the viewport, no more than CURSOR_HZ a second and
   // never while its player runs, since a pointer over a playing video says nothing worth the budget.

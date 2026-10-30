@@ -8,6 +8,7 @@ import { PARTY_PATH } from '../party/invite'
 import { isWatchPath } from '../party/protocol'
 import { getRoutePath, Route } from '../router/path'
 import { useParty, usePartyMessages } from '../party/use-party'
+import { withoutPluginUris } from '../utils/plugin-links'
 
 // Where the host is, followed. Mounted once at the router root, so it outlives every page: a party
 // is joined on one page and continues on the next.
@@ -37,7 +38,7 @@ const PartySync = () => {
   const state = useParty()
   const [location, navigate] = useLocation()
   const search = useSearch()
-  const path = search ? `${location}?${search}` : location
+  const path = withoutPluginUris(search ? `${location}?${search}` : location)
   const role = state.status === 'active' ? state.role : undefined
 
   // The host: every move goes out, and the latest is what a joiner is told. Except the party's own

@@ -12,19 +12,21 @@ import type { PartyMessageMeta } from '../../../src/party/store'
 const sent = vi.hoisted(() => [] as { t: string, path?: string, y?: number }[])
 const located = vi.hoisted(() => [] as [string, number][])
 const fraction = vi.hoisted(() => ({ y: 0 }))
+const me = vi.hoisted(() => ({ role: 'host', hostPath: undefined as string | undefined }))
+const scrolled = vi.hoisted(() => [] as number[])
 // what the store tells: by then it has dropped an ask its sender was not granted
 const told = vi.hoisted(() => new Set<(message: PartyMessage, meta: PartyMessageMeta) => void>())
 vi.mock('../../../src/party', () => ({
   party: {
-    getState: () => ({ status: 'active', role: 'host', invite: 'room' }),
+    getState: () => ({ status: 'active', role: me.role, invite: 'room' }),
     subscribe: () => () => {},
     onMessage: (listener: (message: PartyMessage, meta: PartyMessageMeta) => void) => { told.add(listener); return () => { told.delete(listener) } },
     setLocation: (path: string, y: number) => { located.push([path, y]) },
     send: (message: { t: string, path?: string }) => { sent.push(message) },
-    hostPath: () => undefined,
+    hostPath: () => me.hostPath,
   },
 }))
-vi.mock('../../../src/party/scroll', () => ({ scrollFraction: () => fraction.y, scrollRoom: () => 0, scrollTo: () => {} }))
+vi.mock('../../../src/party/scroll', () => ({ scrollFraction: () => fraction.y, scrollRoom: () => 0, scrollTo: (y: number) => { scrolled.push(y) } }))
 
 const { default: PartySync } = await import('../../../src/components/party-sync')
 
@@ -35,6 +37,9 @@ afterEach(() => {
   sent.length = 0
   located.length = 0
   fraction.y = 0
+  me.role = 'host'
+  me.hostPath = undefined
+  scrolled.length = 0
 })
 
 const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
@@ -104,6 +109,16 @@ describe('the host', () => {
     expect(located.at(-1)).toEqual(['/watch/a/b', 0])
   })
 
+  // HOR-1106: the address carries the host's own sources, which a follower's address does not share
+  test('a page goes out without the host\'s sources in it', async () => {
+    vi.useFakeTimers()
+    const location = memoryLocation({ path: '/search?season=FALL&plugins=npm:a&year=2026', record: true })
+    hosts.push(mount(<Router hook={location.hook} searchHook={location.searchHook}><PartySync/></Router>))
+    await wait(1_000)
+    expect(sent.filter(message => message.t === 'nav')).toEqual([{ t: 'nav', path: '/search?season=FALL&year=2026' }])
+    expect(located.at(-1)).toEqual(['/search?season=FALL&year=2026', 0])
+  })
+
   // two followers asking at once, or one asking for where the host already is, must not cost the host its Back
   test('a go for the page the host is on leaves its history alone', async () => {
     const location = memoryLocation({ path: '/watch/a/b', record: true })
@@ -111,5 +126,30 @@ describe('the host', () => {
 
     act(() => { for (const listener of told) listener({ t: 'ask', c: 'go', path: '/watch/a/b' }, { replayed: false, from: 'ann', self: false }) })
     expect(location.history).toEqual(['/watch/a/b'])
+  })
+})
+
+describe('a follower', () => {
+  const hostSays = (message: PartyMessage) => act(() => { for (const listener of told) listener(message, { replayed: false, from: 'host', self: false }) })
+
+  // HOR-1106: its address carries its own sources, which are not the host's
+  test('whose sources differ from the host\'s follows the host\'s scroll on the host\'s page', async () => {
+    me.role = 'guest'
+    me.hostPath = '/search?season=FALL&year=2026'
+    const location = memoryLocation({ path: '/search?season=FALL&year=2026&plugins=npm:b', record: true })
+    hosts.push(mount(<Router hook={location.hook} searchHook={location.searchHook}><PartySync/></Router>))
+    hostSays({ t: 'scroll', y: 0.7 })
+    expect(scrolled).toEqual([0.7])
+    hostSays({ t: 'nav', path: '/search?season=FALL&year=2026' })
+    expect(location.history, 'and is already there, so a nav moves nothing').toEqual(['/search?season=FALL&year=2026&plugins=npm:b'])
+  })
+
+  test('elsewhere keeps its own scroll', async () => {
+    me.role = 'guest'
+    me.hostPath = '/search?season=FALL&year=2026'
+    const location = memoryLocation({ path: '/search?season=WINTER&year=2026&plugins=npm:b' })
+    hosts.push(mount(<Router hook={location.hook} searchHook={location.searchHook}><PartySync/></Router>))
+    hostSays({ t: 'scroll', y: 0.7 })
+    expect(scrolled).toEqual([])
   })
 })

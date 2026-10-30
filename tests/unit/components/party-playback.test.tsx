@@ -259,6 +259,22 @@ describe('a follower', () => {
   })
   // play() on an ended player starts it over from 0, so a host a moment behind would flash it back
   // to the episode's start
+  // HOR-1106: every address carries its viewer's own sources, and the host's are not this follower's
+  test('whose sources differ from the host\'s follows the host\'s playback', async () => {
+    Object.assign(globalThis, { location: { pathname: PATH, search: '?plugins=npm:b' } })
+    const { player } = await follow({ all: [] })
+    player.report(paused(10.1))
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
+    expect(player.link.apply.mock.calls[0]![0]).toMatchObject({ paused: false })
+  })
+
+  test('and its asks name the host\'s page, not its own sources', async () => {
+    Object.assign(globalThis, { location: { pathname: PATH, search: '?plugins=npm:b' } })
+    const { fake, player } = await follow({ all: ['play'] })
+    player.report(paused(10.1))
+    expect(asks(fake)).toMatchObject([{ t: 'ask', c: 'play', path: PATH }])
+  })
+
   test('an ended player is not restarted in place, and still follows a host that seeks away', async () => {
     const { fake, player } = await follow({ all: ['play'] })
     player.end()
@@ -340,6 +356,13 @@ describe('a follower tells the host how its player stands', () => {
     buffer.readyState = 2
     await tick(STATUS_GAP_MS)
     expect(said(fake).at(-1)).toEqual({ t: 'status', s: 'loading', path: PATH, time: 600, rate: 0 })
+  })
+
+  // HOR-1106: the host's menu read Away for a follower sitting on the host's episode
+  test('on the host\'s page with other sources than the host\'s, loading and not away', async () => {
+    Object.assign(globalThis, { location: { pathname: PATH, search: '?plugins=npm:b' } })
+    const { fake } = await waiting(undefined)
+    expect(said(fake)).toEqual([{ t: 'status', s: 'loading', path: PATH }])
   })
 
   test('away with where its player is once it stops following, and away with nothing off the host\'s page', async () => {
@@ -476,6 +499,14 @@ describe('the host', () => {
     player.report(paused(10))
     say(fake, 'ann', ask(true))
     expect(player.link.apply).not.toHaveBeenCalled()
+  })
+
+  test('an ask for the host\'s page moves its player whatever sources the host\'s address carries', async () => {
+    Object.assign(globalThis, { location: { pathname: PATH, search: '?plugins=npm:a' } })
+    const { fake, player } = await host()
+    player.report(playing(10))
+    say(fake, 'ann', ask(true))
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
   })
 
   test('an ask from another page is not for this player', async () => {

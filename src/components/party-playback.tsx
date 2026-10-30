@@ -12,8 +12,9 @@ import { toHostTime, toLocalTime } from '../party/clock'
 import { HAVE_FUTURE_DATA, readiness, STATUS_CHECK_MS } from '../party/status'
 import { nextMine, trackToSelect } from '../party/tracks'
 import { useParty, usePartyMessages } from '../party/use-party'
+import { withoutPluginUris } from '../utils/plugin-links'
 
-const here = () => location.pathname + location.search
+const here = () => withoutPluginUris(location.pathname + location.search)
 
 /**
  * The watch page's half of playback sync, over whichever player the page has up.

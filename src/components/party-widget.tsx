@@ -21,6 +21,7 @@ import { layer } from '../layers'
 import PartyGrants, { CONTROL_LABEL, StatusIcon } from './party-grants'
 import PartyTracks from './party-tracks'
 import { switchStyle } from './switch-style'
+import { withoutPluginUris } from '../utils/plugin-links'
 
 const buttonStyle = css`
   display: flex;
@@ -215,7 +216,7 @@ const PartyWidget = () => {
   const [copied, setCopied] = useState(false)
   const [page, navigate] = useLocation()
   const search = useSearch()
-  const here = search ? `${page}?${search}` : page
+  const here = withoutPluginUris(search ? `${page}?${search}` : page)
   // Play for everyone and the host's count read the store, which moves on these and re-renders nothing
   const [, heard] = useState(0)
   usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state' || message.t === 'status') heard(n => n + 1) })

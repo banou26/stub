@@ -41,3 +41,18 @@ test('a follower sees the host\'s pointer tagged with the host\'s name, else as 
   says({ t: 'cursor', x: 0.6, y: 0.5 })
   expect(host.querySelector('.tag')?.textContent).toBe('Mika')
 })
+
+// HOR-1106: its address carries its own sources, which are not the host's
+test('a follower with other sources than the host\'s still sees the host\'s pointer on the host\'s page', async () => {
+  const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+  current.store = createPartyStore(api(fake.room), memoryStorage())
+  await current.store.join(INVITE)
+  const location = memoryLocation({ path: `${PAGE}?plugins=npm:b` })
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>))
+  hosts.push(host)
+  act(() => {
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: PAGE, y: 0 }) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'host', at: 2, text: encodePartyMessage({ t: 'cursor', x: 0.5, y: 0.5 }) }, replayed: false })
+  })
+  expect(host.querySelector('.tag')?.textContent).toBe('host')
+})

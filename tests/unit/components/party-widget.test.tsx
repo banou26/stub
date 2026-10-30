@@ -68,6 +68,12 @@ describe('Play for everyone', () => {
     expect(play()).toBeUndefined()
   })
 
+  // HOR-1106: its address carries its own sources, which are not the host's
+  test('not on the host\'s own page with other sources than the host\'s', async () => {
+    const { play } = await following(`${HOST_PAGE}?plugins=npm:b`, { all: ['go'], by: {} })
+    expect(play()).toBeUndefined()
+  })
+
   test('gone once the host comes to this page', async () => {
     const { hostSays, play } = await following('/watch/a/c', { all: ['go'], by: {} })
     expect(play()).toBeDefined()
@@ -136,6 +142,13 @@ describe('the host\'s count of where followers stand', () => {
     expect(tally()).toBe('1 ready1 loading1 away')
     says('sam', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
     expect(tally()).toBe('2 ready1 away')
+  })
+
+  // HOR-1106: the host's address carries the host's sources, and a follower's status names the page without them
+  test('a follower on the host\'s page counts as on it, whatever sources the host\'s address carries', async () => {
+    const { says, tally } = await hosting(`${HOST_PAGE}?plugins=npm:a`)
+    says('ann', { t: 'status', s: 'ready', path: HOST_PAGE, time: 10, rate: 0 })
+    expect(tally()).toBe('1 ready')
   })
 
   test('not off a watch page', async () => {

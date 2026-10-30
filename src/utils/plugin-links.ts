@@ -43,6 +43,19 @@ export const readPluginUris = (url: string, base?: string): string[] => {
   )
 }
 
+/**
+ * A path with its source list taken out, every other byte kept. Every address carries the viewer's own
+ * sources, so two viewers on the same page compare equal only through this.
+ */
+export const withoutPluginUris = (path: string): string => {
+  const end = path.includes('#') ? path.indexOf('#') : path.length
+  const start = path.indexOf('?')
+  if (start < 0 || start > end) return path
+  const kept = path.slice(start + 1, end).split('&')
+    .filter(pair => { const name = pair.split('=', 1)[0]; return name !== PLUGIN_PARAM && name !== LEGACY_PLUGIN_PARAM })
+  return `${path.slice(0, start)}${kept.length ? `?${kept.join('&')}` : ''}${path.slice(end)}`
+}
+
 // not the URLSearchParams serializer: it percent-encodes ':' '@' '/', which every plugin address is
 // made of, and these are legal unencoded in a query
 const encodeUri = (uri: string) =>
