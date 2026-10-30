@@ -356,6 +356,29 @@ test('the merge reads every source\'s answers, with their dates and roles from t
   expect(answers[0]!.media).toEqual(anilist)
 })
 
+// Mutations: let a run that only met an id take it from the run it is a member of; keep the first run over a later member's.
+test('a run that only met an id takes its newer answer and leaves its role and run, which only a later member replaces', async () => {
+  const bucket = fakeBucket()
+  const { run } = frierenRun(T1)
+  const JW = 'jw:364792-373583'
+  const media = (title: string) => ({ id: '364792-373583', titles: [{ language: 'en', title, score: 0.2 }] })
+  const later = (fetchedAt: string, title: string, handles: typeof run.handles) =>
+    ({ rows: [answer(1, 'jw', '364792-373583', 'MEDIA', media(title))], run: { ...run, run: 'ag:(mal:99)', handles, fetchedAt } })
+  const held = async () => {
+    await fold(bucket)
+    const { role, run: address, fetchedAt, media: { titles } } = (await readAnswers(bucket.client, await readStore(bucket.client))).find(({ source }) => source === 'jw')!
+    return [role, address, fetchedAt, titles[0].title]
+  }
+  bucket.objects.set(...await inboxEntry(frierenRun(T1)))
+  expect((await held())[0]).toBe('member')
+  bucket.objects.set(...await inboxEntry(later(T2, 'Met by a run', [])))
+  expect(await held()).toEqual(['member', run.run, T2, 'Met by a run'])
+  bucket.objects.set(...await inboxEntry(later(T3, 'Related to a run', [{ relation: 'PART_OF', node: { uri: JW } }])))
+  expect(await held()).toEqual(['member', run.run, T3, 'Related to a run'])
+  bucket.objects.set(...await inboxEntry(later(T4, 'A later member', [{ relation: 'SAME_AS', node: { uri: JW } }])))
+  expect(await held()).toEqual(['member', 'ag:(mal:99)', T4, 'A later member'])
+})
+
 // Mutation: read anizip's images along with its titles.
 test('of anizip the merge reads its titles alone, since its images are TheTVDB\'s', async () => {
   const bucket = fakeBucket()

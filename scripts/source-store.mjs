@@ -178,7 +178,9 @@ export const anidbShows = xml => new Map([...xml.matchAll(/<anime aid="(\d+)">[\
  * shows' `fetchedAt` and `writer` only. `kitsu` is Kitsu's answers as `{ id, fetchedAt, body }`, and `pulls` each
  * other source's, by source, as `{ answers, state, rows }`: `state` joins its manifest entry, and `rows`, when given,
  * is its file's rows as `rowsOf` read them, so keeping it reads no file. `inbox` is what `readInbox` read, whose
- * every answer replaces only an older one of its key, with its own writer, region, class, partial and role. New
+ * every answer replaces only an older one of its key, with its own writer, region, class, partial and role, but for
+ * an answer that was a member of its run: only a later member takes its role and run, since a run that merely met the
+ * id says nothing of the show it belongs to, and that run is the one join a source with no catalogue id has. New
  * files go up, then the index, then manifest.json, then whatever only the previous manifest named is removed.
  * Writes nothing when the manifest would not change. Answers what it did, for the log.
  */
@@ -224,8 +226,9 @@ export const keepAnswers = async (client, stored, { anidb, kitsu = [], pulls = {
       const key = keyOf(answer)
       const held = index.get(key)
       if (held && held.fetchedAt >= line.fetchedAt) continue
-      index.set(key, dated(held, answer))
-      rows.set(key, { source, id: line.id, region: line.region, class: line.class, form: 'answer', sha256: line.sha256, run: body.run, operation: body.operation, selection: body.selection, body: body.body })
+      const member = held?.role === 'member' && line.role !== 'member' && rows.get(key)
+      index.set(key, dated(held, member ? { ...answer, role: 'member' } : answer))
+      rows.set(key, { source, id: line.id, region: line.region, class: line.class, form: 'answer', sha256: line.sha256, run: (member || body).run, operation: body.operation, selection: body.selection, body: body.body })
     }
     const text = jsonl(ordered([...rows.values()]))
     answers[source] = { name: `answers/${source}-${short(text)}.jsonl.zst`, sha256: sha256(text), rows: rows.size }
