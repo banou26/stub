@@ -2160,6 +2160,50 @@ test('an episode counted, then another release of it picked as the media moves t
   expect(sent()).toEqual([[SERIES, 2]])
 })
 
+const sentSaves = () => (saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])
+
+// a guest's page takes the host's address, which can name the same media by more of its sources than its own did
+test('a party guest\'s torrent episode counts once as the page follows the host\'s spelling of the media', async () => {
+  for (const at of [100, 900]) {
+    bridge.links = []
+    bridge.greets = true
+    party = { status: 'active', role: 'guest' } as typeof party
+    tracking = stubOnly
+    params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+    const { rerender } = await atTheEnd({}, 'nyaa:a')
+    await report({ paused: false, time: at })
+    params = { ...params, mediaUri: SERIES }
+    rerender()
+    await settle()
+    expect(bridge.links, 'the control: the same player plays on').toHaveLength(1)
+    await report({ paused: false, time: 950 })
+    expect(sentSaves(), `followed at ${at}`).toEqual([[SERIES, 2]])
+    unmount(hosts.pop()!)
+    saved.length = 0
+  }
+})
+
+test('another release from the torrent\'s package within the episode counts the episode once', async () => {
+  for (const at of [100, 900]) {
+    bridge.links = []
+    bridge.greets = true
+    tracking = stubOnly
+    const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+    const { episodes } = media as { episodes: { handles: object[] }[] }
+    episodes[1]!.handles.push(release('a2'))
+    await report({ paused: false, time: at })
+    params = { ...params, sourceUri: 'nyaa:a2' }
+    rerender()
+    await settle()
+    expect(bridge.links, 'the control: the release in a player of its own').toHaveLength(2)
+    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: in the same package').toBe('magnet:?xt=urn:btih:a2')
+    await report({ paused: false, time: 950 })
+    expect(sentSaves(), `moved at ${at}`).toEqual([[SERIES, 2]])
+    unmount(hosts.pop()!)
+    saved.length = 0
+  }
+})
+
 const listedAt = (progress: number) => ({
   summary: { status: 'WATCHING', progress },
   disagreements: [],
