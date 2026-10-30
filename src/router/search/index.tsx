@@ -197,7 +197,8 @@ const style = css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.4rem 0.6rem 0.4rem 1.1rem;
+    padding-block: 0.4rem;
+    padding-inline: 1.1rem 0.6rem;
     border-radius: 2rem;
     border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.06);

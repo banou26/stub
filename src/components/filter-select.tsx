@@ -38,7 +38,7 @@ const style = css`
     font-size: 1.5rem;
     font-family: inherit;
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     transition: border-color 0.15s, background 0.15s;
   }
 
@@ -118,7 +118,7 @@ const menuStyle = css`
     color: rgba(255, 255, 255, 0.8);
     font-size: 1.5rem;
     font-family: inherit;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
   }
 

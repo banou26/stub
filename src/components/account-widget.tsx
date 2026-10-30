@@ -21,7 +21,8 @@ const style = css`
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.4rem 0.6rem 0.4rem 1.2rem;
+  padding-block: 0.4rem;
+  padding-inline: 1.2rem 0.6rem;
   height: 4rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 2rem;
@@ -93,7 +94,7 @@ export const menuStyle = css`
     color: rgba(255, 255, 255, 0.7);
     font-family: inherit;
     font-size: 1.4rem;
-    text-align: left;
+    text-align: start;
     white-space: nowrap;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;

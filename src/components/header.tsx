@@ -48,8 +48,7 @@ const style = css`
   /* the FKN broker's docked bar reserves the page's top strip with a root margin, which cannot
      move a fixed element; the variable is its half of the contract and reads 0 everywhere else */
   top: var(--fkn-inset-top, 0px);
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   /* the bar itself; what its controls OPEN is layer.headerPopup, since a portalled menu inherits
      nothing from this one */
   z-index: ${layer.header};
@@ -225,7 +224,7 @@ const style = css`
 
     & > svg {
       position: absolute;
-      left: 1.4rem;
+      inset-inline-start: 1.4rem;
       top: 50%;
       transform: translateY(-50%);
       /* it labels the field, it is not a target of its own: a click on it belongs to the input under it */
@@ -235,8 +234,9 @@ const style = css`
 
     input {
       width: 100%;
-      /* left clears the glyph: 1.4rem to it, its own 2rem, then the 0.8rem the flex gap used to give */
-      padding: 0.8rem 1.4rem 0.8rem 4.2rem;
+      /* the start clears the glyph: 1.4rem to it, its own 2rem, then the 0.8rem the flex gap used to give */
+      padding-block: 0.8rem;
+      padding-inline: 4.2rem 1.4rem;
       background: transparent;
       border: none;
       outline: none;
@@ -287,11 +287,12 @@ const style = css`
 
     .search {
       & > svg {
-        left: 1rem;
+        inset-inline-start: 1rem;
       }
 
       input {
-        padding: 0.6rem 1rem 0.6rem 3.8rem;
+        padding-block: 0.6rem;
+        padding-inline: 3.8rem 1rem;
         font-size: 1.4rem;
       }
     }
@@ -351,8 +352,7 @@ const style = css`
       &.open {
         display: flex;
         position: absolute;
-        left: 1rem;
-        right: 1rem;
+        inset-inline: 1rem;
         top: 50%;
         transform: translateY(-50%);
         width: auto;
@@ -360,9 +360,9 @@ const style = css`
       }
     }
 
-    /* the close button beside it is its right inset */
+    /* the close button beside it is its end inset */
     .search input {
-      padding-right: 0;
+      padding-inline-end: 0;
     }
 
     .search-close {
