@@ -1850,11 +1850,12 @@ test('a torrent\'s player is asked once, at PREPARE_AT of the episode, to prepar
   expect(pluginPlayers.prepared).toHaveLength(1)
 })
 
-test('Next opens the next file of the torrent playing, which is what is prepared, over the episode\'s first release', async () => {
+test('Next and the episode list open the next file of the torrent playing, which is what is prepared, over the episode\'s first release', async () => {
   bridge.duration = 1000
   const pack = handle('nyaa:a-3', 'nyaa', 'magnet:?xt=urn:btih:a')
   const { host } = await atTheEnd({ handles: [crunchyroll(3), release('b'), pack] }, 'nyaa:a')
   expect(episodeLinks(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
+  expect(listRows(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
   await report({ paused: false, time: 900 })
   expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' }])
 })
