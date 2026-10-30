@@ -42,6 +42,18 @@ const offerable = (uri: string) => {
   return Boolean(key) && !knownUris().has(key) && !declined.has(key) && !invites.has(uri) && !held.has(uri)
 }
 
+// FKN confirms on its own when the link names another version than the one it holds, so a no there is
+// kept like a no to the offer; an install FKN refuses is offered like any other link
+const addListed = (uri: string) => installPlugin(uri).then(installed => {
+  if (installed) return
+  declined.add(comparablePluginUri(uri))
+  notify()
+}, error => {
+  console.warn(`Source '${uri}' could not be added:`, error)
+  invites.set(uri, { uri, state: 'offered' })
+  notify()
+})
+
 // FKN keeps one install record for every site of an app, so a link can name a package another of its
 // sites installed: that one is added without asking, and FKN decides whether to say so
 export const offerInvites = async (uris: string[]): Promise<void> => {
@@ -54,7 +66,7 @@ export const offerInvites = async (uris: string[]): Promise<void> => {
     held.delete(uri)
     if (!offerable(uri)) continue
     if (installed.has(comparablePluginUri(uri))) {
-      installPlugin(uri).catch(error => console.warn(`Source '${uri}' could not be added:`, error))
+      void addListed(uri)
       continue
     }
     invites.set(uri, { uri, state: 'offered' })
