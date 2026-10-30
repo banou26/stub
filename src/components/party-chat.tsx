@@ -15,7 +15,7 @@ import { layer } from '../layers'
 
 const style = css`
   position: fixed;
-  right: 2rem;
+  inset-inline-end: 2rem;
   bottom: 2rem;
   z-index: ${layer.headerPopup};
   display: flex;
@@ -43,7 +43,7 @@ const style = css`
   .unread {
     position: absolute;
     top: -0.3rem;
-    right: -0.3rem;
+    inset-inline-end: -0.3rem;
     min-width: 1.8rem;
     height: 1.8rem;
     padding: 0 0.5rem;
