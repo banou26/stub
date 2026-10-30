@@ -211,7 +211,7 @@ const style = css`
     justify-content: center;
     width: 2.6rem;
     height: 2.6rem;
-    margin-left: auto;
+    margin-inline-start: auto;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     background: transparent;

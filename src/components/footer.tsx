@@ -26,7 +26,7 @@ const style = css`
   }
 
   .version {
-    margin-left: auto;
+    margin-inline-start: auto;
     font-size: 1.2rem;
     font-variant-numeric: tabular-nums;
     color: rgba(255, 255, 255, 0.35);
