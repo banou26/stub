@@ -7,6 +7,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { startLanguage } from '../../../src/i18n'
+import { setSite, site } from '../../../src/site'
 
 // urql is faked as one stream: `publish` answers whatever subscription is running, and `started`
 // records each one the page starts, by its input, in order.
@@ -251,6 +252,18 @@ describe('the search page', () => {
     await publish({ _id: 'lanterns', genres: ['Science-Fiction', 'Sport'], tags: [] })
     const offered = stream.pickers['Genres & Tags']!.options.map(option => option.value)
     expect(offered.filter(genre => ['Sci-Fi', 'Science-Fiction', 'Sport', 'Sports'].includes(genre))).toEqual(['Sci-Fi', 'Sports'])
+  })
+
+  test('on movies.fkn.app a link to Sport offers Sport once', () => {
+    const before = site
+    setSite('movie')
+    try {
+      open('/search?genre=Sport')
+      const offered = stream.pickers['Genres & Tags']!.options.map(option => option.value)
+      expect(offered.filter(genre => genre === 'Sport')).toEqual(['Sport'])
+    } finally {
+      setSite(before)
+    }
   })
 
   test('a genre the url names stays a genre when another label is picked', () => {
