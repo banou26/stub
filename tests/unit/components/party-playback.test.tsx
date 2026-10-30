@@ -259,6 +259,16 @@ describe('a follower', () => {
   })
   // play() on an ended player starts it over from 0, so a host a moment behind would flash it back
   // to the episode's start
+  test('an ended player is not restarted in place, and still follows a host that seeks away', async () => {
+    const { fake, player } = await follow({ all: ['play'] })
+    player.end()
+    player.report(paused(1_420))
+    say(fake, 'host', { t: 'playback', s: { ...playing(1_419.9), at: Date.now() } })
+    expect(player.link.apply).not.toHaveBeenCalled()
+    say(fake, 'host', { t: 'playback', s: { ...playing(600), at: Date.now() } })
+    expect(player.link.apply).toHaveBeenCalledTimes(1)
+  })
+
   // HOR-1106: every address carries its viewer's own sources, and the host's are not this follower's
   test('whose sources differ from the host\'s follows the host\'s playback', async () => {
     Object.assign(globalThis, { location: { pathname: PATH, search: '?plugins=npm:b' } })
@@ -273,16 +283,6 @@ describe('a follower', () => {
     const { fake, player } = await follow({ all: ['play'] })
     player.report(paused(10.1))
     expect(asks(fake)).toMatchObject([{ t: 'ask', c: 'play', path: PATH }])
-  })
-
-  test('an ended player is not restarted in place, and still follows a host that seeks away', async () => {
-    const { fake, player } = await follow({ all: ['play'] })
-    player.end()
-    player.report(paused(1_420))
-    say(fake, 'host', { t: 'playback', s: { ...playing(1_419.9), at: Date.now() } })
-    expect(player.link.apply).not.toHaveBeenCalled()
-    say(fake, 'host', { t: 'playback', s: { ...playing(600), at: Date.now() } })
-    expect(player.link.apply).toHaveBeenCalledTimes(1)
   })
 })
 
