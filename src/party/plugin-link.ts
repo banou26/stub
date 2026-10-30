@@ -72,6 +72,8 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
   let duration: number | undefined
   let chapters: MediaChapter[] | undefined
   let endingOffered = true
+  // the last ask, since the player's last word can be older than an ask still on its way
+  let asked = true
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
   const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => {
@@ -110,7 +112,11 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
       },
     } : {},
     ...offerEnding ? {
-      offerEnding: offered => { if (!disposed && offered !== endingOffered) offerEnding(offered).catch(() => {}) },
+      offerEnding: offered => {
+        if (disposed || (offered === endingOffered && offered === asked)) return
+        asked = offered
+        offerEnding(offered).catch(() => {})
+      },
       endingOffered: () => endingOffered,
     } : {},
     ...prepare ? { prepare: release => { if (!disposed) prepare(release).catch(() => {}) } } : {},

@@ -277,6 +277,19 @@ describe('a package\'s ending offer', () => {
     expect(offerEnding).toHaveBeenCalledTimes(2)
   })
 
+  test('a wish the last report matches still goes out over an ask on its way', () => {
+    const offerEnding = vi.fn(async () => {})
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink({ ...source, offerEnding })!
+    link.offerEnding!(false)
+    link.offerEnding!(true)
+    expect(offerEnding.mock.calls).toEqual([[false], [true]])
+
+    report({ ...STATE, endingOffered: false } as typeof STATE)
+    link.offerEnding!(false)
+    expect(offerEnding.mock.calls, 'the stale word, with the true on its way').toEqual([[false], [true], [false]])
+  })
+
   test('is absent for a package without it, whatever its reports say, and does nothing once disposed or refused', async () => {
     const { source, report } = fakeSource()
     const without = pluginPlaybackLink(source)!
