@@ -48,6 +48,6 @@ test('the claim is a managed app id, and not the retired signed one', () => {
 // the build: `files` has to ship it, and git never holds one, since each is for one version
 test('fkn.json is published with the package, and never committed', () => {
   // what ships, besides negations that leave generated data out of build (tests/unit/npm-entry.test.ts)
-  expect(pkg.files.filter(entry => !entry.startsWith('!'))).toEqual(['build', 'fkn.json', 'store'])
+  expect(pkg.files.filter(entry => !entry.startsWith('!'))).toEqual(['build', 'build/assets/lib-*', 'fkn.json', 'store'])
   expect(gitignore.split('\n')).toContain('/fkn.json')
 })
