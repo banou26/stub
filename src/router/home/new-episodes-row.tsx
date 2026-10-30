@@ -161,7 +161,7 @@ const NewEpisodes = () => {
         episodes.length
           ? (
             <section css={rowStyle}>
-              <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.NEW)}/>
+              <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.CONTINUE)}/>
               <div className="cards">
                 {episodes.slice(0, MOST).map(episode => <NewEpisodeCard key={episode.work._id} episode={episode}/>)}
               </div>

@@ -127,7 +127,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     await expect(season(page)).toBeVisible({ timeout: 60_000 })
     top[width] = (await box(season(page))).y
   }
-  await page.goto(`${origin}/new`)
+  await page.goto(`${origin}/continue`)
   await expect(page.getByText('No new episodes', { exact: true }), 'nothing watched yet').toBeVisible({ timeout: 60_000 })
   expect(await sawNone(page), 'the control: the record sees the line').toBe(true)
 
@@ -140,7 +140,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
   expect(watched, 'the control: enough works tracked by episode').toBe(WATCHED)
 
   // the device's own list names no status or schedule, so every card waits on stub's merged data
-  await page.goto(`${origin}/new`)
+  await page.goto(`${origin}/continue`)
   await expect(page.locator('a.card').first()).toBeVisible({ timeout: 30_000 })
   expect(await sawNone(page), 'no empty line before the cards').toBe(false)
 
@@ -163,7 +163,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     }
 
     await heading(page).click()
-    await expect(page).toHaveURL(`${origin}/new`)
+    await expect(page).toHaveURL(`${origin}/continue`)
     const listed = page.locator('a.card')
     await expect(listed).toHaveCount(count, { timeout: 30_000 })
     for (const card of await listed.all()) {

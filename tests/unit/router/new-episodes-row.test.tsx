@@ -31,7 +31,7 @@ vi.mock('urql', () => ({
 }))
 
 const { default: NewEpisodes } = await import('../../../src/router/home/new-episodes-row')
-const { default: NewEpisodesPage } = await import('../../../src/router/new')
+const { default: NewEpisodesPage } = await import('../../../src/router/continue')
 const { MOST } = await import('../../../src/router/home/new-episodes')
 
 const DAY = 86_400_000
@@ -83,7 +83,7 @@ test("asks stub's merged data only about the show airing with no schedule, and d
 
   expect(urql.asked).toEqual(['mal:21'])
   const heading = host.querySelector('section > .title')
-  expect([heading?.textContent, heading?.getAttribute('href')], 'its heading opens its own page, as the season row\'s opens its search').toEqual(['New episodes', '/new'])
+  expect([heading?.textContent, heading?.getAttribute('href')], 'its heading opens its own page, as the season row\'s opens its search').toEqual(['New episodes', '/continue'])
   expect(cards(host)).toEqual([
     ['/media/mal:21', 'One Piece', 'Episode 11002 new'],
     ['/media/mal:48', '.hack//Sign', 'Episode 216 new'],
@@ -113,7 +113,7 @@ test('the page says there is none once the lists answer with nothing new, and no
 })
 
 test('on the device\'s own list, which names no status or schedule, the page waits until stub\'s merged data has settled', () => {
-  const location = memoryLocation({ path: '/new' })
+  const location = memoryLocation({ path: '/continue' })
   const tree = () => withIntl(<Router hook={location.hook}><NewEpisodesPage/></Router>)
   const again = () => act(() => { render(tree(), host) })
   const media = (settled: boolean, out: number[]) => ({
