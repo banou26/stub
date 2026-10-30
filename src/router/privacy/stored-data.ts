@@ -133,7 +133,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Recommended for you',
     what: 'The shows AniList recommends beside the ones on your lists, and the AniList ids of the shows it was asked about.',
     where: LOCAL,
-    lasts: 'Until it is asked again, a day later or once those shows change',
+    lasts: "Until home asks again, a day later or once those shows change, or you clear this site's data in your browser. Home removes it when no show on your lists is left to ask about, or when AniList is turned off",
     keys: { store: 'local', names: [RECOMMENDED_KEY] },
   },
   {

@@ -12,7 +12,7 @@ import { franchiseDate } from '../../sources/anilist/franchise'
 import { readDisabledSources } from '../../sources/disabled-sources'
 import { toAggregatedUri } from '../../utils/uri'
 import { browserFetch } from '../../worker/browser-fetch'
-import { askRecommended, keep, readKept, seedsOf, shownPicks } from './recommended'
+import { askRecommended, forgetKept, keep, readKept, seedsOf, shownPicks } from './recommended'
 
 const rowStyle = css`
   padding: 0 10rem;
@@ -49,8 +49,8 @@ const cardOf = (pick: Pick) => {
 }
 
 /**
- * The row's cards, from the viewer's lists once every one is read: none, and nothing asked, while they name no seed or
- * AniList is turned off, the one ask of it that `askable` does not see.
+ * The row's cards, from the viewer's lists once every one is read: none, nothing asked and nothing kept while they name
+ * no seed or AniList is turned off, the one ask of it that `askable` does not see.
  */
 const useRecommended = () => {
   const [{ data }] = useSubscription({ query: VIEWER_LISTS })
@@ -59,7 +59,8 @@ const useRecommended = () => {
   const seeds = useMemo(() => works && !readDisabledSources().includes('anilist') ? seedsOf(works) : [], [works])
   const [picks, setPicks] = useState<Summed>()
   useEffect(() => {
-    if (!works || !seeds.length) return
+    if (!works) return
+    if (!seeds.length) return forgetKept()
     const kept = readKept(seeds, Date.now())
     if (kept) return setPicks(kept)
     let live = true
@@ -68,7 +69,7 @@ const useRecommended = () => {
       if (live) setPicks(asked)
     }, () => {})
     return () => { live = false }
-  }, [seeds.join()])
+  }, [works && seeds.join()])
   return useMemo(() => seeds.length && picks && works ? shownPicks(picks, works).map(({ pick }) => cardOf(pick)) : [], [seeds, picks, works])
 }
 

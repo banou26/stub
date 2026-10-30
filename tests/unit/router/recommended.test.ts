@@ -6,7 +6,7 @@ import { fakeAnilist, RECOMMENDED } from './recommended-fakes'
 // HOR-1087 (home's Recommended for you, from the viewer's list): which shows are asked about, AniList's picks summed
 // and kept a day, and the picks shown.
 
-const { KEPT_MS, KEPT_PICKS, SEEDS, SHOWN, askRecommended, keep, readKept, seedsOf, shownPicks, summedPicks } = await import('../../../src/router/home/recommended')
+const { KEPT_MS, KEPT_PICKS, RECOMMENDED_KEY, SEEDS, SHOWN, askRecommended, forgetKept, keep, readKept, seedsOf, shownPicks, summedPicks } = await import('../../../src/router/home/recommended')
 
 const DAY = 86_400_000
 const at = (days: number) => new Date(Date.UTC(2026, 9, 31) - days * DAY).toISOString()
@@ -174,9 +174,19 @@ describe('the answer kept', () => {
     expect(readKept([1], NOW + 1), 'fewer shows').toBeUndefined()
   })
 
+  test('goes when asked', () => {
+    const storage = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    keep([1], picks, NOW)
+    forgetKept()
+    expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
+  })
+
   test('is none where storage refuses', () => {
-    vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied') }, setItem: () => { throw new Error('denied') } })
+    const denied = () => { throw new Error('denied') }
+    vi.stubGlobal('localStorage', { getItem: denied, setItem: denied, removeItem: denied })
     expect(() => keep([1], picks, NOW)).not.toThrow()
     expect(readKept([1], NOW)).toBeUndefined()
+    expect(() => forgetKept()).not.toThrow()
   })
 })

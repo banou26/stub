@@ -95,6 +95,23 @@ test('asks nothing and draws nothing while AniList is turned off in Settings', a
   expect(anilist.asked, 'nothing asked').toHaveLength(1)
 })
 
+test('removes the kept answer once every list is read and none names a seed, and never before', async () => {
+  await show([FRIEREN])
+  expect(storage.store.has(RECOMMENDED_KEY), 'the control: it was kept').toBe(true)
+  await show([], 'LOADING')
+  expect(storage.store.has(RECOMMENDED_KEY), 'while a list is read').toBe(true)
+  await show([row('anilist:1', 'PLANNING', 'Planned')])
+  expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
+})
+
+test('removes the kept answer once AniList is turned off', async () => {
+  await show([FRIEREN])
+  expect(storage.store.has(RECOMMENDED_KEY), 'the control: it was kept').toBe(true)
+  storage.setItem(DISABLED_SOURCES_KEY, JSON.stringify(['anilist']))
+  await show([FRIEREN])
+  expect(storage.store.has(RECOMMENDED_KEY)).toBe(false)
+})
+
 test('keeps nothing of a 200 holding no seed, so the next load asks again', async () => {
   fake.fetch = (async () => Response.json({ data: { Page: null }, errors: [{ message: 'Internal Server Error', status: 500 }] })) as typeof fetch
   expect((await show([FRIEREN])).innerHTML).toBe('')

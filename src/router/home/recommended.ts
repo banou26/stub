@@ -153,5 +153,11 @@ export const keep = (seeds: readonly number[], picks: Summed, now: number) => {
   } catch {}
 }
 
+export const forgetKept = () => {
+  try {
+    globalThis.localStorage.removeItem(RECOMMENDED_KEY)
+  } catch {}
+}
+
 /** The picks the row shows, `unlisted` for the lists as they stand, which may have changed since they were kept. */
 export const shownPicks = (picks: Summed, works: readonly ListedWork[]) => unlisted(picks, works).slice(0, SHOWN)
