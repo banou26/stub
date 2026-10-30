@@ -13,6 +13,7 @@ import {
 import { getRoutePath, Route } from '../path'
 import MediaTitle from '../../components/media-title'
 import { MediaPreview } from '../../components/media-preview'
+import KindTag from '../../components/kind-tag'
 import RowTitle from './row-title'
 import CardRow, { PHONE_ROW_CARD, ROW_CARD } from './card-row'
 import Placeholder from '../../components/placeholder'
@@ -112,7 +113,9 @@ const CellComponent = (
           refs.setReference(e.target)
         }}
         {...getReferenceProps()}
-      />
+      >
+        <KindTag media={media}/>
+      </MediaTitle>
     </>
   )
 }

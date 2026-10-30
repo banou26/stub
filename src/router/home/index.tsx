@@ -25,6 +25,8 @@ const GET_RELEASING_MEDIA_PAGE = gql(`
       nodes {
         ...MediaFragment
         score
+        type
+        categories
         episodeCount
         titles {
           language

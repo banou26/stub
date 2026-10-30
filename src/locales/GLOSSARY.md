@@ -144,6 +144,8 @@ as fans write them where the language has none (Ecchi, Mahou Shoujo, Mecha). The
 message, as French says `Se déconnecter` where the extension's `Dissocier` would not fit an account. On a 390 px phone
 the search page's title field is half the width, and a field clips its placeholder silently, so `Any title` is a word or
 two (`Titel`, `タイトル`). The genre picker's filter box holds 11 Japanese characters at most (`ジャンル・タグ絞り込み`).
+A card's tag names one title, Movie or Series, so its Series is singular where the tabs' is plural (`Série`, `Сериал`,
+`Dizi`), and covers anime too: `シリーズ`, `시리즈` and `剧集` rather than the tabs' TV words.
 
 | | search | Series (TV shows) | filter, clear filters | Any (nothing picked) | airing status |
 | --- | --- | --- | --- | --- | --- |

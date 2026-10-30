@@ -1,5 +1,5 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
-import { mount, unmount } from '../components/dom'
+import { mount, unmount, withIntl } from '../components/dom'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
@@ -46,7 +46,7 @@ const show = (_id: string, title: string, { covers = [`https://images.justwatch.
 
 const row = async (nodes: object[]) => {
   const { hook } = memoryLocation({ path: '/' })
-  const tree = (next: object[]) => <Router hook={hook}><MediaSection title="Popular shows" mediaNodes={next as Nodes}/></Router>
+  const tree = (next: object[]) => withIntl(<Router hook={hook}><MediaSection title="Popular shows" mediaNodes={next as Nodes}/></Router>)
   const host = mount(tree(nodes))
   hosts.push(host)
   const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))
@@ -56,6 +56,8 @@ const row = async (nodes: object[]) => {
     held: () => host.querySelectorAll('.list-container > .pending > [aria-hidden]').length,
     posters: () => [...host.querySelectorAll<HTMLElement>('.category-item')]
       .map(card => [card.textContent, card.getAttribute('style')?.match(/url\(([^)]*)\)/)?.[1]]),
+    tags: () => [...host.querySelectorAll<HTMLElement>('.category-item')]
+      .map(card => [card.querySelector('.title')?.textContent, card.querySelector('.kind-tag')?.textContent]),
     update: async (next: object[]) => {
       act(() => { render(tree(next), host) })
       await settle()
@@ -115,4 +117,21 @@ test('a row reordered draws each card\'s own poster, and none on a card that has
     ['Slow Horses', 'https://images.justwatch.com/poster/cl:jw:131317.jpg'],
     ['Lioness', undefined],
   ])
+})
+
+// HOR-1083. Crunchyroll files every work it lists under series, a film too, so a card answered by it alone waits for a
+// format rather than reading Series and then Movie.
+test('a row card tags a movie, a series and an anime series, and waits for a format no source has named', async () => {
+  const typed = (_id: string, title: string, type: string | null, categories: string[]) => ({ ...show(_id, title), type, categories })
+  const cards = (film: object) => [
+    typed('cl:jw:1', 'Dune', 'MOVIE', ['MOVIE']),
+    typed('cl:jw:224087', 'Ted Lasso', null, ['SERIES']),
+    typed('cl:anilist:154587', 'Frieren', 'TV', ['ANIME', 'SERIES']),
+    { ...show('cl:anilist:21519', 'Your Name'), ...film },
+  ]
+  const { tags, update } = await row(cards({ type: null, categories: ['ANIME', 'SERIES'] }))
+  expect(tags()).toEqual([['Dune', 'Movie'], ['Ted Lasso', 'Series'], ['Frieren', 'Series'], ['Your Name', undefined]])
+
+  await update(cards({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'] }))
+  expect(tags().at(-1)).toEqual(['Your Name', 'Movie'])
 })

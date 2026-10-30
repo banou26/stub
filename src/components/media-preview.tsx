@@ -12,6 +12,7 @@ import YoutubeMinimalPlayer from './yt-minimal-player'
 import { useCoverUrl } from '../utils/use-cover-url'
 import TextEllipsis from '../components/text-ellipsis'
 import ShareButton from './share-button'
+import KindTag from './kind-tag'
 
 const style = css`
 position: relative;
@@ -37,13 +38,19 @@ a {
     font-weight: 600;
   }
 
+  /* as tall as the tag, so a tag a later source names moves nothing */
   .top {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    min-height: 2rem;
     margin-bottom: 1rem;
     font-size: 1.5rem;
     font-weight: 600;
+  }
+
+  .top > .kind-tag {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .description {
@@ -92,7 +99,7 @@ a {
 }
 `
 
-export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElement> & { ref: Ref<HTMLDivElement>, media: Pick<Media, '_id' | 'uri' | 'titles' | 'shortDescriptions' | 'trailers' | 'covers' | 'episodeCount'> }) => {
+export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElement> & { ref: Ref<HTMLDivElement>, media: Pick<Media, '_id' | 'uri' | 'titles' | 'shortDescriptions' | 'trailers' | 'covers' | 'episodeCount' | 'type' | 'categories'> }) => {
   const intl = useIntl()
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
   const shortDescription = useMemo(() => media?.shortDescriptions?.at(0)?.shortDescription, [media])
@@ -149,6 +156,7 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
                   : intl.formatMessage({ id: '? Episodes', defaultMessage: '? Episodes' })
               }
             </span>
+            <KindTag media={media}/>
           </div>
           <TextEllipsis className="description">
             {shortDescription}

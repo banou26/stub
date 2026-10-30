@@ -15,6 +15,7 @@ const { MediaCategory } = await import('../../../src/generated/graphql')
 const { default: MediaCard } = await import('../../../src/components/media-card')
 const { default: MediaRow } = await import('../../../src/components/media-row')
 const { MediaPreview } = await import('../../../src/components/media-preview')
+const { kindOf } = await import('../../../src/components/kind-tag')
 const { startLanguage } = await import('../../../src/i18n')
 
 const NOW = Date.parse('2026-10-26T12:00:00Z')
@@ -28,6 +29,14 @@ const AIRING = {
   nextAiringEpisode: { episodeNumber: 1180, airingAt: new Date(NOW + 51 * HOUR).toUTCString() },
 }
 const FINISHED = { ...AIRING, status: 'FINISHED', nextAiringEpisode: null, episodeCount: 1, popularity: 1 }
+
+// HOR-1083's four: a film, a live-action show TVmaze lists with no format, an anime show, and the shelf an anime
+// catalogue files a work under when it could not type it
+const MOVIE = { type: 'MOVIE', categories: ['MOVIE'] }
+const SERIES = { type: null, categories: ['SERIES'] }
+const ANIME_SERIES = { type: 'ONA', categories: ['ANIME', 'SERIES'] }
+const UNKNOWN = { type: null, categories: ['ANIME', 'SERIES'] }
+const KINDS = [MOVIE, SERIES, ANIME_SERIES, UNKNOWN]
 
 beforeEach(() => { vi.useFakeTimers({ now: NOW, toFake: ['Date'] }) })
 const hosts: HTMLElement[] = []
@@ -70,6 +79,21 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
 })
 
+test('a media is a movie or a series by its format, and neither while no source names one', () => {
+  expect(KINDS.map(kindOf)).toEqual(['MOVIE', 'SERIES', 'SERIES', undefined])
+  expect(['TV', 'TV_SHORT', 'OVA', 'SPECIAL'].map(type => kindOf({ type, categories: ['ANIME', 'SERIES'] })))
+    .toEqual(['SERIES', 'SERIES', 'SERIES', 'SERIES'])
+  // a live-action film a catalogue files under movies with no format, and a media nothing names
+  expect([kindOf({ type: null, categories: ['MOVIE'] }), kindOf({ type: null, categories: [] })]).toEqual(['MOVIE', undefined])
+})
+
+const tagOf = (media: object) =>
+  draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [], ...media } as never}/>).text('.top > .kind-tag')
+
+test('a row\'s preview tags a movie, a series and an anime series, and leaves a format no source named untagged', () => {
+  expect(KINDS.map(tagOf)).toEqual([['Movie'], ['Series'], ['Series'], []])
+})
+
 // HOR-1065: the card's text is one link to the preview, so Share sits beside it rather than in it
 test('a row\'s preview shares a short link to the work\'s title page', async () => {
   const { host } = draw(<MediaPreview ref={{ current: null }} media={{ ...AIRING, trailers: [] } as never}/>)
@@ -102,5 +126,10 @@ describe('in German', () => {
 
   test('the home page\'s category tabs read German', () => {
     expect(draw(<CategoryTabs value={null} onChange={() => {}}/>).text('.tab')).toEqual(['Alle', 'Anime', 'Serien', 'Filme'])
+  })
+
+  // one title, so not the tabs' plural Serien
+  test('a preview\'s tag reads German', () => {
+    expect([MOVIE, ANIME_SERIES].map(tagOf)).toEqual([['Film'], ['Serie']])
   })
 })

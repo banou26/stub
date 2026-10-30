@@ -79,6 +79,14 @@ const style = css`
   &.full-title .information .title {
     max-height: none;
   }
+
+  /* over the cover, so a tag a later source names moves nothing */
+  & > .kind-tag {
+    position: absolute;
+    top: 0.8rem;
+    left: 0.8rem;
+    pointer-events: none;
+  }
 }
 
 /* On mobile the search grid wants fluid cards (it sets no inline size); the home
@@ -93,7 +101,7 @@ const style = css`
 }
 `
 
-const MediaTitle = ({ media, to, ellipsis = true, standIn = false, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean, standIn?: boolean }) => {
+const MediaTitle = ({ media, to, ellipsis = true, standIn = false, children, ...rest }: React.ButtonHTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement>, media: Pick<Media, 'titles' | 'covers'> & CoverOwner, to: Path, ellipsis?: boolean, standIn?: boolean }) => {
   const title = media.titles?.at(0)?.title
   const coverUrl = useCoverUrl(media.covers, media, { standIn, box: CARD_BOX })
 
@@ -116,6 +124,7 @@ const MediaTitle = ({ media, to, ellipsis = true, standIn = false, ...rest }: Re
             </Link>
           </div>
       </div>
+      {children}
     </div>
   )
 }
