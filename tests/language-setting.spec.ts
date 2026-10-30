@@ -121,6 +121,8 @@ test('a browser asking for French gets stub in French with nothing picked, Autom
   }
 })
 
+const WATCH = '/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344'
+
 /** Each page's sideways scroll at `width`: home, a title, an episode's watch page and the three Settings categories. */
 const pagesOverflow = async (page: Page, width: number) => {
   await page.setViewportSize({ width, height: 844 })
@@ -133,7 +135,7 @@ const pagesOverflow = async (page: Page, width: number) => {
   await at('/', '.theater .actions .play')
   await at('/title/ag:(anilist:1,mal:1)', '[data-themes] li')
   await at(`/title/${LATE}`, '.heading > .second')
-  await at('/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344', '.player-container.fix button')
+  await at(WATCH, '.player-container.fix button')
   for (const section of ['sources', 'playback', 'language']) await at(`/settings#${section}`, `[data-section="${section}"]`)
   return overflow
 }
@@ -149,8 +151,48 @@ for (const language of ['de', 'ja']) {
     // the control: the same reading sees a page wider than the window
     await page.evaluate(() => document.body.append(Object.assign(document.createElement('div'), { style: 'width: 2000px; height: 1px' })))
     expect(await overflowX(page)).toBeGreaterThan(0)
+
+    // a label too long for its line wraps between words, never inside one, and a button keeps clear of the window's edges
+    await page.goto(`${origin}${WATCH}`)
+    const label = page.locator('.episode-step.next .step-label')
+    await expect(label).toBeVisible({ timeout: 45_000 })
+    const { lines, words } = await label.evaluate(element => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      return {
+        lines: new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size,
+        words: element.textContent!.trim().split(/\s+/).length,
+      }
+    })
+    expect(lines, 'Next episode wraps at most once per space').toBeLessThanOrEqual(words)
+    const button = (await page.locator('.player-container.fix button').boundingBox())!
+    expect(button.x).toBeGreaterThanOrEqual(16)
+    expect(390 - button.x - button.width).toBeGreaterThanOrEqual(16)
   })
 }
+
+test('the tracking status select holds Add to list and every status, in every offered language', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}${WATCH}`)
+  const select = page.locator('select[name$="-status"]').first()
+  await expect(select).toBeVisible({ timeout: 45_000 })
+  const ids = ['Add to list', ...['Watching', 'Rewatching', 'Plan to watch', 'Completed', 'Paused', 'Dropped'].map(status => `${status}#list status`)]
+  const texts = Object.entries(catalogues()).flatMap(([language, catalogue]) => ids.map(id => ({ language, text: catalogue[id]! })))
+  // the control: a text longer than English's longest is found
+  texts.push({ language: 'en', text: 'Plan to watch, then more' })
+  // each text alone in a copy of the select sized to it, beside the select it would be shown in
+  const wider = await select.evaluate((select: HTMLSelectElement, texts) => texts.filter(({ language, text }) => {
+    const sized = select.cloneNode(false) as HTMLSelectElement
+    sized.style.width = 'auto'
+    sized.lang = language
+    sized.append(new Option(text))
+    select.after(sized)
+    const over = sized.getBoundingClientRect().width > select.getBoundingClientRect().width
+    sized.remove()
+    return over
+  }).map(({ language, text }) => `${language}: ${text}`), texts)
+  expect(wider).toEqual(['en: Plan to watch, then more'])
+})
 
 test('the font stack ends in the system\'s own sans-serif, and a native title carries its own lang', async ({ page }) => {
   await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, 'zh-Hans'])

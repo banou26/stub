@@ -281,6 +281,7 @@ const style = css`
     background: #000;
 
     button {
+      margin: 0 1.6rem;
       padding: 0.8rem 2rem;
       border: none;
       border-radius: 0.6rem;

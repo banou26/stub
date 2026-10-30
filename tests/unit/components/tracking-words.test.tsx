@@ -320,7 +320,7 @@ describe('in German', () => {
       'Eine Weile pausiert', 'Keine Antwort', 'Bewertung, 8 von 10', 'AniList 6 / 10 und Kitsu 7,5 / 10', 'Am Schauen', 'Geplant',
       'Von der Liste entfernen', 'AniList Pausiert und Kitsu Am Schauen', 'Folgen', 'Eine Folge mehr',
     ]))
-    expect(words(await cardOf(host, 'stub'))).toEqual(expect.arrayContaining(['Dieses Gerät', 'Zur Liste hinzufügen']))
+    expect(words(await cardOf(host, 'stub'))).toEqual(expect.arrayContaining(['Dieses Gerät', 'Hinzufügen']))
     const queue = { retry: () => {}, dismiss: () => {} } as unknown as SaveQueue
     const unreachable = failedReadAnswer('ag:(anilist:1)', anilist.tracker as never, new TypeError('Failed to fetch')).error
     const failed = { busy: false, failed: { fields: { status: 'WATCHING', progress: 5 }, error: unreachable } }

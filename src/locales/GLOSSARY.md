@@ -173,21 +173,25 @@ wrote them. `MyAnimeList shows {shown}` lists messages of their own (the status,
 a label (Russian `показывает: 1 серия, оценка 7 / 10`, French `affiche : aucune note`); German and Polish write every
 item in the accusative their verb asks. A film's `Watched` toggle sits beside the status and is on exactly when it reads
 Completed, so the two are different words (Russian `Смотрели` and `Просмотрено`, Polish `Widziane` and `Obejrzane`).
+The status select beside the score is as wide as English `Plan to watch` in Montserrat, 14rem, so `Add to list` and every
+status fit it: `Add to list` is the verb alone where the phrase runs longer (`Ajouter`, `Hinzufügen`, `Добавить`), and a
+status takes a shorter form (`Erneut sehen`, `Beendet`, `В планах`). German keeps `Abgeschlossen` for an airing
+status.
 
 | | tracker | list, entry | score | Watching | Rewatching | Plan to watch | Completed | Paused | Dropped | Quick tracking |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `es-419` | rastreador | lista, entrada | puntuación | Viendo | Volviendo a ver | Por ver | Completado | En pausa | Abandonado | Seguimiento rápido |
+| `es-419` | rastreador | lista, entrada | puntuación | Viendo | Reviendo | Por ver | Completado | En pausa | Abandonado | Seguimiento rápido |
 | `pt-BR` | rastreador | lista, entrada | nota | Assistindo | Revendo | Para assistir | Completo | Pausado | Abandonado | Acompanhamento rápido |
 | `fr` | tracker | liste, entrée | note | En cours | Revisionnage | À voir | Terminé | En pause | Abandonné | Suivi rapide |
-| `de` | Tracker | Liste, Eintrag | Bewertung | Am Schauen | Erneut am Schauen | Geplant | Abgeschlossen | Pausiert | Abgebrochen | Schnelles Tracking |
+| `de` | Tracker | Liste, Eintrag | Bewertung | Am Schauen | Erneut sehen | Geplant | Beendet | Pausiert | Abgebrochen | Schnelles Tracking |
 | `it` | tracker | lista, voce | voto | In corso | Rivedendo | Da vedere | Completato | In pausa | Abbandonato | Monitoraggio rapido |
-| `ru` | трекер | список, запись | оценка | Смотрю | Пересматриваю | Запланировано | Просмотрено | Отложено | Брошено | Быстрое отслеживание |
+| `ru` | трекер | список, запись | оценка | Смотрю | Пересмотр | В планах | Просмотрено | Отложено | Брошено | Быстрое отслеживание |
 | `ja` | トラッカー | リスト、エントリー | スコア | 視聴中 | 再視聴中 | 視聴予定 | 視聴完了 | 一時停止中 | 視聴中止 | クイック記録 |
 | `ko` | 트래커 | 목록, 항목 | 점수 | 보는 중 | 다시 보는 중 | 볼 예정 | 완료 | 일시 중지 | 중단 | 빠른 기록 |
 | `zh-Hans` | 追踪器 | 列表、条目 | 评分 | 在看 | 重看中 | 想看 | 看过 | 搁置 | 抛弃 | 快速记录 |
 | `zh-Hant` | 追蹤器 | 清單、項目 | 評分 | 在看 | 重看中 | 想看 | 看過 | 擱置 | 拋棄 | 快速記錄 |
-| `tr` | takip aracı | liste, kayıt | puan | İzleniyor | Yeniden izleniyor | İzlenecek | Tamamlandı | Ara verildi | Bırakıldı | Hızlı takip |
-| `pl` | tracker | lista, wpis | ocena | Oglądam | Oglądam ponownie | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
+| `tr` | takip aracı | liste, kayıt | puan | İzleniyor | Yine izleniyor | İzlenecek | Tamamlandı | Ara verildi | Bırakıldı | Hızlı takip |
+| `pl` | tracker | lista, wpis | ocena | Oglądam | Powtórka | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
 
 ## Footer, paging and errors
 
