@@ -198,8 +198,9 @@ vi.mock('../../../../src/party/bridge', () => ({
 }))
 // the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise, whose link
 // says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
-// each was put
-const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[] }))
+// each was put. With `ending`, the plugin relays the player's skip offer: `asked` is what stub said, and `offered`
+// the player's own word, which a test changes when the player would have
+const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[], ending: undefined as { asked: boolean[], offered: boolean } | undefined }))
 vi.mock('../../../../src/components/plugin-player', async () => {
   const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
   return {
@@ -209,7 +210,13 @@ vi.mock('../../../../src/components/plugin-player', async () => {
         pluginPlayers.stages.push(stage?.current)
         const focus = vi.fn()
         pluginPlayers.focus.push(focus)
-        const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), { chapters: () => pluginPlayers.chapters, focus, prepare: (next: object) => { pluginPlayers.prepared.push(next) } })
+        const { ending } = pluginPlayers
+        const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), {
+          chapters: () => pluginPlayers.chapters,
+          focus,
+          prepare: (next: object) => { pluginPlayers.prepared.push(next) },
+          ...ending ? { offerEnding: (offered: boolean) => { ending.asked.push(offered) }, endingOffered: () => ending.offered } : {},
+        })
         // after the effects of the render that put it up, as the real one hands it over once the plugin has played
         let gone = false
         queueMicrotask(() => { if (!gone) onPlayback(link) })
@@ -361,6 +368,7 @@ afterEach(() => {
   pluginPlayers.focus = []
   pluginPlayers.stages = []
   pluginPlayers.prepared = []
+  pluginPlayers.ending = undefined
 })
 
 const settle = async () => {
@@ -1733,9 +1741,52 @@ test('a torrent\'s own ending brings Next episode a second before what follows i
   expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
 })
 
-// ripple's player offers Skip Ending from a second before it, in Next's corner
-test('a torrent\'s own ending with nothing after it leaves the player its Skip Ending, and Next episode comes at the end', async () => {
-  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+// ripple's player offers Skip Ending from a second before it, in Next's corner, 10 px away, so Next takes it only once
+// the player has said Skip Ending is gone
+const ENDS_THE_FILE = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
+const relayedEnding = async () => {
+  pluginPlayers.chapters = ENDS_THE_FILE
+  pluginPlayers.ending = { asked: [], offered: true }
+  bridge.duration = 1395
+  return { ...await atTheEnd({}, 'nyaa:a'), ending: pluginPlayers.ending }
+}
+
+test('a torrent\'s own ending with nothing after it has Next episode take Skip Ending\'s corner a second before it', async () => {
+  const { host, ending } = await relayedEnding()
+  await report({ paused: false, time: 1200 })
+  expect(ending.asked, 'as soon as it knows').toEqual([false])
+  ending.offered = false
+  await report({ paused: false, time: 1290 })
+  await wait(8_900)
+  expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
+  await wait(100)
+  expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
+})
+
+test('Next episode waits for the player to say Skip Ending is gone, however late that comes', async () => {
+  const { host, ending } = await relayedEnding()
+  await report({ paused: false, time: 1290 })
+  await wait(9_000)
+  expect(nextShown(host), 'at 1299 s, with the player\'s word still on its way').toBeUndefined()
+  await report({ paused: false, time: 1305 })
+  expect(nextShown(host), 'at 1305 s').toBeUndefined()
+  ending.offered = false
+  await report({ paused: false, time: 1306 })
+  expect(nextShown(host), 'on its word').toBe('E3 - Title 3')
+})
+
+test('a player that never says, too old for the plugin\'s call, keeps its Skip Ending and Next episode comes at the end', async () => {
+  const { host } = await relayedEnding()
+  await report({ paused: false, time: 1290 })
+  await wait(104_000)
+  expect(nextShown(host), 'at 1394 s').toBeUndefined()
+  await report({ ...ended, time: 1395 })
+  expect(nextShown(host), 'at the end').toBe('E3 - Title 3')
+})
+
+test('a plugin with no such call leaves the player its Skip Ending, and Next episode comes at the end', async () => {
+  pluginPlayers.chapters = ENDS_THE_FILE
   bridge.duration = 1395
   const { host } = await atTheEnd({}, 'nyaa:a')
   await report({ paused: false, time: 1290 })
@@ -1745,6 +1796,50 @@ test('a torrent\'s own ending with nothing after it leaves the player its Skip E
   expect(nextShown(host), 'at 1394 s').toBeUndefined()
   await report({ ...ended, time: 1395 })
   expect(nextShown(host), 'at the end').toBe('E3 - Title 3')
+})
+
+test('an ending with something after it stays the player\'s to offer', async () => {
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1370, title: 'ED' }, { start: 1370, end: 1395, title: 'Part B' }]
+  pluginPlayers.ending = { asked: [], offered: true }
+  bridge.duration = 1395
+  await atTheEnd({}, 'nyaa:a')
+  await report({ paused: false, time: 1290 })
+  expect(pluginPlayers.ending.asked).not.toContain(false)
+})
+
+test('with no next episode the player keeps its Skip Ending, and one left out for a Next that goes comes back', async () => {
+  party = { status: 'active', role: 'guest' } as typeof party
+  const guest = await relayedEnding()
+  await report({ paused: false, time: 1290 })
+  expect(guest.ending.asked, 'a guest follows the host, and offers no Next').not.toContain(false)
+  unmount(guest.host)
+
+  party = { status: 'idle' }
+  const { rerender, ending } = await relayedEnding()
+  await report({ paused: false, time: 1290 })
+  expect(ending.asked).toEqual([false])
+  ending.offered = false
+  party = { status: 'active', role: 'guest' } as typeof party
+  await rerender()
+  expect(ending.asked).toEqual([false, true])
+})
+
+test('the next file in the same player is asked again', async () => {
+  const { rerender, ending } = await relayedEnding()
+  await report({ paused: false, time: 1290 })
+  ending.offered = false
+  // the third in the same release as the second, and a fourth for it to have a Next
+  const { episodes } = media as { episodes: object[] }
+  Object.assign(episodes[2]!, { handles: [release('a')] })
+  episodes.push(row(4, crunchyroll(4), release('c')))
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:a' }
+  await rerender()
+  await settle()
+  expect(bridge.links, 'the same player').toHaveLength(1)
+  ending.asked.length = 0
+  ending.offered = true
+  await report({ paused: false, time: 0 })
+  expect(ending.asked).toEqual([false])
 })
 
 // HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,

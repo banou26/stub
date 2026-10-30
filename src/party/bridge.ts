@@ -36,6 +36,10 @@ export type PlaybackLink = {
   chapters?: () => MediaChapter[] | undefined
   /** Give the keys to a player nested below the frame the page holds; absent where focusing that frame is enough. */
   focus?: () => void
+  /** Ask the player to stop offering to skip its last ending, or to offer it again; absent where it cannot be asked. */
+  offerEnding?: (offered: boolean) => void
+  /** Whether the player offers to skip its last ending, as of its last report; false only once that offer has left its screen. Present with `offerEnding`. */
+  endingOffered?: () => boolean
   /** Fetch ahead what the player waits on to play `release`, a release of its own source, next; absent where it cannot. */
   prepare?: (release: { uri: string, url?: string }) => void
   dispose: () => void

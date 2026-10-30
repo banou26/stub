@@ -53,12 +53,22 @@ const style = css`
 `
 
 /**
- * Next episode over the player, from the moment `nextOfferAt` reads off the player's own chapters when they mark an
- * ending, else `chapters`, and once the player has ended. A player's own ending with nothing after it keeps the
- * player's Skip Ending, in Next's corner, so there Next waits for the end. With autoplay on, the end counts down with
- * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`. A seek back or a pause before
- * the moment withdraws the button, and a report that the player is no longer at its end (a seek back, a play)
- * withdraws the countdown.
+ * When to offer Next from the player's own `chapters`. Their ending with nothing after it has the player's Skip Ending
+ * in Next's corner, so the player is asked to leave that out, and Next comes a second before the ending only once it
+ * has said it did. Until then, and for a player that cannot, Next waits for the end, so the two never show at once.
+ */
+const ownOfferAt = (link: PlaybackLink, chapters: MediaChapter[], duration: number | undefined) => {
+  const beside = chaptersBesideNext(chapters, duration)
+  link.offerEnding?.(beside.length === chapters.length)
+  return nextOfferAt(link.endingOffered?.() === false ? chapters : beside, duration)
+}
+
+/**
+ * Next episode over the player, from the moment `ownOfferAt` reads off the player's own chapters when they mark an
+ * ending, else `nextOfferAt` off `chapters`, and once the player has ended. With autoplay on, the end counts down with
+ * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`, and a player that left its
+ * Skip Ending out for one gets it back. A seek back or a pause before the moment withdraws the button, and a report
+ * that the player is no longer at its end (a seek back, a play) withdraws the countdown.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
  * `episode` carries into the next, whose player may be the same link.
@@ -99,6 +109,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
 
   useEffect(() => {
     setShown(undefined)
+    if (!href) link?.offerEnding?.(true)
     if (!link || !href) return
     // Only an end after a play counts, and once: a link tells every new ear where the player is,
     // and that repeat must not bring back a countdown the viewer cancelled.
@@ -126,8 +137,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
         prepared = true
         link.prepare(ahead.current)
       }
-      // stub cannot take an ending out of a player's own chapters, as it does for its own player
-      const at = own && hasEnding(own) ? nextOfferAt(chaptersBesideNext(own, duration), duration) : nextOfferAt(marks.current, duration)
+      const at = own && hasEnding(own) ? ownOfferAt(link, own, duration) : nextOfferAt(marks.current, duration)
       if (at !== undefined && time >= at) offer()
       // a stall reaches the page only as a playing report behind the timer, which keeps the button; one gone
       // back is a seek, and a paused one is where the player is

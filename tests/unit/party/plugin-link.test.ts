@@ -246,6 +246,55 @@ describe('a package\'s focus', () => {
   })
 })
 
+// Next episode takes the corner of the player's Skip Ending only on the player's own word, read off its reports
+describe('a package\'s ending offer', () => {
+  test('reads what the player reports, and asks only for a change from it', () => {
+    const offerEnding = vi.fn(async () => {})
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink({ ...source, offerEnding })!
+    expect(link.endingOffered!()).toBe(true)
+    link.offerEnding!(true)
+    expect(offerEnding).not.toHaveBeenCalled()
+    link.offerEnding!(false)
+    expect(offerEnding).toHaveBeenCalledExactlyOnceWith(false)
+
+    report({ ...STATE, endingOffered: false } as typeof STATE)
+    expect(link.endingOffered!()).toBe(false)
+    link.offerEnding!(false)
+    expect(offerEnding).toHaveBeenCalledTimes(1)
+    link.offerEnding!(true)
+    expect(offerEnding).toHaveBeenLastCalledWith(true)
+
+    report()
+    expect(link.endingOffered!(), 'a report that says nothing, from a player that cannot').toBe(true)
+  })
+
+  test('asks again while the player has not said, for a player that came up since', () => {
+    const offerEnding = vi.fn(async () => {})
+    const link = pluginPlaybackLink({ ...fakeSource().source, offerEnding })!
+    link.offerEnding!(false)
+    link.offerEnding!(false)
+    expect(offerEnding).toHaveBeenCalledTimes(2)
+  })
+
+  test('is absent for a package without it, whatever its reports say, and does nothing once disposed or refused', async () => {
+    const { source, report } = fakeSource()
+    const without = pluginPlaybackLink(source)!
+    report({ ...STATE, endingOffered: false } as typeof STATE)
+    expect(without.offerEnding).toBeUndefined()
+    expect(without.endingOffered).toBeUndefined()
+
+    const asked: boolean[] = []
+    const offerEnding = async (offered: boolean) => { asked.push(offered); throw new Error('gone') }
+    const link = pluginPlaybackLink({ ...fakeSource().source, offerEnding })!
+    expect(() => link.offerEnding!(false)).not.toThrow()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    link.dispose()
+    link.offerEnding!(false)
+    expect(asked).toEqual([false])
+  })
+})
+
 // the next episode's release, fetched ahead by the package's player
 describe('a package\'s prepare', () => {
   test('hands the release to the package, is absent for a package without it, and does nothing once disposed or refused', async () => {

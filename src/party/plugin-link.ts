@@ -41,12 +41,13 @@ export const BUFFER_WAIT_MS = 1_000
 
 /** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
   buffer?: () => Promise<unknown>
   onFullscreenRequest?: (listener: () => void) => Promise<void>
   applyFullscreen?: (active: boolean) => Promise<void>
   focus?: () => Promise<void>
+  offerEnding?: (offered: boolean) => Promise<void>
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
@@ -62,7 +63,7 @@ export type PlaybackSource = {
  * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
  */
 export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
-  const { onPlayback, applyPlayback, buffer, focus, prepare } = source
+  const { onPlayback, applyPlayback, buffer, focus, offerEnding, prepare } = source
   if (!onPlayback || !applyPlayback) return undefined
 
   const listeners = new Set<(state: PlaybackState) => void>()
@@ -70,13 +71,15 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
   let ended = false
   let duration: number | undefined
   let chapters: MediaChapter[] | undefined
+  let endingOffered = true
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => {
+  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => {
     if (disposed || !isPlaybackState(report)) return
     ended = report.ended === true
     duration = lengthOf(report.duration)
     chapters = chaptersOf(report.chapters)
+    endingOffered = report.endingOffered !== false
     const { paused, time, rate, at } = report
     for (const listener of listeners) listener({ paused, time, rate, at })
   }
@@ -105,6 +108,10 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
         frame?.focus()
         focus().catch(() => {})
       },
+    } : {},
+    ...offerEnding ? {
+      offerEnding: offered => { if (!disposed && offered !== endingOffered) offerEnding(offered).catch(() => {}) },
+      endingOffered: () => endingOffered,
     } : {},
     ...prepare ? { prepare: release => { if (!disposed) prepare(release).catch(() => {}) } } : {},
     ...buffer ? {

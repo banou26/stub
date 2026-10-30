@@ -60,9 +60,10 @@ export type StubSource = {
    * `duration` is the media's length in seconds, 0 until the player knows it and Infinity for live media:
    * with a length an episode counts as watched at 85% played and its row shows how far in it stopped;
    * without one, only its end counts. `chapters` are the file's own, in seconds: with an ending among them,
-   * Next episode is offered as it starts rather than at the end.
+   * Next episode is offered as it starts rather than at the end. `endingOffered` answers `offerEnding`: false
+   * only once the player's Skip Ending is off its screen.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[] }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
   /**
@@ -110,6 +111,13 @@ export type StubSource = {
    * reach it once it has (Chrome 155, 2026-10-26), so a package waits for the load.
    */
   focus?: () => Promise<void>
+  /**
+   * Ask the player to stop offering to skip its last ending, or to offer it again: stub says false where nothing
+   * follows that ending and Next episode takes the corner, and true when there is no Next episode after all. Next
+   * waits for the report that says `endingOffered: false`, and a package or player that cannot do this leaves it
+   * at the end. Optional and additive to stub-source@1.
+   */
+  offerEnding?: (offered: boolean) => Promise<void>
   /**
    * Fetch ahead what a later `play` of `release`, the next episode's release Next opens, waits on before its first
    * frame, beside the player up now. Stub asks once an episode's player is 80% through it. Resolves true when it was
