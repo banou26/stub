@@ -20,8 +20,9 @@
 // whatever happened (measured on this machine, see agent conventions/lessons/verification.md), so a
 // run that printed `all good` still reports failure to anything gating on the status.
 //
-// Both contexts ACCEPT the source the link offers before anything else: a `?plugins=` url only opens
-// an "Add this source?" prompt, so a run that ignores it has no plugin and no player.
+// Every context ACCEPTS the source its link offers: the host from a watch link, each follower from the
+// invite, which carries the host's sources (HOR-845). A `?plugins=` url only opens an "Add this
+// source?" prompt, so a run that ignores it has no plugin and no player.
 //
 // The plugin and ripple are the deployed ones (stub.plugins.banou.dev, torrent.fkn.app), because the
 // plugin hardcodes ripple's embed origin and the package loader fetches over HTTPS. So this runs after
@@ -135,9 +136,6 @@ const run = async () => {
   hosting = await until(() => widget(host).innerText(), text => /Hosting/.test(text), 30_000)
   check(/Hosting/.test(hosting), 'the host is hosting', String(hosting).replace(/\s+/g, ' '))
   if (!/Hosting/.test(hosting)) { console.log('\nRIG BLIND: no party'); await browser.close(); process.exit(2) }
-  await widget(host).dispatchEvent('click')
-  const link = await host.getByRole('textbox', { name: 'Invite link' }).inputValue()
-  await host.keyboard.press('Escape')
 
   await host.goto(`${ORIGIN}${WATCH}?plugins=${PLUGIN}`, { waitUntil: 'domcontentloaded' })
   check(await addTheSource(host), 'the host accepted the source the link offers')
@@ -164,22 +162,20 @@ const run = async () => {
   }
   const hostPlaying = await until(() => videoOf(host), video => video && !video.paused && video.time > 1, 60_000, 1_000)
   check(Boolean(hostPlaying), 'and it is playing', JSON.stringify(hostPlaying))
+  // read once the host has the source, which is what the invite offers
+  await widget(host).dispatchEvent('click')
+  const link = await host.getByRole('textbox', { name: 'Invite link' }).inputValue()
+  await host.keyboard.press('Escape')
+  check(new URL(link).searchParams.getAll('plugins').includes(PLUGIN), 'the invite offers the host’s source', link.replace(/#.*/, '#…'))
 
-  console.log('\nthe guest joins and lands on the same release')
-  // THE GUEST INSTALLS THE SOURCE FIRST, which is not a detail of the rig but a fact about the
-  // product: a party invite is `/party#<invite>` and carries no `?plugins=`, so a follower is never
-  // offered the host's source. A follower who does not already have it gets the watch page and no
-  // player at all. This check is about playback SYNC, so it puts the guest in the position of
-  // somebody who already had the source, and the gap itself is recorded in agent projects/stub.md.
-  await guest.goto(`${ORIGIN}${WATCH}?plugins=${PLUGIN}`, { waitUntil: 'domcontentloaded' })
-  check(await addTheSource(guest), 'the guest has the source before it joins')
+  console.log('\nthe guest opens the invite, accepts the source it offers, and lands on the same release')
   await guest.goto(link, { waitUntil: 'domcontentloaded' })
+  check(await addTheSource(guest), 'the guest accepted the source the invite offers')
   const landed = await until(() => new URL(guest.url()).pathname, path => path.startsWith('/watch/'), 60_000)
   check(landed === WATCH, 'the guest is on the host’s watch page', landed)
-  // No second prompt: the source was accepted before the join, and FKN remembers it for this
-  // context. One appearing here would mean the first acceptance did not take.
+  // one appearing here would mean the acceptance did not take
   const promptAgain = guest.getByRole('button', { name: 'Add source', exact: true })
-  check((await promptAgain.count()) === 0, 'and needs no second prompt after joining')
+  check((await promptAgain.count()) === 0, 'and is not asked again')
   const guestVideo = await until(() => videoOf(guest), video => video && video.ready >= 2, 180_000, 1_000)
   check(Boolean(guestVideo), 'the guest’s embed has a video with data', JSON.stringify(guestVideo))
   if (!guestVideo) { console.log('\nRIG BLIND: the guest never got a player'); await browser.close(); process.exit(2) }
@@ -196,10 +192,9 @@ const run = async () => {
   const guestPlaying = await until(() => videoOf(guest), video => video && !video.paused && video.time > target, 60_000, 1_000)
   check(Boolean(guestPlaying), 'the guest is playing, ahead of where it paused', JSON.stringify(guestPlaying))
 
-  console.log('\na second guest joins')
-  await other.goto(`${ORIGIN}${WATCH}?plugins=${PLUGIN}`, { waitUntil: 'domcontentloaded' })
-  check(await addTheSource(other), 'the second guest has the source before it joins')
+  console.log('\na second guest joins the same way')
   await other.goto(link, { waitUntil: 'domcontentloaded' })
+  check(await addTheSource(other), 'the second guest accepted the source the invite offers')
   const otherPlaying = await until(() => videoOf(other), video => video && !video.paused && video.time > 0, 180_000, 1_000)
   check(Boolean(otherPlaying), 'the second guest is playing with the party', JSON.stringify(otherPlaying))
   if (!otherPlaying) { console.log('\nRIG BLIND: the second guest never got a playing player'); await browser.close(); process.exit(2) }
