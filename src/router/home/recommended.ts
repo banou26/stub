@@ -12,19 +12,19 @@ import { isScored } from '../../tracking/score-scale'
 export const RECOMMENDED_KEY = 'stub.recommended'
 export const KEPT_MS = 86_400_000
 /**
- * How many shows one request asks about: AniList's most for one page. Measured 2026-10-31, 50 answer in 1.9 to 2.0 s
- * and 62 KB gzipped, where 200, in four pages, took 5.0 to 5.6 s and 253 KB.
+ * How many shows one request asks about: AniList's most for one page. Measured 2026-10-31, 50 answer in 1.9 to 2.4 s
+ * and 63 KB gzipped, where 200, in four pages, took 5.0 to 5.6 s and 253 KB.
  */
 export const SEEDS = 50
 /**
- * How many of the summed picks are kept, about 68 KB: a list holding AniList's 200 most popular shows still fills the
- * row once its own are dropped (2026-10-31).
+ * How many of the summed picks are kept, about 68 KB. They are cut after the lists' own are dropped, so a list holding
+ * AniList's 1000 most popular shows still fills the row (2026-10-31).
  */
 export const KEPT_PICKS = 100
 /** How many cards the row holds, as the title page's Recommendations. */
 export const SHOWN = 12
 /** A scored show is a seed from this 0 to 100 score, a 7 out of 10. */
-export const LIKED_SCORE = 70
+const LIKED_SCORE = 70
 
 const SEEDING = new Set(['WATCHING', 'REWATCHING', 'COMPLETED'])
 
@@ -61,11 +61,13 @@ export const seedsOf = (works: readonly ListedWork[]): number[] =>
 
 // `id_in` rather than one aliased `Media` a seed, measured 2026-10-31: one alias naming a missing id fails the whole
 // document with 404 and `data: null` for every alias, where `id_in` answers the others; and each alias costs 26 of the
-// 500 complexity AniList allows, so 19 seeds at most, where one page costs 27 whatever it holds. Twelve picks a seed,
+// 500 complexity AniList allows, so 19 seeds at most, where one page costs 33 whatever it holds. Twelve picks a seed,
 // as the title page asks.
-export const RECOMMENDED_QUERY = `query ($ids: [Int]) {
+const RECOMMENDED_QUERY = `query ($ids: [Int]) {
   Page(perPage: ${SEEDS}) {
     media(id_in: $ids, type: ANIME) {
+      id
+      relations { edges { relationType(version: 2) node { id } } }
       recommendations(perPage: 12, sort: [RATING_DESC, ID]) {
         nodes {
           rating
@@ -86,24 +88,42 @@ export const RECOMMENDED_QUERY = `query ($ids: [Int]) {
   }
 }`
 
-type Answer = { data?: { Page?: { media?: ({ recommendations?: { nodes?: RecommendationNode<Pick>[] | null } | null } | null)[] | null } | null } | null }
+type Seed = FranchisePick & { recommendations?: { nodes?: RecommendationNode<Pick>[] | null } | null }
+type Answer = { data?: { Page?: { media?: (Seed | null)[] | null } | null } | null }
 
-/** Every seed's picks once each, its votes summed, the most voted first and KEPT_PICKS of them. */
-export const summedPicks = (answer: Answer): Summed => {
+/**
+ * `picks` one franchise a card, as `foldFranchises` folds them, none of whose works, or the works their relations name,
+ * is on the lists or in `seen`.
+ */
+const unlisted = (picks: Summed, works: readonly ListedWork[], seen: ReadonlySet<number> = new Set()) => {
+  const listed = new Set(works.map(work => work.uri))
+  const isListed = (pick: Pick) => listed.has(`mal:${pick.idMal}`) || franchiseOf(pick).some(id => seen.has(id) || listed.has(`anilist:${id}`))
+  return foldFranchises(picks).filter(({ members }) => !members.some(isListed))
+}
+
+/**
+ * Every seed's picks once each, its votes summed, the most voted first, without what `works` holds or the seeds'
+ * franchises, KEPT_PICKS of them. It takes a seed's own relations to place a later season: Re:ZERO's first names
+ * neither its third nor is named by it, both naming the novel as SOURCE (2026-10-31).
+ */
+export const summedPicks = (answer: Answer, works: readonly ListedWork[]): Summed => {
+  const seeds = (answer.data?.Page?.media ?? []).flatMap(media => media ? [media] : [])
   const votes = new Map<number, Summed[number]>()
-  for (const media of answer.data?.Page?.media ?? []) {
-    for (const { pick, rating } of recommendedPicks(media?.recommendations?.nodes ?? [])) {
+  for (const seed of seeds) {
+    for (const { pick, rating } of recommendedPicks(seed.recommendations?.nodes ?? [])) {
       votes.set(pick.id, { pick, rating: (votes.get(pick.id)?.rating ?? 0) + rating })
     }
   }
-  return [...votes.values()].sort((a, b) => b.rating - a.rating || a.pick.id - b.pick.id).slice(0, KEPT_PICKS)
+  const summed = [...votes.values()].sort((a, b) => b.rating - a.rating || a.pick.id - b.pick.id)
+  const left = new Set(unlisted(summed, works, new Set(seeds.flatMap(seed => franchiseOf(seed)))).flatMap(({ members }) => members.map(({ id }) => id)))
+  return summed.filter(({ pick }) => left.has(pick.id)).slice(0, KEPT_PICKS)
 }
 
 /**
  * AniList's picks for `seeds`, asked with `fetch`, the viewer's browser's own: never the relay, whose cache would keep
  * the viewer's shows. Rejects on a failed request.
  */
-export const askRecommended = async (seeds: readonly number[], fetch: FetchLike): Promise<Summed> => {
+export const askRecommended = async (seeds: readonly number[], works: readonly ListedWork[], fetch: FetchLike): Promise<Summed> => {
   const response = await fetch('https://graphql.anilist.co/', {
     method: 'POST',
     credentials: 'omit',
@@ -111,7 +131,7 @@ export const askRecommended = async (seeds: readonly number[], fetch: FetchLike)
     body: JSON.stringify({ query: RECOMMENDED_QUERY, variables: { ids: seeds } }),
   })
   if (!response.ok) throw new Error(`AniList answered ${response.status}`)
-  return summedPicks(await response.json())
+  return summedPicks(await response.json(), works)
 }
 
 type Kept = { at: number, seeds: number[], picks: Summed }
@@ -132,12 +152,5 @@ export const keep = (seeds: readonly number[], picks: Summed, now: number) => {
   } catch {}
 }
 
-/**
- * The picks the row shows: one franchise a card as `foldFranchises` folds them, none of whose works, or the works
- * their relations name, is on the viewer's lists, SHOWN of them.
- */
-export const shownPicks = (picks: Summed, works: readonly ListedWork[]) => {
-  const listed = new Set(works.map(work => work.uri))
-  const isListed = (pick: Pick) => franchiseOf(pick).some(id => listed.has(`anilist:${id}`)) || listed.has(`mal:${pick.idMal}`)
-  return foldFranchises(picks).filter(({ members }) => !members.some(isListed)).slice(0, SHOWN)
-}
+/** The picks the row shows, `unlisted` for the lists as they stand, which may have changed since they were kept. */
+export const shownPicks = (picks: Summed, works: readonly ListedWork[]) => unlisted(picks, works).slice(0, SHOWN)

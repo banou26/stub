@@ -59,11 +59,11 @@ const useRecommended = () => {
   const seeds = useMemo(() => works && !readDisabledSources().includes('anilist') ? seedsOf(works) : [], [works])
   const [picks, setPicks] = useState<Summed>()
   useEffect(() => {
-    if (!seeds.length) return
+    if (!works || !seeds.length) return
     const kept = readKept(seeds, Date.now())
     if (kept) return setPicks(kept)
     let live = true
-    askRecommended(seeds, browserFetch).then(asked => {
+    askRecommended(seeds, works, browserFetch).then(asked => {
       keep(seeds, asked, Date.now())
       if (live) setPicks(asked)
     }, () => {})

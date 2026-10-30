@@ -12,10 +12,14 @@ const DAY = 86_400_000
 const at = (days: number) => new Date(Date.UTC(2026, 9, 31) - days * DAY).toISOString()
 const work = (uri: string, status: string | null, score: number | null = null, updatedAt = at(1)) => ({ uri, summary: { status, score, updatedAt } })
 
-// Frieren, Mushoku Tensei and Violet Evergarden as AniList answered the row's own query (2026-10-31)
+// Frieren, Mushoku Tensei, Violet Evergarden, Re:ZERO's third season and Mushoku Tensei II's part two as AniList
+// answered the row's own query (2026-10-31)
 const FRIEREN = 154587
 const MUSHOKU = 108465
 const VIOLET = 21827
+const RE_ZERO_3 = 163134
+const MUSHOKU_2_2 = 166873
+const RE_ZERO = 21355
 const answer = (...ids: number[]) => ({ data: { Page: { media: ids.map(id => RECOMMENDED[id]!) } } })
 const titleOf = ({ pick }: { pick: { title?: { english?: string | null, romaji?: string | null } | null } }) => pick.title?.english ?? pick.title?.romaji
 
@@ -53,11 +57,9 @@ describe('the shows asked about', () => {
 
 describe("AniList's picks", () => {
   test("are each work once with every seed's votes summed, the most voted first", () => {
-    const picks = summedPicks(answer(FRIEREN, VIOLET))
-    expect(picks.slice(0, 7).map(entry => [titleOf(entry), entry.rating])).toEqual([
+    const picks = summedPicks(answer(FRIEREN, VIOLET), [])
+    expect(picks.slice(0, 5).map(entry => [titleOf(entry), entry.rating])).toEqual([
       ['A Silent Voice', 1316],
-      ['Violet Evergarden', 1209],
-      ['Frieren: Beyond Journey’s End', 1209],
       ['Delicious in Dungeon', 772],
       ['Vivy -Fluorite Eye\'s Song-', 732],
       // 507 from Frieren and 193 from Violet Evergarden, as Maquia's 235 and 340
@@ -68,50 +70,79 @@ describe("AniList's picks", () => {
 
   test(`are ${KEPT_PICKS} at most, and none adult or rated 0 or below`, () => {
     const [first, second, ...rest] = RECOMMENDED[MUSHOKU]!.recommendations.nodes
-    const many = { data: { Page: { media: [{ recommendations: { nodes: [
+    const many = { data: { Page: { media: [{ id: MUSHOKU, recommendations: { nodes: [
       { ...first, mediaRecommendation: { ...first!.mediaRecommendation, isAdult: true } },
       { ...second, rating: 0 },
       ...rest,
       ...Array.from({ length: KEPT_PICKS }, (_, n) => ({ rating: 1, mediaRecommendation: { id: 900_000 + n } })),
     ] } }] } } }
-    const picks = summedPicks(many)
+    const picks = summedPicks(many, [])
     expect(picks).toHaveLength(KEPT_PICKS)
     expect(picks.map(({ pick }) => pick.id)).not.toContain(first!.mediaRecommendation.id)
     expect(picks.map(({ pick }) => pick.id)).not.toContain(second!.mediaRecommendation.id)
   })
 
+  test("leave out the seeds' own franchises, whose first seasons name neither a later season nor a seed", () => {
+    const pickedBy = (seed: number) => RECOMMENDED[seed]!.recommendations.nodes.map(node => node.mediaRecommendation.id)
+    expect(pickedBy(RE_ZERO_3), 'the control: one seed picks the first season of the other').toContain(MUSHOKU)
+    expect(pickedBy(MUSHOKU_2_2), 'and the other way round').toContain(RE_ZERO)
+    const ids = summedPicks(answer(RE_ZERO_3, MUSHOKU_2_2), []).map(({ pick }) => pick.id)
+    expect(ids).not.toContain(MUSHOKU)
+    expect(ids).not.toContain(RE_ZERO)
+    expect(ids, 'the seeds themselves').not.toContain(MUSHOKU_2_2)
+    expect(ids, 'the others stay').toEqual(expect.arrayContaining(pickedBy(RE_ZERO_3).filter(id => id !== MUSHOKU && id !== RE_ZERO).slice(0, 5)))
+  })
+
+  test("leave out a pick that reaches a seed's franchise only through another pick", () => {
+    const relates = (relationType: string, id: number) => ({ relations: { edges: [{ relationType, node: { id } }] } })
+    const media = [{ id: 1, ...relates('SOURCE', 10), recommendations: { nodes: [
+      { rating: 9, mediaRecommendation: { id: 2, ...relates('SOURCE', 10) } },
+      { rating: 8, mediaRecommendation: { id: 3, ...relates('PREQUEL', 2) } },
+      { rating: 7, mediaRecommendation: { id: 4, ...relates('SOURCE', 40) } },
+    ] } }]
+    expect(summedPicks({ data: { Page: { media } } }, []).map(({ pick }) => pick.id)).toEqual([4])
+  })
+
+  test(`leave out what the lists hold before the ${KEPT_PICKS} are cut, so a long list still fills the row`, () => {
+    const id = (n: number) => 900_000 + n
+    const nodes = Array.from({ length: KEPT_PICKS * 2 }, (_, n) => ({ rating: KEPT_PICKS * 3 - n, mediaRecommendation: { id: id(n) } }))
+    const works = Array.from({ length: KEPT_PICKS }, (_, n) => work(`anilist:${id(n)}`, 'PLANNING'))
+    const picks = summedPicks({ data: { Page: { media: [{ id: 1, recommendations: { nodes } }] } } }, works)
+    expect(picks).toHaveLength(KEPT_PICKS)
+    expect(picks[0]!.pick.id, 'the first not on the lists').toBe(id(KEPT_PICKS))
+  })
+
   test('are asked in one request from the browser, and a seed AniList does not have leaves the others', async () => {
     const anilist = fakeAnilist()
-    const picks = await askRecommended([VIOLET, MUSHOKU, FRIEREN, 999_999_999], anilist.fetch)
+    const picks = await askRecommended([VIOLET, MUSHOKU, FRIEREN, 999_999_999], [], anilist.fetch)
     expect(anilist.asked).toEqual([{ url: 'https://graphql.anilist.co/', credentials: 'omit', ids: [VIOLET, MUSHOKU, FRIEREN, 999_999_999] }])
     expect(picks.map(titleOf)).toEqual(expect.arrayContaining(['A Silent Voice', 'Delicious in Dungeon', 'That Time I Got Reincarnated as a Slime']))
   })
 
   test('reject a failed request', async () => {
-    await expect(askRecommended([FRIEREN], fakeAnilist({ status: 429 }).fetch)).rejects.toThrow('429')
+    await expect(askRecommended([FRIEREN], [], fakeAnilist({ status: 429 }).fetch)).rejects.toThrow('429')
   })
 })
 
 describe('the picks shown', () => {
   test("fold one franchise's seasons into its first, at its best pick's place", () => {
-    const shown = shownPicks(summedPicks(answer(MUSHOKU)), [])
+    const shown = shownPicks(summedPicks(answer(MUSHOKU), []), [])
     expect(shown.map(titleOf).slice(0, 3)).toEqual(['That Time I Got Reincarnated as a Slime', 'The Rising of the Shield Hero', 'The World\'s Finest Assassin Gets Reincarnated in Another World as an Aristocrat'])
     expect(shown[0]!.rating, 'its second season\'s').toBe(457)
     expect(shown.map(titleOf).filter(title => title?.includes('Slime'))).toHaveLength(1)
   })
 
   test(`leave out what the lists hold, by AniList id or MyAnimeList id, with its franchise, ${SHOWN} at most`, () => {
-    const picks = summedPicks(answer(FRIEREN, MUSHOKU, VIOLET))
+    const picks = summedPicks(answer(VIOLET, MUSHOKU), [])
     const shownWith = (...uris: string[]) => shownPicks(picks, uris.map(uri => work(uri, 'COMPLETED'))).map(titleOf)
 
     const none = shownWith()
     expect(none).toHaveLength(SHOWN)
-    expect(none).toEqual(expect.arrayContaining(['Violet Evergarden', 'Frieren: Beyond Journey’s End', 'A Silent Voice', 'That Time I Got Reincarnated as a Slime']))
+    expect(none).toEqual(expect.arrayContaining(['Frieren: Beyond Journey’s End', 'A Silent Voice', 'That Time I Got Reincarnated as a Slime']))
 
-    const listed = shownWith(`anilist:${FRIEREN}`, `anilist:${VIOLET}`, 'mal:28851')
+    const listed = shownWith(`anilist:${FRIEREN}`, 'mal:28851')
     expect(listed).toHaveLength(SHOWN)
-    // Frieren and Violet Evergarden by AniList id, A Silent Voice by its MyAnimeList id
-    expect(listed).not.toContain('Violet Evergarden')
+    // Frieren by AniList id, A Silent Voice by its MyAnimeList id
     expect(listed).not.toContain('Frieren: Beyond Journey’s End')
     expect(listed).not.toContain('A Silent Voice')
     expect(listed).toContain('That Time I Got Reincarnated as a Slime')
@@ -125,7 +156,7 @@ describe('the picks shown', () => {
 
 describe('the answer kept', () => {
   const NOW = Date.UTC(2026, 9, 31)
-  const picks = summedPicks(answer(FRIEREN))
+  const picks = summedPicks(answer(FRIEREN), [])
 
   test('serves the same shows for a day, and none other', () => {
     vi.stubGlobal('localStorage', memoryStorage())
