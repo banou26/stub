@@ -17,7 +17,7 @@ export const switchStyle = css`
     content: '';
     position: absolute;
     top: 0.2rem;
-    left: 0.2rem;
+    inset-inline-start: 0.2rem;
     width: 1.6rem;
     height: 1.6rem;
     border-radius: 50%;
@@ -27,6 +27,7 @@ export const switchStyle = css`
 
   &:checked { background: #4ade80; }
   &:checked::before { transform: translateX(1.6rem); }
+  &:dir(rtl):checked::before { transform: translateX(-1.6rem); }
   &:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {

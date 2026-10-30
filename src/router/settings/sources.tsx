@@ -43,7 +43,7 @@ const style = css`
 
   .part-head .count { font-size: 1.3rem; color: rgba(255, 255, 255, 0.5); }
   .part-head + h3.part { margin-top: 1.6rem; }
-  .part-head .link-button { margin-left: auto; }
+  .part-head .link-button { margin-inline-start: auto; }
 
   .cards {
     display: grid;
@@ -84,7 +84,7 @@ const style = css`
   .card .icon img { width: 2rem; height: 2rem; object-fit: contain; }
   .card .icon .letter { font-size: 1.5rem; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
 
-  .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-right: auto; }
+  .card .title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; margin-inline-end: auto; }
   /* two digits wide, so the icons of a list past nine line up */
   .card .place { flex: none; min-width: 2ch; text-align: end; font-size: 1.5rem; font-weight: 600; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
   .card .order { flex: none; display: flex; gap: 0.4rem; }
@@ -158,9 +158,9 @@ const style = css`
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  .card .account .state { margin-right: auto; font-size: 1.3rem; color: rgba(255, 255, 255, 0.55); }
+  .card .account .state { margin-inline-end: auto; font-size: 1.3rem; color: rgba(255, 255, 255, 0.55); }
   .card .account .state.on { color: #4ade80; }
-  .card .account .actions { margin-left: auto; }
+  .card .account .actions { margin-inline-start: auto; }
   .card .account p { font-size: 1.3rem; }
   .card .account .note { flex-basis: 100%; }
   .card .account button:not(.small) { padding: 0.5rem 1.2rem; font-size: 1.3rem; }
@@ -274,7 +274,7 @@ const style = css`
   .plugin form button { align-self: flex-start; }
   .plugin form button[aria-disabled='true'] { opacity: 0.6; cursor: default; }
 
-  /* on a phone the pill goes under the address, so Remove stays at the right edge of every row */
+  /* on a phone the pill goes under the address, so Remove stays at the end of every row */
   @media (max-width: 480px) {
     .row.plugin { grid-template-columns: minmax(0, 1fr) auto; }
     .row.plugin .pill { grid-column: 1; grid-row: 2; justify-self: start; }
