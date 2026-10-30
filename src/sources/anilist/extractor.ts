@@ -8,6 +8,7 @@ import { ExternalLinkType, Maybe, Media, MediaExternalLink, MediaStatus, MediaTa
 import { desc, img, makeMedia, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
+import { FRANCHISE_EDGES, foldFranchises, franchiseDate, recommendedPicks } from './franchise'
 import { languageCode, type SourceCredits, type SourcePerson } from '../credits'
 
 export const icon = 'https://anilist.co/img/icons/favicon-32x32.png'
@@ -574,65 +575,18 @@ const snapshotOf = (node: Media) => ({
 })
 
 /**
- * The works AniList's users recommend beside this one, best rated first, a franchise once.
- *
- * Picks reaching one work by `FRANCHISE_EDGES` are one franchise, drawn as its earliest work at its best rated pick's
- * place: Mushoku Tensei's twelve hold Slime's first season, its second and the second's part two, which name one
- * manga as their SOURCE where no anime relation joins the first to the others (108465, 2026-10-29). Each carries its
- * MyAnimeList id, which the merge joins MyAnimeList's own picks on.
+ * The works AniList's users recommend beside this one, as `foldFranchises` keeps them. Each carries its MyAnimeList
+ * id, which the merge joins MyAnimeList's own picks on.
  */
-const normalizeRecommendations = (media: Media) => {
-  const picks = (media.recommendations?.nodes ?? []).flatMap(node => {
-    const pick = node?.mediaRecommendation
-    return pick?.id && !pick.isAdult && node?.rating && node.rating > 0 ? [{ pick, rating: node.rating }] : []
-  })
-  const group = picks.map((_, index) => index)
-  const root = (index: number): number => group[index] === index ? index : (group[index] = root(group[index]!))
-  const reachedBy = new Map<number, number>()
-  picks.forEach(({ pick }, index) => {
-    const reached = [pick.id, ...(pick.relations?.edges ?? []).flatMap(edge =>
-      edge?.node?.id && FRANCHISE_EDGES.has(String(edge.relationType)) ? [edge.node.id] : [])]
-    for (const id of reached) {
-      const other = reachedBy.get(id)
-      if (other === undefined) reachedBy.set(id, index)
-      else group[Math.max(root(other), root(index))] = Math.min(root(other), root(index))
-    }
-  })
-  const groups = new Map<number, typeof picks>()
-  picks.forEach((entry, index) => groups.set(root(index), [...groups.get(root(index)) ?? [], entry]))
-  return [...groups.values()].map(([best, ...rest]) => {
-    const { pick } = rest.reduce((earliest, entry) => {
-      const date = franchiseDate(entry.pick.startDate)
-      const held = franchiseDate(earliest.pick.startDate)
-      return date && (!held || date < held) ? entry : earliest
-    }, best!)
-    return {
-      rating: best!.rating,
-      node: makeMedia({
-        ...snapshotOf(pick),
-        type: mediaType(pick.format),
-        handles: pick.idMal ? [makeMedia({ origin: 'mal', id: String(pick.idMal), url: `https://myanimelist.net/anime/${pick.idMal}` })] : [],
-      }),
-    }
-  })
-}
-
-/**
- * The relations a franchise WALK may follow, which is not all of them.
- *
- * CHARACTER and OTHER are reported to the reader and never traversed. A crossover promotional short
- * relates by CHARACTER to every series taking part, so following those edges walks straight out of
- * the franchise: measured 2026-09-08 from `Tensei Shitara Slime Datta Ken`, two hops following
- * everything reached 36 works of which 10 were other franchises entirely (Attack on Titan, Fire
- * Force, Chihayafuru among them), while following only these reached 21 works and nothing foreign.
- *
- * The novel and the manga ARE followed, and have to be: an anime franchise's hub is its source
- * material, and the later seasons hang off that rather than off each other.
- */
-const FRANCHISE_EDGES = new Set([
-  'SEQUEL', 'PREQUEL', 'SIDE_STORY', 'SPIN_OFF', 'ALTERNATIVE',
-  'PARENT', 'SOURCE', 'ADAPTATION', 'SUMMARY', 'COMPILATION', 'CONTAINS',
-])
+const normalizeRecommendations = (media: Media) =>
+  foldFranchises(recommendedPicks(media.recommendations?.nodes ?? [])).map(({ pick, rating }) => ({
+    rating,
+    node: makeMedia({
+      ...snapshotOf(pick),
+      type: mediaType(pick.format),
+      handles: pick.idMal ? [makeMedia({ origin: 'mal', id: String(pick.idMal), url: `https://myanimelist.net/anime/${pick.idMal}` })] : [],
+    }),
+  }))
 
 /** How far a franchise walk may run. Two hops is what the query fetches; this guards the traversal. */
 const FRANCHISE_HOPS = 2
@@ -687,20 +641,6 @@ const buildFranchise = (media: Media) => {
   // one node is the media itself, so a graph of one is a media with nothing to draw
   if (nodes.size < 2) return undefined
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
-}
-
-/**
- * A sortable day, zero padded, out of the parts AniList publishes.
- *
- * The YEAR ALONE is not enough for the one thing this graph is for. A franchise routinely puts two
- * cours and a film in the same year, and a year-only key files all three into one column, which is
- * exactly where the reading order stops being visible. A missing month or day sorts to the start of
- * the year, which is the right guess for a work whose exact date nobody recorded.
- */
-const franchiseDate = (date: { year?: number | null, month?: number | null, day?: number | null } | null | undefined): string | undefined => {
-  if (!date?.year) return undefined
-  const pad = (value: number | null | undefined) => String(value ?? 1).padStart(2, '0')
-  return `${date.year}-${pad(date.month)}-${pad(date.day)}`
 }
 
 const franchiseNode = (node: { id?: number | null, format?: string | null, status?: MediaStatus | null, episodes?: number | null, startDate?: { year?: number | null, month?: number | null, day?: number | null } | null, title?: Media['title'], coverImage?: Media['coverImage'] }) => ({
