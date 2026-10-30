@@ -659,7 +659,7 @@ const MERGE = async () => ({ module: offlinePick, version: 'merge-1' })
 const merging = (w: ReturnType<typeof world>, bucket: ReturnType<typeof fakeBucket>, { merge = MERGE, tag = '2026-43', now = NOW, entries = ENTRIES } = {}) =>
   runHistory({ token: 't', get: w.get, dump: dumpOf(tag, entries), now: () => now, sleep: async () => {}, pauseMs: 0, backoff: [], store: bucket.client, writer: WRITER, merge })
 const firstRun = async (bucket = fakeBucket(), merge = MERGE) => {
-  const w = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))), sources: wholeReport(fakeSources()) })
+  const w = world({ release: false })
   await logged(() => merging(w, bucket, { merge }))
   return { w, bucket, sources: w.sources }
 }
@@ -673,7 +673,7 @@ test('once the store is kept the job publishes stub\'s merge as picks, stamped w
     held = Object.keys(JSON.parse(bucket.objects.get('manifest.json')!.toString()).job)
     return MERGE()
   })
-  expect(held).toEqual(['anidb-titles', 'kitsu', 'tvmaze', 'ann', 'animethemes'])
+  expect(held).toEqual(['kitsu', 'tvmaze', 'animethemes'])
   expect(picksOf(w)).toMatchObject({ name: expect.stringMatching(/^picks-/), rows: 6, merge: 'merge-1', dump: { tag: '2026-43', sha256: 'sha-of-2026-43' } })
   const { picks } = historyOf(w)
   expect(picks!.size).toBe(6)
@@ -700,6 +700,37 @@ test('a new merge version with the same picks publishes the new stamp and no new
   expect(unsha(next.log.filter(line => line.startsWith('upload')))).toEqual(['upload manifest-<sha>.json', 'upload manifest.json'])
 })
 
+const FRIEREN_ENTRY = { ...entry('Sousou no Frieren', { mal: 52991, kitsu: 46474, anidb: 17617 }, { year: 2023, season: 'FALL' }), sources: ['https://myanimelist.net/anime/52991', 'https://anilist.co/anime/154587', 'https://kitsu.app/anime/46474', 'https://anidb.net/anime/17617'] }
+
+// Mutations: merge what the store held before this run's fold; publish a field the merge did not choose; read anizip's
+// images; let a related answer decide a value.
+test('a run\'s picks carry what the store keeps of every source, the inbox it folded included, and nothing but the winning values', async () => {
+  const bucket = fakeBucket()
+  const inbox = await inboxEntry(frierenRun(at(NOW - HOUR)))
+  bucket.objects.set(...inbox)
+  const w = world({ release: false })
+  const lines = await logged(() => merging(w, bucket, { entries: [...ENTRIES, FRIEREN_ENTRY] }))
+  expect(lines.filter(line => line.startsWith('::warning::'))).toEqual([])
+  // the cover is Kitsu's row, which this run asked after the preview's answer
+  expect(historyOf(w).picks!.get('mal-52991')).toEqual({ t: FRIEREN_ANILIST.titles[0]!.title, p: 'o', d: FRIEREN_ANILIST.descriptions[0]!.description })
+  const released = zstdDecompressSync(w.named(picksOf(w).name)!).toString()
+  for (const text of ['artworks.thetvdb.com', '81726714', 'ag:(', 'stub-preview', '8ad2135c', 'writer']) expect(released).not.toContain(text)
+  expect(lines).toContain(`[offline-history] the picks: 7 of 7 shows, 1 of them with some of the store's 6 answers, merge merge-1`)
+})
+
+// Mutation: leave the store's answers out of the second run's merge.
+test('what the store kept from an earlier run stays in the picks of a run with an empty inbox', async () => {
+  const bucket = fakeBucket()
+  bucket.objects.set(...await inboxEntry(frierenRun(at(NOW - HOUR))))
+  const entries = [...ENTRIES, FRIEREN_ENTRY]
+  const first = world({ release: false })
+  await logged(() => merging(first, bucket, { entries }))
+  const next = world({ assets: assetsOf(first), sources: first.sources })
+  await logged(() => merging(next, bucket, { entries, now: NOW + HOUR }))
+  expect(next.log).toEqual([])
+  expect(historyOf(next).picks!.get('mal-52991')?.d).toBe(FRIEREN_ANILIST.descriptions[0]!.description)
+})
+
 // Mutation: keep the first dump in the stamp.
 test('a new dump stamps new picks, which name the new dump', async () => {
   const { w, bucket, sources } = await firstRun()
@@ -724,10 +755,10 @@ test('a merge that fails warns and leaves the run green, and the release keeps n
 // Mutations: merge with no store; merge with a store this run could not read.
 test('with no store, or one that cannot be read, no merge runs', async () => {
   const merge = vi.fn(MERGE)
-  const plain = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  const plain = world({ release: false })
   await runHistory({ token: 't', get: plain.get, dump: dumpOf('2026-43'), now: () => NOW, sleep: async () => {}, pauseMs: 0, backoff: [], merge })
   const unreadable = fakeBucket({ fail: method => method === 'GET' })
-  const failing = world({ release: false, anidb: () => new Response(new Uint8Array(anidbFile(15_000))) })
+  const failing = world({ release: false })
   await logged(() => merging(failing, unreadable, { merge }))
   expect(merge).not.toHaveBeenCalled()
   expect(picksOf(plain)).toBeUndefined()

@@ -98,7 +98,7 @@ test('a merge\'s version follows the bytes of its files, not where they are chec
   for (const root of [one, two, three]) rmSync(root, { recursive: true })
 })
 
-// Mutations: hash the entry alone, not what it loads; hash nothing of a dependency.
+// Mutations: hash the entry alone, not what it loads; leave the entry out of the hash.
 test('stub\'s merge loads with a version that moves with a file it loads, and with no other, in any checkout', async () => {
   const root = mkdtempSync(join(tmpdir(), 'merge-checkout-'))
   mkdirSync(join(root, 'scripts'))
@@ -113,7 +113,10 @@ test('stub\'s merge loads with a version that moves with a file it loads, and wi
     appendFileSync(join(root, 'src/generated/graphql.ts'), '// generated again\n')
     expect((await loadMerge(root)).version).toBe(version)
     appendFileSync(join(root, 'src/worker/graph/plugins/fields.ts'), '// a change to the merge\n')
-    expect((await loadMerge(root)).version).not.toBe(version)
+    const edited = (await loadMerge(root)).version
+    expect(edited).not.toBe(version)
+    appendFileSync(join(root, 'scripts/offline-pick.ts'), '// a change to the pick\n')
+    expect((await loadMerge(root)).version).not.toBe(edited)
   } finally {
     rmSync(root, { recursive: true })
   }

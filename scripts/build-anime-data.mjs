@@ -8,7 +8,8 @@
 //   src/generated/anime-index.ts    cross-catalog ids: MyAnimeList, AniList, Kitsu, AniDB, Anime News Network
 //   src/generated/anime-seasons.ts  seasonal listings with titles and covers
 //   src/generated/history/          every listed show's title, cover, banner and description, as stub's own
-//                                   rules pick them from the dump and the offline history (HOR-915)
+//                                   rules pick them from the dump and the offline history (HOR-915), or as the
+//                                   Offline history job picked them from every source's kept answers (HOR-1029)
 //
 // All are reached ONLY through a dynamic import, so they are separate content-hashed chunks and
 // add nothing to the initial bundle.
@@ -122,12 +123,15 @@ const ARM = {
 }
 
 // The dump's shards credit it alone, so nothing else in the history is presented as part of the ODbL database (its
-// section 4.4 d). AniDB's and Kitsu's terms could not be read (2026-10-23), so no license is named for them.
+// section 4.4 d). AniDB's and Kitsu's terms could not be read (2026-10-23), so no license is named for them. The job's
+// picks can carry a value of any source stub reads, TVmaze's among them, whose license asks for a link back.
 const HISTORY_SOURCES = {
   dump: [OFFLINE_DATABASE],
   stub: [
     { name: 'AniDB', url: 'https://anidb.net/', notice: 'Titles from its anime titles file, as api.ani.zip passes them on.' },
     { name: 'Kitsu', url: 'https://kitsu.io/', notice: 'Titles, posters, banners and synopses from its API.' },
+    { name: 'TVmaze', url: 'https://www.tvmaze.com/', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', notice: 'Titles, posters and summaries from its API.' },
+    { name: 'The other sources stub reads', url: 'https://github.com/banou26/stub', notice: 'The titles, image addresses and descriptions stub\'s merge chose from them. All of it remains the property of its respective owners.' },
   ],
 }
 const HISTORY_DIR = resolve(OUT_DIR, 'history')

@@ -1,8 +1,11 @@
 // The offline history is stub's own result: each gathered input becomes the media stub's own source answers for
-// it, and stub's own merge picks the title, cover, banner and description, as it picks them for a page.
+// it, and stub's own merge picks the title, cover, banner and description, as it picks them for a page. The job's
+// merge adds every answer the private store keeps, of any source, and a live answer still outranks what it chose.
 import { expect, test } from 'vite-plus/test'
 
-import { anizipTitles, historyPicks, historyShards, pick, type AnidbTitle, type HistoryRecord, type KitsuRow, type PreviewAnswer } from '../../../../scripts/offline-pick'
+import { anizipTitles, historyPicks, historyShards, pick, storedAnswers, type AnidbTitle, type HistoryRecord, type KitsuRow, type PreviewAnswer, type StoredAnswer } from '../../../../scripts/offline-pick'
+import { historyMedia } from '../../../../src/sources/offline/history'
+import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 
 const GUNDAM: HistoryRecord = { t: 'Kidou Senshi Gundam', ty: 'TV', p: '1426/112393.jpg', ml: 80, ku: 80, ad: 63 }
 const GUNDAM_ANIDB: AnidbTitle[] = [['syn', 'en', 'MSG'], ['official', 'en', 'Mobile Suit Gundam'], ['official', 'ja', '機動戦士ガンダム']]
@@ -91,7 +94,7 @@ test('the dump\'s set holds its own title and picture, and stub\'s what the merg
   expect(sets.stub[80]).toEqual({ 'mal-80': { t: 'Mobile Suit Gundam', b: 'cover_images/80/original.jpg', d: 'The year is Universal Century 0079.' } })
   expect(sets.dump[1]).toEqual({ 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] })
   expect(sets.stub[1]).toEqual({})
-  expect(picksOf().counts).toEqual({ records: 3, anidbTitles: 1, kitsuTitles: 0, kitsuCovers: 0, banners: 1, descriptions: 1, previewed: 0 })
+  expect(picksOf().counts).toEqual({ records: 3, anidbTitles: 1, kitsuTitles: 0, kitsuCovers: 0, banners: 1, descriptions: 1, previewed: 0, stored: 0 })
 })
 
 // Mutation: leave a record the merge chose nothing for in the picks.
@@ -99,7 +102,7 @@ test('a record the merge chose nothing else for has no pick', () => {
   expect([...picksOf().picks.keys()]).toEqual(['mal-80'])
 })
 
-// Mutation: drop Kitsu's own prefix from no image.
+// Mutations: store a Kitsu image whole; count a cover as Kitsu's whoever gave it.
 test('a Kitsu cover the merge chose keeps only what follows Kitsu\'s prefix, and counts as Kitsu\'s', () => {
   const planet = { ...GUNDAM, p: 'https://cdn.anime-planet.com/anime/primary/mobile-suit-gundam.jpg' }
   const { picks, counts } = historyPicks([planet], new Map(), new Map([[80, GUNDAM_KITSU]]))
@@ -150,4 +153,144 @@ test('a Kitsu answer kept from a preview stands for Kitsu\'s row when Kitsu answ
   expect(pick(GUNDAM, undefined, undefined, { kitsu: answer(T1) }).description).toEqual({ value: 'An edited synopsis.', origin: 'kitsu' })
   const { picks } = historyPicks([GUNDAM], new Map(), new Map([[80, row]]), new Map([['kitsu:80', answer(T3)]]))
   expect(picks.get('mal-80')).toEqual({ t: 'Mobile Suit Gundam (TV)', d: 'An edited synopsis.' })
+})
+
+const RUN = 'ag:(anilist:900,kitsu:80,mal:80)'
+const stored = (source: string, id: string, fields: Partial<StoredAnswer> & { media?: PreviewAnswer['media'] } = {}): StoredAnswer =>
+  ({ source, id, class: 'full', fetchedAt: T2, role: 'member', run: RUN, media: {}, ...fields })
+const titled = (title: string, score = 0.9) => ({ score, titles: [{ language: 'en', title, score }] })
+const described = (description: string, score = 0.9) => ({ score, descriptions: [{ language: 'en', description, score }] })
+const picked = (records: HistoryRecord[], answers: StoredAnswer[]) => historyPicks(records, new Map(), new Map(), new Map(), storedAnswers(records, answers))
+const titleOf = (records: HistoryRecord[], answers: StoredAnswer[], key = 'mal-80') => picked(records, answers).picks.get(key)?.t
+
+// Mutation: leave the stored answers out of the members.
+test('an AniList title no open source gives heads the show, and reaches the shards', () => {
+  const { picks, counts } = picked([GUNDAM], [stored('anilist', '900', { media: titled('Mobile Suit Gundam') })])
+  expect(picks.get('mal-80')).toEqual({ t: 'Mobile Suit Gundam' })
+  expect(counts.stored).toBe(1)
+  expect(historyShards([GUNDAM], picks).stub[80]).toEqual({ 'mal-80': { t: 'Mobile Suit Gundam' } })
+})
+
+// Mutations: count every title as AniDB's or Kitsu's; count a cover as Kitsu's whoever gave it.
+test('a title and a cover from another source count as neither AniDB\'s nor Kitsu\'s, so the build\'s floor stays about AniDB', () => {
+  const cover = 'https://img.anili.st/media/900'
+  const answers = [stored('anilist', '900', { media: { ...titled('Mobile Suit Gundam'), covers: [{ url: cover, score: 0.9 }] } })]
+  const { picks, counts } = historyPicks([{ ...GUNDAM, p: '' }], new Map([[63, GUNDAM_ANIDB]]), new Map(), new Map(), storedAnswers([GUNDAM], answers))
+  expect(picks.get('mal-80')).toMatchObject({ t: 'Mobile Suit Gundam', p: cover })
+  expect([counts.anidbTitles, counts.kitsuTitles, counts.kitsuCovers]).toEqual([0, 0, 0])
+  const overKitsu = historyPicks([{ ...GUNDAM, p: '' }], new Map(), new Map([[80, GUNDAM_KITSU]]), new Map(), storedAnswers([GUNDAM], answers))
+  expect([overKitsu.counts.anidbTitles, overKitsu.counts.kitsuTitles, overKitsu.counts.kitsuCovers]).toEqual([0, 0, 0])
+  // control: with no stored answer they are AniDB's and Kitsu's
+  const alone = historyPicks([{ ...GUNDAM, p: '' }], new Map([[63, GUNDAM_ANIDB]]), new Map([[80, GUNDAM_KITSU]]))
+  expect([alone.counts.anidbTitles, alone.counts.kitsuTitles, alone.counts.kitsuCovers]).toEqual([1, 0, 1])
+})
+
+// Mutation: rank a stored description by its score.
+test('a stored description ships when it is the longest, whichever source gave it', () => {
+  const answers = [
+    stored('anilist', '900', { media: described('A synopsis AniList wrote at some length.', 0.1) }),
+    stored('jw', '77', { media: described('A short one.', 0.9) }),
+  ]
+  expect(picked([GUNDAM], answers).picks.get('mal-80')?.d).toBe('A synopsis AniList wrote at some length.')
+})
+
+// Mutations: take the newest answer of either class; read full answers only; take the oldest of a class.
+test('a source\'s newest full answer stands, else its newest list hit', () => {
+  const answer = (cls: 'full' | 'list', fetchedAt: string, title: string) => stored('anilist', '900', { class: cls, fetchedAt, media: titled(title) })
+  expect(titleOf([GUNDAM], [answer('full', T1, 'The full one'), answer('list', T3, 'A later list hit')])).toBe('The full one')
+  expect(titleOf([GUNDAM], [answer('list', T3, 'A later list hit'), answer('full', T1, 'The full one')])).toBe('The full one')
+  expect(titleOf([GUNDAM], [answer('list', T1, 'An older hit'), answer('list', T3, 'The newest hit')])).toBe('The newest hit')
+  expect(titleOf([GUNDAM], [answer('full', T3, 'The newest full'), answer('full', T1, 'An older full')])).toBe('The newest full')
+})
+
+// Mutations: join only by the run's address; take the first of two runs' list hits for another show.
+test('an answer is about the record of its own catalogue id, even as a hit in another show\'s run', () => {
+  const other = { t: 'Another show', ty: 'TV', p: '', ml: 81 }
+  const hit = stored('mal', '80', { class: 'list', role: null, run: 'ag:(mal:81)', media: titled('Mobile Suit Gundam') })
+  const { picks } = picked([GUNDAM, other], [hit])
+  expect(picks.get('mal-80')?.t).toBe('Mobile Suit Gundam')
+  expect(picks.has('mal-81')).toBe(false)
+})
+
+// Mutations: join every answer of a run to its show; drop what joins by the address alone.
+test('of the sources no record has an id of, a member of a run\'s address counts, and a related answer or a passed over hit says nothing', () => {
+  const member = stored('jw', '77', { media: titled('Its JustWatch title') })
+  expect(titleOf([GUNDAM], [member])).toBe('Its JustWatch title')
+  expect(titleOf([GUNDAM], [{ ...member, role: 'related' }])).toBeUndefined()
+  expect(titleOf([GUNDAM], [{ ...member, role: null }])).toBeUndefined()
+})
+
+// Mutation: read the role alone, so a cut run's answers join nothing.
+test('a run cut before its card arrived has no roles, and its address joins the answers it names', () => {
+  const cut = stored('jw', '77', { role: null, run: 'ag:(jw:77,mal:80)', media: titled('Its JustWatch title') })
+  expect(titleOf([GUNDAM], [cut])).toBe('Its JustWatch title')
+})
+
+// Mutation: read a plain uri as naming nothing.
+test('a run\'s address may be a plain uri, as a crawler asked for it', () => {
+  expect(titleOf([GUNDAM], [stored('jw', '77', { run: 'mal:80', media: titled('Its JustWatch title') })])).toBe('Its JustWatch title')
+})
+
+// Mutations: name a record by every catalogue of an address, not its most specific; let the last record take a shared id.
+test('a Kitsu id two records share lends a MyAnimeList address nothing, and goes to the first record alone', () => {
+  const sibling = { t: 'A second cour', ty: 'TV', p: '', ml: 81, ku: 80 }
+  const member = stored('jw', '77', { media: titled('Its JustWatch title') })
+  const { picks } = picked([sibling, GUNDAM], [member])
+  expect([picks.get('mal-80')?.t, picks.has('mal-81')]).toEqual(['Its JustWatch title', false])
+  // an address naming only the shared id
+  const shared = picked([sibling, GUNDAM], [{ ...member, run: 'ag:(kitsu:80)' }]).picks
+  expect([shared.has('mal-80'), shared.get('mal-81')?.t]).toEqual([false, 'Its JustWatch title'])
+})
+
+// Mutation: give an address's answers to its first record only.
+test('two records one address names are one show on a page, so each takes the run\'s answers', () => {
+  const sibling = { t: 'A recap', ty: 'TV', p: '', ml: 81 }
+  const { picks } = picked([GUNDAM, sibling], [stored('jw', '77', { run: 'ag:(jw:77,mal:80,mal:81)', media: titled('Its JustWatch title') })])
+  expect([picks.get('mal-80')?.t, picks.get('mal-81')?.t]).toEqual(['Its JustWatch title', 'Its JustWatch title'])
+})
+
+// Mutation: leave AniList out of the catalogues a record is reached by.
+test('an address naming a record only by its AniList id reaches it, as the offline source does', () => {
+  const record = { ...GUNDAM, al: 900 }
+  expect(titleOf([record], [stored('jw', '77', { run: 'ag:(anilist:900,jw:77)', media: titled('Its JustWatch title') })])).toBe('Its JustWatch title')
+})
+
+// Mutation: drop the offline id from what names a record.
+test('an address naming a record only by the offline source\'s id reaches it', () => {
+  expect(titleOf([GUNDAM], [stored('jw', '77', { run: 'ag:(jw:77,offline:mal-80)', media: titled('Its JustWatch title') })])).toBe('Its JustWatch title')
+})
+
+const MAL_COVER = 'https://cdn.myanimelist.net/images/anime/1426/112393l.webp'
+const OTHER_COVER = 'https://cdn.myanimelist.net/images/anime/9/other.webp'
+
+// Mutations: put the stored answers after the job's; drop the dump picture's member when MyAnimeList's answer is kept.
+test('a stored MyAnimeList cover goes ahead of the dump\'s picture, and one with no cover leaves the picture its rank', () => {
+  const answer = (covers: { url: string, score: number }[]) => stored('mal', '80', { media: { ...titled('Mobile Suit Gundam'), covers } })
+  expect(pick(GUNDAM, undefined, GUNDAM_KITSU, {}, [answer([{ url: OTHER_COVER, score: 0.9 }])]).cover).toEqual({ value: OTHER_COVER, origin: 'mal' })
+  expect(pick(GUNDAM, undefined, GUNDAM_KITSU, {}, [answer([])]).cover?.value).toBe(MAL_COVER)
+})
+
+// Mutation: let a stored answer stand beside the row its source is decided by.
+test('a stored Kitsu or anizip answer of the record\'s own id leaves the public rule to decide its source', () => {
+  const row = { ...GUNDAM_KITSU, fetchedAt: T3 }
+  const stale = stored('kitsu', '80', { fetchedAt: T1, media: described('An older synopsis, and a far longer one than Kitsu has now.', 0.3) })
+  expect(pick(GUNDAM, undefined, row, {}, [stale]).description?.value).toBe('The year is Universal Century 0079.')
+  const anizip = stored('anizip', '63', { media: titled('A second anizip title') })
+  expect(pick(GUNDAM, GUNDAM_ANIDB, row, {}, [anizip]).title).toEqual({ value: 'Mobile Suit Gundam', origin: 'anizip' })
+})
+
+// Mutation: rank the history's media above the floor.
+test('a pick stays at the floor, so a fresher live answer of any source goes ahead of it', () => {
+  const entry = { key: 'mal-80', title: 'Kidou Senshi Gundam', picture: '1426/112393.jpg', pick: { t: 'A stored AniList title', d: 'A stored synopsis.' } }
+  const floor = historyMedia(entry, [])
+  const live = { ...floor, uri: 'jw:77', origin: 'jw', id: '77', score: 0.2, titles: [{ language: 'en', title: 'A live title', score: 0.2 }] }
+  const row = aggregateFields({
+    cluster: { id: 'x', aggUri: 'ag:()', scope: 'RUN', runLength: null, runLengthTier: null, runLengthWitnesses: 0, runLengthFrom: [], anomalies: [] },
+    members: [floor, live].map(member => ({ uri: member.uri, origin: member.origin, id: member.id, owned: true, score: member.score ?? null, raw: member as unknown as Record<string, unknown>, fieldSeq: {} })),
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect((row.titles as { title: string }[]).map(({ title }) => title)).toEqual(['A live title', 'A stored AniList title'])
+  expect([floor.origin, floor.id, floor.score]).toEqual(['offline', 'mal-80', 0.2])
 })

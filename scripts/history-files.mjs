@@ -32,11 +32,18 @@ const compress = text => zstdCompressSync(Buffer.from(text), { params: { [consta
 
 const asset = (prefix, extension, bytes, rows) => ({ name: `${prefix}-${sha256(bytes).slice(0, 16)}${extension}`, sha256: sha256(bytes), bytes: bytes.length, rows })
 
-// The fields of a link preview's answer the history may publish, by source: only the sources whose terms allow
-// publishing their data, and of anizip its titles alone, since its images are TheTVDB's, whose terms do not.
-const PREVIEW_FIELDS = { anizip: ['score', 'titles'], kitsu: ['score', 'titles', 'covers', 'banners', 'descriptions'] }
+// what stub's merge reads of an answer for the history's four fields
+const MERGED = ['score', 'titles', 'covers', 'banners', 'descriptions']
+// The fields of a link preview's answer the public `previews` asset may hold, by source: only the sources whose terms
+// allow publishing their data, and of anizip its titles alone, since its images are TheTVDB's, whose terms do not.
+const PREVIEW_FIELDS = { anizip: ['score', 'titles'], kitsu: MERGED }
 const rank = kind => (kind === 'full' ? 1 : 0)
-const newer = (line, held) => !held || rank(line.class) > rank(held.class) || (line.class === held.class && line.fetchedAt > held.fetchedAt)
+
+/** Whether answer `line` stands over `held`, of the same source and id: a full answer over a list hit, then the newest. */
+export const newer = (line, held) => !held || rank(line.class) > rank(held.class) || (line.class === held.class && line.fetchedAt > held.fetchedAt)
+
+/** What stub's merge reads of `media`, an answer of `source`: of anizip its titles alone, since its images are TheTVDB's. */
+export const mergedFields = (source, media) => Object.fromEntries((PREVIEW_FIELDS[source] ?? MERGED).filter(field => field in media).map(field => [field, media[field]]))
 
 /**
  * `previews`, a Map by uri of `{ source, id, class, fetchedAt, media }`, with the inbox `lines` of the private source
@@ -46,12 +53,10 @@ const newer = (line, held) => !held || rank(line.class) > rank(held.class) || (l
 export const foldPreviews = (previews, lines) => {
   const folded = new Map(previews)
   for (const { index, body } of lines) {
-    const fields = PREVIEW_FIELDS[index.source]
-    if (!fields) continue
+    if (!PREVIEW_FIELDS[index.source]) continue
     const uri = `${index.source}:${index.id}`
     if (!newer(index, folded.get(uri))) continue
-    const media = JSON.parse(body.body)
-    folded.set(uri, { source: index.source, id: index.id, class: index.class, fetchedAt: index.fetchedAt, media: Object.fromEntries(fields.filter(field => field in media).map(field => [field, media[field]])) })
+    folded.set(uri, { source: index.source, id: index.id, class: index.class, fetchedAt: index.fetchedAt, media: mergedFields(index.source, JSON.parse(body.body)) })
   }
   return folded
 }
@@ -115,7 +120,7 @@ export const picksFor = ({ manifest, picks }, { merge, dump }) => {
 /** A hash of `files` under `root`, by their path in it and their bytes, so any checkout of the same code gives the same. */
 export const mergeVersion = (root, files) => {
   const hash = createHash('sha256')
-  const paths = [...new Set(files.map(file => relative(root, file)))].filter(path => !path.startsWith('src/generated/')).sort()
+  const paths = [...new Set(files.map(file => relative(root, file)))].filter(path => !path.startsWith('src/generated/')).sort((a, b) => (a < b ? -1 : 1))
   for (const path of paths) hash.update(path).update(readFileSync(resolve(root, path)))
   return hash.digest('hex').slice(0, 16)
 }
@@ -142,8 +147,8 @@ export const readManifest = text => {
   } catch {
     throw unreadable(`${MANIFEST} is not JSON`)
   }
-  // a history published before previews were kept names none, and one before the job's first picks names none of those
-  for (const kind of ['anidb', 'kitsu', ...['previews', 'picks'].filter(optional => manifest?.assets?.[optional])]) {
+  // a history published before previews were kept names none
+  for (const kind of ['anidb', 'kitsu', ...(manifest?.assets?.previews ? ['previews'] : [])]) {
     const entry = manifest?.assets?.[kind]
     if (typeof entry?.name !== 'string' || typeof entry.sha256 !== 'string' || !Number.isInteger(entry.rows)) throw unreadable(`${MANIFEST} names no ${kind} asset`)
   }

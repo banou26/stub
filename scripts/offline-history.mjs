@@ -23,7 +23,7 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 import { SEASON_ORDER, buildExtract, catalogIds, downloadDump } from './build-anime-data.mjs'
 import { MANIFEST, REPOSITORY, TAG, decodeHistory, encodeHistory, encodePicks, foldPreviews, loadMerge, manifestCopy, readManifest, withPicks } from './history-files.mjs'
 import { errorText } from './season-popularity.mjs'
-import { SECRETS, keepAnswers, r2, readInbox, readStore, rowsOf } from './source-store.mjs'
+import { SECRETS, keepAnswers, r2, readAnswers, readInbox, readStore, rowsOf } from './source-store.mjs'
 
 const WORKFLOW = 'Offline history'
 const API = `https://api.github.com/repos/${REPOSITORY}`
@@ -525,12 +525,15 @@ const keepSources = async (store, { writer, ...options }) => {
 }
 
 /**
- * Stub's merge of what this run holds, as `encodePicks` answers it, stamped with the merge's version and `dump`.
+ * Stub's merge of what this run holds and of every answer `store` keeps, as `encodePicks` answers it, stamped with the
+ * merge's version and `dump`. Only the winning values leave the store.
  */
-const makePicks = async ({ merge, dump, anidb, kitsu, previews }) => {
+const makePicks = async ({ merge, store, dump, anidb, kitsu, previews }) => {
   const { module, version } = await merge()
-  const { picks, counts } = module.historyPicks(buildExtract(dump).history, anidb.titles, kitsu, previews)
-  log(`the picks: ${picks.size} of ${counts.records} shows, merge ${version}`)
+  const records = buildExtract(dump).history
+  const answers = await readAnswers(store, await readStore(store))
+  const { picks, counts } = module.historyPicks(records, anidb.titles, kitsu, previews, module.storedAnswers(records, answers))
+  log(`the picks: ${picks.size} of ${counts.records} shows, ${counts.stored} of them with some of the store's ${answers.length} answers, merge ${version}`)
   return encodePicks(picks, { merge: version, dump: { tag: dump.tag, sha256: dump.sha256 } })
 }
 
@@ -630,7 +633,7 @@ export const runHistory = async ({ token, get = fetch, dump = downloadDump, now 
   const kept = await keepSources(store, { get, sleep, backoff, now, writer })
     .catch(error => warn(`TVmaze, ANN and AnimeThemes were not kept this run: ${errorText(error)}`))
   if (kept) log(`the source store: ${kept}`)
-  const picks = merge && await makePicks({ merge, dump: newest, anidb, kitsu, previews })
+  const picks = merge && await makePicks({ merge, store, dump: newest, anidb, kitsu, previews })
     .catch(error => warn(`the picks were not made this run: ${errorText(error)}`))
   if (!picks) return
   const picked = withPicks(encoded, picks)

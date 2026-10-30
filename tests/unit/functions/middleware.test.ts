@@ -14,15 +14,19 @@ import { inboxLines, inboxObject } from '../../../src/preview/inbox'
 import wasmModule from './stub-wasm'
 
 // stub's offline data as the build bundles it: Cowboy Bebop with a title, MyAnimeList's cover, and Kitsu's banner and
-// synopsis; its film with a title and no picture; a film of a bundled season
+// synopsis; its film with a title and no picture; a show stub's merge chose every value of from other sources; a film
+// of a bundled season
 vi.mock('../../../src/generated/anime-index', () => ({ default: { mal: [1], anilist: [0], kitsu: [1], anidb: [23], ann: [13] } }))
 vi.mock('../../../src/generated/anime-seasons', () => ({
   default: { tag: 'test', updated: '', seasons: { '2026-FALL': [{ t: 'Sekiro: No Defeat', ty: 'MOVIE', p: '1/62312.jpg', ml: 62312 }] } },
 }))
 vi.mock('../../../src/sources/offline/history-shards', () => {
   const sets: Record<string, Record<number, Record<string, unknown>>> = {
-    dump: { 1: { 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] }, 5: { 'mal-5': ['Cowboy Bebop: Tengoku no Tobira', ''] } },
-    stub: { 1: { 'mal-1': { b: 'cover_images/1/original.jpg', d: 'In the year 2071, humanity has colonized several of the planets.' } } },
+    dump: { 1: { 'mal-1': ['Cowboy Bebop', '4/19644.jpg'] }, 5: { 'mal-5': ['Cowboy Bebop: Tengoku no Tobira', ''] }, 6: { 'mal-6': ['Trigun', '7/20310.jpg'] } },
+    stub: {
+      1: { 'mal-1': { b: 'cover_images/1/original.jpg', d: 'In the year 2071, humanity has colonized several of the planets.' } },
+      6: { 'mal-6': { t: 'Trigun as AniList titles it', p: 'https://img.anili.st/media/6', d: 'A synopsis the job kept from AniList.' } },
+    },
   }
   return { loadShard: async (set: string, shard: number) => sets[set]?.[shard] && { records: sets[set]![shard] } }
 })
@@ -189,6 +193,15 @@ test.each([
   expect(asked).toEqual([])
   expect(fetched).not.toHaveBeenCalled()
   expect(cacheCalls).toBe(0)
+})
+
+// Mutations: read only the dump's set in `historyEntry`; give the media the dump's title or picture over the pick's.
+test('a link preview draws what stub\'s merge chose, the same data a page starts from, with nothing asked', async () => {
+  const { html } = await call('https://anime.fkn.app/title/ag:(mal:6)')
+  expect(meta(html, 'og:title')).toEqual(['Trigun as AniList titles it'])
+  expect(meta(html, 'og:description')).toEqual(['A synopsis the job kept from AniList.'])
+  expect(meta(html, 'og:image')).toEqual(['https://img.anili.st/media/6'])
+  expect([asked, cacheCalls]).toEqual([[], 0])
 })
 
 test('an offline answer boots none of what asks the sources', async () => {

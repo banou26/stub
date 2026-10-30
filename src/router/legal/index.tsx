@@ -19,9 +19,10 @@ const Legal = () => (
       artwork, ratings, and playback streams are retrieved on demand from third-party
       services (including AniList, MyAnimeList, Crunchyroll, JustWatch, and Netflix). So that
       titles still show when those services are unreachable, stub’s files also carry titles,
-      artwork addresses, and descriptions compiled from the anime-offline-database, AniDB, and
-      Kitsu. All of it remains the property of its respective owners. You access those
-      services with your own accounts and are responsible for complying with their terms.
+      artwork addresses, and descriptions compiled from the anime-offline-database, AniDB,
+      Kitsu, and those services. All of it remains the property of its respective owners. You
+      access those services with your own accounts and are responsible for complying with their
+      terms.
     </p>
     <p>
       Contains information from{' '}
@@ -35,6 +36,15 @@ const Legal = () => (
       , made available under the{' '}
       <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer noopener">
         ODbL
+      </a>
+      .
+    </p>
+    <p>
+      Contains information from{' '}
+      <a href="https://www.tvmaze.com/" target="_blank" rel="noreferrer noopener">TVmaze</a>
+      , made available under{' '}
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer noopener">
+        CC BY-SA
       </a>
       .
     </p>

@@ -1,7 +1,8 @@
 // The private dump of every source's own answers (HOR-994): the R2 bucket `stub-sources`. The Offline history job
 // (./offline-history.mjs) writes it through R2's S3 API, and link previews write only its `inbox/`
 // (src/preview/inbox.ts), which the job folds in and then removes. Nothing public reads it, and it holds public show
-// data and dates only.
+// data and dates only. What stub's merge chooses from it is published as the picks (./offline-history.mjs), and
+// nothing else of it.
 //
 // manifest.json names each file with the sha256 of its decompressed text and its row count:
 //   job/anidb-titles-<sha>.xml.gz   AniDB's titles file as fetched, every language
@@ -22,7 +23,7 @@
 import { AwsClient } from 'aws4fetch'
 import { constants, gunzipSync, zstdCompressSync, zstdDecompressSync } from 'node:zlib'
 
-import { sha256 } from './history-files.mjs'
+import { mergedFields, sha256 } from './history-files.mjs'
 
 export const BUCKET = 'stub-sources'
 export const MANIFEST = 'manifest.json'
@@ -148,6 +149,24 @@ export const readInbox = async client => {
     }
   } while (next && keys.length < INBOX_OBJECTS)
   return { keys, lines, unreadable, more: Boolean(next) }
+}
+
+/**
+ * Every answer link previews left in the store, for stub's merge (scripts/offline-pick.ts's `storedAnswers`):
+ * `{ source, id, class, fetchedAt, role, run, media }`, the date and the role from its index line and only what the
+ * merge reads of it. Never an answer of the offline source, which is the floor this merge makes: read back, the last
+ * pick, or a bundled season's MyAnimeList synopsis under the offline origin, would re-enter the merge on every run.
+ */
+export const readAnswers = async (client, { manifest, index }) => {
+  const answers = []
+  for (const [source, file] of Object.entries(manifest.answers ?? {})) {
+    if (source === 'offline') continue
+    for (const [key, row] of await rowsOf(client, file, keyOf)) {
+      const { fetchedAt, role } = index.get(key)
+      answers.push({ source, id: row.id, class: row.class, fetchedAt, role, run: row.run, media: mergedFields(source, JSON.parse(row.body)) })
+    }
+  }
+  return answers
 }
 
 /** Each show's sha256 in AniDB's titles file, over the whole `<anime>` element, by AniDB id. */

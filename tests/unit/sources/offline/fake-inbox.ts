@@ -37,7 +37,7 @@ export const FRIEREN_KITSU = {
 export const FRIEREN_ANILIST = {
   id: '154587',
   titles: [{ language: 'en', title: 'Frieren: Beyond Journey\'s End', score: 0.9 }],
-  descriptions: [{ language: 'en', description: 'AniList\'s own synopsis, which stub may keep but not publish.', score: 0.9 }],
+  descriptions: [{ language: 'en', description: 'AniList\'s own synopsis, which only the job\'s merge may read.', score: 0.9 }],
 }
 
 /**

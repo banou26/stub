@@ -7,9 +7,9 @@ import { gzipSync, zstdCompressSync, zstdDecompressSync } from 'node:zlib'
 import { expect, test } from 'vite-plus/test'
 
 import { askKitsu } from '../../../../scripts/offline-history.mjs'
-import { SECRETS, anidbShows, dated, keepAnswers, r2, readInbox, readStore } from '../../../../scripts/source-store.mjs'
+import { SECRETS, anidbShows, dated, keepAnswers, r2, readAnswers, readInbox, readStore } from '../../../../scripts/source-store.mjs'
 import { STORE_ENV, fakeBucket } from './fake-bucket'
-import { FRIEREN_KITSU, answer, frierenRun, inboxEntry } from './fake-inbox'
+import { FRIEREN_ANILIST, FRIEREN_ANIZIP, FRIEREN_KITSU, answer, frierenRun, inboxEntry } from './fake-inbox'
 
 const WRITER = { by: 'offline-history', run: '42', stub: '0.0.62', commit: '0dcc4455' }
 const T1 = '2026-10-25T05:41:00.000Z'
@@ -333,4 +333,55 @@ test('the job\'s Kitsu resource and a preview\'s Kitsu answer of one show keep a
   await keepAnswers(bucket.client, await readStore(bucket.client), { kitsu: [{ ...resource, fetchedAt: T3 }], inbox: await readInbox(bucket.client), writer: WRITER })
   const frieren = [...(await readStore(bucket.client)).index.values()].filter(line => line.source === 'kitsu' && line.id === '46474')
   expect(frieren.map(line => [line.form, line.fetchedAt, line.changedAt, line.writer.by])).toEqual([['answer', T2, T2, 'stub-preview'], ['upstream', T3, T1, 'offline-history']])
+})
+
+// Mutations: read the date or the role off the wrong line; hand the merge the whole answer.
+test('the merge reads every source\'s answers, with their dates and roles from the index, and only the fields it merges', async () => {
+  const bucket = fakeBucket()
+  const frieren = frierenRun(T1)
+  bucket.objects.set(...await inboxEntry(frieren))
+  await fold(bucket)
+  const answers = await readAnswers(bucket.client, await readStore(bucket.client))
+  expect(answers.map(({ source, id, class: kind, fetchedAt, role, run }) => [source, id, kind, fetchedAt, role, run])).toEqual([
+    ['anilist', '154587', 'full', T1, 'member', frieren.run.run],
+    ['anizip', '17617', 'full', T1, 'member', frieren.run.run],
+    ['kitsu', '46474', 'full', T1, 'member', frieren.run.run],
+    ['kitsu', '49240', 'list', T1, null, frieren.run.run],
+    ['nf', '81726714', 'full', T1, 'related', frieren.run.run],
+    ['jw', '364792-373583', 'full', T1, 'member', frieren.run.run],
+  ])
+  const { id: _, status: __, ...fields } = FRIEREN_KITSU
+  expect(answers[2]!.media).toEqual(fields)
+  const { id: ___, ...anilist } = FRIEREN_ANILIST
+  expect(answers[0]!.media).toEqual(anilist)
+})
+
+// Mutation: read anizip's images along with its titles.
+test('of anizip the merge reads its titles alone, since its images are TheTVDB\'s', async () => {
+  const bucket = fakeBucket()
+  bucket.objects.set(...await inboxEntry(frierenRun(T1)))
+  await fold(bucket)
+  const answers = await readAnswers(bucket.client, await readStore(bucket.client))
+  // control: the store holds its images
+  const { manifest } = await readStore(bucket.client)
+  expect(zstdDecompressSync(bucket.objects.get(manifest.answers.anizip.name)!).toString()).toContain('artworks.thetvdb.com')
+  expect(answers.find(({ source }) => source === 'anizip')!.media).toEqual({ titles: FRIEREN_ANIZIP.titles })
+})
+
+// Mutation: read the offline source's answers back.
+test('a stored offline answer is never read back, even one that reached the store', async () => {
+  const bucket = fakeBucket()
+  const synopsis = 'MyAnimeList\'s synopsis, under the offline origin.'
+  const { run } = frierenRun(T1)
+  const row = answer(1, 'offline', 'mal-52991', 'MEDIA', { id: 'mal-52991', titles: [{ language: 'en', title: 'Sousou no Frieren', score: 0.2 }], descriptions: [{ language: 'en', description: synopsis, score: 0.2 }] })
+  // a writer that did not leave it out, as src/preview/inbox.ts does: the fold takes any well formed line
+  const [index, body] = [
+    { source: 'offline', id: 'mal-52991', region: null, class: 'full', sha256: row.key, fetchedAt: T1, partial: false, role: 'member', body: true, writer: run.writer },
+    { source: 'offline', id: 'mal-52991', form: 'answer', sha256: row.key, run: run.run, operation: 'MEDIA', selection: row.selection, body: row.raw },
+  ]
+  await keepAnswers(bucket.client, await readStore(bucket.client), { inbox: { lines: [{ index, body }], keys: [], unreadable: [] }, writer: WRITER })
+  const { manifest } = await readStore(bucket.client)
+  // control: the store did keep it
+  expect(zstdDecompressSync(bucket.objects.get(manifest.answers.offline.name)!).toString()).toContain(synopsis)
+  expect(await readAnswers(bucket.client, await readStore(bucket.client))).toEqual([])
 })

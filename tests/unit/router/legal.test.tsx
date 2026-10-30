@@ -29,5 +29,13 @@ test('the legal page carries the ODbL notice, both databases linked and the lice
 test('the legal page no longer says every title is retrieved on demand, since the offline data ships in stub\'s files', () => {
   const { text } = rendered()
   expect(text).not.toMatch(/All titles, descriptions, artwork, ratings, and playback streams are retrieved on demand/)
-  expect(text).toContain('stub’s files also carry titles, artwork addresses, and descriptions compiled from the anime-offline-database, AniDB, and Kitsu')
+  expect(text).toContain('stub’s files also carry titles, artwork addresses, and descriptions compiled from the anime-offline-database, AniDB, Kitsu, and those services')
+})
+
+// Mutations: drop the notice; unlink TVmaze, which its licence asks for; unlink the licence.
+test('the legal page credits TVmaze, whose values the offline data can carry, with a link back and its licence', () => {
+  const { text, links } = rendered()
+  expect(text).toContain('Contains information from TVmaze, made available under CC BY-SA.')
+  expect(links.TVmaze).toBe('https://www.tvmaze.com/')
+  expect(links['CC BY-SA']).toBe('https://creativecommons.org/licenses/by-sa/4.0/')
 })
