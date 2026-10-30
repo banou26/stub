@@ -101,5 +101,11 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList }
       applied = applied.filter(enabled => enabled !== uri)
       return start(step)
     },
+    /** Drops `uri` from this device's own list only. One the account's list holds stays: that list is the account's. */
+    forget: (uri: string) => start(async () => {
+      if (loadAccount(storage)?.includes(uri)) return
+      saveDevice(loadDevice(storage).filter(enabled => enabled !== uri), storage)
+      applied = applied.filter(enabled => enabled !== uri)
+    }),
   }
 }

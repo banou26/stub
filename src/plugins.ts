@@ -7,6 +7,7 @@ import { STUB_SOURCE_PROTOCOL, type SourceAccess } from './plugin-api'
 import { loadEnabled } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
+import { comparablePluginUri } from './utils/plugin-links'
 
 const RECONNECT_DELAY_MS = 3_000
 
@@ -39,6 +40,19 @@ export const enabledPluginUris = (): string[] => loadEnabled()
 /** The ids of the packages FKN holds installed for this app, whichever of its sites installed them. */
 export const installedPluginUris = async (): Promise<string[]> =>
   (await packages.list()).map(installed => installed.uri)
+
+// FKN's list never settles when no broker answers, and a website's first one may wait 3 s on FKN's own api
+const LIST_WAIT_MS = 5_000
+
+// FKN keeps one install record for every site of this app, so a source removed on another site fails to
+// connect here. Only FKN's list answering without it says so; a failure, or no answer, says nothing.
+const unheld = async (uri: string): Promise<boolean> => {
+  const held = await Promise.race([
+    installedPluginUris(),
+    new Promise<undefined>(resolve => setTimeout(resolve, LIST_WAIT_MS)),
+  ]).catch(() => undefined)
+  return held !== undefined && !held.some(installed => comparablePluginUri(installed) === comparablePluginUri(uri))
+}
 
 const setStatus = (uri: string, status: Omit<PluginStatus, 'uri'>) => {
   statuses.set(uri, { uri, ...status })
@@ -92,8 +106,15 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
     if ('error' in result) throw new Error(result.error)
     setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected })
   } catch (error) {
-    connected.delete(uri)
     console.warn(`Plugin '${uri}' failed to connect:`, error)
+    // the slot stays claimed while FKN is asked, so nothing reconnects meanwhile
+    if (await unheld(uri)) await sourceList.forget(uri)
+    if (!loadEnabled().includes(uri)) {
+      disconnect(uri)
+      notify()
+      throw error
+    }
+    connected.delete(uri)
     setStatus(uri, { state: 'error' })
     // registration errors leave the frame alive, so `closed` never fires: the reconnect comes from here
     scheduleReconnect(uri, attempt + 1)

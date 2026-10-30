@@ -404,4 +404,29 @@ describe('the added sources on the FKN account', () => {
     expect(anime.shown()).toEqual([B, C])
     expect(anime.changes).toEqual([])
   })
+
+  // a source another site of the app removed from FKN: following that change again would ask FKN to
+  // uninstall it, for every site, even after the viewer added it back on one of them
+  test('a source forgotten leaves this device\'s own list only, and is never heard as a change', async () => {
+    const world = fknWorld()
+    const signedOut = world.browser()
+    const anime = site(signedOut)
+    await anime.sync.add(A)
+    await anime.sync.add(B)
+    await anime.sync.forget(A)
+    await anime.sync.check()
+    expect(anime.shown()).toEqual([B])
+    expect(anime.changes).toEqual([])
+
+    holds(world, 'alice', [C])
+    const signedIn = world.browser({ account: 'alice' })
+    const series = site(signedIn)
+    await series.sync.check()
+    series.changes.length = 0
+    await series.sync.forget(C)
+    await series.sync.check()
+    expect(series.shown()).toEqual([C])
+    expect(listOf(world, 'alice')).toEqual([C])
+    expect(series.changes).toEqual([])
+  })
 })
