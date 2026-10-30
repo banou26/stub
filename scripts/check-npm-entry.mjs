@@ -25,6 +25,40 @@ const ES_MODULE = /(?:^|[\s;}])(?:import|export)\s*[{*"'(]|(?:^|[\s;}])(?:import
 /** an origin-root asset url, which the sandbox cannot resolve: see vite.lib.config.ts on `base` */
 const ORIGIN_ROOT_ASSET = /["'`]\/assets\//
 
+/** a url naming another origin, or none, rather than a file of this package */
+const ELSEWHERE = /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i
+
+/** an attribute of a built html page that the browser fetches */
+const FETCHED_URL = /\s(?:src|href)="([^"]*)"/g
+
+/** an ES import of a file of the package: static, re-exported, side effect only or dynamic, minified or not */
+const IMPORTED = /\b(?:from|import)\s*\(?\s*["'`](\.\.?\/[^"'`]+\.js)["'`]/g
+
+/** a wasm file or a font a build inlined as base64 */
+const INLINED = /data:(?:application\/(wasm)|(font)\/)/
+
+/** The files of the package `page` names, as paths from the package root. */
+const namedBy = (tree, page) => [...(tree.read(page) ?? '').matchAll(FETCHED_URL)]
+  .map(([, url]) => url)
+  .filter(url => url && !ELSEWHERE.test(url) && !url.startsWith('/'))
+  .map(url => posix.join(posix.dirname(page), url.split(/[?#]/)[0]))
+
+/**
+ * Every file of the build a page of the package loads by ES import, from the entry and the player page's scripts on,
+ * those included. A worker's files are named by `new URL` and never imported, so none of them is here.
+ */
+const pageFiles = (pkg, tree) => {
+  const seen = new Set()
+  const visit = path => {
+    const code = tree.read(path)
+    if (code === undefined || seen.has(path)) return
+    seen.add(path)
+    for (const [, specifier] of code.matchAll(IMPORTED)) visit(posix.join(posix.dirname(path), specifier))
+  }
+  ;[pkg.main, ...namedBy(tree, posix.join(dirname(pkg.main), 'embed.html')).filter(file => file.endsWith('.js'))].forEach(visit)
+  return [...seen]
+}
+
 /**
  * Whether `files` would publish `path`. Conservative and NOT a reimplementation of npm's matching:
  * an absent `files` publishes everything, and an entry publishes a path when it names it exactly or
@@ -94,24 +128,17 @@ export const npmEntryProblems = (pkg, tree) => {
   }
 
   // a lib build inlines every asset, and jassub's wasm inlined made the first theme Play load 6.2 MB:
-  // see the stub-lib-wasm-files plugin in vite.lib.config.ts. Every chunk a page loads, since the player
+  // see the stub-lib-asset-files plugin in vite.lib.config.ts. Every chunk a page loads, since the player
   // shares the theme player's code with the embed page, so that chunk holds only an import
-  const pageChunks = tree.list(assets).filter(name => /^lib-(?!worker-).*\.js$/.test(name))
-  if (!pageChunks.some(name => name.startsWith('lib-theme-player-'))) problems.push(`${assets} has no lib-theme-player chunk to check for inlined wasm`)
-  for (const name of pageChunks) {
-    if (tree.read(join(assets, name))?.includes('data:application/wasm')) {
-      problems.push(`${join(assets, name)} carries a wasm file inlined as base64, which the first theme Play would download`)
-    }
+  const loaded = pageFiles(pkg, tree)
+  if (!loaded.some(path => posix.basename(path).startsWith('lib-theme-player-'))) problems.push(`${assets} has no lib-theme-player chunk a page loads to check for inlined files`)
+  for (const path of loaded) {
+    const inlined = tree.read(path)?.match(INLINED)
+    if (inlined) problems.push(`${path} carries a ${inlined[1] ?? inlined[2]} file inlined as base64, which every page loading it would download`)
   }
 
   return problems
 }
-
-/** a url naming another origin, or none, rather than a file of this package */
-const ELSEWHERE = /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i
-
-/** an attribute of a built html page that the browser fetches */
-const FETCHED_URL = /\s(?:src|href)="([^"]*)"/g
 
 /** the watch route's url for the page up to 0.0.27, which only anime.fkn.app answers */
 const ORIGIN_ROOT_EMBED = /["'`]\/embed\.html/
@@ -134,7 +161,7 @@ export const embedPageProblems = (pkg, tree) => {
   const html = tree.read(page)
 
   if (html === undefined) {
-    problems.push(`${page} does not exist. The watch route frames it from beside the running build's html, so the app build has to emit it there.`)
+    problems.push(`${page} does not exist. The watch route frames it from beside the running build's html, so the lib build has to emit it there.`)
   } else {
     if (!publishes(pkg.files, page)) {
       problems.push(`package.json "files" does not publish ${page}, so the tarball would not carry the player`)
@@ -264,26 +291,28 @@ export const packedFilesProblems = (paths) => paths.length > MAX_PACKED_FILES
   ? [`the package would publish ${paths.length} files, and its signature lists at most about ${MAX_PACKED_FILES}: leave generated data out of "files" in package.json`]
   : []
 
+/** `language`'s chunks as the lib build names them: stub's catalogue `lib-de-<hash>.js`, the player's labels `lib-de-<its hash>-<hash>.js` */
+const languageChunk = language => new RegExp(`^lib-${language.replace(/[^\w-]/g, '')}-(?:[\\w-]{8}-)?[\\w-]{8}\\.js$`)
+
 /**
- * Why `npm pack` would publish a package missing what it loads: a file the player page names, or an offered
- * language's chunk. Either reads as a working app, the first on the disk `embedPageProblems` looks at, the second in
- * English. Takes `npmEntryProblems`'s arguments, then what `packedPaths` read and the offered languages, English
- * among them with no chunk.
+ * Why `npm pack` would publish a package missing what it loads: a file the player page names, a chunk a page imports,
+ * or one of an offered language's two chunks (stub's text and the player's labels). Each reads as a working app, the
+ * first on the disk `embedPageProblems` looks at, a language's partly in English. Takes `npmEntryProblems`'s
+ * arguments, then what `packedPaths` read and the offered languages, English among them with no chunk.
  *
  * @returns {string[]} one line per problem, each naming the file it is about
  */
 export const unpackedFilesProblems = (pkg, tree, paths, languages) => {
-  const dir = dirname(pkg.main)
-  const page = posix.join(dir, 'embed.html')
-  const named = [...(tree.read(page) ?? '').matchAll(FETCHED_URL)]
-    .map(([, url]) => url)
-    .filter(url => url && !ELSEWHERE.test(url))
-    .map(url => posix.join(dir, url.split(/[?#]/)[0]))
+  const page = posix.join(dirname(pkg.main), 'embed.html')
+  const named = namedBy(tree, page)
+  const loaded = pageFiles(pkg, tree)
   return [
     ...named.filter(file => !paths.includes(file)).map(file => `${page} names ${file}, and package.json "files" leaves it out`),
-    ...languages
-      .filter(language => language !== 'en' && !paths.some(path => path.startsWith(posix.join(dir, 'assets', `lib-${language}-`))))
-      .map(language => `package.json "files" leaves out ${language}'s chunks, so a viewer of that language would read the package in English`),
+    ...loaded.filter(file => !paths.includes(file) && !named.includes(file)).map(file => `a page imports ${file}, and package.json "files" leaves it out`),
+    ...languages.filter(language => language !== 'en').flatMap(language => {
+      const chunks = loaded.filter(file => languageChunk(language).test(posix.basename(file)))
+      return chunks.length < 2 ? [`a page imports ${chunks.length} of ${language}'s two chunks, stub's text and the player's labels, so a viewer of that language would read the package partly in English`] : []
+    }),
   ]
 }
 

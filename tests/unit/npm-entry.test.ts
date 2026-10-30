@@ -34,7 +34,7 @@ const treeOf = (files: Record<string, string>): Tree => ({
 const MANIFEST = { main: 'build/index.js', files: ['build', 'README.md'] }
 const FILES = {
   'build/index.js': 'import { a } from "./assets/lib-chunk-Dx0.js";\na()\n',
-  'build/assets/lib-chunk-Dx0.js': 'export const a = () => {}\n',
+  'build/assets/lib-chunk-Dx0.js': 'export const a = () => import("./lib-theme-player-Cz4.js")\n',
   'build/assets/lib-theme-player-Cz4.js': 'const wasm = new URL(new URL("lib-jassub-worker-C7b.wasm", import.meta.url).href)\n',
 }
 
@@ -83,15 +83,27 @@ describe('the npm entry check', () => {
 
   // the theme player's code now sits in a chunk it shares with the player page, and its own chunk holds an import
   test('refuses a wasm file inlined in any chunk a page loads, and leaves a worker\'s to it', () => {
-    const shared = { ...FILES, 'build/assets/lib-dist-Dk2.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
+    const importing = (name: string) => `export * from "./${name}";\nexport const a = () => import("./lib-theme-player-Cz4.js")\n`
+    const shared = { ...FILES, 'build/assets/lib-chunk-Dx0.js': importing('lib-dist-Dk2.js'), 'build/assets/lib-dist-Dk2.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
     expect(npmEntryProblems(MANIFEST, treeOf(shared)).join('\n')).toContain('build/assets/lib-dist-Dk2.js carries a wasm file inlined')
     const worker = { ...FILES, 'build/assets/lib-worker-index-Dk2.js': 'const wasm = "data:application/wasm;base64,AGFzbQEAAAA="\n' }
     expect(npmEntryProblems(MANIFEST, treeOf(worker))).toEqual([])
+    // a page's own module named worker is lib-worker-<hash>.js, the prefix of the worker build's files
+    const named = { ...FILES, 'build/assets/lib-chunk-Dx0.js': importing('lib-worker-DSkdrrCa.js'), 'build/assets/lib-worker-DSkdrrCa.js': worker['build/assets/lib-worker-index-Dk2.js'] }
+    expect(npmEntryProblems(MANIFEST, treeOf(named)).join('\n')).toContain('build/assets/lib-worker-DSkdrrCa.js carries a wasm file inlined')
+  })
+
+  // jassub's default subtitle font, 146 KB of base64 in the chunk the player page starts with
+  test('refuses a font inlined in a chunk a page loads', () => {
+    const font = { ...FILES, 'build/assets/lib-theme-player-Cz4.js': 'const font = "data:font/woff2;base64,d09GMgABAAAA"\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(font)).join('\n')).toContain('build/assets/lib-theme-player-Cz4.js carries a font file inlined')
   })
 
   test('refuses a build with no theme player chunk to check', () => {
     const { 'build/assets/lib-theme-player-Cz4.js': _, ...withoutChunk } = FILES
-    expect(npmEntryProblems(MANIFEST, treeOf(withoutChunk)).join('\n')).toContain('has no lib-theme-player chunk to check')
+    expect(npmEntryProblems(MANIFEST, treeOf(withoutChunk)).join('\n')).toContain('has no lib-theme-player chunk a page loads to check')
+    const unreached = { ...FILES, 'build/assets/lib-chunk-Dx0.js': 'export const a = () => {}\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(unreached)).join('\n'), 'one no page imports is not checked').toContain('has no lib-theme-player chunk a page loads to check')
   })
 
   test('refuses a manifest that names no entry', () => {
@@ -185,23 +197,47 @@ describe('the published file list', () => {
   })
 
   describe('what is left out', () => {
-    const PLAYER_PAGE = { 'build/embed.html': '<script type="module" src="./assets/lib-embed-Dk2.js"></script><link rel="stylesheet" href="https://fonts.example/a.css">' }
-    const PACKED = ['build/embed.html', 'build/assets/lib-embed-Dk2.js', 'build/assets/lib-de-Dk2.js', 'build/assets/lib-de-Dph-Dk2.js', 'build/assets/lib-es-419-Dk2.js']
+    // each language's two chunks as the lib build names them, stub's catalogue and the player's labels
+    const LANGUAGES = ['lib-de-DQmxQTyn.js', 'lib-de-DphEdq0O-BM5XdUtZ.js', 'lib-es-419-D_M_JP1W.js', 'lib-es-419-D6gsvnn8-VS3RU2S7.js', 'lib-pt-BR-D6iy4qke.js', 'lib-pt-BR-wudK3giz-xrXcNP3R.js']
+    const PLAYER_PAGE: Record<string, string> = {
+      'build/index.js': 'export const a = () => import("./assets/lib-intl-Ch66zsrE.js")\n',
+      'build/embed.html': '<script type="module" src="./assets/lib-embed-Dk2Ab_c-.js"></script><link rel="stylesheet" href="https://fonts.example/a.css">',
+      // as the minifier writes them
+      'build/assets/lib-embed-Dk2Ab_c-.js': 'import"./lib-intl-Ch66zsrE.js";\n',
+      'build/assets/lib-intl-Ch66zsrE.js': `const c={${LANGUAGES.map(name => `"${name}":()=>import(\`./${name}\`)`).join(',')}},w=new URL(\`./lib-worker-index-B6VYNi0d.js\`,import.meta.url);\n`,
+      'build/assets/lib-worker-index-B6VYNi0d.js': 'import("./lib-worker-stub-042-Dk2Ab_c-.js")\n',
+      'build/assets/lib-worker-stub-042-Dk2Ab_c-.js': 'export {}\n',
+      ...Object.fromEntries(LANGUAGES.map(name => [`build/assets/${name}`, 'export default {}\n'])),
+    }
+    const PACKED = ['build/index.js', 'build/embed.html', 'build/assets/lib-embed-Dk2Ab_c-.js', 'build/assets/lib-intl-Ch66zsrE.js', 'build/assets/lib-worker-index-B6VYNi0d.js', ...LANGUAGES.map(name => `build/assets/${name}`)]
 
-    test('passes a package with the player page\'s files and each language\'s chunks, English having none', () => {
-      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), PACKED, ['en', 'de', 'es-419'])).toEqual([])
+    test('passes a package with the player page\'s files and each language\'s chunks, English having none, and no worker\'s shard', () => {
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), PACKED, ['en', 'de', 'es-419', 'pt-BR'])).toEqual([])
     })
 
     test('refuses a package missing a file the player page names', () => {
       const paths = PACKED.filter(path => !path.includes('lib-embed'))
-      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en']).join('\n')).toContain('build/embed.html names build/assets/lib-embed-Dk2.js')
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en']).join('\n')).toContain('build/embed.html names build/assets/lib-embed-Dk2Ab_c-.js')
+    })
+
+    test('refuses a package missing a chunk a page imports', () => {
+      const paths = PACKED.filter(path => !path.includes('lib-intl'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en'])).toEqual(['a page imports build/assets/lib-intl-Ch66zsrE.js, and package.json "files" leaves it out'])
     })
 
     // es-419's chunks fell to the pattern meant for the history's shards, `*-[0-9][0-9][0-9]-*.js`, and Spanish
     // would have read as English in the package alone, with no error
-    test('refuses a package missing an offered language\'s chunks', () => {
-      const paths = PACKED.filter(path => !path.includes('es-419'))
-      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en', 'es-419']).join('\n')).toContain('leaves out es-419\'s chunks')
+    test('refuses a package missing an offered language\'s chunks, either of the two', () => {
+      const spanish = PACKED.filter(path => !path.includes('es-419'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), spanish, ['en', 'es-419']).join('\n')).toContain('leaves it out')
+      const labels = PACKED.filter(path => !path.endsWith('lib-de-DphEdq0O-BM5XdUtZ.js'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), labels, ['en', 'de'])).toEqual(['a page imports build/assets/lib-de-DphEdq0O-BM5XdUtZ.js, and package.json "files" leaves it out'])
+    })
+
+    test('refuses an offered language a page imports fewer than two chunks of, another tag\'s not counting', () => {
+      const { 'build/assets/lib-de-DphEdq0O-BM5XdUtZ.js': _, ...unlabelled } = PLAYER_PAGE
+      expect(unpackedFilesProblems(MANIFEST, treeOf(unlabelled), PACKED, ['en', 'de']).join('\n')).toContain('a page imports 1 of de\'s two chunks')
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), PACKED, ['pt']).join('\n')).toContain('a page imports 0 of pt\'s two chunks')
     })
   })
 
