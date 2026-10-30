@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { automaticLanguage, bestLanguage, CARRIED_LANGUAGE_KEY, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, pickLanguage, readPickedLanguage, resumeLanguagePick, uiLanguage } from '../../../src/i18n/languages'
+import { automaticLanguage, bestLanguage, CARRIED_LANGUAGE_KEY, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, PICK_WAIT_MS, pickLanguage, readPickedLanguage, resumeLanguagePick, uiLanguage } from '../../../src/i18n/languages'
 
 // the planned list: wave 1, then the right to left pair, and two whose old tags browsers still send
 const PLANNED = ['en', 'es-419', 'pt-BR', 'fr', 'de', 'it', 'ru', 'ja', 'ko', 'zh-Hans', 'zh-Hant', 'tr', 'pl', 'ar', 'he', 'id', 'fil']
@@ -95,6 +95,23 @@ describe('picking a language', () => {
     await picking
     expect(order).toEqual(['saved with de', 'reload'])
     expect(uiLanguage()).toBe('de')
+  })
+
+  // in the rig with FKN unreachable the select stayed greyed out 9 s, the account's step waiting out its 8 s bound
+  test('a step FKN does not answer holds the reload two seconds at most, and the pick is carried over it', async () => {
+    vi.useFakeTimers()
+    try {
+      const reload = vi.fn()
+      const picking = pickLanguage('de', { saved: () => new Promise(() => {}), reload })
+      await vi.advanceTimersByTimeAsync(PICK_WAIT_MS - 1)
+      expect(reload).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(reload).toHaveBeenCalledOnce()
+      expect(session.get(CARRIED_LANGUAGE_KEY)).toBe('de')
+      await picking
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('Automatic keeps nothing, so the browser\'s language is shown again', async () => {

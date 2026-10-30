@@ -89,7 +89,10 @@ test('picking Français in Settings reloads the tab in French, and Automatic bri
   expect(englishIn(await headerWords(page), code).length, 'the control: the header reads English').toBeGreaterThan(2)
 
   const fr = catalogues().fr!
+  const picked = Date.now()
   await Promise.all([page.waitForEvent('load', { timeout: 30_000 }), select.selectOption('fr')])
+  // FKN answers nothing here, and the account's step would hold the reload its whole 8 s bound
+  expect(Date.now() - picked, 'the reload waits two seconds for the account at most').toBeLessThan(8_000)
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
   await expect(page.locator('header input')).toHaveAttribute('placeholder', fr['Search anime, shows, movies…']!)
   const words = await headerWords(page)

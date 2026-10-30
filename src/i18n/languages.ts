@@ -64,14 +64,20 @@ const keep = (store: Settings, language: string | undefined) => {
   } catch {}
 }
 
+/** The longest a pick waits for the FKN account's settings step: FKN not answering holds it up to 8 s per call. */
+export const PICK_WAIT_MS = 2_000
+
 /**
  * Picks `language`, or Automatic with undefined, then reloads the tab once `saved` (the FKN account's settings step)
- * settles, so the next load shows it and the account's older copy cannot win over it. A pick that step could not take
- * (FKN not answering, no key held), which the reload would lose, is carried over it for resumeLanguagePick.
+ * settles, or after PICK_WAIT_MS, so the next load shows it and the account's older copy cannot win over it. A pick
+ * that step did not take (FKN not answering, no key held, the step still running), which the reload would lose, is
+ * carried over it for resumeLanguagePick.
  */
 export const pickLanguage = async (language: string | undefined, { saved, reload }: { saved: () => Promise<unknown>, reload: () => void }) => {
   keep(settings, language)
-  await saved()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([saved(), new Promise(resolve => { timer = setTimeout(resolve, PICK_WAIT_MS) })])
+  clearTimeout(timer)
   if (settings.unsaved(LANGUAGE_KEY)) try { sessionStorage.setItem(CARRIED_LANGUAGE_KEY, language ?? '') } catch {}
   reload()
 }
