@@ -779,6 +779,10 @@ const normalizeMedia = async (
       titles: [{ language: 'en', title: node.content.title, score: SCORE }],
       startDate: dayOrYear(node.content.originalReleaseDate, node.content.originalReleaseYear)
     })))
+    // The show's id, as IMDb has no seasons. TMDB's pages carry none and TVmaze's season does not always join, so this
+    // is what links a season to IMDb on every visit.
+    const imdbId = node.content.externalIds?.imdbId
+    if (imdbId) handles.push(partOf(makeMedia({ origin: 'imdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })))
   }
   const tmdbId = node.content.externalIds?.tmdbId
   if (tmdbId) handles.push(tmdbLink(tmdbId, node.objectType === 'MOVIE'))

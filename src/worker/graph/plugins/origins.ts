@@ -142,13 +142,12 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   omdb: new Set(['imdb']),
   // `imdbId` and `tmdbId` (`watchmode:153-155`) plus the stream hosts of `watchmode:67-74`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
-  // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:75-81`, minted at
-  // `justwatch:534`), plus its own show container (`justwatch:639`) and the title page's
-  // `externalIds.tmdbId` as a link (`justwatch:649`). It FETCHES `externalIds.imdbId`
-  // (`justwatch:91,156`) and builds no handle from it, so imdb is not native here
+  // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:80-86`, minted at
+  // `justwatch:640`), plus its own show container (`justwatch:774`), the title page's
+  // `externalIds.tmdbId` as a link (`justwatch:788`) and a show's `externalIds.imdbId` as one (`justwatch:785`)
   jw: new Set([
     'cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo',
-    'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb',
+    'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb', 'imdb',
   ]),
   // the four that build no handle from their own payload. Empty rather than absent because each one
   // DOES emit handles, every one of them rebuilt from the asked uri: `cr:527`, `unogs:518,536`,

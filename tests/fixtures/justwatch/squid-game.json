@@ -1,0 +1,613 @@
+{
+  "data": {
+    "node": {
+      "id": "ts220305",
+      "objectId": 220305,
+      "objectType": "SHOW",
+      "content": {
+        "title": "Squid Game",
+        "fullPath": "/us/tv-show/squid-game",
+        "originalReleaseYear": 2021,
+        "originalReleaseDate": "2021-09-17",
+        "shortDescription": "Hundreds of cash-strapped players accept a strange invitation to compete in children's games. Inside, a tempting prize awaits, with deadly high stakes.",
+        "posterUrl": "/poster/305500204/s718/squid-game.jpg",
+        "externalIds": {
+          "imdbId": "tt10919420",
+          "tmdbId": "93405"
+        },
+        "genres": [
+          {
+            "shortName": "act",
+            "translation": "Action & Adventure"
+          },
+          {
+            "shortName": "crm",
+            "translation": "Crime"
+          },
+          {
+            "shortName": "drm",
+            "translation": "Drama"
+          },
+          {
+            "shortName": "trl",
+            "translation": "Mystery & Thriller"
+          }
+        ],
+        "productionCountries": [
+          "KR"
+        ],
+        "runtime": 58,
+        "backdrops": [
+          {
+            "backdropUrl": "/backdrop/305500208/s1920/squid-game.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/332515827/s1920/squid-game.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/326279742/s1920/squid-game.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/252713776/s1920/squid-game.jpg"
+          },
+          {
+            "backdropUrl": "/backdrop/251476278/s1920/squid-game.jpg"
+          }
+        ],
+        "scoring": {
+          "imdbScore": 7.9,
+          "tmdbScore": 7.853,
+          "tomatoMeter": 85,
+          "jwRating": 0.895414424469
+        },
+        "credits": [
+          {
+            "role": "ACTOR",
+            "name": "Lee Jung-jae",
+            "characterName": "Seong Gi-hun / Player 456",
+            "personId": 45833
+          },
+          {
+            "role": "ACTOR",
+            "name": "Yim Si-wan",
+            "characterName": "Lee Myung-gi / Player 333",
+            "personId": 57310
+          },
+          {
+            "role": "ACTOR",
+            "name": "Wi Ha-jun",
+            "characterName": "Detective Hwang Jun-ho",
+            "personId": 243432
+          },
+          {
+            "role": "ACTOR",
+            "name": "Jo Yuri",
+            "characterName": "Kim Jun-hee / Player 222",
+            "personId": 1159097
+          },
+          {
+            "role": "ACTOR",
+            "name": "Lee Byung-hun",
+            "characterName": "Front Man / Hwang In-ho",
+            "personId": 1806
+          },
+          {
+            "role": "ACTOR",
+            "name": "Park Gyu-young",
+            "characterName": "Kang No-eul / Guard 011",
+            "personId": 845206
+          },
+          {
+            "role": "ACTOR",
+            "name": "Kang Ae-sim",
+            "characterName": "Jang Geum-ja / Player 149",
+            "personId": 1322517
+          },
+          {
+            "role": "ACTOR",
+            "name": "Lee Jin-uk",
+            "characterName": "Park Gyeong-seok / Player 246",
+            "personId": 162265
+          },
+          {
+            "role": "ACTOR",
+            "name": "Yang Dong-geun",
+            "characterName": "Park Yong-sik / Player 007",
+            "personId": 127274
+          },
+          {
+            "role": "ACTOR",
+            "name": "Jeon Young-soo",
+            "characterName": "Subway Announcement (voice)",
+            "personId": 2866415
+          },
+          {
+            "role": "ACTOR",
+            "name": "Jeon Young-soo",
+            "characterName": "Game Guide (voice)",
+            "personId": 2866415
+          },
+          {
+            "role": "DIRECTOR",
+            "name": "Hwang Dong-hyuk",
+            "characterName": "",
+            "personId": 736149
+          }
+        ]
+      },
+      "offers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://www.netflix.com/title/81040344",
+          "deeplinkURL": "https://www.netflix.com/watch/81262746",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          },
+          "videoTechnology": [
+            "DOLBY_VISION"
+          ],
+          "audioTechnology": [
+            "DOLBY_ATMOS"
+          ],
+          "audioLanguages": [],
+          "subtitleLanguages": []
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81040344",
+          "deeplinkURL": "https://www.netflix.com/watch/81262746",
+          "package": {
+            "id": "cGF8MTc5Ng==",
+            "packageId": 1796,
+            "clearName": "Netflix Standard with Ads",
+            "technicalName": "netflixbasicwithads",
+            "shortName": "nfa",
+            "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+          },
+          "videoTechnology": [
+            "DOLBY_VISION"
+          ],
+          "audioTechnology": [
+            "DOLBY_ATMOS"
+          ],
+          "audioLanguages": [],
+          "subtitleLanguages": []
+        }
+      ],
+      "extraOffers": [
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "_4K",
+          "standardWebURL": "https://www.netflix.com/title/81040344",
+          "deeplinkURL": "https://www.netflix.com/watch/81262746",
+          "package": {
+            "id": "cGF8OA==",
+            "packageId": 8,
+            "clearName": "Netflix",
+            "technicalName": "netflix",
+            "shortName": "nfx",
+            "icon": "/icon/207360008/s100/netflix.{format}"
+          },
+          "videoTechnology": [
+            "DOLBY_VISION"
+          ],
+          "audioTechnology": [
+            "DOLBY_ATMOS"
+          ],
+          "audioLanguages": [],
+          "subtitleLanguages": []
+        },
+        {
+          "monetizationType": "FLATRATE",
+          "presentationType": "HD",
+          "standardWebURL": "https://www.netflix.com/title/81040344",
+          "deeplinkURL": "https://www.netflix.com/watch/81262746",
+          "package": {
+            "id": "cGF8MTc5Ng==",
+            "packageId": 1796,
+            "clearName": "Netflix Standard with Ads",
+            "technicalName": "netflixbasicwithads",
+            "shortName": "nfa",
+            "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+          },
+          "videoTechnology": [
+            "DOLBY_VISION"
+          ],
+          "audioTechnology": [
+            "DOLBY_ATMOS"
+          ],
+          "audioLanguages": [],
+          "subtitleLanguages": []
+        }
+      ],
+      "totalSeasonCount": 3,
+      "seasons": [
+        {
+          "id": "tss227597",
+          "objectId": 227597,
+          "totalEpisodeCount": 9,
+          "content": {
+            "title": "Season 1",
+            "seasonNumber": 1,
+            "fullPath": "/us/tv-show/squid-game/season-1",
+            "posterUrl": "/poster/332391987/{profile}/season-1.{format}",
+            "originalReleaseYear": 2021,
+            "originalReleaseDate": "2021-09-17",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse4191570",
+              "objectId": 4191570,
+              "content": {
+                "title": "Red Light, Green Light",
+                "episodeNumber": 1,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Hoping to win easy money, a broke and desperate Gi-hun agrees to take part in an enigmatic game. Not long into the first round, unforeseen horrors unfold.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 59
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938796",
+              "objectId": 5938796,
+              "content": {
+                "title": "Hell",
+                "episodeNumber": 2,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Split on whether to continue or quit, the group holds a vote. But their realities in the outside world may prove to be just as unforgiving as the game.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 62
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938794",
+              "objectId": 5938794,
+              "content": {
+                "title": "The Man with the Umbrella",
+                "episodeNumber": 3,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "A few players enter the next round, which promises equal doses of sweet and deadly, with hidden advantages. Meanwhile, Jun-ho sneaks his way inside.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 54
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938795",
+              "objectId": 5938795,
+              "content": {
+                "title": "Stick to the Team",
+                "episodeNumber": 4,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "As alliances form among the players, no one is safe in the dorm after lights-out. The third game challenges Gi-hun's team to think strategically.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 54
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938800",
+              "objectId": 5938800,
+              "content": {
+                "title": "A Fair World",
+                "episodeNumber": 5,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Gi-hun and his team take turns keeping guard through the night. The masked men encounter trouble with their co-conspirators.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 51
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938799",
+              "objectId": 5938799,
+              "content": {
+                "title": "Gganbu",
+                "episodeNumber": 6,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Players pair off for the fourth game. Gi-hun grapples with a moral dilemma, Sang-woo chooses self-preservation and Sae-byeok shares her untold story.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 61
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938798",
+              "objectId": 5938798,
+              "content": {
+                "title": "VIPS",
+                "episodeNumber": 7,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The Masked Leader welcomes VIP guests to the facility for a front-row viewing of the show. In the fifth game, some players crack under pressure.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 57
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse5938797",
+              "objectId": 5938797,
+              "content": {
+                "title": "Front Man",
+                "episodeNumber": 8,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "Ahead of the last round, distrust and disgust run deep among the finalists. Jun-ho makes a getaway, determined to expose the game's dirty secrets.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 32
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse6029262",
+              "objectId": 6029262,
+              "content": {
+                "title": "One Lucky Day",
+                "episodeNumber": 9,
+                "seasonNumber": 1,
+                "isReleased": true,
+                "shortDescription": "The final round presents another cruel test, but this time, how it ends depends on just one player. The game's creator steps out of the shadows.",
+                "originalReleaseDate": "2021-09-17",
+                "runtime": 55
+              },
+              "offers": [],
+              "extraOffers": []
+            }
+          ]
+        },
+        {
+          "id": "tss353898",
+          "objectId": 353898,
+          "totalEpisodeCount": 7,
+          "content": {
+            "title": "Season 2",
+            "seasonNumber": 2,
+            "fullPath": "/us/tv-show/squid-game/season-2",
+            "posterUrl": "/poster/323020483/{profile}/season-2.{format}",
+            "originalReleaseYear": 2024,
+            "originalReleaseDate": null,
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse6529888",
+              "objectId": 6529888,
+              "content": {
+                "title": "Bread and Lottery",
+                "episodeNumber": 1,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "A vengeful Gi-hun makes a U-turn at the airport. Later, in his hideout, he intensifies his search for the elusive recruiter who is seeking new players.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 65
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse8771527",
+              "objectId": 8771527,
+              "content": {
+                "title": "Halloween Party",
+                "episodeNumber": 2,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Gi-hun finally gets hold of an invitation, marked for Halloween day. In a tense moment facing Jun-ho, they reveal their truths to each other.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 51
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse8888822",
+              "objectId": 8888822,
+              "content": {
+                "title": "001",
+                "episodeNumber": 3,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "New players gather for a chance to win 45.6 billion won. After an intense first round, the survivors' fates hang in the balance, down to one final vote.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 61
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse8888823",
+              "objectId": 8888823,
+              "content": {
+                "title": "Six Legs",
+                "episodeNumber": 4,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "The players prepare for the next game: a six-legged pentathlon, where each team member must clear a mini-game to survive, or face collective elimination.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 62
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse7979340",
+              "objectId": 7979340,
+              "content": {
+                "title": "One More Game",
+                "episodeNumber": 5,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Kang No-eul earns enemies for her unruly actions. Nerves fray to the breaking point as the remaining players vote on whether to move to the next round.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 76
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse8888821",
+              "objectId": 8888821,
+              "content": {
+                "title": "O ﻿ X",
+                "episodeNumber": 6,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "Jun-ho and his team prepare to infiltrate a suspicious island. As monetary stakes and tensions rise, players split into two opposing factions.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 52
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse8888819",
+              "objectId": 8888819,
+              "content": {
+                "title": "Friend or Foe",
+                "episodeNumber": 7,
+                "seasonNumber": 2,
+                "isReleased": true,
+                "shortDescription": "The remaining players strategize on how to survive the night. Gi-hun proposes a risky plan, but he will need trustworthy allies to carry it out.",
+                "originalReleaseDate": "2024-12-26",
+                "runtime": 61
+              },
+              "offers": [],
+              "extraOffers": []
+            }
+          ]
+        },
+        {
+          "id": "tss457971",
+          "objectId": 457971,
+          "totalEpisodeCount": 6,
+          "content": {
+            "title": "Season 3",
+            "seasonNumber": 3,
+            "fullPath": "/us/tv-show/squid-game/season-3",
+            "posterUrl": "/poster/332392012/{profile}/season-3.{format}",
+            "originalReleaseYear": 2025,
+            "originalReleaseDate": "2025-06-27",
+            "isReleased": true
+          },
+          "episodes": [
+            {
+              "id": "tse8518994",
+              "objectId": 8518994,
+              "content": {
+                "title": "Keys and Knives",
+                "episodeNumber": 1,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "No-eul infiltrates a dangerous operation with a risky plan. A new game is announced: hide-and-seek, where one group holds a key and the other a knife.",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 57
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse9109541",
+              "objectId": 9109541,
+              "content": {
+                "title": "The Starry Night",
+                "episodeNumber": 2,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "The games resume, and Gi-hun fixates on confronting Kang Dae-ho. Meanwhile, Kim Jun-hee faces a sudden crisis that pushes her willpower to its limits.",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 60
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse9109539",
+              "objectId": 9109539,
+              "content": {
+                "title": "It's Not Your Fault",
+                "episodeNumber": 3,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Jun-ho's team gets close to finding the island. Jang Geum-ja makes a desperate plea to Gi-hun to help Jun-hee. The VIPs discuss a cruel proposal.",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 66
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse9109538",
+              "objectId": 9109538,
+              "content": {
+                "title": "222",
+                "episodeNumber": 4,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "Even as Gi-hun supports Jun-hee amid rising tensions, she must make a pivotal decision. Before the final game, the Front Man gives Gi-hun an ultimatum.",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 66
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse9109542",
+              "objectId": 9109542,
+              "content": {
+                "title": "○△□",
+                "episodeNumber": 5,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "No-eul tries to gain the upper hand in negotiations, but her plans backfire. Gi-hun faces a moral crossroads, testing his limits, how far will he go?",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 62
+              },
+              "offers": [],
+              "extraOffers": []
+            },
+            {
+              "id": "tse9109540",
+              "objectId": 9109540,
+              "content": {
+                "title": "Humans Are…",
+                "episodeNumber": 6,
+                "seasonNumber": 3,
+                "isReleased": true,
+                "shortDescription": "As Jun-ho races to reach the island, tensions peak in the final round. The last players face an impossible situation in the closing minutes of the game.",
+                "originalReleaseDate": "2025-06-27",
+                "runtime": 55
+              },
+              "offers": [],
+              "extraOffers": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
