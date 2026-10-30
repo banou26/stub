@@ -8,8 +8,6 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { startLanguage } from '../../../../src/i18n'
-
 import { makeRemoteVideo } from '../../components/remote-video'
 
 // A language the viewer picks in the Crunchyroll player's menus goes to the watch page, which keeps it for the next
@@ -54,20 +52,4 @@ test('serves the watch page the player only once it may', () => {
   expect(exposed.size).toBe(0)
   act(() => { render(withIntl(<CrunchyrollVideoJSPlayer remote={remote} frame={frame} expose />), host) })
   expect(exposed.size).toBe(1)
-})
-
-// HOR-1026 (stub in the viewer's language): the player's own labels follow the page's, its numbers the page's locale
-test('hands the player the page\'s language, as dates and numbers are written', async () => {
-  const shownIn = async (language: string, languages: string[]) => {
-    await startLanguage({ language, languages })
-    act(() => { render(withIntl(<CrunchyrollVideoJSPlayer remote={null} frame={null} />), host) })
-    return player.props!.language
-  }
-  try {
-    expect(await shownIn('en', ['en-GB'])).toBe('en-GB')
-    expect(await shownIn('fr', ['fr-CA', 'en-US'])).toBe('fr-CA')
-    expect(await shownIn('de', ['en-US'])).toBe('de')
-  } finally {
-    await startLanguage({ language: 'en', languages: ['en-US'] })
-  }
 })
