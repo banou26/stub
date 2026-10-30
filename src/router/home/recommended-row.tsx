@@ -9,6 +9,7 @@ import { Route } from '../path'
 import { MediaRecommendations } from '../../components/media-relations'
 import { VIEWER_LISTS } from '../../components/viewer-lists-query'
 import { franchiseDate } from '../../sources/anilist/franchise'
+import { readDisabledSources } from '../../sources/disabled-sources'
 import { toAggregatedUri } from '../../utils/uri'
 import { browserFetch } from '../../worker/browser-fetch'
 import { askRecommended, keep, readKept, seedsOf, shownPicks } from './recommended'
@@ -47,12 +48,15 @@ const cardOf = (pick: Pick) => {
   }
 }
 
-/** The row's cards, from the viewer's lists once every one is read: none, and nothing asked, while they name no seed. */
-export const useRecommended = () => {
+/**
+ * The row's cards, from the viewer's lists once every one is read: none, and nothing asked, while they name no seed or
+ * AniList is turned off, the one ask of it that `askable` does not see.
+ */
+const useRecommended = () => {
   const [{ data }] = useSubscription({ query: VIEWER_LISTS })
   const lists = data?.viewerLists
   const works = lists && !lists.lists.some(list => list.state === 'LOADING') ? lists.rows : undefined
-  const seeds = useMemo(() => works ? seedsOf(works) : [], [works])
+  const seeds = useMemo(() => works && !readDisabledSources().includes('anilist') ? seedsOf(works) : [], [works])
   const [picks, setPicks] = useState<Summed>()
   useEffect(() => {
     if (!seeds.length) return

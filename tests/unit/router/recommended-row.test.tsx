@@ -19,6 +19,7 @@ vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => nu
 
 const { default: Recommended } = await import('../../../src/router/home/recommended-row')
 const { RECOMMENDED_KEY, SHOWN } = await import('../../../src/router/home/recommended')
+const { DISABLED_SOURCES_KEY, readDisabledSources } = await import('../../../src/sources/disabled-sources')
 
 const row = (uri: string, status: string, title: string) => ({
   _id: `row:${uri}`, uri, summary: { _id: `summary:${uri}`, status, score: null, updatedAt: '2026-10-30T00:00:00Z', title },
@@ -82,6 +83,16 @@ test('serves the kept answer for the same shows, and asks again for others', asy
   expect(anilist.asked, 'one request for both').toHaveLength(1)
   await show([FRIEREN, VIOLET, MUSHOKU])
   expect(anilist.asked).toHaveLength(2)
+})
+
+test('asks nothing and draws nothing while AniList is turned off in Settings', async () => {
+  await show([FRIEREN, VIOLET])
+  expect(anilist.asked, 'the control: the same lists are asked about with it on').toHaveLength(1)
+  storage.setItem(DISABLED_SOURCES_KEY, JSON.stringify(['anilist']))
+  expect(readDisabledSources(), 'the control: the setting reads as Settings wrote it').toEqual(['anilist'])
+  expect((await show([FRIEREN, VIOLET])).innerHTML, 'with an answer kept').toBe('')
+  expect((await show([FRIEREN, MUSHOKU])).innerHTML, 'with none kept for these').toBe('')
+  expect(anilist.asked, 'nothing asked').toHaveLength(1)
 })
 
 test('draws nothing when AniList refuses', async () => {
