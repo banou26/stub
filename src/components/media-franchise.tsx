@@ -57,6 +57,8 @@ const triggerStyle = css`
   font-family: inherit;
   font-size: 1.3rem;
   font-weight: 600;
+  /* not normal, which a fallback font makes taller than the 2.8rem the Relations heading holds for this button */
+  line-height: 1.6rem;
   cursor: pointer;
   transition: all 0.15s ease;
 

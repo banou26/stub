@@ -102,6 +102,8 @@ const cardStyle = css`
     gap: 0.4rem;
     padding: 1rem 1.2rem 1rem 0;
     min-width: 0;
+    /* not normal, which a fallback font makes taller: at 1.2 a card with a two-line title fits the 9.7rem held for it */
+    line-height: 1.2;
   }
 
   & .relation {

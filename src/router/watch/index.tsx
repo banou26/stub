@@ -433,6 +433,8 @@ const style = css`
     .step-label {
       font-size: 1.6rem;
       font-weight: 700;
+      /* a word longer than a phone's half of the row, as some languages' are, wraps inside it */
+      overflow-wrap: anywhere;
     }
 
     .step-target {
