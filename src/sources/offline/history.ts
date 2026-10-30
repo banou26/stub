@@ -49,9 +49,10 @@ export const historyEntry = async (key: string, load: ShardLoader, follow = true
 
 /**
  * A history record as one media at the offline source's score: stub's merge's title, cover, banner and description,
- * else the dump's title and picture. Every live source outranks the first three. Not the description: a page shows the
- * longest one whatever its score, so a synopsis as the merge last read it competes with its source's live one, and a
- * closed season's is never read again.
+ * else the dump's title and picture. Every live source outranks the title and the cover. Not the banner, which
+ * outranks AniList's at 0.05 and JustWatch's at 0.1, and not the description: a page shows the longest one whatever
+ * its score, so a synopsis as the merge last read it competes with its source's live one, and a closed season's is
+ * never read again.
  * No season, type, status or date: a record outside the bundled seasons claims nothing it was not picked for. ANIME
  * is the one category it claims, and the only one every record holds: without it anime.fkn.app drops a title only
  * this source has answered (`siteAllows`), and SERIES or MOVIE is the format no record carries.

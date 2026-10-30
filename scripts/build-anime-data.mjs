@@ -8,8 +8,8 @@
 //   src/generated/anime-index.ts    cross-catalog ids: MyAnimeList, AniList, Kitsu, AniDB, Anime News Network
 //   src/generated/anime-seasons.ts  seasonal listings with titles and covers
 //   src/generated/history/          every listed show's title, cover, banner and description, as stub's own
-//                                   rules pick them from the dump and the offline history (HOR-915), or as the
-//                                   Offline history job picked them from every source's kept answers (HOR-1029)
+//                                   rules pick them from the dump and the offline history, or as the
+//                                   Offline history job picked them from every source's kept answers
 //
 // All are reached ONLY through a dynamic import, so they are separate content-hashed chunks and
 // add nothing to the initial bundle.

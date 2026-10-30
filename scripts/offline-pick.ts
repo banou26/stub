@@ -1,8 +1,8 @@
 // The offline history's titles, covers, banners and descriptions, chosen by stub's own rules (HOR-915): each
 // gathered input becomes the media stub's own source answers for it (offline, kitsu, anizip), or is one, kept from a
 // link preview, and stub's own `aggregateFields` merges them as it merges a page's members. The Offline history job
-// merges every answer the private source store keeps too, every source's, and publishes what it chose as the picks
-// (HOR-1029). Loaded through vite's module runner (scripts/history-files.mjs's `loadMerge`), by the job and by
+// merges every answer the private source store keeps too, every source's, and publishes what it chose as the picks.
+// Loaded through vite's module runner (scripts/history-files.mjs's `loadMerge`), by the job and by
 // ./build-anime-data.mjs, which merges the public inputs alone when it has no picks of this merge to ship.
 
 import type { Media as GQLMedia } from '../src/generated/schema/types.generated'

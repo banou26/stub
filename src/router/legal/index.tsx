@@ -6,7 +6,7 @@ import LegalDoc from '../../components/legal-doc'
 const Legal = () => (
   <LegalDoc>
     <h1>Legal &amp; Terms</h1>
-    <div className="updated">Last updated 24 October 2026</div>
+    <div className="updated">Last updated 31 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project, provided “as is” without

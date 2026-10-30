@@ -3,7 +3,7 @@
 //
 // Three assets of gathered inputs, each a file of its own and none holding any ODbL data: AniDB's titles, Kitsu's
 // rows, and what link previews' answers of anizip and Kitsu may add, folded from the private source store's inbox
-// (./source-store.mjs). A fourth, the picks (HOR-1029), is what stub's merge of all of that and of every answer the
+// (./source-store.mjs). A fourth, the picks, is what stub's merge of all of that and of every answer the
 // store keeps chose per show, stamped with the merge's version and the dump it read. A manifest names them with their
 // sha256 and row count, which dump the checkpoints came from, and the YEAR-SEASON checkpoints themselves. Asset names
 // are content addressed and the manifest is replaced last, so a reader sees the old set or the new one, never a mix.

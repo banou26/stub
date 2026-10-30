@@ -5,7 +5,7 @@
 // sources only the store keeps: TVmaze's show index, ANN's title report and AnimeThemes' catalogue. It also folds the
 // store's inbox, what link previews' sources answered, into the store, and what anizip and Kitsu answered there into
 // the history. Last, it runs stub's own merge and publishes what it chose per show, the picks, which a data build ships
-// when they are of its own merge and dump (HOR-1029).
+// when they are of its own merge and dump.
 //
 // The only code that asks AniDB, the only code that asks Kitsu for the history, and the only code that asks those
 // three for their whole catalogues. It refuses to run outside that workflow, so a local run, a test or a Pages build
