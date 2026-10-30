@@ -185,7 +185,10 @@ const Party = () => {
   })
   useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 1_500); return () => clearTimeout(timer) }, [copied])
 
-  const link = active ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href) : undefined
+  // only the host's sources are the party's: a guest's own would offer a friend sources the host does not play
+  const link = !active ? undefined
+    : state.role === 'host' ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href)
+    : partyLink(location.origin, state.invite)
   const copy = async () => {
     if (!link) return
     try { await navigator.clipboard.writeText(link); setCopied(true) } catch {}

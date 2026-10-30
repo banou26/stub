@@ -113,7 +113,7 @@ describe('the party page\'s English', () => {
 })
 
 // HOR-845: a follower without one of the host's sources had no player and was never offered it
-describe('the invite link on the host\'s page', () => {
+describe('the party page\'s invite link', () => {
   const link = async () => {
     room('host', ['host'])
     const host = await page('', store => store.create())
@@ -129,5 +129,12 @@ describe('the invite link on the host\'s page', () => {
 
   test('carries no query when the host added none', async () => {
     expect(await link()).toBe(`https://stub.test/party#${INVITE}`)
+  })
+
+  test('a guest\'s copy offers none of the guest\'s own sources', async () => {
+    added.sources = ['npm:guest-only']
+    room('me', ['host', 'me'])
+    const host = await page('', store => store.join(INVITE))
+    expect(host.querySelectorAll<HTMLInputElement>('.field input')[1]!.value).toBe(`https://stub.test/party#${INVITE}`)
   })
 })
