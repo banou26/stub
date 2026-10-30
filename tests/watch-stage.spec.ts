@@ -209,8 +209,8 @@ const torrentAcrossEpisodes = async (page: Page) => {
 
 const VIEWPORT = { width: 1280, height: 720 }
 
-// Both offers are due at the first report and both sit in one corner: Next must come after Skip Ending has gone, over
-// the real connection to the package. Compared by the time each document stamps, since a frame two down cannot be
+// Both offers are due once it plays and both sit in one corner: Next must come after Skip Ending has gone, over the
+// real connection to the package. Compared by the time each document stamps, since a frame two down cannot be
 // sampled from the page in one instant.
 test('Next episode comes after the player\'s Skip Ending has gone, for a file its ending closes, in Chromium', async ({ browser }) => {
   test.setTimeout(90_000)
