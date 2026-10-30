@@ -53,11 +53,14 @@ export default defineConfig(env => {
         // package.json's `main` is build/index.js, and this is the half that names it
         fileName: (_format, name) => name === 'index' ? 'index.js' : `assets/lib-${name}-[hash].js`,
       },
-      // NOT a spread of the app's rollupOptions: its `input` names index.html and embed.html, and
-      // vite lets rollupOptions.input win over lib.entry, so carrying it would build the app again
-      // under this config's output names.
+      // NOT a spread of the app's rollupOptions: its `input` names index.html, and vite lets
+      // rollupOptions.input win over lib.entry, so carrying it would build the app again under this
+      // config's output names.
       rollupOptions: {
         output: {
+          // vite keeps an es library's whitespace, and with it the pure annotations a bundler reading the
+          // library would tree-shake by. Nothing bundles this one, so it is minified as the app build is.
+          minify: true,
           // both builds write into assets/, so every name this one emits carries a prefix the app
           // build cannot produce. Two files agreeing on a name would have the second build silently
           // overwrite the first's, and only one of the two pages would still work.
@@ -83,14 +86,15 @@ export default defineConfig(env => {
       {
         // A lib build inlines every asset as base64, `assetsInlineLimit` notwithstanding, so jassub's two
         // `new URL('./wasm/*.wasm', import.meta.url)` put 6.2 MB (2.6 MB gzip) in the chunk behind the first
-        // theme Play (measured 2026-10-12), for a subtitle renderer a theme never starts. `?no-inline` is
+        // theme Play (measured 2026-10-12), for a subtitle renderer a theme never starts, and its
+        // `./default.woff2` 146 KB in the chunk the player page starts with (2026-10-31). `?no-inline` is
         // vite's per-import opt out, and the build strips it from the emitted url.
-        name: 'stub-lib-wasm-files',
+        name: 'stub-lib-asset-files',
         enforce: 'pre',
         apply: 'build',
         transform: {
           filter: { id: /\/node_modules\/jassub\// },
-          handler: code => ({ code: code.replace(/(new URL\(\s*['"][^'"?]+\.wasm)(['"])/g, '$1?no-inline$2'), map: null }),
+          handler: code => ({ code: code.replace(/(new URL\(\s*['"][^'"?]+\.(?:wasm|woff2))(['"])/g, '$1?no-inline$2'), map: null }),
         },
       },
       {
