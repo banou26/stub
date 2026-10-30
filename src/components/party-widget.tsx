@@ -65,9 +65,15 @@ const buttonStyle = css`
     opacity: 0.8;
   }
 
-  /* the header's longest word, in whatever font draws it, and the title says it instead */
+  /* the header's longest word, in whatever font draws it: gone from the row, it stays the button's name */
   @media (max-width: 1359px) {
-    .label { display: none; }
+    .label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
   }
 
   /* the header's icon buttons' size, alone or with a count */
