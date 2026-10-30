@@ -11,6 +11,7 @@ import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
+import { RECOMMENDED_KEY } from '../home/recommended'
 
 export type StoredItem = {
   id: string
@@ -126,6 +127,14 @@ export const STORED: readonly StoredItem[] = [
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
     lasts: "Until 200 newer ones replace them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
     keys: { store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] },
+  },
+  {
+    id: 'recommended',
+    title: 'Recommended for you',
+    what: 'The shows AniList recommends beside the ones on your lists, and the AniList ids of the shows it was asked about.',
+    where: LOCAL,
+    lasts: 'Until it is asked again, a day later or once those shows change',
+    keys: { store: 'local', names: [RECOMMENDED_KEY] },
   },
   {
     id: 'fetched',

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import type { GetMediaDetailsSubscription } from '../generated/graphql'
+import type { MediaStatus } from '../generated/graphql'
 import type { CoverOwner } from '../utils/use-cover-url'
 
 import { css } from '@emotion/react'
@@ -130,10 +130,11 @@ const cardStyle = css`
   }
 `
 
-type Recommendation = NonNullable<NonNullable<GetMediaDetailsSubscription['media']>['recommendations']>[number]
-
 /** One card: the work it opens, the accented line over its title and the line under it. */
 type Card = { key: string, node: Pick<RelationEdge['node'], 'uri' | 'titles' | 'covers'> & CoverOwner, label?: string, meta?: string }
+
+/** One recommended work, as its card reads it: the title page's, and home's Recommended for you. */
+type Recommendation = { node: Card['node'] & { type?: string | null, status?: MediaStatus | null, startDate?: string | null } }
 
 const WorkCard = ({ card, search, route }: { card: Card, search: string, route: Route.MEDIA | Route.TITLE }) => {
   const cover = useCoverUrl(card.node.covers, card.node)
@@ -217,10 +218,15 @@ const MediaRelations = (
   return <WorkCards name="relations" heading={heading} cards={cards} action={action} route={route} pending={pending}/>
 }
 
-/** The works the sources' users recommend beside this one, drawn as the relations are, its kind and year over its title. */
-export const MediaRecommendations = ({ recommendations, route }: { recommendations: readonly Recommendation[], route: Route.MEDIA | Route.TITLE }) => {
+/**
+ * The works the sources' users recommend beside this one, or beside the viewer's list under `heading`, drawn as the
+ * relations are, its kind and year over its title.
+ */
+export const MediaRecommendations = (
+  { recommendations, route, heading }: { recommendations: readonly Recommendation[], route: Route.MEDIA | Route.TITLE, heading?: string }
+) => {
   const intl = useIntl()
-  const heading = intl.formatMessage({ id: 'Recommendations', defaultMessage: 'Recommendations' })
+  heading ??= intl.formatMessage({ id: 'Recommendations', defaultMessage: 'Recommendations' })
   const cards = recommendations.map(({ node }) => ({
     key: node.uri,
     node,

@@ -106,7 +106,10 @@ const Privacy = () => (
       of them sees your IP address:
     </p>
     <ul css={hostsStyle}>
-      <li>AniList <span className="host">graphql.anilist.co</span></li>
+      <li>
+        AniList <span className="host">graphql.anilist.co</span>, which for Recommended for you gets the AniList ids of
+        up to 50 shows on your lists
+      </li>
       <li>Anime News Network <span className="host">cdn.animenewsnetwork.com</span></li>
       <li>AnimeThemes <span className="host">graphql.animethemes.moe</span></li>
       <li>
