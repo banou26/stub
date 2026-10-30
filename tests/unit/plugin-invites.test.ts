@@ -92,6 +92,18 @@ test('a listed package FKN will not add is offered like any other link', async (
   await vi.waitFor(() => expect(offered()).toEqual(['npm:@banou/nine@0.0.1']))
 })
 
+test("the account's list bringing a source while the offer waits leaves nothing to offer", async () => {
+  listChanged([])
+  let answer!: (uris: string[]) => void
+  plugins.installedPluginUris.mockReturnValueOnce(new Promise(resolve => { answer = resolve }))
+  const offering = offerInvites(['npm:@banou/ten'])
+
+  listChanged(['npm:@banou/ten'])
+  answer([])
+  await offering
+  expect(offered()).toEqual([])
+})
+
 test("the offer waits for FKN's list, and stays on the url meanwhile", async () => {
   listChanged([])
   let answer!: (uris: string[]) => void
