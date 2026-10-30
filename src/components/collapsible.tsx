@@ -65,13 +65,15 @@ export const Collapsible = (
       setFoldedHeight(text.offsetHeight > height + LEAST_GAIN ? height : undefined)
     }
 
-    // The parent resizes with the text and with what sits above this box. On the next frame, as folding resizes that
-    // parent too, which from inside the callback ends in "ResizeObserver loop completed with undelivered notifications"
+    // Watched: the text, which a box held at its fold no longer follows, and the parent, which also resizes with what
+    // sits above this box. Measured on the next frame: folding resizes that parent too, which from inside the callback
+    // ends in "ResizeObserver loop completed with undelivered notifications"
     let frame = 0
     const resizeObserver = new ResizeObserver(() => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(measure)
     })
+    resizeObserver.observe(text)
     resizeObserver.observe(box.parentElement!)
     if (column) resizeObserver.observe(column)
     measure()

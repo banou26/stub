@@ -411,6 +411,29 @@ test('a preview\'s description follows its row, its text and the window, and hid
   expect(await page.evaluate(() => (window as unknown as { loops: number }).loops), 'no ResizeObserver loop on the way').toBe(0)
 })
 
+test('a preview\'s collapsed description shows whole once its text is no longer worth hiding, with nothing else moving', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await preview(page, OVER, 'Spec Over')
+  await expect(toggles(page)).toHaveText('Expand')
+  const { height: row } = await fold(page)
+  const text = description(page).locator('.clip > div > div')
+  const sized = (height: number) => text.evaluate((element, height) => { element.innerHTML = `<div style="height: ${height}px"></div>` }, height)
+
+  // Expand and its gap hold the box at its fold from 26 px under it, and up to 40 px over it is not worth hiding
+  for (const over of [-20, 30]) {
+    await sized(row + over)
+    await expect(toggles(page), `${over} px from its fold`).toHaveCount(0)
+    const whole = await fold(page)
+    expect(whole.drawn, `${over} px from its fold: all of it`).toBeGreaterThanOrEqual(whole.text)
+    await sized(row + 500)
+    await expect(toggles(page), 'long again').toHaveText('Expand')
+  }
+
+  await sized(row + 60)
+  await page.waitForTimeout(100)
+  await expect(toggles(page), 'the control: sixty pixels are worth hiding').toHaveText('Expand')
+})
+
 test('a preview\'s Expand reads as the text around it, under it on the left, at 1440 and 390 px', async ({ page }) => {
   for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height: viewport })
