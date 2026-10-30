@@ -1,18 +1,22 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { automaticLanguage, bestLanguage, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, pickLanguage, readPickedLanguage, uiLanguage } from '../../../src/i18n/languages'
+import { automaticLanguage, bestLanguage, CARRIED_LANGUAGE_KEY, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, pickLanguage, readPickedLanguage, resumeLanguagePick, uiLanguage } from '../../../src/i18n/languages'
 
 // the planned list: wave 1, then the right to left pair, and two whose old tags browsers still send
 const PLANNED = ['en', 'es-419', 'pt-BR', 'fr', 'de', 'it', 'ru', 'ja', 'ko', 'zh-Hans', 'zh-Hant', 'tr', 'pl', 'ar', 'he', 'id', 'fil']
 
+const storageOf = (items: Map<string, string>) => ({
+  getItem: (key: string) => items.get(key) ?? null,
+  setItem: (key: string, value: string) => { items.set(key, value) },
+  removeItem: (key: string) => { items.delete(key) },
+})
 const stored = new Map<string, string>()
+const session = new Map<string, string>()
 beforeEach(() => {
   stored.clear()
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => { stored.set(key, value) },
-    removeItem: (key: string) => { stored.delete(key) },
-  })
+  session.clear()
+  vi.stubGlobal('localStorage', storageOf(stored))
+  vi.stubGlobal('sessionStorage', storageOf(session))
   vi.stubGlobal('navigator', { languages: ['fr-CA', 'en'] })
 })
 afterEach(() => { vi.unstubAllGlobals() })
@@ -100,6 +104,19 @@ describe('picking a language', () => {
     expect(stored.has(LANGUAGE_KEY)).toBe(false)
     expect(reload).toHaveBeenCalledOnce()
     expect(uiLanguage()).toBe('fr')
+  })
+
+  test('a pick carried over the reload is made again once, Automatic included', () => {
+    session.set(CARRIED_LANGUAGE_KEY, 'de')
+    resumeLanguagePick()
+    expect(stored.get(LANGUAGE_KEY)).toBe('de')
+    expect(session.has(CARRIED_LANGUAGE_KEY)).toBe(false)
+    session.set(CARRIED_LANGUAGE_KEY, '')
+    resumeLanguagePick()
+    expect(stored.has(LANGUAGE_KEY)).toBe(false)
+    stored.set(LANGUAGE_KEY, 'ja')
+    resumeLanguagePick()
+    expect(stored.get(LANGUAGE_KEY), 'nothing carried changes nothing').toBe('ja')
   })
 
   test('a storage that refuses the write still reloads', async () => {

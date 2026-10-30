@@ -89,6 +89,8 @@ export const createSettings = (storage: () => Raw = () => globalThis.localStorag
       }
     },
     flush: () => edited(true),
+    /** Whether this page's edit of `key` waits for src/settings-sync.ts to write it, which a reload loses. */
+    unsaved: (key: string) => edits.has(key),
     /** For src/settings-sync.ts alone. */
     internal: { raw, write, edits, tell, accountKey, merge, onEdit: (run: (flush?: boolean) => void) => { edited = run } },
   }

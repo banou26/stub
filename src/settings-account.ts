@@ -1,5 +1,6 @@
 // src/settings-sync.ts over the page's @fkn/lib realm, the one the added sources use.
 
+import { resumeLanguagePick } from './i18n/languages'
 import { settings } from './settings-store'
 import { positionsSync, settingsSync } from './settings-sync'
 import { REFRESH_MS } from './tracking/account-link'
@@ -15,6 +16,7 @@ const lock = (name: string) => <T>(work: () => Promise<T>): Promise<T> =>
 
 const settingsAccount = settingsSync({ settings, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:settings') })
 const positionsAccount = positionsSync({ settings: positions, cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: lock('stub:positions') })
+resumeLanguagePick()
 
 holdUpdatesWhile(() => settingsAccount.unsaved() || positionsAccount.unsaved())
 

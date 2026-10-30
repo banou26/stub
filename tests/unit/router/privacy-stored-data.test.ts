@@ -9,7 +9,7 @@ import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
-import { LANGUAGE_KEY } from '../../../src/i18n/languages'
+import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { COUNTRY_KEY } from '../../../src/sources/country'
 import { DISABLED_SOURCES_KEY } from '../../../src/sources/disabled-sources'
@@ -44,6 +44,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('party-name').keys).toEqual({ store: 'session', names: [PARTY_NAME_KEY] })
     expect(byId('party-invite').keys).toEqual({ store: 'session', names: [PARTY_SESSION_KEY] })
     expect(byId('update-reloads').keys).toEqual({ store: 'session', names: [UPDATE_RELOADS_KEY] })
+    expect(byId('language-carried').keys).toEqual({ store: 'session', names: [CARRIED_LANGUAGE_KEY] })
   })
 
   // what src writes, read from src itself, so a new key anywhere turns this red until the list names it

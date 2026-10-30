@@ -4,7 +4,7 @@
 // worker and src/viewer-languages.ts share it.
 
 import OFFERED_LANGUAGES from './offered.json'
-import { settings } from '../settings-store'
+import { settings, type Settings } from '../settings-store'
 
 /** The setting holding the language picked in Settings, an offered tag. No value is Automatic. */
 export const LANGUAGE_KEY = 'stub.language'
@@ -54,17 +54,36 @@ export const readPickedLanguage = (): string | undefined => {
   return kept && OFFERED.includes(kept) ? kept : undefined
 }
 
+/** This tab's sessionStorage key holding a pick the FKN account's settings step could not take before the reload, `''` for Automatic. */
+export const CARRIED_LANGUAGE_KEY = 'stub.language.carried'
+
+const keep = (store: Settings, language: string | undefined) => {
+  try {
+    if (language) store.setItem(LANGUAGE_KEY, language)
+    else store.removeItem(LANGUAGE_KEY)
+  } catch {}
+}
+
 /**
  * Picks `language`, or Automatic with undefined, then reloads the tab once `saved` (the FKN account's settings step)
- * settles, so the next load shows it and the account's older copy cannot win over it.
+ * settles, so the next load shows it and the account's older copy cannot win over it. A pick that step could not take
+ * (FKN not answering, no key held), which the reload would lose, is carried over it for resumeLanguagePick.
  */
 export const pickLanguage = async (language: string | undefined, { saved, reload }: { saved: () => Promise<unknown>, reload: () => void }) => {
-  try {
-    if (language) settings.setItem(LANGUAGE_KEY, language)
-    else settings.removeItem(LANGUAGE_KEY)
-  } catch {}
+  keep(settings, language)
   await saved()
+  if (settings.unsaved(LANGUAGE_KEY)) try { sessionStorage.setItem(CARRIED_LANGUAGE_KEY, language ?? '') } catch {}
   reload()
+}
+
+/** Makes the pick the tab's last load carried over its reload again, as an edit of this page for the account's next step. */
+export const resumeLanguagePick = (store = settings) => {
+  let carried: string | null = null
+  try {
+    carried = sessionStorage.getItem(CARRIED_LANGUAGE_KEY)
+    sessionStorage.removeItem(CARRIED_LANGUAGE_KEY)
+  } catch {}
+  if (carried !== null) keep(store, carried || undefined)
 }
 
 /** The language Automatic shows: the offered one best serving the browser's, else English. */

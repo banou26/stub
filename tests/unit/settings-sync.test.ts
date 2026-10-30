@@ -15,7 +15,7 @@ import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
 import { AUDIO_LANGUAGE_KEY as AUDIO, SUBTITLE_LANGUAGE_KEY as SUBTITLES, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages } from '../../src/utils/track-languages'
 import { COUNTRY_KEY as COUNTRY, readPickedCountry } from '../../src/sources/country'
-import { LANGUAGE_KEY as LANGUAGE, pickLanguage, readPickedLanguage } from '../../src/i18n/languages'
+import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY as LANGUAGE, pickLanguage, readPickedLanguage, resumeLanguagePick } from '../../src/i18n/languages'
 import { DISPLAY_MODE_KEY, readDisplayMode } from '../../src/router/search/display'
 import { COMPACT_PREFS_KEY, viewerPrefs } from '../../src/tracking/compact-prefs'
 import { fknTrackerCloud } from '../../src/tracking/fkn-cloud'
@@ -454,6 +454,8 @@ describe('the page\'s settings', () => {
   test('a language picked is on the account before the tab reloads, so the next load and another device show it', async () => {
     const { storage } = memoryStorage()
     vi.stubGlobal('localStorage', storage)
+    const session = memoryStorage()
+    vi.stubGlobal('sessionStorage', session.storage)
     const world = fknWorld()
     holds(world, 'alice', { [LANGUAGE]: 'de' })
     const browser = world.browser({ account: 'alice' })
@@ -468,10 +470,46 @@ describe('the page\'s settings', () => {
     let atReload: unknown
     await pickLanguage('ja', { saved: sync.check, reload: () => { atReload = fileOf(world, 'alice') } })
     expect(atReload, 'written before the reload').toEqual({ [LANGUAGE]: 'ja' })
+    expect(session.items.size, 'nothing carried over the reload').toBe(0)
 
     // the reloaded tab: a fresh store over this browser's storage, which the account's file overrules where they differ
     const reloaded = createSettings(() => storage)
     await load(reloaded).check()
+    expect(reloaded.getItem(LANGUAGE)).toBe('ja')
+    const other = site(world.browser({ account: 'alice' }))
+    await other.sync.check()
+    expect(other.settings.getItem(LANGUAGE)).toBe('ja')
+  })
+
+  test('a language picked while FKN does not answer is carried over the reload, and the account takes it once FKN answers', async () => {
+    const { storage } = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    const session = memoryStorage()
+    vi.stubGlobal('sessionStorage', session.storage)
+    const world = fknWorld()
+    holds(world, 'alice', { [LANGUAGE]: 'de' })
+    const browser = world.browser({ account: 'alice' })
+    const load = (settings = pageSettings) => {
+      const realm = browser.realm()
+      return settingsSync({ settings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
+    }
+    const sync = load()
+    await sync.check()
+    browser.state.reachable = false
+    await pickLanguage('ja', { saved: sync.check, reload: () => {} })
+    expect(fileOf(world, 'alice'), 'the control: FKN took nothing').toEqual({ [LANGUAGE]: 'de' })
+    expect(session.items.get(CARRIED_LANGUAGE_KEY)).toBe('ja')
+
+    // the reload: this page's edits go with it, and the next load's store starts from this browser's storage
+    pageSettings.internal.edits.clear()
+    const reloaded = createSettings(() => storage)
+    const again = load(reloaded)
+    resumeLanguagePick(reloaded)
+    expect(reloaded.getItem(LANGUAGE), 'shown at once').toBe('ja')
+    expect(session.items.size, 'carried once').toBe(0)
+    browser.state.reachable = true
+    await again.check()
+    expect(fileOf(world, 'alice')).toEqual({ [LANGUAGE]: 'ja' })
     expect(reloaded.getItem(LANGUAGE)).toBe('ja')
     const other = site(world.browser({ account: 'alice' }))
     await other.sync.check()

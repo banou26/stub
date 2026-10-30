@@ -1,6 +1,7 @@
 // What stub keeps per viewer, where, and for how long, as the privacy page lists it. Its keys are taken
 // from the modules that write or list them, so the list cannot drift from what is written.
 
+import { CARRIED_LANGUAGE_KEY } from '../../i18n/languages'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { UPDATE_RELOADS_KEY } from '../../update/gate'
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
@@ -80,6 +81,14 @@ export const STORED: readonly StoredItem[] = [
     where: SESSION,
     lasts: 'Until you close the tab',
     keys: { store: 'session', names: [UPDATE_RELOADS_KEY] },
+  },
+  {
+    id: 'language-carried',
+    title: 'Language picked while FKN was not answering',
+    what: 'The language you picked in Settings while your FKN account could not take it, so the reload that shows it still saves it to your account.',
+    where: SESSION,
+    lasts: 'Until that reload',
+    keys: { store: 'session', names: [CARRIED_LANGUAGE_KEY] },
   },
   {
     id: 'stub-list',
