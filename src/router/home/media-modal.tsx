@@ -38,6 +38,9 @@ z-index: ${layer.mediaModal};
 padding: 5rem 1rem;
 background-color: hsla(0, 0%, 0%, 0.439);
 animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+/* the same width with a scrollbar or without: a description fitting only without one would collapse, take the
+   scrollbar away, fit, open and bring it back on every frame */
+scrollbar-gutter: stable;
 
 @media (min-width: 1024px) {
     padding: 5rem 1rem;

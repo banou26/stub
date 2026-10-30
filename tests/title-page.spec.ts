@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net'
 import type { Frame, Locator, Page } from '@playwright/test'
 
-import { expect, firefox, test } from '@playwright/test'
+import { chromium, expect, firefox, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -432,6 +432,29 @@ test('a preview\'s collapsed description shows whole once its text is no longer 
   await sized(row + 60)
   await page.waitForTimeout(100)
   await expect(toggles(page), 'the control: sixty pixels are worth hiding').toHaveText('Expand')
+})
+
+// Playwright hides scrollbars unless told not to. A column that widens without one could fit a description only then:
+// collapsing would take the scrollbar away, the text would fit and open, the scrollbar would come back, on every frame.
+test('a preview\'s description keeps its width when the modal\'s scrollbar goes', async ({ launchOptions }) => {
+  const browser = await chromium.launch({ ...launchOptions, ignoreDefaultArgs: ['--hide-scrollbars'] })
+  try {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+    await page.route(url => !url.href.startsWith(origin), route => route.abort())
+    await preview(page, BRIEF, 'Spec Brief')
+    const overlay = page.locator('[data-party-scroll]')
+    const scrolls = () => overlay.evaluate(element => element.scrollHeight > element.clientHeight)
+    const width = () => description(page).evaluate(box => box.getBoundingClientRect().width)
+
+    const withScrollbar = await width()
+    expect(await scrolls(), 'the control: it scrolls').toBe(true)
+    expect(await overlay.evaluate(element => (element as HTMLElement).offsetWidth - element.clientWidth), 'the control: its scrollbar is drawn').toBeGreaterThan(0)
+    await page.setViewportSize({ width: 800, height: 4000 })
+    await expect.poll(scrolls, 'the control: it no longer scrolls').toBe(false)
+    expect(await width()).toBe(withScrollbar)
+  } finally {
+    await browser.close()
+  }
 })
 
 test('a preview\'s Expand reads as the text around it, under it on the left, at 1440 and 390 px', async ({ page }) => {
