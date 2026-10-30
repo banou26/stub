@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net'
 import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
@@ -12,7 +12,8 @@ import { workerFakes } from './worker-fakes'
 
 // HOR-1114 (home's New episodes row: a heading like Current season's, its own page, and a place under Current
 // season): home as stub.fkn.app serves it, built and served the way tests/title-page.spec.ts does, the viewer's
-// lists being the device's own, written through the title page's Quick tracking.
+// lists being the device's own, written through the title page's Quick tracking. HOR-1087 (home's Recommended for you):
+// the row under it, AniList's answer being the one its unit tests read.
 
 const ROOT = join(import.meta.dirname, '..')
 const TYPES: Record<string, string> = {
@@ -21,6 +22,7 @@ const TYPES: Record<string, string> = {
   '.ico': 'image/x-icon', '.svg': 'image/svg+xml',
 }
 const VIEWPORTS = [[1440, 900], [390, 844]] as const
+const RECOMMENDED = JSON.parse(readFileSync(join(ROOT, 'tests/unit/router/__fixtures__/anilist-recommended-2026-10-31.json'), 'utf8'))
 const WATCHED = 5
 let dir: string
 let server: Server
@@ -120,6 +122,11 @@ const watch = async (page: Page, uri: string) => {
 
 test('the New episodes row lands under Current season, headed as it is, and its heading opens a page of them all', async ({ page }) => {
   test.setTimeout(600_000)
+  const recommendedAsked: unknown[] = []
+  await page.route('https://graphql.anilist.co/', route => {
+    recommendedAsked.push(route.request().postDataJSON())
+    return route.fulfill({ json: { data: { Page: { media: Object.values(RECOMMENDED) } } }, headers: { 'access-control-allow-origin': '*' } })
+  })
   const top: Record<number, number> = {}
   for (const [width, height] of VIEWPORTS) {
     await page.setViewportSize({ width, height })
@@ -134,6 +141,7 @@ test('the New episodes row lands under Current season, headed as it is, and its 
   await page.goto(`${origin}/`)
   const cards = page.locator('a[href^="/media/"]')
   await expect(cards.nth(2 * WATCHED)).toBeVisible({ timeout: 60_000 })
+  expect(recommendedAsked, 'nothing asked of AniList for Recommended for you while the lists are empty').toEqual([])
   const uris = [...new Set(await cards.evaluateAll(links => links.map(link => link.getAttribute('href')!.slice('/media/'.length))))]
   let watched = 0
   for (const uri of uris) if (watched < WATCHED && await watch(page, uri)) watched++
@@ -157,6 +165,11 @@ test('the New episodes row lands under Current season, headed as it is, and its 
     expect.soft(own.y, `${width}: the row sits under Current season`).toBeGreaterThan(theirs.y)
     expect([own.x, own.height], `${width}: the heading is Current season's size and place`).toEqual([theirs.x, theirs.height])
     expect(await painted(heading(page)), `${width}: nothing paints over the heading`).toBe('itself')
+    const recommended = page.locator('[data-recommendations] h2')
+    await expect(recommended).toHaveText('Recommended for you', { timeout: 30_000 })
+    const fonts = await Promise.all([recommended, heading(page)].map(title => title.evaluate(element => getComputedStyle(element).fontSize)))
+    expect([(await box(recommended)).x, fonts[0]], `${width}: Recommended for you is headed as New episodes is`).toEqual([own.x, fonts[1]])
+    expect((await box(recommended)).y, `${width}: Recommended for you sits under New episodes`).toBeGreaterThan((await box(heading(page))).y)
     const seasonRow = page.locator('.home-row', { has: season(page) })
     const [ownCard, theirCard] = [await box(row.first()), await box(seasonRow.locator('.category-item').first())]
     expect([ownCard.width, ownCard.height], `${width}: a card is Current season's size`).toEqual([theirCard.width, theirCard.height])

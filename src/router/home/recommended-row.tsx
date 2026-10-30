@@ -16,15 +16,15 @@ import { askRecommended, keep, readKept, seedsOf, shownPicks } from './recommend
 const rowStyle = css`
   padding: 0 10rem;
 
-  /* as large as every other home row's heading (./row-title.tsx) */
-  & h2 {
+  /* as large as every other home row's heading (./row-title.tsx), over the title page's size */
+  & > .recommendations > h2 {
     font-size: 4rem;
   }
 
   @media (max-width: 768px) {
     padding: 0 1.5rem;
 
-    & h2 {
+    & > .recommendations > h2 {
       font-size: 2.4rem;
     }
   }
