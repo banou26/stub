@@ -1,10 +1,11 @@
 import type { Pick } from '../../../src/router/home/recommended'
+import type { FranchisePick } from '../../../src/sources/anilist/franchise'
 
 import ANSWERS from './__fixtures__/anilist-recommended-2026-10-31.json'
 
-type Media = { recommendations: { nodes: { rating: number, mediaRecommendation: Pick }[] } }
+type Media = FranchisePick & { recommendations: { nodes: { rating: number, mediaRecommendation: Pick }[] } }
 
-/** AniList's answer to the row's own query for each of three seeds alone, by seed (2026-10-31). */
+/** AniList's answer to the row's own query for each of five seeds alone, by seed (2026-10-31). */
 export const RECOMMENDED = ANSWERS as unknown as Record<number, Media>
 
 /**
