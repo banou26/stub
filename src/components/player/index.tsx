@@ -12,6 +12,7 @@ import { exposePlayer } from '@banou/media-player/remote'
 
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { hostFullscreenFeatures } from './host-fullscreen'
+import LeftToRight from './left-to-right'
 import VideoSurface from './video-surface'
 
 const { Provider } = createPlayer({ features: hostFullscreenFeatures })
@@ -132,12 +133,14 @@ export type PlayerProps = {
 }
 
 const Player = ({ remote, frame, adapter, capabilities, children }: PlayerProps) => (
-  <Provider>
-    <MediaAttach remote={remote} frame={frame} adapter={adapter} />
-    <VideoSurface capabilities={capabilities} css={style}>
-      {children}
-    </VideoSurface>
-  </Provider>
+  <LeftToRight>
+    <Provider>
+      <MediaAttach remote={remote} frame={frame} adapter={adapter} />
+      <VideoSurface capabilities={capabilities} css={style}>
+        {children}
+      </VideoSurface>
+    </Provider>
+  </LeftToRight>
 )
 
 export default Player as FunctionComponent<PlayerProps>

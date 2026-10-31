@@ -8,6 +8,7 @@ import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
+import LeftToRight from '../../components/player/left-to-right'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { usePageFrameStep } from '../frame-steps'
@@ -34,9 +35,11 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
 
   return (
     // `media` is passed even as null: its presence is what makes the player drive a media it does not own
-    <MediaPlayer media={volume?.media ?? null} title={title} quality={quality} stepFrame={stepFrame} fullscreen={fullscreen} language={locale}>
-      {children}
-    </MediaPlayer>
+    <LeftToRight>
+      <MediaPlayer media={volume?.media ?? null} title={title} quality={quality} stepFrame={stepFrame} fullscreen={fullscreen} language={locale}>
+        {children}
+      </MediaPlayer>
+    </LeftToRight>
   )
 }
 

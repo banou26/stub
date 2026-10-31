@@ -7,6 +7,7 @@ import { exposePlayer } from '@banou/media-player/remote'
 import { useEffect, useMemo } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
+import LeftToRight from '../../components/player/left-to-right'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
@@ -51,26 +52,28 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   const fullscreen = useHostFullscreen()
 
   return (
-    <MediaPlayer
-      // Always pass the key, even as null. Its PRESENCE is what selects the arm that drives a media
-      // it does not own; spreading it conditionally would fall through to the local arm, which draws
-      // an idle <video> over the Crunchyroll frame below.
-      media={media}
-      title={title}
-      subtitles={subtitles}
-      audioTracks={audioTracks}
-      quality={quality}
-      thumbnails={thumbnails}
-      chapters={chapters}
-      pictureInPicture={pictureInPicture}
-      fullscreen={fullscreen}
-      onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
-      onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
-      stepFrame={stepFrame}
-      language={locale}
-    >
-      {children}
-    </MediaPlayer>
+    <LeftToRight>
+      <MediaPlayer
+        // Always pass the key, even as null. Its PRESENCE is what selects the arm that drives a media
+        // it does not own; spreading it conditionally would fall through to the local arm, which draws
+        // an idle <video> over the Crunchyroll frame below.
+        media={media}
+        title={title}
+        subtitles={subtitles}
+        audioTracks={audioTracks}
+        quality={quality}
+        thumbnails={thumbnails}
+        chapters={chapters}
+        pictureInPicture={pictureInPicture}
+        fullscreen={fullscreen}
+        onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
+        onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
+        stepFrame={stepFrame}
+        language={locale}
+      >
+        {children}
+      </MediaPlayer>
+    </LeftToRight>
   )
 }
 

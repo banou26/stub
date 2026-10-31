@@ -155,7 +155,7 @@ export const VolumeControl = (
   )
 
   return (
-    <div css={style} onMouseLeave={mouseOutBottom}>
+    <div css={style} dir="ltr" onMouseLeave={mouseOutBottom}>
       <button className="volume-icon" onClick={toggleMuteButton} onMouseOver={hoverVolumeArea}>
         {volumeIcon}
       </button>
