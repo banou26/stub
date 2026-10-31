@@ -44,6 +44,9 @@ const style = css`
   }
 `
 
+// from the line's start rather than the left edge, so a pointer lands on the same thing on a page mirrored right to left
+const alongTheLine = (x: number) => document.documentElement.dir === 'rtl' ? 1 - x : x
+
 const PartyCursor = () => {
   const intl = useIntl()
   const state = useParty()
@@ -67,7 +70,7 @@ const PartyCursor = () => {
     }
     const onMove = (event: PointerEvent) => {
       latest = {
-        x: Math.min(1, Math.max(0, event.clientX / window.innerWidth)),
+        x: alongTheLine(Math.min(1, Math.max(0, event.clientX / window.innerWidth))),
         y: Math.min(1, Math.max(0, event.clientY / window.innerHeight)),
       }
       if (pending) return
@@ -110,7 +113,7 @@ const PartyCursor = () => {
   return (
     <div
       css={style}
-      style={{ '--x': `${ghost.x * 100}vw`, '--y': `${ghost.y * 100}vh` } as Record<string, string>}
+      style={{ '--x': `${alongTheLine(ghost.x) * 100}vw`, '--y': `${ghost.y * 100}vh` } as Record<string, string>}
       aria-hidden="true"
     >
       <svg width="18" height="22" viewBox="0 0 18 22" fill="none">

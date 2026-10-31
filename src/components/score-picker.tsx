@@ -108,7 +108,8 @@ const ScorePicker = (
       close()
       return
     }
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
+    const forward = getComputedStyle(root.current!).direction === 'rtl' ? -1 : 1
+    const step = { ArrowRight: forward, ArrowDown: 1, ArrowLeft: -forward, ArrowUp: -1 }[event.key]
     if (!step || (event.target as HTMLElement).tagName === 'INPUT') return
     const options = [...root.current!.querySelectorAll<HTMLElement>('.menu button, .menu input')]
     const at = options.indexOf(document.activeElement as HTMLElement)

@@ -42,6 +42,29 @@ test('a follower sees the host\'s pointer tagged with the host\'s name, else as 
   expect(host.querySelector('.tag')?.textContent).toBe('Mika')
 })
 
+test('on a right to left page the host\'s pointer counts from the line\'s start, so it lands on the same thing', async () => {
+  const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+  current.store = createPartyStore(api(fake.room), memoryStorage())
+  await current.store.join(INVITE)
+  const location = memoryLocation({ path: PAGE })
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>))
+  hosts.push(host)
+  const place = () => host.querySelector('.tag')!.parentElement!.style.getPropertyValue('--x')
+  const says = (seq: number, message: PartyMessage) => act(() => {
+    fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: seq, text: encodePartyMessage(message) }, replayed: false })
+  })
+  says(1, { t: 'state', path: PAGE, y: 0 })
+  says(2, { t: 'cursor', x: 0.25, y: 0.5 })
+  expect(place()).toBe('25vw')
+  document.documentElement.dir = 'rtl'
+  try {
+    says(3, { t: 'cursor', x: 0.25, y: 0.5 })
+    expect(place()).toBe('75vw')
+  } finally {
+    document.documentElement.removeAttribute('dir')
+  }
+})
+
 // HOR-1106: its address carries its own sources, which are not the host's
 test('a follower with other sources than the host\'s still sees the host\'s pointer on the host\'s page', async () => {
   const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
