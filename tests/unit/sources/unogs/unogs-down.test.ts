@@ -402,6 +402,29 @@ test('nobody answering stays a failure, never a refusal', async () => {
   expect(outcome).toMatchObject({ error: expect.anything() })
 })
 
+test('uNoGS describing the title while nobody lists its seasons stays a failure', async () => {
+  const { ctx } = rig({
+    unogs: url => url.includes('/episodes') ? down() : answered(url),
+    netflix: () => Promise.resolve(new Response('', { status: 503 })),
+  })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome).toMatchObject({ error: expect.anything() })
+})
+
+test('Netflix describing the title and then failing on its seasons stays a failure', async () => {
+  let landings = 0
+  const { ctx } = rig({
+    unogs: down,
+    netflix: (operation, variables) => landings++ ? Promise.resolve(new Response('', { status: 503 })) : recordedNetflix(operation, variables),
+  })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome).toMatchObject({ error: expect.anything() })
+})
+
 // All three parse, so nothing threw and the first element of a body that is no list read as no such title.
 test.each([
   ['the relay failing', 502, '{"error":"upstream fetch failed: connection reset"}'],
@@ -447,6 +470,33 @@ test('a detail answer that stalls after its headers goes on to Netflix', async (
 
   expect(outcome).toMatchObject({ value: { uri: 'nf:81040344-1' } })
   expect(landingCalls()).toBeGreaterThan(0)
+})
+
+// `withNetflixEpisodes` clears a season's cut, which says nothing about the seasons the list never showed.
+test('a title whose season list is cut publishes no count for the seasons it saw', async () => {
+  const seasons = Array.from({ length: 10 }, (_, season) =>
+    seasonEpisodes(90000 + season, `Season ${season + 1}`, Array.from({ length: 10 }, (_, episode): [number, string] => [900000 + season * 100 + episode, `Episode ${episode + 1}`]), true))
+  const { ctx } = rig({
+    unogs: down,
+    netflix: async (operation, { seasonId }) => Response.json(operation === 'LodpTitleAndPlansPageQuery'
+      ? { data: { videos: [{ __typename: 'Show', videoId: 80107103, title: 'One Piece', seasons: { totalCount: 40, pageInfo: { hasNextPage: true }, edges: seasons } }] } }
+      : {
+        data: {
+          videos: [{
+            videoId: seasonId,
+            episodes: {
+              pageInfo: { hasNextPage: false },
+              edges: Array.from({ length: 12 }, (_, episode) => ({ node: { videoId: seasonId! * 100 + episode, number: episode + 1, title: `Episode ${episode + 1}` } })),
+            },
+          }],
+        },
+      }),
+  })
+
+  const outcome = await after(ASK_BOUND_MS - 1, getMedia('80107103', ctx, undefined, false))
+
+  expect(outcome).toMatchObject({ value: { uri: 'nf:80107103', scope: 'CONTAINER' } })
+  expect(outcome).not.toMatchObject({ value: { episodeCount: expect.anything() } })
 })
 
 // Seasons run 8, 9, 8, 9, 8, and with no year for the first-season veto a 2019 run of 8 took season 1 on its

@@ -280,6 +280,8 @@ type NetflixSeason = {
 type SeasonListing = {
   seasons: NetflixSeason[]
   truncated: boolean
+  /** Neither upstream answered, so `seasons` is empty for want of an answer rather than by anyone's word. */
+  unanswered?: boolean
   /** the title's, which every episode of it carries: see `NetflixTitle` */
   audioLanguages?: string[]
   subtitleLanguages?: string[]
@@ -468,11 +470,6 @@ const netflixLanding = (id: string, ctx: ExtractorServerContext) =>
     return result
   })
 
-const netflixFallbackSeasons = async (id: string, ctx: ExtractorServerContext): Promise<SeasonListing | undefined> => {
-  const result = await netflixLanding(id, ctx)
-  return result.ok && result.title ? netflixSeasons(result.title) : undefined
-}
-
 /**
  * The title as unOGS describes it, or as Netflix's landing query does when unOGS cannot answer.
  *
@@ -508,8 +505,8 @@ const fetchTitle = async (id: string, ctx: ExtractorServerContext): Promise<Unog
 /**
  * WHICH SEASONS a Netflix title has, from unOGS when it can answer and from Netflix's landing query
  * when it cannot. The INDEX, not the episode data: `withNetflixEpisodes` replaces the episodes of the
- * season being published. Never throws: a title nobody can answer for has no seasons, which every
- * caller already handles, and a throw here would take the whole subscription with it.
+ * season being published. Never throws: a title nobody can answer for has no seasons and says so
+ * (`unanswered`), and only a season pick reads that as a failure (`listingToPick`).
  *
  * UNOGS STAYS PRIMARY FOR THE INDEX. It answers every season of a title in one 1.2 to 1.8 s call that
  * pages nothing, it carries the real `seasid` the episode call is made with, and it is the only one of
@@ -524,7 +521,9 @@ const fetchSeasonIndex = async (id: string, ctx: ExtractorServerContext): Promis
   const seasons = await unogsSeasons(id, ctx)
   // unOGS pages nothing: an answer from it is the whole title's season list, never a prefix
   if (seasons?.some(season => season.episodes.length)) return { seasons, truncated: false }
-  return await netflixFallbackSeasons(id, ctx) ?? { seasons: seasons ?? [], truncated: false }
+  const result = await netflixLanding(id, ctx)
+  if (result.ok && result.title) return netflixSeasons(result.title)
+  return { seasons: seasons ?? [], truncated: false, unanswered: !seasons && !result.ok }
 }
 
 /** A title Netflix numbers rather than names: no title at all, spelled the way this payload spells one. */
@@ -639,6 +638,16 @@ const wholeSeasons = async (listing: SeasonListing, ctx: ExtractorServerContext)
     if (truncated) whole = await withNetflixEpisodes(whole, season, ctx)
   }
   return whole
+}
+
+/**
+ * The listing a season pick reads. THROWS when nobody answered, for the reason on `fetchTitle`: an empty
+ * list would read as a refusal, and an outage would cost the show its Netflix row for the session.
+ */
+const listingToPick = async (id: string, ctx: ExtractorServerContext): Promise<SeasonListing> => {
+  const listing = await fetchEpisodes(id, ctx)
+  if (listing.unanswered) throw new Error(`Neither uNoGS nor Netflix listed the seasons of ${id}`)
+  return listing
 }
 
 /**
@@ -857,7 +866,10 @@ const assembleMedia = (
     // `episodeCount != null`, the cluster's count vote filters on the same test, and the row prints
     // "0 Episodes". Before the fallback existed this case could not arise, because a failed episodes
     // call took the whole resolver down instead of returning an empty list.
+    //
+    // AND A BARE TITLE OVER A CUT SEASON LIST HAS NO TOTAL, however whole the seasons it saw were read.
     const answered = media.episodes.length > 0 && !filtered.some(season => season.truncated)
+      && (seasonNumber != null || !listing.truncated)
     media.episodeCount = answered ? media.episodes.length : undefined
   } else {
     media.episodes = [normalizeMovieAsEpisode(media)]
@@ -944,7 +956,7 @@ const matchNetflixSeason = async (
   )
   if (!known) return undefined
 
-  const { seasons } = await fetchEpisodes(nfId, ctx)
+  const { seasons } = await listingToPick(nfId, ctx)
   if (!seasons.length) return undefined
 
   const verdict = pickNetflixSeason(
@@ -968,7 +980,7 @@ const similarSeason = async (input: SimilarMediaInput, ctx: ExtractorServerConte
   if (!input?.showId) return undefined
   const detail = await fetchTitle(input.showId, ctx)
   if (detail?.vtype !== 'series') return undefined
-  const listing = await fetchEpisodes(input.showId, ctx)
+  const listing = await listingToPick(input.showId, ctx)
   if (!listing.seasons.length) return undefined
   const verdict = pickNetflixSeason(input, listing.seasons, detail.year)
   if (!verdict) return undefined
@@ -997,7 +1009,7 @@ const containingSeason = async (input: SimilarMediaInput, ctx: ExtractorServerCo
   if (!input?.showId) return undefined
   const detail = await fetchTitle(input.showId, ctx)
   if (detail?.vtype !== 'series') return undefined
-  const listing = await fetchEpisodes(input.showId, ctx)
+  const listing = await listingToPick(input.showId, ctx)
   if (!listing.seasons.length) return undefined
   // A SEASON LIST THAT IS A PREFIX SAYS NOTHING ABOUT WHICH SEASON HOLDS THE RUN: the run's own season
   // may be one of the ones that never came back, and the picker would then hand the run the earliest
