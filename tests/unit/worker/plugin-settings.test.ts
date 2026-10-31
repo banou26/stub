@@ -8,9 +8,11 @@ vi.mock('urql', () => ({ Client: class {}, fetchExchange: {}, mapExchange: () =>
 // the package's payload, as the port would carry it
 const port = vi.hoisted(() => ({ payload: {} as object }))
 vi.mock('@fkn/lib/packages', () => ({ attach: async () => port.payload }))
+vi.stubGlobal('location', new URL('http://localhost/'))
 
 const { configureRemoteExtractor, extractors, registerRemoteExtractor, unregisterRemoteExtractor } = await import('../../../src/worker/extractor')
 const { CONFIGURE_WAIT_MS } = await import('../../../src/worker/plugin-sources')
+const { osraResolvers } = await import('../../../src/worker/yoga')
 
 const PACKAGE = 'https:settings.spec.test'
 const VALUES = { address: 'https://server.spec.test', apiKey: 'a-saved-value' }
@@ -75,6 +77,15 @@ test('a package takes its values on connecting, before any of its sources can be
   taken()
   await registering
   expect(registered('spec-one')).toBe(true)
+})
+
+test('what the page sends the worker reaches the package, on connecting and on saving', async () => {
+  const configure = vi.fn(async () => {})
+  port.payload = { ...source('spec-one'), configure }
+  expect(await osraResolvers.registerRemoteSource(new MessageChannel().port1, PACKAGE, VALUES)).toHaveProperty('ok')
+  expect(configure).toHaveBeenCalledExactlyOnceWith(VALUES)
+  await osraResolvers.configureRemoteSource(PACKAGE, {})
+  expect(configure).toHaveBeenLastCalledWith({})
 })
 
 test('values saved later reach the package at once on its connection, and a connection gone takes nothing', async () => {

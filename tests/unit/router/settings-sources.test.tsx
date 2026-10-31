@@ -371,6 +371,7 @@ describe('a source that lists settings', () => {
     const { row } = render([ASKING, { ...FAILED }, { ...CONNECTED, uri: 'npm:@spec/two' }])
     expect([...row(ASKING.uri).querySelectorAll('label')].map(label => label.textContent)).toEqual(['Server address', 'Server key', 'Category'])
     expect([...row(ASKING.uri).querySelectorAll('input')].map(input => input.getAttribute('type'))).toEqual(['url', 'password', 'text'])
+    expect([...row(ASKING.uri).querySelectorAll('input')].map(input => input.getAttribute('aria-required'))).toEqual(['true', 'true', null])
     expect(row(FAILED.uri).querySelector('form')).toBeNull()
     expect(row('npm:@spec/two').querySelector('form')).toBeNull()
   })
@@ -413,6 +414,13 @@ describe('a source that lists settings', () => {
     expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET })
     expect(field(form, 'Server address').value).toBe('https://server.spec.test')
     expect(saveButton(form).getAttribute('aria-disabled')).toBe('true')
+  })
+
+  test('Save stays on the page, whether or not there is anything to save', async () => {
+    const { row } = render([ASKING])
+    const submit = new Event('submit', { bubbles: true, cancelable: true })
+    await act(async () => { row(ASKING.uri).querySelector('form')!.dispatchEvent(submit) })
+    expect(submit.defaultPrevented).toBe(true)
   })
 
   test('a required field left empty shows in one line on its row, until it is saved, and the rest of the list stays', async () => {
