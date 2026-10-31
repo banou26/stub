@@ -454,6 +454,19 @@ test.each([
   expect(landingCalls(), 'Netflix was asked').toBeGreaterThan(0)
 })
 
+test('a 502 that outlasts the backoff leaves uNoGS alone, so an ask pays for it once', async () => {
+  const stage: Stage = { unogs: url => answered(url) }
+  const { ctx, unogsCalls } = rig(stage)
+  await after(1_000, getMedia(SQUID_GAME, ctx, 1, true))
+  const asked = unogsCalls().length
+
+  stage.unogs = url => url === `${UNOGS}/user` ? answered(url) : Promise.resolve(new Response('{"error":"upstream fetch failed"}', { status: 502 }))
+  const outcome = await after(8_000, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome, '7 s of backoff once, and not again for the episodes behind it').toMatchObject({ value: { uri: 'nf:81040344-1' } })
+  expect(unogsCalls().slice(asked).filter(url => url.includes('/episodes'))).toEqual([])
+})
+
 test('a body that is not JSON is about that one answer, so uNoGS is not left alone for it', async () => {
   const stage: Stage = { unogs: url => url === `${UNOGS}/user` ? answered(url) : Promise.resolve(new Response('<html>', { status: 200 })) }
   const { ctx, landingCalls } = rig(stage)

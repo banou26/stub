@@ -3,6 +3,7 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaI
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, simplifyTitle, buildHandlesFromUri, waitForMedia, pickTitleMatch, declaredEpisodeCount } from '../utils'
 import { pickContainingSeason, pickSimilarSeason, type RunEvidence, type SeasonCandidate } from '../similar'
+import { RETRYABLE_STATUSES } from '../../worker/backoff'
 import { yearAppearsInShow } from '../catalogue-gate'
 import { percentScore } from '../average-score'
 import { fetchNetflixSeasonEpisodes, fetchNetflixTitle, NETFLIX_EMPTY_FACT, NETFLIX_FAILURE_FACT, type NetflixEpisode, type NetflixTitle } from './netflix'
@@ -50,8 +51,8 @@ let _unogsDownUntil = 0
 
 /**
  * Arms the cooldown, which stops EVERY title, so only evidence about unOGS itself may reach here: the
- * token call failed, or a request never arrived or never finished. A non-success status or a body this
- * source cannot read is about one id. unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
+ * token call failed, a request never arrived or never finished, or a gateway status outlasted the
+ * backoff. Any other non-success status, or a body this source cannot read, is about one id. unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
  * season-suffixed ids this app mints itself (measured 2026-09-12), so one such id arming a global gate
  * would send every Netflix row to the truncated fallback for a minute for no reason at all.
  */
@@ -142,9 +143,9 @@ const dedupe = <T>(key: string, call: () => Promise<T>): Promise<T> => {
 }
 
 /**
- * `requireOk` turns a non-success status into a throw and forgets the token, and only the episodes path
- * asks for it. Detail judges its body instead (`fetchDetail`), and search has nowhere to fall back to, so
- * its error body stays no results.
+ * `requireOk` turns any other non-success status into a throw and forgets the token, and only the
+ * episodes path asks for it. Detail judges its body instead (`fetchDetail`), and search has nowhere to
+ * fall back to, so its error body stays no results.
  */
 const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } = {}): Promise<T> => {
   // refused ahead of `upstreamFailure`, or asking during the cooldown would keep extending it
@@ -160,6 +161,8 @@ const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } 
       mode: 'cors',
       credentials: 'include'
     }, ctx).catch(upstreamFailure).then(({ response, body }) => {
+      // a gateway failing to reach unOGS, four tries in by now: every call left alone skips its own 7 s of backoff
+      if (RETRYABLE_STATUSES.has(response.status)) upstreamFailure(new Error(`uNoGS answered ${response.status} for ${url}`))
       // a stubbed Response may omit `ok`, and an absent field is not a claim that the call failed
       if (requireOk && response.ok === false) {
         // a revoked token is answered 500, and the 12 h cache would otherwise keep serving it
