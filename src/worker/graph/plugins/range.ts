@@ -8,7 +8,9 @@
  * reference numbers disqualified, `MIN_ALIGNED` or nothing) and the conclusion does not: what is
  * written is one `EPISODE_LINK` per episode, so an inserted special costs one episode its link
  * rather than shifting every later one (3.4). The title-vote offset that put 13 of 25 Blue Exorcist
- * rows on the wrong Netflix episode (2026-09-10) has no successor: there is no offset anywhere.
+ * rows on the wrong Netflix episode (2026-09-10) has no successor: no offset is ever fitted to the
+ * evidence. The one shift here is a list's own numbering, which two proven rows have to confirm
+ * (`placeAtShift`).
  *
  * RULE 1 IS NOT THE LAST WORD ON THE ROWS IT COULD NOT DATE (2026-09-13). A verdict used to be the
  * whole of a candidate, so a row the days refused as ambiguous, or reached nothing at all, was lost
@@ -157,9 +159,9 @@ export type SideEpisode = {
  * `anchor` is rule 3's exact one (the key that anchored it), `scored` is rule 3's SCORED anchor
  * (their key, our key, and the token Dice between them, so a trace can tell a weld from an equality
  * at a glance), `synopsisScore` is rule 3's SYNOPSIS anchor, `between` names the two anchors whose
- * equal-gap bracket forced a row that no title reached, and `closed` names the specials whose
- * location closed the alignment (3.4a), which is empty for nothing, since a closure needs at least
- * one.
+ * equal-gap bracket forced a row that no title reached, `closed` names the specials whose location
+ * closed the alignment (3.4a), which is empty for nothing, since a closure needs at least one, and
+ * `shift` is the numbering of a list that claims the run (`placeAtShift`).
  *
  * THE SYNOPSIS SHAPE CARRIES NO KEYS, where the scored one carries two. A synopsis key is a whole
  * paragraph reduced to content words, so two of them per anchor would put a kilobyte of prose on
@@ -176,6 +178,7 @@ export type PairEvidence =
   | { synopsisScore: number, consensus: number }
   | { between: [string, string] }
   | { closed: string[] }
+  | { shift: number }
 
 /** One proven pair: their row, our row, and what proved it. */
 export type Pair = {
@@ -188,6 +191,8 @@ export type Pair = {
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 const byUri = (a: SideEpisode, b: SideEpisode): number => compare(a.uri, b.uri)
+const numbersOf = (episodes: readonly { number: number | null }[]): number[] =>
+  episodes.map(episode => episode.number).filter((number): number is number => number !== null)
 
 /**
  * Rule 1 of 5.4 P4, by DATE: every candidate row a single reference number is reachable from.
@@ -287,7 +292,7 @@ export const scheduleSkew = (options: {
   if (pairs.some(pair => pair.toNumber - pair.fromNumber !== offset)) return null
 
   // no numbers at all makes `Math.min` Infinity, which the clause below refuses on its own
-  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+  const numbers = numbersOf(episodes)
   if (Math.min(...numbers) !== 1 || Math.max(...numbers) > runLength) return null
   return numbers.every(number => number + offset >= 1 && number + offset <= runLength) ? null : offset
 }
@@ -295,20 +300,15 @@ export const scheduleSkew = (options: {
 /**
  * How far a list exactly as long as the run sits from it when it starts past 1, or NULL for any other.
  *
- * Such a list claims the run row for row, so its own numbering names the one shift it can have, which
- * asks more of rule 1 and gives it more:
- *
- * - a day reaching a row at any other shift is a wrong date. JustWatch's Solo Leveling season 2 numbers
- *   13 to 25 against a run of 13 and dates its S2E2 on S2E1's day, S2E9 on S2E5's and S2E7 on S2E11's
- *   (2026-10-31), so taken one at a time the days hand three rows to the wrong episode. A whole list
- *   dated a week off keeps nothing, and the titles decide it;
- * - a row strictly between two of the pairs left is placed by order, the way rule 3's bracket does,
- *   since those three have no date and `closeDatesWithTitles` cannot use a title two references share.
- *
- * A row order cannot reach, because it sits past the last pair or a bracket counts unequal, stays apart.
+ * Read off a MEMBER, such a list claims the run row for row, so its numbering names the one shift it
+ * can have and a day reaching a row at any other shift is a wrong date. JustWatch's Solo Leveling
+ * season 2 numbers 13 to 25 against a run of 13 and dates its S2E2 on S2E1's day, S2E9 on S2E5's and
+ * S2E7 on S2E11's (2026-10-31), so taken one at a time the days hand three rows to the wrong episode.
+ * A whole list dated a week off keeps no day, and the titles decide it. A season or a lend claims
+ * nothing of the kind: one that merely overlaps the run can have the same span.
  */
-const ownShift = (episodes: readonly SideEpisode[], runLength: number): number | null => {
-  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+export const ownShift = (episodes: readonly { number: number | null }[], runLength: number): number | null => {
+  const numbers = numbersOf(episodes)
   const first = Math.min(...numbers)
   return first > 1 && Math.max(...numbers) - first + 1 === runLength ? first - 1 : null
 }
@@ -546,20 +546,6 @@ const pairOnto = (from: SideEpisode, slot: CanonicalEpisode, evidence: PairEvide
   toNumber: slot.number,
   evidence,
 })
-
-const numberedInOrder = (episodes: readonly SideEpisode[]): SideEpisode[] =>
-  episodes
-    .filter(episode => episode.number !== null)
-    .sort((a, b) => a.number! - b.number! || compare(a.uri, b.uri))
-
-const canonicalOf = (reference: readonly SideEpisode[]): CanonicalEpisode[] => {
-  const byNumber = new Map<number, SideEpisode[]>()
-  for (const row of [...reference].sort(byUri)) {
-    if (row.number === null) continue
-    byNumber.set(row.number, [...byNumber.get(row.number) ?? [], row])
-  }
-  return [...byNumber.keys()].sort((a, b) => a - b).map(number => ({ number, rows: byNumber.get(number)! }))
-}
 
 /**
  * The longest strictly increasing run of matches, which is the monotone alignment of rule 3.
@@ -1228,8 +1214,18 @@ export const alignByTitle = (
   reference: readonly SideEpisode[],
   theirs: readonly SideEpisode[]
 ): Alignment => {
-  const ordered = numberedInOrder(theirs)
-  const canonical = canonicalOf(reference)
+  const ordered = [...theirs]
+    .filter(episode => episode.number !== null)
+    .sort((a, b) => a.number! - b.number! || compare(a.uri, b.uri))
+
+  const byNumber = new Map<number, SideEpisode[]>()
+  for (const row of [...reference].sort(byUri)) {
+    if (row.number === null) continue
+    byNumber.set(row.number, [...byNumber.get(row.number) ?? [], row])
+  }
+  const canonical: CanonicalEpisode[] = [...byNumber.keys()]
+    .sort((a, b) => a - b)
+    .map(number => ({ number, rows: byNumber.get(number)! }))
   const specials = [...reference].filter(episode => episode.number === null).sort(byUri)
 
   const ourKey = new Map<string, { index: number, row: SideEpisode } | null>()
@@ -1307,9 +1303,7 @@ export const alignByTitle = (
  * not, and which row that is is exactly what order cannot say. `unequal` counts those regions so a
  * refusal can name what it saw.
  */
-export const forcedByBracket = (
-  alignment: Pick<Alignment, 'anchors' | 'theirs' | 'canonical'>
-): { pairs: Pair[], unequal: number } => {
+export const forcedByBracket = (alignment: Alignment): { pairs: Pair[], unequal: number } => {
   const { anchors, theirs, canonical } = alignment
   if (anchors.length < 2) return { pairs: [], unequal: 0 }
   const pairs: Pair[] = []
@@ -1534,24 +1528,48 @@ export const pairsBySequence = (
   }
 }
 
-/** The rows `ownShift`'s list leaves strictly between pairs already proven, in rule 3's own bracket. */
-const closeByOrder = (options: {
+/**
+ * The rows of `ownShift`'s list no rule reached, once a rule has proven its pairs at that shift.
+ *
+ * The numbering places them, because the rows the rules miss are not doubtful ones. Jujutsu Kaisen
+ * season 3 airs its first two episodes on one day, so rule 1 refuses both, and `closeDatesWithTitles`
+ * cannot use the titles ani.zip and Kitsu share, which left the season's premiere as two rows of its
+ * own on a page whose other ten were proven (2026-10-31). A row dated off the broadcast, or bearing a
+ * wrong date, is the same case.
+ *
+ * Two things refuse it, since a recap in the list moves every row after it:
+ *
+ * - a proven pair at any other shift, which is an exact title naming another row, so nothing is placed;
+ * - a day reaching another row past the proven rows, so the rows past them stay apart. Between two
+ *   pairs at one shift the counts agree on both sides, and there a day is only a wrong date.
+ */
+const placeAtShift = (options: {
   reference: readonly SideEpisode[]
   theirs: readonly SideEpisode[]
-  pairs: readonly Pair[]
+  shift: number
+  proven: readonly Pair[]
+  /** Every pair the days reached, before `ownShift` took out the ones at another shift. */
+  days: readonly Pair[]
 }): Pair[] => {
-  const theirs = numberedInOrder(options.theirs)
-  const canonical = canonicalOf(options.reference)
-  const anchors = [...options.pairs]
-    .sort((a, b) => a.fromNumber - b.fromNumber)
-    .map(pair => ({
-      from: pair.from,
-      to: pair.to,
-      fromIndex: theirs.indexOf(pair.from),
-      toIndex: canonical.findIndex(entry => entry.number === pair.toNumber),
-      key: '',
-    }))
-  return forcedByBracket({ anchors, theirs, canonical }).pairs
+  const { reference, theirs, shift, proven, days } = options
+  const atShift = (pair: Pair): boolean => pair.fromNumber - pair.toNumber === shift
+  if (!proven.every(atShift)) return []
+
+  const first = Math.min(...proven.map(pair => pair.fromNumber))
+  const last = Math.max(...proven.map(pair => pair.fromNumber))
+  const inside = (number: number): boolean => number > first && number < last
+  const contested = days.some(pair => !atShift(pair) && !inside(pair.fromNumber))
+
+  const slots = new Map<number, SideEpisode>()
+  for (const row of [...reference].sort(byUri)) {
+    if (row.number !== null && !slots.has(row.number)) slots.set(row.number, row)
+  }
+  const paired = new Set(proven.map(pair => pair.from.uri))
+  return [...theirs].sort(byUri).flatMap(from => {
+    const to = from.number === null ? undefined : slots.get(from.number - shift)
+    if (!to || paired.has(from.uri) || (contested && !inside(from.number!))) return []
+    return [{ from, to, fromNumber: from.number!, toNumber: to.number!, evidence: { shift } }]
+  })
 }
 
 /** One thing to be proven against one run: a season row, a lend, or a member that numbers differently. */
@@ -1614,8 +1632,8 @@ export type Verdict =
  *
  * | outcome | when |
  * | --- | --- |
- * | `dates` | rule 1 left at least `MIN_ALIGNED` pairs inside the window and they are not a skew, plus whatever `closeDatesWithTitles` could close on top of them, and on `ownShift`'s lists whatever order then forces between them |
- * | `titles` | rule 1 did not, the candidate's origin does not retranslate, and rule 2 cleared both halves of its bar |
+ * | `dates` | rule 1 left at least `MIN_ALIGNED` pairs inside the window and they are not a skew, plus whatever `closeDatesWithTitles` could close on top of them and `placeAtShift` place after that |
+ * | `titles` | rule 1 did not, the candidate's origin does not retranslate, and rule 2 cleared both halves of its bar, plus whatever `placeAtShift` places after that |
  * | `sequence` | neither did, and rule 3's alignment placed a row by ORDER: `minAnchorsFor` anchors, at least one row forced by a bracket or by 3.4a's closure AND still inside the window, `MIN_ALIGNED` pairs inside the window, and not the same offset rule 1 refused as a skew |
  * | `no-reference` | the run carries no numbered episode of its own, so no rule was asked anything (2026-09-13) |
  * | `retranslates` | nothing was proven and rule 2 was refused outright (Netflix, 4 exact of 25, the best wrong pair above the true one, 2026-09-10) |
@@ -1648,7 +1666,7 @@ export type Verdict =
 export const decideCandidate = (options: {
   runLength: number
   reference: readonly SideEpisode[]
-  candidate: Pick<Candidate, 'retranslates' | 'episodes'>
+  candidate: Pick<Candidate, 'retranslates' | 'episodes'> & Partial<Pick<Candidate, 'kind'>>
 }): Verdict => {
   const { runLength, reference, candidate } = options
   // FIRST, and above `retranslates`: with no numbered row on our side there is nothing for any rule
@@ -1658,8 +1676,12 @@ export const decideCandidate = (options: {
   const inWindow = (pairs: Pair[]) => pairs.filter(pair => pair.toNumber >= 1 && pair.toNumber <= runLength)
 
   const dates = pairsByDay(reference, candidate.episodes)
-  const shift = ownShift(candidate.episodes, runLength)
-  const dated = inWindow(dates.pairs).filter(pair => shift === null || pair.fromNumber - pair.toNumber === shift)
+  const days = inWindow(dates.pairs)
+  const shift = candidate.kind === 'member' ? ownShift(candidate.episodes, runLength) : null
+  const dated = days.filter(pair => shift === null || pair.fromNumber - pair.toNumber === shift)
+  const placedFrom = (proven: Pair[]): Pair[] => (shift === null
+    ? []
+    : placeAtShift({ reference, theirs: candidate.episodes, shift, proven, days }))
   // rule 1 stands unless the pairing it found is a schedule skew, in which case it is evidence that
   // the two lists are the same sequence and NOT evidence of a renumbering, so rule 2 decides
   const skew = dated.length >= MIN_ALIGNED
@@ -1670,10 +1692,8 @@ export const decideCandidate = (options: {
     // window again: a row an equality reaches beyond `1..runLength` is the neighbouring cour's and is
     // dropped exactly as a dated one is
     const gaps = inWindow(closeDatesWithTitles({ reference, theirs: candidate.episodes, pairs: dated }))
-    const forced = shift === null
-      ? []
-      : closeByOrder({ reference, theirs: candidate.episodes, pairs: [...dated, ...gaps] })
-    return { ok: true, rule: 'dates', pairs: [...dated, ...gaps, ...forced], coverage: 1, gaps: gaps.length + forced.length }
+    const proven = [...dated, ...gaps]
+    return { ok: true, rule: 'dates', pairs: [...proven, ...placedFrom(proven)], coverage: 1, gaps: gaps.length }
   }
 
   // rule 2, refused OUTRIGHT for a retranslating origin, where rule 3 below is not (3.4a)
@@ -1681,7 +1701,7 @@ export const decideCandidate = (options: {
   if (titles) {
     const titled = inWindow(titles.pairs)
     if (titled.length >= MIN_EPISODE_TITLE_MATCHES && titles.coverage >= EPISODE_TITLE_COVERAGE) {
-      return { ok: true, rule: 'titles', pairs: titled, coverage: titles.coverage }
+      return { ok: true, rule: 'titles', pairs: [...titled, ...placedFrom(titled)], coverage: titles.coverage }
     }
   }
 
@@ -1750,15 +1770,15 @@ export const decideCandidate = (options: {
 }
 
 /**
- * Which rule placed ONE pair, which is the verdict's own for every pair except a gap closure.
+ * Which rule placed ONE pair, which is the verdict's own for every pair except the two below.
  *
  * Read off the evidence rather than off a field, because the evidence IS the rule here: a shape
  * carrying `gap` was placed by an anchor equality under a standing date alignment and by nothing
  * else, and the two can never disagree because only `closeDatesWithTitles` writes that shape. A
- * `between` on a `dates` verdict is `closeByOrder`'s, which no date reached either.
+ * `shift` is `placeAtShift`'s, on the same terms.
  */
 export const ruleOfPair = (pair: Pair, rule: 'dates' | 'titles' | 'sequence'): string =>
-  'gap' in pair.evidence || (rule === 'dates' && 'between' in pair.evidence) ? 'dates-gap' : rule
+  'shift' in pair.evidence ? 'shift' : 'gap' in pair.evidence ? 'dates-gap' : rule
 
 /** The `INCLUDES` range of 3.4, as literal properties: the hull of the pairs on both sides. */
 export type Hull = {
@@ -1962,17 +1982,17 @@ export const placesClaim = (from: Placement, to: Placement): boolean => {
  * nothing to renumber, so Crunchyroll's 13 to 20 against a run of 12 is the whole of what this finds.
  */
 export const numbersOutsideRun = (episodes: readonly SideEpisode[], runLength: number): boolean => {
-  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+  const numbers = numbersOf(episodes)
   if (!numbers.length) return false
   return Math.min(...numbers) !== 1 || Math.max(...numbers) > runLength
 }
 
 /**
- * Whether an origin's own numbering starts past 1, which `numbersOutsideRun` cannot say: ani.zip keeps
- * a special's number, so a list that does start at 1 can still reach past the run.
+ * Whether an origin's own numbering starts past 1, which `numbersOutsideRun` cannot say: a list that
+ * starts at 1 can reach past the run, as an ani.zip answer saved with its specials' numbers does.
  */
 const startsPastOne = (episodes: readonly SideEpisode[]): boolean => {
-  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+  const numbers = numbersOf(episodes)
   return numbers.length > 0 && Math.min(...numbers) > 1
 }
 
@@ -1993,11 +2013,10 @@ const startsPastOne = (episodes: readonly SideEpisode[]): boolean => {
  * lend refused in silence. Its neighbour `ag:(anilist:166873)` has `12 from anilist, anizip, kitsu`,
  * witnesses 3, and places 22 pairs against the same two containers.
  *
- * A VOTER THAT COUNTS ON FROM AN EARLIER SEASON IS NOT ONE OF THEM, as long as another voter starts
- * at 1: it agrees about how long the run is and not about what its rows are called, and leaving it
- * here kept it from ever being class 3. Measured 2026-10-31 on Jujutsu Kaisen season 2: Crunchyroll
- * lists 23 rows numbered 25 to 47 against ani.zip's 1 to 23, and the page drew 46 rows. Where no voter
- * starts at 1 the whole run counts on, there is nothing to measure against, and the vote stands.
+ * A VOTER THAT COUNTS ON FROM AN EARLIER SEASON IS NOT ONE OF THEM: it agrees about how long the run
+ * is and not about what its rows are called, and leaving it here kept it from ever being class 3.
+ * Measured 2026-10-31 on Jujutsu Kaisen season 2: Crunchyroll lists 23 rows numbered 25 to 47 against
+ * ani.zip's 1 to 23, and the page drew 46 rows.
  *
  * THE FALLBACK TAKES ONLY AN ORIGIN THAT NUMBERS IN THE RUN'S OWN SPACE, which is `numbersOutsideRun`
  * read the other way round, so nothing can be a reference here and a class 3 candidate at the same
@@ -2006,8 +2025,9 @@ const startsPastOne = (episodes: readonly SideEpisode[]): boolean => {
  * comparison that was missing. An origin carrying no numbered row at all is not one of these, since a
  * list of specials can anchor nothing.
  *
- * It is consulted ONLY when the vote's own members list nothing, never to widen a reference that
- * exists.
+ * It is consulted ONLY when the voters left list no numbered row, never to widen a reference that
+ * exists. Where it finds nothing either the vote stands, numbered on or not: every source counts on
+ * and nothing measures that against anything.
  */
 export const referenceEpisodes = (options: {
   episodes: readonly SideEpisode[]
@@ -2017,25 +2037,21 @@ export const referenceEpisodes = (options: {
   const { episodes, runLengthFrom, runLength } = options
   const byOrigin = new Map<string, SideEpisode[]>()
   for (const episode of episodes) byOrigin.set(episode.origin, [...byOrigin.get(episode.origin) ?? [], episode])
+  const listedBy = (origins: Set<string>) => ({ reference: episodes.filter(episode => origins.has(episode.origin)), origins })
 
   const voted = new Set(runLengthFrom.map(originOf))
-  const byVote = episodes.filter(episode => voted.has(episode.origin))
-  if (byVote.length) {
-    const counted = new Set([...voted].filter(origin => !startsPastOne(byOrigin.get(origin) ?? [])))
-    const fromOne = byVote.filter(episode => counted.has(episode.origin))
-    return fromOne.some(episode => episode.number !== null)
-      ? { reference: fromOne, origins: counted }
-      : { reference: byVote, origins: voted }
-  }
+  const counted = new Set([...voted].filter(origin => !startsPastOne(byOrigin.get(origin) ?? [])))
+  const voters = listedBy(counted)
+  if (numbersOf(voters.reference).length) return voters
 
   const origins = new Set<string>()
   for (const origin of [...byOrigin.keys()].sort(compare)) {
     const own = byOrigin.get(origin)!
-    if (!own.some(episode => episode.number !== null)) continue
-    if (numbersOutsideRun(own, runLength)) continue
+    if (!numbersOf(own).length || numbersOutsideRun(own, runLength)) continue
     origins.add(origin)
   }
-  return { reference: episodes.filter(episode => origins.has(episode.origin)), origins }
+  const listed = listedBy(origins)
+  return listed.reference.length ? listed : listedBy(voted)
 }
 
 /**
@@ -2143,8 +2159,9 @@ export const rangePlugin: Plugin = {
       const inside = members.get(clusterId) ?? new Set<string>()
       const episodes = ours.get(clusterId) ?? []
       // the reference is the members whose own count equals the length, which is the set
-      // `plugin:aggregate` already wrote as `runLengthFrom` (`consensus.ts:265-273`, 5.4 P5), and,
-      // where not one of those lists an episode, the members that do (`referenceEpisodes`)
+      // `plugin:aggregate` already wrote as `runLengthFrom` (`consensus.ts:265-273`, 5.4 P5), less
+      // the ones counting on, and, where that leaves no numbered row, the members that number the
+      // run themselves (`referenceEpisodes`)
       const { reference, origins: referenceOrigins } =
         referenceEpisodes({ episodes, runLengthFrom: listOf(cluster.runLengthFrom), runLength })
 
@@ -2209,10 +2226,12 @@ export const rangePlugin: Plugin = {
           continue
         }
 
-        if (verdict.rule === 'dates') dated += verdict.pairs.length - (verdict.gaps ?? 0)
-        else if (verdict.rule === 'titles') titled += verdict.pairs.length
+        const placed = verdict.pairs.filter(pair => 'shift' in pair.evidence).length
+        if (verdict.rule === 'dates') dated += verdict.pairs.length - placed - (verdict.gaps ?? 0)
+        else if (verdict.rule === 'titles') titled += verdict.pairs.length - placed
         else sequenced += verdict.pairs.length
         titled += verdict.gaps ?? 0
+        sequenced += placed
         for (const pair of verdict.pairs) {
           episodeLinks.push({
             fromUri: pair.from.uri,

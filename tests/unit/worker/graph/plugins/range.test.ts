@@ -71,6 +71,7 @@ const PLUGINS = [profilePlugin, directPlugin, aggregatePlugin, containmentPlugin
 
 const runPass = async (plugins = PLUGINS) => {
   const report = await runPlugins(plugins, { reason: 'manual' })
+  lastPass.log = report.logs.filter(event => event.rule === 'range').map(event => event.detail)
   expect(report.audit.ok, report.audit.differences.join('; ')).toBe(true)
   expect(report.runs.filter(run => run.failed).map(run => `${run.id}: ${run.failed}`)).toEqual([])
   // A PASS THAT HIT THE CAP HAS NOT REACHED A FIXED POINT (5.3). This plugin feeds `plugin:aggregate`
@@ -81,6 +82,7 @@ const runPass = async (plugins = PLUGINS) => {
 }
 
 /** Every `EPISODE_LINK` this plugin wrote out of one media's episodes, in the pairing order. */
+const lastPass = { log: [] as string[] }
 const pairsFrom = async (mediaUri: string) => rowsOf(
   `MATCH (m:Media {uri: $uri})-[:HAS_EPISODE]->(a:Episode)-[l:EPISODE_LINK]->(b:Episode)
    WHERE l.by = 'plugin:range'
@@ -259,8 +261,8 @@ const samuraiAnswers = async () => [
   })),
 ]
 
-// HOR-1175, the numbers, days and titles of two recorded pages (2026-10-31). Crunchyroll numbers these
-// seasons on from the last one with as many rows as the run has, so it agrees about the length.
+// The numbers, days and titles of three recorded pages (2026-10-31). Crunchyroll numbers these seasons
+// on from the last one with as many rows as the run has, so it agrees about the length.
 const JJK2_TITLES = [
   'Hidden Inventory', 'Hidden Inventory 2', 'Hidden Inventory 3', 'Hidden Inventory 4', 'Premature Death',
   'That\'s How It Is', 'Evening Festival', 'The Shibuya Incident', 'Shibuya Incident - Gate, Open', 'Pandemonium',
@@ -324,6 +326,87 @@ const jjk2Answers = async () => [
     })),
   })),
 ]
+
+// ani.zip dates episodes 1 and 2 on one day and shares their titles with Kitsu
+const JJK3_TITLES = [
+  'Execution', 'One More Time', 'About the Culling Game', 'Perfect Preparation', 'Passion', 'Cog', 'Colony Part 1',
+  'Colony Part 2', 'Colony Part 3', 'Colony Part 4', 'Colony Part 5', 'Sendai Colony',
+]
+const JJK3_DAYS = ['2026-01-08', ...weekly('2026-01-08', 6), ...weekly('2026-02-26', 5)]
+
+const jjk3Answers = async () => [
+  await answer('media', media('anilist:172463', {
+    score: 0.8, type: 'TV', status: 'FINISHED', episodeCount: 12, startDate: '2026-01-09',
+    titles: [title('en', 'Jujutsu Kaisen Season 3')],
+    handles: [
+      sameAs(media('mal:57658', { score: 0.9 })),
+      sameAs(media('anizip:18363', {})),
+      sameAs(media('kitsu:48363', { score: 0.3 })),
+      sameAs(media('cr:GRDV0019R-GS00365546', { score: 0.5 })),
+    ],
+  })),
+  await answer('media', media('mal:57658', {
+    score: 0.9, type: 'TV', status: 'FINISHED', episodeCount: 12, startDate: '2026-01-09',
+    titles: [title('en', 'Jujutsu Kaisen Season 3')],
+  })),
+  await answer('media', media('anizip:18363', {
+    type: 'TV', episodeCount: 12, titles: [title('en', 'Jujutsu Kaisen Season 3')],
+    episodes: JJK3_DAYS.map((day, index) => episode(`anizip:18363-${index + 1}`, 'anizip:18363', {
+      episodeNumber: index + 1, releaseDate: anizipDay(day), titles: [title('en', JJK3_TITLES[index]!)],
+    })),
+  })),
+  await answer('media', media('kitsu:48363', {
+    score: 0.3, type: 'TV', status: 'FINISHED', episodeCount: 12, titles: [title('en', 'Jujutsu Kaisen Season 3')],
+    episodes: JJK3_TITLES.map((name, index) => episode(`kitsu:48363-${index + 1}`, 'kitsu:48363', {
+      episodeNumber: index + 1, titles: [title('en', name)],
+    })),
+  })),
+  await answer('media', media('cr:GRDV0019R-GS00365546', {
+    score: 0.5, type: 'TV', status: 'FINISHED', episodeCount: 12, titles: [title('en', 'Jujutsu Kaisen Season 3')],
+    episodes: JJK3_DAYS.map((day, index) => episode(`cr:GS00365546-${index + 48}`, 'cr:GRDV0019R-GS00365546', {
+      episodeNumber: index + 48, releaseDate: day, titles: [title('en', JJK3_TITLES[index]!)],
+    })),
+  })),
+]
+
+/** A season ani.zip numbers from 1 and Crunchyroll from `first`, each row's title its own source's. */
+const onwardAnswers = async (slug: number, options: {
+  length: number
+  first: number
+  crDays: (string | null)[]
+  /** What ani.zip states, when it should not be one of the voters. */
+  anizipStates?: number
+  anizipFirst?: number
+}) => {
+  const { length, first, crDays, anizipFirst = 1 } = options
+  const name = [title('en', `Onward ${slug}`)]
+  const finished = { type: 'TV', status: 'FINISHED', episodeCount: length, titles: name }
+  return [
+    await answer('media', media(`anilist:${slug}`, {
+      ...finished, score: 0.8,
+      handles: [
+        sameAs(media(`mal:${slug}`, { score: 0.9 })),
+        sameAs(media(`anizip:${slug}`, {})),
+        sameAs(media(`cr:S${slug}`, { score: 0.5 })),
+      ],
+    })),
+    await answer('media', media(`mal:${slug}`, { ...finished, score: 0.9 })),
+    await answer('media', media(`anizip:${slug}`, {
+      type: 'TV', episodeCount: options.anizipStates ?? length, titles: name,
+      episodes: weekly('2025-01-04', length).map((day, index) => episode(`anizip:${slug}-${index + anizipFirst}`, `anizip:${slug}`, {
+        episodeNumber: index + anizipFirst, releaseDate: anizipDay(day), titles: [title('en', `Ours ${index + 1}`)],
+      })),
+    })),
+    await answer('media', media(`cr:S${slug}`, {
+      ...finished, score: 0.5,
+      episodes: crDays.map((day, index) => episode(`cr:E${slug}-${index + first}`, `cr:S${slug}`, {
+        episodeNumber: index + first, ...day ? { releaseDate: day } : {}, titles: [title('en', `Theirs ${index + first}`)],
+      })),
+    })),
+  ]
+}
+
+const SOLO2_WEEKS = weekly('2025-01-04', 13)
 
 const solo2Answers = async () => {
   const named = (index: number) => [title('en', `Hunter Rank ${index + 1}`)]
@@ -813,7 +896,18 @@ beforeAll(async () => {
     ...await mushokuAnswers(),
     ...await samuraiAnswers(),
     ...await jjk2Answers(),
+    ...await jjk3Answers(),
     ...await solo2Answers(),
+    // the first row dated three days from the broadcast, which no rule reaches
+    ...await onwardAnswers(9101, { length: 13, first: 13, crDays: ['2025-01-07', ...SOLO2_WEEKS.slice(1)] }),
+    // no day at all, and titles of its own, so nothing proves the shift
+    ...await onwardAnswers(9102, { length: 13, first: 13, crDays: SOLO2_WEEKS.map(() => null) }),
+    // ani.zip states 24, so of the two that list, only the list that counts on is a voter
+    ...await onwardAnswers(9103, { length: 23, first: 25, crDays: weekly('2025-01-04', 23), anizipStates: 24 }),
+    // the same, and its numbers overlap the run, where the aggregate's own voters do not name ani.zip
+    ...await onwardAnswers(9104, { length: 13, first: 13, crDays: SOLO2_WEEKS, anizipStates: 14 }),
+    // every source counts on, so these numbers are the run's own
+    ...await onwardAnswers(9105, { length: 13, first: 13, crDays: SOLO2_WEEKS, anizipFirst: 13 }),
     ...await exorcistAnswers(),
     ...await fmaAnswers(),
     ...await windowAnswers(),
@@ -1040,9 +1134,11 @@ const rowsDrawn = async (uri: string) => {
 const onRows = (rows: Awaited<ReturnType<typeof rowsDrawn>>, origin: string) =>
   rows.map(row => row.uris.filter(uri => uri.startsWith(`${origin}:`)))
 const oneToN = (length: number) => Array.from({ length }, (_, index) => index + 1)
+const sorted = (pairs: { fromNumber: number, toNumber: number }[]) =>
+  pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!)
 
-// HOR-1175: Crunchyroll's 25 to 47 agree about the length, 23, which made them a reference and kept
-// them from ever being paired, so the page drew 1 to 23 without Crunchyroll and 25 to 47 with it alone.
+// Crunchyroll's 25 to 47 agree about the length, 23, which made them a reference and kept them from
+// ever being paired, so the page drew 1 to 23 without Crunchyroll and 25 to 47 with it alone.
 // Mutation: make `startsPastOne` answer false and the page is those 46 rows again.
 test('a sequel Crunchyroll numbers on from the last season draws one row per episode', async () => {
   const rows = await rowsDrawn('anilist:145064')
@@ -1054,18 +1150,80 @@ test('a sequel Crunchyroll numbers on from the last season draws one row per epi
 // Solo Leveling season 2 drew 25 rows, and row 13 held Crunchyroll's 13, which is the season's first
 // episode, on the season's last. JustWatch counts on the same way, with three wrong days.
 // Mutation: drop the `ownShift` filter in `decideCandidate` and rows 1, 5 and 11 each hold two
-// JustWatch rows; return no pairs from `closeByOrder` and the page is 16 rows, its three unpaired.
+// JustWatch rows; return no pairs from `placeAtShift` and the page is 16 rows, its three unpaired.
 test('a list as long as the run holds to its own order, so a wrong date moves no row', async () => {
   const rows = await rowsDrawn('anilist:176496')
   expect(rows.map(row => row.number)).toEqual(oneToN(13))
   expect(onRows(rows, 'cr')).toEqual(oneToN(13).map(number => [`cr:GY09CX813-${number + 12}`]))
   expect(onRows(rows, 'jw')).toEqual(oneToN(13).map(number => [`jw:904${number + 12}`]))
 
-  // a row order placed says so, rather than claiming a date it does not have
+  // a row the numbering placed says so, rather than claiming a date it does not have
   const pairs = await pairsFrom('jw:359486-444272')
-  const placed = pairs.filter(row => 'between' in evidenceOf(row))
+  const placed = pairs.filter(row => 'shift' in evidenceOf(row))
   expect(placed.map(row => [Number(row.fromNumber), Number(row.toNumber), row.reason]))
-    .toEqual([[14, 2, 'dates-gap'], [19, 7, 'dates-gap'], [21, 9, 'dates-gap']])
+    .toEqual([[14, 2, 'shift'], [19, 7, 'shift'], [21, 9, 'shift']])
+})
+
+// The pass counts each pair under what placed it, which is the line a slow or odd pass is read from.
+// Mutation: drop `sequenced += placed` or the `- placed` of the date count and the line stops adding up.
+test('the pass log counts a row the numbering placed apart from the dates and the titles', async () => {
+  const counted = await rowsOf(
+    `MATCH ()-[l:EPISODE_LINK]->() WHERE l.by = 'plugin:range' AND l.status = 'active'
+     RETURN l.reason AS reason, count(*) AS total`
+  )
+  const total = (...reasons: string[]) =>
+    counted.filter(row => reasons.includes(String(row.reason))).reduce((sum, row) => sum + Number(row.total), 0)
+  expect(total('shift'), 'the control').toBeGreaterThan(0)
+  expect(lastPass.log.at(-1)).toContain(
+    `${total('dates')} pairs by date, ${total('titles', 'dates-gap')} by title, ${total('sequence', 'shift')} by sequence, `
+  )
+})
+
+// One day for two episodes reaches neither, and a title two references share reaches neither. Ten rows
+// at one shift prove the other two, which the page drew as the season's premiere twice.
+// Mutation: return no pairs from `placeAtShift` and the page is 14 rows, 48 and 49 with Crunchyroll alone.
+test('a double premiere joins the rows the rest of its list proves', async () => {
+  const rows = await rowsDrawn('anilist:172463')
+  expect(rows.map(row => row.number)).toEqual(oneToN(12))
+  expect(onRows(rows, 'cr')).toEqual(oneToN(12).map(number => [`cr:GS00365546-${number + 47}`]))
+})
+
+// Crunchyroll's 13 is the season's first episode and the run's 13 its last, so a number join is the bug.
+// Mutation: return no pairs from `placeAtShift` and row 13 holds Crunchyroll's 13 and 25, row 1 neither.
+test('a row no date reaches goes on its own episode, not on the one its number names', async () => {
+  const rows = await rowsDrawn('anilist:9101')
+  expect(rows.map(row => row.number)).toEqual(oneToN(13))
+  expect(onRows(rows, 'cr')).toEqual(oneToN(13).map(number => [`cr:E9101-${number + 12}`]))
+})
+
+// Nothing proves this list, so it stays apart, and that holds for the row its number would have joined.
+// Mutation: answer `countingOn` with an empty set and row 13 holds Crunchyroll's 13.
+test('a list nothing proves never offers a row on the episode its number names', async () => {
+  const rows = (await rowsDrawn('anilist:9102')).filter(row => row.number !== null)
+  expect(rows.map(row => row.number), 'the page draws no row without a number').toEqual(oneToN(25))
+  expect(onRows(rows, 'cr').flat()).toEqual(oneToN(12).map(number => `cr:E9102-${number + 13}`))
+})
+
+// With no list from 1 nothing says these numbers are anyone else's, so they join as they always did.
+// Mutation: drop the test for an episode 1 from `countingOn` and every row is left out of the numbers.
+test('a run every source numbers on from 13 keeps its own numbers', async () => {
+  const rows = await rowsDrawn('anilist:9105')
+  expect(rows.map(row => row.number)).toEqual(oneToN(13).map(number => number + 12))
+  expect(onRows(rows, 'cr')).toEqual(oneToN(13).map(number => [`cr:E9105-${number + 12}`]))
+  expect(onRows(rows, 'anizip')).toEqual(oneToN(13).map(number => [`anizip:9105-${number + 12}`]))
+})
+
+// The rest of the list is on its own rows, and the fallback is what found the row to measure it against.
+// Mutation: skip the fallback when a voter lists anything and both pages are as they were, the first 46
+// rows, the second with row 13 holding two Crunchyroll rows.
+test('a list that is the only voter listing still pairs with the list that starts at 1', async () => {
+  const separate = await rowsDrawn('anilist:9103')
+  expect(separate.map(row => row.number)).toEqual(oneToN(23))
+  expect(onRows(separate, 'cr')).toEqual(oneToN(23).map(number => [`cr:E9103-${number + 24}`]))
+
+  const overlapping = await rowsDrawn('anilist:9104')
+  expect(overlapping.map(row => row.number)).toEqual(oneToN(13))
+  expect(onRows(overlapping, 'cr')).toEqual(oneToN(13).map(number => [`cr:E9104-${number + 12}`]))
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -2379,10 +2537,11 @@ test('an empty reference refuses as no-reference, and a filled one places the se
   expect(verdict.ok && verdict.pairs.every(pair => pair.to.uri.startsWith('anizip:980-'))).toBe(true)
 })
 
-// A VOTER THAT COUNTS ON LEAVES THE REFERENCE, and only that one. ani.zip keeps a special's own number,
-// so a list that starts at 1 can reach past the run and is still the run's numbering.
+// A VOTER THAT COUNTS ON LEAVES THE REFERENCE, and only that one. A list that starts at 1 can reach past
+// the run and is still the run's numbering, and so is one that starts at an episode 0.
 // Mutation: test `numbersOutsideRun` in place of `startsPastOne` and ani.zip leaves the reference below;
-// drop the second branch of the vote and the run every source counts on is left with no reference.
+// read `!== 1` for `> 1` in `startsPastOne` and the list from 0 does; drop the vote from the last line
+// of `referenceEpisodes` and the run every source counts on is left with no reference.
 test('a voter leaves the reference only for counting on while another starts at 1', () => {
   const days = weekly('2023-07-06', 23)
   const from = (prefix: string, first: number) => listed(prefix, first, days)
@@ -2402,69 +2561,161 @@ test('a voter leaves the reference only for counting on while another starts at 
     episodes: [...from('anizip:1', 1), special, ...kitsu], runLengthFrom: voters, runLength: 23,
   }).reference)).toEqual(['anizip', 'kitsu'])
 
+  const prologue = [side('anizip:1-0', 0, '2023-06-29'), ...from('anizip:1', 1)]
+  expect(originsOf(referenceEpisodes({
+    episodes: [...prologue, ...kitsu], runLengthFrom: voters, runLength: 23,
+  }).reference), 'a list from episode 0 stays').toEqual(['anizip', 'kitsu'])
+
   const everyone = [...from('anizip:1', 13), ...from('cr:1', 13)]
   expect(referenceEpisodes({ episodes: everyone, runLengthFrom: voters, runLength: 23 }).reference,
-    'no voter starts at 1, so nothing says which numbering is the run\'s').toEqual(everyone)
+    'no origin numbers the run itself, so nothing says which numbering is the run\'s').toEqual(everyone)
 })
 
-// THE PROOF, the way the two pages have it: the days and the exact titles, and order for what is left.
-// Episode 8 has neither, two days off the broadcast and titled without its article, and only a
-// bracket reaches it once JustWatch's days are taken away.
-// Mutation: drop `closeByOrder` and that row is left out, which is one Crunchyroll row at the bottom
-// of the page and an episode 8 without it.
-test('every row of a list that counts on is placed, by a day, a title, or order between them', () => {
+// The vote is not the only thing that can name the run's numbering. A voter left with no numbered row
+// says nothing about it, and the list that starts at 1 does, voter or not.
+// Mutation: test `voters.reference.length` in place of `numbersOf(voters.reference).length` and the
+// second case has no numbered reference; consult the fallback only when the vote lists nothing and
+// the first has Crunchyroll measuring itself.
+test('the fallback answers once the voters left number nothing', () => {
+  const days = weekly('2023-07-06', 23)
+  const fromOne = listed('anizip:1', 1, days)
+  const onward = listed('cr:1', 25, days)
+  const specials = [side('kitsu:1-S1', null, '2023-07-03')]
+
+  expect(referenceEpisodes({
+    episodes: [...fromOne, ...onward], runLengthFrom: ['anilist:1', 'cr:1'], runLength: 23,
+  }).reference).toEqual(fromOne)
+  expect(referenceEpisodes({
+    episodes: [...specials, ...fromOne], runLengthFrom: ['anilist:1', 'kitsu:1'], runLength: 23,
+  }).reference).toEqual(fromOne)
+})
+
+// THE PROOF, the way the two pages have it: the days and the exact titles, and the numbering for what
+// is left. Episode 8 has neither, two days off the broadcast and titled without its article.
+// Mutation: drop `placeAtShift` and that row is left out, which is one Crunchyroll row at the bottom of
+// the page and an episode 8 without it.
+test('every row of a list that counts on is placed, by a day, a title, or its numbering', () => {
   const titled = (name: string) => [stripTitle(name)]
   const reference = JJK2_BROADCAST.map((day, index) =>
     side(`anizip:r-${index + 1}`, index + 1, anizipDay(day), titled(JJK2_TITLES[index]!)))
   const episodes = JJK2_CR.map((day, index) => side(`cr:r-${index + 25}`, index + 25, day, titled(JJK2_CR_TITLES[index]!)))
 
-  const verdict = decideCandidate({ runLength: 23, reference, candidate: { retranslates: false, episodes } })
+  const verdict = decideCandidate({ runLength: 23, reference, candidate: { kind: 'member', retranslates: false, episodes } })
   if (!verdict.ok) throw new Error(verdict.reason)
   expect(verdict.rule).toBe('dates')
-  expect(verdict.pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!))
-    .toEqual(oneToN(23).map(number => [number + 24, number]))
+  expect(sorted(verdict.pairs)).toEqual(oneToN(23).map(number => [number + 24, number]))
   const by = (kind: string) => verdict.pairs.filter(pair => kind in pair.evidence).map(pair => pair.fromNumber).sort((a, b) => a - b)
   expect(by('gap'), 'the two days off with the same title').toEqual([33, 34, 35])
-  expect(by('between'), 'and the one with neither').toEqual([32])
+  expect(by('shift'), 'and the one with neither').toEqual([32])
+  expect(verdict.gaps, 'the numbering is not a title, in the pass log either').toBe(3)
 })
 
-// NOTHING RATHER THAN A GUESS. Neither case may draw a Crunchyroll row one episode off.
+// NOTHING RATHER THAN A GUESS. Neither case may draw a Crunchyroll row one episode off, and the row
+// with no title of its own follows the rows the titles proved.
 // Mutation: drop the `ownShift` filter and the first verdict is `dates`, pairing 14 to 24 onto 1 to 11,
-// which is every episode on the row before its own.
+// which is every episode on the row before its own; drop `placedFrom` on rule 2 and 15 stays apart.
 test('a list dated a week off keeps no pair, and the titles decide it or it stays apart', () => {
   const days = weekly('2026-07-01', 12)
   const week = weekly('2026-06-24', 12)
   const reference = days.map((day, index) => side(`anizip:k-${index + 1}`, index + 1, anizipDay(day), [`chapter ${index + 1}`]))
 
   const unnamed = week.map((day, index) => side(`cr:k-${index + 13}`, index + 13, day))
-  expect(decideCandidate({ runLength: 12, reference, candidate: { retranslates: false, episodes: unnamed } }))
+  expect(decideCandidate({ runLength: 12, reference, candidate: { kind: 'member', retranslates: false, episodes: unnamed } }))
     .toEqual({ ok: false, reason: 'no-dates' })
 
-  const named = week.map((day, index) => side(`cr:n-${index + 13}`, index + 13, day, [`chapter ${index + 1}`]))
-  const settled = decideCandidate({ runLength: 12, reference, candidate: { retranslates: false, episodes: named } })
+  const named = week.map((day, index) => side(`cr:n-${index + 13}`, index + 13, day, index === 2 ? [] : [`chapter ${index + 1}`]))
+  const settled = decideCandidate({ runLength: 12, reference, candidate: { kind: 'member', retranslates: false, episodes: named } })
   expect(settled.ok && settled.rule).toBe('titles')
-  expect(settled.ok && settled.pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!))
-    .toEqual(oneToN(12).map(number => [number + 12, number]))
+  expect(settled.ok && sorted(settled.pairs)).toEqual(oneToN(12).map(number => [number + 12, number]))
+  expect(settled.ok && settled.pairs.find(pair => pair.fromNumber === 15)?.evidence).toEqual({ shift: 12 })
 })
 
-// ORDER REACHES ONLY BETWEEN PROVEN PAIRS. Past the last day there is nothing to count from, and a
-// bracket with a row more on one side says which of them is the extra row no better than a guess.
-// Mutation: place every row at `ownShift` rather than through the bracket and the first case pairs 23.
-test('a row past the last pair, or inside an unequal bracket, stays apart', () => {
+// THE NUMBERING PLACES A ROW ONLY ONTO ITS OWN EPISODE, whatever is missing on either side.
+// Mutation: read `to` off the row's position instead of `from.number - shift` and the holed cases land
+// one episode off.
+test('a proven list is placed at its shift, onto the rows the run lists', () => {
   const reference = JJK2_BROADCAST.map((day, index) => side(`anizip:o-${index + 1}`, index + 1, anizipDay(day)))
   const dated = JJK2_CR.map((day, index) => side(`cr:o-${index + 25}`, index + 25, index < 7 ? day : null))
-  const verdict = decideCandidate({ runLength: 23, reference, candidate: { retranslates: false, episodes: dated } })
-  expect(verdict.ok && verdict.pairs.map(pair => pair.fromNumber).sort((a, b) => a - b)).toEqual([25, 26, 27, 28, 29, 30, 31])
+  const member = (episodes: SideEpisode[], ours = reference) =>
+    decideCandidate({ runLength: 23, reference: ours, candidate: { kind: 'member', retranslates: false, episodes } })
 
-  // the run lists no episode 9 here, so ten of theirs lie across nine of ours
+  const whole = member(dated)
+  expect(whole.ok && sorted(whole.pairs)).toEqual(oneToN(23).map(number => [number + 24, number]))
+
+  // the run lists no episode 9 here, and the list no 40, and no row moves for either
   const holed = reference.filter(row => row.number !== 9)
-  const bracket = decideCandidate({ runLength: 23, reference: holed, candidate: { retranslates: false, episodes: [
-    ...dated.slice(0, 7),
-    ...JJK2_CR.slice(7, 12).map((_, index) => side(`cr:o-${index + 32}`, index + 32, null)),
-    ...JJK2_CR.slice(12).map((day, index) => side(`cr:o-${index + 37}`, index + 37, day)),
-  ] } })
-  expect(bracket.ok && bracket.pairs.some(pair => pair.fromNumber > 31 && pair.fromNumber < 37)).toBe(false)
-  expect(bracket.ok && bracket.pairs).toHaveLength(18)
+  const both = member(dated.filter(row => row.number !== 40), holed)
+  expect(both.ok && sorted(both.pairs))
+    .toEqual(oneToN(23).filter(number => number !== 9 && number !== 16).map(number => [number + 24, number]))
+
+  // one row at the shift is a coincidence, and rule 1 stops there (`MIN_ALIGNED`)
+  const single = JJK2_CR.map((day, index) => side(`cr:s-${index + 25}`, index + 25, index === 0 ? day : null))
+  expect(member(single).ok).toBe(false)
+})
+
+// A RECAP IN THE LIST MOVES EVERY ROW AFTER IT, and only evidence can say so. Rows 20 to 25 are the run's
+// 7 to 12 by their days, one episode from where the numbering would put them, and 19 has no day at all.
+// Mutation: drop `contested` and 20 to 25 pair one episode off, with the recap on episode 7; drop the
+// `every` of `placeAtShift` and the titled case places the recap the same way.
+test('a day or a title past the proven rows keeps the numbering from placing them', () => {
+  const days = weekly('2025-01-04', 13)
+  const reference = days.map((day, index) => side(`anizip:r-${index + 1}`, index + 1, anizipDay(day), [`gate ${index + 1}`]))
+  const list = (keyed: boolean) => [
+    ...days.slice(0, 6).map((day, index) => side(`cr:r-${index + 13}`, index + 13, day)),
+    side('cr:r-19', 19, null),
+    ...days.slice(6, 12).map((day, index) => side(`cr:r-${index + 20}`, index + 20, keyed ? null : day, keyed ? [`gate ${index + 7}`] : [])),
+  ]
+  const verdict = (keyed: boolean) =>
+    decideCandidate({ runLength: 13, reference, candidate: { kind: 'member', retranslates: false, episodes: list(keyed) } })
+
+  const dated = verdict(false)
+  expect(dated.ok && sorted(dated.pairs)).toEqual(oneToN(6).map(number => [number + 12, number]))
+
+  const titled = verdict(true)
+  expect(titled.ok && sorted(titled.pairs).filter(([from]) => from! >= 19))
+    .toEqual(oneToN(6).map(number => [number + 19, number + 6]))
+})
+
+// A date between two proven rows, by contrast, is only a wrong date: the rows on either side hold it,
+// so it says nothing about 25, the last row, which no day reaches here.
+// Mutation: read `contested` over every row and row 25 is left out.
+test('a wrong day between proven rows moves nothing', () => {
+  const days = weekly('2025-01-04', 13)
+  const reference = days.map((day, index) => side(`anizip:w-${index + 1}`, index + 1, anizipDay(day)))
+  const episodes = days.map((day, index) =>
+    side(`cr:w-${index + 13}`, index + 13, index === 2 ? days[8]! : index === 12 ? null : day))
+  const verdict = decideCandidate({ runLength: 13, reference, candidate: { kind: 'member', retranslates: false, episodes } })
+  expect(verdict.ok && sorted(verdict.pairs)).toEqual(oneToN(13).map(number => [number + 12, number]))
+})
+
+// ONLY A MEMBER CLAIMS THE RUN. A season boundary can fall inside the run with the same span, and the
+// days then prove that season's rows at their own numbers.
+// Mutation: drop the `kind` test on `ownShift` and both the season and the lend lose all six pairs.
+test('a season or a lend that overlaps the run keeps the pairs its days prove', () => {
+  const days = weekly('2025-01-04', 18)
+  const reference = listed('anizip:v', 1, days.slice(0, 12).map(anizipDay))
+  const episodes = listed('cr:v', 7, days.slice(6))
+  for (const kind of ['season', 'lend'] as const) {
+    const verdict = decideCandidate({ runLength: 12, reference, candidate: { kind, retranslates: false, episodes } })
+    expect(verdict.ok && verdict.rule).toBe('dates')
+    expect(verdict.ok && sorted(verdict.pairs)).toEqual([7, 8, 9, 10, 11, 12].map(number => [number, number]))
+  }
+})
+
+// A LIST ANY OTHER LENGTH DOES NOT CLAIM THE RUN, so its numbering places nothing: a row of it keeps to
+// the evidence it has, and with none it stays apart.
+// Mutation: read the span as `<=` or `>=` in `ownShift`; place on every list by making `ownShift` answer
+// `first - 1`. Either way an undated row of one of these lists is paired.
+test('the numbering places nothing on a list shorter or longer than the run', () => {
+  const days = weekly('2025-01-04', 12)
+  const reference = listed('anizip:l', 1, days.map(anizipDay))
+  for (const length of [8, 16]) {
+    const episodes = Array.from({ length }, (_, index) =>
+      side(`cr:l-${index + 13}`, index + 13, index === 3 || index >= 12 ? null : days[index]!))
+    const verdict = decideCandidate({ runLength: 12, reference, candidate: { kind: 'member', retranslates: false, episodes } })
+    expect(verdict.ok && verdict.rule).toBe('dates')
+    expect(verdict.ok && verdict.pairs.map(pair => pair.fromNumber).includes(16), `${length} rows`).toBe(false)
+  }
 })
 
 // WHAT MUST KEEP WORKING. The shapes are recorded (2026-10-31): on all of them every voter starts at

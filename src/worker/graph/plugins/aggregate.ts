@@ -50,9 +50,10 @@ import { readAnomalies } from './anomalies'
 import { attachmentsOf, listingIndexOf, listingVerdict, preferredRunOf } from './containment'
 import { aggregateEpisodeFields, aggregateFields, byScoreThenUri, cardOf } from './fields'
 import { readComponents } from './guards'
+import { ownShift } from './range'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const AGGREGATE_VERSION = 9
+export const AGGREGATE_VERSION = 10
 
 /** The id every minted cluster carries, so an id is readable as one at a glance in a trace. */
 const ID_PREFIX = 'cl:'
@@ -608,6 +609,21 @@ type BuiltSlot = {
 type Renumbering = { number: number, key: string }
 
 /**
+ * The origins whose list counts on from an earlier season while another origin lists episode 1.
+ *
+ * Their numbers name other episodes in this run: Solo Leveling season 2's Crunchyroll list numbers its
+ * first episode 13, which is the run's last. So a row of theirs that lands inside the run takes a
+ * slot only by a pair, and without one it is left out of the numbers rather than offered on the wrong
+ * row. It costs that row its button, where the number would have put another episode behind it.
+ */
+const countingOn = (episodes: readonly EpisodeRow[], runLength: number): Set<string> => {
+  if (!episodes.some(episode => episode.number === 1)) return new Set()
+  const lists = new Map<string, EpisodeRow[]>()
+  for (const episode of episodes) lists.set(episode.origin, [...lists.get(episode.origin) ?? [], episode])
+  return new Set([...lists.keys()].filter(origin => ownShift(lists.get(origin)!, runLength) !== null))
+}
+
+/**
  * The slots of one cluster: its member episodes grouped by `EPISODE_LINK` component and then by
  * positive whole number, inside this one cluster (5.4 P5).
  *
@@ -951,7 +967,16 @@ export const aggregatePlugin: Plugin = {
           && admits(episode, renumber.get(episode.uri)?.number ?? episode.number))
         : []
 
-      const slots = slotsOf({ clusterId: id, episodes: fillable, renumber, links: episodeLinks })
+      const onward = run ? countingOn(own, run.length) : new Set<string>()
+      const slots = slotsOf({
+        clusterId: id,
+        episodes: fillable.map(episode => (
+          onward.has(episode.origin) && episode.number! <= run!.length
+            ? { ...episode, number: null }
+            : episode)),
+        renumber,
+        links: episodeLinks,
+      })
 
       // THE ALIGNED FILLS (5.4 P5, 8.1's play buttons): the rows a proven pair places on a slot a
       // member already fills. `own` is the fence they are the one exception to, so a member's own

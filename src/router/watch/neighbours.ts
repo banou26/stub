@@ -13,10 +13,10 @@ type Dated = Parameters<typeof unreleasedEpisodes>[0]
 type Run<T extends Dated['episodes'][number]> = Omit<Dated, 'episodes'> & { uri: string, episodes: readonly T[] }
 
 /**
- * The run after this one (`1`) or before it (`-1`): a show's next or previous season as a cluster,
- * else an anime's sequel or prequel that plays, one of its own format first, so a TV season goes on
- * to the next TV season rather than to a recap special or a film listed beside it. Undefined for a
- * film, and when there is none.
+ * The run after this one (`1`) or before it (`-1`) as a cluster, since a bare address is answered by
+ * few sources: a show's next or previous season, else an anime's sequel or prequel that plays, one of
+ * its own format first, so a TV season goes on to the next TV season rather than to a recap special or
+ * a film listed beside it. Undefined for a film, and when there is none.
  */
 export const adjacentRun = (
   media: {
