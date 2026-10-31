@@ -96,6 +96,7 @@ describe('frame steps on Crunchyroll', () => {
 
   test('move Crunchyroll\'s video one frame each way and leave its scrubber alone', async () => {
     const { frame, video, slider } = await load()
+    await vi.waitFor(() => expect(video.callbacks).toHaveLength(1))
     await player.stepFrame!(1)
     await player.stepFrame!(-1)
     expect(video.writes[0]).toBeCloseTo(600 + FILM, 9)
