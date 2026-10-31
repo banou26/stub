@@ -87,6 +87,36 @@ test('values saved later reach the package at once on its connection, and a conn
   expect(configure).not.toHaveBeenCalled()
 })
 
+/** A package whose `configure` holds its sources back until `take` is called, once it was called. */
+const waiting = async (payload: object) => {
+  let take = () => {}
+  const configure = vi.fn(() => new Promise<void>(resolve => { take = resolve }))
+  const registering = register({ ...payload, configure }, VALUES)
+  await vi.waitFor(() => expect(configure).toHaveBeenCalled())
+  return { registering, configure, take: () => take() }
+}
+
+// nothing removes a source that joins after its removal, so it would be asked over a dead port until a reload
+test('a source removed while it takes its values never joins', async () => {
+  const { registering, take } = await waiting(source('spec-gone'))
+  unregisterRemoteExtractor(PACKAGE)
+  take()
+  await expect(registering).rejects.toThrow('left while connecting')
+  expect(registered('spec-gone')).toBe(false)
+})
+
+test('a connection left behind while it takes its values does not replace the one after it', async () => {
+  const { registering, configure, take } = await waiting(source('spec-one'))
+  const newer = vi.fn(async () => {})
+  await register({ ...source('spec-one'), configure: newer }, VALUES)
+  take()
+  await expect(registering).rejects.toThrow('left while connecting')
+  expect(registered('spec-one')).toBe(true)
+  await configureRemoteExtractor(PACKAGE, {})
+  expect(newer).toHaveBeenLastCalledWith({})
+  expect(configure).toHaveBeenCalledTimes(1)
+})
+
 test('a reconnect takes the values on its own connection, and the next save reaches that one', async () => {
   const first = vi.fn(async () => {})
   const second = vi.fn(async () => {})

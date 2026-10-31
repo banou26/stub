@@ -735,14 +735,19 @@ export const registerRemoteExtractor = async (
   values: PluginValues = {}
 ): Promise<{ sources: RegisteredSource[], rejected: { origin: string, reason: string }[], settings: PluginSettingField[] }> => {
   const remote = await attach(port) as RemotePluginPayload
-  const configure = typeof remote.configure === 'function' ? remote.configure as Configure : undefined
-  // before its sources join: a fan-out still open asks them at once, and an answer needs what the viewer entered
-  if (configure) await handValues(configure, values)
   const { sources, rejected } = readPluginSources(remote, pluginUri)
 
   // a reconnect re-registers the same plugin, so drop its own previous entries before the collision check
   unregisterRemoteExtractor(pluginUri)
-  if (configure) configurers.set(pluginUri, configure)
+
+  if (typeof remote.configure === 'function') {
+    const configure = remote.configure as Configure
+    configurers.set(pluginUri, configure)
+    // before its sources join: a fan-out still open asks them at once, and an answer needs what the viewer entered
+    await handValues(configure, values)
+    // removed or replaced during the wait, and nothing would ever remove what joined after that
+    if (configurers.get(pluginUri) !== configure) throw new Error(`plugin '${pluginUri}' left while connecting`)
+  }
 
   const registered: RegisteredSource[] = []
   const failed = [...rejected]
