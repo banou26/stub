@@ -7,7 +7,7 @@ import { crunchyrollId } from '../crunchyroll/season-id'
 import { PACKAGE_ORIGIN_MAP, WATCHABLE, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
 import { JUSTWATCH_GENRES, genreKey } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
-import { isOnlySeasonLabel, parseSeasonNumber } from '../season'
+import { isOnlySeasonLabel, parseSeasonNumber, splitSeasonScopedId } from '../season'
 import { languageTags, qualityLabels } from '../stream-facts'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
@@ -191,11 +191,17 @@ const titlesQuery = (catalogues: string) => `
   }
 `
 
-const SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', ''))
+// TMDB's id for `searchAndLinkMedia`, under its own name since `normalizeMedia` links a TMDB page for `externalIds.tmdbId`,
+// and a search's answers are listed, where that link is not wanted
+const SEARCH_EXTRA = `
+            tmdb: externalIds {
+              tmdbId
+            }`
+const SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', SEARCH_EXTRA))
 // A title the US catalogue does not carry is searched in the offer country's too, in the same request: Even the
 // Student Council Has Its Holes! is none of the US search's ten and first of Japan's (2026-10-29). A US viewer's two
 // would be one, so they ask SEARCH_QUERY.
-const VIEWER_SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', '') + titlesIn('viewerTitles: popularTitles', '$offerCountry', ''))
+const VIEWER_SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', SEARCH_EXTRA) + titlesIn('viewerTitles: popularTitles', '$offerCountry', SEARCH_EXTRA))
 // the home hero's wide image and trailer, which nothing reading a search draws. On the 40 most popular US shows and
 // films, 7 to 10 KB of backdrops and 4 to 5 KB of clips on a 177 to 204 KB answer, and a clip on 79 of the 80 (2026-10-26)
 const POPULAR_QUERY = titlesQuery(titlesIn('popularTitles', '$country', `
@@ -389,6 +395,8 @@ interface JWSearchNode {
     genres?: { shortName: string, translation?: string | null }[] | null
     productionCountries?: string[] | null
     externalIds?: { imdbId?: string | null, tmdbId?: string | null } | null
+    /** only on a search's answer; see `SEARCH_EXTRA` */
+    tmdb?: { tmdbId?: string | null } | null
     /** these four and `externalIds.tmdbId` only on NODE_DETAILS_QUERY's answer, `backdrops` on POPULAR_QUERY's too */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
@@ -985,6 +993,20 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   const primary = knownTitles[0]
   if (!primary) return null
 
+  // An id both sides carry settles which entry is the page's show, past anything a title and a year can say: Skins (2011)
+  // is dated inside the 2007 show's run, and Arcane is listed as Arcane: League of Legends. A film's TMDB id is another
+  // id space, so it says nothing of a show, and of a film's `tmdb:movie-<id>` nothing is read.
+  const tmdb = splitSeasonScopedId(extractAggregatedUriOrigin(aggregatedUri, 'tmdb')?.id ?? '')
+  const tmdbShow = tmdb.showId.startsWith('movie-') ? undefined : tmdb.showId
+  const imdbShow: string | undefined = known.handles?.find((handle: GQLMediaHandle) => handle.node.origin === 'imdb')?.node.id
+  const sameShow = ({ objectType, content }: JWSearchNode) => {
+    const ids = [
+      [tmdbShow, showRequiresSeason(objectType) ? content.tmdb?.tmdbId : undefined],
+      [imdbShow, content.externalIds?.imdbId],
+    ].filter(([ours, theirs]) => ours && theirs)
+    return ids.length ? ids.every(([ours, theirs]) => ours === theirs) : undefined
+  }
+
   // A node id is fetched at most once per call, and this map is what makes that true. `deduplicatedFetch`
   // above CANNOT do it: it deletes its key in `.finally`, so it coalesces requests that are in flight at
   // the same moment and caches nothing, while this loop awaits each candidate in turn, so the key is
@@ -1013,7 +1035,8 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
 
     // gate on title BEFORE spending a detail request: the search payload already carries everything
     // this axis reads, and a refused candidate must cost nothing
-    const scored = await rankByTitle(knownTitles, results, node => node.content?.title)
+    const named = results.filter(node => sameShow(node)).map(candidate => ({ candidate }))
+    const scored = named.length ? named : await rankByTitle(knownTitles, results.filter(node => sameShow(node) !== false), node => node.content?.title)
     if (!scored.length) continue
 
     // the runners-up are date-checked too, because a franchise is routinely split across several
@@ -1028,12 +1051,15 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
 
       // the season is the shared picker's to name, on the cluster's titles, count and date as they
       // stand; a show with no season the evidence establishes is refused by `normalizeMedia` below
-      const seasonNumber = node.seasons?.length
-        ? pickSimilarSeason(
-            { titles: knownTitles, episodeCount: declaredEpisodeCount(known), startDate },
-            jwCandidates(node.seasons)
-          )?.season.content.seasonNumber
-        : undefined
+      // The Office's seasons 1 and 2 share a year, so nothing here tells them apart. A number is no identity between two
+      // catalogues, but on a show the ids settled it is TMDB's for its own season, and the picker's vetoes still apply.
+      const evidence = { titles: knownTitles, episodeCount: declaredEpisodeCount(known), startDate }
+      const seasons = jwCandidates(node.seasons ?? [])
+      const seasonNumber = (pickSimilarSeason(evidence, seasons) ?? (
+        tmdb.seasonNumber != null && sameShow(candidate)
+          ? pickSimilarSeason({ ...evidence, titles: [...knownTitles, `Season ${tmdb.seasonNumber}`] }, seasons)
+          : undefined
+      ))?.season.content.seasonNumber
 
       const media = await normalizeMedia(node, { seasons: node.seasons, seasonNumber }, ctx)
       if (media) {

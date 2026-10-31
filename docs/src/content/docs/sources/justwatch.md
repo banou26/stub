@@ -389,6 +389,20 @@ redirect, and `extractRealUrl` at `extractor.ts:42-48` unwraps it
 `url = realUrl ?? offer.standardWebURL ?? undefined` at `:346`. Reading the id out of an unwrapped
 affiliate url would give every offer on that network the same path.
 
+## An id settles the show before a title does
+
+A search's entries carry JustWatch's TMDB and IMDb ids (`tmdb: externalIds`, an alias so that a listed film does not
+gain the TMDB link the title page asks for). When the page's address names a TMDB show, or its cluster holds an IMDb id:
+
+- an entry whose ids agree is the show, whatever its title scores: Arcane is listed as Arcane: League of Legends;
+- an entry whose ids disagree is refused, however well it reads: Skins (2011) is dated inside the 2007 show's run, and
+  both are titled Skins;
+- on a show the ids settled, a season the picker refuses is asked again with TMDB's own season number as its ordinal,
+  under the same fold and year vetoes. The Office's seasons 1 and 2 are both dated 2005.
+
+With no id on either side the title and date gates decide alone, as in [the search gate](/sources/search-gate/). An
+entry's id links a season to IMDb as `PART_OF`, since IMDb has no seasons, so a wrong entry here would be a wrong tile.
+
 ## `normalizeMedia` refuses, `showAsContainer` catches
 
 This is the shape of the whole source. JustWatch has no season-level node, so the bare node id is

@@ -100,7 +100,7 @@ test('the details form goes out only when asked, and the modal and listing bodie
   const context = { fetch: async (_: string, init: { body: string }) => (listing.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   await subscribe(undefined, { input: { search: 'Dune' } }, context).next()
-  expect(sha256(listing[0]!), 'the listing body').toBe('1e219d8a67218e6d35c2ac4f58a6767ab8ebc0b5802ce9a94f2e0ee9cf4b1e51')
+  expect(sha256(listing[0]!), 'the listing body').toBe('93f123a924a7f67313ac046ed0fa6adab162f074d58f2efb33f4ebf9723e2344')
 })
 
 test('a title the page found by search asks the details form too', async () => {
