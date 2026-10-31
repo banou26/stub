@@ -33,7 +33,7 @@ export const kindOf = ({ type, categories, handles }: Kinded): 'MOVIE' | 'SERIES
 const style = css`
   position: absolute;
   top: 0.8rem;
-  left: 0.8rem;
+  inset-inline-start: 0.8rem;
   padding: 0.3rem 0.8rem;
   border-radius: 1rem;
   background: rgba(0, 0, 0, 0.7);
