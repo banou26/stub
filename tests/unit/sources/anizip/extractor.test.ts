@@ -55,6 +55,16 @@ test('a film is filed as a film and a series as a series', async () => {
   expect((await normalized(FRIEREN)).categories, 'the control').toEqual(['ANIME', 'SERIES'])
 })
 
+// its `episodeNumber` counts TheTVDB's specials, so it names a row of the run: Slime season 3's recap
+// carried 13, and Crunchyroll's copy paired onto episode 13 by its day (2026-10-31)
+test('a special has no number, however AniZip numbers it', async () => {
+  const episodes = (await normalized(FRIEREN)).episodes as { uri: string, episodeNumber: number | null }[]
+  const special = episodes.find(episode => episode.uri.endsWith('-S1'))
+  expect(FRIEREN.episodes.S1.episodeNumber, 'the control').toBe(1)
+  expect(special?.episodeNumber ?? null).toBeNull()
+  expect(episodes.find(episode => episode.uri.endsWith('-1'))?.episodeNumber, 'and a numbered key keeps its own').toBe(1)
+})
+
 test('an id AniZip does not have is no link', async () => {
   const mappings = { ...FRIEREN.mappings, themoviedb_id: null, thetvdb_id: null, imdb_id: null }
   expect(await links({ ...FRIEREN, mappings })).toEqual([

@@ -124,13 +124,17 @@ export const normalizeMedia = (media: AnimeSeries) => {
              *
              * The key is the position within THIS entry, which is the row this episode hangs off, so
              * it is the number that agrees with whatever else describes the same run. It is exact
-             * rather than inferred: no offset is guessed at. A special is keyed `S1`, which is not a
-             * number and stays unnumbered, exactly as it was.
+             * rather than inferred: no offset is guessed at.
+             *
+             * A special is keyed `S1`, which is not a number, and stays unnumbered. Its own
+             * `episodeNumber` counts TheTVDB's specials, so it names a row of the run it has nothing
+             * to do with: Slime season 3's recap `S1` carries 13, and Crunchyroll's copy of that recap
+             * then paired onto episode 13 by its day (2026-10-31).
              *
              * `absoluteEpisodeNumber` is untouched and still carries anizip's series-wide count, which
              * is the field that is supposed to be bigger than the run.
              */
-            episodeNumber: /^\d+$/.test(episodeId) ? Number(episodeId) : episode.episodeNumber,
+            episodeNumber: /^\d+$/.test(episodeId) ? Number(episodeId) : undefined,
             absoluteEpisodeNumber: episode.absoluteEpisodeNumber,
             runtime: episode.runtime ?? episode.length,
             releaseDate: airedAt(episode),
