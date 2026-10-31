@@ -31,9 +31,9 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'added-sources',
     title: 'Added sources',
-    what: "The source packages you added from npm, installed for stub through FKN. Signed in to FKN, the list is your account's, so every stub site you sign in on gets it. Sources added while signed out join the list of the next FKN account signed in on this browser.",
+    what: "The source packages you added from npm or that a link you opened named, installed for stub through FKN. Signed in to FKN, the list is your account's, so every stub site you sign in on gets it. Sources added while signed out join the list of the next FKN account signed in on this browser.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: `Until you remove them. ${ACCOUNT_COPY}`,
+    lasts: `Until you remove them. ${ACCOUNT_COPY}, except the sources the page's address names when you sign out, which stay as this browser's own`,
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
   },
   {

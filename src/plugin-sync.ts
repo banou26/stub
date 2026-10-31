@@ -28,6 +28,7 @@ import {
   type SavedField,
   type SavedValues,
 } from './plugin-list'
+import { comparablePluginUri } from './utils/plugin-links'
 
 /** The account's list: one file, a JSON array of package ids as FKN installed them. */
 export const SOURCES_PATH = 'sources/v1/list.json'
@@ -46,9 +47,10 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * While no account's list can be read here (signed out, no key on this device, FKN not answering) the
  * list is this device's own, as before. Once one can, what this device added outside it is merged into
  * it and cleared here, and the account's list is the one shown, kept in this browser so the next load
- * shows it at once. At sign out it leaves the browser. A step writes the account's file back only with
- * this device's own additions and the removals made here, never this browser's copy. A removal from
- * the account's list is kept out of every write until one lands.
+ * shows it at once. At sign out it leaves the browser, but for the sources the page's address names, which
+ * stay as this device's own. A step writes the account's file back only with this device's own additions
+ * and the removals made here, never this browser's copy. A removal from the account's list is kept out of
+ * every write until one lands.
  *
  * Every storage call of a step acts for the account the step began with. A step that heard of an
  * account change, or that saw the list shown here change under it, keeps nothing but the clearing of
@@ -65,7 +67,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * field, so a source added back before that read starts with nothing. At an account switch or a sign out
  * they leave this browser, and the account keeps the file.
  */
-export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, onValues, unlock }: {
+export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, onValues, unlock, named }: {
   cloud: Pick<TrackerCloud, 'availability' | 'unlocked' | 'read' | 'write'>
   /** `account.onChange` of the @fkn/lib realm that `cloud` calls. */
   onAccountChange: (listener: (change?: { switched: boolean }) => void) => unknown
@@ -77,6 +79,8 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
   onValues: () => void
   /** Asks FKN for the key the account's files are sealed with. Raises its card, so a click only. */
   unlock: () => Promise<unknown>
+  /** The sources the page's address names. */
+  named: () => string[]
 }) => {
   const account = accountGeneration()
   // every tab of a site shares its storage, so the storage already holds a change another tab applied
@@ -99,6 +103,13 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
     const next = listedValues(mergeSaved(mergeSaved(theirs, ownAsSaved(own)), saves), list)
     if (!same(next, theirs) && !('ok' in await call(() => cloud.write(VALUES_PATH, JSON.stringify(next))))) return undefined
     return { theirs, own, next }
+  }
+
+  // asked before the list changes, while the page's address still mirrors it
+  const keepNamed = () => {
+    const kept = named().map(comparablePluginUri)
+    const staying = loadAccount(storage)?.filter(uri => kept.includes(comparablePluginUri(uri))) ?? []
+    if (staying.length) saveDevice([...new Set([...loadDevice(storage), ...staying])], storage)
   }
 
   const step = async () => {
@@ -129,6 +140,7 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
       if (same(loadOwnValues(storage)[uri], taken)) savePluginValues(uri, {}, storage)
     }
     if (!current()) return
+    if (!list) keepNamed()
     saveAccount(list, storage)
     if (!list) saves = {}
     else if (values) saves = listedValues(unheld(values.theirs, mergeSaved(ownAsSaved(values.own), saves)), list)

@@ -3,7 +3,7 @@
 // site's shelf when it arrives.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { ENABLED_PLUGINS_KEY } from '../../src/plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../src/plugin-list'
 import { SOURCES_PATH } from '../../src/plugin-sync'
 
 const fkn = vi.hoisted(() => ({
@@ -31,6 +31,8 @@ vi.stubGlobal('localStorage', {
   setItem: (key: string, value: string) => { stored.set(key, value) },
   removeItem: (key: string) => { stored.delete(key) },
 })
+const address = { href: 'https://anime.fkn.app/' }
+vi.stubGlobal('location', address)
 
 // imported with nothing added, so loading it connects nothing
 const { checkSources, disablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
@@ -94,6 +96,27 @@ test("the account's list installs what this site lacks without FKN's confirm, an
     account.browser.account.signOut()
     await checkSources()
   }
+})
+
+test('a sign out keeps connected what the page\'s address names, and uninstalls the rest', async () => {
+  const named = 'npm:@banou/named'
+  const other = 'npm:@banou/other'
+  stored.clear()
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([named, other]), updatedAt: new Date(0).toISOString() })
+  account.browser.account.signIn('alice')
+  await checkSources()
+  fkn.uninstall.mockClear()
+
+  address.href = `https://anime.fkn.app/title/1?plugins=${named}`
+  account.browser.account.signOut()
+  await checkSources()
+  address.href = 'https://anime.fkn.app/'
+
+  expect(fkn.uninstall.mock.calls).toEqual([[other]])
+  expect(pluginStatuses().map(plugin => plugin.uri)).toEqual([named])
+  expect(pluginStatuses()[0]!.state, 'its connection is left alone').toBe('connecting')
+  expect(stored.get(ENABLED_PLUGINS_KEY)).toBe(JSON.stringify([named]))
+  expect(stored.has(ACCOUNT_PLUGINS_KEY)).toBe(false)
 })
 
 test("a source of the account's list FKN does not install is shown failed, and never connected", async () => {

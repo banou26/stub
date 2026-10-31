@@ -7,7 +7,7 @@ import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type SourceAccess } from
 import { loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud, unlockTracker } from './tracking/fkn-cloud-live'
-import { comparablePluginUri } from './utils/plugin-links'
+import { comparablePluginUri, readPluginUris } from './utils/plugin-links'
 
 const RECONNECT_DELAY_MS = 3_000
 
@@ -189,7 +189,15 @@ const listLock = <T>(work: () => Promise<T>): Promise<T> =>
     ? navigator.locks.request('stub:source-list', work)
     : work()
 
-const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow, onValues: followValues, unlock: unlockTracker })
+const sourceList = sourceListSync({
+  cloud: trackerCloud,
+  onAccountChange: onTrackerAccountChange,
+  lock: listLock,
+  onList: follow,
+  onValues: followValues,
+  unlock: unlockTracker,
+  named: () => readPluginUris(location.href),
+})
 
 /** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
 export const checkSources = () => sourceList.check()

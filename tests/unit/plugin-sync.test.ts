@@ -4,8 +4,8 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import type { FknStorage } from '../../src/tracking/fkn-cloud'
 
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, loadEnabled, type ListStorage } from '../../src/plugin-list'
-import { SOURCES_PATH, sourceListSync } from '../../src/plugin-sync'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, loadEnabled, loadPluginValues, type ListStorage } from '../../src/plugin-list'
+import { SOURCES_PATH, sourceListSync, VALUES_PATH } from '../../src/plugin-sync'
 import { fknTrackerCloud } from '../../src/tracking/fkn-cloud'
 import { fknWorld, mutex } from './tracking/fkn-fake'
 
@@ -27,7 +27,7 @@ const memoryStorage = () => {
 }
 
 /** A tab of one of stub's sites in `browser`: the site's storage and lock, which its tabs share, and the tab's own @fkn/lib realm. */
-const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, wrap = (lib: FknStorage) => lib) => {
+const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, wrap = (lib: FknStorage) => lib, named: () => string[] = () => []) => {
   const realm = browser.realm()
   const changes: { before: string[], after: string[] }[] = []
   const sync = sourceListSync({
@@ -38,6 +38,7 @@ const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, w
     onList: (before, after) => { changes.push({ before, after }) },
     onValues: () => {},
     unlock: async () => {},
+    named,
   })
   return { items: shared.items, sync, changes, shown: () => loadEnabled(shared.storage) }
 }
@@ -352,6 +353,96 @@ describe('the added sources on the FKN account', () => {
     await two.sync.check()
     expect(one.changes.at(-1)).toEqual({ before: [A], after: [] })
     expect(two.changes.at(-1)).toEqual({ before: [A], after: [] })
+  })
+
+  test('a sign out leaves what the page\'s address names on this device, and the rest goes with the account\'s list', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A, B])
+    const browser = world.browser({ account: 'alice' })
+    const anime = tab(browser, undefined, undefined, () => [`${A}@1.2.0`])
+    await anime.sync.check()
+    await anime.sync.add(C)
+
+    browser.account.signOut()
+    await anime.sync.check()
+    expect(anime.shown()).toEqual([A])
+    expect(anime.items.has(ACCOUNT_PLUGINS_KEY), 'the account\'s copy still leaves').toBe(false)
+    expect(anime.items.get(ENABLED_PLUGINS_KEY)).toBe(JSON.stringify([A]))
+    expect(anime.changes.at(-1)).toEqual({ before: [A, B, C], after: [A] })
+  })
+
+  test('a source a sign out keeps leaves what was entered for it with the account', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A])
+    world.storageOf('alice').set(VALUES_PATH, { text: JSON.stringify({ [A]: { apiKey: ['theirs', 1] } }), updatedAt: new Date(0).toISOString() })
+    const browser = world.browser({ account: 'alice' })
+    const shared = { ...memoryStorage(), lock: mutex() }
+    const anime = tab(browser, shared, undefined, () => [A])
+    await anime.sync.check()
+    expect(loadPluginValues(A, shared.storage)).toEqual({ apiKey: 'theirs' })
+
+    browser.account.signOut()
+    await anime.sync.check()
+    expect(anime.shown()).toEqual([A])
+    expect(loadPluginValues(A, shared.storage)).toEqual({})
+  })
+
+  test('a sign out heard by two tabs of a site moves the named sources once, and the second tab loses none', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A, B])
+    const browser = world.browser({ account: 'alice' })
+    const shared = { ...memoryStorage(), lock: mutex() }
+    const one = tab(browser, shared, undefined, () => [A, B])
+    const two = tab(browser, shared, undefined, () => [A, B])
+    await one.sync.check()
+    await two.sync.check()
+
+    browser.account.signOut()
+    await one.sync.check()
+    await two.sync.check()
+    expect(one.shown()).toEqual([A, B])
+    expect(shared.items.has(ACCOUNT_PLUGINS_KEY)).toBe(false)
+    expect(two.changes.at(-1)?.after).toEqual([A, B])
+  })
+
+  test('a source that leaves the account\'s list while signed in goes, though the page\'s address still names it', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A, B])
+    const browser = world.browser({ account: 'alice' })
+    const anime = tab(browser, undefined, undefined, () => [A, B])
+    await anime.sync.check()
+
+    holds(world, 'alice', [B])
+    await anime.sync.check()
+    expect(anime.shown()).toEqual([B])
+    expect(anime.changes.at(-1)).toEqual({ before: [A, B], after: [B] })
+  })
+
+  test('an account switch leaves nothing of the old list, though the page\'s address still names it', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A])
+    const browser = world.browser({ account: 'alice' })
+    const anime = tab(browser, undefined, undefined, () => [A])
+    await anime.sync.check()
+
+    browser.account.signIn('bob')
+    await anime.sync.check()
+    expect(anime.shown()).toEqual([])
+    expect(listOf(world, 'bob')).toBeUndefined()
+  })
+
+  test('a source removed on one tab while signed out stays removed, though another tab\'s address still names it', async () => {
+    const world = fknWorld()
+    const browser = world.browser()
+    const shared = { ...memoryStorage(), lock: mutex() }
+    const one = tab(browser, shared)
+    const two = tab(browser, shared, undefined, () => [A])
+    await one.sync.add(A)
+    await two.sync.check()
+
+    await one.sync.remove(A)
+    await two.sync.check()
+    expect(two.shown()).toEqual([])
   })
 
   test('a step that saw the list change under it keeps nothing, and the change\'s own step does the work', async () => {

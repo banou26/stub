@@ -37,6 +37,7 @@ vi.stubGlobal('localStorage', {
   setItem: (key: string, value: string) => { stored.set(key, value) },
   removeItem: (key: string) => { stored.delete(key) },
 })
+vi.stubGlobal('location', { href: 'https://anime.fkn.app/' })
 
 const { checkSources, configurePlugin, disablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
 

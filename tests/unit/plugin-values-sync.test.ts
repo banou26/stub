@@ -37,6 +37,7 @@ const site = (browser: Browser, wrap = (lib: FknStorage) => lib, unlock: () => P
     onList: (before, after) => { for (const uri of after) if (!before.includes(uri)) connecting.push({ [uri]: shown(uri) }) },
     onValues: () => {},
     unlock,
+    named: () => [],
   })
   return { items, sync, connecting, shown }
 }
