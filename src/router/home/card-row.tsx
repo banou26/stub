@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'preact/compat'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import Draggable from '../../components/draggable'
+import { intl, isRightToLeft } from '../../i18n'
 
 /** A home row card's size in CSS px: 25rem x 35rem, and the smaller 15rem x 21rem on a phone. */
 export type RowCard = { width: number, height: number }
@@ -37,10 +38,10 @@ const style = css`
     &:hover {
       background: rgba(0, 0, 0, 0.9);
     }
-    &.left {
+    &.previous {
       inset-inline-start: 20px;
     }
-    &.right {
+    &.next {
       inset-inline-end: 20px;
     }
   }
@@ -98,12 +99,14 @@ export const CardRow = <P extends object>({ count, cell, cellProps }: { count: n
   const [isDragging, setIsDragging] = useState(false)
   const gridRef = useGridRef(null)
 
-  const scrollTo = useCallback((direction: 'left' | 'right') => {
+  const scrollTo = useCallback((direction: 'previous' | 'next') => {
     const grid = gridRef.current
     if (!grid) return
     grid.scrollToColumn({
+      // named, since react-window's automatic alignment reads a right to left row's negative scroll as before its start
+      align: direction === 'previous' ? 'start' : 'end',
       index:
-        direction === 'left'
+        direction === 'previous'
           ? Math.max(visibleStartIndex, 0)
           : visibleEndIndex + 1 >= count ? count - 1 : visibleEndIndex,
       behavior: 'smooth'
@@ -116,6 +119,7 @@ export const CardRow = <P extends object>({ count, cell, cellProps }: { count: n
         <Grid<P & { card: RowCard }>
           gridRef={gridRef}
           className='virtual-list'
+          dir={isRightToLeft(intl.locale) ? 'rtl' : undefined}
           cellComponent={cell}
           cellProps={{ ...cellProps, card } as GridProps<P & { card: RowCard }>['cellProps']}
           columnCount={count}
@@ -129,10 +133,10 @@ export const CardRow = <P extends object>({ count, cell, cellProps }: { count: n
           }}
         />
       </Draggable>
-      <button className='scroll-button left' onClick={() => scrollTo('left')}>
+      <button className='scroll-button previous' onClick={() => scrollTo('previous')}>
         <ChevronLeft />
       </button>
-      <button className='scroll-button right' onClick={() => scrollTo('right')}>
+      <button className='scroll-button next' onClick={() => scrollTo('next')}>
         <ChevronRight />
       </button>
     </div>
