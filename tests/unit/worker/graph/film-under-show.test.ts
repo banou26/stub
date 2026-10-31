@@ -76,6 +76,19 @@ test('an anime show keeps its title join with a film, as anime catalogues file f
   expect(links).toEqual([{ status: 'active', reason: 'cross-scope' }])
 })
 
+test('a film keeps its title join with a row no source files as a show', async () => {
+  const shared = { titles: [title('en', 'Named Film')], startDate: '2013' }
+  await pass([
+    media('jw:4001', { ...shared, type: 'MOVIE', categories: ['MOVIE'] }),
+    media('tvmaze:4002', shared),
+  ])
+  const links = await rowsOf(
+    `MATCH (:Media {uri: 'jw:4001'})-[l:LINK]-(:Media {uri: 'tvmaze:4002'})
+     RETURN l.kind AS kind, l.status AS status, l.reason AS reason`
+  )
+  expect(links).toEqual([{ kind: 'SAME_AS', status: 'active', reason: 'exact' }])
+})
+
 test('a site that does not keep the run a show follows to draws the show', async () => {
   await pass([
     media('tmdb:2001', { scope: 'CONTAINER', categories: ['SERIES'], titles: [title('en', 'Named Show')] }),
