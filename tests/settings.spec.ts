@@ -9,7 +9,9 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { builtInSources } from '../src/sources/built-in'
+import { PLUGIN_VALUES_KEY } from '../src/plugin-list'
 import { shortenPath, SHORT_PATH } from '../src/utils/share-link'
+import { CONFIGURED_SOURCE, SPEC_CONFIGURED_KEY } from './fake-plugins'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
 const ALL = builtInSources.length
@@ -293,6 +295,57 @@ test('Sources lists each added source with its state, and says so once none is l
   await expect(panel(page).locator('.empty')).toHaveText('No sources added yet.')
   expect(JSON.parse((await readLocal(page))['stub-enabled-plugins']!)).toEqual([])
 })
+
+// the owner, 2026-10-30 (HOR-1164): "If I were to install a plugin that would require the user to set some configuration values, there's no way for plugins to define that and users to set them up."
+test('a source that lists settings shows them on its row, gets them when saved and on each connection, and they go when it goes', async ({ page }) => {
+  await withSources(page, [CONFIGURED_SOURCE, SPEC_SOURCES[0]])
+  const row = page.locator(`[data-plugin="${CONFIGURED_SOURCE}"]`)
+  const told = () => page.evaluate(key => JSON.parse(sessionStorage.getItem(key) ?? '[]') as object[], SPEC_CONFIGURED_KEY)
+  const address = row.getByLabel('Address')
+  const key = row.getByLabel('API key')
+  const values = { address: 'http://jackett.spec.test:9117/', apiKey: 'a-value-only-the-spec-typed' }
+
+  await expect(address).toHaveAttribute('type', 'url')
+  await expect(key).toHaveAttribute('type', 'password')
+  await expect(page.locator(`[data-plugin="${SPEC_SOURCES[0]}"] form`), 'none for a source that lists none').toHaveCount(0)
+  await expect(row.locator('.failure')).toHaveText('Required: Address, API key')
+  await expect(page.locator(`[data-plugin="${SPEC_SOURCES[0]}"] .pill`), 'the rest of the list stays').toHaveText('Connected')
+  await expect.poll(told, 'told on connecting, with nothing saved yet').toEqual([{}])
+
+  await address.fill(values.address)
+  await key.fill(values.apiKey)
+  await row.getByRole('button', { name: 'Save Spec Configured settings' }).click()
+  await expect(row.locator('.failure')).toHaveCount(0)
+  await expect.poll(told, 'at once').toEqual([{}, values])
+  expect(JSON.parse((await readLocal(page))[PLUGIN_VALUES_KEY]!)).toEqual({ [CONFIGURED_SOURCE]: values })
+
+  await page.reload()
+  await expect.poll(told, 'again on the next connection').toEqual([{}, values, values])
+  await expect(address).toHaveValue(values.address)
+  await expect(key).toHaveAttribute('type', 'password')
+  expect(await page.content(), 'no attribute or text carries it').not.toContain(values.apiKey)
+
+  await row.getByRole('button', { name: /^Remove / }).click()
+  await expect(row).toHaveCount(0)
+  expect(await readLocal(page)).not.toHaveProperty(PLUGIN_VALUES_KEY)
+})
+
+for (const [width, height] of [[1280, 800], [390, 844]] as const) {
+  test(`at ${width}x${height} a source's settings stay inside its row, and the page never scrolls sideways`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await withSources(page, [CONFIGURED_SOURCE])
+    const row = page.locator(`[data-plugin="${CONFIGURED_SOURCE}"]`)
+    await expect(row.getByRole('button', { name: 'Save Spec Configured settings' })).toBeVisible()
+    expect(await row.evaluate(element => {
+      const { left, right } = element.getBoundingClientRect()
+      return [...element.querySelectorAll('*')].filter(child => {
+        const box = child.getBoundingClientRect()
+        return box.left < left - 0.5 || box.right > right + 0.5
+      }).map(child => child.tagName)
+    })).toEqual([])
+    expect(await overflowX(page)).toBe(0)
+  })
+}
 
 // the owner, 2026-10-25 (HOR-1019): "right now custom sources can't be disabled besides just removing the plugin, but I want them visible too"
 test('every source an added package registered has a card, and one turned off stays off across a reload with its package kept', async ({ page }) => {
