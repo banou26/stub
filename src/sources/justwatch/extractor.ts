@@ -7,7 +7,7 @@ import { crunchyrollId } from '../crunchyroll/season-id'
 import { PACKAGE_ORIGIN_MAP, WATCHABLE, extractContentId, extractRealUrl, jwId, providerContentId, showRequiresSeason, splitJwId } from './id'
 import { JUSTWATCH_GENRES, genreKey } from './genres'
 import { policyFor, UNKNOWN_POLICY, type RequestPolicy } from '../../worker/request-context'
-import { isOnlySeasonLabel, parseSeasonNumber, splitSeasonScopedId } from '../season'
+import { isOnlySeasonLabel, parseSeasonNumber, seasonScopedId, splitSeasonScopedId } from '../season'
 import { languageTags, qualityLabels } from '../stream-facts'
 import { hasEvidence, pickSimilarSeason, type SeasonCandidate } from '../similar'
 import { rankByTitle, searchQueries, yearAppearsInShow } from '../catalogue-gate'
@@ -1063,6 +1063,9 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
 
       const media = await normalizeMedia(node, { seasons: node.seasons, seasonNumber }, ctx)
       if (media) {
+        // On a show the ids settled this is JustWatch's own claim. What `mergeHandles` adds is a pointer the graph does not
+        // read, which would leave The Traitors: UK to join TMDB's The Traitors on a title it does not have.
+        if (tmdb.seasonNumber != null && sameShow(candidate)) media.handles.push(sameAs(makeMedia({ origin: 'tmdb', id: seasonScopedId(tmdb.showId, tmdb.seasonNumber) })))
         mergeHandles(media, aggregatedUri)
         return media
       }

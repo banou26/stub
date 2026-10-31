@@ -55,7 +55,7 @@ const jw = (hits: Hit[]) => async (_: string, init?: { body: string }) => ({
 const answer = async (uri: string, cluster: Record<string, unknown>, hits: Hit[]) => {
   const context = { findAggregatedMedia: async () => cluster, listenForMediaChanges: async function* () {}, fetch: jw(hits) }
   const { value } = await (resolvers as any).Subscription.media.subscribe(undefined, { input: { uri } }, context).next()
-  return value.media as { uri: string, handles: { relation: string, node: { uri: string } }[] } | null
+  return value.media as { uri: string, handles: { relation: string, provenance?: string, node: { uri: string } }[] } | null
 }
 
 const imdbOf = (media: Awaited<ReturnType<typeof answer>>) =>
@@ -112,6 +112,12 @@ test('the number stops at the picker\'s rules: a season longer than the run, or 
 test('with no id to settle the show, the number is not read', async () => {
   const { tmdbId: _, ...unnamed } = THE_OFFICE
   expect(await answer('ag:(tmdb:2316-s2)', cluster('The Office', '2005-09-20', 22), [unnamed])).toBeNull()
+})
+
+test('with no id to settle the show, TMDB\'s season stays a pointer at the address, and asserts nothing', async () => {
+  const { tmdbId: _, ...unnamed } = SKINS_2011
+  const media = await answer('ag:(tmdb:34390-s1)', cluster('Skins', '2011-01-17', 10), [unnamed])
+  expect(media?.handles.filter(handle => handle.node.uri === 'tmdb:34390-s1').map(handle => handle.provenance)).toEqual(['address'])
 })
 
 test('with no id to go on, the title and the date decide as before', async () => {

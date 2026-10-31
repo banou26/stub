@@ -170,7 +170,7 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
  *
  * The four, each at the line that rebuilds: `appletv/extractor.ts:480,493` and
  * `unogs/extractor.ts:1064,1097` and `crunchyroll/extractor.ts:581` replace the handle list wholesale,
- * `justwatch/extractor.ts:1066,1130` appends through `mergeHandles`.
+ * `justwatch/extractor.ts:1069,1133` appends through `mergeHandles`.
  *
  * IT COSTS NOTHING ON REAL DATA, measured over all 8556 rows of the recorded season (2026-09-12):
  * every claim a non-echoing origin makes is already inside its own set, and the echoing four are

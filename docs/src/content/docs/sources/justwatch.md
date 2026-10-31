@@ -398,7 +398,10 @@ gain the TMDB link the title page asks for). When the page's address names a TMD
 - an entry whose ids disagree is refused, however well it reads: Skins (2011) is dated inside the 2007 show's run, and
   both are titled Skins;
 - on a show the ids settled, a season the picker refuses is asked again with TMDB's own season number as its ordinal,
-  under the same fold and year vetoes. The Office's seasons 1 and 2 are both dated 2005.
+  under the same fold and year vetoes. The Office's seasons 1 and 2 are both dated 2005;
+- on a show the ids settled, the season is JustWatch's own `SAME_AS` to TMDB's, not the `address` pointer `mergeHandles`
+  adds, which `plugin:direct` does not read. The Traitors: UK joins TMDB's The Traitors through that claim, on a title
+  the title pass would refuse.
 
 With no id on either side the title and date gates decide alone, as in [the search gate](/sources/search-gate/). An
 entry's id links a season to IMDb as `PART_OF`, since IMDb has no seasons, so a wrong entry here would be a wrong tile.
@@ -538,7 +541,7 @@ into them.
 | `similarSeason` | `:586-595` | the `similarMedia` implementation. Asks node `` `ts${input.showId}` ``, picks a season, refuses a film outright |
 | `searchAndLinkMedia` | `:636-722` | the search gate. Covered on [the search gate](/sources/search-gate/) |
 | `datedLikeThisMedia` | `:611-615` | the date axis, read at SEASON level only |
-| `seasonLinks` | `:1082-1085` | the seasons a page of a show links when its address names JustWatch, which is what moves a show's own page onto a run when no other source lists them. Not an anime's, a season not out yet, or the specials |
+| `seasonLinks` | `:1085-1088` | the seasons a page of a show links when its address names JustWatch, which is what moves a show's own page onto a run when no other source lists them. Not an anime's, a season not out yet, or the specials |
 | `Subscription.mediaPage` | `:761-774` | search results, and only films survive |
 | `Media.episodes` | `:776-796` | refetches the node and filters on `ep.content.isReleased` |
 
